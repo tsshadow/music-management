@@ -13,7 +13,7 @@ REQUIRED_TABLES = [
     # database library_track_genres was silently never created.
     'rules_genres', 'library_track_genres',
     'rules_artist_genres', 'rules_label_genres',
-    'rules_artist_genre', 'rules_label_genre', 'rules_catid_label', 
+    'rules_artist_genre', 'rules_label_genre', 'rules_catid_label', 'rules_label_proposals',
     'rules_festival_data',
     # rules_festivals must precede its two children: both carry a foreign key to it.
     'rules_festivals', 'rules_festival_aliases', 'rules_festival_editions',
@@ -41,7 +41,12 @@ def ensure_tables_exist() -> None:
         'library_track_genres': '\n            CREATE TABLE IF NOT EXISTS library_track_genres (\n                track_id INT NOT NULL,\n                genre_id INT NOT NULL,\n                weight FLOAT DEFAULT 1.0,\n                PRIMARY KEY (track_id, genre_id),\n                INDEX idx_genre_id (genre_id),\n                FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE CASCADE,\n                FOREIGN KEY (genre_id) REFERENCES rules_genres(id) ON DELETE CASCADE\n            )\n        ',
         'library_track_labels': '\n            CREATE TABLE IF NOT EXISTS library_track_labels (\n                track_id INT NOT NULL,\n                label_id INT NOT NULL,\n                PRIMARY KEY (track_id, label_id),\n                FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE CASCADE,\n                FOREIGN KEY (label_id) REFERENCES library_labels(id) ON DELETE CASCADE\n            )\n        ',
         'rules_artist_genre': '\n            CREATE VIEW IF NOT EXISTS rules_artist_genre AS\n            SELECT r.artist_name AS artist, g.name AS genre\n            FROM rules_artist_genres r\n            JOIN rules_genres g ON r.genre_id = g.id\n        ', 
-        'rules_catid_label': '\n            CREATE TABLE IF NOT EXISTS rules_catid_label (\n                catid VARCHAR(255) PRIMARY KEY,\n                label VARCHAR(255) NOT NULL\n            )\n        ', 
+        'rules_catid_label': '\n            CREATE TABLE IF NOT EXISTS rules_catid_label (\n                catid VARCHAR(255) PRIMARY KEY,\n                label VARCHAR(255) NOT NULL\n            )\n        ',
+        # Releases the mover could not place, waiting for a human. `folder` is unique so
+        # a later import cycle refreshes the row instead of adding a second one, and
+        # `catid` is nullable because "no catalogue number in the name at all" is one of
+        # the two ways a release ends up here.
+        'rules_label_proposals': "\n            CREATE TABLE IF NOT EXISTS rules_label_proposals (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                folder VARCHAR(255) NOT NULL UNIQUE,\n                catid VARCHAR(255) NULL,\n                proposed_label VARCHAR(255) NULL,\n                source VARCHAR(64) NOT NULL DEFAULT 'none',\n                confidence INT NOT NULL DEFAULT 0,\n                status ENUM('new', 'confirmed', 'rejected', 'stale') NOT NULL DEFAULT 'new',\n                decided_label VARCHAR(255) NULL,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                decided_at TIMESTAMP NULL,\n                INDEX(status),\n                INDEX(catid)\n            )\n        ",
         'rules_festival_data': '\n            CREATE TABLE IF NOT EXISTS rules_festival_data (\n                festival VARCHAR(255) NOT NULL,\n                year INT NOT NULL,\n                date DATE NOT NULL,\n                PRIMARY KEY (festival, year)\n            )\n        ',
         'rules_festivals': '\n            CREATE TABLE IF NOT EXISTS rules_festivals (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                name VARCHAR(255) NOT NULL,\n                normalized_name VARCHAR(191) NOT NULL UNIQUE,\n                active TINYINT(1) NOT NULL DEFAULT 1,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n            )\n        ',
         'rules_festival_aliases': '\n            CREATE TABLE IF NOT EXISTS rules_festival_aliases (\n                festival_id INT NOT NULL,\n                alias VARCHAR(255) NOT NULL,\n                normalized_alias VARCHAR(191) NOT NULL,\n                PRIMARY KEY (festival_id, normalized_alias),\n                INDEX idx_normalized_alias (normalized_alias),\n                FOREIGN KEY (festival_id) REFERENCES rules_festivals(id) ON DELETE CASCADE\n            )\n        ',

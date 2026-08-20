@@ -11,6 +11,28 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.17.0 (2026-08-20)
+
+### 🏷️ Vastgelopen releases staan nu als voorstel in het beheerscherm
+
+- De importer sloeg een release over zodra het catalogusnummer niet in de labeltabel stond, of
+  zodra er helemaal geen catalogusnummer in de mapnaam zat. Die bleef liggen in de importmap en
+  werd elke ronde opnieuw als waarschuwing gelogd. Op de productiemap gaat dat om 1.197
+  verschillende onbekende catalogusnummers en 7.625 mappen zonder bruikbaar nummer.
+- Het label blijkt in de meeste gevallen al in de bestanden zelf te staan: in een steekproef van
+  25 vastgelopen mappen droegen er 16 een bruikbaar labelveld. De importer leest dat nu uit — de
+  labelvelden van een FLAC, het publisher-frame van een MP3 — en valt anders terug op de `.nfo`.
+- De voorstellen staan onder **Labelvoorstellen**, gegroepeerd op voorgesteld label. Eén
+  bevestiging handelt alle releases van datzelfde label af.
+- Bevestig je een voorstel met catalogusnummer, dan wordt die koppeling onthouden en lopen alle
+  volgende releases van dat label vanzelf door. Zonder catalogusnummer valt er niets te onthouden
+  en wordt alleen die ene map weggezet.
+- Het labelveld kiest uit labels die de bibliotheek al kent, zodat een afwijkende schrijfwijze
+  geen tweede labelmap aanmaakt. Een afgewezen voorstel komt niet meer terug.
+
+De tabel `rules_label_proposals` wordt bij het opstarten aangemaakt; `migrate_v7_label_proposals.sql`
+ligt ernaast voor een handmatige migratie. De lijst vult zich bij de eerstvolgende importronde.
+
 ## Global Version 0.16.0 (2026-08-19)
 
 ### 🎨 De app heeft nu twee stijlen: Spotify en MuMa

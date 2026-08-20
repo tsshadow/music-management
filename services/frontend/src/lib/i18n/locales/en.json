@@ -259,6 +259,17 @@
       "searchPlaceholder": "Search genre...",
       "subtitle": "Approve, reject or correct genres. Decisions apply from the next tagger run."
     },
+    "labelProposals": {
+      "description": "Releases the importer could not place. Confirming a proposal that carries a catalogue number teaches the rule, so every later release on that label goes through on its own.",
+      "empty": "Nothing to review.",
+      "noLabel": "No label found",
+      "label": "Label",
+      "confirmGroup": "Confirm all",
+      "reject": "Reject",
+      "noCatId": "no catalogue number",
+      "confirmed": "{count} releases assigned to {label}. {stale} were already gone.",
+      "rejected": "Proposal rejected."
+    },
     "health": {
       "containers": "Docker containers",
       "logs": "Logs",
@@ -573,6 +584,7 @@
       "about": "About",
       "downloaders": "Downloaders",
       "genreCuration": "Genre curation",
+      "labelProposals": "Label proposals",
       "health": "Health",
       "images": "Images",
       "libraries": "Libraries",

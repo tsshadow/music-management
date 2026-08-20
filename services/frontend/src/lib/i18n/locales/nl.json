@@ -259,6 +259,17 @@
       "searchPlaceholder": "Zoek genre...",
       "subtitle": "Keur genres goed, af of corrigeer ze. Beslissingen gelden vanaf de volgende tagger-run."
     },
+    "labelProposals": {
+      "description": "Releases die de importer niet kon wegzetten. Bevestig je een voorstel met catalogusnummer, dan wordt die regel geleerd en lopen alle volgende releases van dat label vanzelf door.",
+      "empty": "Niets te beoordelen.",
+      "noLabel": "Geen label gevonden",
+      "label": "Label",
+      "confirmGroup": "Bevestig alle",
+      "reject": "Afwijzen",
+      "noCatId": "geen catalogusnummer",
+      "confirmed": "{count} releases naar {label}. {stale} stonden er al niet meer.",
+      "rejected": "Voorstel afgewezen."
+    },
     "health": {
       "containers": "Docker Containers",
       "logs": "Logs",
@@ -573,6 +584,7 @@
       "about": "Over",
       "downloaders": "Downloaders",
       "genreCuration": "Genre Curatie",
+      "labelProposals": "Labelvoorstellen",
       "health": "Gezondheid",
       "images": "Afbeeldingen",
       "libraries": "Bibliotheken",

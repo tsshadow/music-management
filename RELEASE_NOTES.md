@@ -11,6 +11,21 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.18.2 (2026-08-20)
+
+### 🎤 Een gesproken genre vindt nu al zijn muziek
+- Om hardstyle vragen leverde helemaal niets op, terwijl de zin goed begrepen werd en er
+  twintigduizend hardstyle-nummers in de bibliotheek staan.
+- De bibliotheek bewaart een genre onder elke schrijfwijze die ooit in een tag stond: "Hardstyle",
+  "HARDSTYLE" en "hardstyle" zijn drie losse ingangen. MuMa hield degene die als eerste terugkwam —
+  een restant met vier lange mixen — dus een verzoek om nummers vond er geen één van.
+- Een uitgesproken genre draagt nu élke schrijfwijze die de bibliotheek ervan heeft. Een genre dat
+  het uitgesproken genre alleen maar bevat, zoals "Mainstream Hardstyle", blijft er buiten.
+- Dit lost het zoeken op, niet de dubbele genres zelf. Die verdwijnen pas als de bestanden opnieuw
+  getagd worden; van de 1651 genreregels wachten er nog 728 op een beslissing en die laat de tagger
+  bewust met rust.
+- MuMa Mobile gaat naar 6.17.2.
+
 ## Global Version 0.18.1 (2026-08-20)
 
 ### 🎤 MuMa Voice start nu ook echt de muziek

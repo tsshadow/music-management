@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.17.0] - 2026-08-20
+
 ### Added
 - **MuMa Voice: a microphone in the app, on the same pipeline as the car.** Tap the microphone
   in the toolbar and say what to play. The words go through the very parser and query engine

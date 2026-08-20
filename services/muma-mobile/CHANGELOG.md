@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.18.0] - 2026-08-20
+
 ### Fixed
 - **Asking for a genre out loud now finds it, even when the phone mishears one word of it.**
   "Uptempo hardcore" came back as the broad Hardcore genre, or as nothing at all, often enough to

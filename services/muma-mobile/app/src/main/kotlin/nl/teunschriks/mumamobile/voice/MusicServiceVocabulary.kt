@@ -7,6 +7,7 @@
 
 package nl.teunschriks.mumamobile.voice
 
+import nl.teunschriks.mumamobile.domain.Genre
 import nl.teunschriks.mumamobile.domain.SearchCriteria
 import nl.teunschriks.mumamobile.service.MusicService
 import timber.log.Timber
@@ -23,8 +24,34 @@ import timber.log.Timber
  */
 class MusicServiceVocabulary(private val musicService: MusicService) : LibraryVocabulary {
 
-    override fun genres(): List<String> =
-        safely("genres") { musicService.getGenres(false, null, null).map { it.name } }
+    override fun genres(): List<String> = ranked.map { it.name }
+
+    override fun prominentGenres(): List<String> {
+        val biggest = ranked.firstOrNull()?.songCount ?: return emptyList()
+        val floor = biggest * LibraryVocabulary.PROMINENCE_FLOOR_PERCENT / 100
+        return ranked
+            .filter { it.songCount >= floor }
+            .take(LibraryVocabulary.PROMINENT_LIMIT)
+            .map { it.name }
+    }
+
+    /**
+     * Read once per instance, ordered by song count.
+     *
+     * A resolver is built per request and thrown away, so this is a memo for the length of one
+     * request rather than a cache that can go stale. The ordering is what [LibraryVocabulary]
+     * promises its callers, and it is what decides which spelling of a genre wins a tie: the
+     * cluster holding twenty thousand tracks rather than whichever leftover the server listed
+     * first.
+     */
+    private val ranked: List<Genre> by lazy {
+        runCatching {
+            musicService.getGenres(false, null, null).sortedByDescending { it.songCount }
+        }.getOrElse {
+            Timber.w(it, "voice vocabulary lookup failed: genres")
+            emptyList()
+        }
+    }
 
     override fun labels(): List<String> = tagNames(TAG_PUBLISHER)
 

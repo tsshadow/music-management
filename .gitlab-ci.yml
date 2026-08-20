@@ -304,7 +304,7 @@ muma-mobile:check:
   artifacts:
     when: always
     reports:
-      junit: services/muma-mobile/app/build/test-results/**/TEST-*.xml
+      junit: services/muma-mobile/**/build/test-results/**/TEST-*.xml
       coverage_report:
         coverage_format: cobertura
         path: cobertura-muma-mobile.xml

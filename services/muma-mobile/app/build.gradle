@@ -213,6 +213,7 @@ tasks.withType(Test).configureEach {
 dependencies {
     implementation project(':core:domain')
     implementation project(':core:subsonic-api')
+    implementation project(':core:voice')
     
     testImplementation "org.jacoco:org.jacoco.ant:0.8.12"
 

@@ -5,7 +5,7 @@
  * Distributed under terms of the GNU GPLv3 license.
  */
 
-package nl.teunschriks.mumamobile.service.androidauto
+package nl.teunschriks.mumamobile.voice
 
 import kotlin.math.abs
 

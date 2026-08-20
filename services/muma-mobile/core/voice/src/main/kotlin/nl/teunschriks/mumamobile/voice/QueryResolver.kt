@@ -46,16 +46,32 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
      * @param spokenGenre the genre Android Auto passed in the search extras, if it did. Assistant
      *        strips the word "genre" precisely when it understood the request as a genre one, so
      *        this extra is often the only evidence left that a genre was meant.
+     * @param trace records every question put to the library and every term that failed to place.
      * @return the request to run, or null when nothing in the utterance survived the library
      */
-    fun resolve(parsed: ParsedQuery, spokenGenre: String?): ResolvedQuery? {
-        val genres = vocabulary.genres()
+    @Suppress("CyclomaticComplexMethod")
+    fun resolve(
+        parsed: ParsedQuery,
+        spokenGenre: String?,
+        trace: QueryTrace? = null
+    ): ResolvedQuery? {
+        val genres = lookup(trace, "genres", "") { vocabulary.genres() }
 
-        var genre = spokenGenre?.takeIf { it.isNotBlank() }?.let { VoiceQuery.match(it, genres) }
-            ?: parsed.genre?.let { VoiceQuery.match(it, genres) }
-        var artist = parsed.artist?.let { VoiceQuery.match(it, vocabulary.artists(it)) }
-        var label = parsed.label?.let { VoiceQuery.match(it, vocabulary.labels()) }
-        val year = parsed.year?.takeIf { vocabulary.years().contains(it) }
+        var genre = spokenGenre?.takeIf { it.isNotBlank() }
+            ?.let { matched(trace, "genre from extras", it, VoiceQuery.match(it, genres)) }
+            ?: parsed.genre?.let { matched(trace, "genre", it, VoiceQuery.match(it, genres)) }
+        var artist = parsed.artist?.let {
+            val names = lookup(trace, "artists", it) { vocabulary.artists(it) }
+            matched(trace, "artist", it, VoiceQuery.match(it, names))
+        }
+        var label = parsed.label?.let {
+            val names = lookup(trace, "labels", "") { vocabulary.labels() }
+            matched(trace, "label", it, VoiceQuery.match(it, names))
+        }
+        val year = parsed.year?.let {
+            val known = lookup(trace, "years", "") { vocabulary.years() }
+            matched(trace, "year", it, it.takeIf { y -> known.contains(y) })
+        }
 
         val free = parsed.free?.takeIf { listOfNotNull(genre, artist, label).isEmpty() }
         if (free != null) {
@@ -65,17 +81,27 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
             // only once something else in the utterance -- a year, an order, the favourites --
             // shows a filtered query was meant at all, so "speel headhunterz af" keeps finding the
             // track of that name.
-            genre = VoiceQuery.match(free, genres, exact = true)
+            genre = matched(trace, "free as genre", free, VoiceQuery.match(free, genres, true))
             if (genre == null && namesMoreThanTheTerm(parsed, year)) {
-                artist = VoiceQuery.match(free, vocabulary.artists(free), exact = true)
+                val artists = lookup(trace, "artists", free) { vocabulary.artists(free) }
+                artist = matched(trace, "free as artist", free, VoiceQuery.match(free, artists, true))
                 if (artist == null) {
-                    label = VoiceQuery.match(free, vocabulary.labels(), exact = true)
+                    val labels = lookup(trace, "labels", "") { vocabulary.labels() }
+                    label = matched(trace, "free as label", free, VoiceQuery.match(free, labels, true))
                 }
+            } else if (genre == null) {
+                trace?.note(
+                    "\"$free\" was left alone: nothing else in the utterance showed a filtered " +
+                        "query was meant, so a bare name stays a search term"
+                )
             }
         }
 
         val named = listOfNotNull(genre, artist, label, year)
-        if (named.isEmpty() && !parsed.favorites && parsed.sort == null) return null
+        if (named.isEmpty() && !parsed.favorites && parsed.sort == null) {
+            trace?.outcome("NoMatch: the library places nothing the utterance named")
+            return null
+        }
 
         val filters = Filters().apply {
             genre?.let { add(Filter(FILTER_GENRE, listOf(it))) }
@@ -86,12 +112,38 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
             add(Filter(FILTER_LENGTH, parsed.length))
         }
 
-        return ResolvedQuery(
+        val resolved = ResolvedQuery(
             filters = filters,
             sortMethod = sortMethodFor(parsed.sort),
+            // Both bounds, always. The server widens a lone ratingMin to include every unrated
+            // track, so a floor without a ceiling answers with the whole library.
             ratingMin = if (parsed.favorites) FAVORITE_RATING else null,
             ratingMax = if (parsed.favorites) FAVORITE_RATING else null
         )
+
+        trace?.filters(filters.toString())
+        trace?.request(
+            "getSongs sortMethod=${resolved.sortMethod} " +
+                "ratingMin=${resolved.ratingMin} ratingMax=${resolved.ratingMax}"
+        )
+        trace?.outcome("Resolved")
+        return resolved
+    }
+
+    private fun lookup(
+        trace: QueryTrace?,
+        kind: String,
+        term: String,
+        block: () -> List<String>
+    ): List<String> {
+        val names = block()
+        trace?.lookup(kind, term, names.size)
+        return names
+    }
+
+    private fun matched(trace: QueryTrace?, kind: String, term: String, name: String?): String? {
+        trace?.match(kind, term, name)
+        return name
     }
 
     /**

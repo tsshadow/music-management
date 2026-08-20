@@ -89,17 +89,29 @@ object VoiceQuery {
 
     /**
      * @brief Parses a spoken query into a request.
+     *
+     * @param query the utterance, exactly as it arrived
+     * @param trace records every stripping stage and every rule that fired. Optional, because the
+     *        parser is also called from tests and from paths that have no trace to hand; when one
+     *        is given it is the only record of why a word ended up in the slot it did.
      * @return the request, or null when the utterance asked for nothing this can act on
      */
-    @Suppress("CyclomaticComplexMethod")
-    fun parse(query: String): ParsedQuery? {
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
+    fun parse(query: String, trace: QueryTrace? = null): ParsedQuery? {
+        if (trace != null && trace.raw.isEmpty()) trace.raw = query
+
         var tokens = strip(query)
+        trace?.tokens("stripped", tokens)
 
         val wantsSets = tokens.any { it in SET_WORDS }
-        if (wantsSets) tokens = tokens.filterNot { it in SET_WORDS || it in SET_QUALIFIERS }
+        if (wantsSets) {
+            tokens = tokens.filterNot { it in SET_WORDS || it in SET_QUALIFIERS }
+            trace?.rule("a set word was spoken, so LENGTH becomes \"$LENGTH_LONG\"")
+        }
 
         tokens = tokens.filterNot { it in NOISE_WORDS }
         tokens = dropArticlesAroundKeywords(tokens)
+        trace?.tokens("carried", tokens)
 
         val terms = mutableMapOf<Slot, MutableList<String>>()
         val free = mutableListOf<String>()
@@ -116,31 +128,58 @@ object VoiceQuery {
                 token.matches(YEAR) -> {
                     year = token
                     slot = null
+                    trace?.rule("\"$token\" matches a year, so year = $token")
                 }
-                token in YEAR_PREPOSITIONS && nextIsYear -> slot = null
-                token == "van" -> slot = Slot.ARTIST
+                token in YEAR_PREPOSITIONS && nextIsYear -> {
+                    slot = null
+                    trace?.rule("\"$token\" introduces a year, so it is skipped")
+                }
+                token == "van" -> {
+                    slot = Slot.ARTIST
+                    trace?.rule("\"van\" without a year after it opens the artist slot")
+                }
                 token in RANDOM_WORDS -> {
                     random = true
                     slot = null
+                    trace?.rule("\"$token\" asks for a random order")
                 }
                 token in ADDED_WORDS -> {
                     added = true
                     slot = null
+                    trace?.rule("\"$token\" asks for the recently added order")
                 }
                 token in RELEASED_WORDS -> {
                     released = true
                     slot = null
+                    trace?.rule("\"$token\" asks for the recently released order")
                 }
                 token in FAVORITE_WORDS -> {
                     favorites = true
                     slot = null
+                    trace?.rule("\"$token\" asks for the favourites only")
                 }
-                token in GENRE_WORDS -> slot = Slot.GENRE
-                token in LABEL_WORDS -> slot = Slot.LABEL
-                token in ARTIST_WORDS -> slot = Slot.ARTIST
-                else -> slot
-                    ?.let { terms.getOrPut(it) { mutableListOf() }.add(token) }
-                    ?: free.add(token)
+                token in GENRE_WORDS -> {
+                    slot = Slot.GENRE
+                    trace?.rule("\"$token\" opens the genre slot")
+                }
+                token in LABEL_WORDS -> {
+                    slot = Slot.LABEL
+                    trace?.rule("\"$token\" opens the label slot")
+                }
+                token in ARTIST_WORDS -> {
+                    slot = Slot.ARTIST
+                    trace?.rule("\"$token\" opens the artist slot")
+                }
+                else -> {
+                    val open = slot
+                    if (open != null) {
+                        terms.getOrPut(open) { mutableListOf() }.add(token)
+                        trace?.rule("\"$token\" goes into the ${open.name.lowercase()} slot")
+                    } else {
+                        free.add(token)
+                        trace?.rule("\"$token\" is unqualified, so it goes to the free term")
+                    }
+                }
             }
         }
 
@@ -160,7 +199,12 @@ object VoiceQuery {
             favorites = favorites
         )
 
-        return request.takeIf { !it.isEmpty() }
+        if (request.isEmpty()) {
+            trace?.note("the utterance named nothing this can act on")
+            return null
+        }
+        trace?.note("parsed as $request")
+        return request
     }
 
     /** Splits the utterance and drops the wrapping that is never part of what was asked for. */

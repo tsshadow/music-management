@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **MuMa Voice: een microfoonknop in de mobiele app, op dezelfde pijplijn als de auto.** Tik op
+  de microfoon in de werkbalk en zeg wat er moet spelen. De tekst gaat door precies dezelfde
+  parser en zoekmachine die Android Auto gebruikt, dus een zin die daar werkt werkt hier ook.
+  De spraakherkenner geeft meerdere lezingen van dezelfde zin terug en MuMa probeert ze op
+  volgorde — dat is wat "hard style" alsnog op "hardstyle" laat uitkomen. Op hetzelfde scherm
+  staat een tekstveld om een formulering uit te proberen zonder te praten.
+- **Een vraag in plaats van een gok, als een naam meer dan één ding kan zijn.** "Speel
+  Thunderdome" kan het label, het album of de playlist zijn. MuMa Voice laat de mogelijkheden
+  zien en vraagt welke je bedoelde; het antwoord kun je aantikken of inspreken ("het label").
+  Android Auto kan niets vragen — een mediasessie heeft geen weg terug — dus daar wordt de
+  sterkste lezing gekozen en worden de afgewezen lezingen vastgelegd.
+- **Albums, playlists, titels en sterren kunnen nu uitgesproken worden.** "Speel album
+  Thunderdome af", "speel de afspeellijst zomer af", "speel het nummer dragonborn af", "speel
+  hardstyle met minstens 4 sterren af". Twee waarden van dezelfde soort kan ook: "speel
+  hardstyle en hardcore af" is één zoekopdracht, terwijl "drum and bass" één genre blijft.
+- **Voice diagnostics, onder Over.** Elke spraakopdracht laat nu een volledig spoor achter: via
+  welke callback hij binnenkwam, de zoekopdracht precies zoals ontvangen, élke extra die Android
+  meestuurde, de tokens, welke parserregel welk woord opeiste, wat de bibliotheek over elke term
+  zei, en het verzoek dat er uiteindelijk uitging. De laatste vijftig worden bewaard en zijn als
+  tekst te delen. Hiermee is te achterhalen wat Google herschrijft vóór MuMa iets ziet.
+
+### Fixed
+- **Een uitgesproken titel wordt op de titel gezocht, niet op de hele zin.** Als geen enkel
+  filter matchte kreeg de terugvalzoekopdracht de hele uiting mee, dus "speel het nummer
+  dragonborn af" zocht letterlijk daarnaar en vond niets. Hij zoekt nu op "dragonborn".
+- **Een uitgesproken sterrenfilter sleept niet langer elke ongewaardeerde track mee.** De server
+  verbreedt een losse minimumwaardering tot alles wat niemand ooit beoordeeld heeft, dus er gaat
+  nu altijd een bovengrens mee.
+
 ## [0.16.0] - 2026-08-19
 
 ### Added

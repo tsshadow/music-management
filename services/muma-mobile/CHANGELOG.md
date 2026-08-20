@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.17.1] - 2026-08-20
+
 ### Fixed
 - **MuMa Voice no longer closes the app the moment it finds something to play.** The screen
   parsed the request, searched the library and then died on the very last step, which made it

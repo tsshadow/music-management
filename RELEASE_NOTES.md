@@ -11,6 +11,16 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.18.1 (2026-08-20)
+
+### 🎤 MuMa Voice start nu ook echt de muziek
+- Een gesproken of getypte opdracht las de zin goed, doorzocht de bibliotheek goed, en sloot dan de
+  app af op het moment dat er iets gevonden was. Dat is opgelost.
+- Het viel juist niet op als een fout: precies de opdrachten die *wel* iets vonden klapten eruit,
+  dus het leek alsof MuMa Voice niets kon vinden.
+- MuMa Mobile gaat naar 6.17.1. Er is verder niets veranderd — de rest van 0.18.0 blijft zoals het
+  was.
+
 ## Global Version 0.18.0 (2026-08-20)
 
 ### 🎤 MuMa Voice: praat tegen de app, niet alleen tegen de auto

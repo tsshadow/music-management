@@ -328,6 +328,28 @@
       "trackList": "Tracklijst",
       "tracks": "Tracks"
     },
+    "news": {
+      "bulletins": "Opgenomen bulletins",
+      "discarded": "Opname was te kort en is weggegooid",
+      "duration": "Opnameduur (seconden)",
+      "enabled": "Opnemen aan",
+      "explain": "MuMa neemt het bulletin op van de live stream, omdat geen enkele feed het op afroep publiceert.",
+      "lastError": "Laatste fout",
+      "lastSuccess": "Laatste opname",
+      "loadFailed": "Kon de nieuwsinstellingen niet laden",
+      "minute": "Minuut van het uur",
+      "name": "Naam",
+      "never": "Nooit",
+      "noBulletins": "Nog niets opgenomen",
+      "recordNow": "Nu opnemen",
+      "recorded": "Bulletin opgenomen",
+      "recording": "Bezig met opnemen…",
+      "retention": "Aantal te bewaren bulletins",
+      "save": "Opslaan",
+      "saved": "Instellingen opgeslagen",
+      "streamUrl": "Stream-URL",
+      "title": "Nieuwsopname"
+    },
     "noAccess": "Geen toegang",
     "noAccessHelp": "Alleen beheerders hebben toegang tot deze pagina. Log in met een account met beheerdersrechten om verder te gaan.",
     "events": {
@@ -590,6 +612,7 @@
       "libraries": "Bibliotheken",
       "library": "Bibliotheek",
       "events": "Logboek",
+      "news": "Nieuws",
       "overview": "Overzicht",
       "playlists": "Afspeellijsten",
       "podcastCuration": "Podcasts",
@@ -724,6 +747,12 @@
     "sets": "Sets",
     "songs": "Nummers",
     "starred": "Favorieten"
+  },
+  "news": {
+    "couldNotPlay": "Kon het nieuws niet afspelen",
+    "none": "Nog geen bulletin opgenomen",
+    "play": "Nieuws van het uur",
+    "playing": "Nieuws speelt, tik om terug te gaan"
   },
   "notify": {
     "dismiss": "Sluiten",

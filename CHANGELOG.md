@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.2] - 2026-08-20
+
 ### Fixed
 - **Een uitgesproken genre vindt nu al zijn muziek, niet toevallig de spelling die de server het
   eerst noemt.** Om hardstyle vragen leverde helemaal niets op, terwijl de zin correct begrepen

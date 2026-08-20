@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.17.2] - 2026-08-20
+
 ### Fixed
 - **A spoken genre now finds all of its music, not whichever spelling the server listed first.**
   Asking for hardstyle came back with nothing at all, even though the request had been understood

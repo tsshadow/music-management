@@ -531,6 +531,16 @@ namespace lms::api::subsonic
             if (!mumaApiKey.empty())
                 getParams.headers.push_back(Wt::Http::Message::Header("X-API-Key", mumaApiKey));
 
+            // Wt commits the response headers when this handler first returns, which for a
+            // continuation is before MuMa has answered. The mime type therefore has to be declared
+            // now and cannot be corrected later -- setting it on the way back in is silently
+            // dropped, which showed up as an empty Content-Type. Every path below serves an image
+            // (MuMa's, or the fallback), so the type is known even though the bytes are not; what
+            // is given up is MuMa's exact subtype when it stores a png or a webp rather than a
+            // jpeg. Browsers sniff the actual format, and the alternative -- holding this thread
+            // until the answer arrives -- is what took the whole server down.
+            response.setMimeType("image/jpeg");
+
             // Parks on a continuation rather than holding this thread until MuMa answers. Waiting
             // here is what used to drain the whole HTTP thread pool and take the server down with
             // it: every request, a plain ping included, then had nowhere left to run.
@@ -541,8 +551,6 @@ namespace lms::api::subsonic
 
             if (answer->status == 200)
             {
-                response.setStatus(answer->status);
-                response.setMimeType(answer->contentType);
                 response.out() << answer->body;
                 return;
             }
@@ -554,8 +562,10 @@ namespace lms::api::subsonic
             if (serveArtistFallbackImage(context, coverArtId.mumaArtistName, size, response))
                 return;
 
-            response.setStatus(answer->status);
-            response.out() << "MuMa returned error: " << answer->status;
+            // Nothing to serve and, per the note above, no way to signal that in the status any
+            // more: the headers went out before MuMa answered. An empty body is what the client
+            // gets, which an <img> renders as a broken image either way.
+            LMS_LOG(API_SUBSONIC, DEBUG, "handleGetCoverArt: no fallback artwork either for artist '" << coverArtId.mumaArtistName << "'");
             return;
         }
         else

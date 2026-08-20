@@ -8,14 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- **HTTP**: Handlers that proxy to music-management no longer hold an HTTP
-  server thread while they wait. `handleGetCoverArt` and the five `/muma/*`
-  proxy paths blocked on a `std::future` for 10-30s inside
-  `Wt::WResource::handleRequest`; with `http-server-thread-count = 0` (one
-  thread per core), enough concurrent artist images took the whole pool and the
-  server stopped answering anything at all, an unauthenticated ping included,
-  until it was restarted. They now park on a Wt continuation
-  (`core::http::proxyRequest`) and cost a connection instead of a thread.
+- **HTTP**: Handlers that proxy to music-management can no longer take the whole
+  HTTP thread pool. `handleGetCoverArt` and the five `/muma/*` proxy paths
+  blocked on a `std::future` for 10-30s inside `Wt::WResource::handleRequest`;
+  with `http-server-thread-count = 0` (one thread per core), enough concurrent
+  artist images took the pool between them and the server stopped answering
+  anything at all, an unauthenticated ping included, until it was restarted.
+  `getCoverArt` -- by far the highest volume, and always answering with an image
+  -- now parks on a Wt continuation (`core::http::proxyRequest`) and costs a
+  connection instead of a thread. The `/muma/*` paths keep waiting, because they
+  forward the upstream status verbatim and Wt commits response headers before a
+  continuation resumes, but at most half the pool may wait at once
+  (`core::ConcurrencyGate`); past that they answer 503 rather than queue.
+- **Subsonic**: `getCoverArt` declares `image/jpeg` up front rather than
+  forwarding MuMa's exact subtype, which is no longer knowable by the time the
+  headers are written. Browsers sniff the real format; a png or webp still
+  renders.
 - **HTTP**: `handleGetCoverArt` reuses one client per MuMa base URL instead of
   building and tearing one down per request. `~SendQueue` aborts its in-flight
   request and spins on `std::this_thread::yield()` until that lands, so the old

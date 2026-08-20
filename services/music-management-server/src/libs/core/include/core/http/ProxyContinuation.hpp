@@ -44,8 +44,16 @@ namespace lms::core::http
     // sent and nothing may be written to the response yet. Wt re-enters the handler once the answer
     // lands, and the call then returns it, so the same code path can write the response out.
     //
-    // The answer always arrives, one way or another: MuMa's own status (whatever it is, including
-    // 404), 502 if the request could not be delivered, or 504 once `deadline` passes.
+    // IMPORTANT -- what a caller gives up. Wt commits the response headers when the handler first
+    // returns, which here is before the answer exists. Anything header-shaped must therefore be
+    // decided *before* calling this: a status or mime type set on the way back in is silently
+    // dropped, and arrives at the client as a 200 with an empty Content-Type. That makes this
+    // suitable for a response whose shape is known up front (cover art is always an image) and
+    // unsuitable for a pass-through proxy that has to forward the upstream's status verbatim --
+    // for those, bound the waiting instead with core::ConcurrencyGate.
+    //
+    // The answer always arrives, one way or another: the upstream's own status (whatever it is,
+    // including 404), 502 if the request could not be delivered, or 504 once `deadline` passes.
     std::shared_ptr<const ProxyAnswer> proxyRequest(const Wt::Http::Request& request, Wt::Http::Response& response,
         boost::asio::io_context& ioContext, IClient& client, ClientGETRequestParameters&& params, std::chrono::seconds deadline);
 

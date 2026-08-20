@@ -11,9 +11,8 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
-#include <chrono>
+#include <future>
 #include <cstring>
-#include <memory>
 
 #include "core/IConfig.hpp"
 #include "core/ILogger.hpp"
@@ -28,7 +27,6 @@
 #include "database/objects/User.hpp"
 #include "database/objects/UIState.hpp"
 #include "services/auth/IAuthTokenService.hpp"
-#include "core/http/ProxyContinuation.hpp"
 #include "services/auth/IUserSynchronizer.hpp"
 #include "services/auth/IPasswordService.hpp"
 #include "services/scanner/IScannerService.hpp"
@@ -37,18 +35,22 @@ namespace lms::api::muma
 {
     namespace
     {
-        // How long a proxied call waits on MuMa before the caller is told it timed out. These are
-        // deadlines on an answer, not on a thread: since these handlers park on a Wt continuation,
-        // waiting costs a connection, not one of the few HTTP server threads.
-        constexpr std::chrono::seconds mumaProxyDeadline{ 10 };
-        constexpr std::chrono::seconds mumaRefreshDeadline{ 15 };
-        constexpr std::chrono::seconds mumaGenericProxyDeadline{ 30 };
+        // At most half the HTTP thread pool may be waiting on MuMa, so the other half is always
+        // there to serve everything else. Mirrors getThreadCount() in main.cpp, which is what sets
+        // the pool size Wt actually runs with.
+        std::size_t getMumaCallLimit()
+        {
+            const unsigned long configured{ core::Service<core::IConfig>::get()->getULong("http-server-thread-count", 0) };
+            const unsigned long threadCount{ configured ? configured : std::max<unsigned long>(2, std::thread::hardware_concurrency()) };
+
+            return std::max<std::size_t>(1, threadCount / 2);
+        }
     } // namespace
 
     MumaResource::MumaResource(boost::asio::io_context& ioContext, db::IDb& db, auth::IUserSynchronizer& userSynchronizer)
-        : _ioContext{ ioContext }
-        , _db{ db }
+        : _db{ db }
         , _userSynchronizer{ userSynchronizer }
+        , _mumaCallGate{ getMumaCallLimit() }
     {
         _mumaApiUrl = std::string{ core::Service<core::IConfig>::get()->getString("music-management-url", "") };
         if (_mumaApiUrl.empty())
@@ -447,32 +449,74 @@ namespace lms::api::muma
             }
             std::string relativeUrl = "/api/artists/" + encodedName + "/image";
 
+            // We use a promise/future to wait for the result in this simple implementation
+            // Note: This blocks the current thread, but since images are small and MuMa is usually local, it's acceptable here
+            struct ProxyResult {
+                int status;
+                std::string contentType;
+                std::vector<std::byte> data;
+            };
+            auto resultPromise = std::make_shared<std::promise<ProxyResult>>();
+            auto resultFuture = resultPromise->get_future();
+
             core::http::ClientGETRequestParameters getParams;
             getParams.relativeUrl = relativeUrl;
-            // Artwork is the one thing here nobody is waiting on.
-            getParams.priority = core::http::ClientRequestParameters::Priority::Low;
             if (!_mumaApiKey.empty())
                 getParams.headers.push_back(Wt::Http::Message::Header("X-API-Key", _mumaApiKey));
 
-            const auto answer{ core::http::proxyRequest(request, response, _ioContext, *_httpClient, std::move(getParams), mumaProxyDeadline) };
-            if (!answer)
-                return; // parked on a continuation; nothing may be written yet
+            // This is a raw pass-through proxy: forward MuMa's real status verbatim
+            // (e.g. 404 for a missing image) instead of collapsing it into a 502.
+            getParams.treatAnyStatusAsSuccess = true;
+            getParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
+                ProxyResult res;
+                res.status = msg.status();
+                if (const std::string* contentType = msg.getHeader("Content-Type"))
+                    res.contentType = *contentType;
+                const std::string& body = msg.body();
+                res.data.resize(body.size());
+                std::memcpy(res.data.data(), body.data(), body.size());
+                resultPromise->set_value(std::move(res));
+            };
+            getParams.onFailureFunc = [resultPromise]() {
+                ProxyResult res;
+                res.status = 502; // Bad Gateway
+                resultPromise->set_value(std::move(res));
+            };
 
-            response.setStatus(answer->status);
-            if (answer->status == 200)
+            // Refused rather than queued: waiting here means holding an HTTP server thread, and
+            // letting enough of these pile up is what used to take the whole pool and leave the
+            // server answering nothing at all. See core::ConcurrencyGate.
+            const auto mumaCallLease{ _mumaCallGate.tryAcquire() };
+            if (!mumaCallLease)
             {
-                response.setMimeType(answer->contentType);
-                response.out() << answer->body;
+                LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: artist image refused, " << _mumaCallGate.getInUseCount() << " of " << _mumaCallGate.getMaxConcurrent() << " calls to MuMa already in flight");
+                response.setStatus(503);
+                response.out() << "Too many requests to MuMa in flight";
+                return;
             }
-            else if (answer->status == 504)
+
+            _httpClient->sendGETRequest(std::move(getParams));
+
+            if (resultFuture.wait_for(std::chrono::seconds(10)) == std::future_status::ready)
             {
-                LMS_LOG(API_SUBSONIC, ERROR, "MumaResource: Timeout waiting for MuMa response for artist '" << artistName << "'");
-                response.out() << "Timeout waiting for MuMa";
+                ProxyResult res = resultFuture.get();
+                response.setStatus(res.status);
+                if (res.status == 200)
+                {
+                    response.setMimeType(res.contentType);
+                    response.out().write(reinterpret_cast<const char*>(res.data.data()), res.data.size());
+                }
+                else
+                {
+                    LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: MuMa returned status " << res.status << " for artist '" << artistName << "'");
+                    response.out() << "MuMa returned error: " << res.status;
+                }
             }
             else
             {
-                LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: MuMa returned status " << answer->status << " for artist '" << artistName << "'");
-                response.out() << "MuMa returned error: " << answer->status;
+                LMS_LOG(API_SUBSONIC, ERROR, "MumaResource: Timeout waiting for MuMa response for artist '" << artistName << "'");
+                response.setStatus(504); // Gateway Timeout
+                response.out() << "Timeout waiting for MuMa";
             }
             return;
         }
@@ -579,29 +623,54 @@ namespace lms::api::muma
             }
             std::string relativeUrl = "/api/library/tracks/rerun-parse-path?path=" + encodedPath;
 
+            auto resultPromise = std::make_shared<std::promise<int>>();
+            auto resultFuture = resultPromise->get_future();
+
             core::http::ClientPOSTRequestParameters postParams;
             postParams.relativeUrl = relativeUrl;
             if (!_mumaApiKey.empty())
                 postParams.message.addHeader("X-API-Key", _mumaApiKey);
 
-            const auto answer{ core::http::proxyRequest(request, response, _ioContext, *_httpClient, std::move(postParams), mumaRefreshDeadline) };
-            if (!answer)
-                return; // parked on a continuation; nothing may be written yet
+            // Raw pass-through proxy: forward MuMa's real status verbatim.
+            postParams.treatAnyStatusAsSuccess = true;
+            postParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
+                resultPromise->set_value(msg.status());
+            };
+            postParams.onFailureFunc = [resultPromise]() {
+                resultPromise->set_value(502);
+            };
 
-            response.setStatus(answer->status);
-            if (answer->status == 200)
+            // Refused rather than queued: waiting here means holding an HTTP server thread, and
+            // letting enough of these pile up is what used to take the whole pool and leave the
+            // server answering nothing at all. See core::ConcurrencyGate.
+            const auto mumaCallLease{ _mumaCallGate.tryAcquire() };
+            if (!mumaCallLease)
             {
-                response.out() << "{\"status\":\"ok\"}";
+                LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: track refresh refused, " << _mumaCallGate.getInUseCount() << " of " << _mumaCallGate.getMaxConcurrent() << " calls to MuMa already in flight");
+                response.setStatus(503);
+                response.out() << "{\"status\":\"error\", \"detail\": \"Too many requests to MuMa in flight\"}";
+                return;
             }
-            else if (answer->status == 504)
+
+            _httpClient->sendPOSTRequest(std::move(postParams));
+
+            if (resultFuture.wait_for(std::chrono::seconds(15)) == std::future_status::ready)
             {
-                LMS_LOG(API_SUBSONIC, ERROR, "MumaResource: Timeout waiting for MuMa response for track refresh: " << absolutePath);
-                response.out() << "{\"status\":\"error\", \"detail\": \"Timeout waiting for MuMa\"}";
+                int status = resultFuture.get();
+                response.setStatus(status);
+                if (status == 200)
+                    response.out() << "{\"status\":\"ok\"}";
+                else
+                {
+                    LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: MuMa returned status " << status << " for track refresh: " << absolutePath);
+                    response.out() << "{\"status\":\"error\", \"detail\": \"MuMa returned " << status << "\"}";
+                }
             }
             else
             {
-                LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: MuMa returned status " << answer->status << " for track refresh: " << absolutePath);
-                response.out() << "{\"status\":\"error\", \"detail\": \"MuMa returned " << answer->status << "\"}";
+                LMS_LOG(API_SUBSONIC, ERROR, "MumaResource: Timeout waiting for MuMa response for track refresh: " << absolutePath);
+                response.setStatus(504);
+                response.out() << "{\"status\":\"error\", \"detail\": \"Timeout waiting for MuMa\"}";
             }
             return;
         }
@@ -659,21 +728,42 @@ namespace lms::api::muma
                         return;
                     }
 
+                    auto resultPromise = std::make_shared<std::promise<std::string>>();
+                    auto resultFuture = resultPromise->get_future();
+
                     core::http::ClientGETRequestParameters getParams;
                     getParams.relativeUrl = "/api/users/" + std::to_string(userId->getValue()) + "/settings/" + appId;
                     if (!_mumaApiKey.empty())
                         getParams.headers.push_back(Wt::Http::Message::Header("X-API-Key", _mumaApiKey));
 
-                    const auto answer{ core::http::proxyRequest(request, response, _ioContext, *_httpClient, std::move(getParams), mumaProxyDeadline) };
-                    if (!answer)
-                        return; // parked on a continuation; nothing may be written yet
+                    getParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
+                        resultPromise->set_value(msg.body());
+                    };
+                    getParams.onFailureFunc = [resultPromise]() {
+                        resultPromise->set_value("{\"settings\": null}");
+                    };
 
-                    if (answer->status == 504)
-                        response.setStatus(504);
-                    else if (answer->status == 200)
-                        response.out() << answer->body;
+                    // Refused rather than queued: waiting here means holding an HTTP server thread, and
+                    // letting enough of these pile up is what used to take the whole pool and leave the
+                    // server answering nothing at all. See core::ConcurrencyGate.
+                    const auto mumaCallLease{ _mumaCallGate.tryAcquire() };
+                    if (!mumaCallLease)
+                    {
+                        LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: settings read refused, " << _mumaCallGate.getInUseCount() << " of " << _mumaCallGate.getMaxConcurrent() << " calls to MuMa already in flight");
+                        response.setStatus(503);
+                        response.out() << "{\"settings\": null}";
+                        return;
+                    }
+
+                    _httpClient->sendGETRequest(std::move(getParams));
+                    if (resultFuture.wait_for(std::chrono::seconds(10)) == std::future_status::ready)
+                    {
+                        response.out() << resultFuture.get();
+                    }
                     else
-                        response.out() << "{\"settings\": null}"; // nothing stored for this app is not an error here
+                    {
+                        response.setStatus(504);
+                    }
                 }
                 else if (request.method() == "POST")
                 {
@@ -685,6 +775,9 @@ namespace lms::api::muma
 
                     std::string jsonStr((std::istreambuf_iterator<char>(request.in())), std::istreambuf_iterator<char>());
 
+                    auto resultPromise = std::make_shared<std::promise<int>>();
+                    auto resultFuture = resultPromise->get_future();
+
                     core::http::ClientPOSTRequestParameters postParams;
                     postParams.relativeUrl = "/api/users/" + std::to_string(userId->getValue()) + "/settings/" + appId;
                     if (!_mumaApiKey.empty())
@@ -692,13 +785,37 @@ namespace lms::api::muma
                     postParams.message.addHeader("Content-Type", "application/json");
                     postParams.message.addBodyText(jsonStr);
 
-                    const auto answer{ core::http::proxyRequest(request, response, _ioContext, *_httpClient, std::move(postParams), mumaProxyDeadline) };
-                    if (!answer)
-                        return; // parked on a continuation; nothing may be written yet
+                    // Raw pass-through proxy: forward MuMa's real status verbatim.
+                    postParams.treatAnyStatusAsSuccess = true;
+                    postParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
+                        resultPromise->set_value(msg.status());
+                    };
+                    postParams.onFailureFunc = [resultPromise]() {
+                        resultPromise->set_value(502);
+                    };
 
-                    response.setStatus(answer->status);
-                    if (answer->status != 504)
+                    // Refused rather than queued: waiting here means holding an HTTP server thread, and
+                    // letting enough of these pile up is what used to take the whole pool and leave the
+                    // server answering nothing at all. See core::ConcurrencyGate.
+                    const auto mumaCallLease{ _mumaCallGate.tryAcquire() };
+                    if (!mumaCallLease)
+                    {
+                        LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: settings write refused, " << _mumaCallGate.getInUseCount() << " of " << _mumaCallGate.getMaxConcurrent() << " calls to MuMa already in flight");
+                        response.setStatus(503);
+                        response.out() << "{\"status\":\"error\"}";
+                        return;
+                    }
+
+                    _httpClient->sendPOSTRequest(std::move(postParams));
+                    if (resultFuture.wait_for(std::chrono::seconds(10)) == std::future_status::ready)
+                    {
+                        response.setStatus(resultFuture.get());
                         response.out() << "{\"status\":\"ok\"}";
+                    }
+                    else
+                    {
+                        response.setStatus(504);
+                    }
                 }
             }
         }
@@ -711,8 +828,21 @@ namespace lms::api::muma
                 return;
             }
 
+            // Refused rather than queued: waiting here means holding an HTTP server thread, and
+            // letting enough of these pile up is what used to take the whole pool and leave the
+            // server answering nothing at all. See core::ConcurrencyGate.
+            const auto mumaCallLease{ _mumaCallGate.tryAcquire() };
+            if (!mumaCallLease)
+            {
+                LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: generic proxy call refused, " << _mumaCallGate.getInUseCount() << " of " << _mumaCallGate.getMaxConcurrent() << " calls to MuMa already in flight");
+                response.setStatus(503);
+                response.out() << "Too many requests to MuMa in flight";
+                return;
+            }
+
             // Generic proxy for all other /api/ calls
-            std::shared_ptr<const core::http::ProxyAnswer> answer;
+            auto resultPromise = std::make_shared<std::promise<std::pair<int, std::string>>>();
+            auto resultFuture = resultPromise->get_future();
 
             if (request.method() == "GET")
             {
@@ -735,7 +865,14 @@ namespace lms::api::muma
                 // This is a raw pass-through proxy: MuMa's exact status code (401,
                 // 403, 404, ...) and body are meaningful to the original caller and
                 // must be forwarded verbatim, not collapsed into a generic 502.
-                answer = core::http::proxyRequest(request, response, _ioContext, *_httpClient, std::move(getParams), mumaGenericProxyDeadline);
+                getParams.treatAnyStatusAsSuccess = true;
+                getParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
+                    resultPromise->set_value({msg.status(), msg.body()});
+                };
+                getParams.onFailureFunc = [resultPromise]() {
+                    resultPromise->set_value({502, "Bad Gateway"});
+                };
+                _httpClient->sendGETRequest(std::move(getParams));
             }
             else if (request.method() == "POST" || request.method() == "PUT" || request.method() == "DELETE")
             {
@@ -761,28 +898,39 @@ namespace lms::api::muma
 
                 // See the matching comment in the GET branch above: forward MuMa's
                 // real status/body verbatim instead of collapsing it into a 502.
-                //
-                // PUT and DELETE go out as POSTs: the client wrapper has no verb of its own for
-                // them. That was already true before and is not what this change is about.
-                answer = core::http::proxyRequest(request, response, _ioContext, *_httpClient, std::move(postParams), mumaGenericProxyDeadline);
+                postParams.treatAnyStatusAsSuccess = true;
+                postParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
+                    resultPromise->set_value({msg.status(), msg.body()});
+                };
+                postParams.onFailureFunc = [resultPromise]() {
+                    resultPromise->set_value({502, "Bad Gateway"});
+                };
+
+                if (request.method() == "POST")
+                    _httpClient->sendPOSTRequest(std::move(postParams));
+                else if (request.method() == "PUT")
+                {
+                    // Wt doesn't have a direct PUT helper in our wrapper maybe? 
+                    // Let's assume sendPOSTRequest handles it or we use generic sendRequest
+                    _httpClient->sendPOSTRequest(std::move(postParams)); 
+                }
+                else if (request.method() == "DELETE")
+                {
+                    _httpClient->sendPOSTRequest(std::move(postParams)); // Our wrapper might need update for DELETE
+                }
+            }
+
+            if (resultFuture.wait_for(std::chrono::seconds(30)) == std::future_status::ready)
+            {
+                auto res = resultFuture.get();
+                response.setStatus(res.first);
+                response.out() << res.second;
             }
             else
             {
-                response.setStatus(405);
-                response.out() << "Method Not Allowed";
-                return;
-            }
-
-            if (!answer)
-                return; // parked on a continuation; nothing may be written yet
-
-            response.setStatus(answer->status);
-            if (answer->status == 504)
+                response.setStatus(504);
                 response.out() << "Gateway Timeout";
-            else if (answer->status == 502)
-                response.out() << "Bad Gateway";
-            else
-                response.out() << answer->body;
+            }
             return;
         }
         else

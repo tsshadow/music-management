@@ -29,7 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ophaalde hield er daar één van bezet zolang hij op antwoord wachtte. Genoeg tegels op één scherm
   en er was geen thread meer vrij: de server bleef draaien, hield zijn poort open en beantwoordde
   niets meer — een scrobble niet, een gewone ping ook niet — tot iemand hem herstartte. Die
-  aanvragen wachten nu naast de threads in plaats van erop, dus ze kosten hooguit een verbinding.
+  aanvragen wachten nu naast de threads in plaats van erop. Voor de overige MuMa-calls, die de
+  statuscode van MuMa letterlijk moeten doorgeven en dus niet op dezelfde manier opzij kunnen, geldt
+  een harde limiet: hooguit de helft van de threads mag tegelijk staan wachten.
 - **Een ongeldige API-sleutel greep bij elke poging de exclusieve databaselock.** Een client die na
   een herstart met een dode sleutel bleef proberen — muma-radio doet dat elke vijf seconden — zette
   daarmee elke keer een schrijftransactie op, ook al bestond de sleutel niet. Tijdens een scan stond

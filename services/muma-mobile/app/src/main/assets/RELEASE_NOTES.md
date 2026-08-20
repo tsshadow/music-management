@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+## [6.17.2] - 2026-08-20
+
+### Fixed
+- **Een uitgesproken genre vindt nu al zijn muziek.** Om hardstyle vragen leverde niets op, ook al
+  werd de zin goed begrepen. De bibliotheek bewaart een genre onder elke schrijfwijze die ooit in
+  een tag stond — "Hardstyle", "HARDSTYLE" en "hardstyle" zijn drie losse ingangen — en MuMa hield
+  degene die als eerste terugkwam. Dat bleek een restant met vier lange mixen, dus een verzoek om
+  nummers vond er geen één van. Een uitgesproken genre draagt nu élke schrijfwijze die de
+  bibliotheek ervan heeft; een genre dat het uitgesproken genre alleen maar bevat, zoals
+  "Mainstream Hardstyle", blijft er buiten.
+
 ## [6.17.1] - 2026-08-20
 
 ### Fixed

@@ -103,6 +103,11 @@ services:
       LMS_SUBSONIC_API_KEY: ${LMS_SUBSONIC_API_KEY:-}
       NOTIFY_URL: ${NOTIFY_URL}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      # Where the hourly news bulletins are written. Set NEWS_DATA_PATH in the
+      # prod .env rather than leaning on the default below: production runs
+      # docker-compose v1, so defaults here are worth as little trust as
+      # possible (see MUMA_SERVER_SUBSONIC_API_KEY above).
+      NEWS_DATA_DIR: /app/data/news
     volumes:
       # NOTE: these must point at the *actual* host directories used by the separate
       # "lms" stack (services/music-management-server/docker-compose.yml,
@@ -114,6 +119,10 @@ services:
       - ${LMS_DATA_PATH:-/docker/lms}/var/lms:/app/data/stable:rw
       - ${ALPHA_LMS_DATA_PATH:-/docker/alpha-lms}/var/lms:/app/data/alpha:rw
       - ${HOST_MUSIC_PATH}:/mnt/music
+      # News bulletins are recorded off a live stream and deliberately stay out
+      # of the music library, so they get their own volume rather than a corner
+      # of ${HOST_MUSIC_PATH}. See docs/news-mode.md.
+      - ${NEWS_DATA_PATH:-/docker/muma-news}:/app/data/news
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - music-management_db

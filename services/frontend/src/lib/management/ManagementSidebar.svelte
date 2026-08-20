@@ -36,6 +36,7 @@
     { id: 'playlists', labelKey: 'management.tabs.playlists', icon: ListMusic },
     { id: 'tagger', labelKey: 'management.tabs.tagger', icon: Tags },
     { id: 'genre-curation', labelKey: 'management.tabs.genreCuration', icon: ListChecks },
+    { id: 'label-proposals', labelKey: 'management.tabs.labelProposals', icon: Tags },
     { id: 'podcast-curation', labelKey: 'management.tabs.podcastCuration', icon: Podcast },
     { id: 'radio', labelKey: 'management.tabs.radio', icon: Radio, show: hasPermission('radio.manage') },
     { id: 'downloaders', labelKey: 'management.tabs.downloaders', icon: Download },

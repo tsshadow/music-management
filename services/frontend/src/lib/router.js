@@ -57,6 +57,7 @@ export const MANAGEMENT_TABS = [
   'playlists',
   'tagger',
   'genre-curation',
+  'label-proposals',
   'podcast-curation',
   'radio',
   'downloaders',

@@ -8,9 +8,11 @@
 package nl.teunschriks.mumamobile.voice
 
 import org.amshove.kluent.`should be equal to`
+import org.amshove.kluent.`should be instance of`
 import org.amshove.kluent.`should be null`
 import org.amshove.kluent.`should contain`
 import org.amshove.kluent.`should not be null`
+import org.amshove.kluent.`should not contain`
 import org.junit.Test
 
 /**
@@ -155,5 +157,64 @@ class QueryResolverTest {
 
         val filters = (resolved as QueryResolution.Resolved).target as Target.Filtered
         filters.filters.toString().contains("Mainstream Hardstyle") `should be equal to` false
+    }
+
+    @Test
+    fun `a misheard qualified genre is read as the genre it resembles`() {
+        val parsed = VoiceQuery.parse("speel het genre temple hardcore af")!!
+
+        val resolution = QueryResolver(FakeVocabulary()).resolve(parsed, null)
+
+        val filters = ((resolution as QueryResolution.Resolved).target as Target.Filtered).filters
+        filters.toString() `should contain` "Uptempo Hardcore"
+    }
+
+    @Test
+    fun `a misheard unqualified genre is the last resort before giving up`() {
+        val parsed = VoiceQuery.parse("speel temple hardcore af")!!
+
+        val resolution = QueryResolver(FakeVocabulary()).resolve(parsed, null)
+
+        val filters = ((resolution as QueryResolution.Resolved).target as Target.Filtered).filters
+        filters.toString() `should contain` "Uptempo Hardcore"
+    }
+
+    @Test
+    fun `a term the library places never reaches the guess`() {
+        val asking = FakeVocabulary()
+        val parsed = VoiceQuery.parse("speel thunderdome af")!!
+
+        QueryResolver(asking).resolve(parsed, null)
+
+        asking.asked `should not contain` "prominentGenres"
+    }
+
+    @Test
+    fun `an exact genre never reaches the guess`() {
+        val asking = FakeVocabulary()
+        val parsed = VoiceQuery.parse("speel het genre hardstyle af")!!
+
+        QueryResolver(asking).resolve(parsed, null)
+
+        asking.asked `should not contain` "prominentGenres"
+    }
+
+    @Test
+    fun `one word off beats the broad genre the term merely contains`() {
+        val parsed = VoiceQuery.parse("speel het genre temple hardcore af")!!
+
+        val resolution = QueryResolver(FakeVocabulary()).resolve(parsed, null)
+
+        val filters = ((resolution as QueryResolution.Resolved).target as Target.Filtered).filters
+        filters.toString() `should not contain` """"value":["Hardcore"]"""
+    }
+
+    @Test
+    fun `a term that resembles nothing prominent still comes back as no match`() {
+        val parsed = VoiceQuery.parse("speel zwitserse jodelmuziek af")!!
+
+        val resolution = QueryResolver(FakeVocabulary()).resolve(parsed, null)
+
+        resolution `should be instance of` QueryResolution.NoMatch::class
     }
 }

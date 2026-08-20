@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Asking for a genre out loud now finds it, even when the phone mishears one word of it.**
+  "Uptempo hardcore" came back as the broad Hardcore genre, or as nothing at all, often enough to
+  be the reason voice was not worth using. Three things were wrong at once. The speech recogniser
+  had never been told which genres this library holds, so it answered with whatever ordinary Dutch
+  sounded closest — it is now handed the genres with the most music in them before it starts
+  listening. A name that came back slightly wrong could not be recovered, because a genre whose
+  words are right except for one matched nothing exactly and then fell through to whichever genre
+  happened to be contained in it: "temple hardcore" contains "hardcore", so a request for one
+  genre answered with everything filed under another. Such a name is now read as the genre it
+  resembles, provided the rest of the name matches exactly and the genre is one of the big ones.
+  And where the library spells one genre several ways, the spelling with the music in it now wins
+  instead of whichever one the server happened to list first.
+
+### Added
+- **Android Auto now shows a search button inside MuMa.** The app never claimed to support search,
+  so the car hid its own search affordance and the only way in was the car's global search box.
+  Searching from inside MuMa runs the same voice parser everything else uses.
+
+## [6.17.2] - 2026-08-20
+
+### Fixed
+- **A spoken genre now finds all of its music, not whichever spelling the server listed first.**
+  Asking for hardstyle came back with nothing at all, even though the request had been understood
+  correctly and the library holds twenty thousand hardstyle tracks. The library stores a genre
+  under every casing its tags have ever carried — "Hardstyle", "HARDSTYLE" and "hardstyle" are
+  three separate entries — and MuMa kept whichever one came back first. That happened to be a
+  leftover holding four long mixes, so a request for songs found none of them. A spoken genre now
+  carries every spelling the library has of it. A genre that merely contains the spoken one, like
+  "Mainstream Hardstyle", is still left out of it.
+
 ## [6.17.1] - 2026-08-20
 
 ### Fixed

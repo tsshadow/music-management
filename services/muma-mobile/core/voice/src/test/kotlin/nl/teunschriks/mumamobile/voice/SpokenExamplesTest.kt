@@ -261,4 +261,16 @@ class SpokenExamplesTest {
         filters("speel hardstyle sets af") `should contain` """{"name":"LENGTH","value":"long"}"""
         filters("speel hardstyle af") `should contain` """{"name":"LENGTH","value":"short"}"""
     }
+
+    // A name the recogniser got one word wrong.
+
+    @Test
+    fun `speel temple hardcore af`() {
+        filters("speel temple hardcore af") `should contain` "Uptempo Hardcore"
+    }
+
+    @Test
+    fun `speel het genre temple hardcore af`() {
+        filters("speel het genre temple hardcore af") `should contain` "Uptempo Hardcore"
+    }
 }

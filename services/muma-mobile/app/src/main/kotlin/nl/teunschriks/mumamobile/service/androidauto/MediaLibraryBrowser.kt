@@ -11,6 +11,7 @@ import nl.teunschriks.mumamobile.fragment.muma.TileInfo
 import nl.teunschriks.mumamobile.fragment.muma.TileStorage
 import nl.teunschriks.mumamobile.home.FavoriteGenres
 import android.content.Context
+import android.os.Bundle
 import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
@@ -50,6 +51,36 @@ import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.buildMediaItem
 import nl.teunschriks.mumamobile.util.toMediaItem
 import timber.log.Timber
+
+/**
+ * The extra Android Auto reads to decide whether an app can be searched.
+ *
+ * Without it the car shows no search button inside MuMa, and the only way to reach the voice
+ * parser is the host's own global search box.
+ */
+internal const val BROWSER_SEARCH_SUPPORTED = "android.media.browse.SEARCH_SUPPORTED"
+
+/**
+ * The params the browse root answers with.
+ *
+ * The root used to hand the caller's own params straight back, which says nothing about what this
+ * app can do. Whatever the caller sent is carried through -- it is the caller's, and dropping it
+ * would be a change nobody asked for -- with the search claim added on top.
+ */
+@UnstableApi
+internal fun searchableRootParams(
+    params: MediaLibraryService.LibraryParams?
+): MediaLibraryService.LibraryParams {
+    val extras = Bundle(params?.extras ?: Bundle.EMPTY)
+    extras.putBoolean(BROWSER_SEARCH_SUPPORTED, true)
+
+    return MediaLibraryService.LibraryParams.Builder()
+        .setExtras(extras)
+        .setRecent(params?.isRecent == true)
+        .setOffline(params?.isOffline == true)
+        .setSuggested(params?.isSuggested == true)
+        .build()
+}
 
 /**
  * @class MediaLibraryBrowser
@@ -125,7 +156,7 @@ class MediaLibraryBrowser(
                     isBrowsable = true,
                     mediaType = MEDIA_TYPE_FOLDER_MIXED
                 ),
-                params
+                searchableRootParams(params)
             )
         )
     }

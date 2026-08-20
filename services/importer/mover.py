@@ -8,6 +8,8 @@ from os.path import isfile, join
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.Helpers.NotificationService import notification_service
+from services.importer.label_proposal_store import LabelProposalStore
+from services.importer.label_resolver import resolve
 from services.tagger.Song.LabelSong import LabelSong
 
 
@@ -59,6 +61,16 @@ class Mover:
     def __init__(self):
         self.settings = Settings()
         self.db_connector = DatabaseConnector()
+        self.proposals = LabelProposalStore()
+
+    def _propose(self, folder, cat_id):
+        """
+        Record a release this step could not place, so it can be reviewed once instead
+        of re-warned on every cycle for as long as it sits in the import folder.
+        """
+        src = join(self.settings.import_folder_path, folder)
+        import_folder_name = os.path.basename(self.settings.import_folder_path.rstrip(os.sep))
+        self.proposals.record(folder, resolve(src, import_folder_name=import_folder_name, catid_from_name=cat_id or None))
 
     def get_label(self, key) -> str | None:
         query = 'SELECT `label` FROM `rules_catid_label` WHERE `catid` = %s'
@@ -90,6 +102,7 @@ class Mover:
         if label is None:
             error_msg = f'CAT ID {cat_id} not found in database for folder {folder}. Please add it to rules_catid_label.'
             logging.warning(error_msg)
+            self._propose(folder, cat_id)
             return
         src = join(self.settings.import_folder_path, folder)
         dst = join(self.settings.eps_folder_path, label, folder)
@@ -137,3 +150,4 @@ class Mover:
             else:
                 error_msg = f'No valid CAT ID found for folder: {folder}. Manual intervention required.'
                 logging.warning(error_msg)
+                self._propose(folder, None)

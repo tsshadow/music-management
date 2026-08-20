@@ -129,6 +129,16 @@ class MoveFolderTest(MoverTestCase):
             self.mover._move_folder('NOPE123 - Release', 'NOPE', dry_run=False)
         move.assert_not_called()
 
+    def test_an_unknown_catalog_id_is_recorded_as_a_proposal(self):
+        self.cursor.fetchone.return_value = None
+        self.mover.proposals = MagicMock()
+
+        self.mover._move_folder('NOPE123 - Release', 'NOPE', dry_run=False)
+
+        folder, proposal = self.mover.proposals.record.call_args.args
+        self.assertEqual(folder, 'NOPE123 - Release')
+        self.assertEqual(proposal.catid, 'NOPE')
+
     def test_a_dry_run_reports_the_move_without_performing_it(self):
         with patch.object(mover_module.shutil, 'move') as move, \
              patch.object(mover_module, 'post_processing_songs') as post:
@@ -175,6 +185,16 @@ class RunTest(MoverTestCase):
              patch.object(self.mover, '_move_folder') as move_folder:
             self.mover.run()
         move_folder.assert_not_called()
+
+    def test_a_folder_without_a_catalog_id_is_recorded_as_a_proposal(self):
+        self.mover.proposals = MagicMock()
+        with patch.object(mover_module, 'listdir', return_value=[' - Dewstate_-_Bass_Cannon']), \
+             patch.object(mover_module, 'isfile', return_value=False):
+            self.mover.run()
+
+        folder, proposal = self.mover.proposals.record.call_args.args
+        self.assertEqual(folder, ' - Dewstate_-_Bass_Cannon')
+        self.assertIsNone(proposal.catid)
 
     def test_plain_files_in_the_import_folder_are_ignored(self):
         with patch.object(mover_module, 'listdir', return_value=['loose.mp3']), \

@@ -20,7 +20,7 @@ EXPECTED_TABLES = {
     'library_track_audio_features', 'library_track_ml_labels',
     'library_artist_images', 'artist_external_ids',
     'rules_genres', 'rules_genre_expansions', 'rules_artist_genres',
-    'rules_label_genres', 'rules_catid_label', 'rules_ignored_artists',
+    'rules_label_genres', 'rules_catid_label', 'rules_label_proposals', 'rules_ignored_artists',
     'rules_ignored_genres', 'rules_subgenre_hierarchy', 'rules_genre_backlog',
     'downloads_soundcloud_accounts', 'downloads_soundcloud_archive',
     'downloads_youtube_accounts', 'downloads_youtube_archive',

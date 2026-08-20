@@ -1,5 +1,30 @@
 ## [Unreleased]
 
+## [6.17.0] - 2026-08-20
+
+### Added
+- **MuMa Voice: een microfoonknop in de app.** Tik erop en zeg wat er moet spelen. De tekst gaat
+  door precies dezelfde parser en zoekmachine als Android Auto, dus een zin die in de auto werkt
+  werkt hier ook. De spraakherkenning geeft meerdere lezingen van dezelfde zin terug en MuMa
+  probeert ze op volgorde — dat is wat "hard style" alsnog op "hardstyle" laat uitkomen. Er staat
+  ook een tekstveld op datzelfde scherm, om een formulering uit te proberen zonder te praten.
+- **MuMa vraagt na wat je bedoelde als een naam meerdere dingen kan zijn.** "Speel Thunderdome" kan
+  het label, het album of de playlist zijn. MuMa Voice laat de mogelijkheden zien; je tikt er een
+  aan of je zegt "het label". In de auto kan dat niet, dus daar kiest hij de sterkste lezing.
+- **Albums, playlists, titels en sterren kunnen uitgesproken worden.** "Speel album thunderdome af",
+  "speel de afspeellijst zomer af", "speel het nummer dragonborn af", "speel hardstyle met minstens
+  4 sterren af". Twee waarden tegelijk kan ook: "speel hardstyle en hardcore af" is één
+  zoekopdracht, terwijl "drum and bass" één genre blijft.
+- **Voice diagnostics, onder Over.** Elke spraakopdracht laat een volledig spoor achter — via welke
+  callback hij binnenkwam, de zoekopdracht zoals ontvangen, élke extra die Android meestuurde, welke
+  regel welk woord opeiste, en het verzoek dat eruit ging. De laatste vijftig blijven bewaard en
+  zijn te delen. Zo is te zien wat Google van je zin maakt vóór MuMa hem krijgt.
+
+### Fixed
+- **Een uitgesproken titel wordt op de titel gezocht, niet op de hele zin.** "Speel het nummer
+  dragonborn af" zocht letterlijk daarnaar en vond niets; nu wordt er op "dragonborn" gezocht.
+- **Een uitgesproken sterrenfilter sleept niet langer elke ongewaardeerde track mee.**
+
 ## [6.16.0] - 2026-08-19
 
 ### Added

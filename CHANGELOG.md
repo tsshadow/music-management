@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-08-20
+
 ### Added
 - **MuMa Voice: een microfoonknop in de mobiele app, op dezelfde pijplijn als de auto.** Tik op
   de microfoon in de werkbalk en zeg wat er moet spelen. De tekst gaat door precies dezelfde

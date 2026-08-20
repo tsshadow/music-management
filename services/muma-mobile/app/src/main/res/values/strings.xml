@@ -223,10 +223,12 @@
     <string name="select_year.empty">No years found</string>
     <string name="select_playlist.empty">No saved playlists on server</string>
     <string name="settings.appearance_title">Appearance</string>
-    <string name="settings.accent_title">Accent colour</string>
-    <string name="settings.accent_green">Green</string>
-    <string name="settings.accent_blue">Blue</string>
+    <string name="settings.style_title">Style</string>
+    <string name="settings.style_spotify">Spotify</string>
+    <string name="settings.style_muma">MuMa</string>
     <string name="settings.app_icon_title">App icon</string>
+    <string name="settings.app_icon_green">Green</string>
+    <string name="settings.app_icon_blue">Blue</string>
     <string name="settings.app_icon_changed">Icon changed. Some launchers remove the app from the home screen; you may have to place it again.</string>
     <string name="settings.memories_on_home_title">Show memories on the home screen</string>
     <string name="settings.memories_on_home_summary">A short row of "today, X years ago" releases above the other sections</string>

@@ -14,7 +14,7 @@
         a:layout_height="wrap_content"
         a:progressTint="?attr/colorPrimary"
         a:thumbTint="?attr/colorPrimary"
-        a:progressBackgroundTint="@color/spotify_light"
+        a:progressBackgroundTint="?attr/colorSurfaceContainer"
         a:indeterminate="false" />
 
     <RelativeLayout

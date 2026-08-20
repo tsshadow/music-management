@@ -3,19 +3,19 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     a:layout_width="match_parent"
     a:layout_height="match_parent"
-    a:background="@color/spotify_black"
+    a:background="?android:attr/colorBackground"
     a:orientation="vertical">
 
     <com.google.android.material.tabs.TabLayout
         a:id="@+id/management_tabs"
         a:layout_width="match_parent"
         a:layout_height="wrap_content"
-        a:background="@color/spotify_black"
+        a:background="?android:attr/colorBackground"
         app:tabGravity="start"
         app:tabIndicatorColor="?attr/colorPrimary"
         app:tabMode="scrollable"
-        app:tabSelectedTextColor="@color/spotify_text_primary"
-        app:tabTextColor="@color/spotify_text_secondary" />
+        app:tabSelectedTextColor="?android:attr/textColorPrimary"
+        app:tabTextColor="?android:attr/textColorSecondary" />
 
     <androidx.viewpager2.widget.ViewPager2
         a:id="@+id/management_pager"

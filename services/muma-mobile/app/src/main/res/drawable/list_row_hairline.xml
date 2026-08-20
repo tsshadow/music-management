@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The seam between two MuMa rows: a transparent body with a one-pixel top border. Applied as
+     android:foreground so it composes with whatever the row already paints underneath - a card
+     in one row family, ?attr/selectableItemBackground in the other. -->
+<layer-list xmlns:a="http://schemas.android.com/apk/res/android">
+    <item a:gravity="top" a:height="1dp">
+        <shape a:shape="rectangle">
+            <solid a:color="?attr/colorHairline" />
+        </shape>
+    </item>
+</layer-list>

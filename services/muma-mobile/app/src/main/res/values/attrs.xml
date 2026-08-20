@@ -1,8 +1,42 @@
 <resources>
     <!-- The app has two brand colours, not one: colorPrimary marks songs mode and this marks
-         sets mode. Both are theme attributes so the accent setting can swap the pair while
-         keeping the two modes clearly apart. -->
+         sets mode. Both are theme attributes, and both styles define the same pair - the
+         launcher icon, the glyph and the web frontend all use them. -->
     <attr name="brandColorSets" format="color" />
+
+    <!-- Ink ranks 3 and 4, below android:textColorSecondary. Both collapse onto #b3b3b3 in the
+         Spotify style, which has only two ranks; the MuMa style spends the extra two. -->
+    <attr name="colorInkTertiary" format="color" />
+    <attr name="colorInkQuaternary" format="color" />
+
+    <!-- The seam between list rows. Transparent in Spotify, which separates rows by spacing and
+         hover instead. -->
+    <attr name="colorHairline" format="color" />
+
+    <!-- A filled rating star. Deliberately separate from colorControlNormal, which also tints
+         the hollow star: an unearned star must not go gold. -->
+    <attr name="colorRating" format="color" />
+
+    <attr name="colorWarn" format="color" />
+
+    <attr name="radiusRow" format="dimension" />
+    <attr name="radiusSurface" format="dimension" />
+    <attr name="radiusBanner" format="dimension" />
+    <attr name="radiusThumb" format="dimension" />
+
+    <!-- Row treatment. Spotify draws a filled card with margins; MuMa draws nothing and lets
+         rowSeam supply a one-pixel top border. rowSeam is a foreground so it composes with
+         whatever each row family already paints underneath. -->
+    <attr name="listRowBackground" format="reference" />
+    <attr name="rowSeam" format="reference" />
+    <attr name="rowMarginVertical" format="dimension" />
+    <attr name="rowMarginHorizontal" format="dimension" />
+
+    <!-- The all-caps micro-label above a form field: brand-coloured in Spotify, dim in MuMa.
+         A colour rather than a text appearance on purpose: two of the three sites attach the
+         label style with android:theme, and a TextView takes android:textColor from the theme
+         but not android:textAppearance. -->
+    <attr name="colorKicker" format="color" />
 
     <declare-styleable name="AppWidgetAttrs">
         <attr name="appWidgetPadding" format="dimension" />

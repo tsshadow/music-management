@@ -39,7 +39,7 @@ class TrackInfoModalFragmentTest {
 
     class HostActivity : AppCompatActivity() {
         override fun onCreate(savedInstanceState: Bundle?) {
-            setTheme(R.style.UltrasonicTheme_Green)
+            setTheme(R.style.UltrasonicTheme_Spotify)
             super.onCreate(savedInstanceState)
         }
     }

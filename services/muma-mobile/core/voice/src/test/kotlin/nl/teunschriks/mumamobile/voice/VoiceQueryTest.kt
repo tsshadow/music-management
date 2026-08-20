@@ -228,4 +228,37 @@ class VoiceQueryTest {
         VoiceQuery.match("hardstyle classics", genres, exact = true).`should be null`()
         VoiceQuery.match("tech house music", genres, exact = true).`should be null`()
     }
+
+    /** Three clusters of one genre, in the order a real library listed them. */
+    private val spellings = listOf("HARDSTYLE", "Hardstyle", "hardstyle", "Mainstream Hardstyle")
+
+    @Test
+    fun `matchAll returns every spelling the library has`() {
+        VoiceQuery.matchAll("hardstyle", spellings) `should be equal to`
+            listOf("HARDSTYLE", "Hardstyle", "hardstyle")
+    }
+
+    @Test
+    fun `matchAll tolerates what the recogniser did to the spacing`() {
+        VoiceQuery.matchAll("hard style", spellings) `should be equal to`
+            listOf("HARDSTYLE", "Hardstyle", "hardstyle")
+    }
+
+    @Test
+    fun `matchAll keeps the partial fallback down to one name`() {
+        VoiceQuery.matchAll("mainstream", spellings) `should be equal to`
+            listOf("Mainstream Hardstyle")
+    }
+
+    @Test
+    fun `matchAll answers with nothing when the library has none of it`() {
+        VoiceQuery.matchAll("polka", spellings) `should be equal to` emptyList()
+        VoiceQuery.matchAll("hardstyle classics", spellings, exact = true) `should be equal to`
+            emptyList()
+    }
+
+    @Test
+    fun `match still answers with the first of several spellings`() {
+        VoiceQuery.match("hardstyle", spellings) `should be equal to` "HARDSTYLE"
+    }
 }

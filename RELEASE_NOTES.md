@@ -11,6 +11,36 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.17.1 (2026-08-20)
+
+### 🩹 De hele site gaf 504, en dat lag niet aan het scherm waar je op stond
+- LMS heeft net zoveel HTTP-threads als de machine cores heeft. Elke aanvraag die een
+  artiestafbeelding bij MuMa ophaalde, hield er daar één van bezet zolang hij op antwoord wachtte.
+- Stonden er genoeg tegels tegelijk op het scherm, dan was er geen thread meer vrij. De server bleef
+  draaien en zijn poort open houden, maar beantwoordde niets meer — een scrobble niet, een gewone
+  ping ook niet — tot iemand hem herstartte.
+- Die afbeeldingen wachten nu naast de threads in plaats van erop. Voor de overige MuMa-calls geldt
+  een harde limiet: hooguit de helft van de threads mag tegelijk staan wachten.
+- Loopt LMS toch ooit vast, dan herstart hij nu zichzelf in plaats van te wachten tot iemand merkt
+  dat de site eruit ligt.
+
+### 🔑 Sleutels overleven voortaan een herstart
+- Subsonic-sleutels stonden in een database die alleen in het geheugen bestond. Elke herstart van
+  LMS gooide ze weg, en voor een client is dat niet te onderscheiden van een verkeerde sleutel: die
+  blijft eindeloos proberen met iets dat nooit meer gaat werken.
+- **Eenmalig na deze update:** zet het Subsonic-token voor muma-radio opnieuw onder Beheer →
+  Gebruikers. Daarna blijft hij staan. Verder hoeft niets opnieuw in te loggen — de webspeler en de
+  mobiele app gebruiken gewoon je gebruikersnaam en wachtwoord en raken dit niet.
+
+### 🧹 Kleiner spul dat hieruit voortkwam
+- Eén mislukte call naar MuMa legde dertig seconden lang al het uitgaande verkeer stil, scrobbles en
+  ratings incluis. Dat gebeurt nu pas als MuMa meerdere keren achter elkaar niet reageert.
+- Een ongeldige API-sleutel greep bij elke poging de exclusieve databaselock, ook al bestond die
+  sleutel niet. Tijdens een scan stond zo'n aanvraag daarmee achter de scanner in de rij.
+- "Geen afbeelding voor deze artiest" werd in het log gemeld als een gateway-fout in plaats van als
+  de 404 die het is. Dat is waarom het log vol stond met fouten die geen fout waren.
+
+
 ## Global Version 0.17.0 (2026-08-20)
 
 ### 🏷️ Vastgelopen releases staan nu als voorstel in het beheerscherm

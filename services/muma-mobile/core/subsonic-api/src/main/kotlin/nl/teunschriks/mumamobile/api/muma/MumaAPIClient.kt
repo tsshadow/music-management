@@ -87,6 +87,19 @@ class MumaAPIClient(
 
     val api: MumaAPIDefinition = retrofit.create(MumaAPIDefinition::class.java)
 
+    /**
+     * The base URL with its trailing slash, for callers that have to build a
+     * URL themselves rather than go through Retrofit — a media player being
+     * handed a stream, for instance.
+     */
+    val streamBaseUrl: String = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
+
+    /**
+     * The key such a caller must send as `X-API-Key`. The access token wins
+     * over the static key, exactly as the interceptor decides it.
+     */
+    val currentApiKey: String? get() = tokenStorage?.mumaAccessToken ?: apiKey
+
     fun setApiKey(key: String) {
         this.apiKey = key
     }

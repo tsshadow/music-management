@@ -11,6 +11,7 @@ import nl.teunschriks.mumamobile.fragment.muma.TileInfo
 import nl.teunschriks.mumamobile.fragment.muma.TileStorage
 import nl.teunschriks.mumamobile.home.FavoriteGenres
 import android.content.Context
+import android.text.format.DateFormat
 import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
@@ -29,6 +30,7 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import java.util.Date
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.guava.future
@@ -238,6 +240,7 @@ class MediaLibraryBrowser(
         return when (action) {
             MEDIA_ROOT_ID -> getRootItems()
             MEDIA_RADIO_ID -> getRadioChannelItems()
+            MEDIA_NEWS_ID -> getNewsBulletinItems()
             MEDIA_LIBRARY_ID -> getLibraryItems()
             MEDIA_FAVORITES_ID -> getFavoriteItems()
             MEDIA_FAVORITE_GENRES_ID -> getFavoriteGenreItems()
@@ -459,6 +462,14 @@ class MediaLibraryBrowser(
             mediaType = MEDIA_TYPE_FOLDER_MIXED
         )
 
+        mediaItems.add(
+            R.string.main_news_title,
+            MEDIA_NEWS_ID,
+            imageUri = Uri.parse("android.resource://$packageName/${R.drawable.ic_menu_podcasts}"),
+            isBrowsable = true,
+            mediaType = MEDIA_TYPE_FOLDER_MIXED
+        )
+
         // One Favorites entry at the root: starred songs used to sit next to this folder under the
         // same Dutch label, so they now live inside it together with the favorite genres and tiles.
         mediaItems.add(
@@ -490,6 +501,29 @@ class MediaLibraryBrowser(
                 mediaItems.add(
                     title = channel.name,
                     mediaId = listOf(MEDIA_RADIO_ITEM, channel.slug).joinToString("|"),
+                    isBrowsable = false,
+                    mediaType = MEDIA_TYPE_PLAYLIST
+                )
+            }
+            LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+        }
+
+    /**
+     * The bulletins the server still keeps, newest first. Each one is playable
+     * rather than browsable: a bulletin is a single recording, not a track list.
+     */
+    private fun getNewsBulletinItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
+        serviceScope.future {
+            val mediaItems: MutableList<MediaItem> = ArrayList()
+            val bulletins = callWithErrorHandling {
+                subsonicAPIClient.mumaApi.api.getNewsBulletins().execute().body()?.bulletins
+            } ?: emptyList()
+
+            val formatter = DateFormat.getTimeFormat(UApp.applicationContext())
+            for (bulletin in bulletins) {
+                mediaItems.add(
+                    title = formatter.format(Date((bulletin.startedAt * 1000).toLong())),
+                    mediaId = listOf(MEDIA_NEWS_ITEM, bulletin.id.toString()).joinToString("|"),
                     isBrowsable = false,
                     mediaType = MEDIA_TYPE_PLAYLIST
                 )

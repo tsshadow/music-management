@@ -12,13 +12,18 @@ day would be noise in every one of them.
 
 import logging
 import os
+import re
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import requests
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from services.music_manager.database import get_db_connection
+from services.music_manager.rbac import require_permission
+from services.music_manager.routers.management import verify_api_key
 
 router = APIRouter(tags=['news'])
 logger = logging.getLogger('music-manager.news')
@@ -33,6 +38,10 @@ DEFAULT_RETENTION = 12
 MIN_BULLETIN_SECONDS = 60
 RETRY_DELAY_SECONDS = 20
 CHUNK_BYTES = 32 * 1024
+
+DEFAULT_SOURCE = 'nos'
+SLUG_PATTERN = re.compile(r'^[a-z0-9][a-z0-9-]{0,63}$')
+RANGE_PATTERN = re.compile(r'bytes=(\d*)-(\d*)')
 
 
 def init_db(cursor):
@@ -98,7 +107,7 @@ def bulletin_started_at(capture_at: float, lead_seconds: int) -> float:
 
 
 def bulletin_filename(slug: str, started_at: float) -> str:
-    stamp = datetime.fromtimestamp(started_at, tz=timezone.utc).strftime('%Y-%m-%dT%H-%M')
+    stamp = datetime.fromtimestamp(started_at, tz=UTC).strftime('%Y-%m-%dT%H-%M')
     return f'{slug}-{stamp}.mp3'
 
 
@@ -114,7 +123,7 @@ def probe_duration_ms(path: str) -> int:
     Its own function because the test suite replaces mutagen with a MagicMock,
     so this is the seam tests patch.
     """
-    from mutagen.mp3 import MP3 # pylint: disable=import-outside-toplevel
+    from mutagen.mp3 import MP3  # pylint: disable=import-outside-toplevel
     return int(MP3(path).info.length * 1000)
 
 
@@ -274,3 +283,247 @@ def run_news_recorder():
                 record_source(conn, source, capture_at)
         finally:
             conn.close()
+
+
+def _require_db():
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail='Database unavailable')
+    return conn
+
+
+def _row_to_bulletin(row: dict) -> dict:
+    return {'id': row['id'], 'source': row['slug'], 'started_at': row['started_at'],
+            'duration_ms': row['duration_ms'], 'size_bytes': row['size_bytes']}
+
+
+def _load_source(cursor, slug: str) -> dict:
+    cursor.execute(
+        'SELECT id, slug, stream_url, minute_of_hour, duration_seconds, lead_seconds,'
+        ' retention_count FROM news_sources WHERE slug = %s',
+        (slug,),
+    )
+    row = cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail='Unknown source')
+    return row
+
+
+class SourceCreate(BaseModel):
+    slug: str
+    name: str
+    stream_url: str
+    minute_of_hour: int = 0
+    duration_seconds: int = DEFAULT_DURATION_SECONDS
+    lead_seconds: int = DEFAULT_LEAD_SECONDS
+    retention_count: int = DEFAULT_RETENTION
+
+
+class SourceUpdate(BaseModel):
+    """Every field optional: the management screen sends only what changed."""
+    name: str | None = None
+    stream_url: str | None = None
+    minute_of_hour: int | None = None
+    duration_seconds: int | None = None
+    lead_seconds: int | None = None
+    retention_count: int | None = None
+    enabled: bool | None = None
+
+
+@router.get('/sources')
+def list_sources(_auth: dict = Depends(verify_api_key)):
+    """The configured sources and how their last capture went."""
+    conn = _require_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                'SELECT slug, name, stream_url, minute_of_hour, duration_seconds,'
+                ' retention_count, enabled, last_error, last_success_at'
+                ' FROM news_sources ORDER BY id'
+            )
+            rows = cursor.fetchall() or []
+        return {'sources': [
+            {'slug': r['slug'], 'name': r['name'], 'stream_url': r['stream_url'],
+             'minute_of_hour': r['minute_of_hour'], 'duration_seconds': r['duration_seconds'],
+             'retention_count': r['retention_count'], 'enabled': bool(r['enabled']),
+             'last_error': r['last_error'], 'last_success_at': r['last_success_at']}
+            for r in rows
+        ]}
+    finally:
+        conn.close()
+
+
+@router.get('/bulletins')
+def list_bulletins(source: str = DEFAULT_SOURCE, limit: int = Query(12, ge=1, le=100),
+                   _auth: dict = Depends(verify_api_key)):
+    conn = _require_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                'SELECT b.id, s.slug, b.started_at, b.duration_ms, b.size_bytes'
+                ' FROM news_bulletins b JOIN news_sources s ON s.id = b.source_id'
+                ' WHERE s.slug = %s ORDER BY started_at DESC LIMIT %s',
+                (source, limit),
+            )
+            rows = cursor.fetchall() or []
+        return {'bulletins': [_row_to_bulletin(r) for r in rows]}
+    finally:
+        conn.close()
+
+
+@router.get('/bulletins/latest')
+def latest_bulletin(source: str = DEFAULT_SOURCE, _auth: dict = Depends(verify_api_key)):
+    conn = _require_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                'SELECT b.id, s.slug, b.started_at, b.duration_ms, b.size_bytes'
+                ' FROM news_bulletins b JOIN news_sources s ON s.id = b.source_id'
+                ' WHERE s.slug = %s ORDER BY started_at DESC LIMIT 1',
+                (source,),
+            )
+            row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail='No bulletin recorded yet')
+        return _row_to_bulletin(row)
+    finally:
+        conn.close()
+
+
+def parse_range(header, size: int):
+    """Return (start, end) inclusive, or None for a whole-file response.
+
+    Handled here rather than left to FileResponse: the pinned FastAPI
+    constrains Starlette to a version whose range behaviour is not worth
+    gambling on, and a player that cannot seek fails silently in a car.
+    """
+    if not header:
+        return None
+    match = RANGE_PATTERN.fullmatch(header.strip())
+    if not match:
+        return None
+    raw_start, raw_end = match.groups()
+    if raw_start == '':
+        if raw_end == '':
+            return None
+        length = min(int(raw_end), size)
+        return size - length, size - 1
+    start = int(raw_start)
+    end = int(raw_end) if raw_end else size - 1
+    return start, min(end, size - 1)
+
+
+def _file_chunks(path: str, start: int, end: int):
+    with open(path, 'rb') as handle:
+        handle.seek(start)
+        remaining = end - start + 1
+        while remaining > 0:
+            chunk = handle.read(min(CHUNK_BYTES, remaining))
+            if not chunk:
+                break
+            remaining -= len(chunk)
+            yield chunk
+
+
+@router.get('/bulletins/{bulletin_id}/stream')
+def stream_bulletin(bulletin_id: int, request: Request, _auth: dict = Depends(verify_api_key)):
+    conn = _require_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT filename FROM news_bulletins WHERE id = %s', (bulletin_id,))
+            row = cursor.fetchone()
+    finally:
+        conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail='Unknown bulletin')
+
+    path = os.path.join(news_dir(), row['filename'])
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail='Bulletin audio is gone')
+
+    size = os.path.getsize(path)
+    span = parse_range(request.headers.get('range'), size)
+    headers = {'Accept-Ranges': 'bytes'}
+    if span is None:
+        headers['Content-Length'] = str(size)
+        return StreamingResponse(_file_chunks(path, 0, size - 1),
+                                 media_type='audio/mpeg', headers=headers)
+
+    start, end = span
+    if start >= size:
+        raise HTTPException(status_code=416, detail='Range beyond end of file')
+    headers['Content-Range'] = f'bytes {start}-{end}/{size}'
+    headers['Content-Length'] = str(end - start + 1)
+    return StreamingResponse(_file_chunks(path, start, end), status_code=206,
+                             media_type='audio/mpeg', headers=headers)
+
+
+@router.post('/sources', status_code=201)
+def create_source(body: SourceCreate, _auth: dict = Depends(require_permission('news.manage'))):
+    if not SLUG_PATTERN.match(body.slug):
+        raise HTTPException(status_code=400, detail='Invalid slug')
+    conn = _require_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO news_sources (slug, name, stream_url, minute_of_hour,'
+                ' duration_seconds, lead_seconds, retention_count)'
+                ' VALUES (%s, %s, %s, %s, %s, %s, %s)',
+                (body.slug, body.name.strip(), body.stream_url, body.minute_of_hour,
+                 body.duration_seconds, body.lead_seconds, body.retention_count),
+            )
+        conn.commit()
+        return {'slug': body.slug}
+    finally:
+        conn.close()
+
+
+@router.put('/sources/{slug}')
+def update_source(slug: str, body: SourceUpdate,
+                  _auth: dict = Depends(require_permission('news.manage'))):
+    fields = body.model_dump(exclude_none=True)
+    if not fields:
+        raise HTTPException(status_code=400, detail='Nothing to update')
+    conn = _require_db()
+    try:
+        with conn.cursor() as cursor:
+            _load_source(cursor, slug)
+            assignments = ', '.join(f'{key} = %s' for key in fields)
+            params = [int(v) if isinstance(v, bool) else v for v in fields.values()]
+            params.append(slug)
+            cursor.execute(f'UPDATE news_sources SET {assignments} WHERE slug = %s', tuple(params))
+        conn.commit()
+        return {'slug': slug, **fields}
+    finally:
+        conn.close()
+
+
+@router.delete('/sources/{slug}')
+def delete_source(slug: str, _auth: dict = Depends(require_permission('news.manage'))):
+    conn = _require_db()
+    try:
+        with conn.cursor() as cursor:
+            source = _load_source(cursor, slug)
+            cursor.execute('DELETE FROM news_bulletins WHERE source_id = %s', (source['id'],))
+            cursor.execute('DELETE FROM news_sources WHERE id = %s', (source['id'],))
+        conn.commit()
+        return {'deleted': slug}
+    finally:
+        conn.close()
+
+
+@router.post('/sources/{slug}/record-now')
+def record_now(slug: str, _auth: dict = Depends(require_permission('news.manage'))):
+    """Capture straight away instead of waiting for the hour.
+
+    This is the test path in production: without it, checking a change costs
+    an hour of waiting.
+    """
+    conn = _require_db()
+    try:
+        with conn.cursor() as cursor:
+            source = _load_source(cursor, slug)
+        bulletin_id = record_source(conn, source, time.time() - source['lead_seconds'])
+        return {'bulletin_id': bulletin_id}
+    finally:
+        conn.close()

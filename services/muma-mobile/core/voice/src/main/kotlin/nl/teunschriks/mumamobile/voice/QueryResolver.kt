@@ -54,7 +54,7 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
 
         val spokenGenres = spokenGenre?.takeIf { it.isNotBlank() }?.let { listOf(it) }
             ?: parsed.genres
-        var namedGenres = spokenGenres.flatMap { spellings(trace, it, genres) }.distinct()
+        var namedGenres = spokenGenres.flatMap { genreSpellings(trace, it, genres) }.distinct()
         var artist = parsed.artist?.let {
             val names = lookup(trace, "artists", it) { vocabulary.artists(it) }
             matched(trace, "artist", it, VoiceQuery.match(it, names))
@@ -83,12 +83,18 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
                     // The candidate carries one spelling, because that is what a chip has to say
                     // and what the ranking scored. The filter takes every spelling of it.
                     EntityKind.GENRE ->
-                        namedGenres = spellings(trace, reading.candidate.name, genres)
+                        namedGenres = spellingsOf(trace, reading.candidate.name, genres)
                     EntityKind.ARTIST -> artist = reading.candidate.name
                     EntityKind.LABEL -> label = reading.candidate.name
                     else -> Unit
                 }
-                Reading.None -> Unit
+                // Everything nameable came back empty, so the request is headed for NoMatch. A
+                // genre one word away is a better answer than none, and it cannot steal from an
+                // artist or an album here -- both already had their turn and declined.
+                Reading.None ->
+                    namedGenres = nearMissGenre(trace, free)
+                        ?.let { spellingsOf(trace, it, genres) }
+                        .orEmpty()
             }
         }
 
@@ -373,13 +379,66 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
      * The trace records all of them, because a query that quietly ran against one spelling of
      * three is the case hardest to read back afterwards.
      */
-    private fun spellings(trace: QueryTrace?, term: String, genres: List<String>): List<String> {
-        val names = VoiceQuery.matchAll(term, genres)
+    private fun spellingsOf(
+        trace: QueryTrace?,
+        name: String,
+        genres: List<String>
+    ): List<String> = traced(trace, name, VoiceQuery.matchAll(name, genres, exact = true))
+
+    /**
+     * One spoken genre, resolved in the order the evidence deserves.
+     *
+     * An exact name wins outright. A name one word off but otherwise identical comes next, and it
+     * has to come before the partial fallback rather than after it: "temple hardcore" contains
+     * "hardcore", so the fallback answers with the bare genre and the guess never gets a turn.
+     * Somebody who says two words means a genre of two words, and "Uptempo Hardcore" is a far
+     * better reading of that utterance than everything the library files under "Hardcore".
+     *
+     * The partial fallback keeps the last word, unchanged, for the utterance that genuinely
+     * carries a longer name than the library does.
+     */
+    private fun genreSpellings(
+        trace: QueryTrace?,
+        term: String,
+        genres: List<String>
+    ): List<String> {
+        val exact = VoiceQuery.matchAll(term, genres, exact = true)
+        if (exact.isNotEmpty()) return traced(trace, term, exact)
+
+        nearMissGenre(trace, term)?.let { return spellingsOf(trace, it, genres) }
+
+        return traced(trace, term, VoiceQuery.matchAll(term, genres))
+    }
+
+    /** Records what a spelling lookup produced; the array is the part hardest to read back. */
+    private fun traced(trace: QueryTrace?, term: String, names: List<String>): List<String> {
         trace?.match("genre", term, names.joinToString(", ").takeIf { it.isNotEmpty() })
         if (names.size > 1) {
             trace?.note("the library spells \"$term\" ${names.size} ways, so the filter carries all of them")
         }
         return names
+    }
+
+    /**
+     * The prominent genre a term probably meant, when no genre matches it at all.
+     *
+     * Kept apart from [spellings] so that spelling expansion stays a pure lookup and the guess
+     * stays visible in the trace as its own decision. The prominent list is only fetched here, so
+     * a request that matched cleanly never pays for it.
+     */
+    private fun nearMissGenre(trace: QueryTrace?, term: String): String? {
+        val prominent = lookup(trace, "prominentGenres", "") { vocabulary.prominentGenres() }
+        val near = VoiceQuery.nearest(term, prominent)
+
+        if (near == null) {
+            trace?.note("\"$term\" matches no genre and resembles no prominent one")
+        } else {
+            trace?.note(
+                "\"$term\" matches no genre; \"$near\" is one word away and prominent, " +
+                    "so the request is read as that"
+            )
+        }
+        return near
     }
 
     /**

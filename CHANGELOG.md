@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-08-20
+
+### Fixed
+- **Een genre hardop vragen vindt het nu ook als de telefoon er één woord van verkeerd verstaat.**
+  "Uptempo hardcore" leverde het brede genre Hardcore op, of helemaal niets, vaak genoeg om spraak
+  niet de moeite waard te maken. Er waren drie dingen tegelijk mis. De spraakherkenning had nooit
+  te horen gekregen welke genres deze bibliotheek bevat, dus die antwoordde met het gewone
+  Nederlands dat er het dichtst bij lag — hij krijgt nu de genres met de meeste muziek mee voordat
+  hij begint te luisteren. Een naam die net verkeerd terugkwam was daarna niet te redden: een
+  genre waarvan alle woorden op één na kloppen kwam nergens exact overeen en viel dan terug op het
+  genre dat er toevallig in zat. "Temple hardcore" bevat "hardcore", dus een verzoek om het ene
+  genre antwoordde met alles wat onder het andere valt. Zo'n naam wordt nu gelezen als het genre
+  waar hij op lijkt, mits de rest exact overeenkomt en het om een van de grote genres gaat. En
+  waar de bibliotheek één genre op meerdere manieren spelt wint nu de spelling waar de muziek in
+  zit, in plaats van degene die de server toevallig het eerst noemde.
+
+### Added
+- **Android Auto toont nu een zoekknop binnen MuMa.** De app gaf nooit aan dat er gezocht kon
+  worden, dus verborg de auto zijn eigen zoekknop en was de globale zoekbalk van de auto de enige
+  ingang. Zoeken vanuit MuMa gebruikt dezelfde spraakparser als al het andere.
+
 ## [0.18.2] - 2026-08-20
 
 ### Fixed

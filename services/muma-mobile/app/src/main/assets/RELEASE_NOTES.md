@@ -1,5 +1,34 @@
 ## [Unreleased]
 
+## [6.18.0] - 2026-08-20
+
+### Fixed
+- **Een genre hardop vragen vindt het nu ook als de telefoon er één woord van verkeerd verstaat.**
+  "Uptempo hardcore" leverde het brede genre Hardcore op, of helemaal niets. De spraakherkenning
+  had nooit te horen gekregen welke genres deze bibliotheek bevat, dus die antwoordde met het
+  gewone Nederlands dat er het dichtst bij lag; ze krijgt nu de genres met de meeste muziek mee
+  voordat ze begint te luisteren. En een naam die net verkeerd terugkwam viel terug op het genre
+  dat er toevallig in zat — "temple hardcore" bevat "hardcore" — waardoor een verzoek om het ene
+  genre antwoordde met alles onder het andere. Zo'n naam wordt nu gelezen als het genre waar hij
+  op lijkt, mits de rest exact klopt en het om een van de grote genres gaat. Waar de bibliotheek
+  één genre op meerdere manieren spelt wint bovendien de spelling waar de muziek in zit.
+
+### Added
+- **Android Auto toont nu een zoekknop binnen MuMa.** De app gaf nooit aan dat er gezocht kon
+  worden, dus verborg de auto zijn eigen zoekknop. Zoeken vanuit MuMa loopt door dezelfde
+  spraakparser als de microfoon en het tekstveld.
+
+## [6.17.2] - 2026-08-20
+
+### Fixed
+- **Een uitgesproken genre vindt nu al zijn muziek.** Om hardstyle vragen leverde niets op, ook al
+  werd de zin goed begrepen. De bibliotheek bewaart een genre onder elke schrijfwijze die ooit in
+  een tag stond — "Hardstyle", "HARDSTYLE" en "hardstyle" zijn drie losse ingangen — en MuMa hield
+  degene die als eerste terugkwam. Dat bleek een restant met vier lange mixen, dus een verzoek om
+  nummers vond er geen één van. Een uitgesproken genre draagt nu élke schrijfwijze die de
+  bibliotheek ervan heeft; een genre dat het uitgesproken genre alleen maar bevat, zoals
+  "Mainstream Hardstyle", blijft er buiten.
+
 ## [6.17.1] - 2026-08-20
 
 ### Fixed

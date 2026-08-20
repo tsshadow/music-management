@@ -23,6 +23,8 @@ class FakeVocabulary(
         "Drum and Bass",
         "Tech House"
     ),
+    /** What the near-miss guess is allowed to reach. Defaults to the whole small fake library. */
+    private val prominent: List<String> = genres,
     private val labels: List<String> = listOf("Art of Creation", "Thunderdome", "Q-dance"),
     private val years: List<String> = listOf("2019", "2020", "2021", "2024"),
     private val artists: List<String> = listOf("Headhunterz", "Angerfist", "D-Block & S-te-Fan"),
@@ -43,6 +45,11 @@ class FakeVocabulary(
     override fun genres(): List<String> {
         asked.add("genres")
         return genres
+    }
+
+    override fun prominentGenres(): List<String> {
+        asked.add("prominentGenres")
+        return prominent
     }
 
     override fun labels(): List<String> {

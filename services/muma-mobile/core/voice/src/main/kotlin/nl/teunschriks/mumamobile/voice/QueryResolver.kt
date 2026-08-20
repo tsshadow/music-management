@@ -45,11 +45,18 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
         pinned: EntityKind? = null
     ): QueryResolution {
         val here = trace ?: QueryTrace(VoiceEntryPoint.TEXT_INPUT, "unknown")
+
+        // An album or a playlist named outright is played by id, not filtered by name -- the engine
+        // has no cluster for either -- so it short-circuits everything below.
+        namedItem(parsed, here)?.let { return QueryResolution.Resolved(it, here) }
+
         val genres = lookup(trace, "genres", "") { vocabulary.genres() }
 
-        var genre = spokenGenre?.takeIf { it.isNotBlank() }
-            ?.let { matched(trace, "genre from extras", it, VoiceQuery.match(it, genres)) }
-            ?: parsed.genre?.let { matched(trace, "genre", it, VoiceQuery.match(it, genres)) }
+        val spokenGenres = spokenGenre?.takeIf { it.isNotBlank() }?.let { listOf(it) }
+            ?: parsed.genres
+        var namedGenres = spokenGenres.mapNotNull {
+            matched(trace, "genre", it, VoiceQuery.match(it, genres))
+        }
         var artist = parsed.artist?.let {
             val names = lookup(trace, "artists", it) { vocabulary.artists(it) }
             matched(trace, "artist", it, VoiceQuery.match(it, names))
@@ -58,19 +65,24 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
             val names = lookup(trace, "labels", "") { vocabulary.labels() }
             matched(trace, "label", it, VoiceQuery.match(it, names))
         }
-        val year = parsed.year?.let {
-            val known = lookup(trace, "years", "") { vocabulary.years() }
+        val known = if (parsed.years.isEmpty()) {
+            emptyList()
+        } else {
+            lookup(trace, "years", "") { vocabulary.years() }
+        }
+        val years = parsed.years.mapNotNull {
             matched(trace, "year", it, it.takeIf { y -> known.contains(y) })
         }
 
-        val free = parsed.free?.takeIf { listOfNotNull(genre, artist, label).isEmpty() }
+        val nothingNamedYet = namedGenres.isEmpty() && artist == null && label == null
+        val free = parsed.free?.takeIf { nothingNamedYet }
         if (free != null) {
-            val candidates = candidatesFor(free, parsed, year, genres, trace)
+            val candidates = candidatesFor(free, parsed, years.firstOrNull(), genres, trace)
             when (val reading = read(free, candidates, pinned, here)) {
                 is Reading.Ask -> return reading.resolution
                 is Reading.Item -> return QueryResolution.Resolved(reading.target, here)
                 is Reading.Slot -> when (reading.candidate.kind) {
-                    EntityKind.GENRE -> genre = reading.candidate.name
+                    EntityKind.GENRE -> namedGenres = listOf(reading.candidate.name)
                     EntityKind.ARTIST -> artist = reading.candidate.name
                     EntityKind.LABEL -> label = reading.candidate.name
                     else -> Unit
@@ -79,17 +91,24 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
             }
         }
 
-        val named = listOfNotNull(genre, artist, label, year)
-        if (named.isEmpty() && !parsed.favorites && parsed.sort == null) {
+        val asksForARating = parsed.ratingMin != null
+        val named = namedGenres + listOfNotNull(artist, label) + years
+        if (named.isEmpty() && !asksForARating && parsed.sort == null) {
             here.outcome("NoMatch: the library places nothing the utterance named")
             return QueryResolution.NoMatch("nothing the utterance named is in the library", here)
         }
 
         val filters = Filters().apply {
-            genre?.let { add(Filter(FILTER_GENRE, listOf(it))) }
+            if (namedGenres.isNotEmpty()) add(Filter(FILTER_GENRE, namedGenres))
             artist?.let { add(Filter(FILTER_ARTIST, it)) }
             label?.let { add(Filter(FILTER_PUBLISHER, it)) }
-            year?.let { add(Filter(FILTER_YEAR, it)) }
+            // One year stays a single value, so the request looks exactly as it always has; several
+            // become the array the engine reads as an OR.
+            when (years.size) {
+                0 -> Unit
+                1 -> add(Filter(FILTER_YEAR, years.first()))
+                else -> add(Filter(FILTER_YEAR, years))
+            }
             favoriteRatingTag(parsed)?.let { add(Filter(FILTER_RATING, it)) }
             add(Filter(FILTER_LENGTH, parsed.length))
         }
@@ -98,9 +117,10 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
             filters = filters,
             sortMethod = sortMethodFor(parsed.sort),
             // Both bounds, always. The server widens a lone ratingMin to include every unrated
-            // track, so a floor without a ceiling answers with the whole library.
-            ratingMin = if (parsed.favorites) FAVORITE_RATING else null,
-            ratingMax = if (parsed.favorites) FAVORITE_RATING else null
+            // track, so a floor without a ceiling answers with the whole library. The parser sets
+            // them as a pair for exactly that reason.
+            ratingMin = parsed.ratingMin,
+            ratingMax = parsed.ratingMax
         )
 
         here.filters(filters.toString())
@@ -110,6 +130,41 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
         )
         here.outcome("Resolved")
         return QueryResolution.Resolved(resolved, here)
+    }
+
+    /**
+     * An album or a playlist the speaker named outright.
+     *
+     * "Speel album Thunderdome af" leaves no doubt about which kind was meant, so this never asks.
+     * A name the library does not place drops through to the rest of the resolver rather than
+     * failing the request, which is the same rule every other term follows.
+     */
+    private fun namedItem(parsed: ParsedQuery, trace: QueryTrace): Target.Item? {
+        parsed.album?.let { spoken ->
+            val albums = runCatching { vocabulary.albums(spoken) }.getOrDefault(emptyList())
+            trace.lookup("albums", spoken, albums.size)
+            albums.firstOrNull { VoiceQuery.match(spoken, listOf(it.name)) != null }?.let {
+                trace.match("album", spoken, it.name)
+                trace.request("album ${it.id} (\"${it.name}\")")
+                trace.outcome("Resolved")
+                return Target.Item(EntityKind.ALBUM, it.id, it.name)
+            }
+            trace.match("album", spoken, null)
+        }
+
+        parsed.playlist?.let { spoken ->
+            val playlists = runCatching { vocabulary.playlists() }.getOrDefault(emptyList())
+            trace.lookup("playlists", "", playlists.size)
+            playlists.firstOrNull { VoiceQuery.match(spoken, listOf(it.name)) != null }?.let {
+                trace.match("playlist", spoken, it.name)
+                trace.request("playlist ${it.id} (\"${it.name}\")")
+                trace.outcome("Resolved")
+                return Target.Item(EntityKind.PLAYLIST, it.id, it.name)
+            }
+            trace.match("playlist", spoken, null)
+        }
+
+        return null
     }
 
     /** What the ranking made of the term nobody qualified. */
@@ -279,7 +334,7 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
      */
     private fun favoriteRatingTag(parsed: ParsedQuery): String? {
         if (!parsed.favorites) return null
-        return vocabulary.ratings().firstOrNull { it == FAVORITE_RATING.toString() }
+        return vocabulary.ratings().firstOrNull { it == VoiceQuery.FAVORITE_RATING.toString() }
     }
 
     /** Whether the utterance asked for anything besides the term nobody qualified. */
@@ -302,8 +357,6 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
         const val FILTER_RATING = "RATING"
         const val FILTER_LENGTH = "LENGTH"
 
-        /** Five stars is what a favourite is, here and on the rating buttons of the car. */
-        const val FAVORITE_RATING = 5
 
         /** What an exact match on the library's own spelling is worth. */
         const val EXACT = 100

@@ -40,6 +40,9 @@ object VoiceQuery {
     const val LENGTH_SHORT = "short"
     const val LENGTH_LONG = "long"
 
+    /** Five stars is what a favourite is, here and on the rating buttons of the car. */
+    const val FAVORITE_RATING = 5
+
     private val PLAY_WORDS = setOf("play", "speel", "start", "zet", "draai", "afspelen")
 
     /**
@@ -57,13 +60,39 @@ object VoiceQuery {
      * headhunterz af".
      */
     private val NOISE_WORDS = setOf(
-        "muziek", "music", "nummer", "nummers", "song", "songs", "track", "tracks", "liedje",
-        "liedjes", "iets", "wat", "eens", "even", "me", "mij", "my", "some"
+        "muziek", "music", "nummers", "songs", "tracks", "liedjes",
+        "iets", "wat", "eens", "even", "me", "mij", "my", "some", "met", "with"
     )
 
     private val GENRE_WORDS = setOf("genre", "genres")
     private val LABEL_WORDS = setOf("label", "labels", "platenlabel", "platenlabels")
     private val ARTIST_WORDS = setOf("artiest", "artiesten", "artist", "by")
+    private val ALBUM_WORDS = setOf("album", "albums", "plaat", "platen")
+    private val PLAYLIST_WORDS = setOf(
+        "playlist", "playlists", "afspeellijst", "afspeellijsten", "lijst"
+    )
+
+    /**
+     * Only a slot keyword when a name follows. "Speel een nummer af" asks for anything at all and
+     * the word is noise; "speel het nummer dragonborn af" names a track. The two cannot be told
+     * apart by the word, only by what comes after it.
+     */
+    private val TITLE_WORDS = setOf("nummer", "song", "track", "liedje")
+
+    private val RATING_WORDS = setOf("ster", "sterren", "star", "stars")
+    private val NUMERALS = mapOf(
+        "een" to 1, "één" to 1, "twee" to 2, "drie" to 3, "vier" to 4, "vijf" to 5,
+        "one" to 1, "two" to 2, "three" to 3, "four" to 4, "five" to 5
+    )
+
+    /**
+     * Keeps a slot open across a second value: "hardstyle en hardcore" is one query, not two.
+     *
+     * "And" is deliberately absent. It is a word inside genre names -- "Drum and Bass" -- far more
+     * often than it is a join, and a genre that lost a word matches nothing.
+     */
+    private val AND_WORDS = setOf("en", "plus")
+
     private val FAVORITE_WORDS = setOf(
         "favoriet", "favorieten", "favoriete", "favorite", "favorites", "favourite", "favourites"
     )
@@ -85,7 +114,14 @@ object VoiceQuery {
     private val SEPARATORS = Regex("[^\\p{L}\\p{N}&]+")
     private val YEAR = Regex("(19|20)\\d{2}")
 
-    private enum class Slot { GENRE, ARTIST, LABEL }
+    private enum class Slot { GENRE, ARTIST, LABEL, ALBUM, PLAYLIST, TITLE }
+
+    /** Every word that opens a slot or carries a request, so a title word can tell a name apart. */
+    private val KEYWORDS: Set<String> by lazy {
+        GENRE_WORDS + LABEL_WORDS + ARTIST_WORDS + ALBUM_WORDS + PLAYLIST_WORDS + TITLE_WORDS +
+            RANDOM_WORDS + ADDED_WORDS + RELEASED_WORDS + FAVORITE_WORDS + RATING_WORDS +
+            YEAR_PREPOSITIONS + AND_WORDS + SET_WORDS
+    }
 
     /**
      * @brief Parses a spoken query into a request.
@@ -110,25 +146,46 @@ object VoiceQuery {
         }
 
         tokens = tokens.filterNot { it in NOISE_WORDS }
+        tokens = dropTitleWordsThatNameNothing(tokens, trace)
         tokens = dropArticlesAroundKeywords(tokens)
         trace?.tokens("carried", tokens)
 
-        val terms = mutableMapOf<Slot, MutableList<String>>()
+        // One entry per slot, and inside it one list of words per spoken value. Keeping the values
+        // apart is what tells "mainstream hardstyle" (one genre, two words) from "hardstyle en
+        // hardcore" (two genres).
+        val terms = mutableMapOf<Slot, MutableList<MutableList<String>>>()
         val free = mutableListOf<String>()
-        var year: String? = null
+        val years = mutableListOf<String>()
         var random = false
         var added = false
         var released = false
         var favorites = false
+        var ratingMin: Int? = null
         var slot: Slot? = null
 
         tokens.forEachIndexed { index, token ->
             val nextIsYear = tokens.getOrNull(index + 1)?.matches(YEAR) == true
+            val nextIsRating = tokens.getOrNull(index + 1) in RATING_WORDS
             when {
-                token.matches(YEAR) -> {
-                    year = token
+                token in AND_WORDS -> {
+                    // Keeps whichever slot is open open, and starts a second value in it, so
+                    // "hardstyle en hardcore" is one query with two genres.
+                    slot?.let { terms.getOrPut(it) { mutableListOf() }.add(mutableListOf()) }
+                    trace?.rule("\"$token\" joins another value onto the open slot")
+                }
+                token in RATING_WORDS -> {
+                    trace?.rule("\"$token\" closes the rating that was just read")
                     slot = null
-                    trace?.rule("\"$token\" matches a year, so year = $token")
+                }
+                nextIsRating && (token.toIntOrNull() != null || token in NUMERALS) -> {
+                    ratingMin = token.toIntOrNull() ?: NUMERALS.getValue(token)
+                    slot = null
+                    trace?.rule("\"$token\" before a star word sets the rating floor to $ratingMin")
+                }
+                token.matches(YEAR) -> {
+                    years.add(token)
+                    slot = null
+                    trace?.rule("\"$token\" matches a year, so it joins the years")
                 }
                 token in YEAR_PREPOSITIONS && nextIsYear -> {
                     slot = null
@@ -170,10 +227,24 @@ object VoiceQuery {
                     slot = Slot.ARTIST
                     trace?.rule("\"$token\" opens the artist slot")
                 }
+                token in ALBUM_WORDS -> {
+                    slot = Slot.ALBUM
+                    trace?.rule("\"$token\" opens the album slot")
+                }
+                token in PLAYLIST_WORDS -> {
+                    slot = Slot.PLAYLIST
+                    trace?.rule("\"$token\" opens the playlist slot")
+                }
+                token in TITLE_WORDS -> {
+                    slot = Slot.TITLE
+                    trace?.rule("\"$token\" opens the title slot")
+                }
                 else -> {
                     val open = slot
                     if (open != null) {
-                        terms.getOrPut(open) { mutableListOf() }.add(token)
+                        val values = terms.getOrPut(open) { mutableListOf(mutableListOf()) }
+                        if (values.isEmpty()) values.add(mutableListOf())
+                        values.last().add(token)
                         trace?.rule("\"$token\" goes into the ${open.name.lowercase()} slot")
                     } else {
                         free.add(token)
@@ -183,11 +254,18 @@ object VoiceQuery {
             }
         }
 
+        // Five stars is what a favourite is, and a floor without a ceiling would answer with every
+        // unrated track the library holds -- the server widens a lone minimum to include them.
+        val floor = if (favorites) FAVORITE_RATING else ratingMin
+
         val request = ParsedQuery(
-            genre = terms[Slot.GENRE]?.joinToString(" "),
-            artist = terms[Slot.ARTIST]?.joinToString(" "),
-            label = terms[Slot.LABEL]?.joinToString(" "),
-            year = year,
+            genres = terms.values(Slot.GENRE),
+            artist = terms.value(Slot.ARTIST),
+            label = terms.value(Slot.LABEL),
+            album = terms.value(Slot.ALBUM),
+            playlist = terms.value(Slot.PLAYLIST),
+            title = terms.value(Slot.TITLE),
+            years = years.toList(),
             free = free.joinToString(" ").ifEmpty { null },
             length = if (wantsSets) LENGTH_LONG else LENGTH_SHORT,
             sort = when {
@@ -196,7 +274,9 @@ object VoiceQuery {
                 released -> ParsedQuery.Sort.RELEASED
                 else -> null
             },
-            favorites = favorites
+            favorites = favorites,
+            ratingMin = floor,
+            ratingMax = floor?.let { FAVORITE_RATING }
         )
 
         if (request.isEmpty()) {
@@ -205,6 +285,33 @@ object VoiceQuery {
         }
         trace?.note("parsed as $request")
         return request
+    }
+
+    /** Every value spoken into a slot, each with its own words joined back together. */
+    private fun Map<Slot, List<List<String>>>.values(slot: Slot): List<String> =
+        this[slot].orEmpty().mapNotNull { it.joinToString(" ").ifEmpty { null } }
+
+    /** The one value a single-valued slot holds, or null when nothing was spoken into it. */
+    private fun Map<Slot, List<List<String>>>.value(slot: Slot): String? =
+        values(slot).joinToString(" ").ifEmpty { null }
+
+    /**
+     * Drops a title word that names nothing.
+     *
+     * "Speel een nummer af" asks for anything at all, and there the word is noise. "Speel het
+     * nummer dragonborn af" names a track. Only what follows the word tells the two apart, so the
+     * decision cannot be made by the word sets alone.
+     */
+    private fun dropTitleWordsThatNameNothing(
+        tokens: List<String>,
+        trace: QueryTrace?
+    ): List<String> = tokens.filterIndexed { index, token ->
+        if (token !in TITLE_WORDS) return@filterIndexed true
+
+        val next = tokens.drop(index + 1).firstOrNull { it !in ARTICLE_WORDS }
+        val names = next != null && next !in KEYWORDS && !next.matches(YEAR)
+        if (!names) trace?.rule("\"$token\" names nothing after it, so it is dropped as noise")
+        names
     }
 
     /** Splits the utterance and drops the wrapping that is never part of what was asked for. */

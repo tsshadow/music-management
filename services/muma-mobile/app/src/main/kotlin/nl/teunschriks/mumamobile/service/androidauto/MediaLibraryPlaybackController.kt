@@ -216,14 +216,16 @@ class MediaLibraryPlaybackController(
         spokenGenre?.let { trace.note("Assistant named the genre \"$it\" in the extras") }
         val mediaItems: MutableList<MediaItem> = ArrayList()
 
-        // Only accept query with pattern "play [Title]" or "[Title]"
-        // Where [Title]: must be exactly matched
-        // If no media with exact name found, play a random media instead
-        val mediaTitle = if (query.startsWith(PLAY_COMMAND, ignoreCase = true)) {
-            query.drop(PLAY_COMMAND.length)
-        } else {
-            query
-        }
+        // What the free text search should look for when the filters find nothing. Dropping a
+        // leading "play " is all this used to do, so a Dutch utterance was searched whole:
+        // "speel het nummer dragonborn af" matched nothing, while "dragonborn" matches the track.
+        // The parser already knows which words name something, so it decides.
+        val mediaTitle = VoiceQuery.parse(query)?.searchTerm
+            ?: if (query.startsWith(PLAY_COMMAND, ignoreCase = true)) {
+                query.drop(PLAY_COMMAND.length)
+            } else {
+                query
+            }
 
         val searchFuture = serviceScope.future {
             // A spoken genre never matches an artist, album or track name, so it has to run the

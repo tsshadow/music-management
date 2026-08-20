@@ -301,6 +301,14 @@ frontend:unit:
 
 muma-mobile:check:
   stage: unit
+  # All MuMa Mobile jobs share one Gradle home per runner
+  # (scripts/ci/android-gradle-home.sh) so that no job ever starts from a cold
+  # dependency/build cache. That is only safe while at most one of them runs at
+  # a time, which is what this resource group guarantees - project-wide, so it
+  # also covers two pipelines on different branches landing on the same runner.
+  # They were already serialized inside a single pipeline (different stages),
+  # so this costs no wall-clock time in the normal case.
+  resource_group: muma-mobile
   timeout: 45m
   retry: !reference [.infra_retry, retry]
   rules:
@@ -453,6 +461,7 @@ images:refresh-downloader:
 
 muma-mobile:build-debug:
   stage: release
+  resource_group: muma-mobile
   timeout: 45m
   retry: !reference [.infra_retry, retry]
   rules:
@@ -474,6 +483,7 @@ muma-mobile:build-debug:
 
 muma-mobile:build-release:
   stage: release
+  resource_group: muma-mobile
   timeout: 45m
   retry: !reference [.infra_retry, retry]
   needs:

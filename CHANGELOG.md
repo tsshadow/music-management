@@ -26,6 +26,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   worden, dus verborg de auto zijn eigen zoekknop en was de globale zoekbalk van de auto de enige
   ingang. Zoeken vanuit MuMa gebruikt dezelfde spraakparser als al het andere.
 
+### Changed
+- **De Android-app bouwt nu in seconden in plaats van soms een uur.** De pijplijn gaf elke
+  gelijktijdige taak zijn eigen Gradle-map, dus de eerste bouw op een verse plek haalde alle
+  afhankelijkheden opnieuw op en begon zonder cache: dezelfde controle die warm drie minuten
+  duurde liep dan vijftig tot negentig minuten en sloeg tegen de tijdslimiet aan. De
+  mobiele taken draaien nu gegarandeerd één voor één en delen daardoor veilig één warme
+  Gradle-map. Daar bovenop verdwenen twee dingen die de app nooit gebruikte maar wel elke bouw
+  betaalde: de kapt-annotatieverwerker, waarvoor geen enkele verwerker meer bestond sinds Room
+  op KSP overging, en DataBinding, dat in geen van de 78 layouts voorkwam. Zonder DataBinding
+  kon ook de configuratiecache aan. Een verse checkout met warme cache doet de testronde nu in
+  twaalf seconden.
+
 ## [0.18.2] - 2026-08-20
 
 ### Fixed

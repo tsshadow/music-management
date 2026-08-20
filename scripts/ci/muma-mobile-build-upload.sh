@@ -48,20 +48,10 @@ if [ -z "$GOOGLE_WEB_CLIENT_ID" ]; then
     echo "Warning: GOOGLE_CLIENT_ID not found in PROD_ENV_FILE; building with Google Sign-In disabled (placeholder client ID)."
 fi
 
-# Use a gradle home directory outside the project tree (same pattern as
-# scripts/test/muma-mobile-unit.sh) to avoid checkout permission issues, and
-# to give each concurrent job slot its own Gradle cache/daemon.
-GRADLE_HOME_DIR="/tmp/.gradle_muma_${CI_CONCURRENT_ID:-local}"
-mkdir -p "$GRADLE_HOME_DIR"
-
-# A runner that ran the older, root-in-container version of this script still
-# has a root-owned Gradle home from back then, which the container - now the
-# host user - cannot write to. Hand it over once, via a throwaway root
-# container, so the switch does not need a manual cleanup on every runner.
-if [ -n "$(find "$GRADLE_HOME_DIR" ! -user "$(id -u)" -print -quit 2>/dev/null)" ]; then
-    echo "Reclaiming $GRADLE_HOME_DIR for $(id -un)"
-    docker run --rm -v "$GRADLE_HOME_DIR:/gradle_home" alpine chown -R "$(id -u):$(id -g)" /gradle_home
-fi
+# Gradle home (outside the project tree, to avoid git checkout permission
+# issues) plus its one-off root-ownership repair - see the helper for why it
+# is shared rather than per concurrent job slot.
+source "$ROOT_DIR/scripts/ci/android-gradle-home.sh"
 
 # The build container runs as the host user (see scripts/ci/android-image.sh),
 # so there is no chmod 777 pre-step and no chown-back trap: nothing it writes

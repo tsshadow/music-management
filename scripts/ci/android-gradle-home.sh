@@ -45,12 +45,20 @@ fi
 # Drop the per-slot Gradle homes this helper replaced. They are ~2 GB each and
 # nothing reads them any more; leaving them behind would keep filling the
 # runner LXC's disk (see docs/deployment.md on runner disk pressure).
+#
+# The age guard is not cosmetic. Until this commit is merged everywhere, a
+# pipeline built from an older commit - a long-lived release/* branch, say -
+# still runs the per-slot version of this script and is still USING one of
+# these directories. Deleting a Gradle home from under a running build produces
+# exactly the failure that has been misread as a MockK bug before ("Daemon
+# registry /gradle_home became unreadable", then 69 NoClassDefFoundError test
+# failures), so only reap a directory that nothing has touched for six hours.
 if [ -n "$CI_JOB_ID" ]; then
-    for _stale in /tmp/.gradle_muma_[0-9]*; do
-        [ -d "$_stale" ] || continue
+    while IFS= read -r _stale; do
+        [ -n "$_stale" ] || continue
         echo "Removing stale per-slot Gradle home $_stale"
         rm -rf "$_stale" 2>/dev/null || \
             docker run --rm -v /tmp:/host_tmp alpine rm -rf "/host_tmp/$(basename "$_stale")"
-    done
+    done < <(find /tmp -maxdepth 1 -type d -name '.gradle_muma_[0-9]*' -mmin +360 2>/dev/null)
     unset _stale
 fi

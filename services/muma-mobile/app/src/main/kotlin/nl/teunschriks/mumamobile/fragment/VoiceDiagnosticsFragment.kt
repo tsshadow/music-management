@@ -160,8 +160,12 @@ class VoiceDiagnosticsFragment : Fragment() {
             holder.detailScroll.visibility = if (isOpen) View.VISIBLE else View.GONE
 
             holder.itemView.setOnClickListener {
-                if (position in expanded) expanded.remove(position) else expanded.add(position)
-                notifyItemChanged(position)
+                // The bound position, not the captured one: a row that has been rebound since is
+                // holding a stale index, and toggling that opens somebody else's trace.
+                val at = holder.bindingAdapterPosition
+                if (at == RecyclerView.NO_POSITION) return@setOnClickListener
+                if (at in expanded) expanded.remove(at) else expanded.add(at)
+                notifyItemChanged(at)
             }
             holder.itemView.setOnLongClickListener {
                 share(trace)

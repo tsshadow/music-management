@@ -127,9 +127,7 @@ class MumaVoiceFragment : Fragment() {
             Manifest.permission.RECORD_AUDIO
         ) == android.content.pm.PackageManager.PERMISSION_GRANTED
 
-        if (granted) askForMicrophone.let { listen() } else askForMicrophone.launch(
-            Manifest.permission.RECORD_AUDIO
-        )
+        if (granted) listen() else askForMicrophone.launch(Manifest.permission.RECORD_AUDIO)
     }
 
     private fun listen() {

@@ -116,4 +116,44 @@ class QueryResolverTest {
     fun `resolves nothing when the utterance named nothing at all`() {
         resolve("speel muziek af").`should be null`()
     }
+
+    /**
+     * The library grows more than one spelling of the same genre: a tag written before the genre
+     * was curated keeps whatever casing it arrived with, and each casing becomes its own cluster.
+     * Production held "HARDSTYLE" (four leftover tracks, all of them long mixes) ahead of
+     * "Hardstyle" (twenty thousand), so keeping the first spelling answered a request for hardstyle
+     * with four livesets, and with nothing at all once the request asked for songs.
+     */
+    private val collidingGenres = FakeVocabulary(
+        genres = listOf("HARDSTYLE", "Hardstyle", "hardstyle", "Mainstream Hardstyle", "Hardcore")
+    )
+
+    @Test
+    fun `carries every spelling the library has of one spoken genre`() {
+        val resolved = QueryResolver(collidingGenres)
+            .resolve(VoiceQuery.parse("speel hardstyle af")!!, null)
+
+        val filters = (resolved as QueryResolution.Resolved).target as Target.Filtered
+        filters.filters.toString() `should contain`
+            """{"name":"GENRE","value":["HARDSTYLE", "Hardstyle", "hardstyle"]}"""
+    }
+
+    @Test
+    fun `carries every spelling of a genre Android Auto passed in the extras`() {
+        val resolved = QueryResolver(collidingGenres)
+            .resolve(ParsedQuery(), "hard style")
+
+        val filters = (resolved as QueryResolution.Resolved).target as Target.Filtered
+        filters.filters.toString() `should contain`
+            """{"name":"GENRE","value":["HARDSTYLE", "Hardstyle", "hardstyle"]}"""
+    }
+
+    @Test
+    fun `does not widen a spelling into the genres that merely contain it`() {
+        val resolved = QueryResolver(collidingGenres)
+            .resolve(VoiceQuery.parse("speel hardstyle af")!!, null)
+
+        val filters = (resolved as QueryResolution.Resolved).target as Target.Filtered
+        filters.filters.toString().contains("Mainstream Hardstyle") `should be equal to` false
+    }
 }

@@ -229,7 +229,7 @@ To maintain high code quality, the system employs an automated test suite:
     - `./scripts/test/db-integration.sh` — every endpoint's SQL against a throwaway MariaDB,
       plus the schema bootstrap and every `migrate_*.sql` applied twice. The unit suite mocks
       the cursor, so this is the only thing that proves MariaDB accepts the queries.
-    - `./scripts/test/lms-unit.sh` — LMS C++ unit tests (existing upstream CTest/GTest suite).
+    - `./scripts/test/muma-server-unit.sh` — LMS C++ unit tests (existing upstream CTest/GTest suite).
     - `./scripts/test/frontend-unit.sh` — frontend lint + svelte-check + vitest with coverage.
     - `./scripts/test/android-unit.sh` — MuMa Mobile JVM unit tests.
     - `./scripts/test/core-smoke.sh` — builds and starts `docker/compose.test.yml` from a clean state, waits for all healthchecks, then tears down.

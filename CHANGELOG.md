@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.2] - 2026-08-20
+
+### Fixed
+- **Een uitgesproken genre vindt nu al zijn muziek, niet toevallig de spelling die de server het
+  eerst noemt.** Om hardstyle vragen leverde helemaal niets op, terwijl de zin correct begrepen
+  was en de bibliotheek twintigduizend hardstyle-nummers bevat. De bibliotheek bewaart een genre
+  onder elke schrijfwijze die ooit in een tag stond — "Hardstyle", "HARDSTYLE" en "hardstyle"
+  zijn drie losse ingangen — en MuMa hield degene die als eerste terugkwam. Dat bleek een
+  restant met vier lange mixen, dus een verzoek om nummers vond er daar geen één van. Een
+  uitgesproken genre draagt nu élke schrijfwijze die de bibliotheek ervan heeft. Een genre dat
+  het uitgesproken genre alleen maar bevat, zoals "Mainstream Hardstyle", blijft er buiten.
+
 ## [0.18.1] - 2026-08-20
 
 ### Fixed

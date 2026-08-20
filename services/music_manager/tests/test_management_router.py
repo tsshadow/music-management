@@ -494,5 +494,82 @@ class DecidePodcastTest(ManagementTestCase):
         self.assertEqual(update.args[1][1:3], ('DJ Isaac', 'Q-dance'))
 
 
+class LabelProposalsTest(ManagementTestCase):
+    """
+    Releases the importer could not place. Confirming one that carries a catalogue
+    number teaches rules_catid_label and the importer moves it on its next cycle;
+    confirming one without a catalogue number has no rule to write, so the folder is
+    moved here instead.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.settings = MagicMock(import_folder_path='/import', eps_folder_path='/eps')
+        patcher = patch.object(management_router, 'Settings', return_value=self.settings)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def confirm(self, proposal_id, label):
+        return self.client.post(f'/api/label-proposals/{proposal_id}/confirm', json={'label': label}, headers=self.headers)
+
+    def test_the_open_proposals_are_listed(self):
+        self.cursor.fetchall.return_value = [
+            {'id': 1, 'folder': 'BKRP104 - Darwin', 'catid': 'BKRP', 'proposed_label': 'Brutal Kuts',
+             'source': 'tag:label', 'confidence': 90, 'status': 'new'}
+        ]
+
+        response = self.client.get('/api/label-proposals', headers=self.headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]['proposed_label'], 'Brutal Kuts')
+        self.assertEqual(response.json()[0]['folder'], 'BKRP104 - Darwin')
+
+    def test_confirming_a_proposal_with_a_cat_id_writes_the_label_rule(self):
+        self.cursor.fetchone.return_value = {'id': 1, 'folder': 'BKRP104 - Darwin', 'catid': 'BKRP', 'proposed_label': 'Brutal Kuts'}
+
+        response = self.confirm(1, 'Brutal Kuts')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(any('rules_catid_label' in s for s in self.statements()))
+
+    def test_confirming_a_proposal_with_a_cat_id_moves_nothing_itself(self):
+        self.cursor.fetchone.return_value = {'id': 1, 'folder': 'BKRP104 - Darwin', 'catid': 'BKRP', 'proposed_label': 'Brutal Kuts'}
+
+        with patch.object(management_router, 'shutil') as shutil_module:
+            self.confirm(1, 'Brutal Kuts')
+
+        shutil_module.move.assert_not_called()
+
+    def test_confirming_a_proposal_without_a_cat_id_moves_the_folder(self):
+        self.cursor.fetchone.return_value = {'id': 2, 'folder': ' - Dewstate', 'catid': None, 'proposed_label': None}
+
+        with patch.object(management_router, 'shutil') as shutil_module, \
+             patch.object(management_router, 'folder_exists', return_value=True):
+            response = self.confirm(2, 'Different Solution Records')
+
+        self.assertEqual(response.status_code, 200)
+        shutil_module.move.assert_called_once_with('/import/ - Dewstate', '/eps/Different Solution Records/ - Dewstate')
+
+    def test_a_proposal_whose_folder_vanished_is_reported_as_stale(self):
+        self.cursor.fetchone.return_value = {'id': 3, 'folder': 'gone', 'catid': None, 'proposed_label': None}
+
+        with patch.object(management_router, 'folder_exists', return_value=False):
+            response = self.confirm(3, 'Whatever')
+
+        self.assertEqual(response.json()['status'], 'stale')
+        self.assertTrue(any("status = 'stale'" in s for s in self.statements()))
+
+    def test_an_unknown_proposal_is_not_found(self):
+        self.cursor.fetchone.return_value = None
+
+        self.assertEqual(self.confirm(99, 'Whatever').status_code, 404)
+
+    def test_a_rejected_proposal_is_marked_rejected(self):
+        response = self.client.post('/api/label-proposals/4/reject', headers=self.headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(any("status = 'rejected'" in s for s in self.statements()))
+
+
 if __name__ == '__main__':
     unittest.main()

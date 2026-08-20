@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Releases die de importer niet kan wegzetten staan nu als voorstel in het beheerscherm.** Een
+  release werd overgeslagen zodra het catalogusnummer niet in de labeltabel stond, of zodra er
+  helemaal geen catalogusnummer in de mapnaam zat. Die bleef dan liggen in de importmap en werd
+  elke ronde opnieuw als waarschuwing gelogd, zonder dat er iets anders mee gebeurde dan een
+  handmatige ingreep in de database. De importer leest nu het label uit de bestanden zelf — uit de
+  labelvelden van een FLAC, het publisher-frame van een MP3, en anders uit de `.nfo` — en zet het
+  als voorstel klaar onder Labelvoorstellen.
+- **Eén bevestiging ruimt een heel label op.** De lijst staat gegroepeerd op voorgesteld label, dus
+  je bevestigt in één keer alle releases van bijvoorbeeld Brutal Kuts in plaats van vijftien keer
+  hetzelfde. Bevestig je een voorstel met catalogusnummer, dan wordt die koppeling onthouden en
+  lopen alle volgende releases van dat label vanzelf door. Zit er geen catalogusnummer in, dan valt
+  er niets te onthouden en wordt alleen die ene map weggezet. Het labelveld kiest uit labels die al
+  bestaan, zodat een andere schrijfwijze geen tweede labelmap aanmaakt. Een voorstel dat je afwijst
+  komt niet meer terug, hoe vaak de importer die map daarna ook nog tegenkomt.
 ## [0.16.0] - 2026-08-19
 
 ### Added

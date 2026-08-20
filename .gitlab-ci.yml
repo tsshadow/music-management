@@ -130,6 +130,8 @@ quality:lint:
     - changes:
         - services/**/*.py
         - tools/**/*.py
+        # scripts/lint.sh lints tests/ too, so a change there has to re-run it.
+        - tests/**/*.py
         - scripts/**/*.sh
         - pyproject.toml
         - .pylintrc
@@ -223,8 +225,16 @@ music-management:unit:
         - services/tagger/**/*
         - services/scanner/**/*
         - services/common/**/*
+        # Not test-bearing today, but pytest runs with --cov=services and a
+        # coverage floor: untested code added here drops the total and must
+        # fail in its own pipeline, not in the next unrelated merge request.
+        - services/ml-analyzer/**/*
+        - services/other/**/*
         # A change to a test, or to a script a test covers, has to run the tests.
         - services/tests/**/*
+        # The script also collects tools/ and the pipeline policy suite.
+        - tools/**/*
+        - tests/ci/**/*
         - scripts/**/*
         - pytest.ini
         - .gitlab-ci.yml
@@ -248,7 +258,7 @@ music-management:unit:
         coverage_format: cobertura
         path: coverage-python.xml
 
-lms:unit:
+muma-server:unit:
   stage: unit
   timeout: 45m
   retry: !reference [.infra_retry, retry]
@@ -262,13 +272,13 @@ lms:unit:
         - services/music-management-server/**/*
         - .gitlab-ci.yml
   script:
-    - ./scripts/test/lms-unit.sh
+    - ./scripts/test/muma-server-unit.sh
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)\%/'
   artifacts:
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: coverage-lms.xml
+        path: coverage-muma-server.xml
 
 frontend:unit:
   stage: unit

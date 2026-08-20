@@ -54,9 +54,7 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
 
         val spokenGenres = spokenGenre?.takeIf { it.isNotBlank() }?.let { listOf(it) }
             ?: parsed.genres
-        var namedGenres = spokenGenres.mapNotNull {
-            matched(trace, "genre", it, VoiceQuery.match(it, genres))
-        }
+        var namedGenres = spokenGenres.flatMap { spellings(trace, it, genres) }.distinct()
         var artist = parsed.artist?.let {
             val names = lookup(trace, "artists", it) { vocabulary.artists(it) }
             matched(trace, "artist", it, VoiceQuery.match(it, names))
@@ -82,7 +80,10 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
                 is Reading.Ask -> return reading.resolution
                 is Reading.Item -> return QueryResolution.Resolved(reading.target, here)
                 is Reading.Slot -> when (reading.candidate.kind) {
-                    EntityKind.GENRE -> namedGenres = listOf(reading.candidate.name)
+                    // The candidate carries one spelling, because that is what a chip has to say
+                    // and what the ranking scored. The filter takes every spelling of it.
+                    EntityKind.GENRE ->
+                        namedGenres = spellings(trace, reading.candidate.name, genres)
                     EntityKind.ARTIST -> artist = reading.candidate.name
                     EntityKind.LABEL -> label = reading.candidate.name
                     else -> Unit
@@ -361,6 +362,24 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
     private fun matched(trace: QueryTrace?, kind: String, term: String, name: String?): String? {
         trace?.match(kind, term, name)
         return name
+    }
+
+    /**
+     * Every spelling the library has of one spoken genre.
+     *
+     * Genres are the only slot that takes an array, and the only one where the library reliably
+     * holds the same name several ways: a tag written before the genre was curated keeps whatever
+     * casing it arrived with, so "Hardstyle" and "HARDSTYLE" are two clusters of the same thing.
+     * The trace records all of them, because a query that quietly ran against one spelling of
+     * three is the case hardest to read back afterwards.
+     */
+    private fun spellings(trace: QueryTrace?, term: String, genres: List<String>): List<String> {
+        val names = VoiceQuery.matchAll(term, genres)
+        trace?.match("genre", term, names.joinToString(", ").takeIf { it.isNotEmpty() })
+        if (names.size > 1) {
+            trace?.note("the library spells \"$term\" ${names.size} ways, so the filter carries all of them")
+        }
+        return names
     }
 
     /**

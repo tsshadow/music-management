@@ -344,21 +344,46 @@ object VoiceQuery {
      *        near miss there is far more likely to be an album nobody wanted turned into five
      *        hundred tracks than it is to be the genre, artist or label that was meant.
      *
-     * @return the name as the library spells it, or null when nothing matches
+     * @return the name as the library spells it, or null when nothing matches. When the library
+     *         spells one name several ways this is the first of them; [matchAll] returns all.
      */
-    fun match(term: String, names: List<String>, exact: Boolean = false): String? {
+    fun match(term: String, names: List<String>, exact: Boolean = false): String? =
+        matchAll(term, names, exact).firstOrNull()
+
+    /**
+     * @brief Every spelling the library has of one spoken name.
+     *
+     * @details A library grows more than one spelling of the same genre: "Hardstyle", "HARDSTYLE"
+     * and "hardstyle" are three clusters, and a tag written before the genre was curated keeps
+     * whichever casing it arrived with. They are the same genre to the speaker, so a request for
+     * one is a request for all of them -- and the filter carries an array the engine reads as an
+     * OR, so all of them fit in the one query. Keeping only the first, as this used to, meant
+     * whichever spelling the server happened to list first decided the answer: a four-track
+     * leftover could shadow twenty thousand tracks spelled the ordinary way.
+     *
+     * The partial fallback deliberately stays a single name. "Hardstyle" is contained in
+     * "Mainstream Hardstyle" and in "Raw Hardstyle" without being either of them, so widening
+     * that one would answer a request nobody made.
+     *
+     * @param exact refuses the partial fallback, as in [match].
+     * @return the names as the library spells them, closest first, or empty when nothing matches
+     */
+    fun matchAll(term: String, names: List<String>, exact: Boolean = false): List<String> {
         val spoken = key(term)
-        if (spoken.isEmpty()) return null
+        if (spoken.isEmpty()) return emptyList()
 
-        names.firstOrNull { key(it) == spoken }?.let { return it }
-        if (exact) return null
+        val spelled = names.filter { key(it) == spoken }
+        if (spelled.isNotEmpty()) return spelled
+        if (exact) return emptyList()
 
-        return names
-            .filter {
-                val name = key(it)
-                name.isNotEmpty() && (name.contains(spoken) || spoken.contains(name))
-            }
-            .minByOrNull { abs(key(it).length - spoken.length) }
+        return listOfNotNull(
+            names
+                .filter {
+                    val name = key(it)
+                    name.isNotEmpty() && (name.contains(spoken) || spoken.contains(name))
+                }
+                .minByOrNull { abs(key(it).length - spoken.length) }
+        )
     }
 
     private fun key(value: String): String = value.lowercase().filter { it.isLetterOrDigit() }

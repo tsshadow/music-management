@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **A spoken genre now finds all of its music, not whichever spelling the server listed first.**
+  Asking for hardstyle came back with nothing at all, even though the request had been understood
+  correctly and the library holds twenty thousand hardstyle tracks. The library stores a genre
+  under every casing its tags have ever carried — "Hardstyle", "HARDSTYLE" and "hardstyle" are
+  three separate entries — and MuMa kept whichever one came back first. That happened to be a
+  leftover holding four long mixes, so a request for songs found none of them. A spoken genre now
+  carries every spelling the library has of it. A genre that merely contains the spoken one, like
+  "Mainstream Hardstyle", is still left out of it.
+
 ## [6.17.1] - 2026-08-20
 
 ### Fixed

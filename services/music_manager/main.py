@@ -111,6 +111,7 @@ def startup_event():
         start_thread('tagger', run_tagger_loop, (int(os.getenv('TAGGER_SLEEPTIME', '300')),))
         start_thread('scanner', run_scanner_loop, (int(os.getenv('SCANNER_SLEEPTIME', '3600')),))
         start_thread('radio', radio.run_radio_scheduler)
+        start_thread('news', news.run_news_recorder)
         start_thread('events-retention', run_events_retention)
 
 @app.get('/health')

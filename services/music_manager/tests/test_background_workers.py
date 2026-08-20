@@ -53,4 +53,4 @@ class BackgroundWorkersEnabledTest(unittest.TestCase):
             main.startup_event()
         self.assertTrue(thread.called)
         registered = {call.args[0] for call in start_thread.call_args_list}
-        self.assertEqual({'tagger', 'scanner', 'radio', 'events-retention'}, registered)
+        self.assertEqual({'tagger', 'scanner', 'radio', 'news', 'events-retention'}, registered)

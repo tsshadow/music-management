@@ -11,6 +11,31 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.19.0 (2026-08-20)
+
+### 🎤 Een genre hardop vragen werkt nu ook als de telefoon je verkeerd verstaat
+- "Uptempo hardcore" leverde het brede genre Hardcore op, of helemaal niets. Er waren drie dingen
+  tegelijk mis, en één ervan repareren had het probleem laten staan.
+- De spraakherkenning had nooit te horen gekregen welke genres deze bibliotheek bevat, dus die
+  antwoordde met het gewone Nederlands dat er het dichtst bij lag. Ze krijgt nu de genres met de
+  meeste muziek mee voordat ze begint te luisteren.
+- Een naam die net verkeerd terugkwam was daarna niet te redden. Hij kwam nergens exact overeen en
+  viel dan terug op het genre dat er toevallig in zát: "temple hardcore" bevat "hardcore", dus een
+  verzoek om het ene genre antwoordde met alles wat onder het andere valt. Zo'n naam wordt nu
+  gelezen als het genre waar hij op lijkt — maar alleen als alle woorden op één na exact kloppen,
+  dat ene woord minstens vier letters heeft, en het om een van de grote genres gaat.
+- En waar de bibliotheek één genre op meerdere manieren spelt wint nu de spelling waar de muziek in
+  zit, in plaats van degene die de server toevallig het eerst noemde.
+- De drempels zijn beredeneerd, niet gemeten tegen de echte genreverdeling. Of de herkenning zelf
+  merkbaar beter wordt blijkt pas na een rit; het diagnosescherm laat zien wat er binnenkomt.
+
+### 🔍 Android Auto toont een zoekknop binnen MuMa
+- De app gaf nooit aan dat er gezocht kon worden, dus verborg de auto zijn eigen zoekknop en was de
+  globale zoekbalk van de auto de enige ingang.
+- Zoeken vanuit MuMa loopt door dezelfde spraakparser als de microfoon en het tekstveld.
+
+- MuMa Mobile gaat naar 6.18.0.
+
 ## Global Version 0.18.2 (2026-08-20)
 
 ### 🎤 Een gesproken genre vindt nu al zijn muziek

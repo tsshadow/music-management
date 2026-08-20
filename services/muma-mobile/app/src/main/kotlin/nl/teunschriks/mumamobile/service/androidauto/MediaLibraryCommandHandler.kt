@@ -58,6 +58,19 @@ class MediaLibraryCommandHandler {
     private lateinit var repeatOneButton: CommandButton
     private lateinit var repeatAllButton: CommandButton
 
+    private lateinit var newsButton: CommandButton
+
+    /**
+     * The news button carries no extras on purpose: Android Auto strips them
+     * when the tap comes from the car, so the handler resolves the bulletin.
+     */
+    private fun getNewsCommandButton(sessionCommand: SessionCommand) = CommandButton.Builder()
+        .setDisplayName(UApp.applicationContext().getString(R.string.news_button))
+        .setIconResId(R.drawable.ic_menu_podcasts)
+        .setSessionCommand(sessionCommand)
+        .setEnabled(true)
+        .build()
+
     private fun getShuffleCommandButton(sessionCommand: SessionCommand) = CommandButton.Builder()
         .setDisplayName("Shuffle")
         .setIconResId(R.drawable.media_shuffle)
@@ -123,14 +136,18 @@ class MediaLibraryCommandHandler {
         repeatOneButton = getRepeatModeButton(repeatCommand, Player.REPEAT_MODE_ONE)
         repeatAllButton = getRepeatModeButton(repeatCommand, Player.REPEAT_MODE_ALL)
 
+        val newsCommand = SessionCommand(PlaybackService.CUSTOM_COMMAND_PLAY_NEWS, Bundle.EMPTY)
+        newsButton = getNewsCommandButton(newsCommand)
+
         allCustomCommands = ratingButtons + listOf(
             shuffleButton,
             repeatOffButton,
             repeatOneButton,
-            repeatAllButton
+            repeatAllButton,
+            newsButton
         )
 
-        defaultCustomCommands = listOf(shuffleButton, repeatOffButton)
+        defaultCustomCommands = listOf(shuffleButton, repeatOffButton, newsButton)
     }
 
     fun configureRepeatMode(player: Player) {
@@ -216,6 +233,10 @@ class MediaLibraryCommandHandler {
                         else -> repeatOffButton
                     }
                 )
+
+                // Last, so it lands in the overflow rather than displacing the
+                // controls that belong to the track being played.
+                add(newsButton)
             }.asIterable()
         )
     }

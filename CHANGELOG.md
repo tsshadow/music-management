@@ -25,6 +25,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Android Auto toont nu een zoekknop binnen MuMa.** De app gaf nooit aan dat er gezocht kon
   worden, dus verborg de auto zijn eigen zoekknop en was de globale zoekbalk van de auto de enige
   ingang. Zoeken vanuit MuMa gebruikt dezelfde spraakparser als al het andere.
+- **Het nieuws van het uur, ook onderweg.** MuMa neemt het bulletin nu zelf op van de live
+  stream van NPO Radio 1 — geen enkele feed publiceert het NOS-radiobulletin op afroep, dus
+  meeluisteren en bewaren is de enige route. Elk heel uur wordt tien minuten getapt, de laatste
+  twaalf opnames blijven staan, en een opname die korter is dan een minuut wordt weggegooid in
+  plaats van bewaard: een afgekapt bulletin in de auto is erger dan geen bulletin. In Android
+  Auto staat er een Nieuws-map naast Radio en een nieuwsknop bij de bediening: één tik legt de
+  wachtrij vast, speelt het bulletin, en zet daarna de muziek terug op de seconde waar je was.
+  Radio is de uitzondering, want die tijdlijn is van de server: dat kanaal wordt na het nieuws
+  opnieuw afgestemd. De webspeler doet hetzelfde, en het beheerscherm kreeg een Nieuws-tab met
+  bron, schema, bewaartermijn en een knop om meteen op te nemen.
 
 ## [0.18.2] - 2026-08-20
 

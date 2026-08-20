@@ -144,6 +144,19 @@ interface MumaAPIDefinition {
     /** DB-free on the server, so it is the endpoint to measure clock offset against. */
     @GET("api/radio/time")
     fun getRadioTime(): Call<RadioTimeResponse>
+
+    // --- News. Bulletins are recorded server-side; these are read-only. ---
+
+    @GET("api/news/bulletins")
+    fun getNewsBulletins(
+        @Query("source") source: String = "nos",
+        @Query("limit") limit: Int = 12
+    ): Call<NewsBulletinsResponse>
+
+    @GET("api/news/bulletins/latest")
+    fun getLatestNewsBulletin(
+        @Query("source") source: String = "nos"
+    ): Call<NewsBulletin>
 }
 
 data class MumaTile(

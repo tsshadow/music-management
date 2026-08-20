@@ -5,6 +5,7 @@
   import { createRadioController } from './radioController.js';
   import { shouldPushJamState } from './radioSync.js';
   import { describeFilter } from './management/radioChannels.js';
+  import { snapshotOf, restoreTarget, bulletinStreamUrl } from './newsQueue.js';
   import ArtistList from './ArtistList.svelte';
   import { getArtistImageUrl, subsonicError } from './utils.js';
   import { notify } from './notifications.js';
@@ -23,6 +24,10 @@
   let radioRefreshInterval = null;
   let radioClockInterval = null;
   let radioChannels = $state([]);
+  // Set while a news bulletin is interrupting the music, and holding what to
+  // put back when it ends.
+  let newsSnapshot = $state(null);
+  let newsObjectUrl = null;
   let showRadioPicker = $state(false);
 
   /**
@@ -111,6 +116,80 @@
       radioClockInterval = setInterval(() => radioController?.measureClockOffset(), 300000);
     } catch (e) {
       console.error($t('radio.couldNotStart'), e);
+    }
+  }
+
+  /**
+   * Plays the most recent bulletin, or gives the music back if one is running.
+   *
+   * The audio element cannot send an `X-API-Key` header, and the endpoint takes
+   * the key no other way, so the bulletin is fetched and played from a blob.
+   * A ten-minute recording is around 14 MB, which is a short wait on a LAN and
+   * buys the same authentication the rest of the app uses.
+   */
+  async function toggleNews() {
+    if (newsSnapshot) {
+      await stopNews();
+      return;
+    }
+    try {
+      const headers = { 'X-API-Key': $mumaApiKey };
+      const response = await fetch(`${$mumaApiUrl}/api/news/bulletins/latest`, { headers });
+      if (!response.ok) {
+        notify.error($t('news.none'));
+        return;
+      }
+      const bulletin = await response.json();
+      const audioResponse = await fetch(bulletinStreamUrl($mumaApiUrl, bulletin.id), { headers });
+      if (!audioResponse.ok) {
+        notify.error($t('news.none'));
+        return;
+      }
+      const blob = await audioResponse.blob();
+
+      newsSnapshot = snapshotOf({
+        trackId: $radioChannel ? null : (track?.id ?? null),
+        positionSeconds: audioElement?.currentTime ?? 0,
+        radioChannel: $radioChannel,
+      });
+      // Radio has to be switched off rather than paused: it drives the same
+      // element, and it would keep correcting the bulletin's position.
+      if ($radioChannel) await toggleRadio();
+
+      newsObjectUrl = URL.createObjectURL(blob);
+      audioElement.src = newsObjectUrl;
+      await audioElement.play();
+    } catch (e) {
+      console.error('Could not play the news', e);
+      notify.error($t('news.couldNotPlay'), { detail: e.message });
+    }
+  }
+
+  /** Ends the bulletin and resumes whatever it interrupted. */
+  async function stopNews() {
+    const target = restoreTarget(newsSnapshot);
+    newsSnapshot = null;
+    if (newsObjectUrl) {
+      URL.revokeObjectURL(newsObjectUrl);
+      newsObjectUrl = null;
+    }
+
+    if (target.action === 'retune') {
+      await startRadio({ slug: target.channel });
+      return;
+    }
+    if (target.action === 'none') {
+      audioElement.pause();
+      audioElement.removeAttribute('src');
+      return;
+    }
+
+    audioElement.src = streamUrl;
+    audioElement.currentTime = target.positionSeconds;
+    try {
+      await audioElement.play();
+    } catch (e) {
+      if (e.name !== 'AbortError') console.error('Could not resume after the news', e);
     }
   }
 
@@ -380,6 +459,11 @@
    * Triggers scrobbling and plays the next track or repeats.
    */
   function handleEnded() {
+      // A bulletin that runs out is the cue to resume, not to skip a track.
+      if (newsSnapshot) {
+          stopNews();
+          return;
+      }
       if (!hasScrobbledFinished) {
           scrobble(true);
           hasScrobbledFinished = true;
@@ -668,6 +752,7 @@
   );
   const isRadioActive = $derived($radioChannel !== null);
   const radioColor = $derived($radioChannel ? '#b266ff' : '#b3b3b3');
+  const newsColor = $derived(newsSnapshot ? '#b266ff' : '#b3b3b3');
   // Radio listeners cannot steer the stream, exactly like a follower-radio client.
   const transportLocked = $derived($syncMode === 'follower-radio' || isRadioActive);
   const releaseDate = $derived(track ? (formatShortDate(track.date) || track.year || '') : '');
@@ -791,6 +876,8 @@
         // Radio owns the audio element while it is on; the controller decides
         // what to load and at which offset.
         if ($radioChannel) return;
+        // A bulletin owns it too, and hands it back itself when it ends.
+        if (newsSnapshot) return;
 
         if (audioElement) {
             audioElement.src = streamUrl;
@@ -1169,6 +1256,18 @@
           </div>
         {/if}
       </div>
+      <button
+        class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white"
+        style="color: {newsColor}"
+        onclick={toggleNews}
+        title={newsSnapshot ? $t('news.playing') : $t('news.play')}
+        aria-label={$t('news.play')}
+        aria-pressed={newsSnapshot !== null}
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+          <path d="M20 3H4a2 2 0 0 0-2 2v12a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V5a2 2 0 0 0-2-2zM5 18a1 1 0 0 1-1-1V5h12v12a3 3 0 0 0 .17 1zm14 0a1 1 0 0 1-1-1V5h2v12a1 1 0 0 1-1 1zM6 7h8v2H6zm0 4h8v2H6zm0 4h5v2H6z" />
+        </svg>
+      </button>
       <button
         class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors"
         onclick={toggleJamMode}

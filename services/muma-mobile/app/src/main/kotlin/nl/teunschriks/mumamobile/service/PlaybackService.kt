@@ -39,6 +39,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.activity.NavigationActivity
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.audiofx.EqualizerController
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
@@ -48,6 +49,7 @@ import nl.teunschriks.mumamobile.imageloader.ArtworkBitmapLoader
 import nl.teunschriks.mumamobile.provider.UltrasonicAppWidgetProvider
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.service.androidauto.MediaLibrarySessionCallback
+import nl.teunschriks.mumamobile.service.androidauto.NewsPlaybackController
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.SessionMarker
@@ -65,6 +67,10 @@ class PlaybackService :
     private lateinit var mediaLibrarySession: MediaLibrarySession
     private var equalizer: EqualizerController? = null
     private val activeServerProvider: ActiveServerProvider by inject()
+
+    // Needed by the resolver: a news bulletin is streamed from MuMa itself, so
+    // its URL and API key come from this client rather than from Subsonic.
+    private val subsonicAPIClient: SubsonicAPIClient by inject()
 
     private lateinit var librarySessionCallback: MediaLibrarySessionCallback
 
@@ -114,6 +120,20 @@ class PlaybackService :
     }
 
     private val resolver: ResolvingDataSource.Resolver = ResolvingDataSource.Resolver {
+        // News comes from MuMa rather than from Subsonic, and its endpoint sits
+        // behind the API key, so this is the one place that can attach the header.
+        val newsPrefix = NewsPlaybackController.MEDIA_NEWS_STREAM + "|"
+        if (it.uri.toString().startsWith(newsPrefix)) {
+            val bulletinId = it.uri.toString().substringAfter('|')
+            val mumaApi = subsonicAPIClient.mumaApi
+            val key = mumaApi.currentApiKey
+            return@Resolver it.buildUpon()
+                .setUri(mumaApi.streamBaseUrl + "api/news/bulletins/" + bulletinId + "/stream")
+                .setHttpRequestHeaders(
+                    if (key != null) mapOf("X-API-Key" to key) else emptyMap()
+                )
+                .build()
+        }
         val components = it.uri.toString().split('|')
         val id = components[0]
         val bitrate = components[1].toInt()
@@ -306,6 +326,13 @@ class PlaybackService :
             updateWidgetPlayerState(isPlaying)
             cacheNextSongs()
         }
+
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            // A finished bulletin is the cue to give the music back.
+            if (playbackState == Player.STATE_ENDED) {
+                librarySessionCallback.onPlaybackEnded(player)
+            }
+        }
     }
 
     private fun updateCustomRatingButton(rating: Int) {
@@ -430,6 +457,12 @@ class PlaybackService :
             "org.moire.ultrasonic.PLACEHOLDER"
         const val CUSTOM_COMMAND_REPEAT_MODE =
             "org.moire.ultrasonic.REPEAT_MODE"
+
+        // Deliberately extra-free: Android Auto strips a SessionCommand's extras
+        // when the tap comes from the car, so the handler resolves the bulletin
+        // itself instead of trusting a payload that may not arrive.
+        const val CUSTOM_COMMAND_PLAY_NEWS =
+            "org.moire.ultrasonic.PLAY_NEWS"
         private const val NOTIFICATION_ID = 3009
     }
 }

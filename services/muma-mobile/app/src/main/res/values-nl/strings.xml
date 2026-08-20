@@ -567,6 +567,8 @@
     <string name="main.songs_recent_added">Recent toegevoegd</string>
     <string name="main.songs_recent_modified">Recent gewijzigd</string>
     <string name="main.radio_title">Radio</string>
+    <string name="main.news_title">Nieuws</string>
+    <string name="news.button">Nieuws</string>
     <string name="main.livesets_title">Livesets</string>
     <string name="artist_detail_eps">EP\'s</string>
     <string name="artist_detail_singles">Singles</string>

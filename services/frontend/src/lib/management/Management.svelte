@@ -15,6 +15,7 @@
   import LabelProposalsTab from './tabs/LabelProposalsTab.svelte';
   import PodcastCurationTab from './tabs/PodcastCurationTab.svelte';
   import RadioTab from './tabs/RadioTab.svelte';
+  import NewsTab from './tabs/NewsTab.svelte';
   import DownloadersTab from './tabs/DownloadersTab.svelte';
   import ScrobbleTab from './tabs/ScrobbleTab.svelte';
   import HealthTab from './tabs/HealthTab.svelte';
@@ -491,6 +492,12 @@
         />
       {:else if $activeManagementTab === 'radio'}
         <RadioTab
+          {API_BASE} getHeaders={getHeaders}
+          onMessage={(m) => message = m}
+          onError={(e) => error = e}
+        />
+      {:else if $activeManagementTab === 'news'}
+        <NewsTab
           {API_BASE} getHeaders={getHeaders}
           onMessage={(m) => message = m}
           onError={(e) => error = e}

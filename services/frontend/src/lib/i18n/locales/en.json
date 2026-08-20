@@ -328,6 +328,29 @@
       "trackList": "Track list",
       "tracks": "Tracks"
     },
+    "news": {
+      "bulletins": "Recorded bulletins",
+      "duration": "Recording length (seconds)",
+      "enabled": "Recording enabled",
+      "explain": "MuMa records the bulletin off the live stream, because no feed publishes it on demand.",
+      "lastError": "Last error",
+      "lastSuccess": "Last recording",
+      "loadFailed": "Could not load the news settings",
+      "minute": "Minute of the hour",
+      "name": "Name",
+      "never": "Never",
+      "noBulletins": "Nothing recorded yet",
+      "recordFailed": "Could not start a recording",
+      "recordNow": "Record now",
+      "recording": "Recording…",
+      "recordingStarted": "Recording started, about {seconds} seconds",
+      "refresh": "Refresh",
+      "retention": "Bulletins to keep",
+      "save": "Save",
+      "saved": "Settings saved",
+      "streamUrl": "Stream URL",
+      "title": "News recording"
+    },
     "noAccess": "No access",
     "noAccessHelp": "This page is for administrators only. Log in with an account that has administrator rights to continue.",
     "events": {
@@ -590,6 +613,7 @@
       "libraries": "Libraries",
       "library": "Library",
       "events": "Log",
+      "news": "News",
       "overview": "Overview",
       "playlists": "Playlists",
       "podcastCuration": "Podcasts",
@@ -724,6 +748,12 @@
     "sets": "Sets",
     "songs": "Songs",
     "starred": "Favourites"
+  },
+  "news": {
+    "couldNotPlay": "Could not play the news",
+    "none": "No bulletin recorded yet",
+    "play": "News of the hour",
+    "playing": "News is playing, tap to go back"
   },
   "notify": {
     "dismiss": "Dismiss",

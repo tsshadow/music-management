@@ -60,6 +60,7 @@ export const MANAGEMENT_TABS = [
   'label-proposals',
   'podcast-curation',
   'radio',
+  'news',
   'downloaders',
   'scrobble',
   'health',

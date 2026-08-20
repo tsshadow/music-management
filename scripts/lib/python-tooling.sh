@@ -5,7 +5,7 @@
 #
 # The CI runner is a shell runner with a bare system Python: ruff, pylint and
 # mypy are not installed there and this repository cannot install into it. Same
-# approach as scripts/test/lms-unit.sh takes for the C++ toolchain -- run inside
+# approach as scripts/test/muma-server-unit.sh takes for the C++ toolchain -- run inside
 # a container that has the dependencies, which only needs a working Docker
 # daemon on the host.
 #

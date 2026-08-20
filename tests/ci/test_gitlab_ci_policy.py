@@ -27,7 +27,7 @@ GATING_JOBS = [
     "quality:lint",
     "quality:typecheck",
     "music-management:unit",
-    "lms:unit",
+    "muma-server:unit",
     "frontend:unit",
     "muma-mobile:check",
 ]
@@ -189,3 +189,63 @@ def test_hotfix_branches_get_the_full_release_treatment():
             rule.get("if", "") for rule in ci[name]["rules"] if isinstance(rule, dict)
         )
         assert "hotfix" in conditions, f"{name} does not run on a hotfix branch"
+
+
+# --- `changes:` coverage ------------------------------------------------------
+# A job's `changes:` list is what decides whether it runs at all on a merge
+# request. When it drifts away from what the job's script actually executes,
+# the job silently stops guarding that code: the merge request that broke it
+# is green, and the failure lands on the next unrelated merge request that
+# happens to touch a listed path.
+
+
+def _changes_globs(ci, job):
+    globs = []
+    for rule in ci[job]["rules"]:
+        if isinstance(rule, dict) and "changes" in rule:
+            globs.extend(rule["changes"])
+    return globs
+
+
+def _is_covered(path: str, globs: list[str]) -> bool:
+    """True if any glob would match a file somewhere under `path`."""
+    return any(glob == "**/*" or glob.startswith(path) for glob in globs)
+
+
+# Directories scripts/test/music-management-unit.sh hands to pytest. It runs
+# with --cov=services and --cov-fail-under, so every source directory under
+# services/ counts even when it holds no tests of its own.
+PYTHON_UNIT_SOURCES = [
+    "services/common/",
+    "services/downloader/",
+    "services/importer/",
+    "services/ml-analyzer/",
+    "services/music_manager/",
+    "services/other/",
+    "services/scanner/",
+    "services/tagger/",
+    "services/tests/",
+    "tests/ci/",
+    "tools/",
+]
+
+
+def test_python_unit_job_runs_for_every_directory_it_tests():
+    ci = load_ci()
+    globs = _changes_globs(ci, "music-management:unit")
+    missing = [path for path in PYTHON_UNIT_SOURCES if not _is_covered(path, globs)]
+    assert missing == [], (
+        "music-management:unit collects these but no `changes:` glob triggers it "
+        f"for them: {missing}"
+    )
+
+
+# scripts/lint.sh: TARGET=${1:-services/ tools/ tests/}
+LINT_SOURCES = ["services/", "tools/", "tests/"]
+
+
+def test_lint_job_runs_for_every_directory_it_lints():
+    ci = load_ci()
+    globs = _changes_globs(ci, "quality:lint")
+    missing = [path for path in LINT_SOURCES if not _is_covered(path, globs)]
+    assert missing == [], f"quality:lint lints these but is not triggered by them: {missing}"

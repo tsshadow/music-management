@@ -233,7 +233,7 @@ MuMa Mobile-only change doesn't wait on the C++ or frontend suites:
 | Job | Runs when | Purpose |
 | --- | --- | --- |
 | `music-management:unit` | the Python services changed | Unit tests for music-manager, importer, downloader, tagger, scanner and shared code. Reports coverage. |
-| `lms:unit` | the playback server (C++) changed | Builds and runs the LMS test suite. Reports coverage. |
+| `muma-server:unit` | the playback server (C++) changed | Builds and runs the LMS test suite. Reports coverage. |
 | `frontend:unit` | the Svelte frontend changed | Lint + typecheck of the frontend. Reports coverage. |
 | `muma-mobile:check` | the Android app changed | MuMa Mobile unit tests with coverage. |
 | `contracts` | always on `develop`; elsewhere only if the server, music-manager or the test stack changed | Starts the real test stack and verifies the Subsonic/OpenSubsonic API still behaves as the mobile clients expect. |

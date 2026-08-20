@@ -45,4 +45,10 @@ interface LibraryVocabulary {
      * than genres, and the resolver only ever compares against the one name that was spoken.
      */
     fun artists(term: String): List<String>
+
+    /** The albums whose titles look like [term]. Carries ids, because an album is played by id. */
+    fun albums(term: String): List<NamedRef> = emptyList()
+
+    /** Every playlist. Few enough to fetch whole, and played by id. */
+    fun playlists(): List<NamedRef> = emptyList()
 }

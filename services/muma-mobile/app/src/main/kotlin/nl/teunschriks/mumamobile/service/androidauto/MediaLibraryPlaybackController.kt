@@ -21,9 +21,12 @@ import nl.teunschriks.mumamobile.service.MusicServiceFactory
 import nl.teunschriks.mumamobile.util.Settings.maxSongs
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.toMediaItem
+import nl.teunschriks.mumamobile.voice.EntityKind
 import nl.teunschriks.mumamobile.voice.MusicServiceVocabulary
 import nl.teunschriks.mumamobile.voice.ParsedQuery
+import nl.teunschriks.mumamobile.voice.QueryResolution
 import nl.teunschriks.mumamobile.voice.QueryResolver
+import nl.teunschriks.mumamobile.voice.Target
 import nl.teunschriks.mumamobile.voice.QueryTrace
 import nl.teunschriks.mumamobile.voice.VoiceEntryPoint
 import nl.teunschriks.mumamobile.voice.VoiceQuery
@@ -343,16 +346,20 @@ class MediaLibraryPlaybackController(
         if (parsed == null && spokenGenre.isNullOrBlank()) return null
 
         val resolver = QueryResolver(MusicServiceVocabulary(musicService))
-        val resolved = resolver.resolve(parsed ?: ParsedQuery(), spokenGenre, trace) ?: return null
+        val resolved = resolveFor(resolver, parsed ?: ParsedQuery(), spokenGenre, trace)
+            ?: return null
+
+        if (resolved is Target.Item) return tracksFromItem(resolved)
+        val filtered = resolved as Target.Filtered
 
         val songs = callWithErrorHandling {
             musicService.getSongs(
-                filters = resolved.filters,
-                ratingMin = resolved.ratingMin,
-                ratingMax = resolved.ratingMax,
+                filters = filtered.filters,
+                ratingMin = filtered.ratingMin,
+                ratingMax = filtered.ratingMax,
                 count = maxSongs,
                 offset = 0,
-                sortMethod = resolved.sortMethod,
+                sortMethod = filtered.sortMethod,
                 festivalLineup = null,
                 minDuration = null,
                 maxDuration = null
@@ -362,13 +369,53 @@ class MediaLibraryPlaybackController(
         val tracks = songs.getTracks()
         Timber.i(
             "tracksFromVoice: filters=%s sort=%s tracks=%d",
-            resolved.filters,
-            resolved.sortMethod,
+            filtered.filters,
+            filtered.sortMethod,
             tracks.size
         )
         if (tracks.isEmpty()) return null
 
         return tracks
+    }
+
+    /**
+     * Turns a resolution into the one target to play.
+     *
+     * Android Auto cannot put a question: there is no way back through the media session, and a car
+     * that plays nothing is worse than a car that plays the wrong Thunderdome. So an ambiguous
+     * reading takes the highest ranked candidate, pins it, and runs it through the same resolver --
+     * the discarded readings stay in the trace, which is the only record that a choice was made.
+     */
+    private fun resolveFor(
+        resolver: QueryResolver,
+        parsed: ParsedQuery,
+        spokenGenre: String?,
+        trace: QueryTrace?
+    ): Target? = when (val resolution = resolver.resolve(parsed, spokenGenre, trace)) {
+        is QueryResolution.Resolved -> resolution.target
+        is QueryResolution.NoMatch -> null
+        is QueryResolution.Ambiguous -> {
+            val best = resolution.candidates.first()
+            trace?.note(
+                "the car cannot ask, so \"${resolution.term}\" is taken as ${best.kind}; " +
+                    "the other readings were ${resolution.candidates.drop(1).joinToString { it.kind.name }}"
+            )
+            (resolver.resolve(parsed, spokenGenre, trace, best.kind) as? QueryResolution.Resolved)
+                ?.target
+        }
+    }
+
+    /** Plays an album or a playlist the resolver placed by name. */
+    private fun tracksFromItem(item: Target.Item): List<Track>? {
+        val songs = when (item.kind) {
+            EntityKind.ALBUM -> dataProvider.listSongsInMusicService(item.id, item.name)
+            EntityKind.PLAYLIST -> callWithErrorHandling {
+                musicService.getPlaylist(item.id, item.name)
+            }
+            else -> null
+        } ?: return null
+
+        return songs.getTracks().takeIf { it.isNotEmpty() }
     }
 
     fun playPodcast(id: String): List<Track>? {

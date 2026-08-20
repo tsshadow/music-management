@@ -28,10 +28,11 @@ class QueryResolverTest {
      * worth resolving when Assistant named a genre in the search extras, because that extra is
      * often the only evidence left that a genre was meant at all.
      */
-    private fun resolve(query: String, spokenGenre: String? = null): ResolvedQuery? {
+    private fun resolve(query: String, spokenGenre: String? = null): Target.Filtered? {
         val parsed = VoiceQuery.parse(query)
         if (parsed == null && spokenGenre.isNullOrBlank()) return null
-        return resolver.resolve(parsed ?: ParsedQuery(), spokenGenre)
+        val resolution = resolver.resolve(parsed ?: ParsedQuery(), spokenGenre)
+        return (resolution as? QueryResolution.Resolved)?.target as? Target.Filtered
     }
 
     @Test

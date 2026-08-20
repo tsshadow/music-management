@@ -7,6 +7,7 @@
 
 package nl.teunschriks.mumamobile.voice
 
+import nl.teunschriks.mumamobile.domain.SearchCriteria
 import nl.teunschriks.mumamobile.service.MusicService
 import timber.log.Timber
 
@@ -37,10 +38,28 @@ class MusicServiceVocabulary(private val musicService: MusicService) : LibraryVo
             .mapNotNull { it.name }
     }
 
+    override fun albums(term: String): List<NamedRef> = safelyRefs("albums") {
+        musicService
+            .search(SearchCriteria(term, 0, ALBUM_CANDIDATES, 0))
+            ?.albums
+            .orEmpty()
+            .map { NamedRef(it.id, it.title ?: it.name.orEmpty()) }
+    }
+
+    override fun playlists(): List<NamedRef> = safelyRefs("playlists") {
+        musicService.getPlaylists(false).map { NamedRef(it.id, it.name) }
+    }
+
     private fun tagNames(type: String): List<String> =
         safely(type) { musicService.getTags(false, type, null, null).map { it.name } }
 
     private fun safely(what: String, block: () -> List<String>): List<String> =
+        runCatching(block).getOrElse {
+            Timber.w(it, "voice vocabulary lookup failed: %s", what)
+            emptyList()
+        }
+
+    private fun safelyRefs(what: String, block: () -> List<NamedRef>): List<NamedRef> =
         runCatching(block).getOrElse {
             Timber.w(it, "voice vocabulary lookup failed: %s", what)
             emptyList()
@@ -53,5 +72,8 @@ class MusicServiceVocabulary(private val musicService: MusicService) : LibraryVo
 
         /** How many artists the server is asked to offer for one spoken name. */
         const val ARTIST_CANDIDATES = 20
+
+        /** How many albums the server is asked to offer for one spoken name. */
+        const val ALBUM_CANDIDATES = 10
     }
 }

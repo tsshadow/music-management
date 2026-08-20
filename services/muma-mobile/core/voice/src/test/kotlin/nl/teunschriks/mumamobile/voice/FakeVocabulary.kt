@@ -26,7 +26,15 @@ class FakeVocabulary(
     private val labels: List<String> = listOf("Art of Creation", "Thunderdome", "Q-dance"),
     private val years: List<String> = listOf("2019", "2020", "2021", "2024"),
     private val artists: List<String> = listOf("Headhunterz", "Angerfist", "D-Block & S-te-Fan"),
-    private val ratings: List<String> = listOf("1", "2", "3", "4", "5")
+    private val ratings: List<String> = listOf("1", "2", "3", "4", "5"),
+    private val albums: List<NamedRef> = listOf(
+        NamedRef("al-1", "Thunderdome"),
+        NamedRef("al-2", "Dragonborn")
+    ),
+    private val playlists: List<NamedRef> = listOf(
+        NamedRef("pl-1", "Thunderdome"),
+        NamedRef("pl-2", "Zomer")
+    )
 ) : LibraryVocabulary {
 
     /** Every lookup the resolver made, so a test can assert it did not ask for what it cannot use. */
@@ -55,5 +63,15 @@ class FakeVocabulary(
     override fun artists(term: String): List<String> {
         asked.add("artists($term)")
         return artists
+    }
+
+    override fun albums(term: String): List<NamedRef> {
+        asked.add("albums($term)")
+        return albums
+    }
+
+    override fun playlists(): List<NamedRef> {
+        asked.add("playlists")
+        return playlists
     }
 }

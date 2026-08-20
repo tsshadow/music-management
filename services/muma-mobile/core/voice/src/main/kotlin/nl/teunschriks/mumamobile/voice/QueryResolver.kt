@@ -11,21 +11,6 @@ import nl.teunschriks.mumamobile.api.subsonic.models.Filter
 import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 
 /**
- * @brief A request the library can actually run.
- *
- * @property filters the `clusters` filters, every value spelled as the library spells it
- * @property sortMethod one of [SortMethods]
- * @property ratingMin the rating floor, or null when no rating was asked for
- * @property ratingMax the rating ceiling, always sent when [ratingMin] is -- see [QueryResolver]
- */
-data class ResolvedQuery(
-    val filters: Filters,
-    val sortMethod: String,
-    val ratingMin: Int? = null,
-    val ratingMax: Int? = null
-)
-
-/**
  * @brief Turns the parser's slots into the filters the library understands.
  *
  * @details Every value has to be the one the library spells, because the server answers a filter
@@ -47,14 +32,19 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
      *        strips the word "genre" precisely when it understood the request as a genre one, so
      *        this extra is often the only evidence left that a genre was meant.
      * @param trace records every question put to the library and every term that failed to place.
-     * @return the request to run, or null when nothing in the utterance survived the library
+     * @param pinned the kind a user chose after being asked. Set only when answering an
+     *        [QueryResolution.Ambiguous]; it fixes the free term to that kind and skips the ranking
+     *        entirely, so the answer runs through this same resolver rather than around it.
+     * @return the request to run, the question to ask, or the reason nothing could be run
      */
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount")
     fun resolve(
         parsed: ParsedQuery,
         spokenGenre: String?,
-        trace: QueryTrace? = null
-    ): ResolvedQuery? {
+        trace: QueryTrace? = null,
+        pinned: EntityKind? = null
+    ): QueryResolution {
+        val here = trace ?: QueryTrace(VoiceEntryPoint.TEXT_INPUT, "unknown")
         val genres = lookup(trace, "genres", "") { vocabulary.genres() }
 
         var genre = spokenGenre?.takeIf { it.isNotBlank() }
@@ -75,32 +65,24 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
 
         val free = parsed.free?.takeIf { listOfNotNull(genre, artist, label).isEmpty() }
         if (free != null) {
-            // Nothing qualified this term, so the name is the only evidence there is and it has to
-            // be the library's own spelling: a near miss is far more likely to be an album nobody
-            // wanted turned into five hundred tracks. A bare name is tried as an artist or a label
-            // only once something else in the utterance -- a year, an order, the favourites --
-            // shows a filtered query was meant at all, so "speel headhunterz af" keeps finding the
-            // track of that name.
-            genre = matched(trace, "free as genre", free, VoiceQuery.match(free, genres, true))
-            if (genre == null && namesMoreThanTheTerm(parsed, year)) {
-                val artists = lookup(trace, "artists", free) { vocabulary.artists(free) }
-                artist = matched(trace, "free as artist", free, VoiceQuery.match(free, artists, true))
-                if (artist == null) {
-                    val labels = lookup(trace, "labels", "") { vocabulary.labels() }
-                    label = matched(trace, "free as label", free, VoiceQuery.match(free, labels, true))
+            val candidates = candidatesFor(free, parsed, year, genres, trace)
+            when (val reading = read(free, candidates, pinned, here)) {
+                is Reading.Ask -> return reading.resolution
+                is Reading.Item -> return QueryResolution.Resolved(reading.target, here)
+                is Reading.Slot -> when (reading.candidate.kind) {
+                    EntityKind.GENRE -> genre = reading.candidate.name
+                    EntityKind.ARTIST -> artist = reading.candidate.name
+                    EntityKind.LABEL -> label = reading.candidate.name
+                    else -> Unit
                 }
-            } else if (genre == null) {
-                trace?.note(
-                    "\"$free\" was left alone: nothing else in the utterance showed a filtered " +
-                        "query was meant, so a bare name stays a search term"
-                )
+                Reading.None -> Unit
             }
         }
 
         val named = listOfNotNull(genre, artist, label, year)
         if (named.isEmpty() && !parsed.favorites && parsed.sort == null) {
-            trace?.outcome("NoMatch: the library places nothing the utterance named")
-            return null
+            here.outcome("NoMatch: the library places nothing the utterance named")
+            return QueryResolution.NoMatch("nothing the utterance named is in the library", here)
         }
 
         val filters = Filters().apply {
@@ -112,7 +94,7 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
             add(Filter(FILTER_LENGTH, parsed.length))
         }
 
-        val resolved = ResolvedQuery(
+        val resolved = Target.Filtered(
             filters = filters,
             sortMethod = sortMethodFor(parsed.sort),
             // Both bounds, always. The server widens a lone ratingMin to include every unrated
@@ -121,13 +103,153 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
             ratingMax = if (parsed.favorites) FAVORITE_RATING else null
         )
 
-        trace?.filters(filters.toString())
-        trace?.request(
+        here.filters(filters.toString())
+        here.request(
             "getSongs sortMethod=${resolved.sortMethod} " +
                 "ratingMin=${resolved.ratingMin} ratingMax=${resolved.ratingMax}"
         )
-        trace?.outcome("Resolved")
-        return resolved
+        here.outcome("Resolved")
+        return QueryResolution.Resolved(resolved, here)
+    }
+
+    /** What the ranking made of the term nobody qualified. */
+    private sealed interface Reading {
+        data class Slot(val candidate: Candidate) : Reading
+        data class Item(val target: Target.Item) : Reading
+        data class Ask(val resolution: QueryResolution.Ambiguous) : Reading
+        data object None : Reading
+    }
+
+    /**
+     * @brief Gathers every reading of the term nobody qualified.
+     *
+     * @details Exact matches only, and that is a decision rather than an oversight. The term has no
+     * qualifier, so its own spelling is the only evidence there is, and a near miss is far more
+     * likely to be an album nobody wanted turned into five hundred tracks than it is to be the
+     * thing that was meant. Qualified slots keep their partial fallback, because there the speaker
+     * already said which kind they meant.
+     *
+     * A bare name is offered as an artist only once something else in the utterance -- a year, an
+     * order, the favourites -- shows a filtered query was meant at all, so "speel headhunterz af"
+     * keeps finding the track of that name through the free text search rather than playing the
+     * artist's whole catalogue.
+     */
+    private fun candidatesFor(
+        free: String,
+        parsed: ParsedQuery,
+        year: String?,
+        genres: List<String>,
+        trace: QueryTrace?
+    ): List<Candidate> {
+        val found = mutableListOf<Candidate>()
+
+        val asGenre = VoiceQuery.match(free, genres, exact = true)
+        if (asGenre != null) {
+            // A genre named exactly is as strong as evidence gets, and it is what this resolver has
+            // always answered with. Stopping here also keeps the common utterance free of the extra
+            // album and playlist round trips below: those cost a request each, and they only ever
+            // matter for a name no genre claims.
+            trace?.note("\"$free\" is a genre the library spells \"$asGenre\", so nothing else is asked")
+            return listOf(Candidate(EntityKind.GENRE, asGenre, score = scoreOf(asGenre, EntityKind.GENRE)))
+        }
+
+        val labels = lookup(trace, "labels", "") { vocabulary.labels() }
+        VoiceQuery.match(free, labels, exact = true)
+            ?.let { found.add(Candidate(EntityKind.LABEL, it, score = scoreOf(it, EntityKind.LABEL))) }
+
+        if (namesMoreThanTheTerm(parsed, year)) {
+            val artists = lookup(trace, "artists", free) { vocabulary.artists(free) }
+            VoiceQuery.match(free, artists, exact = true)?.let {
+                found.add(Candidate(EntityKind.ARTIST, it, score = scoreOf(it, EntityKind.ARTIST)))
+            }
+        } else {
+            trace?.note(
+                "\"$free\" is not offered as an artist: nothing else in the utterance showed a " +
+                    "filtered query was meant, so a bare name stays a search term"
+            )
+        }
+
+        val albums = runCatching { vocabulary.albums(free) }.getOrDefault(emptyList())
+        trace?.lookup("albums", free, albums.size)
+        albums.firstOrNull { VoiceQuery.match(free, listOf(it.name), exact = true) != null }
+            ?.let {
+                found.add(
+                    Candidate(EntityKind.ALBUM, it.name, it.id, scoreOf(it.name, EntityKind.ALBUM))
+                )
+            }
+
+        val playlists = runCatching { vocabulary.playlists() }.getOrDefault(emptyList())
+        trace?.lookup("playlists", "", playlists.size)
+        playlists.firstOrNull { VoiceQuery.match(free, listOf(it.name), exact = true) != null }
+            ?.let {
+                found.add(
+                    Candidate(
+                        EntityKind.PLAYLIST,
+                        it.name,
+                        it.id,
+                        scoreOf(it.name, EntityKind.PLAYLIST)
+                    )
+                )
+            }
+
+        found.sortedByDescending { it.score }.forEach { trace?.candidate(it.kind.name, it.name, it.score) }
+        return found.sortedByDescending { it.score }
+    }
+
+    /**
+     * An exact match is worth [EXACT]; a longer name that matched exactly is worth a little more,
+     * because "mainstream hardstyle" carries more of the utterance than "hardstyle" does; and the
+     * kind breaks a remaining tie in the order the resolver has always preferred.
+     */
+    private fun scoreOf(name: String, kind: EntityKind): Int =
+        EXACT + (name.split(' ').size - 1) * WORD_BONUS + (KIND_ORDER.size - KIND_ORDER.indexOf(kind))
+
+    /**
+     * Picks a reading, or decides that the question has to be put.
+     *
+     * One candidate is an answer. Several are only an answer when the user already gave one, which
+     * is what [pinned] is: the kind they chose after being asked.
+     */
+    private fun read(
+        free: String,
+        candidates: List<Candidate>,
+        pinned: EntityKind?,
+        trace: QueryTrace
+    ): Reading {
+        if (pinned != null) {
+            val chosen = candidates.firstOrNull { it.kind == pinned }
+            if (chosen == null) {
+                trace.note("the chosen kind $pinned places nothing called \"$free\"")
+                return Reading.None
+            }
+            trace.note("the kind was chosen: $pinned")
+            return chosen.asReading(trace)
+        }
+
+        return when (candidates.size) {
+            0 -> Reading.None
+            1 -> candidates.first().asReading(trace)
+            else -> {
+                trace.outcome("Ambiguous: \"$free\" is ${candidates.joinToString(", ") { it.kind.name.lowercase() }}")
+                Reading.Ask(
+                    QueryResolution.Ambiguous(free, candidates.take(CANDIDATES_OFFERED), trace)
+                )
+            }
+        }
+    }
+
+    private fun Candidate.asReading(trace: QueryTrace): Reading = when (kind) {
+        EntityKind.ALBUM, EntityKind.PLAYLIST -> {
+            val at = id
+            if (at == null) {
+                Reading.None
+            } else {
+                trace.request("$kind $at (\"$name\")")
+                trace.outcome("Resolved")
+                Reading.Item(Target.Item(kind, at, name))
+            }
+        }
+        else -> Reading.Slot(this)
     }
 
     private fun lookup(
@@ -182,5 +304,23 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
 
         /** Five stars is what a favourite is, here and on the rating buttons of the car. */
         const val FAVORITE_RATING = 5
+
+        /** What an exact match on the library's own spelling is worth. */
+        const val EXACT = 100
+
+        /** Each further word of a multi-word exact match. */
+        const val WORD_BONUS = 5
+
+        /** How many readings are worth offering before the question stops being a question. */
+        const val CANDIDATES_OFFERED = 3
+
+        /** The order the resolver has always preferred, now only a tie-break. */
+        val KIND_ORDER = listOf(
+            EntityKind.GENRE,
+            EntityKind.LABEL,
+            EntityKind.ARTIST,
+            EntityKind.ALBUM,
+            EntityKind.PLAYLIST
+        )
     }
 }

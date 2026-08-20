@@ -11,4 +11,5 @@ plugins {
 
 include ':core:domain'
 include ':core:subsonic-api'
+include ':core:voice'
 include ':app'

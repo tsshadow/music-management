@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **MuMa Voice: a microphone in the app, on the same pipeline as the car.** Tap the microphone
+  in the toolbar and say what to play. The words go through the very parser and query engine
+  Android Auto uses, so a phrasing that works in one works in the other. The recogniser hands
+  back several readings of the same sentence and MuMa tries them in order, which is what gets
+  past "hard style" for "hardstyle" without anyone noticing. There is a text field on the same
+  screen for trying a phrasing without talking.
+- **A question instead of a guess, where a name means more than one thing.** "Speel
+  Thunderdome" can be the label, the album or the playlist. MuMa Voice now shows the readings
+  and asks which one you meant; the answer can be tapped or spoken ("het label"). Android Auto
+  cannot ask — there is no way back through a media session — so in the car it takes the
+  strongest reading and records the ones it discarded.
+- **Albums, playlists, track titles and star ratings can be spoken.** "Speel album
+  Thunderdome af", "speel de afspeellijst zomer af", "speel het nummer dragonborn af", "speel
+  hardstyle met minstens 4 sterren af". Two values of the same kind work too: "speel hardstyle
+  en hardcore af" is one query, while "drum and bass" stays one genre.
+- **Voice diagnostics, under About.** Every voice request now leaves a full trace: which
+  callback it arrived through, the query exactly as received, every extra Android sent with it,
+  the tokens, which parser rule claimed which word, what the library said about each term, and
+  the request that finally went out. The last fifty are kept and can be shared as text. This is
+  how to find out what Google rewrites before MuMa is ever called.
+
+### Fixed
+- **A spoken title is searched for by its title, not by the whole sentence.** When no filter
+  matched, the fallback search was handed the entire utterance, so "speel het nummer dragonborn
+  af" looked for exactly that and found nothing. It now searches for "dragonborn".
+- **A spoken rating no longer drags in every unrated track.** The server widens a lone minimum
+  rating to include everything nobody has rated, so a floor is now always sent with a ceiling.
+
 ## [6.16.0] - 2026-08-19
 
 ### Added

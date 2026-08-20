@@ -5,7 +5,7 @@
  * Distributed under terms of the GNU GPLv3 license.
  */
 
-package nl.teunschriks.mumamobile.service.androidauto
+package nl.teunschriks.mumamobile.voice
 
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.`should be null`
@@ -80,13 +80,13 @@ class VoiceQueryTest {
     @Test
     fun `random asks for the random sort`() {
         VoiceQuery.parse("speel random hardcore af")?.sort `should be equal to`
-            VoiceQuery.Sort.RANDOM
+            ParsedQuery.Sort.RANDOM
     }
 
     @Test
     fun `the dutch word for random asks for the random sort`() {
         VoiceQuery.parse("speel willekeurige nummers af")?.sort `should be equal to`
-            VoiceQuery.Sort.RANDOM
+            ParsedQuery.Sort.RANDOM
     }
 
     @Test
@@ -95,7 +95,7 @@ class VoiceQueryTest {
 
         request?.free `should be equal to` "uptempo hardcore"
         request?.year `should be equal to` "2021"
-        request?.sort `should be equal to` VoiceQuery.Sort.RANDOM
+        request?.sort `should be equal to` ParsedQuery.Sort.RANDOM
     }
 
     @Test
@@ -138,25 +138,25 @@ class VoiceQueryTest {
     fun `recent asks for the release sort and nothing else`() {
         val request = VoiceQuery.parse("speel recente nummers af")
 
-        request?.sort `should be equal to` VoiceQuery.Sort.RELEASED
+        request?.sort `should be equal to` ParsedQuery.Sort.RELEASED
         request?.free.`should be null`()
     }
 
     @Test
     fun `recently released asks for the release sort`() {
         VoiceQuery.parse("speel recent uitgebracht af")?.sort `should be equal to`
-            VoiceQuery.Sort.RELEASED
+            ParsedQuery.Sort.RELEASED
     }
 
     @Test
     fun `recent on its own asks for the release sort`() {
-        VoiceQuery.parse("speel recent af")?.sort `should be equal to` VoiceQuery.Sort.RELEASED
+        VoiceQuery.parse("speel recent af")?.sort `should be equal to` ParsedQuery.Sort.RELEASED
     }
 
     @Test
     fun `recently added is a different sort than recently released`() {
         VoiceQuery.parse("speel recent toegevoegd af")?.sort `should be equal to`
-            VoiceQuery.Sort.ADDED
+            ParsedQuery.Sort.ADDED
     }
 
     @Test
@@ -189,7 +189,7 @@ class VoiceQueryTest {
 
         request?.favorites `should be equal to` true
         request?.year `should be equal to` "2023"
-        request?.sort `should be equal to` VoiceQuery.Sort.RANDOM
+        request?.sort `should be equal to` ParsedQuery.Sort.RANDOM
     }
 
     @Test

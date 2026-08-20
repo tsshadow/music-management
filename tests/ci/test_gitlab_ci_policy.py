@@ -149,7 +149,9 @@ def test_python_and_android_units_publish_junit():
     ci = load_ci()
     for name, path in [
         ("music-management:unit", "report-python.xml"),
-        ("muma-mobile:check", "services/muma-mobile/app/build/test-results/**/TEST-*.xml"),
+        # Every module, not just app/: a glob pinned to one module means a new module's
+        # tests report green by publishing nothing at all.
+        ("muma-mobile:check", "services/muma-mobile/**/build/test-results/**/TEST-*.xml"),
     ]:
         assert ci[name]["artifacts"]["reports"]["junit"] == path
 

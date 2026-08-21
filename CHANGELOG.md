@@ -64,6 +64,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   installatiescript van de Android-app vergeleek een lijst met apps als één samengeplakte tekst,
   waardoor een naam die toevallig in een andere naam zat als geldig doorging.
 
+## [0.22.1] - 2026-08-21
+
 ### Fixed
 - **De Android-app startte niet meer op.** Versie 6.21.0 crashte meteen bij het openen, zodra het
   startscherm de eerste bewaarde kaart wilde tekenen. De nieuwe opslag van die kaarten liet de
@@ -95,6 +97,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   De lezers gebruiken nu de echte verwijzing, en een migratie herstelt die verwijzing voor de
   bestaande rijen langs beide routes die nog oplossen — ook waar er een verkeerde waarde stond, wat
   het oude migratiescript liet liggen omdat het alleen lege waarden vulde.
+
+
 
 ## [0.22.0] - 2026-08-21
 

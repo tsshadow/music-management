@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.22.0] - 2026-08-21
+
 ### Fixed
 - **A playlist shows its "Play all" button again, and the player shows the microphone.** The
   microphone rides on the menu the whole app carries, and that menu is laid out before a screen's

@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [6.22.0] - 2026-08-21
+
 ### Added
 - **De zoekbalk begrijpt nu ook een verzoek.** Typ je "speel willekeurig uptempo hardcore uit 2021
   af", dan gebeurt dat, in plaats van een zoektocht naar die hele zin. Eén woord wordt nooit

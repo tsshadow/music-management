@@ -11,6 +11,8 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.23.0 (2026-08-21)
+
 ### Added
 - **Er is een eerste echte keten-test.** Alle bestaande tests bewijzen één onderdeel: dat LMS
   antwoordt in de vorm die de server verwacht, dat de database de query slikt, dat een functie doet

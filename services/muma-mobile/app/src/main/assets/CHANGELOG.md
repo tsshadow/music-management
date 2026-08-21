@@ -77,6 +77,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   warning — it now reads MuMa.
 
 ### Fixed
+- **The app crashed on startup.** 6.21.0 died the moment the home screen drew its first cached
+  card. The new card store let the deserializer learn the list's element type from a field
+  signature, and R8 strips those from classes it was not told to keep, so the cards came back as
+  generic maps. Nothing minifies in a debug build or in the unit suite, which is why every test was
+  green. The store now passes the element type explicitly, exactly as the shortcuts list has done
+  for years, and an entry that cannot be read back as cards counts as a miss. Nothing needs
+  clearing: the entries 6.21.0 wrote are simply overwritten on the next load.
 - **A playlist shows its "Play all" button again, and the player shows the microphone.** The
   microphone rides on the menu the whole app carries, and that menu is laid out before a screen's
   own actions are, so on an album or a playlist the microphone took the slot "Play all" needs and

@@ -63,6 +63,14 @@ This project is now modularized. Detailed release notes for each module can be f
   waardoor een naam die toevallig in een andere naam zat als geldig doorging.
 
 ### Fixed
+- **De Android-app startte niet meer op.** Versie 6.21.0 crashte meteen bij het openen, zodra het
+  startscherm de eerste bewaarde kaart wilde tekenen. De nieuwe opslag van die kaarten liet de
+  omzetter het type van de lijst uit de veldbeschrijving afleiden, en juist die beschrijving haalt
+  de verkleiner uit een uitgavebouw weg — waardoor er losse gegevensbrokken terugkwamen in plaats
+  van kaarten. In een ontwikkelbouw en in alle tests gebeurde dat niet, want daar wordt niet
+  verkleind. De opslag geeft het type nu expliciet mee, precies zoals de al jaren werkende
+  snelkoppelingenlijst dat doet, en een bewaarde regel die niet als kaart te lezen is telt als
+  ontbrekend. Wie 6.21.0 draaide hoeft niets te wissen: de oude regels worden vanzelf overschreven.
 - **Twee derde van je luistergeschiedenis was onvindbaar voor de rest van MuMa.** Een beluisterd
   nummer werd aan een track gekoppeld door de artiestnaam en de titel letterlijk te vergelijken.
   Op 16.830 gekoppelde luisterbeurten stonden er 35.761 in een tabel die niemand meer las, en het

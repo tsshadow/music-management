@@ -6,6 +6,7 @@ import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.`should be greater than`
 import org.amshove.kluent.`should be less than`
 import org.amshove.kluent.`should be null`
+import org.amshove.kluent.`should contain same`
 import org.junit.Test
 
 /**
@@ -129,6 +130,42 @@ class LRUCacheTest {
         cache.clear()
 
         cache["a"].`should be null`()
+    }
+
+    /**
+     * A rating change has to reach whichever cached entries happen to hold the track, and drop
+     * the one item that was built with the old rating, neither of which the caller can name by
+     * key. See [nl.teunschriks.mumamobile.service.applyRatingToCachedTracks].
+     */
+    @Test
+    fun `values returns every entry that is still held`() {
+        val cache = LRUCache<String, String>(4)
+        cache.put("a", "Angerfist")
+        cache.put("b", "Outsiders")
+
+        cache.values() `should contain same` listOf("Angerfist", "Outsiders")
+    }
+
+    @Test
+    fun `a cleared cache holds no values`() {
+        val cache = LRUCache<String, String>(4)
+        cache.put("a", "Angerfist")
+
+        cache.clear()
+
+        cache.values().size `should be equal to` 0
+    }
+
+    @Test
+    fun `remove drops only the entry it names`() {
+        val cache = LRUCache<String, String>(4)
+        cache.put("a", "Angerfist")
+        cache.put("b", "Outsiders")
+
+        cache.remove("a")
+
+        cache["a"].`should be null`()
+        cache["b"] `should be equal to` "Outsiders"
     }
 }
 

@@ -40,6 +40,7 @@ import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.domain.UserInfo
 import nl.teunschriks.mumamobile.domain.Year
 import nl.teunschriks.mumamobile.util.LRUCache
+import nl.teunschriks.mumamobile.util.MediaItemConverter
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.TimeLimitedCache
 
@@ -463,9 +464,22 @@ class CachedMusicService(private val musicService: MusicService) :
         musicService.unstar(id, albumId, artistId)
     }
 
+    /**
+     * The server is told first; the cached copies of the track are corrected after, so that a
+     * rating set in the car or on a list is the one the app reports back until the cache is
+     * refetched. See [applyRatingToCachedTracks].
+     */
     @Throws(Exception::class)
     override fun setRating(id: String, rating: Int) {
         musicService.setRating(id, rating)
+
+        for (dir in cachedMusicDirectories.values() + cachedAlbum.values()) {
+            applyRatingToCachedTracks(dir, id, rating)
+        }
+        for (list in cachedHomeLists.values) {
+            applyRatingToCachedTracks(list.get(), id, rating)
+        }
+        MediaItemConverter.applyRating(id, rating)
     }
 
     @Throws(Exception::class)
@@ -784,3 +798,21 @@ class CachedMusicService(private val musicService: MusicService) :
 internal fun artistsCacheBypassesFor(query: String?, sortBy: String?, count: Int?): Boolean = query != null ||
     (sortBy != null && sortBy != "name") ||
     count != null
+
+/**
+ * Writes a rating into every cached copy of the track it belongs to.
+ *
+ * A rating used to be forwarded to the server and nowhere else, so the copies the app answers
+ * from - the album it was rated in, the home screen lists, the car's browse tree - kept the
+ * rating they were fetched with until their cache expired. Coming back to a track then showed the
+ * old number, which reads as the rating having been reset.
+ *
+ * [cached] is walked rather than typed because the caches hold several shapes: a [MusicDirectory]
+ * (itself a list of children), a home list of mixed entries, or a bare [Track].
+ */
+internal fun applyRatingToCachedTracks(cached: Any?, id: String, rating: Int) {
+    when (cached) {
+        is Track -> if (cached.id == id) cached.userRating = rating
+        is Iterable<*> -> cached.forEach { applyRatingToCachedTracks(it, id, rating) }
+    }
+}

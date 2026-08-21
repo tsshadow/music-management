@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [6.20.1] - 2026-08-21
+
+### Changed
+- **De app wordt vanaf nu uitgegeven onder zijn eigen naam.** Downloads heetten nog
+  `ultrasonic-*`; ze heten nu `muma-mobile-*`. Voor je telefoon verandert er niets: een oudere
+  installatie die om de oude naam vraagt wordt automatisch naar de nieuwe reeks gewezen, dus
+  updates blijven gewoon binnenkomen.
+
 ## [6.18.0] - 2026-08-20
 
 ### Fixed

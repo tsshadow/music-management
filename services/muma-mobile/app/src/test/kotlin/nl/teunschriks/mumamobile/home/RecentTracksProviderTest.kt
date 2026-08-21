@@ -74,8 +74,8 @@ class RecentTracksProviderTest {
         provider(tracks = { emptyList() }).load().shouldBeNull()
     }
 
-    @Test
-    fun `a server error hides the section`() = runBlocking<Unit> {
-        provider(tracks = { error("offline") }).load().shouldBeNull()
+    @Test(expected = IllegalStateException::class)
+    fun `a server error is reported to the caller, not swallowed`() = runBlocking<Unit> {
+        provider(tracks = { error("no route to host") }).load()
     }
 }

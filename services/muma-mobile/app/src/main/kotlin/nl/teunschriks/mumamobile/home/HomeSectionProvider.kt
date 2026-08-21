@@ -20,6 +20,23 @@ import timber.log.Timber
  */
 interface HomeSectionProvider {
     suspend fun load(): HomeSection?
+
+    /**
+     * The slot this section's cards are stored under, or null to opt out of the disk cache.
+     *
+     * Opting out is for a section that is already local: the shortcuts grid reads from
+     * [RecentActivityStore], so caching it a second time would only add a way for the two copies
+     * to disagree.
+     */
+    val cacheKey: String?
+
+    /**
+     * Rebuilds this section around cards that came back from the cache.
+     *
+     * Title and style stay here rather than being stored, because [HomeSection.titleRes] is a
+     * string resource id and those are renumbered between builds.
+     */
+    fun sectionOf(cards: List<HomeCard>): HomeSection
 }
 
 /**
@@ -45,6 +62,11 @@ class ShortcutsProvider(
     /** A card to the cover art it can borrow. Null when the library holds none either. */
     private val resolveCoverArt: suspend (HomeCard) -> String? = { null }
 ) : HomeSectionProvider {
+
+    override val cacheKey: String? = null
+
+    override fun sectionOf(cards: List<HomeCard>): HomeSection =
+        HomeSection(titleRes, CardStyle.GRID, cards)
 
     override suspend fun load(): HomeSection? {
         val cards = store.recent(setsMode(), count())
@@ -104,15 +126,17 @@ class RecentTracksProvider(
     private val loadTracks: suspend (sortMethod: String, count: Int) -> List<Track>
 ) : HomeSectionProvider {
 
+    override val cacheKey: String = "tracks:$sortMethod"
+
+    override fun sectionOf(cards: List<HomeCard>): HomeSection =
+        HomeSection(titleRes, CardStyle.LIST, cards)
+
     override suspend fun load(): HomeSection? {
         val requested = rows()
 
-        val tracks = try {
-            loadTracks(sortMethod, requested)
-        } catch (e: Exception) {
-            Timber.w(e, "Home section '%s' failed to load", sortMethod)
-            return null
-        }
+        // Failure is not the same thing as an empty section: HomeViewModel keeps whatever it had
+        // cached when this throws, and clears the cache when it returns null.
+        val tracks = loadTracks(sortMethod, requested)
 
         // The count is a request, not a promise: an older server, or a cached response from when the
         // setting was higher, can hand back more than was asked for.

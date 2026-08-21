@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+### Added
+- **De app opent meteen op wat er de vorige keer stond.** Het startscherm en de bladerschermen
+  lieten bij elke start pulserende vakjes zien terwijl ze de server opnieuw bevroegen om lijsten
+  die bijna nooit veranderd waren. Die lijsten worden nu bewaard en direct weer neergezet, met
+  een dun streepje onder de kop zolang de nieuwe versie onderweg is. Aantikken kan meteen, en
+  zonder verbinding blijft gewoon staan wat je de vorige keer zag.
+
 ## [6.20.1] - 2026-08-21
 
 ### Changed

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:a="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     a:layout_width="match_parent"
     a:layout_height="wrap_content"
@@ -40,6 +41,18 @@
             tools:visibility="visible" />
 
     </LinearLayout>
+
+    <!-- Spins while the cards below are last run's copy and a fresh one is on its way. A bar rather
+         than dimming the cards: they are perfectly usable, and a dimmed card reads as disabled. -->
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        a:id="@+id/section_progress"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:layout_marginHorizontal="16dp"
+        a:layout_marginBottom="4dp"
+        a:indeterminate="true"
+        a:visibility="gone"
+        app:trackThickness="2dp" />
 
     <!-- Shown until the section has loaded. The card placeholders are added at runtime, because
          which shape they take (grid or carousel) is a property of the section. -->

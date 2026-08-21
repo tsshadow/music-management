@@ -21,6 +21,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.progressindicator.LinearProgressIndicator
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -162,6 +163,7 @@ class MainFragment :
             // A banner names itself, so a heading above it would only say the same thing twice.
             showTitle = style != CardStyle.BANNER,
             skeleton = container.findViewById(R.id.section_skeleton),
+            progress = container.findViewById(R.id.section_progress),
             recycler = recycler,
             adapter = adapter
         )
@@ -176,6 +178,7 @@ class MainFragment :
             when (val state = states.getOrElse(index) { HomeSectionState.Loading }) {
                 is HomeSectionState.Loading -> slot.showSkeleton()
                 is HomeSectionState.Empty -> slot.container.visibility = View.GONE
+                is HomeSectionState.Stale -> slot.showStale(state.section)
                 is HomeSectionState.Content -> slot.showContent(state.section)
             }
         }
@@ -221,12 +224,14 @@ class MainFragment :
         val hasMore: Boolean,
         val showTitle: Boolean,
         val skeleton: View,
+        val progress: LinearProgressIndicator,
         val recycler: RecyclerView,
         val adapter: HomeCardAdapter
     ) {
         /** The title is unknown until the section loads, so it is a placeholder bar until then. */
         fun showSkeleton() {
             container.visibility = View.VISIBLE
+            progress.visibility = View.GONE
             title.visibility = View.GONE
             more.visibility = View.GONE
             recycler.visibility = View.GONE
@@ -239,9 +244,16 @@ class MainFragment :
             }
         }
 
+        /** Last run's cards, with the bar running: usable now, better in a moment. */
+        fun showStale(section: HomeSection) {
+            showContent(section)
+            progress.visibility = View.VISIBLE
+        }
+
         fun showContent(section: HomeSection) {
             skeleton.clearAnimation()
             skeleton.visibility = View.GONE
+            progress.visibility = View.GONE
 
             container.visibility = View.VISIBLE
             title.visibility = if (showTitle) View.VISIBLE else View.GONE

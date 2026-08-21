@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **De Android-app opent op wat er de vorige keer stond, in plaats van op skeletten.** Elke koude
+  start liet het startscherm en de bladerschermen (genres, jaren, labels, festivals, line-ups)
+  pulserende plaatshouders tonen terwijl de server opnieuw werd bevraagd om gegevens die sinds de
+  vorige keer bijna nooit veranderd waren. De caches die er al waren leefden alleen in het geheugen
+  en gingen dus met het proces mee dood. De kaarten die een sectie of een bladerscherm laat zien
+  worden nu op schijf bewaard en meteen weer neergezet, met een dunne voortgangsbalk onder de kop
+  zolang de verse kopie onderweg is; de kaarten zelf zijn direct aantikbaar. Mislukt het verversen,
+  dan blijven de kaarten staan en stopt de balk. Een lege sectie wist zijn eigen bewaarde kopie, en
+  een andere server of de Sets-schakelaar is een misser in plaats van een verkeerd antwoord.
+
 ## [0.21.1] - 2026-08-21
 
 ### Changed

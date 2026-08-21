@@ -7,17 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-- **Builds are published under the app's own name.** Every APK still went up as `ultrasonic-*`,
-  because apk-hoster groups builds by the filename prefix and that prefix is what an installed app
-  asks for when it checks for updates — renaming it alone would have left every phone told it was
-  up to date forever. Uploads are now `muma-mobile-*` and the update check asks for that series;
-  older installs still asking for `ultrasonic` are pointed at it by apk-hoster's new `APK_ALIASES`
-  setting, which is configured there. The account a build signs in to apk-hoster with moved too,
-  from `ultrasonic` to `muma-mobile`; the old account stays on the server for builds already
-  installed.
-
 ### Added
+- **The app now opens on what it was showing last time instead of on skeletons.** Every cold start
+  redrew pulsing placeholders on the home screen and on the browse screens — genres, years, labels,
+  festivals, line-ups — while the server was asked again for data that had almost never changed
+  since the app was last closed. The caches that already existed lived in memory and died with the
+  process. The finished cards a section or a browse page renders are now kept on disk and put back
+  up at once, with a thin progress bar under the heading while a fresh copy is on its way; the cards
+  themselves are tappable straight away. When the refresh fails the cards stay and the bar stops. A
+  section that turns out to be empty clears its own stored copy, and a different server or the Sets
+  switch is a miss rather than a wrong answer. Ratings, which are a fixed ladder built in the app,
+  are left alone.
 - **A setup wizard that opens after an update and shows you what it changed.** Sixty-two settings
   live on one scrolling screen, and nothing on it says which of them arrived last week. The wizard
   walks nine of them one at a time — server, style, app icon, interface size, memories on the home
@@ -37,6 +37,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Each placeholder names on the picture itself what belongs there, and carries a marker that
   `scripts/manual-screenshot-status.sh` greps for, so which chapters are still waiting for a real
   capture is a question the repository answers rather than a list anyone keeps by hand.
+
+### Changed
+- **Builds are published under the app's own name.** Every APK still went up as `ultrasonic-*`,
+  because apk-hoster groups builds by the filename prefix and that prefix is what an installed app
+  asks for when it checks for updates — renaming it alone would have left every phone told it was
+  up to date forever. Uploads are now `muma-mobile-*` and the update check asks for that series;
+  older installs still asking for `ultrasonic` are pointed at it by apk-hoster's new `APK_ALIASES`
+  setting, which is configured there. The account a build signs in to apk-hoster with moved too,
+  from `ultrasonic` to `muma-mobile`; the old account stays on the server for builds already
+  installed.
 
 ### Changed
 - **The About screen no longer points at sites that have nothing to do with this install.**

@@ -11,6 +11,15 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+### Added
+- **De Android-app opent meteen op wat er de vorige keer stond.** Het startscherm en de
+  bladerschermen — genres, jaren, labels, festivals, line-ups — lieten bij elke start pulserende
+  vakjes zien terwijl ze de server opnieuw bevroegen om lijsten die sinds de vorige keer bijna
+  nooit veranderd waren. De caches die er al waren leefden alleen in het geheugen en gingen met
+  het proces mee dood. De kaarten worden nu op schijf bewaard en direct weer neergezet, met een
+  dunne voortgangsbalk onder de kop zolang de verse kopie onderweg is; aantikken kan meteen.
+  Mislukt het verversen, dan blijven de kaarten staan en stopt de balk.
+
 ## Global Version 0.21.1 (2026-08-21)
 
 ### Changed

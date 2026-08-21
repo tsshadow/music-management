@@ -79,9 +79,9 @@ class MemoriesProviderTest {
         section.cards.single().itemId `should be equal to` "2018"
     }
 
-    @Test
-    fun `a server without the endpoint hides the section instead of failing`() = runBlocking<Unit> {
-        provider { error("HTTP 404") }.load().shouldBeNull()
+    @Test(expected = IllegalStateException::class)
+    fun `a server error is reported to the caller, not swallowed`() = runBlocking<Unit> {
+        provider { error("no route to host") }.load()
     }
 
     @Test
@@ -110,5 +110,35 @@ class MemoriesProviderTest {
         ).load()
 
         requested `should be equal to` "2026-12-25"
+    }
+
+    @Test
+    fun `the memories banner caches under the day it is about`() {
+        val provider = MemoriesProvider(
+            titleRes = R.string.home_memories,
+            loadMemories = { emptyList() },
+            today = { "2026-08-21" },
+            title = { "Memories" },
+            summary = { "8 years ago" }
+        )
+
+        provider.cacheKey `should be equal to` "memories:2026-08-21"
+    }
+
+    @Test
+    fun `the memories banner rebuilds itself from a cached card`() {
+        val provider = MemoriesProvider(
+            titleRes = R.string.home_memories,
+            loadMemories = { emptyList() },
+            today = { "2026-08-21" },
+            title = { "Memories" },
+            summary = { "8 years ago" }
+        )
+        val cards = listOf(HomeCard(HomeCardType.MEMORY, itemId = "8", title = "Memories"))
+
+        val section = provider.sectionOf(cards)
+
+        section.style `should be equal to` CardStyle.BANNER
+        section.cards `should be equal to` cards
     }
 }

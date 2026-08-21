@@ -22,6 +22,16 @@ sealed interface HomeSectionState {
     /** Loaded, but the section has nothing worth showing: the slot is hidden. */
     data object Empty : HomeSectionState
 
+    /**
+     * Showing what was on screen the last time the app ran, while a fresh copy is on its way.
+     *
+     * Distinct from [Content] rather than a flag on it because the two differ in what the screen
+     * should do next: a stale slot spins its progress bar, a content slot does not. It matters most
+     * when the refresh fails -- the cards stay, but the bar has to stop, or it promises something
+     * that is not coming.
+     */
+    data class Stale(val section: HomeSection) : HomeSectionState
+
     /** Loaded with content. */
     data class Content(val section: HomeSection) : HomeSectionState
 }

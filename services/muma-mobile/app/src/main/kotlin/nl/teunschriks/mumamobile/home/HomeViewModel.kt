@@ -37,6 +37,7 @@ import timber.log.Timber
  */
 class HomeViewModel(
     private val store: RecentActivityStore,
+    private val cardCache: CardListCache,
     /** Overridden by tests only; the app always loads on [Dispatchers.IO]. */
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     /** Overridden by tests only; null means the real sections below. */
@@ -84,9 +85,10 @@ class HomeViewModel(
 
     /**
      * Loads every section at once and publishes each one the moment it arrives, so a fast section
-     * is not held up by a slow one. Sections that have never loaded start as
-     * [HomeSectionState.Loading]; a reload keeps whatever is already on screen, because replacing
-     * live content with skeletons on every return to the home screen only looks broken.
+     * is not held up by a slow one. A section that has cards from the last run puts them up first
+     * and refreshes behind them; one that has none starts as [HomeSectionState.Loading]. A reload
+     * keeps whatever is already on screen, because replacing live content with skeletons on every
+     * return to the home screen only looks broken.
      */
     fun load() {
         viewModelScope.launch {
@@ -96,32 +98,59 @@ class HomeViewModel(
 
             providers.forEachIndexed { index, provider ->
                 launch(ioDispatcher) {
+                    val cached = provider.cacheKey?.let { cardCache.read(it) }
+                    if (cached != null && cached.cards.isNotEmpty()) {
+                        publish(index, HomeSectionState.Stale(provider.sectionOf(cached.cards)))
+                    }
+
                     // One section throwing must not cancel its siblings, which sharing a scope
                     // would otherwise do.
-                    val section = try {
-                        provider.load()
+                    try {
+                        publishLoaded(index, provider, provider.load())
                     } catch (e: Exception) {
                         Timber.w(e, "Home section %d failed to load", index)
-                        null
+                        publishFailed(index, provider, cached)
                     }
-                    publish(index, section)
                 }
             }
         }
     }
 
+    /** A section that came back from the server: it is the new truth, and the new cache entry. */
+    private fun publishLoaded(index: Int, provider: HomeSectionProvider, section: HomeSection?) {
+        val key = provider.cacheKey
+
+        if (section == null) {
+            if (key != null) cardCache.clear(key)
+            publish(index, HomeSectionState.Empty)
+        } else {
+            if (key != null) cardCache.write(key, section.cards)
+            publish(index, HomeSectionState.Content(section))
+        }
+    }
+
+    /**
+     * A section whose refresh failed. Cached cards stay on screen as [HomeSectionState.Content]:
+     * they are as good as they were a moment ago, and leaving them [HomeSectionState.Stale] would
+     * spin a progress bar for a refresh that is no longer coming. The cache is left alone -- a
+     * failure says nothing about whether the section is empty.
+     */
+    private fun publishFailed(
+        index: Int,
+        provider: HomeSectionProvider,
+        cached: CardListCache.Snapshot?
+    ) {
+        if (cached == null || cached.cards.isEmpty()) {
+            publish(index, HomeSectionState.Empty)
+        } else {
+            publish(index, HomeSectionState.Content(provider.sectionOf(cached.cards)))
+        }
+    }
+
     /** Replaces one slot without disturbing the others, whichever order they finish in. */
-    private fun publish(index: Int, section: HomeSection?) {
+    private fun publish(index: Int, state: HomeSectionState) {
         mutableSections.update { current ->
-            current.mapIndexed { slot, state ->
-                if (slot != index) {
-                    state
-                } else if (section == null) {
-                    HomeSectionState.Empty
-                } else {
-                    HomeSectionState.Content(section)
-                }
-            }
+            current.mapIndexed { slot, existing -> if (slot == index) state else existing }
         }
     }
 

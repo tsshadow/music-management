@@ -40,6 +40,49 @@ class TaggerTestCase(unittest.TestCase):
         return song
 
 
+class ImportFolderTest(TaggerTestCase):
+    """The import folder sits inside the EPs root and must never be tagged as a label.
+
+    `import_folder_path` is `/mnt/music/EPs/__TODO` and `eps_folder_path` is `/mnt/music/EPs`, so
+    every folder scan over the EPs root walks straight into the release queue. LabelSong takes the
+    publisher from the grandparent folder name (`LabelSong.py:22-23`), so a file tagged while it is
+    still waiting there gets `publisher = __TODO` written into it -- and that is what happened to
+    part of the library before the underscore guard was added. Five of 25 files sampled on
+    production on 2026-08-19 still carry it.
+
+    The guard is one condition in one expression and reads like a style choice. These tests are what
+    say it is not.
+    """
+
+    def test_an_underscore_folder_is_not_treated_as_a_label(self):
+        self.make_song(self.eps / '__TODO' / 'Some Release')
+
+        with patch.object(self.tagger, 'parse_folder') as parse_folder:
+            self.tagger._parse_label_folders()
+
+        types = [call.args[1] for call in parse_folder.call_args_list]
+        self.assertEqual([SongTypeEnum.GENERIC], types)
+
+    def test_an_ordinary_label_folder_still_is(self):
+        self.make_song(self.eps / 'Roughstate' / 'Some Release')
+
+        with patch.object(self.tagger, 'parse_folder') as parse_folder:
+            self.tagger._parse_label_folders()
+
+        types = [call.args[1] for call in parse_folder.call_args_list]
+        self.assertEqual([SongTypeEnum.LABEL], types)
+
+    def test_the_single_file_path_agrees_with_the_folder_scan(self):
+        """Two independent decisions, one rule. They drifted apart once already."""
+        song = self.make_song(self.eps / '__TODO' / 'Some Release')
+
+        with patch.object(tagger_module.Tagger, 'parse_song') as parse_song, \
+                patch.object(tagger_module, 'settings', self.settings, create=True):
+            tagger_module.TagSingleFile(song)
+
+        self.assertEqual(SongTypeEnum.GENERIC, parse_song.call_args.args[1])
+
+
 class RunTest(TaggerTestCase):
 
     def steps(self):

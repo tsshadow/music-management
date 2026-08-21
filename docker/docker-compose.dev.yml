@@ -1,23 +1,37 @@
 version: "3.9"
 services:
   music-manager:
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - ../services:/app/services
   importer_worker:
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - ../services:/app/services
   youtube_worker:
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - ../services:/app/services
   soundcloud_worker:
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - ../services:/app/services
   soundcloud_worker_full_once:
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - ../services:/app/services
   telegram_worker:
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - ../services:/app/services
   music-management-server:
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - ../services/frontend/dist:/usr/share/lms/docroot/spotify:ro

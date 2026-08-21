@@ -13,6 +13,7 @@ from services.common.db_init import ensure_tables_exist
 from services.common.Helpers.EventService import event_service
 from services.common.Helpers.logging_setup import setup_logging
 from services.common.version_helper import get_version
+from services.music_manager.cors import ALLOWED_METHODS, allowed_origins
 from services.music_manager.database import get_db_connection
 from services.music_manager.events_retention import run_events_retention
 from services.music_manager.routers import (
@@ -44,7 +45,13 @@ from services.music_manager.thread_registry import start_thread, thread_status
 load_dotenv()
 logger = logging.getLogger('music-manager')
 app = FastAPI(title='Music Manager API')
-app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins(os.getenv('MUMA_CORS_ORIGINS'), logger),
+    allow_methods=list(ALLOWED_METHODS),
+    allow_headers=['*'],
+    allow_credentials=False,
+)
 app.include_router(users.router, prefix="/api/users")
 app.include_router(events.router, prefix="/api/events") # before /api/auth/* below: its bare /{user_id} DELETE would otherwise shadow /api/events
 app.include_router(users.router, prefix="/api") # For /api/auth/*

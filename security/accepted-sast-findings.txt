@@ -112,19 +112,11 @@ fae11ff959a398dc x1  # github-actions-mutable-action-tag services/music-manageme
 1fd8fafb6bb958f7 x3  # missing-internal services/music-management-server/nginx/reverse-proxy.conf
 
 # --- missing-user ---
-# Compose services that still run as root. Same hardening pass as
-# no-new-privileges, and the same reason it is not in this change.
+# Images that still run as root. Changing that means getting volume
+# ownership right on a live deployment, so it needs its own change with
+# someone watching the stack come up.
 221c5f48e170d375 x1  # missing-user services/ml-analyzer/Dockerfile
 9e1b201c43dca7f7 x1  # missing-user services/music_manager/artist_image_fetcher/Dockerfile
-
-# --- no-new-privileges ---
-# Docker Compose hardening the production stack does not set yet. Worth
-# doing, and a change to the deployed stack rather than to code.
-375dc1498a6ecb04 x2  # no-new-privileges docker/docker-compose.core.yml
-5bf79816d209eaba x13  # no-new-privileges docker/docker-compose.full.yml
-687bd7b1f184484e x3  # no-new-privileges docker/docker-compose.tools.yml
-3d530229d217e500 x5  # no-new-privileges docker/docker-compose.workers.yml
-85a4a192f13c002c x11  # no-new-privileges docker/docker-compose.yml
 
 # --- python-logger-credential-disclosure ---
 # Both sites are logger.error(..., e) in the except branch of a Spotify
@@ -188,19 +180,11 @@ c1ede732ba67a9b6 x1  # sqlalchemy-execute-raw-query services/music_manager/route
 e1aa004efd8e6a7b x1  # use-of-md5 services/muma-mobile/core/subsonic-api/src/integrationTest/kotlin/nl/teunschriks/mumamobile/api/subsonic/interceptors/PasswordMD5InterceptorTest.kt
 9de9ab833e989d02 x1  # use-of-md5 services/muma-mobile/core/subsonic-api/src/main/kotlin/nl/teunschriks/mumamobile/api/subsonic/interceptors/PasswordMD5Interceptor.kt
 
-# --- wildcard-cors ---
-# OPEN HARDENING ITEM, not a false positive.
-# services/music_manager/main.py:47 serves every origin with every method
-# and header. It is not an auth bypass on its own -- allow_credentials is
-# off, so a browser attaches nothing and an attacker would need the
-# x-api-key already -- but it does let any page read the unauthenticated
-# endpoints from a victim on this LAN. Narrowing it means naming the
-# frontend and LMS origins, which is a deployment change and needs its own
-# merge request.
-31b28346969b6413 x1  # wildcard-cors services/music_manager/main.py
-
 # --- writable-filesystem-service ---
-# Same as no-new-privileges.
+# Container hardening that is not safe to switch on blind: a service that
+# writes a temp file falls over in a way that only shows up on deploy, and
+# prod cannot be tested from here. no-new-privileges, which cannot break
+# anything, was applied instead.
 5aade493e884ca34 x2  # writable-filesystem-service docker/docker-compose.core.yml
 0eae9038f27ed843 x13  # writable-filesystem-service docker/docker-compose.full.yml
 acedf220b679b6b2 x3  # writable-filesystem-service docker/docker-compose.tools.yml

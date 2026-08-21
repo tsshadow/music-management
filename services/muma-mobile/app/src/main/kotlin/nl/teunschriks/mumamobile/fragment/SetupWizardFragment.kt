@@ -12,6 +12,7 @@ import com.google.android.material.button.MaterialButton
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.wizard.SharedWizardPreferences
 import nl.teunschriks.mumamobile.wizard.WizardPagerAdapter
+import nl.teunschriks.mumamobile.wizard.chromeFor
 import nl.teunschriks.mumamobile.wizard.plan
 import nl.teunschriks.mumamobile.wizard.wizardCatalog
 
@@ -68,11 +69,10 @@ class SetupWizardFragment : Fragment() {
     }
 
     private fun renderChrome(position: Int, count: Int) {
+        val chrome = chromeFor(position, count)
         progress.text = getString(R.string.wizard_progress_format, position + 1, count)
-        back.visibility = if (position == 0) View.INVISIBLE else View.VISIBLE
-        next.text = getString(
-            if (position == count - 1) R.string.wizard_done else R.string.wizard_next
-        )
+        back.visibility = if (chrome.showBack) View.VISIBLE else View.INVISIBLE
+        next.text = getString(if (chrome.isLastStep) R.string.wizard_done else R.string.wizard_next)
     }
 
     private fun close() {

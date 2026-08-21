@@ -26,7 +26,7 @@ BPM_SEARCH_TOLERANCE = 2.0
 FROM_CLAUSE = """
     FROM library_tracks t
     LEFT JOIN library_artists a ON t.primary_artist_id = a.id
-    LEFT JOIN library_track_audio_features af ON t.track_uid = af.track_id
+    LEFT JOIN library_track_audio_features af ON af.internal_track_id = t.id
 """
 
 _LABEL_EXISTS = ("EXISTS (SELECT 1 FROM library_track_labels tl "

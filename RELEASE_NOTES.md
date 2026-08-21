@@ -21,6 +21,18 @@ This project is now modularized. Detailed release notes for each module can be f
   installatiescript van de Android-app vergeleek een lijst met apps als één samengeplakte tekst,
   waardoor een naam die toevallig in een andere naam zat als geldig doorging.
 
+### Fixed
+- **De geanalyseerde audiokenmerken hoorden bij niets wat je ooit gedraaid hebt.** Er staan
+  90.107 rijen met tempo en klankkenmerken in de database, en elke functie die erop leunt las nul
+  procent dekking — het zag eruit alsof de analyzer nooit gelopen had. De sleutel bleek iets anders
+  te zijn dan waarvoor hij werd aangezien: de kenmerkentabel is gesleuteld op een hash van het
+  bestandspad, terwijl de lezers hem vergeleken met de track-identificatie van de scanner. Dat matcht
+  vrijwel nooit. Dat sommige rijen tóch aansloten hield het verborgen: de analyzer maakt zelf
+  tracks aan waarvan de identificatie wél die pad-hash is, en juist díe tracks speelt niemand af.
+  De lezers gebruiken nu de echte verwijzing, en een migratie herstelt die verwijzing voor de
+  bestaande rijen langs beide routes die nog oplossen — ook waar er een verkeerde waarde stond, wat
+  het oude migratiescript liet liggen omdat het alleen lege waarden vulde.
+
 ## Global Version 0.22.0 (2026-08-21)
 
 ### Added

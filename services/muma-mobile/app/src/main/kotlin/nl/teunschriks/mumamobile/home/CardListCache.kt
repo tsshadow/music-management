@@ -33,28 +33,56 @@ class CardListCache(
     private val scope: () -> String
 ) {
     private val gson = Gson()
-    private val snapshotType = object : TypeToken<Snapshot>() {}.type
+
+    /**
+     * The card list is read through an explicit TypeToken, exactly as [RecentActivityStore] does.
+     *
+     * This is not a style choice. The first version stored a `Snapshot(cards, fetchedAt)` object and
+     * let Gson learn the element type from the field's generic signature. That works in a debug
+     * build and in every unit test, and fails in a release build: R8's full mode strips generic
+     * signatures from classes it was not told to keep, so Gson fell back to `LinkedTreeMap` and the
+     * home screen died with a ClassCastException the moment it drew a cached card. A TypeToken
+     * carries the element type in the deserializer call itself, where nothing can shrink it away.
+     */
+    private val cardListType = object : TypeToken<MutableList<HomeCard>>() {}.type
 
     /** Cards as they were last loaded, and when that was. */
     data class Snapshot(val cards: List<HomeCard>, val fetchedAt: Long)
 
     fun read(slot: String): Snapshot? = try {
         val stored = preferences.getString(keyFor(slot), null)
-        if (stored == null) null else gson.fromJson<Snapshot>(stored, snapshotType)
+        if (stored == null) {
+            null
+        } else {
+            val cards: List<HomeCard> = gson.fromJson(stored, cardListType) ?: emptyList()
+            // Belt and braces against the failure above ever returning in another shape: an entry
+            // that did not deserialize into real cards is a miss, not something to hand to an
+            // adapter that will cast it.
+            if (cards.any { it !is HomeCard }) null
+            else Snapshot(cards, preferences.getLong(timeKeyFor(slot), 0L))
+        }
     } catch (_: Exception) {
-        // A corrupt or half-written entry must never be able to keep a screen from loading; the
-        // next successful load overwrites it.
+        // A corrupt or half-written entry -- including one written by the version that stored a
+        // Snapshot object here -- must never keep a screen from loading. The next successful load
+        // overwrites it.
         null
     }
 
     fun write(slot: String, cards: List<HomeCard>) {
-        val snapshot = Snapshot(cards, System.currentTimeMillis())
-        preferences.edit { putString(keyFor(slot), gson.toJson(snapshot)) }
+        preferences.edit {
+            putString(keyFor(slot), gson.toJson(cards, cardListType))
+            putLong(timeKeyFor(slot), System.currentTimeMillis())
+        }
     }
 
     fun clear(slot: String) {
-        preferences.edit { remove(keyFor(slot)) }
+        preferences.edit {
+            remove(keyFor(slot))
+            remove(timeKeyFor(slot))
+        }
     }
 
     private fun keyFor(slot: String): String = "${scope()}:$slot"
+
+    private fun timeKeyFor(slot: String): String = "${keyFor(slot)}:at"
 }

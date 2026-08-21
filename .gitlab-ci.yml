@@ -371,6 +371,9 @@ muma-mobile:check:
         - .gitlab-ci.yml
   script:
     - ./scripts/test/muma-mobile-unit.sh
+    # Same job, not a second one: every Android job shares one Gradle home and
+    # would queue behind the same resource group for no gain.
+    - ./scripts/test/muma-mobile-detekt.sh
   coverage: '/Total.*?(\d+(?:\.\d+)?\%)/'
   artifacts:
     when: always

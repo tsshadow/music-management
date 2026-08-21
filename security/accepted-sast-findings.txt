@@ -1,0 +1,213 @@
+# Static-analysis findings this project has consciously accepted for now.
+#
+# Read by scripts/ci/sast.sh. Anything listed here is excluded from the scan;
+# anything not listed fails the job. An entry is per *finding*, not per rule, so
+# a new site that trips an already-accepted rule still fails -- "we already do
+# this elsewhere" never silently covers new code.
+#
+# Format: <key> x<count>  # <rule> <path>
+# The key is a hash of the rule, the file and the flagged line's text, and the
+# count is how many times it occurs. Line numbers are not part of it -- they
+# move whenever anything above them changes -- but the count is, so a second
+# identical line in the same file is a new finding and fails. Editing a flagged
+# line invalidates its entry on purpose: the code changed, so the reason below
+# should be re-read before it is accepted again.
+#
+# Regenerate after auditing new findings:
+#   SAST_WRITE_BASELINE=1 ./scripts/ci/sast.sh
+#
+# Reasons are per rule, in the section headers below. A rule with no reason has
+# not been audited yet and is the next thing to look at.
+
+# --- avoid-sqlalchemy-text ---
+# Same as sqlalchemy-execute-raw-query.
+108a50283ebdbb53 x1  # avoid-sqlalchemy-text services/ml-analyzer/analyzer.py
+82ba8bd0966a2193 x1  # avoid-sqlalchemy-text services/ml-analyzer/approve.py
+1add6a4bd7c93511 x1  # avoid-sqlalchemy-text services/ml-analyzer/fix_db_schema.py
+bfb629255fb38ad9 x1  # avoid-sqlalchemy-text tools/cleanup_db.py
+4efca4f067ff94ba x2  # avoid-sqlalchemy-text tools/db_backup_json.py
+2bbb76a73414c2f4 x1  # avoid-sqlalchemy-text tools/describe_tables.py
+e60d33f85c1ecee1 x1  # avoid-sqlalchemy-text tools/inspect_table_content.py
+c4cb271e41ca85c6 x1  # avoid-sqlalchemy-text tools/migrate_db_renames.py
+
+# --- dependabot-missing-cooldown ---
+# Same dead Ultrasonic directory.
+954ee096a6e0ff09 x5  # dependabot-missing-cooldown services/muma-mobile/.github/dependabot.yml
+
+# --- detected-bcrypt-hash ---
+# An example hash in installation documentation.
+8e3f08677d0b5707 x1  # detected-bcrypt-hash services/music-management-server/INSTALL.md
+
+# --- detected-generic-api-key ---
+# .gitleaksignore lists commit:path:rule:line references to past findings,
+# not the secrets themselves.
+c8b4d88be60d346d x1  # detected-generic-api-key .gitleaksignore
+
+# --- detected-jwt-token ---
+# Test fixtures for the Subsonic API client.
+25aed315c9054f2f x1  # detected-jwt-token services/muma-mobile/core/subsonic-api/src/integrationTest/kotlin/nl/teunschriks/mumamobile/api/subsonic/SubsonicApiCreateShareTest.kt
+323681dcd65f1f2e x1  # detected-jwt-token services/muma-mobile/core/subsonic-api/src/integrationTest/resources/get_shares_ok.json
+
+# --- detected-private-key ---
+# A self-signed certificate fixture under core/subsonic-api integration
+# tests. It exists to be a key; it protects nothing.
+55374783d6d7b6c9 x1  # detected-private-key services/muma-mobile/core/subsonic-api/src/integrationTest/resources/self-signed.pem
+
+# --- detected-ssh-password ---
+# sshpass reading a shell variable, not a committed credential. The branch
+# above each one prefers key auth and only falls back to this. The real
+# weakness is that a password in argv is visible to a local process listing,
+# which is acceptable on a workstation deploy script.
+79777714def680e2 x1  # detected-ssh-password publish.sh
+402f7777d2db5815 x1  # detected-ssh-password scripts/deploy.sh
+0a751ee1a6cf6564 x2  # detected-ssh-password services/muma-mobile/scripts/deploy.sh
+5447b18522c97afe x1  # detected-ssh-password services/music-management-server/scripts/deploy-stack.sh
+
+# --- dynamic-proxy-host ---
+# The proxy target is the configured LMS or Subsonic server, read from this
+# deployment's own settings rather than from a request.
+0b87aa42b1469d45 x3  # dynamic-proxy-host services/music-management-server/nginx/reverse-proxy.conf
+
+# --- exported_activity ---
+# Android activities that are launched by the system or by another app on
+# purpose -- the launcher alias and the media button receiver.
+816ded8efd454b0b x3  # exported_activity services/muma-mobile/app/src/main/AndroidManifest.xml
+
+# --- exposing-docker-socket-volume ---
+# The socket is mounted where a container genuinely drives Docker. Each new
+# mount needs its own justification, which is why this is listed per site
+# rather than per rule.
+87ae4f3c6027bbfa x1  # exposing-docker-socket-volume docker/docker-compose.core.yml
+418c007fa7e8073f x1  # exposing-docker-socket-volume docker/docker-compose.full.yml
+a56de380e32990d3 x1  # exposing-docker-socket-volume docker/docker-compose.yml
+
+# --- formatted-sql-query ---
+# Table-name interpolation in the helper layer and in one-off scripts under
+# tools/ and scripts/, which take their arguments from the person running
+# them. Values still go through placeholders.
+2eed6ba617c33787 x1  # formatted-sql-query scripts/cleanup_redundant_indices.py
+c239be7ab8ef1790 x3  # formatted-sql-query scripts/migrate_stars_to_ratings.py
+f1b4a5c6615454ff x1  # formatted-sql-query services/common/Helpers/BrokenSongHelper.py
+73e025c1ce81b1e6 x2  # formatted-sql-query services/common/Helpers/FilterTableHelper.py
+32ecdbb489f9abf7 x2  # formatted-sql-query services/common/Helpers/GenreRulesHelper.py
+a0fc3035281efe5f x2  # formatted-sql-query services/common/Helpers/LookupTableHelper.py
+d5a0037732ca8fdc x1  # formatted-sql-query services/common/Helpers/ProcessedFilesHelper.py
+20900803a7b1802d x2  # formatted-sql-query services/common/Helpers/TableHelper.py
+2ba4de1a0112de96 x2  # formatted-sql-query services/music_manager/routers/artist_images.py
+0710b8211ef1c262 x2  # formatted-sql-query tools/check_db_structure.py
+93a52739b9600350 x1  # formatted-sql-query tools/describe_tables_pymysql.py
+470d50742d340998 x2  # formatted-sql-query tools/quick_inspect.py
+
+# --- github-actions-mutable-action-tag ---
+# services/muma-mobile/.github/ is dead weight inherited from Ultrasonic at
+# the rename commit 054b115df. This is a GitLab repository with no GitHub
+# remote, so nothing runs these workflows. Deleting the directory removes
+# all of these; that is a separate change.
+066352900c0195f1 x3  # github-actions-mutable-action-tag services/muma-mobile/.github/workflows/android-release.yml
+9b60fdc96b15a3f5 x4  # github-actions-mutable-action-tag services/muma-mobile/.github/workflows/android.yml
+449d6626a301edc9 x6  # github-actions-mutable-action-tag services/muma-mobile/.github/workflows/code-quality.yml
+b3bc1c82c9dab2ac x4  # github-actions-mutable-action-tag services/music-management-server/.github/workflows/build-alpine.yml
+9a188334014f17d5 x4  # github-actions-mutable-action-tag services/music-management-server/.github/workflows/build-arch-all.yml
+acbc7bc047c7d067 x4  # github-actions-mutable-action-tag services/music-management-server/.github/workflows/build-arch-basic.yml
+a21d8542baf1eb23 x2  # github-actions-mutable-action-tag services/music-management-server/.github/workflows/build-freebsd-basic.yml
+6a722ca60b4cbc00 x1  # github-actions-mutable-action-tag services/music-management-server/.github/workflows/build-macos-basic.yml
+ec7c4597670480cc x4  # github-actions-mutable-action-tag services/music-management-server/.github/workflows/codeql.yml
+175133f4ed37f08d x3  # github-actions-mutable-action-tag services/music-management-server/.github/workflows/lint.yml
+
+# --- missing-internal ---
+# Android exported components again -- the same set as exported_activity.
+6b82457161807ad5 x3  # missing-internal services/music-management-server/nginx/reverse-proxy.conf
+
+# --- missing-user ---
+# Compose services that still run as root. Same hardening pass as
+# no-new-privileges, and the same reason it is not in this change.
+e904b9f3134a28ae x1  # missing-user services/ml-analyzer/Dockerfile
+e384f8645e90ad35 x1  # missing-user services/music_manager/artist_image_fetcher/Dockerfile
+
+# --- no-new-privileges ---
+# Docker Compose hardening the production stack does not set yet. Worth
+# doing, and a change to the deployed stack rather than to code.
+77af9b6fe1520cdf x2  # no-new-privileges docker/docker-compose.core.yml
+4342e0ce1c153111 x13  # no-new-privileges docker/docker-compose.full.yml
+6985cd77566458e7 x3  # no-new-privileges docker/docker-compose.tools.yml
+25454e01ecd4fcf2 x5  # no-new-privileges docker/docker-compose.workers.yml
+9a7273c13f5de30c x11  # no-new-privileges docker/docker-compose.yml
+
+# --- python-logger-credential-disclosure ---
+# Both sites are logger.error(..., e) in the except branch of a Spotify
+# token fetch. What is logged is the exception, not the token that the try
+# branch assigns; semgrep flags the token being in scope.
+f186cecf0be2370e x1  # python-logger-credential-disclosure services/music_manager/artist_image_fetcher/providers/spotify.py
+63cfbb4917ce0a6b x1  # python-logger-credential-disclosure services/tagger/Song/rules/ExternalArtistLookup.py
+
+# --- renovate-missing-minimum-release-age ---
+# renovate.json has no cooldown, so a freshly published version can be
+# proposed the day it lands. Worth adding; it is a policy change to the
+# update bot rather than to this code.
+d3897d9cc69cfa36 x2  # renovate-missing-minimum-release-age renovate.json
+
+# --- request-with-http ---
+# Plain HTTP to services on this LAN that speak no TLS -- the LMS server and
+# apk-hoster. Both are reachable only inside the tailnet.
+e2493769e45a6625 x1  # request-with-http services/common/Helpers/LmsScanTrigger.py
+909b10e6a2c8744c x1  # request-with-http services/music_manager/routers/users.py
+
+# --- sqlalchemy-execute-raw-query ---
+# Table and column names cannot be bound as parameters, and every site
+# interpolates an internal constant rather than request data. Revisit any
+# new site that interpolates something reaching it from outside.
+8c0743ae3e88449a x1  # sqlalchemy-execute-raw-query scripts/cleanup_redundant_indices.py
+0ea6a67ac103acf3 x4  # sqlalchemy-execute-raw-query scripts/migrate_stars_to_ratings.py
+68a95b034cd7f9eb x3  # sqlalchemy-execute-raw-query services/common/Helpers/BrokenSongArtistLookupHelper.py
+a5b4e2d71ce2b86c x3  # sqlalchemy-execute-raw-query services/common/Helpers/BrokenSongHelper.py
+a3c8cc43966600d0 x5  # sqlalchemy-execute-raw-query services/common/Helpers/FilterTableHelper.py
+4d6adbcfb3a637a9 x3  # sqlalchemy-execute-raw-query services/common/Helpers/GenreRulesHelper.py
+42d99d132b783d90 x3  # sqlalchemy-execute-raw-query services/common/Helpers/LookupTableHelper.py
+e50a0442851194fc x1  # sqlalchemy-execute-raw-query services/common/Helpers/PodcastHelper.py
+3cc41186bca6e517 x3  # sqlalchemy-execute-raw-query services/common/Helpers/ProcessedFilesHelper.py
+c7fa2456a3698595 x6  # sqlalchemy-execute-raw-query services/common/Helpers/TableHelper.py
+fa88a185a333884c x1  # sqlalchemy-execute-raw-query services/downloader/rate_state.py
+b8b5c36b4cbfe57b x1  # sqlalchemy-execute-raw-query services/music_manager/artist_image_fetcher/cli.py
+01115f1c8105768b x4  # sqlalchemy-execute-raw-query services/music_manager/routers/artist_images.py
+63d90fa2a73835ec x2  # sqlalchemy-execute-raw-query services/music_manager/routers/events.py
+b2c8c8c1c801b58f x2  # sqlalchemy-execute-raw-query services/music_manager/routers/library.py
+e6314568961bc2a8 x2  # sqlalchemy-execute-raw-query services/music_manager/routers/management.py
+4b0b5cca20de5660 x1  # sqlalchemy-execute-raw-query services/music_manager/routers/news.py
+e3dee2d6b646a691 x2  # sqlalchemy-execute-raw-query services/music_manager/routers/radio.py
+3af25a81f141c259 x1  # sqlalchemy-execute-raw-query services/music_manager/routers/rating.py
+86226f6d8d9b8752 x5  # sqlalchemy-execute-raw-query services/music_manager/routers/users.py
+fcb2d09debf93d8a x2  # sqlalchemy-execute-raw-query tools/check_db_structure.py
+1fc82d5a9763e1b8 x1  # sqlalchemy-execute-raw-query tools/describe_tables_pymysql.py
+44ca4dd2f7256588 x2  # sqlalchemy-execute-raw-query tools/quick_inspect.py
+
+# --- unsafe-formatstring ---
+# Format strings built from internal constants in one-off tools, not from
+# anything a request supplies.
+927e19c1283bdc09 x1  # unsafe-formatstring services/frontend/src/lib/store.js
+42d9093a7b64aafc x1  # unsafe-formatstring services/music-management-server/src/lms/ui/spotify-ui/src/lib/store.js
+
+# --- use-of-md5 ---
+# Content and path hashing for cache keys and duplicate detection, never for
+# authentication or signatures.
+89a5cf5843c71452 x1  # use-of-md5 services/muma-mobile/app/src/main/kotlin/nl/teunschriks/mumamobile/util/Util.kt
+d6e1d638a7948054 x1  # use-of-md5 services/muma-mobile/core/subsonic-api/src/integrationTest/kotlin/nl/teunschriks/mumamobile/api/subsonic/interceptors/PasswordMD5InterceptorTest.kt
+275f9a06cd3c66c2 x1  # use-of-md5 services/muma-mobile/core/subsonic-api/src/main/kotlin/nl/teunschriks/mumamobile/api/subsonic/interceptors/PasswordMD5Interceptor.kt
+
+# --- wildcard-cors ---
+# OPEN HARDENING ITEM, not a false positive.
+# services/music_manager/main.py:47 serves every origin with every method
+# and header. It is not an auth bypass on its own -- allow_credentials is
+# off, so a browser attaches nothing and an attacker would need the
+# x-api-key already -- but it does let any page read the unauthenticated
+# endpoints from a victim on this LAN. Narrowing it means naming the
+# frontend and LMS origins, which is a deployment change and needs its own
+# merge request.
+9fca77b1a5349f55 x1  # wildcard-cors services/music_manager/main.py
+
+# --- writable-filesystem-service ---
+# Same as no-new-privileges.
+029d073215d58363 x2  # writable-filesystem-service docker/docker-compose.core.yml
+9c27d8d5c7954a7c x13  # writable-filesystem-service docker/docker-compose.full.yml
+b16dcfe175720896 x3  # writable-filesystem-service docker/docker-compose.tools.yml
+46341b20973fc464 x5  # writable-filesystem-service docker/docker-compose.workers.yml
+3f80cadefd2ff6d0 x11  # writable-filesystem-service docker/docker-compose.yml

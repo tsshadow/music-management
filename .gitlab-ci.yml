@@ -191,6 +191,36 @@ security:dependency-audit:
   script:
     - ./scripts/ci/dependency-audit.sh
 
+# Static analysis. semgrep's curated `p/default` rules over the whole tree.
+#
+# Not allow_failure, unlike security:dependency-audit. That job is allow_failure
+# because a new CVE can appear without anyone pushing, so its result is about
+# the outside world; this one is about the diff in front of it, and a finding
+# here is something the merge request introduced. The tree's existing 232
+# findings are written down in security/accepted-sast-findings.txt with a reason
+# per rule, so this is green today and goes red only on something new -- which
+# is the only way a scanner stays worth reading.
+#
+# It does fetch its rules from semgrep's registry, so a registry outage fails
+# the job. That is the same class of dependency as the container registry every
+# other job already pulls from, and .infra_retry covers a blip.
+security:sast:
+  stage: quality
+  timeout: 15m
+  retry: !reference [.infra_retry, retry]
+  tags: !reference [.fast_runner, tags]
+  rules:
+    - !reference [.release_rule, rules]
+    - changes:
+        - services/**/*
+        - scripts/**/*
+        - tools/**/*
+        - docker/**/*
+        - security/accepted-sast-findings.txt
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/ci/sast.sh
+
 # Committed-credential scan. allow_failure is deliberately absent: unlike the
 # dependency audit, this one does not depend on a third-party service being
 # reachable, so a failure here is a finding, not an outage. Path exemptions

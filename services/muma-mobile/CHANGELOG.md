@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   learn it, a button straight to the screen being described. The screenshots ship as placeholders
   and are replaced by dropping a PNG over the file of the same name in
   `app/src/main/res/drawable-nodpi`; `docs/manual-screenshots.md` says which shot goes where.
+  Each placeholder names on the picture itself what belongs there, and carries a marker that
+  `scripts/manual-screenshot-status.sh` greps for, so which chapters are still waiting for a real
+  capture is a question the repository answers rather than a list anyone keeps by hand.
 
 ## [6.18.0] - 2026-08-20
 

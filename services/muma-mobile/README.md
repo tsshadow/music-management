@@ -13,6 +13,12 @@ the Android system across an in-place upgrade, not names.
 
 [ultrasonic]: https://gitlab.com/ultrasonic/ultrasonic
 
+## In-app manual
+
+The overflow menu has a Help entry: twelve chapters covering every screen, each with a screenshot.
+All twelve screenshots are still placeholders. `./scripts/manual-screenshot-status.sh` says which
+ones, and [docs/manual-screenshots.md](docs/manual-screenshots.md) says what each one should show.
+
 ## License
 
 This software is licensed under the terms of the GNU General Public License

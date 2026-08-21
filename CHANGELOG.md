@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Android-builds worden gepubliceerd onder de eigen naam van de app.** Elke APK ging nog steeds
+  omhoog als `ultrasonic-*`: apk-hoster groepeert builds op het voorvoegsel van de bestandsnaam, en
+  precies dat voorvoegsel vraagt een geïnstalleerde app op bij het controleren op updates — het
+  hernoemen op zichzelf zou elke telefoon voorgoed "je bent bij" hebben verteld. Uploads heten nu
+  `muma-mobile-*` en de updatecontrole vraagt om die reeks; oudere installaties die nog om
+  `ultrasonic` vragen worden er door apk-hoster naartoe gewezen via de nieuwe instelling
+  `APK_ALIASES`, die op de deployment gezet moet zijn vóór de eerste upload onder de nieuwe naam.
+
 ## [0.21.0] - 2026-08-21
 
 ### Added

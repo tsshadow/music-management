@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-08-21
+
 ### Added
 - **Een instelwizard in de Android-app die na een update laat zien wat er veranderd is.**
   Tweeënzestig instellingen staan op één doorlopend scherm, en niets daarop zegt welke er vorige

@@ -16,13 +16,14 @@ import nl.teunschriks.mumamobile.R
  * inherits the active style without a per-style widget style, and a Spinner does not.
  *
  * [onWritten] is called with the preference key after every write, because storing a value is not
- * always the whole change - see [applyWizardSideEffect], which is what production passes here. It
- * defaults to doing nothing so a test that only cares about the stored value can leave it out.
+ * always the whole change - see [applyWizardSideEffect], which is what production passes here.
+ * It deliberately has no default: a hook that silently does nothing is the exact failure this
+ * parameter exists to fix, so a caller that forgets it has to fail to compile instead.
  */
 class WizardPagerAdapter(
     private val steps: List<PlannedStep>,
     private val prefs: WizardPreferences,
-    private val onWritten: (String) -> Unit = {},
+    private val onWritten: (String) -> Unit,
     private val onJump: (Int) -> Unit
 ) : RecyclerView.Adapter<WizardPagerAdapter.StepHolder>() {
 

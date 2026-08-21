@@ -247,8 +247,11 @@ class WizardPagerAdapterTest {
                 step(WizardControl.Toggle("first", default = false)),
                 step(WizardControl.Toggle("second", default = false))
             ),
-            prefs
-        ) {}
+            prefs,
+            // Explicit: these two are about the control write, not the side effect that follows it.
+            onWritten = {},
+            onJump = {}
+        )
         val holder = adapter.onCreateViewHolder(FrameLayout(context), 0)
 
         adapter.onBindViewHolder(holder, 0)
@@ -266,8 +269,10 @@ class WizardPagerAdapterTest {
                 step(WizardControl.Toggle("a", default = false)),
                 step(WizardControl.Jump(R.id.settingsFragment))
             ),
-            FakePrefs()
-        ) {}
+            FakePrefs(),
+            onWritten = {},
+            onJump = {}
+        )
         val holder = adapter.onCreateViewHolder(FrameLayout(context), 0)
 
         adapter.onBindViewHolder(holder, 0)

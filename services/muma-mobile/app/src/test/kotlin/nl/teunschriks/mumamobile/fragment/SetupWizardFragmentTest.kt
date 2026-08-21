@@ -53,7 +53,7 @@ class SetupWizardFragmentTest {
     @Test
     fun `every catalogue step becomes a page`() {
         val steps: List<PlannedStep> = plan(wizardCatalog(context), Int.MAX_VALUE)
-        val adapter = WizardPagerAdapter(steps, NoPrefs()) {}
+        val adapter = WizardPagerAdapter(steps, NoPrefs(), onWritten = {}, onJump = {})
 
         assertEquals(wizardCatalog(context).size, adapter.itemCount)
     }

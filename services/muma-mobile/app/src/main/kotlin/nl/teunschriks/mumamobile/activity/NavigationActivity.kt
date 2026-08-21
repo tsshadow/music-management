@@ -37,6 +37,7 @@ import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import androidx.annotation.StringRes
+import androidx.core.os.bundleOf
 import androidx.core.view.MenuProvider
 import androidx.fragment.app.FragmentContainerView
 import androidx.lifecycle.Lifecycle
@@ -79,6 +80,7 @@ import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.ServerSetting
 import nl.teunschriks.mumamobile.diagnostics.CrashReportManager
+import nl.teunschriks.mumamobile.fragment.SetupWizardFragment
 import nl.teunschriks.mumamobile.management.ManagementRepository
 import nl.teunschriks.mumamobile.model.ServerSettingsModel
 import nl.teunschriks.mumamobile.provider.SearchSuggestionProvider
@@ -98,6 +100,12 @@ import nl.teunschriks.mumamobile.util.UncaughtExceptionHandler
 import nl.teunschriks.mumamobile.util.UpdateChecker
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.themeColor
+import nl.teunschriks.mumamobile.wizard.UpdateEntry
+import nl.teunschriks.mumamobile.wizard.WIZARD_INTRODUCED_IN
+import nl.teunschriks.mumamobile.wizard.plan
+import nl.teunschriks.mumamobile.wizard.shouldStampVersion
+import nl.teunschriks.mumamobile.wizard.updateEntryFor
+import nl.teunschriks.mumamobile.wizard.wizardCatalog
 import timber.log.Timber
 
 /**
@@ -108,6 +116,7 @@ import timber.log.Timber
 @Suppress("TooManyFunctions")
 class NavigationActivity : ScopeActivity() {
     private var setsToggleItem: MenuItem? = null
+    private var voiceMenuItem: MenuItem? = null
 
     private var nowPlayingView: FragmentContainerView? = null
     private var nowPlayingHidden = false
@@ -189,6 +198,7 @@ class NavigationActivity : ScopeActivity() {
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
             setsToggleItem?.isVisible = destination.id == R.id.mainFragment
+            voiceMenuItem?.setShowAsAction(voiceMenuSlot(destination.id))
             val dest: String = try {
                 resources.getResourceName(destination.id)
             } catch (_: Resources.NotFoundException) {
@@ -211,9 +221,17 @@ class NavigationActivity : ScopeActivity() {
         // This is a first run with only the demo entry inside the database
         // We set the active server to the demo one and show the welcome dialog
         if (showWelcomeScreen && !UApp.instance!!.setupDialogDisplayed) {
+            // This branch is not only a fresh install: logOut() blanks the password on any auth
+            // failure, so a session that expired around an update lands here too. Stamping
+            // unconditionally would swallow that release's wizard and changelog for an existing
+            // user - the next start would see previous == current and show nothing. Only a
+            // genuine first run (nothing stored at all) is stamped, which is all the stamp was
+            // for: so a real fresh install's next update compares against this release rather
+            // than against zero.
+            if (Util.previousSeenVersion() == 0) Util.markVersionSeen(this)
             showWelcomeDialog()
-        } else if (Util.isVersionUpdate(this)) {
-            Util.showChangelog(this, full = false)
+        } else {
+            openUpdateEntry()
         }
 
         // Ask for permission to send notifications
@@ -275,6 +293,8 @@ class NavigationActivity : ScopeActivity() {
             menu.findItem(R.id.downloadsFragment)?.isVisible = !ActiveServerProvider.isOffline()
             setsToggleItem = menu.findItem(R.id.action_sets_toggle)
             setsToggleItem?.isVisible = currentFragmentId == R.id.mainFragment
+            voiceMenuItem = menu.findItem(R.id.mumaVoiceFragment)
+            voiceMenuItem?.setShowAsAction(voiceMenuSlot(currentFragmentId))
             setsToggle = setsToggleItem?.actionView?.findViewById(R.id.switch_sets)
 
             setsToggle?.let { toggle ->
@@ -533,6 +553,28 @@ class NavigationActivity : ScopeActivity() {
                 false -> R.string.welcome_status_unreachable
             }
         )
+    }
+
+    /**
+     * After an update, open the setup wizard on whatever it added - or the changelog when it added
+     * no settings at all. The version is stamped before anything is shown: if the wizard crashes
+     * or the user force-quits inside it, the next start must not reopen it forever.
+     */
+    private fun openUpdateEntry() {
+        val previous = Util.previousSeenVersion()
+        val current = Util.getVersionCode(this)
+        val hasNewSteps = plan(wizardCatalog(this), previous).any { it.isNew }
+
+        if (shouldStampVersion(previous, current)) Util.markVersionSeen(this)
+
+        when (updateEntryFor(previous, current, hasNewSteps, WIZARD_INTRODUCED_IN)) {
+            UpdateEntry.NOTHING -> Unit
+            UpdateEntry.CHANGELOG -> Util.showChangelog(this, full = false)
+            UpdateEntry.WIZARD -> findNavController(R.id.nav_host_fragment).navigate(
+                R.id.setupWizardFragment,
+                bundleOf(SetupWizardFragment.ARG_LAST_SEEN_VERSION to previous)
+            )
+        }
     }
 
     /**
@@ -1075,3 +1117,19 @@ class NavigationActivity : ScopeActivity() {
         }
     }
 }
+
+/**
+ * Where the microphone is worth a toolbar slot.
+ *
+ * @details The activity's own menu is inflated on top of every screen and claims the action slots
+ * before a fragment's menu is prepared, so an "ifRoom" microphone silently pushed the track
+ * collection's "Play all" into the overflow. Almost every screen has room to spare, and the manual
+ * tells the reader the microphone is in the toolbar, so it keeps its icon by default and steps
+ * back into the overflow only on the screens whose own actions need the room. The player owns
+ * actions too and still shows it: a queue is exactly where the next request gets spoken.
+ */
+internal fun voiceMenuSlot(destinationId: Int): Int =
+    when (destinationId) {
+        R.id.trackCollectionFragment, R.id.logViewerFragment -> MenuItem.SHOW_AS_ACTION_NEVER
+        else -> MenuItem.SHOW_AS_ACTION_ALWAYS
+    }

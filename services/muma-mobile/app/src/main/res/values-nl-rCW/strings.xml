@@ -164,7 +164,7 @@
     <string name="main.songs_title">Nummers</string>
     <string name="main.livesets_title">Livesets</string>
     <string name="main.videos">Video\'s</string>
-    <string name="main.welcome_text_demo">Um in Ultrasonic naor oe eigen muziek te luustern he\'j \'n <b>eigen server</b> neudig. \n\n➤ Mer wi\'j de app eerst \'s prebeern, dan ku\'j veurlopig de demoserver nemen. \n\n➤ Bi\'j de <b>instellingen</b> zet iej oe eigen server d\'r in.</string>
+    <string name="main.welcome_text_demo">Um in MuMa naor oe eigen muziek te luustern he\'j \'n <b>eigen server</b> neudig. \n\n➤ Mer wi\'j de app eerst \'s prebeern, dan ku\'j veurlopig de demoserver nemen. \n\n➤ Bi\'j de <b>instellingen</b> zet iej oe eigen server d\'r in.</string>
     <string name="main.welcome_title">Welkom!</string>
     <string name="main.welcome_cancel">Doo de instellingen eupen</string>
     <string name="menu.about">Aover</string>
@@ -411,7 +411,7 @@
     <string name="settings.use_id3">Navigeren met ID3-labels</string>
     <string name="settings.use_id3_summary">Nemt ID3-labels in plaats van systeemlabels</string>
     <string name="settings.use_id3_offline">ID3-maniere ok offline gebruken</string>
-    <string name="settings.use_id3_offline_summary">Zet iej dit an, dan zie iej allenig de muziek die iej met Ultrasonic 4.0 of nijer binnenehaald hebt. Van oldere downloads is de metadata neet ehaald. Iej ku\'j wisseln tussen Pin- en Bewaormodus um die metadata alsnog binnen te haolen.</string>
+    <string name="settings.use_id3_offline_summary">Zet iej dit an, dan zie iej allenig de muziek die iej met MuMa 4.0 of nijer binnenehaald hebt. Van oldere downloads is de metadata neet ehaald. Iej ku\'j wisseln tussen Pin- en Bewaormodus um die metadata alsnog binnen te haolen.</string>
     <string name="settings.show_artist_picture">Artiestfoto loaten zien in de artiestenlieste</string>
     <string name="settings.show_artist_picture_summary">Laat de foto van de artiest zien in de lieste (as die d\'r is)</string>
     <string name="main.video" tools:ignore="UnusedResources">Video</string>
@@ -478,7 +478,7 @@
     <string name="settings.debug.crash_detection">Crashdetectie</string>
     <string name="settings.debug.crash_detection_summary">Markt crashes en rare aofsluutingen op en vraogt bi\'j de volgende start of iej diagnostiek deeln wilt</string>
     <string name="crash_report.dialog_title">Veurige keer ecrasht</string>
-    <string name="crash_report.dialog_message">Ultrasonic is de veurige keer neet netjes aofesloten. Diagnostiek deeln um dat op te lossen?</string>
+    <string name="crash_report.dialog_message">MuMa is de veurige keer neet netjes aofesloten. Diagnostiek deeln um dat op te lossen?</string>
     <string name="crash_report.dialog_share">Deeln</string>
     <string name="crash_report.dialog_dismiss">Loat mer</string>
     <string name="notification.downloading_title">Media wordt op de achtergrond binnenehaald…</string>
@@ -500,8 +500,6 @@
     <string name="server_menu.lms">LMS</string>
     <string name="server_menu.lmsalpha">LMS Alpha</string>
     <string name="server_menu.lmsstable">LMS stable</string>
-    <string name="about.webpage">Website eupenen</string>
-    <string name="about.report">Bug melden</string>
     <string name="about.text">Dit is \'n hiel eigen applicatie, emaakt um samen te warken met de muma/lms stack.\n\nDat geft onder aandere meer grip op \'t zeuken en filters die vanzelf op genre gaot.</string>
     <string name="welcome_morning">Goeiemorgen</string>
     <string name="welcome_afternoon">Goeiemiddag</string>
@@ -515,7 +513,7 @@
     <string name="api.subsonic.param_missing">D\'r ontbreekt \'n verplichte parameter.</string>
     <string name="api.subsonic.requested_data_was_not_found">De evraogde gegevens bunt neet te vinden.</string>
     <string name="api.subsonic.trial_period_is_over">De proefperiode is veurbi\'j.</string>
-    <string name="api.subsonic.upgrade_client">Versies passen neet. Wark de Ultrasonic-app bi\'j.</string>
+    <string name="api.subsonic.upgrade_client">Versies passen neet. Wark de MuMa-app bi\'j.</string>
     <string name="api.subsonic.upgrade_server">Versies passen neet. Wark oe Subsonic-server bi\'j.</string>
     <string name="api.subsonic.multiple_auth">Twee soorten inloggen deur mekaar (apiKey en wachtwoord). Nem d\'r mer één.</string>
     <string name="api.subsonic.unknown_error">Onbekende Subsonic-fout (code %1$d).</string>
@@ -576,7 +574,7 @@
     <string name="changelog_button">Changelog</string>
     <string name="setting_media_device_export_title">Sturen naor \'n media-apparaat anzetten</string>
     <string name="setting_media_device_export_summary">Laat \'n knop zien um de huidige playlist naor \'n ansleuten media-apparaat te sturen (USB/OpenSwim Pro)</string>
-    <string name="welcome_title">Welkom bi\'j Ultrasonic</string>
+    <string name="welcome_title">Welkom bi\'j MuMa</string>
     <string name="welcome_login_info">Wat bunt oe inloggegevens?</string>
     <string name="welcome_username">Naam</string>
     <string name="welcome_password">Wachtwoord</string>

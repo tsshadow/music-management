@@ -119,8 +119,8 @@
     <string name="main.songs_starred">Me gusta</string>
     <string name="main.songs_title">Canciones</string>
     <string name="main.videos">Vídeos</string>
-    <string name="main.welcome_text_demo">Para utilizar Ultrasonic con tu música necesitas un <b>servidor propio</b>. \n\n➤ En caso de que quieras probar la aplicación primero, se puede añadir ahora un servidor de demostración. \n\n➤ En caso contrario, puedes configurar tu servidor personal en la <b>configuración</b>.</string>
-    <string name="main.welcome_title">¡Bienvenido a Ultrasonic!</string>
+    <string name="main.welcome_text_demo">Para utilizar MuMa con tu música necesitas un <b>servidor propio</b>. \n\n➤ En caso de que quieras probar la aplicación primero, se puede añadir ahora un servidor de demostración. \n\n➤ En caso contrario, puedes configurar tu servidor personal en la <b>configuración</b>.</string>
+    <string name="main.welcome_title">¡Bienvenido a MuMa!</string>
     <string name="main.welcome_cancel">Llévame a la configuración</string>
     <string name="menu.about">Acerca de</string>
     <string name="menu.common">Común</string>
@@ -299,7 +299,7 @@
     <string name="settings.use_id3">Navegar usando las etiquetas ID3</string>
     <string name="settings.use_id3_summary">Usar el método de etiquetas ID3 en lugar del método basado en el sistema de ficheros</string>
     <string name="settings.use_id3_offline">Utilizar etiquetas ID3 también cuando se está fuera de línea</string>
-    <string name="settings.use_id3_offline_summary">Si habilitas esta opción, sólo se mostrará la música que hayas descargado con Ultrasonic 4.0 o posterior. Las descargas anteriores no tienen descargados los metadatos necesarios. Puedes alternar entre el modo anclar y guardar para activar la descarga de los metadatos que faltan.</string>
+    <string name="settings.use_id3_offline_summary">Si habilitas esta opción, sólo se mostrará la música que hayas descargado con MuMa 4.0 o posterior. Las descargas anteriores no tienen descargados los metadatos necesarios. Puedes alternar entre el modo anclar y guardar para activar la descarga de los metadatos que faltan.</string>
     <string name="settings.show_artist_picture">Mostrar la imagen del artista en la lista de artistas</string>
     <string name="settings.show_artist_picture_summary">Muestra la imagen del artista en la lista de artistas si está disponible</string>
     <string name="main.video" tools:ignore="UnusedResources">Vídeo</string>
@@ -373,9 +373,6 @@
     <string name="server_editor.advanced">Configuración avanzada</string>
     <string name="server_editor.disabled_feature">Una o más funciones se han deshabilitado porque el servidor no las admite.\nPuedes ejecutar esta prueba nuevamente en cualquier momento.</string>
     <string name="server_menu.demo">Servidor de demostración</string>
-    <string name="about.webpage">Visitar la página web</string>
-    <string name="about.report">Informar de un error</string>
-    <string name="about.text"><b>Ultrasonic</b> es un cliente Android de streaming de música gratuito y de código abierto para servidores compatibles con la API de Subsonic (versión 1.7.0 o superior).\n\nCon <b>Ultrasonic</b> puede transmitir o descargar fácilmente música desde su ordenador de casa a su teléfono Android utilizando su servidor multimedia compatible con Subsonic. El software del servidor Subsonic requiere una configuración adicional aparte de Ultrasonic.\n\nPor defecto, Ultrasonic no está configurado. Una vez que hayas configurado tu propio servidor, cambia la configuración del servidor para que se conecte a tu propio ordenador.</string>
     <plurals name="n_songs">
         <item quantity="one">%d canción</item>
         <item quantity="many">%d canciones</item>
@@ -420,7 +417,7 @@
     <string name="api.subsonic.param_missing">Falta el parámetro requerido.</string>
     <string name="api.subsonic.requested_data_was_not_found">No se encontraron los datos solicitados.</string>
     <string name="api.subsonic.trial_period_is_over">El período de prueba ha terminado.</string>
-    <string name="api.subsonic.upgrade_client">Versiones incompatibles. Por favor actualiza la aplicación de Android Ultrasonic.</string>
+    <string name="api.subsonic.upgrade_client">Versiones incompatibles. Por favor actualiza la aplicación de Android MuMa.</string>
     <string name="api.subsonic.upgrade_server">Versiones incompatibles. Por favor actualiza el servidor de Subsonic.</string>
     <!-- Subsonic features  -->
     <string name="settings.use_hw_offload_title">Utilizar la reproducción por hardware (experimental)</string>

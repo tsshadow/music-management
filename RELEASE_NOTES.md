@@ -11,6 +11,36 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.21.0 (2026-08-21)
+
+### 🧭 Een instelwizard die na een update laat zien wat er veranderd is
+- Tweeënzestig instellingen stonden op één doorlopend scherm, en niets daarop zei welke er vorige
+  week bij kwamen. De wizard loopt er negen één voor één langs — server, stijl, app-icoon,
+  interfacegrootte, herinneringen op het startscherm, offline opslag, alleen downloaden op wifi, de
+  balk met wat er speelt, en MuMa-synchronisatie — elk met uitleg én de knop zelf, zodat je een
+  instelling wijzigt op de plek waar hij wordt uitgelegd.
+- Instellingen die nieuw zijn sinds de versie waar je vandaan komt krijgen het label Nieuw en komen
+  vooraan, waardoor een update-ronde kort blijft. De wizard staat ook altijd in het overloopmenu, en
+  een update die geen instellingen toevoegt toont gewoon de changelog zoals voorheen.
+- Stijl, app-icoon en interfacegrootte werken nu ook echt vanuit de wizard. Die drie hadden hun
+  werking in het instellingenscherm zitten, dat niet meeloopt als de wizard open staat: een gekozen
+  stijl deed tot de volgende koude start niets, en een gekozen app-icoon liet het opgeslagen
+  antwoord en het werkelijke pictogram blijvend uit elkaar lopen.
+
+### 📖 Een handleiding aan boord, onder Help in het overloopmenu
+- Alles wat MuMa kan was tot nu toe alleen te ontdekken door overal op te drukken. Help is twaalf
+  hoofdstukken in leesvolgorde, dichtgeklapt tot je er één opent, elk met een schermafbeelding en,
+  waar lezen de langzaamste manier is om het te leren, een knop rechtstreeks naar het scherm dat
+  beschreven wordt.
+
+### 🧹 Het Over-scherm wijst niet meer naar vreemde sites
+- "Website openen" en "Bug melden" stuurden je naar adressen die niets met deze installatie te
+  maken hebben. Beide knoppen zijn weg; bijwerken, de wijzigingslijst en het logboek blijven.
+- De vertaalde Over-tekst beschreef in negen talen nog het oude Ultrasonic-product en de
+  Subsonic-servers waarvoor dat gemaakt was. Die vertalingen vallen nu terug op de MuMa-tekst.
+- Waar de oude productnaam nog in een vertaling opdook — welkomstscherm, crashmelding,
+  versiewaarschuwing — staat nu MuMa, en in het beheerscherm heet de app MuMa Mobile.
+
 ## Global Version 0.20.0 (2026-08-21)
 
 ### 📻 Het nieuws van het uur, ook onderweg

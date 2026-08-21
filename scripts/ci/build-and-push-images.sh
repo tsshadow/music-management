@@ -56,7 +56,29 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$PROJECT_ROOT"
 
-if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
+# PUSH_IMAGES=false builds every image and pushes none of it.
+#
+# That mode exists for the docker:build-images job, which runs on merge requests
+# that touch a Dockerfile. Until it existed, a Dockerfile-only change ran no job
+# that built anything: five of the seven images below (base, downloader,
+# telegram, importer, tools) are not in docker/compose.test.yml either, so the
+# first time anything compiled them was release:build-images on a release
+# branch - the worst possible place to discover a broken build.
+#
+# It deliberately reuses this script rather than a second, simpler one: two
+# build definitions for the same Dockerfiles is how the merge-request build
+# drifts from the release build and stops proving anything.
+PUSH_IMAGES="${PUSH_IMAGES:-true}"
+
+docker_push() {
+    if [ "$PUSH_IMAGES" != "true" ]; then
+        echo "    (PUSH_IMAGES=false, not pushing $1)"
+        return 0
+    fi
+    docker push "$1"
+}
+
+if [ "$PUSH_IMAGES" = "true" ] && { [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; }; then
     echo "Error: DOCKERHUB_USERNAME / DOCKERHUB_TOKEN CI/CD variables are not set. See docs/deployment.md."
     exit 1
 fi
@@ -75,20 +97,40 @@ write_env_file() {
     fi
 }
 
-if [ -z "${PROD_ENV_FILE}" ]; then
-    echo "Error: PROD_ENV_FILE CI/CD variable is not set. See docs/deployment.md."
-    exit 1
-fi
-write_env_file "${PROD_ENV_FILE}" "$PROJECT_ROOT/.env"
+if [ "$PUSH_IMAGES" = "true" ]; then
+    if [ -z "${PROD_ENV_FILE}" ]; then
+        echo "Error: PROD_ENV_FILE CI/CD variable is not set. See docs/deployment.md."
+        exit 1
+    fi
+    write_env_file "${PROD_ENV_FILE}" "$PROJECT_ROOT/.env"
 
-if [ -z "${PROD_ENV_FILE_LMS}" ]; then
-    echo "Error: PROD_ENV_FILE_LMS CI/CD variable is not set. See docs/deployment.md."
-    exit 1
-fi
-write_env_file "${PROD_ENV_FILE_LMS}" "$PROJECT_ROOT/services/music-management-server/.env"
+    if [ -z "${PROD_ENV_FILE_LMS}" ]; then
+        echo "Error: PROD_ENV_FILE_LMS CI/CD variable is not set. See docs/deployment.md."
+        exit 1
+    fi
+    write_env_file "${PROD_ENV_FILE_LMS}" "$PROJECT_ROOT/services/music-management-server/.env"
 
-echo "--- Logging in to Docker Hub as ${DOCKERHUB_USERNAME} ---"
-echo "${DOCKERHUB_TOKEN}" | docker login --username "${DOCKERHUB_USERNAME}" --password-stdin
+    echo "--- Logging in to Docker Hub as ${DOCKERHUB_USERNAME} ---"
+    echo "${DOCKERHUB_TOKEN}" | docker login --username "${DOCKERHUB_USERNAME}" --password-stdin
+else
+    # No push means no production secrets: a merge-request pipeline must not
+    # need PROD_ENV_FILE at all. The image *names* are the only thing those
+    # files contribute to a build, and a build proves the same thing under a
+    # throwaway name. Written rather than skipped because the script sources
+    # both files under `set -e`.
+    #
+    # Only ever written when absent. In CI they always are (.env is gitignored,
+    # so a fresh checkout has none), but this script is runnable by hand, and
+    # overwriting a developer's real .env with placeholders would be a nasty
+    # way to find that out.
+    echo "--- PUSH_IMAGES=false: building under local names, no Docker Hub login ---"
+    if [ ! -f "$PROJECT_ROOT/.env" ]; then
+        printf 'DOCKER_USER=muma-ci\nIMAGE_CORE=music-manager\n' > "$PROJECT_ROOT/.env"
+    fi
+    if [ ! -f "$PROJECT_ROOT/services/music-management-server/.env" ]; then
+        printf 'IMAGE_NAME=muma-ci/lms\n' > "$PROJECT_ROOT/services/music-management-server/.env"
+    fi
+fi
 
 VERSION=$(cat VERSION 2>/dev/null || echo "latest")
 
@@ -107,8 +149,8 @@ docker build \
     -f docker/Dockerfile.music-manager .
 
 echo "--- Pushing music-manager image ---"
-docker push "${DOCKER_USER}/${IMAGE_CORE}:latest"
-docker push "${DOCKER_USER}/${IMAGE_CORE}:${VERSION}"
+docker_push "${DOCKER_USER}/${IMAGE_CORE}:latest"
+docker_push "${DOCKER_USER}/${IMAGE_CORE}:${VERSION}"
 
 # 2. Build + push lms (music-management-server) -------------------------------
 # shellcheck disable=SC1091
@@ -128,9 +170,9 @@ docker build \
     -f services/music-management-server/Dockerfile-release .
 
 echo "--- Pushing lms image ---"
-docker push "${IMAGE_NAME}:latest"
-docker push "${IMAGE_NAME}:stable"
-docker push "${IMAGE_NAME}:${LMS_VERSION}"
+docker_push "${IMAGE_NAME}:latest"
+docker_push "${IMAGE_NAME}:stable"
+docker_push "${IMAGE_NAME}:${LMS_VERSION}"
 
 # 3. Build + push muma-base ----------------------------------------------------
 # (re-source root .env: sourcing PROD_ENV_FILE_LMS above may have shadowed
@@ -151,8 +193,8 @@ docker build \
     -f docker/Dockerfile.base .
 
 echo "--- Pushing muma-base image ---"
-docker push "${DOCKER_USER}/${IMAGE_BASE}:latest"
-docker push "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}"
+docker_push "${DOCKER_USER}/${IMAGE_BASE}:latest"
+docker_push "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}"
 
 # 4. Build + push muma-downloader ----------------------------------------------
 echo "--- Building muma-downloader image (${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}) ---"
@@ -164,8 +206,8 @@ docker build \
     -f docker/Dockerfile.downloader .
 
 echo "--- Pushing muma-downloader image ---"
-docker push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest"
-docker push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}"
+docker_push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest"
+docker_push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}"
 
 # 5. Build + push muma-telegram -------------------------------------------------
 echo "--- Building muma-telegram image (${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSION}) ---"
@@ -177,8 +219,8 @@ docker build \
     -f docker/Dockerfile.telegram .
 
 echo "--- Pushing muma-telegram image ---"
-docker push "${DOCKER_USER}/${IMAGE_TELEGRAM}:latest"
-docker push "${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSION}"
+docker_push "${DOCKER_USER}/${IMAGE_TELEGRAM}:latest"
+docker_push "${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSION}"
 
 # 6. Build + push muma-importer -------------------------------------------------
 echo "--- Building muma-importer image (${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}) ---"
@@ -190,8 +232,8 @@ docker build \
     -f docker/Dockerfile.importer .
 
 echo "--- Pushing muma-importer image ---"
-docker push "${DOCKER_USER}/${IMAGE_IMPORTER}:latest"
-docker push "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}"
+docker_push "${DOCKER_USER}/${IMAGE_IMPORTER}:latest"
+docker_push "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}"
 
 # 7. Build + push muma-tools ----------------------------------------------------
 echo "--- Building muma-tools image (${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}) ---"
@@ -201,7 +243,7 @@ docker build \
     -f docker/Dockerfile.tools .
 
 echo "--- Pushing muma-tools image ---"
-docker push "${DOCKER_USER}/${IMAGE_TOOLS}:latest"
-docker push "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}"
+docker_push "${DOCKER_USER}/${IMAGE_TOOLS}:latest"
+docker_push "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}"
 
 echo "--- build-and-push-images.sh completed: music-manager, lms, and all background worker images (base/downloader/telegram/importer/tools) are now up to date on Docker Hub ---"

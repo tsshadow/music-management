@@ -13,6 +13,12 @@ the Android system across an in-place upgrade, not names.
 
 [ultrasonic]: https://gitlab.com/ultrasonic/ultrasonic
 
+## In-app manual
+
+The overflow menu has a Help entry: twelve chapters covering every screen, each with a screenshot.
+All twelve screenshots are still placeholders. `./scripts/manual-screenshot-status.sh` says which
+ones, and [docs/manual-screenshots.md](docs/manual-screenshots.md) says what each one should show.
+
 ## License
 
 This software is licensed under the terms of the GNU General Public License
@@ -23,7 +29,7 @@ Full text of the license is available in the [LICENSE](LICENSE) file and
 
 ## Android signing configuration
 
-Ultrasonic now shares a single upload key between local builds and GitHub
+MuMa Mobile now shares a single upload key between local builds and GitHub
 Actions. Configure the same credentials in both environments so that release
 artifacts are interchangeable.
 

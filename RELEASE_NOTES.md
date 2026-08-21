@@ -38,6 +38,18 @@ This project is now modularized. Detailed release notes for each module can be f
   waardoor een naam die toevallig in een andere naam zat als geldig doorging.
 
 ### Fixed
+- **Twee derde van je luistergeschiedenis was onvindbaar voor de rest van MuMa.** Een beluisterd
+  nummer werd aan een track gekoppeld door de artiestnaam en de titel letterlijk te vergelijken.
+  Op 16.830 gekoppelde luisterbeurten stonden er 35.761 in een tabel die niemand meer las, en het
+  verlies zit vrijwel helemaal in geïmporteerde geschiedenis: wat live uit LMS binnenkomt verliest
+  zes procent, de ListenBrainz-import drieënzeventig. Dezelfde muziek, andere spelling. Er is nu
+  een ladder van vier stappen — letterlijk, genormaliseerd, zonder remix-achtervoegsel, en als
+  laatste een gelijkenisdrempel — en per koppeling wordt vastgelegd welke stap hem maakte en hoe
+  zeker die was. Elke stap is los uit te zetten en wat een stap koppelde is met één opdracht terug
+  te draaien, want de laatste twee kunnen een luisterbeurt aan de verkeerde track hangen. Een
+  achtergrondtaak probeert de overgebleven rijen periodiek opnieuw, met een oplopend wachtvenster,
+  zodat een nieuwe download een luisterbeurt uit 2019 alsnog kan koppelen zonder dat de taak elke
+  ronde dezelfde kansloze rijen doorploegt.
 - **De geanalyseerde audiokenmerken hoorden bij niets wat je ooit gedraaid hebt.** Er staan
   90.107 rijen met tempo en klankkenmerken in de database, en elke functie die erop leunt las nul
   procent dekking — het zag eruit alsof de analyzer nooit gelopen had. De sleutel bleek iets anders

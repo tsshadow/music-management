@@ -14,7 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hernoemen op zichzelf zou elke telefoon voorgoed "je bent bij" hebben verteld. Uploads heten nu
   `muma-mobile-*` en de updatecontrole vraagt om die reeks; oudere installaties die nog om
   `ultrasonic` vragen worden er door apk-hoster naartoe gewezen via de nieuwe instelling
-  `APK_ALIASES`, die op de deployment gezet moet zijn vóór de eerste upload onder de nieuwe naam.
+  `APK_ALIASES`, die daar is ingesteld. Ook het account waarmee een build bij apk-hoster inlogt is
+  meeverhuisd, van `ultrasonic` naar `muma-mobile`; het oude account blijft staan voor builds die
+  al geïnstalleerd zijn.
 
 ## [0.21.0] - 2026-08-21
 

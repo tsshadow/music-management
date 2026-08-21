@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   asks for when it checks for updates — renaming it alone would have left every phone told it was
   up to date forever. Uploads are now `muma-mobile-*` and the update check asks for that series;
   older installs still asking for `ultrasonic` are pointed at it by apk-hoster's new `APK_ALIASES`
-  setting, which the deployment must have set before the first upload under the new name.
+  setting, which is configured there. The account a build signs in to apk-hoster with moved too,
+  from `ultrasonic` to `muma-mobile`; the old account stays on the server for builds already
+  installed.
 
 ### Added
 - **A setup wizard that opens after an update and shows you what it changed.** Sixty-two settings

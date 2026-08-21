@@ -32,6 +32,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   een andere server of de Sets-schakelaar is een misser in plaats van een verkeerd antwoord.
 
 ### Fixed
+- **Een dynamische afspeellijst kwam bijna leeg terug.** Een lijst als "Hardstyle" die om 500
+  nummers vroeg leverde er een handvol, wat eruitzag alsof de bibliotheek gewoon weinig hardstyle
+  bevatte. De waarderingsfilter stond echter altijd in de query, ook op zijn standaardwaarde 0 tot
+  100 — bedoeld als "geen filter". Waarderingen komen binnen via een LEFT JOIN, dus een nummer
+  zonder waardering heeft er geen, en niets is nooit groter dan nul: daarmee viel elk ongewaardeerd
+  nummer af. Dat zijn er 301.340 van de 302.561. Een bereik dat de hele schaal beslaat bouwt nu geen
+  filter meer op; vraag je wel om vier sterren en hoger, dan blijven ongewaardeerde nummers er
+  gewoon buiten.
 - **Sterren geven vanuit de auto werkt weer op een nummer dat al sterren had.** Een waardering die
   op het spelende item werd gezet, ging naar de cache van de track en naar de extras van het
   media-item, maar datzelfde item draagt de waardering nog een tweede keer als `StarRating`. Die

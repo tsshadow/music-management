@@ -34,6 +34,14 @@ This project is now modularized. Detailed release notes for each module can be f
   Mislukt het verversen, dan blijven de kaarten staan en stopt de balk.
 
 ### Fixed
+- **Een dynamische afspeellijst kwam bijna leeg terug.** Een lijst als "Hardstyle" die om 500
+  nummers vroeg leverde er een handvol, wat eruitzag alsof de bibliotheek gewoon weinig hardstyle
+  bevatte. De waarderingsfilter stond echter altijd in de query, ook op zijn standaardwaarde 0 tot
+  100 — bedoeld als "geen filter". Waarderingen komen binnen via een LEFT JOIN, dus een nummer
+  zonder waardering heeft er geen, en niets is nooit groter dan nul: daarmee viel elk ongewaardeerd
+  nummer af. Dat zijn er 301.340 van de 302.561. Een bereik dat de hele schaal beslaat bouwt nu geen
+  filter meer op; vraag je wel om vier sterren en hoger, dan blijven ongewaardeerde nummers er
+  gewoon buiten.
 - **Sterren geven in de auto werkt weer.** Bij een nummer dat al sterren had deed de knop na een
   paar minuten niets meer: de app las de sterren dan terug uit een kopie die niet meebewoog, kwam op
   hetzelfde getal uit als bij de vorige tik en stuurde niets meer door. Stond een nummer op vijf

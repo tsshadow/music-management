@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-08-21
+
 ### Added
 - **De Android-app opent op wat er de vorige keer stond, in plaats van op skeletten.** Elke koude
   start liet het startscherm en de bladerschermen (genres, jaren, labels, festivals, line-ups)

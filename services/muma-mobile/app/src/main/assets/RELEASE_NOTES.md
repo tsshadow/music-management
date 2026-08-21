@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [6.21.0] - 2026-08-21
+
 ### Added
 - **De app opent meteen op wat er de vorige keer stond.** Het startscherm en de bladerschermen
   lieten bij elke start pulserende vakjes zien terwijl ze de server opnieuw bevroegen om lijsten

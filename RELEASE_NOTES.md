@@ -11,6 +11,8 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.22.0 (2026-08-21)
+
 ### Added
 - **De Android-app opent meteen op wat er de vorige keer stond.** Het startscherm en de
   bladerschermen — genres, jaren, labels, festivals, line-ups — lieten bij elke start pulserende

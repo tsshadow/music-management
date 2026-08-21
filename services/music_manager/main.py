@@ -39,6 +39,7 @@ from services.music_manager.routers.artist_images import run_fetch_missing
 from services.music_manager.routers.scanner import run_scanner_loop
 from services.music_manager.routers.tagger import run_tagger_loop
 from services.music_manager.routers.users import run_lms_db_sync
+from services.music_manager.scrobble_rematch import run_scrobble_rematch
 from services.music_manager.thread_registry import start_thread, thread_status
 
 load_dotenv()
@@ -113,6 +114,7 @@ def startup_event():
         start_thread('radio', radio.run_radio_scheduler)
         start_thread('news', news.run_news_recorder)
         start_thread('events-retention', run_events_retention)
+        start_thread('scrobble-rematch', run_scrobble_rematch)
 
 @app.get('/health')
 def health(response: Response):

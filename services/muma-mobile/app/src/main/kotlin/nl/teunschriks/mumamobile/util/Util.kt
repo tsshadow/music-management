@@ -563,21 +563,23 @@ object Util {
         return true
     }
 
+    /**
+     * The version code stored the last time the app decided it had been seen. Reading it does
+     * not consume it: [markVersionSeen] is the only thing that writes.
+     */
+    fun previousSeenVersion(): Int = Settings.lastSeenVersion
+
+    fun markVersionSeen(context: Context) {
+        Settings.lastSeenVersion = getVersionCode(context)
+    }
+
     fun isVersionUpdate(context: Context): Boolean {
-        val currentVersion = getVersionCode(context)
-        val lastVersion = Settings.lastSeenVersion
-
-        // If it's the very first run, we don't want to show the changelog
-        if (lastVersion == 0) {
-            Settings.lastSeenVersion = currentVersion
-            return false
-        }
-
-        if (lastVersion < currentVersion) {
-            Settings.lastSeenVersion = currentVersion
-            return true
-        }
-        return false
+        val previous = previousSeenVersion()
+        val current = getVersionCode(context)
+        markVersionSeen(context)
+        // A stored zero is a first run, not an update - there is no previous version to have
+        // updated from.
+        return previous != 0 && previous < current
     }
 
     @JvmStatic

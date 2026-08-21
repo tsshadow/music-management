@@ -3,6 +3,11 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        a:id="@+id/setupWizardFragment"
+        a:icon="@drawable/ic_menu_settings"
+        a:title="@string/wizard.title" />
+
+    <item
         a:id="@+id/settingsFragment"
         a:icon="@drawable/ic_menu_settings"
         a:title="@string/menu.settings" />

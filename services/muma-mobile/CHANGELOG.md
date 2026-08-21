@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **The app now opens on what it was showing last time instead of on skeletons.** Every cold start
+  redrew pulsing placeholders on the home screen and on the browse screens — genres, years, labels,
+  festivals, line-ups — while the server was asked again for data that had almost never changed
+  since the app was last closed. The caches that already existed lived in memory and died with the
+  process. The finished cards a section or a browse page renders are now kept on disk and put back
+  up at once, with a thin progress bar under the heading while a fresh copy is on its way; the cards
+  themselves are tappable straight away. When the refresh fails the cards stay and the bar stops. A
+  section that turns out to be empty clears its own stored copy, and a different server or the Sets
+  switch is a miss rather than a wrong answer. Ratings, which are a fixed ladder built in the app,
+  are left alone.
 - **A setup wizard that opens after an update and shows you what it changed.** Sixty-two settings
   live on one scrolling screen, and nothing on it says which of them arrived last week. The wizard
   walks nine of them one at a time — server, style, app icon, interface size, memories on the home

@@ -34,15 +34,18 @@ android {
 
     defaultConfig {
         applicationId = 'nl.teunschriks.mumamobile'
-        versionCode 279
-        versionName "6.20.0"
+        versionCode 280
+        versionName "6.20.1"
 
         minSdk = libs.versions.appMinSdk.get().toInteger()
         targetSdk = libs.versions.appTargetSdk.get().toInteger()
         resourceConfigurations += ['cs', 'de', 'en', 'es', 'fr', 'gl', 'hu', 'it', 'ja', 'nb-rNO', 'nl', 'nl-rBQ', 'nl-rCW', 'pl', 'pt', 'pt-rBR', 'ru', 'zh-rCN', 'zh-rTW']
 
         buildConfigField "String", "APK_HOST_URL", "\"${envOrProp('APK_HOSTER_URL', 'https://apk.example.com')}\""
-        buildConfigField "String", "APK_HOST_USER", "\"${envOrProp('APK_HOSTER_USER', 'ultrasonic')}\""
+        // The apk-hoster account this build authenticates as. Builds already on a phone
+        // carry the old 'ultrasonic' account; that row stays on the server until they
+        // have all updated, so both names work during the changeover.
+        buildConfigField "String", "APK_HOST_USER", "\"${envOrProp('APK_HOSTER_USER', 'muma-mobile')}\""
         buildConfigField "String", "APK_HOST_PASSWORD", "\"${envOrProp('APK_HOSTER_PASSWORD', '')}\""
         buildConfigField "String", "GOOGLE_WEB_CLIENT_ID", "\"${envOrProp('GOOGLE_WEB_CLIENT_ID', 'placeholder-id')}\""
     }

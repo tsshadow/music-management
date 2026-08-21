@@ -19,7 +19,11 @@ import timber.log.Timber
  */
 object UpdateChecker {
     private fun getUpdateUrl(): String {
-        val apkName = if (BuildConfig.DEBUG) "ultrasonic-debug" else "ultrasonic"
+        // The APK series this build belongs to: the filename prefix scripts/publish.sh
+        // uploads under, which is all apk-hoster has to group builds by. Older installs
+        // still ask for the "ultrasonic" series; apk-hoster's APK_ALIASES points that at
+        // this one, so both find the same builds.
+        val apkName = if (BuildConfig.DEBUG) "muma-mobile-debug" else "muma-mobile"
         return "${BuildConfig.APK_HOST_URL}/api/version?apk=$apkName&user=${BuildConfig.APK_HOST_USER}"
     }
 

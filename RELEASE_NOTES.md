@@ -11,6 +11,20 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.21.1 (2026-08-21)
+
+### Changed
+- **Android-builds worden gepubliceerd onder de eigen naam van de app.** Elke APK ging omhoog naar
+  apk-hoster als `ultrasonic-*`. Die dienst groepeert builds op het voorvoegsel van de bestandsnaam,
+  en precies dat voorvoegsel vraagt een geïnstalleerde app op bij het controleren op updates — het
+  hernoemen op zichzelf zou elke telefoon voorgoed "je bent bij de tijd" hebben verteld, wat eerder
+  al een keer gebeurd is. Uploads heten nu `muma-mobile-*`, de updatecontrole vraagt om die reeks,
+  en oudere installaties die nog om de oude naam vragen worden er door apk-hoster naartoe gewezen
+  via de nieuwe instelling `APK_ALIASES`. Ook het account waarmee een build bij apk-hoster inlogt is
+  meeverhuisd; het oude account blijft staan zolang er builds zijn die ermee inloggen.
+- Apk-hoster zelf draagt de naam van de app die het toevallig hostte niet langer: het inlogscherm
+  heet nu APK Hoster in plaats van ultrasonic.
+
 ## Global Version 0.21.0 (2026-08-21)
 
 ### 🧭 Een instelwizard die na een update laat zien wat er veranderd is

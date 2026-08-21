@@ -23,7 +23,7 @@ Full text of the license is available in the [LICENSE](LICENSE) file and
 
 ## Android signing configuration
 
-Ultrasonic now shares a single upload key between local builds and GitHub
+MuMa Mobile now shares a single upload key between local builds and GitHub
 Actions. Configure the same credentials in both environments so that release
 artifacts are interchangeable.
 

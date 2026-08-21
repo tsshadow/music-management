@@ -703,28 +703,6 @@
     <issue
         id="UseKtx"
         message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.about_webpage_url)))"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/AboutFragment.kt"
-            line="63"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.about_report_url)))"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/AboutFragment.kt"
-            line="69"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
         errorLine1="        val uri = Uri.parse(Settings.cacheLocationUri)"
         errorLine2="                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location

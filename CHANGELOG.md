@@ -19,6 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `app/src/main/res/drawable-nodpi` te zetten, en `docs/manual-screenshots.md` vertelt welke
   opname waar hoort.
 
+### Changed
+- **Het Over-scherm verwijst niet meer naar sites die er niet meer bij horen.** "Website openen"
+  en "Bug melden" stuurden je de app uit naar adressen die niets met deze installatie te maken
+  hebben; beide knoppen zijn weg, zodat alleen bijwerken, de wijzigingslijst en het logboek
+  overblijven. Dezelfde opruiming liep door de rest van de tekst: de vertaalde Over-tekst
+  beschreef in negen talen nog het oude Ultrasonic-product en de bijbehorende Subsonic-servers,
+  en is vervangen door de Nederlandse en Engelse MuMa-tekst die er al stond. Waar de oude
+  productnaam nog in een vertaling stond — het welkomstscherm, de crashmelding, de
+  versiewaarschuwing — staat nu MuMa. In het beheerscherm heet de app bij de sleuteluitleg
+  voortaan MuMa Mobile, en het bijdragedocument van de app wijst naar de eigen issuetracker in
+  plaats van naar het opgeheven Ultrasonic-project.
+
 ## [0.20.0] - 2026-08-21
 
 ### Added

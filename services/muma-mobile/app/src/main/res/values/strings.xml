@@ -943,4 +943,6 @@ Check which server is selected and whether it says offline. An offline server pl
     <string name="car_mode.devices_summary">Only these Bluetooth devices start car mode. Earbuds and headphones should stay unticked.</string>
     <string name="car_mode.full_screen">Open automatically</string>
     <string name="car_mode.full_screen_summary">Android only lets some apps put a screen up by itself. Tap to allow it for MuMa.</string>
+    <string name="wizard.step_car_mode_title">Car mode</string>
+    <string name="wizard.step_car_mode_body">A driving screen with large controls: what is playing, the transport, a rating, three places you often go and the microphone. MuMa offers it by itself when your car connects — choose which Bluetooth devices count as the car under Settings, Car mode. Leave earbuds unticked. This switch turns car mode on with no car at all, for as long as you leave it on.</string>
 </resources>

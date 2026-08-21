@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ontgrendelen, app zoeken en wachten. Vanaf een vergrendeld scherm vraagt hij eerst om ontgrendelen.
 
 ### Changed
+- **De statische analyse van de Android-code draaide nergens.** detekt zat al in de build, maar
+  alleen achter een vlag die geen enkele taak meezond — dus faalde er nooit iets en merkte niemand
+  het. Hij draait nu mee in de Android-controle. De vierenzeventig bevindingen die er al stonden
+  zijn per module vastgelegd in een baseline in plaats van in één ruk gerepareerd: een controle die
+  rood is op de dag dat je hem aanzet leert iedereen hem te negeren. Nieuwe bevindingen laten de
+  taak wel vallen. De enige bevinding in code van vandaag is verholpen in plaats van vastgelegd.
 - **De API accepteert niet langer verzoeken vanaf elke website.** Hij stond open voor iedere
   herkomst, met elke methode en elke header. Dat is op zichzelf geen manier om langs de
   authenticatie te komen — een browser stuurt niets mee en een aanroeper heeft de sleutel al nodig

@@ -1,0 +1,36 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$CrashReportRequest$val app_version_code: Int</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$CrashReportRequest$val app_version_name: String</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$CrashReportRequest$val build_type: String</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$CrashReportRequest$val device_model: String</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$CrashReportRequest$val os_version: String</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$CrashReportRequest$val ring_buffer_text: String</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$CrashReportRequest$val stacktrace_text: String? = null</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$LoginResponse$val api_key: String</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$LoginResponse$val display_name: String</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$LoginResponse$val is_admin: Boolean</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$MumaAccessRequest$val avatar_url: String?</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$MumaAccessRequest$val created_user_id: Int? = null</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$MumaAccessRequest$val display_name: String</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$MumaAccessRequest$val google_subject: String</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$MumaAccessRequest$val requested_at: String</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$MumaAccessRequest$val reviewed_at: String? = null</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$MumaAccessRequest$val reviewed_by_user_id: Int? = null</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$MumaAuthResponse$val access_token: String? = null</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$MumaAuthResponse$val api_key: String? = null</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$MumaAuthResponse$val refresh_token: String? = null</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$MumaAuthUser$val avatar_url: String? = null</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$MumaAuthUser$val display_name: String? = null</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$MumaAuthUser$val is_admin: Boolean? = null</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$MumaAuthUser$val role_id: Int? = null</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$MumaAuthUser$val role_name: String? = null</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$MumaAuthUser$val server_user_id: String? = null</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$MumaGoogleInfo$val avatar_url: String?</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$MumaGoogleInfo$val display_name: String</ID>
+    <ID>ConstructorParameterNaming:MumaAPIDefinition.kt$MumaSettingsResponse$val updated_at: String? = null</ID>
+    <ID>TooManyFunctions:MumaAPIDefinition.kt$MumaAPIDefinition</ID>
+  </CurrentIssues>
+</SmellBaseline>

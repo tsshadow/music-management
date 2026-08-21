@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-08-21
+
 ### Added
 - **Er is een eerste echte keten-test.** Alle bestaande tests bewijzen één onderdeel: dat LMS
   antwoordt in de vorm die de server verwacht, dat de database de query slikt, dat een functie doet

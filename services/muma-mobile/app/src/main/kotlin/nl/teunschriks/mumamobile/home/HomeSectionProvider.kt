@@ -107,12 +107,9 @@ class RecentTracksProvider(
     override suspend fun load(): HomeSection? {
         val requested = rows()
 
-        val tracks = try {
-            loadTracks(sortMethod, requested)
-        } catch (e: Exception) {
-            Timber.w(e, "Home section '%s' failed to load", sortMethod)
-            return null
-        }
+        // Failure is not the same thing as an empty section: HomeViewModel keeps whatever it had
+        // cached when this throws, and clears the cache when it returns null.
+        val tracks = loadTracks(sortMethod, requested)
 
         // The count is a request, not a promise: an older server, or a cached response from when the
         // setting was higher, can hand back more than was asked for.

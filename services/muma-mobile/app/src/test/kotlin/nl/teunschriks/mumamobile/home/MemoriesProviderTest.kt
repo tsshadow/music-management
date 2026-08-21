@@ -79,9 +79,9 @@ class MemoriesProviderTest {
         section.cards.single().itemId `should be equal to` "2018"
     }
 
-    @Test
-    fun `a server without the endpoint hides the section instead of failing`() = runBlocking<Unit> {
-        provider { error("HTTP 404") }.load().shouldBeNull()
+    @Test(expected = IllegalStateException::class)
+    fun `a server error is reported to the caller, not swallowed`() = runBlocking<Unit> {
+        provider { error("no route to host") }.load()
     }
 
     @Test

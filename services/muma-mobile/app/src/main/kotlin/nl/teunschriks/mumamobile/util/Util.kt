@@ -576,7 +576,11 @@ object Util {
     fun isVersionUpdate(context: Context): Boolean {
         val previous = previousSeenVersion()
         val current = getVersionCode(context)
-        markVersionSeen(context)
+
+        // Stamp on a first run and on a real update, but never on a downgrade: lowering the
+        // stored version would make the next re-upgrade replay an update the user already saw.
+        if (previous == 0 || previous < current) markVersionSeen(context)
+
         // A stored zero is a first run, not an update - there is no previous version to have
         // updated from.
         return previous != 0 && previous < current

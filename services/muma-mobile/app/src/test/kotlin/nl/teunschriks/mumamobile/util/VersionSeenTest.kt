@@ -59,4 +59,15 @@ class VersionSeenTest {
 
         assertFalse(Util.isVersionUpdate(context))
     }
+
+    @Test
+    fun `a downgrade leaves the stored version alone`() {
+        // Sideloading an older build must not lower the stamp: re-installing the newer one would
+        // then replay an update the user has already been shown.
+        val ahead = Util.getVersionCode(context) + 10
+        Settings.lastSeenVersion = ahead
+
+        assertFalse(Util.isVersionUpdate(context))
+        assertEquals(ahead, Settings.lastSeenVersion)
+    }
 }

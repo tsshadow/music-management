@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **De Android-app heeft een rijstand.** Alles wat de telefoon in een houder moet kunnen — wat er
+  speelt, spoelen, waarderen, drie plekken waar je vaak heen gaat, en de microfoon — staat op één
+  scherm met knoppen op armlengte. De app merkt de auto zelf op: een head unit, een
+  bluetooth-apparaat dat jij als auto hebt aangevinkt, of een schakelaar in de instellingen.
+  Speelt er al muziek, dan komt het scherm naar voren; anders krijg je een melding die je aantikt.
+  Dat onderscheid is er omdat Android sinds versie 14 alleen bel- en wekker-apps ongevraagd een
+  scherm laat openen — waar dat recht ontbreekt wordt het vanzelf een melding, en één regel in de
+  instellingen brengt je naar de systeempagina als je het toch wilt. Wegdrukken is definitief
+  zolang de auto verbonden blijft, en zodra die verbinding wegvalt sluit de rijstand zichzelf.
+  Oordopjes tellen nooit mee: welke apparaten je auto zijn kies je zelf, want de apparaatklasse
+  liegt beide kanten op.
 - **De Android-app opent op wat er de vorige keer stond, in plaats van op skeletten.** Elke koude
   start liet het startscherm en de bladerschermen (genres, jaren, labels, festivals, line-ups)
   pulserende plaatshouders tonen terwijl de server opnieuw werd bevraagd om gegevens die sinds de

@@ -500,8 +500,6 @@
     <string name="server_menu.lms">LMS</string>
     <string name="server_menu.lmsalpha">LMS Alpha</string>
     <string name="server_menu.lmsstable">LMS stable</string>
-    <string name="about.webpage">Website opendoen</string>
-    <string name="about.report">Bug melde</string>
     <string name="about.text">Dit is \'n heel eige applicatie, gemaokt om samen te werke mee de muma/lms stack.\n\nDa geeft onder andere meer grip op \'t zoeke en filters die vanzelf op genre gaon.</string>
     <string name="welcome_morning">Goeiemorge</string>
     <string name="welcome_afternoon">Goeiemiddag</string>

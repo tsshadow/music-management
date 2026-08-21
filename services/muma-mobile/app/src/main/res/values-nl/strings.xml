@@ -401,8 +401,6 @@
     <string name="server_editor.disabled_feature">Eén of meerdere functies zijn uitgeschakeld omdat de server ze niet ondersteunt.\nVoer deze test later opnieuw uit.</string>
     <string name="server_menu.demo">Demoserver</string>
 
-    <string name="about.webpage">Website openen</string>
-    <string name="about.report">Bug melden</string>
     <string name="about.text">Dit is een zeer custom applicatie, gemaakt om samen te werken met de muma/lms stack.\n\nVoordelen van deze stack zijn o.a. meer controle over zoekopdrachten en automatische filters op basis van genre.</string>
     <plurals name="n_songs">
         <item quantity="one">%d nummer</item>

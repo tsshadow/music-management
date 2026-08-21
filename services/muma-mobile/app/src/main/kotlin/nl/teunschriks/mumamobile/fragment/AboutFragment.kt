@@ -7,8 +7,6 @@
 
 package nl.teunschriks.mumamobile.fragment
 
-import android.content.Intent
-import android.net.Uri
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
@@ -34,8 +32,6 @@ import nl.teunschriks.mumamobile.util.Util.showChangelog
  */
 class AboutFragment : Fragment() {
     private var titleText: TextView? = null
-    private var webPageButton: Button? = null
-    private var reportBugButton: Button? = null
     private var updateButton: Button? = null
     private var changelogButton: Button? = null
     private var viewLogButton: Button? = null
@@ -55,8 +51,6 @@ class AboutFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         titleText = view.findViewById(R.id.help_title)
-        webPageButton = view.findViewById(R.id.help_webpage)
-        reportBugButton = view.findViewById(R.id.help_report)
         updateButton = view.findViewById(R.id.help_update)
         changelogButton = view.findViewById(R.id.help_changelog)
         viewLogButton = view.findViewById(R.id.help_view_log)
@@ -83,18 +77,6 @@ class AboutFragment : Fragment() {
                 "Android: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"
             helpText.append(debugInfo)
             titleText?.setTextColor(Color.YELLOW)
-        }
-
-        webPageButton?.setOnClickListener {
-            startActivity(
-                Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.about_webpage_url)))
-            )
-        }
-
-        reportBugButton?.setOnClickListener {
-            startActivity(
-                Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.about_report_url)))
-            )
         }
 
         var lastClickTime: Long = 0

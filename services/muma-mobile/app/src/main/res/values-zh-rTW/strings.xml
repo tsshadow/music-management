@@ -190,7 +190,7 @@
     <string name="main.songs_title">歌曲</string>
     <string name="main.welcome_title">歡迎！</string>
     <string name="menu.deleted_playlist">已刪除播放清單 %s</string>
-    <string name="main.welcome_text_demo">要使用 Ultrasonic 播放您的音樂，需要您 <b>自己的伺服器</b>。
+    <string name="main.welcome_text_demo">要使用 MuMa 播放您的音樂，需要您 <b>自己的伺服器</b>。
 \n
 \n➤ 如果您想嘗試此應用程式， 可以添加一個演示伺服器。
 \n

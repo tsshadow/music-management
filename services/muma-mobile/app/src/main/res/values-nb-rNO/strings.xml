@@ -169,7 +169,7 @@
     <string name="main.albums_alphaByArtist">Etter artist</string>
     <string name="main.songs_random">Tilfeldig</string>
     <string name="main.songs_starred">Stjernemerket</string>
-    <string name="main.welcome_title">Velkommen til Ultrasonic.</string>
+    <string name="main.welcome_title">Velkommen til MuMa.</string>
     <string name="main.songs_title">Spor</string>
     <string name="main.videos">Videoer</string>
     <string name="menu.about">Om</string>
@@ -275,11 +275,9 @@
     <string name="server_editor.new_label">Legg til tjener</string>
     <string name="server_editor.advanced">Avanserte innstillinger</string>
     <string name="server_menu.demo">Demo-tjener</string>
-    <string name="about.webpage">Besøk nettsiden</string>
     <string name="settings.show_confirmation_dialog">Vis bekreftelsesdialog</string>
     <string name="settings.debug.title">Avlusningsvalg</string>
     <string name="settings.debug.log_to_file">Skriv avlusningslogg til fil</string>
-    <string name="about.report">Rapporter en feil</string>
     <string name="api.subsonic.generic">Generisk API-feil: %1$s</string>
     <plurals name="n_songs">
         <item quantity="one">%d spor</item>
@@ -297,11 +295,6 @@
         <item quantity="one">%d spor slettet</item>
         <item quantity="other">%d spor løsnet</item>
     </plurals>
-    <string name="about.text"><b>Ultrasonic</b> er en gratis og fri Android-musikkstrømmingsklient Subsonic-API-et (v 1.7.0 eller høyere) for kompatible tjenere.
-\n
-\nMed <b>Ultrasonic</b> kan du enkelt strømme eller laste ned musikk fra din PC eller Android-enhet til ved bruk av din Subsonic-kompatible musikktjener. Subsonic-tjenerprogramvaren krever ytterligere oppsett, som ikke har med Ultrasonic å gjøre.
-\n
-\nUltrasonic må settes opp når du har laget deg en tjener. Endre tjeneroppsettet slik at det kobler seg til din egen datamaskin.</string>
     <string name="download.playlist_saving">Lagrer «%s»-spillelisten …</string>
     <string name="equalizer.preset">Velg forhåndsinnstilling</string>
     <string name="lyrics.nomatch">Fant ingen sangtekster</string>
@@ -313,7 +306,7 @@
     <string name="notification.permission_required">Merknader kreves for medieavspilling. Du kan innvilge tilgangen når som helst i Android-innstillingene.</string>
     <string name="settings.use_hw_offload_description">Prøv å spille medier ved bruk av maskinvaredekoding på enheten din. Kan bruke mindre batteri.</string>
     <string name="settings.display_bitrate_summary">Legg til artistnavn med bitrate og filendelse</string>
-    <string name="main.welcome_text_demo">For å bruke Ultrasonic med din egen musikk trenger du en <b>egen tjener</b>.
+    <string name="main.welcome_text_demo">For å bruke MuMa med din egen musikk trenger du en <b>egen tjener</b>.
 \n
 \n➤ Hvis du vil prøve ut programmet først kan du legge til en demo-tjener nå.
 \n
@@ -399,7 +392,7 @@
     <string name="settings.use_id3_offline">Bruk ID3-metode også når frakoblet</string>
     <string name="settings.sharing_title">Deling</string>
     <string name="menu_deleted_share">Slettet %s-deling</string>
-    <string name="settings.use_id3_offline_summary">Viser kun musikken som er lastet ned med Ultrasonic 4.0 eller senere. Tidligere nedlastinger har ikke nødvendig metadata nedlastet. Du kan veksle mellom festingsmodus og lagringsmodus for å utløse nedlasting av manglende metadata.</string>
+    <string name="settings.use_id3_offline_summary">Viser kun musikken som er lastet ned med MuMa 4.0 eller senere. Tidligere nedlastinger har ikke nødvendig metadata nedlastet. Du kan veksle mellom festingsmodus og lagringsmodus for å utløse nedlasting av manglende metadata.</string>
     <string name="settings.show_artist_picture_summary">Viser artistbilde i artistlisten hvis tilgjengelig</string>
     <string name="settings.sharing_always_ask_for_details_summary">Alltid spør om beskrivelse og utløp ved opprettelse av deling på tjeneren</string>
     <string name="song_details.kbps">%d kbps</string>
@@ -422,7 +415,7 @@
     <string name="api.subsonic.not_authenticated">Feil brukernavn eller passord.</string>
     <string name="api.subsonic.requested_data_was_not_found">Fant ikke forespurt data.</string>
     <string name="api.subsonic.trial_period_is_over">Prøveperioden er over.</string>
-    <string name="api.subsonic.upgrade_client">Ukompatible versjoner. Oppgrader Ultrasonic-programmet for Android.</string>
+    <string name="api.subsonic.upgrade_client">Ukompatible versjoner. Oppgrader MuMa-programmet for Android.</string>
     <string name="api.subsonic.upgrade_server">Ukompatible versjoner. Oppgrader Subsonic-tjeneren.</string>
     <string name="list_view">Liste</string>
     <string name="api.subsonic.not_authorized">Ikke identitetsbekreftet. Sjekk brukertilganger på Subsonic-tjeneren.</string>

@@ -106,8 +106,8 @@
     <string name="main.songs_starred">Отмеченные</string>
     <string name="main.songs_title">Песни</string>
     <string name="main.videos">Видео</string>
-    <string name="main.welcome_text_demo">Чтобы использовать Ultrasonic с вашей собственной музыкой, вам понадобится <b>собственный сервер</b>. \n\n➤ Если вы хотите сначала опробовать приложение, вы можете добавить демо-сервер прямо сейчас. \n\n➤ В противном случае вы можете настроить свой сервер в <b>настройках</b>.</string>
-    <string name="main.welcome_title">Добро пожаловать в Ultrasonic!</string>
+    <string name="main.welcome_text_demo">Чтобы использовать MuMa с вашей собственной музыкой, вам понадобится <b>собственный сервер</b>. \n\n➤ Если вы хотите сначала опробовать приложение, вы можете добавить демо-сервер прямо сейчас. \n\n➤ В противном случае вы можете настроить свой сервер в <b>настройках</b>.</string>
+    <string name="main.welcome_title">Добро пожаловать в MuMa!</string>
     <string name="main.welcome_cancel">Отведи меня в настройки</string>
     <string name="menu.about">О приложении</string>
     <string name="menu.common">Общий</string>
@@ -349,7 +349,7 @@
     <string name="api.subsonic.param_missing">Требуемый параметр отсутствует.</string>
     <string name="api.subsonic.requested_data_was_not_found">Запрошенные данные не найдены.</string>
     <string name="api.subsonic.trial_period_is_over">Пробный период окончен.</string>
-    <string name="api.subsonic.upgrade_client">Несовместимые версии. Пожалуйста, обновите приложение Ultrasonic для Android.</string>
+    <string name="api.subsonic.upgrade_client">Несовместимые версии. Пожалуйста, обновите приложение MuMa для Android.</string>
     <string name="api.subsonic.upgrade_server">Несовместимые версии. Пожалуйста, обновите Subsonic сервер.</string>
 
     <!-- Subsonic features  -->

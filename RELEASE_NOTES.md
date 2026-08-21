@@ -11,6 +11,26 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.22.0 (2026-08-21)
+
+### Added
+- **De Android-app opent meteen op wat er de vorige keer stond.** Het startscherm en de
+  bladerschermen — genres, jaren, labels, festivals, line-ups — lieten bij elke start pulserende
+  vakjes zien terwijl ze de server opnieuw bevroegen om lijsten die sinds de vorige keer bijna
+  nooit veranderd waren. De caches die er al waren leefden alleen in het geheugen en gingen met
+  het proces mee dood. De kaarten worden nu op schijf bewaard en direct weer neergezet, met een
+  dunne voortgangsbalk onder de kop zolang de verse kopie onderweg is; aantikken kan meteen.
+  Mislukt het verversen, dan blijven de kaarten staan en stopt de balk.
+
+### Fixed
+- **Sterren geven in de auto werkt weer.** Bij een nummer dat al sterren had deed de knop na een
+  paar minuten niets meer: de app las de sterren dan terug uit een kopie die niet meebewoog, kwam op
+  hetzelfde getal uit als bij de vorige tik en stuurde niets meer door. Stond een nummer op vijf
+  sterren, dan sprong het daardoor terug naar geen.
+- **Een gegeven waardering blijft nu overal staan.** Wat je in de auto of in een lijst waardeerde
+  ging wel naar de server, maar werd in de app zelf nergens bijgewerkt. Kwam je later terug bij het
+  nummer, dan stond de oude waardering er weer, alsof hij was gewist.
+
 ## Global Version 0.21.1 (2026-08-21)
 
 ### Changed

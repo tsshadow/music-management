@@ -22,14 +22,17 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.koin.android.ext.android.inject
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.adapters.Utils
 import nl.teunschriks.mumamobile.home.BrowseCategory
+import nl.teunschriks.mumamobile.home.CardListCache
 import nl.teunschriks.mumamobile.home.CardStyle
 import nl.teunschriks.mumamobile.home.FavoriteGenres
 import nl.teunschriks.mumamobile.home.GenreTrackLimit
@@ -38,6 +41,7 @@ import nl.teunschriks.mumamobile.home.HomeCardAction
 import nl.teunschriks.mumamobile.home.HomeCardAdapter
 import nl.teunschriks.mumamobile.home.HomeCardNavigator
 import nl.teunschriks.mumamobile.home.HomeCardType
+import nl.teunschriks.mumamobile.home.browseCacheSlot
 import nl.teunschriks.mumamobile.home.browseSortOrdersFor
 import nl.teunschriks.mumamobile.home.browseSupportsSearch
 import nl.teunschriks.mumamobile.home.filterAndSortCards
@@ -60,6 +64,9 @@ class FilterBrowseFragment : Fragment() {
 
     private lateinit var adapter: HomeCardAdapter
     private var swipeRefresh: SwipeRefreshLayout? = null
+
+    private val cardCache: CardListCache by inject()
+    private var progress: LinearProgressIndicator? = null
 
     private var allCards: List<HomeCard> = emptyList()
     private var query: String? = null
@@ -84,6 +91,7 @@ class FilterBrowseFragment : Fragment() {
         recycler.adapter = adapter
 
         swipeRefresh = view.findViewById(R.id.browse_refresh)
+        progress = view.findViewById(R.id.browse_progress)
         swipeRefresh?.setOnRefreshListener { load(refresh = true) }
 
         val filterButtonBar: FilterButtonBar = view.findViewById(R.id.filter_button_bar)
@@ -114,6 +122,7 @@ class FilterBrowseFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         swipeRefresh = null
+        progress = null
     }
 
     private fun applyFilter() {
@@ -156,17 +165,39 @@ class FilterBrowseFragment : Fragment() {
         }
     }
 
+    /**
+     * Puts up the cards this page showed last time, then asks the server.
+     *
+     * The cached copy is what makes the page usable the moment it opens; the bar is what stops that
+     * from being a lie. A pull-to-refresh skips the cached copy -- the user is looking at it and has
+     * just asked for something newer -- and shows the swipe spinner instead.
+     */
     private fun load(refresh: Boolean) {
         val category = this.category
+        val slot = browseCacheSlot(category)
+
+        if (!refresh && slot != null) {
+            val cached = cardCache.read(slot)
+            if (cached != null && cached.cards.isNotEmpty()) {
+                allCards = cached.cards
+                applyFilter()
+                progress?.isVisible = true
+            }
+        }
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val cards = withContext(Dispatchers.IO) { loadCards(category, refresh) }
                 allCards = cards
                 applyFilter()
+                if (slot != null) {
+                    if (cards.isEmpty()) cardCache.clear(slot) else cardCache.write(slot, cards)
+                }
             } catch (e: Exception) {
+                // The cached cards, if there are any, are already on screen and stay there.
                 Timber.w(e, "Failed to load %s", category)
             } finally {
+                progress?.isVisible = false
                 swipeRefresh?.isRefreshing = false
             }
         }

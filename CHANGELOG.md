@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-08-21
+
+### Added
+- **De Android-app opent op wat er de vorige keer stond, in plaats van op skeletten.** Elke koude
+  start liet het startscherm en de bladerschermen (genres, jaren, labels, festivals, line-ups)
+  pulserende plaatshouders tonen terwijl de server opnieuw werd bevraagd om gegevens die sinds de
+  vorige keer bijna nooit veranderd waren. De caches die er al waren leefden alleen in het geheugen
+  en gingen dus met het proces mee dood. De kaarten die een sectie of een bladerscherm laat zien
+  worden nu op schijf bewaard en meteen weer neergezet, met een dunne voortgangsbalk onder de kop
+  zolang de verse kopie onderweg is; de kaarten zelf zijn direct aantikbaar. Mislukt het verversen,
+  dan blijven de kaarten staan en stopt de balk. Een lege sectie wist zijn eigen bewaarde kopie, en
+  een andere server of de Sets-schakelaar is een misser in plaats van een verkeerd antwoord.
+
+### Fixed
+- **Sterren geven vanuit de auto werkt weer op een nummer dat al sterren had.** Een waardering die
+  op het spelende item werd gezet, ging naar de cache van de track en naar de extras van het
+  media-item, maar datzelfde item draagt de waardering nog een tweede keer als `StarRating`. Die
+  wordt bij het bouwen van het item vastgelegd en is daarna onbereikbaar, want `MediaMetadata` is
+  onveranderlijk. De trackcache bewaart een item tien minuten, korter in een wachtrij voorbij de 250
+  items, en elke herbouw daarna liet de bevroren kopie winnen. De knop werd dan getekend met de
+  waardering van het moment waarop de wachtrij werd gebouwd, waardoor de volgende tik uitkwam op de
+  waardering die net gezet was en `RatingManager` die als dubbel weggooide: de knop reageerde niet
+  meer, en een nummer dat op vijf sterren stond sprong terug naar geen in plaats van door te tellen.
+  Een herbouw leest nu de extras; de `StarRating` is alleen nog de terugval voor items die zelf geen
+  extras-waarde hebben.
+- **Een waardering bereikt nu elke bewaarde kopie van het nummer, niet alleen de server.**
+  `setRating` stuurde de nieuwe waardering door en verder niets, dus de kopieën waaruit de app
+  antwoordt — het album waarin gerate werd, de lijsten op het startscherm, de bladerboom in de auto
+  — hielden de waardering waarmee ze waren opgehaald tot hun cache verliep. Terugkomen bij een
+  nummer liet het oude getal zien, wat leest als een waardering die is gewist. Die kopieën worden nu
+  ter plekke bijgewerkt, en het bewaarde media-item, waarvan de metadata niet bij te werken is,
+  wordt weggegooid zodat het bij de volgende leesbeurt met de nieuwe waardering wordt herbouwd.
+
 ## [0.21.1] - 2026-08-21
 
 ### Changed

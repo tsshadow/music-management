@@ -9,7 +9,6 @@ package nl.teunschriks.mumamobile.home
 
 import androidx.annotation.StringRes
 import nl.teunschriks.mumamobile.domain.MemoryGroup
-import timber.log.Timber
 
 /**
  * The home teaser for memories: one banner row, one tap from the Memories screen.
@@ -34,17 +33,22 @@ class MemoriesProvider(
 ) : HomeSectionProvider {
 
     /**
+     * Date-bound on purpose. "Today, 8 years ago" computed from yesterday's data is simply wrong,
+     * so a new day is a cache miss and the banner shows its skeleton for one load.
+     */
+    override val cacheKey: String get() = "memories:${today()}"
+
+    override fun sectionOf(cards: List<HomeCard>): HomeSection =
+        HomeSection(titleRes, CardStyle.BANNER, cards)
+
+    /**
      * A server that does not know the endpoint (an older LMS, or a plain Subsonic server) throws
-     * here. That is not an error worth showing: the section simply does not exist, which is the
-     * same thing the screen does with a day that holds no memories.
+     * here, and so does one that cannot be reached. Both end as an invisible section, but only the
+     * second one keeps the cards it already had -- which is why the distinction is left to
+     * [nl.teunschriks.mumamobile.home.HomeViewModel] instead of being flattened into a null here.
      */
     override suspend fun load(): HomeSection? {
-        val groups = try {
-            loadMemories(today())
-        } catch (e: Exception) {
-            Timber.w(e, "Memories are not available on this server")
-            return null
-        }
+        val groups = loadMemories(today())
 
         val nearest = groups
             .filter { it.tracks.isNotEmpty() }

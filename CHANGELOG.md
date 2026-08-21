@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dan blijven de kaarten staan en stopt de balk. Een lege sectie wist zijn eigen bewaarde kopie, en
   een andere server of de Sets-schakelaar is een misser in plaats van een verkeerd antwoord.
 
+## [0.21.1] - 2026-08-21
+
 ### Changed
 - **Android-builds worden gepubliceerd onder de eigen naam van de app.** Elke APK ging nog steeds
   omhoog als `ultrasonic-*`: apk-hoster groepeert builds op het voorvoegsel van de bestandsnaam, en

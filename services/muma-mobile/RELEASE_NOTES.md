@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [6.21.0] - 2026-08-21
+
 ### Added
 - **Er is een rijstand.** Eén scherm met grote knoppen: wat er speelt, spoelen, sterren geven, drie
   snelkoppelingen en de microfoon. De app biedt hem aan zodra je auto verbindt, en sluit hem als de

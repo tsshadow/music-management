@@ -11,6 +11,8 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.22.0 (2026-08-21)
+
 ### Added
 - **De Android-app heeft een rijstand.** Alles wat de telefoon in een houder moet kunnen — wat er
   speelt, spoelen, waarderen, drie plekken waar je vaak heen gaat, en de microfoon — staat op één

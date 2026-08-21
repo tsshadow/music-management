@@ -135,7 +135,7 @@ def key_for(result: dict) -> str:
     rule = result['check_id']
     path = result['path']
     line = (result['extra'].get('lines') or '').strip()
-    digest = hashlib.sha1(f'{rule}\n{path}\n{line}'.encode()).hexdigest()
+    digest = hashlib.sha256(f'{rule}\n{path}\n{line}'.encode()).hexdigest()
     return digest[:16]
 
 

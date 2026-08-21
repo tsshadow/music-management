@@ -5,6 +5,8 @@
   af", dan gebeurt dat, in plaats van een zoektocht naar die hele zin. Eén woord wordt nooit
   ontleed. Er is ook een tegel voor de snelle instellingen die het spraakscherm opent.
 
+## [6.21.1] - 2026-08-21
+
 ### Fixed
 - **De app startte niet meer op.** Opgelost. Wie 6.21.0 draaide hoeft niets te wissen.
 

@@ -64,6 +64,7 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.Request
@@ -80,6 +81,11 @@ import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.ServerSetting
 import nl.teunschriks.mumamobile.diagnostics.CrashReportManager
+import nl.teunschriks.mumamobile.car.CarConnectionWatcher
+import nl.teunschriks.mumamobile.car.CarModeIntent
+import nl.teunschriks.mumamobile.car.CarModeNotifier
+import nl.teunschriks.mumamobile.car.CarModeSession
+import nl.teunschriks.mumamobile.car.CarPresence
 import nl.teunschriks.mumamobile.fragment.SetupWizardFragment
 import nl.teunschriks.mumamobile.management.ManagementRepository
 import nl.teunschriks.mumamobile.model.ServerSettingsModel
@@ -138,6 +144,10 @@ class NavigationActivity : ScopeActivity() {
     private val activeServerProvider: ActiveServerProvider by inject()
     private val subsonicAPIClient: SubsonicAPIClient by inject()
     private val managementRepository: ManagementRepository by inject()
+    private val carConnectionWatcher: CarConnectionWatcher by inject()
+    private val carPresence: CarPresence by inject()
+    private val carModeSession: CarModeSession by inject()
+    private val carModeNotifier: CarModeNotifier by inject()
 
     private var currentFragmentId: Int = 0
 
@@ -168,6 +178,10 @@ class NavigationActivity : ScopeActivity() {
 
         super.onCreate(savedInstanceState)
 
+        // Started here rather than lazily from a screen: presence has to be known before any
+        // screen is up, since being told about the car is the point.
+        carConnectionWatcher.start()
+
         volumeControlStream = AudioManager.STREAM_MUSIC
         setContentView(R.layout.navigation_activity)
         nowPlayingView = findViewById(R.id.now_playing_fragment)
@@ -189,6 +203,20 @@ class NavigationActivity : ScopeActivity() {
                 R.id.managementFragment
             )
         )
+
+        watchCarPresence(navController)
+
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            // Only while car mode is on top: a phone in a cradle should light up, and every other
+            // screen should keep the lock screen's protection.
+            val inCarMode = destination.id == R.id.carModeFragment
+            setShowWhenLocked(inCarMode)
+            setTurnScreenOn(inCarMode)
+        }
+
+        if (intent.getBooleanExtra(CarModeNotifier.EXTRA_OPEN_CAR_MODE, false)) {
+            navController.navigate(R.id.carModeFragment)
+        }
 
         setupActionBar(navController, appBarConfiguration)
 
@@ -417,8 +445,40 @@ class NavigationActivity : ScopeActivity() {
     // TODO: Why is this needed? Shouldn't it just work by default?
     override fun onSupportNavigateUp(): Boolean = findNavController(R.id.nav_host_fragment).navigateUp(appBarConfiguration)
 
+    /**
+     * The screen is offered, never forced.
+     *
+     * Whether the notification actually raises it is the system's call -- see [CarModeNotifier] --
+     * and a dismissal is remembered by [CarModeSession] for as long as the car stays connected, so
+     * this collector can stay a plain translation of presence into an intent.
+     */
+    private fun watchCarPresence(navController: NavController) {
+        lifecycleScope.launch {
+            carPresence.isInCar.collectLatest { inCar ->
+                when (carModeSession.onPresenceChanged(inCar)) {
+                    CarModeIntent.Offer -> carModeNotifier.offer(carModeSession.shouldRaise)
+
+                    CarModeIntent.Close -> {
+                        carModeNotifier.cancel()
+                        if (navController.currentDestination?.id == R.id.carModeFragment) {
+                            navController.popBackStack()
+                        }
+                    }
+
+                    CarModeIntent.Nothing -> Unit
+                }
+            }
+        }
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+
+        // The notification launches with FLAG_ACTIVITY_CLEAR_TOP, so an existing instance is
+        // reused and the extra arrives here rather than in onCreate.
+        if (intent.getBooleanExtra(CarModeNotifier.EXTRA_OPEN_CAR_MODE, false)) {
+            findNavController(R.id.nav_host_fragment).navigate(R.id.carModeFragment)
+        }
 
         when (intent.action) {
             Constants.INTENT_PLAY_RANDOM_SONGS -> {

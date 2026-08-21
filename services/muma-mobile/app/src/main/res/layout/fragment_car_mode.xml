@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:a="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    a:layout_width="match_parent"
+    a:layout_height="match_parent"
+    a:background="?android:attr/colorBackground"
+    a:orientation="vertical"
+    a:paddingHorizontal="16dp">
+
+    <ImageButton
+        a:id="@+id/car_mode_close"
+        a:layout_width="56dp"
+        a:layout_height="56dp"
+        a:layout_gravity="end"
+        a:background="?attr/selectableItemBackgroundBorderless"
+        a:contentDescription="@string/car_mode.close"
+        a:src="@drawable/ic_menu_close" />
+
+    <ImageView
+        a:id="@+id/car_mode_art"
+        a:layout_width="match_parent"
+        a:layout_height="0dp"
+        a:layout_weight="3"
+        a:contentDescription="@null"
+        a:scaleType="centerCrop" />
+
+    <TextView
+        a:id="@+id/car_mode_title"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:layout_marginTop="8dp"
+        a:ellipsize="end"
+        a:maxLines="1"
+        a:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
+        a:textColor="?android:attr/textColorPrimary"
+        tools:text="Track title" />
+
+    <TextView
+        a:id="@+id/car_mode_artist"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:ellipsize="end"
+        a:maxLines="1"
+        a:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+        a:textColor="?android:attr/textColorSecondary"
+        tools:text="Artist" />
+
+    <LinearLayout
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:layout_marginTop="12dp"
+        a:gravity="center"
+        a:orientation="horizontal">
+
+        <ImageButton
+            a:id="@+id/car_mode_previous"
+            a:layout_width="88dp"
+            a:layout_height="88dp"
+            a:background="?attr/selectableItemBackgroundBorderless"
+            a:contentDescription="@string/buttons.previous"
+            a:src="@drawable/media_backward" />
+
+        <ImageButton
+            a:id="@+id/car_mode_play_pause"
+            a:layout_width="120dp"
+            a:layout_height="120dp"
+            a:background="?attr/selectableItemBackgroundBorderless"
+            a:contentDescription="@string/buttons.play"
+            a:src="@drawable/media_start" />
+
+        <ImageButton
+            a:id="@+id/car_mode_next"
+            a:layout_width="88dp"
+            a:layout_height="88dp"
+            a:background="?attr/selectableItemBackgroundBorderless"
+            a:contentDescription="@string/buttons.next"
+            a:src="@drawable/media_forward" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        a:id="@+id/car_mode_stars"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:gravity="center"
+        a:orientation="horizontal" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        a:id="@+id/car_mode_tiles"
+        a:layout_width="match_parent"
+        a:layout_height="0dp"
+        a:layout_weight="2"
+        a:layout_marginTop="12dp" />
+
+    <ImageButton
+        a:id="@+id/car_mode_microphone"
+        a:layout_width="180dp"
+        a:layout_height="180dp"
+        a:layout_gravity="center_horizontal"
+        a:layout_marginVertical="12dp"
+        a:background="?attr/selectableItemBackgroundBorderless"
+        a:contentDescription="@string/muma_voice_title"
+        a:src="@drawable/ic_menu_microphone" />
+
+</LinearLayout>

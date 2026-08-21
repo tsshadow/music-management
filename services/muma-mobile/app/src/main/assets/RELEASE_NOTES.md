@@ -1,6 +1,10 @@
 ## [Unreleased]
 
 ### Added
+- **Er is een rijstand.** Eén scherm met grote knoppen: wat er speelt, spoelen, sterren geven, drie
+  snelkoppelingen en de microfoon. De app biedt hem aan zodra je auto verbindt, en sluit hem als de
+  verbinding wegvalt. Welke bluetooth-apparaten je auto zijn, kies je in de instellingen — laat je
+  oordopjes daar uitgevinkt.
 - **De app opent meteen op wat er de vorige keer stond.** Het startscherm en de bladerschermen
   lieten bij elke start pulserende vakjes zien terwijl ze de server opnieuw bevroegen om lijsten
   die bijna nooit veranderd waren. Die lijsten worden nu bewaard en direct weer neergezet, met

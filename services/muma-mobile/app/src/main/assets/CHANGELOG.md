@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **The app has a driving screen.** Everything a phone in a cradle needs — what is playing, the
+  transport, a rating, three places you often go, and the microphone — sits on one screen with
+  arm's-length controls. The app notices the car by itself: a head unit, a Bluetooth device you
+  have marked as your car, or a switch in settings. If music is already playing the screen comes to
+  the front; otherwise a notification appears and one tap opens it. That split exists because since
+  Android 14 only calling and alarm apps may raise a screen unasked — without that permission the
+  system turns it into a notification by itself, and one row in settings leads to the system page
+  for anyone who wants it. Dismissing it is final for as long as the car stays connected, and
+  losing the connection closes it. Earbuds never count: which devices are the car is your choice,
+  because the device class lies in both directions.
 - **The app now opens on what it was showing last time instead of on skeletons.** Every cold start
   redrew pulsing placeholders on the home screen and on the browse screens — genres, years, labels,
   festivals, line-ups — while the server was asked again for data that had almost never changed

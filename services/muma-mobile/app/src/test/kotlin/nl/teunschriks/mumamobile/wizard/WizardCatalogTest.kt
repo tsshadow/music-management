@@ -110,8 +110,23 @@ class WizardCatalogTest {
 
     @Test
     fun `nothing is new to a device already on this release`() {
-        val badged = plan(wizardCatalog(context), WIZARD_INTRODUCED_IN).filter { it.isNew }
+        // The newest release the catalogue knows about, not WIZARD_INTRODUCED_IN: that constant
+        // records when the wizard itself arrived and never moves, so comparing against it would
+        // make every step added afterwards look permanently new and forbid adding any.
+        val current = wizardCatalog(context).maxOf { it.introducedIn }
+
+        val badged = plan(wizardCatalog(context), current).filter { it.isNew }
 
         assertEquals(emptyList<PlannedStep>(), badged)
+    }
+
+    @Test
+    fun `a device coming from before a step's release sees it badged`() {
+        val current = wizardCatalog(context).maxOf { it.introducedIn }
+        val newest = wizardCatalog(context).filter { it.introducedIn == current }
+
+        val badged = plan(wizardCatalog(context), current - 1).filter { it.isNew }
+
+        assertEquals(newest.map { it.id }, badged.map { it.step.id })
     }
 }

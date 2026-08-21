@@ -35,6 +35,18 @@ class LRUCache<K, V>(capacity: Int) {
         map[key] = TimestampedValue(value)
     }
 
+    /**
+     * Every value still held, for the callers that have to reach whichever entries happen to
+     * contain something - a rating change, say - without knowing their keys.
+     */
+    @Synchronized
+    fun values(): List<V> = map.values.mapNotNull { it.getValue() }
+
+    @Synchronized
+    fun remove(key: K) {
+        map.remove(key)
+    }
+
     fun clear() {
         map.clear()
     }

@@ -55,6 +55,18 @@ object MediaItemConverter {
         cache.set(item)
         trackCache.put(key, cache)
     }
+
+    /**
+     * Records a rating that was set somewhere other than on the playing item.
+     *
+     * The cached Track can be corrected in place, but the cached MediaItem cannot: its metadata
+     * carries the rating as an immutable StarRating, so it is dropped instead and the next
+     * [toMediaItem] builds a fresh one from the up-to-date Track.
+     */
+    fun applyRating(mediaId: String, rating: Int) {
+        trackCache[mediaId]?.get()?.userRating = rating
+        mediaItemCache.remove(mediaId)
+    }
 }
 
 /**
@@ -212,8 +224,15 @@ fun MediaItem.toTrack(): Track {
         mediaMetadata.extras?.getFloat("averageRating", 0F) ?: 0F,
         mediaMetadata.extras?.getString("name")
     )
-    (mediaMetadata.userRating as? StarRating)?.let {
-        track.userRating = if (it.isRated) it.starRating.toInt() else 0
+    // Only a fallback, for items built without an extras entry of their own. The metadata's
+    // StarRating is frozen when the item is built - MediaMetadata is immutable, so
+    // [setUserRating] can never reach it - while the extras stay current. Letting it win would
+    // hand a rating changed in the car back the number the item was built with, and the next tap
+    // would recompute the rating that was just set.
+    if (mediaMetadata.extras?.containsKey("userRating") != true) {
+        (mediaMetadata.userRating as? StarRating)?.let {
+            track.userRating = if (it.isRated) it.starRating.toInt() else 0
+        }
     }
 
     // Add MediaItem and Track to the cache

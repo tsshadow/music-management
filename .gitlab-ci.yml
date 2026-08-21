@@ -512,6 +512,30 @@ docker:build-images:
 
 # --- Browser end-to-end ------------------------------------------------------
 
+# The golden path: a track goes in one end and comes out as a listen at the other.
+# Every other suite proves one component; this is the only one that proves the
+# chain, which is also why it is the slowest thing here.
+#
+# Manual, and staying manual. It builds images and holds a stack for minutes,
+# nothing downstream gates on it, and the runner's resources are not free -- so
+# it runs when someone asks for it rather than on every push.
+#
+# What it does NOT cover: the Android app. The 6.21.0 startup crash
+# (docs/bug-reports/029) existed only in an R8-minified release build, and
+# nothing here can execute one -- the runner LXC has no /dev/kvm, so there is no
+# emulator. That step is the next phase and a resource decision, not a code one.
+e2e:golden-path:
+  stage: e2e
+  timeout: 30m
+  when: manual
+  allow_failure: true
+  retry: !reference [.infra_retry, retry]
+  needs: []
+  rules:
+    - when: manual
+  script:
+    - ./scripts/test/core-e2e.sh
+
 frontend:browser:
   stage: e2e
   timeout: 30m

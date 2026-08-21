@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Er is een eerste echte keten-test.** Alle bestaande tests bewijzen één onderdeel: dat LMS
+  antwoordt in de vorm die de server verwacht, dat de database de query slikt, dat een functie doet
+  wat hij belooft. Geen ervan bewijst dat een bestand dat op schijf verschijnt uiteindelijk een
+  beluisterd nummer wordt. `e2e:golden-path` doet dat wel: hij zet de teststack op, legt er een
+  nummer in, laat het scannen, zoekt het op via dezelfde Subsonic-route die de telefoon gebruikt,
+  registreert een luisterbeurt en leest die weer terug. Handmatig te starten en dat blijft zo — hij
+  bouwt images en houdt een stack minutenlang bezig, en niets wacht op zijn uitkomst.
 - **De zoekbalk in de Android-app begrijpt nu ook een verzoek.** Wat je hardop kunt vragen —
   "speel willekeurig uptempo hardcore uit 2021 af" — leverde getypt een letterlijke zoektocht naar
   die hele zin op, en dus niets. Dezelfde ontleding die de auto en de microfoon gebruiken staat nu

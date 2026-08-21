@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **De pijplijn scant de code nu ook op bekende kwetsbare patronen.** `security:sast` draait
+  semgrep over de hele boom. De tweehonderdtweeëndertig meldingen die er vandaag al staan zijn
+  stuk voor stuk beoordeeld en vastgelegd in `security/accepted-sast-findings.txt`, met per regel
+  de reden waarom ze blijven staan — de taak is daardoor groen vandaag en wordt alleen rood van
+  iets nieuws, wat de enige manier is waarop een scanner gelezen blijft worden. Een tweede
+  identieke regel op dezelfde plek telt als nieuw: "dat doen we elders ook al" dekt geen nieuwe
+  code. Onder de beoordeelde meldingen zitten geen gelekte sleutels; wel drie punten die blijven
+  staan als openstaand werk, namelijk dat de API elke herkomst toelaat (`allow_origins=['*']`),
+  dat de containers als root en met een schrijfbaar bestandssysteem draaien, en dat de
+  Android-app nog dode GitHub-CI-bestanden uit het Ultrasonic-verleden meedraagt.
 - **De pijplijn controleert nu ook de shellscripts.** Drieënzestig scripts sturen het uitrollen,
   het taggen en elke testronde aan, en geen enkele taak keek er ooit naar — een fout erin bleek pas
   op het moment dat een uitrol hem uitvoerde. `quality:shellcheck` draait er shellcheck overheen bij

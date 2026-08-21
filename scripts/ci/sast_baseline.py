@@ -56,11 +56,12 @@ REASONS = {
         'removes all of these; that is a separate change.'
     ),
     'dependabot-missing-cooldown': 'Same dead Ultrasonic directory.',
-    'no-new-privileges': (
-        'Docker Compose hardening the production stack does not set yet. Worth '
-        'doing, and a change to the deployed stack rather than to code.'
+    'writable-filesystem-service': (
+        'Container hardening that is not safe to switch on blind: a service that '
+        'writes a temp file falls over in a way that only shows up on deploy, '
+        'and prod cannot be tested from here. no-new-privileges, which cannot '
+        'break anything, was applied instead.'
     ),
-    'writable-filesystem-service': 'Same as no-new-privileges.',
     'exposing-docker-socket-volume': (
         'The socket is mounted where a container genuinely drives Docker. Each '
         'new mount needs its own justification, which is why this is listed per '
@@ -127,8 +128,9 @@ REASONS = {
         'from anything a request supplies.'
     ),
     'missing-user': (
-        'Compose services that still run as root. Same hardening pass as '
-        'no-new-privileges, and the same reason it is not in this change.'
+        'Images that still run as root. Changing that means getting volume '
+        'ownership right on a live deployment, so it needs its own change with '
+        'someone watching the stack come up.'
     ),
 }
 

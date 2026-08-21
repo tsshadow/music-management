@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **De API accepteert niet langer verzoeken vanaf elke website.** Hij stond open voor iedere
+  herkomst, met elke methode en elke header. Dat is op zichzelf geen manier om langs de
+  authenticatie te komen — een browser stuurt niets mee en een aanroeper heeft de sleutel al nodig
+  — maar het liet wel elke pagina die je opent de onbeveiligde eindpunten binnen dit netwerk
+  uitlezen. Voortaan geldt een lijst, in te stellen met `MUMA_CORS_ORIGINS`; staat die niet
+  ingesteld, dan blijven alleen de ontwikkelaanroepen over. De webinterface wordt door de
+  LMS-server uitgeserveerd en praat dus met dezelfde herkomst, en de Android-app is geen browser,
+  dus die merken er niets van. Blijkt er tóch een browserclient te zijn die het nodig heeft, dan
+  zet `MUMA_CORS_ORIGINS=*` het oude gedrag terug zonder nieuwe uitrol.
+- **Containers kunnen zichzelf geen extra rechten meer geven.** Alle zesenveertig services in de
+  compose-bestanden draaien nu met `no-new-privileges`, wat een proces binnen een container belet
+  via een setuid-programma meer te mogen dan het kreeg. Het kan niets breken dat nu werkt. Dat de
+  containers als root en met een schrijfbaar bestandssysteem draaien blijft staan als vastgelegd
+  openstaand punt: dat valt pas bij een uitrol om, en niet te testen zonder productie.
 - **Afhankelijkheden wachten voortaan drie dagen voor ze worden voorgesteld.** Een versie die
   minuten geleden is gepubliceerd kan alsnog worden ingetrokken of besmet blijken, en dit project
   voegt een aantal ervan automatisch samen. Beveiligingswaarschuwingen wachten niet, en `yt-dlp`

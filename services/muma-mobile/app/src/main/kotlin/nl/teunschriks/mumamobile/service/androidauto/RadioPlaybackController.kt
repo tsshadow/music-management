@@ -47,6 +47,10 @@ class RadioPlaybackController(
     /** True while a radio channel is on air on this device. */
     val isActive: Boolean get() = syncJob?.isActive == true
 
+    /** The channel currently tuned in, so news can hand it back afterwards. */
+    var currentSlug: String? = null
+        private set
+
     private fun serverNowMs(): Long = System.currentTimeMillis() + clockOffsetMs
 
     private suspend fun measureClockOffset(samples: Int = SAMPLE_COUNT) = withContext(Dispatchers.IO) {
@@ -128,6 +132,7 @@ class RadioPlaybackController(
     /** Tune into [slug] and keep correcting until [stop] is called. */
     fun start(player: Player, slug: String) {
         stop(player)
+        currentSlug = slug
         syncJob = serviceScope.launch {
             measureClockOffset()
             refresh(player, slug)
@@ -145,6 +150,7 @@ class RadioPlaybackController(
     fun stop(player: Player) {
         syncJob?.cancel()
         syncJob = null
+        currentSlug = null
         entry = null
         srcOffsetSeconds = 0
         player.setPlaybackParameters(PlaybackParameters(1.0f))

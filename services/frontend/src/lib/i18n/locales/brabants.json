@@ -124,6 +124,12 @@
     "songs": "Nummerkes",
     "starred": "Favorietjes"
   },
+  "news": {
+    "couldNotPlay": "Kos het nieuws nie afspele",
+    "none": "Nog gin bulletin opgenome",
+    "play": "Nieuws van dit uurke",
+    "playing": "Nieuws speult, tik mar om trug te gaon"
+  },
   "player": {
     "next": "Volgende",
     "nothingPlaying": "D'r speult niks, zet 's wa op",

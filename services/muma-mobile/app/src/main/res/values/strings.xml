@@ -173,9 +173,11 @@
     <string name="main.songs_recent_modified">Recently modified</string>
     <string name="main.songs_starred">Starred</string>
     <string name="main.radio_title">Radio</string>
+    <string name="main.news_title">News</string>
     <string name="main.songs_title">Songs</string>
     <string name="main.livesets_title">Livesets</string>
     <string name="main.videos">Videos</string>
+    <string name="news.button">News</string>
     <string name="main.welcome_text_demo">To use MuMa with your own music you will need your <b>own server</b>. \n\n➤ The LMS servers and a demo server have been pre-configured for you. \n\n➤ You can add or change servers in the <b>settings</b>.</string>
     <string name="main.welcome_title">Welcome to MuMa!</string>
     <string name="main.welcome_cancel">Take me to the settings</string>

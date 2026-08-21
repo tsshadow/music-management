@@ -124,6 +124,12 @@
     "songs": "Nummers",
     "starred": "Favorieten"
   },
+  "news": {
+    "couldNotPlay": "Kon t nieuws niet ofspöllen",
+    "none": "Nog gien bulletin opneumen",
+    "play": "Nieuws van t uur",
+    "playing": "Nieuws speult, tikke um terogge te gaon"
+  },
   "player": {
     "next": "Volgende",
     "nothingPlaying": "Der geet niks an",

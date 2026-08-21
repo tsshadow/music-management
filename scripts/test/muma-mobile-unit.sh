@@ -9,23 +9,10 @@ cd "$ROOT_DIR"
 
 echo "--- Running MuMa Mobile Android unit tests with coverage (via Docker) ---"
 
-# Use a gradle home directory outside the project tree to avoid git checkout permission issues.
-# Suffix it with CI_CONCURRENT_ID (unique per concurrent job slot on a runner) so that two
-# MuMa Mobile jobs running at the same time never share a Gradle cache/daemon - concurrent access
-# to the same GRADLE_USER_HOME causes "Timeout waiting to lock journal cache" failures. The
-# workflow: rules in .gitlab-ci.yml removed the branch-pipeline/MR-pipeline duplication that first
-# caused this, but two pipelines on different branches can still land on the same runner.
-GRADLE_HOME_DIR="/tmp/.gradle_muma_${CI_CONCURRENT_ID:-local}"
-mkdir -p "$GRADLE_HOME_DIR"
-
-# A runner that ran the older, root-in-container version of this script still
-# has a root-owned Gradle home from back then, which the container - now the
-# host user - cannot write to. Hand it over once, via a throwaway root
-# container, so the switch does not need a manual cleanup on every runner.
-if [ -n "$(find "$GRADLE_HOME_DIR" ! -user "$(id -u)" -print -quit 2>/dev/null)" ]; then
-    echo "Reclaiming $GRADLE_HOME_DIR for $(id -un)"
-    docker run --rm -v "$GRADLE_HOME_DIR:/gradle_home" alpine chown -R "$(id -u):$(id -g)" /gradle_home
-fi
+# Gradle home (outside the project tree, to avoid git checkout permission
+# issues) plus its one-off root-ownership repair - see the helper for why it
+# is shared rather than per concurrent job slot.
+source "$ROOT_DIR/scripts/ci/android-gradle-home.sh"
 
 # The container below runs as the host user, so no chmod 777 pre-step and no
 # chown-back trap: nothing it writes is owned by root in the first place.

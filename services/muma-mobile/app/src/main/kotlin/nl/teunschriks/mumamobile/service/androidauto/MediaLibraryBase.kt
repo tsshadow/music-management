@@ -139,6 +139,10 @@ abstract class MediaLibraryBase protected constructor() {
         internal const val MEDIA_RADIO_ID = "MEDIA_RADIO_ID"
         internal const val MEDIA_RADIO_ITEM = "MEDIA_RADIO_ITEM"
 
+        // A playable id is "MEDIA_NEWS_ITEM|<bulletin id>".
+        internal const val MEDIA_NEWS_ID = "MEDIA_NEWS_ID"
+        internal const val MEDIA_NEWS_ITEM = "MEDIA_NEWS_ITEM"
+
         // Genres -> songs
         internal const val MEDIA_GET_GENRES = "MEDIA_GET_GENRES"
         internal const val MEDIA_GET_YEARS = "MEDIA_GET_YEARS"

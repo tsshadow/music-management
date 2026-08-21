@@ -146,6 +146,5 @@ kotlinAndroid           = { id = "org.jetbrains.kotlin.android", version.ref = "
 androidApplication      = { id = "com.android.application", version.ref = "gradlePlugin" }
 androidLibrary          = { id = "com.android.library", version.ref = "gradlePlugin" }
 navigationSafeArgs      = { id = "androidx.navigation.safeargs.kotlin", version.ref = "navigation" }
-kotlinKapt              = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
 kotlinParcelize         = { id = "org.jetbrains.kotlin.plugin.parcelize", version.ref = "kotlin" }
 

@@ -121,6 +121,14 @@ class MediaLibrarySessionCallback :
         }
     )
 
+    // News interrupts the music and hands it back afterwards, so it needs the
+    // radio controller to re-tune rather than restore a stale position.
+    private val newsPlaybackController = NewsPlaybackController(
+        serviceScope = serviceScope,
+        mumaApiProvider = { subsonicAPIClient.mumaApi.api },
+        onRetune = { player, slug -> radioPlaybackController.start(player, slug) }
+    )
+
     init {
 
         playbackController.dataProvider = dataProvider
@@ -188,6 +196,18 @@ class MediaLibrarySessionCallback :
                     StarRating(PlaybackService.MAX_RATING, next.toFloat())
                 )
                 commandHandler.updateCustomRatingButton(session, next)
+            }
+
+            PlaybackService.CUSTOM_COMMAND_PLAY_NEWS -> {
+                // The button carries no extras: Android Auto strips them when the tap
+                // comes from the car, so "latest" is resolved server-side and the
+                // player itself says whether a bulletin is already running.
+                customCommandFuture = Futures.immediateFuture(SessionResult(RESULT_SUCCESS))
+                if (newsPlaybackController.isActive) {
+                    newsPlaybackController.stopAndRestore(session.player)
+                } else {
+                    startNews(session, null)
+                }
             }
 
             PlaybackService.CUSTOM_COMMAND_SHUFFLE -> {
@@ -414,6 +434,17 @@ class MediaLibrarySessionCallback :
         if (radioSlug != null) {
             radioPlaybackController.start(mediaSession.player, radioSlug)
             updateAvailableCommands(mediaSession)
+            return Futures.immediateFuture(emptyList())
+        }
+
+        // A bulletin owns the player the same way radio does: one item, and the
+        // queue that was interrupted is put back when it ends.
+        val newsId = mediaItems[0].mediaId
+            .takeIf { it.startsWith("$MEDIA_NEWS_ITEM|") }
+            ?.substringAfter('|')
+            ?.toLongOrNull()
+        if (newsId != null) {
+            startNews(mediaSession, newsId)
             return Futures.immediateFuture(emptyList())
         }
         stopRadioIfRunning(mediaSession)
@@ -671,6 +702,24 @@ class MediaLibrarySessionCallback :
                 connectionResult.availableSessionCommands,
                 radioAwarePlayerCommands(connectionResult.availablePlayerCommands)
             )
+        }
+    }
+
+    /**
+     * Starts a bulletin, remembering whatever was playing first. Radio is
+     * stopped rather than left running, but its channel travels with the
+     * snapshot so it can be re-tuned afterwards.
+     */
+    private fun startNews(session: MediaSession, bulletinId: Long?) {
+        val radioSlug = radioPlaybackController.currentSlug
+        stopRadioIfRunning(session)
+        newsPlaybackController.play(session.player, bulletinId, radioSlug)
+    }
+
+    /** Called by the service when playback ends, so the music can come back. */
+    fun onPlaybackEnded(player: Player) {
+        if (newsPlaybackController.isActive) {
+            newsPlaybackController.stopAndRestore(player)
         }
     }
 

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-08-21
+
+### Added
+- **Het nieuws van het uur, ook onderweg.** MuMa neemt het bulletin nu zelf op van de live
+  stream van NPO Radio 1 — geen enkele feed publiceert het NOS-radiobulletin op afroep, dus
+  meeluisteren en bewaren is de enige route. Elk heel uur wordt tien minuten getapt, de laatste
+  twaalf opnames blijven staan, en een opname die korter is dan een minuut wordt weggegooid in
+  plaats van bewaard: een afgekapt bulletin in de auto is erger dan geen bulletin. In Android
+  Auto staat er een Nieuws-map naast Radio en een nieuwsknop bij de bediening: één tik legt de
+  wachtrij vast, speelt het bulletin, en zet daarna de muziek terug op de seconde waar je was.
+  Radio is de uitzondering, want die tijdlijn is van de server: dat kanaal wordt na het nieuws
+  opnieuw afgestemd. De webspeler doet hetzelfde, en het beheerscherm kreeg een Nieuws-tab met
+  bron, schema, bewaartermijn en een knop om meteen op te nemen.
+
+### Changed
+- **De Android-app bouwt nu in seconden in plaats van soms een uur.** De pijplijn gaf elke
+  gelijktijdige taak zijn eigen Gradle-map, dus de eerste bouw op een verse plek haalde alle
+  afhankelijkheden opnieuw op en begon zonder cache: dezelfde controle die warm drie minuten
+  duurde liep dan vijftig tot negentig minuten en sloeg tegen de tijdslimiet aan. De
+  mobiele taken draaien nu gegarandeerd één voor één en delen daardoor veilig één warme
+  Gradle-map. Daar bovenop verdwenen twee dingen die de app nooit gebruikte maar wel elke bouw
+  betaalde: de kapt-annotatieverwerker, waarvoor geen enkele verwerker meer bestond sinds Room
+  op KSP overging, en DataBinding, dat in geen van de 78 layouts voorkwam. Zonder DataBinding
+  kon ook de configuratiecache aan. Een verse checkout met warme cache doet de testronde nu in
+  twaalf seconden.
+
 ## [0.19.0] - 2026-08-20
 
 ### Fixed

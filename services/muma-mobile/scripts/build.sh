@@ -62,7 +62,12 @@ if [ "$BUILD_TYPE" == "debug" ]; then
     GRADLE_TASK="assembleDebug"
 fi
 
-./gradlew clean :$MODULE:$GRADLE_TASK
+# No "clean": in CI the checkout is fresh anyway, and locally clean throws away
+# every incremental compile result for no benefit. Pass --clean to force one.
+if [ "${2:-}" == "--clean" ]; then
+    ./gradlew clean
+fi
+./gradlew :$MODULE:$GRADLE_TASK
 
 echo "--- $BUILD_TYPE Build completed successfully ---"
 

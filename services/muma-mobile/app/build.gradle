@@ -8,7 +8,6 @@ plugins {
     alias libs.plugins.kotlinAndroid
     alias libs.plugins.kotlinSerialization
     alias libs.plugins.kotlinParcelize
-    alias libs.plugins.kotlinKapt
     alias libs.plugins.navigationSafeArgs
     id 'jacoco'
 }
@@ -35,8 +34,8 @@ android {
 
     defaultConfig {
         applicationId = 'nl.teunschriks.mumamobile'
-        versionCode 277
-        versionName "6.18.0"
+        versionCode 278
+        versionName "6.19.0"
 
         minSdk = libs.versions.appMinSdk.get().toInteger()
         targetSdk = libs.versions.appTargetSdk.get().toInteger()
@@ -152,7 +151,7 @@ android {
 
     buildFeatures {
         viewBinding = true
-        dataBinding = true
+        dataBinding = false
         buildConfig = true
     }
 

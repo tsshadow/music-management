@@ -649,6 +649,26 @@ release:tag:
   script:
     - ./scripts/ci/create-release-tags.sh
 
+# Deleting the merged release/* branch depends on nothing but the merge to
+# master having happened, so it needs nothing. It used to be the tail of
+# back-merge-develop.sh, which made it conditional on release:tag - and
+# therefore, since release:tag now needs release:verify-deployed, on production
+# serving the right version. That inverted the intent: the one case the gate
+# exists to catch was also the case that left a stale, merged release branch on
+# the remote for a later pipeline to redeploy from (bug-report 016). The same
+# coupling also skipped the delete whenever back-merge-develop.sh returned
+# early, which is how release/0.8.3 kept its branch.
+release:cleanup-branch:
+  stage: deploy
+  timeout: 10m
+  interruptible: false
+  needs: []
+  retry: !reference [.infra_retry, retry]
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+  script:
+    - ./scripts/ci/delete-merged-release-branch.sh
+
 release:back-merge-develop:
   stage: deploy
   timeout: 10m

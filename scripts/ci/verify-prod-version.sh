@@ -45,6 +45,22 @@ if [ "$version" != "$EXPECTED_VERSION" ]; then
     echo "This means the release branch's deploy:prod did not run, or did not"
     echo "succeed. A skipped job blocks nothing in GitLab, so check the release"
     echo "branch pipeline for a *skipped* deploy:prod before re-running this."
+    echo
+    echo "Two things follow from this job failing, for whoever picks it up:"
+    echo
+    echo "  1. release:tag needs this job, so no tag was created and"
+    echo "     release:back-merge-develop did not run either. The merged"
+    echo "     release branch IS still deleted (release:cleanup-branch does not"
+    echo "     depend on this), so recover by cutting the next release from"
+    echo "     develop - not by re-running the old branch's pipeline, which"
+    echo "     would republish stale images as :latest (bug-report 016)."
+    echo
+    echo "  2. master is now ahead of develop, and both have touched"
+    echo "     CHANGELOG.md. master carries a finalized '## [${EXPECTED_VERSION}]'"
+    echo "     heading that develop does not, while develop may still hold"
+    echo "     [Unreleased] entries master already filed under that heading."
+    echo "     Reconcile those before cutting the next release, or its"
+    echo "     changelog will file new entries under a version that shipped."
     exit 1
 fi
 

@@ -176,6 +176,7 @@ class MainFragment :
             when (val state = states.getOrElse(index) { HomeSectionState.Loading }) {
                 is HomeSectionState.Loading -> slot.showSkeleton()
                 is HomeSectionState.Empty -> slot.container.visibility = View.GONE
+                is HomeSectionState.Stale -> slot.showContent(state.section)
                 is HomeSectionState.Content -> slot.showContent(state.section)
             }
         }

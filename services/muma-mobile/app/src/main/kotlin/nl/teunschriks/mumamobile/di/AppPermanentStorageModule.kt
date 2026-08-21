@@ -102,7 +102,7 @@ val appPermanentStorage = module {
     viewModel { ServerSettingsModel(get(), get(), get()) }
     viewModel { AlbumListModel(get()) }
     viewModel { ArtistListModel(get()) }
-    viewModel { HomeViewModel(get()) }
+    viewModel { HomeViewModel(get(), get()) }
     viewModel { FavoritesViewModel() }
     viewModel { MemoriesViewModel() }
 

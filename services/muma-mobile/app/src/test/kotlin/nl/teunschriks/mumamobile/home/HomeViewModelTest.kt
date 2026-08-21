@@ -10,6 +10,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.`should be instance of`
+import org.amshove.kluent.`should be null`
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -24,12 +25,26 @@ class HomeViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
 
+    private val preferences = FakePreferences()
+    private val cardCache = CardListCache(preferences) { "1:songs" }
+
     /** A provider whose result is handed over by the test, whenever it likes. */
     private class ControllableProvider(
         private val result: CompletableDeferred<HomeSection?>,
         override val cacheKey: String? = null
     ) : HomeSectionProvider {
         override suspend fun load(): HomeSection? = result.await()
+
+        override fun sectionOf(cards: List<HomeCard>): HomeSection = HomeSection(
+            titleRes = R.string.home_recently_added,
+            style = CardStyle.CAROUSEL,
+            cards = cards
+        )
+    }
+
+    /** A provider that cannot reach the server. */
+    private class FailingProvider(override val cacheKey: String?) : HomeSectionProvider {
+        override suspend fun load(): HomeSection? = throw IllegalStateException("no route to host")
 
         override fun sectionOf(cards: List<HomeCard>): HomeSection = HomeSection(
             titleRes = R.string.home_recently_added,
@@ -46,6 +61,7 @@ class HomeViewModelTest {
 
     private fun viewModel(providers: List<HomeSectionProvider>) = HomeViewModel(
         store = mockk(relaxed = true),
+        cardCache = cardCache,
         ioDispatcher = dispatcher,
         providers = providers
     )
@@ -138,5 +154,97 @@ class HomeViewModelTest {
         testScheduler.runCurrent()
 
         viewModel.sections.value[0] `should be instance of` HomeSectionState.Content::class
+    }
+
+    @Test
+    fun `a section with cached cards shows them before the server answers`() = runTest(dispatcher) {
+        cardCache.write("tracks:added", listOf(HomeCard(HomeCardType.TRACK, "1", "Cached")))
+        val result = CompletableDeferred<HomeSection?>()
+        val viewModel = viewModel(listOf(ControllableProvider(result, cacheKey = "tracks:added")))
+
+        viewModel.load()
+        testScheduler.runCurrent()
+
+        val state = viewModel.sections.value.single()
+        state `should be instance of` HomeSectionState.Stale::class
+        (state as HomeSectionState.Stale).section.cards.single().title `should be equal to` "Cached"
+    }
+
+    @Test
+    fun `a section with no cached cards still starts as a skeleton`() = runTest(dispatcher) {
+        val result = CompletableDeferred<HomeSection?>()
+        val viewModel = viewModel(listOf(ControllableProvider(result, cacheKey = "tracks:added")))
+
+        viewModel.load()
+        testScheduler.runCurrent()
+
+        viewModel.sections.value.single() `should be equal to` HomeSectionState.Loading
+    }
+
+    @Test
+    fun `fresh cards replace the stale ones and are written to the cache`() = runTest(dispatcher) {
+        cardCache.write("tracks:added", listOf(HomeCard(HomeCardType.TRACK, "1", "Cached")))
+        val result = CompletableDeferred<HomeSection?>()
+        val viewModel = viewModel(listOf(ControllableProvider(result, cacheKey = "tracks:added")))
+
+        viewModel.load()
+        testScheduler.runCurrent()
+        result.complete(section("Fresh"))
+        testScheduler.runCurrent()
+
+        viewModel.sections.value.single() `should be instance of` HomeSectionState.Content::class
+        cardCache.read("tracks:added")!!.cards.single().title `should be equal to` "Fresh"
+    }
+
+    @Test
+    fun `a section that turns out to be empty clears its cache`() = runTest(dispatcher) {
+        cardCache.write("tracks:added", listOf(HomeCard(HomeCardType.TRACK, "1", "Cached")))
+        val result = CompletableDeferred<HomeSection?>()
+        val viewModel = viewModel(listOf(ControllableProvider(result, cacheKey = "tracks:added")))
+
+        viewModel.load()
+        testScheduler.runCurrent()
+        result.complete(null)
+        testScheduler.runCurrent()
+
+        viewModel.sections.value.single() `should be equal to` HomeSectionState.Empty
+        cardCache.read("tracks:added").`should be null`()
+    }
+
+    @Test
+    fun `a failing section keeps the cards it had`() = runTest(dispatcher) {
+        cardCache.write("tracks:added", listOf(HomeCard(HomeCardType.TRACK, "1", "Cached")))
+        val viewModel = viewModel(listOf(FailingProvider(cacheKey = "tracks:added")))
+
+        viewModel.load()
+        testScheduler.runCurrent()
+
+        val state = viewModel.sections.value.single()
+        state `should be instance of` HomeSectionState.Content::class
+        (state as HomeSectionState.Content).section.cards.single().title `should be equal to` "Cached"
+        cardCache.read("tracks:added")!!.cards.single().title `should be equal to` "Cached"
+    }
+
+    @Test
+    fun `a failing section with nothing cached is empty, as before`() = runTest(dispatcher) {
+        val viewModel = viewModel(listOf(FailingProvider(cacheKey = "tracks:added")))
+
+        viewModel.load()
+        testScheduler.runCurrent()
+
+        viewModel.sections.value.single() `should be equal to` HomeSectionState.Empty
+    }
+
+    @Test
+    fun `a provider that opts out never touches the cache`() = runTest(dispatcher) {
+        val result = CompletableDeferred<HomeSection?>()
+        val viewModel = viewModel(listOf(ControllableProvider(result, cacheKey = null)))
+
+        viewModel.load()
+        testScheduler.runCurrent()
+        result.complete(section("Local"))
+        testScheduler.runCurrent()
+
+        preferences.all.keys.isEmpty() `should be equal to` true
     }
 }

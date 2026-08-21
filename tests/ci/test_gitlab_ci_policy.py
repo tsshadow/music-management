@@ -5,7 +5,9 @@ consequence, named in the test's docstring. See
 docs/superpowers/plans/2026-08-02-ci-release-hardening.md.
 """
 
-from tests.ci.conftest import job_names, load_ci
+import re
+
+from tests.ci.conftest import REPO_ROOT, job_names, load_ci
 
 
 def test_ci_file_parses():
@@ -249,3 +251,142 @@ def test_lint_job_runs_for_every_directory_it_lints():
     globs = _changes_globs(ci, "quality:lint")
     missing = [path for path in LINT_SOURCES if not _is_covered(path, globs)]
     assert missing == [], f"quality:lint lints these but is not triggered by them: {missing}"
+
+
+# --- Docker image coverage ---------------------------------------------------
+# A merge request that changed only a Dockerfile used to match no `changes:`
+# rule in the whole file and ran nothing but the secret scan. The first build
+# was release:build-images, on a release branch, minutes before deploy:prod.
+
+
+def _matches_file(glob: str, path: str) -> bool:
+    """Approximate GitLab's `changes:` matching for a single file path."""
+    pattern = re.escape(glob).replace(r"\*\*/\*", ".*").replace(r"\*\*", ".*").replace(r"\*", "[^/]*")
+    return re.fullmatch(pattern, path) is not None
+
+
+def _all_changes_globs(ci: dict) -> list[str]:
+    globs: list[str] = []
+    for name in job_names(ci):
+        # security:secret-scan matches "**/*" by design. Counting that as
+        # coverage would make the test below pass for every file in the repo
+        # forever, which is the opposite of what it is for.
+        globs.extend(g for g in _changes_globs(ci, name) if g != "**/*")
+    return globs
+
+
+def test_every_dockerfile_is_built_or_tested_by_some_job():
+    """Nothing may reach release:build-images having never been compiled."""
+    ci = load_ci()
+    globs = _all_changes_globs(ci)
+    dockerfiles = [
+        str(p.relative_to(REPO_ROOT))
+        for p in REPO_ROOT.rglob("Dockerfile*")
+        if ".git" not in p.parts and "node_modules" not in p.parts
+    ]
+    assert dockerfiles, "no Dockerfiles found - the glob above is wrong"
+    missing = [f for f in dockerfiles if not any(_matches_file(g, f) for g in globs)]
+    assert missing == [], f"no job's `changes:` rules trigger on these Dockerfiles: {missing}"
+
+
+def test_merge_request_image_build_never_pushes():
+    """docker:build-images runs on merge requests, where a push would publish
+    an unreviewed image to the tag production pulls."""
+    ci = load_ci()
+    assert ci["docker:build-images"]["variables"]["PUSH_IMAGES"] == "false"
+
+
+def test_the_release_image_build_still_pushes():
+    """The inverse of the test above: PUSH_IMAGES defaults to true, and
+    release:build-images must never be the job that opts out."""
+    ci = load_ci()
+    assert "false" not in str(ci["release:build-images"].get("variables", {}))
+
+
+# --- The deploy actually has to be verified ----------------------------------
+
+
+def test_ci_deploy_ends_in_a_gate_that_can_fail():
+    """ci-deploy.sh used to end with two `docker ps --format` calls whose
+    output nobody inspected, then echo success unconditionally. `docker ps`
+    exits 0 for a restart-looping container and for an empty stack alike."""
+    script = (REPO_ROOT / "scripts" / "ci-deploy.sh").read_text(encoding="utf-8")
+    assert "post-deploy-verify.sh" in script
+
+
+def test_deploy_smoke_runs_on_every_release_branch():
+    ci = load_ci()
+    condition = ci["deploy:smoke"]["rules"][0]["if"]
+    assert "release" in condition and "hotfix" in condition
+    assert ci["deploy:smoke"]["needs"] == ["deploy:prod"]
+
+
+def test_tagging_is_gated_on_what_production_actually_serves():
+    """Release 0.19.0 was tagged on master and back-merged to develop while
+    production sat on 0.18.2: deploy:prod was skipped, and a skipped job blocks
+    nothing. Stage ordering cannot catch that -- only asking production can."""
+    ci = load_ci()
+    assert ci["release:tag"]["needs"] == ["release:verify-deployed"]
+    assert ci["release:verify-deployed"]["rules"][0]["if"] == '$CI_COMMIT_BRANCH == "master"'
+
+
+# --- DAG correctness ---------------------------------------------------------
+
+
+def test_needs_on_a_conditional_job_is_optional():
+    """Almost every job here has `changes:` rules, so it is frequently absent
+    from the pipeline. A non-optional `needs:` on an absent job is a
+    pipeline-level YAML error that drops the whole pipeline, not a skip."""
+    ci = load_ci()
+    conditional = {
+        name
+        for name in job_names(ci)
+        if any("changes" in rule for rule in ci[name].get("rules", []) if isinstance(rule, dict))
+    }
+    offenders = []
+    for name in job_names(ci):
+        for need in ci[name].get("needs", []):
+            target = need["job"] if isinstance(need, dict) else need
+            optional = isinstance(need, dict) and need.get("optional") is True
+            if target in conditional and not optional:
+                offenders.append(f"{name} needs {target}")
+    assert not offenders, f"these needs must be `optional: true`: {offenders}"
+
+
+def test_integration_jobs_do_not_wait_for_the_android_build():
+    """muma-mobile:check ran 37 minutes on the 0.19.0 pipeline and every
+    integration job sat behind it for a result none of them use."""
+    ci = load_ci()
+    for name in ["db:integration", "contracts", "frontend:browser"]:
+        needs = ci[name].get("needs")
+        assert needs is not None, f"{name} still waits for the entire unit stage"
+        targets = [n["job"] if isinstance(n, dict) else n for n in needs]
+        assert "muma-mobile:check" not in targets
+
+
+# --- Artifacts ---------------------------------------------------------------
+
+
+def test_coverage_reports_are_uploaded_even_when_the_job_fails():
+    """Same reason as the junit reports: the run worth inspecting is the one
+    that failed, and that is exactly the run whose report was dropped."""
+    ci = load_ci()
+    offenders = []
+    for name in job_names(ci):
+        artifacts = ci[name].get("artifacts", {})
+        if "coverage_report" in artifacts.get("reports", {}) and artifacts.get("when") != "always":
+            offenders.append(name)
+    assert not offenders, f"coverage report lost on failure for: {offenders}"
+
+
+def test_no_job_ships_environment_debugging():
+    """music-management:unit carried an `ENV DEBUG` block - hostname, ip addr,
+    whoami, ls of the runner build dir - in every single run."""
+    ci = load_ci()
+    offenders = [
+        name
+        for name in job_names(ci)
+        for line in ci[name].get("script", [])
+        if isinstance(line, str) and ("ip addr" in line or "ENV DEBUG" in line)
+    ]
+    assert offenders == [], f"leftover debugging in: {offenders}"

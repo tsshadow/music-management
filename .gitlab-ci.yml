@@ -239,13 +239,6 @@ music-management:unit:
         - pytest.ini
         - .gitlab-ci.yml
   script:
-    - echo "--- ENV DEBUG ---"
-    - hostname
-    - ip addr
-    - whoami
-    - pwd
-    - ls -la /home/gitlab-runner/builds || true
-    - echo "--- END ENV DEBUG ---"
     - ./scripts/test/music-management-unit.sh
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
@@ -275,6 +268,9 @@ muma-server:unit:
     - ./scripts/test/muma-server-unit.sh
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)\%/'
   artifacts:
+    # when: always for the same reason the junit reports have it: the coverage
+    # of the run worth inspecting is the coverage of the run that failed.
+    when: always
     reports:
       coverage_report:
         coverage_format: cobertura
@@ -294,6 +290,8 @@ frontend:unit:
     - ./scripts/test/frontend-unit.sh
   coverage: '/All files\s*\|\s*[\d\.]+\s*\|\s*[\d\.]+\s*\|\s*[\d\.]+\s*\|\s*([\d\.]+)/'
   artifacts:
+    # See muma-server:unit above.
+    when: always
     reports:
       coverage_report:
         coverage_format: cobertura
@@ -309,12 +307,21 @@ muma-mobile:check:
   # They were already serialized inside a single pipeline (different stages),
   # so this costs no wall-clock time in the normal case.
   resource_group: muma-mobile
-  timeout: 45m
+  # 20m, not the 45m this used to have. The old wall was set when three Android
+  # jobs could run at once and starve each other; the resource group above ended
+  # that, and the job now averages ~6 minutes. 45m only ever bought a hung
+  # Gradle daemon three quarters of an hour before .infra_retry could react.
+  # Queue time waiting for the resource group does not count against this.
+  timeout: 20m
   retry: !reference [.infra_retry, retry]
   rules:
     - !reference [.release_rule, rules]
     - changes:
         - services/muma-mobile/**/*
+        # The image this job builds in. A change to it went untested by
+        # anything: no other job's rules mention it either.
+        - docker/Dockerfile-android-ci
+        - scripts/ci/android-image.sh
         - .gitlab-ci.yml
   script:
     - ./scripts/test/muma-mobile-unit.sh
@@ -350,10 +357,20 @@ release:check-secrets:
 # downloads_youtube_accounts.channel_id and library_track_ml_labels.updated_at
 # columns. It also applies every migrate_*.sql twice, so a migration that is not
 # re-runnable fails here rather than on deploy.
+# The three jobs below declare `needs:` instead of waiting for the whole unit
+# stage. Nothing here depends on the Android build, but stage ordering made them
+# wait for it anyway: on the 0.19.0 release pipeline muma-mobile:check ran for
+# 37 minutes and every integration job sat behind it, for a result none of them
+# used. `optional: true` on every entry is load-bearing - each upstream job has
+# `changes:` rules, so it is frequently not in the pipeline at all, and a
+# non-optional need on an absent job is a pipeline-level YAML error, not a skip.
 db:integration:
   stage: integration
   timeout: 30m
   retry: !reference [.infra_retry, retry]
+  needs:
+    - job: music-management:unit
+      optional: true
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - changes:
@@ -378,6 +395,11 @@ contracts:
   stage: integration
   timeout: 30m
   retry: !reference [.infra_retry, retry]
+  needs:
+    - job: music-management:unit
+      optional: true
+    - job: muma-server:unit
+      optional: true
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - changes:
@@ -392,6 +414,56 @@ contracts:
   script:
     - ./scripts/test/contracts.sh
 
+# --- Docker image builds -----------------------------------------------------
+# Until these two jobs existed, a merge request that changed nothing but a
+# Dockerfile matched no `changes:` rule anywhere in this file and ran zero jobs
+# beyond the secret scan. The first thing that ever built those images was
+# release:build-images, on a release branch, minutes before deploy:prod.
+#
+# They are split because they cost very different amounts. docker:smoke starts
+# the stack and proves it comes up healthy, but compose.test.yml only builds
+# music-manager and lms. docker:build-images compiles all seven, which is the
+# only way to cover base/downloader/telegram/importer/tools, and takes about as
+# long as the release build does.
+
+docker:smoke:
+  stage: integration
+  timeout: 30m
+  retry: !reference [.infra_retry, retry]
+  needs: []
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - docker/**/*
+        - services/music-management-server/Dockerfile-release
+    - changes:
+        - docker/**/*
+        - services/music-management-server/Dockerfile-release
+        - scripts/test/core-smoke.sh
+  script:
+    - ./scripts/test/core-smoke.sh
+
+docker:build-images:
+  stage: integration
+  timeout: 60m
+  retry: !reference [.infra_retry, retry]
+  needs: []
+  # PUSH_IMAGES=false is what makes this safe to run on a merge request: it
+  # builds every image release:build-images builds and pushes none of them, so
+  # it needs no Docker Hub credentials and cannot publish anything.
+  variables:
+    PUSH_IMAGES: "false"
+  rules:
+    # Deliberately not gated on .gitlab-ci.yml: this is the most expensive job
+    # in the file, and every edit to this file would otherwise trigger a full
+    # seven-image build for a change that cannot affect one.
+    - changes:
+        - docker/Dockerfile*
+        - services/music-management-server/Dockerfile-release
+        - scripts/ci/build-and-push-images.sh
+  script:
+    - ./scripts/ci/build-and-push-images.sh
+
 # --- Browser end-to-end ------------------------------------------------------
 
 frontend:browser:
@@ -399,6 +471,9 @@ frontend:browser:
   timeout: 30m
   retry: !reference [.infra_retry, retry]
   cache: !reference [.npm_cache, cache]
+  needs:
+    - job: frontend:unit
+      optional: true
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - changes:
@@ -516,11 +591,59 @@ deploy:prod:
   script:
     - ./scripts/ci-deploy.sh
 
+# The independent read of whether the deploy worked. ci-deploy.sh runs the same
+# script at its own last step, so a broken deploy fails deploy:prod itself; this
+# job re-runs it afterwards for two reasons. It is retryable where deploy:prod
+# deliberately is not, so a probe that timed out is distinguishable from a
+# deploy that broke production. And it can be re-run on its own later to ask
+# "is prod still healthy" without redeploying anything.
+deploy:smoke:
+  stage: deploy
+  timeout: 15m
+  interruptible: false
+  retry: !reference [.infra_retry, retry]
+  needs:
+    - deploy:prod
+  environment:
+    name: production
+    url: $PROD_URL
+    action: verify
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
+  script:
+    - ./scripts/ci/post-deploy-verify.sh
+
+# Guards release:tag below. Release 0.19.0 was tagged on master and back-merged
+# to develop while production stayed on 0.18.2 for a day: muma-mobile:check
+# failed on the release branch, so deploy:prod was *skipped*, and a skipped job
+# blocks nothing. Every signal in GitLab said it had shipped.
+#
+# deploy:smoke cannot catch that, because it lives inside the pipeline that
+# never ran. This job runs in the master pipeline and asks production directly.
+release:verify-deployed:
+  stage: release
+  timeout: 10m
+  interruptible: false
+  needs: []
+  retry: !reference [.infra_retry, retry]
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+  script:
+    - ./scripts/ci/verify-prod-version.sh
+
 release:tag:
   stage: deploy
   timeout: 10m
   interruptible: false
   retry: !reference [.infra_retry, retry]
+  # `needs` rather than stage order, so tagging waits for the one check that
+  # says something new and not for a re-run of the unit suite. This commit was
+  # already tested on the release branch and is already in production; on the
+  # 0.19.0 master pipeline the wait was 8.7 minutes, 6.7 of it muma-mobile:check
+  # re-testing an unchanged tree. Those jobs still run and still red the
+  # pipeline - they just no longer hold the tag.
+  needs:
+    - release:verify-deployed
   rules:
     - if: '$CI_COMMIT_BRANCH == "master"'
   script:

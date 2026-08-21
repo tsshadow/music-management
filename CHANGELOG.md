@@ -30,6 +30,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   versiewaarschuwing — staat nu MuMa. In het beheerscherm heet de app bij de sleuteluitleg
   voortaan MuMa Mobile, en het bijdragedocument van de app wijst naar de eigen issuetracker in
   plaats van naar het opgeheven Ultrasonic-project.
+- **Een wijziging aan een Dockerfile draaide geen enkele taak.** Zes van de zeven images werden
+  pas voor het eerst gebouwd op een release-tak, minuten voor de uitrol — de duurste plek om
+  te ontdekken dat er iets niet compileert. Een merge request die een Dockerfile raakt bouwt ze
+  nu allemaal, zonder ze te publiceren, en start daarnaast de teststack op om te zien of hij
+  gezond bovenkomt.
+- **De pijplijn wacht niet meer op werk waar niets van afhangt.** De integratie- en
+  browsertaken stonden achter de Android-controle omdat ze toevallig in een latere fase zaten;
+  op de 0.19.0-pijplijn was dat zevenendertig minuten wachten op een uitkomst die geen van
+  drieën gebruikt. Ze noemen nu zelf waar ze op wachten. Het taggen op master wacht om dezelfde
+  reden niet langer op een testronde die de release-tak al gedraaid heeft.
+- **Kleiner onderhoud aan de pijplijn.** De Android-controle mag nog twintig minuten duren in
+  plaats van vijfenveertig, nu gelijktijdige Android-taken elkaar niet meer uithongeren; de
+  dekkingsrapporten van de frontend- en servertests worden ook bewaard als die test faalt,
+  precies de keer dat je ze wil lezen; en de foutopsporingsregels die elke Python-testronde
+  begonnen met hostnaam, IP-adres en gebruikersnaam zijn weg.
+
+### Fixed
+- **Een uitrol die stukliep meldde zichzelf als geslaagd.** De laatste stap van de uitrol
+  vroeg de productieserver netjes welke containers er draaiden, drukte dat af, en keek er
+  vervolgens niet naar: `docker ps` eindigt succesvol, ook als het een container laat zien die
+  elke seconde opnieuw crasht, en ook als het helemaal niets laat zien. Elke storing van het
+  afgelopen halfjaar zag er daardoor uit als een groene uitrol. Die stap controleert nu echt:
+  geen container in een herstartlus of met een falende gezondheidscontrole, en `/health` moet
+  binnen drie minuten antwoorden met status ok én met de versie die zojuist is uitgerold. De
+  container die één keer draait en daarna bewust stopt wordt herkend aan zijn herstartbeleid en
+  niet langer als storing geteld.
+- **Een release kon een merkteken krijgen zonder ooit uitgerold te zijn.** 0.19.0 stond een dag
+  lang getagd op master terwijl productie op 0.18.2 bleef staan: de uitrol was *overgeslagen*,
+  en een overgeslagen taak houdt niets tegen. Voor het taggen wordt nu aan productie zelf
+  gevraagd welke versie er draait, en komt die niet overeen, dan gebeurt er niets.
 
 ## [0.20.0] - 2026-08-21
 

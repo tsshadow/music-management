@@ -2,6 +2,7 @@ package nl.teunschriks.mumamobile.home
 
 import kotlinx.coroutines.runBlocking
 import org.amshove.kluent.`should be equal to`
+import org.amshove.kluent.`should be null`
 import org.amshove.kluent.shouldBeNull
 import org.junit.Test
 import nl.teunschriks.mumamobile.R
@@ -119,5 +120,46 @@ class HomeSectionProviderTest {
 
         configured = 6
         provider.load()!!.cards.size `should be equal to` 6
+    }
+
+    @Test
+    fun `the shortcuts grid opts out of the card cache`() {
+        val provider = ShortcutsProvider(
+            titleRes = R.string.home_shortcuts,
+            store = RecentActivityStore(FakePreferences()),
+            setsMode = { false },
+            count = { 6 }
+        )
+
+        provider.cacheKey.`should be null`()
+    }
+
+    @Test
+    fun `a recent tracks section caches under its sort method`() {
+        val provider = RecentTracksProvider(
+            titleRes = R.string.home_recently_added,
+            sortMethod = HomeSorts.ADDED,
+            rows = { 5 },
+            loadTracks = { _, _ -> emptyList() }
+        )
+
+        provider.cacheKey `should be equal to` "tracks:${HomeSorts.ADDED}"
+    }
+
+    @Test
+    fun `a recent tracks section rebuilds itself from cached cards`() {
+        val provider = RecentTracksProvider(
+            titleRes = R.string.home_recently_added,
+            sortMethod = HomeSorts.ADDED,
+            rows = { 5 },
+            loadTracks = { _, _ -> emptyList() }
+        )
+        val cards = listOf(HomeCard(HomeCardType.TRACK, itemId = "1", title = "One"))
+
+        val section = provider.sectionOf(cards)
+
+        section.titleRes `should be equal to` R.string.home_recently_added
+        section.style `should be equal to` CardStyle.LIST
+        section.cards `should be equal to` cards
     }
 }

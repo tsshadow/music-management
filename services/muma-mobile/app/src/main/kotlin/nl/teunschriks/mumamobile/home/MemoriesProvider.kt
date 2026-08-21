@@ -33,6 +33,15 @@ class MemoriesProvider(
 ) : HomeSectionProvider {
 
     /**
+     * Date-bound on purpose. "Today, 8 years ago" computed from yesterday's data is simply wrong,
+     * so a new day is a cache miss and the banner shows its skeleton for one load.
+     */
+    override val cacheKey: String get() = "memories:${today()}"
+
+    override fun sectionOf(cards: List<HomeCard>): HomeSection =
+        HomeSection(titleRes, CardStyle.BANNER, cards)
+
+    /**
      * A server that does not know the endpoint (an older LMS, or a plain Subsonic server) throws
      * here, and so does one that cannot be reached. Both end as an invisible section, but only the
      * second one keeps the cards it already had -- which is why the distinction is left to

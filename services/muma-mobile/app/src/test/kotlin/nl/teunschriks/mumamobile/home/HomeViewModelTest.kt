@@ -26,9 +26,16 @@ class HomeViewModelTest {
 
     /** A provider whose result is handed over by the test, whenever it likes. */
     private class ControllableProvider(
-        private val result: CompletableDeferred<HomeSection?>
+        private val result: CompletableDeferred<HomeSection?>,
+        override val cacheKey: String? = null
     ) : HomeSectionProvider {
         override suspend fun load(): HomeSection? = result.await()
+
+        override fun sectionOf(cards: List<HomeCard>): HomeSection = HomeSection(
+            titleRes = R.string.home_recently_added,
+            style = CardStyle.CAROUSEL,
+            cards = cards
+        )
     }
 
     private fun section(vararg titles: String) = HomeSection(
@@ -99,6 +106,12 @@ class HomeViewModelTest {
     fun `one section failing does not stop its neighbour`() = runTest(dispatcher) {
         val failing = object : HomeSectionProvider {
             override suspend fun load(): HomeSection = error("server said no")
+            override val cacheKey: String? = null
+            override fun sectionOf(cards: List<HomeCard>): HomeSection = HomeSection(
+                titleRes = R.string.home_recently_added,
+                style = CardStyle.CAROUSEL,
+                cards = cards
+            )
         }
         val working = CompletableDeferred<HomeSection?>()
         val viewModel = viewModel(listOf(failing, ControllableProvider(working)))

@@ -20,6 +20,23 @@ import timber.log.Timber
  */
 interface HomeSectionProvider {
     suspend fun load(): HomeSection?
+
+    /**
+     * The slot this section's cards are stored under, or null to opt out of the disk cache.
+     *
+     * Opting out is for a section that is already local: the shortcuts grid reads from
+     * [RecentActivityStore], so caching it a second time would only add a way for the two copies
+     * to disagree.
+     */
+    val cacheKey: String?
+
+    /**
+     * Rebuilds this section around cards that came back from the cache.
+     *
+     * Title and style stay here rather than being stored, because [HomeSection.titleRes] is a
+     * string resource id and those are renumbered between builds.
+     */
+    fun sectionOf(cards: List<HomeCard>): HomeSection
 }
 
 /**
@@ -45,6 +62,11 @@ class ShortcutsProvider(
     /** A card to the cover art it can borrow. Null when the library holds none either. */
     private val resolveCoverArt: suspend (HomeCard) -> String? = { null }
 ) : HomeSectionProvider {
+
+    override val cacheKey: String? = null
+
+    override fun sectionOf(cards: List<HomeCard>): HomeSection =
+        HomeSection(titleRes, CardStyle.GRID, cards)
 
     override suspend fun load(): HomeSection? {
         val cards = store.recent(setsMode(), count())
@@ -103,6 +125,11 @@ class RecentTracksProvider(
     private val rows: () -> Int,
     private val loadTracks: suspend (sortMethod: String, count: Int) -> List<Track>
 ) : HomeSectionProvider {
+
+    override val cacheKey: String = "tracks:$sortMethod"
+
+    override fun sectionOf(cards: List<HomeCard>): HomeSection =
+        HomeSection(titleRes, CardStyle.LIST, cards)
 
     override suspend fun load(): HomeSection? {
         val requested = rows()

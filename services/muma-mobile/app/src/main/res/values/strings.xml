@@ -748,4 +748,41 @@
     <string name="voice_diagnostics_clear">Clear</string>
     <string name="voice.title">Voice commands</string>
     <string name="voice.text"><![CDATA[Ask the Assistant in the car, or use the voice search of the app. Everything below can be combined in one sentence.\n\n<b>A genre</b>\nPlay genre hardstyle\nPlay uptempo hardcore\nPlay drum and bass livesets\n\n<b>An artist</b>\nPlay music by headhunterz\nPlay artist brennan heart\n\n<b>A label</b>\nPlay label art of creation\n\n<b>A year</b>\nPlay hardstyle from 2021\nPlay headhunterz from 2020\n\n<b>An order</b>\nPlay random hardcore\nPlay recent\nPlay recently added\n\n<b>Your favourites</b>\nPlay favourites\nPlay favourites by headhunterz\nPlay favourites from 2021\n\n<b>All of it at once</b>\nPlay random favourites from 2023\nPlay random uptempo hardcore from 2021\n\n<b>Later in the queue</b>\nPlay project one next\nPlay dragonborn after this\n\n<b>An album, a playlist or a title</b>\nPlay album thunderdome\nPlay the playlist zomer\nPlay the track dragonborn\n\n<b>A rating</b>\nPlay hardstyle with at least 4 stars\n\n<b>More than one of a kind</b>\nPlay hardstyle en hardcore\nPlay hardstyle from 2020 en 2021\n\nA name has to be one the library knows. What it cannot place is dropped and the rest of the request still plays; when it can place nothing at all, the ordinary search takes over and looks for the title.\n\nThe microphone in the toolbar opens MuMa Voice, which understands all of the above and can ask which one you meant when a name fits several things. About > Voice diagnostics shows exactly what every request did.]]></string>
+
+    <!-- Setup wizard -->
+    <string name="wizard.title">Setup wizard</string>
+    <string name="wizard.badge_new">New</string>
+    <string name="wizard.back">Back</string>
+    <string name="wizard.next">Next</string>
+    <string name="wizard.done">Done</string>
+    <string name="wizard.skip">Skip</string>
+    <string name="wizard.open">Open</string>
+    <string name="wizard.enabled">Enabled</string>
+
+    <string name="wizard.step_server_title">Your server</string>
+    <string name="wizard.step_server_body">Everything you play comes from your own MuMa server. Check that the right one is selected and that it can be reached.</string>
+
+    <string name="wizard.step_style_title">Style</string>
+    <string name="wizard.step_style_body">Two complete looks. Spotify is the darker, familiar one. MuMa uses its own palette, warmer surfaces and rounder cards.</string>
+
+    <string name="wizard.step_app_icon_title">App icon</string>
+    <string name="wizard.step_app_icon_body">Which icon MuMa shows on your home screen. This is separate from the style, so you can mix them.</string>
+
+    <string name="wizard.step_ui_scale_title">Interface size</string>
+    <string name="wizard.step_ui_scale_body">Scales every element in the app. Lower values fit more music on screen, higher values make everything easier to hit.</string>
+
+    <string name="wizard.step_memories_title">Memories on the home screen</string>
+    <string name="wizard.step_memories_body">Shows the carousel of what you were listening to a year ago. The Memories page in the Library tab stays available either way.</string>
+
+    <string name="wizard.step_cache_size_title">How much to keep offline</string>
+    <string name="wizard.step_cache_size_body">The space MuMa may use for downloaded music. When it is full, the tracks you played longest ago are removed first.</string>
+
+    <string name="wizard.step_wifi_download_title">Download on Wi-Fi only</string>
+    <string name="wizard.step_wifi_download_body">Keeps downloads off your mobile data. Streaming is unaffected — this only holds back downloads until you are on Wi-Fi.</string>
+
+    <string name="wizard.step_now_playing_title">Now playing notification</string>
+    <string name="wizard.step_now_playing_body">The playback controls in your notification shade and on your lock screen.</string>
+
+    <string name="wizard.step_muma_sync_title">MuMa sync</string>
+    <string name="wizard.step_muma_sync_body">Links this phone to your MuMa account so ratings and listens end up on the server. Needs your user id and API key.</string>
 </resources>

@@ -16,6 +16,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   explained. Settings introduced since the version you were on are marked New and come first, which
   makes an update run short. It is also in the overflow menu at any time, and an update that adds no
   settings still shows the changelog as before.
+- **A manual now lives in the app, under Help in the overflow menu.** Everything MuMa does was
+  discoverable only by pressing things: the Sets switch, what the twelve library tabs are for,
+  that a spoken sentence may carry a genre and a year and a rating at once, that the app updates
+  itself outside the Play Store. Help is twelve chapters in reading order, collapsed until you
+  open one, each with a screenshot you can tap to enlarge and, where reading is the slower way to
+  learn it, a button straight to the screen being described. The screenshots ship as placeholders
+  and are replaced by dropping a PNG over the file of the same name in
+  `app/src/main/res/drawable-nodpi`; `docs/manual-screenshots.md` says which shot goes where.
+  Each placeholder names on the picture itself what belongs there, and carries a marker that
+  `scripts/manual-screenshot-status.sh` greps for, so which chapters are still waiting for a real
+  capture is a question the repository answers rather than a list anyone keeps by hand.
+
+### Changed
+- **The About screen no longer points at sites that have nothing to do with this install.**
+  "Visit webpage" and "Report a bug" opened addresses unrelated to this deployment; both buttons
+  are gone, leaving update, changelog and log viewer. The translated About text still described
+  the old Ultrasonic product and the Subsonic servers it was written for in nine languages —
+  those translations were dropped, so every locale now falls back to the MuMa wording. Where the
+  old product name survived in a translation — the welcome screen, the crash prompt, the version
+  warning — it now reads MuMa.
+
+### Fixed
+- **A playlist shows its "Play all" button again, and the player shows the microphone.** The
+  microphone rides on the menu the whole app carries, and that menu is laid out before a screen's
+  own actions are, so on an album or a playlist the microphone took the slot "Play all" needs and
+  pushed the button into the overflow. The microphone now steps back into the overflow itself on
+  the two screens whose own actions need the room — a track collection and the log viewer — and
+  keeps its place in the toolbar everywhere else, the player included, where a queue is exactly
+  where the next request gets spoken.
 
 ## [6.18.0] - 2026-08-20
 

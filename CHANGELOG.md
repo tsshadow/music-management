@@ -17,6 +17,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   de versie waar je vandaan komt krijgen het label Nieuw en komen vooraan, waardoor een update-ronde
   kort blijft. De wizard staat ook altijd in het overloopmenu, en een update die geen instellingen
   toevoegt toont gewoon de changelog zoals voorheen.
+- **De Android-app heeft nu een handleiding aan boord, onder Help in het overloopmenu.** Alles
+  wat MuMa kan was tot nu toe alleen te ontdekken door overal op te drukken: de Sets-schakelaar,
+  waar de twaalf bibliotheektabbladen voor zijn, dat één gesproken zin tegelijk een genre, een
+  jaar en een waardering mag dragen, en dat de app zichzelf buiten de Play Store om bijwerkt.
+  Help is twaalf hoofdstukken in leesvolgorde, dichtgeklapt tot je er één opent, elk met een
+  schermafbeelding die je kunt vergroten en, waar lezen de langzaamste manier is om het te
+  leren, een knop rechtstreeks naar het scherm dat beschreven wordt. De schermafbeeldingen zijn
+  voorlopig plaatshouders: een echte zet je erin door een PNG over het gelijknamige bestand in
+  `app/src/main/res/drawable-nodpi` te zetten, en `docs/manual-screenshots.md` vertelt welke
+  opname waar hoort.
+
+### Changed
+- **Het Over-scherm verwijst niet meer naar sites die er niet meer bij horen.** "Website openen"
+  en "Bug melden" stuurden je de app uit naar adressen die niets met deze installatie te maken
+  hebben; beide knoppen zijn weg, zodat alleen bijwerken, de wijzigingslijst en het logboek
+  overblijven. Dezelfde opruiming liep door de rest van de tekst: de vertaalde Over-tekst
+  beschreef in negen talen nog het oude Ultrasonic-product en de bijbehorende Subsonic-servers,
+  en is vervangen door de Nederlandse en Engelse MuMa-tekst die er al stond. Waar de oude
+  productnaam nog in een vertaling stond — het welkomstscherm, de crashmelding, de
+  versiewaarschuwing — staat nu MuMa. In het beheerscherm heet de app bij de sleuteluitleg
+  voortaan MuMa Mobile, en het bijdragedocument van de app wijst naar de eigen issuetracker in
+  plaats van naar het opgeheven Ultrasonic-project.
+- **Een wijziging aan een Dockerfile draaide geen enkele taak.** Zes van de zeven images werden
+  pas voor het eerst gebouwd op een release-tak, minuten voor de uitrol — de duurste plek om
+  te ontdekken dat er iets niet compileert. Een merge request die een Dockerfile raakt bouwt ze
+  nu allemaal, zonder ze te publiceren, en start daarnaast de teststack op om te zien of hij
+  gezond bovenkomt.
+- **De pijplijn wacht niet meer op werk waar niets van afhangt.** De integratie- en
+  browsertaken stonden achter de Android-controle omdat ze toevallig in een latere fase zaten;
+  op de 0.19.0-pijplijn was dat zevenendertig minuten wachten op een uitkomst die geen van
+  drieën gebruikt. Ze noemen nu zelf waar ze op wachten. Het taggen op master wacht om dezelfde
+  reden niet langer op een testronde die de release-tak al gedraaid heeft.
+- **Kleiner onderhoud aan de pijplijn.** De Android-controle mag nog twintig minuten duren in
+  plaats van vijfenveertig, nu gelijktijdige Android-taken elkaar niet meer uithongeren; de
+  dekkingsrapporten van de frontend- en servertests worden ook bewaard als die test faalt,
+  precies de keer dat je ze wil lezen; en de foutopsporingsregels die elke Python-testronde
+  begonnen met hostnaam, IP-adres en gebruikersnaam zijn weg.
+
+### Fixed
+- **Een uitgerolde release-tak wordt nu altijd opgeruimd, ook als er iets misging.** Het
+  verwijderen van de zojuist samengevoegde `release/*`-tak hing achteraan het terugsamenvoegen
+  naar develop, en erfde daarmee twee voorwaarden die er niets mee te maken hebben: dat script
+  stopt er vroegtijdig mee zodra develop de commit al bevat — zo hield `release/0.8.3` zijn tak —
+  en sinds de nieuwe versiecontrole hing het er ook van af of productie wel draait wat master
+  zegt. Juist het geval dat die controle moet vangen liet dus een samengevoegde release-tak op
+  de server achter, en dat is precies de opzet waarin een later opnieuw gestarte pijplijn oude
+  images als `latest` publiceert en terugrolt (bugrapport 016). Het opruimen is nu een eigen taak
+  die nergens op wacht: een tak die al in master zit weggooien is veilig, wat de tag of de uitrol
+  ook deden.
+- **Een uitrol die stukliep meldde zichzelf als geslaagd.** De laatste stap van de uitrol
+  vroeg de productieserver netjes welke containers er draaiden, drukte dat af, en keek er
+  vervolgens niet naar: `docker ps` eindigt succesvol, ook als het een container laat zien die
+  elke seconde opnieuw crasht, en ook als het helemaal niets laat zien. Elke storing van het
+  afgelopen halfjaar zag er daardoor uit als een groene uitrol. Die stap controleert nu echt:
+  geen container in een herstartlus of met een falende gezondheidscontrole, en `/health` moet
+  binnen drie minuten antwoorden met status ok én met de versie die zojuist is uitgerold. De
+  container die één keer draait en daarna bewust stopt wordt herkend aan zijn herstartbeleid en
+  niet langer als storing geteld.
+- **Een release kon een merkteken krijgen zonder ooit uitgerold te zijn.** 0.19.0 stond een dag
+  lang getagd op master terwijl productie op 0.18.2 bleef staan: de uitrol was *overgeslagen*,
+  en een overgeslagen taak houdt niets tegen. Voor het taggen wordt nu aan productie zelf
+  gevraagd welke versie er draait, en komt die niet overeen, dan gebeurt er niets.
 
 ## [0.20.0] - 2026-08-21
 

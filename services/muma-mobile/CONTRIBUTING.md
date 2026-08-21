@@ -1,17 +1,16 @@
 # Contributing
 
-Ultrasonic development is a community project, and contributions are
-welcomed.
-
-First, see if your issue haven’t been yet reported
-[here](https://gitlab.com/ultrasonic/ultrasonic/issues), then, please, first
-discuss the change you wish to make via [a new
-issue](https://gitlab.com/ultrasonic/ultrasonic/issues/new).
+MuMa Mobile is developed inside the `music-management` repository. Issues and
+merge requests live in [this project's
+tracker](https://gitlab.example.com/muma/music-management/-/issues) —
+the upstream Ultrasonic project it was forked from is discontinued, so nothing
+is reported or merged there.
 
 ## Contributing Translations
 
-Interested in help to translate Ultrasonic? You can contribute in our
-[Weblate team](https://hosted.weblate.org/projects/ultrasonic/).
+Translations are plain `strings.xml` resources under
+`app/src/main/res/values-*/`; edit them in a merge request. There is no
+external translation platform.
 
 ## Contributing Code
 

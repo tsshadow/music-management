@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A screenshot at list size is too small to read a label on. Tapping one opens this: the same
+  image at full width, scrollable, because a phone screenshot is taller than the phone showing it.
+-->
+<ScrollView xmlns:a="http://schemas.android.com/apk/res/android"
+    a:layout_width="match_parent"
+    a:layout_height="match_parent"
+    a:background="?android:attr/colorBackground"
+    a:fillViewport="true">
+
+    <ImageView
+        a:id="@+id/manual_screenshot_full"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:adjustViewBounds="true"
+        a:contentDescription="@string/manual.screenshot_description"
+        a:scaleType="fitCenter" />
+
+</ScrollView>

@@ -116,6 +116,7 @@ import timber.log.Timber
 @Suppress("TooManyFunctions")
 class NavigationActivity : ScopeActivity() {
     private var setsToggleItem: MenuItem? = null
+    private var voiceMenuItem: MenuItem? = null
 
     private var nowPlayingView: FragmentContainerView? = null
     private var nowPlayingHidden = false
@@ -197,6 +198,7 @@ class NavigationActivity : ScopeActivity() {
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
             setsToggleItem?.isVisible = destination.id == R.id.mainFragment
+            voiceMenuItem?.setShowAsAction(voiceMenuSlot(destination.id))
             val dest: String = try {
                 resources.getResourceName(destination.id)
             } catch (_: Resources.NotFoundException) {
@@ -291,6 +293,8 @@ class NavigationActivity : ScopeActivity() {
             menu.findItem(R.id.downloadsFragment)?.isVisible = !ActiveServerProvider.isOffline()
             setsToggleItem = menu.findItem(R.id.action_sets_toggle)
             setsToggleItem?.isVisible = currentFragmentId == R.id.mainFragment
+            voiceMenuItem = menu.findItem(R.id.mumaVoiceFragment)
+            voiceMenuItem?.setShowAsAction(voiceMenuSlot(currentFragmentId))
             setsToggle = setsToggleItem?.actionView?.findViewById(R.id.switch_sets)
 
             setsToggle?.let { toggle ->
@@ -1113,3 +1117,19 @@ class NavigationActivity : ScopeActivity() {
         }
     }
 }
+
+/**
+ * Where the microphone is worth a toolbar slot.
+ *
+ * @details The activity's own menu is inflated on top of every screen and claims the action slots
+ * before a fragment's menu is prepared, so an "ifRoom" microphone silently pushed the track
+ * collection's "Play all" into the overflow. Almost every screen has room to spare, and the manual
+ * tells the reader the microphone is in the toolbar, so it keeps its icon by default and steps
+ * back into the overflow only on the screens whose own actions need the room. The player owns
+ * actions too and still shows it: a queue is exactly where the next request gets spoken.
+ */
+internal fun voiceMenuSlot(destinationId: Int): Int =
+    when (destinationId) {
+        R.id.trackCollectionFragment, R.id.logViewerFragment -> MenuItem.SHOW_AS_ACTION_NEVER
+        else -> MenuItem.SHOW_AS_ACTION_ALWAYS
+    }

@@ -23,6 +23,11 @@
         a:title="@string/server_selector.label" />
 
     <item
+        a:id="@+id/manualFragment"
+        a:icon="@drawable/ic_menu_help"
+        a:title="@string/menu.help" />
+
+    <item
         a:id="@+id/aboutFragment"
         a:icon="@drawable/ic_menu_about"
         a:title="@string/menu.about" />
@@ -47,7 +52,7 @@
         a:id="@+id/mumaVoiceFragment"
         a:icon="@drawable/ic_menu_microphone"
         a:title="@string/muma_voice_title"
-        app:showAsAction="ifRoom" />
+        app:showAsAction="never" />
 
     <item
         a:id="@+id/action_search"

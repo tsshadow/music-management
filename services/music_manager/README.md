@@ -7,7 +7,7 @@ The **Music Manager** is a centralized management platform and API core for the 
 - **Consolidated API**: A single FastAPI-based backend (port 8000) that handles:
   - **User Management**: Authentication, admin permissions, and external service tokens (ListenBrainz).
   - **Scrobbling**: Tracking listening history and matching tracks to the library.
-  - **Ratings**: Synchronizing song ratings between Spotify UI, LMS, and Ultrasonic.
+  - **Ratings**: Synchronizing song ratings between Spotify UI, LMS, and MuMa Mobile.
   - **Stats**: Providing library insights and listening trends.
   - **Artist Enrichment**: Automated fetching and syncing of high-quality artist images.
 - **Control Center Dashboard**: A modern Svelte-based frontend (port 8003) for:

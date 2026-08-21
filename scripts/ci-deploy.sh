@@ -24,41 +24,11 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Target configuration for Production
-export REMOTE_HOST="${PROD_REMOTE_HOST:-192.0.2.27}"
-export REMOTE_USER="${PROD_REMOTE_USER:-root}"
-
-echo "--- Setting up SSH access to $REMOTE_HOST ---"
-
 # 1. Configure ssh-agent from the SSH_PRIVATE_KEY CI/CD variable so none of
-#    the deploy scripts need a password/sshpass.
-if [ -z "${SSH_PRIVATE_KEY}" ]; then
-    echo "Error: SSH_PRIVATE_KEY CI/CD variable is not set. See docs/deployment.md."
-    exit 1
-fi
-
-eval "$(ssh-agent -s)" > /dev/null
-KEY_FILE="$(mktemp)"
-# SSH_PRIVATE_KEY is a "file" type CI/CD variable: its value is the path to a
-# temp file already containing the key content when injected by the runner.
-if [ -f "${SSH_PRIVATE_KEY}" ]; then
-    cp "${SSH_PRIVATE_KEY}" "$KEY_FILE"
-else
-    printf '%s\n' "${SSH_PRIVATE_KEY}" > "$KEY_FILE"
-fi
-chmod 600 "$KEY_FILE"
-ssh-add "$KEY_FILE"
-rm -f "$KEY_FILE"
-
-mkdir -p ~/.ssh
-ssh-keyscan -H "$REMOTE_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-
-# Ensure SSH is working
-if ! ssh -o StrictHostKeyChecking=no "${REMOTE_USER}@${REMOTE_HOST}" "docker version" > /dev/null 2>&1; then
-    echo "Error: Cannot connect to ${REMOTE_HOST} via SSH with the configured SSH_PRIVATE_KEY."
-    exit 1
-fi
-echo "--- SSH access confirmed ---"
+#    the deploy scripts need a password/sshpass. Shared with the post-deploy
+#    gate and the deployed-version check, which need the identical setup.
+# shellcheck source=scripts/ci/prod-ssh-setup.sh
+. "$SCRIPT_DIR/ci/prod-ssh-setup.sh"
 
 # 2. Materialize the .env files for both stacks from CI/CD variables (since
 #    .env is gitignored and would otherwise not exist on a fresh checkout).
@@ -109,17 +79,12 @@ echo "--- Deploying stack: lms ---"
     "$PROJECT_ROOT/services/music-management-server/scripts/deploy-stack.sh"
 )
 
-# 6. Post-deploy verification: confirm both stacks report freshly (re)started
-#    containers, so a silently-failed "up -d" doesn't get reported as success.
-#    (Two separate "docker ps" calls: multiple "--filter label=..." on the
-#    same key are AND'ed by the Docker CLI, not OR'ed, so a single combined
-#    filter for two different project names would always return nothing.)
-echo "--- Verifying container state on $REMOTE_HOST ---"
-ssh -o StrictHostKeyChecking=no "${REMOTE_USER}@${REMOTE_HOST}" "
-    echo '[music-management stack]'
-    docker ps --filter 'label=com.docker.compose.project=music-management' --format '{{.Names}}\t{{.Status}}'
-    echo '[lms stack]'
-    docker ps --filter 'label=com.docker.compose.project=lms' --format '{{.Names}}\t{{.Status}}'
-"
+# 6. Post-deploy verification. This step used to run two `docker ps --format`
+#    calls purely for their stdout and then echo "finished successfully"
+#    unconditionally - `docker ps` exits 0 for a restart-looping container and
+#    for an empty stack alike, so the deploy could not fail here even when
+#    nothing was serving. The real checks now live in post-deploy-verify.sh,
+#    which exits non-zero, and which the deploy:smoke job re-runs afterwards.
+"$SCRIPT_DIR/ci/post-deploy-verify.sh"
 
 echo "--- CI Deployment finished successfully ---"

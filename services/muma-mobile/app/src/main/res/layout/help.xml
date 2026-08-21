@@ -85,31 +85,11 @@
         a:id="@+id/help_update"
         a:layout_width="match_parent"
         a:layout_height="wrap_content"
-        a:layout_above="@+id/help_webpage"
-        a:layout_marginLeft="10dp"
-        a:layout_marginRight="10dp"
-        a:text="@string/update_check"
-         />
-
-    <Button
-        a:id="@+id/help_webpage"
-        a:layout_width="match_parent"
-        a:layout_height="wrap_content"
-        a:layout_above="@+id/help_report"
-        a:layout_marginLeft="10dp"
-        a:layout_marginRight="10dp"
-        a:text="@string/about.webpage"
-         />
-
-    <Button
-        a:id="@+id/help_report"
-        a:layout_width="match_parent"
-        a:layout_height="wrap_content"
         a:layout_alignParentBottom="true"
         a:layout_marginLeft="10dp"
         a:layout_marginRight="10dp"
         a:layout_marginBottom="20dp"
-        a:text="@string/about.report"
+        a:text="@string/update_check"
          />
 
 </RelativeLayout>

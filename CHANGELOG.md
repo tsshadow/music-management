@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-08-21
+
 ### Added
 - **Het nieuws van het uur, ook onderweg.** MuMa neemt het bulletin nu zelf op van de live
   stream van NPO Radio 1 — geen enkele feed publiceert het NOS-radiobulletin op afroep, dus

@@ -11,6 +11,35 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.20.0 (2026-08-21)
+
+### 📻 Het nieuws van het uur, ook onderweg
+- Geen enkele feed publiceert het NOS-radiobulletin op afroep, dus MuMa neemt het nu zelf op van de
+  live stream van NPO Radio 1. Elk heel uur wordt tien minuten getapt en de laatste twaalf opnames
+  blijven staan; een opname korter dan een minuut gaat weg in plaats van bewaard te worden, want een
+  afgekapt bulletin in de auto is erger dan geen bulletin.
+- In Android Auto staat er een Nieuws-map naast Radio en een nieuwsknop bij de bediening: één tik legt
+  de wachtrij vast, speelt het bulletin, en zet daarna de muziek terug op de seconde waar je was.
+  Radio is de uitzondering, want die tijdlijn is van de server: dat kanaal wordt na het nieuws
+  opnieuw afgestemd.
+- De webspeler doet hetzelfde, en het beheerscherm kreeg een Nieuws-tab met bron, schema,
+  bewaartermijn en een knop om meteen op te nemen.
+
+### ⚡ De Android-app bouwt in seconden in plaats van soms een uur
+- De pijplijn gaf elke gelijktijdige taak zijn eigen Gradle-map, dus de eerste bouw op een verse plek
+  haalde alle afhankelijkheden opnieuw op: dezelfde controle die warm drie minuten duurde liep dan
+  vijftig tot negentig minuten en sloeg tegen de tijdslimiet aan.
+- De mobiele taken draaien nu gegarandeerd één voor één en delen daardoor veilig één warme Gradle-map.
+- Daarbovenop verdwenen twee dingen die de app nooit gebruikte maar wel elke bouw betaalde: de
+  kapt-annotatieverwerker, waarvoor geen verwerker meer bestond sinds Room op KSP overging, en
+  DataBinding, dat in geen van de 78 layouts voorkwam. Zonder DataBinding kon ook de
+  configuratiecache aan.
+- Precies deze tijdslimiet blokkeerde de uitrol van 0.19.0: `muma-mobile:check` viel om, waardoor het
+  bouwen van de images en de productie-uitrol werden overgeslagen. 0.19.0 staat daardoor wel getagd
+  op master maar heeft productie nooit bereikt; deze release brengt beide alsnog naar buiten.
+
+- MuMa Mobile gaat naar 6.19.0.
+
 ## Global Version 0.19.0 (2026-08-20)
 
 ### 🎤 Een genre hardop vragen werkt nu ook als de telefoon je verkeerd verstaat

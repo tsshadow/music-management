@@ -22,6 +22,7 @@ import nl.teunschriks.mumamobile.data.MIGRATION_6_7
 import nl.teunschriks.mumamobile.data.MIGRATION_7_8
 import nl.teunschriks.mumamobile.data.MIGRATION_8_9
 import nl.teunschriks.mumamobile.car.CarConnectionWatcher
+import nl.teunschriks.mumamobile.car.CarModeNotifier
 import nl.teunschriks.mumamobile.car.CarModeSession
 import nl.teunschriks.mumamobile.car.CarPresence
 import nl.teunschriks.mumamobile.home.CardListCache
@@ -100,6 +101,8 @@ val appPermanentStorage = module {
     single { CarModeSession(isPlaying = { get<MediaPlayerManager>().isPlaying }) }
 
     single { CarConnectionWatcher(androidContext(), get()) }
+
+    single { CarModeNotifier(androidContext()) }
 
     // Shares the home preferences file: the source and the history it feeds belong together, and
     // both have to outlive the process for a queue restored on startup to still be attributable.

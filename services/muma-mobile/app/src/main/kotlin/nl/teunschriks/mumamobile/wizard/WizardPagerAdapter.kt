@@ -16,7 +16,7 @@ import nl.teunschriks.mumamobile.R
  * inherits the active style without a per-style widget style, and a Spinner does not.
  */
 class WizardPagerAdapter(
-    private var steps: List<PlannedStep>,
+    private val steps: List<PlannedStep>,
     private val prefs: WizardPreferences,
     private val onJump: (Int) -> Unit
 ) : RecyclerView.Adapter<WizardPagerAdapter.StepHolder>() {
@@ -32,11 +32,6 @@ class WizardPagerAdapter(
     }
 
     override fun getItemCount() = steps.size
-
-    fun submit(steps: List<PlannedStep>) {
-        this.steps = steps
-        notifyDataSetChanged()
-    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = StepHolder(
         LayoutInflater.from(parent.context).inflate(R.layout.item_wizard_step, parent, false)

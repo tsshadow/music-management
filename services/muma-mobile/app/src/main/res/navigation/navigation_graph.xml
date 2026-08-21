@@ -344,6 +344,14 @@
         android:id="@+id/settingsFragment"
         android:name="nl.teunschriks.mumamobile.fragment.SettingsFragment" />
     <fragment
+        android:id="@+id/setupWizardFragment"
+        android:name="nl.teunschriks.mumamobile.fragment.SetupWizardFragment">
+        <argument
+            android:name="lastSeenVersion"
+            android:defaultValue="2147483647"
+            app:argType="integer" />
+    </fragment>
+    <fragment
         android:id="@+id/aboutFragment"
         android:name="nl.teunschriks.mumamobile.fragment.AboutFragment" />
     <fragment

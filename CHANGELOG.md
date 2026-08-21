@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Een instelwizard in de Android-app die na een update laat zien wat er veranderd is.**
+  Tweeënzestig instellingen staan op één doorlopend scherm, en niets daarop zegt welke er vorige
+  week bij kwamen. De wizard loopt er negen één voor één langs — server, stijl, app-icoon,
+  interfacegrootte, herinneringen op het startscherm, offline opslag, alleen downloaden op wifi,
+  de balk met wat er speelt, en MuMa-synchronisatie — elk met uitleg én de knop zelf, zodat een
+  instelling te wijzigen is op de plek waar hij wordt uitgelegd. Instellingen die nieuw zijn sinds
+  de versie waar je vandaan komt krijgen het label Nieuw en komen vooraan, waardoor een update-ronde
+  kort blijft. De wizard staat ook altijd in het overloopmenu, en een update die geen instellingen
+  toevoegt toont gewoon de changelog zoals voorheen.
 - **De Android-app heeft nu een handleiding aan boord, onder Help in het overloopmenu.** Alles
   wat MuMa kan was tot nu toe alleen te ontdekken door overal op te drukken: de Sets-schakelaar,
   waar de twaalf bibliotheektabbladen voor zijn, dat één gesproken zin tegelijk een genre, een

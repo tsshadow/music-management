@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:a="http://schemas.android.com/apk/res/android"
+    a:layout_width="match_parent"
+    a:layout_height="match_parent">
+
+    <LinearLayout
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:orientation="vertical"
+        a:padding="24dp">
+
+        <ImageView
+            a:id="@+id/wizard_image"
+            a:layout_width="match_parent"
+            a:layout_height="240dp"
+            a:adjustViewBounds="true"
+            a:contentDescription="@null"
+            a:scaleType="fitCenter"
+            a:visibility="gone" />
+
+        <TextView
+            a:id="@+id/wizard_step_title"
+            a:layout_width="match_parent"
+            a:layout_height="wrap_content"
+            a:layout_marginTop="16dp"
+            a:textColor="?android:attr/textColorPrimary"
+            a:textSize="22sp"
+            a:textStyle="bold" />
+
+        <TextView
+            a:id="@+id/wizard_new_badge"
+            a:layout_width="wrap_content"
+            a:layout_height="wrap_content"
+            a:layout_marginTop="8dp"
+            a:text="@string/wizard.badge_new"
+            a:textAllCaps="true"
+            a:textColor="?attr/colorPrimary"
+            a:textSize="12sp"
+            a:textStyle="bold"
+            a:visibility="gone" />
+
+        <TextView
+            a:id="@+id/wizard_step_body"
+            a:layout_width="match_parent"
+            a:layout_height="wrap_content"
+            a:layout_marginTop="12dp"
+            a:textColor="?android:attr/textColorSecondary"
+            a:textSize="15sp" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            a:id="@+id/wizard_toggle"
+            a:layout_width="match_parent"
+            a:layout_height="wrap_content"
+            a:layout_marginTop="24dp"
+            a:text="@string/wizard.enabled"
+            a:textColor="?android:attr/textColorPrimary"
+            a:visibility="gone" />
+
+        <com.google.android.material.button.MaterialButton
+            a:id="@+id/wizard_choice"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            a:layout_width="match_parent"
+            a:layout_height="wrap_content"
+            a:layout_marginTop="24dp"
+            a:visibility="gone" />
+
+        <com.google.android.material.button.MaterialButton
+            a:id="@+id/wizard_jump"
+            a:layout_width="wrap_content"
+            a:layout_height="wrap_content"
+            a:layout_marginTop="24dp"
+            a:text="@string/wizard.open"
+            a:visibility="gone" />
+    </LinearLayout>
+</ScrollView>

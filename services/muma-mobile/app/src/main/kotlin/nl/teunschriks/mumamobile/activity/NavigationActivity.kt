@@ -37,6 +37,7 @@ import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import androidx.annotation.StringRes
+import androidx.core.os.bundleOf
 import androidx.core.view.MenuProvider
 import androidx.fragment.app.FragmentContainerView
 import androidx.lifecycle.Lifecycle
@@ -79,6 +80,7 @@ import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.ServerSetting
 import nl.teunschriks.mumamobile.diagnostics.CrashReportManager
+import nl.teunschriks.mumamobile.fragment.SetupWizardFragment
 import nl.teunschriks.mumamobile.management.ManagementRepository
 import nl.teunschriks.mumamobile.model.ServerSettingsModel
 import nl.teunschriks.mumamobile.provider.SearchSuggestionProvider
@@ -98,6 +100,12 @@ import nl.teunschriks.mumamobile.util.UncaughtExceptionHandler
 import nl.teunschriks.mumamobile.util.UpdateChecker
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.themeColor
+import nl.teunschriks.mumamobile.wizard.UpdateEntry
+import nl.teunschriks.mumamobile.wizard.WIZARD_INTRODUCED_IN
+import nl.teunschriks.mumamobile.wizard.plan
+import nl.teunschriks.mumamobile.wizard.shouldStampVersion
+import nl.teunschriks.mumamobile.wizard.updateEntryFor
+import nl.teunschriks.mumamobile.wizard.wizardCatalog
 import timber.log.Timber
 
 /**
@@ -213,9 +221,17 @@ class NavigationActivity : ScopeActivity() {
         // This is a first run with only the demo entry inside the database
         // We set the active server to the demo one and show the welcome dialog
         if (showWelcomeScreen && !UApp.instance!!.setupDialogDisplayed) {
+            // This branch is not only a fresh install: logOut() blanks the password on any auth
+            // failure, so a session that expired around an update lands here too. Stamping
+            // unconditionally would swallow that release's wizard and changelog for an existing
+            // user - the next start would see previous == current and show nothing. Only a
+            // genuine first run (nothing stored at all) is stamped, which is all the stamp was
+            // for: so a real fresh install's next update compares against this release rather
+            // than against zero.
+            if (Util.previousSeenVersion() == 0) Util.markVersionSeen(this)
             showWelcomeDialog()
-        } else if (Util.isVersionUpdate(this)) {
-            Util.showChangelog(this, full = false)
+        } else {
+            openUpdateEntry()
         }
 
         // Ask for permission to send notifications
@@ -537,6 +553,28 @@ class NavigationActivity : ScopeActivity() {
                 false -> R.string.welcome_status_unreachable
             }
         )
+    }
+
+    /**
+     * After an update, open the setup wizard on whatever it added - or the changelog when it added
+     * no settings at all. The version is stamped before anything is shown: if the wizard crashes
+     * or the user force-quits inside it, the next start must not reopen it forever.
+     */
+    private fun openUpdateEntry() {
+        val previous = Util.previousSeenVersion()
+        val current = Util.getVersionCode(this)
+        val hasNewSteps = plan(wizardCatalog(this), previous).any { it.isNew }
+
+        if (shouldStampVersion(previous, current)) Util.markVersionSeen(this)
+
+        when (updateEntryFor(previous, current, hasNewSteps, WIZARD_INTRODUCED_IN)) {
+            UpdateEntry.NOTHING -> Unit
+            UpdateEntry.CHANGELOG -> Util.showChangelog(this, full = false)
+            UpdateEntry.WIZARD -> findNavController(R.id.nav_host_fragment).navigate(
+                R.id.setupWizardFragment,
+                bundleOf(SetupWizardFragment.ARG_LAST_SEEN_VERSION to previous)
+            )
+        }
     }
 
     /**

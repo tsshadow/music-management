@@ -47,6 +47,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   begonnen met hostnaam, IP-adres en gebruikersnaam zijn weg.
 
 ### Fixed
+- **Een uitgerolde release-tak wordt nu altijd opgeruimd, ook als er iets misging.** Het
+  verwijderen van de zojuist samengevoegde `release/*`-tak hing achteraan het terugsamenvoegen
+  naar develop, en erfde daarmee twee voorwaarden die er niets mee te maken hebben: dat script
+  stopt er vroegtijdig mee zodra develop de commit al bevat — zo hield `release/0.8.3` zijn tak —
+  en sinds de nieuwe versiecontrole hing het er ook van af of productie wel draait wat master
+  zegt. Juist het geval dat die controle moet vangen liet dus een samengevoegde release-tak op
+  de server achter, en dat is precies de opzet waarin een later opnieuw gestarte pijplijn oude
+  images als `latest` publiceert en terugrolt (bugrapport 016). Het opruimen is nu een eigen taak
+  die nergens op wacht: een tak die al in master zit weggooien is veilig, wat de tag of de uitrol
+  ook deden.
 - **Een uitrol die stukliep meldde zichzelf als geslaagd.** De laatste stap van de uitrol
   vroeg de productieserver netjes welke containers er draaiden, drukte dat af, en keek er
   vervolgens niet naar: `docker ps` eindigt succesvol, ook als het een container laat zien die

@@ -390,3 +390,23 @@ def test_no_job_ships_environment_debugging():
         if isinstance(line, str) and ("ip addr" in line or "ENV DEBUG" in line)
     ]
     assert offenders == [], f"leftover debugging in: {offenders}"
+
+
+def test_branch_cleanup_does_not_depend_on_the_tag_or_the_deploy():
+    """Deleting a branch already merged into master is safe whatever the tag
+    and the deploy did. While the delete was the tail of back-merge-develop.sh
+    it inherited release:tag's needs, so a failing release:verify-deployed -
+    production not serving what master says - left the merged release branch
+    alive, which is the precondition for
+    docs/bug-reports/016-stale-release-branch-clobbered-latest-deploy.md."""
+    ci = load_ci()
+    job = ci["release:cleanup-branch"]
+    assert job["needs"] == [], "cleanup must not wait on the tag or the deploy"
+    assert job["rules"][0]["if"] == '$CI_COMMIT_BRANCH == "master"'
+
+
+def test_the_back_merge_no_longer_deletes_branches():
+    """Two jobs racing to delete the same branch, one of them behind an early
+    `exit 0`, is how this got confusing in the first place."""
+    script = (REPO_ROOT / "scripts" / "ci" / "back-merge-develop.sh").read_text(encoding="utf-8")
+    assert "repository/branches/" not in script

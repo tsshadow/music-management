@@ -2,21 +2,29 @@ package nl.teunschriks.mumamobile.home
 
 import android.content.SharedPreferences
 
-/** Minimal in-memory [SharedPreferences]; only the string operations the store uses are real. */
+/**
+ * Minimal in-memory [SharedPreferences]: the string and long operations these stores use are
+ * real, everything else returns its default.
+ *
+ * Longs became real when CardListCache started keeping a fetch time next to its cards. A fake
+ * that silently returns the default for an operation the code under test relies on turns a
+ * failing assertion into a puzzle.
+ */
 class FakePreferences : SharedPreferences {
     private val values = mutableMapOf<String, String?>()
+    private val longs = mutableMapOf<String, Long>()
 
     override fun getString(key: String?, defValue: String?): String? = values[key] ?: defValue
 
-    override fun edit(): SharedPreferences.Editor = FakeEditor(values)
+    override fun edit(): SharedPreferences.Editor = FakeEditor(values, longs)
 
     override fun getAll(): MutableMap<String, *> = values
     override fun getStringSet(key: String?, defValues: MutableSet<String>?) = defValues
     override fun getInt(key: String?, defValue: Int) = defValue
-    override fun getLong(key: String?, defValue: Long) = defValue
+    override fun getLong(key: String?, defValue: Long) = longs[key] ?: defValue
     override fun getFloat(key: String?, defValue: Float) = defValue
     override fun getBoolean(key: String?, defValue: Boolean) = defValue
-    override fun contains(key: String?) = values.containsKey(key)
+    override fun contains(key: String?) = values.containsKey(key) || longs.containsKey(key)
 
     override fun registerOnSharedPreferenceChangeListener(
         listener: SharedPreferences.OnSharedPreferenceChangeListener?
@@ -28,9 +36,11 @@ class FakePreferences : SharedPreferences {
 }
 
 private class FakeEditor(
-    private val values: MutableMap<String, String?>
+    private val values: MutableMap<String, String?>,
+    private val longs: MutableMap<String, Long>
 ) : SharedPreferences.Editor {
     private val pending = mutableMapOf<String, String?>()
+    private val pendingLongs = mutableMapOf<String, Long>()
 
     override fun putString(key: String?, value: String?): SharedPreferences.Editor {
         if (key != null) pending[key] = value
@@ -39,7 +49,9 @@ private class FakeEditor(
 
     override fun apply() {
         values.putAll(pending)
+        longs.putAll(pendingLongs)
         pending.clear()
+        pendingLongs.clear()
     }
 
     override fun commit(): Boolean {
@@ -48,18 +60,25 @@ private class FakeEditor(
     }
 
     override fun remove(key: String?): SharedPreferences.Editor {
-        if (key != null) values.remove(key)
+        if (key != null) {
+            values.remove(key)
+            longs.remove(key)
+        }
         return this
     }
 
     override fun clear(): SharedPreferences.Editor {
         values.clear()
+        longs.clear()
         return this
     }
 
     override fun putStringSet(key: String?, values: MutableSet<String>?) = this
     override fun putInt(key: String?, value: Int) = this
-    override fun putLong(key: String?, value: Long) = this
+    override fun putLong(key: String?, value: Long): SharedPreferences.Editor {
+        if (key != null) pendingLongs[key] = value
+        return this
+    }
     override fun putFloat(key: String?, value: Float) = this
     override fun putBoolean(key: String?, value: Boolean) = this
 }

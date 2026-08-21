@@ -65,6 +65,21 @@ class CardListCacheTest {
     }
 
     @Test
+    fun `an entry written by the version that stored a snapshot object is a miss`() {
+        // 6.21.0 stored a Snapshot object here and let Gson learn the element type from the field's
+        // generic signature. R8 strips that in a release build, so the cards came back as
+        // LinkedTreeMaps and the home screen died casting one. Such an entry has to read as a miss.
+        preferences.edit()
+            .putString(
+                "1:songs:browse:GENRES",
+                "{\"cards\":[{\"type\":\"GENRE\",\"itemId\":\"Hardstyle\",\"title\":\"Hardstyle\"}],\"fetchedAt\":123}"
+            )
+            .commit()
+
+        cache.read("browse:GENRES").`should be null`()
+    }
+
+    @Test
     fun `a snapshot records when it was written`() {
         val before = System.currentTimeMillis()
 

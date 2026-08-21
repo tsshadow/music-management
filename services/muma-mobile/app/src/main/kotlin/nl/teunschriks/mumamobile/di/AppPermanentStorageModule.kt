@@ -6,6 +6,7 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
+import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.AppDatabase
 import nl.teunschriks.mumamobile.data.MIGRATION_1_2
 import nl.teunschriks.mumamobile.data.MIGRATION_2_1
@@ -20,6 +21,7 @@ import nl.teunschriks.mumamobile.data.MIGRATION_6_5
 import nl.teunschriks.mumamobile.data.MIGRATION_6_7
 import nl.teunschriks.mumamobile.data.MIGRATION_7_8
 import nl.teunschriks.mumamobile.data.MIGRATION_8_9
+import nl.teunschriks.mumamobile.home.CardListCache
 import nl.teunschriks.mumamobile.home.FavoritesViewModel
 import nl.teunschriks.mumamobile.home.HomeViewModel
 import nl.teunschriks.mumamobile.home.MemoriesViewModel
@@ -71,6 +73,17 @@ val appPermanentStorage = module {
         RecentActivityStore(
             androidContext().getSharedPreferences(HOME_RECENT_SP_NAME, Context.MODE_PRIVATE)
         )
+    }
+
+    // Shares the home preferences file with the shortcuts history: both are the home screen's
+    // memory of what it last showed.
+    single {
+        CardListCache(
+            androidContext().getSharedPreferences(HOME_RECENT_SP_NAME, Context.MODE_PRIVATE)
+        ) {
+            val mode = if (Settings.isSetsMode) "sets" else "songs"
+            "${ActiveServerProvider.getActiveServerId()}:$mode"
+        }
     }
 
     // Shares the home preferences file: the source and the history it feeds belong together, and

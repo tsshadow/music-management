@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.22.0] - 2026-08-21
+
 ### Fixed
 - **A playlist shows its "Play all" button again, and the player shows the microphone.** The
   microphone rides on the menu the whole app carries, and that menu is laid out before a screen's
@@ -33,6 +35,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   be corrected, is dropped so the next read rebuilds it with the new rating.
 
 ### Added
+- **The search box understands a request.** What you can ask out loud — "speel willekeurig uptempo
+  hardcore uit 2021 af" — got a literal search for the whole sentence when typed, and so found
+  nothing. The same parsing the car and the microphone use now sits behind the search box, with the
+  same answer. A single word is never parsed: those are the overwhelming majority of searches and
+  the least likely to be requests, and a search for the band Editors should not come back as
+  everything tagged "edit". When something is read as a request the app says so, with the plain text
+  search one tap away. There is also a quick-settings tile that opens the voice screen — two swipes
+  from anywhere instead of unlocking, finding the app and waiting. From a locked screen it asks to
+  unlock first, because that screen shows your library and your queue.
+- **The app has a driving screen.** Everything a phone in a cradle needs — what is playing, the
+  transport, a rating, three places you often go, and the microphone — sits on one screen with
+  arm's-length controls. The app notices the car by itself: a head unit, a Bluetooth device you
+  have marked as your car, or a switch in settings. If music is already playing the screen comes to
+  the front; otherwise a notification appears and one tap opens it. That split exists because since
+  Android 14 only calling and alarm apps may raise a screen unasked — without that permission the
+  system turns it into a notification by itself, and one row in settings leads to the system page
+  for anyone who wants it. Dismissing it is final for as long as the car stays connected, and
+  losing the connection closes it. Earbuds never count: which devices are the car is your choice,
+  because the device class lies in both directions.
 - **The app now opens on what it was showing last time instead of on skeletons.** Every cold start
   redrew pulsing placeholders on the home screen and on the browse screens — genres, years, labels,
   festivals, line-ups — while the server was asked again for data that had almost never changed
@@ -81,6 +102,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   those translations were dropped, so every locale now falls back to the MuMa wording. Where the
   old product name survived in a translation — the welcome screen, the crash prompt, the version
   warning — it now reads MuMa.
+
+### Fixed
+- **The app crashed on startup.** 6.21.0 died the moment the home screen drew its first cached
+  card. The new card store let the deserializer learn the list's element type from a field
+  signature, and R8 strips those from classes it was not told to keep, so the cards came back as
+  generic maps. Nothing minifies in a debug build or in the unit suite, which is why every test was
+  green. The store now passes the element type explicitly, exactly as the shortcuts list has done
+  for years, and an entry that cannot be read back as cards counts as a miss. Nothing needs
+  clearing: the entries 6.21.0 wrote are simply overwritten on the next load.
+- **A playlist shows its "Play all" button again, and the player shows the microphone.** The
+  microphone rides on the menu the whole app carries, and that menu is laid out before a screen's
+  own actions are, so on an album or a playlist the microphone took the slot "Play all" needs and
+  pushed the button into the overflow. The microphone now steps back into the overflow itself on
+  the two screens whose own actions need the room — a track collection and the log viewer — and
+  keeps its place in the toolbar everywhere else, the player included, where a queue is exactly
+  where the next request gets spoken.
 
 ## [6.21.1] - 2026-08-21
 

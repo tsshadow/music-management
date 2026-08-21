@@ -451,7 +451,12 @@ def get_playlist_tracks(user_id: int, playlist_id: int, auth: dict=Depends(verif
                 if col == 'genre' and val not in genres:
                     query += ' AND (\n                        EXISTS (SELECT 1 FROM library_track_genres tg JOIN rules_genres rg ON tg.genre_id = rg.id WHERE tg.track_id = t.id AND rg.name = %s)\n                        OR EXISTS (SELECT 1 FROM library_track_ml_labels ml WHERE ml.track_id = t.track_uid AND ml.ml_genre = %s)\n                    )'
                     q_params.extend([val, val])
-            if rating_range:
+            # A range covering the whole scale is the UI's way of saying "no filter", and has to
+            # build no clause at all: rating_tracks arrives by LEFT JOIN, so an unrated track has a
+            # NULL rating and fails every comparison. Comparing against [0, 100] therefore dropped
+            # every unrated track -- 301.340 of 302.561 of them -- and a seeded playlist came back
+            # with a handful of rows instead of 500.
+            if rating_range and not (rating_range[0] <= 0 and rating_range[1] >= 100):
                 query += ' AND (rt.rating >= %s AND rt.rating <= %s)'
                 q_params.extend([rating_range[0], rating_range[1]])
             if song_type == 'track':

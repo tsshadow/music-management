@@ -173,6 +173,26 @@
             app:iconSpaceReserved="false" />
     </PreferenceCategory>
     <PreferenceCategory
+        a:title="@string/car_mode.settings_category"
+        app:iconSpaceReserved="false">
+        <CheckBoxPreference
+            a:defaultValue="false"
+            a:key="@string/setting_key.car_mode_manual"
+            a:summary="@string/car_mode.manual_summary"
+            a:title="@string/car_mode.manual"
+            app:iconSpaceReserved="false" />
+        <MultiSelectListPreference
+            a:key="@string/setting_key.car_mode_devices"
+            a:summary="@string/car_mode.devices_summary"
+            a:title="@string/car_mode.devices"
+            app:iconSpaceReserved="false" />
+        <Preference
+            a:key="car_mode_full_screen"
+            a:summary="@string/car_mode.full_screen_summary"
+            a:title="@string/car_mode.full_screen"
+            app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+    <PreferenceCategory
         a:title="@string/settings.notifications_title"
         app:iconSpaceReserved="false">
         <CheckBoxPreference

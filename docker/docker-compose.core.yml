@@ -2,6 +2,8 @@ version: "3.9"
 
 services:
   db:
+    security_opt:
+      - no-new-privileges:true
     image: mariadb:10.6
     container_name: music-management-db-1
     restart: unless-stopped
@@ -18,6 +20,8 @@ services:
       - music-management_db
 
   phpmyadmin:
+    security_opt:
+      - no-new-privileges:true
     image: phpmyadmin:latest
     container_name: music-management-phpmyadmin-1
     restart: unless-stopped
@@ -33,6 +37,8 @@ services:
 
   # Consolidated Music Manager Service
   music-manager:
+    security_opt:
+      - no-new-privileges:true
     build:
       context: ..
       dockerfile: Dockerfile.music-manager

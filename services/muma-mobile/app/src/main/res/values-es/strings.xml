@@ -442,4 +442,20 @@
         <item quantity="other">%d canciones añadidas a la cola de reproducción</item>
     </plurals>
     <string name="settings.share_options">Opciones</string>
+    <string name="car_mode.title">Modo coche</string>
+    <string name="car_mode.notification_text">Abrir la pantalla de conducción</string>
+    <string name="car_mode.channel_name">Modo coche</string>
+    <string name="car_mode.mix">Mix</string>
+    <string name="car_mode.close">Cerrar modo coche</string>
+    <string name="car_mode.settings_category">Modo coche</string>
+    <string name="car_mode.manual">Modo coche en este viaje</string>
+    <string name="car_mode.manual_summary">Tratar el teléfono como si estuviera en el coche hasta que se desactive</string>
+    <string name="car_mode.devices">Qué dispositivos son mi coche</string>
+    <string name="car_mode.devices_summary">Solo estos dispositivos Bluetooth activan el modo coche. Los auriculares deben quedar sin marcar.</string>
+    <string name="car_mode.full_screen">Abrir automáticamente</string>
+    <string name="car_mode.full_screen_summary">Android solo permite a algunas aplicaciones abrir una pantalla por sí solas. Toca para permitírselo a MuMa.</string>
+    <string name="wizard.step_car_mode_title">Modo coche</string>
+    <string name="wizard.step_car_mode_body">Una pantalla de conducción con controles grandes: lo que suena, los mandos, la valoración, tres sitios que visitas a menudo y el micrófono. MuMa la ofrece sola cuando se conecta el coche: elige qué dispositivos Bluetooth cuentan como coche en Ajustes, Modo coche. Deja los auriculares sin marcar. Este interruptor activa el modo coche sin coche alguno, mientras lo dejes puesto.</string>
+    <string name="search.read_as_request">Interpretado como una petición</string>
+    <string name="search.as_text">Buscar texto</string>
 </resources>

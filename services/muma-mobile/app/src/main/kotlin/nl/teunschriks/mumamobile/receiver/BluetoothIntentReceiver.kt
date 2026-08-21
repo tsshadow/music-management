@@ -17,15 +17,24 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.ActivityCompat
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.car.CarPresence
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.Settings
 import timber.log.Timber
 
 /**
- * Resume or pause playback on Bluetooth A2DP connect/disconnect.
+ * Resume or pause playback on Bluetooth A2DP connect/disconnect, and tell car mode which device
+ * arrived.
  */
-class BluetoothIntentReceiver : BroadcastReceiver() {
+class BluetoothIntentReceiver :
+    BroadcastReceiver(),
+    KoinComponent {
+
+    private val carPresence: CarPresence by inject()
+
     override fun onReceive(context: Context, intent: Intent) {
         val state = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1)
         val device = intent.getBluetoothDevice()
@@ -34,6 +43,16 @@ class BluetoothIntentReceiver : BroadcastReceiver() {
         // Whether to log the name of the bluetooth device
         val name = device.getNameSafely()
         Timber.d("Bluetooth device: $name; State: $state; Action: $action")
+
+        // Car mode rides on this receiver rather than a second one: it already resolves the device
+        // and is already registered for exactly these actions. Two receivers for one broadcast is
+        // two components that can disagree about the same event.
+        when (action) {
+            BluetoothDevice.ACTION_ACL_CONNECTED -> carPresence.onDeviceConnected(device?.address)
+            BluetoothDevice.ACTION_ACL_DISCONNECTED,
+            BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED
+            -> carPresence.onDeviceDisconnected(device?.address)
+        }
 
         // In these flags we store what kind of device (any or a2dp) has (dis)connected
         var connectionStatus = Constants.PREFERENCE_VALUE_DISABLED

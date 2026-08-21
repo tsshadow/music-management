@@ -143,6 +143,19 @@
                 <action android:name="org.moire.ultrasonic.CMD_PROCESS_KEYCODE"/>
             </intent-filter>
         </receiver>
+        <!-- A shortcut to the microphone screen. Users add it from the quick-settings
+             editor themselves; nothing places it on anyone's shade. -->
+        <service
+            android:name=".voice.VoiceTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_menu_microphone"
+            android:label="@string/muma_voice_title"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <receiver android:name=".receiver.BluetoothIntentReceiver"
             android:exported="true">
             <intent-filter>

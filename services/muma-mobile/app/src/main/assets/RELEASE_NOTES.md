@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [6.22.0] - 2026-08-21
+
+### Added
+- **De zoekbalk begrijpt nu ook een verzoek.** Typ je "speel willekeurig uptempo hardcore uit 2021
+  af", dan gebeurt dat, in plaats van een zoektocht naar die hele zin. Eén woord wordt nooit
+  ontleed. Er is ook een tegel voor de snelle instellingen die het spraakscherm opent.
+
 ## [6.21.1] - 2026-08-21
 
 ### Fixed
@@ -8,6 +15,10 @@
 ## [6.21.0] - 2026-08-21
 
 ### Added
+- **Er is een rijstand.** Eén scherm met grote knoppen: wat er speelt, spoelen, sterren geven, drie
+  snelkoppelingen en de microfoon. De app biedt hem aan zodra je auto verbindt, en sluit hem als de
+  verbinding wegvalt. Welke bluetooth-apparaten je auto zijn, kies je in de instellingen — laat je
+  oordopjes daar uitgevinkt.
 - **De app opent meteen op wat er de vorige keer stond.** Het startscherm en de bladerschermen
   lieten bij elke start pulserende vakjes zien terwijl ze de server opnieuw bevroegen om lijsten
   die bijna nooit veranderd waren. Die lijsten worden nu bewaard en direct weer neergezet, met

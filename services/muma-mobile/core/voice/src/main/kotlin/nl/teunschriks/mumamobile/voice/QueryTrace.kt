@@ -19,7 +19,14 @@ object VoiceEntryPoint {
     const val ON_ADD_MEDIA_ITEMS = "onAddMediaItems"
     const val ON_SET_MEDIA_ITEMS = "onSetMediaItems"
     const val MUMA_VOICE = "MumaVoice"
+    /** The voice screen's own field, for trying a request without speaking it. */
     const val TEXT_INPUT = "TextInput"
+
+    /**
+     * The library's search box. Kept apart from [TEXT_INPUT] on purpose: the diagnostics screen
+     * has to be able to tell someone looking for music from someone trying the parser out.
+     */
+    const val SEARCH_BOX = "SearchBox"
 }
 
 /**

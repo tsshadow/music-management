@@ -251,14 +251,16 @@ class ScrobbleEventTest(RouterTestCase):
         payload = {'artist_name': 'Angerfist', 'track_title': 'Raise Your Fist', 'username': 'user'}
         response = self.client.post('/api/scrobble/event', headers=self.headers, json=payload)
         self.assertTrue(response.json()['matched'])
-        self.assertIn('INSERT INTO scrobble_listens', self.statements()[1])
+        # Any statement, not a fixed index: the match ladder runs several
+        # lookups before the insert, and how many depends on which tier hits.
+        self.assertTrue(any('INSERT INTO scrobble_listens' in s for s in self.statements()))
 
     def test_a_listen_for_an_unknown_track_is_parked_as_unmatched(self):
         self.cursor.fetchone.return_value = None
         payload = {'artist_name': 'Nobody', 'track_title': 'Nothing', 'username': 'user'}
         response = self.client.post('/api/scrobble/event', headers=self.headers, json=payload)
         self.assertFalse(response.json()['matched'])
-        self.assertIn('scrobble_unmatched_listens', self.statements()[1])
+        self.assertTrue(any('scrobble_unmatched_listens' in s for s in self.statements()))
 
     def test_a_supplied_timestamp_is_used(self):
         self.cursor.fetchone.return_value = {'id': 42}

@@ -2,6 +2,8 @@ version: "3.9"
 
 services:
   importer_worker:
+    security_opt:
+      - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_IMPORTER}:latest
     container_name: muma-importer-worker
     restart: unless-stopped
@@ -54,6 +56,8 @@ services:
       - music-management_db
 
   youtube_worker:
+    security_opt:
+      - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest
     container_name: muma-youtube-worker
     restart: unless-stopped
@@ -109,6 +113,8 @@ services:
       - music-management_db
 
   soundcloud_worker:
+    security_opt:
+      - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest
     container_name: muma-soundcloud-worker
     restart: unless-stopped
@@ -164,6 +170,8 @@ services:
       - music-management_db
 
   soundcloud_worker_full_once:
+    security_opt:
+      - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest
     container_name: muma-soundcloud-worker-full-once
     # Runs without --repeat, so it exits after one sweep by design. Restarting it
@@ -220,6 +228,8 @@ services:
       - music-management_db
 
   telegram_worker:
+    security_opt:
+      - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_TELEGRAM}:latest
     container_name: muma-telegram-worker
     restart: unless-stopped

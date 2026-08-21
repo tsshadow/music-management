@@ -11,20 +11,31 @@ import android.content.DialogInterface
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener
-import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.SearchRecentSuggestions
 import android.view.View
 import androidx.annotation.StringRes
 import androidx.core.content.FileProvider
 import androidx.navigation.fragment.findNavController
+import android.Manifest
+import android.app.NotificationManager
+import android.bluetooth.BluetoothClass
+import android.bluetooth.BluetoothManager
+import android.content.pm.PackageManager
+import android.net.Uri
+import androidx.core.app.ActivityCompat
 import androidx.preference.CheckBoxPreference
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.Preference
+import androidx.preference.MultiSelectListPreference
 import androidx.preference.PreferenceFragmentCompat
 import java.io.File
 import kotlin.math.ceil
+import nl.teunschriks.mumamobile.car.BondedDevice
+import nl.teunschriks.mumamobile.car.CarPresence
+import nl.teunschriks.mumamobile.car.preTickedCarDevices
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.R
@@ -67,6 +78,7 @@ class SettingsFragment :
     OnSharedPreferenceChangeListener,
     KoinComponent {
     private val activeServerProvider: nl.teunschriks.mumamobile.data.ActiveServerProvider by inject()
+    private val carPresence: CarPresence by inject()
 
     private var style: ListPreference? = null
     private var cacheLocation: Preference? = null
@@ -100,6 +112,8 @@ class SettingsFragment :
         setupClearSearchPreference()
         setupCacheLocationPreference()
         setupBluetoothDevicePreferences()
+        setupCarModeDevices()
+        setupCarModeFullScreen()
         setupMumaSyncPrefs()
     }
 
@@ -133,6 +147,10 @@ class SettingsFragment :
         updatePreferenceSummaries(key)
 
         when (key) {
+            getString(R.string.setting_key_car_mode_manual) -> {
+                // A preference write is not something CarPresence can observe, so it is told.
+                carPresence.refreshManual()
+            }
             getString(R.string.setting_key_hide_media) -> {
                 setHideMedia(sharedPreferences.getBoolean(key, false))
             }
@@ -270,6 +288,80 @@ class SettingsFragment :
                 }
             }
         }
+
+    /**
+     * The bonded devices, with car-class ones pre-ticked.
+     *
+     * Pre-ticked, not auto-selected: plenty of car kits report neither AUDIO_VIDEO_CAR_AUDIO nor
+     * AUDIO_VIDEO_HANDSFREE, and some headsets report the second, so the class is a suggestion and
+     * the stored set is the answer. Once the user has saved a choice it is left alone -- including
+     * an empty one, which is what carModeDevicesChosen exists to remember.
+     */
+    private fun setupCarModeDevices() {
+        val key = getString(R.string.setting_key_car_mode_devices)
+        val preference = findPreference<MultiSelectListPreference>(key) ?: return
+
+        val adapter = requireContext()
+            .getSystemService(BluetoothManager::class.java)
+            ?.adapter
+
+        val allowed = ActivityCompat.checkSelfPermission(
+            requireContext(),
+            Manifest.permission.BLUETOOTH_CONNECT
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (adapter == null || !allowed) {
+            preference.isEnabled = false
+            return
+        }
+
+        val bonded = adapter.bondedDevices.orEmpty().map {
+            BondedDevice(
+                address = it.address,
+                name = it.name,
+                isCarClass = it.bluetoothClass?.deviceClass in CAR_DEVICE_CLASSES
+            )
+        }
+
+        preference.entries = bonded.map { it.name ?: it.address }.toTypedArray()
+        preference.entryValues = bonded.map { it.address }.toTypedArray()
+        preference.values = preTickedCarDevices(
+            bonded = bonded,
+            stored = if (Settings.carModeDevicesChosen) Settings.carModeDevices else null
+        )
+
+        preference.setOnPreferenceChangeListener { _, _ ->
+            Settings.carModeDevicesChosen = true
+            true
+        }
+    }
+
+    /**
+     * The row that asks for permission to raise the screen by itself.
+     *
+     * A row rather than a prompt on connect: a permission dialog while pulling out of a parking
+     * space is the opposite of what car mode is for. Hidden entirely where the platform does not
+     * gate it, or where it is already granted.
+     */
+    private fun setupCarModeFullScreen() {
+        val preference = findPreference<Preference>("car_mode_full_screen") ?: return
+        val manager = requireContext().getSystemService(NotificationManager::class.java)
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
+            manager?.canUseFullScreenIntent() == true
+        ) {
+            preference.isVisible = false
+            return
+        }
+
+        preference.onPreferenceClickListener = Preference.OnPreferenceClickListener {
+            startActivity(
+                Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
+                    .setData(android.net.Uri.parse("package:${requireContext().packageName}"))
+            )
+            true
+        }
+    }
 
     private fun setupBluetoothDevicePreferences() {
         val resumeSetting = Settings.resumeOnBluetoothDevice
@@ -495,6 +587,16 @@ class SettingsFragment :
     }
 
     companion object {
+        /**
+         * A suggestion, never the answer: see [preTickedCarDevices]. Handsfree is included because
+         * most car kits report it, and excluded from meaning anything on its own because some
+         * headsets report it too.
+         */
+        private val CAR_DEVICE_CLASSES = setOf(
+            BluetoothClass.Device.AUDIO_VIDEO_CAR_AUDIO,
+            BluetoothClass.Device.AUDIO_VIDEO_HANDSFREE
+        )
+
         const val RW_FLAG = Intent.FLAG_GRANT_READ_URI_PERMISSION or
             Intent.FLAG_GRANT_WRITE_URI_PERMISSION
         const val PERSISTABLE_FLAG = Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION

@@ -139,6 +139,22 @@ quality:lint:
   script:
     - ./scripts/lint.sh
 
+# Shell scripts. Gates at `error` only -- see scripts/shellcheck.sh for why the
+# floor is not `warning` yet. Deploy, release and test scripts are the ones that
+# break production quietly, and nothing else in the pipeline reads them.
+quality:shellcheck:
+  stage: quality
+  timeout: 10m
+  retry: !reference [.infra_retry, retry]
+  tags: !reference [.fast_runner, tags]
+  rules:
+    - !reference [.release_rule, rules]
+    - changes:
+        - "**/*.sh"
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/shellcheck.sh
+
 # Type checking, rolled out per module. pyproject.toml holds a loose floor for
 # the whole tree plus a list of modules checked strictly; scripts/typecheck.sh
 # runs that list. The list only ever grows -- cleaning a module up means fixing
@@ -190,6 +206,36 @@ security:dependency-audit:
     - when: manual
   script:
     - ./scripts/ci/dependency-audit.sh
+
+# Static analysis. semgrep's curated `p/default` rules over the whole tree.
+#
+# Not allow_failure, unlike security:dependency-audit. That job is allow_failure
+# because a new CVE can appear without anyone pushing, so its result is about
+# the outside world; this one is about the diff in front of it, and a finding
+# here is something the merge request introduced. The tree's existing 232
+# findings are written down in security/accepted-sast-findings.txt with a reason
+# per rule, so this is green today and goes red only on something new -- which
+# is the only way a scanner stays worth reading.
+#
+# It does fetch its rules from semgrep's registry, so a registry outage fails
+# the job. That is the same class of dependency as the container registry every
+# other job already pulls from, and .infra_retry covers a blip.
+security:sast:
+  stage: quality
+  timeout: 15m
+  retry: !reference [.infra_retry, retry]
+  tags: !reference [.fast_runner, tags]
+  rules:
+    - !reference [.release_rule, rules]
+    - changes:
+        - services/**/*
+        - scripts/**/*
+        - tools/**/*
+        - docker/**/*
+        - security/accepted-sast-findings.txt
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/ci/sast.sh
 
 # Committed-credential scan. allow_failure is deliberately absent: unlike the
 # dependency audit, this one does not depend on a third-party service being
@@ -325,6 +371,9 @@ muma-mobile:check:
         - .gitlab-ci.yml
   script:
     - ./scripts/test/muma-mobile-unit.sh
+    # Same job, not a second one: every Android job shares one Gradle home and
+    # would queue behind the same resource group for no gain.
+    - ./scripts/test/muma-mobile-detekt.sh
   coverage: '/Total.*?(\d+(?:\.\d+)?\%)/'
   artifacts:
     when: always
@@ -465,6 +514,30 @@ docker:build-images:
     - ./scripts/ci/build-and-push-images.sh
 
 # --- Browser end-to-end ------------------------------------------------------
+
+# The golden path: a track goes in one end and comes out as a listen at the other.
+# Every other suite proves one component; this is the only one that proves the
+# chain, which is also why it is the slowest thing here.
+#
+# Manual, and staying manual. It builds images and holds a stack for minutes,
+# nothing downstream gates on it, and the runner's resources are not free -- so
+# it runs when someone asks for it rather than on every push.
+#
+# What it does NOT cover: the Android app. The 6.21.0 startup crash
+# (docs/bug-reports/029) existed only in an R8-minified release build, and
+# nothing here can execute one -- the runner LXC has no /dev/kvm, so there is no
+# emulator. That step is the next phase and a resource decision, not a code one.
+e2e:golden-path:
+  stage: e2e
+  timeout: 30m
+  when: manual
+  allow_failure: true
+  retry: !reference [.infra_retry, retry]
+  needs: []
+  rules:
+    - when: manual
+  script:
+    - ./scripts/test/core-e2e.sh
 
 frontend:browser:
   stage: e2e

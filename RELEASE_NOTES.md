@@ -11,6 +11,72 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.23.0 (2026-08-21)
+
+### Added
+- **Er is een eerste echte keten-test.** Alle bestaande tests bewijzen één onderdeel: dat LMS
+  antwoordt in de vorm die de server verwacht, dat de database de query slikt, dat een functie doet
+  wat hij belooft. Geen ervan bewijst dat een bestand dat op schijf verschijnt uiteindelijk een
+  beluisterd nummer wordt. `e2e:golden-path` doet dat wel: hij zet de teststack op, legt er een
+  nummer in, laat het scannen, zoekt het op via dezelfde Subsonic-route die de telefoon gebruikt,
+  registreert een luisterbeurt en leest die weer terug. Handmatig te starten en dat blijft zo — hij
+  bouwt images en houdt een stack minutenlang bezig, en niets wacht op zijn uitkomst.
+- **De zoekbalk in de Android-app begrijpt nu ook een verzoek.** Wat je hardop kunt vragen —
+  "speel willekeurig uptempo hardcore uit 2021 af" — leverde getypt een letterlijke zoektocht naar
+  die hele zin op, en dus niets. Dezelfde ontleding die de auto en de microfoon gebruiken staat nu
+  ook achter de zoekbalk, met dezelfde uitkomst. Eén woord wordt nooit ontleed: dat is verreweg de
+  meeste zoekopdrachten en het minst waarschijnlijk een verzoek, en een zoektocht naar de band
+  Editors hoort geen "alles met edit" op te leveren. Wordt er wél iets als verzoek gelezen, dan zegt
+  de app dat, met een knop ernaast om alsnog op tekst te zoeken. En er is een tegel voor de snelle
+  instellingen die het spraakscherm opent: twee vegen vanaf waar je ook bent, in plaats van
+  ontgrendelen, app zoeken en wachten. Vanaf een vergrendeld scherm vraagt hij eerst om ontgrendelen.
+
+### Changed
+- **De statische analyse van de Android-code draaide nergens.** detekt zat al in de build, maar
+  alleen achter een vlag die geen enkele taak meezond — dus faalde er nooit iets en merkte niemand
+  het. Hij draait nu mee in de Android-controle. De vierenzeventig bevindingen die er al stonden
+  zijn per module vastgelegd in een baseline in plaats van in één ruk gerepareerd: een controle die
+  rood is op de dag dat je hem aanzet leert iedereen hem te negeren. Nieuwe bevindingen laten de
+  taak wel vallen. De enige bevinding in code van vandaag is verholpen in plaats van vastgelegd.
+- **De API accepteert niet langer verzoeken vanaf elke website.** Hij stond open voor iedere
+  herkomst, met elke methode en elke header. Dat is op zichzelf geen manier om langs de
+  authenticatie te komen — een browser stuurt niets mee en een aanroeper heeft de sleutel al nodig
+  — maar het liet wel elke pagina die je opent de onbeveiligde eindpunten binnen dit netwerk
+  uitlezen. Voortaan geldt een lijst, in te stellen met `MUMA_CORS_ORIGINS`; staat die niet
+  ingesteld, dan blijven alleen de ontwikkelaanroepen over. De webinterface wordt door de
+  LMS-server uitgeserveerd en praat dus met dezelfde herkomst, en de Android-app is geen browser,
+  dus die merken er niets van. Blijkt er tóch een browserclient te zijn die het nodig heeft, dan
+  zet `MUMA_CORS_ORIGINS=*` het oude gedrag terug zonder nieuwe uitrol.
+- **Containers kunnen zichzelf geen extra rechten meer geven.** Alle zesenveertig services in de
+  compose-bestanden draaien nu met `no-new-privileges`, wat een proces binnen een container belet
+  via een setuid-programma meer te mogen dan het kreeg. Het kan niets breken dat nu werkt. Dat de
+  containers als root en met een schrijfbaar bestandssysteem draaien blijft staan als vastgelegd
+  openstaand punt: dat valt pas bij een uitrol om, en niet te testen zonder productie.
+- **Afhankelijkheden wachten voortaan drie dagen voor ze worden voorgesteld.** Een versie die
+  minuten geleden is gepubliceerd kan alsnog worden ingetrokken of besmet blijken, en dit project
+  voegt een aantal ervan automatisch samen. Beveiligingswaarschuwingen wachten niet, en `yt-dlp`
+  ook niet: achterlopen op dat pakket is precies wat downloaden stukmaakt. Tegelijk zijn de
+  GitHub-workflows van de Android-app verwijderd — die kwamen mee uit het Ultrasonic-verleden,
+  draaiden nergens, want dit is een GitLab-repo zonder GitHub-remote.
+- **De pijplijn scant de code nu ook op bekende kwetsbare patronen.** `security:sast` draait
+  semgrep over de hele boom. De tweehonderdtweeëndertig meldingen die er vandaag al staan zijn
+  stuk voor stuk beoordeeld en vastgelegd in `security/accepted-sast-findings.txt`, met per regel
+  de reden waarom ze blijven staan — de taak is daardoor groen vandaag en wordt alleen rood van
+  iets nieuws, wat de enige manier is waarop een scanner gelezen blijft worden. Een tweede
+  identieke regel op dezelfde plek telt als nieuw: "dat doen we elders ook al" dekt geen nieuwe
+  code. Onder de beoordeelde meldingen zitten geen gelekte sleutels; wel drie punten die blijven
+  staan als openstaand werk, namelijk dat de API elke herkomst toelaat (`allow_origins=['*']`),
+  dat de containers als root en met een schrijfbaar bestandssysteem draaien, en dat de
+  Android-app nog dode GitHub-CI-bestanden uit het Ultrasonic-verleden meedraagt.
+- **De pijplijn controleert nu ook de shellscripts.** Drieënzestig scripts sturen het uitrollen,
+  het taggen en elke testronde aan, en geen enkele taak keek er ooit naar — een fout erin bleek pas
+  op het moment dat een uitrol hem uitvoerde. `quality:shellcheck` draait er shellcheck overheen bij
+  elke wijziging aan een `.sh`-bestand. De lat ligt voorlopig op fouten, niet op waarschuwingen: er
+  staan er tweeëndertig van de tweede soort open, en een controle die rood is op de dag dat je hem
+  toevoegt leert iedereen hem te negeren. De ene echte fout die er stond is meteen verholpen — het
+  installatiescript van de Android-app vergeleek een lijst met apps als één samengeplakte tekst,
+  waardoor een naam die toevallig in een andere naam zat als geldig doorging.
+
 ## Global Version 0.22.1 (2026-08-21)
 
 ### Fixed
@@ -22,10 +88,45 @@ This project is now modularized. Detailed release notes for each module can be f
   verkleind. De opslag geeft het type nu expliciet mee, precies zoals de al jaren werkende
   snelkoppelingenlijst dat doet, en een bewaarde regel die niet als kaart te lezen is telt als
   ontbrekend. Wie 6.21.0 draaide hoeft niets te wissen: de oude regels worden vanzelf overschreven.
+- **Twee derde van je luistergeschiedenis was onvindbaar voor de rest van MuMa.** Een beluisterd
+  nummer werd aan een track gekoppeld door de artiestnaam en de titel letterlijk te vergelijken.
+  Op 16.830 gekoppelde luisterbeurten stonden er 35.761 in een tabel die niemand meer las, en het
+  verlies zit vrijwel helemaal in geïmporteerde geschiedenis: wat live uit LMS binnenkomt verliest
+  zes procent, de ListenBrainz-import drieënzeventig. Dezelfde muziek, andere spelling. Er is nu
+  een ladder van vier stappen — letterlijk, genormaliseerd, zonder remix-achtervoegsel, en als
+  laatste een gelijkenisdrempel — en per koppeling wordt vastgelegd welke stap hem maakte en hoe
+  zeker die was. Elke stap is los uit te zetten en wat een stap koppelde is met één opdracht terug
+  te draaien, want de laatste twee kunnen een luisterbeurt aan de verkeerde track hangen. Een
+  achtergrondtaak probeert de overgebleven rijen periodiek opnieuw, met een oplopend wachtvenster,
+  zodat een nieuwe download een luisterbeurt uit 2019 alsnog kan koppelen zonder dat de taak elke
+  ronde dezelfde kansloze rijen doorploegt.
+- **De geanalyseerde audiokenmerken hoorden bij niets wat je ooit gedraaid hebt.** Er staan
+  90.107 rijen met tempo en klankkenmerken in de database, en elke functie die erop leunt las nul
+  procent dekking — het zag eruit alsof de analyzer nooit gelopen had. De sleutel bleek iets anders
+  te zijn dan waarvoor hij werd aangezien: de kenmerkentabel is gesleuteld op een hash van het
+  bestandspad, terwijl de lezers hem vergeleken met de track-identificatie van de scanner. Dat matcht
+  vrijwel nooit. Dat sommige rijen tóch aansloten hield het verborgen: de analyzer maakt zelf
+  tracks aan waarvan de identificatie wél die pad-hash is, en juist díe tracks speelt niemand af.
+  De lezers gebruiken nu de echte verwijzing, en een migratie herstelt die verwijzing voor de
+  bestaande rijen langs beide routes die nog oplossen — ook waar er een verkeerde waarde stond, wat
+  het oude migratiescript liet liggen omdat het alleen lege waarden vulde.
+
+
 
 ## Global Version 0.22.0 (2026-08-21)
 
 ### Added
+- **De Android-app heeft een rijstand.** Alles wat de telefoon in een houder moet kunnen — wat er
+  speelt, spoelen, waarderen, drie plekken waar je vaak heen gaat, en de microfoon — staat op één
+  scherm met knoppen op armlengte. De app merkt de auto zelf op: een head unit, een
+  bluetooth-apparaat dat jij als auto hebt aangevinkt, of een schakelaar in de instellingen.
+  Speelt er al muziek, dan komt het scherm naar voren; anders krijg je een melding die je aantikt.
+  Dat onderscheid is er omdat Android sinds versie 14 alleen bel- en wekker-apps ongevraagd een
+  scherm laat openen — waar dat recht ontbreekt wordt het vanzelf een melding, en één regel in de
+  instellingen brengt je naar de systeempagina als je het toch wilt. Wegdrukken is definitief
+  zolang de auto verbonden blijft, en zodra die verbinding wegvalt sluit de rijstand zichzelf.
+  Oordopjes tellen nooit mee: welke apparaten je auto zijn kies je zelf, want de apparaatklasse
+  liegt beide kanten op.
 - **De Android-app opent meteen op wat er de vorige keer stond.** Het startscherm en de
   bladerschermen — genres, jaren, labels, festivals, line-ups — lieten bij elke start pulserende
   vakjes zien terwijl ze de server opnieuw bevroegen om lijsten die sinds de vorige keer bijna
@@ -35,6 +136,14 @@ This project is now modularized. Detailed release notes for each module can be f
   Mislukt het verversen, dan blijven de kaarten staan en stopt de balk.
 
 ### Fixed
+- **Een dynamische afspeellijst kwam bijna leeg terug.** Een lijst als "Hardstyle" die om 500
+  nummers vroeg leverde er een handvol, wat eruitzag alsof de bibliotheek gewoon weinig hardstyle
+  bevatte. De waarderingsfilter stond echter altijd in de query, ook op zijn standaardwaarde 0 tot
+  100 — bedoeld als "geen filter". Waarderingen komen binnen via een LEFT JOIN, dus een nummer
+  zonder waardering heeft er geen, en niets is nooit groter dan nul: daarmee viel elk ongewaardeerd
+  nummer af. Dat zijn er 301.340 van de 302.561. Een bereik dat de hele schaal beslaat bouwt nu geen
+  filter meer op; vraag je wel om vier sterren en hoger, dan blijven ongewaardeerde nummers er
+  gewoon buiten.
 - **Sterren geven in de auto werkt weer.** Bij een nummer dat al sterren had deed de knop na een
   paar minuten niets meer: de app las de sterren dan terug uit een kopie die niet meebewoog, kwam op
   hetzelfde getal uit als bij de vorige tik en stuurde niets meer door. Stond een nummer op vijf

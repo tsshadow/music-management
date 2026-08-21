@@ -199,6 +199,50 @@ class DynamicPlaylistTest(UsersEndpointTestCase):
         self.assertEqual(response.json(), {'status': 'ok'})
         self.assertEqual(self.statements(), [])
 
+
+class DynamicPlaylistTracksTest(UsersEndpointTestCase):
+    """The rating filter on a seeded playlist.
+
+    ``rating_tracks`` arrives by LEFT JOIN, so an unrated track has a NULL rating
+    and fails every comparison. A range covering the whole scale is the UI's way
+    of saying "no filter", and has to build no clause at all -- comparing against
+    it drops every unrated track, which in this library is almost all of them.
+    """
+
+    def playlist(self, params):
+        self.cursor.fetchone.side_effect = [
+            {'username': 'user'},
+            {'params': json.dumps(params)},
+        ]
+        self.cursor.fetchall.return_value = []
+        self.client.get('/api/users/4/dynamic-playlists/1/tracks', headers=self.headers)
+        return [s for s in self.statements() if 'FROM library_tracks' in s][0]
+
+    def test_the_full_range_builds_no_rating_clause(self):
+        query = self.playlist({'genres': ['Hardstyle'], 'rating_range': [0, 100]})
+
+        self.assertNotIn('rt.rating >=', query)
+
+    def test_a_missing_rating_range_builds_no_rating_clause(self):
+        query = self.playlist({'genres': ['Hardstyle']})
+
+        self.assertNotIn('rt.rating >=', query)
+
+    def test_a_real_lower_bound_still_filters(self):
+        query = self.playlist({'genres': ['Hardstyle'], 'rating_range': [4, 100]})
+
+        self.assertIn('rt.rating >=', query)
+
+    def test_a_real_upper_bound_still_filters(self):
+        query = self.playlist({'genres': ['Hardstyle'], 'rating_range': [0, 60]})
+
+        self.assertIn('rt.rating >=', query)
+
+    def test_a_wider_than_full_range_is_still_no_filter(self):
+        query = self.playlist({'genres': ['Hardstyle'], 'rating_range': [-1, 200]})
+
+        self.assertNotIn('rt.rating >=', query)
+
     def test_a_playlist_can_be_deleted(self):
         response = self.client.delete('/api/users/4/dynamic-playlists/1', headers=self.headers)
         self.assertEqual(response.json(), {'status': 'ok'})

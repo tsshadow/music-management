@@ -232,6 +232,33 @@ object Settings {
         Constants.PREFERENCE_VALUE_A2DP
     )
 
+    /** The manual "I am in the car" switch, one of the three inputs to CarPresence. */
+    @JvmStatic
+    var carModeManual by BooleanSetting(
+        getKey(R.string.setting_key_car_mode_manual),
+        false
+    )
+
+    /**
+     * Bluetooth addresses the user has marked as their car.
+     *
+     * Deliberately a stored choice rather than a device-class check: plenty of car kits report
+     * neither AUDIO_VIDEO_CAR_AUDIO nor AUDIO_VIDEO_HANDSFREE, and some headsets report the second.
+     * Guessing is how earbuds start car mode.
+     */
+    @JvmStatic
+    var carModeDevices by StringSetSetting(
+        getKey(R.string.setting_key_car_mode_devices),
+        emptySet()
+    )
+
+    /** Set once the user has seen the device list, so an empty choice is not re-filled. */
+    @JvmStatic
+    var carModeDevicesChosen by BooleanSetting(
+        getKey(R.string.setting_key_car_mode_devices_chosen),
+        false
+    )
+
     @JvmStatic
     var showNowPlaying
         by BooleanSetting(getKey(R.string.setting_key_show_now_playing), true)

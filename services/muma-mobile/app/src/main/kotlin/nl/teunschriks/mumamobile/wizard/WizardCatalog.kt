@@ -130,5 +130,19 @@ fun wizardCatalog(context: Context): List<WizardStep> = listOf(
         // A user id and an API key: two free-text credentials. Retyping a key inside a carousel
         // is worse than landing on the fields that own it.
         control = WizardControl.Jump(R.id.settingsFragment)
+    ),
+    WizardStep(
+        id = "car_mode",
+        titleRes = R.string.wizard_step_car_mode_title,
+        bodyRes = R.string.wizard_step_car_mode_body,
+        imageRes = null,
+        introducedIn = 281,
+        // The switch, not the device list: there is no multi-select control here, and inventing
+        // one to carry a list of Bluetooth addresses through a carousel is worse than a body that
+        // says where the list lives.
+        control = WizardControl.Toggle(
+            prefKey = context.getString(R.string.setting_key_car_mode_manual),
+            default = false
+        )
     )
 )

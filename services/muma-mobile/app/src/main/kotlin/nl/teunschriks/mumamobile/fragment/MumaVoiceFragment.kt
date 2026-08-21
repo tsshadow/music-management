@@ -42,6 +42,7 @@ import nl.teunschriks.mumamobile.voice.SpeechCapture
 import nl.teunschriks.mumamobile.voice.Target
 import nl.teunschriks.mumamobile.voice.VoiceEntryPoint
 import nl.teunschriks.mumamobile.voice.VoiceQuery
+import nl.teunschriks.mumamobile.voice.VoiceRequest
 import nl.teunschriks.mumamobile.voice.VoiceTraceLog
 import org.koin.android.ext.android.inject
 import org.koin.androidx.scope.ScopeFragment
@@ -201,18 +202,8 @@ class MumaVoiceFragment : ScopeFragment() {
         clearQuestion()
         status?.setText(R.string.muma_voice_working)
 
-        val trace = QueryTrace(entryPoint, "app")
-        heardWith.forEach { trace.hypothesis(it.text, it.confidence) }
-
         lifecycleScope.launch {
-            val resolution = withContext(Dispatchers.IO) {
-                runCatching { resolver().resolveFirst(readings, trace) }.getOrElse {
-                    Timber.w(it, "voice query failed")
-                    trace.outcome("failed: ${it.javaClass.simpleName}")
-                    QueryResolution.NoMatch(it.javaClass.simpleName, trace)
-                }
-            }
-            VoiceTraceLog.record(trace)
+            val resolution = VoiceRequest.resolveSpoken(readings, entryPoint, heardWith)
             act(resolution, readings.firstOrNull().orEmpty())
         }
     }

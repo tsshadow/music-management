@@ -86,6 +86,7 @@ import nl.teunschriks.mumamobile.car.CarModeIntent
 import nl.teunschriks.mumamobile.car.CarModeNotifier
 import nl.teunschriks.mumamobile.car.CarModeSession
 import nl.teunschriks.mumamobile.car.CarPresence
+import nl.teunschriks.mumamobile.voice.VoiceTileService
 import nl.teunschriks.mumamobile.fragment.SetupWizardFragment
 import nl.teunschriks.mumamobile.management.ManagementRepository
 import nl.teunschriks.mumamobile.model.ServerSettingsModel
@@ -216,6 +217,10 @@ class NavigationActivity : ScopeActivity() {
 
         if (intent.getBooleanExtra(CarModeNotifier.EXTRA_OPEN_CAR_MODE, false)) {
             navController.navigate(R.id.carModeFragment)
+        }
+
+        if (intent.getBooleanExtra(VoiceTileService.EXTRA_OPEN_VOICE, false)) {
+            navController.navigate(R.id.mumaVoiceFragment)
         }
 
         setupActionBar(navController, appBarConfiguration)
@@ -478,6 +483,10 @@ class NavigationActivity : ScopeActivity() {
         // reused and the extra arrives here rather than in onCreate.
         if (intent.getBooleanExtra(CarModeNotifier.EXTRA_OPEN_CAR_MODE, false)) {
             findNavController(R.id.nav_host_fragment).navigate(R.id.carModeFragment)
+        }
+
+        if (intent.getBooleanExtra(VoiceTileService.EXTRA_OPEN_VOICE, false)) {
+            findNavController(R.id.nav_host_fragment).navigate(R.id.mumaVoiceFragment)
         }
 
         when (intent.action) {

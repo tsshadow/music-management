@@ -43,8 +43,19 @@ import nl.teunschriks.mumamobile.util.ContextMenuUtil.handleContextMenu
 import nl.teunschriks.mumamobile.util.ContextMenuUtil.handleContextMenuTracks
 import nl.teunschriks.mumamobile.util.RefreshableFragment
 import nl.teunschriks.mumamobile.util.Util
+import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Util.toast
 import nl.teunschriks.mumamobile.util.toastingExceptionHandler
+import nl.teunschriks.mumamobile.voice.SearchIntent
+import nl.teunschriks.mumamobile.voice.VoiceRequest
+import nl.teunschriks.mumamobile.voice.searchIntentFor
+import nl.teunschriks.mumamobile.voice.QueryResolution
+import nl.teunschriks.mumamobile.voice.Target
+import nl.teunschriks.mumamobile.voice.VoiceEntryPoint
+import nl.teunschriks.mumamobile.NavigationGraphDirections
+import androidx.navigation.fragment.findNavController
+import com.google.android.material.snackbar.Snackbar
+import com.google.gson.Gson
 
 /**
  * Initiates a search on the media library and displays the results
@@ -128,7 +139,58 @@ class SearchFragment :
         super.onDestroyView()
     }
 
+    /**
+     * A typed sentence is answered the way a spoken one would be; anything else is searched for.
+     *
+     * The split is [searchIntentFor]'s, and the result is never silent: a request that resolves
+     * says what it understood and offers the plain search next to it. A parser that quietly
+     * reinterprets what someone typed is worse than no parser -- a search for the band Editors
+     * coming back as everything tagged "edit", with no explanation, is indistinguishable from a
+     * broken search box.
+     */
     private fun search(query: String, shouldAutoplay: Boolean) {
+        when (val intent = searchIntentFor(query)) {
+            null -> Unit
+            is SearchIntent.FreeText -> freeTextSearch(intent.query, shouldAutoplay)
+            is SearchIntent.Request -> requestSearch(intent.query, shouldAutoplay)
+        }
+    }
+
+    private fun requestSearch(query: String, shouldAutoplay: Boolean) {
+        listModel.viewModelScope.launch(toastingExceptionHandler()) {
+            swipeRefresh?.isRefreshing = true
+            val resolution = VoiceRequest.resolveSpoken(listOf(query), VoiceEntryPoint.SEARCH_BOX)
+            swipeRefresh?.isRefreshing = false
+
+            val target = (resolution as? QueryResolution.Resolved)?.target as? Target.Filtered
+            if (target == null) {
+                // Ambiguous counts as a miss here on purpose: the search box has nowhere to put a
+                // follow-up question, and the plain search is a better answer than an interrogation.
+                freeTextSearch(query, shouldAutoplay)
+                return@launch
+            }
+
+            showUnderstood(query, shouldAutoplay)
+            findNavController().navigate(
+                NavigationGraphDirections.toTrackCollection(
+                    songs = query,
+                    filters = Gson().toJson(target.filters.sanitized()),
+                    size = Settings.genreTrackLimit,
+                    sortMethod = target.sortMethod
+                )
+            )
+        }
+    }
+
+    /** Says what the request was read as, and offers the plain search instead. */
+    private fun showUnderstood(query: String, shouldAutoplay: Boolean) {
+        val root = view ?: return
+        Snackbar.make(root, getString(R.string.search_read_as_request), Snackbar.LENGTH_LONG)
+            .setAction(R.string.search_as_text) { freeTextSearch(query, shouldAutoplay) }
+            .show()
+    }
+
+    private fun freeTextSearch(query: String, shouldAutoplay: Boolean) {
         listModel.viewModelScope.launch(
             toastingExceptionHandler()
         ) {

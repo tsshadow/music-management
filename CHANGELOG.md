@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **De zoekbalk in de Android-app begrijpt nu ook een verzoek.** Wat je hardop kunt vragen —
+  "speel willekeurig uptempo hardcore uit 2021 af" — leverde getypt een letterlijke zoektocht naar
+  die hele zin op, en dus niets. Dezelfde ontleding die de auto en de microfoon gebruiken staat nu
+  ook achter de zoekbalk, met dezelfde uitkomst. Eén woord wordt nooit ontleed: dat is verreweg de
+  meeste zoekopdrachten en het minst waarschijnlijk een verzoek, en een zoektocht naar de band
+  Editors hoort geen "alles met edit" op te leveren. Wordt er wél iets als verzoek gelezen, dan zegt
+  de app dat, met een knop ernaast om alsnog op tekst te zoeken. En er is een tegel voor de snelle
+  instellingen die het spraakscherm opent: twee vegen vanaf waar je ook bent, in plaats van
+  ontgrendelen, app zoeken en wachten. Vanaf een vergrendeld scherm vraagt hij eerst om ontgrendelen.
+
 ### Changed
 - **De API accepteert niet langer verzoeken vanaf elke website.** Hij stond open voor iedere
   herkomst, met elke methode en elke header. Dat is op zichzelf geen manier om langs de

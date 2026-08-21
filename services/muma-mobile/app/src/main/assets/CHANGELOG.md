@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **The search box understands a request.** What you can ask out loud — "speel willekeurig uptempo
+  hardcore uit 2021 af" — got a literal search for the whole sentence when typed, and so found
+  nothing. The same parsing the car and the microphone use now sits behind the search box, with the
+  same answer. A single word is never parsed: those are the overwhelming majority of searches and
+  the least likely to be requests, and a search for the band Editors should not come back as
+  everything tagged "edit". When something is read as a request the app says so, with the plain text
+  search one tap away. There is also a quick-settings tile that opens the voice screen — two swipes
+  from anywhere instead of unlocking, finding the app and waiting. From a locked screen it asks to
+  unlock first, because that screen shows your library and your queue.
 - **The app has a driving screen.** Everything a phone in a cradle needs — what is playing, the
   transport, a rating, three places you often go, and the microphone — sits on one screen with
   arm's-length controls. The app notices the car by itself: a head unit, a Bluetooth device you

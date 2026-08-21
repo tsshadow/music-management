@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **A setup wizard that opens after an update and shows you what it changed.** Sixty-two settings
+  live on one scrolling screen, and nothing on it says which of them arrived last week. The wizard
+  walks nine of them one at a time — server, style, app icon, interface size, memories on the home
+  screen, offline storage, downloading on Wi-Fi only, the now playing bar and MuMa sync —
+  each with an explanation and the control itself, so a setting can be changed where it is
+  explained. Settings introduced since the version you were on are marked New and come first, which
+  makes an update run short. It is also in the overflow menu at any time, and an update that adds no
+  settings still shows the changelog as before.
+
 ## [6.18.0] - 2026-08-20
 
 ### Fixed

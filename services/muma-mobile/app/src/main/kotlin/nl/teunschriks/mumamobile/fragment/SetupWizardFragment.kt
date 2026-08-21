@@ -12,6 +12,7 @@ import com.google.android.material.button.MaterialButton
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.wizard.SharedWizardPreferences
 import nl.teunschriks.mumamobile.wizard.WizardPagerAdapter
+import nl.teunschriks.mumamobile.wizard.applyWizardSideEffect
 import nl.teunschriks.mumamobile.wizard.chromeFor
 import nl.teunschriks.mumamobile.wizard.plan
 import nl.teunschriks.mumamobile.wizard.wizardCatalog
@@ -41,6 +42,8 @@ class SetupWizardFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        FragmentTitle.setTitle(this, R.string.wizard_title)
+
         val lastSeen = arguments?.getInt(ARG_LAST_SEEN_VERSION, Int.MAX_VALUE) ?: Int.MAX_VALUE
         val steps = plan(wizardCatalog(requireContext()), lastSeen)
 
@@ -52,6 +55,7 @@ class SetupWizardFragment : Fragment() {
         pager.adapter = WizardPagerAdapter(
             steps = steps,
             prefs = SharedWizardPreferences(requireContext()),
+            onWritten = { key -> applyWizardSideEffect(requireContext(), key) },
             onJump = { destination -> findNavController().navigate(destination) }
         )
 

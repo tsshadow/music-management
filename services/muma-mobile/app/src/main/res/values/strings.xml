@@ -780,8 +780,8 @@
     <string name="wizard.step_wifi_download_title">Download on Wi-Fi only</string>
     <string name="wizard.step_wifi_download_body">Keeps downloads off your mobile data. Streaming is unaffected — this only holds back downloads until you are on Wi-Fi.</string>
 
-    <string name="wizard.step_now_playing_title">Now playing notification</string>
-    <string name="wizard.step_now_playing_body">The playback controls in your notification shade and on your lock screen.</string>
+    <string name="wizard.step_now_playing_title">Now playing bar</string>
+    <string name="wizard.step_now_playing_body">The strip along the bottom of the app showing what is playing, with play, pause and skip on it. Tap it to open the full player. Turning it off hides the strip; playback and the notification are unaffected.</string>
 
     <string name="wizard.step_muma_sync_title">MuMa sync</string>
     <string name="wizard.step_muma_sync_body">Links this phone to your MuMa account so ratings and listens end up on the server. Needs your user id and API key.</string>

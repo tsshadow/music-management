@@ -19,3 +19,16 @@ fun updateEntryFor(
     if (hasNewSteps || previous < wizardIntroducedIn) return UpdateEntry.WIZARD
     return UpdateEntry.CHANGELOG
 }
+
+/**
+ * Whether a start should write the current version code into the stamp.
+ *
+ * True on a first run and on a real update, so [updateEntryFor] answers the same question only
+ * once. Never on a downgrade: sideloading an older build must not lower the stamp, or
+ * re-installing the newer one would replay an update the user has already been shown.
+ *
+ * Note that the welcome branch in NavigationActivity deliberately does *not* use this. It stamps
+ * only when nothing is stored at all, because it is also reached by an existing user whose session
+ * expired, and stamping there would swallow that release's wizard.
+ */
+fun shouldStampVersion(previous: Int, current: Int): Boolean = previous == 0 || previous < current

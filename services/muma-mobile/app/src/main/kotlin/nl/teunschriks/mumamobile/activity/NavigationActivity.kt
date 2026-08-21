@@ -103,6 +103,7 @@ import nl.teunschriks.mumamobile.util.themeColor
 import nl.teunschriks.mumamobile.wizard.UpdateEntry
 import nl.teunschriks.mumamobile.wizard.WIZARD_INTRODUCED_IN
 import nl.teunschriks.mumamobile.wizard.plan
+import nl.teunschriks.mumamobile.wizard.shouldStampVersion
 import nl.teunschriks.mumamobile.wizard.updateEntryFor
 import nl.teunschriks.mumamobile.wizard.wizardCatalog
 import timber.log.Timber
@@ -218,9 +219,14 @@ class NavigationActivity : ScopeActivity() {
         // This is a first run with only the demo entry inside the database
         // We set the active server to the demo one and show the welcome dialog
         if (showWelcomeScreen && !UApp.instance!!.setupDialogDisplayed) {
-            // A fresh install: the welcome flow owns this path. Stamp the version anyway, so the
-            // next update compares against this release and not against zero.
-            Util.markVersionSeen(this)
+            // This branch is not only a fresh install: logOut() blanks the password on any auth
+            // failure, so a session that expired around an update lands here too. Stamping
+            // unconditionally would swallow that release's wizard and changelog for an existing
+            // user - the next start would see previous == current and show nothing. Only a
+            // genuine first run (nothing stored at all) is stamped, which is all the stamp was
+            // for: so a real fresh install's next update compares against this release rather
+            // than against zero.
+            if (Util.previousSeenVersion() == 0) Util.markVersionSeen(this)
             showWelcomeDialog()
         } else {
             openUpdateEntry()
@@ -555,9 +561,7 @@ class NavigationActivity : ScopeActivity() {
         val current = Util.getVersionCode(this)
         val hasNewSteps = plan(wizardCatalog(this), previous).any { it.isNew }
 
-        // Same guard as Util.isVersionUpdate: stamp on a first run and on a real update, never on
-        // a downgrade, where lowering the stamp would replay an update the user already saw.
-        if (previous == 0 || previous < current) Util.markVersionSeen(this)
+        if (shouldStampVersion(previous, current)) Util.markVersionSeen(this)
 
         when (updateEntryFor(previous, current, hasNewSteps, WIZARD_INTRODUCED_IN)) {
             UpdateEntry.NOTHING -> Unit

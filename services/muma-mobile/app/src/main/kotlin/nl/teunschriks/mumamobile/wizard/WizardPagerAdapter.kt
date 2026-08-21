@@ -14,10 +14,15 @@ import nl.teunschriks.mumamobile.R
 /**
  * One page per step. A Choice opens a single-choice dialog instead of using a Spinner: a dialog
  * inherits the active style without a per-style widget style, and a Spinner does not.
+ *
+ * [onWritten] is called with the preference key after every write, because storing a value is not
+ * always the whole change - see [applyWizardSideEffect], which is what production passes here. It
+ * defaults to doing nothing so a test that only cares about the stored value can leave it out.
  */
 class WizardPagerAdapter(
     private val steps: List<PlannedStep>,
     private val prefs: WizardPreferences,
+    private val onWritten: (String) -> Unit = {},
     private val onJump: (Int) -> Unit
 ) : RecyclerView.Adapter<WizardPagerAdapter.StepHolder>() {
 
@@ -72,6 +77,7 @@ class WizardPagerAdapter(
         holder.toggle.isChecked = prefs.getBoolean(control.prefKey, control.default)
         holder.toggle.setOnCheckedChangeListener { _, checked ->
             prefs.putBoolean(control.prefKey, checked)
+            onWritten(control.prefKey)
         }
     }
 
@@ -99,6 +105,8 @@ class WizardPagerAdapter(
                     prefs.putString(control.prefKey, values[which])
                     holder.choice.text = entries[which]
                     dialog.dismiss()
+                    // Last: a style or scale write recreates the activity from under this view.
+                    onWritten(control.prefKey)
                 }
                 .show()
         }

@@ -54,9 +54,10 @@ class WizardPagerAdapterTest {
     private fun bind(
         planned: PlannedStep,
         prefs: WizardPreferences = FakePrefs(),
+        onWritten: (String) -> Unit = {},
         onJump: (Int) -> Unit = {}
     ): android.view.View {
-        val adapter = WizardPagerAdapter(listOf(planned), prefs, onJump)
+        val adapter = WizardPagerAdapter(listOf(planned), prefs, onWritten, onJump)
         val parent = FrameLayout(context)
         val holder = adapter.onCreateViewHolder(parent, 0)
         adapter.onBindViewHolder(holder, 0)
@@ -182,6 +183,57 @@ class WizardPagerAdapterTest {
         )
 
         assertEquals(entries[0], view.findViewById<MaterialButton>(R.id.wizard_choice).text.toString())
+    }
+
+    @Test
+    fun `a toggle reports the key it wrote`() {
+        // Storing the value is not always the whole change - see WizardSideEffects. The adapter
+        // has to name the key it just wrote so the caller can carry the rest of it out.
+        val written = mutableListOf<String>()
+
+        val view = bind(
+            step(WizardControl.Toggle("someFlag", default = false)),
+            onWritten = { written.add(it) }
+        )
+        view.findViewById<MaterialSwitch>(R.id.wizard_toggle).isChecked = true
+
+        assertEquals(listOf("someFlag"), written)
+    }
+
+    @Test
+    fun `a choice reports the key it wrote`() {
+        val written = mutableListOf<String>()
+        val values = context.resources.getStringArray(R.array.styleValues)
+
+        val view = bind(
+            step(
+                WizardControl.Choice(
+                    prefKey = "styleKey",
+                    entriesRes = R.array.styleNames,
+                    valuesRes = R.array.styleValues,
+                    default = values[0]
+                )
+            ),
+            onWritten = { written.add(it) }
+        )
+
+        view.findViewById<MaterialButton>(R.id.wizard_choice).performClick()
+        val dialog = ShadowDialog.getLatestDialog() as androidx.appcompat.app.AlertDialog
+        val listView = dialog.listView
+        listView.performItemClick(null, 1, listView.adapter.getItemId(1))
+
+        assertEquals(listOf("styleKey"), written)
+    }
+
+    @Test
+    fun `merely binding a step reports nothing`() {
+        // Restoring the stored value into the control must not look like a write, or every swipe
+        // through the wizard would recreate the activity.
+        val written = mutableListOf<String>()
+
+        bind(step(WizardControl.Toggle("someFlag", default = true)), onWritten = { written.add(it) })
+
+        assertEquals(emptyList<String>(), written)
     }
 
     @Test

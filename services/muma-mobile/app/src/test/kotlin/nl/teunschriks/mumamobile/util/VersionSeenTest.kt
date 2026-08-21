@@ -2,8 +2,6 @@ package nl.teunschriks.mumamobile.util
 
 import android.content.Context
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -13,6 +11,9 @@ import org.robolectric.annotation.Config
 /**
  * The wizard decides what is new by comparing against the version the user last saw, so that
  * value has to survive being read. It used to be overwritten by the same call that reported it.
+ *
+ * The decision that guard feeds - whether a start stamps at all - lives in
+ * `wizard.shouldStampVersion` and is covered by UpdateEntryDecisionTest.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = nl.teunschriks.mumamobile.app.UApp::class)
@@ -35,39 +36,5 @@ class VersionSeenTest {
         Util.markVersionSeen(context)
 
         assertEquals(Util.getVersionCode(context), Settings.lastSeenVersion)
-    }
-
-    @Test
-    fun `isVersionUpdate is true when the stored version is older`() {
-        Settings.lastSeenVersion = 1
-
-        assertTrue(Util.isVersionUpdate(context))
-        assertEquals(Util.getVersionCode(context), Settings.lastSeenVersion)
-    }
-
-    @Test
-    fun `isVersionUpdate is false on a first run and stamps the version`() {
-        Settings.lastSeenVersion = 0
-
-        assertFalse(Util.isVersionUpdate(context))
-        assertEquals(Util.getVersionCode(context), Settings.lastSeenVersion)
-    }
-
-    @Test
-    fun `isVersionUpdate is false when the stored version is current`() {
-        Settings.lastSeenVersion = Util.getVersionCode(context)
-
-        assertFalse(Util.isVersionUpdate(context))
-    }
-
-    @Test
-    fun `a downgrade leaves the stored version alone`() {
-        // Sideloading an older build must not lower the stamp: re-installing the newer one would
-        // then replay an update the user has already been shown.
-        val ahead = Util.getVersionCode(context) + 10
-        Settings.lastSeenVersion = ahead
-
-        assertFalse(Util.isVersionUpdate(context))
-        assertEquals(ahead, Settings.lastSeenVersion)
     }
 }

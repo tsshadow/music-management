@@ -6,8 +6,15 @@ import nl.teunschriks.mumamobile.R
 /**
  * The version code of the release that introduced the wizard. A device coming from anything older
  * has never seen the wizard, so it gets one full run with nothing badged.
+ *
+ * This has to be the versionCode of the release that *ships* the wizard, which is not the
+ * versionCode sitting in app/build.gradle while the branch is being written: the release
+ * convention bumps that in the same commit that dates the changelog section, so a branch cut on
+ * 278 ships as 279. Setting it to the in-progress number makes the guard below read
+ * `previous < 278` for a user coming from 278, which is false, and the wizard never opens on the
+ * one release where every step is old news and the guard is the only thing that can open it.
  */
-const val WIZARD_INTRODUCED_IN = 278
+const val WIZARD_INTRODUCED_IN = 279
 
 /**
  * The steps, in the order a first-time run walks them.

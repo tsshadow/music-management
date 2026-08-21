@@ -1,10 +1,12 @@
 package nl.teunschriks.mumamobile.wizard
 
 import android.content.Context
+import androidx.preference.ListPreference
 import androidx.preference.PreferenceGroup
 import androidx.preference.PreferenceManager
 import androidx.preference.PreferenceScreen
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,11 +26,13 @@ class WizardCatalogTest {
 
     private val context: Context = RuntimeEnvironment.getApplication()
 
-    private fun settingsKeys(): Set<String> {
+    private fun settingsPreferences(): List<androidx.preference.Preference> {
         val manager = PreferenceManager(context)
         val screen: PreferenceScreen = manager.inflateFromResource(context, R.xml.settings, null)
-        return flatten(screen).mapNotNull { it.key }.toSet()
+        return flatten(screen)
     }
+
+    private fun settingsKeys(): Set<String> = settingsPreferences().mapNotNull { it.key }.toSet()
 
     private fun flatten(group: PreferenceGroup): List<androidx.preference.Preference> =
         (0 until group.preferenceCount).flatMap {
@@ -50,6 +54,43 @@ class WizardCatalogTest {
 
         val missing = written.filterNot { keys.contains(it) }
         assertEquals("Keys absent from res/xml/settings.xml", emptyList<String>(), missing)
+    }
+
+    @Test
+    fun `every choice offers exactly what the settings screen offers`() {
+        // The key existing is not enough: a Choice also carries the options and the default, and
+        // if those drift from the ListPreference the wizard can write a value the settings screen
+        // will not display, or show the wrong option as selected on an untouched install.
+        val listPreferences = settingsPreferences()
+            .filterIsInstance<ListPreference>()
+            .associateBy { it.key }
+
+        wizardCatalog(context).forEach { step ->
+            val control = step.control
+            if (control !is WizardControl.Choice) return@forEach
+
+            val preference = listPreferences[control.prefKey]
+            assertNotNull("${step.id}: no ListPreference for ${control.prefKey}", preference)
+            preference!!
+
+            assertEquals(
+                "${step.id}: entries differ from res/xml/settings.xml",
+                preference.entries.map { it.toString() },
+                context.resources.getStringArray(control.entriesRes).toList()
+            )
+            assertEquals(
+                "${step.id}: values differ from res/xml/settings.xml",
+                preference.entryValues.map { it.toString() },
+                context.resources.getStringArray(control.valuesRes).toList()
+            )
+            // Nothing is stored yet in this test's preference store, so a freshly inflated
+            // ListPreference holds the defaultValue from settings.xml verbatim.
+            assertEquals(
+                "${step.id}: default differs from res/xml/settings.xml",
+                preference.value,
+                control.default
+            )
+        }
     }
 
     @Test

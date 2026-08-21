@@ -12,6 +12,11 @@
 # "SDK location not found" before running a single test. It now runs in the same
 # image CI uses, which has the SDK baked in, and forwards its arguments to
 # Gradle so a single test class can be run without building the whole report.
+#
+# The task list mirrors what muma-mobile:check gates on (scripts/test/muma-mobile-unit.sh),
+# minus the coverage report: :core:voice has its own tests and they are not reached by
+# :app:testDebugUnitTest, so leaving it out let a red core:voice pass locally. Any forwarded
+# --tests filter binds to the last task named, which is why :app comes second.
 
 set -e
 
@@ -33,4 +38,4 @@ docker run --rm \
     -e SIGNING_KEY_ALIAS=dummy \
     -e SIGNING_KEY_PASSWORD=dummy \
     "$ANDROID_CI_IMAGE" \
-    /bin/bash -c '. /etc/android-sdk-root && export ANDROID_SDK_ROOT && ./gradlew :app:testDebugUnitTest "$@"' _ "$@"
+    /bin/bash -c '. /etc/android-sdk-root && export ANDROID_SDK_ROOT && ./gradlew :core:voice:test :app:testDebugUnitTest "$@"' _ "$@"

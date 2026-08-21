@@ -80,9 +80,13 @@ class WizardPagerAdapter(
         val entries = context.resources.getStringArray(control.entriesRes)
         val values = context.resources.getStringArray(control.valuesRes)
 
+        // The stored value can age out of the array - a release edits the options and a device
+        // still carries the old one. Fall back to the default's label, and only to the first
+        // entry if even that has gone; never to the raw value, which is a key or a number.
         fun label(): String {
-            val index = values.indexOf(prefs.getString(control.prefKey, control.default))
-            return if (index >= 0) entries[index] else control.default
+            val stored = prefs.getString(control.prefKey, control.default)
+            val index = values.indexOf(stored).takeIf { it >= 0 } ?: values.indexOf(control.default)
+            return entries.getOrElse(index) { entries.firstOrNull() ?: control.default }
         }
 
         holder.choice.visibility = View.VISIBLE

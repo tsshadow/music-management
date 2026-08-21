@@ -13,6 +13,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowDialog
 import nl.teunschriks.mumamobile.R
 
 /**
@@ -127,5 +128,106 @@ class WizardPagerAdapterTest {
 
         assertEquals(android.view.View.GONE, plain.findViewById<android.view.View>(R.id.wizard_new_badge).visibility)
         assertEquals(android.view.View.VISIBLE, fresh.findViewById<android.view.View>(R.id.wizard_new_badge).visibility)
+    }
+
+    @Test
+    fun `picking an option writes it under the step's key`() {
+        val prefs = FakePrefs()
+        val values = context.resources.getStringArray(R.array.styleValues)
+        val entries = context.resources.getStringArray(R.array.styleNames)
+
+        val view = bind(
+            step(
+                WizardControl.Choice(
+                    prefKey = "styleKey",
+                    entriesRes = R.array.styleNames,
+                    valuesRes = R.array.styleValues,
+                    default = values[0]
+                )
+            ),
+            prefs
+        )
+        val button = view.findViewById<MaterialButton>(R.id.wizard_choice)
+
+        button.performClick()
+        // androidx.appcompat.app.AlertDialog does not extend the framework android.app.AlertDialog
+        // that ShadowAlertDialog targets, so ShadowAlertDialog.getLatestAlertDialog() never sees it
+        // (confirmed: it returns null and clickOnItem NPEs). ShadowDialog tracks every shown Dialog
+        // subclass generically, and AlertDialog exposes its real ListView, so drive the click
+        // through that instead - same effect, still the real click listener.
+        val dialog = ShadowDialog.getLatestDialog() as androidx.appcompat.app.AlertDialog
+        val listView = dialog.listView
+        listView.performItemClick(null, 1, listView.adapter.getItemId(1))
+
+        assertEquals(values[1], prefs.strings["styleKey"])
+        assertEquals(entries[1], button.text.toString())
+    }
+
+    @Test
+    fun `a stored value that is no longer an option falls back to a label`() {
+        val prefs = FakePrefs().apply { strings["styleKey"] = "a-value-from-an-older-release" }
+        val values = context.resources.getStringArray(R.array.styleValues)
+        val entries = context.resources.getStringArray(R.array.styleNames)
+
+        val view = bind(
+            step(
+                WizardControl.Choice(
+                    prefKey = "styleKey",
+                    entriesRes = R.array.styleNames,
+                    valuesRes = R.array.styleValues,
+                    default = values[0]
+                )
+            ),
+            prefs
+        )
+
+        assertEquals(entries[0], view.findViewById<MaterialButton>(R.id.wizard_choice).text.toString())
+    }
+
+    @Test
+    fun `a rebound holder writes to the new step, not the old one`() {
+        // The switch carries the previous step's listener until it is cleared. If the clear were
+        // dropped, setting the checked state below would write the second step's answer into the
+        // first step's key.
+        val prefs = FakePrefs()
+        val adapter = WizardPagerAdapter(
+            listOf(
+                step(WizardControl.Toggle("first", default = false)),
+                step(WizardControl.Toggle("second", default = false))
+            ),
+            prefs
+        ) {}
+        val holder = adapter.onCreateViewHolder(FrameLayout(context), 0)
+
+        adapter.onBindViewHolder(holder, 0)
+        adapter.onBindViewHolder(holder, 1)
+        holder.itemView.findViewById<MaterialSwitch>(R.id.wizard_toggle).isChecked = true
+
+        assertEquals(true, prefs.booleans["second"])
+        assertEquals(null, prefs.booleans["first"])
+    }
+
+    @Test
+    fun `a rebound holder hides the control the previous step used`() {
+        val adapter = WizardPagerAdapter(
+            listOf(
+                step(WizardControl.Toggle("a", default = false)),
+                step(WizardControl.Jump(R.id.settingsFragment))
+            ),
+            FakePrefs()
+        ) {}
+        val holder = adapter.onCreateViewHolder(FrameLayout(context), 0)
+
+        adapter.onBindViewHolder(holder, 0)
+        adapter.onBindViewHolder(holder, 1)
+
+        assertEquals(
+            android.view.View.GONE,
+            holder.itemView.findViewById<android.view.View>(R.id.wizard_toggle).visibility
+        )
+        assertEquals(
+            android.view.View.VISIBLE,
+            holder.itemView.findViewById<android.view.View>(R.id.wizard_jump).visibility
+        )
     }
 }

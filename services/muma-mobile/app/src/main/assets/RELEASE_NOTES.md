@@ -7,6 +7,15 @@
   een dun streepje onder de kop zolang de nieuwe versie onderweg is. Aantikken kan meteen, en
   zonder verbinding blijft gewoon staan wat je de vorige keer zag.
 
+### Fixed
+- **Sterren geven in de auto werkt weer.** Bij een nummer dat al sterren had deed de knop na een
+  paar minuten niets meer: de app las de sterren dan terug uit een kopie die niet meebewoog, kwam op
+  hetzelfde getal uit als bij de vorige tik en stuurde niets meer door. Stond een nummer op vijf
+  sterren, dan sprong het daardoor terug naar geen.
+- **Een gegeven waardering blijft nu overal staan.** Wat je in de auto of in een lijst waardeerde
+  ging wel naar de server, maar werd in de app zelf nergens bijgewerkt. Kwam je later terug bij het
+  nummer, dan stond de oude waardering er weer, alsof hij was gewist.
+
 ## [6.20.1] - 2026-08-21
 
 ### Changed

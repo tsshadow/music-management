@@ -80,6 +80,7 @@ import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.ServerSetting
 import nl.teunschriks.mumamobile.diagnostics.CrashReportManager
+import nl.teunschriks.mumamobile.car.CarConnectionWatcher
 import nl.teunschriks.mumamobile.fragment.SetupWizardFragment
 import nl.teunschriks.mumamobile.management.ManagementRepository
 import nl.teunschriks.mumamobile.model.ServerSettingsModel
@@ -138,6 +139,7 @@ class NavigationActivity : ScopeActivity() {
     private val activeServerProvider: ActiveServerProvider by inject()
     private val subsonicAPIClient: SubsonicAPIClient by inject()
     private val managementRepository: ManagementRepository by inject()
+    private val carConnectionWatcher: CarConnectionWatcher by inject()
 
     private var currentFragmentId: Int = 0
 
@@ -167,6 +169,10 @@ class NavigationActivity : ScopeActivity() {
         }
 
         super.onCreate(savedInstanceState)
+
+        // Started here rather than lazily from a screen: presence has to be known before any
+        // screen is up, since being told about the car is the point.
+        carConnectionWatcher.start()
 
         volumeControlStream = AudioManager.STREAM_MUSIC
         setContentView(R.layout.navigation_activity)

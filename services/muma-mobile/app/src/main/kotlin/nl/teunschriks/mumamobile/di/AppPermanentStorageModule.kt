@@ -21,6 +21,9 @@ import nl.teunschriks.mumamobile.data.MIGRATION_6_5
 import nl.teunschriks.mumamobile.data.MIGRATION_6_7
 import nl.teunschriks.mumamobile.data.MIGRATION_7_8
 import nl.teunschriks.mumamobile.data.MIGRATION_8_9
+import nl.teunschriks.mumamobile.car.CarConnectionWatcher
+import nl.teunschriks.mumamobile.car.CarModeSession
+import nl.teunschriks.mumamobile.car.CarPresence
 import nl.teunschriks.mumamobile.home.CardListCache
 import nl.teunschriks.mumamobile.home.FavoritesViewModel
 import nl.teunschriks.mumamobile.home.HomeViewModel
@@ -33,6 +36,7 @@ import nl.teunschriks.mumamobile.management.ManagementViewModel
 import nl.teunschriks.mumamobile.model.AlbumListModel
 import nl.teunschriks.mumamobile.model.ArtistListModel
 import nl.teunschriks.mumamobile.model.ServerSettingsModel
+import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.util.Settings
 
 const val SP_NAME = "Default_SP"
@@ -85,6 +89,17 @@ val appPermanentStorage = module {
             "${ActiveServerProvider.getActiveServerId()}:$mode"
         }
     }
+
+    single {
+        CarPresence(
+            carDevices = { Settings.carModeDevices },
+            manual = { Settings.carModeManual }
+        )
+    }
+
+    single { CarModeSession(isPlaying = { get<MediaPlayerManager>().isPlaying }) }
+
+    single { CarConnectionWatcher(androidContext(), get()) }
 
     // Shares the home preferences file: the source and the history it feeds belong together, and
     // both have to outlive the process for a queue restored on startup to still be attributable.

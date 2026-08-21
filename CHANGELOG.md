@@ -19,22 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `app/src/main/res/drawable-nodpi` te zetten, en `docs/manual-screenshots.md` vertelt welke
   opname waar hoort.
 
-### Fixed
-- **Een uitrol die stukliep meldde zichzelf als geslaagd.** De laatste stap van de uitrol
-  vroeg de productieserver netjes welke containers er draaiden, drukte dat af, en keek er
-  vervolgens niet naar: `docker ps` eindigt succesvol, ook als het een container laat zien die
-  elke seconde opnieuw crasht, en ook als het helemaal niets laat zien. Elke storing van het
-  afgelopen halfjaar zag er daardoor uit als een groene uitrol. Die stap controleert nu echt:
-  geen container in een herstartlus of met een falende gezondheidscontrole, en `/health` moet
-  binnen drie minuten antwoorden met status ok én met de versie die zojuist is uitgerold. De
-  container die één keer draait en daarna bewust stopt wordt herkend aan zijn herstartbeleid en
-  niet langer als storing geteld.
-- **Een release kon een merkteken krijgen zonder ooit uitgerold te zijn.** 0.19.0 stond een dag
-  lang getagd op master terwijl productie op 0.18.2 bleef staan: de uitrol was *overgeslagen*,
-  en een overgeslagen taak houdt niets tegen. Voor het taggen wordt nu aan productie zelf
-  gevraagd welke versie er draait, en komt die niet overeen, dan gebeurt er niets.
-
 ### Changed
+- **Het Over-scherm verwijst niet meer naar sites die er niet meer bij horen.** "Website openen"
+  en "Bug melden" stuurden je de app uit naar adressen die niets met deze installatie te maken
+  hebben; beide knoppen zijn weg, zodat alleen bijwerken, de wijzigingslijst en het logboek
+  overblijven. Dezelfde opruiming liep door de rest van de tekst: de vertaalde Over-tekst
+  beschreef in negen talen nog het oude Ultrasonic-product en de bijbehorende Subsonic-servers,
+  en is vervangen door de Nederlandse en Engelse MuMa-tekst die er al stond. Waar de oude
+  productnaam nog in een vertaling stond — het welkomstscherm, de crashmelding, de
+  versiewaarschuwing — staat nu MuMa. In het beheerscherm heet de app bij de sleuteluitleg
+  voortaan MuMa Mobile, en het bijdragedocument van de app wijst naar de eigen issuetracker in
+  plaats van naar het opgeheven Ultrasonic-project.
 - **Een wijziging aan een Dockerfile draaide geen enkele taak.** Zes van de zeven images werden
   pas voor het eerst gebouwd op een release-tak, minuten voor de uitrol — de duurste plek om
   te ontdekken dat er iets niet compileert. Een merge request die een Dockerfile raakt bouwt ze
@@ -50,6 +45,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dekkingsrapporten van de frontend- en servertests worden ook bewaard als die test faalt,
   precies de keer dat je ze wil lezen; en de foutopsporingsregels die elke Python-testronde
   begonnen met hostnaam, IP-adres en gebruikersnaam zijn weg.
+
+### Fixed
+- **Een uitrol die stukliep meldde zichzelf als geslaagd.** De laatste stap van de uitrol
+  vroeg de productieserver netjes welke containers er draaiden, drukte dat af, en keek er
+  vervolgens niet naar: `docker ps` eindigt succesvol, ook als het een container laat zien die
+  elke seconde opnieuw crasht, en ook als het helemaal niets laat zien. Elke storing van het
+  afgelopen halfjaar zag er daardoor uit als een groene uitrol. Die stap controleert nu echt:
+  geen container in een herstartlus of met een falende gezondheidscontrole, en `/health` moet
+  binnen drie minuten antwoorden met status ok én met de versie die zojuist is uitgerold. De
+  container die één keer draait en daarna bewust stopt wordt herkend aan zijn herstartbeleid en
+  niet langer als storing geteld.
+- **Een release kon een merkteken krijgen zonder ooit uitgerold te zijn.** 0.19.0 stond een dag
+  lang getagd op master terwijl productie op 0.18.2 bleef staan: de uitrol was *overgeslagen*,
+  en een overgeslagen taak houdt niets tegen. Voor het taggen wordt nu aan productie zelf
+  gevraagd welke versie er draait, en komt die niet overeen, dan gebeurt er niets.
 
 ## [0.20.0] - 2026-08-21
 

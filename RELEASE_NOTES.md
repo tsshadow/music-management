@@ -11,6 +11,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+### 🧹 Het Over-scherm wijst niet meer naar vreemde sites
+- "Website openen" en "Bug melden" stuurden je naar adressen die niets met deze installatie te
+  maken hebben. Beide knoppen zijn weg; bijwerken, de wijzigingslijst en het logboek blijven.
+- De vertaalde Over-tekst beschreef in negen talen nog het oude Ultrasonic-product en de
+  Subsonic-servers waarvoor dat gemaakt was. Die vertalingen vallen nu terug op de MuMa-tekst.
+- Waar de oude productnaam nog in een vertaling opdook — welkomstscherm, crashmelding,
+  versiewaarschuwing — staat nu MuMa, en in het beheerscherm heet de app MuMa Mobile.
+
 ## Global Version 0.20.0 (2026-08-21)
 
 ### 📻 Het nieuws van het uur, ook onderweg

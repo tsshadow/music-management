@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   learn it, a button straight to the screen being described. The screenshots ship as placeholders
   and are replaced by dropping a PNG over the file of the same name in
   `app/src/main/res/drawable-nodpi`; `docs/manual-screenshots.md` says which shot goes where.
+  Each placeholder names on the picture itself what belongs there, and carries a marker that
+  `scripts/manual-screenshot-status.sh` greps for, so which chapters are still waiting for a real
+  capture is a question the repository answers rather than a list anyone keeps by hand.
+
+### Changed
+- **The About screen no longer points at sites that have nothing to do with this install.**
+  "Visit webpage" and "Report a bug" opened addresses unrelated to this deployment; both buttons
+  are gone, leaving update, changelog and log viewer. The translated About text still described
+  the old Ultrasonic product and the Subsonic servers it was written for in nine languages —
+  those translations were dropped, so every locale now falls back to the MuMa wording. Where the
+  old product name survived in a translation — the welcome screen, the crash prompt, the version
+  warning — it now reads MuMa.
 
 ## [6.18.0] - 2026-08-20
 

@@ -11,6 +11,16 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+### Changed
+- **De pijplijn controleert nu ook de shellscripts.** Drieënzestig scripts sturen het uitrollen,
+  het taggen en elke testronde aan, en geen enkele taak keek er ooit naar — een fout erin bleek pas
+  op het moment dat een uitrol hem uitvoerde. `quality:shellcheck` draait er shellcheck overheen bij
+  elke wijziging aan een `.sh`-bestand. De lat ligt voorlopig op fouten, niet op waarschuwingen: er
+  staan er tweeëndertig van de tweede soort open, en een controle die rood is op de dag dat je hem
+  toevoegt leert iedereen hem te negeren. De ene echte fout die er stond is meteen verholpen — het
+  installatiescript van de Android-app vergeleek een lijst met apps als één samengeplakte tekst,
+  waardoor een naam die toevallig in een andere naam zat als geldig doorging.
+
 ## Global Version 0.22.0 (2026-08-21)
 
 ### Added

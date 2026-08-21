@@ -57,8 +57,17 @@ for i in "$@"; do
             ;;
         --app=*)
             DEFAULT_APP="${i#*=}"
-            # Validate app
-            if [[ ! " ${AVAILABLE_APPS[@]} " =~ " ${DEFAULT_APP} " ]]; then
+            # Validate app. A loop rather than a substring test on the joined array: the
+            # concatenation is implicit inside [[ ]] (SC2199), and a substring match would
+            # accept any name that happens to sit inside another one.
+            app_is_known=0
+            for app in "${AVAILABLE_APPS[@]}"; do
+                if [[ "$app" == "$DEFAULT_APP" ]]; then
+                    app_is_known=1
+                    break
+                fi
+            done
+            if [[ "$app_is_known" -eq 0 ]]; then
                 echo "Error: Application '$DEFAULT_APP' not found."
                 echo "Available: ${AVAILABLE_APPS[*]}"
                 exit 1

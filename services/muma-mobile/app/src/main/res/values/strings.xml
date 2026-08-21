@@ -748,4 +748,153 @@
     <string name="voice_diagnostics_clear">Clear</string>
     <string name="voice.title">Voice commands</string>
     <string name="voice.text"><![CDATA[Ask the Assistant in the car, or use the voice search of the app. Everything below can be combined in one sentence.\n\n<b>A genre</b>\nPlay genre hardstyle\nPlay uptempo hardcore\nPlay drum and bass livesets\n\n<b>An artist</b>\nPlay music by headhunterz\nPlay artist brennan heart\n\n<b>A label</b>\nPlay label art of creation\n\n<b>A year</b>\nPlay hardstyle from 2021\nPlay headhunterz from 2020\n\n<b>An order</b>\nPlay random hardcore\nPlay recent\nPlay recently added\n\n<b>Your favourites</b>\nPlay favourites\nPlay favourites by headhunterz\nPlay favourites from 2021\n\n<b>All of it at once</b>\nPlay random favourites from 2023\nPlay random uptempo hardcore from 2021\n\n<b>Later in the queue</b>\nPlay project one next\nPlay dragonborn after this\n\n<b>An album, a playlist or a title</b>\nPlay album thunderdome\nPlay the playlist zomer\nPlay the track dragonborn\n\n<b>A rating</b>\nPlay hardstyle with at least 4 stars\n\n<b>More than one of a kind</b>\nPlay hardstyle en hardcore\nPlay hardstyle from 2020 en 2021\n\nA name has to be one the library knows. What it cannot place is dropped and the rest of the request still plays; when it can place nothing at all, the ordinary search takes over and looks for the title.\n\nThe microphone in the toolbar opens MuMa Voice, which understands all of the above and can ask which one you meant when a name fits several things. About > Voice diagnostics shows exactly what every request did.]]></string>
+    <!-- The in-app manual. Bodies are CDATA and rendered through HtmlCompat, so the markup
+         below is what the reader sees. -->
+    <string name="menu.help">Help</string>
+    <string name="manual.intro">Every part of MuMa, in the order you meet them. Tap a chapter to open it, tap a screenshot to enlarge it.</string>
+    <string name="manual.screenshot_description">Screenshot of the screen this chapter describes</string>
+
+    <string name="manual.action_servers">Open servers</string>
+    <string name="manual.action_voice_commands">See every voice command</string>
+    <string name="manual.action_downloads">Open downloads</string>
+    <string name="manual.action_settings">Open settings</string>
+    <string name="manual.action_about">Open About</string>
+    <string name="manual.action_diagnostics">Open voice diagnostics</string>
+
+    <string name="manual.chapter_start_title">Setting up and signing in</string>
+    <string name="manual.chapter_start_body"><![CDATA[MuMa plays from your own server, so the first thing it needs is which one.
+
+<b>Servers</b>
+The overflow menu (the three dots, top right) has <b>Servers</b>. Add one with its address, your user name and your password. You may keep several and switch between them from that same screen.
+
+<b>Signing in with Google</b>
+Without an account yet, ask for access with your Google account. The request lands with the administrator and you are in as soon as it is approved.
+
+<b>Offline</b>
+Picking the offline entry in the server list stops MuMa from talking to the server at all. Only what you downloaded plays, and nothing is looked up while you are away from a network.]]></string>
+
+    <string name="manual.chapter_home_title">The home screen</string>
+    <string name="manual.chapter_home_body"><![CDATA[The first tab of the bottom bar. It is a stack of rows, each answering a different question.
+
+<b>Memories</b>
+A moment out of your own listening history: what you were playing around this time, a year or more ago.
+
+<b>Recently played</b>
+A way back to where you were. It records the <i>place</i> you played from, so a track you started from a genre takes you back to that genre and not to whichever album it happened to sit on.
+
+<b>Recently released</b> and <b>Recently added</b>
+The newest music, by release date and by the date it arrived on the server.
+
+<b>The Sets switch</b>
+The switch in the toolbar shows up on this screen only. Off, the home screen is about songs; on, it is about sets: livesets, festival recordings and long mixes. The accent colour changes with it, so you can see at a glance which of the two you are in.]]></string>
+
+    <string name="manual.chapter_library_title">The library</string>
+    <string name="manual.chapter_library_body"><![CDATA[The second tab of the bottom bar. One strip of tabs, each a different way into the same music: <b>Playlists</b>, <b>Genres</b>, <b>Labels</b>, <b>Artists</b>, <b>Albums</b>, <b>Years</b>, <b>Festivals</b>, <b>Podcasts</b>, <b>Lineups</b>, <b>Ratings</b>, <b>Saved</b> and <b>Memories</b>. Swipe sideways or tap a tab to move between them.
+
+The bar above the list narrows and orders what is under it: by name, by year, by rating, by how often you played it, or shuffled. The button on the right switches between a list and a grid.
+
+Hold a row for what you can do with it: play it now, play it next, add it to the queue, download it, or put it in a playlist.]]></string>
+
+    <string name="manual.chapter_favorites_title">Favourites and ratings</string>
+    <string name="manual.chapter_favorites_body"><![CDATA[The star tab of the bottom bar collects what you marked: starred albums, starred artists and your highest rated tracks.
+
+<b>The stars</b>
+Every track carries a rating from zero to five stars. Set it from the player, from the row itself, or from the star button on the car controls, which cycles through the scale. What you rate anywhere shows up everywhere: the rating goes to the server, not only to this phone.
+
+How you read the middle of the scale is up to you. The one thing fixed everywhere is that five is the top, and a five star track counts as a favourite. A low rating is a label and nothing more, never a reason for MuMa to remove anything.
+
+The rating drives more than the star tab: the Ratings tab in the library, the sort orders, and spoken requests such as <i>play hardstyle with at least 4 stars</i> all read it.]]></string>
+
+    <string name="manual.chapter_search_title">Searching</string>
+    <string name="manual.chapter_search_body"><![CDATA[The magnifying glass in the toolbar searches artists, albums and tracks in one go. Results come back grouped per kind, with <b>Show more</b> under a group that has more than fits.
+
+A search is a starting point, not a dead end: hold a result for the same menu the library rows have, or tap it to open what is behind it.
+
+For anything longer than a name, the microphone next to it is the faster way in. See the MuMa Voice chapter.]]></string>
+
+    <string name="manual.chapter_player_title">Playing and the queue</string>
+    <string name="manual.chapter_player_body"><![CDATA[Tap a track to play it. The bar at the bottom of the screen is what is playing now; tap it to open the full player, or swipe it away to stop.
+
+<b>The queue</b>
+Playing something replaces the queue; <b>Play next</b> and <b>Add to queue</b> from the hold menu put it after the current track instead. The list button in the player toolbar switches between the artwork and the queue, where you can drag rows into another order.
+
+<b>The track itself</b>
+Tap the title block in the player for everything about the playing track: its album, its artist, its rating.
+
+<b>The rest of the player menu</b>
+Save the queue as a playlist, share it, clear it, keep the screen on, or open the <b>equalizer</b>.]]></string>
+
+    <string name="manual.chapter_voice_title">MuMa Voice</string>
+    <string name="manual.chapter_voice_body"><![CDATA[The microphone in the toolbar opens MuMa Voice. Tap it and say what you want to hear.
+
+It takes a good deal more than a title: a genre, an artist, a label, a year, an order, your favourites and a minimum rating, and any combination of those in one sentence. <i>Play random uptempo hardcore from 2021.</i> When a name fits several things at once it asks which one you meant, rather than guessing.
+
+What it cannot place is dropped and the rest of the request still plays. The same parser runs behind the Assistant and behind the car, so a sentence that works here works there.
+
+The button below lists every wording it knows.]]></string>
+
+    <string name="manual.chapter_car_title">In the car</string>
+    <string name="manual.chapter_car_body"><![CDATA[MuMa is an Android Auto app. Plug in the phone and it shows up between the other media apps.
+
+<b>The car home</b>
+A set of tiles, split into songs and livesets: random, recent, starred, search and a tile per genre. They come from the server, so the tiles you see in the car are the ones your library actually has music for.
+
+<b>Radio and news</b>
+A radio folder sits next to the music, and the news button on the controls plays the bulletin of the hour and then puts your music back where it was, to the second.
+
+<b>Rating while driving</b>
+The star button on the controls steps the rating of the playing track through the scale, so the library keeps learning while both hands stay on the wheel.
+
+<b>Talking to it</b>
+The search button inside MuMa runs the same voice parser the app uses. Everything in the MuMa Voice chapter applies here too.]]></string>
+
+    <string name="manual.chapter_offline_title">Downloads and offline</string>
+    <string name="manual.chapter_offline_body"><![CDATA[Anything you hold can be pinned, and a pinned track is kept on the phone until you unpin it.
+
+<b>Downloads</b>
+The overflow menu has <b>Downloads</b>: what is on the phone, what is still coming in, and how much room it takes.
+
+<b>Two kinds of local file</b>
+What you pin stays. What MuMa cached while playing is fair game for the cache limit in the settings, which throws the oldest out once the cache is full.
+
+<b>Going offline</b>
+Pick the offline entry in the server list and MuMa stops asking the server anything at all. The library shrinks to what is on the phone and playback keeps working with no signal.]]></string>
+
+    <string name="manual.chapter_settings_title">Settings</string>
+    <string name="manual.chapter_settings_body"><![CDATA[The overflow menu has <b>Settings</b>, grouped per subject.
+
+<b>Appearance</b>
+The style of the app: <i>Spotify</i>, dark and card shaped, or <i>MuMa</i>, flatter and quieter. Every colour, corner and row treatment moves with it.
+
+<b>Playback</b>
+What the buttons on a headset do, what happens on a Bluetooth connect, how gapless and crossfade behave.
+
+<b>Network and cache</b>
+How much MuMa may keep on the phone, whether it may use mobile data, and at what quality it streams.
+
+<b>Search, notifications, sharing, MuMa sync</b>
+How many results a search brings back, what the notification shows, how a share link is built, and what is synchronised back to the server.]]></string>
+
+    <string name="manual.chapter_update_title">Updates</string>
+    <string name="manual.chapter_update_body"><![CDATA[MuMa is not in the Play Store, so it looks after its own updates.
+
+On start it asks the update host whether a newer build exists and offers it when there is one. Accepting downloads the APK and Android takes over the install from there.
+
+<b>Checking by hand</b>
+<b>About</b> has a check button that does the same on demand. Double tap that button and it opens the download page in the browser instead, which is the way in when an install went wrong and you want the file yourself.
+
+What is new in a build is in <b>About</b> under the changelog button.]]></string>
+
+    <string name="manual.chapter_trouble_title">When something is wrong</string>
+    <string name="manual.chapter_trouble_body"><![CDATA[<b>The log</b>
+<b>About</b> has <b>View log</b>: what the app has been doing, and the error that came out of it. It can be shared straight from there, which is worth more than a description of the symptom.
+
+<b>Voice diagnostics</b>
+When a spoken request played the wrong thing, the diagnostics screen shows exactly what was heard, what was made of it, and what the server was asked. You can also type a query there and watch it being taken apart without playing anything.
+
+<b>Nothing plays at all</b>
+Check which server is selected and whether it says offline. An offline server plays only what is downloaded.
+
+<b>Reporting it</b>
+<b>About</b> has a report link. A log makes the difference between a guess and a fix.]]></string>
 </resources>

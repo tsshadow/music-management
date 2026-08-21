@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **A manual now lives in the app, under Help in the overflow menu.** Everything MuMa does was
+  discoverable only by pressing things: the Sets switch, what the twelve library tabs are for,
+  that a spoken sentence may carry a genre and a year and a rating at once, that the app updates
+  itself outside the Play Store. Help is twelve chapters in reading order, collapsed until you
+  open one, each with a screenshot you can tap to enlarge and, where reading is the slower way to
+  learn it, a button straight to the screen being described. The screenshots ship as placeholders
+  and are replaced by dropping a PNG over the file of the same name in
+  `app/src/main/res/drawable-nodpi`; `docs/manual-screenshots.md` says which shot goes where.
+
 ## [6.18.0] - 2026-08-20
 
 ### Fixed

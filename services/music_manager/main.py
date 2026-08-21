@@ -15,6 +15,7 @@ from services.common.Helpers.logging_setup import setup_logging
 from services.common.version_helper import get_version
 from services.music_manager.database import get_db_connection
 from services.music_manager.events_retention import run_events_retention
+from services.music_manager.scrobble_rematch import run_scrobble_rematch
 from services.music_manager.routers import (
     analytics,
     artist_images,
@@ -113,6 +114,7 @@ def startup_event():
         start_thread('radio', radio.run_radio_scheduler)
         start_thread('news', news.run_news_recorder)
         start_thread('events-retention', run_events_retention)
+        start_thread('scrobble-rematch', run_scrobble_rematch)
 
 @app.get('/health')
 def health(response: Response):

@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
+from services.music_manager.scrobble_rematch import find_track, record_match
 
 router = APIRouter(tags=['scrobble'])
 
@@ -46,12 +47,13 @@ def handle_scrobble_event(event: ScrobbleEvent, _auth: dict=Depends(verify_api_k
         raise HTTPException(status_code=500, detail='Database connection failed')
     try:
         with conn.cursor() as cursor:
-            cursor.execute('\n                SELECT t.id FROM library_tracks t\n                JOIN library_artists a ON t.primary_artist_id = a.id\n                WHERE a.name = %s AND t.title = %s\n                LIMIT 1\n            ', (event.artist_name, event.track_title))
-            row = cursor.fetchone()
+            found = find_track(cursor, event.artist_name, event.track_title)
+            row = {'id': found[0]} if found else None
             listened_at = datetime.fromtimestamp(event.listened_at) if event.listened_at else datetime.now()
-            if row:
-                track_id = row['id']
-                cursor.execute('\n                    INSERT INTO scrobble_listens (track_id, listened_at, username, source, mbid_track)\n                    VALUES (%s, %s, %s, %s, %s)\n                    ON DUPLICATE KEY UPDATE mbid_track = VALUES(mbid_track)\n                ', (track_id, listened_at, event.username, event.source, event.mbid_track))
+            if found:
+                track_id, tier, score = found
+                record_match(cursor, track_id, listened_at, event.username,
+                             event.source, tier, score, event.mbid_track)
             else:
                 cursor.execute('\n                    INSERT INTO scrobble_unmatched_listens (artist_name, track_title, album_name, mbid_track, mbid_artist, listened_at, username, source)\n                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)\n                    ON DUPLICATE KEY UPDATE artist_name = VALUES(artist_name)\n                ', (event.artist_name, event.track_title, event.album_name, event.mbid_track, event.mbid_artist, listened_at, event.username, event.source))
             conn.commit()
@@ -76,11 +78,13 @@ def _process_listens_page(listens, conn, username, import_id, total_found):
             if not artist_name or not track_title or (not listened_at_ts):
                 continue
             listened_at = datetime.fromtimestamp(listened_at_ts)
-            cursor.execute('\n                SELECT t.id FROM library_tracks t\n                JOIN library_artists a ON t.primary_artist_id = a.id\n                WHERE a.name = %s AND t.title = %s\n                LIMIT 1\n            ', (artist_name, track_title))
-            row = cursor.fetchone()
+            found = find_track(cursor, artist_name, track_title)
+            row = {'id': found[0]} if found else None
             if row:
                 track_id = row['id']
-                cursor.execute('\n                    INSERT INTO scrobble_listens (track_id, listened_at, username, source)\n                    VALUES (%s, %s, %s, %s)\n                    ON DUPLICATE KEY UPDATE track_id = track_id\n                ', (track_id, listened_at, username, 'listenbrainz'))
+                track_id, tier, score = found
+                record_match(cursor, track_id, listened_at, username,
+                             'listenbrainz', tier, score)
             else:
                 cursor.execute('\n                    INSERT INTO scrobble_unmatched_listens (artist_name, track_title, album_name, listened_at, username, source)\n                    VALUES (%s, %s, %s, %s, %s, %s)\n                    ON DUPLICATE KEY UPDATE artist_name = artist_name\n                ', (artist_name, track_title, album_name, listened_at, username, 'listenbrainz'))
             processed += 1

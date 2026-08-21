@@ -48,6 +48,7 @@ import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.service.RxBus
 import nl.teunschriks.mumamobile.subsonic.ImageLoaderProvider
 import nl.teunschriks.mumamobile.util.Settings
+import nl.teunschriks.mumamobile.util.setUserRating
 import nl.teunschriks.mumamobile.util.themeColor
 import nl.teunschriks.mumamobile.util.toTrack
 import timber.log.Timber
@@ -196,11 +197,19 @@ class CarModeFragment : ScopeFragment() {
         }
     }
 
-    /** 5 means favorite; what the values below it mean stays out of the UI. */
+    /**
+     * 5 means favorite; what the values below it mean stays out of the UI.
+     *
+     * Written through [setUserRating] rather than onto the Track alone: the item carries a second,
+     * frozen copy of the rating in its metadata, and updating only the cached Track lets the
+     * rating the item was built with come back (bug report 026).
+     */
     private fun rate(stars: Int) {
-        val track = mediaPlayerManager.currentMediaItem?.toTrack() ?: return
-        track.userRating = stars
-        RxBus.ratingSubmitter.onNext(RatingUpdate(track.id, StarRating(5, stars.toFloat())))
+        val item = mediaPlayerManager.currentMediaItem ?: return
+        val trackId = item.toTrack().id
+
+        item.setUserRating(stars)
+        RxBus.ratingSubmitter.onNext(RatingUpdate(trackId, StarRating(5, stars.toFloat())))
         showStars(stars)
     }
 

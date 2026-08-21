@@ -19,6 +19,11 @@
   },
   "packageRules": [
     {
+      "description": "A version published minutes ago can be unpublished, yanked or found compromised in the days after, and this repository merges several ecosystems automatically. Three days is long enough for that to surface and short enough that nothing waits a week; vulnerabilityAlerts above is scheduled at any time and is not held up by it.",
+      "matchPackageNames": ["*"],
+      "minimumReleaseAge": "3 days"
+    },
+    {
       "description": "Patch and minor updates of the Python runtime stack move together: they are covered by the unit suite and reviewing them one by one is noise.",
       "matchManagers": ["pip_requirements"],
       "matchUpdateTypes": ["minor", "patch"],
@@ -31,9 +36,10 @@
       "dependencyDashboardApproval": true
     },
     {
-      "description": "yt-dlp ships breaking extractor fixes as ordinary releases; being behind on it is what actually breaks downloading. Merge automatically once the pipeline is green.",
+      "description": "yt-dlp ships breaking extractor fixes as ordinary releases; being behind on it is what actually breaks downloading. Merge automatically once the pipeline is green, and exempt it from the repo-wide cooldown -- a three-day wait here is three days of failing downloads.",
       "matchPackageNames": ["yt-dlp"],
       "automerge": true,
+      "minimumReleaseAge": false,
       "schedule": ["at any time"]
     },
     {

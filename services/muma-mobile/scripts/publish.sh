@@ -11,13 +11,16 @@ MODULE="app"
 # The APK filename prefix, and NOT the same thing as APP_NAME. apk-hoster has no
 # field for an app name - deploy.sh posts the file and nothing else - so it derives
 # which series an upload belongs to from this prefix, and that is the series the
-# installed app asks for in UpdateChecker.getUpdateUrl() (`?apk=ultrasonic`).
-# Renaming the app to MuMa Mobile therefore must not rename this: an upload called
-# muma-mobile-* lands in a series no installed app ever queries, so every phone
-# out there would sit on its current version and be told it is up to date.
-# It can only move once a build that asks for the new series is on every phone;
-# see services/muma-mobile/CHANGELOG.md for the two-step plan.
-APK_SERIES="ultrasonic"
+# installed app asks for in UpdateChecker.getUpdateUrl().
+#
+# This used to read "ultrasonic", because renaming it on its own strands every
+# phone already out there: those keep asking for the old series and are told they
+# are up to date. The rename is safe now that both ends of that are covered -
+# UpdateChecker asks for "muma-mobile", and apk-hoster resolves the old name to
+# the new series through its APK_ALIASES setting, which the deployment must have
+# set to `ultrasonic=muma-mobile,ultrasonic-debug=muma-mobile-debug` before the
+# first upload under the new name.
+APK_SERIES="muma-mobile"
 
 # Load optional configuration from .env
 if [ -f ".env" ]; then
@@ -153,7 +156,7 @@ while IFS= read -r apk; do
     if [ -f "$notes_file" ]; then
         NOTES_CONTENT=$(cat "$notes_file")
     else
-        # Extract version from filename like ultrasonic-v5.1.1-134.apk
+        # Extract version from filename like muma-mobile-v6.20.0-279.apk
         v=$(echo "$filename" | sed -n 's/.*-v\([0-9.]*\)-.*/\1/p')
         if [ -n "$v" ] && [ -f "RELEASE_NOTES.md" ]; then
             NOTES_CONTENT=$(awk -v ver="$v" '$0 ~ "^## \\[" ver "\\]" {flag=1; next} /^## \[/ {flag=0} flag' RELEASE_NOTES.md | sed '/./,$!d' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')

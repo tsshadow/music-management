@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Afhankelijkheden wachten voortaan drie dagen voor ze worden voorgesteld.** Een versie die
+  minuten geleden is gepubliceerd kan alsnog worden ingetrokken of besmet blijken, en dit project
+  voegt een aantal ervan automatisch samen. Beveiligingswaarschuwingen wachten niet, en `yt-dlp`
+  ook niet: achterlopen op dat pakket is precies wat downloaden stukmaakt. Tegelijk zijn de
+  GitHub-workflows van de Android-app verwijderd — die kwamen mee uit het Ultrasonic-verleden,
+  draaiden nergens, want dit is een GitLab-repo zonder GitHub-remote.
 - **De pijplijn scant de code nu ook op bekende kwetsbare patronen.** `security:sast` draait
   semgrep over de hele boom. De tweehonderdtweeëndertig meldingen die er vandaag al staan zijn
   stuk voor stuk beoordeeld en vastgelegd in `security/accepted-sast-findings.txt`, met per regel

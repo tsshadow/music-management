@@ -30,10 +30,6 @@ e996461e5ed5e4c3 x1  # avoid-sqlalchemy-text services/ml-analyzer/approve.py
 1ecbcf5910aa8330 x1  # avoid-sqlalchemy-text tools/inspect_table_content.py
 607ed9c79b00a7ca x1  # avoid-sqlalchemy-text tools/migrate_db_renames.py
 
-# --- dependabot-missing-cooldown ---
-# Same dead Ultrasonic directory.
-497e8656d9a68002 x5  # dependabot-missing-cooldown services/muma-mobile/.github/dependabot.yml
-
 # --- detected-bcrypt-hash ---
 # An example hash in installation documentation.
 ed3ee9bd87cb9371 x1  # detected-bcrypt-hash services/music-management-server/INSTALL.md
@@ -103,9 +99,6 @@ c92e262fad922f2d x2  # formatted-sql-query services/common/Helpers/TableHelper.p
 # the rename commit 054b115df. This is a GitLab repository with no GitHub
 # remote, so nothing runs these workflows. Deleting the directory removes
 # all of these; that is a separate change.
-9d4407fc47fb812e x3  # github-actions-mutable-action-tag services/muma-mobile/.github/workflows/android-release.yml
-bd5ffa5e3481356a x4  # github-actions-mutable-action-tag services/muma-mobile/.github/workflows/android.yml
-9c7d909e4e3d4757 x6  # github-actions-mutable-action-tag services/muma-mobile/.github/workflows/code-quality.yml
 3576cc93284af95b x4  # github-actions-mutable-action-tag services/music-management-server/.github/workflows/build-alpine.yml
 cfd382ecd22baa5d x4  # github-actions-mutable-action-tag services/music-management-server/.github/workflows/build-arch-all.yml
 5a809398d7130518 x4  # github-actions-mutable-action-tag services/music-management-server/.github/workflows/build-arch-basic.yml
@@ -141,9 +134,11 @@ fae11ff959a398dc x1  # github-actions-mutable-action-tag services/music-manageme
 4a61046f34382324 x1  # python-logger-credential-disclosure services/tagger/Song/rules/ExternalArtistLookup.py
 
 # --- renovate-missing-minimum-release-age ---
-# renovate.json has no cooldown, so a freshly published version can be
-# proposed the day it lands. Worth adding; it is a policy change to the
-# update bot rather than to this code.
+# A three-day cooldown is set on a catch-all packageRules entry, with yt-dlp
+# exempted because being behind on it is what breaks downloading. The rule
+# wants the key repeated on every entry; Renovate does not need that -- a
+# later rule that omits the key does not unset it -- so the remaining hits
+# are the rule being stricter than the tool.
 b6758acb30b1330e x2  # renovate-missing-minimum-release-age renovate.json
 
 # --- request-with-http ---

@@ -112,9 +112,11 @@ REASONS = {
         'Android exported components again -- the same set as exported_activity.'
     ),
     'renovate-missing-minimum-release-age': (
-        'renovate.json has no cooldown, so a freshly published version can be '
-        'proposed the day it lands. Worth adding; it is a policy change to the '
-        'update bot rather than to this code.'
+        'A three-day cooldown is set on a catch-all packageRules entry, with '
+        'yt-dlp exempted because being behind on it is what breaks downloading. '
+        'The rule wants the key repeated on every entry; Renovate does not need '
+        'that -- a later rule that omits the key does not unset it -- so the '
+        'remaining hits are the rule being stricter than the tool.'
     ),
     'request-with-http': (
         'Plain HTTP to services on this LAN that speak no TLS -- the LMS server '

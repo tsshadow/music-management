@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:a="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     a:layout_width="match_parent"
     a:layout_height="match_parent"
     a:orientation="vertical">
@@ -8,6 +9,15 @@
         a:id="@+id/filter_button_bar"
         a:layout_width="match_parent"
         a:layout_height="wrap_content" />
+
+    <!-- Spins while the grid below is last run's copy. Same reasoning as the home sections. -->
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        a:id="@+id/browse_progress"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:indeterminate="true"
+        a:visibility="gone"
+        app:trackThickness="2dp" />
 
     <!-- Genres only: how many tracks opening a genre fetches. -->
     <LinearLayout

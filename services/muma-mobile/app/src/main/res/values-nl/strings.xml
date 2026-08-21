@@ -702,4 +702,151 @@
     <string name="about.voice">Spraakcommando\'s</string>
     <string name="voice.title">Spraakcommando\'s</string>
     <string name="voice.text"><![CDATA[Vraag het de Assistent in de auto, of gebruik de spraakzoekfunctie van de app. Alles hieronder mag in één zin door elkaar.\n\n<b>Een genre</b>\nSpeel genre hardstyle af\nSpeel uptempo hardcore af\nSpeel drum and bass livesets af\n\n<b>Een artiest</b>\nSpeel muziek van headhunterz af\nSpeel artiest brennan heart af\n\n<b>Een label</b>\nSpeel label art of creation af\n\n<b>Een jaar</b>\nSpeel hardstyle uit 2021 af\nSpeel headhunterz uit 2020 af\n\n<b>Een volgorde</b>\nSpeel random hardcore af\nSpeel recent af\nSpeel recent toegevoegd af\n\n<b>Je favorieten</b>\nSpeel favorieten af\nSpeel favorieten van headhunterz af\nSpeel favorieten uit 2021 af\n\n<b>Alles tegelijk</b>\nSpeel willekeurige favorieten uit 2023 af\nSpeel random uptempo hardcore uit 2021 af\n\n<b>Later in de wachtrij</b>\nSpeel project one hierna af\nSpeel dragonborn als volgende af\n\nEen naam moet er één zijn die de bibliotheek kent. Wat niet geplaatst kan worden valt weg en de rest van het verzoek speelt gewoon; kan er niets geplaatst worden, dan neemt de gewone zoekfunctie het over en zoekt op titel.]]></string>
+    <string name="menu.help">Help</string>
+    <string name="manual.intro">Alles wat MuMa doet, in de volgorde waarin je het tegenkomt. Tik op een hoofdstuk om het te openen, tik op een schermafbeelding om die te vergroten.</string>
+    <string name="manual.screenshot_description">Schermafbeelding van het scherm dat dit hoofdstuk beschrijft</string>
+
+    <string name="manual.action_servers">Servers openen</string>
+    <string name="manual.action_voice_commands">Alle spraakcommando\'s bekijken</string>
+    <string name="manual.action_downloads">Downloads openen</string>
+    <string name="manual.action_settings">Instellingen openen</string>
+    <string name="manual.action_about">Over openen</string>
+    <string name="manual.action_diagnostics">Spraakdiagnose openen</string>
+
+    <string name="manual.chapter_start_title">Instellen en inloggen</string>
+    <string name="manual.chapter_start_body"><![CDATA[MuMa speelt van je eigen server, dus het eerste wat de app nodig heeft is welke.
+
+<b>Servers</b>
+In het overloopmenu (de drie puntjes rechtsboven) staat <b>Servers</b>. Voeg er één toe met het adres, je gebruikersnaam en je wachtwoord. Je mag er meerdere bewaren en op datzelfde scherm wisselen.
+
+<b>Inloggen met Google</b>
+Heb je nog geen account, vraag dan toegang aan met je Google-account. Het verzoek komt bij de beheerder terecht en zodra dat is goedgekeurd ben je binnen.
+
+<b>Offline</b>
+Kies je het offline-item in de serverlijst, dan praat MuMa helemaal niet meer met de server. Alleen wat je hebt gedownload speelt, en er wordt onderweg niets opgezocht.]]></string>
+
+    <string name="manual.chapter_home_title">Het beginscherm</string>
+    <string name="manual.chapter_home_body"><![CDATA[Het eerste tabblad van de balk onderin. Het is een stapel rijen die elk een andere vraag beantwoorden.
+
+<b>Herinneringen</b>
+Een moment uit je eigen luistergeschiedenis: wat je rond deze tijd draaide, een jaar of langer geleden.
+
+<b>Onlangs beluisterd</b>
+Een weg terug naar waar je was. Het onthoudt de <i>plek</i> waar je vandaan speelde, dus een nummer dat je vanuit een genre startte brengt je terug naar dat genre en niet naar het album waar het toevallig op stond.
+
+<b>Onlangs uitgebracht</b> en <b>Onlangs toegevoegd</b>
+De nieuwste muziek, op uitgavedatum en op de datum dat die op de server aankwam.
+
+<b>De Sets-schakelaar</b>
+De schakelaar in de werkbalk staat alleen op dit scherm. Uit gaat het beginscherm over nummers, aan over sets: livesets, festivalopnames en lange mixes. De accentkleur verandert mee, zodat je in één oogopslag ziet in welke van de twee je zit.]]></string>
+
+    <string name="manual.chapter_library_title">De bibliotheek</string>
+    <string name="manual.chapter_library_body"><![CDATA[Het tweede tabblad van de balk onderin. Eén strook tabbladen, elk een andere ingang tot dezelfde muziek: <b>Afspeellijsten</b>, <b>Genres</b>, <b>Labels</b>, <b>Artiesten</b>, <b>Albums</b>, <b>Jaren</b>, <b>Festivals</b>, <b>Podcasts</b>, <b>Line-ups</b>, <b>Waarderingen</b>, <b>Opgeslagen</b> en <b>Herinneringen</b>. Veeg opzij of tik op een tabblad om te wisselen.
+
+De balk boven de lijst filtert en sorteert wat eronder staat: op naam, op jaar, op waardering, op hoe vaak je het draaide, of willekeurig. De knop rechts wisselt tussen een lijst en een raster.
+
+Houd een rij ingedrukt voor wat je ermee kunt: nu afspelen, hierna afspelen, aan de wachtrij toevoegen, downloaden, of in een afspeellijst zetten.]]></string>
+
+    <string name="manual.chapter_favorites_title">Favorieten en waarderingen</string>
+    <string name="manual.chapter_favorites_body"><![CDATA[Het stertabblad van de balk onderin verzamelt wat je hebt gemarkeerd: albums en artiesten met een ster, en je hoogst gewaardeerde nummers.
+
+<b>De sterren</b>
+Elk nummer draagt een waardering van nul tot vijf sterren. Zet die vanuit de speler, vanuit de rij zelf, of met de sterknop op de bediening in de auto, die door de schaal heen loopt. Wat je ergens waardeert zie je overal terug: de waardering gaat naar de server, niet alleen naar deze telefoon.
+
+Hoe je het midden van de schaal leest is aan jou. Het enige dat overal vastligt is dat vijf de top is, en dat een nummer van vijf sterren als favoriet telt. Een lage waardering is een etiket en verder niets, nooit een reden voor MuMa om iets weg te gooien.
+
+De waardering stuurt meer dan het stertabblad aan: het tabblad Waarderingen in de bibliotheek, de sorteervolgordes, en gesproken verzoeken als <i>speel hardstyle met minstens 4 sterren</i> lezen hem allemaal.]]></string>
+
+    <string name="manual.chapter_search_title">Zoeken</string>
+    <string name="manual.chapter_search_body"><![CDATA[Het vergrootglas in de werkbalk zoekt in één keer door artiesten, albums en nummers. De resultaten komen per soort gegroepeerd terug, met <b>Toon meer</b> onder een groep waar meer in zit dan er past.
+
+Een zoekresultaat is een beginpunt, geen eindpunt: houd het ingedrukt voor hetzelfde menu als de rijen in de bibliotheek, of tik erop om te openen wat erachter zit.
+
+Voor alles wat langer is dan een naam is de microfoon ernaast sneller. Zie het hoofdstuk MuMa Voice.]]></string>
+
+    <string name="manual.chapter_player_title">Afspelen en de wachtrij</string>
+    <string name="manual.chapter_player_body"><![CDATA[Tik op een nummer om het te spelen. De balk onderaan het scherm is wat er nu speelt; tik erop voor de volledige speler, of veeg hem weg om te stoppen.
+
+<b>De wachtrij</b>
+Iets afspelen vervangt de wachtrij; <b>Hierna afspelen</b> en <b>Aan wachtrij toevoegen</b> uit het ingedrukt-houden-menu zetten het juist achter het huidige nummer. De lijstknop in de werkbalk van de speler wisselt tussen de hoes en de wachtrij, waar je rijen in een andere volgorde kunt slepen.
+
+<b>Het nummer zelf</b>
+Tik op het titelblok in de speler voor alles over het spelende nummer: het album, de artiest, de waardering.
+
+<b>De rest van het spelermenu</b>
+De wachtrij als afspeellijst bewaren, delen, leegmaken, het scherm aan houden, of de <b>equalizer</b> openen.]]></string>
+
+    <string name="manual.chapter_voice_title">MuMa Voice</string>
+    <string name="manual.chapter_voice_body"><![CDATA[De microfoon in de werkbalk opent MuMa Voice. Tik erop en zeg wat je wilt horen.
+
+Er kan flink meer in dan een titel: een genre, een artiest, een label, een jaar, een volgorde, je favorieten en een minimale waardering, en elke combinatie daarvan in één zin. <i>Speel random uptempo hardcore uit 2021.</i> Past een naam op meerdere dingen tegelijk, dan vraagt de app welke je bedoelde in plaats van te gokken.
+
+Wat niet geplaatst kan worden valt weg en de rest van het verzoek speelt gewoon. Dezelfde ontleding zit achter de Assistent en achter de auto, dus een zin die het hier doet, doet het daar ook.
+
+De knop hieronder toont elke formulering die de app kent.]]></string>
+
+    <string name="manual.chapter_car_title">In de auto</string>
+    <string name="manual.chapter_car_body"><![CDATA[MuMa is een Android Auto-app. Sluit de telefoon aan en de app staat tussen de andere media-apps.
+
+<b>Het beginscherm in de auto</b>
+Een set tegels, gesplitst in nummers en livesets: willekeurig, recent, favorieten, zoeken en een tegel per genre. Ze komen van de server, dus de tegels die je in de auto ziet zijn de tegels waar je bibliotheek ook echt muziek voor heeft.
+
+<b>Radio en nieuws</b>
+Naast de muziek staat een radiomap, en de nieuwsknop op de bediening speelt het bulletin van het uur en zet je muziek daarna terug op de seconde waar je was.
+
+<b>Waarderen tijdens het rijden</b>
+De sterknop op de bediening loopt met de waardering van het spelende nummer door de schaal, zodat de bibliotheek blijft leren terwijl beide handen aan het stuur blijven.
+
+<b>Praten tegen de auto</b>
+De zoekknop binnen MuMa gebruikt dezelfde spraakontleding als de app. Alles uit het hoofdstuk MuMa Voice geldt hier ook.]]></string>
+
+    <string name="manual.chapter_offline_title">Downloads en offline</string>
+    <string name="manual.chapter_offline_body"><![CDATA[Alles wat je ingedrukt houdt kun je vastzetten, en een vastgezet nummer blijft op de telefoon staan tot je het losmaakt.
+
+<b>Downloads</b>
+In het overloopmenu staat <b>Downloads</b>: wat er op de telefoon staat, wat er nog binnenkomt, en hoeveel ruimte het inneemt.
+
+<b>Twee soorten lokaal bestand</b>
+Wat je vastzet blijft. Wat MuMa tijdens het spelen in de cache zette valt onder de cachelimiet in de instellingen, die het oudste eruit gooit zodra de cache vol is.
+
+<b>Offline gaan</b>
+Kies het offline-item in de serverlijst en MuMa vraagt de server helemaal niets meer. De bibliotheek krimpt tot wat op de telefoon staat en afspelen blijft werken zonder bereik.]]></string>
+
+    <string name="manual.chapter_settings_title">Instellingen</string>
+    <string name="manual.chapter_settings_body"><![CDATA[In het overloopmenu staat <b>Instellingen</b>, gegroepeerd per onderwerp.
+
+<b>Uiterlijk</b>
+De stijl van de app: <i>Spotify</i>, donker en met kaarten, of <i>MuMa</i>, vlakker en rustiger. Elke kleur, hoek en rijopmaak gaat mee.
+
+<b>Afspelen</b>
+Wat de knoppen op een headset doen, wat er gebeurt bij een Bluetooth-verbinding, hoe gapless en crossfade zich gedragen.
+
+<b>Netwerk en cache</b>
+Hoeveel MuMa op de telefoon mag bewaren, of mobiele data gebruikt mag worden, en in welke kwaliteit er gestreamd wordt.
+
+<b>Zoeken, meldingen, delen, MuMa-synchronisatie</b>
+Hoeveel resultaten een zoekopdracht teruggeeft, wat de melding toont, hoe een deellink wordt opgebouwd, en wat er terug naar de server gaat.]]></string>
+
+    <string name="manual.chapter_update_title">Updates</string>
+    <string name="manual.chapter_update_body"><![CDATA[MuMa staat niet in de Play Store en regelt zijn updates dus zelf.
+
+Bij het starten vraagt de app aan de update-host of er een nieuwere versie is en biedt die aan zodra dat zo is. Ga je akkoord, dan wordt de APK gedownload en neemt Android de installatie over.
+
+<b>Zelf controleren</b>
+Onder <b>Over</b> zit een controleknop die hetzelfde op verzoek doet. Tik je twee keer snel op die knop, dan opent in plaats daarvan de downloadpagina in de browser: de ingang wanneer een installatie misging en je het bestand zelf wilt hebben.
+
+Wat er nieuw is in een versie staat onder <b>Over</b> achter de wijzigingenknop.]]></string>
+
+    <string name="manual.chapter_trouble_title">Als er iets misgaat</string>
+    <string name="manual.chapter_trouble_body"><![CDATA[<b>Het logboek</b>
+Onder <b>Over</b> staat <b>Logboek bekijken</b>: wat de app heeft gedaan, en de fout die eruit kwam. Je kunt het daar meteen delen, en dat is meer waard dan een beschrijving van het symptoom.
+
+<b>Spraakdiagnose</b>
+Speelde een gesproken verzoek het verkeerde af, dan laat het diagnosescherm precies zien wat er verstaan is, wat ervan gemaakt is, en wat er aan de server gevraagd is. Je kunt daar ook een verzoek intikken en het uit elkaar zien vallen zonder dat er iets speelt.
+
+<b>Er speelt helemaal niets</b>
+Controleer welke server geselecteerd is en of daar offline staat. Een offline server speelt alleen wat gedownload is.
+
+<b>Melden</b>
+Onder <b>Over</b> staat een meldknop. Een logboek is het verschil tussen een gok en een oplossing.]]></string>
 </resources>

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **De Android-app heeft nu een handleiding aan boord, onder Help in het overloopmenu.** Alles
+  wat MuMa kan was tot nu toe alleen te ontdekken door overal op te drukken: de Sets-schakelaar,
+  waar de twaalf bibliotheektabbladen voor zijn, dat één gesproken zin tegelijk een genre, een
+  jaar en een waardering mag dragen, en dat de app zichzelf buiten de Play Store om bijwerkt.
+  Help is twaalf hoofdstukken in leesvolgorde, dichtgeklapt tot je er één opent, elk met een
+  schermafbeelding die je kunt vergroten en, waar lezen de langzaamste manier is om het te
+  leren, een knop rechtstreeks naar het scherm dat beschreven wordt. De schermafbeeldingen zijn
+  voorlopig plaatshouders: een echte zet je erin door een PNG over het gelijknamige bestand in
+  `app/src/main/res/drawable-nodpi` te zetten, en `docs/manual-screenshots.md` vertelt welke
+  opname waar hoort.
+
 ## [0.20.0] - 2026-08-21
 
 ### Added

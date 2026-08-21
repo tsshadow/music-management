@@ -347,6 +347,9 @@
         android:id="@+id/aboutFragment"
         android:name="nl.teunschriks.mumamobile.fragment.AboutFragment" />
     <fragment
+        android:id="@+id/manualFragment"
+        android:name="nl.teunschriks.mumamobile.fragment.ManualFragment" />
+    <fragment
         android:id="@+id/logViewerFragment"
         android:name="nl.teunschriks.mumamobile.fragment.LogViewerFragment" />
     <fragment

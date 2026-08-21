@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **A playlist shows its "Play all" button again, and the player shows the microphone.** The
+  microphone rides on the menu the whole app carries, and that menu is laid out before a screen's
+  own actions are, so on an album or a playlist the microphone took the slot "Play all" needs and
+  pushed the button into the overflow. The microphone now steps back into the overflow itself on
+  the two screens whose own actions need the room — a track collection and the log viewer — and
+  keeps its place in the toolbar everywhere else, the player included, where a queue is exactly
+  where the next request gets spoken.
+- **The rating button in the car works again on a track that already had stars.** A rating set on
+  the playing item was written to the cached Track and to the item's metadata extras, but the item
+  carries the rating a second time as a `StarRating`, stamped in when the item is built and
+  unreachable afterwards because `MediaMetadata` is immutable. The track cache holds an entry for
+  ten minutes, less in a queue past its 250 items, and every rebuild after that let the frozen copy
+  win. The button was then drawn from the rating the track had when the queue was built, so the next
+  tap recomputed the rating that had just been set and `RatingManager` dropped it as a duplicate:
+  the button stopped responding, and a track sitting at five stars wrapped back to none instead of
+  climbing. A rebuild now reads the extras, and the `StarRating` is only the fallback for items
+  built without an extras entry of their own.
+- **A rating reaches every cached copy of the track, not just the server.** `setRating` forwarded
+  the new rating and nothing else, so the copies the app answers from - the album it was rated in,
+  the home screen lists, the car's browse tree - kept the rating they were fetched with until their
+  cache expired. Coming back to a track showed the old number, which reads as the rating having been
+  reset. Those copies are corrected in place now, and the cached media item, whose metadata cannot
+  be corrected, is dropped so the next read rebuilds it with the new rating.
+
 ### Added
 - **The app now opens on what it was showing last time instead of on skeletons.** Every cold start
   redrew pulsing placeholders on the home screen and on the browse screens — genres, years, labels,
@@ -57,32 +82,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   old product name survived in a translation — the welcome screen, the crash prompt, the version
   warning — it now reads MuMa.
 
-### Fixed
-- **A playlist shows its "Play all" button again, and the player shows the microphone.** The
-  microphone rides on the menu the whole app carries, and that menu is laid out before a screen's
-  own actions are, so on an album or a playlist the microphone took the slot "Play all" needs and
-  pushed the button into the overflow. The microphone now steps back into the overflow itself on
-  the two screens whose own actions need the room — a track collection and the log viewer — and
-  keeps its place in the toolbar everywhere else, the player included, where a queue is exactly
-  where the next request gets spoken.
+## [6.21.1] - 2026-08-21
 
 ### Fixed
-- **The rating button in the car works again on a track that already had stars.** A rating set on
-  the playing item was written to the cached Track and to the item's metadata extras, but the item
-  carries the rating a second time as a `StarRating`, stamped in when the item is built and
-  unreachable afterwards because `MediaMetadata` is immutable. The track cache holds an entry for
-  ten minutes, less in a queue past its 250 items, and every rebuild after that let the frozen copy
-  win. The button was then drawn from the rating the track had when the queue was built, so the next
-  tap recomputed the rating that had just been set and `RatingManager` dropped it as a duplicate:
-  the button stopped responding, and a track sitting at five stars wrapped back to none instead of
-  climbing. A rebuild now reads the extras, and the `StarRating` is only the fallback for items
-  built without an extras entry of their own.
-- **A rating reaches every cached copy of the track, not just the server.** `setRating` forwarded
-  the new rating and nothing else, so the copies the app answers from - the album it was rated in,
-  the home screen lists, the car's browse tree - kept the rating they were fetched with until their
-  cache expired. Coming back to a track showed the old number, which reads as the rating having been
-  reset. Those copies are corrected in place now, and the cached media item, whose metadata cannot
-  be corrected, is dropped so the next read rebuilds it with the new rating.
+- **The app crashed on startup.** 6.21.0 died the moment the home screen drew its first cached
+  card. The new card store let the deserializer learn the list's element type from a field
+  signature, and R8 strips those from classes it was not told to keep, so the cards came back as
+  generic maps. Nothing minifies in a debug build or in the unit suite, which is why every test was
+  green. The store now passes the element type explicitly, exactly as the shortcuts list has done
+  for years, and an entry that cannot be read back as cards counts as a miss. Nothing needs
+  clearing: the entries 6.21.0 wrote are simply overwritten on the next load.
 
 ## [6.18.0] - 2026-08-20
 

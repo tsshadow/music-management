@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## [6.21.1] - 2026-08-21
+
+### Fixed
+- **De app startte niet meer op.** Opgelost. Wie 6.21.0 draaide hoeft niets te wissen.
+
 ## [6.21.0] - 2026-08-21
 
 ### Added

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.1] - 2026-08-21
+
+### Fixed
+- **De Android-app startte niet meer op.** Versie 6.21.0 crashte meteen bij het openen, zodra het
+  startscherm de eerste bewaarde kaart wilde tekenen. De nieuwe opslag van die kaarten liet de
+  omzetter het type van de lijst uit de veldbeschrijving afleiden, en juist die beschrijving haalt
+  de verkleiner uit een uitgavebouw weg — waardoor er losse gegevensbrokken terugkwamen in plaats
+  van kaarten. In een ontwikkelbouw en in alle tests gebeurde dat niet, want daar wordt niet
+  verkleind. De opslag geeft het type nu expliciet mee, precies zoals de al jaren werkende
+  snelkoppelingenlijst dat doet, en een bewaarde regel die niet als kaart te lezen is telt als
+  ontbrekend. Wie 6.21.0 draaide hoeft niets te wissen: de oude regels worden vanzelf overschreven.
+
 ## [0.22.0] - 2026-08-21
 
 ### Added

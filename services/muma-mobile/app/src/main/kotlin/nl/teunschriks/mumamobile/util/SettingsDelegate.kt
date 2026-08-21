@@ -28,6 +28,24 @@ class StringSetting(private val key: String, private val defaultValue: String = 
     override fun setValue(thisRef: Any, property: KProperty<*>, value: String) = sharedPreferences.edit { putString(key, value) }
 }
 
+/**
+ * A set of strings, which is the shape a MultiSelectListPreference stores.
+ *
+ * The getter copies, because SharedPreferences documents the returned set as one that must not be
+ * modified -- and a caller holding a live reference to preference state is a bug that only shows up
+ * after a process restart.
+ */
+class StringSetSetting(
+    private val key: String,
+    private val defaultValue: Set<String> = emptySet()
+) : SettingsDelegate<Set<String>>() {
+    override fun getValue(thisRef: Any, property: KProperty<*>): Set<String> =
+        sharedPreferences.getStringSet(key, defaultValue)?.toSet() ?: defaultValue
+
+    override fun setValue(thisRef: Any, property: KProperty<*>, value: Set<String>) =
+        sharedPreferences.edit { putStringSet(key, value) }
+}
+
 class IntSetting(private val key: String, private val defaultValue: Int = 0) : SettingsDelegate<Int>() {
     override fun getValue(thisRef: Any, property: KProperty<*>) = sharedPreferences.getInt(key, defaultValue)
 

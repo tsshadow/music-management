@@ -55,6 +55,9 @@
     <string name="setting_key.first_run_executed" translatable="false">firstRunExecuted</string>
     <string name="setting_key.resume_on_bluetooth_device" translatable="false">resumeOnBluetoothDevice</string>
     <string name="setting_key.pause_on_bluetooth_device" translatable="false">pauseOnBluetoothDevice</string>
+    <string name="setting_key.car_mode_manual" translatable="false">carModeManual</string>
+    <string name="setting_key.car_mode_devices" translatable="false">carModeDevices</string>
+    <string name="setting_key.car_mode_devices_chosen" translatable="false">carModeDevicesChosen</string>
     <string name="setting_key.debug_log_to_file" translatable="false">debugLogToFile</string>
     <string name="setting_key.crash_detection" translatable="false">crashDetection</string>
     <string name="setting_key.override_language" translatable="false">overrideLanguage</string>

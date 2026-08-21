@@ -343,7 +343,11 @@
     <fragment
         android:id="@+id/settingsFragment"
         android:name="nl.teunschriks.mumamobile.fragment.SettingsFragment" />
-    <fragment
+        <fragment
+        android:id="@+id/carModeFragment"
+        android:name="nl.teunschriks.mumamobile.fragment.CarModeFragment" />
+
+<fragment
         android:id="@+id/setupWizardFragment"
         android:name="nl.teunschriks.mumamobile.fragment.SetupWizardFragment">
         <argument

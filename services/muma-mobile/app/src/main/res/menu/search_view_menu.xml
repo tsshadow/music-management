@@ -28,6 +28,11 @@
         a:title="@string/menu.help" />
 
     <item
+        a:id="@+id/carModeFragment"
+        a:icon="@drawable/ic_menu_car_mode"
+        a:title="@string/car_mode.title" />
+
+    <item
         a:id="@+id/aboutFragment"
         a:icon="@drawable/ic_menu_about"
         a:title="@string/menu.about" />

@@ -15,7 +15,6 @@ from services.common.Helpers.logging_setup import setup_logging
 from services.common.version_helper import get_version
 from services.music_manager.database import get_db_connection
 from services.music_manager.events_retention import run_events_retention
-from services.music_manager.scrobble_rematch import run_scrobble_rematch
 from services.music_manager.routers import (
     analytics,
     artist_images,
@@ -40,6 +39,7 @@ from services.music_manager.routers.artist_images import run_fetch_missing
 from services.music_manager.routers.scanner import run_scanner_loop
 from services.music_manager.routers.tagger import run_tagger_loop
 from services.music_manager.routers.users import run_lms_db_sync
+from services.music_manager.scrobble_rematch import run_scrobble_rematch
 from services.music_manager.thread_registry import start_thread, thread_status
 
 load_dotenv()

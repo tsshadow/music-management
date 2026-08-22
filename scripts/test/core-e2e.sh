@@ -69,6 +69,11 @@ for service in $($COMPOSE config --services); do
     done
 done
 
+# The fixture lands on the shared volume, which music-manager's scanner walks on
+# demand (/api/scanner/scan/all, which the test calls). LMS keeps a separate index
+# and is not told to rescan, so the file is on its disk without being in its
+# library -- which is why the test only asserts that search3 answers, not that it
+# finds the track. Triggering an LMS scan here is the next step for that step.
 echo "--- Copying the fixture track into the LMS music volume ---"
 LMS_CID=$($COMPOSE ps -q music-management-server)
 docker cp "$FIXTURE" "$LMS_CID":/music/ci-test-track-001.mp3

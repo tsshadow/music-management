@@ -13,14 +13,18 @@ Feature: A track on disk becomes a listen
     And the fixture track is on the music volume
     And LMS has scanned its library
 
-  Scenario: A scanned track can be found over Subsonic and recorded as a listen
+  Scenario: A scanned track can be found, played and recorded as a listen
     When the scanner is asked to scan the library
     Then the track is in the library under its own file name
 
     When the mobile app searches for the track over the Subsonic API
     Then the Subsonic search returns the track
-    # What is still missing here is playback: nothing streams a byte of the file,
-    # so "can be found" is proven and "can be played" is not.
+
+    When the mobile app streams the track
+    Then the audio comes back whole and unconverted
+    # Seeking, which is the only reason a player asks for part of a file. Worth
+    # its own step because it is served by different code than a whole file is.
+    And a player can ask for a single byte in the middle of it
 
     When a listen is recorded for the track
     # Read back out of the answer to the request, not out of the listen history.

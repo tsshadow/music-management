@@ -11,6 +11,13 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.24.0 (2026-08-22)
+
+Zie `CHANGELOG.md` voor de volledige lijst. De kern van deze release: een release die een kopie van
+zijn eigen map meelevert kreeg die map als platenlabel, en de tagger leest het label nu vanaf de
+EPs-map naar beneden in plaats van twee mappen omhoog vanaf het bestand. Er hoort een script bij dat
+de nummers herstelt die al fout getagd op schijf staan.
+
 ## Global Version 0.23.1 (2026-08-22)
 
 ### Fixed

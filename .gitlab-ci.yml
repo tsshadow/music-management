@@ -529,6 +529,14 @@ docker:build-images:
 # db:integration used to, and core-e2e.sh removes its images on the way out
 # rather than leaving a pair per run on the runner's disk.
 #
+# The chain is written as Gherkin: tests/bdd/features/scan_to_listen.feature,
+# with pytest-bdd steps under it. It ran for a while as a manual pilot beside a
+# plain pytest function saying the same thing, and won on one point -- the places
+# where the coverage is thinner than the name suggests are stated between the
+# steps, in the same document as the claims. The plain version and the pilot job
+# are both gone, which was the deal: keeping two spellings of one chain means
+# keeping them in sync forever.
+#
 # What it does NOT cover: the Android app. The 6.21.0 startup crash
 # (docs/bug-reports/029) existed only in an R8-minified release build, and
 # nothing here can execute one -- the runner LXC has no /dev/kvm, so there is no
@@ -540,30 +548,6 @@ e2e:scan-to-listen:
   needs: []
   script:
     - ./scripts/test/core-e2e.sh
-
-# The same chain as the job above, written as Gherkin
-# (tests/bdd/features/scan_to_listen.feature) instead of as a pytest function.
-#
-# Manual, and it does not gate: it is a pilot, and it deliberately duplicates a
-# test that already runs on every pipeline. The question it answers is whether a
-# .feature file describes this chain better than a docstring does. If it does,
-# it takes over from e2e:scan-to-listen and the plain test goes; if it does not,
-# this job and tests/bdd/ are deleted. Either way one of the two ends up gone --
-# what must not happen is both surviving and drifting apart.
-#
-# It costs more than the job above rather than less: the runners' system Python
-# has pytest and requests but not pytest-bdd, so the suite runs inside the
-# tooling image and pays a pip install on top of the same stack.
-e2e:gherkin:
-  stage: e2e
-  timeout: 30m
-  allow_failure: true
-  retry: !reference [.infra_retry, retry]
-  needs: []
-  rules:
-    - when: manual
-  script:
-    - ./scripts/test/e2e-gherkin.sh
 
 frontend:browser:
   stage: e2e

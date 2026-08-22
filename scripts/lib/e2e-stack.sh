@@ -2,11 +2,14 @@
 # scripts/lib/e2e-stack.sh
 #
 # Brings up docker/compose.test.yml with a fixture track in the music volume,
-# and tears it down again. Shared by scripts/test/core-e2e.sh and
-# scripts/test/e2e-gherkin.sh, which run two different suites against the same
-# stack: the point of extracting it is that the two cannot drift apart. A
-# difference in how the stack is started would show up as one suite passing and
-# the other failing for reasons that have nothing to do with either test.
+# and tears it down again.
+#
+# It was extracted when two suites ran against the same stack and had to start
+# it identically; only scripts/test/core-e2e.sh is left. It stays a file of its
+# own because bringing the stack up and deciding what to run against it are two
+# jobs, and the next thing this needs -- triggering an LMS scan so the Subsonic
+# step can assert on results rather than on a status code -- belongs here rather
+# than in the runner.
 #
 # Usage:
 #

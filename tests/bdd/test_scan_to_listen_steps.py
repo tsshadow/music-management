@@ -1,12 +1,12 @@
 """Steps for features/scan_to_listen.feature.
 
-This walks the same chain as tests/e2e/test_scan_to_listen.py and duplicates its
-assertions on purpose. The pilot asks one question -- is a .feature file a better
-description of this chain than a docstring on a test function -- and folding both
-onto a shared helper would answer a different one. Whichever spelling wins, the
-other is deleted rather than kept in sync; see scripts/test/e2e-gherkin.sh.
+The feature file is the description of this chain; this is only what the steps
+do. If the two disagree, the feature file is the one that is right and this is
+the bug -- that is the whole reason the chain is written there rather than in a
+docstring here. It replaced a plain pytest function that said the same thing,
+which was deleted rather than kept alongside.
 
-Started by scripts/test/e2e-gherkin.sh, which brings the stack up and puts the
+Started by scripts/test/core-e2e.sh, which brings the stack up and puts the
 fixture in place. Without it these skip.
 """
 from __future__ import annotations
@@ -50,7 +50,7 @@ def _wait_for(description: str, predicate, timeout: int = 120):
 
 
 # --- Given -------------------------------------------------------------------
-# Both background steps are the stack that scripts/test/e2e-gherkin.sh brought up
+# Both background steps are the stack that scripts/test/core-e2e.sh brought up
 # before pytest started. They assert rather than act: a Given that silently did
 # nothing would let the whole scenario pass against no stack at all.
 

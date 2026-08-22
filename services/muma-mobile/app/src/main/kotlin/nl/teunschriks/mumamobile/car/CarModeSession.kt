@@ -19,10 +19,15 @@ enum class CarModeIntent { Offer, Close, Nothing }
  * silences the feature forever. So the dismissal lives exactly as long as the presence that it
  * answered.
  *
- * [isPlaying] is a lambda for the same reason everything here is: it reaches into the media session,
- * and keeping that out lets this be tested as plain Kotlin.
+ * Whether something is playing arrives as an argument to [onPresenceChanged] rather than as a
+ * constructor dependency. It reaches into the media session, which keeps this class plain Kotlin,
+ * but the caller has to be the one to reach: this is a `single`, so its definition is resolved by
+ * Koin's root scope no matter who asks for it, while `MediaPlayerManager` lives only inside
+ * `scope<NavigationActivity>`. A `get` from in here would compile and then throw on the first car
+ * of the day. Taking it as an argument means only a caller that already holds the player can
+ * supply it.
  */
-class CarModeSession(private val isPlaying: () -> Boolean) {
+class CarModeSession {
 
     private var present = false
     private var dismissed = false
@@ -36,7 +41,11 @@ class CarModeSession(private val isPlaying: () -> Boolean) {
     var shouldRaise: Boolean = false
         private set
 
-    fun onPresenceChanged(inCar: Boolean): CarModeIntent {
+    /**
+     * @param isPlaying read only on the branch that offers the screen, so a caller whose player is
+     * not up yet is never asked on the branches that do not need an answer.
+     */
+    fun onPresenceChanged(inCar: Boolean, isPlaying: () -> Boolean): CarModeIntent {
         if (inCar == present) return CarModeIntent.Nothing
 
         present = inCar

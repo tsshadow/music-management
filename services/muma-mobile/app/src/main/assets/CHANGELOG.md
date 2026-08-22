@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **The app opens again while you are in the car.** Opening MuMa with the car connected closed it
+  straight away, while the same build opened normally the moment the car was gone and the screen on
+  the head unit kept working throughout. Car mode's memory of the trip asked the media player
+  whether anything was playing, so it could decide between coming to the front and leaving a
+  notification, and it asked from a place in the app where the player does not exist — it belongs to
+  the main screen, not to the app as a whole. That question is only asked when the car first
+  appears, which is why nothing was wrong until you got in, and why the car's own screen, which is
+  served separately, was unaffected. The main screen now supplies the answer, so there is nothing
+  left to look up.
+
 ## [6.22.0] - 2026-08-21
 
 ### Fixed

@@ -460,7 +460,9 @@ class NavigationActivity : ScopeActivity() {
     private fun watchCarPresence(navController: NavController) {
         lifecycleScope.launch {
             carPresence.isInCar.collectLatest { inCar ->
-                when (carModeSession.onPresenceChanged(inCar)) {
+                // The player is supplied from here because it is scoped to this activity, and the
+                // session that asks for it is not.
+                when (carModeSession.onPresenceChanged(inCar) { mediaPlayerManager.isPlaying }) {
                     CarModeIntent.Offer -> carModeNotifier.offer(carModeSession.shouldRaise)
 
                     CarModeIntent.Close -> {

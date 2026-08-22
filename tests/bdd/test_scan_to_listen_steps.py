@@ -52,6 +52,20 @@ def _wait_for(description: str, predicate, timeout: int = 120):
     pytest.fail(f'timed out after {timeout}s waiting for: {description} (last result: {last!r})')
 
 
+def _listen_count(manager: str, api_key: str) -> int:
+    """How many matched listens music-manager is holding.
+
+    A count, because a count is all there is: nothing serves an individual listen
+    back out. `scrobble_listens` is written by the scrobble endpoint and read by
+    /api/stats and by the rematcher, and by nothing else. So this cannot assert
+    that the row is the right one -- only that a row appeared where there was
+    none, in a database that starts empty every run.
+    """
+    response = requests.get(f'{manager}/api/stats/', headers={'x-api-key': api_key}, timeout=TIMEOUT)
+    assert response.status_code == 200, response.text
+    return response.json().get('total_scrobbles', 0)
+
+
 # --- Given -------------------------------------------------------------------
 # Both background steps are the stack that scripts/test/core-e2e.sh brought up
 # before pytest started. They assert rather than act: a Given that silently did
@@ -72,6 +86,18 @@ def _fixture_is_in_place():
     # nothing to stat here. The scan step below is what proves it arrived, and
     # it fails with a named timeout rather than an AssertionError if it did not.
     pass
+
+
+@given('nothing has been listened to yet')
+def _no_listens_yet(manager, api_key, context):
+    # The stack is built from an empty database every run, so this is a
+    # precondition rather than a cleanup. Recording it makes the assertion at the
+    # end about *this* listen: without it, "there is one listen" would also hold
+    # for a listen left behind by something else.
+    context['listens_before'] = _listen_count(manager, api_key)
+    assert context['listens_before'] == 0, (
+        f'the stack came up with {context["listens_before"]} listens already recorded'
+    )
 
 
 @given('LMS has scanned its library')
@@ -235,4 +261,16 @@ def _listen_is_matched(context):
     assert scrobble.status_code == 200, scrobble.text
     assert scrobble.json().get('matched') is True, (
         'the listen did not match a track: the scan and the scrobble disagree about its name'
+    )
+
+
+@then("the listen is in the library's own records")
+def _listen_was_kept(manager, api_key, context):
+    # The endpoint commits before it answers, so this reads straight away rather
+    # than polling: a listen that needs waiting for is a bug, and a poll here
+    # would hide it.
+    after = _listen_count(manager, api_key)
+    assert after == context['listens_before'] + 1, (
+        f'the scrobble reported a match but the count went from '
+        f'{context["listens_before"]} to {after}: it was answered, not stored'
     )

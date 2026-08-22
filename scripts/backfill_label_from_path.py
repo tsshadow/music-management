@@ -267,7 +267,29 @@ def apply_plan(planned, failed_file=None):
     if failed_file and failed:
         with open(failed_file, 'a', encoding='utf-8') as handle:
             handle.write('\n'.join(failed) + '\n')
-    return counts
+    return counts, failed
+
+
+def report_refusals(failed, failed_file=None):
+    """Prints what the share would not let the run write, loudly enough to be read.
+
+    Measured 2026-08-22 on a random sample: about one file in six under the EPs root reads fine and
+    refuses every write, spread evenly over directories dating from 2019 to this year. That is a
+    standing fault in the library, not something this backfill caused - but a run that ends on a
+    tidy `{'written': N}` reads as if it wrote everything, so the count it could not write is said
+    out loud with a handful of paths behind it.
+    """
+    if not failed:
+        return
+    print(f'{len(failed)} files could not be written: the share refused every attempt.')
+    print('These read fine and refuse writes - a NAS side ACL, not a fault of this run.')
+    labels = Counter(os.path.relpath(path, DEFAULT_ROOT).split(os.sep, maxsplit=1)[0] for path in failed)
+    for label, number in labels.most_common(10):
+        print(f'  {number:5d}  {label}')
+    for path in failed[:5]:
+        print(f'  {path}')
+    if failed_file:
+        print(f'All of them are listed in {failed_file}')
 
 
 def main(argv=None):
@@ -305,7 +327,9 @@ def main(argv=None):
         print('dry run, nothing written; pass --apply to write the tags')
         return 0
     failed_file = args.plan_file + '.failed' if args.plan_file else None
-    print(dict(apply_plan(planned, failed_file)))
+    counts, failed = apply_plan(planned, failed_file)
+    print(f'{counts["written"]} files written')
+    report_refusals(failed, failed_file)
     return 0
 
 

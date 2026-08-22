@@ -151,6 +151,20 @@ def test_reads_a_plan_written_as_lines_or_as_one_array(tmp_path):
     assert backfill.load_plan(str(array)) == expected
 
 
+def test_says_out_loud_how_many_files_the_share_refused(capsys):
+    """A tidy exit line reads as if everything was written; about one file in six is not."""
+    backfill.report_refusals([f'{ROOT}/Blutonium Records/BLU354 - X/01.flac'], '/tmp/plan.failed')
+    printed = capsys.readouterr().out
+    assert '1 files could not be written' in printed
+    assert 'Blutonium Records' in printed
+    assert '/tmp/plan.failed' in printed
+
+
+def test_stays_quiet_when_every_file_was_written(capsys):
+    backfill.report_refusals([])
+    assert capsys.readouterr().out == ''
+
+
 def test_skips_underscore_folders_and_eadir(tmp_path):
     """`_` label folders are parsed as generic songs and never carry a path derived publisher."""
     for folder in ['ABSLT Records/ABSLT065 - X', '_Livesets/Set', 'ABSLT Records/@eaDir']:

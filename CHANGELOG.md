@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   versies van dezelfde keten betekent ze voor altijd gelijk houden. De taak duurt drie seconden
   langer, omdat de testrunners de benodigde uitbreiding niet hebben en die in een wegwerpcontainer
   wordt geïnstalleerd.
+- **De keten-test speelt het nummer nu ook echt af.** Tot nu toe bewees hij dat een bestand
+  gevonden kon worden, niet dat het beluisterd kon worden — de laatste schakel waar de test naar
+  vernoemd is ontbrak dus. Hij haalt het nummer nu op bij de muziekserver en controleert twee
+  dingen. Het bestand komt byte voor byte terug, even groot als de server zelf opgeeft: dat sluit uit
+  dat het onderweg is omgezet, want een omgezette stroom is nog steeds geluid en nog steeds een
+  geslaagd antwoord, alleen niet meer het bestand dat gescand werd. En er kan een losse byte uit het
+  midden opgevraagd worden, wat een speler doet zodra je in een nummer springt; dat loopt via andere
+  code dan een heel bestand ophalen, en een server die het stilzwijgend negeert stuurt gewoon alles
+  terug en lijkt daarmee in orde.
 
 ### Fixed
 - **De keten-test controleerde niet wat hij leek te controleren.** De stap die opvraagt of de
@@ -28,14 +37,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **De keten-test draait nu bij elke wijziging in plaats van op verzoek.** Hij stond op handmatig
-  omdat een volledige stack duur leek: images bouwen, drie containers, een database. Gemeten kost
-  hij zo'n 35 seconden — de teststack heeft een lege database en één nummer, en de rest is de
-  bouwstap. Een test die de enige is die de hele keten bewijst en die pas draait als iemand eraan
-  denkt, bewijst in de praktijk niets, dus hij draait nu overal mee en houdt de pipeline tegen als
-  hij rood is. Hij heet ook niet langer `e2e:golden-path` maar `e2e:scan-to-listen`, want dat is wat
-  hij doet. Bij het nalopen bleek de omschrijving meer te beloven dan de test uitvoert — er wordt
-  geen audio gestreamd en de luisterbeurt wordt niet uit de geschiedenis teruggelezen, alleen uit
-  het antwoord op de registratie — en dat staat er nu ook zo bij.
+  omdat een volledige stack duur leek: images bouwen, drie containers, een database. Gemeten loopt
+  hij tussen de 45 en 80 seconden, waarvan bijna alles wachten is tot de containers opgestart zijn;
+  de test zelf duurt twee seconden. Een test die de enige is die de hele keten bewijst en die pas
+  draait als iemand eraan denkt, bewijst in de praktijk niets, dus hij draait nu overal mee en houdt
+  de pipeline tegen als hij rood is. Hij heet ook niet langer `e2e:golden-path` maar
+  `e2e:scan-to-listen`, want dat is wat hij doet. Wat hij nog steeds niet doet is de luisterbeurt uit
+  de geschiedenis teruglezen — dat komt uit het antwoord op de registratie zelf — en dat staat er nu
+  ook zo bij.
 
 ## [0.23.1] - 2026-08-22
 

@@ -152,6 +152,65 @@ def _subsonic_search_returns_the_track(context):
     assert TRACK_TITLE in titles, (
         f'LMS answered but does not have the fixture track; it returned {titles!r}'
     )
+    # LMS's own id for the track, which is not music-manager's. The streaming
+    # steps need it, and it only exists once LMS has scanned.
+    context['song'] = next(song for song in songs if song.get('title') == TRACK_TITLE)
+
+
+@when('the mobile app streams the track')
+def _stream(lms, subsonic_auth, context):
+    context['stream'] = requests.get(
+        f'{lms}/rest/stream',
+        params={'id': context['song']['id'], **subsonic_auth},
+        timeout=TIMEOUT,
+    )
+
+
+@then('the audio comes back whole and unconverted')
+def _audio_comes_back_whole(context):
+    stream = context['stream']
+
+    # Unlike the JSON endpoints, /rest/stream answers with real status codes: a
+    # missing id is a 404 and a bad password a 400, not a 200 with an error in
+    # it. So here the HTTP code is worth asserting on directly.
+    assert stream.status_code == 200, f'{stream.status_code}: {stream.text[:200]}'
+    assert stream.headers.get('Content-Type', '').startswith('audio/'), stream.headers
+
+    # Byte-for-byte the file that was put on the volume. Comparing against the
+    # size LMS itself advertised is what rules out a transcode: Subsonic servers
+    # may re-encode on the way out, and a re-encoded stream is still audio, still
+    # 200, and no longer the thing that was scanned.
+    body = context['stream'].content
+    assert len(body) == context['song']['size'], (
+        f'streamed {len(body)} bytes, but LMS said the track is '
+        f'{context["song"]["size"]}: it was converted on the way out'
+    )
+    assert body.startswith(b'ID3'), (
+        f'streamed bytes do not start an MP3 file: {body[:16]!r}'
+    )
+
+
+@then('a player can ask for a single byte in the middle of it')
+def _one_byte_can_be_fetched(lms, subsonic_auth, context):
+    size = context['song']['size']
+    offset = size // 2
+    partial = requests.get(
+        f'{lms}/rest/stream',
+        params={'id': context['song']['id'], **subsonic_auth},
+        headers={'Range': f'bytes={offset}-{offset}'},
+        timeout=TIMEOUT,
+    )
+
+    # 206, not 200: a server that ignores Range answers 200 with the whole file,
+    # which reads as success to anything that only checks the status code and
+    # leaves a player unable to seek.
+    assert partial.status_code == 206, (
+        f'expected 206 for a range request, got {partial.status_code}'
+    )
+    assert partial.headers.get('Content-Range') == f'bytes {offset}-{offset}/{size}', (
+        partial.headers.get('Content-Range')
+    )
+    assert len(partial.content) == 1, f'asked for one byte, got {len(partial.content)}'
 
 
 @when('a listen is recorded for the track')

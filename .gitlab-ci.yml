@@ -541,6 +541,30 @@ e2e:scan-to-listen:
   script:
     - ./scripts/test/core-e2e.sh
 
+# The same chain as the job above, written as Gherkin
+# (tests/bdd/features/scan_to_listen.feature) instead of as a pytest function.
+#
+# Manual, and it does not gate: it is a pilot, and it deliberately duplicates a
+# test that already runs on every pipeline. The question it answers is whether a
+# .feature file describes this chain better than a docstring does. If it does,
+# it takes over from e2e:scan-to-listen and the plain test goes; if it does not,
+# this job and tests/bdd/ are deleted. Either way one of the two ends up gone --
+# what must not happen is both surviving and drifting apart.
+#
+# It costs more than the job above rather than less: the runners' system Python
+# has pytest and requests but not pytest-bdd, so the suite runs inside the
+# tooling image and pays a pip install on top of the same stack.
+e2e:gherkin:
+  stage: e2e
+  timeout: 30m
+  allow_failure: true
+  retry: !reference [.infra_retry, retry]
+  needs: []
+  rules:
+    - when: manual
+  script:
+    - ./scripts/test/e2e-gherkin.sh
+
 frontend:browser:
   stage: e2e
   timeout: 30m

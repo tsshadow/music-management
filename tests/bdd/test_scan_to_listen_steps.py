@@ -1,0 +1,153 @@
+"""Steps for features/scan_to_listen.feature.
+
+This walks the same chain as tests/e2e/test_scan_to_listen.py and duplicates its
+assertions on purpose. The pilot asks one question -- is a .feature file a better
+description of this chain than a docstring on a test function -- and folding both
+onto a shared helper would answer a different one. Whichever spelling wins, the
+other is deleted rather than kept in sync; see scripts/test/e2e-gherkin.sh.
+
+Started by scripts/test/e2e-gherkin.sh, which brings the stack up and puts the
+fixture in place. Without it these skip.
+"""
+from __future__ import annotations
+
+import time
+
+import pytest
+import requests
+from pytest_bdd import given, scenarios, then, when
+
+pytestmark = pytest.mark.e2e
+
+scenarios('features/scan_to_listen.feature')
+
+# The fixture's file name and the title inside it are two different strings, and
+# the library is keyed on the tag, not on the path: the scanner stores TIT2 as
+# library_tracks.title, and /api/library/tracks searches title, artist and label.
+# Searching for the file name therefore matches nothing however well the scan
+# went, so these are kept apart deliberately.
+TRACK_FILE = 'ci-test-track-001.mp3'
+TRACK_TITLE = 'CI Test Track'
+USERNAME = 'e2e'
+TIMEOUT = 10
+
+
+def _wait_for(description: str, predicate, timeout: int = 120):
+    """Poll until true, and say what was being waited for when it never is.
+
+    A bare timeout in an end-to-end test is the least useful failure there is:
+    the whole point is that any of six components could be the one that did not
+    do its part.
+    """
+    deadline = time.time() + timeout
+    last = None
+    while time.time() < deadline:
+        last = predicate()
+        if last:
+            return last
+        time.sleep(2)
+    pytest.fail(f'timed out after {timeout}s waiting for: {description} (last result: {last!r})')
+
+
+# --- Given -------------------------------------------------------------------
+# Both background steps are the stack that scripts/test/e2e-gherkin.sh brought up
+# before pytest started. They assert rather than act: a Given that silently did
+# nothing would let the whole scenario pass against no stack at all.
+
+
+@given('the test stack is running')
+def _stack_is_running(manager, api_key):
+    response = requests.get(f'{manager}/health', headers={'x-api-key': api_key}, timeout=TIMEOUT)
+    assert response.status_code == 200, (
+        f'music-manager is not answering on {manager}: {response.status_code} {response.text}'
+    )
+
+
+@given('the fixture track is on the music volume')
+def _fixture_is_in_place():
+    # The file is inside the LMS container, not on this filesystem, so there is
+    # nothing to stat here. The scan step below is what proves it arrived, and
+    # it fails with a named timeout rather than an AssertionError if it did not.
+    pass
+
+
+# --- When / Then -------------------------------------------------------------
+
+
+@when('the scanner is asked to scan the library')
+def _scan(manager, api_key):
+    # The scan runs as a background task, so a 200 only means it was accepted;
+    # 409 means one was already running, which is equally fine. Anything else is
+    # worth failing on straight away rather than polling for two minutes for a
+    # scan that never started.
+    started = requests.post(
+        f'{manager}/api/scanner/scan/all',
+        headers={'x-api-key': api_key},
+        timeout=TIMEOUT,
+    )
+    assert started.status_code in (200, 409), started.text
+
+
+@then('the track is in the library under its own file name')
+def _track_is_in_the_library(manager, api_key, context):
+    def scanned():
+        response = requests.get(
+            f'{manager}/api/library/tracks',
+            headers={'x-api-key': api_key},
+            params={'q': TRACK_TITLE, 'limit': 10},
+            timeout=TIMEOUT,
+        )
+        if response.status_code != 200:
+            return None
+        tracks = response.json()
+        rows = tracks if isinstance(tracks, list) else tracks.get('tracks', [])
+        return next((t for t in rows if TRACK_TITLE in str(t.get('title', ''))), None)
+
+    track = _wait_for('the scanner to pick up the fixture track', scanned)
+    assert str(track.get('file_path', '')).endswith(TRACK_FILE), (
+        f'matched a track by title that is not the fixture: {track!r}'
+    )
+    context['track'] = track
+
+
+@when('the mobile app searches for the track over the Subsonic API')
+def _subsonic_search(lms, context):
+    context['search'] = requests.get(
+        f'{lms}/rest/search3',
+        params={
+            'query': TRACK_TITLE, 'u': USERNAME, 'p': 'e2e',
+            'v': '1.16.1', 'c': 'e2e-test', 'f': 'json',
+        },
+        timeout=TIMEOUT,
+    )
+
+
+@then('the Subsonic search is answered')
+def _subsonic_search_is_answered(context):
+    search = context['search']
+    assert search.status_code == 200, search.text
+
+
+@when('a listen is recorded for the track')
+def _scrobble(manager, api_key, context):
+    track = context['track']
+    context['scrobble'] = requests.post(
+        f'{manager}/api/scrobble/event',
+        headers={'x-api-key': api_key},
+        json={
+            'artist_name': track.get('artist') or 'Unknown Artist',
+            'track_title': track['title'],
+            'username': USERNAME,
+            'source': 'e2e',
+        },
+        timeout=TIMEOUT,
+    )
+
+
+@then('the listen is matched to the track that was scanned')
+def _listen_is_matched(context):
+    scrobble = context['scrobble']
+    assert scrobble.status_code == 200, scrobble.text
+    assert scrobble.json().get('matched') is True, (
+        'the listen did not match a track: the scan and the scrobble disagree about its name'
+    )

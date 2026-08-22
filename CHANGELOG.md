@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **De keten-test draait nu bij elke wijziging in plaats van op verzoek.** Hij stond op handmatig
+  omdat een volledige stack duur leek: images bouwen, drie containers, een database. Gemeten kost
+  hij zo'n 35 seconden — de teststack heeft een lege database en één nummer, en de rest is de
+  bouwstap. Een test die de enige is die de hele keten bewijst en die pas draait als iemand eraan
+  denkt, bewijst in de praktijk niets, dus hij draait nu overal mee en houdt de pipeline tegen als
+  hij rood is. Hij heet ook niet langer `e2e:golden-path` maar `e2e:scan-to-listen`, want dat is wat
+  hij doet. Bij het nalopen bleek de omschrijving meer te beloven dan de test uitvoert — er wordt
+  geen audio gestreamd en de luisterbeurt wordt niet uit de geschiedenis teruggelezen, alleen uit
+  het antwoord op de registratie — en dat staat er nu ook zo bij.
+
 ## [0.23.1] - 2026-08-22
 
 ### Fixed

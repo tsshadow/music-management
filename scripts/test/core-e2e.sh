@@ -1,15 +1,16 @@
 #!/bin/bash
 # scripts/test/core-e2e.sh
-# The golden path, end to end: start the stack, put a track in the music volume,
-# scan it, find it over the Subsonic API the way the mobile app does, scrobble
-# it, and read the listen back.
+# Scan to listen, end to end: start the stack, put a track in the music volume,
+# scan it, ask for it over the Subsonic API the way the mobile app does, and
+# scrobble it until music-manager matches the listen back to the track.
 #
 # Every other suite proves one component. This is the only one that proves the
-# chain, which is why it exists even though it is the slowest thing here.
+# chain.
 #
-# Manual on purpose. It builds images and holds a stack for a few minutes, and
-# nothing downstream gates on it, so it runs when someone asks rather than on
-# every push.
+# It ran manually for a while on the assumption that a full stack is expensive.
+# Measured, it is about 35 seconds: three containers over an empty database and
+# a single fixture track, with the image build the largest part of it. So
+# e2e:scan-to-listen runs on every pipeline and gates.
 #
 # Usage: ./scripts/test/core-e2e.sh
 #
@@ -78,8 +79,8 @@ echo "--- Copying the fixture track into the LMS music volume ---"
 LMS_CID=$($COMPOSE ps -q music-management-server)
 docker cp "$FIXTURE" "$LMS_CID":/music/ci-test-track-001.mp3
 
-echo "--- Running the golden path ---"
+echo "--- Running the scan-to-listen chain ---"
 cd "$ROOT_DIR"
 COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" python3 -m pytest -p no:warnings tests/e2e/ -v
 
-echo "--- Golden path passed ---"
+echo "--- Scan-to-listen chain passed ---"

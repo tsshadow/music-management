@@ -202,8 +202,12 @@ def test_hotfix_branches_get_the_full_release_treatment():
 
 
 def _changes_globs(ci, job):
+    # A job without `rules:` runs in every pipeline, so it is triggered by more
+    # than any glob could describe. It still contributes nothing here: this
+    # collects the paths jobs opt in to, and counting an unconditional job as
+    # coverage for a path would be the same mistake as counting "**/*".
     globs = []
-    for rule in ci[job]["rules"]:
+    for rule in ci[job].get("rules", []):
         if isinstance(rule, dict) and "changes" in rule:
             globs.extend(rule["changes"])
     return globs

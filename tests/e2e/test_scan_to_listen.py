@@ -1,13 +1,17 @@
-"""The golden path: a track goes in one end and comes out as a listen at the other.
+"""Scan to listen: a track goes in one end and comes out as a listen at the other.
 
 Every other suite proves one component in isolation. The contract tests prove LMS answers the shape
 music-manager expects; the integration tests prove MariaDB accepts the SQL; the unit tests prove the
 functions. None of them proves that a file dropped on disk becomes something you can play and that
 playing it is recorded.
 
-This walks the whole chain against a real stack: scan the fixture into the library, find it over
-the Subsonic API the way the mobile app does, stream a byte of it, scrobble it, and read the listen
-back out of music-manager.
+This walks the whole chain against a real stack: scan the fixture into the library, ask for it over
+the Subsonic API the way the mobile app does, and scrobble it until music-manager matches the listen
+back to the track it scanned.
+
+Two things it deliberately does not do yet, so that the coverage is not read as wider than it is: it
+never streams a byte of audio, and it reads the match out of the scrobble response rather than out
+of the listen history. Both need an LMS scan in the fixture step first -- see core-e2e.sh.
 
 Started by scripts/test/core-e2e.sh, which brings the stack up and puts the fixture in place. Run it
 rather than pytest directly; without the stack these skip.

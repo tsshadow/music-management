@@ -515,27 +515,29 @@ docker:build-images:
 
 # --- Browser end-to-end ------------------------------------------------------
 
-# The golden path: a track goes in one end and comes out as a listen at the other.
-# Every other suite proves one component; this is the only one that proves the
-# chain, which is also why it is the slowest thing here.
+# A track goes in one end and comes out as a listen at the other: scan the
+# fixture into the library, ask for it over the Subsonic API the way the mobile
+# app does, scrobble it, and see the listen match. Every other suite proves one
+# component in isolation; this is the only one that proves the chain.
 #
-# Manual, and staying manual. It builds images and holds a stack for minutes,
-# nothing downstream gates on it, and the runner's resources are not free -- so
-# it runs when someone asks for it rather than on every push.
+# It was manual on the assumption that it was expensive. It is not: the whole
+# job is about 35 seconds, most of that the image build, because the stack is
+# three containers over an empty database and the fixture is a single track. So
+# it runs on every pipeline and it gates, like every other test here. The
+# compose project name carries CI_JOB_ID and both ports are picked free at
+# runtime, so two pipelines running it at once do not collide the way
+# db:integration used to, and core-e2e.sh removes its images on the way out
+# rather than leaving a pair per run on the runner's disk.
 #
 # What it does NOT cover: the Android app. The 6.21.0 startup crash
 # (docs/bug-reports/029) existed only in an R8-minified release build, and
 # nothing here can execute one -- the runner LXC has no /dev/kvm, so there is no
 # emulator. That step is the next phase and a resource decision, not a code one.
-e2e:golden-path:
+e2e:scan-to-listen:
   stage: e2e
   timeout: 30m
-  when: manual
-  allow_failure: true
   retry: !reference [.infra_retry, retry]
   needs: []
-  rules:
-    - when: manual
   script:
     - ./scripts/test/core-e2e.sh
 

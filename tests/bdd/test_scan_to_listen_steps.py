@@ -28,6 +28,9 @@ scenarios('features/scan_to_listen.feature')
 # went, so these are kept apart deliberately.
 TRACK_FILE = 'ci-test-track-001.mp3'
 TRACK_TITLE = 'CI Test Track'
+# Who the listen belongs to, in music-manager's own records. Not the LMS account
+# the Subsonic steps authenticate as -- that one is created by the stack script
+# and reaches the suite as the subsonic_auth fixture.
 USERNAME = 'e2e'
 TIMEOUT = 10
 
@@ -71,6 +74,18 @@ def _fixture_is_in_place():
     pass
 
 
+@given('LMS has scanned its library')
+def _lms_has_scanned(lms, subsonic_auth):
+    # e2e_stack_scan_lms already waited for the track to appear, so this asserts
+    # the state it left behind rather than waiting again: authentication works,
+    # and no scan is still in flight that could make the search below flap.
+    response = requests.get(f'{lms}/rest/getScanStatus.view', params=subsonic_auth, timeout=TIMEOUT)
+    assert response.status_code == 200, response.text
+    body = response.json()['subsonic-response']
+    assert body['status'] == 'ok', f'LMS refused the request: {body.get("error")}'
+    assert body['scanStatus']['scanning'] is False, 'LMS is still scanning'
+
+
 # --- When / Then -------------------------------------------------------------
 
 
@@ -111,21 +126,32 @@ def _track_is_in_the_library(manager, api_key, context):
 
 
 @when('the mobile app searches for the track over the Subsonic API')
-def _subsonic_search(lms, context):
+def _subsonic_search(lms, subsonic_auth, context):
     context['search'] = requests.get(
         f'{lms}/rest/search3',
-        params={
-            'query': TRACK_TITLE, 'u': USERNAME, 'p': 'e2e',
-            'v': '1.16.1', 'c': 'e2e-test', 'f': 'json',
-        },
+        params={'query': TRACK_TITLE, **subsonic_auth},
         timeout=TIMEOUT,
     )
 
 
-@then('the Subsonic search is answered')
-def _subsonic_search_is_answered(context):
+@then('the Subsonic search returns the track')
+def _subsonic_search_returns_the_track(context):
     search = context['search']
     assert search.status_code == 200, search.text
+
+    # Subsonic puts failures inside a 200, so the status has to be read out of
+    # the body. This step asserted only on the HTTP code until the fixture step
+    # learned to create a user and scan: it was passing on
+    # {"status":"failed","error":{"code":40,"message":"Wrong username or
+    # password."}} and proving nothing about LMS beyond that it was listening.
+    body = search.json()['subsonic-response']
+    assert body['status'] == 'ok', f'LMS refused the search: {body.get("error")}'
+
+    songs = body.get('searchResult3', {}).get('song', [])
+    titles = [song.get('title') for song in songs]
+    assert TRACK_TITLE in titles, (
+        f'LMS answered but does not have the fixture track; it returned {titles!r}'
+    )
 
 
 @when('a listen is recorded for the track')

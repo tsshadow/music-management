@@ -72,6 +72,8 @@ else
         -e PATH=/tmp/tooling/bin:/usr/local/bin:/usr/bin:/bin \
         -e MUMA_TEST_PORT_MANAGER="$MUMA_TEST_PORT_MANAGER" \
         -e MUMA_TEST_PORT_LMS="$MUMA_TEST_PORT_LMS" \
+        -e MUMA_TEST_LMS_USER="$MUMA_TEST_LMS_USER" \
+        -e MUMA_TEST_LMS_PASSWORD="$MUMA_TEST_LMS_PASSWORD" \
         -e API_KEY="${API_KEY:-}" \
         "$BDD_IMAGE" \
         bash -c "pip install --user --quiet --disable-pip-version-check -r tests/bdd/requirements.txt && python -m pytest -p no:warnings tests/bdd/ -v"

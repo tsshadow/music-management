@@ -34,6 +34,24 @@ def api_key() -> str:
     return os.getenv('API_KEY') or 'test-api-key'
 
 
+@pytest.fixture(scope='session')
+def subsonic_auth() -> dict:
+    """Credentials for LMS, which has no users of its own.
+
+    music-manager owns the accounts and pushes them across; the one used here is
+    created by e2e_stack_scan_lms before pytest starts. Subsonic reports a bad
+    password inside a 200, so a wrong value here does not fail loudly -- it
+    quietly turns every LMS assertion into a check that the process is listening.
+    """
+    return {
+        'u': os.getenv('MUMA_TEST_LMS_USER') or 'e2e-admin',
+        'p': os.getenv('MUMA_TEST_LMS_PASSWORD') or 'e2e-password',
+        'v': '1.16.1',
+        'c': 'e2e-test',
+        'f': 'json',
+    }
+
+
 @pytest.fixture
 def context() -> dict:
     """What one step hands to the next.

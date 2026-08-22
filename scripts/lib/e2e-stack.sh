@@ -89,6 +89,8 @@ e2e_stack_up() {
         done
     done
 
+    e2e_stack_apply_migrations
+
     # The fixture lands on the shared volume, which music-manager's scanner walks
     # on demand (/api/scanner/scan/all, which the suite calls).
     echo "--- Copying the fixture track into the LMS music volume ---"
@@ -97,6 +99,34 @@ e2e_stack_up() {
     docker cp "$E2E_STACK_FIXTURE" "$lms_cid":/music/ci-test-track-001.mp3
 
     e2e_stack_scan_lms
+}
+
+# scripts/deploy.sh applies every migrate_*.sql on each deploy, so production's
+# schema is db_init plus all of them. This stack was running db_init alone, and
+# the difference is not cosmetic: the migrations are what seed `rules_genres`,
+# and nothing in services/ ever inserts into it. Without them that table stays
+# empty, the scanner can map no tag onto a genre id, `library_track_genres` stays
+# empty too, and every track comes back genre-less -- so a whole feature area was
+# switched off in the only test that walks the real stack, in a way that looked
+# like the fixture simply having no tags.
+#
+# Applied here rather than in compose so the order is the same as the deploy's:
+# the services have already created their tables by the time this runs.
+e2e_stack_apply_migrations() {
+    echo "--- Applying migrate_*.sql, the way a deploy does ---"
+    local db_cid
+    db_cid=$($E2E_STACK_COMPOSE ps -q test-db)
+    local migration
+    for migration in "$E2E_STACK_ROOT"/migrate_*.sql; do
+        [ -e "$migration" ] || continue
+        # Credentials are docker/compose.test.yml's, for a database that exists
+        # for the length of one job and holds nothing but the fixture.
+        if ! docker exec -i "$db_cid" \
+            mariadb -uroot -ptest-root-password muma_test < "$migration"; then
+            echo "ERROR: $(basename "$migration") failed to apply"
+            exit 1
+        fi
+    done
 }
 
 # LMS keeps its own index, entirely separate from music-manager's. Until this

@@ -60,3 +60,9 @@ hypothesis~=6.0
 # Parses .gitlab-ci.yml for the pipeline-policy tests (tests/ci/). Same reason
 # as the two above: without it those tests error out on CI instead of running.
 PyYAML~=6.0
+# Runs the Gherkin feature in tests/bdd/ (e2e:gherkin). Unlike the entries above
+# this one is not enough on its own: the CI runners' system Python is not built
+# from this file, so scripts/test/e2e-gherkin.sh falls back to a container that
+# installs tests/bdd/requirements.txt. This pin is what a developer machine and
+# build.sh's in-image run get.
+pytest-bdd~=8.1

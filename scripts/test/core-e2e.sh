@@ -12,6 +12,9 @@
 # a single fixture track, with the image build the largest part of it. So
 # e2e:scan-to-listen runs on every pipeline and gates.
 #
+# The stack lifecycle lives in scripts/lib/e2e-stack.sh, shared with
+# scripts/test/e2e-gherkin.sh, which walks the same chain written as Gherkin.
+#
 # Usage: ./scripts/test/core-e2e.sh
 #
 # What it does NOT cover, and it is worth being blunt about it: nothing here
@@ -24,63 +27,14 @@
 set -e
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-COMPOSE_FILE="$ROOT_DIR/docker/compose.test.yml"
-COMPOSE_PROJECT_NAME="muma-e2e${CI_JOB_ID:+-}${CI_JOB_ID:-}"
 
-find_free_port() {
-    python3 -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()'
-}
+# shellcheck source=scripts/lib/e2e-stack.sh
+source "$ROOT_DIR/scripts/lib/e2e-stack.sh"
 
-MUMA_TEST_PORT_MANAGER=$(find_free_port)
-MUMA_TEST_PORT_LMS=$(find_free_port)
-export MUMA_TEST_PORT_MANAGER
-export MUMA_TEST_PORT_LMS
-
-echo "--- Using dynamic ports: Manager=$MUMA_TEST_PORT_MANAGER, LMS=$MUMA_TEST_PORT_LMS ---"
-
-COMPOSE="docker compose -f $COMPOSE_FILE -p $COMPOSE_PROJECT_NAME"
-FIXTURE="$ROOT_DIR/tests/fixtures/music/ci-test-track-001.mp3"
-
-cleanup() {
-    echo "--- Tearing down e2e stack ---"
-    # --rmi local for the same reason contracts.sh does it: without it every run
-    # leaves a pair of images behind under its own project name and eventually
-    # fills the runner's disk.
-    $COMPOSE down -v --remove-orphans --rmi local
-}
-trap cleanup EXIT
-
-echo "--- Building and starting the stack from a clean state ---"
-$COMPOSE down -v --remove-orphans 2>/dev/null || true
-$COMPOSE up -d --build
-
-echo "--- Waiting for services to become healthy ---"
-DEADLINE=$((SECONDS + 300))
-for service in $($COMPOSE config --services); do
-    while true; do
-        cid=$($COMPOSE ps -q "$service")
-        status=$(docker inspect -f '{{.State.Health.Status}}' "$cid" 2>/dev/null || echo "none")
-        [ "$status" = "healthy" ] && { echo "OK: $service is healthy"; break; }
-        if [ "$status" = "unhealthy" ] || [ $SECONDS -ge $DEADLINE ]; then
-            echo "ERROR: $service did not become healthy in time (status: $status)"
-            $COMPOSE logs "$service"
-            exit 1
-        fi
-        sleep 2
-    done
-done
-
-# The fixture lands on the shared volume, which music-manager's scanner walks on
-# demand (/api/scanner/scan/all, which the test calls). LMS keeps a separate index
-# and is not told to rescan, so the file is on its disk without being in its
-# library -- which is why the test only asserts that search3 answers, not that it
-# finds the track. Triggering an LMS scan here is the next step for that step.
-echo "--- Copying the fixture track into the LMS music volume ---"
-LMS_CID=$($COMPOSE ps -q music-management-server)
-docker cp "$FIXTURE" "$LMS_CID":/music/ci-test-track-001.mp3
+e2e_stack_up muma-e2e
 
 echo "--- Running the scan-to-listen chain ---"
 cd "$ROOT_DIR"
-COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" python3 -m pytest -p no:warnings tests/e2e/ -v
+python3 -m pytest -p no:warnings tests/e2e/ -v
 
 echo "--- Scan-to-listen chain passed ---"

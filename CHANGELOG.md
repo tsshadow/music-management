@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **De keten-test bestaat er nu ook in het Gherkin, als proef.** Dezelfde drie stappen — scannen,
+  opvragen via Subsonic, een luisterbeurt registreren — staan uitgeschreven in gewone zinnen in
+  `tests/bdd/features/scan_to_listen.feature`, met de code eronder. Het idee is dat de beschrijving
+  en de test niet meer uit elkaar kunnen lopen: verdwijnt er een stap, dan verdwijnt hij ook uit het
+  verhaal. Het draait als losse handmatige taak `e2e:gherkin` naast de bestaande, want het is
+  bewust dubbelop: de vraag is welke van de twee schrijfwijzen de keten beter beschrijft. Wint het
+  Gherkin, dan neemt het de blokkerende taak over en gaat de andere weg; wint het niet, dan gaat
+  deze weg. Wat niet gebeurt is dat ze allebei blijven staan en langzaam uit elkaar groeien.
+
 ### Changed
 - **De keten-test draait nu bij elke wijziging in plaats van op verzoek.** Hij stond op handmatig
   omdat een volledige stack duur leek: images bouwen, drie containers, een database. Gemeten kost

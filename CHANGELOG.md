@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-08-22
+
 ### Added
 - **De keten-test dekt nu vijf verhalen in plaats van één.** Naast het nummer dat gescand, gevonden,
   afgespeeld en als luisterbeurt vastgelegd wordt, staan er nu ook uitgeschreven: een luisterbeurt

@@ -22,7 +22,12 @@ import requests
 
 pytestmark = pytest.mark.e2e
 
-TRACK_NAME = 'ci-test-track-001'
+# The fixture's file name and the title inside it are two different strings, and the library is
+# keyed on the tag, not on the path: the scanner stores TIT2 as library_tracks.title, and
+# /api/library/tracks searches title, artist and label. Searching for the file name therefore
+# matches nothing however well the scan went, so these are kept apart deliberately.
+TRACK_FILE = 'ci-test-track-001.mp3'
+TRACK_TITLE = 'CI Test Track'
 USERNAME = 'e2e'
 TIMEOUT = 10
 
@@ -69,28 +74,38 @@ def test_a_scanned_track_becomes_a_listen(manager, lms, api_key):
     headers = {'x-api-key': api_key}
 
     # 1. The scanner finds the file that scripts/test/core-e2e.sh put in the music volume.
-    requests.post(f'{manager}/api/scanner/scan/all', headers=headers, timeout=TIMEOUT)
+    #    The scan runs as a background task, so a 200 only means it was accepted; 409 means one
+    #    was already running, which is equally fine. Anything else is worth failing on straight
+    #    away rather than spending two minutes polling for a scan that never started.
+    started = requests.post(f'{manager}/api/scanner/scan/all', headers=headers, timeout=TIMEOUT)
+    assert started.status_code in (200, 409), started.text
 
     def scanned():
         response = requests.get(
             f'{manager}/api/library/tracks',
             headers=headers,
-            params={'q': TRACK_NAME, 'limit': 10},
+            params={'q': TRACK_TITLE, 'limit': 10},
             timeout=TIMEOUT,
         )
         if response.status_code != 200:
             return None
         tracks = response.json()
         rows = tracks if isinstance(tracks, list) else tracks.get('tracks', [])
-        return next((t for t in rows if TRACK_NAME in str(t.get('title', ''))), None)
+        return next((t for t in rows if TRACK_TITLE in str(t.get('title', ''))), None)
 
     track = _wait_for('the scanner to pick up the fixture track', scanned)
+    assert str(track.get('file_path', '')).endswith(TRACK_FILE), (
+        f'matched a track by title that is not the fixture: {track!r}'
+    )
 
     # 2. The mobile app's own route to it: search over the Subsonic API.
+    #    Only that the query is served, not that it finds the fixture: LMS keeps its own index and
+    #    nothing here triggers its scan, so the file is on its disk without being in its library.
+    #    Asserting on the results needs an LMS scan first; see the note in scripts/test/core-e2e.sh.
     search = requests.get(
         f'{lms}/rest/search3',
         params={
-            'query': TRACK_NAME, 'u': USERNAME, 'p': 'e2e',
+            'query': TRACK_TITLE, 'u': USERNAME, 'p': 'e2e',
             'v': '1.16.1', 'c': 'e2e-test', 'f': 'json',
         },
         timeout=TIMEOUT,

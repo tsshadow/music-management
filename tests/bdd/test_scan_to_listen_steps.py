@@ -15,7 +15,7 @@ import pytest
 import requests
 from pytest_bdd import given, scenarios, then, when
 
-from .conftest import TRACK_FILE, TRACK_TITLE, request_scan, stats, wait_for_fixture_track
+from .conftest import TRACK_FILE, TRACK_TITLE, stats, wait_for_fixture_track
 
 pytestmark = pytest.mark.e2e
 
@@ -51,14 +51,6 @@ def _listen_count(manager: str, api_key: str) -> int:
 # running" is shared with the other features and lives in conftest.py.
 
 
-@given('the fixture track is on the music volume')
-def _fixture_is_in_place():
-    # The file is inside the LMS container, not on this filesystem, so there is
-    # nothing to stat here. The scan step below is what proves it arrived, and
-    # it fails with a named timeout rather than an AssertionError if it did not.
-    pass
-
-
 @given('nothing has been listened to yet')
 def _no_listens_yet(manager, api_key, context):
     # The stack is built from an empty database every run, so this is a
@@ -72,11 +64,6 @@ def _no_listens_yet(manager, api_key, context):
 
 
 # --- When / Then -------------------------------------------------------------
-
-
-@when('the scanner is asked to scan the library')
-def _scan(manager, api_key):
-    request_scan(manager, api_key)
 
 
 @then('the track is in the library under its own file name')

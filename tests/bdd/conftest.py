@@ -17,7 +17,7 @@ import time
 
 import pytest
 import requests
-from pytest_bdd import given
+from pytest_bdd import given, when
 
 TIMEOUT = 10
 
@@ -175,6 +175,22 @@ def _lms_has_scanned(lms, subsonic_auth):
     body = response.json()['subsonic-response']
     assert body['status'] == 'ok', f'LMS refused the request: {body.get("error")}'
     assert body['scanStatus']['scanning'] is False, 'LMS is still scanning'
+
+
+@given('the fixture track is on the music volume')
+def _fixture_is_in_place():
+    """The one step here that asserts nothing, and says why.
+
+    The file is inside the LMS container rather than on this filesystem, so
+    there is nothing to stat. What proves it arrived is the scan that follows,
+    which fails with a named timeout rather than an anonymous one.
+    """
+
+
+@when('the scanner is asked to scan the library')
+def _scan(manager, api_key):
+    """Shared: two features act on the scan rather than assuming it."""
+    request_scan(manager, api_key)
 
 
 @given('music-manager has scanned the fixture track')

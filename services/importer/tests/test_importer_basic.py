@@ -1,10 +1,11 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from services.tests.mock_base import reset_database_helpers, setup_mocks
 
 setup_mocks()
 from services.tagger.constants import ARTIST, TITLE
+from services.tagger.Song import LabelSong as label_song_module
 from services.tagger.Song.LabelSong import LabelSong
 
 
@@ -42,5 +43,40 @@ class TestBasicImport(unittest.TestCase):
         song = LabelSong(file_path)
         self.assertEqual(song._publisher, 'Fusion')
         self.assertEqual(song._catalog_number, 'FUSION001')
+
+    def test_publisher_from_eps_root_when_release_folder_is_nested(self):
+        """A scene release that repeats its folder inside itself keeps the label."""
+        release = 'Hartshorn_-_LOSE_CTRL-(ABSLT065)-SINGLE-WEB-2026-SRG'
+        file_path = f'/eps/ABSLT Records/ABSLT065 - {release}/{release}/01-hartshorn_-_lose_ctrl_(original_mix).mp3'
+        with patch.object(label_song_module, 's', MagicMock(eps_folder_path='/eps', delimiter='/')):
+            song = LabelSong(file_path)
+        self.assertEqual(song._publisher, 'ABSLT Records')
+        self.assertEqual(song._catalog_number, 'ABSLT065')
+
+    def test_publisher_from_eps_root_at_normal_depth(self):
+        """The usual label/release/file layout is unchanged by the EPs anchor."""
+        file_path = '/eps/Scantraxx/SCAN123 Best Of Hardstyle/01. D-Block - Takin Off.mp3'
+        with patch.object(label_song_module, 's', MagicMock(eps_folder_path='/eps', delimiter='/')):
+            song = LabelSong(file_path)
+        self.assertEqual(song._publisher, 'Scantraxx')
+        self.assertEqual(song._catalog_number, 'SCAN123')
+
+    def test_track_loose_in_the_label_folder_still_gets_the_label(self):
+        """No release folder at all: the label survives, the catalog number is empty."""
+        file_path = '/eps/ABSLT Records/01-hartshorn_-_lose_ctrl.mp3'
+        with patch.object(label_song_module, 's', MagicMock(eps_folder_path='/eps', delimiter='/')):
+            song = LabelSong(file_path)
+        self.assertEqual(song._publisher, 'ABSLT Records')
+        self.assertEqual(song._catalog_number, '')
+
+    def test_path_outside_the_eps_root_falls_back_to_the_parent_folders(self):
+        """Importer paths that are not under the EPs root keep the old behaviour."""
+        file_path = '/import/Scantraxx/SCAN123 Best Of Hardstyle/01. D-Block - Takin Off.mp3'
+        with patch.object(label_song_module, 's', MagicMock(eps_folder_path='/eps', delimiter='/')):
+            song = LabelSong(file_path)
+        self.assertEqual(song._publisher, 'Scantraxx')
+        self.assertEqual(song._catalog_number, 'SCAN123')
+
+
 if __name__ == '__main__':
     unittest.main()

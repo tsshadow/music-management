@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   al die tijd op *"Wrong username or password"*. De teststack maakt nu eerst een gebruiker aan, wacht
   tot die bij de muziekserver is aangekomen, meldt de muziekmap aan en laat die scannen. Pas daarna
   loopt de test, en die controleert nu of het nummer echt in het antwoord staat. Dat kost ongeveer
-  zes seconden extra en dekt de helft van de keten die tot nu toe alleen op papier gedekt was.
+  vier seconden extra en dekt de helft van de keten die tot nu toe alleen op papier gedekt was.
 
 ### Changed
 - **De keten-test draait nu bij elke wijziging in plaats van op verzoek.** Hij stond op handmatig

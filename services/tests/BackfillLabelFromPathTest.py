@@ -4,9 +4,12 @@ The backfill rewrites the publisher of tracks across the whole library, so what 
 plans: it has to repair a release folder that was stored as a label, and leave every other
 disagreement between a track and its folder alone.
 """
+import errno
 import importlib.util
 import os
 from pathlib import Path
+
+import pytest
 
 SCRIPT = Path(__file__).resolve().parents[2] / 'scripts' / 'backfill_label_from_path.py'
 
@@ -70,6 +73,40 @@ def test_leaves_a_publisher_that_is_not_the_release_folder():
 def test_leaves_a_track_without_a_publisher():
     """Never tagged is a different problem, and the tagger is what fills it in."""
     assert backfill.plan_fix(FLAT, ROOT, _tags('')) is None
+
+
+def test_waits_out_a_file_that_is_still_being_written():
+    """The import workers hold files on the same share; SMB reports that as a permission error."""
+    attempts = []
+
+    def refuse_once():
+        attempts.append(1)
+        if len(attempts) == 1:
+            raise PermissionError(errno.EACCES, 'Permission denied')
+        return 'tags'
+
+    assert backfill.with_retries(refuse_once, '/x.mp3', delays=(0,), sleep=lambda _s: None) == 'tags'
+
+
+def test_gives_up_on_a_file_that_stays_refused():
+    def always_refuse():
+        raise PermissionError(errno.EACCES, 'Permission denied')
+
+    with pytest.raises(PermissionError):
+        backfill.with_retries(always_refuse, '/x.mp3', delays=(0,), sleep=lambda _s: None)
+
+
+def test_does_not_retry_an_error_that_is_not_a_refusal():
+    """A missing file will not appear by waiting, and retrying hides it behind a delay."""
+    attempts = []
+
+    def missing():
+        attempts.append(1)
+        raise FileNotFoundError(errno.ENOENT, 'No such file')
+
+    with pytest.raises(FileNotFoundError):
+        backfill.with_retries(missing, '/x.mp3', delays=(0, 0), sleep=lambda _s: None)
+    assert len(attempts) == 1
 
 
 def test_resumes_after_the_last_label_that_was_reported(tmp_path):

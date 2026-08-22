@@ -11,11 +11,13 @@ tagged is repaired as well - its path no longer shows what went wrong, only its 
 Dry run by default: it reports what it would write before anything touches a file.
 """
 import argparse
+import errno
 import json
 import logging
 import os
 import re
 import sys
+import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
@@ -27,6 +29,29 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file_
 
 AUDIO_EXTENSIONS = ('.mp3', '.flac', '.m4a', '.aac', '.wav')
 DEFAULT_ROOT = '/mnt/music/EPs'
+RETRY_DELAYS = (2, 8, 30)
+
+
+def with_retries(work, path, delays=RETRY_DELAYS, sleep=time.sleep):
+    """Runs `work()`, waiting out a refusal that is really a file still being written.
+
+    `path` only names the file in the log.
+
+    The import workers write into the same share, and opening a file another process holds is a
+    sharing violation that SMB reports as `[Errno 13] Permission denied` - the same errno a real
+    permission wall gives. Here it is temporary: every one of the files a first pass was refused
+    read fine minutes later. Treating it as terminal silently drops those files from the plan, so
+    it is waited out instead, and only a refusal that outlives every delay is reported.
+    """
+    for delay in delays:
+        try:
+            return work()
+        except OSError as exc:
+            if exc.errno != errno.EACCES:
+                raise
+            logging.info('Refused, retrying in %ss: %s', delay, path)
+            sleep(delay)
+    return work()
 
 
 def audio_files(root):
@@ -171,12 +196,11 @@ def plan_all(root, workers=16, labels=None, plan_handle=None):
 
     def inspect(path):
         try:
-            changes = plan_fix(path, root, read_tags(path))
+            changes = plan_fix(path, root, with_retries(lambda: read_tags(path), path))
             return (path, changes) if changes else None
         except Exception as exc:  # noqa: BLE001 - one unreadable file must not stop the scan
-            # A refusal is not rare here: the tagger on the server writes to the same share, and a
-            # file it holds comes back as a permission error. Those files are simply not in the
-            # plan, so the run keeps the list and reports it rather than leaving it in the log.
+            # A file that is still refused after every retry is simply not in the plan, so the run
+            # keeps the list and reports it rather than leaving it in the log.
             logging.warning('Could not read %s: %s', path, exc)
             unreadable.append(path)
             counts['unreadable'] += 1
@@ -202,12 +226,16 @@ def apply_plan(planned):
 
     tag_names = {'publisher': PUBLISHER, 'catalognumber': CATALOG_NUMBER, 'copyright': COPYRIGHT}
     counts = Counter()
+    def write(path, changes):
+        song = open_song(path)
+        for key, value in changes.items():
+            song.tag_collection.set_item(tag_names[key], value)
+        song.save_file()
+
     for path, changes in planned:
         try:
-            song = open_song(path)
-            for key, value in changes.items():
-                song.tag_collection.set_item(tag_names[key], value)
-            song.save_file()
+            # A write lands mid import just as easily as a read does, and is refused the same way.
+            with_retries(lambda file=path, tags=changes: write(file, tags), path)
             counts['written'] += 1
         except Exception as exc:  # noqa: BLE001 - one bad file must not stop the backfill
             logging.warning('Could not write %s: %s', path, exc)

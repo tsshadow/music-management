@@ -29,8 +29,10 @@ class Tag:
             self.value = list(value)
             try:
                 self.resplit()
-            except (AttributeError, TypeError):
-                logging.info('Error during resplit')
+            except (AttributeError, TypeError) as exc:
+                # Without the tag and the value this line says only that something was dropped,
+                # which is indistinguishable from nothing having happened at all.
+                logging.warning('Could not split %s value %r: %s', tag, value, exc)
         self.changed = False
 
     def __str__(self):

@@ -41,6 +41,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   terug en lijkt daarmee in orde.
 
 ### Fixed
+- **Een release die een kopie van zijn eigen map meelevert kreeg die map als platenlabel.** De tagger
+  telde vanaf het bestand twee mappen omhoog om het label te vinden. Bij scene-releases die hun eigen
+  map nóg een keer bevatten staat het nummer een niveau dieper, en dan is die twee-omhoog niet
+  `ABSLT Records` maar `ABSLT065 - Hartshorn_-_LOSE_CTRL-(ABSLT065)-SINGLE-WEB-2026-SRG`. Dat kwam
+  zo in het label, het catalogusnummer én de copyright terecht, en daarmee ook in de bibliotheek: het
+  label bestaat dan één keer voor die ene release. De tagger rekent nu vanaf de EPs-map naar beneden
+  — de eerste map daaronder is het label, de tweede de release — zodat het niet meer uitmaakt hoe
+  diep het bestand eronder staat. Paden buiten de EPs-map, waar de importer mee werkt, blijven de
+  oude telling gebruiken. Voor de nummers die al fout getagd zijn is er
+  `scripts/backfill_label_from_path.py`, die alleen bijwerkt wat aantoonbaar de eigen releasemap als
+  label draagt en een met de hand gezet label met rust laat.
 - **De keten-test controleerde niet wat hij leek te controleren.** De stap die opvraagt of de
   muziekserver het nummer terugvindt, keek alleen of er antwoord kwam. Subsonic verpakt fouten in een
   geslaagd antwoord, en de gebruiker waarmee gevraagd werd bestond helemaal niet — dus de test slaagde

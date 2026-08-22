@@ -46,12 +46,28 @@ def with_retries(work, path, delays=RETRY_DELAYS, sleep=time.sleep):
     for delay in delays:
         try:
             return work()
-        except OSError as exc:
-            if exc.errno != errno.EACCES:
+        except Exception as exc:  # noqa: BLE001 - re-raised below unless it is a refusal
+            if not is_refusal(exc):
                 raise
             logging.info('Refused, retrying in %ss: %s', delay, path)
             sleep(delay)
     return work()
+
+
+def is_refusal(exc):
+    """Whether EACCES sits anywhere in the exception chain.
+
+    mutagen re-raises the refusal as a `MutagenError`, which is not an `OSError` and carries no
+    errno of its own - only the original underneath it. Matching on the outer type alone therefore
+    catches the refusal on a plain read and misses the identical one on a save.
+    """
+    seen = set()
+    while exc is not None and id(exc) not in seen:
+        seen.add(id(exc))
+        if isinstance(exc, OSError) and exc.errno == errno.EACCES:
+            return True
+        exc = exc.__cause__ or exc.__context__
+    return False
 
 
 def audio_files(root):
@@ -220,12 +236,19 @@ def plan_all(root, workers=16, labels=None, plan_handle=None):
     return planned, counts, unreadable
 
 
-def apply_plan(planned):
-    """Writes the planned tags onto each file."""
+def apply_plan(planned, failed_file=None):
+    """Writes the planned tags onto each file, and lists the ones the share refused.
+
+    A refusal that outlives the retries is a file that reads but does not write: the NAS side ACL
+    the release date backfill ran into. Those paths go in `failed_file`, because a warning in a
+    run this long is a warning nobody sees.
+    """
     from services.tagger.constants import CATALOG_NUMBER, COPYRIGHT, PUBLISHER
 
     tag_names = {'publisher': PUBLISHER, 'catalognumber': CATALOG_NUMBER, 'copyright': COPYRIGHT}
     counts = Counter()
+    failed = []
+
     def write(path, changes):
         song = open_song(path)
         for key, value in changes.items():
@@ -239,7 +262,11 @@ def apply_plan(planned):
             counts['written'] += 1
         except Exception as exc:  # noqa: BLE001 - one bad file must not stop the backfill
             logging.warning('Could not write %s: %s', path, exc)
+            failed.append(path)
             counts['failed'] += 1
+    if failed_file and failed:
+        with open(failed_file, 'a', encoding='utf-8') as handle:
+            handle.write('\n'.join(failed) + '\n')
     return counts
 
 
@@ -277,7 +304,8 @@ def main(argv=None):
             print(f'  {path}\n    {changes}')
         print('dry run, nothing written; pass --apply to write the tags')
         return 0
-    print(dict(apply_plan(planned)))
+    failed_file = args.plan_file + '.failed' if args.plan_file else None
+    print(dict(apply_plan(planned, failed_file)))
     return 0
 
 

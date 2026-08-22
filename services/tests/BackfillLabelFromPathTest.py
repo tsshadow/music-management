@@ -88,6 +88,26 @@ def test_waits_out_a_file_that_is_still_being_written():
     assert backfill.with_retries(refuse_once, '/x.mp3', delays=(0,), sleep=lambda _s: None) == 'tags'
 
 
+def test_waits_out_a_refusal_that_mutagen_rewrapped():
+    """`save()` raises MutagenError, which is not an OSError and carries no errno of its own."""
+
+    class MutagenError(Exception):
+        pass
+
+    attempts = []
+
+    def refuse_once():
+        attempts.append(1)
+        if len(attempts) == 1:
+            try:
+                raise PermissionError(errno.EACCES, 'Permission denied')
+            except PermissionError as exc:
+                raise MutagenError('[Errno 13] Permission denied') from exc
+        return 'written'
+
+    assert backfill.with_retries(refuse_once, '/x.mp3', delays=(0,), sleep=lambda _s: None) == 'written'
+
+
 def test_gives_up_on_a_file_that_stays_refused():
     def always_refuse():
         raise PermissionError(errno.EACCES, 'Permission denied')

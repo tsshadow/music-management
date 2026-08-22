@@ -17,6 +17,8 @@ import pytest
 import requests
 from pytest_bdd import given, scenarios, then, when
 
+from .conftest import stats
+
 pytestmark = pytest.mark.e2e
 
 scenarios('features/scan_to_listen.feature')
@@ -55,29 +57,18 @@ def _wait_for(description: str, predicate, timeout: int = 120):
 def _listen_count(manager: str, api_key: str) -> int:
     """How many matched listens music-manager is holding.
 
-    A count, because a count is all there is: nothing serves an individual listen
-    back out. `scrobble_listens` is written by the scrobble endpoint and read by
-    /api/stats and by the rematcher, and by nothing else. So this cannot assert
-    that the row is the right one -- only that a row appeared where there was
-    none, in a database that starts empty every run.
+    A count, because a count is all there is -- see conftest.stats. So this
+    cannot assert that the row is the right one, only that a row appeared where
+    there was none, in a database that starts empty every run.
     """
-    response = requests.get(f'{manager}/api/stats/', headers={'x-api-key': api_key}, timeout=TIMEOUT)
-    assert response.status_code == 200, response.text
-    return response.json().get('total_scrobbles', 0)
+    return stats(manager, api_key).get('total_scrobbles', 0)
 
 
 # --- Given -------------------------------------------------------------------
-# Both background steps are the stack that scripts/test/core-e2e.sh brought up
-# before pytest started. They assert rather than act: a Given that silently did
-# nothing would let the whole scenario pass against no stack at all.
-
-
-@given('the test stack is running')
-def _stack_is_running(manager, api_key):
-    response = requests.get(f'{manager}/health', headers={'x-api-key': api_key}, timeout=TIMEOUT)
-    assert response.status_code == 200, (
-        f'music-manager is not answering on {manager}: {response.status_code} {response.text}'
-    )
+# The background is the stack that scripts/test/core-e2e.sh brought up before
+# pytest started. These assert rather than act: a Given that silently did nothing
+# would let the whole scenario pass against no stack at all. "the test stack is
+# running" is shared with the other features and lives in conftest.py.
 
 
 @given('the fixture track is on the music volume')

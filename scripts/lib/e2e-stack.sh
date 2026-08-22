@@ -98,7 +98,26 @@ e2e_stack_up() {
     lms_cid=$($E2E_STACK_COMPOSE ps -q music-management-server)
     docker cp "$E2E_STACK_FIXTURE" "$lms_cid":/music/ci-test-track-001.mp3
 
+    e2e_stack_tag_fixture
     e2e_stack_scan_lms
+}
+
+# The tagger, before anything indexes the file, because it rewrites it.
+#
+# Two reasons it has to happen here rather than inside a scenario. It is the only
+# thing that ever registers a genre for curation -- record_unknown() is called
+# from services/tagger/Song/rules/ResolveGenreRule.py and nowhere else -- so
+# without it the fixture's Electronic tag resolves to nothing and every track in
+# the library comes back genre-less. And it changes the file's bytes: run it
+# after LMS has scanned and LMS keeps serving the new file while reporting the
+# old size, which is exactly the disagreement the streaming scenario asserts
+# against.
+e2e_stack_tag_fixture() {
+    echo "--- Tagging the fixture, before either index is built ---"
+    local key="${API_KEY:-test-api-key}"
+    curl -sf -X POST -H "x-api-key: $key" \
+        "http://127.0.0.1:$MUMA_TEST_PORT_MANAGER/api/tagger/tag/file?path=/mnt/music/ci-test-track-001.mp3" \
+        >/dev/null
 }
 
 # scripts/deploy.sh applies every migrate_*.sql on each deploy, so production's

@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **De keten-test dekt nu vijf verhalen in plaats van één.** Naast het nummer dat gescand, gevonden,
+  afgespeeld en als luisterbeurt vastgelegd wordt, staan er nu ook uitgeschreven: een luisterbeurt
+  voor iets dat de bibliotheek niet heeft (die hoort bewaard te blijven en níet als treffer gemeld —
+  dat is de tak waar het gros van de ingelezen geschiedenis in terechtkomt), een ster die in de
+  speler wordt gezet en bij de bibliotheek moet aankomen aan het júiste nummer, een genre-tag die een
+  te cureren genre wordt, en de vraag of de deur eigenlijk wel dicht zit. Dat laatste was een blinde
+  vlek: alle andere scenario's melden zich netjes aan, dus als de sleutelcontrole zou wegvallen bleef
+  de hele reeks groen.
 - **De keten-test staat nu uitgeschreven in gewone zinnen.** De drie stappen — scannen, opvragen via
   Subsonic, een luisterbeurt registreren — staan in `tests/bdd/features/scan_to_listen.feature`, met
   de code eronder. Dat is niet alleen mooier lezen: de plekken waar de test minder dekt dan zijn naam

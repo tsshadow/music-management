@@ -235,8 +235,7 @@ To maintain high code quality, the system employs an automated test suite:
     - `./scripts/test/core-smoke.sh` — builds and starts `docker/compose.test.yml` from a clean state, waits for all healthchecks, then tears down.
     - `./scripts/test/contracts.sh` — LMS/OpenSubsonic contract tests + listen/scrobble flow, against the test stack + fixture track.
     - `./scripts/test/frontend-browser.sh` — Playwright browser tests (login, fixture track visible) against the test stack.
-    - `./scripts/test/core-e2e.sh` — the whole chain: scan the fixture, ask for it over Subsonic, scrobble it, see the listen match. ~35s, and it gates every pipeline as `e2e:scan-to-listen`.
-    - `./scripts/test/e2e-gherkin.sh` — the same chain written as Gherkin (`tests/bdd/`). A pilot behind the manual `e2e:gherkin` job; one of the two spellings gets deleted rather than both being kept in sync.
+    - `./scripts/test/core-e2e.sh` — the whole chain: scan the fixture, ask for it over Subsonic, scrobble it, see the listen match. ~38s, and it gates every pipeline as `e2e:scan-to-listen`. Written as Gherkin in `tests/bdd/features/scan_to_listen.feature`, which is the description of the chain — the step code under it is not. Needs `pytest-bdd`, and falls back to the tooling container when it is missing, as the runners' Python is.
 - **Test stack**: `docker/compose.test.yml` — temporary MariaDB, `music-manager` and `music-management-server`, all built from the current checkout, disposable volumes, healthchecks. Never mounts real music/library paths or production data.
 - **Fixture track**: `tests/fixtures/music/ci-test-track-001.mp3` (generated tone, no commercial audio) with expected metadata documented in `tests/fixtures/expected/ci-test-track-001.json`.
 - **A new endpoint that reads the database** belongs in `tests/integration/test_router_sql.py`

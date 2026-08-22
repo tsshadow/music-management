@@ -1,8 +1,9 @@
 """Fixtures for the Gherkin walk of the scan-to-listen chain.
 
-Deliberately the same shape as the ones in tests/e2e/: the pilot is a comparison
-of two ways of *describing* one chain, so the way the stack is reached has to be
-identical for the comparison to say anything.
+Ports rather than hostnames because the stack publishes on the host and both are
+picked free at runtime; scripts/test/core-e2e.sh is what exports them. Skipping
+rather than failing when they are unset is deliberate: a bare `pytest tests/bdd`
+with no stack up should say so, not report a broken chain.
 """
 from __future__ import annotations
 
@@ -14,7 +15,7 @@ import pytest
 def _base(port_var: str) -> str:
     port = os.getenv(port_var)
     if not port:
-        pytest.skip(f'{port_var} is not set; start the stack with scripts/test/e2e-gherkin.sh')
+        pytest.skip(f'{port_var} is not set; start the stack with scripts/test/core-e2e.sh')
     return f'http://127.0.0.1:{port}'
 
 

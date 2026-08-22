@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **De label-backfill eindigde er netjes uit terwijl hij bestanden had overgeslagen.** Hij sloot af
+  met een regel als `{'written': 412}`, en wat de schijf geweigerd had stond alleen als waarschuwing
+  ergens halverwege een log van uren. Hij zegt nu hardop hoeveel bestanden niet geschreven konden
+  worden, per label, met een paar paden erbij. Dat is geen fout van de backfill: op een steekproef
+  van 22-08-2026 blijkt ongeveer één op de zes bestanden onder de EPs-map prima te lezen en elke
+  schrijfpoging te weigeren, verspreid over mappen uit 2019 tot en met dit jaar. Die schade stond er
+  al; de backfill is alleen het eerste dat hem hardop telt.
+
 ## [0.24.0] - 2026-08-22
 
 ### Added

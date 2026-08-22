@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.22.1] - 2026-08-22
+
 ### Fixed
 - **The app opens again while you are in the car.** Opening MuMa with the car connected closed it
   straight away, while the same build opened normally the moment the car was gone and the screen on

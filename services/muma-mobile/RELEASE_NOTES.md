@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [6.22.1] - 2026-08-22
+
+### Fixed
+- **De app ging uit zodra je in de auto stapte.** Opgelost. Zonder autoverbinding was er niets aan
+  de hand en het scherm in de auto bleef ook gewoon werken, waardoor het op een probleem van de
+  autostand leek.
+
 ## [6.22.0] - 2026-08-21
 
 ### Added

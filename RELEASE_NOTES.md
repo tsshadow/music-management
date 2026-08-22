@@ -11,6 +11,19 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.23.1 (2026-08-22)
+
+### Fixed
+- **De app ging uit zodra je in de auto stapte.** MuMa openen terwijl de auto verbonden was sloot
+  hem meteen weer af, terwijl dezelfde versie zonder autoverbinding gewoon opende en het scherm in
+  de auto ondertussen bleef werken. De autostand vroeg aan de speler of er iets speelde — dat
+  bepaalt of hij zelf naar voren komt of alleen een melding achterlaat — en stelde die vraag vanaf
+  een plek in de app waar de speler niet bestaat: die hoort bij het hoofdscherm, niet bij de app als
+  geheel. De vraag valt alleen op het moment dat de auto voor het eerst wordt gezien, en daarom was
+  er niets aan de hand tot je instapte, en bleef het scherm in de auto — dat langs een heel andere
+  weg bediend wordt — ongemoeid. Het hoofdscherm levert het antwoord nu zelf aan, dus er valt niets
+  meer op te zoeken.
+
 ## Global Version 0.23.0 (2026-08-21)
 
 ### Added

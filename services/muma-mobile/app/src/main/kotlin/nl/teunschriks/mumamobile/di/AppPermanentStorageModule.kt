@@ -37,7 +37,6 @@ import nl.teunschriks.mumamobile.management.ManagementViewModel
 import nl.teunschriks.mumamobile.model.AlbumListModel
 import nl.teunschriks.mumamobile.model.ArtistListModel
 import nl.teunschriks.mumamobile.model.ServerSettingsModel
-import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.util.Settings
 
 const val SP_NAME = "Default_SP"
@@ -98,7 +97,7 @@ val appPermanentStorage = module {
         )
     }
 
-    single { CarModeSession(isPlaying = { get<MediaPlayerManager>().isPlaying }) }
+    single { CarModeSession() }
 
     single { CarConnectionWatcher(androidContext(), get()) }
 

@@ -72,6 +72,28 @@ def test_leaves_a_track_without_a_publisher():
     assert backfill.plan_fix(FLAT, ROOT, _tags('')) is None
 
 
+def test_resumes_after_the_last_label_that_was_reported(tmp_path):
+    """A pass that ran for hours has to pick up where it stopped, not start over."""
+    for folder in ['A Label', 'B Label', 'C Label', '_Livesets']:
+        (tmp_path / folder).mkdir()
+    assert backfill.label_folders(str(tmp_path)) == ['A Label', 'B Label', 'C Label']
+    assert backfill.label_folders(str(tmp_path), after='B Label') == ['C Label']
+
+
+def test_reads_a_plan_written_as_lines_or_as_one_array(tmp_path):
+    """The plan is appended per label, but a plan written in one go still has to load."""
+    lines = tmp_path / 'lines.json'
+    lines.write_text(
+        '{"path": "/a.mp3", "changes": {"publisher": "X"}}\n'
+        '{"path": "/b.mp3", "changes": {"publisher": "Y"}}\n'
+    )
+    array = tmp_path / 'array.json'
+    array.write_text('[["/a.mp3", {"publisher": "X"}], ["/b.mp3", {"publisher": "Y"}]]')
+    expected = [('/a.mp3', {'publisher': 'X'}), ('/b.mp3', {'publisher': 'Y'})]
+    assert backfill.load_plan(str(lines)) == expected
+    assert backfill.load_plan(str(array)) == expected
+
+
 def test_skips_underscore_folders_and_eadir(tmp_path):
     """`_` label folders are parsed as generic songs and never carry a path derived publisher."""
     for folder in ['ABSLT Records/ABSLT065 - X', '_Livesets/Set', 'ABSLT Records/@eaDir']:

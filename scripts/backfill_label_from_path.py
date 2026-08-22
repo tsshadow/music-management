@@ -131,30 +131,54 @@ def read_tags(path):
     }
 
 
-def label_folders(root):
-    """The label folders to scan, skipping the `_` ones the tagger parses as generic songs."""
-    return sorted(
+def label_folders(root, after=None):
+    """The label folders to scan, skipping the `_` ones the tagger parses as generic songs.
+
+    `after` resumes an interrupted pass: the folders are always walked in the same order, so the
+    name of the last one reported is enough to say where to pick up.
+    """
+    names = sorted(
         name for name in os.listdir(root)
         if not name.startswith('_') and os.path.isdir(os.path.join(root, name))
     )
+    return [name for name in names if name > after] if after else names
 
 
-def plan_all(root, workers=16, labels=None):
+def load_plan(path):
+    """A plan written by an earlier run: one object per line, or one array written in one go."""
+    with open(path, encoding='utf-8') as handle:
+        text = handle.read().strip()
+    if text.startswith('['):
+        return [tuple(entry) for entry in json.loads(text)]
+    entries = [json.loads(line) for line in text.splitlines() if line.strip()]
+    return [(entry['path'], entry['changes']) for entry in entries]
+
+
+def plan_all(root, workers=16, labels=None, plan_handle=None):
     """`[(path, changes)]` for every file whose label tags disagree with its label folder.
 
     One label folder at a time: over a network share, walking the whole tree before reading the
     first tag means a quarter of an hour of silence, and a run that is interrupted has nothing to
     show for it. Per label the walk and the reads interleave and every label reports as it lands.
+
+    A full pass takes hours, so each label's findings are flushed to `plan_handle` as they land -
+    one JSON object per line. An interrupted run keeps everything up to the last label reported,
+    and `--resume-after` starts the next one where it stopped.
     """
     counts = Counter()
     planned = []
+    unreadable = []
 
     def inspect(path):
         try:
             changes = plan_fix(path, root, read_tags(path))
             return (path, changes) if changes else None
         except Exception as exc:  # noqa: BLE001 - one unreadable file must not stop the scan
+            # A refusal is not rare here: the tagger on the server writes to the same share, and a
+            # file it holds comes back as a permission error. Those files are simply not in the
+            # plan, so the run keeps the list and reports it rather than leaving it in the log.
             logging.warning('Could not read %s: %s', path, exc)
+            unreadable.append(path)
             counts['unreadable'] += 1
             return None
 
@@ -164,8 +188,12 @@ def plan_all(root, workers=16, labels=None):
             found = [result for result in executor.map(inspect, files) if result]
             counts['read'] += len(files)
             planned.extend(found)
+            if plan_handle:
+                for entry_path, changes in found:
+                    plan_handle.write(json.dumps({'path': entry_path, 'changes': changes}) + '\n')
+                plan_handle.flush()
             logging.info('%-40s %5d files, %4d to fix', label[:40], len(files), len(found))
-    return planned, counts
+    return planned, counts, unreadable
 
 
 def apply_plan(planned):
@@ -192,20 +220,25 @@ def main(argv=None):
     parser.add_argument('--root', default=DEFAULT_ROOT)
     parser.add_argument('--label', action='append', help='scan only this label folder; repeatable')
     parser.add_argument('--workers', type=int, default=16)
-    parser.add_argument('--plan-file', help='write the plan here, to apply it without rescanning')
+    parser.add_argument('--plan-file', help='append the plan here, to apply it without rescanning')
+    parser.add_argument('--resume-after', help='start at the label folder after this one')
     parser.add_argument('--from-plan', help='apply a plan written earlier instead of scanning')
     parser.add_argument('--apply', action='store_true', help='write the tags; default is a dry run')
     args = parser.parse_args(argv)
 
     if args.from_plan:
-        with open(args.from_plan, encoding='utf-8') as handle:
-            planned = [tuple(entry) for entry in json.load(handle)]
-        counts = Counter(read=0, unreadable=0)
+        planned = load_plan(args.from_plan)
+        counts, unreadable = Counter(read=0, unreadable=0), []
     else:
-        planned, counts = plan_all(args.root, args.workers, args.label)
-    if args.plan_file:
-        with open(args.plan_file, 'w', encoding='utf-8') as handle:
-            json.dump(planned, handle, indent=1)
+        labels = args.label or label_folders(args.root, args.resume_after)
+        # Appended, never truncated: a resumed pass has to add to what the interrupted one found.
+        with open(args.plan_file or os.devnull, 'a', encoding='utf-8') as handle:
+            planned, counts, unreadable = plan_all(args.root, args.workers, labels, handle)
+    if args.plan_file and unreadable:
+        # The refused files are the ones the plan cannot speak for, so they are written down next
+        # to it: `--label` re-runs them once whatever held them has let go.
+        with open(args.plan_file + '.unreadable', 'a', encoding='utf-8') as handle:
+            handle.write('\n'.join(unreadable) + '\n')
     print(f'{counts["read"]} files read, {counts["unreadable"]} unreadable, {len(planned)} to fix')
     print(dict(Counter(key for _path, changes in planned for key in changes)))
     labels = Counter(os.path.relpath(path, args.root).split(os.sep, maxsplit=1)[0] for path, _c in planned)

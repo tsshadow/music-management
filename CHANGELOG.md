@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   langer, omdat de testrunners de benodigde uitbreiding niet hebben en die in een wegwerpcontainer
   wordt geïnstalleerd.
 
+### Fixed
+- **De keten-test controleerde niet wat hij leek te controleren.** De stap die opvraagt of de
+  muziekserver het nummer terugvindt, keek alleen of er antwoord kwam. Subsonic verpakt fouten in een
+  geslaagd antwoord, en de gebruiker waarmee gevraagd werd bestond helemaal niet — dus de test slaagde
+  al die tijd op *"Wrong username or password"*. De teststack maakt nu eerst een gebruiker aan, wacht
+  tot die bij de muziekserver is aangekomen, meldt de muziekmap aan en laat die scannen. Pas daarna
+  loopt de test, en die controleert nu of het nummer echt in het antwoord staat. Dat kost ongeveer
+  zes seconden extra en dekt de helft van de keten die tot nu toe alleen op papier gedekt was.
+
 ### Changed
 - **De keten-test draait nu bij elke wijziging in plaats van op verzoek.** Hij stond op handmatig
   omdat een volledige stack duur leek: images bouwen, drie containers, een database. Gemeten kost

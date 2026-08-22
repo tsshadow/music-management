@@ -7,9 +7,9 @@
 # It was extracted when two suites ran against the same stack and had to start
 # it identically; only scripts/test/core-e2e.sh is left. It stays a file of its
 # own because bringing the stack up and deciding what to run against it are two
-# jobs, and the next thing this needs -- triggering an LMS scan so the Subsonic
-# step can assert on results rather than on a status code -- belongs here rather
-# than in the runner.
+# jobs, and the first half is the larger one: an LMS user, a declared library
+# and a completed scan all have to exist before the suite can ask LMS anything
+# at all. See e2e_stack_scan_lms below.
 #
 # Usage:
 #
@@ -54,6 +54,15 @@ e2e_stack_up() {
     export MUMA_TEST_PORT_MANAGER
     export MUMA_TEST_PORT_LMS
 
+    # The account e2e_stack_scan_lms creates and the suite authenticates as. It
+    # exists only inside a stack that is destroyed at the end of the run, and
+    # the credentials have to be readable by both halves, so they are plain
+    # here rather than pretending to be a secret.
+    MUMA_TEST_LMS_USER="${MUMA_TEST_LMS_USER:-e2e-admin}"
+    MUMA_TEST_LMS_PASSWORD="${MUMA_TEST_LMS_PASSWORD:-e2e-password}"
+    export MUMA_TEST_LMS_USER
+    export MUMA_TEST_LMS_PASSWORD
+
     echo "--- Using dynamic ports: Manager=$MUMA_TEST_PORT_MANAGER, LMS=$MUMA_TEST_PORT_LMS ---"
 
     E2E_STACK_COMPOSE="docker compose -f $E2E_STACK_COMPOSE_FILE -p $COMPOSE_PROJECT_NAME"
@@ -81,13 +90,77 @@ e2e_stack_up() {
     done
 
     # The fixture lands on the shared volume, which music-manager's scanner walks
-    # on demand (/api/scanner/scan/all, which the suites call). LMS keeps a
-    # separate index and is not told to rescan, so the file is on its disk
-    # without being in its library -- which is why the suites only assert that
-    # search3 answers, not that it finds the track. Triggering an LMS scan here
-    # is the next step for that step.
+    # on demand (/api/scanner/scan/all, which the suite calls).
     echo "--- Copying the fixture track into the LMS music volume ---"
     local lms_cid
     lms_cid=$($E2E_STACK_COMPOSE ps -q music-management-server)
     docker cp "$E2E_STACK_FIXTURE" "$lms_cid":/music/ci-test-track-001.mp3
+
+    e2e_stack_scan_lms
+}
+
+# LMS keeps its own index, entirely separate from music-manager's. Until this
+# ran, the file was on LMS's disk without being in its library, and the suite's
+# Subsonic step could only assert that the request was answered.
+#
+# "Answered" turned out to mean less than it sounds: Subsonic reports failures
+# inside a 200, so searching as a user that was never created returned
+#
+#   {"status":"failed","error":{"code":40,"message":"Wrong username or password."}}
+#
+# and the assertion passed on it. The four steps below are what it takes to make
+# that step mean something: LMS has no users of its own -- music-manager owns
+# them and pushes them across -- so an account has to exist before anything can
+# be asked of the Subsonic API at all, and a library has to be declared before a
+# scan has anywhere to look. Same sequence as scripts/test/frontend-browser.sh,
+# which needed it first.
+e2e_stack_scan_lms() {
+    local manager="http://127.0.0.1:$MUMA_TEST_PORT_MANAGER"
+    local lms="http://127.0.0.1:$MUMA_TEST_PORT_LMS"
+    local subsonic="u=$MUMA_TEST_LMS_USER&p=$MUMA_TEST_LMS_PASSWORD&v=1.16.1&c=e2e-test&f=json"
+
+    echo "--- Creating the LMS user ---"
+    curl -sf -X POST "$manager/api/auth/setup" \
+        -H "Content-Type: application/json" \
+        -d "{\"username\":\"$MUMA_TEST_LMS_USER\",\"password\":\"$MUMA_TEST_LMS_PASSWORD\"}" >/dev/null
+
+    echo "--- Waiting for the user to sync into LMS ---"
+    local deadline=$((SECONDS + 60))
+    local status
+    while true; do
+        status=$(curl -s "$lms/rest/ping.view?$subsonic" \
+            | python3 -c "import json,sys; print(json.load(sys.stdin)['subsonic-response']['status'])" 2>/dev/null || echo "")
+        [ "$status" = "ok" ] && break
+        if [ $SECONDS -ge $deadline ]; then
+            echo "ERROR: the user never reached LMS, so nothing can authenticate against it"
+            $E2E_STACK_COMPOSE logs music-management-server
+            exit 1
+        fi
+        sleep 1
+    done
+
+    echo "--- Declaring the music library and scanning it ---"
+    curl -sf -X POST "$lms/muma/api/admin/libraries?u=$MUMA_TEST_LMS_USER&p=$MUMA_TEST_LMS_PASSWORD" \
+        -H "Content-Type: application/json" \
+        -d '{"name":"e2e-library","path":"/music"}' >/dev/null
+    curl -sf "$lms/rest/startScan.view?$subsonic" >/dev/null
+
+    # The scan is asynchronous and takes well under a second for one file, but
+    # polling for the track rather than for "not scanning" is what actually
+    # answers the question: an empty library also reports that it is not
+    # scanning.
+    echo "--- Waiting for LMS to index the fixture track ---"
+    deadline=$((SECONDS + 60))
+    local found
+    while true; do
+        found=$(curl -s "$lms/rest/search3.view?query=CI%20Test%20Track&$subsonic" \
+            | python3 -c "import json,sys; d=json.load(sys.stdin); print(bool(d['subsonic-response'].get('searchResult3',{}).get('song')))" 2>/dev/null || echo "False")
+        [ "$found" = "True" ] && { echo "OK: LMS has the fixture track"; break; }
+        if [ $SECONDS -ge $deadline ]; then
+            echo "ERROR: LMS never indexed the fixture track"
+            $E2E_STACK_COMPOSE logs music-management-server
+            exit 1
+        fi
+        sleep 2
+    done
 }

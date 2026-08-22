@@ -1,17 +1,33 @@
 #!/bin/bash
 # scripts/test/core-e2e.sh
-# The golden path, end to end: start the stack, put a track in the music volume,
-# scan it, find it over the Subsonic API the way the mobile app does, scrobble
-# it, and read the listen back.
+# Scan to listen, end to end: start the stack, put a track in the music volume,
+# scan it, ask for it over the Subsonic API the way the mobile app does, and
+# scrobble it until music-manager matches the listen back to the track.
 #
 # Every other suite proves one component. This is the only one that proves the
-# chain, which is why it exists even though it is the slowest thing here.
+# chain.
 #
-# Manual on purpose. It builds images and holds a stack for a few minutes, and
-# nothing downstream gates on it, so it runs when someone asks rather than on
-# every push.
+# It ran manually for a while on the assumption that a full stack is expensive.
+# Measured, it is about 35 seconds: three containers over an empty database and
+# a single fixture track, with the image build the largest part of it. So
+# e2e:scan-to-listen runs on every pipeline and gates.
+#
+# The chain is written as Gherkin -- tests/bdd/features/scan_to_listen.feature,
+# with pytest-bdd steps under it. It was piloted next to a plain pytest function
+# saying the same thing, and won on one point: the places where the coverage is
+# thinner than the name suggests are written between the steps, in the same
+# document as the claims, instead of in a code comment. The plain version is
+# gone; keeping both would have meant keeping them in sync forever.
 #
 # Usage: ./scripts/test/core-e2e.sh
+#
+# The runners have pytest and requests in their system Python but not
+# pytest-bdd, and this repository cannot install into that Python -- python3-venv
+# is not there either, so `python3 -m venv` fails on ensurepip. So when the
+# plugin is missing the suite runs inside the tooling image instead: the same
+# fallback scripts/lint.sh uses, with --network host added because the stack
+# publishes its ports on the host and the steps reach them over 127.0.0.1. It
+# costs about four seconds over a native run.
 #
 # What it does NOT cover, and it is worth being blunt about it: nothing here
 # runs the Android app. The 6.21.0 startup crash (docs/bug-reports/029) lived
@@ -23,58 +39,44 @@
 set -e
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-COMPOSE_FILE="$ROOT_DIR/docker/compose.test.yml"
-COMPOSE_PROJECT_NAME="muma-e2e${CI_JOB_ID:+-}${CI_JOB_ID:-}"
+BDD_IMAGE="${PYTHON_TOOLING_IMAGE:-python:3.11-slim}"
 
-find_free_port() {
-    python3 -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()'
-}
+# shellcheck source=scripts/lib/e2e-stack.sh
+source "$ROOT_DIR/scripts/lib/e2e-stack.sh"
 
-MUMA_TEST_PORT_MANAGER=$(find_free_port)
-MUMA_TEST_PORT_LMS=$(find_free_port)
-export MUMA_TEST_PORT_MANAGER
-export MUMA_TEST_PORT_LMS
+e2e_stack_up muma-e2e
 
-echo "--- Using dynamic ports: Manager=$MUMA_TEST_PORT_MANAGER, LMS=$MUMA_TEST_PORT_LMS ---"
-
-COMPOSE="docker compose -f $COMPOSE_FILE -p $COMPOSE_PROJECT_NAME"
-FIXTURE="$ROOT_DIR/tests/fixtures/music/ci-test-track-001.mp3"
-
-cleanup() {
-    echo "--- Tearing down e2e stack ---"
-    # --rmi local for the same reason contracts.sh does it: without it every run
-    # leaves a pair of images behind under its own project name and eventually
-    # fills the runner's disk.
-    $COMPOSE down -v --remove-orphans --rmi local
-}
-trap cleanup EXIT
-
-echo "--- Building and starting the stack from a clean state ---"
-$COMPOSE down -v --remove-orphans 2>/dev/null || true
-$COMPOSE up -d --build
-
-echo "--- Waiting for services to become healthy ---"
-DEADLINE=$((SECONDS + 300))
-for service in $($COMPOSE config --services); do
-    while true; do
-        cid=$($COMPOSE ps -q "$service")
-        status=$(docker inspect -f '{{.State.Health.Status}}' "$cid" 2>/dev/null || echo "none")
-        [ "$status" = "healthy" ] && { echo "OK: $service is healthy"; break; }
-        if [ "$status" = "unhealthy" ] || [ $SECONDS -ge $DEADLINE ]; then
-            echo "ERROR: $service did not become healthy in time (status: $status)"
-            $COMPOSE logs "$service"
-            exit 1
-        fi
-        sleep 2
-    done
-done
-
-echo "--- Copying the fixture track into the LMS music volume ---"
-LMS_CID=$($COMPOSE ps -q music-management-server)
-docker cp "$FIXTURE" "$LMS_CID":/music/ci-test-track-001.mp3
-
-echo "--- Running the golden path ---"
+echo "--- Running the scan-to-listen chain ---"
 cd "$ROOT_DIR"
-COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" python3 -m pytest -p no:warnings tests/e2e/ -v
 
-echo "--- Golden path passed ---"
+if python3 -c 'import pytest_bdd' >/dev/null 2>&1; then
+    python3 -m pytest -p no:warnings tests/bdd/ -v
+else
+    if ! command -v docker >/dev/null 2>&1; then
+        echo "pytest-bdd is missing and Docker is not available." >&2
+        echo "Install it with: pip install -r tests/bdd/requirements.txt" >&2
+        exit 1
+    fi
+    echo "--- pytest-bdd not on PATH; running the feature inside $BDD_IMAGE ---"
+    # --user keeps .pytest_cache and __pycache__ owned by the runner rather than
+    # by root; root-owned build output is what the pre_get_sources_script hook in
+    # .gitlab-ci.yml exists to clean up after.
+    docker run --rm \
+        --network host \
+        --user "$(id -u):$(id -g)" \
+        -v "$ROOT_DIR:/repo" \
+        -w /repo \
+        -e HOME=/tmp \
+        -e PYTHONUSERBASE=/tmp/tooling \
+        -e PIP_CACHE_DIR=/tmp/pip-cache \
+        -e PATH=/tmp/tooling/bin:/usr/local/bin:/usr/bin:/bin \
+        -e MUMA_TEST_PORT_MANAGER="$MUMA_TEST_PORT_MANAGER" \
+        -e MUMA_TEST_PORT_LMS="$MUMA_TEST_PORT_LMS" \
+        -e MUMA_TEST_LMS_USER="$MUMA_TEST_LMS_USER" \
+        -e MUMA_TEST_LMS_PASSWORD="$MUMA_TEST_LMS_PASSWORD" \
+        -e API_KEY="${API_KEY:-}" \
+        "$BDD_IMAGE" \
+        bash -c "pip install --user --quiet --disable-pip-version-check -r tests/bdd/requirements.txt && python -m pytest -p no:warnings tests/bdd/ -v"
+fi
+
+echo "--- Scan-to-listen chain passed ---"

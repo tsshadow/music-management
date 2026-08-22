@@ -1,6 +1,7 @@
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.Cache import databaseHelpers
 from services.tagger.constants import CATALOG_NUMBER, COPYRIGHT, PUBLISHER
+from services.tagger.Song import LabelPath
 from services.tagger.Song.BaseSong import BaseSong
 from services.tagger.Song.rules.AddMissingArtistToDatabaseRule import AddMissingArtistToDatabaseRule
 from services.tagger.Song.rules.CheckArtistRule import CheckArtistRule
@@ -18,9 +19,9 @@ class LabelSong(BaseSong):
 
     def __init__(self, path):
         super().__init__(path)
-        paths = path.rsplit(s.delimiter, 2)
-        self._publisher = str(paths[0].split(s.delimiter)[-1])
-        self._catalog_number = str(paths[1].split(' ')[0])
+        publisher, release_folder = LabelPath.split(path, s.eps_folder_path, s.delimiter)
+        self._publisher = str(publisher)
+        self._catalog_number = str(LabelPath.catalog_number(release_folder))
 
     def parse(self):
         self.tag_collection.set_item(PUBLISHER, self._publisher)

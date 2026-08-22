@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-08-22
+
+### Added
+- **De keten-test dekt nu vijf verhalen in plaats van één.** Naast het nummer dat gescand, gevonden,
+  afgespeeld en als luisterbeurt vastgelegd wordt, staan er nu ook uitgeschreven: een luisterbeurt
+  voor iets dat de bibliotheek niet heeft (die hoort bewaard te blijven en níet als treffer gemeld —
+  dat is de tak waar het gros van de ingelezen geschiedenis in terechtkomt), een ster die in de
+  speler wordt gezet en bij de bibliotheek moet aankomen aan het júiste nummer, een genre-tag die een
+  te cureren genre wordt, en de vraag of de deur eigenlijk wel dicht zit. Dat laatste was een blinde
+  vlek: alle andere scenario's melden zich netjes aan, dus als de sleutelcontrole zou wegvallen bleef
+  de hele reeks groen.
+- **En er staat nu een test op de fout die 887 sterren kostte.** Ratings hangen aan het kenmerk van
+  een nummer, niet aan zijn pad, dus alles wat een bestand een nieuw kenmerk geeft maakt stilzwijgend
+  los wat eraan hing — de nummers stonden er nog, er ging niets stuk, de sterren waren alleen weg.
+  Dezelfde sleutel draagt ook de audiokenmerken. De test zet een ster, laat het bestand daarna
+  helemaal opnieuw inlezen, en controleert dat het kenmerk hetzelfde bleef, dat de ster nog steeds
+  bij het nummer te vinden is, en dat de bibliotheek er geen tweede kopie bij heeft gekregen.
+- **De keten-test staat nu uitgeschreven in gewone zinnen.** De drie stappen — scannen, opvragen via
+  Subsonic, een luisterbeurt registreren — staan in `tests/bdd/features/scan_to_listen.feature`, met
+  de code eronder. Dat is niet alleen mooier lezen: de plekken waar de test minder dekt dan zijn naam
+  belooft staan nu tússen de stappen, in hetzelfde stuk tekst als de beloftes, in plaats van in een
+  codecommentaar dat je alleen ziet als je het bestand opent. De oude schrijfwijze is weg — twee
+  versies van dezelfde keten betekent ze voor altijd gelijk houden. De taak duurt drie seconden
+  langer, omdat de testrunners de benodigde uitbreiding niet hebben en die in een wegwerpcontainer
+  wordt geïnstalleerd.
+- **De keten-test speelt het nummer nu ook echt af.** Tot nu toe bewees hij dat een bestand
+  gevonden kon worden, niet dat het beluisterd kon worden — de laatste schakel waar de test naar
+  vernoemd is ontbrak dus. Hij haalt het nummer nu op bij de muziekserver en controleert twee
+  dingen. Het bestand komt byte voor byte terug, even groot als de server zelf opgeeft: dat sluit uit
+  dat het onderweg is omgezet, want een omgezette stroom is nog steeds geluid en nog steeds een
+  geslaagd antwoord, alleen niet meer het bestand dat gescand werd. En er kan een losse byte uit het
+  midden opgevraagd worden, wat een speler doet zodra je in een nummer springt; dat loopt via andere
+  code dan een heel bestand ophalen, en een server die het stilzwijgend negeert stuurt gewoon alles
+  terug en lijkt daarmee in orde.
+
+### Fixed
+- **Een release die een kopie van zijn eigen map meelevert kreeg die map als platenlabel.** De tagger
+  telde vanaf het bestand twee mappen omhoog om het label te vinden. Bij scene-releases die hun eigen
+  map nóg een keer bevatten staat het nummer een niveau dieper, en dan is die twee-omhoog niet
+  `ABSLT Records` maar `ABSLT065 - Hartshorn_-_LOSE_CTRL-(ABSLT065)-SINGLE-WEB-2026-SRG`. Dat kwam
+  zo in het label, het catalogusnummer én de copyright terecht, en daarmee ook in de bibliotheek: het
+  label bestaat dan één keer voor die ene release. De tagger rekent nu vanaf de EPs-map naar beneden
+  — de eerste map daaronder is het label, de tweede de release — zodat het niet meer uitmaakt hoe
+  diep het bestand eronder staat. Paden buiten de EPs-map, waar de importer mee werkt, blijven de
+  oude telling gebruiken. Voor de nummers die al fout getagd zijn is er
+  `scripts/backfill_label_from_path.py`, die alleen bijwerkt wat aantoonbaar de eigen releasemap als
+  label draagt en een met de hand gezet label met rust laat.
+- **De keten-test controleerde niet wat hij leek te controleren.** De stap die opvraagt of de
+  muziekserver het nummer terugvindt, keek alleen of er antwoord kwam. Subsonic verpakt fouten in een
+  geslaagd antwoord, en de gebruiker waarmee gevraagd werd bestond helemaal niet — dus de test slaagde
+  al die tijd op *"Wrong username or password"*. De teststack maakt nu eerst een gebruiker aan, wacht
+  tot die bij de muziekserver is aangekomen, meldt de muziekmap aan en laat die scannen. Pas daarna
+  loopt de test, en die controleert nu of het nummer echt in het antwoord staat. Dat kost ongeveer
+  vier seconden extra en dekt de helft van de keten die tot nu toe alleen op papier gedekt was.
+
+### Changed
+- **De keten-test draait nu bij elke wijziging in plaats van op verzoek.** Hij stond op handmatig
+  omdat een volledige stack duur leek: images bouwen, drie containers, een database. Gemeten loopt
+  hij tussen de 45 en 80 seconden, waarvan bijna alles wachten is tot de containers opgestart zijn;
+  de test zelf duurt twee seconden. Een test die de enige is die de hele keten bewijst en die pas
+  draait als iemand eraan denkt, bewijst in de praktijk niets, dus hij draait nu overal mee en houdt
+  de pipeline tegen als hij rood is. Hij heet ook niet langer `e2e:golden-path` maar
+  `e2e:scan-to-listen`, want dat is wat hij doet. Wat hij nog steeds niet doet is de luisterbeurt uit
+  de geschiedenis teruglezen — dat komt uit het antwoord op de registratie zelf — en dat staat er nu
+  ook zo bij.
+
 ## [0.23.1] - 2026-08-22
 
 ### Fixed

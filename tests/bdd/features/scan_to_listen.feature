@@ -12,6 +12,7 @@ Feature: A track on disk becomes a listen
     Given the test stack is running
     And the fixture track is on the music volume
     And LMS has scanned its library
+    And nothing has been listened to yet
 
   Scenario: A scanned track can be found, played and recorded as a listen
     When the scanner is asked to scan the library
@@ -27,5 +28,8 @@ Feature: A track on disk becomes a listen
     And a player can ask for a single byte in the middle of it
 
     When a listen is recorded for the track
-    # Read back out of the answer to the request, not out of the listen history.
     Then the listen is matched to the track that was scanned
+    # Not the same claim as the one above: that reads the answer to the request,
+    # this reads what the server kept. Nothing serves an individual listen back,
+    # so what is checked is that the count went from none to one.
+    And the listen is in the library's own records

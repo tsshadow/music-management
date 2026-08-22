@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   te cureren genre wordt, en de vraag of de deur eigenlijk wel dicht zit. Dat laatste was een blinde
   vlek: alle andere scenario's melden zich netjes aan, dus als de sleutelcontrole zou wegvallen bleef
   de hele reeks groen.
+- **En er staat nu een test op de fout die 887 sterren kostte.** Ratings hangen aan het kenmerk van
+  een nummer, niet aan zijn pad, dus alles wat een bestand een nieuw kenmerk geeft maakt stilzwijgend
+  los wat eraan hing — de nummers stonden er nog, er ging niets stuk, de sterren waren alleen weg.
+  Dezelfde sleutel draagt ook de audiokenmerken. De test zet een ster, laat het bestand daarna
+  helemaal opnieuw inlezen, en controleert dat het kenmerk hetzelfde bleef, dat de ster nog steeds
+  bij het nummer te vinden is, en dat de bibliotheek er geen tweede kopie bij heeft gekregen.
 - **De keten-test staat nu uitgeschreven in gewone zinnen.** De drie stappen — scannen, opvragen via
   Subsonic, een luisterbeurt registreren — staan in `tests/bdd/features/scan_to_listen.feature`, met
   de code eronder. Dat is niet alleen mooier lezen: de plekken waar de test minder dekt dan zijn naam

@@ -46,6 +46,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   over 2026; zie [docs/designs/wrapped/](docs/designs/wrapped/).
 
 ### Fixed
+- **De voortgangsbalk op de tv stond stil.** In de browser van de LG-tv bewoog de balk alleen als je
+  op play of pause drukte. De balk hing volledig aan het `timeupdate`-event van het audio-element, en
+  die tv stuurt dat alleen bij een toestandswissel — niet op de vier keer per seconde die de standaard
+  voorschrijft. De speler leest de positie nu zelf elke 250 ms uit zolang er geluid speelt, op elk
+  apparaat, dus hij hangt nergens meer af van hoe gul een browser met dat event is. Hetzelfde
+  euvel hield op de tv ook de halverwege-listen tegen, want die telde mee op dezelfde tikken.
+- **Een tv-stream zonder lengte liet de balk op nul staan.** Een getranscodeerde stream komt in
+  stukjes binnen zonder `Content-Length`, en dan meldt het audio-element `Infinity` als lengte. Elke
+  berekening daarmee wordt `NaN`, dus de balk bleef leeg, de tijd rechts bleef `0:00` en klikken om
+  te spoelen gooide je positie weg. De speler valt nu terug op de lengte die de server bij de track
+  meestuurt, en weigert te spoelen zolang er helemaal geen lengte bekend is.
 - **De verhuizing zou een nieuw nep-label hebben opgeleverd.** De tagger leidt een label af uit de
   mappen boven een track. Zet je `__Free&None` op `/mnt/music/songs/`, dan is het naïeve antwoord dat
   al die tracks op een label genaamd `songs` staan — dezelfde fout als `Soundcloud`, alleen met een

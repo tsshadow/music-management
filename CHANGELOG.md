@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **SoundCloud is geen platenlabel meer.** `Soundcloud` (132.037 tracks), `Youtube` (30.779) en
+  `Telegram` (1.556) stonden bovenaan je labellijst, ver boven het eerste echte label (Dirty Workz,
+  2.299). Dat kwam doordat de tagger het platform in de publisher-tag zet en de scanner een
+  publisher als label opslaat. `__TODO` en `__Free&none` stonden er om dezelfde reden in: de eerste
+  is de naam van de importmap zelf, de tweede is de stapel muziek die juist géén label heeft. Geen
+  van de vijf is een label. Er is nu een `channels`-tabel: een account op een platform, waar een
+  bestand doorheen binnenkwam. Platforms blijven gesplitst — het SoundCloud- en het YouTube-kanaal
+  van hetzelfde label zijn twee rijen — en ze komen samen via het label of de artiest waar een
+  kanaal naar wijst. Beide koppelingen mogen tegelijk gevuld zijn, want een artiest met een eigen
+  imprint is geen uitzondering, en beide mogen leeg blijven: dat een kanaal bestaat legt een scan
+  vast, wát het is bepaal jij. De classificatie komt uit het pad en niet uit de tag, dus alle
+  160.000 bestanden kloppen zonder er één opnieuw te taggen. Bestaande rijen zet je om met
+  `scripts/backfill_channels.py` — draai hem eerst met `--dry-run`. Er wordt geen bestand
+  verplaatst of hernoemd.
 - **Een listen weet nu hoe lang je écht geluisterd hebt, en waar.** Tot nu toe legde MuMa alleen
   vast dát er iets gespeeld was. Hoe lang wist de speler wel, maar dat getal werd weggegooid voordat
   het verstuurd werd, en elke listen claimde dezelfde herkomst (`lms`) of je nu op de webspeler, je

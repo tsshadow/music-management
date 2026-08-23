@@ -11,6 +11,10 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+- **Je toplabels kloppen weer.** SoundCloud, YouTube en Telegram stonden bovenaan je labellijst
+  terwijl het geen labels zijn maar kanalen waar muziek doorheen binnenkomt; `__TODO` en
+  `__Free&none` stonden er ook tussen. Die zijn nu kanalen of helemaal niets, en het eerste echte
+  label staat weer bovenaan. Er wordt geen bestand verplaatst.
 - **Je luistergeschiedenis wordt eerlijker bijgehouden.** MuMa legt nu vast hoe lang je een track
   echt gedraaid hebt en waar je zat: webspeler, telefoon of auto. Een set die je halverwege wegklikt
   telt voortaan mee — dat gebeurde op de telefoon helemaal niet. Voorwerk voor een MuMa Wrapped over

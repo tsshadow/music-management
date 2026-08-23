@@ -285,3 +285,58 @@ class CooldownForTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class DeepSweepDueTest(unittest.TestCase):
+
+    def setUp(self):
+        self.now = NOW
+        self.store = InMemoryCheckStore()
+        self.schedule = AccountSchedule('soundcloud', store=self.store,
+                                        now=lambda: self.now)
+
+    def test_an_account_never_deep_swept_is_due(self):
+        self.assertTrue(self.schedule.deep_due('dj_a', 30))
+
+    def test_an_account_that_was_checked_but_never_deep_swept_is_due(self):
+        self.schedule.mark_checked('dj_a')
+        self.assertTrue(self.schedule.deep_due('dj_a', 30))
+
+    def test_an_account_deep_swept_yesterday_is_not_due(self):
+        self.schedule.mark_deep_swept('dj_a', when=self.now - timedelta(days=1))
+        self.assertFalse(self.schedule.deep_due('dj_a', 30))
+
+    def test_an_account_deep_swept_long_enough_ago_is_due_again(self):
+        self.schedule.mark_deep_swept('dj_a', when=self.now - timedelta(days=31))
+        self.assertTrue(self.schedule.deep_due('dj_a', 30))
+
+    def test_zero_days_turns_the_deep_sweep_off(self):
+        self.assertFalse(self.schedule.deep_due('dj_a', 0))
+
+    def test_marking_a_deep_sweep_leaves_the_ordinary_check_alone(self):
+        self.schedule.mark_checked('dj_a', when=self.now - timedelta(hours=2),
+                                   last_seen_track_id='t9')
+        self.schedule.mark_deep_swept('dj_a')
+        record = self.store.load('soundcloud')['dj_a']
+        self.assertEqual('t9', record.last_seen_track_id)
+        self.assertEqual(self.now - timedelta(hours=2), record.last_checked_at)
+        self.assertEqual(self.now, record.last_deep_sweep_at)
+
+    def test_an_ordinary_check_leaves_the_deep_sweep_date_alone(self):
+        self.schedule.mark_deep_swept('dj_a', when=self.now - timedelta(days=2))
+        self.schedule.mark_checked('dj_a')
+        record = self.store.load('soundcloud')['dj_a']
+        self.assertEqual(self.now - timedelta(days=2), record.last_deep_sweep_at)
+
+    def test_a_broken_store_leaves_the_account_due_rather_than_stuck(self):
+        class BrokenStore:
+            def load(self, source):
+                raise RuntimeError('database is down')
+
+            def mark_deep(self, *args):
+                raise RuntimeError('database is down')
+
+        schedule = AccountSchedule('soundcloud', store=BrokenStore(),
+                                   now=lambda: self.now)
+        schedule.mark_deep_swept('dj_a')
+        self.assertTrue(schedule.deep_due('dj_a', 30))

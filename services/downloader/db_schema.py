@@ -39,29 +39,51 @@ _CREATE_ACCOUNT_CHECKS = """
         last_checked_at    DATETIME     NOT NULL,
         last_upload_at     DATETIME     NULL,
         last_seen_track_id VARCHAR(64)  NULL,
+        last_deep_sweep_at DATETIME     NULL,
         PRIMARY KEY (source, account)
     )
 """
 
-# Installs that predate the tier ladder already have the table without these two,
-# and CREATE TABLE IF NOT EXISTS leaves such a table alone.
+# Installs that predate the tier ladder and the deep sweep already have the table
+# without these three, and CREATE TABLE IF NOT EXISTS leaves such a table alone.
 _ALTER_ACCOUNT_CHECKS = (
     'ALTER TABLE downloads_account_checks '
     'ADD COLUMN IF NOT EXISTS last_upload_at DATETIME NULL',
     'ALTER TABLE downloads_account_checks '
     'ADD COLUMN IF NOT EXISTS last_seen_track_id VARCHAR(64) NULL',
+    'ALTER TABLE downloads_account_checks '
+    'ADD COLUMN IF NOT EXISTS last_deep_sweep_at DATETIME NULL',
 )
 
 _CREATE_UNAVAILABLE = """
     CREATE TABLE IF NOT EXISTS downloads_soundcloud_unavailable (
-        account    VARCHAR(255) NOT NULL,
-        track_id   VARCHAR(255) NOT NULL,
-        reason     VARCHAR(64)  NOT NULL,
-        first_seen DATETIME     NOT NULL,
-        last_seen  DATETIME     NOT NULL,
+        source           VARCHAR(32)  NOT NULL DEFAULT 'soundcloud',
+        account          VARCHAR(255) NOT NULL,
+        track_id         VARCHAR(255) NOT NULL,
+        reason           VARCHAR(64)  NOT NULL,
+        first_seen       DATETIME     NOT NULL,
+        last_seen        DATETIME     NOT NULL,
+        duration_seconds INT          NULL,
+        attempts         INT          NOT NULL DEFAULT 0,
         PRIMARY KEY (account, track_id)
     )
 """
+
+# The table now serves both downloaders and records duration verdicts as well as
+# 403s, so installs that predate that are missing three columns. The primary key
+# deliberately stays (account, track_id): dropping and recreating a key is not an
+# idempotent statement, and ensure_downloader_tables runs on every start. Two
+# sources sharing a row would need the same account name and the same track id
+# across platforms whose ids do not share a format, and every query filters on
+# source regardless.
+_ALTER_UNAVAILABLE = (
+    "ALTER TABLE downloads_soundcloud_unavailable "
+    "ADD COLUMN IF NOT EXISTS source VARCHAR(32) NOT NULL DEFAULT 'soundcloud'",
+    'ALTER TABLE downloads_soundcloud_unavailable '
+    'ADD COLUMN IF NOT EXISTS duration_seconds INT NULL',
+    'ALTER TABLE downloads_soundcloud_unavailable '
+    'ADD COLUMN IF NOT EXISTS attempts INT NOT NULL DEFAULT 0',
+)
 
 _STATEMENTS = (_CREATE_SETTINGS, _CREATE_RATE_STATE, _CREATE_ACCOUNT_CHECKS, _CREATE_UNAVAILABLE)
 
@@ -73,7 +95,7 @@ def ensure_downloader_tables(cursor) -> None:
     """Create the downloader tables if they do not exist yet, and widen the old ones."""
     for statement in _STATEMENTS:
         cursor.execute(statement)
-    for statement in _ALTER_ACCOUNT_CHECKS:
+    for statement in _ALTER_ACCOUNT_CHECKS + _ALTER_UNAVAILABLE:
         cursor.execute(statement)
 
 

@@ -25,6 +25,10 @@ def parse_args(argv: Sequence[str] | None=None) -> argparse.Namespace:
     group.add_argument('--break-on-existing', dest='break_on_existing', help='Break early when an already-downloaded item is encountered', action='store_true')
     group.add_argument('--no-break-on-existing', dest='break_on_existing', help='Do not break early on existing items', action='store_false')
     parser.set_defaults(break_on_existing=True)
+    parser.add_argument('--deep', action='store_true',
+                        help='Walk each account in full and fetch everything the archive is '
+                             'missing, instead of stopping at the newest track already held. '
+                             'Happens on its own every deep_sweep_days; this forces it now.')
     parser.add_argument('--repeat', help='Repeat the steps in a loop, sleeping between runs', action='store_true')
     return parser.parse_args(argv)
 
@@ -58,14 +62,15 @@ class DownloaderService:
         self.settings = Settings()
         self.dry_run = getattr(self.settings, 'dryrun', False)
 
-    def download(self, source: str, account: str | None, break_on_existing: bool) -> None:
+    def download(self, source: str, account: str | None, break_on_existing: bool,
+                 deep: bool = False) -> None:
         if source == 'youtube':
             from services.downloader.youtube.youtube import YoutubeDownloader
-            youtube_downloader = YoutubeDownloader(break_on_existing=break_on_existing, dry_run=self.dry_run)
+            youtube_downloader = YoutubeDownloader(break_on_existing=break_on_existing, dry_run=self.dry_run, deep=deep)
             youtube_downloader.run(account=account)
         elif source == 'soundcloud':
             from services.downloader.soundcloud.soundcloud import SoundcloudDownloader
-            soundcloud_downloader = SoundcloudDownloader(break_on_existing=break_on_existing, dry_run=self.dry_run)
+            soundcloud_downloader = SoundcloudDownloader(break_on_existing=break_on_existing, dry_run=self.dry_run, deep=deep)
             soundcloud_downloader.run(account=account)
         elif source == 'telegram':
             from services.downloader.telegram.telegram import TelegramDownloader
@@ -95,9 +100,9 @@ def main() -> None:
         steps = {'youtube', 'soundcloud', 'telegram'}
     while True:
         if 'youtube' in steps:
-            downloader_service.download('youtube', break_on_existing=args.break_on_existing, account=args.account)
+            downloader_service.download('youtube', break_on_existing=args.break_on_existing, account=args.account, deep=args.deep)
         if 'soundcloud' in steps:
-            downloader_service.download('soundcloud', break_on_existing=args.break_on_existing, account=args.account)
+            downloader_service.download('soundcloud', break_on_existing=args.break_on_existing, account=args.account, deep=args.deep)
         if 'telegram' in steps:
             downloader_service.download('telegram', break_on_existing=args.break_on_existing, account=args.account)
         if not args.repeat:

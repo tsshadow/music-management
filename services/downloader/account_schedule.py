@@ -60,6 +60,7 @@ class AccountCheck:
     last_checked_at: datetime
     last_upload_at: datetime | None = None
     last_seen_track_id: str | None = None
+    last_deep_sweep_at: datetime | None = None
 
 
 def due_accounts(accounts: Iterable[str], checks: Mapping[str, AccountCheck],
@@ -94,13 +95,25 @@ class InMemoryCheckStore:
 
     def mark(self, source: str, account: str, when: datetime,
              last_upload_at: datetime | None = None,
-             last_seen_track_id: str | None = None) -> None:
+             last_seen_track_id: str | None = None,
+             last_deep_sweep_at: datetime | None = None) -> None:
         rows = self._rows.setdefault(source, {})
         previous = rows.get(account)
         rows[account] = AccountCheck(
             last_checked_at=when,
             last_upload_at=_kept(last_upload_at, previous, 'last_upload_at'),
             last_seen_track_id=_kept(last_seen_track_id, previous, 'last_seen_track_id'),
+            last_deep_sweep_at=_kept(last_deep_sweep_at, previous, 'last_deep_sweep_at'),
+        )
+
+    def mark_deep(self, source: str, account: str, when: datetime) -> None:
+        rows = self._rows.setdefault(source, {})
+        previous = rows.get(account)
+        rows[account] = AccountCheck(
+            last_checked_at=previous.last_checked_at if previous else when,
+            last_upload_at=previous.last_upload_at if previous else None,
+            last_seen_track_id=previous.last_seen_track_id if previous else None,
+            last_deep_sweep_at=when,
         )
 
 
@@ -130,19 +143,22 @@ class DatabaseCheckStore:
         try:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    'SELECT account, last_checked_at, last_upload_at, last_seen_track_id '
+                    'SELECT account, last_checked_at, last_upload_at, last_seen_track_id, '
+                    '       last_deep_sweep_at '
                     'FROM downloads_account_checks WHERE source = %s',
                     (source,))
                 return {
-                    account: AccountCheck(checked_at, upload_at, track_id)
-                    for account, checked_at, upload_at, track_id in cursor.fetchall()
+                    account: AccountCheck(checked_at, upload_at, track_id, deep_at)
+                    for account, checked_at, upload_at, track_id, deep_at
+                    in cursor.fetchall()
                 }
         finally:
             connection.close()
 
     def mark(self, source: str, account: str, when: datetime,
              last_upload_at: datetime | None = None,
-             last_seen_track_id: str | None = None) -> None:
+             last_seen_track_id: str | None = None,
+             last_deep_sweep_at: datetime | None = None) -> None:
         connection = self._connect()
         try:
             with connection.cursor() as cursor:
@@ -150,13 +166,34 @@ class DatabaseCheckStore:
                 # for the two upload columns and must leave them as they were.
                 cursor.execute(
                     'INSERT INTO downloads_account_checks '
-                    '(source, account, last_checked_at, last_upload_at, last_seen_track_id) '
-                    'VALUES (%s, %s, %s, %s, %s) '
+                    '(source, account, last_checked_at, last_upload_at, last_seen_track_id, '
+                    ' last_deep_sweep_at) '
+                    'VALUES (%s, %s, %s, %s, %s, %s) '
                     'ON DUPLICATE KEY UPDATE '
                     '  last_checked_at = VALUES(last_checked_at), '
                     '  last_upload_at = COALESCE(VALUES(last_upload_at), last_upload_at), '
-                    '  last_seen_track_id = COALESCE(VALUES(last_seen_track_id), last_seen_track_id)',
-                    (source, account, when, last_upload_at, last_seen_track_id))
+                    '  last_seen_track_id = COALESCE(VALUES(last_seen_track_id), last_seen_track_id), '
+                    '  last_deep_sweep_at = COALESCE(VALUES(last_deep_sweep_at), last_deep_sweep_at)',
+                    (source, account, when, last_upload_at, last_seen_track_id,
+                     last_deep_sweep_at))
+            connection.commit()
+        finally:
+            connection.close()
+
+    def mark_deep(self, source: str, account: str, when: datetime) -> None:
+        connection = self._connect()
+        try:
+            with connection.cursor() as cursor:
+                # last_checked_at is NOT NULL, so a row that does not exist yet is
+                # created carrying the same timestamp; an existing row keeps the
+                # check time it already had.
+                cursor.execute(
+                    'INSERT INTO downloads_account_checks '
+                    '(source, account, last_checked_at, last_deep_sweep_at) '
+                    'VALUES (%s, %s, %s, %s) '
+                    'ON DUPLICATE KEY UPDATE '
+                    '  last_deep_sweep_at = VALUES(last_deep_sweep_at)',
+                    (source, account, when, when))
             connection.commit()
         finally:
             connection.close()
@@ -207,6 +244,28 @@ class AccountSchedule:
             return waited - wait_for(record)
 
         return sorted(ready, key=overdue_by, reverse=True)
+
+    def deep_due(self, account: str, deep_sweep_days: int) -> bool:
+        """Whether this account is due a full listing rather than a probe.
+
+        Zero turns the deep sweep off. An account that has never had one is due
+        immediately, which is what backfills the ledger for the accounts that
+        exist today.
+        """
+        if deep_sweep_days <= 0:
+            return False
+        record = self._checks().get(account)
+        if record is None or record.last_deep_sweep_at is None:
+            return True
+        age_days = (self._now() - record.last_deep_sweep_at).total_seconds() / SECONDS_PER_DAY
+        return age_days >= deep_sweep_days
+
+    def mark_deep_swept(self, account: str, when: datetime | None = None) -> None:
+        try:
+            self._store.mark_deep(self.source, account, when or self._now())
+        except Exception as exc:
+            logging.warning('Could not record the deep sweep of %s/%s: %s',
+                            self.source, account, exc)
 
     def mark_checked(self, account: str, when: datetime | None = None,
                      last_upload_at: datetime | None = None,

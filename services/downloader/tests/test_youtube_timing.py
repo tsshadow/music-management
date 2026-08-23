@@ -39,7 +39,11 @@ class YoutubeTimingTestBase(unittest.TestCase):
         self.downloaded = []
         self.mock_ydl.return_value.__enter__.return_value.download.side_effect = self._download
 
-        self.timing = load_timing('youtube', overrides=self.overrides)
+        # This suite is about the ordinary path: the cooldowns, the batching and
+        # the backoff. Without this every channel would be deep-due -- none has
+        # ever been deep-swept -- and take the full-listing path instead.
+        self.timing = load_timing('youtube',
+                                  overrides={'deep_sweep_days': 0, **self.overrides})
         self.rate_store = InMemoryRateStateStore()
         self.check_store = InMemoryCheckStore()
 

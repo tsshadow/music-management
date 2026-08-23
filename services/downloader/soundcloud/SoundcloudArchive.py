@@ -51,6 +51,35 @@ class SoundcloudArchive:
             return False
 
     @staticmethod
+    def held_ids(track_ids) -> set[str]:
+        """Which of these track ids the archive already holds.
+
+        Deliberately does not filter on `account`, for the reason spelled out on
+        `track_exists`: that column holds the numeric SoundCloud account id while
+        the sweep works in account names. Track ids are globally unique on
+        SoundCloud, so the account adds nothing to this question.
+
+        Unlike `track_exists`, a database error is raised rather than answered
+        with "no". This decides what a deep pass downloads, and answering
+        "nothing is held" would turn one unreadable query into a re-download of
+        the entire account.
+        """
+        ids = [str(track_id) for track_id in track_ids]
+        if not ids:
+            return set()
+        found: set[str] = set()
+        with DatabaseConnector().connection() as conn, conn.cursor() as cursor:
+            for start in range(0, len(ids), 500):
+                chunk = ids[start:start + 500]
+                placeholders = ', '.join(['%s'] * len(chunk))
+                cursor.execute(
+                    'SELECT video_id FROM downloads_soundcloud_archive '
+                    f'WHERE video_id IN ({placeholders})',
+                    tuple(chunk))
+                found.update(str(row[0]) for row in cursor.fetchall())
+        return found
+
+    @staticmethod
     def _get_uploader_id(self_info):
         return self_info.get('channel_id') or self_info.get('uploader_id') or None
 

@@ -99,6 +99,13 @@ def _batching(ratelimit_kbps: int, backoff_403_base: int) -> tuple[TimingField, 
                     'Aantal accounts op rij dat niets oplevert voordat de bron wordt geparkeerd.'),
         TimingField('unavailable_retry_days', 30, 0, 3650, 'dagen',
                     'Na hoeveel dagen een track die 403 gaf opnieuw wordt geprobeerd. 0 probeert altijd opnieuw.'),
+        TimingField('deep_sweep_days', 30, 0, 365, 'dagen',
+                    'Hoe vaak een account volledig wordt doorlopen om oude, nooit opgehaalde tracks '
+                    'alsnog te vinden. Gebeurt alleen op een moment dat het account toch al aan de '
+                    'beurt is. 0 schakelt de diepe ronde uit.'),
+        TimingField('deep_sweep_max_downloads', 50, 1, 1000, 'tracks',
+                    'Hoeveel ontbrekende tracks een diepe ronde per account per keer ophaalt. '
+                    'De rest volgt tijdens de eerstvolgende ronde.'),
     )
 
 
@@ -296,6 +303,14 @@ class DownloaderTiming:
     @property
     def unavailable_retry_days(self) -> int:
         return self.get('unavailable_retry_days')
+
+    @property
+    def deep_sweep_days(self) -> int:
+        return self.get('deep_sweep_days')
+
+    @property
+    def deep_sweep_max_downloads(self) -> int:
+        return self.get('deep_sweep_max_downloads')
 
     @property
     def max_multiplier(self) -> int:

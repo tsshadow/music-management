@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Artiesten, labels en genres zijn nu te bewerken vanuit de webui.** Het uitgangspunt van MuMa
+  blijft dat je zo min mogelijk zelf edit, maar twee dingen kan geen bestand dragen: een koppeling
+  (een MBID, een alias) en een regel. Daar staat nu een potloodknop voor naast de titel op de
+  artiest-, label- en genrepagina, zichtbaar voor wie het nieuwe recht `rules.manage` heeft. Bij een
+  artiest stel je de MBID en externe ids in, beheer je aliassen en leg je artiest→genre-regels vast;
+  bij een label daarnaast het moederlabel en de catalogus-prefixen; bij een genre waar het onder
+  valt, zodat `Industrial Hardcore` meetelt als je `Hardcore` zoekt. Curatie en bewerken zijn
+  bewust twee dingen: de curatie beslist óf een genre bestaat, deze pagina bewerkt er een die al is
+  goedgekeurd — een afgekeurd genre krijgt dus geen potlood. Elke regel laat zien hoeveel tracks hij
+  raakt, met een aparte knop die precies die bestanden opnieuw laat taggen; opslaan en toepassen
+  zijn los, want het eerste is goedkoop en het tweede niet.
+- **Een nieuwe regel werkt nu meteen, in plaats van pas na een herstart.** `Cache.databaseHelpers`
+  laadt elke regeltabel één keer in bij het opstarten van het proces, dus een regel die je via de
+  API toevoegde was onzichtbaar voor de draaiende tagger tot hij opnieuw startte — de rij stond
+  keurig in de database en er gebeurde niets. Dat gold ook voor de bestaande knoppen onder
+  Beheer → Tagger. Het proces dat de regel schrijft ververst zijn eigen cache nu direct, en elke
+  andere tagger (importer, downloader) loopt binnen een minuut bij.
 - **SoundCloud is geen platenlabel meer.** `Soundcloud` (132.037 tracks), `Youtube` (30.779) en
   `Telegram` (1.556) stonden bovenaan je labellijst, ver boven het eerste echte label (Dirty Workz,
   2.299). Dat kwam doordat de tagger het platform in de publisher-tag zet en de scanner een

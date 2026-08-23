@@ -46,7 +46,14 @@ const ARGUMENT_VIEWS = [
   { kind: 'search', segment: 'search', encode: true },
   { kind: 'memories', segment: 'memories', encode: false },
   { kind: 'artist', segment: 'artist', encode: false },
-  { kind: 'album', segment: 'album', encode: false }
+  { kind: 'album', segment: 'album', encode: false },
+  // The admin edit pages hang off the thing they edit: /artist/123/edit. `suffix` is
+  // what keeps them apart from the plain view, and it is why pathToState checks the
+  // suffixed entries first -- '/genre/Hardcore/edit' has to read as the edit page of
+  // 'Hardcore', not as the view of a genre called 'Hardcore/edit'.
+  { kind: 'artist-edit', segment: 'artist', encode: false, suffix: 'edit' },
+  { kind: 'label-edit', segment: 'label', encode: true, suffix: 'edit' },
+  { kind: 'genre-edit', segment: 'genre', encode: true, suffix: 'edit' }
 ];
 
 /** The personal settings tabs, in sidebar order. */
@@ -96,10 +103,11 @@ export function viewToPath(state) {
   if (view === 'home') return '/';
   if (PLAIN_VIEWS.includes(view)) return `/${view}`;
 
-  for (const { kind, segment, encode } of ARGUMENT_VIEWS) {
+  for (const { kind, segment, encode, suffix } of ARGUMENT_VIEWS) {
     if (typeof view === 'string' && view.startsWith(`${kind}:`)) {
       const argument = view.slice(kind.length + 1);
-      return `/${segment}/${encode ? encodeURIComponent(argument) : argument}`;
+      const encoded = encode ? encodeURIComponent(argument) : argument;
+      return suffix ? `/${segment}/${encoded}/${suffix}` : `/${segment}/${encoded}`;
     }
   }
 
@@ -133,12 +141,18 @@ export function pathToState(path) {
   const plain = normalized.slice(1);
   if (PLAIN_VIEWS.includes(plain)) return { view: plain };
 
-  for (const { kind, segment, encode } of ARGUMENT_VIEWS) {
+  const suffixedFirst = [...ARGUMENT_VIEWS].sort((a, b) => (b.suffix ? 1 : 0) - (a.suffix ? 1 : 0));
+  for (const { kind, segment, encode, suffix } of suffixedFirst) {
     const prefix = `/${segment}/`;
-    if (normalized.startsWith(prefix)) {
-      const raw = normalized.slice(prefix.length);
-      return { view: `${kind}:${encode ? decodeURIComponent(raw) : raw}` };
+    if (!normalized.startsWith(prefix)) continue;
+    let raw = normalized.slice(prefix.length);
+    if (suffix) {
+      const tail = `/${suffix}`;
+      if (!raw.endsWith(tail)) continue;
+      raw = raw.slice(0, -tail.length);
+      if (!raw) continue;
     }
+    return { view: `${kind}:${encode ? decodeURIComponent(raw) : raw}` };
   }
 
   if (normalized.startsWith('/playlist/')) {

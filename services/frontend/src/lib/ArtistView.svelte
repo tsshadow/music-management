@@ -2,8 +2,10 @@
   import { t } from './i18n/index.js';
   import { untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
-  import { authParams, viewMode, deduplicateEnabled, mumaApiUrl, currentTrack, playlist, playerState } from './store.js';
+  import { authParams, viewMode, deduplicateEnabled, mumaApiUrl, currentTrack, playlist, playerState, hasPermission } from './store.js';
   import { getArtistImageUrl } from './utils.js';
+  import { getHeaders } from './mumaApi.js';
+  import { Pencil } from '@lucide/svelte';
   import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
   import TrackList from './TrackList.svelte';
 
@@ -163,15 +165,23 @@
   }
 
   /**
-   * Loads artist genres from MuMa API.
+   * Loads the genre rules MuMa holds for this artist.
+   *
+   * Keyed by name, not by `artistId`: that id comes from LMS and has nothing to do
+   * with `library_artists.id`, which is why the previous version of this call
+   * (`/api/artists/{artistId}`) hit a route that does not exist and left the chips
+   * empty for as long as they have been on the page.
    */
   async function loadArtistMuma() {
+    if (!artist?.name) return;
     try {
-      const response = await fetch(`${$mumaApiUrl}/api/artists/${artistId}?${$authParams}`);
+      const response = await fetch(
+        `${$mumaApiUrl}/api/curation/artists/${encodeURIComponent(artist.name)}`,
+        { headers: getHeaders() });
       if (response.ok) {
         const data = await response.json();
-        if (data && data.genres) {
-           artist.genres = data.genres;
+        if (data && data.genre_rules) {
+          artist.genres = data.genre_rules.map((rule) => ({ name: rule.name }));
         }
       }
     } catch (e) {
@@ -227,7 +237,19 @@
             </svg>
             {$t('artist.verified')}
          </div>
-         <h1 class="text-4xl md:text-7xl lg:text-9xl font-black m-0 leading-tight md:leading-none">{artist.name}</h1>
+         <div class="flex items-center gap-3 justify-center md:justify-start">
+           <h1 class="text-4xl md:text-7xl lg:text-9xl font-black m-0 leading-tight md:leading-none">{artist.name}</h1>
+           {#if hasPermission('rules.manage')}
+             <button
+               class="bg-transparent border-none text-[#b3b3b3] hover:text-white transition-all hover:scale-110 cursor-pointer p-1 shrink-0"
+               onclick={() => onnavigate?.(`artist-edit:${artistId}`)}
+               title="Artiest bewerken"
+               aria-label="Artiest bewerken"
+             >
+               <Pencil size={24} />
+             </button>
+           {/if}
+         </div>
          <div class="flex flex-wrap items-center justify-center md:justify-start gap-4 mt-6">
            <button 
              class="w-12 h-12 md:w-14 md:h-14 bg-brand rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg border-none cursor-pointer"

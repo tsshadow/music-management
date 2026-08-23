@@ -183,6 +183,13 @@ if 'dotenv' in sys.modules:
 # Force mock Cache
 cache_mod = types.ModuleType('services.common.Helpers.Cache')
 cache_mod.databaseHelpers = {'library_artists': MagicMock(), 'rules_ignored_artists': MagicMock(), 'rules_genres': MagicMock(), 'rules_ignored_genres': MagicMock(), 'artistGenreHelper': MagicMock(), 'subgenreHelper': MagicMock(), 'rules_genre_backlog': MagicMock(), 'rules_label_genre': MagicMock(), 'rules_subgenre_hierarchy': MagicMock(), 'sceneGroupDateFormatHelper': MagicMock()}
+cache_mod.databaseHelpers['labelGenreHelper'] = MagicMock()
+cache_mod.databaseHelpers['labelGenreHelper'].get.return_value = []
+# The curation endpoints call Cache.reload after every rule write so the running
+# tagger stops answering from the map it preloaded at import. The real function lives
+# in Cache.py, which this module replaces wholesale, so it has to be stubbed here or
+# every one of those endpoints raises AttributeError under test.
+cache_mod.reload = MagicMock(return_value=[])
 sys.modules['services.common.Helpers.Cache'] = cache_mod
 for helper_name in ['library_artists', 'rules_ignored_artists', 'rules_genres', 'rules_ignored_genres', 'rules_genre_backlog']:
     helper = cache_mod.databaseHelpers[helper_name]

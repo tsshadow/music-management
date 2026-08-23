@@ -14,6 +14,12 @@ from services.common.config_store import ConfigStore
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.job_manager import job_manager
 from services.downloader.cookie_profile import snapshot_cookie_profile
+from services.downloader.deep_sweep import (
+    DeepSweepReport,
+    ids_in_text_archive,
+    list_flat,
+    wanted_tracks,
+)
 from services.downloader.rate_state import RateLimited, SweepAborted
 from services.downloader.soundcloud.account_probe import ProbeResult, newest_track
 from services.downloader.soundcloud.account_report import (
@@ -23,14 +29,8 @@ from services.downloader.soundcloud.account_report import (
     AccountReport,
 )
 from services.downloader.soundcloud.SoundcloudArchive import SoundcloudArchive
-from services.downloader.deep_sweep import (
-    DeepSweepReport,
-    ids_in_text_archive,
-    list_flat,
-    wanted_tracks,
-)
-from services.downloader.write_offs import WriteOffs
 from services.downloader.sweep import SweepPolicy
+from services.downloader.write_offs import WriteOffs
 
 from .SoundcloudSongProcessor import SoundcloudSongProcessor
 

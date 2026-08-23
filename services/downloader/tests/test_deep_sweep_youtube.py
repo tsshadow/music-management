@@ -11,8 +11,8 @@ from services.downloader.deep_sweep import FlatTrack
 from services.downloader.rate_state import InMemoryRateStateStore, RateState
 from services.downloader.timing import load_timing
 from services.downloader.write_offs import InMemoryWriteOffStore, WriteOffs
-from services.downloader.youtube.YoutubeAccount import AUDIO, VIDEO, YoutubeAccount
 from services.downloader.youtube.youtube import YoutubeDownloader
+from services.downloader.youtube.YoutubeAccount import AUDIO, VIDEO, YoutubeAccount
 
 
 class StubNotifier:

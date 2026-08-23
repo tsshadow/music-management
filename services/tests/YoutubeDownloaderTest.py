@@ -4,8 +4,8 @@ from unittest.mock import patch
 from services.tests.mock_base import reset_database_helpers, setup_mocks
 
 setup_mocks()
-from services.downloader.youtube.DropCategoryGenre import DropCategoryGenrePP
 from services.downloader.timing import load_timing
+from services.downloader.youtube.DropCategoryGenre import DropCategoryGenrePP
 from services.downloader.youtube.youtube import YoutubeDownloader
 from services.tagger.constants import ARTIST, TITLE
 from services.tagger.Song.YoutubeSong import YoutubeSong

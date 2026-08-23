@@ -123,14 +123,14 @@ class DownloadDispatchTest(unittest.TestCase):
         with patch('services.downloader.youtube.youtube.YoutubeDownloader') as downloader:
             self.service.download('youtube', 'Angerfist', break_on_existing=False)
 
-        downloader.assert_called_once_with(break_on_existing=False, dry_run=True)
+        downloader.assert_called_once_with(break_on_existing=False, dry_run=True, deep=False)
         downloader.return_value.run.assert_called_once_with(account='Angerfist')
 
     def test_soundcloud_runs_the_soundcloud_downloader(self):
         with patch('services.downloader.soundcloud.soundcloud.SoundcloudDownloader') as downloader:
             self.service.download('soundcloud', None, break_on_existing=True)
 
-        downloader.assert_called_once_with(break_on_existing=True, dry_run=True)
+        downloader.assert_called_once_with(break_on_existing=True, dry_run=True, deep=False)
         downloader.return_value.run.assert_called_once_with(account=None)
 
     def test_telegram_runs_one_download_per_named_account(self):
@@ -192,8 +192,26 @@ class MainLoopTest(unittest.TestCase):
         service, _sleeper = self.run_main(['--step', 'youtube', '--account', 'Angerfist', '--no-break-on-existing'])
 
         self.assertEqual(
-            service.download.call_args.kwargs, {'break_on_existing': False, 'account': 'Angerfist'}
+            service.download.call_args.kwargs,
+            {'break_on_existing': False, 'account': 'Angerfist', 'deep': False}
         )
+
+    def test_deep_is_off_by_default(self):
+        self.assertFalse(parse_args([]).deep)
+
+    def test_deep_can_be_asked_for(self):
+        self.assertTrue(parse_args(['--deep']).deep)
+
+    def test_deep_combines_with_a_single_account(self):
+        args = parse_args(['--deep', '--account', 'Angerfist'])
+
+        self.assertTrue(args.deep)
+        self.assertEqual('Angerfist', args.account)
+
+    def test_asking_for_a_deep_run_reaches_the_downloader(self):
+        service, _sleeper = self.run_main(['--step', 'soundcloud', '--deep'])
+
+        self.assertIs(True, service.download.call_args.kwargs['deep'])
 
     def test_repeat_sleeps_between_rounds(self):
         service, sleeper = self.run_main(

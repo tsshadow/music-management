@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.1] - 2026-08-23
+
 ### Fixed
 - **Memories op web bleef leeg terwijl de server negentien jaren klaarzette.** De hoezenmozaïek op
   een jaartegel werd geïdentificeerd op het hoes-id, en juist in een echte bibliotheek komen de beste

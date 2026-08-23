@@ -11,6 +11,13 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.27.1 (2026-08-23)
+
+Zie `CHANGELOG.md` voor de volledige lijst. Deze release repareert de Memories-pagina op web, die
+leeg bleef terwijl de server wel degelijk negentien jaargroepen teruggaf: de hoezenmozaïek op een
+jaartegel werd op het hoes-id geïdentificeerd, en zodra twee toptracks van hetzelfde album kwamen
+was dat een dubbele sleutel — voor Svelte een harde fout die het hele scherm blanco maakte.
+
 ## Global Version 0.27.0 (2026-08-23)
 
 Zie `CHANGELOG.md` voor de volledige lijst. Deze release is een herhaling van 0.26.0: die versie is

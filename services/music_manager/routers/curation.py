@@ -81,21 +81,37 @@ def _connect():
     return conn
 
 
-def _store_external_id(cursor, table: str, column: str, owner_id: int,
-                       source: str, external_id: str, external_url, verified: bool) -> None:
-    """Replace the row for one (owner, source) pair.
+# Delete-then-insert rather than ON DUPLICATE KEY UPDATE, because the two tables do
+# not agree on what is unique. `artist_external_ids` is UNIQUE (artist_id, source,
+# external_id) in production but PRIMARY KEY (artist_id, source) when built from
+# db_init, so an upsert keyed on the pair would update in one table shape and add a
+# second row in the other -- and the page would then show the same source twice.
+#
+# Written out per table rather than as one helper taking a table name. The names
+# would be literals either way, but a function that interpolates an identifier into
+# SQL is the shape that turns into an injection the first time someone passes it a
+# variable, and semgrep is right to refuse it.
 
-    Delete-then-insert rather than ON DUPLICATE KEY UPDATE because the two tables do
-    not agree on what is unique. `artist_external_ids` is UNIQUE (artist_id, source,
-    external_id) in production but PRIMARY KEY (artist_id, source) when built from
-    db_init, so an upsert keyed on the pair would update in one table shape and add a
-    second row in the other -- and the page would then show the same source twice.
-    """
-    cursor.execute(f'DELETE FROM {table} WHERE {column} = %s AND source = %s', (owner_id, source))
-    cursor.execute(f'''
-        INSERT INTO {table} ({column}, source, external_id, external_url, verified)
+def _store_artist_external_id(cursor, artist_id: int, source: str, external_id: str,
+                              external_url, verified: bool) -> None:
+    """Replace the external id an artist carries for one source."""
+    cursor.execute('DELETE FROM artist_external_ids WHERE artist_id = %s AND source = %s',
+                   (artist_id, source))
+    cursor.execute('''
+        INSERT INTO artist_external_ids (artist_id, source, external_id, external_url, verified)
         VALUES (%s, %s, %s, %s, %s)
-    ''', (owner_id, source, external_id, external_url, 1 if verified else 0))
+    ''', (artist_id, source, external_id, external_url, 1 if verified else 0))
+
+
+def _store_label_external_id(cursor, label_id: int, source: str, external_id: str,
+                             external_url, verified: bool) -> None:
+    """Replace the external id a label carries for one source."""
+    cursor.execute('DELETE FROM label_external_ids WHERE label_id = %s AND source = %s',
+                   (label_id, source))
+    cursor.execute('''
+        INSERT INTO label_external_ids (label_id, source, external_id, external_url, verified)
+        VALUES (%s, %s, %s, %s, %s)
+    ''', (label_id, source, external_id, external_url, 1 if verified else 0))
 
 
 # --------------------------------------------------------------------------- artists
@@ -160,8 +176,8 @@ def set_artist_mbid(name: str, request: MbidRequest, _auth: dict = WRITE):
             artist = _require_artist(cursor, name)
             cursor.execute('UPDATE library_artists SET mbid = %s WHERE id = %s', (mbid, artist['id']))
             if mbid:
-                _store_external_id(cursor, 'artist_external_ids', 'artist_id', artist['id'],
-                                   rules.MUSICBRAINZ, mbid, f'https://musicbrainz.org/artist/{mbid}', True)
+                _store_artist_external_id(cursor, artist['id'], rules.MUSICBRAINZ, mbid,
+                                          f'https://musicbrainz.org/artist/{mbid}', True)
             else:
                 cursor.execute('DELETE FROM artist_external_ids WHERE artist_id = %s AND source = %s',
                                (artist['id'], rules.MUSICBRAINZ))
@@ -183,8 +199,8 @@ def set_artist_external_id(name: str, request: ExternalIdRequest, _auth: dict = 
     try:
         with conn.cursor() as cursor:
             artist = _require_artist(cursor, name)
-            _store_external_id(cursor, 'artist_external_ids', 'artist_id', artist['id'],
-                               source, external_id, request.external_url, request.verified)
+            _store_artist_external_id(cursor, artist['id'], source, external_id,
+                                      request.external_url, request.verified)
             conn.commit()
             return {'status': 'ok'}
     finally:
@@ -330,8 +346,8 @@ def set_label_mbid(name: str, request: MbidRequest, _auth: dict = WRITE):
             label = _require_label(cursor, name)
             cursor.execute('UPDATE library_labels SET mbid = %s WHERE id = %s', (mbid, label['id']))
             if mbid:
-                _store_external_id(cursor, 'label_external_ids', 'label_id', label['id'],
-                                   rules.MUSICBRAINZ, mbid, f'https://musicbrainz.org/label/{mbid}', True)
+                _store_label_external_id(cursor, label['id'], rules.MUSICBRAINZ, mbid,
+                                         f'https://musicbrainz.org/label/{mbid}', True)
             else:
                 cursor.execute('DELETE FROM label_external_ids WHERE label_id = %s AND source = %s',
                                (label['id'], rules.MUSICBRAINZ))
@@ -384,8 +400,8 @@ def set_label_external_id(name: str, request: ExternalIdRequest, _auth: dict = W
     try:
         with conn.cursor() as cursor:
             label = _require_label(cursor, name)
-            _store_external_id(cursor, 'label_external_ids', 'label_id', label['id'],
-                               source, external_id, request.external_url, request.verified)
+            _store_label_external_id(cursor, label['id'], source, external_id,
+                                     request.external_url, request.verified)
             conn.commit()
             return {'status': 'ok'}
     finally:

@@ -39,17 +39,20 @@ _CREATE_ACCOUNT_CHECKS = """
         last_checked_at    DATETIME     NOT NULL,
         last_upload_at     DATETIME     NULL,
         last_seen_track_id VARCHAR(64)  NULL,
+        last_deep_sweep_at DATETIME     NULL,
         PRIMARY KEY (source, account)
     )
 """
 
-# Installs that predate the tier ladder already have the table without these two,
-# and CREATE TABLE IF NOT EXISTS leaves such a table alone.
+# Installs that predate the tier ladder and the deep sweep already have the table
+# without these three, and CREATE TABLE IF NOT EXISTS leaves such a table alone.
 _ALTER_ACCOUNT_CHECKS = (
     'ALTER TABLE downloads_account_checks '
     'ADD COLUMN IF NOT EXISTS last_upload_at DATETIME NULL',
     'ALTER TABLE downloads_account_checks '
     'ADD COLUMN IF NOT EXISTS last_seen_track_id VARCHAR(64) NULL',
+    'ALTER TABLE downloads_account_checks '
+    'ADD COLUMN IF NOT EXISTS last_deep_sweep_at DATETIME NULL',
 )
 
 _CREATE_UNAVAILABLE = """

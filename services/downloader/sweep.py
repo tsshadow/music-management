@@ -167,6 +167,13 @@ class SweepPolicy:
         self.schedule.mark_checked(account, last_upload_at=last_upload_at,
                                    last_seen_track_id=last_seen_track_id)
 
+    def deep_due(self, account: str) -> bool:
+        """Whether this account is due a deep sweep rather than a probe."""
+        return self.schedule.deep_due(account, self.timing.deep_sweep_days)
+
+    def mark_deep_swept(self, account: str) -> None:
+        self.schedule.mark_deep_swept(account)
+
     def finish(self) -> None:
         """Register a sweep that completed without being pushed back."""
         self.rate_state.record_success()

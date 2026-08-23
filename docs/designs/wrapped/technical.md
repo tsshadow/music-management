@@ -3,8 +3,8 @@
 > Implements [functional.md](functional.md). Rationale and production measurements are in
 > [research.md](research.md).
 >
-> Part 1 (listening fidelity) is implemented on this branch. Part 2 (channels) is designed here and
-> deliberately **not** implemented yet — it needs sign-off on the model first (AGENTS.md rule 4).
+> Part 1 (listening fidelity) and Part 2 (channels) are both implemented. Part 3 — the physical
+> folder restructure — is the one piece that moves files on disk and is tracked separately.
 
 ## Part 1 — Listening fidelity
 
@@ -114,7 +114,7 @@ No breaking change: every new field is optional in both directions, and readers 
    position; a skip under 5 seconds produces none.
 6. Existing scrobble tests keep passing unchanged, proving old clients still work.
 
-## Part 2 — Channels (designed, not implemented)
+## Part 2 — Channels
 
 ### The problem
 
@@ -162,15 +162,41 @@ become correct. The physical restructure remains a separate, later, breaking cha
 
 ### Backfill
 
-Existing rows are re-derivable from `library_media_files.file_path`, and the followed-channel lists in
-`downloads_soundcloud_accounts` / `downloads_youtube_accounts` give the channel names that are already
-known to be real. Linking a channel to a label or artist can reuse the label-proposal pattern
-(`rules_label_proposals`): propose on strong name equality, confirm by hand.
+`scripts/backfill_channels.py`, which needs no rescan: it reads every `library_media_files.file_path`,
+derives the channel, creates it and links the track, then deletes the track-label links pointing at a
+non-label and finally the label rows themselves. It has a `--dry-run` that writes nothing, and it is
+idempotent — inserts go through unique keys and the deletes are filtered by name, so a second run
+finds nothing to do.
 
-### Not decided
+Automatically *linking* a channel to a label or artist is deliberately not part of it. That can reuse
+the label-proposal pattern (`rules_label_proposals`) later: propose on strong name equality, confirm
+by hand.
 
-The link direction rules, the curation UI and the backfill order all need agreement before
-implementation starts.
+### Decisions taken
+
+- **A channel may point at a label and an artist at once.** Both columns are nullable and
+  independent. An artist who runs their own imprint is a real case, and forcing a choice would
+  either lose one of the two facts or invent a rule that has to be undone later.
+- **A channel starts out pointing at neither.** A scan records that the channel exists; deciding
+  what it *is* belongs to a person. Nothing depends on the link being present, so an unlinked
+  channel is a complete row, not a half-finished one.
+- **Classification is read from the path, not from the tag.** `<music root>/Soundcloud/<channel>/…`
+  is what the downloader wrote, so 160.000 files are classified correctly without retagging one of
+  them. The publisher tag is left alone: it records where the file came from, which is true — the
+  database simply stops calling that a label.
+
+### Technical Acceptance Criteria
+
+1. A publisher of `Soundcloud`, `Youtube`, `Telegram`, `__TODO` or `__Free&none` — in any casing —
+   creates no label row and no track-label link.
+2. A file under a platform folder creates a channel for the account directly below it, and links
+   the track to it.
+3. A file with no platform folder in its path creates no channel.
+4. The same account name on two platforms is two channel rows, not one.
+5. `scripts/backfill_channels.py --dry-run` reports the change without writing; without the flag it
+   creates the channels and links, deletes the non-label track links, and deletes the non-label rows
+   from `library_labels`.
+6. Re-running the backfill changes nothing further.
 
 ## Related Docs
 

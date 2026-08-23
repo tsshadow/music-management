@@ -21,22 +21,32 @@ export function localDateString(date = new Date()) {
 }
 
 /**
- * The page size the Memories screens ask for.
+ * What the overview asks for per year.
  *
- * The server's own default keeps a group short enough for a carousel, but a year page shows the
- * whole year and a tile reports its size, so both ask for the server's maximum instead.
+ * The server ranks a year before it truncates it and reports the year's real size alongside, so the
+ * overview needs only enough songs to name three and to fill a four-cover mosaic. A few spare cover
+ * the case where the best tracks share an album. Asking for the whole of every year instead turned
+ * this screen into a multi-megabyte download.
  */
-export const MEMORIES_MAX_PER_YEAR = 200;
+export const MEMORIES_TILE_SONGS = 12;
+
+/** What a single year's page asks for: all of it, up to what the server will hand out. */
+export const MEMORIES_YEAR_SONGS = 1000;
 
 /**
  * The request URL for one day's memories.
  *
  * @param {string} authParams - The query string that carries the session.
- * @param {string} [date] - The local date to ask about; today when left out.
+ * @param {Object} [options] - What to ask for.
+ * @param {string} [options.date] - The local date to ask about; today when left out.
+ * @param {number|string} [options.year] - One year rather than every year.
  * @returns {string} The URL to fetch.
  */
-export function memoriesUrl(authParams, date = localDateString()) {
-  return `/rest/getMemories?date=${date}&maxPerYear=${MEMORIES_MAX_PER_YEAR}&${authParams}`;
+export function memoriesUrl(authParams, { date = localDateString(), year } = {}) {
+  const maxPerYear = year ? MEMORIES_YEAR_SONGS : MEMORIES_TILE_SONGS;
+  const yearParam = year ? `year=${year}&` : '';
+
+  return `/rest/getMemories?date=${date}&maxPerYear=${maxPerYear}&${yearParam}${authParams}`;
 }
 
 /**
@@ -74,6 +84,20 @@ export function memoryHeading(group) {
     key: group.exact ? 'memories.today' : 'memories.thisWeek',
     vars: { count: group.yearsAgo }
   };
+}
+
+/**
+ * How many tracks a year holds.
+ *
+ * The server counts the whole year in `songCount`; the songs in hand are only the page it sent, and
+ * a screen that counts those claims every busy year is exactly as big as the limit that truncated
+ * it. A server too old to report a count leaves the caller counting what it was given.
+ *
+ * @param {{songCount?: number|string, songs?: Object[]}} group - A parsed memory group.
+ * @returns {number} The year's size.
+ */
+export function memoryCount(group) {
+  return Number(group?.songCount) || group?.songs?.length || 0;
 }
 
 /** How many of a year's songs a tile names, and how many covers its collage holds. */
@@ -130,7 +154,7 @@ export function yearTiles(groups) {
         year: group.year,
         yearsAgo: group.yearsAgo,
         exact: group.exact,
-        count: group.songs.length,
+        count: memoryCount(group),
         top: ranked.slice(0, TILE_TOP_COUNT),
         covers: [...new Set(ranked.map((song) => song.coverArt).filter(Boolean))].slice(
           0,

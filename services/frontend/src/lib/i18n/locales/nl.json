@@ -716,8 +716,13 @@
     }
   },
   "memories": {
+    "allYears": "Alle jaren",
     "empty": "Op deze dag is in eerdere jaren niets uitgebracht.",
     "emptyHelp": "Memories verschijnen zodra je bibliotheek nummers met een volledige releasedatum bevat.",
+    "emptyYear": "Vandaag geen memories uit {year}.",
+    "emptyYearHelp": "Memories volgen de datum, dus dit jaar komt terug op de dag dat een van zijn releases jarig is.",
+    "openYear": "{year} openen",
+    "subtitle": "Eén tegel per jaar dat vandaag jarig is.",
     "thisWeek": {
       "one": "Deze week, 1 jaar geleden",
       "other": "Deze week, {count} jaar geleden"

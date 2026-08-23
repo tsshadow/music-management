@@ -61,9 +61,27 @@ def parse_args():
     return parser.parse_args()
 
 
+def resolve_channel(conn, platform, name, normalized):
+    """The channel's id, creating the row on first sight. Called once per channel, not per file."""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            'INSERT IGNORE INTO channels (platform, name, normalized_name) VALUES (%s, %s, %s)',
+            (platform, name, normalized))
+        cursor.execute(
+            'SELECT id FROM channels WHERE platform = %s AND normalized_name = %s',
+            (platform, normalized))
+        row = cursor.fetchone()
+    return row['id'] if row else None
+
+
 def link_channels(conn, music_root, batch, dry_run):
-    """Create a channel per platform account seen in a path, and link its tracks."""
+    """Create a channel per platform account seen in a path, and link its tracks.
+
+    Resuming is free: channels and links are both inserted through unique keys, so a run that is
+    cut short leaves nothing to clean up and the next one carries on.
+    """
     created_channels = set()
+    channel_ids = {}
     linked = 0
     scanned = 0
     last_id = 0
@@ -78,6 +96,7 @@ def link_channels(conn, music_root, batch, dry_run):
         if not rows:
             break
 
+        pending_links = []
         for row in rows:
             last_id = row['id']
             scanned += 1
@@ -92,19 +111,22 @@ def link_channels(conn, music_root, batch, dry_run):
             if dry_run:
                 linked += 1
                 continue
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    'INSERT IGNORE INTO channels (platform, name, normalized_name) '
-                    'VALUES (%s, %s, %s)', (platform, name, normalized))
-                cursor.execute(
-                    'SELECT id FROM channels WHERE platform = %s AND normalized_name = %s',
-                    (platform, normalized))
-                channel = cursor.fetchone()
-                if not channel:
+            channel_id = channel_ids.get((platform, normalized))
+            if channel_id is None:
+                channel_id = resolve_channel(conn, platform, name, normalized)
+                if channel_id is None:
                     continue
-                cursor.execute(
+                channel_ids[(platform, normalized)] = channel_id
+            pending_links.append((row['track_id'], channel_id))
+
+        if not dry_run and pending_links:
+            # One statement per batch rather than three per file. The per-file version meant close
+            # to a million round trips for this library, which took long enough that the server
+            # dropped the connection halfway through.
+            with conn.cursor() as cursor:
+                cursor.executemany(
                     'INSERT IGNORE INTO library_track_channels (track_id, channel_id) '
-                    'VALUES (%s, %s)', (row['track_id'], channel['id']))
+                    'VALUES (%s, %s)', pending_links)
                 linked += cursor.rowcount
         if not dry_run:
             conn.commit()

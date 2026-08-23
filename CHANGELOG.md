@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-08-23
+
 ### Added
 - **Eén script dat de verhuizing op productie helemaal doet.**
   `scripts/prod-restructure-music.sh --dry-run` en daarna `--apply`, als root op de prod-host.

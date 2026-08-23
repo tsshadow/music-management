@@ -11,6 +11,13 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.29.0 (2026-08-23)
+
+- **Het aantal op een Memories-tegel klopt.** Er stond "200 tracks" op elke drukke tegel, want dat
+  was de limiet waarmee de pagina het jaar ophaalde: 2025 heeft er in werkelijkheid 450. De server
+  sorteert een jaar nu zelf op vijf sterren en beluisteringen voordat hij afkapt, en meldt het echte
+  totaal, dus zowel het aantal als de top-3 op een tegel gaan over het hele jaar. De pagina haalt
+  daardoor een paar honderd kilobyte op in plaats van 2,4 megabyte.
 - **De verhuizing zit nu in één script** dat je op de prod-host draait: containers stoppen,
   hernoemen, paden bijwerken, instellingen aanpassen en alles weer starten. Eerst `--dry-run`, en
   `--revert` draait het terug.

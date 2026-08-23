@@ -186,6 +186,15 @@ describe("yearTiles", () => {
     expect(tile.covers).toEqual(["art-b", "art-c", "art-d", "art-e"]);
   });
 
+  it("never repeats a cover, because four copies of one sleeve is not a collage", () => {
+    const shared = (id, playCount) => ({ id, title: `Track ${id}`, coverArt: "art-same", playCount });
+    const [tile] = yearTiles([
+      group(2025, [shared("a", 9), shared("b", 8), song("c", 7), shared("d", 6)]),
+    ]);
+
+    expect(tile.covers).toEqual(["art-same", "art-c"]);
+  });
+
   it("keeps the server's year order", () => {
     const tiles = yearTiles([group(2025, [song("a", 1)]), group(2019, [song("b", 1)])]);
 

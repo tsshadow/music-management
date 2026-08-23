@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Memories op web bleef leeg terwijl de server negentien jaren klaarzette.** De hoezenmozaïek op
+  een jaartegel werd geïdentificeerd op het hoes-id, en juist in een echte bibliotheek komen de beste
+  nummers van een jaar van hetzelfde album — dertien van de negentien jaren leverden twee keer
+  dezelfde hoes. Svelte behandelt een dubbele sleutel als een harde fout, dus één tegel met een
+  herhaalde hoes maakte niet die tegel saai maar de hele pagina blanco. De mozaïek telt nu per
+  positie in plaats van per hoes, en een tegel gebruikt elke hoes hoogstens één keer, zodat er vier
+  verschillende albums op staan in plaats van vier keer hetzelfde.
+
 ## [0.27.0] - 2026-08-23
 
 ### Fixed

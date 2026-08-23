@@ -246,16 +246,39 @@ Every path setting reaches the worker containers through production's `.env`, as
 folders without changing those first leaves the workers reading and writing paths that no longer
 exist: the downloaders simply recreate `/mnt/music/Soundcloud`, and the tagger finds an empty intake.
 
-So the order is fixed:
+### Running it
 
-1. Stop the workers.
-2. Edit production's `.env`: `eps_folder_path`, `import_folder_path`, `soundcloud_folder`,
-   `youtube_folder`.
-3. `scripts/restructure_music_folders.py --dry-run`, then `--apply`.
-4. Recreate the workers so they pick up the new environment.
-5. Full LMS rescan — it keys its own library on paths, and every path just changed.
+`scripts/prod-restructure-music.sh` does the whole sequence on the production host, as root:
 
-Step 3 is the only one this repository can perform; steps 1, 2 and 4 are operational.
+```bash
+bash scripts/prod-restructure-music.sh --dry-run   # checks everything, changes nothing
+bash scripts/prod-restructure-music.sh --apply
+bash scripts/prod-restructure-music.sh --revert --dry-run
+```
+
+It discovers the stack rather than hardcoding it — the database container by image, the containers to
+stop by which ones actually have `/mnt/music` mounted, and the `.env` from the compose labels (the
+compose files sit in a subdirectory of the checkout while `.env` sits at its root, so the parent is
+checked too). It stops those containers, renames, rewrites, edits `.env`, and starts back exactly
+what it stopped — from an `EXIT` trap, so the stack comes back up even if a step fails.
+
+Two details it gets right that a hand-written `mv` would not:
+
+- **The hash check.** `file_path_hash` is a sha256 written by Python; the script recomputes it with
+  MariaDB's `SHA2()`. Before touching anything it verifies the two agree on rows that already exist,
+  and refuses if they do not — otherwise the column would fill with values the scanner does not
+  recognise and every file would look new.
+- **`LEFT(...)`, not `LIKE`.** `__Free&None` contains underscores, which are `LIKE` wildcards:
+  `LIKE '/mnt/music/EPs/__Free&None/%'` would also match `/mnt/music/EPs/XXFree&None/…`.
+
+`scripts/restructure_music_folders.py` is the same operation for a machine that has the Python
+environment but not the containers.
+
+Afterwards, two things that are not optional:
+
+1. **Full LMS rescan.** It keys its own library on paths, and every path just changed.
+2. **Update the `PROD_ENV_FILE` CI/CD variable.** Production's `.env` is rewritten from it on every
+   deploy (`scripts/ci-deploy.sh`), so without this the next deploy restores the old paths.
 
 ## Related Docs
 

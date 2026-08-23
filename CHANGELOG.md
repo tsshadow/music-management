@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Eén script dat de verhuizing op productie helemaal doet.**
+  `scripts/prod-restructure-music.sh --dry-run` en daarna `--apply`, als root op de prod-host.
+  Het zoekt de stack zelf op — de databasecontainer aan zijn image, de te stoppen containers aan
+  wie er echt `/mnt/music` gemonteerd heeft, en de `.env` via de compose-labels — stopt die
+  containers, hernoemt, herschrijft de opgeslagen paden mét hun hash, past de vier padinstellingen
+  aan en start precies terug wat het gestopt heeft, via een `EXIT`-trap zodat de stack ook omhoog
+  komt als een stap faalt. Vooraf controleert het of MariaDB's `SHA2()` dezelfde hashes oplevert als
+  wat Python ooit heeft weggeschreven; zo niet, dan weigert het — anders zou de kolom vollopen met
+  waarden die de scanner niet herkent en zou élk bestand er nieuw uitzien. `--revert --dry-run`
+  laat zien wat terugdraaien zou doen. Achteraf nog twee dingen zelf doen: een volledige LMS-rescan,
+  en de CI-variabele `PROD_ENV_FILE` bijwerken — prod's `.env` wordt bij elke deploy daaruit
+  overschreven.
 - **De mapindeling van de bibliotheek, klaar om uit te voeren.** `EPs` bevatte drie verschillende
   dingen door elkaar: releases mét label, releases zónder label (`__Free&None`) en de importstapel
   (`__TODO`). Alleen het eerste is een labelboom, en dat is precies waarom de andere twee steeds in

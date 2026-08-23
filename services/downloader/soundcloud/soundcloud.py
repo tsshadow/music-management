@@ -13,6 +13,7 @@ from yt_dlp.postprocessor import EmbedThumbnailPP, FFmpegMetadataPP
 from services.common.config_store import ConfigStore
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.job_manager import job_manager
+from services.downloader import shutdown
 from services.downloader.cookie_profile import snapshot_cookie_profile
 from services.downloader.deep_sweep import (
     DeepSweepReport,
@@ -341,6 +342,9 @@ class SoundcloudDownloader:
                 if 'already in the archive' in msg:
                     logging.info(f'Track for {url} already in archive — skipping.')
                     return
+                if shutdown.is_requested():
+                    raise SweepAborted(
+                        f'Abandoned {url}; the {SOURCE} worker is shutting down.') from e
                 logging.warning(f'Attempt {attempt} failed for {url}: {e}', exc_info=True)
                 time.sleep(5 * attempt)
         logging.error(f'SoundCloud download failed for {url} after {self.timing.retry_attempts} attempts.')
@@ -438,6 +442,10 @@ class SoundcloudDownloader:
     def _prepare_ydl_opts(self, acc, break_on_existing_arg, redownload):
         ydl_opts = self.downloader_config['ydl_opts'].copy()
         ydl_opts['simulate'] = self.dry_run
+        # The only checkpoint that is reachable during a download. Without it the
+        # worker sits inside one multi-minute call and never sees the stop the
+        # deploy asked for, so SIGKILL arrives with the pass unrecorded.
+        ydl_opts['progress_hooks'] = [*ydl_opts.get('progress_hooks', []), shutdown.abort_hook]
         effective_break = self.default_break_on_existing if break_on_existing_arg is None else break_on_existing_arg
         if effective_break:
             ydl_opts['break_on_existing'] = True

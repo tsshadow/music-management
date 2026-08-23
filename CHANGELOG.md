@@ -33,6 +33,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   moment. Hij stuurt nu bij het einde van de track een correctie met dezelfde tijdstempel, zodat
   diezelfde listen wordt bijgewerkt in plaats van dat er een tweede bijkomt.
 
+## [0.27.1] - 2026-08-23
+
+### Fixed
+- **Memories op web bleef leeg terwijl de server negentien jaren klaarzette.** De hoezenmozaïek op
+  een jaartegel werd geïdentificeerd op het hoes-id, en juist in een echte bibliotheek komen de beste
+  nummers van een jaar van hetzelfde album — dertien van de negentien jaren leverden twee keer
+  dezelfde hoes. Svelte behandelt een dubbele sleutel als een harde fout, dus één tegel met een
+  herhaalde hoes maakte niet die tegel saai maar de hele pagina blanco. De mozaïek telt nu per
+  positie in plaats van per hoes, en een tegel gebruikt elke hoes hoogstens één keer, zodat er vier
+  verschillende albums op staan in plaats van vier keer hetzelfde.
+
+## [0.27.0] - 2026-08-23
+
+### Fixed
+- **0.26.0 heeft productie nooit gehaald; deze release brengt hem er alsnog heen.** De release-branch
+  werd naar master gemerged terwijl `deploy:prod` nog in de wachtrij stond, waarna het opruimen van
+  die branch de job onder zich vandaan trok: `couldn't find remote ref refs/heads/release/0.26.0`.
+  De images waren op dat moment al gebouwd en zijn actueel, dus er is niets verouderds gepubliceerd —
+  alleen de deploy bleef liggen, en `release:verify-deployed` weigerde daarop terecht te taggen. Deze
+  release bevat geen functionele wijzigingen ten opzichte van 0.26.0.
+
 ## [0.26.0] - 2026-08-23
 
 ### Added

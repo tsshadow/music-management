@@ -36,7 +36,9 @@
         <img src="/images/spotify-fallback.svg" alt="" class="w-full h-full object-cover" />
       {:else}
         <div class="grid {mosaic ? 'grid-cols-2 grid-rows-2' : 'grid-cols-1'} w-full h-full">
-          {#each shown as cover (cover)}
+          <!-- Keyed by position, not by cover id: the same sleeve can legitimately appear twice, and
+               a duplicate key is a render error that blanks the whole screen rather than one tile. -->
+          {#each shown as cover, position (position)}
             <img
               src={coverUrl(cover)}
               alt=""

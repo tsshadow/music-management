@@ -213,6 +213,10 @@ class NavigationActivity : ScopeActivity() {
             val inCarMode = destination.id == R.id.carModeFragment
             setShowWhenLocked(inCarMode)
             setTurnScreenOn(inCarMode)
+            // The driving screen is the whole screen. The tab bar underneath it is four small
+            // targets nobody should be aiming at from behind a wheel, and it was taking the height
+            // that the shortcuts and the player were left fighting over.
+            bottomNavigationView?.visibility = if (inCarMode) View.GONE else View.VISIBLE
         }
 
         if (intent.getBooleanExtra(CarModeNotifier.EXTRA_OPEN_CAR_MODE, false)) {
@@ -241,7 +245,9 @@ class NavigationActivity : ScopeActivity() {
 
             currentFragmentId = destination.id
             // Handle the hiding of the NowPlaying fragment when the Player is active
-            if (currentFragmentId == R.id.playerFragment) {
+            if (currentFragmentId == R.id.playerFragment ||
+                currentFragmentId == R.id.carModeFragment
+            ) {
                 hideNowPlaying()
             } else {
                 if (!nowPlayingHidden) showNowPlaying()
@@ -1112,8 +1118,11 @@ class NavigationActivity : ScopeActivity() {
         // The logic for nowPlayingHidden is that the user can dismiss NowPlaying with a gesture,
         // and when the MediaPlayerService requests that it should be shown, it returns
         nowPlayingHidden = false
-        // Do not show for Player fragment
-        if (currentFragmentId == R.id.playerFragment) {
+        // Do not show for the Player fragment, nor over car mode: the driving screen carries its
+        // own artwork, transport and rating, and a second small copy of all three along the bottom
+        // is the strip that should not be there. This guard is what makes the hiding stick -- the
+        // player state subscription calls straight in here whenever a track becomes ready.
+        if (currentFragmentId == R.id.playerFragment || currentFragmentId == R.id.carModeFragment) {
             hideNowPlaying()
             return
         }

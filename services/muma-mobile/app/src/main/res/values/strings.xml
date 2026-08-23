@@ -742,6 +742,29 @@
     <string name="voice_diagnostics_empty">No voice requests recorded yet. Ask the car for something, or type a query above.</string>
     <string name="voice_diagnostics_share">Share trace</string>
     <string name="voice_diagnostics_clear">Clear</string>
+
+    <!-- MuMa Voice: the parsed request shown under the microphone -->
+    <string name="voice_explain_heard">heard</string>
+    <string name="voice_explain_genre">genre</string>
+    <string name="voice_explain_label">label</string>
+    <string name="voice_explain_artist">artist</string>
+    <string name="voice_explain_album">album</string>
+    <string name="voice_explain_playlist">playlist</string>
+    <string name="voice_explain_year">year</string>
+    <string name="voice_explain_rating">rating</string>
+    <string name="voice_explain_sets">length</string>
+    <string name="voice_explain_sets_value">whole sets</string>
+    <string name="voice_explain_order">order</string>
+    <string name="voice_explain_order_released">newest release first</string>
+    <string name="voice_explain_order_added">recently added first</string>
+    <string name="voice_explain_order_random">no order</string>
+    <string name="voice_explain_question">asking about</string>
+    <string name="voice_explain_reason">no match</string>
+    <string name="voice_explain_result">result</string>
+    <string name="voice_explain_result_tracks">%1$d tracks</string>
+    <string name="voice_explain_raw_show">\u25b8 Show raw trace</string>
+    <string name="voice_explain_raw_hide">\u25be Hide raw trace</string>
+    <string name="muma_voice_selection">your selection</string>
     <string name="voice.title">Voice commands</string>
     <string name="voice.text"><![CDATA[Ask the Assistant in the car, or use the voice search of the app. Everything below can be combined in one sentence.\n\n<b>A genre</b>\nPlay genre hardstyle\nPlay uptempo hardcore\nPlay drum and bass livesets\n\n<b>An artist</b>\nPlay music by headhunterz\nPlay artist brennan heart\n\n<b>A label</b>\nPlay label art of creation\n\n<b>A year</b>\nPlay hardstyle from 2021\nPlay headhunterz from 2020\n\n<b>An order</b>\nPlay random hardcore\nPlay recent\nPlay recently added\n\n<b>Your favourites</b>\nPlay favourites\nPlay favourites by headhunterz\nPlay favourites from 2021\n\n<b>All of it at once</b>\nPlay random favourites from 2023\nPlay random uptempo hardcore from 2021\n\n<b>Later in the queue</b>\nPlay project one next\nPlay dragonborn after this\n\n<b>An album, a playlist or a title</b>\nPlay album thunderdome\nPlay the playlist zomer\nPlay the track dragonborn\n\n<b>A rating</b>\nPlay hardstyle with at least 4 stars\n\n<b>More than one of a kind</b>\nPlay hardstyle en hardcore\nPlay hardstyle from 2020 en 2021\n\nA name has to be one the library knows. What it cannot place is dropped and the rest of the request still plays; when it can place nothing at all, the ordinary search takes over and looks for the title.\n\nThe microphone in the toolbar opens MuMa Voice, which understands all of the above and can ask which one you meant when a name fits several things. About > Voice diagnostics shows exactly what every request did.]]></string>
 

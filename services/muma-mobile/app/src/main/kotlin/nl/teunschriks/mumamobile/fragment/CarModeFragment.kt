@@ -93,7 +93,9 @@ class CarModeFragment : ScopeFragment() {
             showNowPlaying(requireView())
         }
 
-        view.findViewById<ImageButton>(R.id.car_mode_microphone).setOnClickListener {
+        // A FloatingActionButton rather than an ImageButton, so this is typed as the View it is:
+        // asking for an ImageButton here compiles and throws the moment the screen opens.
+        view.findViewById<View>(R.id.car_mode_microphone).setOnClickListener {
             findNavController().navigate(R.id.mumaVoiceFragment)
         }
 
@@ -152,8 +154,11 @@ class CarModeFragment : ScopeFragment() {
     )
 
     /**
-     * Five stars at 72dp, built in code because the only thing that differs between them is which
-     * rating they stand for.
+     * Five stars, built in code because the only thing that differs between them is which rating
+     * they stand for.
+     *
+     * [STAR_SIZE_DP] is a width budget rather than a taste: five of them plus the screen's own
+     * padding have to fit across the narrowest phone this runs on, and 72dp did not.
      *
      * The drawables are the player's own, tinted the same way: they are LayerDrawables whose two
      * layers carry the surface and the accent, and the accent follows the style theme, so the
@@ -261,7 +266,7 @@ class CarModeFragment : ScopeFragment() {
         const val SHORTCUT_TILES = 3
         const val TILE_COLUMNS = 2
         const val STARS = 5
-        const val STAR_SIZE_DP = 72
+        const val STAR_SIZE_DP = 56
         const val FAVORITE_RATING_MIN = 4
         const val FILTER_GENRE = "GENRE"
     }

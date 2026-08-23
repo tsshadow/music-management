@@ -36,6 +36,7 @@ PERMISSIONS = [
     ('user-requests.reject', 'Reject an access request'),
     ('user-requests.unapprove', 'Undo an approved access request (deletes/unlinks the resulting account)'),
 
+    ('rules.manage', 'Edit artists, labels and genres, and manage tagging rules'),
     ('radio.manage', 'Create and edit radio channels'),
     ('news.manage', 'Configure news recording'),
 

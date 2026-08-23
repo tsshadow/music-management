@@ -12,6 +12,7 @@ from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.GenreRulesHelper import BLACK, VALID_STATES, WHITE
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 from services.common.version_helper import get_changelog, get_release_notes, get_version
+from services.music_manager import curation_rules
 from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
 
@@ -543,11 +544,12 @@ def add_artist_genre_rule(rule: ArtistGenreRule, _auth: dict=Depends(verify_api_
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
-            cursor.execute('\n                INSERT INTO rules_artist_genres (artist_name, genre_id)\n                VALUES (%s, %s)\n                ON DUPLICATE KEY UPDATE genre_id = VALUES(genre_id)\n            ', (rule.artist_name, rule.genre_id))
+            curation_rules.add_artist_genre_rule(cursor, rule.artist_name, rule.genre_id, curation_rules.actor_name(_auth))
             conn.commit()
-            return {'status': 'ok'}
     finally:
         conn.close()
+    curation_rules.refresh(curation_rules.ARTIST_GENRE_HELPER)
+    return {'status': 'ok'}
 
 @router.delete('/rules/artist-genres/{rule_id}')
 def delete_artist_genre_rule(rule_id: int, _auth: dict=Depends(verify_api_key)):
@@ -558,9 +560,10 @@ def delete_artist_genre_rule(rule_id: int, _auth: dict=Depends(verify_api_key)):
         with conn.cursor() as cursor:
             cursor.execute('DELETE FROM rules_artist_genres WHERE id = %s', (rule_id,))
             conn.commit()
-            return {'status': 'ok'}
     finally:
         conn.close()
+    curation_rules.refresh(curation_rules.ARTIST_GENRE_HELPER)
+    return {'status': 'ok'}
 
 @router.get('/rules/label-genres')
 def get_label_genre_rules(_auth: dict=Depends(verify_api_key)):
@@ -581,11 +584,12 @@ def add_label_genre_rule(rule: LabelGenreRule, _auth: dict=Depends(verify_api_ke
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
-            cursor.execute('\n                INSERT INTO rules_label_genres (label_name, genre_id)\n                VALUES (%s, %s)\n                ON DUPLICATE KEY UPDATE genre_id = VALUES(genre_id)\n            ', (rule.label_name, rule.genre_id))
+            curation_rules.add_label_genre_rule(cursor, rule.label_name, rule.genre_id, curation_rules.actor_name(_auth))
             conn.commit()
-            return {'status': 'ok'}
     finally:
         conn.close()
+    curation_rules.refresh(curation_rules.LABEL_GENRE_HELPER)
+    return {'status': 'ok'}
 
 @router.delete('/rules/label-genres/{rule_id}')
 def delete_label_genre_rule(rule_id: int, _auth: dict=Depends(verify_api_key)):
@@ -596,9 +600,10 @@ def delete_label_genre_rule(rule_id: int, _auth: dict=Depends(verify_api_key)):
         with conn.cursor() as cursor:
             cursor.execute('DELETE FROM rules_label_genres WHERE id = %s', (rule_id,))
             conn.commit()
-            return {'status': 'ok'}
     finally:
         conn.close()
+    curation_rules.refresh(curation_rules.LABEL_GENRE_HELPER)
+    return {'status': 'ok'}
 
 @router.get('/scrobble/import/latest')
 def get_latest_scrobble_imports_proxy(_auth: dict=Depends(verify_api_key)):

@@ -20,6 +20,7 @@ from services.music_manager.routers import (
     analytics,
     artist_images,
     config,
+    curation,
     diagnostics,
     downloaders,
     events,
@@ -72,6 +73,7 @@ app.include_router(user_requests.router, prefix="/api") # /api/auth/google, /api
 app.include_router(radio.router, prefix="/api/radio")
 app.include_router(news.router, prefix="/api/news")
 app.include_router(diagnostics.router, prefix="/api/diagnostics")
+app.include_router(curation.router, prefix="/api/curation")
 
 def background_workers_enabled() -> bool:
     """Whether startup should spin up the tagger, scanner and radio loops.

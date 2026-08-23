@@ -14,6 +14,7 @@ users_router.run_lms_db_sync = lambda: None
 
 from fastapi.testclient import TestClient
 
+from services.common.Helpers import Cache
 from services.music_manager.main import app
 from services.music_manager.routers import management as management_router
 
@@ -345,7 +346,29 @@ class ArtistAndLabelRulesTest(ManagementTestCase):
         response = self.client.post('/api/rules/artist-genres', headers=self.headers,
                                     json={'artist_name': 'Angerfist', 'genre_id': 3})
         self.assertEqual(response.json(), {'status': 'ok'})
-        self.assertEqual(self.cursor.execute.call_args.args[1], ('Angerfist', 3))
+        self.assertEqual(self.cursor.execute.call_args.args[1], ('Angerfist', 3, 'system'))
+
+    def test_adding_a_rule_here_refreshes_the_tagger_cache_too(self):
+        """This endpoint predates the edit pages and had the same silent failure.
+
+        Cache.databaseHelpers preloads rules_artist_genre once at import, so without
+        the refresh a rule added from the Tagger tab did nothing until a restart.
+        """
+        Cache.reload.reset_mock()
+        self.client.post('/api/rules/artist-genres', headers=self.headers,
+                         json={'artist_name': 'Angerfist', 'genre_id': 3})
+        Cache.reload.assert_called_once_with('artistGenreHelper')
+
+    def test_removing_a_rule_here_refreshes_the_tagger_cache_too(self):
+        Cache.reload.reset_mock()
+        self.client.delete('/api/rules/artist-genres/5', headers=self.headers)
+        Cache.reload.assert_called_once_with('artistGenreHelper')
+
+    def test_adding_a_label_rule_refreshes_the_label_helper(self):
+        Cache.reload.reset_mock()
+        self.client.post('/api/rules/label-genres', headers=self.headers,
+                         json={'label_name': 'Scantraxx', 'genre_id': 3})
+        Cache.reload.assert_called_once_with('labelGenreHelper')
 
     def test_an_artist_genre_rule_can_be_removed(self):
         response = self.client.delete('/api/rules/artist-genres/5', headers=self.headers)

@@ -59,6 +59,13 @@ READ_ENDPOINTS = [
     ('/api/analytics/top-labels', 200),
     ('/api/analytics/artist-search?q=anger', 200),
     ('/api/user-requests', 200),
+
+    # The curation edit pages. An artist or label the library has never seen reads
+    # back as a row of nulls rather than a 404: the rule tables are free text, so a
+    # rule may legitimately be written before the first matching file arrives.
+    ('/api/curation/artists/Angerfist', 200),
+    ('/api/curation/labels/Scantraxx', 200),
+    ('/api/curation/genres/Hardcore', 404),
 ]
 
 
@@ -69,7 +76,116 @@ def test_a_read_endpoint_runs_its_sql_against_a_real_schema(api, headers, path, 
     assert response.status_code == expected, f'{path} -> {response.status_code}: {response.text[:200]}'
 
 
-class TestUserLifecycle:
+class CurationEditPagesTest:
+    """The artist, label and genre edit pages, against the real schema.
+
+    Every write here goes through SQL the unit suite only ever saw as a string.
+    `created_by`, `library_labels.mbid` and `label_external_ids` all arrived in
+    migrate_v13, so these also prove that migration reached the running schema.
+    """
+
+    def _white_genre(self, db, name='Hardcore'):
+        with db.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO rules_genres (name, normalized_name, state) VALUES (%s, %s, 'white')",
+                (name, name.lower()))
+            return cursor.lastrowid
+
+    def test_an_artist_rule_is_written_read_back_and_removed(self, api, headers, db):
+        genre_id = self._white_genre(db)
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_artists (name, normalized_name) VALUES ('Angerfist', 'angerfist')")
+
+        added = api.post('/api/curation/artists/Angerfist/genres', headers=headers,
+                         json={'genre_id': genre_id})
+        assert added.status_code == 200, added.text
+
+        page = api.get('/api/curation/artists/Angerfist', headers=headers).json()
+        assert [rule['name'] for rule in page['genre_rules']] == ['Hardcore']
+        assert page['genre_rules'][0]['created_by'] == 'system'
+
+        removed = api.delete(f'/api/curation/artists/Angerfist/genres/{genre_id}', headers=headers)
+        assert removed.status_code == 200, removed.text
+        assert api.get('/api/curation/artists/Angerfist', headers=headers).json()['genre_rules'] == []
+
+    def test_a_rule_cannot_point_at_a_genre_curation_rejected(self, api, headers, db):
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO rules_genres (name, normalized_name, state) VALUES ('Arts', 'arts', 'black')")
+            rejected = cursor.lastrowid
+        refused = api.post('/api/curation/artists/Angerfist/genres', headers=headers,
+                           json={'genre_id': rejected})
+        assert refused.status_code == 400, refused.text
+
+    def test_an_mbid_lands_in_both_places_it_is_stored(self, api, headers, db):
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_artists (name, normalized_name) VALUES ('Angerfist', 'angerfist')")
+        mbid = '5b11f4ce-a62d-471e-81fc-a69a8278c7da'
+
+        saved = api.put('/api/curation/artists/Angerfist/mbid', headers=headers, json={'mbid': mbid})
+        assert saved.status_code == 200, saved.text
+
+        page = api.get('/api/curation/artists/Angerfist', headers=headers).json()
+        assert page['mbid'] == mbid
+        assert [row['source'] for row in page['external_ids']] == ['musicbrainz']
+
+        cleared = api.put('/api/curation/artists/Angerfist/mbid', headers=headers, json={'mbid': None})
+        assert cleared.status_code == 200, cleared.text
+        page = api.get('/api/curation/artists/Angerfist', headers=headers).json()
+        assert page['mbid'] is None
+        assert page['external_ids'] == []
+
+    def test_a_label_carries_an_mbid_a_parent_and_a_catalogue_prefix(self, api, headers, db):
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_labels (name) VALUES ('Roughstate')")
+            parent_id = cursor.lastrowid
+            cursor.execute("INSERT INTO library_labels (name) VALUES ('Minus Is More')")
+
+        assert api.put('/api/curation/labels/Minus Is More/parent', headers=headers,
+                       json={'parent_label_id': parent_id}).status_code == 200
+        assert api.post('/api/curation/labels/Minus Is More/catids', headers=headers,
+                        json={'catid': 'mim'}).status_code == 200
+
+        page = api.get('/api/curation/labels/Minus Is More', headers=headers).json()
+        assert page['parent_label_name'] == 'Roughstate'
+        assert page['catids'] == ['MIM']
+
+    def test_a_label_cannot_be_its_own_parent(self, api, headers, db):
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_labels (name) VALUES ('Scantraxx')")
+            label_id = cursor.lastrowid
+        refused = api.put('/api/curation/labels/Scantraxx/parent', headers=headers,
+                          json={'parent_label_id': label_id})
+        assert refused.status_code == 400, refused.text
+
+    def test_a_genre_hierarchy_is_replaced_not_merged(self, api, headers, db):
+        self._white_genre(db, 'Hardcore')
+        self._white_genre(db, 'Terror')
+        self._white_genre(db, 'Industrial Hardcore')
+
+        first = api.put('/api/curation/genres/Industrial Hardcore/parents', headers=headers,
+                        json={'parents': ['Hardcore', 'Terror']})
+        assert first.status_code == 200, first.text
+        assert sorted(api.get('/api/curation/genres/Industrial Hardcore',
+                              headers=headers).json()['parents']) == ['Hardcore', 'Terror']
+
+        second = api.put('/api/curation/genres/Industrial Hardcore/parents', headers=headers,
+                         json={'parents': ['Hardcore']})
+        assert second.status_code == 200, second.text
+        page = api.get('/api/curation/genres/Industrial Hardcore', headers=headers).json()
+        assert page['parents'] == ['Hardcore']
+        assert api.get('/api/curation/genres/Hardcore',
+                       headers=headers).json()['children'] == ['Industrial Hardcore']
+
+    def test_a_rejected_genre_has_no_hierarchy_to_edit(self, api, headers, db):
+        self._white_genre(db, 'Hardcore')
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO rules_genres (name, normalized_name, state) VALUES ('Arts', 'arts', 'black')")
+        refused = api.put('/api/curation/genres/Arts/parents', headers=headers,
+                          json={'parents': ['Hardcore']})
+        assert refused.status_code == 403, refused.text
+
+
+class UserLifecycleTest:
     """Create, log in, change, delete -- the whole flow against real tables."""
 
     def test_the_first_admin_can_be_created_and_then_log_in(self, api, db):
@@ -157,7 +273,7 @@ class TestUserLifecycle:
         assert api.get('/api/auth/verify', headers={'x-api-key': api_key}).status_code == 403
 
 
-class TestDynamicPlaylists:
+class DynamicPlaylistsTest:
 
     @pytest.fixture(autouse=True)
     def _a_user_exists(self, api, db):
@@ -207,7 +323,7 @@ class TestDynamicPlaylists:
         assert response.status_code == 200, response.text
 
 
-class TestGenreCuration:
+class GenreCurationTest:
 
     def test_a_genre_can_be_decided_and_shows_its_targets(self, api, headers, db):
         with db.cursor() as cursor:
@@ -261,7 +377,7 @@ class TestGenreCuration:
         assert api.get('/api/rules/label-genres', headers=headers).json() == []
 
 
-class TestLibraryReads:
+class LibraryReadsTest:
 
     @pytest.fixture
     def a_track(self, db):
@@ -303,7 +419,7 @@ class TestLibraryReads:
         assert api.post('/api/library/tracks/999/rerun-parse', headers=headers).status_code == 404
 
 
-class TestScrobbling:
+class ScrobblingTest:
 
     def test_a_listen_for_a_known_track_is_matched(self, api, headers, db):
         with db.cursor() as cursor:
@@ -337,7 +453,7 @@ class TestScrobbling:
             assert cursor.fetchone()['n'] == 1
 
 
-class TestDownloadAccounts:
+class DownloadAccountsTest:
 
     def test_a_soundcloud_account_round_trip(self, api, headers, db):
         api.post('/api/soundcloud', headers=headers, json={'name': 'artist', 'soundcloud_id': '7'})
@@ -352,7 +468,7 @@ class TestDownloadAccounts:
         assert api.get('/api/youtube', headers=headers).json() == []
 
 
-class TestArtistImages:
+class ArtistImagesTest:
 
     def test_the_stats_count_artists_with_and_without_an_image(self, api, headers, db):
         with db.cursor() as cursor:

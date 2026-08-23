@@ -44,6 +44,16 @@ class TestRbacHelpers(unittest.TestCase):
         self.assertTrue(rbac.is_admin_auth(admin_auth))
         self.assertFalse(rbac.is_admin_auth(user_auth))
 
+    def test_curation_permission_exists_and_is_not_granted_to_plain_users(self):
+        """The artist/label/genre edit pages hang off one permission.
+
+        A normal user may look at an artist's MBID; changing it, or writing a tagging
+        rule that alters how every future file is tagged, is an admin act.
+        """
+        names = {name for name, _ in rbac.PERMISSIONS}
+        self.assertIn('rules.manage', names)
+        self.assertNotIn('rules.manage', rbac.USER_ROLE_PERMISSIONS)
+
     def test_admin_role_is_seeded_with_every_permission(self):
         all_names = {name for name, _ in rbac.PERMISSIONS}
         self.assertTrue(rbac.USER_ROLE_PERMISSIONS.issubset(all_names))

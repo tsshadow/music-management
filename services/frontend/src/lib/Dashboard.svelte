@@ -1,5 +1,6 @@
 <script>
   import { t } from './i18n/index.js';
+  import { Pencil } from '@lucide/svelte';
   import { untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
   import TrackCard from './TrackCard.svelte';
@@ -14,13 +15,16 @@
   import StarredView from './StarredView.svelte';
   import MemoriesView from './MemoriesView.svelte';
   import MemoriesYearView from './MemoriesYearView.svelte';
+  import ArtistEdit from './curation/ArtistEdit.svelte';
+  import LabelEdit from './curation/LabelEdit.svelte';
+  import GenreEdit from './curation/GenreEdit.svelte';
   import Management from './management/Management.svelte';
   import CollectionBar from './CollectionBar.svelte';
   import { getArtistImageUrl, viewArgument } from './utils.js';
   import { localDateString, memoryCount, memoryHeading, parseMemoryGroups } from './memories.js';
   import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
   import { defaultCollectionState, durationParts, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
-  import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled } from './store.js';
+  import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, hasPermission } from './store.js';
 
   // Navigation that has to survive a refresh goes through onnavigate, which App turns into a URL.
   // The local assignment stays the fallback for the many places that only switch the screen.
@@ -655,6 +659,16 @@
             {:else if activeView.startsWith('genre:')}
               {@const genreName = viewArgument(activeView)}
               <span>{genreName}</span>
+              {#if hasPermission('rules.manage')}
+                <button
+                  class="bg-transparent border-none text-[#b3b3b3] hover:text-white transition-all hover:scale-110 cursor-pointer p-1"
+                  onclick={() => activeView = `genre-edit:${genreName}`}
+                  title="Genre bewerken"
+                  aria-label="Genre bewerken"
+                >
+                  <Pencil size={20} />
+                </button>
+              {/if}
               <button
                 class="bg-transparent border-none text-brand transition-all hover:scale-110 active:scale-95 cursor-pointer p-1"
                 onclick={() => toggleFavorite(genreName)}
@@ -667,6 +681,16 @@
             {:else}
               {@const collectionName = viewArgument(activeView)}
               <span>{collectionName}</span>
+              {#if activeView.startsWith('label:') && hasPermission('rules.manage')}
+                <button
+                  class="bg-transparent border-none text-[#b3b3b3] hover:text-white transition-all hover:scale-110 cursor-pointer p-1"
+                  onclick={() => activeView = `label-edit:${collectionName}`}
+                  title="Label bewerken"
+                  aria-label="Label bewerken"
+                >
+                  <Pencil size={20} />
+                </button>
+              {/if}
             {/if}
         </h2>
         <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} showGenre={!activeView.startsWith('genre:') && !activeView.startsWith('label:') && !activeView.startsWith('podcast:')} onchange={handleFilterChange} />
@@ -967,6 +991,12 @@
     {/if}
   {:else if activeView === 'playlist-detail'}
     <PlaylistView onnavigate={(v) => activeView = v} />
+  {:else if activeView.startsWith('artist-edit:')}
+    <ArtistEdit artistId={viewArgument(activeView)} onback={() => activeView = `artist:${viewArgument(activeView)}`} />
+  {:else if activeView.startsWith('label-edit:')}
+    <LabelEdit name={viewArgument(activeView)} onback={() => activeView = `label:${viewArgument(activeView)}`} />
+  {:else if activeView.startsWith('genre-edit:')}
+    <GenreEdit name={viewArgument(activeView)} onback={() => activeView = `genre:${viewArgument(activeView)}`} />
   {:else if activeView.startsWith('artist:')}
     <ArtistView artistId={viewArgument(activeView)} onnavigate={(v) => activeView = v} />
   {:else if activeView.startsWith('album:')}

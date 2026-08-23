@@ -14,8 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   accounts — het patroon van een afgebroken ronde, niet van mislukte downloads. Na drie van die
   afbrekingen zou zo'n track dertig dagen zijn uitgesloten, precies de tracks waarvoor de diepe ronde
   bestaat. Alleen wat de ronde echt geprobeerd heeft telt nu mee.
-
-### Fixed
+- **De hoezen op een Memories-tegel waren weg zodra labelreleases vooraan kwamen.** Dat is precies
+  andersom dan je zou denken: een SoundCloud-rip draagt bijna altijd een ingesloten plaatje, een
+  echte labelrelease in deze bibliotheek meestal niet. Toen de tegels de labelreleases vooraan
+  gingen zetten, keek de mozaïek dus naar juist die nummers en vond niets — vier van de zes jaren
+  toonden een grijs vlak. De server stuurt nu per jaar maximaal vier hoezen mee, verzameld uit het
+  hele jaar in plaats van uit de handvol nummers op de tegel, zodat een jaar met onbehoesde
+  topnummers alsnog een mozaïek krijgt.
 - **Zeven kanalen waren stilletjes samengevoegd met een ander kanaal.** `channels.normalized_name`
   stond op `utf8mb4_general_ci`, en die collatie geeft élk teken buiten de Basic Multilingual Plane
   hetzelfde sorteergewicht. Twee namen die volledig uit zulke tekens bestaan zijn voor de database

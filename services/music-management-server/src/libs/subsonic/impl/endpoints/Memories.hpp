@@ -81,7 +81,19 @@ namespace lms::api::subsonic
             int year{};
             bool exact{};        // at least one track in this group is an exact date match
             std::size_t total{}; // the year's full size, before maxPerYear truncated it
+
+            /** The page: at most maxPerYear tracks, best first. */
             std::vector<db::TrackId> trackIds;
+
+            /**
+             * The whole year in the same order.
+             *
+             * The page is what a client lists, but a tile also wants a handful of covers, and the
+             * best tracks of a year are frequently the ones without artwork -- a label release is
+             * far less likely to carry an embedded cover than a rip is. Looking for covers beyond
+             * the page is what keeps such a year from looking empty.
+             */
+            std::vector<db::TrackId> rankedIds;
         };
 
         /**
@@ -99,6 +111,9 @@ namespace lms::api::subsonic
          * big as the limit.
          */
         std::vector<Group> groupByYear(const std::vector<DatedTrack>& tracks, std::size_t maxPerYear);
+
+        /** How many covers a year hands out for a client's mosaic. */
+        inline constexpr std::size_t tileCovers{ 4 };
 
         inline constexpr std::size_t defaultWindowDays{ 3 };
         inline constexpr std::size_t maxWindowDays{ 14 };

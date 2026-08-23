@@ -135,8 +135,13 @@ export function rankSongs(songs) {
  * most loved titles and up to four covers for the collage. Songs without cover art are skipped for
  * the collage but still counted, so a tagless track cannot punch a hole in the mosaic.
  *
- * The covers are also deduplicated. A year's best tracks routinely come off one album -- in a real
- * library most years do -- and four copies of the same sleeve is not a collage.
+ * The covers come from the server when it names any: it looks at the whole year rather than at the
+ * page it sent, which matters because the tracks that rank highest are frequently the ones without
+ * artwork. Falling back to the songs in hand keeps a server that names none from showing a blank
+ * mosaic.
+ *
+ * Either way the covers are deduplicated. A year's best tracks routinely come off one album -- in a
+ * real library most years do -- and four copies of the same sleeve is not a collage.
  *
  * @param {Array<{year: number, yearsAgo: number, exact: boolean, songs: Object[]}>} groups - Groups
  *   as returned by {@link parseMemoryGroups}.
@@ -149,16 +154,17 @@ export function yearTiles(groups) {
     .map((group) => {
       const ranked = rankSongs(group.songs);
 
+      // The Subsonic JSON encoding collapses a single-element array into a bare object here too.
+      const named = Array.isArray(group.cover) ? group.cover : group.cover ? [group.cover] : [];
+      const coverIds = named.length > 0 ? named.map((cover) => cover?.id) : ranked.map((song) => song.coverArt);
+
       return {
         year: group.year,
         yearsAgo: group.yearsAgo,
         exact: group.exact,
         count: memoryCount(group),
         top: ranked.slice(0, TILE_TOP_COUNT),
-        covers: [...new Set(ranked.map((song) => song.coverArt).filter(Boolean))].slice(
-          0,
-          TILE_COVER_COUNT
-        )
+        covers: [...new Set(coverIds.filter(Boolean))].slice(0, TILE_COVER_COUNT)
       };
     });
 }

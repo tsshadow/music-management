@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-08-23
+
+### Added
+- **Eén script dat de verhuizing op productie helemaal doet.**
+  `scripts/prod-restructure-music.sh --dry-run` en daarna `--apply`, als root op de prod-host.
+  Het zoekt de stack zelf op — de databasecontainer aan zijn image, de te stoppen containers aan
+  wie er echt `/mnt/music` gemonteerd heeft, en de `.env` via de compose-labels — stopt die
+  containers, hernoemt, herschrijft de opgeslagen paden mét hun hash, past de vier padinstellingen
+  aan en start precies terug wat het gestopt heeft, via een `EXIT`-trap zodat de stack ook omhoog
+  komt als een stap faalt. Vooraf controleert het of MariaDB's `SHA2()` dezelfde hashes oplevert als
+  wat Python ooit heeft weggeschreven; zo niet, dan weigert het — anders zou de kolom vollopen met
+  waarden die de scanner niet herkent en zou élk bestand er nieuw uitzien. `--revert --dry-run`
+  laat zien wat terugdraaien zou doen. Achteraf nog twee dingen zelf doen: een volledige LMS-rescan,
+  en de CI-variabele `PROD_ENV_FILE` bijwerken — prod's `.env` wordt bij elke deploy daaruit
+  overschreven.
+
+### Changed
+- **Het aantal op een Memories-tegel klopt nu, en de top-3 ook.** Er stond "200 tracks" op elke
+  drukke tegel, want dat was de limiet waarmee de webpagina het jaar ophaalde, niet de grootte van
+  het jaar: 2025 heeft er in werkelijkheid 450, 2024 er 407, en zeven van de negentien jaren zitten
+  boven die limiet. Dezelfde limiet maakte de top-3 een gok, omdat hij koos uit de eerste 200 die de
+  query toevallig teruggaf. De server sorteert een jaar nu zelf op wat je ermee hebt — vijf sterren
+  eerst, daarna het aantal beluisteringen — vóórdat hij afkapt, en meldt het echte jaartotaal
+  ernaast. Daardoor kan het overzicht met twaalf nummers per jaar toe in plaats van tweehonderd:
+  de pagina haalt nog een paar honderd kilobyte op in plaats van 2,4 megabyte, en toont toch de
+  juiste drie en het juiste aantal. Een jaarpagina vraagt met `year=` alleen dat ene jaar op en
+  krijgt het compleet; de afspeelknop op een tegel doet hetzelfde, zodat die het hele jaar in de
+  wachtrij zet en niet de handvol nummers die op de tegel pasten.
+
 ## [0.28.0] - 2026-08-23
 
 ### Added

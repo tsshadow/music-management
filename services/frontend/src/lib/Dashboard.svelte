@@ -17,7 +17,7 @@
   import Management from './management/Management.svelte';
   import CollectionBar from './CollectionBar.svelte';
   import { getArtistImageUrl, viewArgument } from './utils.js';
-  import { localDateString, memoryHeading, parseMemoryGroups } from './memories.js';
+  import { localDateString, memoryCount, memoryHeading, parseMemoryGroups } from './memories.js';
   import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
   import { defaultCollectionState, durationParts, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
   import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled } from './store.js';
@@ -611,7 +611,7 @@
                 {$t(memoryHeading(group).key, memoryHeading(group).vars)}
               </div>
               <div class="text-[#b3b3b3] text-xs">
-                {group.year} • {$t('common.trackCount', { count: group.songs.length })}
+                {group.year} • {$t('common.trackCount', { count: memoryCount(group) })}
               </div>
             </button>
           {/each}

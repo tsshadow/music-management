@@ -24,9 +24,15 @@ describe("localDateString", () => {
 });
 
 describe("memoriesUrl", () => {
-  it("asks for the whole year rather than the server's page", () => {
-    expect(memoriesUrl("u=user&p=pw", "2026-08-23")).toBe(
-      "/rest/getMemories?date=2026-08-23&maxPerYear=200&u=user&p=pw",
+  it("asks for a handful per year, since the server already ranks them", () => {
+    expect(memoriesUrl("u=user&p=pw", { date: "2026-08-23" })).toBe(
+      "/rest/getMemories?date=2026-08-23&maxPerYear=12&u=user&p=pw",
+    );
+  });
+
+  it("asks for one whole year when a year is named", () => {
+    expect(memoriesUrl("u=user&p=pw", { date: "2026-08-23", year: 2025 })).toBe(
+      "/rest/getMemories?date=2026-08-23&maxPerYear=1000&year=2025&u=user&p=pw",
     );
   });
 
@@ -170,6 +176,23 @@ describe("yearTiles", () => {
 
     expect(tile.count).toBe(9);
     expect(tile.top).toHaveLength(3);
+  });
+
+  it("counts the year the server reports, not the page it sent", () => {
+    // The overview asks for a handful per year; the year itself is far bigger, and songCount is
+    // what says so.
+    const songs = Array.from({ length: 12 }, (_, i) => song(String(i), i));
+    const [tile] = yearTiles([{ ...group(2025, songs), songCount: 450 }]);
+
+    expect(tile.count).toBe(450);
+  });
+
+  it("falls back to the songs it has when the server reports no count", () => {
+    // An older server sends no songCount, and a tile that says nothing is worse than one that
+    // counts what it was given.
+    const [tile] = yearTiles([group(2025, [song("a", 1), song("b", 2)])]);
+
+    expect(tile.count).toBe(2);
   });
 
   it("shows the most popular three, best first", () => {

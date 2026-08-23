@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   en die opnieuw opbouwen is een veel grotere operatie dan de reparatie zelf. Heeft een
   `--dry-run`.
 
-## [0.30.0] - 2026-08-23
+## [0.31.0] - 2026-08-23
 
 ### Changed
 - **Memories zet nu labelreleases vooraan als er niets te sorteren valt.** De volgorde binnen een
@@ -47,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   importstapel, geen release. Onderstrepingen en hoofdletters doen niet mee, en een release met
   meerdere labels pakt de hoogste. Deze sleutel staat bewust ónder de luisterbeurten: hij vult een
   jaar in waar niemand iets mee gedaan heeft, en begraaft geen nummer dat je wél draait.
+
+## [0.30.0] - 2026-08-23
 
 ### Changed
 - **Het autoscherm van muma-mobile draait nu om de microfoon.** Bovenin vier snelkoppelingen, in het

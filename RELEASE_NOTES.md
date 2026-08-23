@@ -11,6 +11,15 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.31.0 (2026-08-23)
+
+- **Memories zet labelreleases vooraan.** De volgorde binnen een jaar keek naar sterren en
+  luisterbeurten, en die zeggen bij memories bijna nooit iets: op 23 augustus had geen van de 3.600
+  nummers in het venster er een. Zonder die signalen besliste de datum, wat tegels vol
+  SoundCloud-materiaal opleverde. Nu telt ook hoe bewust de release is — een echt label eerst, dan
+  releases zonder label, dan gratis releases, dan SoundCloud, YouTube en Telegram, en de importmap
+  onderaan. Een nummer dat je wél draait blijft bovenaan staan.
+
 ## Global Version 0.30.0 (2026-08-23)
 
 - **Het autoscherm in de app is opnieuw ingedeeld.** Bovenin vier snelkoppelingen, in het midden één

@@ -11,6 +11,10 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+- **De nieuwe mapindeling staat klaar** (`labels/`, `songs/`, `import/`, `channels/<platform>/`),
+  maar is nog niet uitgevoerd: dat vraagt eerst een aanpassing in de `.env` op productie en het
+  opnieuw starten van de workers. Het is een omkeerbare operatie van vijf mapnamen, geen verplaatsing
+  van 326.480 bestanden, en je ratings hangen er niet aan.
 - **Je toplabels kloppen weer.** SoundCloud, YouTube en Telegram stonden bovenaan je labellijst
   terwijl het geen labels zijn maar kanalen waar muziek doorheen binnenkomt; `__TODO` en
   `__Free&none` stonden er ook tussen. Die zijn nu kanalen of helemaal niets, en het eerste echte

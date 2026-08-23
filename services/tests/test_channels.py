@@ -9,6 +9,7 @@ from services.common.channels import (
     channel_from_path,
     is_label,
     normalize_channel_name,
+    path_can_carry_a_label,
 )
 
 
@@ -75,6 +76,42 @@ class ChannelFromPathTest(unittest.TestCase):
 
     def test_an_empty_path_has_no_channel(self):
         self.assertIsNone(channel_from_path(''))
+
+
+class PathCanCarryALabelTest(unittest.TestCase):
+    """The trap the folder restructure sets, and why it is refused structurally.
+
+    The tagger reads a label from the folders above a track. That is right inside the label tree and
+    wrong everywhere else -- and once `__Free&None` moves to `/mnt/music/songs/`, the naive answer
+    is that every track in it is on a label called "songs".
+    """
+
+    def test_a_label_release_carries_a_label(self):
+        self.assertTrue(
+            path_can_carry_a_label('/mnt/music/labels/Dirty Workz/DWX123/track.mp3', '/mnt/music'))
+
+    def test_the_songs_pile_carries_none(self):
+        self.assertFalse(
+            path_can_carry_a_label('/mnt/music/songs/Some Release/track.mp3', '/mnt/music'))
+
+    def test_the_import_folder_carries_none(self):
+        self.assertFalse(
+            path_can_carry_a_label('/mnt/music/import/Some Release/track.mp3', '/mnt/music'))
+
+    def test_a_platform_folder_carries_none(self):
+        for platform in ('Soundcloud', 'Youtube', 'Telegram'):
+            with self.subTest(platform=platform):
+                self.assertFalse(
+                    path_can_carry_a_label(f'/mnt/music/{platform}/Chan/track.mp3', '/mnt/music'))
+
+    def test_the_old_eps_tree_still_carries_a_label(self):
+        # The restructure has not necessarily run yet, and both layouts have to work meanwhile.
+        self.assertTrue(
+            path_can_carry_a_label('/mnt/music/EPs/Dirty Workz/DWX123/track.mp3', '/mnt/music'))
+
+    def test_nothing_below_the_root_carries_a_label(self):
+        self.assertFalse(path_can_carry_a_label('/mnt/music', '/mnt/music'))
+        self.assertFalse(path_can_carry_a_label('', '/mnt/music'))
 
 
 class NormalizeChannelNameTest(unittest.TestCase):

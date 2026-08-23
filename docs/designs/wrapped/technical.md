@@ -198,6 +198,65 @@ by hand.
    from `library_labels`.
 6. Re-running the backfill changes nothing further.
 
+## Part 3 — The folder restructure
+
+### The layout
+
+| From | To |
+|---|---|
+| `/mnt/music/EPs/<label>/<release>` | `/mnt/music/labels/<label>/<release>` |
+| `/mnt/music/EPs/__Free&None/…` | `/mnt/music/songs/…` |
+| `/mnt/music/EPs/__TODO/…` | `/mnt/music/import/…` |
+| `/mnt/music/Soundcloud/<channel>` | `/mnt/music/channels/soundcloud/<channel>` |
+| `/mnt/music/Youtube/<channel>` | `/mnt/music/channels/youtube/<channel>` |
+
+`EPs` held three unrelated things: releases on a label, releases on none, and the intake pile. Only
+the first is a label tree, which is why the other two kept appearing in the label chart. Splitting
+them is what makes "the folder above a release is its label" true rather than nearly true.
+
+It is **five directory renames, not 326.480 file moves** — every move stays inside one mount, so
+each is a metadata operation, and `--revert` undoes it just as cheaply.
+
+### What moves with it
+
+- `library_media_files.file_path` **and** `file_path_hash`. The hash is the sha256 of the path, so
+  both have to change together or the scanner treats every file as new.
+- `tagger_processed_files.filepath`, so nothing is needlessly re-tagged.
+- `eps_folder_path` and `import_folder_path`, which the tagger anchors on.
+
+### What does not move with it
+
+- **Ratings.** `rating_tracks.entity_id` is `library_tracks.track_uid`, derived from title, duration
+  and primary artist — not from the path. A move cannot lose a rating. (An earlier note in this
+  repository claimed the opposite; it was wrong.)
+- **Listens.** `scrobble_listens.track_id` points at `library_tracks.id`, also path-independent.
+- **File contents.** Nothing inside a file is rewritten.
+
+### The trap the restructure sets
+
+The tagger derives a label from the folders above a track. Move `__Free&None` to `/mnt/music/songs/`
+and the naive answer becomes "every track in it is on a label called *songs*" — the exact pollution
+Part 2 removes. `channels.path_can_carry_a_label` refuses a label for anything under a non-label root
+or a platform folder, so both layouts stay correct while the move happens.
+
+### Why it cannot be run from a developer machine alone
+
+Every path setting reaches the worker containers through production's `.env`, as
+`docker-compose.workers.yml:26-28` and `:33` show — not through the API config store. Renaming the
+folders without changing those first leaves the workers reading and writing paths that no longer
+exist: the downloaders simply recreate `/mnt/music/Soundcloud`, and the tagger finds an empty intake.
+
+So the order is fixed:
+
+1. Stop the workers.
+2. Edit production's `.env`: `eps_folder_path`, `import_folder_path`, `soundcloud_folder`,
+   `youtube_folder`.
+3. `scripts/restructure_music_folders.py --dry-run`, then `--apply`.
+4. Recreate the workers so they pick up the new environment.
+5. Full LMS rescan — it keys its own library on paths, and every path just changed.
+
+Step 3 is the only one this repository can perform; steps 1, 2 and 4 are operational.
+
 ## Related Docs
 
 - [research.md](research.md) — the production measurements this design answers

@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **De mapindeling van de bibliotheek, klaar om uit te voeren.** `EPs` bevatte drie verschillende
+  dingen door elkaar: releases mét label, releases zónder label (`__Free&None`) en de importstapel
+  (`__TODO`). Alleen het eerste is een labelboom, en dat is precies waarom de andere twee steeds in
+  je labellijst opdoken. `scripts/restructure_music_folders.py` splitst ze uit elkaar naar
+  `labels/`, `songs/`, `import/` en `channels/<platform>/`. Het zijn vijf mapnamen, geen 326.480
+  bestandsverplaatsingen — alles blijft binnen dezelfde mount, dus het is een metadata-operatie en
+  `--revert` draait het net zo goedkoop terug. Het script weigert het hele plan zodra één stap niet
+  kan; half verhuisd is het slechte geval. Draai eerst `--dry-run`. Let op: het is nog **niet**
+  uitgevoerd, en dat kan ook niet vanaf een ontwikkelmachine alleen — de padinstellingen bereiken de
+  workers via de `.env` op productie, niet via de API-config. De volgorde staat in
+  [docs/designs/wrapped/technical.md](docs/designs/wrapped/technical.md), deel 3.
 - **SoundCloud is geen platenlabel meer.** `Soundcloud` (132.037 tracks), `Youtube` (30.779) en
   `Telegram` (1.556) stonden bovenaan je labellijst, ver boven het eerste echte label (Dirty Workz,
   2.299). Dat kwam doordat de tagger het platform in de publisher-tag zet en de scanner een
@@ -35,6 +46,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   over 2026; zie [docs/designs/wrapped/](docs/designs/wrapped/).
 
 ### Fixed
+- **De verhuizing zou een nieuw nep-label hebben opgeleverd.** De tagger leidt een label af uit de
+  mappen boven een track. Zet je `__Free&None` op `/mnt/music/songs/`, dan is het naïeve antwoord dat
+  al die tracks op een label genaamd `songs` staan — dezelfde fout als `Soundcloud`, alleen met een
+  andere naam. Een pad onder een niet-label-map of een platformmap levert nu structureel geen label
+  meer op, en beide indelingen blijven tijdens de verhuizing goed werken.
 - **Een set die je wegklikt telt eindelijk mee.** De telefoon stuurde alleen een listen als een
   track vanzelf afliep of de wachtrij leeg raakte; drukte je op volgende, dan werd er niets
   vastgelegd. Bij tracks van gemiddeld een kwartier is doorspelen tot het eind juist de

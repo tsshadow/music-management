@@ -114,40 +114,40 @@ def link_channels(conn, music_root, batch, dry_run):
 
 
 def drop_fake_labels(conn, dry_run):
-    """Remove the label rows -- and their track links -- for things that are not labels."""
-    names = non_label_names()
-    placeholders = ', '.join(['%s'] * len(names))
+    """Remove the label rows -- and their track links -- for things that are not labels.
 
+    Handled one name at a time rather than with an `IN (...)` list built by hand. The list would be
+    five entries long, so nothing is gained by batching it, and a query assembled with string
+    formatting reads like an injectable one whether or not it is.
+    """
+    labels = []
     with conn.cursor() as cursor:
-        cursor.execute(
-            f'SELECT id, name FROM library_labels WHERE LOWER(name) IN ({placeholders})',
-            names)
-        labels = cursor.fetchall()
+        for name in non_label_names():
+            cursor.execute('SELECT id, name FROM library_labels WHERE LOWER(name) = %s', (name,))
+            labels.extend(cursor.fetchall())
 
     if not labels:
         print('  no non-label labels left')
         return 0, 0
 
-    ids = [row['id'] for row in labels]
-    id_placeholders = ', '.join(['%s'] * len(ids))
-
+    link_count = 0
     with conn.cursor() as cursor:
-        cursor.execute(
-            f'SELECT COUNT(*) AS c FROM library_track_labels WHERE label_id IN ({id_placeholders})',
-            ids)
-        link_count = cursor.fetchone()['c']
+        for row in labels:
+            cursor.execute(
+                'SELECT COUNT(*) AS c FROM library_track_labels WHERE label_id = %s', (row['id'],))
+            count = cursor.fetchone()['c']
+            link_count += count
+            print(f"  {row['name']}: {count} track links")
 
-    for row in labels:
-        print(f"  {row['name']}")
     print(f'  {len(labels)} labels, {link_count} track links')
 
     if dry_run:
         return len(labels), link_count
 
     with conn.cursor() as cursor:
-        cursor.execute(
-            f'DELETE FROM library_track_labels WHERE label_id IN ({id_placeholders})', ids)
-        cursor.execute(f'DELETE FROM library_labels WHERE id IN ({id_placeholders})', ids)
+        for row in labels:
+            cursor.execute('DELETE FROM library_track_labels WHERE label_id = %s', (row['id'],))
+            cursor.execute('DELETE FROM library_labels WHERE id = %s', (row['id'],))
     conn.commit()
     return len(labels), link_count
 

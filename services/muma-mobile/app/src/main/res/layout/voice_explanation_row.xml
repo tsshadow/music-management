@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One line of the parsed request: what it is on the left, what it says on the right. -->
+<LinearLayout xmlns:a="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    a:layout_width="match_parent"
+    a:layout_height="wrap_content"
+    a:baselineAligned="true"
+    a:orientation="horizontal"
+    a:paddingVertical="3dp">
+
+    <TextView
+        a:id="@+id/voice_explanation_label"
+        a:layout_width="112dp"
+        a:layout_height="wrap_content"
+        a:textAppearance="?attr/textAppearanceBodyMedium"
+        a:textColor="?attr/colorOnSurfaceVariant"
+        tools:text="genre" />
+
+    <TextView
+        a:id="@+id/voice_explanation_value"
+        a:layout_width="0dp"
+        a:layout_height="wrap_content"
+        a:layout_weight="1"
+        a:textAppearance="?attr/textAppearanceBodyMedium"
+        a:textColor="?attr/colorOnSurface"
+        a:textStyle="bold"
+        tools:text="Hardstyle" />
+
+</LinearLayout>

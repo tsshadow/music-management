@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-08-23
+
+### Changed
+- **Het autoscherm van muma-mobile draait nu om de microfoon.** Bovenin vier snelkoppelingen, in het
+  midden een gevulde microfoonknop, onderin compact wat er speelt: hoes, titel, bediening en de
+  sterren. De snelkoppelingen werden afgesneden omdat ze als enige blok om restruimte vochten met de
+  hoes, de bediening en de sterren; ze staan nu allebei op `wrap_content` en kunnen elkaar geen
+  hoogte meer afnemen. De balk onderin waren er twee — de tabbladen en het kleine spelertje — en
+  allebei blijven ze weg zolang de autostand aan staat.
+- **Het spraakscherm luistert zodra het opengaat.** Alles wat op dat scherm uitkomt is al een besluit
+  om iets te zeggen, dus de tik erna bewees dat alleen nog een tweede keer. De knop eronder is nu een
+  herhaling, en blijft wel wat de eerste keer om de microfoonrechten vraagt. Na het starten van de
+  muziek gaat het scherm na tien seconden terug; elke aanraking annuleert dat definitief.
+
+### Added
+- **Het spraakscherm vertelt wat het begreep, in woorden.** `genre Hardstyle`, `jaar 2021`, regel
+  voor regel, met het volledige verslag één tik verderop. Waar eerst het filterobject stond dat naar
+  de server gaat: `Playing [{"name":"GENRE","value":"hardstyle"}]`. De regels komen uit
+  `VoiceExplanation` in `core:voice`, zodat ze een veld dragen in plaats van een label en vertaalbaar
+  blijven.
+
 ## [0.29.0] - 2026-08-23
 
 ### Added

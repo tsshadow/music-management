@@ -109,6 +109,16 @@ user treats identically are separated by the date, which preserves the original 
 anniversary is never dropped in favour of a near miss; a full tie falls back to the track id so that two
 identical requests cannot return the same year in a different order.
 
+Most of a year is neither rated nor played -- measured on the production library on 2026-08-23, none of that
+day's 3.600 candidate tracks were -- so a third key decides there: how deliberate the release is, read from
+its label names. The scanner stores the publisher tag as a label, and the downloaders write the platform into
+that tag, which makes "which label" double as "where did this come from". Highest first: a real label, no
+label at all (often a release whose publisher was never matched), `Free&None` (a giveaway rather than a label
+release), `Soundcloud`, `Youtube`, `Telegram`, `TODO` (the import pile, not a release). Leading underscores
+and capitalisation are ignored, since the same placeholder exists with two and three underscores; a release
+with several labels takes its best one. This key sits below the listen count deliberately: it is a fallback
+for a year nobody has touched, not a reason to bury a track the listener plays.
+
 The ranking needs a rating and a play count per candidate track, which are two service calls each. `year` is
 what keeps that bounded: a client asking for one year pays for one year, and the filter is applied before the
 lookups rather than after.
@@ -244,11 +254,13 @@ already swallows the throw.
 17. `./scripts/test/lms-unit.sh`, `./scripts/test/android-unit.sh` and `./scripts/test/frontend-unit.sh` pass.
 18. `./scripts/test/contracts.sh` covers `/rest/getMemories` returning a well-formed success response against
     the test stack.
-19. A year is ordered five-star favourites first, then by listen count, so truncation keeps the best of the
-    year rather than the head of the query.
+19. A year is ordered five-star favourites first, then by listen count, then by how deliberate the release
+    is, so truncation keeps the best of the year rather than the head of the query.
 20. `songCount` reports the year's size before truncation, so a group truncated to twelve of four hundred
     still says four hundred.
 21. `year=2025` answers with that year alone, and with an empty `memories` node when it holds nothing.
+22. `sourceRank` places a label release above an unlabelled one, above `Free&None`, above `Soundcloud`,
+    above `Youtube`, above `Telegram`, above `TODO`, ignoring case and leading underscores.
 
 ## Related Docs
 

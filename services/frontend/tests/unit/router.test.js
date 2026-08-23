@@ -176,3 +176,31 @@ describe('round trip', () => {
     expect(viewToPath({ ...parsed, loggedIn: path !== '/login' })).toBe(path);
   });
 });
+
+describe('edit page routes', () => {
+  it('links an artist edit page off the artist it edits', () => {
+    expect(viewToPath({ view: 'artist-edit:123' })).toBe('/artist/123/edit');
+  });
+
+  it('reads an artist edit path back', () => {
+    expect(pathToState('/artist/123/edit')).toEqual({ view: 'artist-edit:123' });
+  });
+
+  it('percent-encodes a genre name in an edit link', () => {
+    expect(viewToPath({ view: 'genre-edit:Hardcore/Uptempo' })).toBe('/genre/Hardcore%2FUptempo/edit');
+  });
+
+  it('does not mistake an edit path for a genre whose name ends in edit', () => {
+    expect(pathToState('/genre/Hardcore/edit')).toEqual({ view: 'genre-edit:Hardcore' });
+  });
+
+  it('still reads a plain genre path as the genre view', () => {
+    expect(pathToState('/genre/Hardcore')).toEqual({ view: 'genre:Hardcore' });
+  });
+
+  it('round-trips a label edit path with spaces in the name', () => {
+    const path = viewToPath({ view: 'label-edit:Masters of Hardcore' });
+    expect(path).toBe('/label/Masters%20of%20Hardcore/edit');
+    expect(pathToState(path)).toEqual({ view: 'label-edit:Masters of Hardcore' });
+  });
+});

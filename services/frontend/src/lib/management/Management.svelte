@@ -3,6 +3,7 @@
   import { onDestroy, onMount, untrack } from 'svelte';
   import { RefreshCw } from '@lucide/svelte';
   import { activeManagementTab, credentials, isAdmin, mumaApiKey, mumaApiUrl, userPermissions, mumaUser, hasPermission } from '../store.js';
+  import { getHeaders as sharedHeaders } from '../mumaApi.js';
   import { MANAGEMENT_TABS } from '../router.js';
 
   // Import Tabs
@@ -87,13 +88,10 @@
 
   const API_BASE = $derived($mumaApiUrl);
 
-  function getHeaders(extra = {}) {
-    const headers = { ...extra };
-    if (apiKey) {
-      headers['X-API-Key'] = apiKey;
-    }
-    return headers;
-  }
+  // Both of these now live in lib/mumaApi.js, because the curation edit pages live
+  // outside Management and cannot be handed them as props. They are still passed down
+  // to every tab from here, so the tabs did not have to change.
+  const getHeaders = sharedHeaders;
 
   async function fetchData() {
     loading = true;

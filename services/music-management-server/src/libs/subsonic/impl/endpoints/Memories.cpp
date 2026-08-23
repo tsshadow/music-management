@@ -23,12 +23,14 @@
 #include "core/PartialDateTime.hpp"
 #include "core/Service.hpp"
 #include "database/Session.hpp"
+#include "database/objects/Release.hpp"
 #include "database/objects/User.hpp"
 #include "responses/Song.hpp"
 #include "services/feedback/IFeedbackService.hpp"
 #include "services/scrobbling/IScrobblingService.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <functional>
 #include <map>
 #include <string>
@@ -58,6 +60,12 @@ namespace lms::api::subsonic
                         return a.favourite;
                     if (a.listens != b.listens)
                         return a.listens > b.listens;
+
+                    // Most of a year is neither rated nor played, so the release itself decides
+                    // there: a label release ahead of a rip, and the import pile last.
+                    if (a.source != b.source)
+                        return a.source > b.source;
+
                     if (a.exact != b.exact)
                         return a.exact;
 
@@ -83,6 +91,44 @@ namespace lms::api::subsonic
             }
 
             return groups;
+        }
+
+        int sourceRank(const std::vector<std::string>& labelNames)
+        {
+            // Ranks, highest first: a real label, no label, Free&None, Soundcloud, Youtube,
+            // Telegram, TODO. See the header for why the label answers "where did this come from".
+            constexpr int labelRank{ 6 };
+            constexpr int unlabelledRank{ 5 };
+
+            if (labelNames.empty())
+                return unlabelledRank;
+
+            int best{ 0 };
+
+            for (const std::string& name : labelNames)
+            {
+                // Two spellings of the same placeholder differ only in their underscores, and the
+                // publisher tag's case is whatever wrote it.
+                std::string normalized{ name };
+                normalized.erase(0, normalized.find_first_not_of('_'));
+                std::transform(normalized.begin(), normalized.end(), normalized.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+                int rank{ labelRank };
+                if (normalized == "todo")
+                    rank = 0;
+                else if (normalized == "telegram")
+                    rank = 1;
+                else if (normalized == "youtube")
+                    rank = 2;
+                else if (normalized == "soundcloud")
+                    rank = 3;
+                else if (normalized == "free&none")
+                    rank = 4;
+
+                best = std::max(best, rank);
+            }
+
+            return best;
         }
 
         std::size_t clampWindowDays(std::size_t windowDays)
@@ -180,7 +226,12 @@ namespace lms::api::subsonic
             const auto rating{ core::Service<feedback::IFeedbackService>::get()->getRating(userId, trackId) };
             const std::size_t listens{ core::Service<scrobbling::IScrobblingService>::get()->getCount(userId, trackId) };
 
-            dated.push_back({ trackId, *year, exact, rating.value_or(0) >= 5, listens });
+            // A track without a release has no label to read, which ranks the same as a release
+            // whose publisher was never matched: unknown, not disqualified.
+            const db::Release::pointer release{ track->getRelease() };
+            const int source{ memories::sourceRank(release ? release->getLabelNames() : std::vector<std::string>{}) };
+
+            dated.push_back({ trackId, *year, exact, rating.value_or(0) >= 5, listens, source });
             tracksById[trackId] = track;
         }
 

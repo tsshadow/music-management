@@ -19,7 +19,7 @@ function subsonic({
   artistData = artist(),
   tracks = { track: [TRACK], moreResults: false, nextOffset: 1 },
   info = { biography: 'Hardcore uit Amsterdam.', similarArtist: [{ id: 'artist-2', name: 'Outsiders' }] },
-  muma = { genres: [{ name: 'Hardcore' }] },
+  muma = { genre_rules: [{ genre_id: 12, name: 'Hardcore', created_by: 'user' }] },
   starOk = true
 } = {}) {
   return vi.fn(async (url) => {
@@ -32,7 +32,10 @@ function subsonic({
     if (url.includes('/rest/getArtist?')) {
       return { ok: true, json: async () => ({ 'subsonic-response': { artist: artistData } }) };
     }
-    if (url.includes('/api/artists/')) {
+    // The curation endpoint, keyed by name. The previous version of this mock
+    // answered /api/artists/{id} -- a route that has never existed, so the test
+    // passed while the chips on the real page stayed empty.
+    if (url.includes('/api/curation/artists/')) {
       return { ok: true, json: async () => muma };
     }
     return { ok: starOk, json: async () => ({ 'subsonic-response': { status: 'ok' } }) };

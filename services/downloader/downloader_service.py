@@ -8,6 +8,7 @@ from collections.abc import Callable, Iterable, Sequence
 
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.logging_setup import setup_logging
+from services.downloader import shutdown
 from services.downloader.sweep import SweepPolicy
 
 faulthandler.register(signal.SIGUSR1)
@@ -92,6 +93,10 @@ class DownloaderService:
 
 def main() -> None:
     setup_logging('downloader')
+    # Armed before anything downloads. Python ends the process outright on an
+    # unhandled SIGTERM, so without this a deploy takes the worker mid-pass and
+    # no `finally` gets to write down what it had learned.
+    shutdown.install_handlers()
     args = parse_args()
     downloader_service = DownloaderService()
     if args.step:
@@ -99,6 +104,8 @@ def main() -> None:
     else:
         steps = {'youtube', 'soundcloud', 'telegram'}
     while True:
+        if shutdown.is_requested():
+            break
         if 'youtube' in steps:
             downloader_service.download('youtube', break_on_existing=args.break_on_existing, account=args.account, deep=args.deep)
         if 'soundcloud' in steps:
@@ -107,6 +114,9 @@ def main() -> None:
             downloader_service.download('telegram', break_on_existing=args.break_on_existing, account=args.account)
         if not args.repeat:
             logging.info('Repeat flag not set; exiting after single run.')
+            break
+        if shutdown.is_requested():
+            logging.info('Shutting down; not sleeping until the next round.')
             break
         sleeptime = sweep_sleep_seconds(sorted(steps), args.sleeptime)
         logging.info('Sleeping for %d seconds before next run.', sleeptime)

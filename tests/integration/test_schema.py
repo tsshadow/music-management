@@ -18,7 +18,7 @@ EXPECTED_TABLES = {
     'library_artists', 'library_labels', 'library_tracks', 'library_media_files',
     'library_track_artists', 'library_track_genres', 'library_track_labels',
     'library_track_audio_features', 'library_track_ml_labels',
-    'library_artist_images', 'artist_external_ids',
+    'library_artist_images', 'artist_external_ids', 'label_external_ids',
     'rules_genres', 'rules_genre_expansions', 'rules_artist_genres',
     'rules_label_genres', 'rules_catid_label', 'rules_label_proposals', 'rules_ignored_artists',
     'rules_ignored_genres', 'rules_subgenre_hierarchy', 'rules_genre_backlog',
@@ -61,6 +61,32 @@ def test_the_curated_genre_columns_survived_the_migrations(database):
         cursor.execute('SHOW COLUMNS FROM rules_genres')
         columns = {row['Field'] for row in cursor.fetchall()}
     assert {'state', 'canonical_id', 'occurrences', 'decided_at', 'decided_by'} <= columns
+
+
+def test_a_label_can_be_identified_and_filed_under_a_parent(database):
+    """migrate_v13 gives library_labels the columns the label edit page writes."""
+    with database.cursor() as cursor:
+        cursor.execute('SHOW COLUMNS FROM library_labels')
+        columns = {row['Field'] for row in cursor.fetchall()}
+    assert {'mbid', 'parent_label_id'} <= columns
+
+
+def test_a_rule_records_who_wrote_it(database):
+    """Without created_by a hand-made rule and a generated one are indistinguishable."""
+    with database.cursor() as cursor:
+        for table in ('rules_artist_genres', 'rules_label_genres'):
+            cursor.execute(f'SHOW COLUMNS FROM {table}')
+            columns = {row['Field'] for row in cursor.fetchall()}
+            assert 'created_by' in columns, f'{table} cannot record who wrote a rule'
+
+
+def test_a_subgenre_cannot_be_filed_under_the_same_parent_twice(db):
+    """The edit page deletes one row per parent, so a duplicate pair would resurrect it."""
+    import pymysql
+    with db.cursor() as cursor:
+        cursor.execute("INSERT INTO rules_subgenre_hierarchy (subgenre, genre) VALUES ('Industrial Hardcore', 'Hardcore')")
+        with pytest.raises(pymysql.err.IntegrityError):
+            cursor.execute("INSERT INTO rules_subgenre_hierarchy (subgenre, genre) VALUES ('Industrial Hardcore', 'Hardcore')")
 
 
 def test_a_genre_can_expand_into_several_others(db):

@@ -109,8 +109,11 @@ const TILE_COVER_COUNT = 4;
  *
  * The library has no popularity figure of its own, so the ranking is assembled from what every song
  * node already carries: a favourite (five stars) outranks everything, and inside that bucket -- and
- * inside the rest -- the listen count decides. Rating and title only settle ties, which keeps the
- * order stable between renders of the same data.
+ * inside the rest -- the listen count decides, with the rating settling what is left.
+ *
+ * Songs this cannot tell apart keep the order they arrived in, which matters more than it looks:
+ * most of a memory year is neither rated nor played, and the server has already ordered exactly
+ * those by how deliberate their release is. Sorting them again by title would throw that away.
  *
  * @param {Object[]} songs - The songs to rank. Not modified.
  * @returns {Object[]} A new array, best first.
@@ -121,11 +124,7 @@ export function rankSongs(songs) {
   const favourite = (song) => (rating(song) >= 5 ? 1 : 0);
 
   return [...songs].sort(
-    (a, b) =>
-      favourite(b) - favourite(a) ||
-      listens(b) - listens(a) ||
-      rating(b) - rating(a) ||
-      String(a.title ?? '').localeCompare(String(b.title ?? ''))
+    (a, b) => favourite(b) - favourite(a) || listens(b) - listens(a) || rating(b) - rating(a)
   );
 }
 

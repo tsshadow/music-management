@@ -38,7 +38,10 @@ group alongside the release groups, without redesigning it.
 | A year has both exact and near-miss tracks | The group is headed "Today, X years ago"; the exact matches are listed first |
 | Neither exact nor near-miss matches exist | Memories shows a short explanatory empty state; the home preview is hidden entirely rather than shown empty |
 | User taps a year group | The tracks of that year play, in the order shown |
-| User taps a card in the home preview | The full Memories screen opens, scrolled to that year |
+| User opens Memories on web | One tile per year, newest first: a mosaic of that year's covers, the year, its heading, the three best-loved tracks and a play action |
+| User opens a tile on web | That year gets its own page at `/memories/<year>`, listing the first fifty tracks with a "load more" that reveals fifty at a time |
+| User opens `/memories/<year>` on a later day | The page shows whatever that year holds on that day, or an empty state saying the year has no memories today |
+| User taps a card in the home preview | On web, that year's page opens; on Android, the full Memories screen opens scrolled to that year |
 | User turns the home preview off in settings | The preview disappears from home; Memories itself stays reachable from its permanent place — the sidebar on web, the Library tab on Android |
 | Tracks only carry a year, or a year and month, in their tags | They never appear in Memories, because "today X years ago" cannot be established from them |
 | A track was released earlier this same year on today's date | It does not appear; a memory is always at least one year old |
@@ -55,9 +58,14 @@ group alongside the release groups, without redesigning it.
 5. Playing a group starts playback of every track in that group, in the displayed order.
 6. Tracks whose tags carry only a year, or only a year and month, never appear.
 7. Releases from the current calendar year never appear.
-8. Both the web UI and the Android app show the same groups for the same date.
+8. Both the web UI and the Android app show the same groups for the same date. The layout differs: web
+   shows a tile per year that opens its own page, Android lists the years as sections on one screen.
 9. The home preview shows one card per year group, at most ten cards, so it stays a short strip; opening a
-   card opens the full screen at that year.
+   card opens that year.
+10. A web tile names the three tracks of its year that the listener values most: favourites first, and
+    listen count deciding both within the favourites and among the rest.
+11. A web year page shows fifty tracks at a time; the whole year plays from its play action, not just the
+    part on screen.
 10. Switching the home preview off in settings hides it, and the setting survives restarting the app or
     reloading the page.
 11. With the home preview switched off, Memories is still reachable in both clients without changing any

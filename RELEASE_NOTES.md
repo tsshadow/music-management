@@ -11,6 +11,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.25.0 (2026-08-23)
+
+Zie `CHANGELOG.md` voor de volledige lijst. De kern van deze release: Memories op web is een tegel
+per jaar geworden, met per jaar een eigen pagina op `/memories/2025` die de tracklijst in stappen van
+vijftig toont. Op een tegel staan de drie nummers die je er het meest mee hebt — vijf sterren gaat
+voor, daarna beslist het aantal beluisteringen. Daarnaast telt de label-backfill nu hardop hoeveel
+bestanden de schijf geweigerd heeft.
+
 ## Global Version 0.24.0 (2026-08-22)
 
 Zie `CHANGELOG.md` voor de volledige lijst. De kern van deze release: een release die een kopie van

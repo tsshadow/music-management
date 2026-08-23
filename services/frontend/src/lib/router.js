@@ -34,12 +34,17 @@ const PLAIN_VIEWS = [
  * on ':' would truncate the name, and an unencoded '/' would make the path
  * parse back as a different view entirely. Artist and album arguments are
  * opaque server ids and stay as they are, so existing links keep working.
+ *
+ * 'memories' is deliberately both a plain view and an argument view: '/memories'
+ * is the year overview and '/memories/2025' one of its years. The plain lookup
+ * runs first in both directions, so the two never collide.
  */
 const ARGUMENT_VIEWS = [
   { kind: 'genre', segment: 'genre', encode: true },
   { kind: 'label', segment: 'label', encode: true },
   { kind: 'podcast', segment: 'podcast', encode: true },
   { kind: 'search', segment: 'search', encode: true },
+  { kind: 'memories', segment: 'memories', encode: false },
   { kind: 'artist', segment: 'artist', encode: false },
   { kind: 'album', segment: 'album', encode: false }
 ];

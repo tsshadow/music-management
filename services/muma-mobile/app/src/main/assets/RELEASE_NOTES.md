@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [6.23.0] - 2026-08-23
+
 ### Changed
 - **Het autoscherm is opnieuw ingedeeld.** Bovenin vier snelkoppelingen, in het midden één grote
   microfoonknop die er nu ook uitziet als een knop, en onderin compact wat er speelt: hoes, titel,

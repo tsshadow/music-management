@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-08-23
+
 ### Changed
 - **Het autoscherm van muma-mobile draait nu om de microfoon.** Bovenin vier snelkoppelingen, in het
   midden een gevulde microfoonknop, onderin compact wat er speelt: hoes, titel, bediening en de

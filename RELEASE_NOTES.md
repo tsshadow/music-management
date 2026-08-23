@@ -11,6 +11,18 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.30.0 (2026-08-23)
+
+- **Het autoscherm in de app is opnieuw ingedeeld.** Bovenin vier snelkoppelingen, in het midden één
+  grote microfoonknop die er nu ook uitziet als een knop, en onderin compact wat er speelt: hoes,
+  titel, bediening en de sterren. De snelkoppelingen werden afgesneden en onderin stond een balk die
+  er niet hoorde; allebei weg.
+- **Het spraakscherm luistert zodra je het opent** en laat daarna in woorden zien wat het begreep —
+  `genre Hardstyle`, `jaar 2021` — waar eerst een regel technische code stond. Zodra de muziek
+  speelt ga je na tien seconden vanzelf terug; raak je het scherm aan, dan blijft het staan.
+- **Een nummer dat je wegklikt telt weer mee** als luisterbeurt, inclusief hoe lang je het draaide en
+  of je in de auto zat.
+
 ## Global Version 0.29.0 (2026-08-23)
 
 - **Het aantal op een Memories-tegel klopt.** Er stond "200 tracks" op elke drukke tegel, want dat

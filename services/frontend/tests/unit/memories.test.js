@@ -136,14 +136,26 @@ describe("rankSongs", () => {
     expect(ranked.map((s) => s.id)).toEqual(["b", "c", "a"]);
   });
 
-  it("breaks a tie on listens with the rating, then the title", () => {
+  it("breaks a tie on listens with the rating", () => {
     const ranked = rankSongs([
       song("a", { playCount: 4, title: "Beta" }),
       song("b", { playCount: 4, userRating: 2, title: "Zulu" }),
       song("c", { playCount: 4, title: "Alpha" }),
     ]);
 
-    expect(ranked.map((s) => s.id)).toEqual(["b", "c", "a"]);
+    expect(ranked.map((s) => s.id)).toEqual(["b", "a", "c"]);
+  });
+
+  it("keeps the server's order for songs it cannot tell apart", () => {
+    // Most of a memory year is neither rated nor played, and the server has already ordered those
+    // by how deliberate the release is. Sorting them again by title would throw that away.
+    const ranked = rankSongs([
+      song("a", { title: "Zulu" }),
+      song("b", { title: "Alpha" }),
+      song("c", { title: "Mike" }),
+    ]);
+
+    expect(ranked.map((s) => s.id)).toEqual(["a", "b", "c"]);
   });
 
   it("treats a missing rating or play count as zero", () => {

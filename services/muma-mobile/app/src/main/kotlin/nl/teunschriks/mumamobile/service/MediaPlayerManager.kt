@@ -15,7 +15,6 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.common.Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
 import androidx.media3.common.Player.REPEAT_MODE_OFF
 import androidx.media3.common.Rating
 import androidx.media3.common.StarRating
@@ -52,6 +51,9 @@ import timber.log.Timber
 
 private const val CONTROLLER_SWITCH_DELAY = 500L
 private const val VOLUME_DELTA = 0.05f
+
+/** Media3 reports every position in milliseconds; a listen is recorded in whole seconds. */
+private const val MILLIS_PER_SECOND = 1000L
 
 /**
  * The Media Player Manager can forward commands to the Media3 controller as
@@ -129,9 +131,13 @@ class MediaPlayerManager(
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             clearBookmark()
-            // TRANSITION_REASON_AUTO means that the previous track finished playing and a new one has started.
-            if (reason == MEDIA_ITEM_TRANSITION_REASON_AUTO && cachedMediaItem != null) {
-                scrobbler.scrobble(cachedMediaItem?.toTrack(), true)
+            // Every departure from a track counts, not only the ones that reached the end. Limiting
+            // this to TRANSITION_REASON_AUTO meant a skip recorded nothing at all, which quietly
+            // erased most listening: the average track here is a quarter of an hour of DJ set, so
+            // reaching the end is the exception rather than the rule. How long it actually played
+            // decides whether it was a listen -- Scrobbler drops anything below its threshold.
+            if (cachedMediaItem != null) {
+                scrobbler.scrobble(cachedMediaItem?.toTrack(), true, playedSecondsOfDepartedItem())
             }
             cachedMediaItem = mediaItem
             publishPlaybackState()
@@ -147,6 +153,13 @@ class MediaPlayerManager(
             newPosition: Player.PositionInfo,
             reason: Int
         ) {
+            // The only moment the outgoing track's position is still readable. By the time
+            // onMediaItemTransition arrives the player has already moved on, and currentPosition
+            // describes the new track. A discontinuity inside one track (a seek) is not a
+            // departure, so only an index change is recorded.
+            if (oldPosition.mediaItemIndex != newPosition.mediaItemIndex) {
+                departedItemPositionMs = oldPosition.positionMs
+            }
             playerStateChangedHandler()
             publishPlaybackState()
         }
@@ -185,6 +198,22 @@ class MediaPlayerManager(
     private var deferredPlay: (() -> Unit)? = null
 
     private var cachedMediaItem: MediaItem? = null
+
+    /**
+     * How far the track being left had played, captured while it was still readable.
+     *
+     * Null when nothing recorded it -- the first transition of a session, or a queue replaced
+     * without a discontinuity -- in which case the listen is reported without a playing time rather
+     * than with a made-up one.
+     */
+    private var departedItemPositionMs: Long? = null
+
+    /** Seconds played by the track just left, consumed once so a later listen cannot reuse it. */
+    private fun playedSecondsOfDepartedItem(): Long? {
+        val positionMs = departedItemPositionMs ?: return null
+        departedItemPositionMs = null
+        return positionMs / MILLIS_PER_SECOND
+    }
 
     fun onCreate(onCreated: () -> Unit) {
         if (created) return
@@ -287,7 +316,10 @@ class MediaPlayerManager(
             }
             // STATE_ENDED is only signaled if the whole playlist completes. Scrobble the last song.
             Player.STATE_ENDED -> {
-                scrobbler.scrobble(currentPlaying, true)
+                // Nothing transitioned away here -- the queue simply ran out -- so the player is
+                // still sitting on the track that just ended and can be asked directly.
+                val playedSeconds = controller?.currentPosition?.div(MILLIS_PER_SECOND)
+                scrobbler.scrobble(currentPlaying, true, playedSeconds)
             }
         }
     }

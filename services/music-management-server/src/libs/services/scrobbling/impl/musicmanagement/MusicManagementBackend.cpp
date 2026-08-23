@@ -69,7 +69,6 @@ namespace lms::scrobbling::musicManagement
 
     void MusicManagementBackend::sendScrobble(const Listen& listen, const Wt::WDateTime& timePoint, std::optional<std::chrono::seconds> duration)
     {
-        (void)duration;
         if (!_client)
             return;
 
@@ -88,8 +87,22 @@ namespace lms::scrobbling::musicManagement
 
         Wt::Json::Object payload;
         payload["username"] = Wt::Json::Value(std::string{ user->getLoginName() });
-        payload["source"] = Wt::Json::Value("lms");
-        
+
+        // Where the play happened, not which server relayed it. Every listen used to claim "lms",
+        // which made the web player, the phone and the car indistinguishable afterwards. That
+        // value is kept only as the fallback for a caller that did not say.
+        payload["source"] = Wt::Json::Value(listen.source.empty() ? std::string{ "lms" } : listen.source);
+
+        // How long the track was actually played. This arrives from the player and used to be
+        // discarded here, which left "minutes listened" unanswerable: most of this library is DJ
+        // sets, so plays multiplied by track length is not an approximation of it. A duration
+        // carried on the listen wins, because it came from the client that did the playing; the
+        // argument is what the local player reports for its own playback.
+        const std::optional<std::chrono::seconds> playedDuration{ listen.playedDuration ? listen.playedDuration : duration };
+        if (playedDuration && playedDuration->count() > 0)
+            payload["played_secs"] = Wt::Json::Value(static_cast<long long>(playedDuration->count()));
+
+
         Wt::WDateTime listenedAt = timePoint.isValid() ? timePoint : Wt::WDateTime::currentDateTime();
         payload["listened_at"] = Wt::Json::Value(static_cast<long long>(listenedAt.toTime_t()));
         

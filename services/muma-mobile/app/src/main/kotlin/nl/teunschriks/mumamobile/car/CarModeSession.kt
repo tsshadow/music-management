@@ -33,6 +33,16 @@ class CarModeSession {
     private var dismissed = false
 
     /**
+     * Whether the car is currently there.
+     *
+     * Read by the scrobbler, which has to label a listen with where it happened and cannot ask the
+     * screen: the car mode screen may well have been dismissed while the car is still connected and
+     * still playing. Presence is the honest signal for that question, and dismissal is not.
+     */
+    val inCar: Boolean
+        get() = present
+
+    /**
      * Whether the last [CarModeIntent.Offer] may use a full-screen intent.
      *
      * Only true when something is playing: a screen that takes over the phone unasked is

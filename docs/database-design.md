@@ -139,6 +139,17 @@ The core of the collection, where metadata and analysis results converge.
 | `users` | Application users. | `username` |
 | `listens` | Canonical listening events. | `user_id`, `track_id`, `listened_at` |
 
+In the physical database this domain is `scrobble_listens` (resolved to a library track) and
+`scrobble_unmatched_listens` (kept verbatim as artist/title until a match is found). Both carry:
+
+- `source` — where the play happened: `frontend`, `mobile`, `auto` (phone in the car), `lms-web`,
+  `listenbrainz`, `manual`. Rows written before 2026-08 carry `lms`, which meant only "played
+  through the server".
+- `played_secs` — seconds actually played, or `NULL` when the client did not report it. `NULL` is not
+  zero: it means unknown. It matters more here than it would elsewhere, because the average track in
+  this library is 939 seconds, so plays multiplied by track length is not an estimate of listening
+  time. See [docs/designs/wrapped/technical.md](designs/wrapped/technical.md).
+
 ## ML Integration
 
 The Library domain is specifically extended to support Machine Learning:

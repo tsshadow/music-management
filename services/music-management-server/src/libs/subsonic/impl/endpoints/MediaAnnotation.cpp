@@ -19,7 +19,11 @@
 
 #include "MediaAnnotation.hpp"
 
+#include <algorithm>
+#include <cctype>
+#include <chrono>
 #include <optional>
+#include <string>
 #include <variant>
 #include <vector>
 
@@ -173,11 +177,35 @@ namespace lms::api::subsonic
         return Response::createOkResponse(context.getServerProtocolVersion());
     }
 
+    // Where a play happened, for a client that did not say so itself.
+    //
+    // The Subsonic client name is the only thing every client already sends, so it is the fallback.
+    // The two names below are historical: the Svelte web player identifies as "spotify" and MuMa
+    // Mobile still identifies as "Ultrasonic", the project it was forked from.
+    std::string deriveSourceFromClient(std::string_view clientName)
+    {
+        if (clientName == "spotify")
+            return "frontend";
+        if (clientName == "Ultrasonic")
+            return "mobile";
+
+        std::string source{ clientName };
+        std::transform(source.begin(), source.end(), source.begin(),
+            [](unsigned char c) { return std::tolower(c); });
+        return source;
+    }
+
     Response handleScrobble(RequestContext& context)
     {
         const std::vector<TrackId> ids{ getMandatoryMultiParametersAs<TrackId>(context.getParameters(), "id") };
         const std::vector<unsigned long> times{ getMultiParametersAs<unsigned long>(context.getParameters(), "time") };
         const bool submission{ getParameterAs<bool>(context.getParameters(), "submission").value_or(true) };
+
+        // Both non-standard, both optional: a client that knows nothing about them keeps working,
+        // and its listens simply carry no playing time.
+        const std::optional<unsigned long> playedSeconds{ getParameterAs<unsigned long>(context.getParameters(), "playedSeconds") };
+        const std::string source{ getParameterAs<std::string>(context.getParameters(), "source")
+                                      .value_or(deriveSourceFromClient(context.getClientName())) };
 
         // playing now => only one at a time
         if (!submission && ids.size() > 1)
@@ -187,15 +215,19 @@ namespace lms::api::subsonic
         if (ids.size() > 1 && ids.size() != times.size())
             throw BadParameterGenericError{ "time" };
 
+        std::optional<std::chrono::seconds> playedDuration;
+        if (playedSeconds)
+            playedDuration = std::chrono::seconds{ *playedSeconds };
+
         if (!submission)
         {
-            core::Service<scrobbling::IScrobblingService>::get()->listenStarted({ context.getUser()->getId(), ids.front() });
+            core::Service<scrobbling::IScrobblingService>::get()->listenStarted({ context.getUser()->getId(), ids.front(), source, std::nullopt });
         }
         else
         {
             if (times.empty())
             {
-                core::Service<scrobbling::IScrobblingService>::get()->listenFinished({ context.getUser()->getId(), ids.front() });
+                core::Service<scrobbling::IScrobblingService>::get()->listenFinished({ context.getUser()->getId(), ids.front(), source, playedDuration }, playedDuration);
             }
             else
             {
@@ -203,7 +235,7 @@ namespace lms::api::subsonic
                 {
                     const TrackId trackId{ ids[i] };
                     const unsigned long time{ times[i] };
-                    core::Service<scrobbling::IScrobblingService>::get()->addTimedListen({ { context.getUser()->getId(), trackId }, Wt::WDateTime::fromTime_t(static_cast<std::time_t>(time / 1000)) });
+                    core::Service<scrobbling::IScrobblingService>::get()->addTimedListen({ { context.getUser()->getId(), trackId, source, playedDuration }, Wt::WDateTime::fromTime_t(static_cast<std::time_t>(time / 1000)) });
                 }
             }
         }

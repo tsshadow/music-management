@@ -219,6 +219,23 @@ describe('Player', () => {
     expect(error).not.toHaveBeenCalled();
   });
 
+  // A listen that does not say where it happened cannot be split by device afterwards, and the
+  // whole point of recording it is that the year can be read back per device.
+  it('says where the play happened', async () => {
+    const calls = [];
+    globalThis.fetch = vi.fn(async (url) => {
+      calls.push(url);
+      return { ok: true, json: async () => ({ 'subsonic-response': { status: 'ok' } }) };
+    });
+    const { container } = renderPlayer();
+
+    await fireEvent.play(container.querySelector('audio'));
+
+    await waitFor(() => expect(calls.some((url) => url.includes('/rest/scrobble'))).toBe(true));
+    const scrobble = calls.find((url) => url.includes('/rest/scrobble'));
+    expect(scrobble).toContain('source=frontend');
+  });
+
   it('reports a stream that will not load', async () => {
     const spy = vi.spyOn(notify, 'error');
     const { container } = renderPlayer();

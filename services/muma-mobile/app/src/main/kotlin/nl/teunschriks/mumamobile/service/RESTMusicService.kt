@@ -361,8 +361,8 @@ open class RESTMusicService(
     }
 
     @Throws(Exception::class)
-    override fun scrobble(id: String, submission: Boolean) {
-        API.scrobble(id, null, submission).execute().throwOnFailure()
+    override fun scrobble(id: String, submission: Boolean, playedSeconds: Long?, source: String?) {
+        API.scrobble(id, null, submission, playedSeconds, source).execute().throwOnFailure()
     }
 
     @Throws(Exception::class)

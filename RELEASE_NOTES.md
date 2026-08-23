@@ -11,6 +11,11 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+- **Je luistergeschiedenis wordt eerlijker bijgehouden.** MuMa legt nu vast hoe lang je een track
+  echt gedraaid hebt en waar je zat: webspeler, telefoon of auto. Een set die je halverwege wegklikt
+  telt voortaan mee — dat gebeurde op de telefoon helemaal niet. Voorwerk voor een MuMa Wrapped over
+  2026: wat vanaf nu gebeurt kan straks geteld worden, wat eerder gebeurde niet meer.
+
 ## Global Version 0.26.0 (2026-08-23)
 
 Zie `CHANGELOG.md` voor de volledige lijst. De kern van deze release: de downloaders halen de staart

@@ -218,11 +218,21 @@ interface SubsonicAPIDefinition {
         @Query("title") title: String? = null
     ): Call<GetLyricsResponse>
 
+    /**
+     * @param playedSeconds How long the track was actually played. Not part of the Subsonic
+     *  specification -- a MuMa extension, ignored by any other server. Without it a listen records
+     *  only that something was played, which cannot be turned into listening time for a library
+     *  whose average track is a quarter of an hour long.
+     * @param source Where the play happened (`mobile`, `auto`). Also a MuMa extension; when it is
+     *  absent the server falls back to deriving an origin from the client name.
+     */
     @GET("scrobble.view")
     fun scrobble(
         @Query("id") id: String,
         @Query("time") time: Long? = null,
-        @Query("submission") submission: Boolean? = null
+        @Query("submission") submission: Boolean? = null,
+        @Query("playedSeconds") playedSeconds: Long? = null,
+        @Query("source") source: String? = null
     ): Call<SubsonicResponse>
 
     @GET("getAlbumList.view")

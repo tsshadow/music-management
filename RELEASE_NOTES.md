@@ -11,6 +11,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.28.0 (2026-08-23)
+
+- **De voortgangsbalk op de tv loopt weer mee.** In de browser van de LG-tv bewoog hij alleen als je
+  op play of pause drukte, en de tijd rechts bleef op `0:00` staan. De speler klokt de positie nu
+  zelf en leunt niet meer op een melding die die tv nauwelijks stuurt; hij valt voor de lengte terug
+  op wat de server bij de track meestuurt. Datzelfde euvel hield op de tv ook bij dat een halve set
+  meetelde in je luistergeschiedenis.
+
 - **De nieuwe mapindeling staat klaar** (`labels/`, `songs/`, `import/`, `channels/<platform>/`),
   maar is nog niet uitgevoerd: dat vraagt eerst een aanpassing in de `.env` op productie en het
   opnieuw starten van de workers. Het is een omkeerbare operatie van vijf mapnamen, geen verplaatsing

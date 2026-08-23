@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-08-23
+
 ### Added
 - **De mapindeling van de bibliotheek, klaar om uit te voeren.** `EPs` bevatte drie verschillende
   dingen door elkaar: releases mét label, releases zónder label (`__Free&None`) en de importstapel

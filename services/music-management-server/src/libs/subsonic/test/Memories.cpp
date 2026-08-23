@@ -75,6 +75,63 @@ namespace lms::api::subsonic::memories::tests
         EXPECT_EQ(groups[0].trackIds[2], db::TrackId{ 1 });
     }
 
+    TEST(Memories, ranksAReleaseOnALabelAboveARipFromAPlatform)
+    {
+        // Nothing rated, nothing played: the release itself decides. A label release is the most
+        // deliberate thing in the year, an import placeholder the least.
+        EXPECT_GT(sourceRank({ "Roughstate" }), sourceRank({}));
+        EXPECT_GT(sourceRank({}), sourceRank({ "__Free&None" }));
+        EXPECT_GT(sourceRank({ "__Free&None" }), sourceRank({ "Soundcloud" }));
+        EXPECT_GT(sourceRank({ "Soundcloud" }), sourceRank({ "Youtube" }));
+        EXPECT_GT(sourceRank({ "Youtube" }), sourceRank({ "Telegram" }));
+        EXPECT_GT(sourceRank({ "Telegram" }), sourceRank({ "__TODO" }));
+    }
+
+    TEST(Memories, readsPlatformNamesWhateverTheTagsCapitalisationOrPadding)
+    {
+        // The same placeholder exists with two and with three underscores, and the publisher tag's
+        // capitalisation is whatever the downloader wrote that day.
+        EXPECT_EQ(sourceRank({ "SOUNDCLOUD" }), sourceRank({ "Soundcloud" }));
+        EXPECT_EQ(sourceRank({ "___Free&None" }), sourceRank({ "__Free&None" }));
+        EXPECT_EQ(sourceRank({ "youtube" }), sourceRank({ "Youtube" }));
+    }
+
+    TEST(Memories, aReleaseWithSeveralLabelsTakesItsBestOne)
+    {
+        EXPECT_EQ(sourceRank({ "Soundcloud", "Roughstate" }), sourceRank({ "Roughstate" }));
+    }
+
+    TEST(Memories, ordersAYearBySourceWhenNothingIsRatedOrPlayed)
+    {
+        const std::vector<DatedTrack> tracks{
+            { db::TrackId{ 1 }, 2018, true, false, 0, sourceRank({ "Soundcloud" }) },
+            { db::TrackId{ 2 }, 2018, true, false, 0, sourceRank({ "__TODO" }) },
+            { db::TrackId{ 3 }, 2018, true, false, 0, sourceRank({ "Roughstate" }) },
+        };
+
+        const std::vector<Group> groups{ groupByYear(tracks, 10) };
+
+        ASSERT_EQ(groups.size(), 1);
+        EXPECT_EQ(groups[0].trackIds[0], db::TrackId{ 3 });
+        EXPECT_EQ(groups[0].trackIds[1], db::TrackId{ 1 });
+        EXPECT_EQ(groups[0].trackIds[2], db::TrackId{ 2 });
+    }
+
+    TEST(Memories, listensStillOutrankTheRelease)
+    {
+        // The source is a fallback for a year nobody has touched, not a reason to bury a track the
+        // listener actually plays.
+        const std::vector<DatedTrack> tracks{
+            { db::TrackId{ 1 }, 2018, true, false, 0, sourceRank({ "Roughstate" }) },
+            { db::TrackId{ 2 }, 2018, true, false, 7, sourceRank({ "Soundcloud" }) },
+        };
+
+        const std::vector<Group> groups{ groupByYear(tracks, 10) };
+
+        ASSERT_EQ(groups.size(), 1);
+        EXPECT_EQ(groups[0].trackIds[0], db::TrackId{ 2 });
+    }
+
     TEST(Memories, reportsTheYearsFullSizeNotThePageSize)
     {
         // The tile shows a count and the page shows a page; conflating the two makes a big year

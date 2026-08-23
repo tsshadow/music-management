@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Memories zet nu labelreleases vooraan als er niets te sorteren valt.** De volgorde binnen een
+  jaar keek naar sterren en luisterbeurten, en juist die twee zeggen bij memories bijna nooit iets:
+  op 23-08-2026 had geen van de 3.600 nummers in het venster een rating of een luisterbeurt, want
+  memories vragen een releasedatum op dagniveau en die hebben vooral de rips. Zonder die signalen
+  besliste de datum, en dat leverde tegels vol SoundCloud-materiaal op. Er is nu een derde sleutel:
+  hoe bewust de release is, afgelezen aan het label. De scanner slaat de publisher-tag als label op
+  en de downloaders zetten het platform in diezelfde tag, dus "welk label" is tegelijk "waar komt
+  dit vandaan". Van hoog naar laag: een echt label, geen label (vaak een release waarvan de
+  publisher nooit gematcht is), `__Free&None`, `Soundcloud`, `Youtube`, `Telegram`, `__TODO` — de
+  importstapel, geen release. Onderstrepingen en hoofdletters doen niet mee, en een release met
+  meerdere labels pakt de hoogste. Deze sleutel staat bewust ónder de luisterbeurten: hij vult een
+  jaar in waar niemand iets mee gedaan heeft, en begraaft geen nummer dat je wél draait.
+
+### Changed
 - **Het autoscherm van muma-mobile draait nu om de microfoon.** Bovenin vier snelkoppelingen, in het
   midden een gevulde microfoonknop, onderin compact wat er speelt: hoes, titel, bediening en de
   sterren. De snelkoppelingen werden afgesneden omdat ze als enige blok om restruimte vochten met de

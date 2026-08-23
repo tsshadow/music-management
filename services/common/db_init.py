@@ -7,6 +7,9 @@ REQUIRED_TABLES = [
     'downloads_youtube_accounts', 'downloads_youtube_archive', 
     'library_artists', 'library_labels', 'library_tracks', 'library_media_files',
     'library_track_artists', 'library_track_labels',
+    # channels points at library_labels and library_artists, and library_track_channels points at
+    # both channels and library_tracks, so all three have to exist first.
+    'channels', 'library_track_channels',
     # rules_genres must precede library_track_genres: the latter carries a foreign
     # key to it, and MariaDB rejects a CREATE naming a table that does not exist
     # yet. The failure was swallowed by the debug-level except below, so on a fresh
@@ -40,6 +43,15 @@ def ensure_tables_exist() -> None:
         'library_track_artists': '\n            CREATE TABLE IF NOT EXISTS library_track_artists (\n                track_id INT NOT NULL,\n                artist_id INT NOT NULL,\n                role ENUM(\'primary\', \'featuring\', \'remixer\', \'producer\', \'composer\') DEFAULT \'primary\',\n                position INT DEFAULT 0,\n                PRIMARY KEY (track_id, artist_id, role),\n                FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE CASCADE,\n                FOREIGN KEY (artist_id) REFERENCES library_artists(id) ON DELETE CASCADE\n            )\n        ',
         'library_track_genres': '\n            CREATE TABLE IF NOT EXISTS library_track_genres (\n                track_id INT NOT NULL,\n                genre_id INT NOT NULL,\n                weight FLOAT DEFAULT 1.0,\n                PRIMARY KEY (track_id, genre_id),\n                INDEX idx_genre_id (genre_id),\n                FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE CASCADE,\n                FOREIGN KEY (genre_id) REFERENCES rules_genres(id) ON DELETE CASCADE\n            )\n        ',
         'library_track_labels': '\n            CREATE TABLE IF NOT EXISTS library_track_labels (\n                track_id INT NOT NULL,\n                label_id INT NOT NULL,\n                PRIMARY KEY (track_id, label_id),\n                FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE CASCADE,\n                FOREIGN KEY (label_id) REFERENCES library_labels(id) ON DELETE CASCADE\n            )\n        ',
+        # An account on a platform, which a file arrived through. Kept apart from library_labels
+        # because a platform is not a label -- see services/common/channels.py. Platforms stay
+        # split, so a SoundCloud channel and a YouTube channel are two rows even when they belong
+        # to the same imprint; they converge through label_id rather than by being merged, which
+        # keeps "where did this file come from" answerable. label_id and artist_id are independent
+        # and both nullable: a channel may be a label, may be an artist, may be both (an artist who
+        # runs their own imprint) and may be neither until someone decides.
+        'channels': "\n            CREATE TABLE IF NOT EXISTS channels (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                platform ENUM('soundcloud', 'youtube', 'telegram') NOT NULL,\n                name VARCHAR(255) NOT NULL,\n                normalized_name VARCHAR(191) NOT NULL,\n                label_id INT NULL,\n                artist_id INT NULL,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                UNIQUE KEY uq_channel (platform, normalized_name),\n                INDEX idx_channel_label (label_id),\n                INDEX idx_channel_artist (artist_id),\n                FOREIGN KEY (label_id) REFERENCES library_labels(id) ON DELETE SET NULL,\n                FOREIGN KEY (artist_id) REFERENCES library_artists(id) ON DELETE SET NULL\n            )\n        ",
+        'library_track_channels': '\n            CREATE TABLE IF NOT EXISTS library_track_channels (\n                track_id INT NOT NULL,\n                channel_id INT NOT NULL,\n                PRIMARY KEY (track_id, channel_id),\n                INDEX idx_track_channel_channel (channel_id),\n                FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE CASCADE,\n                FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE\n            )\n        ',
         'rules_artist_genre': '\n            CREATE VIEW IF NOT EXISTS rules_artist_genre AS\n            SELECT r.artist_name AS artist, g.name AS genre\n            FROM rules_artist_genres r\n            JOIN rules_genres g ON r.genre_id = g.id\n        ', 
         'rules_catid_label': '\n            CREATE TABLE IF NOT EXISTS rules_catid_label (\n                catid VARCHAR(255) PRIMARY KEY,\n                label VARCHAR(255) NOT NULL\n            )\n        ',
         # Releases the mover could not place, waiting for a human. `folder` is unique so

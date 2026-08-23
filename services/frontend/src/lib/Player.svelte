@@ -4,6 +4,7 @@
   import { currentTrack, playerState, audio, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey } from './store.js';
   import { createRadioController } from './radioController.js';
   import { shouldPushJamState } from './radioSync.js';
+  import { resolveDuration, progressPercent } from './playerProgress.js';
   import { describeFilter } from './management/radioChannels.js';
   import { snapshotOf, restoreTarget, bulletinStreamUrl } from './newsQueue.js';
   import ArtistList from './ArtistList.svelte';
@@ -23,6 +24,7 @@
   let radioTickInterval = null;
   let radioRefreshInterval = null;
   let radioClockInterval = null;
+  let progressTicker = null;
   let radioChannels = $state([]);
   // Set while a news bulletin is interrupting the music, and holding what to
   // put back when it ends.
@@ -464,10 +466,11 @@
           stopNews();
           return;
       }
-      if (!hasScrobbledFinished) {
-          scrobble(true);
-          hasScrobbledFinished = true;
-      }
+      // Sent even when the halfway submission already fired: it carries the same timestamp, so it
+      // corrects that listen's playing time to the whole track rather than adding a second listen.
+      // A long set otherwise reports only the four minutes at which the first submission fired.
+      scrobble(true);
+      hasScrobbledFinished = true;
       if ($playerState.repeat === 'one') {
           audioElement.currentTime = 0;
           audioElement.play();
@@ -494,15 +497,57 @@
    * Updates global player state, saves progress periodically, and handles mid-track scrobbling.
    */
   function handleTimeUpdate() {
+    if (!audioElement) return;
     playerState.update(s => ({ ...s, progress: audioElement.currentTime }));
     updatePositionState();
 
-    if (!hasScrobbledFinished && track) {
-        const threshold = Math.min(240, audioElement.duration / 2);
-        if (audioElement.currentTime > threshold && audioElement.duration > 0) {
+    const length = currentLength();
+    if (!hasScrobbledFinished && track && length > 0) {
+        const threshold = Math.min(240, length / 2);
+        if (audioElement.currentTime > threshold) {
             scrobble(true);
             hasScrobbledFinished = true;
         }
+    }
+  }
+
+  /**
+   * The length of whatever the element is playing, in seconds.
+   *
+   * Falling back to the track metadata is only right while the element plays
+   * our own track: radio and a news bulletin put something else on it entirely,
+   * and their length has nothing to do with the track that stays selected
+   * underneath them.
+   *
+   * @returns {number} A usable length, or 0 when nothing knows one.
+   */
+  function currentLength() {
+    const own = !newsSnapshot && !$radioChannel;
+    return resolveDuration(audioElement?.duration, own ? track?.duration : 0);
+  }
+
+  /**
+   * Polls the audio element while it plays.
+   *
+   * The `timeupdate` event is the obvious source for the position, and on a
+   * desktop browser it is enough. The LG TV browser only fires it on a state
+   * change -- play, pause, seek, ended -- and never on the ~4Hz cadence the
+   * spec asks for, so the bar there sits still until someone touches the
+   * transport. Reading `currentTime` on a timer of our own is the same number
+   * from the same element and costs nothing, so it drives the bar everywhere
+   * rather than only on the devices that misbehave.
+   */
+  function startProgressTicker() {
+    stopProgressTicker();
+    progressTicker = setInterval(() => {
+      if (audioElement && !audioElement.paused) handleTimeUpdate();
+    }, 250);
+  }
+
+  function stopProgressTicker() {
+    if (progressTicker) {
+      clearInterval(progressTicker);
+      progressTicker = null;
     }
   }
 
@@ -511,7 +556,7 @@
    * Sets track duration and restores saved progress if available.
    */
   function handleLoadedMetadata() {
-    playerState.update(s => ({ ...s, duration: audioElement.duration }));
+    playerState.update(s => ({ ...s, duration: currentLength() }));
     updatePositionState();
     if (!initialized && track) {
         audioElement.currentTime = $playerState.progress || 0;
@@ -525,7 +570,9 @@
    */
   function handlePlay() {
     playerState.update(s => ({ ...s, playing: true }));
+    startProgressTicker();
     if (!hasScrobbledStarted) {
+        listenStartedAtMs = Date.now();
         scrobble(false);
         hasScrobbledStarted = true;
     }
@@ -547,6 +594,9 @@
    */
   function handlePause() {
     playerState.update(s => ({ ...s, playing: false }));
+    // The element fires its own `timeupdate` on a pause -- on every browser,
+    // the TV included -- so the final position lands without a tick.
+    stopProgressTicker();
   }
 
   /**
@@ -566,7 +616,10 @@
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const percentage = x / rect.width;
-    audioElement.currentTime = percentage * audioElement.duration;
+    // Not `audioElement.duration`: a chunked stream leaves that at `Infinity`,
+    // and seeking to `Infinity * 0.5` throws the position away.
+    if (duration <= 0) return;
+    audioElement.currentTime = percentage * duration;
     if ($syncMode !== 'off') {
       pushJamState();
     }
@@ -608,7 +661,9 @@
    * @returns {string} Formatted time string.
    */
   function formatTime(seconds) {
-    if (isNaN(seconds)) return "0:00";
+    // `Infinity` as well as `NaN`: an endless stream reports one, and it would
+    // render as "Infinity:NaN".
+    if (!Number.isFinite(seconds)) return "0:00";
     const min = Math.floor(seconds / 60);
     const sec = Math.floor(seconds % 60);
     return `${min}:${sec < 10 ? '0' : ''}${sec}`;
@@ -618,16 +673,16 @@
    * Updates the Media Session API position state for OS integration.
    */
   function updatePositionState() {
+    const length = currentLength();
     if ('mediaSession' in navigator &&
         'setPositionState' in navigator.mediaSession &&
         audioElement &&
-        !isNaN(audioElement.duration) &&
-        isFinite(audioElement.duration)) {
+        length > 0) {
       try {
         navigator.mediaSession.setPositionState({
-          duration: Math.max(0, audioElement.duration),
+          duration: length,
           playbackRate: audioElement.playbackRate || 1,
-          position: Math.max(0, Math.min(audioElement.currentTime, audioElement.duration))
+          position: Math.max(0, Math.min(audioElement.currentTime || 0, length))
         });
       } catch (e) {
         console.error("Failed to set position state", e);
@@ -736,7 +791,10 @@
   });
   const playing = $derived($playerState.playing);
   const progress = $derived(track ? $playerState.progress : 0);
-  const duration = $derived(track ? $playerState.duration : 0);
+  // Radio and a news bulletin are not the selected track, so they get no
+  // fallback length; see currentLength().
+  const fallbackLength = $derived((newsSnapshot || $radioChannel) ? 0 : (track?.duration ?? 0));
+  const duration = $derived(track ? resolveDuration($playerState.duration, fallbackLength) : 0);
   const volume = $derived($playerState.volume);
   const repeatMode = $derived($playerState.repeat);
   const shuffleMode = $derived($playerState.shuffle);
@@ -810,6 +868,17 @@
   let initialized = false;
 
   /**
+   * When this play of the current track began, in milliseconds.
+   *
+   * Sent with every submission for the track, so the server keys them all to the same listen. The
+   * first submission fires halfway through and reports the seconds played so far; a later one --
+   * when the track ends -- reports the real total and updates that same listen rather than adding a
+   * second one. Without a client-set timestamp the server would stamp each submission with its own
+   * clock and record two listens.
+   */
+  let listenStartedAtMs = null;
+
+  /**
    * Sends a scrobble request to the server.
    *
    * @param {boolean} [submission=true] - Whether this is a final submission or just a "now playing" notification.
@@ -817,7 +886,14 @@
   async function scrobble(submission = true) {
     if (!track || !$credentials.username) return;
     const params = $authParams;
-    const url = `${$credentials.url}/rest/scrobble?id=${track.id}&submission=${submission}&${params}`;
+    // How long this track actually played, and where. Both are MuMa's own parameters rather than
+    // Subsonic ones; a listen without them records only that something was played, which cannot be
+    // turned into listening time for a collection whose average track is a quarter of an hour.
+    // Only a submission has a playing time to report -- a "now playing" ping fires at the start.
+    const playedSeconds = submission && audioElement ? Math.floor(audioElement.currentTime) : null;
+    let extra = playedSeconds ? `&playedSeconds=${playedSeconds}` : '';
+    if (submission && listenStartedAtMs) extra += `&time=${listenStartedAtMs}`;
+    const url = `${$credentials.url}/rest/scrobble?id=${track.id}&submission=${submission}&source=frontend${extra}&${params}`;
     try {
       const failure = await subsonicError(await fetch(url));
       if (failure) {
@@ -1002,6 +1078,7 @@
       if (radioTickInterval) clearInterval(radioTickInterval);
       if (radioRefreshInterval) clearInterval(radioRefreshInterval);
       if (radioClockInterval) clearInterval(radioClockInterval);
+      stopProgressTicker();
     };
   });
 </script>
@@ -1094,7 +1171,7 @@
     <!-- Progress bar for mobile -->
     {#if track}
       <div class="absolute top-0 left-0 w-full h-[2px] bg-white/10">
-        <div class="h-full bg-white transition-all duration-100" style="width: {(progress/duration)*100}%"></div>
+        <div class="h-full bg-white transition-[width] duration-100" style="width: {progressPercent(progress, duration)}%"></div>
       </div>
     {/if}
   {:else}
@@ -1197,7 +1274,7 @@
         onkeydown={(e) => e.key === 'Enter' && seek(e)}
         aria-label={$t('player.seek')}
       >
-          <div class="h-full bg-white rounded-sm" style="width: {(progress/duration)*100}%"></div>
+          <div class="h-full bg-white rounded-sm" style="width: {progressPercent(progress, duration)}%"></div>
       </div>
         <span>{formatTime(duration)}</span>
       </div>

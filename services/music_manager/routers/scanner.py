@@ -7,6 +7,12 @@ from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
 
+from services.common.channels import (
+    channel_from_path,
+    is_label,
+    normalize_channel_name,
+    path_can_carry_a_label,
+)
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.GenreRulesHelper import BLACK, GenreRulesHelper
 from services.music_manager.database import get_db_connection
@@ -132,6 +138,30 @@ class ScannerManager:
                 'INSERT IGNORE INTO library_track_genres (track_id, genre_id) VALUES (%s, %s)',
                 (track_id, genre_id))
 
+    def _resolve_channel_id(self, cursor, path):
+        """The channel this file arrived through, created on first sight, or None.
+
+        Read from the path rather than from a tag: the path is what the downloader wrote, so this
+        is correct for every file already on disk without retagging any of them. A channel starts
+        out pointing at neither a label nor an artist -- deciding which it is belongs to a person,
+        not to a scan.
+        """
+        found = channel_from_path(path, self.music_path)
+        if not found:
+            return None
+        platform, name = found
+        normalized = normalize_channel_name(name)
+        if not normalized:
+            return None
+        cursor.execute(
+            'INSERT IGNORE INTO channels (platform, name, normalized_name) VALUES (%s, %s, %s)',
+            (platform, name, normalized))
+        cursor.execute(
+            'SELECT id FROM channels WHERE platform = %s AND normalized_name = %s',
+            (platform, normalized))
+        row = cursor.fetchone()
+        return row['id'] if row else None
+
     def process_file(self, conn, path, force=False):
         path_hash = self.get_file_hash(path)
         mtime = os.path.getmtime(path)
@@ -153,12 +183,17 @@ class ScannerManager:
                 cursor.execute('INSERT IGNORE INTO library_artists (name) VALUES (%s)', (name,))
                 cursor.execute('SELECT id FROM library_artists WHERE name = %s', (name,))
                 artist_ids.append(cursor.fetchone()['id'])
+            # A publisher is only stored as a label when it actually names one. SoundCloud, YouTube
+            # and Telegram arrive in this same tag and are platforms, not labels; `__TODO` and
+            # `__Free&none` are placeholders. Storing those made them the three largest "labels" in
+            # the collection. See services/common/channels.py.
             label_name = song.publisher()
             label_id = None
-            if label_name:
+            if label_name and is_label(label_name) and path_can_carry_a_label(path, self.music_path):
                 cursor.execute('INSERT IGNORE INTO library_labels (name) VALUES (%s)', (label_name,))
                 cursor.execute('SELECT id FROM library_labels WHERE name = %s', (label_name,))
                 label_id = cursor.fetchone()['id']
+            channel_id = self._resolve_channel_id(cursor, path)
             title = song.title()
             duration = song.length()
             primary_artist_id = artist_ids[0] if artist_ids else None
@@ -173,6 +208,8 @@ class ScannerManager:
             self._write_genres(cursor, track_id, self._resolve_genre_ids(song))
             if label_id:
                 cursor.execute('INSERT IGNORE INTO library_track_labels (track_id, label_id) VALUES (%s, %s)', (track_id, label_id))
+            if channel_id:
+                cursor.execute('INSERT IGNORE INTO library_track_channels (track_id, channel_id) VALUES (%s, %s)', (track_id, channel_id))
             cursor.execute('\n                INSERT INTO library_media_files (file_path, file_path_hash, file_mtime, file_size, track_id, duration_secs)\n                VALUES (%s, %s, %s, %s, %s, %s)\n                ON DUPLICATE KEY UPDATE file_mtime=%s, file_size=%s, track_id=%s, duration_secs=%s\n            ', (path, path_hash, mtime, size, track_id, duration, mtime, size, track_id, duration))
             return True
 scanner_manager = ScannerManager()

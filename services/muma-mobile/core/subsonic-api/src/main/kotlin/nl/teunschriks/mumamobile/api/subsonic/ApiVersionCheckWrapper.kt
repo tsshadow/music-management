@@ -196,10 +196,18 @@ internal class ApiVersionCheckWrapper(
         return api.getLyrics(artist, title)
     }
 
-    override fun scrobble(id: String, time: Long?, submission: Boolean?): Call<SubsonicResponse> {
+    override fun scrobble(
+        id: String,
+        time: Long?,
+        submission: Boolean?,
+        playedSeconds: Long?,
+        source: String?
+    ): Call<SubsonicResponse> {
         checkVersion(V1_5_0)
         checkParamVersion(time, V1_8_0)
-        return api.scrobble(id, time, submission)
+        // playedSeconds and source carry no version check: they are MuMa's own parameters rather
+        // than Subsonic ones, so there is no protocol version that introduces them.
+        return api.scrobble(id, time, submission, playedSeconds, source)
     }
 
     override fun getAlbumList(

@@ -11,6 +11,27 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.28.0 (2026-08-23)
+
+- **De voortgangsbalk op de tv loopt weer mee.** In de browser van de LG-tv bewoog hij alleen als je
+  op play of pause drukte, en de tijd rechts bleef op `0:00` staan. De speler klokt de positie nu
+  zelf en leunt niet meer op een melding die die tv nauwelijks stuurt; hij valt voor de lengte terug
+  op wat de server bij de track meestuurt. Datzelfde euvel hield op de tv ook bij dat een halve set
+  meetelde in je luistergeschiedenis.
+
+- **De nieuwe mapindeling staat klaar** (`labels/`, `songs/`, `import/`, `channels/<platform>/`),
+  maar is nog niet uitgevoerd: dat vraagt eerst een aanpassing in de `.env` op productie en het
+  opnieuw starten van de workers. Het is een omkeerbare operatie van vijf mapnamen, geen verplaatsing
+  van 326.480 bestanden, en je ratings hangen er niet aan.
+- **Je toplabels kloppen weer.** SoundCloud, YouTube en Telegram stonden bovenaan je labellijst
+  terwijl het geen labels zijn maar kanalen waar muziek doorheen binnenkomt; `__TODO` en
+  `__Free&none` stonden er ook tussen. Die zijn nu kanalen of helemaal niets, en het eerste echte
+  label staat weer bovenaan. Er wordt geen bestand verplaatst.
+- **Je luistergeschiedenis wordt eerlijker bijgehouden.** MuMa legt nu vast hoe lang je een track
+  echt gedraaid hebt en waar je zat: webspeler, telefoon of auto. Een set die je halverwege wegklikt
+  telt voortaan mee — dat gebeurde op de telefoon helemaal niet. Voorwerk voor een MuMa Wrapped over
+  2026: wat vanaf nu gebeurt kan straks geteld worden, wat eerder gebeurde niet meer.
+
 ## Global Version 0.27.1 (2026-08-23)
 
 Zie `CHANGELOG.md` voor de volledige lijst. Deze release repareert de Memories-pagina op web, die

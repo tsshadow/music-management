@@ -522,13 +522,13 @@ namespace lms::ui
 
         _mediaPlayer->scrobbleListenNow.connect([this](db::TrackId trackId) {
             LMS_LOG(UI, DEBUG, "Received ScrobbleListenNow from player for trackId = " << trackId.toString());
-            const scrobbling::Listen listen{ getUserId(), trackId };
+            const scrobbling::Listen listen{ getUserId(), trackId, "lms-web" };
             core::Service<scrobbling::IScrobblingService>::get()->listenStarted(listen);
         });
         _mediaPlayer->scrobbleListenFinished.connect([this](db::TrackId trackId, unsigned durationMs) {
             LMS_LOG(UI, DEBUG, "Received ScrobbleListenFinished from player for trackId = " << trackId.toString() << ", duration = " << (durationMs / 1000) << "s");
             const std::chrono::milliseconds duration{ durationMs };
-            const scrobbling::Listen listen{ getUserId(), trackId };
+            const scrobbling::Listen listen{ getUserId(), trackId, "lms-web" };
             core::Service<scrobbling::IScrobblingService>::get()->listenFinished(listen, std::chrono::duration_cast<std::chrono::seconds>(duration));
         });
 

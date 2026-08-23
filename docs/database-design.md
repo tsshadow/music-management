@@ -126,6 +126,8 @@ The core of the collection, where metadata and analysis results converge.
 | `library_track_artists` | Junction table for library_tracks and library_artists. | `track_id`, `artist_id` | Supports roles (remixer, producer, etc). |
 | `library_track_genres` | Junction table for library_tracks and rules_genres. | `track_id`, `genre_id` | Supports weights. |
 | `library_track_labels` | Junction table for library_tracks and library_labels. | `track_id`, `label_id` | |
+| `channels` | An account on a platform that a file arrived through — a SoundCloud or YouTube account, a Telegram chat. Not a label: a platform is how music arrived, not who released it. `label_id` and `artist_id` are independent and both nullable, so a channel may be a label, an artist, both, or neither until someone decides. Platforms stay split, so one imprint's SoundCloud and YouTube accounts are two rows that converge through `label_id`. | `platform`, `normalized_name`, `label_id`, `artist_id` | Unique on (`platform`, `normalized_name`). |
+| `library_track_channels` | Junction table for library_tracks and channels. | `track_id`, `channel_id` | |
 | `library_tagged_files` | Tracking which files were tagged. | `path`, `last_tagged` | |
 | `library_broken_songs` | Files that failed analysis. | `path`, `error_code` | |
 | `library_broken_song_artist_lookup`| Mapping for problematic artist names. | `raw_name` | |
@@ -138,6 +140,17 @@ The core of the collection, where metadata and analysis results converge.
 | :--- | :--- | :--- |
 | `users` | Application users. | `username` |
 | `listens` | Canonical listening events. | `user_id`, `track_id`, `listened_at` |
+
+In the physical database this domain is `scrobble_listens` (resolved to a library track) and
+`scrobble_unmatched_listens` (kept verbatim as artist/title until a match is found). Both carry:
+
+- `source` — where the play happened: `frontend`, `mobile`, `auto` (phone in the car), `lms-web`,
+  `listenbrainz`, `manual`. Rows written before 2026-08 carry `lms`, which meant only "played
+  through the server".
+- `played_secs` — seconds actually played, or `NULL` when the client did not report it. `NULL` is not
+  zero: it means unknown. It matters more here than it would elsewhere, because the average track in
+  this library is 939 seconds, so plays multiplied by track length is not an estimate of listening
+  time. See [docs/designs/wrapped/technical.md](designs/wrapped/technical.md).
 
 ## ML Integration
 

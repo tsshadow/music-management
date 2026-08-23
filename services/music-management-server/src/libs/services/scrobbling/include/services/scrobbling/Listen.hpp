@@ -19,6 +19,10 @@
 
 #pragma once
 
+#include <chrono>
+#include <optional>
+#include <string>
+
 #include <Wt/WDateTime.h>
 
 #include "database/objects/TrackId.hpp"
@@ -30,6 +34,17 @@ namespace lms::scrobbling
     {
         db::UserId userId{};
         db::TrackId trackId{};
+
+        // Where the play happened: "frontend", "mobile", "auto", "lms-web". Set by whichever entry
+        // point received the play, since only it knows. Empty means the caller did not say, and
+        // backends that record it fall back to their own default.
+        std::string source;
+
+        // How long the track was actually played, when the client reported it. It rides on the
+        // listen rather than on the call so that a timed listen carries it too: a client that
+        // scrobbles early and corrects itself later sends the same timestamp twice, and the second
+        // submission updates the first instead of adding a listen.
+        std::optional<std::chrono::seconds> playedDuration;
     };
 
     struct TimedListen : public Listen

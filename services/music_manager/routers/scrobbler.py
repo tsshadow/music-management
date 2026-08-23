@@ -26,6 +26,12 @@ def verify_api_key(x_api_key: str | None=Header(None)):
     raise HTTPException(status_code=401, detail='Invalid API key')
 
 class ScrobbleEvent(BaseModel):
+    """One play reported by a client.
+
+    `source` says where the play happened -- `frontend`, `mobile`, `auto`, `lms-web`,
+    `listenbrainz` -- rather than which server relayed it. `played_secs` is how long the track was
+    actually played; both are optional, so a client that has not been updated still scrobbles.
+    """
     artist_name: str
     track_title: str
     album_name: str | None = None
@@ -34,11 +40,24 @@ class ScrobbleEvent(BaseModel):
     listened_at: int | None = None
     username: str
     source: str = 'manual'
+    played_secs: int | None = None
 
 def init_db(cursor):
-    cursor.execute('\n        CREATE TABLE IF NOT EXISTS scrobble_listens (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            track_id INT,\n            listened_at TIMESTAMP NOT NULL,\n            username VARCHAR(255) NOT NULL,\n            source VARCHAR(50),\n            mbid_track VARCHAR(36),\n            match_method ENUM(\'exact\', \'normalized\', \'base_title\', \'fuzzy\') NOT NULL DEFAULT \'exact\',\n            match_score TINYINT UNSIGNED NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            UNIQUE KEY (username, listened_at, track_id)\n        )\n    ')
-    cursor.execute('\n        CREATE TABLE IF NOT EXISTS scrobble_unmatched_listens (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            artist_name VARCHAR(512),\n            track_title VARCHAR(512),\n            album_name VARCHAR(512),\n            mbid_track VARCHAR(36),\n            mbid_artist VARCHAR(36),\n            listened_at TIMESTAMP NOT NULL,\n            username VARCHAR(255) NOT NULL,\n            source VARCHAR(50),\n            data JSON,\n            attempts INT NOT NULL DEFAULT 0,\n            last_attempt_at TIMESTAMP NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            UNIQUE KEY (username, listened_at, artist_name, track_title)\n        )\n    ')
+    cursor.execute('\n        CREATE TABLE IF NOT EXISTS scrobble_listens (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            track_id INT,\n            listened_at TIMESTAMP NOT NULL,\n            username VARCHAR(255) NOT NULL,\n            source VARCHAR(50),\n            mbid_track VARCHAR(36),\n            match_method ENUM(\'exact\', \'normalized\', \'base_title\', \'fuzzy\') NOT NULL DEFAULT \'exact\',\n            match_score TINYINT UNSIGNED NULL,\n            played_secs INT UNSIGNED NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            UNIQUE KEY (username, listened_at, track_id)\n        )\n    ')
+    cursor.execute('\n        CREATE TABLE IF NOT EXISTS scrobble_unmatched_listens (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            artist_name VARCHAR(512),\n            track_title VARCHAR(512),\n            album_name VARCHAR(512),\n            mbid_track VARCHAR(36),\n            mbid_artist VARCHAR(36),\n            listened_at TIMESTAMP NOT NULL,\n            username VARCHAR(255) NOT NULL,\n            source VARCHAR(50),\n            data JSON,\n            attempts INT NOT NULL DEFAULT 0,\n            last_attempt_at TIMESTAMP NULL,\n            played_secs INT UNSIGNED NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            UNIQUE KEY (username, listened_at, artist_name, track_title)\n        )\n    ')
     cursor.execute('\n        CREATE TABLE IF NOT EXISTS scrobble_imports (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            username VARCHAR(255) NOT NULL,\n            lb_username VARCHAR(255) NOT NULL,\n            status VARCHAR(50) NOT NULL,\n            total_found INT DEFAULT 0,\n            processed INT DEFAULT 0,\n            last_error TEXT,\n            started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            finished_at TIMESTAMP NULL\n        )\n    ')
+    # played_secs on installations that predate it. The CREATE TABLE statements above only run for
+    # a database that has neither table, so an existing stack would never see the column otherwise.
+    # Mirrors migrate_v12_listen_played_secs.sql, which is what production runs.
+    # Written out per table rather than looped over an f-string: a table name cannot be a bound
+    # parameter, and a formatted statement here is indistinguishable from an injectable one to
+    # anything reading the code, semgrep included.
+    cursor.execute("SHOW COLUMNS FROM scrobble_listens LIKE 'played_secs'")
+    if not cursor.fetchone():
+        cursor.execute('ALTER TABLE scrobble_listens ADD COLUMN played_secs INT UNSIGNED NULL')
+    cursor.execute("SHOW COLUMNS FROM scrobble_unmatched_listens LIKE 'played_secs'")
+    if not cursor.fetchone():
+        cursor.execute('ALTER TABLE scrobble_unmatched_listens ADD COLUMN played_secs INT UNSIGNED NULL')
 
 @router.post('/event')
 def handle_scrobble_event(event: ScrobbleEvent, _auth: dict=Depends(verify_api_key)):
@@ -50,12 +69,15 @@ def handle_scrobble_event(event: ScrobbleEvent, _auth: dict=Depends(verify_api_k
             found = find_track(cursor, event.artist_name, event.track_title)
             row = {'id': found[0]} if found else None
             listened_at = datetime.fromtimestamp(event.listened_at) if event.listened_at else datetime.now()
+            # A zero or negative playing time says the client had nothing to report, which is not
+            # the same claim as "played for no time at all" -- store the absence, not a number.
+            played_secs = event.played_secs if event.played_secs and event.played_secs > 0 else None
             if found:
                 track_id, tier, score = found
                 record_match(cursor, track_id, listened_at, event.username,
-                             event.source, tier, score, event.mbid_track)
+                             event.source, tier, score, event.mbid_track, played_secs)
             else:
-                cursor.execute('\n                    INSERT INTO scrobble_unmatched_listens (artist_name, track_title, album_name, mbid_track, mbid_artist, listened_at, username, source)\n                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)\n                    ON DUPLICATE KEY UPDATE artist_name = VALUES(artist_name)\n                ', (event.artist_name, event.track_title, event.album_name, event.mbid_track, event.mbid_artist, listened_at, event.username, event.source))
+                cursor.execute('\n                    INSERT INTO scrobble_unmatched_listens (artist_name, track_title, album_name, mbid_track, mbid_artist, listened_at, username, source, played_secs)\n                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)\n                    ON DUPLICATE KEY UPDATE artist_name = VALUES(artist_name), played_secs = COALESCE(VALUES(played_secs), played_secs)\n                ', (event.artist_name, event.track_title, event.album_name, event.mbid_track, event.mbid_artist, listened_at, event.username, event.source, played_secs))
             conn.commit()
             return {'status': 'success', 'matched': row is not None}
     finally:

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Scrobbling**: A listen now carries how long the track was actually played and where the play
+  happened. `MusicManagementBackend::sendScrobble` received the played duration from the player and
+  discarded it (`(void)duration;`), and hardcoded `source` to `"lms"`, which made the web player,
+  the phone and the car indistinguishable afterwards. `Listen` gained a `source` and a
+  `playedDuration`, so both survive the trip from the entry point that knows them to the payload.
+  `/rest/scrobble` accepts two optional non-standard parameters, `playedSeconds` and `source`;
+  without them the origin is derived from the Subsonic `c=` client name (`spotify` → `frontend`,
+  `Ultrasonic` → `mobile`), and the playing time is simply absent. The Wt interface reports
+  `lms-web`. A client that knows nothing about any of this scrobbles exactly as before.
+
 ### Fixed
 - **HTTP**: Handlers that proxy to music-management can no longer take the whole
   HTTP thread pool. `handleGetCoverArt` and the five `/muma/*` proxy paths

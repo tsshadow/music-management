@@ -7,6 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-08-23
+
+### Added
+- **De mapindeling van de bibliotheek, klaar om uit te voeren.** `EPs` bevatte drie verschillende
+  dingen door elkaar: releases mét label, releases zónder label (`__Free&None`) en de importstapel
+  (`__TODO`). Alleen het eerste is een labelboom, en dat is precies waarom de andere twee steeds in
+  je labellijst opdoken. `scripts/restructure_music_folders.py` splitst ze uit elkaar naar
+  `labels/`, `songs/`, `import/` en `channels/<platform>/`. Het zijn vijf mapnamen, geen 326.480
+  bestandsverplaatsingen — alles blijft binnen dezelfde mount, dus het is een metadata-operatie en
+  `--revert` draait het net zo goedkoop terug. Het script weigert het hele plan zodra één stap niet
+  kan; half verhuisd is het slechte geval. Draai eerst `--dry-run`. Let op: het is nog **niet**
+  uitgevoerd, en dat kan ook niet vanaf een ontwikkelmachine alleen — de padinstellingen bereiken de
+  workers via de `.env` op productie, niet via de API-config. De volgorde staat in
+  [docs/designs/wrapped/technical.md](docs/designs/wrapped/technical.md), deel 3.
+- **SoundCloud is geen platenlabel meer.** `Soundcloud` (132.037 tracks), `Youtube` (30.779) en
+  `Telegram` (1.556) stonden bovenaan je labellijst, ver boven het eerste echte label (Dirty Workz,
+  2.299). Dat kwam doordat de tagger het platform in de publisher-tag zet en de scanner een
+  publisher als label opslaat. `__TODO` en `__Free&none` stonden er om dezelfde reden in: de eerste
+  is de naam van de importmap zelf, de tweede is de stapel muziek die juist géén label heeft. Geen
+  van de vijf is een label. Er is nu een `channels`-tabel: een account op een platform, waar een
+  bestand doorheen binnenkwam. Platforms blijven gesplitst — het SoundCloud- en het YouTube-kanaal
+  van hetzelfde label zijn twee rijen — en ze komen samen via het label of de artiest waar een
+  kanaal naar wijst. Beide koppelingen mogen tegelijk gevuld zijn, want een artiest met een eigen
+  imprint is geen uitzondering, en beide mogen leeg blijven: dat een kanaal bestaat legt een scan
+  vast, wát het is bepaal jij. De classificatie komt uit het pad en niet uit de tag, dus alle
+  160.000 bestanden kloppen zonder er één opnieuw te taggen. Bestaande rijen zet je om met
+  `scripts/backfill_channels.py` — draai hem eerst met `--dry-run`. Er wordt geen bestand
+  verplaatst of hernoemd.
+- **Een listen weet nu hoe lang je écht geluisterd hebt, en waar.** Tot nu toe legde MuMa alleen
+  vast dát er iets gespeeld was. Hoe lang wist de speler wel, maar dat getal werd weggegooid voordat
+  het verstuurd werd, en elke listen claimde dezelfde herkomst (`lms`) of je nu op de webspeler, je
+  telefoon of in de auto zat. Voor deze collectie is dat geen detail: de gemiddelde track duurt 939
+  seconden omdat het grotendeels DJ-sets zijn, dus "keer aantal plays" is geen benadering van
+  luistertijd maar een verzinsel. Een listen draagt nu de werkelijk gespeelde seconden (`played_secs`)
+  en een echte herkomst: `frontend`, `mobile`, `auto` (telefoon in de auto) of `lms-web`. Beide velden
+  zijn optioneel — een client die ze niet stuurt scrobbelt gewoon door, en oude listens blijven
+  leesbaar met een lege duur en de oude waarde `lms`. Draai `migrate_v12_listen_played_secs.sql`, of
+  laat music-manager de kolommen bij het opstarten zelf bijzetten. Voorwerk voor een MuMa Wrapped
+  over 2026; zie [docs/designs/wrapped/](docs/designs/wrapped/).
+
+### Fixed
+- **De voortgangsbalk op de tv stond stil.** In de browser van de LG-tv bewoog de balk alleen als je
+  op play of pause drukte. De balk hing volledig aan het `timeupdate`-event van het audio-element, en
+  die tv stuurt dat alleen bij een toestandswissel — niet op de vier keer per seconde die de standaard
+  voorschrijft. De speler leest de positie nu zelf elke 250 ms uit zolang er geluid speelt, op elk
+  apparaat, dus hij hangt nergens meer af van hoe gul een browser met dat event is. Hetzelfde
+  euvel hield op de tv ook de halverwege-listen tegen, want die telde mee op dezelfde tikken.
+- **Een tv-stream zonder lengte liet de balk op nul staan.** Een getranscodeerde stream komt in
+  stukjes binnen zonder `Content-Length`, en dan meldt het audio-element `Infinity` als lengte. Elke
+  berekening daarmee wordt `NaN`, dus de balk bleef leeg, de tijd rechts bleef `0:00` en klikken om
+  te spoelen gooide je positie weg. De speler valt nu terug op de lengte die de server bij de track
+  meestuurt, en weigert te spoelen zolang er helemaal geen lengte bekend is.
+- **De verhuizing zou een nieuw nep-label hebben opgeleverd.** De tagger leidt een label af uit de
+  mappen boven een track. Zet je `__Free&None` op `/mnt/music/songs/`, dan is het naïeve antwoord dat
+  al die tracks op een label genaamd `songs` staan — dezelfde fout als `Soundcloud`, alleen met een
+  andere naam. Een pad onder een niet-label-map of een platformmap levert nu structureel geen label
+  meer op, en beide indelingen blijven tijdens de verhuizing goed werken.
+- **Een set die je wegklikt telt eindelijk mee.** De telefoon stuurde alleen een listen als een
+  track vanzelf afliep of de wachtrij leeg raakte; drukte je op volgende, dan werd er niets
+  vastgelegd. Bij tracks van gemiddeld een kwartier is doorspelen tot het eind juist de
+  uitzondering, dus dat wiste stilletjes het grootste deel van je luistergeschiedenis — en het hardst
+  in de auto, waar je het vaakst doorklikt. Elke keer dat je een track verlaat telt nu, met de tijd
+  die hij daadwerkelijk speelde; korter dan vijf seconden blijft geen listen, want even proeven is
+  geen luisteren.
+- **De webspeler meldde een lange set als vier minuten.** Hij stuurt zijn listen halverwege, wat
+  hem beschermt tegen een tab die dichtgaat, maar daardoor was de gemelde speelduur die van dat
+  moment. Hij stuurt nu bij het einde van de track een correctie met dezelfde tijdstempel, zodat
+  diezelfde listen wordt bijgewerkt in plaats van dat er een tweede bijkomt.
+
 ## [0.27.1] - 2026-08-23
 
 ### Fixed

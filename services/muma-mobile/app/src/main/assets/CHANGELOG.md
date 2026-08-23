@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **A skipped track is a listen too.** A submission only fired on
+  `MEDIA_ITEM_TRANSITION_REASON_AUTO` -- the track ended by itself -- and on the queue running out,
+  so pressing next recorded nothing at all. With an average track of a quarter of an hour, reaching
+  the end is the exception here, and the loss was worst in the car, where skipping is likeliest.
+  Every departure from a track now submits, carrying the position the track had reached. That
+  position is captured in `onPositionDiscontinuity`, the last moment it is still readable: by the
+  time `onMediaItemTransition` arrives the player already reports the *new* track's position.
+  Anything under five seconds is still not submitted, matching the server's own rule.
+
+### Added
+- **A listen says where it happened.** The scrobble now reports `auto` while the car is connected
+  and `mobile` otherwise, alongside the seconds actually played, through two new optional
+  `/rest/scrobble` parameters (`source`, `playedSeconds`). Car presence is read from
+  `CarModeSession` at the moment the listen is sent rather than cached, since a trip can start and
+  end inside one session, and presence -- not whether the car mode screen is still up -- is the
+  honest signal: the screen may well have been dismissed while the car is still connected.
+
 ## [6.22.1] - 2026-08-22
 
 ### Fixed

@@ -152,8 +152,12 @@ interface MusicService {
     @Throws(Exception::class)
     fun getLyrics(artist: String, title: String): Lyrics?
 
+    /**
+     * @param playedSeconds How long the track was actually played, or null when it is not known.
+     * @param source Where the play happened: `mobile`, or `auto` when the phone is in the car.
+     */
     @Throws(Exception::class)
-    fun scrobble(id: String, submission: Boolean)
+    fun scrobble(id: String, submission: Boolean, playedSeconds: Long? = null, source: String? = null)
 
     @Throws(Exception::class)
     fun getAlbumList(

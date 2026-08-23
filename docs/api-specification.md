@@ -26,6 +26,14 @@ The `music-manager` service provides a REST API (FastAPI) for managing the music
 
 ### 📈 Scrobbling & Ratings
 - **POST `/api/event`**: General scrobble/playback event endpoint.
+  - `artist_name`, `track_title`, `username`: required.
+  - `source`: where the play happened — `frontend`, `mobile`, `auto` (phone in the car), `lms-web`,
+    `listenbrainz`. Defaults to `manual`. Listens recorded before 2026-08 carry the historical
+    constant `lms`, which meant "played through the server" and said nothing about the device.
+  - `played_secs`: seconds actually played. Optional; `NULL` when the client did not report it, which
+    is not the same as zero and must not be read as such. A non-positive value is stored as `NULL`.
+  - Both new fields are optional in both directions: a client that sends neither behaves exactly as
+    before. See [docs/designs/wrapped/technical.md](designs/wrapped/technical.md).
 - **POST `/api/lms-event`**: Specific endpoint for Logitech Media Server webhooks (syncs ratings).
 
 ### 🛠 Management & Rules

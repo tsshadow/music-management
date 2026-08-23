@@ -13,6 +13,7 @@
   import History from './History.svelte';
   import StarredView from './StarredView.svelte';
   import MemoriesView from './MemoriesView.svelte';
+  import MemoriesYearView from './MemoriesYearView.svelte';
   import Management from './management/Management.svelte';
   import CollectionBar from './CollectionBar.svelte';
   import { getArtistImageUrl, viewArgument } from './utils.js';
@@ -21,7 +22,9 @@
   import { defaultCollectionState, durationParts, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
   import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled } from './store.js';
 
-  let { activeView = $bindable('home') } = $props();
+  // Navigation that has to survive a refresh goes through onnavigate, which App turns into a URL.
+  // The local assignment stays the fallback for the many places that only switch the screen.
+  let { activeView = $bindable('home'), onnavigate = (view) => (activeView = view) } = $props();
 
   let sections = $state([
     { titleKey: 'nav.releaseRadar', id: 'spotify:release_radar', tracks: [] },
@@ -29,8 +32,6 @@
     { titleKey: 'nav.sets', id: 'spotify:sets', tracks: [] }
   ]);
 
-  // Set when a memories card on the home screen is opened, so the view can scroll to that year.
-  let memoriesInitialYear = $state(null);
   let memoryGroups = $state([]);
 
   // The carousel is a teaser, not the whole feature: it stays a short strip whatever the day holds.
@@ -590,14 +591,14 @@
           <h2 class="text-2xl font-bold m-0">{$t('memories.title')}</h2>
           <button
             class="bg-transparent border-none text-[#b3b3b3] text-[12px] font-bold cursor-pointer uppercase tracking-[0.1em] hover:underline"
-            onclick={() => { memoriesInitialYear = null; activeView = 'memories'; }}
+            onclick={() => onnavigate('memories')}
           >{$t('dashboard.showAll')}</button>
         </div>
         <div class="flex gap-4 overflow-x-auto pb-2">
           {#each memoryGroups as group (group.year)}
             <button
               class="flex-shrink-0 w-40 text-left bg-transparent border-none cursor-pointer p-0"
-              onclick={() => { memoriesInitialYear = group.year; activeView = 'memories'; }}
+              onclick={() => onnavigate(`memories:${group.year}`)}
             >
               <img
                 class="w-40 h-40 object-cover mb-2 rounded-md"
@@ -1054,7 +1055,9 @@
   {:else if activeView === 'starred'}
     <StarredView onnavigate={(v) => activeView = v} />
   {:else if activeView === 'memories'}
-    <MemoriesView onnavigate={(v) => activeView = v} initialYear={memoriesInitialYear} />
+    <MemoriesView onnavigate={(v) => onnavigate(v)} />
+  {:else if activeView.startsWith('memories:')}
+    <MemoriesYearView year={viewArgument(activeView)} onnavigate={(v) => onnavigate(v)} />
   {/if}
 </div>
 

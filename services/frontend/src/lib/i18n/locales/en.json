@@ -716,8 +716,13 @@
     }
   },
   "memories": {
+    "allYears": "All years",
     "empty": "Nothing was released on this day in earlier years.",
     "emptyHelp": "Memories appear as your library gains tracks with a full release date.",
+    "emptyYear": "No memories from {year} today.",
+    "emptyYearHelp": "Memories follow the date, so this year turns up again on the day one of its releases has its anniversary.",
+    "openYear": "Open {year}",
+    "subtitle": "One tile per year that has an anniversary today.",
     "thisWeek": {
       "one": "This week, 1 year ago",
       "other": "This week, {count} years ago"

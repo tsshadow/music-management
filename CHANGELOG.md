@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Memories op web is een fotoboek geworden.** In plaats van één lange pagina met alle jaren onder
+  elkaar staat er nu een tegel per jaar: een mozaïek van de hoezen van dat jaar, het jaartal groot
+  eroverheen, en daaronder de drie nummers die je er het meest mee hebt. Wat "het meest" is leidt de
+  app af uit wat er al bekend is — vijf sterren gaat voor, en binnen én buiten die groep bepaalt het
+  aantal beluisteringen de volgorde. Klik je op een tegel, dan krijgt dat jaar een eigen pagina op
+  `/memories/2025` met de gewone tracklijst, vijftig nummers tegelijk en een knop om er vijftig bij
+  te laden. De afspeelknop start het hele jaar, niet alleen wat er op dat moment staat. Zo'n adres
+  is te bewaren en werkt na een refresh, met dit voorbehoud dat bij memories hoort: ze hangen aan de
+  dag, dus morgen staan er andere nummers onder hetzelfde jaartal — of geen, en dat zegt de pagina
+  dan zelf.
+
 ### Fixed
 - **De label-backfill eindigde er netjes uit terwijl hij bestanden had overgeslagen.** Hij sloot af
   met een regel als `{'written': 412}`, en wat de schijf geweigerd had stond alleen als waarschuwing

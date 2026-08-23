@@ -114,21 +114,31 @@ Three apps change together, in one commit, per AGENTS.md rule 7.
 
 **`music-management-server`** — the query layer and endpoint described above.
 
-**`frontend`** — a new `MemoriesView.svelte` rendering the year groups as sections, each with a play action,
-reusing the existing `TrackList` component for the tracks (whose default column already shows a track's
-release date). A `memories` entry in the `menuItems` array of `Sidebar.svelte` next to Release Radar, a
-`/memories` path in the `viewToPath`/`pathToView` handling of `App.svelte`, and the matching
-`activeView === 'memories'` branch in `Dashboard.svelte`. On the home screen, `Dashboard.svelte` gains a
+**`frontend`** — `MemoriesView.svelte` renders the year groups as a grid of tiles (`MemoryYearCard.svelte`),
+and `MemoriesYearView.svelte` is one year's own page, reusing the existing `TrackList` component for the
+tracks (whose default column already shows a track's release date). A `memories` entry in the `menuItems`
+array of `Sidebar.svelte` next to Release Radar, a `/memories` path and a `/memories/<year>` argument route
+in `router.js`, and the matching `activeView === 'memories'` and `activeView.startsWith('memories:')`
+branches in `Dashboard.svelte`. On the home screen, `Dashboard.svelte` gains a
 memories carousel above the existing rows, one card per year group capped at ten cards; clicking a card
-opens `MemoriesView` at that year. Visibility is a new store in `store.js` (`memoriesOnHomeEnabled`,
+opens that year's page. Visibility is a new store in `store.js` (`memoriesOnHomeEnabled`,
 default `true`) persisted with the existing `persist()` helper, exposed as a toggle in `GeneralSettings.svelte`
 next to the deduplication toggle. The sidebar entry is the permanent way in and is not affected by that
 toggle.
 
-Response parsing, the local-date format and the heading rule live in a shared `memories.js`, because the
-view and the carousel both need all three and the heading rule is the one piece worth testing on its own.
-It is covered by `tests/unit/memories.test.js` (the frontend does have a Vitest suite, see
+Response parsing, the request URL, the local-date format and the heading rule live in a shared `memories.js`,
+because the overview, the year page and the carousel need them and the rules are the pieces worth testing on
+their own. Two more live there for the tiles: `rankSongs`, which turns `userRating` and `playCount` -- both
+already on every song node -- into the "favourites first, then listens" order the tiles show, and
+`yearTiles`, which reduces a group to its count, its top three and four covers. Ranking client-side is what
+keeps this a frontend-only change; it is also why both screens ask for `maxPerYear=200` rather than the
+server's default page, since a truncated group would report the wrong count and rank the wrong three.
+All of it is covered by `tests/unit/memories.test.js` (the frontend does have a Vitest suite, see
 `docs/testing-inventory.md`).
+
+The year page fetches for itself rather than inheriting the overview's groups, so that a bookmarked
+`/memories/2025` survives a refresh. Because memories are relative to today, the same URL is a different
+page tomorrow; the page says so through its own empty state instead of pretending the year is gone.
 
 New user-facing strings go through the existing i18n layer. The `memories` block is translated in all four
 locale files under `src/lib/i18n/locales/` (`en`, `nl`, `brabants`, `sallands`); the settings toggle's

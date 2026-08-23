@@ -45,6 +45,14 @@ describe('viewToPath', () => {
     expect(viewToPath(state('podcast:Q-dance Radio / #40'))).toBe('/podcast/Q-dance%20Radio%20%2F%20%2340');
   });
 
+  it('puts the memory year in the path', () => {
+    expect(viewToPath(state('memories:2025'))).toBe('/memories/2025');
+  });
+
+  it('keeps the memories overview on its own path', () => {
+    expect(viewToPath(state('memories'))).toBe('/memories');
+  });
+
   it('puts the artist id in the path', () => {
     expect(viewToPath(state('artist:ar-123'))).toBe('/artist/ar-123');
   });
@@ -111,6 +119,14 @@ describe('pathToState', () => {
     expect(pathToState('/search/drum%20%26%20bass')).toEqual({ view: 'search:drum & bass' });
   });
 
+  it('reads a memory year off the path', () => {
+    expect(pathToState('/memories/2025')).toEqual({ view: 'memories:2025' });
+  });
+
+  it('still reads the bare memories path as the overview', () => {
+    expect(pathToState('/memories')).toEqual({ view: 'memories' });
+  });
+
   it('reads the playlist id off the path', () => {
     expect(pathToState('/playlist/pl-7')).toEqual({ view: 'playlist-detail', playlistId: 'pl-7' });
   });
@@ -147,7 +163,7 @@ describe('pathToState', () => {
 describe('round trip', () => {
   const paths = [
     '/', '/login', '/songs', '/sets', '/albums', '/genres', '/labels', '/podcasts', '/artists',
-    '/playlists', '/memories', '/history', '/starred',
+    '/playlists', '/memories', '/memories/2025', '/history', '/starred',
     '/genre/Drum%20%26%20Bass%20%2F%20UK', '/label/Hardcore', '/podcast/Hard%20With%20Style',
     '/artist/ar-1', '/album/al-2',
     '/playlist/pl-3', '/search/drum%20%26%20bass',

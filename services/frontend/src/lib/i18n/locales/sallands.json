@@ -95,8 +95,13 @@
     "username": "Gebruukersnaam"
   },
   "memories": {
+    "allYears": "Alle joarn",
     "empty": "Op disse dag is in eerdere joarn niks uutbrocht.",
     "emptyHelp": "Herinneringen komt vanzölf as oew bibliotheek nummers met een complete releasedatum krig.",
+    "emptyYear": "Vandage gien herinneringen uut {year}.",
+    "emptyYearHelp": "Herinneringen volgt de datum, dus dit joar kump weerum op de dag dat een van zien releases jaorig is.",
+    "openYear": "{year} lös doen",
+    "subtitle": "Eén tegel per joar dat vandage jaorig is.",
     "thisWeek": {
       "one": "Disse weke, 1 joar eleden",
       "other": "Disse weke, {count} joar eleden"

@@ -95,8 +95,13 @@
     "username": "Gebruikersnaam"
   },
   "memories": {
+    "allYears": "Alle jaore",
     "empty": "Op deze dag is in eerdere jaore niks uitgebrocht.",
     "emptyHelp": "Herinneringe komme vanzelf as oew bibliotheek nummerkes mee un complete releasedatum krijgt.",
+    "emptyYear": "Vandaag gin herinneringe uit {year}.",
+    "emptyYearHelp": "Herinneringe volge de datum, dus dit jaor komt trug op de dag dat unne release d'r jarig is.",
+    "openYear": "{year} opendoen",
+    "subtitle": "Un tegeltje per jaor dat vandaag jarig is.",
     "thisWeek": {
       "one": "Deez week, 1 jaor gelejen",
       "other": "Deez week, {count} jaor gelejen"

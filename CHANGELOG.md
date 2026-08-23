@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-08-23
+
 ### Added
 - **De downloaders halen de staart van een account weer op.** Ze stopten bij de eerste track die
   al binnen was, wat de dagelijkse ronde goedkoop houdt en tegelijk elk gat blijvend maakte: een

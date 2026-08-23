@@ -11,6 +11,16 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.26.0 (2026-08-23)
+
+Zie `CHANGELOG.md` voor de volledige lijst. De kern van deze release: de downloaders halen de staart
+van een account weer op. Ze stopten bij de eerste track die al binnen was, waardoor elk gat blijvend
+werd — een ronde die halverwege op een 429 geparkeerd werd liet de rest van dat kanaal voorgoed
+staan. Er is nu een diepe ronde die het account plat uitleest, alleen ids en 200 per verzoek, daar
+het archief van aftrekt en alleen de echt ontbrekende tracks binnenhaalt. Een account van 5000 tracks
+kost zo 25 verzoeken in plaats van 5000. Tracks die bewust worden overgeslagen krijgen een reden
+opgeschreven, want zonder dat kan een account nooit als klaar gelden.
+
 ## Global Version 0.25.0 (2026-08-23)
 
 Zie `CHANGELOG.md` voor de volledige lijst. De kern van deze release: Memories op web is een tegel

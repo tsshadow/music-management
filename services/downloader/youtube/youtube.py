@@ -3,14 +3,22 @@ import logging
 import os
 import shutil
 import time
+from datetime import datetime
 
 from yt_dlp import YoutubeDL
 
 from services.common.config_store import ConfigStore
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.job_manager import job_manager
+from services.downloader.deep_sweep import (
+    DeepSweepReport,
+    ids_in_text_archive,
+    list_flat,
+    wanted_tracks,
+)
 from services.downloader.rate_state import RateLimited, SweepAborted
 from services.downloader.sweep import SweepPolicy
+from services.downloader.write_offs import WriteOffs
 from services.downloader.youtube.DropCategoryGenre import DropCategoryGenrePP
 from services.downloader.youtube.YoutubeAccount import (
     AUDIO,
@@ -37,7 +45,8 @@ VIDEO_FORMAT = 'bestvideo*+bestaudio/best'
 class YoutubeDownloader:
 
     def __init__(self, break_on_existing: bool=True, dry_run: bool=False,
-                 timing=None, rate_state=None, schedule=None, socket_timeout: int=30, notifier=None):
+                 timing=None, rate_state=None, schedule=None, socket_timeout: int=30,
+                 notifier=None, write_offs=None, deep: bool=False):
         """
         Initializes the YoutubeDownloader instance with configuration settings.
 
@@ -49,6 +58,10 @@ class YoutubeDownloader:
             schedule: Per-account check schedule; loaded from the database when omitted.
             socket_timeout (int): Timeout value (in seconds) for network connections.
             notifier: Optional notifier for SweepPolicy; defaults to None (lazy-loads at runtime).
+            write_offs: The ledger of videos deliberately not fetched; built from
+                the database when omitted.
+            deep (bool): Force the deep path for every channel this run, whatever
+                the cadence says. What `--deep` on the CLI turns on.
         """
         self._config = ConfigStore()
         self.policy = SweepPolicy(SOURCE, timing=timing, rate_state=rate_state, schedule=schedule,
@@ -59,6 +72,9 @@ class YoutubeDownloader:
         self.default_break_on_existing = break_on_existing
         self.dry_run = dry_run
         self.redownload_mode = False
+        self.deep_mode = deep
+        self.write_offs = write_offs if write_offs is not None else WriteOffs(
+            SOURCE, retry_days=self.policy.timing.unavailable_retry_days)
         if not self.downloader_config['output_folder'] or not self.downloader_config['archive_dir']:
             logging.warning('Missing required configuration for youtube_folder or youtube_archive. YouTube downloads will be disabled.')
             self.downloader_config['output_folder'] = None
@@ -192,11 +208,23 @@ class YoutubeDownloader:
         min_duration = account.min_duration or DEFAULT_MIN_DURATION
         download_type = account.download_type
 
+        ledger_key = account.schedule_key
+        bounds = (min_duration, MAX_DURATION)
+
         def match_filter(info):
             duration = info.get('duration')
             title = info.get('title', 'unknown')
+            if self.write_offs.should_skip(ledger_key, info.get('id'), bounds):
+                logging.info(f"Skipping video '{title}' (written off before)")
+                return 'Known to be unavailable'
             if not duration or duration < min_duration or duration > MAX_DURATION:
                 logging.info(f"Skipping video '{title}' (duration: {duration}s)")
+                # Written down rather than only logged: a pass that walks the
+                # whole channel would otherwise rediscover this video every time,
+                # and could never report the channel finished.
+                reason = 'too_short' if (duration or 0) < min_duration else 'too_long'
+                self.write_offs.remember(ledger_key, info.get('id'), reason,
+                                         duration=int(duration or 0))
                 return 'Outside allowed duration range'
             uploader = info.get('uploader_id') or info.get('channel_id') or info.get('uploader') or info.get('channel')
             video_id = info.get('id')
@@ -206,6 +234,124 @@ class YoutubeDownloader:
             return None
 
         return match_filter
+
+    def _held_ids(self, account: YoutubeAccount, video_ids: list[str]) -> set[str]:
+        """Everything already downloaded, from both records that decide that.
+
+        yt-dlp consults its own text archive, so a video listed there is one it
+        will silently refuse to fetch again. Leaving those out would queue the
+        same videos on every pass and never see them arrive.
+        """
+        held = YoutubeArchive.held_ids(account.name, video_ids, account.download_type)
+        held.update(ids_in_text_archive(self._archive_file_for(account)))
+        return held
+
+    def download_url(self, url: str, ydl_opts: dict, account: YoutubeAccount) -> None:
+        """Fetch one video by URL, with the guards a whole channel gets.
+
+        The deep pass hands over individual videos rather than the channel page,
+        so nothing pages and `break_on_existing` has nothing to stop.
+        """
+        for attempt in range(1, self.timing.retry_attempts + 1):
+            try:
+                opts = dict(ydl_opts)
+                if 'postprocessors' in ydl_opts:
+                    opts['postprocessors'] = [pp.copy() if isinstance(pp, dict) else pp
+                                              for pp in ydl_opts['postprocessors']]
+                with self._create_ydl(opts, download_type=account.download_type) as ydl:
+                    ydl.download([url])
+                return
+            except RateLimited:
+                raise
+            except Exception as exc:
+                rate_limited = self.policy.rate_limit_from(exc, url)
+                if rate_limited is not None:
+                    raise rate_limited from exc
+                if '404' in str(exc):
+                    logging.info('Got 404 for %s — skip.', url)
+                    return
+                logging.warning('Attempt %d failed for %s: %s', attempt, url, exc)
+                time.sleep(5 * attempt)
+        logging.error('YouTube download failed for %s after %d attempts.',
+                      url, self.timing.retry_attempts)
+
+    def deep_sweep_account(self, account: YoutubeAccount, ydl_opts: dict) -> DeepSweepReport:
+        """Walk a channel's whole videos tab and fetch whatever is missing.
+
+        The ordinary run stops at the first archived video, so a run parked
+        mid-channel leaves a hole no later run can reach. This lists the tab flat
+        -- ids only, nothing resolved -- and resolves only what is absent, so the
+        cost follows the size of the gap rather than the size of the channel.
+
+        The tab is named explicitly rather than left to the bare channel URL, so
+        the listing is the same set of videos the ordinary run downloads from.
+        """
+        self.policy.guard(account.name)
+        ledger_key = account.schedule_key
+        bounds = (account.min_duration or DEFAULT_MIN_DURATION, MAX_DURATION)
+        url = f'https://www.youtube.com/{account.name}/videos'
+        listing = list_flat(url, ydl_opts)
+        ids = [entry.track_id for entry in listing]
+        held = self._held_ids(account, ids)
+        write_offs = self.write_offs.load_many(ledger_key, ids)
+        wanted = wanted_tracks(listing, held, write_offs,
+                               self.timing.unavailable_retry_days, datetime.now(),
+                               bounds)
+        batch = wanted[:self.timing.deep_sweep_max_downloads]
+        logging.info('Deep sweep of %s (%s): %d listed, %d held, %d written off, '
+                     '%d missing, fetching %d.', account.name, account.download_type,
+                     len(listing), len(held), len(write_offs), len(wanted), len(batch))
+        parked = False
+        try:
+            for entry in batch:
+                self.policy.guard(account.name)
+                self.download_url(entry.url, ydl_opts, account)
+        except RateLimited:
+            parked = True
+            raise
+        finally:
+            report = self._settle_deep(account, listing, held, write_offs, wanted,
+                                       batch, parked, bounds)
+            logging.info('Deep sweep of %s (%s): %s', account.name,
+                         account.download_type, report.summary())
+        return report
+
+    def _settle_deep(self, account: YoutubeAccount, listing, held, write_offs,
+                     wanted, batch, parked: bool, bounds) -> DeepSweepReport:
+        """Count what actually arrived, and write off what did not.
+
+        One extra lookup per pass. A video that neither downloaded nor rejected
+        has to be counted, or a single permanently broken video keeps its channel
+        incomplete and re-swept every day forever.
+        """
+        ledger_key = account.schedule_key
+        arrived = self._held_ids(account, [entry.track_id for entry in batch]) if batch else set()
+        downloaded = 0
+        for entry in batch:
+            if entry.track_id in arrived:
+                downloaded += 1
+                continue
+            if parked:
+                # The sweep was stopped mid-batch; nothing was wrong with this
+                # video, we simply never asked about it.
+                continue
+            if self.write_offs.should_skip(ledger_key, entry.track_id, bounds):
+                # Rejected during this very pass. A decision, not a failure.
+                continue
+            self.write_offs.note_failure(ledger_key, entry.track_id)
+        return DeepSweepReport(listed=len(listing), held=len(held),
+                               written_off=len(write_offs), wanted=len(wanted),
+                               downloaded=downloaded,
+                               capped=len(wanted) > len(batch), parked=parked)
+
+    def _check_account(self, account: YoutubeAccount, ydl_opts: dict) -> None:
+        """One channel: the deep path when it is due one, the ordinary run otherwise."""
+        if self.deep_mode or self.policy.deep_due(account.schedule_key):
+            report = self.deep_sweep_account(account, ydl_opts)
+            if report.complete:
+                self.policy.mark_deep_swept(account.schedule_key)
+            return
+        self.download_account(account, ydl_opts)
 
     def _archive_file_for(self, account: YoutubeAccount) -> str:
         """Where yt-dlp keeps its own record of what it already fetched.
@@ -424,7 +570,7 @@ class YoutubeDownloader:
             futures = {}
             for acc in batch:
                 ydl_opts = self._prepare_ydl_opts(acc, break_on_existing_arg, redownload)
-                futures[executor.submit(self.download_account, acc, ydl_opts)] = acc
+                futures[executor.submit(self._check_account, acc, ydl_opts)] = acc
             for future in concurrent.futures.as_completed(futures):
                 acc = futures[future]
                 processed += 1

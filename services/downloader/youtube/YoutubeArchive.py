@@ -30,6 +30,33 @@ class YoutubeArchive:
             return False
 
     @staticmethod
+    def held_ids(account: str, video_ids, download_type: str = AUDIO) -> set[str]:
+        """Which of these video ids are archived for this account in this form.
+
+        Keyed the way the table is keyed: a channel that is both an audio and a
+        video source holds the same video twice, once per form, and a deep pass
+        of one form must not read the other form's row as its own.
+
+        A database error is raised rather than swallowed; see
+        `SoundcloudArchive.held_ids` for why.
+        """
+        ids = [str(video_id) for video_id in video_ids]
+        if not ids:
+            return set()
+        found: set[str] = set()
+        with DatabaseConnector().connection() as conn, conn.cursor() as cursor:
+            for start in range(0, len(ids), 500):
+                chunk = ids[start:start + 500]
+                placeholders = ', '.join(['%s'] * len(chunk))
+                cursor.execute(
+                    'SELECT video_id FROM downloads_youtube_archive '
+                    'WHERE account = %s AND download_type = %s '
+                    f'AND video_id IN ({placeholders})',
+                    (account, download_type, *chunk))
+                found.update(str(row[0]) for row in cursor.fetchall())
+        return found
+
+    @staticmethod
     def insert(account: str, video_id: str, path: str, url: str, title: str,
                download_type: str = AUDIO):
         """Insert a newly downloaded track into the downloads_youtube_archive table."""

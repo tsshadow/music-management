@@ -4,6 +4,7 @@ from unittest.mock import patch
 from services.tests.mock_base import reset_database_helpers, setup_mocks
 
 setup_mocks()
+from services.downloader.timing import load_timing
 from services.downloader.youtube.DropCategoryGenre import DropCategoryGenrePP
 from services.downloader.youtube.youtube import YoutubeDownloader
 from services.tagger.constants import ARTIST, TITLE
@@ -68,7 +69,12 @@ class YoutubeDownloaderTest(unittest.TestCase):
                 self.processor.run(dl_info)
             return 0
         mock_instance.download.side_effect = mock_download
-        downloader = YoutubeDownloader(break_on_existing=False)
+        # This test drives the ordinary run. Without turning the cadence off the
+        # channel would be deep-due -- it has never been deep-swept -- and take
+        # the full-listing path instead.
+        downloader = YoutubeDownloader(
+            break_on_existing=False,
+            timing=load_timing('youtube', overrides={'deep_sweep_days': 0}))
         downloader.downloader_config['enabled'] = True
         with patch('time.sleep'):
             downloader.run(account='Noisia')
@@ -109,7 +115,12 @@ class YoutubeDownloaderTest(unittest.TestCase):
     def test_downloader_strips_categories_before_the_metadata_is_written(self, mock_ytdlp):
         """The filter has to run before download, since FFmpegMetadata is added
         through the `postprocessors` option and therefore always runs first."""
-        downloader = YoutubeDownloader(break_on_existing=False)
+        # This test drives the ordinary run. Without turning the cadence off the
+        # channel would be deep-due -- it has never been deep-swept -- and take
+        # the full-listing path instead.
+        downloader = YoutubeDownloader(
+            break_on_existing=False,
+            timing=load_timing('youtube', overrides={'deep_sweep_days': 0}))
         downloader._create_ydl({})
         registered = [(type(call.args[0]).__name__, call.kwargs.get('when'))
                       for call in mock_ytdlp.return_value.add_post_processor.call_args_list]

@@ -9,7 +9,7 @@ setup_mocks()
 from services.downloader.account_schedule import AccountSchedule, InMemoryCheckStore
 from services.downloader.rate_state import InMemoryRateStateStore, RateState
 from services.downloader.soundcloud.soundcloud import SoundcloudDownloader
-from services.downloader.timing import load_timing
+from services.downloader.timing import field_map, load_timing
 
 NOW = datetime(2026, 7, 30, 12, 0, 0)
 
@@ -43,7 +43,11 @@ class SoundcloudTimingTestBase(unittest.TestCase):
         self.downloaded = []
         self.mock_ydl.return_value.__enter__.return_value.download.side_effect = self._download
 
-        self.timing = load_timing('soundcloud', overrides=self.overrides)
+        # These suites are about the ordinary path: the probe, the batching and
+        # the backoff. Without this every account would be deep-due -- none has
+        # ever been deep-swept -- and take the full-listing path instead.
+        self.timing = load_timing('soundcloud',
+                                  overrides={'deep_sweep_days': 0, **self.overrides})
         self.rate_store = InMemoryRateStateStore()
         self.check_store = InMemoryCheckStore()
 
@@ -228,3 +232,25 @@ class AccountsAreOnlyMarkedWhenVisitedTest(SoundcloudTimingTestBase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class DeepSweepSettingsTest(unittest.TestCase):
+
+    def test_both_sources_offer_the_deep_sweep_knobs(self):
+        for source in ('soundcloud', 'youtube'):
+            keys = field_map(source)
+            self.assertIn('deep_sweep_days', keys)
+            self.assertIn('deep_sweep_max_downloads', keys)
+
+    def test_the_defaults_are_a_month_and_fifty_tracks(self):
+        timing = load_timing('soundcloud', overrides={})
+        self.assertEqual(30, timing.deep_sweep_days)
+        self.assertEqual(50, timing.deep_sweep_max_downloads)
+
+    def test_the_cadence_is_not_stretched_by_the_backoff_multiplier(self):
+        timing = load_timing('soundcloud', overrides={}, multiplier=4)
+        self.assertEqual(30, timing.deep_sweep_days)
+        self.assertEqual(50, timing.deep_sweep_max_downloads)
+
+    def test_telegram_has_no_deep_sweep(self):
+        self.assertNotIn('deep_sweep_days', field_map('telegram'))

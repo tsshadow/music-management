@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-08-23
+
+### Added
+- **De downloaders halen de staart van een account weer op.** Ze stopten bij de eerste track die
+  al binnen was, wat de dagelijkse ronde goedkoop houdt en tegelijk elk gat blijvend maakte: een
+  ronde die halverwege een account op een 429 geparkeerd werd, liet de rest van dat kanaal staan, en
+  elke volgende ronde stopte boven het gat. Er is nu een diepe ronde die het account plat uitleest —
+  alleen ids, 200 per verzoek, niets opgehaald — daar het archief van aftrekt en alleen de echt
+  ontbrekende tracks binnenhaalt. Dat is iets anders dan `break_on_existing` uitzetten, wat eerder de
+  429's opleverde: zonder die stop haalt yt-dlp elk nummer van het kanaal volledig op om te ontdekken
+  dat er zes missen. Een account van 5000 tracks kost zo 25 verzoeken in plaats van 5000. Gebeurt
+  vanzelf elke `deep_sweep_days` (standaard 30) op een moment dat het account toch al aan de beurt
+  is, of met de hand via `--deep`, eventueel met `--account`. `deep_sweep_max_downloads` (standaard
+  50) begrenst wat één ronde ophaalt; wordt een ronde geparkeerd of afgekapt, dan blijft het account
+  aan de beurt en gaat de eerstvolgende gewone ronde verder met de staart.
+- **Tracks die bewust worden overgeslagen worden nu opgeschreven.** Een afwijzing op lengte liet
+  nergens een spoor achter, dus een diepe ronde zou dezelfde veertig fragmenten van dertig seconden
+  elke maand opnieuw vinden en het account nooit als klaar kunnen melden. De reden staat er nu bij,
+  en bij een lengte-afwijzing ook de gemeten duur — verruim je de grenzen, dan komen die tracks
+  vanzelf terug zonder één verzoek om te herontdekken wat ze zijn. Een track die drie rondes achter
+  elkaar mislukt wordt afgeschreven in plaats van zijn account eeuwig open te houden.
+
 ## [0.25.0] - 2026-08-23
 
 ### Added
@@ -20,7 +42,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is te bewaren en werkt na een refresh, met dit voorbehoud dat bij memories hoort: ze hangen aan de
   dag, dus morgen staan er andere nummers onder hetzelfde jaartal — of geen, en dat zegt de pagina
   dan zelf.
-
 ### Fixed
 - **De label-backfill eindigde er netjes uit terwijl hij bestanden had overgeslagen.** Hij sloot af
   met een regel als `{'written': 412}`, en wat de schijf geweigerd had stond alleen als waarschuwing

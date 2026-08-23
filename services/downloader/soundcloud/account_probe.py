@@ -10,6 +10,9 @@ A flat entry carries an id, a title and a url and nothing else: the SoundCloud
 extractor yields a bare ``url_result`` for a user's tracks page and never builds
 the full info dict, so there is no upload timestamp to be had here. The date
 comes from the full run instead.
+
+What "flat" means lives in `services.downloader.deep_sweep`, which the deep pass
+uses to read the same listing without a limit. One definition, two questions.
 """
 from __future__ import annotations
 
@@ -17,22 +20,7 @@ from dataclasses import dataclass
 
 from yt_dlp import YoutubeDL
 
-# Read exactly one entry, and resolve none of it.
-_PROBE_OPTS = {
-    'extract_flat': 'in_playlist',
-    'lazy_playlist': True,
-    'playlistend': 1,
-    'skip_download': True,
-    'simulate': True,
-    'quiet': True,
-}
-
-# Options that would hide the very thing we are looking for. `break_on_existing`
-# raises as soon as it meets an archived track, which is the expected case here,
-# and `download_archive` makes yt-dlp skip the entry outright. The rest only
-# matter to a real download.
-_DROPPED_OPTS = ('download_archive', 'break_on_existing', 'match_filter',
-                 'outtmpl', 'format')
+from services.downloader.deep_sweep import list_flat
 
 
 @dataclass(frozen=True)
@@ -49,16 +37,9 @@ def newest_track(account: str, base_opts: dict, ydl_factory=YoutubeDL) -> ProbeR
     Errors are raised rather than swallowed: only the caller knows whether a 403
     should park the source or simply fall through to a full run.
     """
-    opts = {key: value for key, value in base_opts.items() if key not in _DROPPED_OPTS}
-    opts.update(_PROBE_OPTS)
     url = f'https://soundcloud.com/{account}/tracks'
-    with ydl_factory(opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-    entries = (info or {}).get('entries') or []
-    if not entries:
+    tracks = list_flat(url, base_opts, limit=1, ydl_factory=ydl_factory)
+    if not tracks:
         return None
-    entry = entries[0] or {}
-    track_id = entry.get('id')
-    if track_id is None:
-        return None
-    return ProbeResult(str(track_id), entry.get('title'), entry.get('url'))
+    first = tracks[0]
+    return ProbeResult(first.track_id, first.title, first.url)

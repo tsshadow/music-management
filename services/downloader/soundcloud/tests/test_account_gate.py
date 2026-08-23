@@ -26,6 +26,9 @@ class AccountGateTestCase(unittest.TestCase):
         self.addCleanup(patch.stopall)
         self.downloader = SoundcloudDownloader()
         self.downloader.policy = MagicMock()
+        # This gate is the probe's. A MagicMock answers every call truthily, so
+        # without this the account would look deep-due and never reach the probe.
+        self.downloader.policy.deep_due.return_value = False
         self.downloader.download_account = MagicMock()
 
     def probe_returns(self, result):

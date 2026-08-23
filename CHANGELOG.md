@@ -7,19 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.25.0] - 2026-08-23
-
 ### Added
-- **Memories op web is een fotoboek geworden.** In plaats van één lange pagina met alle jaren onder
-  elkaar staat er nu een tegel per jaar: een mozaïek van de hoezen van dat jaar, het jaartal groot
-  eroverheen, en daaronder de drie nummers die je er het meest mee hebt. Wat "het meest" is leidt de
-  app af uit wat er al bekend is — vijf sterren gaat voor, en binnen én buiten die groep bepaalt het
-  aantal beluisteringen de volgorde. Klik je op een tegel, dan krijgt dat jaar een eigen pagina op
-  `/memories/2025` met de gewone tracklijst, vijftig nummers tegelijk en een knop om er vijftig bij
-  te laden. De afspeelknop start het hele jaar, niet alleen wat er op dat moment staat. Zo'n adres
-  is te bewaren en werkt na een refresh, met dit voorbehoud dat bij memories hoort: ze hangen aan de
-  dag, dus morgen staan er andere nummers onder hetzelfde jaartal — of geen, en dat zegt de pagina
-  dan zelf.
 - **De downloaders halen de staart van een account weer op.** Ze stopten bij de eerste track die
   al binnen was, wat de dagelijkse ronde goedkoop houdt en tegelijk elk gat blijvend maakte: een
   ronde die halverwege een account op een 429 geparkeerd werd, liet de rest van dat kanaal staan, en
@@ -39,6 +27,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vanzelf terug zonder één verzoek om te herontdekken wat ze zijn. Een track die drie rondes achter
   elkaar mislukt wordt afgeschreven in plaats van zijn account eeuwig open te houden.
 
+## [0.25.0] - 2026-08-23
+
+### Added
+- **Memories op web is een fotoboek geworden.** In plaats van één lange pagina met alle jaren onder
+  elkaar staat er nu een tegel per jaar: een mozaïek van de hoezen van dat jaar, het jaartal groot
+  eroverheen, en daaronder de drie nummers die je er het meest mee hebt. Wat "het meest" is leidt de
+  app af uit wat er al bekend is — vijf sterren gaat voor, en binnen én buiten die groep bepaalt het
+  aantal beluisteringen de volgorde. Klik je op een tegel, dan krijgt dat jaar een eigen pagina op
+  `/memories/2025` met de gewone tracklijst, vijftig nummers tegelijk en een knop om er vijftig bij
+  te laden. De afspeelknop start het hele jaar, niet alleen wat er op dat moment staat. Zo'n adres
+  is te bewaren en werkt na een refresh, met dit voorbehoud dat bij memories hoort: ze hangen aan de
+  dag, dus morgen staan er andere nummers onder hetzelfde jaartal — of geen, en dat zegt de pagina
+  dan zelf.
 ### Fixed
 - **De label-backfill eindigde er netjes uit terwijl hij bestanden had overgeslagen.** Hij sloot af
   met een regel als `{'written': 412}`, en wat de schijf geweigerd had stond alleen als waarschuwing

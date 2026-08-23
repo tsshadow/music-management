@@ -112,6 +112,9 @@ export function rankSongs(songs) {
  * most loved titles and up to four covers for the collage. Songs without cover art are skipped for
  * the collage but still counted, so a tagless track cannot punch a hole in the mosaic.
  *
+ * The covers are also deduplicated. A year's best tracks routinely come off one album -- in a real
+ * library most years do -- and four copies of the same sleeve is not a collage.
+ *
  * @param {Array<{year: number, yearsAgo: number, exact: boolean, songs: Object[]}>} groups - Groups
  *   as returned by {@link parseMemoryGroups}.
  * @returns {Array<{year: number, yearsAgo: number, exact: boolean, count: number, top: Object[], covers: string[]}>}
@@ -129,10 +132,10 @@ export function yearTiles(groups) {
         exact: group.exact,
         count: group.songs.length,
         top: ranked.slice(0, TILE_TOP_COUNT),
-        covers: ranked
-          .map((song) => song.coverArt)
-          .filter(Boolean)
-          .slice(0, TILE_COVER_COUNT)
+        covers: [...new Set(ranked.map((song) => song.coverArt).filter(Boolean))].slice(
+          0,
+          TILE_COVER_COUNT
+        )
       };
     });
 }

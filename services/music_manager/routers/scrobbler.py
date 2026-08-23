@@ -49,10 +49,15 @@ def init_db(cursor):
     # played_secs on installations that predate it. The CREATE TABLE statements above only run for
     # a database that has neither table, so an existing stack would never see the column otherwise.
     # Mirrors migrate_v12_listen_played_secs.sql, which is what production runs.
-    for table in ('scrobble_listens', 'scrobble_unmatched_listens'):
-        cursor.execute(f"SHOW COLUMNS FROM {table} LIKE 'played_secs'")
-        if not cursor.fetchone():
-            cursor.execute(f'ALTER TABLE {table} ADD COLUMN played_secs INT UNSIGNED NULL')
+    # Written out per table rather than looped over an f-string: a table name cannot be a bound
+    # parameter, and a formatted statement here is indistinguishable from an injectable one to
+    # anything reading the code, semgrep included.
+    cursor.execute("SHOW COLUMNS FROM scrobble_listens LIKE 'played_secs'")
+    if not cursor.fetchone():
+        cursor.execute('ALTER TABLE scrobble_listens ADD COLUMN played_secs INT UNSIGNED NULL')
+    cursor.execute("SHOW COLUMNS FROM scrobble_unmatched_listens LIKE 'played_secs'")
+    if not cursor.fetchone():
+        cursor.execute('ALTER TABLE scrobble_unmatched_listens ADD COLUMN played_secs INT UNSIGNED NULL')
 
 @router.post('/event')
 def handle_scrobble_event(event: ScrobbleEvent, _auth: dict=Depends(verify_api_key)):

@@ -21,8 +21,12 @@
 
 #include "../ParameterParsing.hpp"
 #include "core/PartialDateTime.hpp"
+#include "core/Service.hpp"
 #include "database/Session.hpp"
+#include "database/objects/User.hpp"
 #include "responses/Song.hpp"
+#include "services/feedback/IFeedbackService.hpp"
+#include "services/scrobbling/IScrobblingService.hpp"
 
 #include <algorithm>
 #include <functional>
@@ -46,12 +50,26 @@ namespace lms::api::subsonic
 
             for (auto& [year, yearTracks] : byYear)
             {
-                // Stable, so the query's ordering survives inside each of the two halves.
-                std::stable_partition(yearTracks.begin(), yearTracks.end(), [](const DatedTrack& track) { return track.exact; });
+                // Most loved first, so truncation keeps the best of the year rather than the head of
+                // the query. The date only separates tracks the listener treats identically, which
+                // preserves the older rule that an exact anniversary survives a near miss.
+                std::sort(yearTracks.begin(), yearTracks.end(), [](const DatedTrack& a, const DatedTrack& b) {
+                    if (a.favourite != b.favourite)
+                        return a.favourite;
+                    if (a.listens != b.listens)
+                        return a.listens > b.listens;
+                    if (a.exact != b.exact)
+                        return a.exact;
+
+                    // The id only settles a full tie, so that two runs of the same request cannot
+                    // hand the client the same year in a different order.
+                    return a.id < b.id;
+                });
 
                 Group group;
                 group.year = year;
                 group.exact = std::any_of(yearTracks.begin(), yearTracks.end(), [](const DatedTrack& track) { return track.exact; });
+                group.total = yearTracks.size();
 
                 for (const DatedTrack& track : yearTracks)
                 {
@@ -123,6 +141,10 @@ namespace lms::api::subsonic
         const std::size_t windowDays{ memories::clampWindowDays(getParameterAs<std::size_t>(ctx.getParameters(), "windowDays").value_or(memories::defaultWindowDays)) };
         const std::size_t maxPerYear{ memories::clampMaxPerYear(getParameterAs<std::size_t>(ctx.getParameters(), "maxPerYear").value_or(memories::defaultMaxPerYear)) };
 
+        // Optional: one year's memories rather than every year's. A year nobody has memories in is
+        // an empty answer, not an error, exactly as a day without memories is.
+        const auto requestedYear{ getParameterAs<int>(ctx.getParameters(), "year") };
+
         auto transaction{ session.createReadTransaction() };
 
         db::Track::ReleaseAnniversaryParameters params;
@@ -136,6 +158,8 @@ namespace lms::api::subsonic
         std::vector<memories::DatedTrack> dated;
         std::unordered_map<db::TrackId, db::Track::pointer> tracksById;
 
+        const db::UserId userId{ ctx.getUser()->getId() };
+
         for (const db::TrackId trackId : trackIds.results)
         {
             const db::Track::pointer track{ db::Track::find(session, trackId) };
@@ -147,9 +171,16 @@ namespace lms::api::subsonic
             if (!year)
                 continue;
 
-            const bool exact{ date.getMonth() == static_cast<int>(params.month) && date.getDay() == static_cast<int>(params.day) };
+            // A client asking for one year pays for one year: the rating and the listen count are a
+            // service call each, and there is no point spending them on years it will not show.
+            if (requestedYear && *requestedYear != *year)
+                continue;
 
-            dated.push_back({ trackId, *year, exact });
+            const bool exact{ date.getMonth() == static_cast<int>(params.month) && date.getDay() == static_cast<int>(params.day) };
+            const auto rating{ core::Service<feedback::IFeedbackService>::get()->getRating(userId, trackId) };
+            const std::size_t listens{ core::Service<scrobbling::IScrobblingService>::get()->getCount(userId, trackId) };
+
+            dated.push_back({ trackId, *year, exact, rating.value_or(0) >= 5, listens });
             tracksById[trackId] = track;
         }
 
@@ -173,7 +204,10 @@ namespace lms::api::subsonic
             memoryNode.setAttribute("year", group.year);
             memoryNode.setAttribute("yearsAgo", requestDate.year() - group.year);
             memoryNode.setAttribute("exact", group.exact);
-            memoryNode.setAttribute("songCount", static_cast<int>(group.trackIds.size()));
+
+            // The year's own size, which is what a client counts out loud. The number of `song`
+            // children below it is a page, and says how much of that year this answer carries.
+            memoryNode.setAttribute("songCount", static_cast<int>(group.total));
 
             for (const db::TrackId trackId : group.trackIds)
                 memoryNode.addArrayChild("song", createSongNode(ctx, tracksById.at(trackId), true));

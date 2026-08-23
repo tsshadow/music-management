@@ -11,6 +11,28 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.29.0 (2026-08-23)
+
+- **Het aantal op een Memories-tegel klopt.** Er stond "200 tracks" op elke drukke tegel, want dat
+  was de limiet waarmee de pagina het jaar ophaalde: 2025 heeft er in werkelijkheid 450. De server
+  sorteert een jaar nu zelf op vijf sterren en beluisteringen voordat hij afkapt, en meldt het echte
+  totaal, dus zowel het aantal als de top-3 op een tegel gaan over het hele jaar. De pagina haalt
+  daardoor een paar honderd kilobyte op in plaats van 2,4 megabyte.
+- **De verhuizing zit nu in één script** dat je op de prod-host draait: containers stoppen,
+  hernoemen, paden bijwerken, instellingen aanpassen en alles weer starten. Eerst `--dry-run`, en
+  `--revert` draait het terug.
+
+## Global Version 0.28.0 (2026-08-23)
+
+- **De voortgangsbalk op de tv loopt weer mee.** In de browser van de LG-tv bewoog hij alleen als je
+  op play of pause drukte, en de tijd rechts bleef op `0:00` staan. De speler klokt de positie nu
+  zelf en leunt niet meer op een melding die die tv nauwelijks stuurt; hij valt voor de lengte terug
+  op wat de server bij de track meestuurt. Datzelfde euvel hield op de tv ook bij dat een halve set
+  meetelde in je luistergeschiedenis.
+- **De nieuwe mapindeling staat klaar** (`labels/`, `songs/`, `import/`, `channels/<platform>/`),
+  maar is nog niet uitgevoerd: dat vraagt eerst een aanpassing in de `.env` op productie en het
+  opnieuw starten van de workers. Het is een omkeerbare operatie van vijf mapnamen, geen verplaatsing
+  van 326.480 bestanden, en je ratings hangen er niet aan.
 - **Je toplabels kloppen weer.** SoundCloud, YouTube en Telegram stonden bovenaan je labellijst
   terwijl het geen labels zijn maar kanalen waar muziek doorheen binnenkomt; `__TODO` en
   `__Free&none` stonden er ook tussen. Die zijn nu kanalen of helemaal niets, en het eerste echte

@@ -7,7 +7,12 @@ from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
 
-from services.common.channels import channel_from_path, is_label, normalize_channel_name
+from services.common.channels import (
+    channel_from_path,
+    is_label,
+    normalize_channel_name,
+    path_can_carry_a_label,
+)
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.GenreRulesHelper import BLACK, GenreRulesHelper
 from services.music_manager.database import get_db_connection
@@ -184,7 +189,7 @@ class ScannerManager:
             # the collection. See services/common/channels.py.
             label_name = song.publisher()
             label_id = None
-            if label_name and is_label(label_name):
+            if label_name and is_label(label_name) and path_can_carry_a_label(path, self.music_path):
                 cursor.execute('INSERT IGNORE INTO library_labels (name) VALUES (%s)', (label_name,))
                 cursor.execute('SELECT id FROM library_labels WHERE name = %s', (label_name,))
                 label_id = cursor.fetchone()['id']

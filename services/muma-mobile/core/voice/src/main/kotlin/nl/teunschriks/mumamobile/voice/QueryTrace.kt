@@ -125,6 +125,15 @@ class QueryTrace(
             results?.let { append("  ($it tracks)") }
         }.replace('\n', ' ')
 
+    /**
+     * The lines as they were recorded, oldest first.
+     *
+     * A copy rather than the list itself: the trace goes on being written from whichever thread
+     * the media session called on, and a screen walking the live list would be walking it while it
+     * grows.
+     */
+    fun lines(): List<Line> = synchronized(lines) { lines.toList() }
+
     /** The whole story, one labelled line at a time. */
     fun render(): String = buildString {
         appendLine("${TIME.format(Date(at))}  $entryPoint  from $caller")

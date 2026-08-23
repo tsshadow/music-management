@@ -32,6 +32,16 @@ NON_LABEL_PUBLISHERS = {
 }
 
 
+# Top-level folders that hold music with no label at all. `songs` is the pile that genuinely has
+# none, `import` is the intake folder. They matter because the tagger derives a label from the
+# folders above a file: anything sitting outside the label tree would otherwise have its own root
+# stored as a label, which is exactly the mistake the platform folders already made.
+NON_LABEL_ROOTS = {
+    'songs',
+    'import',
+}
+
+
 def _normalize(value: str | None) -> str:
     """Lowercased and trimmed, which is how both sets above are keyed."""
     return (value or '').strip().lower()
@@ -80,6 +90,29 @@ def channel_from_path(path: str, music_root: str | None = None, delimiter: str =
         return None
 
     return None
+
+
+def path_can_carry_a_label(path: str, music_root: str | None = None, delimiter: str = '/') -> bool:
+    """Whether a label derived from this file's folders means anything.
+
+    The tagger reads a label from the folders above a track, which is right inside the label tree
+    and wrong everywhere else: a file under `songs/` or `import/` would have that root stored as its
+    label, and a file under a platform folder would have the platform stored. Both are the same
+    mistake, so both are refused here rather than in two places.
+    """
+    parts = [part for part in (path or '').split(delimiter) if part]
+
+    root = str(music_root or '').strip(delimiter)
+    if root:
+        root_parts = [part for part in root.split(delimiter) if part]
+        if parts[:len(root_parts)] == root_parts:
+            parts = parts[len(root_parts):]
+
+    if not parts:
+        return False
+
+    first = _normalize(parts[0])
+    return first not in NON_LABEL_ROOTS and first not in PLATFORM_FOLDERS
 
 
 def normalize_channel_name(name: str) -> str:

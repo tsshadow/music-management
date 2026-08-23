@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { authParams, playlist, currentTrack, playerState } from './store.js';
   import TrackList from './TrackList.svelte';
-  import { memoriesUrl, memoryHeading, parseMemoryGroups } from './memories.js';
+  import { memoriesUrl, memoryCount, memoryHeading, parseMemoryGroups } from './memories.js';
 
   const { year, onnavigate } = $props();
 
@@ -18,6 +18,9 @@
   const visible = $derived(songs.slice(0, shownCount));
   const heading = $derived(group ? memoryHeading(group) : null);
 
+  // The year's own size as the server counts it, which is what the header says out loud.
+  const total = $derived(group ? memoryCount(group) : 0);
+
   /**
    * Loads one year of today's memories.
    *
@@ -30,7 +33,7 @@
     isLoading = true;
     shownCount = PAGE_SIZE;
     try {
-      const response = await fetch(memoriesUrl($authParams));
+      const response = await fetch(memoriesUrl($authParams, { year }));
       if (response.ok) {
         const data = await response.json();
         group = parseMemoryGroups(data).find((candidate) => String(candidate.year) === String(year)) ?? null;
@@ -68,7 +71,7 @@
     <h1 class="text-4xl md:text-6xl font-black m-0">{year}</h1>
     {#if heading}
       <p class="text-[#b3b3b3] m-0 pb-1">
-        {$t(heading.key, heading.vars)} • {$t('common.trackCount', { count: songs.length })}
+        {$t(heading.key, heading.vars)} • {$t('common.trackCount', { count: total })}
       </p>
     {/if}
   </header>

@@ -157,13 +157,25 @@ describe('MemoriesView', () => {
     expect(globalThis.fetch.mock.calls[0][0]).toContain('/rest/getMemories');
   });
 
-  it('playing a year queues that group', async () => {
+  it('playing a year queues the whole year, not the handful on the tile', async () => {
+    // The overview holds a short page per year, so the play button has to go and get the rest
+    // before it queues anything.
+    const wholeYear = Array.from({ length: 40 }, (_, i) => ({ ...TRACK, id: `y-${i}`, title: `Year track ${i}` }));
+    globalThis.fetch = vi.fn(async (url) => ({
+      ok: true,
+      json: async () =>
+        String(url).includes('year=2024')
+          ? { 'subsonic-response': { memories: { memory: [{ year: 2024, song: wholeYear }] } } }
+          : MEMORIES
+    }));
+
     const { container } = render(MemoriesView, { onnavigate: vi.fn() });
     await waitFor(() => expect(screen.getByText('Raise Your Fist')).toBeTruthy());
 
     await fireEvent.click(container.querySelectorAll('.bg-brand')[0]);
 
-    expect(get(currentTrack)).toEqual(TRACK);
+    await waitFor(() => expect(get(playlist)).toHaveLength(40));
+    expect(get(currentTrack).id).toBe('y-0');
     expect(get(playerState).playing).toBe(true);
   });
 
@@ -185,11 +197,12 @@ describe('MemoriesView', () => {
     expect(screen.queryByText('Raise Your Fist')).toBeNull();
   });
 
-  it('asks for the whole year, so the tile counts and ranks the full group', async () => {
+  it('asks for a short page per year, since the server ranks and counts them', async () => {
     render(MemoriesView, { onnavigate: vi.fn() });
 
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
-    expect(globalThis.fetch.mock.calls[0][0]).toContain('maxPerYear=200');
+    expect(globalThis.fetch.mock.calls[0][0]).toContain('maxPerYear=12');
+    expect(globalThis.fetch.mock.calls[0][0]).not.toContain('year=');
   });
 
   it('shows one tile per year, with the year and its size', async () => {

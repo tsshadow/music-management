@@ -43,6 +43,7 @@ namespace lms::api::subsonic::memories::tests
 
     TEST(Memories, truncationKeepsExactMatches)
     {
+        // Equally loved tracks are separated by the date: an anniversary beats a near miss.
         const std::vector<DatedTrack> tracks{
             { db::TrackId{ 1 }, 2018, false },
             { db::TrackId{ 2 }, 2018, true },
@@ -54,6 +55,41 @@ namespace lms::api::subsonic::memories::tests
         ASSERT_EQ(groups.size(), 1);
         ASSERT_EQ(groups[0].trackIds.size(), 1);
         EXPECT_EQ(groups[0].trackIds[0], db::TrackId{ 2 });
+    }
+
+    TEST(Memories, ordersAYearByWhatTheListenerLovesMost)
+    {
+        // A five-star track outranks everything; below that the listen count decides.
+        const std::vector<DatedTrack> tracks{
+            { db::TrackId{ 1 }, 2018, true, false, 90 },
+            { db::TrackId{ 2 }, 2018, true, true, 2 },
+            { db::TrackId{ 3 }, 2018, true, false, 120 },
+        };
+
+        const std::vector<Group> groups{ groupByYear(tracks, 10) };
+
+        ASSERT_EQ(groups.size(), 1);
+        ASSERT_EQ(groups[0].trackIds.size(), 3);
+        EXPECT_EQ(groups[0].trackIds[0], db::TrackId{ 2 });
+        EXPECT_EQ(groups[0].trackIds[1], db::TrackId{ 3 });
+        EXPECT_EQ(groups[0].trackIds[2], db::TrackId{ 1 });
+    }
+
+    TEST(Memories, reportsTheYearsFullSizeNotThePageSize)
+    {
+        // The tile shows a count and the page shows a page; conflating the two makes a big year
+        // claim to be exactly as large as the limit that truncated it.
+        const std::vector<DatedTrack> tracks{
+            { db::TrackId{ 1 }, 2018, true, false, 3 },
+            { db::TrackId{ 2 }, 2018, true, false, 2 },
+            { db::TrackId{ 3 }, 2018, true, false, 1 },
+        };
+
+        const std::vector<Group> groups{ groupByYear(tracks, 2) };
+
+        ASSERT_EQ(groups.size(), 1);
+        EXPECT_EQ(groups[0].total, 3);
+        EXPECT_EQ(groups[0].trackIds.size(), 2);
     }
 
     TEST(Memories, emptyInputYieldsNoGroups)

@@ -41,15 +41,18 @@ namespace lms::api::subsonic
         struct DatedTrack
         {
             db::TrackId id;
-            int year{};   // effective release year
-            bool exact{}; // released on exactly the requested month and day
+            int year{};             // effective release year
+            bool exact{};           // released on exactly the requested month and day
+            bool favourite{};       // rated five stars by the requesting user
+            std::size_t listens{};  // how often the requesting user played it
         };
 
         /** One year's worth of memories. */
         struct Group
         {
             int year{};
-            bool exact{}; // at least one track in this group is an exact date match
+            bool exact{};        // at least one track in this group is an exact date match
+            std::size_t total{}; // the year's full size, before maxPerYear truncated it
             std::vector<db::TrackId> trackIds;
         };
 
@@ -57,15 +60,26 @@ namespace lms::api::subsonic
          * Groups tracks per release year, newest year first, keeping at most maxPerYear tracks in
          * each group.
          *
-         * Exact date matches are placed before window matches inside a group, so truncation can
-         * never drop an exact match while a near miss survives.
+         * A year is ordered by what the listener values most -- a five-star favourite first, then
+         * the listen count -- so that a client showing only the head of a group shows its best
+         * tracks rather than whichever ones the query happened to return first. Tracks the listener
+         * treats identically are separated by the date, which keeps the original guarantee that
+         * truncation can never drop an exact anniversary while a near miss survives.
+         *
+         * `total` reports the year before truncation: a count is a fact about the year, not about
+         * the page size, and reporting the page size makes every large year claim to be exactly as
+         * big as the limit.
          */
         std::vector<Group> groupByYear(const std::vector<DatedTrack>& tracks, std::size_t maxPerYear);
 
         inline constexpr std::size_t defaultWindowDays{ 3 };
         inline constexpr std::size_t maxWindowDays{ 14 };
         inline constexpr std::size_t defaultMaxPerYear{ 30 };
-        inline constexpr std::size_t maxMaxPerYear{ 200 };
+
+        // High enough that a client asking for one year gets all of it: the biggest year in a real
+        // library sits in the hundreds, and a client that wants the whole thing asks for one year
+        // rather than for every year at once.
+        inline constexpr std::size_t maxMaxPerYear{ 1000 };
 
         /**
          * An absurd window or page size is a client being sloppy, not a client being wrong, so it

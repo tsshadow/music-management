@@ -62,16 +62,18 @@ group alongside the release groups, without redesigning it.
    shows a tile per year that opens its own page, Android lists the years as sections on one screen.
 9. The home preview shows one card per year group, at most ten cards, so it stays a short strip; opening a
    card opens that year.
-10. A web tile names the three tracks of its year that the listener values most: favourites first, and
-    listen count deciding both within the favourites and among the rest.
-11. A web year page shows fifty tracks at a time; the whole year plays from its play action, not just the
-    part on screen.
 10. Switching the home preview off in settings hides it, and the setting survives restarting the app or
     reloading the page.
 11. With the home preview switched off, Memories is still reachable in both clients without changing any
     setting back.
 12. When there is nothing to show, the home preview is absent rather than present-and-empty.
 13. A device in a different time zone than the server sees memories for the device's own local date.
+14. A web tile names the three tracks of its year that the listener values most: favourites first, and
+    listen count deciding both within the favourites and among the rest. That ordering is the server's, so
+    the three are the best of the whole year rather than the best of the page the client happens to hold.
+15. A web year page shows fifty tracks at a time; the whole year plays from its play action, not just the
+    part on screen.
+16. A count shown next to a year is the size of that year, not the size of the page the client was sent.
 
 ## Open Questions / Not Yet Decided
 

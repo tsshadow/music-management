@@ -83,7 +83,7 @@ extensions.
 
 | Endpoint | Request | Response | Error cases |
 |---|---|---|---|
-| `GET /rest/getMemories` | Standard Subsonic auth parameters, plus `date` (optional, `YYYY-MM-DD`), `windowDays` (optional, default 3, clamped to 0–14), `maxPerYear` (optional, default 30, clamped to 1–200) | `subsonic-response` containing a `memories` node with zero or more `memory` array children | Malformed `date` or non-numeric `windowDays`/`maxPerYear`: standard Subsonic error code 10 (required parameter missing / invalid). Auth failures use the standard Subsonic codes, unchanged. No matches is **not** an error: `memories` is present and empty |
+| `GET /rest/getMemories` | Standard Subsonic auth parameters, plus `date` (optional, `YYYY-MM-DD`), `windowDays` (optional, default 3, clamped to 0–14), `maxPerYear` (optional, default 30, clamped to 1–1000), `year` (optional: answer for that release year alone) | `subsonic-response` containing a `memories` node with zero or more `memory` array children | Malformed `date` or non-numeric `windowDays`/`maxPerYear`: standard Subsonic error code 10 (required parameter missing / invalid). Auth failures use the standard Subsonic codes, unchanged. No matches is **not** an error: `memories` is present and empty |
 
 `date` defaults to the server's local date. Clients send their own local date so that a device in another
 time zone gets its own "today" (functional criterion 12).
@@ -96,14 +96,22 @@ Each `memory` node carries:
 | `year` | The release year of the group |
 | `yearsAgo` | `requestYear - year`, always >= 1 |
 | `exact` | `true` when at least one track in the group matches the request's month-and-day exactly, `false` when the group only exists because of the window. Drives the "today" versus "this week" wording |
-| `songCount` | Number of `song` children |
+| `songCount` | The year's full size, **before** `maxPerYear` truncated it, so a client can say how big the year is while holding only a page of it. The number of `song` children says how much of that year this answer carries |
 
 and contains `song` array children produced by the existing `createSongNode(ctx, track, true)` helper used by
 `Spotify.cpp`, so the entries are ordinary Subsonic songs that both clients can queue and play without a
 second lookup.
 
-Within a group, exact-date matches are listed before window matches; `maxPerYear` truncates the group after
-that ordering, so exact matches are never dropped in favour of near misses.
+Within a group, tracks are ordered by what the requesting user values most -- a five-star favourite first,
+then the listen count -- and `maxPerYear` truncates after that ordering. A client showing only the head of a
+group therefore shows the best of the year rather than whichever tracks the query returned first. Tracks the
+user treats identically are separated by the date, which preserves the original guarantee that an exact
+anniversary is never dropped in favour of a near miss; a full tie falls back to the track id so that two
+identical requests cannot return the same year in a different order.
+
+The ranking needs a rating and a play count per candidate track, which are two service calls each. `year` is
+what keeps that bounded: a client asking for one year pays for one year, and the filter is applied before the
+lookups rather than after.
 
 This is a new endpoint only. No existing endpoint changes shape, so there is no breaking change for existing
 clients.
@@ -130,14 +138,18 @@ Response parsing, the request URL, the local-date format and the heading rule li
 because the overview, the year page and the carousel need them and the rules are the pieces worth testing on
 their own. Two more live there for the tiles: `rankSongs`, which turns `userRating` and `playCount` -- both
 already on every song node -- into the "favourites first, then listens" order the tiles show, and
-`yearTiles`, which reduces a group to its count, its top three and four covers. Ranking client-side is what
-keeps this a frontend-only change; it is also why both screens ask for `maxPerYear=200` rather than the
-server's default page, since a truncated group would report the wrong count and rank the wrong three.
+`yearTiles`, which reduces a group to its count, its top three and four covers. The ranking now happens on the server, which is what
+lets the overview ask for a short page: it requests twelve songs per year -- enough to name three and fill a
+four-cover mosaic -- and reads the year's real size off `songCount`. Asking for every year in full instead
+made the overview a multi-megabyte download that still could not count a year of 450 tracks correctly.
+`rankSongs` stays as the client's own ordering of that short page, which keeps the tiles sensible against a
+server too old to rank.
 All of it is covered by `tests/unit/memories.test.js` (the frontend does have a Vitest suite, see
 `docs/testing-inventory.md`).
 
 The year page fetches for itself rather than inheriting the overview's groups, so that a bookmarked
-`/memories/2025` survives a refresh. Because memories are relative to today, the same URL is a different
+`/memories/2025` survives a refresh; it asks with `year=` so that one page costs one year instead of all of
+them. The tile's play action does the same on click, since the tile itself holds only a page of its year. Because memories are relative to today, the same URL is a different
 page tomorrow; the page says so through its own empty state instead of pretending the year is gone.
 
 New user-facing strings go through the existing i18n layer. The `memories` block is translated in all four
@@ -215,10 +227,12 @@ already swallows the throw.
 8. `GET /rest/getMemories` with no matching tracks returns a success response with an empty `memories` node,
    not an error.
 9. `GET /rest/getMemories?date=2020-13-45` returns Subsonic error code 10.
-10. `windowDays=999` is clamped to 14 and `maxPerYear=0` is clamped to 1, rather than rejected.
+10. `windowDays=999` is clamped to 14 and `maxPerYear=0` is clamped to 1, rather than rejected;
+    `maxPerYear=9999` is clamped to 1000.
 11. A `memory` node has `exact="true"` if and only if at least one of its songs matches the requested
     month-and-day exactly.
-12. `maxPerYear` truncation never removes an exact-date match while a window match remains in the same group.
+12. `maxPerYear` truncation never removes an exact-date match while an equally-loved window match remains in
+    the same group.
 13. Every `song` child validates as an ordinary Subsonic song entry and its `id` can be streamed via
     `/rest/stream`.
 14. The MuMa Mobile response DTOs parse a two-group response, including the `kind`, `exact` and `yearsAgo`
@@ -230,6 +244,11 @@ already swallows the throw.
 17. `./scripts/test/lms-unit.sh`, `./scripts/test/android-unit.sh` and `./scripts/test/frontend-unit.sh` pass.
 18. `./scripts/test/contracts.sh` covers `/rest/getMemories` returning a well-formed success response against
     the test stack.
+19. A year is ordered five-star favourites first, then by listen count, so truncation keeps the best of the
+    year rather than the head of the query.
+20. `songCount` reports the year's size before truncation, so a group truncated to twelve of four hundred
+    still says four hundred.
+21. `year=2025` answers with that year alone, and with an empty `memories` node when it holds nothing.
 
 ## Related Docs
 

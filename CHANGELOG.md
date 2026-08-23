@@ -7,7 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Het autoscherm van muma-mobile draait nu om de microfoon.** Bovenin vier snelkoppelingen, in het
+  midden een gevulde microfoonknop, onderin compact wat er speelt: hoes, titel, bediening en de
+  sterren. De snelkoppelingen werden afgesneden omdat ze als enige blok om restruimte vochten met de
+  hoes, de bediening en de sterren; ze staan nu allebei op `wrap_content` en kunnen elkaar geen
+  hoogte meer afnemen. De balk onderin waren er twee — de tabbladen en het kleine spelertje — en
+  allebei blijven ze weg zolang de autostand aan staat.
+- **Het spraakscherm luistert zodra het opengaat.** Alles wat op dat scherm uitkomt is al een besluit
+  om iets te zeggen, dus de tik erna bewees dat alleen nog een tweede keer. De knop eronder is nu een
+  herhaling, en blijft wel wat de eerste keer om de microfoonrechten vraagt. Na het starten van de
+  muziek gaat het scherm na tien seconden terug; elke aanraking annuleert dat definitief.
+
 ### Added
+- **Het spraakscherm vertelt wat het begreep, in woorden.** `genre Hardstyle`, `jaar 2021`, regel
+  voor regel, met het volledige verslag één tik verderop. Waar eerst het filterobject stond dat naar
+  de server gaat: `Playing [{"name":"GENRE","value":"hardstyle"}]`. De regels komen uit
+  `VoiceExplanation` in `core:voice`, zodat ze een veld dragen in plaats van een label en vertaalbaar
+  blijven.
 - **Artiesten, labels en genres zijn nu te bewerken vanuit de webui.** Het uitgangspunt van MuMa
   blijft dat je zo min mogelijk zelf edit, maar twee dingen kan geen bestand dragen: een koppeling
   (een MBID, een alias) en een regel. Daar staat nu een potloodknop voor naast de titel op de
@@ -25,6 +42,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   keurig in de database en er gebeurde niets. Dat gold ook voor de bestaande knoppen onder
   Beheer → Tagger. Het proces dat de regel schrijft ververst zijn eigen cache nu direct, en elke
   andere tagger (importer, downloader) loopt binnen een minuut bij.
+
+## [0.29.0] - 2026-08-23
+
+### Added
+- **Eén script dat de verhuizing op productie helemaal doet.**
+  `scripts/prod-restructure-music.sh --dry-run` en daarna `--apply`, als root op de prod-host.
+  Het zoekt de stack zelf op — de databasecontainer aan zijn image, de te stoppen containers aan
+  wie er echt `/mnt/music` gemonteerd heeft, en de `.env` via de compose-labels — stopt die
+  containers, hernoemt, herschrijft de opgeslagen paden mét hun hash, past de vier padinstellingen
+  aan en start precies terug wat het gestopt heeft, via een `EXIT`-trap zodat de stack ook omhoog
+  komt als een stap faalt. Vooraf controleert het of MariaDB's `SHA2()` dezelfde hashes oplevert als
+  wat Python ooit heeft weggeschreven; zo niet, dan weigert het — anders zou de kolom vollopen met
+  waarden die de scanner niet herkent en zou élk bestand er nieuw uitzien. `--revert --dry-run`
+  laat zien wat terugdraaien zou doen. Achteraf nog twee dingen zelf doen: een volledige LMS-rescan,
+  en de CI-variabele `PROD_ENV_FILE` bijwerken — prod's `.env` wordt bij elke deploy daaruit
+  overschreven.
+
+### Changed
+- **Het aantal op een Memories-tegel klopt nu, en de top-3 ook.** Er stond "200 tracks" op elke
+  drukke tegel, want dat was de limiet waarmee de webpagina het jaar ophaalde, niet de grootte van
+  het jaar: 2025 heeft er in werkelijkheid 450, 2024 er 407, en zeven van de negentien jaren zitten
+  boven die limiet. Dezelfde limiet maakte de top-3 een gok, omdat hij koos uit de eerste 200 die de
+  query toevallig teruggaf. De server sorteert een jaar nu zelf op wat je ermee hebt — vijf sterren
+  eerst, daarna het aantal beluisteringen — vóórdat hij afkapt, en meldt het echte jaartotaal
+  ernaast. Daardoor kan het overzicht met twaalf nummers per jaar toe in plaats van tweehonderd:
+  de pagina haalt nog een paar honderd kilobyte op in plaats van 2,4 megabyte, en toont toch de
+  juiste drie en het juiste aantal. Een jaarpagina vraagt met `year=` alleen dat ene jaar op en
+  krijgt het compleet; de afspeelknop op een tegel doet hetzelfde, zodat die het hele jaar in de
+  wachtrij zet en niet de handvol nummers die op de tegel pasten.
+
+## [0.28.0] - 2026-08-23
+
+### Added
+- **De mapindeling van de bibliotheek, klaar om uit te voeren.** `EPs` bevatte drie verschillende
+  dingen door elkaar: releases mét label, releases zónder label (`__Free&None`) en de importstapel
+  (`__TODO`). Alleen het eerste is een labelboom, en dat is precies waarom de andere twee steeds in
+  je labellijst opdoken. `scripts/restructure_music_folders.py` splitst ze uit elkaar naar
+  `labels/`, `songs/`, `import/` en `channels/<platform>/`. Het zijn vijf mapnamen, geen 326.480
+  bestandsverplaatsingen — alles blijft binnen dezelfde mount, dus het is een metadata-operatie en
+  `--revert` draait het net zo goedkoop terug. Het script weigert het hele plan zodra één stap niet
+  kan; half verhuisd is het slechte geval. Draai eerst `--dry-run`. Let op: het is nog **niet**
+  uitgevoerd, en dat kan ook niet vanaf een ontwikkelmachine alleen — de padinstellingen bereiken de
+  workers via de `.env` op productie, niet via de API-config. De volgorde staat in
+  [docs/designs/wrapped/technical.md](docs/designs/wrapped/technical.md), deel 3.
 - **SoundCloud is geen platenlabel meer.** `Soundcloud` (132.037 tracks), `Youtube` (30.779) en
   `Telegram` (1.556) stonden bovenaan je labellijst, ver boven het eerste echte label (Dirty Workz,
   2.299). Dat kwam doordat de tagger het platform in de publisher-tag zet en de scanner een
@@ -52,6 +113,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   over 2026; zie [docs/designs/wrapped/](docs/designs/wrapped/).
 
 ### Fixed
+- **De voortgangsbalk op de tv stond stil.** In de browser van de LG-tv bewoog de balk alleen als je
+  op play of pause drukte. De balk hing volledig aan het `timeupdate`-event van het audio-element, en
+  die tv stuurt dat alleen bij een toestandswissel — niet op de vier keer per seconde die de standaard
+  voorschrijft. De speler leest de positie nu zelf elke 250 ms uit zolang er geluid speelt, op elk
+  apparaat, dus hij hangt nergens meer af van hoe gul een browser met dat event is. Hetzelfde
+  euvel hield op de tv ook de halverwege-listen tegen, want die telde mee op dezelfde tikken.
+- **Een tv-stream zonder lengte liet de balk op nul staan.** Een getranscodeerde stream komt in
+  stukjes binnen zonder `Content-Length`, en dan meldt het audio-element `Infinity` als lengte. Elke
+  berekening daarmee wordt `NaN`, dus de balk bleef leeg, de tijd rechts bleef `0:00` en klikken om
+  te spoelen gooide je positie weg. De speler valt nu terug op de lengte die de server bij de track
+  meestuurt, en weigert te spoelen zolang er helemaal geen lengte bekend is.
+- **De verhuizing zou een nieuw nep-label hebben opgeleverd.** De tagger leidt een label af uit de
+  mappen boven een track. Zet je `__Free&None` op `/mnt/music/songs/`, dan is het naïeve antwoord dat
+  al die tracks op een label genaamd `songs` staan — dezelfde fout als `Soundcloud`, alleen met een
+  andere naam. Een pad onder een niet-label-map of een platformmap levert nu structureel geen label
+  meer op, en beide indelingen blijven tijdens de verhuizing goed werken.
 - **Een set die je wegklikt telt eindelijk mee.** De telefoon stuurde alleen een listen als een
   track vanzelf afliep of de wachtrij leeg raakte; drukte je op volgende, dan werd er niets
   vastgelegd. Bij tracks van gemiddeld een kwartier is doorspelen tot het eind juist de

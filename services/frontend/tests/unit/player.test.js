@@ -309,6 +309,9 @@ describe('Player', () => {
     const { container } = renderPlayer();
     const audioElement = container.querySelector('audio');
     Object.defineProperty(audioElement, 'duration', { value: 200, writable: true });
+    // Seeking uses the same length the bar is drawn with, so the element has to
+    // have reported it.
+    await fireEvent.loadedMetadata(audioElement);
     const bar = screen.getByLabelText('Door nummer spoelen');
     bar.getBoundingClientRect = () => ({ left: 0, width: 100 });
 
@@ -396,6 +399,94 @@ describe('Player', () => {
       await fireEvent.click(screen.getByLabelText('Radio'));
 
       await waitFor(() => expect(get(radioChannel)).toBe('main'));
+    });
+  });
+
+  // The LG TV browser fires `timeupdate` only on a state change -- play, pause,
+  // seek, ended -- and never on the periodic cadence the spec asks for, so the
+  // bar used to sit still there until someone touched the transport.
+  describe('a browser that does not fire timeupdate', () => {
+    it('the position follows the element while it plays', async () => {
+      vi.useFakeTimers();
+      try {
+        const { container } = renderPlayer();
+        const audioElement = container.querySelector('audio');
+        Object.defineProperty(audioElement, 'duration', { value: 240, writable: true });
+        Object.defineProperty(audioElement, 'paused', { value: false, writable: true });
+        audioElement.currentTime = 0;
+
+        await fireEvent.play(audioElement);
+        audioElement.currentTime = 30;
+        // No `timeupdate` is dispatched at any point.
+        await vi.advanceTimersByTimeAsync(300);
+
+        expect(get(playerState).progress).toBe(30);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('the polling stops once the element is paused', async () => {
+      vi.useFakeTimers();
+      try {
+        const { container } = renderPlayer();
+        const audioElement = container.querySelector('audio');
+        Object.defineProperty(audioElement, 'duration', { value: 240, writable: true });
+        Object.defineProperty(audioElement, 'paused', { value: false, writable: true });
+
+        await fireEvent.play(audioElement);
+        audioElement.currentTime = 30;
+        await vi.advanceTimersByTimeAsync(300);
+        audioElement.paused = true;
+        await fireEvent.pause(audioElement);
+        audioElement.currentTime = 90;
+        await vi.advanceTimersByTimeAsync(1000);
+
+        expect(get(playerState).progress).toBe(30);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  // A transcoded stream arrives chunked and without a `Content-Length`, which
+  // leaves `duration` at `Infinity` on the TV.
+  describe('a stream without a length of its own', () => {
+    it('the track length is used instead', async () => {
+      const { container } = renderPlayer();
+      const audioElement = container.querySelector('audio');
+      Object.defineProperty(audioElement, 'duration', { value: Infinity, writable: true });
+
+      await fireEvent.loadedMetadata(audioElement);
+
+      expect(get(playerState).duration).toBe(240);
+      expect(screen.getAllByText('4:00').length).toBeGreaterThan(0);
+    });
+
+    it('the bar is drawn from the track length', async () => {
+      const { container } = renderPlayer();
+      const audioElement = container.querySelector('audio');
+      Object.defineProperty(audioElement, 'duration', { value: Infinity, writable: true });
+      audioElement.currentTime = 60;
+
+      await fireEvent.timeUpdate(audioElement);
+
+      const bar = screen.getByLabelText('Door nummer spoelen');
+      expect(bar.firstElementChild.style.width).toBe('25%');
+    });
+
+    it('seeking is refused rather than throwing the position away', async () => {
+      const { container } = renderPlayer();
+      const audioElement = container.querySelector('audio');
+      Object.defineProperty(audioElement, 'duration', { value: Infinity, writable: true });
+      currentTrack.set({ ...FIRST, duration: 0 });
+      audioElement.currentTime = 42;
+      const bar = screen.getByLabelText('Door nummer spoelen');
+      bar.getBoundingClientRect = () => ({ left: 0, width: 100 });
+
+      await fireEvent.click(bar, { clientX: 50 });
+
+      expect(audioElement.currentTime).toBe(42);
     });
   });
 });

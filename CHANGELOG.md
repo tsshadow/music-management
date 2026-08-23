@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Zeven kanalen waren stilletjes samengevoegd met een ander kanaal.** `channels.normalized_name`
+  stond op `utf8mb4_general_ci`, en die collatie geeft élk teken buiten de Basic Multilingual Plane
+  hetzelfde sorteergewicht. Twee namen die volledig uit zulke tekens bestaan zijn voor de database
+  dus identiek zodra ze even lang zijn — en juist SoundCloud-accounts met stijl-unicode zijn dat.
+  `𝙁𝙍𝘼𝙉𝙏𝙄𝘾` (7 tekens) gold als gelijk aan `𝗕𝗔𝗗𝗞𝗜𝗖𝗞` (7), `𝙎𝙋𝘼𝙍𝙆𝙕` (6) aan `𝐊𝐈𝐑𝐄𝐀𝐋` (6). De unieke
+  sleutel hield de eerste, `INSERT IGNORE` slikte de rest zonder foutmelding, en de tracks van de
+  verliezer werden aan het winnende kanaal gehangen. Niets crashte; de telling was zeven te laag.
+  De kolom is nu `utf8mb4_bin`, wat hier ook inhoudelijk klopt: de waarde wordt al in Python
+  gelowercased, dus vergelijken op bytes is precies de vraag die gesteld wordt. Draai
+  `migrate_v13_channels_binary_collation.sql`, daarna `scripts/backfill_channels.py` en
+  `scripts/prune_channel_links.py` om de verkeerde koppelingen op te ruimen.
+- **De channel-backfill haalde het einde niet.** Hij deed drie queries per bestand, wat voor deze
+  bibliotheek neerkomt op bijna een miljoen losse round-trips; de server verbrak de verbinding
+  halverwege met `Lost connection to MySQL server during query`. Elk kanaal wordt nu één keer
+  opgezocht in plaats van één keer per bestand, en de koppelingen gaan er per batch in met
+  `executemany`.
+
+### Added
+- **`scripts/prune_channel_links.py`** verwijdert koppelingen tussen track en kanaal die door geen
+  enkel bestandspad worden ondersteund — restanten van een verplaatst bestand of een samengevoegd
+  kanaal. Verwijdert per exact paar en nooit de hele tabel: er staan zo'n 148.000 juiste rijen in,
+  en die opnieuw opbouwen is een veel grotere operatie dan de reparatie zelf. Heeft een
+  `--dry-run`.
+
 ## [0.30.0] - 2026-08-23
 
 ### Changed

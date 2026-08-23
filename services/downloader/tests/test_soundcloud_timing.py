@@ -43,7 +43,11 @@ class SoundcloudTimingTestBase(unittest.TestCase):
         self.downloaded = []
         self.mock_ydl.return_value.__enter__.return_value.download.side_effect = self._download
 
-        self.timing = load_timing('soundcloud', overrides=self.overrides)
+        # These suites are about the ordinary path: the probe, the batching and
+        # the backoff. Without this every account would be deep-due -- none has
+        # ever been deep-swept -- and take the full-listing path instead.
+        self.timing = load_timing('soundcloud',
+                                  overrides={'deep_sweep_days': 0, **self.overrides})
         self.rate_store = InMemoryRateStateStore()
         self.check_store = InMemoryCheckStore()
 

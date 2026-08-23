@@ -23,12 +23,23 @@ from services.downloader.soundcloud.account_report import (
     AccountReport,
 )
 from services.downloader.soundcloud.SoundcloudArchive import SoundcloudArchive
+from services.downloader.deep_sweep import (
+    DeepSweepReport,
+    ids_in_text_archive,
+    list_flat,
+    wanted_tracks,
+)
 from services.downloader.write_offs import WriteOffs
 from services.downloader.sweep import SweepPolicy
 
 from .SoundcloudSongProcessor import SoundcloudSongProcessor
 
 SOURCE = 'soundcloud'
+
+# The duration range this source downloads. A track rejected on it is written
+# down together with the duration it was judged on, so widening this brings those
+# tracks back without a request spent rediscovering what they are.
+DURATION_BOUNDS = (60, 21600)
 
 # The cookies are taken from the Firefox container that sits logged in on
 # soundcloud.com, so the client that presents them says Firefox too. SoundCloud's
@@ -71,11 +82,14 @@ class SoundcloudDownloader:
     """
 
     def __init__(self, break_on_existing=True, dry_run=False, timing=None, rate_state=None,
-                 schedule=None, unavailable=None, notifier=None):
+                 schedule=None, unavailable=None, notifier=None, deep=False):
         self._config = ConfigStore()
         self.default_break_on_existing = break_on_existing
         self.dry_run = dry_run
         self.redownload_mode = False
+        # Forces the deep path for every account this run, whatever the cadence
+        # says. What `--deep` on the CLI turns on.
+        self.deep_mode = deep
         self.policy = SweepPolicy(SOURCE, timing=timing, rate_state=rate_state, schedule=schedule,
                                   notifier=notifier)
         self.unavailable = unavailable if unavailable is not None else WriteOffs(
@@ -107,16 +121,25 @@ class SoundcloudDownloader:
         """
         def _filter(info):
             report.note_extracted(info.get('id'), info.get('timestamp'))
-            if self.unavailable.should_skip(account, info.get('id')):
-                logging.info("Skipping track '%s' (answered 403 before)", info.get('title', 'unknown'))
+            if self.unavailable.should_skip(account, info.get('id'), DURATION_BOUNDS):
+                logging.info("Skipping track '%s' (written off before)", info.get('title', 'unknown'))
                 return 'Known to be unavailable'
-            return self._match_filter(info)
+            verdict = self._match_filter(info)
+            if verdict == 'Outside allowed duration range':
+                # Written down rather than only logged: a pass that walks the
+                # whole account would otherwise rediscover this track every time,
+                # and could never report the account finished.
+                duration = int(info.get('duration') or 0)
+                reason = 'too_short' if duration < DURATION_BOUNDS[0] else 'too_long'
+                self.unavailable.remember(account, info.get('id'), reason,
+                                          duration=duration)
+            return verdict
         return _filter
 
     def _match_filter(self, info):
         duration = info.get('duration')
         title = info.get('title', 'unknown')
-        if not duration or duration < 60 or duration > 21600:
+        if not duration or duration < DURATION_BOUNDS[0] or duration > DURATION_BOUNDS[1]:
             logging.info(f"Skipping track '{title}' (duration: {duration}s)")
             return 'Outside allowed duration range'
         account_id = info.get('channel_id') or info.get('uploader_id')
@@ -143,8 +166,103 @@ class SoundcloudDownloader:
             logging.warning('Could not probe %s (%s); doing the full run instead.', account, exc)
             return None
 
+    def _text_archive_for(self, account: str) -> str | None:
+        """The yt-dlp archive file this account's downloads are recorded in."""
+        configured = self.downloader_config.get('archive_file')
+        if configured:
+            return str(configured)
+        archive_dir = self.downloader_config.get('archive_dir')
+        if not archive_dir:
+            return None
+        return str(Path(archive_dir) / f'{account}.txt')
+
+    def _held_ids(self, account: str, track_ids: list[str]) -> set[str]:
+        """Everything already downloaded, from both records that decide that.
+
+        yt-dlp consults its own text archive, so a track listed there is one it
+        will silently refuse to fetch again. Leaving those out would queue the
+        same tracks on every pass and never see them arrive.
+        """
+        held = SoundcloudArchive.held_ids(track_ids)
+        held.update(ids_in_text_archive(self._text_archive_for(account)))
+        return held
+
+    def deep_sweep_account(self, account: str, ydl_opts: dict) -> DeepSweepReport:
+        """Walk an account's whole catalogue and fetch whatever is missing.
+
+        The ordinary run stops at the first archived track, so a run that was
+        parked mid-account leaves a hole no later run can reach. This lists the
+        account flat -- one request per 200 tracks, nothing resolved -- and
+        resolves only what is genuinely absent, which is why it costs the size of
+        the gap rather than the size of the account.
+
+        The caller marks the account deep-swept only when the report says the
+        pass finished. Being parked or hitting the cap leaves it deep-due, so the
+        next ordinary sweep picks the tail up the following day rather than the
+        following month.
+        """
+        self.policy.guard(account)
+        url = f'https://soundcloud.com/{account}/tracks'
+        listing = list_flat(url, ydl_opts)
+        ids = [entry.track_id for entry in listing]
+        held = self._held_ids(account, ids)
+        write_offs = self.unavailable.load_many(account, ids)
+        wanted = wanted_tracks(listing, held, write_offs,
+                               self.timing.unavailable_retry_days, datetime.now(),
+                               DURATION_BOUNDS)
+        batch = wanted[:self.timing.deep_sweep_max_downloads]
+        logging.info('Deep sweep of %s: %d listed, %d held, %d written off, '
+                     '%d missing, fetching %d.', account, len(listing), len(held),
+                     len(write_offs), len(wanted), len(batch))
+        parked = False
+        try:
+            for entry in batch:
+                self.policy.guard(account)
+                self.download_url(entry.url, ydl_opts, account=account)
+        except RateLimited:
+            parked = True
+            raise
+        finally:
+            report = self._settle_deep(account, listing, held, write_offs, wanted,
+                                       batch, parked)
+            logging.info('Deep sweep of %s: %s', account, report.summary())
+        return report
+
+    def _settle_deep(self, account: str, listing, held, write_offs, wanted, batch,
+                     parked: bool) -> DeepSweepReport:
+        """Count what actually arrived, and write off what did not.
+
+        One extra lookup per pass. A track that neither downloaded nor rejected
+        has to be counted, or a single permanently broken track keeps its account
+        incomplete and re-swept every day forever.
+        """
+        arrived = self._held_ids(account, [entry.track_id for entry in batch]) if batch else set()
+        downloaded = 0
+        for entry in batch:
+            if entry.track_id in arrived:
+                downloaded += 1
+                continue
+            if parked:
+                # The sweep was stopped mid-batch; nothing was wrong with this
+                # track, we simply never asked about it.
+                continue
+            if self.unavailable.should_skip(account, entry.track_id, DURATION_BOUNDS):
+                # Rejected during this very pass. A decision, not a failure.
+                continue
+            self.unavailable.note_failure(account, entry.track_id)
+        return DeepSweepReport(listed=len(listing), held=len(held),
+                               written_off=len(write_offs), wanted=len(wanted),
+                               downloaded=downloaded,
+                               capped=len(wanted) > len(batch), parked=parked)
+
     def _check_account(self, account: str, ydl_opts: dict) -> None:
         """One account: ask what its newest track is, and only dig in if it is new."""
+        if self.deep_mode or self.policy.deep_due(account):
+            report = self.deep_sweep_account(account, ydl_opts)
+            if report.complete:
+                self.policy.mark_deep_swept(account)
+            self.policy.note_progress()
+            return
         probe = self._probe(account, ydl_opts)
         if probe is not None:
             self._seen_tracks[account] = probe.track_id

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.23.0] - 2026-08-23
+
 ### Changed
 - **The driving screen is laid out around the microphone.** Four shortcuts across the top, the
   microphone as a filled circle in the middle of everything left over, and what is playing as one

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-08-23
+
 ### Changed
 - **Memories zet nu labelreleases vooraan als er niets te sorteren valt.** De volgorde binnen een
   jaar keek naar sterren en luisterbeurten, en juist die twee zeggen bij memories bijna nooit iets:

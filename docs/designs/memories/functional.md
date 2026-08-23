@@ -74,13 +74,17 @@ group alongside the release groups, without redesigning it.
 15. A web year page shows fifty tracks at a time; the whole year plays from its play action, not just the
     part on screen.
 16. A count shown next to a year is the size of that year, not the size of the page the client was sent.
+17. In a year where nothing is rated or played -- which is most of them -- the tracks shown first are the
+    ones from an actual label release, ahead of the ones ripped from a platform.
 
 ## Open Questions / Not Yet Decided
 
-- How many of the library's tracks actually carry day-precision release tags is unknown: the development
-  databases are empty, so it could not be measured during design. If the number turns out to be small, the
-  feature is thin until the MusicBrainz/Discogs enrichment lands. This affects how useful the feature is on
-  day one, not how it is built.
+- Measured on the production library on 2026-08-23: day-precision release dates are common enough that a
+  single day yields around 3.600 tracks across nineteen years, but they sit almost entirely on the platform
+  rips. Of 1.091 rated tracks only 305 carry one, and none of those fell inside that day's window; the
+  listen table knows 356 tracks, likewise none. So the rating and listen keys rarely decide anything today,
+  and the release key carries the ordering. Both the MusicBrainz/Discogs enrichment and the scrobble
+  matching would change that, and neither is designed here.
 - A second kind of memory ("first listened to on this day") is agreed as a follow-up and deliberately not
   designed here, beyond keeping the screen and the response shape able to carry more than one kind of group.
 - Enriching missing release dates from MusicBrainz/Discogs is a separate design.

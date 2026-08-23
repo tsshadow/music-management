@@ -60,6 +60,10 @@ services:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest
     container_name: muma-youtube-worker
+    # A deploy sends SIGTERM and then SIGKILL. The worker aborts its download and
+    # writes down what the pass learned within a second or two, so this is
+    # headroom rather than a wait -- shutdown does not take longer for it.
+    stop_grace_period: 30s
     restart: unless-stopped
     depends_on:
       - db
@@ -117,6 +121,10 @@ services:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest
     container_name: muma-soundcloud-worker
+    # A deploy sends SIGTERM and then SIGKILL. The worker aborts its download and
+    # writes down what the pass learned within a second or two, so this is
+    # headroom rather than a wait -- shutdown does not take longer for it.
+    stop_grace_period: 30s
     restart: unless-stopped
     depends_on:
       - db

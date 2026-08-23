@@ -26,6 +26,7 @@
 
 #include <cstddef>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -41,11 +42,38 @@ namespace lms::api::subsonic
         struct DatedTrack
         {
             db::TrackId id;
-            int year{};             // effective release year
-            bool exact{};           // released on exactly the requested month and day
-            bool favourite{};       // rated five stars by the requesting user
-            std::size_t listens{};  // how often the requesting user played it
+            int year{};            // effective release year
+            bool exact{};          // released on exactly the requested month and day
+            bool favourite{};      // rated five stars by the requesting user
+            std::size_t listens{}; // how often the requesting user played it
+            int source{};          // how deliberate the release is, see sourceRank
         };
+
+        /**
+         * How deliberate a release is, read from its label names.
+         *
+         * Most of a memory year carries neither a rating nor a listen, so without this the order of
+         * such a year would be arbitrary. The label is the one thing the library does know about
+         * every track, because the scanner stores the publisher tag as a label -- including for the
+         * downloaders, which write the platform there. That makes "which label" double as "where did
+         * this come from", and a release on a label is the most deliberate thing in a year.
+         *
+         * Highest first:
+         *   6  a real label
+         *   5  no label at all -- often a release whose publisher was never matched
+         *   4  Free&None -- music, but a giveaway rather than a label release
+         *   3  Soundcloud
+         *   2  Youtube
+         *   1  Telegram
+         *   0  TODO -- the import pile, not a release at all
+         *
+         * Leading underscores and capitalisation are ignored: the same placeholder exists with two
+         * and with three underscores, and the tag's case is whatever wrote it.
+         *
+         * @param labelNames - The label names of the track's release; empty when it has none.
+         * @returns The rank, higher being more deliberate.
+         */
+        int sourceRank(const std::vector<std::string>& labelNames);
 
         /** One year's worth of memories. */
         struct Group

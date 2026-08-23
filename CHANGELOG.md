@@ -32,6 +32,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   en die opnieuw opbouwen is een veel grotere operatie dan de reparatie zelf. Heeft een
   `--dry-run`.
 
+## [0.30.0] - 2026-08-23
+
+### Changed
+- **Memories zet nu labelreleases vooraan als er niets te sorteren valt.** De volgorde binnen een
+  jaar keek naar sterren en luisterbeurten, en juist die twee zeggen bij memories bijna nooit iets:
+  op 23-08-2026 had geen van de 3.600 nummers in het venster een rating of een luisterbeurt, want
+  memories vragen een releasedatum op dagniveau en die hebben vooral de rips. Zonder die signalen
+  besliste de datum, en dat leverde tegels vol SoundCloud-materiaal op. Er is nu een derde sleutel:
+  hoe bewust de release is, afgelezen aan het label. De scanner slaat de publisher-tag als label op
+  en de downloaders zetten het platform in diezelfde tag, dus "welk label" is tegelijk "waar komt
+  dit vandaan". Van hoog naar laag: een echt label, geen label (vaak een release waarvan de
+  publisher nooit gematcht is), `__Free&None`, `Soundcloud`, `Youtube`, `Telegram`, `__TODO` — de
+  importstapel, geen release. Onderstrepingen en hoofdletters doen niet mee, en een release met
+  meerdere labels pakt de hoogste. Deze sleutel staat bewust ónder de luisterbeurten: hij vult een
+  jaar in waar niemand iets mee gedaan heeft, en begraaft geen nummer dat je wél draait.
+
 ### Changed
 - **Het autoscherm van muma-mobile draait nu om de microfoon.** Bovenin vier snelkoppelingen, in het
   midden een gevulde microfoonknop, onderin compact wat er speelt: hoes, titel, bediening en de
@@ -67,6 +83,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   keurig in de database en er gebeurde niets. Dat gold ook voor de bestaande knoppen onder
   Beheer → Tagger. Het proces dat de regel schrijft ververst zijn eigen cache nu direct, en elke
   andere tagger (importer, downloader) loopt binnen een minuut bij.
+### Fixed
+- **Een deploy nam de downloaders midden in hun ronde mee, en wat ze net geleerd hadden ging
+  verloren.** Python beëindigt bij een onafgehandelde SIGTERM het proces meteen, dus geen enkele
+  `finally` kwam nog aan de beurt: afschrijvingen en faal-tellingen van de lopende ronde werden niet
+  weggeschreven, en een download die in de nabewerking werd afgekapt kon een ongetagd bestand
+  achterlaten dat bij elke volgende ronde overgeslagen werd zonder ooit gearchiveerd te raken. De
+  workers vangen SIGTERM nu af. Docker geeft tien seconden, veel te weinig om een download af te
+  maken, dus breekt een yt-dlp progress hook de lopende download binnen een seconde af; daarna loopt
+  de gewone afhandeling af en staat de boekhouding op schijf. Die ene track wordt de volgende ronde
+  gewoon opnieuw opgehaald.
 
 ## [0.29.0] - 2026-08-23
 

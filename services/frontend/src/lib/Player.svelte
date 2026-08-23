@@ -464,10 +464,11 @@
           stopNews();
           return;
       }
-      if (!hasScrobbledFinished) {
-          scrobble(true);
-          hasScrobbledFinished = true;
-      }
+      // Sent even when the halfway submission already fired: it carries the same timestamp, so it
+      // corrects that listen's playing time to the whole track rather than adding a second listen.
+      // A long set otherwise reports only the four minutes at which the first submission fired.
+      scrobble(true);
+      hasScrobbledFinished = true;
       if ($playerState.repeat === 'one') {
           audioElement.currentTime = 0;
           audioElement.play();
@@ -526,6 +527,7 @@
   function handlePlay() {
     playerState.update(s => ({ ...s, playing: true }));
     if (!hasScrobbledStarted) {
+        listenStartedAtMs = Date.now();
         scrobble(false);
         hasScrobbledStarted = true;
     }
@@ -810,6 +812,17 @@
   let initialized = false;
 
   /**
+   * When this play of the current track began, in milliseconds.
+   *
+   * Sent with every submission for the track, so the server keys them all to the same listen. The
+   * first submission fires halfway through and reports the seconds played so far; a later one --
+   * when the track ends -- reports the real total and updates that same listen rather than adding a
+   * second one. Without a client-set timestamp the server would stamp each submission with its own
+   * clock and record two listens.
+   */
+  let listenStartedAtMs = null;
+
+  /**
    * Sends a scrobble request to the server.
    *
    * @param {boolean} [submission=true] - Whether this is a final submission or just a "now playing" notification.
@@ -817,7 +830,14 @@
   async function scrobble(submission = true) {
     if (!track || !$credentials.username) return;
     const params = $authParams;
-    const url = `${$credentials.url}/rest/scrobble?id=${track.id}&submission=${submission}&${params}`;
+    // How long this track actually played, and where. Both are MuMa's own parameters rather than
+    // Subsonic ones; a listen without them records only that something was played, which cannot be
+    // turned into listening time for a collection whose average track is a quarter of an hour.
+    // Only a submission has a playing time to report -- a "now playing" ping fires at the start.
+    const playedSeconds = submission && audioElement ? Math.floor(audioElement.currentTime) : null;
+    let extra = playedSeconds ? `&playedSeconds=${playedSeconds}` : '';
+    if (submission && listenStartedAtMs) extra += `&time=${listenStartedAtMs}`;
+    const url = `${$credentials.url}/rest/scrobble?id=${track.id}&submission=${submission}&source=frontend${extra}&${params}`;
     try {
       const failure = await subsonicError(await fetch(url));
       if (failure) {

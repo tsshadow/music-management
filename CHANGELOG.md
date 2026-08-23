@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Een listen weet nu hoe lang je écht geluisterd hebt, en waar.** Tot nu toe legde MuMa alleen
+  vast dát er iets gespeeld was. Hoe lang wist de speler wel, maar dat getal werd weggegooid voordat
+  het verstuurd werd, en elke listen claimde dezelfde herkomst (`lms`) of je nu op de webspeler, je
+  telefoon of in de auto zat. Voor deze collectie is dat geen detail: de gemiddelde track duurt 939
+  seconden omdat het grotendeels DJ-sets zijn, dus "keer aantal plays" is geen benadering van
+  luistertijd maar een verzinsel. Een listen draagt nu de werkelijk gespeelde seconden (`played_secs`)
+  en een echte herkomst: `frontend`, `mobile`, `auto` (telefoon in de auto) of `lms-web`. Beide velden
+  zijn optioneel — een client die ze niet stuurt scrobbelt gewoon door, en oude listens blijven
+  leesbaar met een lege duur en de oude waarde `lms`. Draai `migrate_v12_listen_played_secs.sql`, of
+  laat music-manager de kolommen bij het opstarten zelf bijzetten. Voorwerk voor een MuMa Wrapped
+  over 2026; zie [docs/designs/wrapped/](docs/designs/wrapped/).
+
+### Fixed
+- **Een set die je wegklikt telt eindelijk mee.** De telefoon stuurde alleen een listen als een
+  track vanzelf afliep of de wachtrij leeg raakte; drukte je op volgende, dan werd er niets
+  vastgelegd. Bij tracks van gemiddeld een kwartier is doorspelen tot het eind juist de
+  uitzondering, dus dat wiste stilletjes het grootste deel van je luistergeschiedenis — en het hardst
+  in de auto, waar je het vaakst doorklikt. Elke keer dat je een track verlaat telt nu, met de tijd
+  die hij daadwerkelijk speelde; korter dan vijf seconden blijft geen listen, want even proeven is
+  geen luisteren.
+- **De webspeler meldde een lange set als vier minuten.** Hij stuurt zijn listen halverwege, wat
+  hem beschermt tegen een tab die dichtgaat, maar daardoor was de gemelde speelduur die van dat
+  moment. Hij stuurt nu bij het einde van de track een correctie met dezelfde tijdstempel, zodat
+  diezelfde listen wordt bijgewerkt in plaats van dat er een tweede bijkomt.
+
 ## [0.27.1] - 2026-08-23
 
 ### Fixed

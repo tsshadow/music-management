@@ -167,14 +167,22 @@ def _try_fuzzy(cursor, artist, title):
     return None
 
 
-def record_match(cursor, track_id, listened_at, username, source, tier, score, mbid=None) -> None:
+def record_match(cursor, track_id, listened_at, username, source, tier, score, mbid=None,
+                 played_secs=None) -> None:
+    """Write a listen that resolved to a library track.
+
+    `played_secs` is how long the track was actually played. It stays NULL for every listen whose
+    client never reported it -- imported history, and any client older than the change that added
+    it -- so a reader has to treat "no playing time" as a real state rather than as zero.
+    """
     cursor.execute(
         'INSERT INTO scrobble_listens '
-        '(track_id, listened_at, username, source, mbid_track, match_method, match_score) '
-        'VALUES (%s, %s, %s, %s, %s, %s, %s) '
+        '(track_id, listened_at, username, source, mbid_track, match_method, match_score, played_secs) '
+        'VALUES (%s, %s, %s, %s, %s, %s, %s, %s) '
         'ON DUPLICATE KEY UPDATE match_method = VALUES(match_method), '
-        'match_score = VALUES(match_score)',
-        (track_id, listened_at, username, source, mbid, tier.value, score),
+        'match_score = VALUES(match_score), '
+        'played_secs = COALESCE(VALUES(played_secs), played_secs)',
+        (track_id, listened_at, username, source, mbid, tier.value, score, played_secs),
     )
 
 
@@ -200,7 +208,8 @@ def rematch_once(conn, limit: int = BATCH_SIZE) -> dict:
 
     with conn.cursor() as cursor:
         cursor.execute(
-            'SELECT id, artist_name, track_title, listened_at, username, source, mbid_track '
+            'SELECT id, artist_name, track_title, listened_at, username, source, mbid_track, '
+            'played_secs '
             'FROM scrobble_unmatched_listens '
             f'WHERE {_retry_cutoff_sql()} '
             'ORDER BY listened_at ASC LIMIT %s',
@@ -217,6 +226,7 @@ def rematch_once(conn, limit: int = BATCH_SIZE) -> dict:
                 record_match(
                     cursor, track_id, row['listened_at'], row['username'],
                     row['source'], tier, score, row.get('mbid_track'),
+                    row.get('played_secs'),
                 )
                 # Deleting is what makes the table an honest work queue: its size
                 # is what is still missing, not a log of everything that arrived.

@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+### Fixed
+- **Nummers die je wegklikte telden niet mee.** De app legde een luisterbeurt alleen vast als een
+  track helemaal uitspeelde. Druk je op volgende — bij sets van een kwartier eerder regel dan
+  uitzondering — dan verdween hij. Dat telt nu wel, inclusief hoe lang je hem draaide. Korter dan
+  vijf seconden blijft niet meetellen.
+
+### Added
+- **De app onthoudt of je in de auto zat.** Een luisterbeurt krijgt er nu bij waar hij vandaan kwam,
+  zodat je jaaroverzicht straks je rituren apart kan laten zien.
+
 ## [6.22.1] - 2026-08-22
 
 ### Fixed

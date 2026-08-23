@@ -16,9 +16,9 @@
    * Loads today's memories.
    *
    * The browser's own local date is sent along so that the groups match the device's today rather
-   * than the server's, which matters as soon as the two are in different time zones. The whole year
-   * is asked for rather than the default page: the tiles report a track count and rank the top
-   * three, and both would lie if the server had already cut the group short.
+   * than the server's, which matters as soon as the two are in different time zones. Only a handful
+   * of songs per year is asked for: the server ranks a year before truncating it and reports the
+   * year's real size, so a tile can name its best three and count the whole year off a short page.
    */
   async function loadMemories() {
     if (!$authParams) return;
@@ -40,13 +40,33 @@
 
   onMount(loadMemories);
 
-  /** Plays one year, in the order the server sent it. */
-  function playYear(year) {
-    const group = groups.find((candidate) => candidate.year === year);
-    if (!group || group.songs.length === 0) return;
+  /**
+   * Plays one year, in the order the server sent it.
+   *
+   * The tile holds a short page of its year, so the whole year is fetched first: pressing play on
+   * 2024 should queue 2024, not the four tracks that happened to fit on the tile.
+   */
+  async function playYear(year) {
+    let songs = [];
+    try {
+      const response = await fetch(memoriesUrl($authParams, { year }));
+      if (response.ok) {
+        const data = await response.json();
+        songs = parseMemoryGroups(data).find((g) => String(g.year) === String(year))?.songs ?? [];
+      }
+    } catch (e) {
+      console.error('Failed to load a year of memories:', e);
+    }
 
-    playlist.set(group.songs);
-    currentTrack.set(group.songs[0]);
+    // A failed fetch still has the tile's own page to fall back on, which is better than a play
+    // button that does nothing.
+    if (songs.length === 0) {
+      songs = groups.find((candidate) => candidate.year === year)?.songs ?? [];
+    }
+    if (songs.length === 0) return;
+
+    playlist.set(songs);
+    currentTrack.set(songs[0]);
     playerState.update((s) => ({ ...s, playing: true }));
   }
 

@@ -294,6 +294,25 @@ def test_get_memories_answers_with_a_memories_node(admin_credentials, media_libr
     assert "memories" in body, body
 
 
+def test_get_memories_accepts_a_single_year(admin_credentials, media_library):
+    """One year's memories rather than every year's, which is what a year page asks for.
+
+    Like the test above, an empty answer is the pass: the fixture library has no
+    day-precision release dates, so what is proven here is that the parameter is
+    accepted and still yields a well-formed success response.
+    """
+    username, password = admin_credentials
+
+    resp = _subsonic_get(
+        "getMemories.view", username, password, date="2026-08-02", year=2025, maxPerYear=1000
+    )
+
+    assert resp.status_code == 200, resp.text[:500]
+    body = resp.json()["subsonic-response"]
+    assert body["status"] == "ok", body
+    assert "memories" in body, body
+
+
 def test_get_memories_rejects_an_unparseable_date(admin_credentials):
     """A malformed date is a client error, not an empty result."""
     username, password = admin_credentials

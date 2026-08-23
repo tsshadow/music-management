@@ -7,7 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **The driving screen is laid out around the microphone.** Four shortcuts across the top, the
+  microphone as a filled circle in the middle of everything left over, and what is playing as one
+  compact block along the bottom: artwork, title, transport and the five rating stars. The
+  microphone used to be a borderless icon with nothing behind it, so it read as decoration on the
+  background rather than as the largest target on the screen.
+- **MuMa Voice listens the moment it opens.** Everything that reaches that screen -- the car's
+  microphone button, the quick settings tile, the menu -- is already a decision to say something,
+  so the tap that followed only proved it twice, at the one moment a pair of hands is busiest. The
+  button below is now a repeat. It is still what asks for the microphone permission the first time
+  round, because a permission dialog on a screen nobody has looked at yet is a permission denied
+  for good. Once music starts the screen goes back where it came from after ten seconds, and any
+  touch cancels that for good.
+
 ### Fixed
+- **The shortcuts on the driving screen were clipped, and a strip along the bottom did not belong
+  to it.** The shortcut grid carried a layout weight and lost every argument about height it had
+  with the artwork, the transport and the stars, so it was cut off mid-row; the grid and the player
+  block are both `wrap_content` now and neither can take the other's height. The strip was two: the
+  tab bar and the now playing bar, neither of which was hidden for car mode, and the second was a
+  small duplicate of the transport the driving screen already carries. Both stay down while car
+  mode is up, and `showNowPlaying` refuses car mode outright, since the player state subscription
+  calls straight into it whenever a track becomes ready. The rating stars also went from 72dp to
+  56dp: five of them plus the screen's own padding did not fit across a narrow phone.
 - **A skipped track is a listen too.** A submission only fired on
   `MEDIA_ITEM_TRANSITION_REASON_AUTO` -- the track ended by itself -- and on the queue running out,
   so pressing next recorded nothing at all. With an average track of a quarter of an hour, reaching
@@ -18,6 +41,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Anything under five seconds is still not submitted, matching the server's own rule.
 
 ### Added
+- **The voice screen says what it understood, in words.** Under the microphone: what was heard,
+  and then one labelled row each for `genre Hardstyle`, `year 2021`, `order no order`, with the raw
+  trace one tap away for when a request goes wrong. The status line reads the same way. It used to
+  print the filter object the server is sent, `Playing [{"name":"GENRE","value":"hardstyle"}]`,
+  which is the one thing that cannot be read at the moment it matters. The rows are built by
+  `VoiceExplanation` in `core:voice`, so they carry a field rather than a label and stay
+  translatable.
 - **A listen says where it happened.** The scrobble now reports `auto` while the car is connected
   and `mobile` otherwise, alongside the seconds actually played, through two new optional
   `/rest/scrobble` parameters (`source`, `playedSeconds`). Car presence is read from

@@ -1,12 +1,28 @@
 ## [Unreleased]
 
+### Changed
+- **Het autoscherm is opnieuw ingedeeld.** Bovenin vier snelkoppelingen, in het midden één grote
+  microfoonknop die er nu ook uitziet als een knop, en onderin compact wat er speelt: hoes, titel,
+  bediening en de sterren.
+- **Het spraakscherm luistert meteen als je het opent.** Geen tik meer nodig; de knop eronder is er
+  voor nog een keer. Zodra de muziek speelt ga je na tien seconden vanzelf terug naar waar je
+  vandaan kwam, en raak je het scherm aan dan blijft het staan.
+
 ### Fixed
+- **De snelkoppelingen in de auto waren afgesneden, en onderin stond een balk die er niet hoorde.**
+  De balk waren er twee: de tabbladen en het kleine spelertje, allebei een tweede uitvoering van wat
+  het autoscherm zelf al heeft. Ze blijven nu weg zolang de autostand aan staat, en de
+  snelkoppelingen en de speler nemen elkaar geen ruimte meer af. De sterren zijn iets kleiner, want
+  vijf grote pasten niet naast elkaar op een smalle telefoon.
 - **Nummers die je wegklikte telden niet mee.** De app legde een luisterbeurt alleen vast als een
   track helemaal uitspeelde. Druk je op volgende — bij sets van een kwartier eerder regel dan
   uitzondering — dan verdween hij. Dat telt nu wel, inclusief hoe lang je hem draaide. Korter dan
   vijf seconden blijft niet meetellen.
 
 ### Added
+- **Het spraakscherm laat zien wat het begrepen heeft.** In woorden: wat het hoorde, en daaronder
+  `genre Hardstyle`, `jaar 2021`, regel voor regel. Daar stond eerst een regel technische code. Gaat
+  er iets mis, dan zit het volledige verslag één tik verderop.
 - **De app onthoudt of je in de auto zat.** Een luisterbeurt krijgt er nu bij waar hij vandaan kwam,
   zodat je jaaroverzicht straks je rituren apart kan laten zien.
 

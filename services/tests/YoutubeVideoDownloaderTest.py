@@ -11,6 +11,7 @@ from services.tests.mock_base import reset_database_helpers, setup_mocks
 
 setup_mocks()
 from services.downloader.rate_state import RateLimited
+from services.downloader.timing import load_timing
 from services.downloader.youtube.youtube import VIDEO_FORMAT, YoutubeDownloader
 from services.downloader.youtube.YoutubeAccount import YoutubeAccount
 
@@ -41,7 +42,12 @@ class YoutubeVideoDownloaderTest(unittest.TestCase):
         patch.stopall()
 
     def _downloader(self):
-        downloader = YoutubeDownloader(break_on_existing=False)
+        # These tests drive the ordinary run. Without turning the cadence off
+        # every channel would be deep-due -- none has ever been deep-swept --
+        # and take the full-listing path instead.
+        downloader = YoutubeDownloader(
+            break_on_existing=False,
+            timing=load_timing('youtube', overrides={'deep_sweep_days': 0}))
         downloader.downloader_config['enabled'] = True
         return downloader
 

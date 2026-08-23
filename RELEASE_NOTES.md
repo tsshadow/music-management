@@ -11,6 +11,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.27.0 (2026-08-23)
+
+Zie `CHANGELOG.md` voor de volledige lijst. Deze release is een herhaling van 0.26.0: die versie is
+wel naar master gegaan maar nooit naar productie, doordat de release-branch werd opgeruimd terwijl
+`deploy:prod` nog in de wachtrij stond. Inhoudelijk dus dezelfde wijziging — de downloaders halen de
+staart van een account weer op via een diepe ronde die het account plat uitleest en alleen de echt
+ontbrekende tracks binnenhaalt.
+
 ## Global Version 0.26.0 (2026-08-23)
 
 Zie `CHANGELOG.md` voor de volledige lijst. De kern van deze release: de downloaders halen de staart

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-08-23
+
+### Fixed
+- **0.26.0 heeft productie nooit gehaald; deze release brengt hem er alsnog heen.** De release-branch
+  werd naar master gemerged terwijl `deploy:prod` nog in de wachtrij stond, waarna het opruimen van
+  die branch de job onder zich vandaan trok: `couldn't find remote ref refs/heads/release/0.26.0`.
+  De images waren op dat moment al gebouwd en zijn actueel, dus er is niets verouderds gepubliceerd —
+  alleen de deploy bleef liggen, en `release:verify-deployed` weigerde daarop terecht te taggen. Deze
+  release bevat geen functionele wijzigingen ten opzichte van 0.26.0.
+
 ## [0.26.0] - 2026-08-23
 
 ### Added

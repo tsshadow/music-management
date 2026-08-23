@@ -13,6 +13,7 @@ import threading
 import time
 from collections.abc import Iterable
 
+from services.downloader import shutdown
 from services.downloader.account_schedule import AccountSchedule
 from services.downloader.rate_state import (
     RateLimited,
@@ -94,7 +95,16 @@ class SweepPolicy:
         return self.schedule.due(accounts, self.timing)
 
     def guard(self, name: str) -> None:
-        """Raise if the sweep is already stopping, so queued accounts are skipped."""
+        """Raise if the sweep is already stopping, so queued accounts are skipped.
+
+        A deploy asking the process to stop counts as stopping too. Riding on
+        this checkpoint rather than adding another one means every caller that
+        already guards -- between two tracks of a deep pass, before an account --
+        drops out on its own, and the `finally` around it gets to write down what
+        the pass had learned before the container goes.
+        """
+        if shutdown.is_requested():
+            raise SweepAborted(f'Skipped {name}; the {self.source} worker is shutting down.')
         if self.stop.is_set():
             raise SweepAborted(f'Skipped {name}; the {self.source} sweep is already stopping.')
 

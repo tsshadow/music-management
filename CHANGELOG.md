@@ -56,6 +56,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   keurig in de database en er gebeurde niets. Dat gold ook voor de bestaande knoppen onder
   Beheer → Tagger. Het proces dat de regel schrijft ververst zijn eigen cache nu direct, en elke
   andere tagger (importer, downloader) loopt binnen een minuut bij.
+### Fixed
+- **Een deploy nam de downloaders midden in hun ronde mee, en wat ze net geleerd hadden ging
+  verloren.** Python beëindigt bij een onafgehandelde SIGTERM het proces meteen, dus geen enkele
+  `finally` kwam nog aan de beurt: afschrijvingen en faal-tellingen van de lopende ronde werden niet
+  weggeschreven, en een download die in de nabewerking werd afgekapt kon een ongetagd bestand
+  achterlaten dat bij elke volgende ronde overgeslagen werd zonder ooit gearchiveerd te raken. De
+  workers vangen SIGTERM nu af. Docker geeft tien seconden, veel te weinig om een download af te
+  maken, dus breekt een yt-dlp progress hook de lopende download binnen een seconde af; daarna loopt
+  de gewone afhandeling af en staat de boekhouding op schijf. Die ene track wordt de volgende ronde
+  gewoon opnieuw opgehaald.
 
 ## [0.29.0] - 2026-08-23
 

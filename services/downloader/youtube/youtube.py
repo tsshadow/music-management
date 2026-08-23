@@ -10,6 +10,7 @@ from yt_dlp import YoutubeDL
 from services.common.config_store import ConfigStore
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.job_manager import job_manager
+from services.downloader import shutdown
 from services.downloader.deep_sweep import (
     DeepSweepReport,
     ids_in_text_archive,
@@ -165,6 +166,10 @@ class YoutubeDownloader:
         base = self._video_ydl_opts if download_type == VIDEO else self._base_ydl_opts
         opts = {**base}
         opts['simulate'] = self.dry_run
+        # The only checkpoint that is reachable during a download. Without it the
+        # worker sits inside one multi-minute call and never sees the stop the
+        # deploy asked for, so SIGKILL arrives with the pass unrecorded.
+        opts['progress_hooks'] = [*base.get('progress_hooks', []), shutdown.abort_hook]
         if 'postprocessors' in base:
             opts['postprocessors'] = [pp.copy() if isinstance(pp, dict) else pp for pp in base['postprocessors']]
         if not redownload:
@@ -270,6 +275,9 @@ class YoutubeDownloader:
                 if '404' in str(exc):
                     logging.info('Got 404 for %s — skip.', url)
                     return
+                if shutdown.is_requested():
+                    raise SweepAborted(
+                        f'Abandoned {url}; the {SOURCE} worker is shutting down.') from exc
                 logging.warning('Attempt %d failed for %s: %s', attempt, url, exc)
                 time.sleep(5 * attempt)
         logging.error('YouTube download failed for %s after %d attempts.',

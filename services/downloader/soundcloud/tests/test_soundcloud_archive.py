@@ -152,5 +152,56 @@ class InsertTest(SoundcloudArchiveTestCase):
         self.connection.commit.assert_not_called()
 
 
+class HeldIdsTest(SoundcloudArchiveTestCase):
+    """The deep pass's gate: which of a whole listing do we already hold?"""
+
+    def test_it_returns_the_ids_the_archive_knows(self):
+        self.cursor.fetchall.return_value = [('2',)]
+
+        self.assertEqual({'2'}, SoundcloudArchive.held_ids(['1', '2', '3']))
+
+    def test_it_asks_about_every_id_in_one_statement(self):
+        self.cursor.fetchall.return_value = []
+
+        SoundcloudArchive.held_ids(['1', '2', '3'])
+
+        self.assertEqual(1, self.cursor.execute.call_count)
+        query, params = self.cursor.execute.call_args[0]
+        self.assertIn('IN (%s, %s, %s)', query)
+        self.assertEqual(('1', '2', '3'), params)
+
+    def test_it_matches_on_the_track_id_alone(self):
+        self.cursor.fetchall.return_value = []
+
+        SoundcloudArchive.held_ids(['1'])
+
+        query, _ = self.cursor.execute.call_args[0]
+        self.assertNotIn('account', query)
+
+    def test_an_empty_listing_asks_nothing(self):
+        self.assertEqual(set(), SoundcloudArchive.held_ids([]))
+        self.cursor.execute.assert_not_called()
+
+    def test_a_long_listing_is_split_into_blocks(self):
+        self.cursor.fetchall.return_value = []
+
+        SoundcloudArchive.held_ids([str(n) for n in range(1200)])
+
+        self.assertEqual(3, self.cursor.execute.call_count)
+
+    def test_numeric_ids_are_compared_as_strings(self):
+        self.cursor.fetchall.return_value = [(2379459947,)]
+
+        self.assertEqual({'2379459947'}, SoundcloudArchive.held_ids([2379459947]))
+
+    def test_a_database_error_is_raised_rather_than_read_as_nothing_held(self):
+        # Answering "nothing is held" would turn one broken query into a
+        # re-download of the whole account.
+        self.cursor.execute.side_effect = RuntimeError('database is down')
+
+        with self.assertRaises(RuntimeError):
+            SoundcloudArchive.held_ids(['1'])
+
+
 if __name__ == '__main__':
     unittest.main()

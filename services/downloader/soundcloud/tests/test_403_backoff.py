@@ -11,10 +11,7 @@ setup_mocks()
 from services.downloader.account_schedule import AccountSchedule, InMemoryCheckStore
 from services.downloader.rate_state import InMemoryRateStateStore, RateLimited, RateState
 from services.downloader.soundcloud.soundcloud import SoundcloudDownloader
-from services.downloader.soundcloud.unavailable_tracks import (
-    InMemoryUnavailableStore,
-    UnavailableTracks,
-)
+from services.downloader.write_offs import InMemoryWriteOffStore, WriteOffs
 from services.downloader.timing import load_timing
 
 NOW = datetime(2026, 7, 30, 12, 0, 0)
@@ -50,7 +47,7 @@ class TestSoundcloud403Backoff(unittest.TestCase):
         })
         self.rate_store = InMemoryRateStateStore()
         self.check_store = InMemoryCheckStore()
-        self.unavailable_store = InMemoryUnavailableStore()
+        self.unavailable_store = InMemoryWriteOffStore()
 
     def tearDown(self):
         patch.stopall()
@@ -65,8 +62,8 @@ class TestSoundcloud403Backoff(unittest.TestCase):
             timing=self.timing,
             rate_state=self._rate_state(),
             schedule=AccountSchedule('soundcloud', store=self.check_store, now=lambda: self.now),
-            unavailable=UnavailableTracks(store=self.unavailable_store, retry_days=30,
-                                          now=lambda: self.now),
+            unavailable=WriteOffs('soundcloud', store=self.unavailable_store,
+                                  retry_days=30, now=lambda: self.now),
             notifier=StubNotifier(),
         )
 

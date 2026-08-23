@@ -23,7 +23,7 @@ from services.downloader.soundcloud.account_report import (
     AccountReport,
 )
 from services.downloader.soundcloud.SoundcloudArchive import SoundcloudArchive
-from services.downloader.soundcloud.unavailable_tracks import UnavailableTracks
+from services.downloader.write_offs import WriteOffs
 from services.downloader.sweep import SweepPolicy
 
 from .SoundcloudSongProcessor import SoundcloudSongProcessor
@@ -78,8 +78,8 @@ class SoundcloudDownloader:
         self.redownload_mode = False
         self.policy = SweepPolicy(SOURCE, timing=timing, rate_state=rate_state, schedule=schedule,
                                   notifier=notifier)
-        self.unavailable = unavailable if unavailable is not None else UnavailableTracks(
-            retry_days=self.policy.timing.unavailable_retry_days)
+        self.unavailable = unavailable if unavailable is not None else WriteOffs(
+            SOURCE, retry_days=self.policy.timing.unavailable_retry_days)
         self._profile_snapshot: str | None = None
         # What this sweep learned per account, waiting to be written to the
         # schedule once the account's future comes back.

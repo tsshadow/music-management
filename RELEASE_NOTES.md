@@ -11,6 +11,9 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+- **De verhuizing zit nu in één script** dat je op de prod-host draait: containers stoppen,
+  hernoemen, paden bijwerken, instellingen aanpassen en alles weer starten. Eerst `--dry-run`, en
+  `--revert` draait het terug.
 - **De nieuwe mapindeling staat klaar** (`labels/`, `songs/`, `import/`, `channels/<platform>/`),
   maar is nog niet uitgevoerd: dat vraagt eerst een aanpassing in de `.env` op productie en het
   opnieuw starten van de workers. Het is een omkeerbare operatie van vijf mapnamen, geen verplaatsing

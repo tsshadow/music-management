@@ -200,6 +200,35 @@ describe('MemoriesView', () => {
     expect(screen.getAllByText('1 nummer')).toHaveLength(2);
   });
 
+  it('draws a year whose best tracks share one sleeve', async () => {
+    // Real libraries do this constantly: the top tracks of a year come off the same album, so the
+    // tile's covers repeat. Keying anything on the cover id turns that into a render error, and the
+    // whole screen goes blank rather than one tile looking dull.
+    const sameAlbum = (id) => ({ ...TRACK, id, title: `Track ${id}`, coverArt: 'art-1', playCount: 5 });
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        'subsonic-response': {
+          memories: {
+            memory: [
+              {
+                year: 2025,
+                yearsAgo: 1,
+                exact: true,
+                song: [sameAlbum('s1'), sameAlbum('s2'), sameAlbum('s3'), sameAlbum('s4')]
+              }
+            ]
+          }
+        }
+      })
+    }));
+
+    render(MemoriesView, { onnavigate: vi.fn() });
+
+    await waitFor(() => expect(screen.getByText('2025')).toBeTruthy());
+    expect(screen.getByText('4 nummers')).toBeTruthy();
+  });
+
   it('opening a tile navigates to that year', async () => {
     const onnavigate = vi.fn();
     render(MemoriesView, { onnavigate });

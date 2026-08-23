@@ -20,6 +20,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   laat zien wat terugdraaien zou doen. Achteraf nog twee dingen zelf doen: een volledige LMS-rescan,
   en de CI-variabele `PROD_ENV_FILE` bijwerken — prod's `.env` wordt bij elke deploy daaruit
   overschreven.
+
+### Changed
+- **Het aantal op een Memories-tegel klopt nu, en de top-3 ook.** Er stond "200 tracks" op elke
+  drukke tegel, want dat was de limiet waarmee de webpagina het jaar ophaalde, niet de grootte van
+  het jaar: 2025 heeft er in werkelijkheid 450, 2024 er 407, en zeven van de negentien jaren zitten
+  boven die limiet. Dezelfde limiet maakte de top-3 een gok, omdat hij koos uit de eerste 200 die de
+  query toevallig teruggaf. De server sorteert een jaar nu zelf op wat je ermee hebt — vijf sterren
+  eerst, daarna het aantal beluisteringen — vóórdat hij afkapt, en meldt het echte jaartotaal
+  ernaast. Daardoor kan het overzicht met twaalf nummers per jaar toe in plaats van tweehonderd:
+  de pagina haalt nog een paar honderd kilobyte op in plaats van 2,4 megabyte, en toont toch de
+  juiste drie en het juiste aantal. Een jaarpagina vraagt met `year=` alleen dat ene jaar op en
+  krijgt het compleet; de afspeelknop op een tegel doet hetzelfde, zodat die het hele jaar in de
+  wachtrij zet en niet de handvol nummers die op de tegel pasten.
+
+## [0.28.0] - 2026-08-23
+
+### Added
 - **De mapindeling van de bibliotheek, klaar om uit te voeren.** `EPs` bevatte drie verschillende
   dingen door elkaar: releases mét label, releases zónder label (`__Free&None`) en de importstapel
   (`__TODO`). Alleen het eerste is een labelboom, en dat is precies waarom de andere twee steeds in
@@ -85,19 +102,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hem beschermt tegen een tab die dichtgaat, maar daardoor was de gemelde speelduur die van dat
   moment. Hij stuurt nu bij het einde van de track een correctie met dezelfde tijdstempel, zodat
   diezelfde listen wordt bijgewerkt in plaats van dat er een tweede bijkomt.
-
-### Changed
-- **Het aantal op een Memories-tegel klopt nu, en de top-3 ook.** Er stond "200 tracks" op elke
-  drukke tegel, want dat was de limiet waarmee de webpagina het jaar ophaalde, niet de grootte van
-  het jaar: 2025 heeft er in werkelijkheid 450, 2024 er 407, en zeven van de negentien jaren zitten
-  boven die limiet. Dezelfde limiet maakte de top-3 een gok, omdat hij koos uit de eerste 200 die de
-  query toevallig teruggaf. De server sorteert een jaar nu zelf op wat je ermee hebt — vijf sterren
-  eerst, daarna het aantal beluisteringen — vóórdat hij afkapt, en meldt het echte jaartotaal
-  ernaast. Daardoor kan het overzicht met twaalf nummers per jaar toe in plaats van tweehonderd:
-  de pagina haalt nog een paar honderd kilobyte op in plaats van 2,4 megabyte, en toont toch de
-  juiste drie en het juiste aantal. Een jaarpagina vraagt met `year=` alleen dat ene jaar op en
-  krijgt het compleet; de afspeelknop op een tegel doet hetzelfde, zodat die het hele jaar in de
-  wachtrij zet en niet de handvol nummers die op de tegel pasten.
 
 ## [0.27.1] - 2026-08-23
 

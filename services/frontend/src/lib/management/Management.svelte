@@ -26,6 +26,7 @@
   import UserRequestsTab from './tabs/UserRequestsTab.svelte';
   import WorkerVersionsTab from './tabs/WorkerVersionsTab.svelte';
   import EventsTab from './tabs/EventsTab.svelte';
+  import ConfigTab from './tabs/ConfigTab.svelte';
   import AboutTab from './tabs/AboutTab.svelte';
 
   // The active tab is persisted and can also arrive from the URL, so a name
@@ -112,7 +113,11 @@
         fetch(`${$mumaApiUrl}/api/stats`, { headers })
       ]);
       
-      config = await configRes.json();
+      // The endpoint answers {config, groups}; the tabs below want the values map.
+      // Reading the envelope as if it were flat is why the ntfy fields on the events
+      // tab have always rendered empty.
+      const configBody = await configRes.json();
+      config = configBody?.config ?? configBody ?? {};
       notes = await notesRes.json();
       rules = await rulesRes.json();
       accounts = await accountsRes.json();
@@ -538,6 +543,12 @@
         <WorkerVersionsTab {versions} />
       {:else if $activeManagementTab === 'about'}
         <AboutTab {API_BASE} {apiKey} />
+      {:else if $activeManagementTab === 'config'}
+        <ConfigTab
+          {API_BASE} {getHeaders}
+          onMessage={(m) => message = m}
+          onError={(e) => error = e}
+        />
       {:else if $activeManagementTab === 'events'}
         <EventsTab
           {API_BASE} {getHeaders}

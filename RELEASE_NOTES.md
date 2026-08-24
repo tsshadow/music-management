@@ -11,6 +11,39 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.34.0 (2026-08-24)
+
+- **Nummers kennen nu hun eigen versies, en er is er één die telt.** Eén nummer stond tot tien keer
+  in je bibliotheek: een SoundCloud-rip, een YouTube-rip, de radio edit, de extended mix, en dat
+  alles nog eens als FLAC en als MP3 — en niets wist dat dat hetzelfde nummer was. Boven de tracks
+  zit nu een laag van nummers, en welke versie de hoofdversie is wordt op volgorde beslist: eerst
+  herkomst (een officiële release verslaat altijd een rip), dan de soort (radio, edit, original,
+  extended, instrumentaal), dan het formaat. Dat vervangt de oude optelsom, waarin een rip van
+  320kbps won van een officiële radio edit van 192kbps. Een remix blijft een eigen nummer. Je ziet
+  of hoort er nog niets van: dit is het fundament, de speler en de webinterface gaan er in een
+  volgende stap op leunen.
+- **Het databasewachtwoord was op te vragen via de instellingen-API.** `GET /api/config` vroeg
+  alleen om een geldige sleutel, niet om een recht, dus elke ingelogde gebruiker kreeg alle
+  instellingen te zien — het databasewachtwoord, de Telegram-hash en de Spotify-, Discogs- en
+  Last.fm-tokens, in platte tekst. De config-endpoints hangen nu aan een eigen recht, en
+  wachtwoorden en tokens komen gemaskeerd terug. Het masker terugsturen laat de opgeslagen waarde
+  met rust, dus je kunt een formulier opslaan zonder een credential te overschrijven.
+- **De instellingen van MuMa zijn nu vanuit de webui te bewerken.** Beheer heeft een tabblad
+  Configuratie met elk veld, zijn groep, uitleg en huidige waarde. Komt er in de backend een
+  instelling bij, dan staat die er vanzelf tussen. Opslaan stuurt alleen wat je echt veranderd hebt.
+- **Hoeveel bestanden één "nu toepassen" mag hertaggen stel je nu zelf in.** Dat stond vast op
+  2000. Zo'n batch houdt de tagger bezet, dus de juiste grens hangt af van je collectie en van hoe
+  lang je de gewone ronde wil laten wachten. De waarde wordt per verzoek gelezen, dus een
+  wijziging geldt bij de volgende retag in plaats van na een herstart.
+- **De ntfy-velden op het events-tabblad bleven leeg.** De webui las het antwoord van de
+  instellingen-API verkeerd uit, waardoor de ingevulde waarden nergens verschenen.
+- **Eén festival kon in twee schrijfwijzen op hetzelfde bestand belanden.** In m4a-bestanden
+  schreef de tagger de naam in hoofdletters, terwijl een tweede pad in dezelfde code hem in kleine
+  letters wegschreef. MuMa zag het verschil niet, de muziekserver wel: die maakt van twee
+  schrijfwijzen twee kaartjes. Zolang er dezelfde naam in stond viel dat niet op, maar zodra een
+  set een tweede festival erbij kreeg liepen de twee uit elkaar. De tagger trekt ze nu bij elke
+  ronde gelijk, ook als er verder niets aan het bestand verandert.
+
 ## Global Version 0.33.0 (2026-08-24)
 
 - **Een set die op twee festivals wijst, krijgt nu beide namen.** Van "Reverze 2024 - Reverze

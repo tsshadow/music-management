@@ -2,27 +2,28 @@
   import { t } from '../i18n/index.js';
   import { activeManagementTab, activeView, hasPermission } from '../store.js';
   import SidebarHeader from '../SidebarHeader.svelte';
-  import { 
-    LayoutDashboard, 
-    Library,
-    Image,
-    ListMusic, 
-    Tags,
-    ListChecks,
-    Podcast,
-    Newspaper,
-    Radio,
-    Download,
-    History,
-    HeartPulse,
-    ScanLine,
-    FolderTree,
-    Users,
-    UserPlus,
-    GitBranch,
-    ScrollText,
-    Info
-  } from '@lucide/svelte';
+  import {
+  Download,
+  FolderTree,
+  GitBranch,
+  HeartPulse,
+  History,
+  Image,
+  Info,
+  LayoutDashboard,
+  Library,
+  ListChecks,
+  ListMusic,
+  Newspaper,
+  Podcast,
+  Radio,
+  ScanLine,
+  ScrollText,
+  SlidersHorizontal,
+  Tags,
+  UserPlus,
+  Users
+} from '@lucide/svelte';
 
   // `onselect` lets the mobile drawer close itself once a tab was picked; on
   // the desktop sidebar it is simply not passed.
@@ -48,6 +49,7 @@
     { id: 'user-requests', labelKey: 'management.tabs.userRequests', icon: UserPlus, show: hasPermission('user-requests.read') },
     { id: 'versions', labelKey: 'management.tabs.versions', icon: GitBranch },
     { id: 'events', labelKey: 'management.tabs.events', icon: ScrollText },
+    { id: 'config', labelKey: 'management.tabs.config', icon: SlidersHorizontal, show: hasPermission('config.manage') },
     { id: 'about', labelKey: 'management.tabs.about', icon: Info }
   ].filter(t => t.show !== false));
 

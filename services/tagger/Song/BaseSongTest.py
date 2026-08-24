@@ -305,6 +305,76 @@ class BaseSongTagWritingTest(unittest.TestCase):
 
         self.assertEqual(music_file.tags['----:com.apple.iTunes:FESTIVAL'], [b'Defqon.1'])
 
+    def m4a_song(self, tags):
+        song = BaseSong.__new__(BaseSong)
+        song.type = MusicFileType.M4A
+        song._path = '/mnt/music/Livesets/set.m4a'
+        song.music_file = MagicMock()
+        song.music_file.tags = tags
+        song.tag_collection = MagicMock()
+        song.tag_collection.get.return_value = {}
+        return song
+
+    def test_a_differently_cased_atom_is_folded_into_the_canonical_one(self):
+        song = self.m4a_song({'----:com.apple.iTunes:festival': [b'Reverze']})
+
+        self.assertTrue(song.normalize_custom_atoms())
+
+        self.assertEqual(song.music_file.tags, {'----:com.apple.iTunes:FESTIVAL': [b'Reverze']})
+
+    def test_the_canonical_atom_wins_when_both_are_present(self):
+        song = self.m4a_song({
+            '----:com.apple.iTunes:FESTIVAL': [b'Reverze'],
+            '----:com.apple.iTunes:festival': [b'Defqon'],
+        })
+
+        self.assertTrue(song.normalize_custom_atoms())
+
+        self.assertEqual(song.music_file.tags, {'----:com.apple.iTunes:FESTIVAL': [b'Reverze']})
+
+    def test_every_custom_atom_is_folded_not_just_the_festival(self):
+        song = self.m4a_song({
+            '----:com.apple.iTunes:Publisher': [b'Q-dance'],
+            '----:com.apple.iTunes:parsed': [b'1'],
+        })
+
+        self.assertTrue(song.normalize_custom_atoms())
+
+        self.assertEqual(sorted(song.music_file.tags), [
+            '----:com.apple.iTunes:PARSED', '----:com.apple.iTunes:PUBLISHER',
+        ])
+
+    def test_a_file_that_is_already_canonical_is_left_alone(self):
+        tags = {'----:com.apple.iTunes:FESTIVAL': [b'Reverze'], '©ART': 'Angerfist'}
+        song = self.m4a_song(dict(tags))
+
+        self.assertFalse(song.normalize_custom_atoms())
+
+        self.assertEqual(song.music_file.tags, tags)
+
+    def test_only_m4a_files_are_folded(self):
+        song = self.m4a_song({'----:com.apple.iTunes:festival': [b'Reverze']})
+        song.type = MusicFileType.MP3
+
+        self.assertFalse(song.normalize_custom_atoms())
+
+        self.assertIn('----:com.apple.iTunes:festival', song.music_file.tags)
+
+    def test_saving_folds_the_atoms_even_when_no_value_changed(self):
+        song = self.m4a_song({'----:com.apple.iTunes:festival': [b'Reverze']})
+
+        song.save_file()
+
+        self.assertEqual(song.music_file.tags, {'----:com.apple.iTunes:FESTIVAL': [b'Reverze']})
+        song.music_file.save.assert_called_once()
+
+    def test_saving_a_canonical_file_writes_nothing(self):
+        song = self.m4a_song({'----:com.apple.iTunes:FESTIVAL': [b'Reverze']})
+
+        song.save_file()
+
+        song.music_file.save.assert_not_called()
+
     def test_delete_tag_removes_it_from_the_file_and_the_collection(self):
         song = BaseSong.__new__(BaseSong)
         song.music_file = MagicMock()

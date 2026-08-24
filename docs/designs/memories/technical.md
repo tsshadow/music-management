@@ -97,6 +97,7 @@ Each `memory` node carries:
 | `yearsAgo` | `requestYear - year`, always >= 1 |
 | `exact` | `true` when at least one track in the group matches the request's month-and-day exactly, `false` when the group only exists because of the window. Drives the "today" versus "this week" wording |
 | `songCount` | The year's full size, **before** `maxPerYear` truncated it, so a client can say how big the year is while holding only a page of it. The number of `song` children says how much of that year this answer carries |
+| `cover` | Up to four `{id}` children: distinct cover art from anywhere in the year, best-ranked first. A tile draws a mosaic, and the tracks that rank highest are frequently the ones without artwork -- a label release carries an embedded cover far less often than a rip does -- so a mosaic built from the page alone goes blank exactly for the years worth showing. Empty when the year has no artwork at all |
 
 and contains `song` array children produced by the existing `createSongNode(ctx, track, true)` helper used by
 `Spotify.cpp`, so the entries are ordinary Subsonic songs that both clients can queue and play without a
@@ -261,6 +262,8 @@ already swallows the throw.
 21. `year=2025` answers with that year alone, and with an empty `memories` node when it holds nothing.
 22. `sourceRank` places a label release above an unlabelled one, above `Free&None`, above `Soundcloud`,
     above `Youtube`, above `Telegram`, above `TODO`, ignoring case and leading underscores.
+23. A group carries up to four distinct `cover` children even when none of the tracks on its page has
+    artwork, because they are collected from the whole year rather than from the page.
 
 ## Related Docs
 

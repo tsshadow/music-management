@@ -149,6 +149,25 @@ namespace lms::api::subsonic::memories::tests
         EXPECT_EQ(groups[0].trackIds.size(), 2);
     }
 
+    TEST(Memories, keepsTheWholeYearBesideThePage)
+    {
+        // A tile lists the page but needs covers from anywhere in the year, because the tracks that
+        // rank highest are often exactly the ones without artwork.
+        const std::vector<DatedTrack> tracks{
+            { db::TrackId{ 1 }, 2018, true, false, 3 },
+            { db::TrackId{ 2 }, 2018, true, false, 2 },
+            { db::TrackId{ 3 }, 2018, true, false, 1 },
+        };
+
+        const std::vector<Group> groups{ groupByYear(tracks, 1) };
+
+        ASSERT_EQ(groups.size(), 1);
+        ASSERT_EQ(groups[0].trackIds.size(), 1);
+        ASSERT_EQ(groups[0].rankedIds.size(), 3);
+        EXPECT_EQ(groups[0].rankedIds[0], db::TrackId{ 1 });
+        EXPECT_EQ(groups[0].rankedIds[2], db::TrackId{ 3 });
+    }
+
     TEST(Memories, emptyInputYieldsNoGroups)
     {
         EXPECT_TRUE(groupByYear({}, 10).empty());

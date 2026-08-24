@@ -234,6 +234,25 @@ class BookkeepingSurvivesShutdownTest(unittest.TestCase):
         # And it was written down rather than silently forgotten.
         self.assertEqual(1, self.write_off_store.rows[('soundcloud', 'dj_a', 'a')].attempts)
 
+    def test_a_track_that_was_never_attempted_is_not_blamed_for_the_stop(self):
+        # Counting the whole batch would charge a failed attempt to tracks the
+        # pass never got to. Three stops in a row and they are written off as
+        # `failed` for a month -- the deep sweep skipping exactly the tracks it
+        # exists to fetch.
+        self.downloader.download_url = self._fetch_then_stop
+        listing = [FlatTrack(t, f'https://soundcloud.com/dj_a/{t}', t)
+                   for t in ('a', 'b', 'c')]
+
+        with mock.patch('services.downloader.soundcloud.soundcloud.list_flat',
+                        return_value=listing), \
+             mock.patch('services.downloader.soundcloud.soundcloud.SoundcloudArchive'
+                        '.held_ids', side_effect=[set(), set()]):
+            with self.assertRaises(SweepAborted):
+                self.downloader.deep_sweep_account('dj_a', {})
+
+        self.assertNotIn(('soundcloud', 'dj_a', 'b'), self.write_off_store.rows)
+        self.assertNotIn(('soundcloud', 'dj_a', 'c'), self.write_off_store.rows)
+
     def test_the_account_stays_deep_due_after_a_shutdown(self):
         # A stop arriving on the last track of the batch lets the loop end on its
         # own, so there is no guard left to raise. The pass still has to settle

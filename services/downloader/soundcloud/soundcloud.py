@@ -216,30 +216,36 @@ class SoundcloudDownloader:
                      '%d missing, fetching %d.', account, len(listing), len(held),
                      len(write_offs), len(wanted), len(batch))
         parked = False
+        attempted: list = []
         try:
             for entry in batch:
                 self.policy.guard(account)
+                # Recorded before the download, not after: a track the pass never
+                # reached must not be charged with a failed attempt, or three
+                # interrupted passes write it off for a month.
+                attempted.append(entry)
                 self.download_url(entry.url, ydl_opts, account=account)
         except RateLimited:
             parked = True
             raise
         finally:
             report = self._settle_deep(account, listing, held, write_offs, wanted,
-                                       batch, parked)
+                                       batch, attempted, parked)
             logging.info('Deep sweep of %s: %s', account, report.summary())
         return report
 
     def _settle_deep(self, account: str, listing, held, write_offs, wanted, batch,
-                     parked: bool) -> DeepSweepReport:
+                     attempted, parked: bool) -> DeepSweepReport:
         """Count what actually arrived, and write off what did not.
 
         One extra lookup per pass. A track that neither downloaded nor rejected
         has to be counted, or a single permanently broken track keeps its account
         incomplete and re-swept every day forever.
         """
-        arrived = self._held_ids(account, [entry.track_id for entry in batch]) if batch else set()
+        arrived = self._held_ids(
+            account, [entry.track_id for entry in attempted]) if attempted else set()
         downloaded = 0
-        for entry in batch:
+        for entry in attempted:
             if entry.track_id in arrived:
                 downloaded += 1
                 continue

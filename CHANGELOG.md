@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Een diepe ronde die halverwege stopte rekende tracks aan die hij nooit geprobeerd had.** Werd de
+  bron geparkeerd of het proces gestopt, dan schreef de afhandeling de hele resterende batch weg als
+  mislukte poging. Op 23-08-2026 stonden zo 94 tracks onterecht op een poging, waarvan 79 bij twee
+  accounts — het patroon van een afgebroken ronde, niet van mislukte downloads. Na drie van die
+  afbrekingen zou zo'n track dertig dagen zijn uitgesloten, precies de tracks waarvoor de diepe ronde
+  bestaat. Alleen wat de ronde echt geprobeerd heeft telt nu mee.
+
+### Fixed
 - **Zeven kanalen waren stilletjes samengevoegd met een ander kanaal.** `channels.normalized_name`
   stond op `utf8mb4_general_ci`, en die collatie geeft élk teken buiten de Basic Multilingual Plane
   hetzelfde sorteergewicht. Twee namen die volledig uit zulke tekens bestaan zijn voor de database

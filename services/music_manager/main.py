@@ -32,6 +32,7 @@ from services.music_manager.routers import (
     rating,
     scanner,
     scrobbler,
+    songs,
     stats,
     tagger,
     user_requests,
@@ -42,6 +43,7 @@ from services.music_manager.routers.scanner import run_scanner_loop
 from services.music_manager.routers.tagger import run_tagger_loop
 from services.music_manager.routers.users import run_lms_db_sync
 from services.music_manager.scrobble_rematch import run_scrobble_rematch
+from services.music_manager.song_version_worker import run_song_version_grouping
 from services.music_manager.thread_registry import start_thread, thread_status
 
 load_dotenv()
@@ -74,6 +76,7 @@ app.include_router(radio.router, prefix="/api/radio")
 app.include_router(news.router, prefix="/api/news")
 app.include_router(diagnostics.router, prefix="/api/diagnostics")
 app.include_router(curation.router, prefix="/api/curation")
+app.include_router(songs.router, prefix="/api/songs")
 
 def background_workers_enabled() -> bool:
     """Whether startup should spin up the tagger, scanner and radio loops.
@@ -124,6 +127,7 @@ def startup_event():
         start_thread('news', news.run_news_recorder)
         start_thread('events-retention', run_events_retention)
         start_thread('scrobble-rematch', run_scrobble_rematch)
+        start_thread('song-versions', run_song_version_grouping)
 
 @app.get('/health')
 def health(response: Response):

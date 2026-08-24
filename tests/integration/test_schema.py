@@ -16,6 +16,7 @@ EXPECTED_TABLES = {
     'user_app_settings', 'user_listenbrainz_accounts', 'dynamic_playlists',
     'roles', 'permissions', 'role_permissions', 'audit_events',
     'library_artists', 'library_labels', 'library_tracks', 'library_media_files',
+    'library_works',
     'library_track_artists', 'library_track_genres', 'library_track_labels',
     'library_track_audio_features', 'library_track_ml_labels',
     'library_artist_images', 'artist_external_ids', 'label_external_ids',

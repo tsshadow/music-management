@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **De webui bladert nu ook op festival, jaar en lineup, net als de Android-app.** Drie pagina's
+  onder Bibliotheek, met dezelfde kaartenrasters als Genres en Labels. De server kende de lijsten
+  al (`getTags` voor FESTIVAL en YEAR, `getLineups` voor de lineups); wat ontbrak was dat
+  `getSpotifyTracks` — het endpoint waar de hele webui zijn nummerlijsten uit haalt — niet op
+  festival of lineup kon filteren. Dat kan het nu. Let op wat een lineup is: een tekstbestand met
+  artiestennamen onder `/music/metadata/festival-lineups`, en de match gaat op de héle
+  artiestennaam. `Angerfist` vindt dus niet wat op naam van `Angerfist & Outsiders` staat. Op prod
+  staat nog geen enkel lineup-bestand, dus die pagina begint leeg.
+- **Een lege Festivals- of Jaren-pagina zegt nu waaróm hij leeg is.** `getTags` kan niet uit elkaar
+  houden of er niets getagd is of dat de tag nooit geïndexeerd werd, en dat laatste hield destijds
+  de Podcasts-pagina leeg. Een beheerder krijgt nu te lezen dat de tag bij de extra tags van de
+  scanner moet staan; wie geen beheerder is krijgt gewoon "nog niets", want het antwoord van de
+  server bevat die instelling voor hen niet eens.
+
+## [0.34.0] - 2026-08-24
+
 ### Fixed
 - **Eén festival kon twee kaartjes opleveren, omdat dezelfde tag in twee schrijfwijzen op het
   bestand stond.** In m4a schrijft `_set_m4a_tag` de naam in hoofdletters
@@ -23,19 +40,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   die naam kent LMS al.
 
 ### Added
-- **De webui bladert nu ook op festival, jaar en lineup, net als de Android-app.** Drie pagina's
-  onder Bibliotheek, met dezelfde kaartenrasters als Genres en Labels. De server kende de lijsten
-  al (`getTags` voor FESTIVAL en YEAR, `getLineups` voor de lineups); wat ontbrak was dat
-  `getSpotifyTracks` — het endpoint waar de hele webui zijn nummerlijsten uit haalt — niet op
-  festival of lineup kon filteren. Dat kan het nu. Let op wat een lineup is: een tekstbestand met
-  artiestennamen onder `/music/metadata/festival-lineups`, en de match gaat op de héle
-  artiestennaam. `Angerfist` vindt dus niet wat op naam van `Angerfist & Outsiders` staat. Op prod
-  staat nog geen enkel lineup-bestand, dus die pagina begint leeg.
-- **Een lege Festivals- of Jaren-pagina zegt nu waaróm hij leeg is.** `getTags` kan niet uit elkaar
-  houden of er niets getagd is of dat de tag nooit geïndexeerd werd, en dat laatste hield destijds
-  de Podcasts-pagina leeg. Een beheerder krijgt nu te lezen dat de tag bij de extra tags van de
-  scanner moet staan; wie geen beheerder is krijgt gewoon "nog niets", want het antwoord van de
-  server bevat die instelling voor hen niet eens.
+- **Nummers kennen nu hun eigen versies, en er is er één die telt.** Eén nummer stond tot tien
+  keer in de bibliotheek — een SoundCloud-rip, een YouTube-rip, de officiële radio edit, de
+  extended mix, en dat alles nog eens als FLAC en als MP3 — en niets in het systeem wist dat dat
+  hetzelfde nummer was. `library_works` komt boven `library_tracks` te staan, dat al de versielaag
+  was, en een achtergrondlus hangt elke track onder het nummer waar hij bij hoort. Welke versie
+  telt wordt bepaald door tiers die op volgorde beslissen: eerst herkomst (een officiële release
+  met een label verslaat altijd een rip), dan de soort (radio, edit, original, geen markering,
+  extended, instrumentaal), dan het formaat. Dat vervangt de opgetelde score van de oude
+  deduplicatie, waarin een rip van 320kbps won van een officiële radio edit van 192kbps omdat
+  formaat zwaarder woog dan versie. Een remix blijft een eigen nummer: de groepering strippen
+  alleen haakjes waarvan élk woord een bekende versie-aanduiding is, dus "(Radio Edit)" verdwijnt
+  en "(Wildstylez Edit)" blijft staan. Twee handmatige correcties zitten erbij, want de regels
+  hebben het niet altijd bij het rechte eind: een versie vastpinnen, en een track die verkeerd is
+  samengevoegd uit zijn groep trekken. Beide overleven een rescan. Er verandert nog niets aan wat
+  je ziet of hoort — dit is het model en het bewijs dat het klopt; de speler en de webinterface
+  gaan er in een volgende stap op leunen.
 - **De instellingen van MuMa zijn nu vanuit de webui te bewerken.** Beheer heeft een tabblad
   Configuratie dat het schema rendert dat de backend zelf beschrijft: elk veld met zijn groep,
   type, uitleg en huidige waarde. Een instelling die in `config_store.py` bijkomt verschijnt er

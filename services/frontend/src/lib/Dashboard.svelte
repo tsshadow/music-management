@@ -25,6 +25,7 @@
   import { localDateString, memoryCount, memoryHeading, parseMemoryGroups } from './memories.js';
   import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
   import { defaultCollectionState, durationParts, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
+  import { loadIndexedTags } from './scanTags.js';
   import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, hasPermission } from './store.js';
 
   // Navigation that has to survive a refresh goes through onnavigate, which App turns into a URL.
@@ -48,6 +49,11 @@
   let allGenres = $state([]);
   let allLabels = $state([]);
   let allPodcasts = $state([]);
+  let allFestivals = $state([]);
+  let allYears = $state([]);
+  let allLineups = $state([]);
+  // null until asked, and null again whenever the answer is not knowable -- see loadIndexedTags.
+  let indexedTags = $state(null);
   let playlists = $state([]);
   let tracksOffset = $state(0);
   let tracksHasMore = $state(true);
@@ -70,6 +76,9 @@
   let genreView = $state(defaultCollectionState('genres'));
   let labelView = $state(defaultCollectionState('labels'));
   let podcastView = $state(defaultCollectionState('podcasts'));
+  let festivalView = $state(defaultCollectionState('festivals'));
+  let yearView = $state(defaultCollectionState('years'));
+  let lineupView = $state(defaultCollectionState('lineups'));
   let playlistView = $state(defaultCollectionState('playlists'));
 
   const visibleGenres = $derived(queryCollection(allGenres, 'genres', genreView, { favorites: $favoriteGenres }));
@@ -159,8 +168,20 @@
         if (activeView.startsWith('podcast:')) {
           url += `&podcast=${encodeURIComponent(viewArgument(activeView))}`;
         }
+        if (activeView.startsWith('festival:')) {
+          url += `&festival=${encodeURIComponent(viewArgument(activeView))}`;
+        }
+        if (activeView.startsWith('lineup:')) {
+          url += `&lineup=${encodeURIComponent(viewArgument(activeView))}`;
+        }
 
+        // The year view reuses the parameter the filter bar already drives. Seeding
+        // `currentYear` from the route instead would not survive: resetTrackFiltersFor
+        // clears it on every arrival at a new track view, before the first fetch.
         if (currentYear) url += `&year=${encodeURIComponent(currentYear)}`;
+        else if (activeView.startsWith('year:')) {
+          url += `&year=${encodeURIComponent(viewArgument(activeView))}`;
+        }
         if (currentMinRating !== '0') url += `&minRating=${currentMinRating}`;
         if (includeUnrated) url += `&includeUnrated=true`;
 
@@ -375,6 +396,72 @@
   }
 
   /**
+   * Loads one cluster-type list (festivals, years) and, when it comes back empty,
+   * the scanner settings that say whether the tag is indexed at all.
+   *
+   * @param {string} tag - The cluster type, e.g. 'FESTIVAL'.
+   * @returns {Promise<Object[]>} The tags, possibly empty.
+   */
+  async function loadTagCollection(tag) {
+    if (!$authParams) return [];
+    isLoading = true;
+    try {
+      const response = await fetch(`/rest/getTags?name=${tag}&${$authParams}`);
+      const data = await response.json();
+      const result = data['subsonic-response']?.tags?.tag || [];
+      const list = Array.isArray(result) ? result : [result];
+
+      // Only worth a second request when there is something to explain.
+      indexedTags = list.length === 0 ? await loadIndexedTags($authParams) : null;
+
+      return list;
+    } catch (e) {
+      console.error(`Failed to load the ${tag} list:`, e);
+      return [];
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  /**
+   * Loads the festival lineups.
+   *
+   * These are text files on disk rather than anything the library knows about, so an
+   * empty list is the normal state of a server where nobody has added one yet.
+   */
+  async function loadAllLineups() {
+    if (!$authParams) return;
+    isLoading = true;
+    try {
+      const response = await fetch(`/rest/getLineups?${$authParams}`);
+      const data = await response.json();
+      const result = data['subsonic-response']?.lineups?.lineup || [];
+      const list = Array.isArray(result) ? result : [result];
+      // getLineups answers with a `name` attribute; every collection here keys on `value`.
+      allLineups = list.map((entry) => ({ value: entry.name ?? entry.value }));
+    } catch (e) {
+      console.error('Failed to load lineups:', e);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  /**
+   * The extra line under an empty festival or year grid: shown only when the scanner
+   * settings were readable AND actually lack the tag. A null `indexedTags` means the
+   * settings could not be read -- a non-admin, an older server -- and then the page
+   * says nothing rather than pointing at a setting the viewer cannot see.
+   *
+   * @param {string} tag
+   * @returns {string|null}
+   */
+  function tagHint(tag) {
+    if (indexedTags === null) return null;
+    if (indexedTags.includes(tag)) return null;
+    return $t('collection.tagNotIndexed', { tag });
+  }
+
+  /**
    * Adds or removes one entry in a favorites store, keeping it sorted so the
    * value that gets synced to the account doesn't churn on every toggle.
    *
@@ -529,7 +616,7 @@
         if (view === 'home') {
             loadCurated();
             loadMemoryGroups();
-        } else if (view === 'songs' || view === 'sets' || view.startsWith('genre:') || view.startsWith('label:') || view.startsWith('podcast:')) {
+        } else if (view === 'songs' || view === 'sets' || view.startsWith('genre:') || view.startsWith('label:') || view.startsWith('podcast:') || view.startsWith('festival:') || view.startsWith('year:') || view.startsWith('lineup:')) {
             resetTrackFiltersFor(view);
             loadAllTracks();
         } else if (view === 'radar') {
@@ -542,6 +629,12 @@
             loadAllLabels();
         } else if (view === 'podcasts') {
             loadAllPodcasts();
+        } else if (view === 'festivals') {
+            loadTagCollection('FESTIVAL').then((list) => (allFestivals = list));
+        } else if (view === 'years') {
+            loadTagCollection('YEAR').then((list) => (allYears = list));
+        } else if (view === 'lineups') {
+            loadAllLineups();
         } else if (view === 'artists') {
             loadArtists();
         } else if (view === 'playlists') {
@@ -560,7 +653,7 @@
   });
 
   $effect(() => {
-    if (sentinel && tracksHasMore && !isLoading && (activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('podcast:') || activeView.startsWith('search:'))) {
+    if (sentinel && tracksHasMore && !isLoading && (activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('podcast:') || activeView.startsWith('festival:') || activeView.startsWith('year:') || activeView.startsWith('lineup:') || activeView.startsWith('search:'))) {
       const observer = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting) {
           loadAllTracks(true);
@@ -652,7 +745,7 @@
         </div>
       </section>
     {/each}
-  {:else if activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('podcast:')}
+  {:else if activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('podcast:') || activeView.startsWith('festival:') || activeView.startsWith('year:') || activeView.startsWith('lineup:')}
     <div class="flex flex-col gap-4 mb-6">
         <h2 class="text-2xl font-bold m-0 flex items-center gap-3">
             {#if activeView === 'songs' || activeView === 'sets'}
@@ -694,7 +787,7 @@
               {/if}
             {/if}
         </h2>
-        <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} showGenre={!activeView.startsWith('genre:') && !activeView.startsWith('label:') && !activeView.startsWith('podcast:')} onchange={handleFilterChange} />
+        <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} showGenre={!activeView.startsWith('genre:') && !activeView.startsWith('label:') && !activeView.startsWith('podcast:')} showYear={!activeView.startsWith('year:')} onchange={handleFilterChange} />
     </div>
     {#if isLoading && tracks.length === 0}
         <p>{$t('common.loading')}</p>
@@ -791,6 +884,39 @@
       favoriteAriaLabel={$t('collection.toggleFavoriteLabel')}
       emptyText={$t('dashboard.noLabels')}
       onselect={(item) => (activeView = `label:${item.value}`)}
+    />
+  {:else if activeView === 'festivals'}
+    <CollectionGrid
+      type="festivals"
+      title={$t('nav.festivals')}
+      items={allFestivals}
+      bind:state={festivalView}
+      loading={isLoading}
+      emptyText={$t('collection.noFestivals')}
+      emptyHint={tagHint('FESTIVAL')}
+      onselect={(item) => (activeView = `festival:${item.value}`)}
+    />
+  {:else if activeView === 'years'}
+    <CollectionGrid
+      type="years"
+      title={$t('nav.years')}
+      items={allYears}
+      bind:state={yearView}
+      loading={isLoading}
+      emptyText={$t('collection.noYears')}
+      emptyHint={tagHint('YEAR')}
+      onselect={(item) => (activeView = `year:${item.value}`)}
+    />
+  {:else if activeView === 'lineups'}
+    <CollectionGrid
+      type="lineups"
+      title={$t('nav.lineups')}
+      items={allLineups}
+      bind:state={lineupView}
+      loading={isLoading}
+      emptyText={$t('collection.noLineups')}
+      emptyHint={$t('collection.noLineupsHelp')}
+      onselect={(item) => (activeView = `lineup:${item.value}`)}
     />
   {:else if activeView === 'artists'}
     <div class="flex flex-col gap-4 mb-6">

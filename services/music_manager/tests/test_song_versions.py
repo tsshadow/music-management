@@ -7,8 +7,11 @@ import unittest
 
 from services.music_manager.song_versions import (
     KIND_ORDER,
+    derived_bitrate,
+    format_tier,
     version_free_title,
     version_kind,
+    version_score,
     work_key,
 )
 
@@ -120,3 +123,65 @@ class WorkKeyTest(unittest.TestCase):
     def test_the_key_fits_the_column(self):
         key = work_key('A' * 300, 'B' * 300)
         self.assertLessEqual(len(key), 191)
+
+
+class DerivedBitrateTest(unittest.TestCase):
+
+    def test_a_320k_file_reads_as_320ish(self):
+        # 320 kbit/s over 300 seconds is 12 MB.
+        self.assertGreaterEqual(derived_bitrate(12_000_000, 300.0), 300)
+
+    def test_a_192k_file_reads_as_192ish(self):
+        self.assertLess(derived_bitrate(7_200_000, 300.0), 250)
+
+    def test_a_missing_duration_is_zero_rather_than_a_crash(self):
+        self.assertEqual(derived_bitrate(12_000_000, None), 0)
+        self.assertEqual(derived_bitrate(12_000_000, 0.0), 0)
+
+    def test_a_missing_size_is_zero(self):
+        self.assertEqual(derived_bitrate(None, 300.0), 0)
+
+
+class FormatTierTest(unittest.TestCase):
+
+    def test_flac_outranks_every_lossy_format(self):
+        self.assertLess(format_tier('a.flac', 1000), format_tier('a.mp3', 320))
+        self.assertLess(format_tier('a.flac', 1000), format_tier('a.m4a', 256))
+
+    def test_a_320_mp3_outranks_a_192_mp3(self):
+        self.assertLess(format_tier('a.mp3', 320), format_tier('a.mp3', 192))
+
+    def test_the_extension_is_case_insensitive(self):
+        self.assertEqual(format_tier('a.FLAC', 1000), format_tier('a.flac', 1000))
+
+
+class VersionScoreTest(unittest.TestCase):
+
+    def test_an_official_192k_radio_edit_beats_a_320k_rip(self):
+        official = version_score(True, 'radio', 'a.mp3', 192)
+        rip = version_score(False, 'none', 'b.mp3', 320)
+        self.assertGreater(official, rip)
+
+    def test_within_one_provenance_the_version_decides_before_the_format(self):
+        radio_mp3 = version_score(True, 'radio', 'a.mp3', 192)
+        extended_flac = version_score(True, 'extended', 'b.flac', 1000)
+        self.assertGreater(radio_mp3, extended_flac)
+
+    def test_within_one_version_the_format_decides(self):
+        flac = version_score(True, 'radio', 'a.flac', 1000)
+        mp3 = version_score(True, 'radio', 'b.mp3', 320)
+        self.assertGreater(flac, mp3)
+
+    def test_instrumental_is_the_worst_kind(self):
+        for kind in ('radio', 'edit', 'original', 'none', 'extended'):
+            self.assertGreater(
+                version_score(True, kind, 'a.flac', 1000),
+                version_score(True, 'instrumental', 'a.flac', 1000),
+                kind,
+            )
+
+    def test_an_unknown_kind_does_not_crash_and_ranks_as_none(self):
+        self.assertEqual(
+            version_score(True, 'nonsense', 'a.flac', 1000),
+            version_score(True, 'none', 'a.flac', 1000),
+        )

@@ -97,3 +97,55 @@ def version_kind(title: str | None) -> str:
 def work_key(artist: str | None, title: str | None) -> str:
     """The grouping key: one song by one artist, however its versions are spelled."""
     return f'{normalize(artist)}:::{version_free_title(title)}'[:WORK_KEY_MAX]
+
+
+# Each tier weighted above the maximum of every tier below it, so adding them is
+# still a lexicographic comparison. This is exactly what the implementation being
+# replaced got wrong: its weights overlapped, so format outranked version.
+_PROVENANCE_WEIGHT = 1_000_000
+_KIND_WEIGHT = 10_000
+_FORMAT_WEIGHT = 100
+
+_LOSSLESS = {'flac', 'wav', 'aiff', 'alac'}
+_FORMAT_TIERS = 5  # flac, mp3@320, m4a/aac, mp3@192, everything else
+
+
+def derived_bitrate(file_size: int | None, duration_secs: float | None) -> int:
+    """Kilobits per second, from the two columns muma actually stores.
+
+    Accurate enough to separate 320 from 192, which is all the format tier asks.
+    Container overhead makes it read slightly high; that bias is the same for
+    every file, so it never changes an ordering.
+    """
+    if not file_size or not duration_secs:
+        return 0
+    return int((file_size * 8) / duration_secs / 1000)
+
+
+def format_tier(file_path: str, bitrate_kbps: int) -> int:
+    """0 is best. Lossless, then 320, then AAC, then 192, then the rest."""
+    extension = file_path.rsplit('.', 1)[-1].lower() if '.' in file_path else ''
+    if extension in _LOSSLESS:
+        return 0
+    if bitrate_kbps >= 300:
+        return 1
+    if extension in ('m4a', 'aac', 'opus', 'ogg'):
+        return 2
+    if bitrate_kbps >= 180:
+        return 3
+    return 4
+
+
+def version_score(is_official: bool, kind: str, file_path: str, bitrate_kbps: int) -> int:
+    """The three tiers packed into one sortable integer. Higher is better."""
+    provenance = _PROVENANCE_WEIGHT if is_official else 0
+
+    try:
+        kind_index = KIND_ORDER.index(kind)
+    except ValueError:
+        kind_index = KIND_ORDER.index('none')
+    kind_points = (len(KIND_ORDER) - 1 - kind_index) * _KIND_WEIGHT
+
+    format_points = (_FORMAT_TIERS - 1 - format_tier(file_path, bitrate_kbps)) * _FORMAT_WEIGHT
+
+    return provenance + kind_points + format_points

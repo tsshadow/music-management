@@ -251,6 +251,11 @@ namespace lms::api::subsonic
 
         addClusters("moods", "MOOD");
 
+        // The PUBLISHER cluster rather than the db::Label table: labels hang off the release in
+        // the data model, and the cluster is what the filtering side matches on. Browsing.cpp
+        // makes the same choice for browsing by label.
+        addClusters("labels", "PUBLISHER");
+
         // Genres
         trackResponse.createEmptyArrayChild("genres");
         for (const auto& genre : genres)

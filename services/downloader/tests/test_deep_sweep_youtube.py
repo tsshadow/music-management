@@ -8,7 +8,7 @@ setup_mocks()
 
 from services.downloader.account_schedule import AccountSchedule, InMemoryCheckStore
 from services.downloader.deep_sweep import FlatTrack
-from services.downloader.rate_state import InMemoryRateStateStore, RateState
+from services.downloader.rate_state import InMemoryRateStateStore, RateState, SweepAborted
 from services.downloader.timing import load_timing
 from services.downloader.write_offs import InMemoryWriteOffStore, WriteOffs
 from services.downloader.youtube.youtube import YoutubeDownloader
@@ -144,6 +144,33 @@ class DeepSweepYoutubeTest(DeepSweepYoutubeTestCase):
 
         self.assertEqual([], self.fetched)
         self.assertTrue(report.complete)
+
+
+class InterruptedPassTest(DeepSweepYoutubeTestCase):
+    """A pass cut short may only settle the videos it actually reached."""
+
+    def test_a_video_that_was_never_attempted_is_not_blamed_for_the_stop(self):
+        # Settling the whole batch would charge a failed attempt to videos the
+        # pass never got to. Three stops in a row and they are written off as
+        # `failed` for a month -- the deep sweep skipping exactly the videos it
+        # exists to fetch.
+        account = YoutubeAccount(name='@dj_a', download_type=AUDIO)
+
+        def _stop_the_sweep(url, ydl_opts=None, acc=None):
+            self.fetched.append(url)
+            self.downloader.policy.stop.set()
+
+        self.downloader.download_url = _stop_the_sweep
+
+        with mock.patch('services.downloader.youtube.youtube.list_flat',
+                        return_value=listing('a', 'b')), \
+             mock.patch('services.downloader.youtube.youtube.YoutubeArchive.held_ids',
+                        side_effect=[set(), set()]):
+            with self.assertRaises(SweepAborted):
+                self.downloader.deep_sweep_account(account, {})
+
+        self.assertEqual(1, self.write_off_store.rows[('youtube', '@dj_a', 'a')].attempts)
+        self.assertNotIn(('youtube', '@dj_a', 'b'), self.write_off_store.rows)
 
 
 class DeepSweepYoutubeBranchTest(DeepSweepYoutubeTestCase):

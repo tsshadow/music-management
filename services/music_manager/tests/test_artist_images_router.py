@@ -1,5 +1,6 @@
 """Coverage for the /api/artists router: search, the image manager, and the fetch tasks."""
 import base64
+import os
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
@@ -373,6 +374,27 @@ class BackgroundFetchTest(unittest.TestCase):
         self.fetcher_module.ArtistImageFetcher.side_effect = RuntimeError('no credentials')
         artist_images_router.run_fetch_missing()
         self.assertEqual(artist_images_router.fetch_progress['status'], 'failed')
+
+    def test_a_recent_failure_is_left_alone_until_the_cooldown_passes(self):
+        """The startup crawl must not re-ask a third party for every hopeless name on
+        every boot, so the query excludes artists whose last attempt failed recently."""
+        self.cursor.fetchone.return_value = {'count': 1}
+        self.cursor.fetchall.return_value = []
+        with patch.dict(os.environ, {'ARTIST_IMAGE_RETRY_AFTER_DAYS': '14'}):
+            artist_images_router.run_fetch_missing()
+        sql, params = self.cursor.execute.call_args_list[-1][0]
+        self.assertIn('image_status', sql)
+        self.assertIn("<> 'failed'", sql)
+        self.assertIn('INTERVAL %s DAY', sql)
+        self.assertEqual(params, (14,))
+
+    def test_the_cooldown_defaults_to_thirty_days(self):
+        self.cursor.fetchone.return_value = {'count': 1}
+        self.cursor.fetchall.return_value = []
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop('ARTIST_IMAGE_RETRY_AFTER_DAYS', None)
+            artist_images_router.run_fetch_missing()
+        self.assertEqual(self.cursor.execute.call_args_list[-1][0][1], (30,))
 
     def test_a_single_artist_fetch_by_id_forces_a_refresh(self):
         self.cursor.fetchone.return_value = {'name': 'Angerfist'}

@@ -40,10 +40,22 @@ data class MusicDirectoryChild(
     val status: String = "",
     val publishDate: Calendar? = null,
     val userRating: Int? = null,
-    val averageRating: Float? = null
+    val averageRating: Float? = null,
+    /** One entry per artist the server split the tag into. Empty on servers that do not send it. */
+    val artists: List<ApiArtistRef> = emptyList(),
+    val moods: List<String> = emptyList(),
+    val labels: List<String> = emptyList()
 )
 
 class ApiGenre {
+    @JsonProperty("name")
+    val name: String = ""
+}
+
+class ApiArtistRef {
+    @JsonProperty("id")
+    val id: String = ""
+
     @JsonProperty("name")
     val name: String = ""
 }

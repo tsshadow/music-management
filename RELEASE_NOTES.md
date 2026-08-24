@@ -11,6 +11,33 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.32.0 (2026-08-24)
+
+- **De hoezen op je Memories-tegels zijn terug.** Sinds vorige versie zet MuMa labelreleases
+  vooraan, en dat pakte voor de plaatjes averechts uit: een SoundCloud-rip draagt bijna altijd een
+  ingesloten hoes, een echte labelrelease in deze bibliotheek meestal niet. Vier van de zes jaren
+  toonden daardoor een grijs vlak. De hoezen worden nu uit het hele jaar verzameld in plaats van
+  uit de handvol nummers die op de tegel staan.
+- **Zeven kanalen waren stilletjes samengevoegd met een ander.** De database vergeleek kanaalnamen
+  met een collatie die elk teken buiten het gewone alfabet even zwaar weegt, dus twee namen die
+  volledig uit stijl-unicode bestaan golden als identiek zodra ze even lang waren — en juist
+  SoundCloud-accounts schrijven zo. De tracks van de verliezer belandden bij het winnende kanaal.
+  Niets crashte; de telling was zeven te laag. Na deze update moeten de meegeleverde migratie en
+  de twee opruimscripts nog gedraaid worden.
+- **Een afgebroken diepe download-ronde rekent geen tracks meer aan die hij nooit geprobeerd
+  heeft.** Werd de bron geparkeerd of het proces gestopt, dan telde de hele resterende batch als
+  mislukte poging; na drie van die afbrekingen verdween zo'n track dertig dagen uit beeld.
+- **Het zoeken naar artiestafbeeldingen legde de boel plat.** Twee fouten tegelijk: de verbinding
+  met MusicBrainz kreeg vijf seconden om tot stand te komen waar die er onder belasting ruim meer
+  nodig heeft, en bij elke herstart begon MuMa opnieuw bij élke artiest zonder afbeelding — ook de
+  tienduizenden namen die al eerder niets opleverden. Nu is er ruimte om te verbinden, en een
+  mislukte poging wacht dertig dagen voor hij herhaald wordt.
+- **De app kan nu vragen wat twee artiesten samen gemaakt hebben.** `getSongs` accepteert
+  meerdere artiesten tegelijk en geeft alleen nummers terug waar ze allemaal aan meewerkten, met
+  daarbij hoeveel treffers er in totaal zijn, zodat een lijst kan doorbladeren zonder tot het
+  einde te lopen. Nummers dragen voortaan ook hun labels mee.
+
+
 ## Global Version 0.31.0 (2026-08-23)
 
 - **Memories zet labelreleases vooraan.** De volgorde binnen een jaar keek naar sterren en

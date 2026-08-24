@@ -7,6 +7,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-08-24
+
+### Fixed
+- **De artiestafbeeldingen-crawl liep bij elke herstart opnieuw langs elke hopeloze naam, en
+  bleef daarbij hangen op MusicBrainz.** Twee fouten die elkaar versterkten. De timeout stond op
+  `(5, 20)`: ruim voor het lezen, krap voor het verbinden. Gemeten tegen musicbrainz.org op
+  24-08-2026 landde élke mislukking op precies 5,0 seconden — de connect-helft — en urllib3 meldt
+  dat als `Read timed out. (read timeout=5)`, waarin het woord "read" naar de verkeerde helft
+  wijst. Onder belasting doet die host er seconden over om de verbinding te accepteren en
+  antwoordt hij daarna in ongeveer zeven; met `(15, 30)` slaagt dezelfde zoekopdracht waar hij
+  eerst na twee pogingen en 10 tot 25 seconden opgaf. Daarbovenop selecteerde de crawl bij elke
+  boot élke artiest zonder afbeelding, inclusief alle eerder mislukte. Deze bibliotheek bestaat
+  voor een groot deel uit festivalrips en bootleg-aliassen die geen enkele provider kent, en die
+  namen worden er tussentijds niet vindbaarder op — het opnieuw proberen kostte alleen een derde
+  partij seconden per artiest, eindeloos. Een mislukte poging heeft nu een wachttijd van 30 dagen,
+  in te stellen met `ARTIST_IMAGE_RETRY_AFTER_DAYS`.
+- **`setArtist()` en `setArtistName()` keken in `find_advanced` naar twee verschillende
+  koppelingen.** Beide kregen hun eigen `track_artist_link`-join, dus "deze id" en "deze naam"
+  mochten twee verschillende artiesten op twee verschillende rijen zijn — een track die de ene
+  artiest als id had en een ándere als naam kwam er doorheen. Ze delen nu één link-rij, wat de
+  betekenis is die het paar altijd al had.
+- **Een diepe ronde die halverwege stopte rekende tracks aan die hij nooit geprobeerd had.** Werd de
+  bron geparkeerd of het proces gestopt, dan schreef de afhandeling de hele resterende batch weg als
+  mislukte poging. Op 23-08-2026 stonden zo 94 tracks onterecht op een poging, waarvan 79 bij twee
+  accounts — het patroon van een afgebroken ronde, niet van mislukte downloads. Na drie van die
+  afbrekingen zou zo'n track dertig dagen zijn uitgesloten, precies de tracks waarvoor de diepe ronde
+  bestaat. Alleen wat de ronde echt geprobeerd heeft telt nu mee.
+- **De hoezen op een Memories-tegel waren weg zodra labelreleases vooraan kwamen.** Dat is precies
+  andersom dan je zou denken: een SoundCloud-rip draagt bijna altijd een ingesloten plaatje, een
+  echte labelrelease in deze bibliotheek meestal niet. Toen de tegels de labelreleases vooraan
+  gingen zetten, keek de mozaïek dus naar juist die nummers en vond niets — vier van de zes jaren
+  toonden een grijs vlak. De server stuurt nu per jaar maximaal vier hoezen mee, verzameld uit het
+  hele jaar in plaats van uit de handvol nummers op de tegel, zodat een jaar met onbehoesde
+  topnummers alsnog een mozaïek krijgt.
+- **Zeven kanalen waren stilletjes samengevoegd met een ander kanaal.** `channels.normalized_name`
+  stond op `utf8mb4_general_ci`, en die collatie geeft élk teken buiten de Basic Multilingual Plane
+  hetzelfde sorteergewicht. Twee namen die volledig uit zulke tekens bestaan zijn voor de database
+  dus identiek zodra ze even lang zijn — en juist SoundCloud-accounts met stijl-unicode zijn dat.
+  `𝙁𝙍𝘼𝙉𝙏𝙄𝘾` (7 tekens) gold als gelijk aan `𝗕𝗔𝗗𝗞𝗜𝗖𝗞` (7), `𝙎𝙋𝘼𝙍𝙆𝙕` (6) aan `𝐊𝐈𝐑𝐄𝐀𝐋` (6). De unieke
+  sleutel hield de eerste, `INSERT IGNORE` slikte de rest zonder foutmelding, en de tracks van de
+  verliezer werden aan het winnende kanaal gehangen. Niets crashte; de telling was zeven te laag.
+  De kolom is nu `utf8mb4_bin`, wat hier ook inhoudelijk klopt: de waarde wordt al in Python
+  gelowercased, dus vergelijken op bytes is precies de vraag die gesteld wordt. Draai
+  `migrate_v13_channels_binary_collation.sql`, daarna `scripts/backfill_channels.py` en
+  `scripts/prune_channel_links.py` om de verkeerde koppelingen op te ruimen.
+- **De channel-backfill haalde het einde niet.** Hij deed drie queries per bestand, wat voor deze
+  bibliotheek neerkomt op bijna een miljoen losse round-trips; de server verbrak de verbinding
+  halverwege met `Lost connection to MySQL server during query`. Elk kanaal wordt nu één keer
+  opgezocht in plaats van één keer per bestand, en de koppelingen gaan er per batch in met
+  `executemany`.
+
+### Added
+- **`getSongs` filtert nu op een set artiesten en vertelt hoeveel er in totaal zijn.** De parameter
+  `artistId` mag meerdere keren mee; een track komt alleen door als hij aan élke genoemde artiest
+  hangt — "wat hebben deze mensen samen gemaakt", niet "een van hen". Dezelfde id twee keer noemen
+  telt één keer: de ids gaan als set de query in, want anders zou een self-join alsnog "deze ene
+  artiest" betekenen. De `songs`-node draagt daarnaast `totalCount`: hoeveel tracks het filter
+  oplevert, niet hoeveel er op deze pagina staan, zodat een client kan pagineren zonder tot het
+  einde door te bladeren.
+- **De song-node draagt nu de labels.** Gelezen uit de PUBLISHER-cluster en niet uit de
+  `label`-tabel: labels hangen in het datamodel aan de release, en de cluster is precies waar de
+  filterkant op matcht. Browsen op label maakte die keuze al.
+- **muma-mobile leest artiesten, moods en labels van de song-respons.** Alle drie met een lege
+  lijst als default, zodat een server die ze niet meestuurt gewoon blijft werken.
+- **`scripts/prune_channel_links.py`** verwijdert koppelingen tussen track en kanaal die door geen
+  enkel bestandspad worden ondersteund — restanten van een verplaatst bestand of een samengevoegd
+  kanaal. Verwijdert per exact paar en nooit de hele tabel: er staan zo'n 148.000 juiste rijen in,
+  en die opnieuw opbouwen is een veel grotere operatie dan de reparatie zelf. Heeft een
+  `--dry-run`.
+
 ## [0.31.0] - 2026-08-23
 
 ### Changed

@@ -19,10 +19,13 @@
 
 #include "Memories.hpp"
 
+#include "../CoverArtId.hpp"
 #include "../ParameterParsing.hpp"
+#include "../SubsonicId.hpp"
 #include "core/PartialDateTime.hpp"
 #include "core/Service.hpp"
 #include "database/Session.hpp"
+#include "database/objects/Artwork.hpp"
 #include "database/objects/Release.hpp"
 #include "database/objects/User.hpp"
 #include "responses/Song.hpp"
@@ -79,12 +82,14 @@ namespace lms::api::subsonic
                 group.exact = std::any_of(yearTracks.begin(), yearTracks.end(), [](const DatedTrack& track) { return track.exact; });
                 group.total = yearTracks.size();
 
+                group.rankedIds.reserve(yearTracks.size());
+
                 for (const DatedTrack& track : yearTracks)
                 {
-                    if (group.trackIds.size() >= maxPerYear)
-                        break;
+                    group.rankedIds.push_back(track.id);
 
-                    group.trackIds.push_back(track.id);
+                    if (group.trackIds.size() < maxPerYear)
+                        group.trackIds.push_back(track.id);
                 }
 
                 groups.push_back(std::move(group));
@@ -262,6 +267,41 @@ namespace lms::api::subsonic
 
             for (const db::TrackId trackId : group.trackIds)
                 memoryNode.addArrayChild("song", createSongNode(ctx, tracksById.at(trackId), true));
+
+            // A few covers for the year, taken from anywhere in it. A tile draws a mosaic, and the
+            // tracks that rank highest are frequently the ones without artwork: a label release
+            // carries an embedded cover far less often than a rip does, so a tile built from the
+            // page alone would go blank exactly for the years worth showing.
+            std::vector<std::string> covers;
+            for (const db::TrackId trackId : group.rankedIds)
+            {
+                if (covers.size() >= memories::tileCovers)
+                    break;
+
+                const db::Track::pointer& track{ tracksById.at(trackId) };
+                auto artwork{ track->getPreferredMediaArtwork() };
+                if (!artwork)
+                    artwork = track->getPreferredArtwork();
+                if (!artwork)
+                    continue;
+
+                const CoverArtId coverArtId{ .id = artwork->getId(), .timestamp = artwork->getLastWrittenTime().toTime_t() };
+                std::string id{ idToString(coverArtId) };
+
+                // Four copies of one sleeve is not a mosaic.
+                if (std::find(covers.begin(), covers.end(), id) == covers.end())
+                    covers.push_back(std::move(id));
+            }
+
+            if (covers.empty())
+                memoryNode.createEmptyArrayChild("cover");
+
+            for (const std::string& id : covers)
+            {
+                Response::Node coverNode;
+                coverNode.setAttribute("id", id);
+                memoryNode.addArrayChild("cover", std::move(coverNode));
+            }
         }
 
         return response;

@@ -213,7 +213,23 @@ describe("yearTiles", () => {
     expect(tile.top.map((s) => s.id)).toEqual(["b", "d", "c"]);
   });
 
-  it("takes four covers for the collage, skipping songs without one", () => {
+  it("prefers the covers the server picked for the year", () => {
+    // The best tracks of a year are often the ones without artwork -- a label release carries an
+    // embedded cover far less often than a rip does -- so the server looks past the page it sent.
+    const [tile] = yearTiles([
+      { ...group(2025, [{ id: "a", playCount: 1 }]), cover: [{ id: "art-x" }, { id: "art-y" }] },
+    ]);
+
+    expect(tile.covers).toEqual(["art-x", "art-y"]);
+  });
+
+  it("copes with a server that sends a single cover rather than a list", () => {
+    const [tile] = yearTiles([{ ...group(2025, [{ id: "a" }]), cover: { id: "art-x" } }]);
+
+    expect(tile.covers).toEqual(["art-x"]);
+  });
+
+  it("falls back to the songs' own covers when the server names none", () => {
     const [tile] = yearTiles([
       group(2025, [{ id: "a", playCount: 5 }, song("b", 4), song("c", 3), song("d", 2), song("e", 1)]),
     ]);

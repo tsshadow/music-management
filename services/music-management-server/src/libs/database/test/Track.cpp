@@ -794,6 +794,10 @@ namespace lms::db::tests
 
             ASSERT_EQ(foundIds.size(), 1);
             EXPECT_EQ(foundIds[0], onLabel.getId());
+
+            // countAdvanced shares its query body with find_advanced, so a filter that
+            // one honours and the other drops is exactly the drift this asserts against.
+            EXPECT_EQ(Track::countAdvanced(session, params, {}), 1);
         }
     }
 
@@ -817,6 +821,174 @@ namespace lms::db::tests
             EXPECT_EQ(Track::getCount(session, Track::FindParameters{}.setArtist(artistA.getId())), 2);
             EXPECT_EQ(Track::getCount(session, Track::FindParameters{}.setArtist(artistB.getId())), 1);
             EXPECT_EQ(Track::getCount(session, Track::FindParameters{}), 3);
+        }
+    }
+
+    TEST_F(DatabaseFixture, Track_findAdvanced_byArtists)
+    {
+        ScopedArtist headhunterz{ session, "Headhunterz" };
+        ScopedArtist wildstylez{ session, "Wildstylez" };
+
+        ScopedTrack solo{ session };
+        ScopedTrack collab{ session };
+        ScopedTrack otherSolo{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.create<TrackArtistLink>(solo.get(), headhunterz.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(collab.get(), headhunterz.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(collab.get(), wildstylez.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(otherSolo.get(), wildstylez.get(), TrackArtistLinkType::Artist);
+        }
+
+        auto findIds{ [&](const std::set<ArtistId>& artists) {
+            Track::FindParameters params;
+            params.setArtists(artists, { TrackArtistLinkType::Artist });
+
+            std::vector<TrackId> foundIds;
+            Track::find_advanced(session, params, {}, [&](const Track::pointer& t) {
+                foundIds.push_back(t->getId());
+            });
+            return foundIds;
+        } };
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            // One artist: everything they are on, collaborations included.
+            {
+                const auto foundIds{ findIds({ headhunterz.getId() }) };
+                ASSERT_EQ(foundIds.size(), 2);
+                EXPECT_NE(std::find(foundIds.begin(), foundIds.end(), collab.getId()), foundIds.end());
+            }
+
+            // Two artists: only what they made together.
+            {
+                const auto foundIds{ findIds({ headhunterz.getId(), wildstylez.getId() }) };
+                ASSERT_EQ(foundIds.size(), 1);
+                EXPECT_EQ(foundIds[0], collab.getId());
+            }
+
+            // An artist nobody worked with matches nothing rather than everything.
+            {
+                ScopedArtist stranger{ session, "Stranger" };
+                const auto foundIds{ findIds({ headhunterz.getId(), stranger.getId() }) };
+                EXPECT_TRUE(foundIds.empty());
+            }
+        }
+    }
+
+    TEST_F(DatabaseFixture, Track_findAdvanced_byArtistsAndGenre)
+    {
+        ScopedClusterType genreType{ session, "GENRE" };
+        ScopedCluster hardstyle{ session, genreType.lockAndGet(), "Hardstyle" };
+
+        ScopedArtist headhunterz{ session, "Headhunterz" };
+        ScopedArtist wildstylez{ session, "Wildstylez" };
+
+        ScopedTrack hardstyleCollab{ session };
+        ScopedTrack untaggedCollab{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            for (auto* track : { &hardstyleCollab, &untaggedCollab })
+            {
+                session.create<TrackArtistLink>(track->get(), headhunterz.get(), TrackArtistLinkType::Artist);
+                session.create<TrackArtistLink>(track->get(), wildstylez.get(), TrackArtistLinkType::Artist);
+            }
+            hardstyle.get().modify()->addTrack(hardstyleCollab.get());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Track::FindParameters params;
+            params.setArtists({ headhunterz.getId(), wildstylez.getId() }, { TrackArtistLinkType::Artist });
+
+            std::map<std::string, std::set<ClusterId>> clusterGroups;
+            clusterGroups["GENRE"].insert(hardstyle.getId());
+
+            std::vector<TrackId> foundIds;
+            Track::find_advanced(session, params, clusterGroups, [&](const Track::pointer& t) {
+                foundIds.push_back(t->getId());
+            });
+
+            ASSERT_EQ(foundIds.size(), 1);
+            EXPECT_EQ(foundIds[0], hardstyleCollab.getId());
+        }
+    }
+
+    TEST_F(DatabaseFixture, Track_findAdvanced_byArtistAndMismatchedArtistName)
+    {
+        // setArtist (singular) + setArtistName must keep meaning "the artist with this id also
+        // has this name" -- i.e. the SAME link row -- even though setArtists (plural) now gives
+        // each wanted artist its own alias. A collaboration track must not satisfy "id = A" and
+        // "name = B" just because A and B are both linked to it via different rows.
+        ScopedArtist headhunterz{ session, "Headhunterz" };
+        ScopedArtist wildstylez{ session, "Wildstylez" };
+
+        ScopedTrack collab{ session };
+        ScopedTrack soloA{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.create<TrackArtistLink>(collab.get(), headhunterz.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(collab.get(), wildstylez.get(), TrackArtistLinkType::Artist);
+            session.create<TrackArtistLink>(soloA.get(), headhunterz.get(), TrackArtistLinkType::Artist);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Track::FindParameters params;
+            // setArtistName overwrites trackArtistLinkTypes, so set it last to keep the filter.
+            params.setArtist(headhunterz.getId()).setArtistName("Wildstylez", { TrackArtistLinkType::Artist });
+
+            std::vector<TrackId> foundIds;
+            Track::find_advanced(session, params, {}, [&](const Track::pointer& t) {
+                foundIds.push_back(t->getId());
+            });
+
+            // Neither track has a single link row that is both "Headhunterz" and "Wildstylez",
+            // so nothing should match -- not even the collaboration track.
+            EXPECT_TRUE(foundIds.empty());
+        }
+    }
+
+    TEST_F(DatabaseFixture, Track_countAdvanced)
+    {
+        ScopedClusterType genreType{ session, "GENRE" };
+        ScopedCluster hardstyle{ session, genreType.lockAndGet(), "Hardstyle" };
+
+        ScopedTrack tagged1{ session };
+        ScopedTrack tagged2{ session };
+        ScopedTrack untagged{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            hardstyle.get().modify()->addTrack(tagged1.get());
+            hardstyle.get().modify()->addTrack(tagged2.get());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            std::map<std::string, std::set<ClusterId>> clusterGroups;
+            clusterGroups["GENRE"].insert(hardstyle.getId());
+
+            // The count ignores the range: it answers "how many are there", not "how many did
+            // this page return".
+            Track::FindParameters params;
+            params.setRange(Range{ 0, 1 });
+
+            std::vector<TrackId> firstPage;
+            Track::find_advanced(session, params, clusterGroups, [&](const Track::pointer& t) {
+                firstPage.push_back(t->getId());
+            });
+
+            EXPECT_EQ(firstPage.size(), 1);
+            EXPECT_EQ(Track::countAdvanced(session, params, clusterGroups), 2);
+            EXPECT_EQ(Track::countAdvanced(session, Track::FindParameters{}, {}), 3);
         }
     }
 

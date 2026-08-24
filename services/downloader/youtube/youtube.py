@@ -310,22 +310,27 @@ class YoutubeDownloader:
                      '%d missing, fetching %d.', account.name, account.download_type,
                      len(listing), len(held), len(write_offs), len(wanted), len(batch))
         parked = False
+        attempted: list = []
         try:
             for entry in batch:
                 self.policy.guard(account.name)
+                # Recorded before the download, not after: a video the pass never
+                # reached must not be charged with a failed attempt, or three
+                # interrupted passes write it off for a month.
+                attempted.append(entry)
                 self.download_url(entry.url, ydl_opts, account)
         except RateLimited:
             parked = True
             raise
         finally:
             report = self._settle_deep(account, listing, held, write_offs, wanted,
-                                       batch, parked, bounds)
+                                       batch, attempted, parked, bounds)
             logging.info('Deep sweep of %s (%s): %s', account.name,
                          account.download_type, report.summary())
         return report
 
     def _settle_deep(self, account: YoutubeAccount, listing, held, write_offs,
-                     wanted, batch, parked: bool, bounds) -> DeepSweepReport:
+                     wanted, batch, attempted, parked: bool, bounds) -> DeepSweepReport:
         """Count what actually arrived, and write off what did not.
 
         One extra lookup per pass. A video that neither downloaded nor rejected
@@ -333,9 +338,10 @@ class YoutubeDownloader:
         incomplete and re-swept every day forever.
         """
         ledger_key = account.schedule_key
-        arrived = self._held_ids(account, [entry.track_id for entry in batch]) if batch else set()
+        arrived = self._held_ids(
+            account, [entry.track_id for entry in attempted]) if attempted else set()
         downloaded = 0
-        for entry in batch:
+        for entry in attempted:
             if entry.track_id in arrived:
                 downloaded += 1
                 continue

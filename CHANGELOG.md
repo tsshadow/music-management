@@ -23,6 +23,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   die naam kent LMS al.
 
 ### Added
+- **Nummers kennen nu hun eigen versies, en er is er één die telt.** Eén nummer stond tot tien
+  keer in de bibliotheek — een SoundCloud-rip, een YouTube-rip, de officiële radio edit, de
+  extended mix, en dat alles nog eens als FLAC en als MP3 — en niets in het systeem wist dat dat
+  hetzelfde nummer was. `library_works` komt boven `library_tracks` te staan, dat al de versielaag
+  was, en een achtergrondlus hangt elke track onder het nummer waar hij bij hoort. Welke versie
+  telt wordt bepaald door tiers die op volgorde beslissen: eerst herkomst (een officiële release
+  met een label verslaat altijd een rip), dan de soort (radio, edit, original, geen markering,
+  extended, instrumentaal), dan het formaat. Dat vervangt de opgetelde score van de oude
+  deduplicatie, waarin een rip van 320kbps won van een officiële radio edit van 192kbps omdat
+  formaat zwaarder woog dan versie. Een remix blijft een eigen nummer: de groepering strippen
+  alleen haakjes waarvan élk woord een bekende versie-aanduiding is, dus "(Radio Edit)" verdwijnt
+  en "(Wildstylez Edit)" blijft staan. Twee handmatige correcties zitten erbij, want de regels
+  hebben het niet altijd bij het rechte eind: een versie vastpinnen, en een track die verkeerd is
+  samengevoegd uit zijn groep trekken. Beide overleven een rescan. Er verandert nog niets aan wat
+  je ziet of hoort — dit is het model en het bewijs dat het klopt; de speler en de webinterface
+  gaan er in een volgende stap op leunen.
 - **De instellingen van MuMa zijn nu vanuit de webui te bewerken.** Beheer heeft een tabblad
   Configuratie dat het schema rendert dat de backend zelf beschrijft: elk veld met zijn groep,
   type, uitleg en huidige waarde. Een instelling die in `config_store.py` bijkomt verschijnt er

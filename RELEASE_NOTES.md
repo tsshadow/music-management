@@ -11,6 +11,22 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.33.0 (2026-08-24)
+
+- **Een set die op twee festivals wijst, krijgt nu beide namen.** Van "Reverze 2024 - Reverze
+  Flashback" bleef er eerder één naam over; de andere verdween. Een set kan bij twee evenementen
+  horen, en dat staat nu net zo op het bestand als twee genres. Tegelijk zijn er 29 festivals
+  bijgekomen die wel in de bibliotheek stonden maar in geen enkele spelling bekend waren — onder
+  meer Loudness, I AM HARDSTYLE, Creamfields, EDC Las Vegas en Ultra Music Festival.
+- **De naam van een radioshow of podcast is nu te corrigeren.** De detectie stelde het stuk
+  bestandsnaam voor waarop hij gegroepeerd had, en dat stuk kwam ongewijzigd op elke aflevering
+  terecht: een show werd "KELTEK Presents ｜ Pure Hardstyle ｜" in plaats van "Pure Hardstyle".
+  Goedkeuren was de enige knop, dus die naam was niet meer te herstellen. Op de curatiepagina zit
+  nu een bewerkscherm met de naam en de schrijfwijzen erin. Dat scheelt ook afleveringen: voor
+  Pure Hardstyle werden er 11 van de 15 herkend, met de juiste naam alle 15.
+- **Een goedgekeurde show tagde pas iets na een herstart.** De draaiende tagger hield zijn lijst
+  showsnamen vast en las die niet opnieuw na een beslissing. Nu wel, meteen.
+
 ## Global Version 0.32.1 (2026-08-24)
 
 - **Livesets stonden op naam van het festival in plaats van de artiest.** "Thunderdome 2025 ｜

@@ -157,3 +157,117 @@ describe('PodcastCurationTab', () => {
     );
   });
 });
+
+/**
+ * Naming a show is what a detected row usually needs before a decision means
+ * anything: `tools/detect_podcasts.py` files the filename fragment it grouped on,
+ * and that fragment is what ends up in the PODCAST tag of every episode.
+ */
+describe('PodcastCurationTab edit modal', () => {
+  /** Like mockApi, but keeps the rename and spelling calls apart from the table. */
+  function mockEditApi({ ok = true, detail = 'Mislukt' } = {}) {
+    return vi.fn(async (url) => {
+      if (url.includes('/rename') || url.includes('/aliases')) {
+        return { ok, json: async () => ({ detail }) };
+      }
+      if (url.includes('state=white&limit=1000')) return { ok: true, json: async () => WHITE_ROWS };
+      return { ok: true, json: async () => [UNKNOWN_ROW] };
+    });
+  }
+
+  function editCalls() {
+    return globalThis.fetch.mock.calls.filter(
+      ([url]) => url.includes('/rename') || url.includes('/aliases')
+    );
+  }
+
+  async function openEditor(overrides = {}) {
+    const rendered = render(PodcastCurationTab, props(overrides));
+    await waitFor(() => expect(screen.getByText('DJ ISAAC - HARDSTYLE SESSIONS')).toBeTruthy());
+    await fireEvent.click(screen.getByText('Bewerken'));
+    await screen.findByLabelText('Shownaam');
+    return rendered;
+  }
+
+  beforeEach(() => {
+    globalThis.fetch = mockEditApi();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('opens on the name the row carries now', async () => {
+    await openEditor();
+    expect(screen.getByLabelText('Shownaam').value).toBe('DJ ISAAC - HARDSTYLE SESSIONS');
+  });
+
+  it('lists every spelling the show is known by', async () => {
+    await openEditor();
+    expect(screen.getByLabelText('Schrijfwijze Hardstyle Sessions verwijderen')).toBeTruthy();
+  });
+
+  it('renames the show under the name that was typed', async () => {
+    await openEditor();
+
+    await fireEvent.input(screen.getByLabelText('Shownaam'), {
+      target: { value: "  Isaac's Hardstyle Sessions  " }
+    });
+    await fireEvent.click(screen.getByText('Opslaan'));
+
+    await waitFor(() => expect(editCalls()).toHaveLength(1));
+    const [url, options] = editCalls()[0];
+    expect(url).toContain('/api/rules/podcasts/1/rename');
+    expect(JSON.parse(options.body)).toEqual({ name: "Isaac's Hardstyle Sessions" });
+  });
+
+  it('will not send a name too short to be a safe matcher', async () => {
+    await openEditor();
+
+    await fireEvent.input(screen.getByLabelText('Shownaam'), { target: { value: 'Q!' } });
+
+    expect(screen.getByText('Opslaan').disabled).toBe(true);
+    expect(editCalls()).toHaveLength(0);
+  });
+
+  it('adds a spelling and clears the field', async () => {
+    await openEditor();
+
+    const field = screen.getByLabelText('Schrijfwijze toevoegen');
+    await fireEvent.input(field, { target: { value: 'DJ Isaac Hardstyle Sessions' } });
+    await fireEvent.click(screen.getByText('Schrijfwijze toevoegen'));
+
+    await waitFor(() => expect(editCalls()).toHaveLength(1));
+    const [url, options] = editCalls()[0];
+    expect(url).toContain('/api/rules/podcasts/1/aliases');
+    expect(options.method).toBe('POST');
+    expect(JSON.parse(options.body)).toEqual({ alias: 'DJ Isaac Hardstyle Sessions' });
+    await waitFor(() => expect(field.value).toBe(''));
+  });
+
+  it('removes a spelling by the name it is stored under', async () => {
+    await openEditor();
+
+    await fireEvent.click(screen.getByLabelText('Schrijfwijze Hardstyle Sessions verwijderen'));
+
+    await waitFor(() => expect(editCalls()).toHaveLength(1));
+    const [url, options] = editCalls()[0];
+    expect(options.method).toBe('DELETE');
+    expect(url).toContain('alias=Hardstyle%20Sessions');
+  });
+
+  it('reports the server error when a spelling is already taken', async () => {
+    const onError = vi.fn();
+    globalThis.fetch = mockEditApi({ ok: false, detail: "'Hardcore Italia' already claims that spelling" });
+    await openEditor({ onError });
+
+    await fireEvent.input(screen.getByLabelText('Schrijfwijze toevoegen'), {
+      target: { value: 'Hardcore Italia' }
+    });
+    await fireEvent.click(screen.getByText('Schrijfwijze toevoegen'));
+
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith("'Hardcore Italia' already claims that spelling")
+    );
+  });
+});

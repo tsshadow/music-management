@@ -95,6 +95,58 @@ class FestivalHelperMatchTest(unittest.TestCase):
         self.assertNotIn('year', helper_with(QLIMAX).get('Qlimax 1080p x264'))
 
 
+REVERZE = Festival(name='Reverze', aliases=['Reverze'], editions={2023: date(2023, 2, 18)})
+FLASHBACK = Festival(name='Flashback', aliases=['Flashback', 'Flashback Festival'], editions={})
+
+
+class FestivalHelperGetAllTest(unittest.TestCase):
+
+    def test_two_festivals_in_one_title_are_both_returned(self):
+        results = helper_with(REVERZE, FLASHBACK).get_all('Reverze 2023 - Reverze Flashback by Pat B')
+        self.assertEqual({r['festival'] for r in results}, {'Reverze', 'Flashback'})
+
+    def test_the_most_specific_match_comes_first(self):
+        results = helper_with(REVERZE, FLASHBACK).get_all('Reverze Flashback 2023')
+        self.assertEqual(results[0]['festival'], 'Flashback')
+
+    def test_an_alias_inside_a_longer_match_is_dropped(self):
+        # The combined spelling is an alias of Karnaval Festival in the seed, which is
+        # what makes "Intents" here part of one event name rather than a second event.
+        karnaval = Festival(name='Karnaval Festival',
+                            aliases=['Karnaval Festival', 'Intents Karnaval'], editions={})
+        results = helper_with(INTENTS, karnaval).get_all('VA - Intents Karnaval Festival 2021 (Warm Up Mix)')
+        self.assertEqual([r['festival'] for r in results], ['Karnaval Festival'])
+
+    def test_two_adjacent_names_without_a_combined_alias_are_two_festivals(self):
+        results = helper_with(REVERZE, FLASHBACK).get_all('Reverze Flashback 2023')
+        self.assertEqual({r['festival'] for r in results}, {'Reverze', 'Flashback'})
+
+    def test_the_same_festival_named_twice_is_returned_once(self):
+        results = helper_with(QLIMAX).get_all('Qlimax 2022 - Qlimax anthem set')
+        self.assertEqual([r['festival'] for r in results], ['Qlimax'])
+
+    def test_every_result_carries_its_own_year_and_date(self):
+        results = helper_with(REVERZE, FLASHBACK).get_all('Reverze Flashback 2023')
+        by_name = {r['festival']: r for r in results}
+        self.assertEqual(by_name['Reverze']['date'], '2023-02-18')
+        self.assertEqual(by_name['Flashback']['year'], 2023)
+        self.assertNotIn('date', by_name['Flashback'])
+
+    def test_nothing_recognised_is_an_empty_list(self):
+        self.assertEqual(helper_with(QLIMAX).get_all('Unknown Event 2021'), [])
+
+    def test_empty_input_is_an_empty_list(self):
+        self.assertEqual(helper_with(QLIMAX).get_all(''), [])
+
+    def test_require_year_applies_to_the_whole_text(self):
+        self.assertEqual(helper_with(QLIMAX).get_all('Livesets/Qlimax', require_year=True), [])
+
+    def test_get_returns_the_first_result_of_get_all(self):
+        helper = helper_with(REVERZE, FLASHBACK)
+        self.assertEqual(helper.get('Reverze Flashback 2023')['festival'],
+                         helper.get_all('Reverze Flashback 2023')[0]['festival'])
+
+
 class FestivalHelperPreloadTest(unittest.TestCase):
 
     def setUp(self):

@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-08-24
+
+### Added
+- **Een set die twee evenementen noemt krijgt nu beide namen, en er zijn 29 festivals bij.**
+  De regel hield alleen de langste alias over, dus van "Reverze 2024 - Reverze Flashback" bleef er
+  één naam staan en verdween de andere. Een set kan bij twee evenementen horen — een
+  Flashback-set gedraaid op Reverze — en dat hoort net zo op het bestand als twee genres. De
+  helper geeft nu elke herkende naam terug en laat alleen een treffer vallen die ín een langere
+  treffer valt: "Intents Karnaval Festival" blijft één evenement, want de gecombineerde spelling
+  staat als alias in de tabel. De namen gaan gesorteerd het bestand in, zodat een tweede ronde
+  niets herschrijft, en de datum komt van de meest specifieke match die een editie kent.
+  `migrate_v14_festivals_extra.sql` vult de tabel aan met evenementen waarvan wel sets in de
+  bibliotheek staan maar die in geen enkele spelling bekend waren — onder meer Loudness,
+  I AM HARDSTYLE, de losse Gearbox-events, Revealed Night, Creamfields, EDC Las Vegas,
+  Ultra Music Festival en Vroeger Was Alles Beter — en geeft Flashback Festival de korte
+  spelling die in bestandsnamen voorkomt. Kaal blijven `Gearbox` (2.066 labeluploads tegen 94
+  sets), `Bass Events`, `Hardstyle Top 100` en `Wildstylez` erbuiten: dat zijn hier een label,
+  een kanaal, een chart en een artiest. Omdat de regel alleen bestanden van tien minuten en
+  langer labelt, raken namen die ook een tracktitel zijn geen losse nummers.
+- **Shownaam en schrijfwijzen zijn te bewerken op de podcast-curatiepagina.** `tools/detect_podcasts.py`
+  stelt het stuk bestandsnaam voor waarop het gegroepeerd heeft, en dat stuk belandde één op één in
+  de `PODCAST`-tag van elke aflevering: een show die plat in `Soundcloud/Scantraxx/` ligt kwam binnen
+  als "KELTEK Presents ｜ Pure Hardstyle ｜" in plaats van als "Pure Hardstyle". Goedkeuren was tot nu
+  toe de enige knop, dus die naam was niet te herstellen. De curatiepagina heeft nu een bewerkscherm
+  met de naam en de lijst schrijfwijzen erin, achter `POST /api/rules/podcasts/{id}/rename`,
+  `POST .../aliases` en `DELETE .../aliases`. Dat repareert ook de dekking: de detector ziet alleen
+  bestanden met een afleveringsmarkering, terwijl de tagger op elke schrijfwijze in titel én pad
+  matcht. Voor Pure Hardstyle scheelt dat 11 van de 15 afleveringen tegenover alle 15. Een naam of
+  schrijfwijze moet minstens vier letters of cijfers overhouden na normalisatie — korter is een
+  substring die willekeurige bestanden raakt — en de oude naam blijft automatisch als schrijfwijze
+  staan, omdat `PodcastHelper` de naam zelf als match gebruikt.
+
+### Fixed
+- **Een podcastbeslissing bereikte de draaiende tagger pas na een herstart.** `Cache.databaseHelpers`
+  laadt `PodcastHelper` één keer bij het importeren, en het beslis-endpoint verversde die niet — zoals
+  de artiest- en labelregels dat al wel deden. Een zojuist goedgekeurde show tagde daardoor niets.
+- **Samenvoegen verloor de naam van de rij die verdween.** Alleen de aliasrijen verhuisden mee. Zolang
+  de naam ook als alias in de tabel stond viel dat niet op, maar na een hernoeming staat hij daar niet
+  meer en stopte elk bestand met die schrijfwijze met matchen. De naam wordt nu als schrijfwijze van
+  de doelshow bewaard.
+
 ## [0.32.1] - 2026-08-24
 
 ### Fixed

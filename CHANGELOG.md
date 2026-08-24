@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **`setArtist()` en `setArtistName()` keken in `find_advanced` naar twee verschillende
+  koppelingen.** Beide kregen hun eigen `track_artist_link`-join, dus "deze id" en "deze naam"
+  mochten twee verschillende artiesten op twee verschillende rijen zijn — een track die de ene
+  artiest als id had en een ándere als naam kwam er doorheen. Ze delen nu één link-rij, wat de
+  betekenis is die het paar altijd al had.
 - **Een diepe ronde die halverwege stopte rekende tracks aan die hij nooit geprobeerd had.** Werd de
   bron geparkeerd of het proces gestopt, dan schreef de afhandeling de hele resterende batch weg als
   mislukte poging. Op 23-08-2026 stonden zo 94 tracks onterecht op een poging, waarvan 79 bij twee
@@ -39,6 +44,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `executemany`.
 
 ### Added
+- **`getSongs` filtert nu op een set artiesten en vertelt hoeveel er in totaal zijn.** De parameter
+  `artistId` mag meerdere keren mee; een track komt alleen door als hij aan élke genoemde artiest
+  hangt — "wat hebben deze mensen samen gemaakt", niet "een van hen". Dezelfde id twee keer noemen
+  telt één keer: de ids gaan als set de query in, want anders zou een self-join alsnog "deze ene
+  artiest" betekenen. De `songs`-node draagt daarnaast `totalCount`: hoeveel tracks het filter
+  oplevert, niet hoeveel er op deze pagina staan, zodat een client kan pagineren zonder tot het
+  einde door te bladeren.
+- **De song-node draagt nu de labels.** Gelezen uit de PUBLISHER-cluster en niet uit de
+  `label`-tabel: labels hangen in het datamodel aan de release, en de cluster is precies waar de
+  filterkant op matcht. Browsen op label maakte die keuze al.
+- **muma-mobile leest artiesten, moods en labels van de song-respons.** Alle drie met een lege
+  lijst als default, zodat een server die ze niet meestuurt gewoon blijft werken.
 - **`scripts/prune_channel_links.py`** verwijdert koppelingen tussen track en kanaal die door geen
   enkel bestandspad worden ondersteund — restanten van een verplaatst bestand of een samengevoegd
   kanaal. Verwijdert per exact paar en nooit de hele tabel: er staan zo'n 148.000 juiste rijen in,

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **A song now carries its artists, moods and labels.** The server splits an artist tag into
+  separate entries and reports the release's labels on the same node; the API models read all
+  three, each defaulting to an empty list so a server that does not send them still works. A
+  `getSongs` response also exposes `totalCount`, how many tracks match the filter rather than how
+  many this page returned.
+
 ## [6.23.0] - 2026-08-23
 
 ### Changed

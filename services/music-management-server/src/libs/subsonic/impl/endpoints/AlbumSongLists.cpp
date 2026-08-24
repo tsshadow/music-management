@@ -588,6 +588,7 @@ namespace lms::api::subsonic
         std::optional<std::string> festivalLineup = getParameterAs<std::string>(context.getParameters(), "festivalLineup");
         std::optional<int> minDuration = getParameterAs<int>(context.getParameters(), "minDuration");
         std::optional<int> maxDuration = getParameterAs<int>(context.getParameters(), "maxDuration");
+        const std::vector<ArtistId> artistIds{ getMultiParametersAs<ArtistId>(context.getParameters(), "artistId") };
 
         size = std::min(size, defaultMaxCountSize);
 
@@ -629,8 +630,16 @@ namespace lms::api::subsonic
         {
             params.maxDuration = std::chrono::minutes(*maxDuration);
         }
+        if (!artistIds.empty())
+        {
+            // A set: asking for the same artist twice must not turn into a self-join that
+            // still means "this one artist".
+            params.setArtists(std::set<ArtistId>{ artistIds.begin(), artistIds.end() },
+                              { TrackArtistLinkType::Artist });
+        }
 
         Response::Node& songsNode = response.createNode("songs");
+        songsNode.setAttribute("totalCount", Track::countAdvanced(context.getDbSession(), params, clusterGroups));
 
         Track::find_advanced(context.getDbSession(), params, clusterGroups, [&](const Track::pointer& track) {
             songsNode.addArrayChild("song", createSongNode(context, track, context.getUser()));

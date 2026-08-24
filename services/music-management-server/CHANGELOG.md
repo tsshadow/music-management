@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`getSongs` filters on a set of artists and reports a total.** `artistId` may be repeated; a
+  track only survives when it is linked to every artist named, which answers "what did these people
+  make together" rather than "any of them". Repeating one id counts once, because the ids enter the
+  query as a set -- a self-join would otherwise still mean "this one artist". The `songs` node also
+  carries `totalCount`, how many tracks the filter yields rather than how many this page returned,
+  so a client can page without walking to the end. `Track::countAdvanced` answers that count, and
+  shares its query body with `find_advanced` so the two can never drift apart on a filter.
+- **The song node carries the labels.** Read from the PUBLISHER cluster rather than the `db::Label`
+  table: labels hang off the release in the data model, and the cluster is what the filtering side
+  matches on. Browsing by label already made that same choice.
 - **Scrobbling**: A listen now carries how long the track was actually played and where the play
   happened. `MusicManagementBackend::sendScrobble` received the played duration from the player and
   discarded it (`(void)duration;`), and hardcoded `source` to `"lms"`, which made the web player,
@@ -19,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `lms-web`. A client that knows nothing about any of this scrobbles exactly as before.
 
 ### Fixed
+- **`setArtist()` and `setArtistName()` looked at two different links in `find_advanced`.** Each got
+  its own `track_artist_link` join, so "this id" and "this name" were free to be two different
+  artists on two different rows, letting a track through that had one artist as the id and another
+  as the name. They now share a single link row, which is the meaning the pair always had.
 - **HTTP**: Handlers that proxy to music-management can no longer take the whole
   HTTP thread pool. `handleGetCoverArt` and the five `/muma/*` proxy paths
   blocked on a `std::future` for 10-30s inside `Wt::WResource::handleRequest`;

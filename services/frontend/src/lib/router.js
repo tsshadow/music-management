@@ -80,6 +80,7 @@ export const MANAGEMENT_TABS = [
   'user-requests',
   'versions',
   'events',
+  'config',
   'about'
 ];
 

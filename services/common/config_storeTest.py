@@ -110,6 +110,80 @@ class ConfigStoreDefaultsTest(ConfigStoreTestCase):
         self.assertIs(ConfigStore(), self.store)
 
 
+class ConfigStoreSecretTest(ConfigStoreTestCase):
+    """Credentials must not leave the process just because someone opened a page.
+
+    Every value used to come back verbatim from `describe` and `all_configs`, which
+    is what `GET /api/config` returns. A field marked secret is reported as a fixed
+    sentinel instead, and writing that sentinel back is a no-op -- without which,
+    loading the config page and pressing save would overwrite every secret with the
+    mask.
+    """
+
+    def write_config_file(self):
+        self.config_path.write_text(json.dumps({'db_pass': 'hunter2', 'db_user': 'muma'}))
+
+    def test_the_stored_secret_is_still_readable_inside_the_process(self):
+        # The database connector reads this; only the API boundary masks it.
+        self.assertEqual(self.store.get('db_pass'), 'hunter2')
+
+    def test_describe_reports_a_secret_as_the_sentinel(self):
+        entry = next(row for row in self.store.describe() if row['key'] == 'db_pass')
+        self.assertEqual(entry['value'], config_store.SECRET_SENTINEL)
+        self.assertTrue(entry['secret'])
+
+    def test_describe_leaves_an_ordinary_field_alone(self):
+        entry = next(row for row in self.store.describe() if row['key'] == 'db_user')
+        self.assertEqual(entry['value'], 'muma')
+        self.assertFalse(entry['secret'])
+
+    def test_all_configs_masks_secrets_too(self):
+        # This is the dict GET /api/config hands out.
+        self.assertEqual(self.store.all_configs()['db_pass'], config_store.SECRET_SENTINEL)
+        self.assertEqual(self.store.all_configs()['db_user'], 'muma')
+
+    def test_an_unset_secret_reads_as_empty_rather_than_masked(self):
+        # Masking an empty value would claim a credential exists where none does.
+        entry = next(row for row in self.store.describe() if row['key'] == 'discogs_token')
+        self.assertEqual(entry['value'], '')
+
+    def test_writing_the_sentinel_back_leaves_the_secret_untouched(self):
+        self.store.update({'db_pass': config_store.SECRET_SENTINEL})
+        self.assertEqual(self.store.get('db_pass'), 'hunter2')
+
+    def test_a_real_new_value_does_replace_the_secret(self):
+        self.store.update({'db_pass': 'correct horse'})
+        self.assertEqual(self.store.get('db_pass'), 'correct horse')
+
+    def test_a_secret_can_be_cleared_with_an_empty_string(self):
+        self.store.update({'db_pass': ''})
+        self.assertEqual(self.store.get('db_pass'), '')
+
+    def test_saving_a_whole_page_back_does_not_wipe_the_secrets(self):
+        # Exactly what the config page does: read everything, change one field, post
+        # it all back. Every secret in that payload is the sentinel.
+        payload = self.store.all_configs()
+        payload['db_user'] = 'other'
+        self.store.update(payload)
+        self.assertEqual(self.store.get('db_pass'), 'hunter2')
+        self.assertEqual(self.store.get('db_user'), 'other')
+
+    def test_the_sentinel_is_never_written_to_disk(self):
+        self.store.update({'db_pass': config_store.SECRET_SENTINEL, 'db_user': 'other'})
+        on_disk = json.loads(self.config_path.read_text())
+        self.assertNotEqual(on_disk.get('db_pass'), config_store.SECRET_SENTINEL)
+
+
+class ConfigStoreRetagLimitTest(ConfigStoreTestCase):
+    """The retag ceiling the curation pages enforce is a configured value."""
+
+    def test_max_retag_files_is_a_tagger_field_defaulting_to_the_old_constant(self):
+        entry = next(row for row in self.store.describe() if row['key'] == 'max_retag_files')
+        self.assertEqual(entry['default'], 2000)
+        self.assertEqual(entry['group'], 'Tagger')
+        self.assertEqual(entry['type'], 'integer')
+
+
 class ConfigStoreEnvironmentTest(ConfigStoreTestCase):
     env = {
         'debug': 'true',

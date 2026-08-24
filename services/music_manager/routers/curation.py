@@ -20,6 +20,7 @@ from typing import Literal
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 
+from services.common.config_store import ConfigStore as Settings
 from services.music_manager import curation_rules as rules
 from services.music_manager.database import get_db_connection
 from services.music_manager.rbac import require_permission
@@ -32,10 +33,37 @@ logger = logging.getLogger('music-manager.curation')
 READ = Depends(require_permission('music.read'))
 WRITE = Depends(require_permission('rules.manage'))
 
-#: Ceiling on how many files one "apply now" may retag. A rule on a prolific artist
-#: can match thousands; the job would hold the tagger lock for hours and there is no
-#: way to watch it fail halfway. Past this the page says to run a full tagger pass.
-MAX_RETAG_FILES = 2000
+#: Fallback for the retag ceiling, used when the setting cannot be read.
+#:
+#: The ceiling exists because a rule on a prolific artist can match thousands of
+#: files: the job holds the tagger lock for the whole batch, so the ordinary tagging
+#: round waits on it, and there is no way to watch it fail halfway. Past the ceiling
+#: the page asks for a full tagger run instead. It is configurable (Beheer ->
+#: Configuratie, `max_retag_files`) because the right number depends on the library
+#: and on how long you are willing to stall tagging.
+MAX_RETAG_FILES_DEFAULT = 2000
+
+
+def _max_retag_files() -> int:
+    """The configured ceiling, or the default when the value is unusable.
+
+    Read per request rather than cached, so changing it in the config page takes
+    effect on the next retag instead of on the next restart. A malformed value falls
+    back rather than raising: a typo in a setting must not turn every retag into a
+    500.
+    """
+    value = Settings().get('max_retag_files', MAX_RETAG_FILES_DEFAULT)
+    # Deliberately narrow about what counts as a number. `int()` accepts more than it
+    # should -- a bool converts, and so does anything defining __int__ -- so the type
+    # is checked before the conversion rather than after it.
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        return MAX_RETAG_FILES_DEFAULT
+    try:
+        ceiling = int(value)
+    except (TypeError, ValueError):
+        return MAX_RETAG_FILES_DEFAULT
+    # Zero or negative would refuse every retag, which is not a setting anyone means.
+    return ceiling if ceiling > 0 else MAX_RETAG_FILES_DEFAULT
 
 
 class MbidRequest(BaseModel):
@@ -611,20 +639,21 @@ def retag(request: RetagRequest, background: BackgroundTasks, _auth: dict = WRIT
     separate action from saving the rule: saving is cheap and reversible, retagging
     hundreds of files is neither.
     """
+    ceiling = _max_retag_files()
     conn = _connect()
     try:
         with conn.cursor() as cursor:
             if request.scope == 'artist':
-                paths = rules.artist_track_paths(cursor, request.name, MAX_RETAG_FILES + 1)
+                paths = rules.artist_track_paths(cursor, request.name, ceiling + 1)
             else:
-                paths = rules.label_track_paths(cursor, request.name, MAX_RETAG_FILES + 1)
+                paths = rules.label_track_paths(cursor, request.name, ceiling + 1)
     finally:
         conn.close()
 
-    if len(paths) > MAX_RETAG_FILES:
+    if len(paths) > ceiling:
         raise HTTPException(
             status_code=400,
-            detail=f'That matches more than {MAX_RETAG_FILES} files; start a full tagger run instead')
+            detail=f'That matches more than {ceiling} files; start a full tagger run instead')
 
     job_id = f'retag-{uuid.uuid4()}'
     job_manager.jobs[job_id] = {'status': 'queued', 'progress': 0, 'total': len(paths),

@@ -20,17 +20,25 @@ class InferFestivalFromTitleRule(TagRule):
             return
 
         title = song.tag_collection.get_item_as_string(TITLE)
-        info = self.festivalHelper.get(title) if title else None
-        if not info:
+        matches = self.festivalHelper.get_all(title) if title else []
+        if not matches:
             # The folder is often the better source: scene releases and rips name the
             # artist in the title and the event in the directory. A year has to be in
             # the path for this, because a bare folder name matches far too easily --
             # an artist folder called Rebelion is not the festival Rebellion.
-            info = self.festivalHelper.get(song.path(), require_year=True)
-        if not info:
+            matches = self.festivalHelper.get_all(song.path(), require_year=True)
+        if not matches:
             return
 
-        if 'festival' in info:
-            song.tag_collection.set_item(FESTIVAL, info['festival'])
-        if 'date' in info:
-            song.tag_collection.set_item(DATE, info['date'])
+        # A set can belong to two events at once -- a Flashback set played at Reverze --
+        # and both names belong on the file, the way two genres do. Sorted, because the
+        # order the helper found them in is not meaningful and an unstable order would
+        # rewrite the file on every pass.
+        names = sorted({match['festival'] for match in matches if match.get('festival')})
+        if names:
+            song.tag_collection.set_item(FESTIVAL, ';'.join(names))
+        # The date can only describe one edition, so it comes from the most specific
+        # match that knows one.
+        date = next((match['date'] for match in matches if 'date' in match), None)
+        if date:
+            song.tag_collection.set_item(DATE, date)

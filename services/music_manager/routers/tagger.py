@@ -5,6 +5,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
 
+from services.tagger.deep_run import deep_run_tick
 from services.tagger.tagger import Tagger, TagSingleFile
 
 router = APIRouter(tags=['tagger'])
@@ -68,9 +69,23 @@ async def api_tag_file(path: str=Query(...), _auth: dict=Depends(verify_api_key)
     tagger_manager.tag_single(path)
     return {'message': f'Tagging for {path} completed'}
 
+def _queue_deep_run():
+    """Hand the next slice of the deep run to the round that is about to start.
+
+    Wrapped rather than called directly: deep_run_tick already swallows its own database
+    errors, and this second net keeps anything unforeseen there from ending the loop --
+    the deep run is a nicety, the five-minute round is not.
+    """
+    try:
+        deep_run_tick()
+    except Exception as e:
+        logger.error('Deep run tick failed: %s', e)
+
 def run_tagger_loop(sleeptime: int=300):
     logger.info('Starting background tagger loop with sleeptime %d', sleeptime)
+    _queue_deep_run()
     tagger_manager.run_full()
     while True:
         time.sleep(sleeptime)
+        _queue_deep_run()
         tagger_manager.run_full()

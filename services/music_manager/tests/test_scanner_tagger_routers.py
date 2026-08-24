@@ -348,10 +348,27 @@ class TaggerManagerTest(unittest.TestCase):
 
     def test_the_background_loop_tags_and_then_sleeps(self):
         with patch.object(tagger_router.tagger_manager, 'run_full') as run_full, \
+             patch.object(tagger_router, 'deep_run_tick'), \
              patch.object(tagger_router.time, 'sleep', side_effect=[None, KeyboardInterrupt]):
             with self.assertRaises(KeyboardInterrupt):
                 tagger_router.run_tagger_loop(sleeptime=1)
         self.assertEqual(run_full.call_count, 2)
+
+    def test_every_round_first_queues_a_slice_of_the_deep_run(self):
+        with patch.object(tagger_router.tagger_manager, 'run_full'), \
+             patch.object(tagger_router, 'deep_run_tick') as deep_run, \
+             patch.object(tagger_router.time, 'sleep', side_effect=[None, KeyboardInterrupt]):
+            with self.assertRaises(KeyboardInterrupt):
+                tagger_router.run_tagger_loop(sleeptime=1)
+        self.assertEqual(deep_run.call_count, 2)
+
+    def test_a_broken_deep_run_never_stops_the_tagging_round(self):
+        with patch.object(tagger_router.tagger_manager, 'run_full') as run_full, \
+             patch.object(tagger_router, 'deep_run_tick', side_effect=RuntimeError('database gone')), \
+             patch.object(tagger_router.time, 'sleep', side_effect=KeyboardInterrupt):
+            with self.assertRaises(KeyboardInterrupt):
+                tagger_router.run_tagger_loop(sleeptime=1)
+        run_full.assert_called_once()
 
 
 if __name__ == '__main__':

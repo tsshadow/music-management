@@ -933,7 +933,8 @@
     "recentlyPlayed": "Recent afgespeeld",
     "recentlyReleased": "Recent uitgebracht",
     "recentlyUpdated": "Recent bijgewerkt",
-    "trackCount": "Aantal nummers"
+    "trackCount": "Aantal nummers",
+    "year": "Jaar"
   },
   "starred": {
     "empty": "Nog geen favorieten",

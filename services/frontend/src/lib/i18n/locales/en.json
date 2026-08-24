@@ -933,7 +933,8 @@
     "recentlyPlayed": "Recently played",
     "recentlyReleased": "Recently released",
     "recentlyUpdated": "Recently updated",
-    "trackCount": "Track count"
+    "trackCount": "Track count",
+    "year": "Year"
   },
   "starred": {
     "empty": "No favourites yet",

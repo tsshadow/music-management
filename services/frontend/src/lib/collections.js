@@ -1,8 +1,8 @@
 /**
- * Sorting and filtering for the three "collection" browse views: Genres,
- * Labels and Playlists.
+ * Sorting and filtering for the "collection" browse views: Genres, Labels,
+ * Podcasts, Festivals, Years, Lineups and Playlists.
  *
- * All three render a grid of cards over a list that is already fully loaded in
+ * They all render a grid of cards over a list that is already fully loaded in
  * the browser, so the work is done client-side here rather than round-tripping
  * to the server. Keeping it in a plain module (instead of inside
  * `Dashboard.svelte`) is what makes it testable.
@@ -63,6 +63,21 @@ export const COLLECTION_SORTS = {
     { id: "name", labelKey: "sort.alphabetical", of: (p) => p.value, compare: text, defaultDirection: "asc" },
     { id: "songs", labelKey: "sort.episodeCount", of: (p) => p.songCount, compare: number, defaultDirection: "desc" },
   ],
+  festivals: [
+    { id: "name", labelKey: "sort.alphabetical", of: (f) => f.value, compare: text, defaultDirection: "asc" },
+    { id: "songs", labelKey: "sort.trackCount", of: (f) => f.songCount, compare: number, defaultDirection: "desc" },
+    { id: "albums", labelKey: "sort.albumCount", of: (f) => f.albumCount, compare: number, defaultDirection: "desc" },
+  ],
+  // A year list reads newest-first; "name" here is the year itself, so its useful
+  // direction is descending rather than the A-Z every other collection wants.
+  years: [
+    { id: "name", labelKey: "sort.year", of: (y) => y.value, compare: text, defaultDirection: "desc" },
+    { id: "songs", labelKey: "sort.trackCount", of: (y) => y.songCount, compare: number, defaultDirection: "desc" },
+  ],
+  // getLineups answers with a name and nothing else, so there is nothing else to sort on.
+  lineups: [
+    { id: "name", labelKey: "sort.alphabetical", of: (l) => l.value, compare: text, defaultDirection: "asc" },
+  ],
   playlists: [
     { id: "name", labelKey: "sort.alphabetical", of: (p) => p.name, compare: text, defaultDirection: "asc" },
     { id: "songs", labelKey: "sort.trackCount", of: (p) => p.songCount, compare: number, defaultDirection: "desc" },
@@ -80,6 +95,9 @@ export const COLLECTION_KEYS = {
   genres: { nameOf: (g) => g.value, keyOf: (g) => g.value },
   labels: { nameOf: (l) => l.value, keyOf: (l) => l.value },
   podcasts: { nameOf: (p) => p.value, keyOf: (p) => p.value },
+  festivals: { nameOf: (f) => f.value, keyOf: (f) => f.value },
+  years: { nameOf: (y) => y.value, keyOf: (y) => y.value },
+  lineups: { nameOf: (l) => l.value, keyOf: (l) => l.value },
   playlists: { nameOf: (p) => p.name, keyOf: (p) => String(p.id) },
 };
 
@@ -112,20 +130,22 @@ export const PLAYLIST_VISIBILITY = [
  * The default view state for a collection, used both as the initial value and
  * by the "filters wissen" button.
  *
- * @param {'genres'|'labels'|'podcasts'|'playlists'} type
+ * @param {'genres'|'labels'|'podcasts'|'playlists'|'festivals'|'years'|'lineups'} type
  * @returns {Object}
  */
 export function defaultCollectionState(type) {
   return {
     search: "",
     sort: "name",
-    direction: "asc",
+    // Every collection opens on its name sort; only the direction differs, and the sort
+    // table is the single place that knows which way round is useful for that name.
+    direction: sortOption(type, "name")?.defaultDirection ?? "asc",
     favoritesOnly: false,
-    // Genres and labels start at 10+: below that the grid is mostly noise from
-    // single mistagged releases. Playlists have no long tail to hide, and a
-    // podcast list is already curated by hand, so hiding the small shows there
-    // would hide exactly the ones somebody just approved.
-    threshold: type === "playlists" || type === "podcasts" ? "all" : "10",
+    // Genres, labels and festivals start at 10+: below that the grid is mostly noise from
+    // single mistagged releases. Playlists have no long tail to hide, a podcast list is
+    // already curated by hand, and a thin year is a real year -- so hiding the small ones
+    // there would hide exactly what somebody just approved or just started collecting.
+    threshold: ["playlists", "podcasts", "years", "lineups"].includes(type) ? "all" : "10",
     visibility: "all",
   };
 }
@@ -135,7 +155,7 @@ export function defaultCollectionState(type) {
  * (e.g. a stale value restored from a previous session) can never wedge a view
  * into rendering nothing.
  *
- * @param {'genres'|'labels'|'podcasts'|'playlists'} type
+ * @param {'genres'|'labels'|'podcasts'|'playlists'|'festivals'|'years'|'lineups'} type
  * @param {string} sortId
  * @returns {Object}
  */
@@ -156,7 +176,7 @@ export function thresholdMin(thresholdId) {
  * Filters and sorts one collection for display.
  *
  * @param {Object[]} items - The full, unfiltered list as loaded from the server.
- * @param {'genres'|'labels'|'podcasts'|'playlists'} type
+ * @param {'genres'|'labels'|'podcasts'|'playlists'|'festivals'|'years'|'lineups'} type
  * @param {Object} state - See {@link defaultCollectionState}.
  * @param {Object} [context]
  * @param {string[]} [context.favorites] - Keys of the favorited items.

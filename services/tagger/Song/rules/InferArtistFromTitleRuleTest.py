@@ -195,3 +195,81 @@ class InferArtistFromTitleRuleTest(unittest.TestCase):
         rule.apply(self.song)
         second_calls = [call for call in self.song.tag_collection.set_item.call_args_list if call.args[0] != ORIGINAL_TITLE]
         self.assertEqual(first_calls, second_calls, 'Repeated rule application should yield identical tag changes (except for ORIGINAL_TITLE)')
+
+
+class InferArtistFromEventPrefixRuleTest(unittest.TestCase):
+    """A title that opens with the event names the artists on the other side."""
+
+    def setUp(self):
+        self.song = MagicMock()
+        self.song.path = lambda: '/mnt/music/Soundcloud/Thunderdome/track.mp3'
+        self.mock_artist_db = MagicMock()
+        self.mock_artist_db.get_all_values.return_value = ['Akimbo', 'Barber', 'Akira', 'D-Fence']
+        self.mock_genres_db = MagicMock()
+        self.mock_genres_db.get_all.return_value = ['Hardcore']
+        self.mock_ignored_db = MagicMock()
+        self.mock_ignored_db.get_all.return_value = []
+        self.mock_festival_helper = MagicMock()
+        self.mock_festival_helper.get.return_value = None
+
+    def _apply_rule(self, title, known_artists=None):
+        if known_artists is not None:
+            self.mock_artist_db.get_all_values.return_value = known_artists
+        self.song.tag_collection.reset_mock()
+        self.song.tag_collection.has_item.return_value = False
+        self.song.tag_collection.get_item_as_string.side_effect = lambda key: {ARTIST: '', TITLE: title, ORIGINAL_TITLE: title}[key]
+        self.song.tag_collection.get_item = MagicMock(return_value=title)
+        rule = InferArtistFromTitleRule(artist_db=self.mock_artist_db, genre_db=self.mock_genres_db, ignored_db=self.mock_ignored_db, festival_helper=self.mock_festival_helper)
+        rule.apply(self.song)
+
+    def _artist_calls(self):
+        return [call.args[1] for call in self.song.tag_collection.set_item.call_args_list if call.args[0] == ARTIST]
+
+    def test_event_year_prefix_with_two_artists(self):
+        self._apply_rule('Thunderdome 2025 ｜ Akimbo vs. Barber')
+        self.song.tag_collection.set_item.assert_any_call(ARTIST, 'Akimbo;Barber')
+        self.song.tag_collection.set_item.assert_any_call(TITLE, 'Thunderdome 2025')
+
+    def test_event_year_prefix_with_single_artist(self):
+        self._apply_rule('Thunderdome 2025 ｜ Akira')
+        self.song.tag_collection.set_item.assert_any_call(ARTIST, 'Akira')
+        self.song.tag_collection.set_item.assert_any_call(TITLE, 'Thunderdome 2025')
+
+    def test_event_name_already_in_artist_database_does_not_win(self):
+        # The mistake feeds itself: once "Thunderdome 2025" is a known artist the
+        # single dash rule matches it exactly and keeps picking the wrong side.
+        self._apply_rule('Thunderdome 2025 ｜ Akimbo vs. Barber', known_artists=['Akimbo', 'Barber', 'Thunderdome 2025'])
+        self.song.tag_collection.set_item.assert_any_call(ARTIST, 'Akimbo;Barber')
+        self.song.tag_collection.set_item.assert_any_call(TITLE, 'Thunderdome 2025')
+
+    def test_ascii_pipe_and_dash_separators_behave_the_same(self):
+        for title in ['Thunderdome 2025 | Akimbo vs. Barber', 'Thunderdome 2025 - Akimbo vs. Barber']:
+            self._apply_rule(title)
+            self.song.tag_collection.set_item.assert_any_call(ARTIST, 'Akimbo;Barber')
+
+    def test_festival_without_a_year_is_recognised_by_the_helper(self):
+        self.mock_festival_helper.get.side_effect = lambda text, **kwargs: {'festival': 'Thunderdome'} if text.strip() == 'Thunderdome' else None
+        self._apply_rule('Thunderdome ｜ Akimbo vs. Barber')
+        self.song.tag_collection.set_item.assert_any_call(ARTIST, 'Akimbo;Barber')
+        self.song.tag_collection.set_item.assert_any_call(TITLE, 'Thunderdome')
+
+    def test_stage_on_the_right_is_not_an_artist(self):
+        self._apply_rule('Decibel outdoor 2023 ｜ Mainstage')
+        self.assertEqual([], self._artist_calls())
+
+    def test_unknown_right_side_without_artist_separator_is_left_alone(self):
+        self._apply_rule('Thunderdome 2025 ｜ Tunnel Of Terror')
+        self.assertEqual([], self._artist_calls())
+
+    def test_event_on_the_right_is_not_fuzzy_matched_into_an_artist(self):
+        # "Thunderdome 2006" scores 0.81 against a plain "Thunderdome", which used
+        # to be enough to make the edition the artist of a numbered upload. The
+        # other half is still taken -- artist first, event second is the common
+        # ordering -- but the edition itself never is.
+        self._apply_rule('567482 - Thunderdome 2006', known_artists=['Thunderdome', 'Akimbo'])
+        self.assertNotIn('Thunderdome 2006', self._artist_calls())
+
+    def test_artist_first_title_second_is_untouched(self):
+        self._apply_rule('D-Fence - Emporium 2025')
+        self.song.tag_collection.set_item.assert_any_call(ARTIST, 'D-Fence')
+        self.song.tag_collection.set_item.assert_any_call(TITLE, 'Emporium 2025')

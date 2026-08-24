@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Livesets kregen het evenement als artiest en de artiesten als titel.** `Thunderdome 2025 ｜
+  Akimbo vs. Barber` stond in de bibliotheek als artiest "Thunderdome 2025" met titel "Akimbo vs.
+  Barber", precies omgekeerd. De oorzaak zat in de laatste gok van `InferArtistFromTitleRule`:
+  wanneer geen enkele regel een bekende artiest herkende, nam die blind het eerste segment als
+  artiest. Bij een verse bibliotheek — waar Akimbo en Barber nog niet bestonden — leverde dat
+  "Thunderdome 2025" op. Die naam belandde vervolgens zelf in `library_artists`, waarna de
+  single-dash-regel hem exact matchte en de fout bij elke volgende scan bevestigde in plaats van
+  herstelde: ook nadat Akimbo en Barber wél bekend waren, bleef de editie winnen. Een segment dat
+  op een jaartal eindigt, of dat de festivaltabel herkent, telt nu nergens meer als artiest — niet
+  in de fallback, niet in de single-dash-regel en niet in de multi-dash-regel. In plaats daarvan
+  leest een nieuwe regel `<evenement> | <artiesten>` zoals het bedoeld is: de editie wordt de
+  titel, de andere kant de artiest. Die kant moet er wel als een artiest uitzien — een bekende
+  naam, een fuzzy match, of twee namen met een `vs`/`&` ertussen — zodat een podium of thema
+  ("Mainstage", "Tunnel Of Terror") geen nieuwe artiest wordt. Bestaande bestanden herstellen
+  vanzelf: de onaangetaste titel staat nog in `original_title`, waar de regels op werken.
+
 ## [0.32.0] - 2026-08-24
 
 ### Fixed

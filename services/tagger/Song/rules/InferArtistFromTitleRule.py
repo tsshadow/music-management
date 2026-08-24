@@ -7,9 +7,31 @@ from services.common.Helpers.TableHelper import TableHelper
 from services.tagger.constants import ARTIST, ARTIST_REGEX_NON_CAPTURING, ORIGINAL_TITLE, TITLE
 from services.tagger.Song.rules.TagRule import TagRule
 
+# "Thunderdome 2025", "Emporium 2025", "Snakepit 2024": an edition, never an artist.
+YEAR_SUFFIX_PATTERN = re.compile(r'\b(19[89]\d|20[0-4]\d)\s*$')
+PIPE_CHARACTERS = ('｜', '|')
 
 def extract_artists_from_string(part: str) -> list[str]:
     return [a.strip() for a in re.split(ARTIST_REGEX_NON_CAPTURING, part) if a.strip()]
+
+def looks_like_an_event(segment: str, festival_helper=None) -> bool:
+    """
+    True for a segment that names an event rather than a performer.
+
+    A trailing year is the signal that needs no database: artists do not end
+    their name in 2025, editions do. The festival helper catches the rest, but
+    only knows the names that have been entered, so it cannot carry this alone.
+    """
+    if not segment:
+        return False
+    if YEAR_SUFFIX_PATTERN.search(segment.strip()):
+        return True
+    if festival_helper:
+        try:
+            return bool(festival_helper.get(segment))
+        except Exception:
+            return False
+    return False
 
 def set_cleaned_artist(song, library_artists: str | list[str], artist_db=None) -> bool:
     if isinstance(library_artists, str):
@@ -36,9 +58,10 @@ def set_cleaned_artist(song, library_artists: str | list[str], artist_db=None) -
 
 class InferArtistFromTitleRule(TagRule):
 
-    def __init__(self, artist_db=None, ignored_db: FilterTableHelper=None, genre_db: FilterTableHelper=None):
+    def __init__(self, artist_db=None, ignored_db: FilterTableHelper=None, genre_db: FilterTableHelper=None, festival_helper=None):
         from services.common.Helpers.Cache import databaseHelpers
         self.artist_db = artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
+        self.festival_helper = festival_helper or databaseHelpers.get('festivalHelper')
         all_names = self.artist_db.get_all_values()
         artist_names = {name.lower() for name in all_names if name}
         self.genre_db = genre_db or databaseHelpers.get('rules_genres')
@@ -53,7 +76,7 @@ class InferArtistFromTitleRule(TagRule):
         all_genres.add('mainstage')
         ignored_helper = ignored_db or databaseHelpers.get('rules_ignored_artists')
         ignored_names = ignored_helper.get_all() if ignored_helper else []
-        self.rules = [InferArtistFromPresentsOrColonRule(self.artist_db), InferArtistFromTitleAtRule(ignored_names, self.artist_db), InferArtistFromTitleByRule(artist_names, self.artist_db), InferArtistFromTitleDotRule(artist_names, self.artist_db), InferArtistFromTitleSingleDashRule(artist_names, self.artist_db), InferArtistFromTitleMultiDashRule(artist_names, self.artist_db, all_genres), InferArtistFromFirstSegmentFallbackRule(self.artist_db), InferArtistFromTitleFallbackRule(ignored_names)]
+        self.rules = [InferArtistFromPresentsOrColonRule(self.artist_db), InferArtistFromTitleAtRule(ignored_names, self.artist_db), InferArtistFromEventPrefixRule(artist_names, self.artist_db, all_genres, self.festival_helper), InferArtistFromTitleByRule(artist_names, self.artist_db), InferArtistFromTitleDotRule(artist_names, self.artist_db), InferArtistFromTitleSingleDashRule(artist_names, self.artist_db, self.festival_helper), InferArtistFromTitleMultiDashRule(artist_names, self.artist_db, all_genres, self.festival_helper), InferArtistFromFirstSegmentFallbackRule(self.artist_db, self.festival_helper), InferArtistFromTitleFallbackRule(ignored_names)]
 
     def apply(self, song):
         if not song.tag_collection.has_item(ORIGINAL_TITLE):
@@ -62,6 +85,56 @@ class InferArtistFromTitleRule(TagRule):
             if rule.apply(song):
                 print(f"[InferArtistFromTitle] Applied rule: {rule.__class__.__name__} on '{song.path()}'")
                 return
+
+class InferArtistFromEventPrefixRule(TagRule):
+    """
+    Reads "Thunderdome 2025 | Akimbo vs. Barber" as the event it is: the edition
+    on the left, the artists who played it on the right.
+
+    Without this the first segment is taken as the artist, "Thunderdome 2025"
+    ends up in library_artists, and from then on the single dash rule matches it
+    exactly -- so every later scan confirms the mistake instead of repairing it.
+    The right hand side has to look like a performer before we act on it: a lone
+    unknown phrase is far more likely to be a stage or a theme than an artist.
+    """
+
+    def __init__(self, artist_names, artist_db, blocked_names, festival_helper=None):
+        self.artist_names = artist_names
+        self.artist_db = artist_db
+        self.blocked_names = blocked_names or set()
+        self.festival_helper = festival_helper
+
+    def apply(self, song):
+        title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
+        if not title:
+            return False
+        for pipe in PIPE_CHARACTERS:
+            title = title.replace(pipe, '-')
+        segments = [s.strip() for s in title.split(' - ') if s.strip()]
+        if len(segments) != 2:
+            return False
+        event, performers = segments
+        if not looks_like_an_event(event, self.festival_helper):
+            return False
+        if looks_like_an_event(performers, self.festival_helper):
+            return False
+        candidates = extract_artists_from_string(performers)
+        if not candidates or not self._looks_like_artists(candidates):
+            return False
+        set_cleaned_artist(song, candidates, self.artist_db)
+        song.tag_collection.set_item(TITLE, event)
+        return True
+
+    def _looks_like_artists(self, candidates):
+        if any(c.lower() in self.blocked_names for c in candidates):
+            return False
+        if any(c.lower() in self.artist_names for c in candidates):
+            return True
+        if any(get_close_matches(c.lower(), self.artist_names, n=1, cutoff=0.75) for c in candidates):
+            return True
+        # "Akimbo vs. Barber" split in two: the separator itself says these are
+        # performers, which is what lets a brand new name through the first time.
+        return len(candidates) > 1
 
 class InferArtistFromTitleDotRule(TagRule):
 
@@ -127,9 +200,10 @@ class InferArtistFromTitleByRule(TagRule):
 
 class InferArtistFromTitleSingleDashRule(TagRule):
 
-    def __init__(self, artist_names, artist_db):
+    def __init__(self, artist_names, artist_db, festival_helper=None):
         self.artist_names = artist_names
         self.artist_db = artist_db
+        self.festival_helper = festival_helper
 
     def apply(self, song):
         title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
@@ -137,8 +211,16 @@ class InferArtistFromTitleSingleDashRule(TagRule):
         if not title or title.count(' - ') != 1:
             return False
         left, right = [s.strip() for s in title.split(' - ', 1)]
-        matches_left = [a for a in extract_artists_from_string(left) if a.lower() in self.artist_names]
-        matches_right = [a for a in extract_artists_from_string(right) if a.lower() in self.artist_names]
+        # An edition that once slipped into library_artists would otherwise match
+        # itself exactly here and keep the artist and the title swapped forever.
+        # A fuzzy match is enough for that: "Thunderdome 2006" scores 0.81 against
+        # a plain "Thunderdome", so neither side may be an event.
+        left_is_event = looks_like_an_event(left, self.festival_helper)
+        right_is_event = looks_like_an_event(right, self.festival_helper)
+        if left_is_event and right_is_event:
+            return False
+        matches_left = [] if left_is_event else [a for a in extract_artists_from_string(left) if a.lower() in self.artist_names]
+        matches_right = [] if right_is_event else [a for a in extract_artists_from_string(right) if a.lower() in self.artist_names]
         if matches_left:
             set_cleaned_artist(song, extract_artists_from_string(left), self.artist_db)
             song.tag_collection.set_item(TITLE, right)
@@ -149,8 +231,8 @@ class InferArtistFromTitleSingleDashRule(TagRule):
             return True
         fuzzy_left = extract_artists_from_string(left)
         fuzzy_right = extract_artists_from_string(right)
-        fuzzy_match_left = [a for a in fuzzy_left if get_close_matches(a.lower(), self.artist_names, n=1, cutoff=0.75)]
-        fuzzy_match_right = [a for a in fuzzy_right if get_close_matches(a.lower(), self.artist_names, n=1, cutoff=0.75)]
+        fuzzy_match_left = [] if left_is_event else [a for a in fuzzy_left if get_close_matches(a.lower(), self.artist_names, n=1, cutoff=0.75)]
+        fuzzy_match_right = [] if right_is_event else [a for a in fuzzy_right if get_close_matches(a.lower(), self.artist_names, n=1, cutoff=0.75)]
         if fuzzy_match_left:
             set_cleaned_artist(song, fuzzy_match_left, self.artist_db)
             song.tag_collection.set_item(TITLE, right)
@@ -163,10 +245,11 @@ class InferArtistFromTitleSingleDashRule(TagRule):
 
 class InferArtistFromTitleMultiDashRule(TagRule):
 
-    def __init__(self, artist_names, artist_db, genre_names):
+    def __init__(self, artist_names, artist_db, genre_names, festival_helper=None):
         self.artist_names = artist_names
         self.artist_db = artist_db
         self.genre_names = genre_names
+        self.festival_helper = festival_helper
 
     def apply(self, song):
         title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
@@ -205,6 +288,8 @@ class InferArtistFromTitleMultiDashRule(TagRule):
                 lowered = artist.lower()
                 if lowered in self.genre_names:
                     continue
+                if looks_like_an_event(artist, self.festival_helper):
+                    continue
                 matches = get_close_matches(lowered, self.artist_names, n=1, cutoff=0.6)
                 if matches:
                     score = SequenceMatcher(None, lowered, matches[0]).ratio() + 0.05
@@ -226,8 +311,9 @@ class InferArtistFromTitleMultiDashRule(TagRule):
 
 class InferArtistFromFirstSegmentFallbackRule(TagRule):
 
-    def __init__(self, artist_db):
+    def __init__(self, artist_db, festival_helper=None):
         self.artist_db = artist_db
+        self.festival_helper = festival_helper
 
     def apply(self, song):
         title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
@@ -237,6 +323,10 @@ class InferArtistFromFirstSegmentFallbackRule(TagRule):
         parts = [s.strip() for s in title.split(' - ', 1)]
         if len(parts) == 2:
             artist_candidate, title_part = parts
+            # This is the last guess before giving up, so it must not guess an
+            # event: that is how "Thunderdome 2025" became an artist.
+            if looks_like_an_event(artist_candidate, self.festival_helper):
+                return False
             if artist_candidate:
                 set_cleaned_artist(song, artist_candidate, self.artist_db)
                 song.tag_collection.set_item(TITLE, title_part)

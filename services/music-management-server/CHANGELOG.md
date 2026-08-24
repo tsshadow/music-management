@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`getSpotifyTracks` filters on a festival and on a festival lineup.** `festival` resolves
+  through the `FESTIVAL` cluster type, exactly like the `genre`, `year` and `podcast` parameters
+  beside it, so it needs FESTIVAL in the scanner's extra tags to scan. `lineup` reads the artist
+  list out of `/music/metadata/festival-lineups/<name>.txt` -- the same source `getSongs` already
+  used for its `festivalLineup` parameter -- and restricts the query to those artists. That match
+  is on the whole `artist_display_name`, lowercased, so a lineup naming `Angerfist` does not match
+  a track credited to `Angerfist & Outsiders`; two new `Track_findAdvanced` tests pin both the
+  cluster filter and that display-name behaviour, which nothing covered before.
 - **`getSongs` filters on a set of artists and reports a total.** `artistId` may be repeated; a
   track only survives when it is linked to every artist named, which answers "what did these people
   make together" rather than "any of them". Repeating one id counts once, because the ids enter the

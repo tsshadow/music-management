@@ -22,6 +22,10 @@ function subsonic({
   genres = [{ value: 'Hardcore', songCount: 1200 }],
   labels = [{ value: 'Roughstate', albumCount: 20 }],
   podcasts = [{ value: 'Hard With Style', songCount: 71 }],
+  festivals = [{ value: 'Defqon.1 2025', songCount: 400, albumCount: 8 }],
+  years = [{ value: '2019', songCount: 300 }, { value: '2026', songCount: 900 }],
+  lineups = [{ name: 'Defqon.1 2025' }],
+  scanSettings = { extraTagsToScan: { value: ['FESTIVAL', 'PODCAST', 'YEAR'] } },
   memories = null
 } = {}) {
   return vi.fn(async (url) => {
@@ -44,7 +48,15 @@ function subsonic({
       return { ok: true, json: async () => ({ 'subsonic-response': { genres: { genre: genres } } }) };
     }
     if (url.includes('/rest/getTags')) {
-      return { ok: true, json: async () => ({ 'subsonic-response': { tags: { tag: podcasts } } }) };
+      const tag = { FESTIVAL: festivals, YEAR: years }[new URL(url, 'http://x').searchParams.get('name')] ?? podcasts;
+      return { ok: true, json: async () => ({ 'subsonic-response': { tags: { tag } } }) };
+    }
+    if (url.includes('/rest/getLineups')) {
+      return { ok: true, json: async () => ({ 'subsonic-response': { lineups: { lineup: lineups } } }) };
+    }
+    if (url.includes('/rest/getScanStatus')) {
+      const scanStatus = scanSettings === null ? { scanning: false } : { scanning: false, scanSettings };
+      return { ok: true, json: async () => ({ 'subsonic-response': { scanStatus } }) };
     }
     if (url.includes('/rest/getRecordLabels')) {
       return { ok: true, json: async () => ({ 'subsonic-response': { recordLabels: { recordLabel: labels } } }) };
@@ -138,6 +150,81 @@ describe('Dashboard', () => {
     await waitFor(() =>
       expect(urlsFor('/rest/getSpotifyTracks').some((url) => url.includes('label=Roughstate'))).toBe(true)
     );
+  });
+
+  it('the festivals page lists what getTags answers for FESTIVAL', async () => {
+    render(Dashboard, { activeView: 'festivals' });
+
+    await waitFor(() => expect(screen.getByText('Defqon.1 2025')).toBeTruthy());
+  });
+
+  it('a festival view filters on that festival', async () => {
+    render(Dashboard, { activeView: 'festival:Defqon.1 2025' });
+
+    await waitFor(() =>
+      expect(urlsFor('/rest/getSpotifyTracks').some((url) => url.includes('festival=Defqon.1%202025'))).toBe(true)
+    );
+  });
+
+  it('tells an admin when the festival tag is not indexed at all', async () => {
+    globalThis.fetch = subsonic({
+      festivals: [],
+      scanSettings: { extraTagsToScan: { value: ['PODCAST'] } }
+    });
+
+    render(Dashboard, { activeView: 'festivals' });
+
+    await waitFor(() => expect(screen.getByText(/niet geïndexeerd/i)).toBeTruthy());
+  });
+
+  // A non-admin's getScanStatus carries no scanSettings at all. Reading that as
+  // "nothing is indexed" would show every listener a diagnostic about a server
+  // setting they cannot see, let alone change.
+  it('says only that there is nothing yet when the scan settings are unreadable', async () => {
+    globalThis.fetch = subsonic({ festivals: [], scanSettings: null });
+
+    render(Dashboard, { activeView: 'festivals' });
+
+    await waitFor(() => expect(urlsFor('/rest/getScanStatus').length).toBe(1));
+    expect(screen.queryByText(/niet geïndexeerd/i)).toBeNull();
+  });
+
+  it('the years page lists years newest first', async () => {
+    const { container } = render(Dashboard, { activeView: 'years' });
+
+    await waitFor(() => expect(screen.getByText('2026')).toBeTruthy());
+    expect(container.textContent.indexOf('2026')).toBeLessThan(container.textContent.indexOf('2019'));
+  });
+
+  it('a year view filters on that year', async () => {
+    render(Dashboard, { activeView: 'year:2026' });
+
+    await waitFor(() =>
+      expect(urlsFor('/rest/getSpotifyTracks').some((url) => url.includes('year=2026'))).toBe(true)
+    );
+  });
+
+  it('the lineups page lists what getLineups answers', async () => {
+    render(Dashboard, { activeView: 'lineups' });
+
+    await waitFor(() => expect(screen.getByText('Defqon.1 2025')).toBeTruthy());
+  });
+
+  it('a lineup view filters on that lineup', async () => {
+    render(Dashboard, { activeView: 'lineup:Defqon.1 2025' });
+
+    await waitFor(() =>
+      expect(urlsFor('/rest/getSpotifyTracks').some((url) => url.includes('lineup=Defqon.1%202025'))).toBe(true)
+    );
+  });
+
+  // Production has zero lineup files today, so this is the state the page actually ships in.
+  it('an empty lineup list explains where lineups come from', async () => {
+    globalThis.fetch = subsonic({ lineups: [] });
+
+    render(Dashboard, { activeView: 'lineups' });
+
+    await waitFor(() => expect(screen.getByText(/festival-lineups/)).toBeTruthy());
   });
 
   it('asks the server to deduplicate when that is switched on', async () => {

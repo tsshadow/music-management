@@ -22,6 +22,7 @@
 #include "../ParameterParsing.hpp"
 #include "../RequestContext.hpp"
 #include "../SubsonicId.hpp"
+#include "FestivalLineupRepository.hpp"
 #include "core/String.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Cluster.hpp"
@@ -415,6 +416,29 @@ namespace lms::api::subsonic
                     clusterGroups["PODCAST"].insert(cluster->getId());
                 }
             }
+        }
+
+        // The festival a set was recorded at, written by the tagger as a FESTIVAL tag.
+        // Same cluster-type resolution as GENRE, YEAR and PODCAST above, so it likewise
+        // needs FESTIVAL in the scanner's extra tags to scan.
+        if (auto festival = getParameterAs<std::string>(ctx.getParameters(), "festival"))
+        {
+            if (auto festivalType = db::ClusterType::find(session, "FESTIVAL"))
+            {
+                if (auto cluster = festivalType->getCluster(*festival))
+                {
+                    clusterGroups["FESTIVAL"].insert(cluster->getId());
+                }
+            }
+        }
+
+        // A festival lineup is a text file of artist names under
+        // /music/metadata/festival-lineups; the same source handleGetSongs already uses for
+        // its festivalLineup parameter. The match is on the whole artist display name, so a
+        // collaboration is only matched when the lineup names it verbatim.
+        if (auto lineup = getParameterAs<std::string>(ctx.getParameters(), "lineup"))
+        {
+            params.setAllowedArtists(FestivalLineupRepository::getArtistsForFestival(*lineup));
         }
 
         if (auto sort = getParameterAs<std::string>(ctx.getParameters(), "sort"))

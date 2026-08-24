@@ -13,6 +13,9 @@
     role = $bindable('all'),
     view = 'songs',
     showGenre = true,
+    // A year page is already a year filter; offering the picker there lets the two
+    // disagree, with the route silently losing.
+    showYear = true,
     onchange
   } = $props();
 
@@ -119,7 +122,7 @@
       </div>
     {/if}
 
-    {#if view === 'songs'}
+    {#if view === 'songs' && showYear}
       <div class="flex items-center gap-2">
         <label for="year" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('filter.year')}</label>
         <select id="year" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={year} onchange={handleChange}>

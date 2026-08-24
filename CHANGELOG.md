@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-08-24
+
 ### Fixed
 - **Eén festival kon twee kaartjes opleveren, omdat dezelfde tag in twee schrijfwijzen op het
   bestand stond.** In m4a schrijft `_set_m4a_tag` de naam in hoofdletters

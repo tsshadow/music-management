@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-08-24
+
 ### Fixed
 - **De artiestafbeeldingen-crawl liep bij elke herstart opnieuw langs elke hopeloze naam, en
   bleef daarbij hangen op MusicBrainz.** Twee fouten die elkaar versterkten. De timeout stond op

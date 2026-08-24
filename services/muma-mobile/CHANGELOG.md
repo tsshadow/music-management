@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.24.0] - 2026-08-24
+
 ### Added
 - **A song now carries its artists, moods and labels.** The server splits an artist tag into
   separate entries and reports the release's labels on the same node; the API models read all

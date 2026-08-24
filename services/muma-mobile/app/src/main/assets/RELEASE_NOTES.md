@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [6.24.0] - 2026-08-24
+
+### Added
+- **Een nummer draagt nu zijn artiesten, moods en labels mee.** De server splitst een
+  artiestentag in losse namen en stuurt de labels van de release mee; de app leest ze alle drie.
+  Een lijst weet daarnaast hoeveel nummers er in totaal aan het filter voldoen, niet alleen
+  hoeveel er op deze pagina staan. Nog niet zichtbaar in het scherm — dit is het fundament onder
+  het doorklikken vanuit een nummer.
+
+
 ## [6.23.0] - 2026-08-23
 
 ### Changed

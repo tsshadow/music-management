@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **De artiestafbeeldingen-crawl liep bij elke herstart opnieuw langs elke hopeloze naam, en
+  bleef daarbij hangen op MusicBrainz.** Twee fouten die elkaar versterkten. De timeout stond op
+  `(5, 20)`: ruim voor het lezen, krap voor het verbinden. Gemeten tegen musicbrainz.org op
+  24-08-2026 landde élke mislukking op precies 5,0 seconden — de connect-helft — en urllib3 meldt
+  dat als `Read timed out. (read timeout=5)`, waarin het woord "read" naar de verkeerde helft
+  wijst. Onder belasting doet die host er seconden over om de verbinding te accepteren en
+  antwoordt hij daarna in ongeveer zeven; met `(15, 30)` slaagt dezelfde zoekopdracht waar hij
+  eerst na twee pogingen en 10 tot 25 seconden opgaf. Daarbovenop selecteerde de crawl bij elke
+  boot élke artiest zonder afbeelding, inclusief alle eerder mislukte. Deze bibliotheek bestaat
+  voor een groot deel uit festivalrips en bootleg-aliassen die geen enkele provider kent, en die
+  namen worden er tussentijds niet vindbaarder op — het opnieuw proberen kostte alleen een derde
+  partij seconden per artiest, eindeloos. Een mislukte poging heeft nu een wachttijd van 30 dagen,
+  in te stellen met `ARTIST_IMAGE_RETRY_AFTER_DAYS`.
 - **`setArtist()` en `setArtistName()` keken in `find_advanced` naar twee verschillende
   koppelingen.** Beide kregen hun eigen `track_artist_link`-join, dus "deze id" en "deze naam"
   mochten twee verschillende artiesten op twee verschillende rijen zijn — een track die de ene

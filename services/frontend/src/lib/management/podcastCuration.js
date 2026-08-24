@@ -79,6 +79,58 @@ export function buildDecision({ podcastId, state, mergeIntoId = null, host = nul
 }
 
 /**
+ * Shortest normalized name or spelling that may be stored.
+ *
+ * Mirrors `MINIMUM_SHOW_KEY_LENGTH` in the management router. Matching is a
+ * substring test on the title and the path together, so a two-letter spelling
+ * would tag unrelated files; the check lives here as well so the button is
+ * disabled before the request rather than after the 400.
+ */
+export const MINIMUM_KEY_LENGTH = 4;
+
+/**
+ * Validate a new show name and build the request body for it.
+ *
+ * The name is what ends up in the PODCAST tag on every episode, and it doubles
+ * as a spelling the tagger matches on, which is why it has the same floor an
+ * alias has.
+ *
+ * @param {string} name
+ * @returns {{valid: boolean, error: string|null, payload?: {name: string}}}
+ */
+export function buildRename(name) {
+  const trimmed = (name || '').trim();
+  const key = normalizeName(trimmed);
+  if (!key) return { valid: false, error: 'Een shownaam mag niet leeg zijn.' };
+  if (key.length < MINIMUM_KEY_LENGTH) {
+    return {
+      valid: false,
+      error: `Een shownaam heeft minstens ${MINIMUM_KEY_LENGTH} letters of cijfers nodig; korter matcht op losse bestanden.`
+    };
+  }
+  return { valid: true, error: null, payload: { name: trimmed } };
+}
+
+/**
+ * Validate a spelling and build the request body for it.
+ *
+ * @param {string} alias
+ * @returns {{valid: boolean, error: string|null, payload?: {alias: string}}}
+ */
+export function buildAlias(alias) {
+  const trimmed = (alias || '').trim();
+  const key = normalizeName(trimmed);
+  if (!key) return { valid: false, error: 'Een schrijfwijze mag niet leeg zijn.' };
+  if (key.length < MINIMUM_KEY_LENGTH) {
+    return {
+      valid: false,
+      error: `Een schrijfwijze heeft minstens ${MINIMUM_KEY_LENGTH} letters of cijfers nodig; korter matcht op losse bestanden.`
+    };
+  }
+  return { valid: true, error: null, payload: { alias: trimmed } };
+}
+
+/**
  * Shows a merge may point at: approved ones, never the row itself.
  *
  * Merging into an undecided show would move the spellings somewhere that is

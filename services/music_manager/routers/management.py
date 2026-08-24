@@ -10,6 +10,7 @@ from pydantic import BaseModel
 import docker
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.GenreRulesHelper import BLACK, VALID_STATES, WHITE
+from services.common.Helpers.PodcastHelper import normalize as normalize_show_name
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 from services.common.version_helper import get_changelog, get_release_notes, get_version
 from services.music_manager import curation_rules
@@ -55,6 +56,19 @@ class PodcastDecisionRequest(BaseModel):
     merge_into_podcast_id: int | None = None
     host: str | None = None
     station: str | None = None
+
+class PodcastRenameRequest(BaseModel):
+    """The show name as it should appear on a file and in the browse list.
+
+    `tools/detect_podcasts.py` files the raw filename fragment it grouped on, so a
+    detected row is usually named after the uploader ('KELTEK Presents | Pure
+    Hardstyle |') rather than after the show.
+    """
+    name: str
+
+class PodcastAliasRequest(BaseModel):
+    """One spelling a show occurs under in the library."""
+    alias: str
 
 def verify_api_key(x_api_key: str | None=Header(None)):
     if not x_api_key:
@@ -448,6 +462,50 @@ def decide_genre(genre_id: int, decision: GenreDecisionRequest, auth: dict=Depen
     finally:
         conn.close()
 
+#: Shortest normalised show name or spelling that may be stored.
+#
+# `PodcastHelper` matches a spelling as a substring of `title + path`, so a two-letter
+# one hits half the library. Four is what `tools/detect_podcasts.py` already treats as
+# too short to be a name of its own (`len(normalize(raw)) < 4`), so both agree on when
+# a fragment says nothing.
+MINIMUM_SHOW_KEY_LENGTH = 4
+
+def show_key(value: str | None, what: str) -> str:
+    """The normalised matching key for a show name or spelling, or a 400.
+
+    Same normalisation `PodcastHelper` and `tools/detect_podcasts.py` use, so what the
+    page stores is exactly what the tagger will match on.
+    """
+    key = normalize_show_name(value or '')
+    if not key:
+        raise HTTPException(status_code=400, detail=f'{what} cannot be empty')
+    if len(key) < MINIMUM_SHOW_KEY_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f'{what} needs at least {MINIMUM_SHOW_KEY_LENGTH} letters or digits: '
+                   'a shorter one matches unrelated files')
+    return key
+
+def load_podcast(cursor, podcast_id: int) -> dict:
+    cursor.execute('SELECT id, name FROM rules_podcasts WHERE id = %s', (podcast_id,))
+    row = cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail='Unknown podcast')
+    return row
+
+def keep_as_alias(cursor, podcast_id: int, name: str) -> None:
+    """Record a show's own name as one of its spellings.
+
+    `PodcastHelper._load` seeds every show with its name as an alias, so a name that
+    is dropped -- by a rename, or by the row being merged away -- stops matching
+    unless it survives here. IGNORE rather than an upsert: when the spelling already
+    belongs to another show, that show's claim on it is the older decision and wins.
+    """
+    cursor.execute(
+        'INSERT IGNORE INTO rules_podcast_aliases (podcast_id, alias, normalized_alias, occurrences) '
+        'VALUES (%s, %s, %s, 0)',
+        (podcast_id, name, normalize_show_name(name)))
+
 @router.get('/rules/podcasts')
 def get_podcast_curation_queue(state: str | None=None, limit: int=200, _auth: dict=Depends(verify_api_key)):
     """Radio shows and podcast series by curation state, most episodes first.
@@ -503,10 +561,7 @@ def decide_podcast(podcast_id: int, decision: PodcastDecisionRequest, auth: dict
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT id, name FROM rules_podcasts WHERE id = %s', (podcast_id,))
-            row = cursor.fetchone()
-            if not row:
-                raise HTTPException(status_code=404, detail='Unknown podcast')
+            row = load_podcast(cursor, podcast_id)
             target_id = decision.merge_into_podcast_id
             if target_id is not None:
                 cursor.execute('SELECT id FROM rules_podcasts WHERE id = %s', (target_id,))
@@ -514,16 +569,119 @@ def decide_podcast(podcast_id: int, decision: PodcastDecisionRequest, auth: dict
                     raise HTTPException(status_code=400, detail='Unknown merge target')
                 # The name this row was known by has to survive as an alias of the
                 # target, or every file that spells the show that way stops matching.
+                # The alias rows carry the detected spellings; the name itself is only
+                # an implicit one, and after a rename it is in neither place.
+                keep_as_alias(cursor, target_id, row['name'])
                 cursor.execute('UPDATE rules_podcast_aliases SET podcast_id = %s WHERE podcast_id = %s', (target_id, podcast_id))
                 cursor.execute('DELETE FROM rules_podcasts WHERE id = %s', (podcast_id,))
                 conn.commit()
+                curation_rules.refresh(curation_rules.PODCAST_HELPER)
                 return {'status': 'ok', 'merged_into': target_id}
             decided_by = (auth.get('user') or {}).get('username') if isinstance(auth.get('user'), dict) else auth.get('type', 'human')
             cursor.execute('\n                UPDATE rules_podcasts\n                SET state = %s, host = COALESCE(%s, host), station = COALESCE(%s, station),\n                    decided_at = NOW(), decided_by = %s\n                WHERE id = %s\n            ', (decision.state, decision.host, decision.station, decided_by or 'human', podcast_id))
             conn.commit()
-            return {'status': 'ok'}
     finally:
         conn.close()
+    # Outside the connection: approving a show has to reach the running tagger, which
+    # holds a preloaded PodcastHelper and would otherwise not see it until a restart.
+    curation_rules.refresh(curation_rules.PODCAST_HELPER)
+    return {'status': 'ok'}
+
+@router.post('/rules/podcasts/{podcast_id}/rename')
+def rename_podcast(podcast_id: int, request: PodcastRenameRequest, _auth: dict=Depends(verify_api_key)):
+    """Give a show the name it should be tagged and browsed under.
+
+    The name is what `PodcastHelper.get` writes into the PODCAST tag, so a detected
+    row named after its uploader labels every episode that way. Renaming also changes
+    what the show matches on -- the name doubles as a spelling -- which is why the old
+    one is kept as an alias rather than dropped.
+    """
+    name = (request.name or '').strip()
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            row = load_podcast(cursor, podcast_id)
+            key = show_key(name, 'A show name')
+            cursor.execute('SELECT id, name FROM rules_podcasts WHERE normalized_name = %s', (key,))
+            clash = cursor.fetchone()
+            if clash and int(clash['id']) != podcast_id:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"'{clash['name']}' already uses that name -- merge the two shows instead")
+            cursor.execute(
+                'UPDATE rules_podcasts SET name = %s, normalized_name = %s WHERE id = %s',
+                (name, key, podcast_id))
+            keep_as_alias(cursor, podcast_id, row['name'])
+            conn.commit()
+    finally:
+        conn.close()
+    curation_rules.refresh(curation_rules.PODCAST_HELPER)
+    return {'status': 'ok', 'name': name}
+
+@router.post('/rules/podcasts/{podcast_id}/aliases')
+def add_podcast_alias(podcast_id: int, request: PodcastAliasRequest, _auth: dict=Depends(verify_api_key)):
+    """Record another spelling this show occurs under.
+
+    The detector only proposes fragments that carried an episode marker, so the
+    spelling that catches the rest of a series -- 'KELTEK | Pure Hardstyle |' next to
+    'KELTEK Presents | Pure Hardstyle |' -- usually has to be added by hand. Matching
+    is a substring test on `title + path`, so the shortest distinctive fragment covers
+    the most files.
+    """
+    alias = (request.alias or '').strip()
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            load_podcast(cursor, podcast_id)
+            key = show_key(alias, 'A spelling')
+            cursor.execute('\n                SELECT a.podcast_id, p.name\n                FROM rules_podcast_aliases a\n                JOIN rules_podcasts p ON p.id = a.podcast_id\n                WHERE a.normalized_alias = %s\n            ', (key,))
+            owner = cursor.fetchone()
+            if owner and int(owner['podcast_id']) == podcast_id:
+                # Already this show's: saying so again is not a mistake worth an error.
+                return {'status': 'ok', 'alias': alias}
+            if owner:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"'{owner['name']}' already claims that spelling")
+            cursor.execute(
+                'INSERT INTO rules_podcast_aliases (podcast_id, alias, normalized_alias, occurrences) '
+                'VALUES (%s, %s, %s, 0)',
+                (podcast_id, alias, key))
+            conn.commit()
+    finally:
+        conn.close()
+    curation_rules.refresh(curation_rules.PODCAST_HELPER)
+    return {'status': 'ok', 'alias': alias}
+
+@router.delete('/rules/podcasts/{podcast_id}/aliases')
+def delete_podcast_alias(podcast_id: int, alias: str, _auth: dict=Depends(verify_api_key)):
+    """Drop a spelling that matches files this show does not own.
+
+    There is no floor on how many spellings may go: a show with none still matches its
+    own name, which `PodcastHelper._load` always adds.
+    """
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            load_podcast(cursor, podcast_id)
+            cursor.execute(
+                'SELECT id FROM rules_podcast_aliases WHERE podcast_id = %s AND normalized_alias = %s',
+                (podcast_id, normalize_show_name(alias)))
+            row = cursor.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail='This show has no such spelling')
+            cursor.execute('DELETE FROM rules_podcast_aliases WHERE id = %s', (row['id'],))
+            conn.commit()
+    finally:
+        conn.close()
+    curation_rules.refresh(curation_rules.PODCAST_HELPER)
+    return {'status': 'ok'}
 
 @router.get('/rules/artist-genres')
 def get_artist_genre_rules(_auth: dict=Depends(verify_api_key)):

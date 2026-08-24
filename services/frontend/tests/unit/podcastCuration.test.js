@@ -3,7 +3,9 @@ import {
   WHITE,
   BLACK,
   UNKNOWN,
+  buildAlias,
   buildDecision,
+  buildRename,
   describeEpisodes,
   describeOutcome,
   extraAliases,
@@ -143,5 +145,50 @@ describe('describeEpisodes', () => {
 
   it('treats a missing count as zero', () => {
     expect(describeEpisodes(row({ occurrences: null }))).toBe('0 afleveringen');
+  });
+});
+
+describe('buildRename', () => {
+  it('accepts a real show name and trims it', () => {
+    expect(buildRename('  Pure Hardstyle ')).toEqual({
+      valid: true,
+      error: null,
+      payload: { name: 'Pure Hardstyle' }
+    });
+  });
+
+  it('refuses an empty name', () => {
+    expect(buildRename('   ').valid).toBe(false);
+  });
+
+  it('refuses a name with nothing to match on', () => {
+    // Punctuation normalizes away, so this is as empty as a blank one.
+    expect(buildRename(' - | - ').valid).toBe(false);
+  });
+
+  it('refuses a name too short to be a safe matcher', () => {
+    const built = buildRename('Q!');
+    expect(built.valid).toBe(false);
+    expect(built.error).toContain('4');
+  });
+});
+
+describe('buildAlias', () => {
+  it('accepts a spelling and trims it', () => {
+    expect(buildAlias(' KELTEK | Pure Hardstyle | ')).toEqual({
+      valid: true,
+      error: null,
+      payload: { alias: 'KELTEK | Pure Hardstyle |' }
+    });
+  });
+
+  it('refuses an empty spelling', () => {
+    expect(buildAlias('').valid).toBe(false);
+  });
+
+  it('refuses a spelling too short to be a safe matcher', () => {
+    const built = buildAlias('HS');
+    expect(built.valid).toBe(false);
+    expect(built.error).toContain('4');
   });
 });

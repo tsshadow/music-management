@@ -516,6 +516,178 @@ class DecidePodcastTest(ManagementTestCase):
                   if 'UPDATE rules_podcasts' in call.args[0]][0]
         self.assertEqual(update.args[1][1:3], ('DJ Isaac', 'Q-dance'))
 
+    def test_a_decision_refreshes_the_tagger_cache(self):
+        """Without this an approved show stays invisible to the running tagger."""
+        Cache.reload.reset_mock()
+        self.cursor.fetchone.return_value = {'id': 1, 'name': 'x'}
+        self.decide({'state': management_router.WHITE})
+        Cache.reload.assert_called_once_with('podcastHelper')
+
+    def test_a_merge_keeps_the_name_of_the_row_it_drops(self):
+        """
+        A renamed row's name is not in the alias table, so moving only the alias rows
+        would lose the spelling the row was matched by.
+        """
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'Pure Hardstyle'}, {'id': 9}]
+        self.decide({'state': management_router.WHITE, 'merge_into_podcast_id': 9})
+        inserts = [call for call in self.cursor.execute.call_args_list
+                   if 'INSERT' in call.args[0] and 'rules_podcast_aliases' in call.args[0]]
+        self.assertEqual(inserts[0].args[1][:3], (9, 'Pure Hardstyle', 'pure hardstyle'))
+
+
+
+class RenamePodcastTest(ManagementTestCase):
+    """
+    Renaming is what turns a detected spelling into a show name.
+
+    `tools/detect_podcasts.py` proposes the raw filename fragment it grouped on --
+    'KELTEK Presents | Pure Hardstyle |' -- and `PodcastHelper.get` writes that
+    straight into the PODCAST tag, so without a rename the browse page is named
+    after the uploader rather than after the show.
+    """
+
+    def rename(self, payload, podcast_id=1):
+        return self.client.post(f'/api/rules/podcasts/{podcast_id}/rename',
+                                headers=self.headers, json=payload)
+
+    def test_a_show_can_be_renamed(self):
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'KELTEK Presents | Pure Hardstyle |'}, None]
+        response = self.rename({'name': 'Pure Hardstyle'})
+        self.assertEqual(response.json()['status'], 'ok')
+        update = [call for call in self.cursor.execute.call_args_list
+                  if 'UPDATE rules_podcasts' in call.args[0]][0]
+        self.assertEqual(update.args[1][:3], ('Pure Hardstyle', 'pure hardstyle', 1))
+
+    def test_an_unknown_show_is_a_not_found(self):
+        self.cursor.fetchone.return_value = None
+        self.assertEqual(self.rename({'name': 'Pure Hardstyle'}).status_code, 404)
+
+    def test_a_blank_name_is_rejected(self):
+        self.cursor.fetchone.return_value = {'id': 1, 'name': 'x'}
+        self.assertEqual(self.rename({'name': '   '}).status_code, 400)
+
+    def test_a_name_too_short_to_be_a_safe_alias_is_rejected(self):
+        """The name doubles as a matcher, and a two-letter one matches half the library."""
+        self.cursor.fetchone.return_value = {'id': 1, 'name': 'x'}
+        response = self.rename({'name': 'Q!'})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('4', response.json()['detail'])
+
+    def test_a_name_another_show_already_uses_is_a_conflict(self):
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'a'}, {'id': 7, 'name': 'Pure Hardstyle'}]
+        response = self.rename({'name': 'Pure Hardstyle'})
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('Pure Hardstyle', response.json()['detail'])
+
+    def test_renaming_to_the_same_key_is_not_a_conflict_with_itself(self):
+        """Fixing only the casing must not read as a collision with the row itself."""
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'pure hardstyle'}, {'id': 1, 'name': 'pure hardstyle'}]
+        self.assertEqual(self.rename({'name': 'Pure Hardstyle'}).status_code, 200)
+
+    def test_the_old_name_is_kept_as_a_spelling(self):
+        """
+        The name is an implicit alias: `PodcastHelper._load` seeds every show with it.
+        Renaming without keeping it would unmatch every file spelled the old way.
+        """
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'KELTEK Presents | Pure Hardstyle |'}, None]
+        self.rename({'name': 'Pure Hardstyle'})
+        inserts = [call for call in self.cursor.execute.call_args_list
+                   if 'rules_podcast_aliases' in call.args[0] and 'INSERT' in call.args[0]]
+        self.assertEqual(inserts[0].args[1][:3],
+                         (1, 'KELTEK Presents | Pure Hardstyle |', 'keltek presents pure hardstyle'))
+
+    def test_a_rename_refreshes_the_tagger_cache(self):
+        Cache.reload.reset_mock()
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'a'}, None]
+        self.rename({'name': 'Pure Hardstyle'})
+        Cache.reload.assert_called_once_with('podcastHelper')
+
+
+class PodcastAliasTest(ManagementTestCase):
+    """
+    Spellings are the other half of a correct show.
+
+    The rule matches on `title + path`, so the alias that catches every episode is
+    the shortest fragment common to all of them; the detector only ever proposes the
+    fragments that carried an episode marker.
+    """
+
+    def add(self, payload, podcast_id=1):
+        return self.client.post(f'/api/rules/podcasts/{podcast_id}/aliases',
+                                headers=self.headers, json=payload)
+
+    def remove(self, alias, podcast_id=1):
+        return self.client.request('DELETE', f'/api/rules/podcasts/{podcast_id}/aliases',
+                                   headers=self.headers, params={'alias': alias})
+
+    def test_a_spelling_can_be_added(self):
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'Pure Hardstyle'}, None]
+        response = self.add({'alias': 'KELTEK | Pure Hardstyle |'})
+        self.assertEqual(response.json()['status'], 'ok')
+        insert = [call for call in self.cursor.execute.call_args_list
+                  if 'INSERT INTO rules_podcast_aliases' in call.args[0]][0]
+        self.assertEqual(insert.args[1][:3], (1, 'KELTEK | Pure Hardstyle |', 'keltek pure hardstyle'))
+
+    def test_adding_to_an_unknown_show_is_a_not_found(self):
+        self.cursor.fetchone.return_value = None
+        self.assertEqual(self.add({'alias': 'whatever'}).status_code, 404)
+
+    def test_a_blank_spelling_is_rejected(self):
+        self.cursor.fetchone.return_value = {'id': 1, 'name': 'x'}
+        self.assertEqual(self.add({'alias': ' - '}).status_code, 400)
+
+    def test_a_spelling_too_short_to_be_safe_is_rejected(self):
+        self.cursor.fetchone.return_value = {'id': 1, 'name': 'x'}
+        response = self.add({'alias': 'HS'})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('4', response.json()['detail'])
+
+    def test_a_spelling_another_show_owns_is_a_conflict(self):
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'a'},
+                                            {'podcast_id': 7, 'name': 'Hardcore Italia'}]
+        response = self.add({'alias': 'Hardcore Italia'})
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('Hardcore Italia', response.json()['detail'])
+
+    def test_a_spelling_this_show_already_has_is_accepted_quietly(self):
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'a'},
+                                            {'podcast_id': 1, 'name': 'a'}]
+        response = self.add({'alias': 'Pure Hardstyle'})
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(any('INSERT INTO rules_podcast_aliases' in s for s in self.statements()))
+
+    def test_adding_a_spelling_refreshes_the_tagger_cache(self):
+        Cache.reload.reset_mock()
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'a'}, None]
+        self.add({'alias': 'Pure Hardstyle'})
+        Cache.reload.assert_called_once_with('podcastHelper')
+
+    def test_a_spelling_can_be_removed(self):
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'a'}, {'id': 4}]
+        response = self.remove('KELTEK | Pure Hardstyle |')
+        self.assertEqual(response.json()['status'], 'ok')
+        delete = [call for call in self.cursor.execute.call_args_list
+                  if 'DELETE FROM rules_podcast_aliases' in call.args[0]][0]
+        self.assertEqual(delete.args[1], (4,))
+
+    def test_removing_a_spelling_the_show_does_not_have_is_a_not_found(self):
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'a'}, None]
+        self.assertEqual(self.remove('nope at all').status_code, 404)
+
+    def test_the_last_spelling_may_go_because_the_name_still_matches(self):
+        """
+        There is no floor on the alias count: `PodcastHelper._load` falls back to the
+        show's own name, so a show with no alias rows still matches its own title.
+        """
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'Pure Hardstyle'}, {'id': 4}]
+        self.assertEqual(self.remove('Pure Hardstyle').status_code, 200)
+
+    def test_removing_a_spelling_refreshes_the_tagger_cache(self):
+        Cache.reload.reset_mock()
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'a'}, {'id': 4}]
+        self.remove('KELTEK | Pure Hardstyle |')
+        Cache.reload.assert_called_once_with('podcastHelper')
+
 
 class LabelProposalsTest(ManagementTestCase):
     """

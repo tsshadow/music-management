@@ -11,6 +11,18 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.32.1 (2026-08-24)
+
+- **Livesets stonden op naam van het festival in plaats van de artiest.** "Thunderdome 2025 ｜
+  Akimbo vs. Barber" kwam in de bibliotheek terecht als artiest "Thunderdome 2025" met titel
+  "Akimbo vs. Barber" — de twee omgedraaid. Wist MuMa de artiesten nog niet, dan pakte de laatste
+  gok van de tagger het eerste stuk van de titel, en zo werd de editie zelf een artiest. Daarna
+  hield hij zichzelf in stand: de naam stond nu in de artiestenlijst, dus elke volgende scan koos
+  hem opnieuw, ook nadat Akimbo en Barber allang bekend waren. Een stuk titel dat op een jaartal
+  eindigt telt nu nergens meer als artiest, en "festival ｜ artiesten" wordt gelezen zoals het er
+  staat: de editie is de titel, de andere kant de artiest. Bestaande bestanden herstellen vanzelf
+  zodra de tagger er weer langs komt.
+
 ## Global Version 0.32.0 (2026-08-24)
 
 - **De hoezen op je Memories-tegels zijn terug.** Sinds vorige versie zet MuMa labelreleases

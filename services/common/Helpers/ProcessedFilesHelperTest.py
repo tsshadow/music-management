@@ -107,5 +107,47 @@ class MarkForRescanTest(ProcessedFilesHelperTestCase):
         self.connection.close.assert_called_once()
 
 
+class MarkStaleForRescanTest(ProcessedFilesHelperTestCase):
+
+    def test_only_rows_that_are_not_already_queued_are_picked(self):
+        self.helper.mark_stale_for_rescan(30, 200)
+        query = self.executed()[0]
+        self.assertIn('needs_rescan = FALSE', query)
+        self.assertIn('last_processed < NOW() - INTERVAL %s DAY', query)
+
+    def test_the_oldest_rows_are_taken_first_and_the_batch_is_bounded(self):
+        self.helper.mark_stale_for_rescan(30, 200)
+        query = self.executed()[0]
+        self.assertIn('ORDER BY last_processed', query)
+        self.assertIn('LIMIT %s', query)
+        self.assertEqual(self.cursor.execute.call_args.args[1], (30, 200))
+
+    def test_the_number_of_queued_rows_is_returned(self):
+        self.cursor.rowcount = 42
+        self.assertEqual(self.helper.mark_stale_for_rescan(30, 200), 42)
+        self.connection.commit.assert_called_once()
+
+    def test_a_failure_queues_nothing_and_still_closes_the_connection(self):
+        self.cursor.execute.side_effect = RuntimeError('database gone')
+        self.assertEqual(self.helper.mark_stale_for_rescan(30, 200), 0)
+        self.connection.close.assert_called_once()
+
+
+class CountStaleTest(ProcessedFilesHelperTestCase):
+
+    def test_the_rows_waiting_for_a_deep_run_are_counted(self):
+        self.cursor.fetchone.return_value = (17,)
+        self.assertEqual(self.helper.count_stale(30), 17)
+        query = self.executed()[0]
+        self.assertIn('COUNT(*)', query)
+        self.assertIn('last_processed < NOW() - INTERVAL %s DAY', query)
+        self.assertEqual(self.cursor.execute.call_args.args[1], (30,))
+
+    def test_a_failure_reports_nothing_waiting(self):
+        self.cursor.execute.side_effect = RuntimeError('database gone')
+        self.assertEqual(self.helper.count_stale(30), 0)
+        self.connection.close.assert_called_once()
+
+
 if __name__ == '__main__':
     unittest.main()

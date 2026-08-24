@@ -20,10 +20,15 @@
 -- whitespace-collapsed in Python (`channels.normalize_channel_name`), so case folding by the
 -- database adds nothing, and binary equality is exactly the question being asked.
 --
--- After running this, rebuild the links -- they are derived from file paths and cheap to recreate:
+-- After running this, repair the links. They are derived from file paths, but do not empty the
+-- table to rebuild them: it holds ~148.000 correct rows, and re-deriving all of them is a far
+-- bigger operation than the repair. The backfill adds what the merge cost, and the prune removes
+-- what it wrongly added; both are idempotent and both take --dry-run:
 --
---     DELETE FROM library_track_channels;
+--     python3 scripts/backfill_channels.py --dry-run
 --     python3 scripts/backfill_channels.py
+--     python3 scripts/prune_channel_links.py --dry-run
+--     python3 scripts/prune_channel_links.py
 --
 -- Idempotent: re-running is a no-op.
 --

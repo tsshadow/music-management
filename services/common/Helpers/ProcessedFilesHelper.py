@@ -63,6 +63,43 @@ class ProcessedFilesHelper:
         finally:
             connection.close()
 
+    def mark_stale_for_rescan(self, older_than_days: int, limit: int) -> int:
+        """Hands the oldest rows back to the tagger, at most `limit` of them.
+
+        Rows that are already queued are left alone, so a file that keeps failing cannot
+        crowd out the rest of the library. `last_processed` is refreshed by
+        mark_processed, which is what makes the whole library cycle past the current
+        rules once every `older_than_days`.
+        """
+        query = f'\n            UPDATE {self.table_name} SET needs_rescan = TRUE\n            WHERE needs_rescan = FALSE AND last_processed < NOW() - INTERVAL %s DAY\n            ORDER BY last_processed\n            LIMIT %s\n        '
+        connection = self.db_connector.connect()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query, (older_than_days, limit))
+                marked = cursor.rowcount
+            connection.commit()
+            return marked
+        except Exception as e:
+            logging.error(f'Error queueing stale songs for rescan: {e}')
+            return 0
+        finally:
+            connection.close()
+
+    def count_stale(self, older_than_days: int) -> int:
+        """How many rows are still waiting to be handed back to the tagger."""
+        query = f'\n            SELECT COUNT(*) FROM {self.table_name}\n            WHERE needs_rescan = FALSE AND last_processed < NOW() - INTERVAL %s DAY\n        '
+        connection = self.db_connector.connect()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query, (older_than_days,))
+                result = cursor.fetchone()
+                return result[0] if result else 0
+        except Exception as e:
+            logging.error(f'Error counting stale songs: {e}')
+            return 0
+        finally:
+            connection.close()
+
     def mark_for_rescan(self, song_path: str=None):
         """Marks one or all songs for rescan."""
         if song_path:

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.32.1] - 2026-08-24
+
+### Fixed
+- **Livesets kregen het evenement als artiest en de artiesten als titel.** `Thunderdome 2025 ｜
+  Akimbo vs. Barber` stond in de bibliotheek als artiest "Thunderdome 2025" met titel "Akimbo vs.
+  Barber", precies omgekeerd. De oorzaak zat in de laatste gok van `InferArtistFromTitleRule`:
+  wanneer geen enkele regel een bekende artiest herkende, nam die blind het eerste segment als
+  artiest. Bij een verse bibliotheek — waar Akimbo en Barber nog niet bestonden — leverde dat
+  "Thunderdome 2025" op. Die naam belandde vervolgens zelf in `library_artists`, waarna de
+  single-dash-regel hem exact matchte en de fout bij elke volgende scan bevestigde in plaats van
+  herstelde: ook nadat Akimbo en Barber wél bekend waren, bleef de editie winnen. Een segment dat
+  op een jaartal eindigt, of dat de festivaltabel herkent, telt nu nergens meer als artiest — niet
+  in de fallback, niet in de single-dash-regel en niet in de multi-dash-regel. In plaats daarvan
+  leest een nieuwe regel `<evenement> | <artiesten>` zoals het bedoeld is: de editie wordt de
+  titel, de andere kant de artiest. Die kant moet er wel als een artiest uitzien — een bekende
+  naam, een fuzzy match, of twee namen met een `vs`/`&` ertussen — zodat een podium of thema
+  ("Mainstage", "Tunnel Of Terror") geen nieuwe artiest wordt. Bestaande bestanden herstellen
+  vanzelf: de onaangetaste titel staat nog in `original_title`, waar de regels op werken.
+
 ## [0.32.0] - 2026-08-24
 
 ### Fixed
@@ -59,6 +78,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `executemany`.
 
 ### Added
+- **De tagger loopt de bibliotheek nu vanzelf opnieuw langs, in plakjes.** Elke ronde sloeg elk
+  bestand over waarvan de mtime al bekend was, en dat is precies waarom een nieuwe regel of een
+  nieuw festival in `rules_festivals` nooit een bestand bereikte dat er al langs was geweest: die
+  bestanden werden simpelweg niet meer gelezen. Alleen een handmatige `POST /api/management/tagger/rescan`
+  of een script als `tools/retag_festivals.py` haalde ze terug — en dat gebeurde dus zelden. De
+  tagger geeft nu vóór elke ronde het oudste plakje van `tagger_processed_files` aan zichzelf
+  terug, waardoor de hele bibliotheek ongeveer eens per `tagger_deep_run_days` (standaard 30, `0`
+  zet het uit) langs de huidige regels komt. Gespreid en niet één maandelijkse veeg, omdat de
+  tagger één lock heeft: een volledige ronde ineens laat verse downloads uren wachten, een plakje
+  kost seconden. `tagger_deep_run_batch` (standaard 200) begrenst dat plakje. De query begrenst
+  zichzelf ook: alleen rijen ouder dan het venster komen in aanmerking, dus zodra de bibliotheek
+  rond is levert hij niets meer op tot rijen weer verouderen. Opnieuw lezen is goedkoop — een
+  regel die dezelfde waarde oplevert schrijft niets, dus een plakje zonder nieuws raakt geen enkel
+  bestand aan en geeft LMS niets te herindexeren.
 - **`getSongs` filtert nu op een set artiesten en vertelt hoeveel er in totaal zijn.** De parameter
   `artistId` mag meerdere keren mee; een track komt alleen door als hij aan élke genoemde artiest
   hangt — "wat hebben deze mensen samen gemaakt", niet "een van hen". Dezelfde id twee keer noemen

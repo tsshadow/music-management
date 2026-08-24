@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Een set die twee evenementen noemt krijgt nu beide namen, en er zijn 29 festivals bij.**
+  De regel hield alleen de langste alias over, dus van "Reverze 2024 - Reverze Flashback" bleef er
+  één naam staan en verdween de andere. Een set kan bij twee evenementen horen — een
+  Flashback-set gedraaid op Reverze — en dat hoort net zo op het bestand als twee genres. De
+  helper geeft nu elke herkende naam terug en laat alleen een treffer vallen die ín een langere
+  treffer valt: "Intents Karnaval Festival" blijft één evenement, want de gecombineerde spelling
+  staat als alias in de tabel. De namen gaan gesorteerd het bestand in, zodat een tweede ronde
+  niets herschrijft, en de datum komt van de meest specifieke match die een editie kent.
+  `migrate_v14_festivals_extra.sql` vult de tabel aan met evenementen waarvan wel sets in de
+  bibliotheek staan maar die in geen enkele spelling bekend waren — onder meer Loudness,
+  I AM HARDSTYLE, de losse Gearbox-events, Revealed Night, Creamfields, EDC Las Vegas,
+  Ultra Music Festival en Vroeger Was Alles Beter — en geeft Flashback Festival de korte
+  spelling die in bestandsnamen voorkomt. Kaal blijven `Gearbox` (2.066 labeluploads tegen 94
+  sets), `Bass Events`, `Hardstyle Top 100` en `Wildstylez` erbuiten: dat zijn hier een label,
+  een kanaal, een chart en een artiest. Omdat de regel alleen bestanden van tien minuten en
+  langer labelt, raken namen die ook een tracktitel zijn geen losse nummers.
+
 ## [0.32.1] - 2026-08-24
 
 ### Fixed

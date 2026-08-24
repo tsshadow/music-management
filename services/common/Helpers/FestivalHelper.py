@@ -107,23 +107,58 @@ class FestivalHelper:
 
     def get(self, input_string: str, require_year: bool = False) -> dict | None:
         """
-        Returns `{festival, year?, date?}` for the first festival recognised in the
-        text, or None. With `require_year` the text must carry a year to match at
-        all -- used for paths, where a bare folder name is too weak on its own.
+        Returns `{festival, year?, date?}` for the most specific festival recognised
+        in the text, or None. With `require_year` the text must carry a year to match
+        at all -- used for paths, where a bare folder name is too weak on its own.
+        """
+        results = self.get_all(input_string, require_year=require_year)
+        return results[0] if results else None
+
+    def get_all(self, input_string: str, require_year: bool = False) -> list[dict]:
+        """
+        Every festival recognised in the text, most specific first.
+
+        A title can name two events at once -- "Reverze 2023 - Reverze Flashback"
+        is a Flashback set played at Reverze -- and both belong on the file. What
+        must not happen is one name being counted twice because a shorter alias sits
+        inside a longer one: "Intents Karnaval Festival" is Karnaval Festival, not
+        also Intents. So a match is kept only when its position in the text is not
+        already covered by a longer match that was accepted before it. Overlap is
+        not enough to reject -- neighbouring aliases share the space between them.
         """
         if not input_string:
-            return None
+            return []
         year = self.extract_year(input_string)
         if require_year and year is None:
-            return None
+            return []
         normalized = self.normalize(input_string)
+        accepted: list[tuple[int, int]] = []
+        results: list[dict] = []
+        seen: set[str] = set()
         for alias, festival in self._index:
-            if alias in normalized:
-                result: dict = {'festival': festival.name}
-                if year is not None:
-                    result['year'] = year
-                    edition = festival.editions.get(year)
-                    if edition:
-                        result['date'] = edition.isoformat()
-                return result
+            span = self._first_free_span(normalized, alias, accepted)
+            if span is None:
+                continue
+            accepted.append(span)
+            if festival.name in seen:
+                continue
+            seen.add(festival.name)
+            result: dict = {'festival': festival.name}
+            if year is not None:
+                result['year'] = year
+                edition = festival.editions.get(year)
+                if edition:
+                    result['date'] = edition.isoformat()
+            results.append(result)
+        return results
+
+    @staticmethod
+    def _first_free_span(normalized: str, alias: str, accepted: list[tuple[int, int]]) -> tuple[int, int] | None:
+        """The first occurrence of `alias` that no accepted span already contains."""
+        start = normalized.find(alias)
+        while start != -1:
+            end = start + len(alias)
+            if not any(low <= start and end <= high for low, high in accepted):
+                return (start, end)
+            start = normalized.find(alias, start + 1)
         return None

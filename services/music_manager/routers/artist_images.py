@@ -364,14 +364,27 @@ def run_fetch_missing():
                 cursor.execute('SELECT COUNT(*) as count FROM library_artists')
                 total_artists = cursor.fetchone()['count']
                 logger.info(f'Database contains {total_artists} total artists in library_artists')
+                # An artist we already looked for and could not find is retried, but not on
+                # every boot. This runs at startup over every artist without an image, and
+                # without the cooldown that meant re-asking each of tens of thousands of
+                # hopeless names on each restart -- most of this library is festival rips and
+                # bootleg aliases that no image provider has ever heard of. The names do not
+                # become findable in the meantime, so the retry only cost a third-party API
+                # several seconds per artist, forever.
+                retry_after_days = int(os.getenv('ARTIST_IMAGE_RETRY_AFTER_DAYS', '30'))
                 cursor.execute('''
                     SELECT id, name
                     FROM library_artists
                     WHERE primary_image_id IS NULL
+                      AND (image_status IS NULL
+                           OR image_status <> 'failed'
+                           OR image_updated_at IS NULL
+                           OR image_updated_at < NOW() - INTERVAL %s DAY)
                     ORDER BY image_updated_at ASC, name ASC
-                ''')
+                ''', (retry_after_days,))
                 artists = cursor.fetchall()
-                logger.info(f'Query returned {len(artists)} artists needing images (primary_image_id IS NULL)')
+                logger.info(f'Query returned {len(artists)} artists needing images '
+                            f'(no image, and no failed attempt in the last {retry_after_days} days)')
                 if not artists:
                     logger.info('No artists found with missing images.')
                     fetch_progress.update({'active': False, 'status': 'completed', 'message': 'No artists found with missing images.'})

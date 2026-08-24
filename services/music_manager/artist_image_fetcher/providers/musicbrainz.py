@@ -11,10 +11,14 @@ class MusicBrainzArtistProvider(ArtistImageProvider):
     API_URL = 'https://musicbrainz.org/ws/2/artist'
     _last_call_time = 0
     _min_delay = 1.1
-    # (connect, read). musicbrainz.org answers a search in well under a second when
-    # it is healthy and in ten-plus seconds when it is not; a flat 5s turned every
-    # slow spell into a logged failure. Connecting is still expected to be quick.
-    _timeout = (5, 20)
+    # (connect, read). Raising only the read half was not enough: measured against
+    # musicbrainz.org on 2026-08-24 every failure landed at exactly 5.0s, which is the
+    # connect half, and urllib3 reports it as "Read timed out. (read timeout=5)" -- the
+    # wording says read, the number is the connect budget. Under load the host takes
+    # seconds just to accept the connection, and a full search then answers in about
+    # seven. Both halves now have room; a host that is genuinely down still fails fast
+    # enough, because nothing waits on this.
+    _timeout = (15, 30)
     _attempts = 2
     _retry_backoff = 2.0
 

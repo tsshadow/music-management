@@ -794,6 +794,10 @@ namespace lms::db::tests
 
             ASSERT_EQ(foundIds.size(), 1);
             EXPECT_EQ(foundIds[0], onLabel.getId());
+
+            // countAdvanced shares its query body with find_advanced, so a filter that
+            // one honours and the other drops is exactly the drift this asserts against.
+            EXPECT_EQ(Track::countAdvanced(session, params, {}), 1);
         }
     }
 

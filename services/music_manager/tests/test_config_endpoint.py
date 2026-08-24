@@ -86,5 +86,86 @@ class ConfigEndpointTest(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
 
 
+class ConfigPermissionTest(ConfigEndpointTest):
+    """Reading the configuration is an admin act, not something any session may do.
+
+    It used to hang on `verify_api_key` alone, so any logged-in user could fetch the
+    database password and every third-party token in the clear.
+    """
+
+    def _as_plain_user(self):
+        return patch.object(
+            services.music_manager.routers.users, 'verify_token',
+            return_value={'status': 'ok', 'type': 'user',
+                          'user': {'username': 'user', 'role_name': 'user',
+                                   'permissions': ['music.read']}})
+
+    def test_a_plain_user_may_not_read_the_configuration(self):
+        with self._as_plain_user():
+            response = self.client.get('/api/config/', headers={'x-api-key': 'user-key'})
+        self.assertEqual(response.status_code, 403)
+
+    def test_a_plain_user_may_not_read_the_schema(self):
+        with self._as_plain_user():
+            response = self.client.get('/api/config/fields', headers={'x-api-key': 'user-key'})
+        self.assertEqual(response.status_code, 403)
+
+    def test_a_plain_user_may_not_write_the_configuration(self):
+        with self._as_plain_user():
+            response = self.client.post('/api/config/', headers={'x-api-key': 'user-key'},
+                                        json={'updates': {'notify_topic': 'x'}})
+        self.assertEqual(response.status_code, 403)
+
+    def test_reading_the_schema_still_needs_a_key(self):
+        self.assertEqual(self.client.get('/api/config/fields').status_code, 401)
+
+
+class ConfigSecretTest(ConfigEndpointTest):
+    """Secrets are masked on the way out and preserved on the way back in."""
+
+    def test_a_stored_secret_does_not_leave_over_the_api(self):
+        self.store.update({'db_pass': 'hunter2'})
+        body = self.client.get('/api/config/', headers=self.headers).json()
+        self.assertNotEqual(body['config']['db_pass'], 'hunter2')
+
+    def test_the_schema_marks_which_fields_are_secret(self):
+        fields = {row['key']: row for row in self.client.get('/api/config/fields',
+                                                             headers=self.headers).json()}
+        self.assertTrue(fields['db_pass']['secret'])
+        self.assertFalse(fields['db_user']['secret'])
+        # An identifier is not a credential: the Spotify client id is public.
+        self.assertFalse(fields['spotify_client_id']['secret'])
+        self.assertTrue(fields['spotify_client_secret']['secret'])
+
+    def test_posting_the_page_back_unchanged_keeps_the_secret(self):
+        self.store.update({'db_pass': 'hunter2'})
+        page = self.client.get('/api/config/', headers=self.headers).json()['config']
+        page['notify_topic'] = 'something-else'
+        self.client.post('/api/config/', headers=self.headers, json={'updates': page})
+        self.assertEqual(self.store.get('db_pass'), 'hunter2')
+        self.assertEqual(self.store.get('notify_topic'), 'something-else')
+
+    def test_a_deliberately_typed_secret_is_stored(self):
+        self.client.post('/api/config/', headers=self.headers,
+                         json={'updates': {'db_pass': 'correct horse'}})
+        self.assertEqual(self.store.get('db_pass'), 'correct horse')
+
+
+class ConfigRetagLimitTest(ConfigEndpointTest):
+    """The curation retag ceiling is read from the configuration, not hardcoded."""
+
+    def test_the_ceiling_is_exposed_as_a_tagger_setting(self):
+        fields = {row['key']: row for row in self.client.get('/api/config/fields',
+                                                             headers=self.headers).json()}
+        self.assertEqual(fields['max_retag_files']['group'], 'Tagger')
+        self.assertEqual(fields['max_retag_files']['default'], 2000)
+
+    def test_the_ceiling_can_be_lowered(self):
+        response = self.client.post('/api/config/', headers=self.headers,
+                                    json={'updates': {'max_retag_files': 50}})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.store.get('max_retag_files'), 50)
+
+
 if __name__ == '__main__':
     unittest.main()

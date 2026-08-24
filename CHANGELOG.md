@@ -23,6 +23,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   die naam kent LMS al.
 
 ### Added
+- **De instellingen van MuMa zijn nu vanuit de webui te bewerken.** Beheer heeft een tabblad
+  Configuratie dat het schema rendert dat de backend zelf beschrijft: elk veld met zijn groep,
+  type, uitleg en huidige waarde. Een instelling die in `config_store.py` bijkomt verschijnt er
+  vanzelf, zonder frontend-wijziging. Opslaan stuurt alleen wat je echt veranderd hebt.
+- **Hoeveel bestanden één 'nu toepassen' mag hertaggen is een instelling geworden.** Stond vast op
+  2000 in de code. De juiste grens hangt af van je collectie en van hoe lang je de gewone
+  tagger-ronde wil laten wachten, want zo'n batch houdt het tagger-slot vast. Nu `max_retag_files`
+  onder Tagger, en de waarde wordt per verzoek gelezen, dus een wijziging geldt bij de volgende
+  retag in plaats van na een herstart.
+- **Het databasewachtwoord lekte via de config-API.** `GET /api/config` hing alleen aan "een
+  geldige sleutel", niet aan een recht, dus elke ingelogde gebruiker kon alle instellingen
+  opvragen — inclusief `db_pass`, de Telegram-hash en de Spotify-, Discogs- en Last.fm-tokens, in
+  platte tekst. De drie config-endpoints hangen nu aan het nieuwe recht `config.manage`, en
+  credentials verlaten het proces sowieso niet meer: ze komen gemaskeerd terug en het masker
+  terugsturen laat de opgeslagen waarde ongemoeid. Binnen het proces blijft de echte waarde
+  gewoon leesbaar, want de databaseverbinding heeft hem nodig.
+- **De ntfy-velden op het events-tabblad waren altijd leeg.** `/api/config` antwoordt met
+  `{config, groups}` maar de webui las dat als een platte map, dus `config.notify_url` bestond
+  niet. Rechtgezet bij het ophalen.
 - **Een set die twee evenementen noemt krijgt nu beide namen, en er zijn 29 festivals bij.**
   De regel hield alleen de langste alias over, dus van "Reverze 2024 - Reverze Flashback" bleef er
   één naam staan en verdween de andere. Een set kan bij twee evenementen horen — een

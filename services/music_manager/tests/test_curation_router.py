@@ -421,7 +421,7 @@ class RetagTest(CurationTestCase):
 class RetagCeilingTest(CurationTestCase):
     rules = (
         ('SELECT DISTINCT mf.file_path FROM library_track_artists', None,
-         [{'file_path': f'/mnt/music/{n}.mp3'} for n in range(curation_router.MAX_RETAG_FILES + 1)]),
+         [{'file_path': f'/mnt/music/{n}.mp3'} for n in range(curation_router.MAX_RETAG_FILES_DEFAULT + 1)]),
     )
 
     def setUp(self):
@@ -452,3 +452,38 @@ class RetagPermissionTest(unittest.TestCase):
                                             json={'scope': 'artist', 'name': 'Angerfist'},
                                             headers={'x-api-key': 'user-key'})
         self.assertEqual(response.status_code, 403)
+
+class RetagConfigurableCeilingTest(CurationTestCase):
+    """The ceiling comes from the configuration, so it can be tuned without a deploy."""
+
+    rules = (
+        ('SELECT DISTINCT mf.file_path FROM library_track_artists', None,
+         [{'file_path': f'/mnt/music/{n}.mp3'} for n in range(3)]),
+        ('COUNT(DISTINCT', None, {'affected': 3}),
+    )
+
+    def setUp(self):
+        super().setUp()
+        patcher = patch.object(curation_router, 'tagger_manager', MagicMock())
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _retag(self):
+        return self.client.post('/api/curation/retag',
+                                json={'scope': 'artist', 'name': 'Angerfist'},
+                                headers=self.headers)
+
+    def test_three_files_are_accepted_under_the_default_ceiling(self):
+        self.assertEqual(self._retag().status_code, 202)
+
+    def test_a_lowered_ceiling_refuses_the_same_three_files(self):
+        with patch.object(curation_router, '_max_retag_files', return_value=2):
+            response = self._retag()
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('2', response.json()['detail'])
+
+    def test_an_unreadable_setting_falls_back_to_the_default(self):
+        """A broken config value must not take the endpoint down with it."""
+        with patch.object(curation_router, 'Settings') as settings:
+            settings.return_value.get.return_value = 'not a number'
+            self.assertEqual(curation_router._max_retag_files(), curation_router.MAX_RETAG_FILES_DEFAULT)

@@ -204,3 +204,13 @@ describe('edit page routes', () => {
     expect(pathToState(path)).toEqual({ view: 'label-edit:Masters of Hardcore' });
   });
 });
+
+describe('the configuration tab', () => {
+  it('has a route, so a bookmark reopens it', () => {
+    expect(viewToPath({ view: 'management', managementTab: 'config' })).toBe('/management/config');
+  });
+
+  it('reads back as the management view on that tab', () => {
+    expect(pathToState('/management/config')).toEqual({ view: 'management', managementTab: 'config' });
+  });
+});

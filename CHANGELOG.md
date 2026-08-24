@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Eén festival kon twee kaartjes opleveren, omdat dezelfde tag in twee schrijfwijzen op het
+  bestand stond.** In m4a schrijft `_set_m4a_tag` de naam in hoofdletters
+  (`----:com.apple.iTunes:FESTIVAL`), terwijl de EasyMP4-registraties naar het kleine-letters-atom
+  wijzen en een oudere ronde `Festival` met een hoofdletter F achterliet. muma merkte er niets van:
+  `TagCollection._parse_m4a` maakt de sleutel klein en leest ze allemaal. LMS niet — die leest beide
+  atomen en maakt er twee clusters van. In een steekproef van 400 bestanden droegen 13 van de 116
+  getagde bestanden het afwijkende atom. Vervelender: een nieuwe waarde ging alleen naar het
+  hoofdletter-atom, dus het andere bleef met de oude tekst staan. De tagger vouwt nu bij elke ronde
+  elk eigen atom naar de schrijfwijze die hij zelf gebruikt — niet alleen FESTIVAL, ook PARSED,
+  PUBLISHER en RATING — en doet dat ook als er verder niets aan het bestand verandert, want anders
+  bleef een oud atom eeuwig staan. Staat het canonieke atom er al, dan wint dat: daar staat de
+  waarde die de regels zojuist opleverden. mp3 blijft `TXXX:festival` en wordt niet aangeraakt, want
+  die naam kent LMS al.
+
 ### Added
 - **Nummers kennen nu hun eigen versies, en er is er één die telt.** Eén nummer stond tot tien
   keer in de bibliotheek — een SoundCloud-rip, een YouTube-rip, de officiële radio edit, de
@@ -24,6 +39,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   samengevoegd uit zijn groep trekken. Beide overleven een rescan. Er verandert nog niets aan wat
   je ziet of hoort — dit is het model en het bewijs dat het klopt; de speler en de webinterface
   gaan er in een volgende stap op leunen.
+- **De instellingen van MuMa zijn nu vanuit de webui te bewerken.** Beheer heeft een tabblad
+  Configuratie dat het schema rendert dat de backend zelf beschrijft: elk veld met zijn groep,
+  type, uitleg en huidige waarde. Een instelling die in `config_store.py` bijkomt verschijnt er
+  vanzelf, zonder frontend-wijziging. Opslaan stuurt alleen wat je echt veranderd hebt.
+- **Hoeveel bestanden één 'nu toepassen' mag hertaggen is een instelling geworden.** Stond vast op
+  2000 in de code. De juiste grens hangt af van je collectie en van hoe lang je de gewone
+  tagger-ronde wil laten wachten, want zo'n batch houdt het tagger-slot vast. Nu `max_retag_files`
+  onder Tagger, en de waarde wordt per verzoek gelezen, dus een wijziging geldt bij de volgende
+  retag in plaats van na een herstart.
+- **Het databasewachtwoord lekte via de config-API.** `GET /api/config` hing alleen aan "een
+  geldige sleutel", niet aan een recht, dus elke ingelogde gebruiker kon alle instellingen
+  opvragen — inclusief `db_pass`, de Telegram-hash en de Spotify-, Discogs- en Last.fm-tokens, in
+  platte tekst. De drie config-endpoints hangen nu aan het nieuwe recht `config.manage`, en
+  credentials verlaten het proces sowieso niet meer: ze komen gemaskeerd terug en het masker
+  terugsturen laat de opgeslagen waarde ongemoeid. Binnen het proces blijft de echte waarde
+  gewoon leesbaar, want de databaseverbinding heeft hem nodig.
+- **De ntfy-velden op het events-tabblad waren altijd leeg.** `/api/config` antwoordt met
+  `{config, groups}` maar de webui las dat als een platte map, dus `config.notify_url` bestond
+  niet. Rechtgezet bij het ophalen.
 - **Een set die twee evenementen noemt krijgt nu beide namen, en er zijn 29 festivals bij.**
   De regel hield alleen de langste alias over, dus van "Reverze 2024 - Reverze Flashback" bleef er
   één naam staan en verdween de andere. Een set kan bij twee evenementen horen — een

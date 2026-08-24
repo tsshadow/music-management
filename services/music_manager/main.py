@@ -32,6 +32,7 @@ from services.music_manager.routers import (
     rating,
     scanner,
     scrobbler,
+    songs,
     stats,
     tagger,
     user_requests,
@@ -75,6 +76,7 @@ app.include_router(radio.router, prefix="/api/radio")
 app.include_router(news.router, prefix="/api/news")
 app.include_router(diagnostics.router, prefix="/api/diagnostics")
 app.include_router(curation.router, prefix="/api/curation")
+app.include_router(songs.router, prefix="/api/songs")
 
 def background_workers_enabled() -> bool:
     """Whether startup should spin up the tagger, scanner and radio loops.

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Eén festival kon twee kaartjes opleveren, omdat dezelfde tag in twee schrijfwijzen op het
+  bestand stond.** In m4a schrijft `_set_m4a_tag` de naam in hoofdletters
+  (`----:com.apple.iTunes:FESTIVAL`), terwijl de EasyMP4-registraties naar het kleine-letters-atom
+  wijzen en een oudere ronde `Festival` met een hoofdletter F achterliet. muma merkte er niets van:
+  `TagCollection._parse_m4a` maakt de sleutel klein en leest ze allemaal. LMS niet — die leest beide
+  atomen en maakt er twee clusters van. In een steekproef van 400 bestanden droegen 13 van de 116
+  getagde bestanden het afwijkende atom. Vervelender: een nieuwe waarde ging alleen naar het
+  hoofdletter-atom, dus het andere bleef met de oude tekst staan. De tagger vouwt nu bij elke ronde
+  elk eigen atom naar de schrijfwijze die hij zelf gebruikt — niet alleen FESTIVAL, ook PARSED,
+  PUBLISHER en RATING — en doet dat ook als er verder niets aan het bestand verandert, want anders
+  bleef een oud atom eeuwig staan. Staat het canonieke atom er al, dan wint dat: daar staat de
+  waarde die de regels zojuist opleverden. mp3 blijft `TXXX:festival` en wordt niet aangeraakt, want
+  die naam kent LMS al.
+
 ### Added
 - **Een set die twee evenementen noemt krijgt nu beide namen, en er zijn 29 festivals bij.**
   De regel hield alleen de langste alias over, dus van "Reverze 2024 - Reverze Flashback" bleef er

@@ -129,10 +129,43 @@ class BaseSong:
             rules_genres = self.tag_collection.get_item(GENRE)
             rules_genres.sort()
 
+    def normalize_custom_atoms(self) -> bool:
+        """Folds differently-cased freeform atoms into the one this tagger writes.
+
+        m4a has two spellings of the same tag living side by side: `_set_m4a_tag` upper-cases
+        the name, while the EasyMP4 registrations map to the lower-case atom, and older
+        rounds wrote `Festival` with a capital. Reading is case-insensitive
+        (`TagCollection._parse_m4a` lower-cases the key), so muma never noticed -- but LMS
+        reads both atoms and makes two clusters out of one festival. Worse, a new value goes
+        to the upper-case atom only, which would leave the stale one behind with the old text.
+
+        The canonical atom wins when both exist: it is what this tagger writes, so it holds
+        the value the rules just produced.
+
+        Returns True when the file was altered and therefore has to be saved.
+        """
+        if getattr(self, 'type', None) != MusicFileType.M4A or not getattr(self, 'music_file', None):
+            return False
+        tags = self.music_file.tags
+        if tags is None:
+            return False
+        prefix = '----:com.apple.iTunes:'
+        changed = False
+        for key in [k for k in list(tags.keys()) if str(k).startswith(prefix)]:
+            canonical = prefix + str(key)[len(prefix):].upper()
+            if str(key) == canonical:
+                continue
+            value = tags[key]
+            del tags[key]
+            if canonical not in tags:
+                tags[canonical] = value
+            changed = True
+        return changed
+
     def save_file(self):
         if not hasattr(self, 'tag_collection'):
             return
-        changes = False
+        changes = self.normalize_custom_atoms()
         for tag in list(self.tag_collection.get().values()):
             if isinstance(tag, Tag) and tag.has_changes():
                 self.set_tag(tag)

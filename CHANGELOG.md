@@ -42,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **De ntfy-velden op het events-tabblad waren altijd leeg.** `/api/config` antwoordt met
   `{config, groups}` maar de webui las dat als een platte map, dus `config.notify_url` bestond
   niet. Rechtgezet bij het ophalen.
+
+## [0.33.0] - 2026-08-24
+
+### Added
 - **Een set die twee evenementen noemt krijgt nu beide namen, en er zijn 29 festivals bij.**
   De regel hield alleen de langste alias over, dus van "Reverze 2024 - Reverze Flashback" bleef er
   één naam staan en verdween de andere. Een set kan bij twee evenementen horen — een

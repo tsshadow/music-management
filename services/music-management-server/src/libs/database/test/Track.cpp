@@ -918,6 +918,89 @@ namespace lms::db::tests
         }
     }
 
+    TEST_F(DatabaseFixture, Track_findAdvanced_byFestival)
+    {
+        ScopedClusterType festivalType{ session, "FESTIVAL" };
+        ScopedCluster defqon{ session, festivalType.lockAndGet(), "Defqon.1 2025" };
+
+        ScopedTrack atFestival{ session };
+        // Deliberately left untagged: it is the track that must not come back, and without
+        // it the assertion below would pass against an empty library.
+        ScopedTrack elsewhere{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            defqon.get().modify()->addTrack(atFestival.get());
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Track::FindParameters params;
+
+            std::map<std::string, std::set<ClusterId>> clusterGroups;
+            clusterGroups["FESTIVAL"].insert(defqon.getId());
+
+            std::vector<TrackId> foundIds;
+            Track::find_advanced(session, params, clusterGroups, [&](const Track::pointer& t) {
+                foundIds.push_back(t->getId());
+            });
+
+            ASSERT_EQ(foundIds.size(), 1);
+            EXPECT_EQ(foundIds[0], atFestival.getId());
+        }
+    }
+
+    TEST_F(DatabaseFixture, Track_findAdvanced_byAllowedArtistNames)
+    {
+        ScopedTrack solo{ session };
+        ScopedTrack collab{ session };
+        ScopedTrack other{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            solo.get().modify()->setArtistDisplayName("Angerfist");
+            collab.get().modify()->setArtistDisplayName("Angerfist & Outsiders");
+            other.get().modify()->setArtistDisplayName("Wildstylez");
+        }
+
+        auto findIds{ [&](const std::set<std::string>& artists) {
+            Track::FindParameters params;
+            params.setAllowedArtists(artists);
+
+            std::vector<TrackId> foundIds;
+            Track::find_advanced(session, params, {}, [&](const Track::pointer& t) {
+                foundIds.push_back(t->getId());
+            });
+            return foundIds;
+        } };
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            // The match is on the whole display name, case-insensitively.
+            {
+                const auto foundIds{ findIds({ "angerfist" }) };
+                ASSERT_EQ(foundIds.size(), 1);
+                EXPECT_EQ(foundIds[0], solo.getId());
+            }
+
+            // A collaboration is a different display name and is therefore NOT matched by
+            // one of its members. This is the behaviour a lineup page inherits, and the
+            // reason a lineup can look thinner than the festival page beside it.
+            {
+                const auto foundIds{ findIds({ "angerfist", "wildstylez" }) };
+                ASSERT_EQ(foundIds.size(), 2);
+                EXPECT_EQ(std::find(foundIds.begin(), foundIds.end(), collab.getId()), foundIds.end());
+            }
+
+            // An empty allowed set is "no restriction", not "match nothing".
+            {
+                EXPECT_EQ(findIds({}).size(), 3);
+            }
+        }
+    }
+
     TEST_F(DatabaseFixture, Track_findAdvanced_byArtistAndMismatchedArtistName)
     {
         // setArtist (singular) + setArtistName must keep meaning "the artist with this id also

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.32.1] - 2026-08-24
+
 ### Fixed
 - **Livesets kregen het evenement als artiest en de artiesten als titel.** `Thunderdome 2025 ｜
   Akimbo vs. Barber` stond in de bibliotheek als artiest "Thunderdome 2025" met titel "Akimbo vs.

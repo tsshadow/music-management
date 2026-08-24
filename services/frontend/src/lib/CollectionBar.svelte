@@ -21,6 +21,9 @@
     // grid there; a view without favorites hides it instead of showing a control
     // that cannot do anything.
     showFavorites = true,
+    // Lineups carry no song counts, so the size chip there would be a control that
+    // cannot change the grid; a view without counts hides it rather than showing it.
+    showThreshold = true,
     visibilityOptions = [],
     onchange
   } = $props();
@@ -142,7 +145,7 @@
       {/each}
     {/if}
 
-    {#if type !== 'playlists'}
+    {#if type !== 'playlists' && showThreshold}
       <span class="w-px h-5 bg-white/10 mx-1" aria-hidden="true"></span>
       <span class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('collection.minimum')}</span>
       {#each SIZE_THRESHOLDS as option (option.id)}

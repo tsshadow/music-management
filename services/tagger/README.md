@@ -18,6 +18,21 @@ The tagger doesn't just write tags; it **infers** them. It uses a pipeline of ru
 - `Song/`: Object models for different types of sources (Generic, YouTube, SoundCloud, Telegram).
 - `Song/rules/`: The individual logic units (rules) applied to every song.
 
+## 🔁 Deep run
+
+Every round skips the files it has already seen: `tagger_processed_files` holds the mtime the
+tagger last read, and an unchanged file is passed over. That keeps the five-minute round cheap,
+but it also means a rule added today never reaches a file tagged yesterday — which is how the
+library ends up with festivals, labels and genres that the rules do know but the files do not.
+
+`deep_run.py` closes that gap. Before every round it hands the oldest slice of the table back to
+the tagger, so the whole library passes the current rules roughly once every
+`tagger_deep_run_days` (default 30; `0` switches it off). `tagger_deep_run_batch` (default 200)
+bounds one slice, so the deep run costs seconds per round instead of hours once a month.
+
+Re-reading a file is cheap: a rule that produces the same value writes nothing, so a slice that
+finds no news touches no files and gives LMS nothing to re-index.
+
 ## 📜 Rules
 
 Detailed information about the available tagging rules can be found in the [Rules README](Song/rules/README.MD).

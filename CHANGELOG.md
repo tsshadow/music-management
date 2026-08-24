@@ -59,6 +59,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `executemany`.
 
 ### Added
+- **De tagger loopt de bibliotheek nu vanzelf opnieuw langs, in plakjes.** Elke ronde sloeg elk
+  bestand over waarvan de mtime al bekend was, en dat is precies waarom een nieuwe regel of een
+  nieuw festival in `rules_festivals` nooit een bestand bereikte dat er al langs was geweest: die
+  bestanden werden simpelweg niet meer gelezen. Alleen een handmatige `POST /api/management/tagger/rescan`
+  of een script als `tools/retag_festivals.py` haalde ze terug — en dat gebeurde dus zelden. De
+  tagger geeft nu vóór elke ronde het oudste plakje van `tagger_processed_files` aan zichzelf
+  terug, waardoor de hele bibliotheek ongeveer eens per `tagger_deep_run_days` (standaard 30, `0`
+  zet het uit) langs de huidige regels komt. Gespreid en niet één maandelijkse veeg, omdat de
+  tagger één lock heeft: een volledige ronde ineens laat verse downloads uren wachten, een plakje
+  kost seconden. `tagger_deep_run_batch` (standaard 200) begrenst dat plakje. De query begrenst
+  zichzelf ook: alleen rijen ouder dan het venster komen in aanmerking, dus zodra de bibliotheek
+  rond is levert hij niets meer op tot rijen weer verouderen. Opnieuw lezen is goedkoop — een
+  regel die dezelfde waarde oplevert schrijft niets, dus een plakje zonder nieuws raakt geen enkel
+  bestand aan en geeft LMS niets te herindexeren.
 - **`getSongs` filtert nu op een set artiesten en vertelt hoeveel er in totaal zijn.** De parameter
   `artistId` mag meerdere keren mee; een track komt alleen door als hij aan élke genoemde artiest
   hangt — "wat hebben deze mensen samen gemaakt", niet "een van hen". Dezelfde id twee keer noemen

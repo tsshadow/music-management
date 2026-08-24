@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-08-24
+
 ### Added
 - **Een set die twee evenementen noemt krijgt nu beide namen, en er zijn 29 festivals bij.**
   De regel hield alleen de langste alias over, dus van "Reverze 2024 - Reverze Flashback" bleef er

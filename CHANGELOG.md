@@ -7,22 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.35.0] - 2026-08-25
-
 ### Added
-- **De webui bladert nu ook op festival, jaar en lineup, net als de Android-app.** Drie pagina's
-  onder Bibliotheek, met dezelfde kaartenrasters als Genres en Labels. De server kende de lijsten
-  al (`getTags` voor FESTIVAL en YEAR, `getLineups` voor de lineups); wat ontbrak was dat
-  `getSpotifyTracks` — het endpoint waar de hele webui zijn nummerlijsten uit haalt — niet op
-  festival of lineup kon filteren. Dat kan het nu. Let op wat een lineup is: een tekstbestand met
-  artiestennamen onder `/music/metadata/festival-lineups`, en de match gaat op de héle
-  artiestennaam. `Angerfist` vindt dus niet wat op naam van `Angerfist & Outsiders` staat. Op prod
-  staat nog geen enkel lineup-bestand, dus die pagina begint leeg.
-- **Een lege Festivals- of Jaren-pagina zegt nu waaróm hij leeg is.** `getTags` kan niet uit elkaar
-  houden of er niets getagd is of dat de tag nooit geïndexeerd werd, en dat laatste hield destijds
-  de Podcasts-pagina leeg. Een beheerder krijgt nu te lezen dat de tag bij de extra tags van de
-  scanner moet staan; wie geen beheerder is krijgt gewoon "nog niets", want het antwoord van de
-  server bevat die instelling voor hen niet eens.
 - **Een gewijzigde tagger-regel markeert nu zelf de bestanden die eronder vallen.** Wie een artiest
   aan een genre koppelt, een genre wit of zwart zet of een schrijffout omleidt, moest tot nu toe
   kiezen tussen één bestand (`rerun-parse`) en de hele bibliotheek (`/api/tagger/rescan`). Daartussen
@@ -78,6 +63,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   BPM verandert niet meer als hij eenmaal bekend is, en het decoderen van audio is verreweg het
   duurste wat de tagger doet — zonder die grens zou elke retag een volledige heranalyse van de
   bibliotheek worden.
+
+## [0.35.0] - 2026-08-25
+
+### Added
+- **De webui bladert nu ook op festival, jaar en lineup, net als de Android-app.** Drie pagina's
+  onder Bibliotheek, met dezelfde kaartenrasters als Genres en Labels. De server kende de lijsten
+  al (`getTags` voor FESTIVAL en YEAR, `getLineups` voor de lineups); wat ontbrak was dat
+  `getSpotifyTracks` — het endpoint waar de hele webui zijn nummerlijsten uit haalt — niet op
+  festival of lineup kon filteren. Dat kan het nu. Let op wat een lineup is: een tekstbestand met
+  artiestennamen onder `/music/metadata/festival-lineups`, en de match gaat op de héle
+  artiestennaam. `Angerfist` vindt dus niet wat op naam van `Angerfist & Outsiders` staat. Op prod
+  staat nog geen enkel lineup-bestand, dus die pagina begint leeg.
+- **Een lege Festivals- of Jaren-pagina zegt nu waaróm hij leeg is.** `getTags` kan niet uit elkaar
+  houden of er niets getagd is of dat de tag nooit geïndexeerd werd, en dat laatste hield destijds
+  de Podcasts-pagina leeg. Een beheerder krijgt nu te lezen dat de tag bij de extra tags van de
+  scanner moet staan; wie geen beheerder is krijgt gewoon "nog niets", want het antwoord van de
+  server bevat die instelling voor hen niet eens.
 
 ## [0.34.0] - 2026-08-24
 

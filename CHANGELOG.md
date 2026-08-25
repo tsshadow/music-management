@@ -8,6 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Renovate leverde npm-voorstellen af met een lockfile die er niet bij paste.** De eerste
+  frontend-MR die de bot uit zichzelf aanmaakte werd meteen rood: `npm ci` weigert te installeren als
+  `package.json` en `package-lock.json` uit de pas lopen, en Renovate had alleen de eerste bijgewerkt.
+
+  De oorzaak lag drie stappen verderop en had niets met npm te maken. Het standaard renovate-image is
+  een slanke variant zonder taalgereedschap; het haalt de node- en npm-versie die het nodig heeft pas
+  tijdens de draai op, en vraagt daarvoor de GitHub-API welke releases er zijn. Zonder token zijn dat
+  zestig verzoeken per uur, en met een uurlijkse bot zit je daar zo doorheen. GitHub antwoordde 403,
+  containerbase meldde "No tool releases found", en zonder npm kan Renovate geen lockfile
+  herbouwen — dus stuurde hij de wijziging maar half af.
+
+  Wat het lastig te herkennen maakt is dat geen enkele foutmelding onderweg iets zegt over GitHub,
+  over een limiet of over het image. Je ziet een MR met een halve wijziging en een `npm ci` die
+  klaagt over jouw lockfile.
+
+  Nu draait het op de `-full` variant met `binarySource=global`: node en npm zitten al in dat image,
+  dus er wordt niets meer opgezocht. Een GitHub-token had het ook opgelost, maar dat vraagt om een
+  inlog die dit project verder nergens voor nodig heeft. Het image is groter en staat na de eerste
+  keer in de cache van de runner.
+
+  Gecontroleerd met een droge draai: `Updated 1 lock files`. De enige die daarna nog faalt is
+  TypeScript 7, en terecht — `typescript-eslint` eist `typescript <6.1.0`, dus die past gewoon nog
+  niet.
 - **Je backups en je migraties zouden stilletjes gebroken zijn bij de volgende database-upgrade.**
   MariaDB heeft zijn clientprogramma's in 10.5 hernoemd — `mysql` werd `mariadb`, `mysqldump` werd
   `mariadb-dump` — en in versie 12 zijn de oude namen helemaal verdwenen. Op vier plekken riepen we

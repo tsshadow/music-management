@@ -106,6 +106,25 @@
     "showAll": "Show all",
     "toggleFavorite": "Toggle favourite"
   },
+  "equalizer": {
+    "band": "{freq} band",
+    "close": "Close equalizer",
+    "enabled": "Equalizer on",
+    "preamp": "Pre-amp",
+    "preset": "Preset",
+    "presets": {
+      "bassBoost": "Bass boost",
+      "classical": "Classical",
+      "custom": "Custom",
+      "flat": "Flat",
+      "jazz": "Jazz",
+      "pop": "Pop",
+      "rock": "Rock",
+      "vocal": "Vocal"
+    },
+    "reset": "Reset",
+    "title": "Equalizer"
+  },
   "filter": {
     "allGenres": "All genres",
     "allRatings": "All",

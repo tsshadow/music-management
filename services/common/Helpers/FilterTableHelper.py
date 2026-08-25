@@ -141,46 +141,6 @@ class FilterTableHelper:
         finally:
             connection.close()
 
-    def update(self, key: str, corrected: str | None=None) -> bool:
-        """Set or clear the correction for an existing key.
-
-        Matched case-insensitively, like every other lookup here: the stored spelling
-        is whatever someone typed first and the caller should not have to reproduce it.
-        """
-        key = key.strip()
-        corrected = corrected.strip() if corrected else None
-        query = (f'UPDATE {self.table_name} SET {self.corrected_column_name} = %s '
-                 f'WHERE LOWER({self.column_name}) = LOWER(%s)')
-        connection = self.db_connector.connect()
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute(query, (corrected, key))
-                connection.commit()
-                return True
-        except Exception as e:
-            logging.error(f"[{self.table_name}] Error updating key '{key}': {e}")
-            connection.rollback()
-            return False
-        finally:
-            connection.close()
-
-    def delete(self, key: str) -> bool:
-        """Remove the row for `key`, if there is one."""
-        key = key.strip()
-        query = f'DELETE FROM {self.table_name} WHERE LOWER({self.column_name}) = LOWER(%s)'
-        connection = self.db_connector.connect()
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute(query, (key,))
-                connection.commit()
-                return True
-        except Exception as e:
-            logging.error(f"[{self.table_name}] Error deleting key '{key}': {e}")
-            connection.rollback()
-            return False
-        finally:
-            connection.close()
-
     def get_all(self) -> list[str]:
         """
         Returns all raw (unprocessed) values from the main column.

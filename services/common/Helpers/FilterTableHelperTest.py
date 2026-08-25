@@ -77,29 +77,6 @@ class FilterTableHelperTest(unittest.TestCase):
         self.assertEqual(result, ['Hardcore', 'Speedcore', 'Terror'])
 
 
-    def test_update_writes_the_correction_for_an_existing_name(self):
-        helper = FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name', preload=False)
-        self.assertTrue(helper.update('Ran D', 'Ran-D'))
-        query = self.mock_cursor.execute.call_args.args[0]
-        self.assertIn('UPDATE rules_ignored_artists', query)
-        self.assertEqual(self.mock_cursor.execute.call_args.args[1], ('Ran-D', 'Ran D'))
-
-    def test_update_can_clear_the_correction(self):
-        helper = FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name', preload=False)
-        helper.update('Ran D', None)
-        self.assertEqual(self.mock_cursor.execute.call_args.args[1], (None, 'Ran D'))
-
-    def test_delete_removes_the_row(self):
-        helper = FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name', preload=False)
-        self.assertTrue(helper.delete('Ran D'))
-        query = self.mock_cursor.execute.call_args.args[0]
-        self.assertIn('DELETE FROM rules_ignored_artists', query)
-
-    def test_a_failing_delete_reports_false(self):
-        helper = FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name', preload=False)
-        self.mock_cursor.execute.side_effect = RuntimeError('database gone')
-        self.assertFalse(helper.delete('Ran D'))
-
     def test_reload_replaces_the_cached_values(self):
         helper = FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name', preload=False)
         helper.cache_enabled = True

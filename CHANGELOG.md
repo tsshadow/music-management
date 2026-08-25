@@ -21,6 +21,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ander en waren zo niet te vinden. De server telt er meteen bij hoeveel nummers er in totaal aan
   het filter voldoen, en dat getal komt in de schermtitel te staan en achter het "samen"-item in
   het keuzemenu.
+- **Een gewijzigde tagger-regel markeert nu zelf de bestanden die eronder vallen.** Wie een artiest
+  aan een genre koppelt, een genre wit of zwart zet of een schrijffout omleidt, moest tot nu toe
+  kiezen tussen één bestand (`rerun-parse`) en de hele bibliotheek (`/api/tagger/rescan`). Daartussen
+  zat niets, terwijl daar het dagelijkse werk zit. Een nieuwe `RescanInvalidator` vertaalt de naam
+  in de regel naar bestandspaden en zet die rijen in bulk op `needs_rescan`. Die match is bewust
+  breed: hij telt als de artiestnaam exact klopt, óf als de term ergens in de titel of in het pad
+  voorkomt, want de regels die een artiest uit een titel afleiden vindt geen enkele join. De rem
+  daarop is dat een term korter dan drie tekens alleen op de artiestnaam matcht — een artiest die
+  `D` heet zou anders de halve bibliotheek meeslepen — en dat `%` en `_` worden ge-escaped voordat
+  ze in de LIKE belanden. Bestanden die de scanner nog nooit gezien heeft staan niet in
+  `library_media_files` en worden dus niet gevonden; daarvoor blijft de volledige rescan bestaan.
+- **De tagger-tab toont hoeveel bestanden op een retag wachten, en waaróm.** `GET
+  /api/tagger/retag/pending` groepeert de wachtrij op reden en `POST /api/tagger/retag/run` start
+  hem. Bewust geen automatische retag: een brede match kan meer raken dan bedoeld, en het aantal
+  zien vóór je op de knop drukt is precies de rem die dat opvangt. Er is ook geen apart uitvoerpad
+  nodig — `Tagger.run()` loopt de mappen af en vraagt per bestand `needs_processing()`, dus de
+  gemarkeerde bestanden worden vanzelf opgepakt en de rest overgeslagen. Staat er niets klaar, dan
+  verdwijnt het blok. De bestaande knop voor een volledige rescan blijft ernaast staan als botte
+  fallback.
+- **Artiest-omleidingen zijn eindelijk vanuit de applicatie te bewerken.** `rules_ignored_artists`
+  stuurt vier tagger-regels aan (`InferArtistFromTitleRule`, `InferRemixerFromTitleRule`,
+  `CheckArtistRule` en `AddMissingArtistToDatabaseRule`) maar had geen enkel endpoint: de tabel werd
+  buiten muma om gevuld. Er is nu `GET`, `POST` en `DELETE` op `/api/rules/artist-redirects`. Staat
+  er een `corrected_name`, dan wordt de naam hernoemd; staat die leeg, dan geldt de naam als "geen
+  echte artiest". Geïnvalideerd wordt op de óude schrijfwijze, want dat is wat er vandaag in de
+  bestanden staat — de gecorrigeerde naam draagt nog niemand.
+- **BPM is aan te zetten vanaf de configuratiepagina.** `analyze_bpm` stond als module-constante op
+  `False` in `BaseSong.py` en was dus alleen met een codewijziging aan te zetten; het is nu een
+  gewoon `ConfigField` in de groep Tagger. Let op de kosten die in de beschrijving staan: ook mét de
+  overslaan-regel hieronder decodeert de eerste ronde élk bestand één keer, dus dit tegelijk
+  aanzetten met een volledige rescan is een slecht idee.
+- **LMS krijgt bericht na een scanner-run en na het taggen van één bestand.** `LmsScanTrigger` stond
+  al in git maar werd alleen door de tagger-lus aangeroepen. De trigger staat in beide gevallen
+  buiten de lock, zodat een trage of onbereikbare LMS niets ophoudt. De bijbehorende sleutels
+  `lms_hosts` en `lms_subsonic_api_key` bestonden alleen in de code die ze uitlas en niet als
+  instelling; ze staan nu in de groep LMS op de configuratiepagina, met de API-sleutel als geheim.
 - **De webspeler heeft nu een equalizer, net als de Android-app.** Tien banden van 31 Hz tot
   16 kHz, een voorversterking en zeven voorinstellingen (Vlak, Rock, Pop, Jazz, Klassiek, Bass
   boost, Zang); zodra je zelf een schuif aanraakt springt de keuze naar "Eigen". De instelling
@@ -46,6 +82,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   en Versies liet één versienummer zien dat het als zes verschillende presenteerde — `/api/versions`
   vroeg nooit iets aan een worker, dus dat "offline" dat het rood kon kleuren kon domweg niet
   voorkomen. Het echte versienummer staat op Overzicht.
+- **Beheer op de telefoon opent op een index in plaats van op een rij tabbladen.** Dezelfde acht
+  ingangen als op het web, in dezelfde volgorde: Collectie, Curatie, Kanalen, Toegang, Systeem en
+  Instellingen als kopjes, met Overzicht en Downloaders er los tussen. De app had drie van de
+  negentien pagina's en toonde die als drie tabbladen; negentien tabbladen naast elkaar leest
+  niemand. Alle negentien staan nu in de lijst, ook de zestien die de app nog niet bouwt -- die zijn
+  grijs met de regel dat ze voorlopig alleen op het web staan, zodat de index eerlijk laat zien wat
+  Beheer bevat en een volgende ronde een regel aanzet in plaats van er een bij te zetten.
+  Downloaders, Gebruikers en Toegangsverzoeken werken precies zoals eerst, alleen nu als eigen
+  scherm met een terugknop erboven. De groepering is letterlijk overgenomen uit `MANAGEMENT_GROUPS`
+  in de webui, en een test in de app leest dat bestand en vergelijkt het regel voor regel, zodat de
+  twee lijsten niet uit elkaar kunnen lopen.
+
+### Fixed
+- **De tagger draaide dagenlang door met de regels die hij bij het opstarten had ingelezen.**
+  `Cache.py` bouwt zijn helpers één keer bij import en `run_tagger_loop` blijft leven, dus een regel
+  die je vandaag aanpaste werkte pas na de volgende herstart van de container. Dat zou de hele
+  retag-invalidatie hierboven laten liegen: de bestanden worden netjes gemarkeerd, de tagger pakt ze
+  op, en tagt ze opnieuw met de oude regels — het resultaat is identiek aan wat er stond en het
+  lijkt alsof het markeren stuk is. `Tagger.run()` ververst nu als eerste handeling elke regelcache,
+  zoals `ScannerManager.run_full` dat al deed voor de genre-regels. Daarvoor moesten `TableHelper`
+  en `FilterTableHelper` allebei nog een `reload()` krijgen; alleen `LookupTableHelper` had er al
+  een.
+- **De BPM-regel heeft waarschijnlijk nooit gewerkt.** librosa geeft sinds 0.10.1 een ndarray van
+  één element terug in plaats van een float, en `round()` daarop gooit `TypeError` — die werd stil
+  opgeslikt, dus er werd geen BPM opgeslagen en er kwam geen regel in het log tenzij `debug` aan
+  stond. De bestaande tests mockten een kale float en merkten er niets van. De conversie gaat nu via
+  `item()` en dekt beide versies. Daarnaast slaat de regel een bestand over dat al een BPM draagt:
+  BPM verandert niet meer als hij eenmaal bekend is, en het decoderen van audio is verreweg het
+  duurste wat de tagger doet — zonder die grens zou elke retag een volledige heranalyse van de
+  bibliotheek worden.
 
 ## [0.35.0] - 2026-08-25
 

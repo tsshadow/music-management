@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One page in the management index. Every colour here is a theme attribute; the style themes
+     rule is that no layout names a colour. -->
+<LinearLayout xmlns:a="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    a:layout_width="match_parent"
+    a:layout_height="wrap_content"
+    a:background="?android:attr/selectableItemBackground"
+    a:foreground="?attr/rowSeam"
+    a:orientation="vertical"
+    a:paddingHorizontal="16dp"
+    a:paddingVertical="14dp">
+
+    <TextView
+        a:id="@+id/management_page_title"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:ellipsize="end"
+        a:maxLines="1"
+        a:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+        a:textColor="?android:attr/textColorPrimary"
+        tools:text="Genre curatie" />
+
+    <TextView
+        a:id="@+id/management_page_subtitle"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:maxLines="2"
+        a:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+        a:textColor="?attr/colorInkTertiary"
+        a:visibility="gone"
+        tools:text="Voorlopig alleen op het web."
+        tools:visibility="visible" />
+
+</LinearLayout>

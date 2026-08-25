@@ -373,3 +373,60 @@ class TaggerManagerTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class RetagEndpointsTest(unittest.TestCase):
+    """The pending count is the brake: you see what you are about to do first."""
+
+    def setUp(self):
+        self.client = TestClient(app)
+        self.headers = {'x-api-key': API_KEY}
+
+    def test_the_pending_summary_is_returned(self):
+        with patch.object(tagger_router, 'ProcessedFilesHelper') as helper:
+            helper.return_value.pending_summary.return_value = {
+                'total': 142,
+                'by_reason': [{'reason': 'genre_decision', 'count': 142}],
+            }
+            response = self.client.get('/api/tagger/retag/pending', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['total'], 142)
+
+    def test_starting_a_retag_schedules_the_run_in_the_background(self):
+        with patch.object(tagger_router, 'run_retag') as run_retag:
+            response = self.client.post('/api/tagger/retag/run', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        run_retag.assert_called_once()
+
+    def test_a_retag_is_refused_while_the_tagger_is_busy(self):
+        with patch.object(tagger_router.tagger_manager, '_lock', MagicMock(locked=lambda: True)):
+            response = self.client.post('/api/tagger/retag/run', headers=self.headers)
+        self.assertEqual(response.status_code, 409)
+
+    def test_a_retag_run_tags_and_then_indexes(self):
+        # No dedicated execution path: Tagger.run skips unmarked files by itself, so a
+        # full run is the retag.
+        with patch.object(tagger_router.tagger_manager, 'run_full') as run_full, \
+             patch.object(scanner_router.scanner_manager, 'run_full') as scan_full:
+            tagger_router.run_retag()
+        run_full.assert_called_once()
+        scan_full.assert_called_once()
+
+
+class LmsTriggerTest(unittest.TestCase):
+
+    def test_tagging_a_single_file_tells_lms(self):
+        with patch.object(tagger_router, 'lms_scan_trigger') as trigger, \
+             patch.object(tagger_router, 'TagSingleFile'):
+            tagger_router.tagger_manager.tag_single('/music/a.mp3')
+        trigger.trigger.assert_called_once()
+
+    def test_a_finished_scan_tells_lms_once(self):
+        manager = scanner_router.scanner_manager
+        with patch.object(scanner_router, 'lms_scan_trigger') as trigger, \
+             patch.object(manager, '_scan_recursive', return_value=0), \
+             patch.object(scanner_router, 'get_db_connection', return_value=MagicMock()), \
+             patch.object(manager, 'music_path', '/'), \
+             patch.object(manager, 'genre_helper', MagicMock()):
+            manager.run_full()
+        trigger.trigger.assert_called_once()

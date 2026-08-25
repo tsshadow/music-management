@@ -77,6 +77,20 @@ class FilterTableHelperTest(unittest.TestCase):
         self.assertEqual(result, ['Hardcore', 'Speedcore', 'Terror'])
 
 
+    def test_reload_replaces_the_cached_values(self):
+        helper = FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name', preload=False)
+        helper.cache_enabled = True
+        helper._canonical_map = {'old': 'Old'}
+        helper._corrected_map = {'old': 'Older'}
+        self.mock_cursor.fetchall.return_value = [('Typo Name', 'Correct Name')]
+        helper.reload()
+        self.assertEqual(helper.get_corrected('Typo Name'), 'Correct Name')
+        self.assertEqual(helper.get_corrected('old'), '')
+
+    def test_reload_does_nothing_when_the_helper_is_not_cached(self):
+        self.helper.reload()
+        self.mock_cursor.execute.assert_not_called()
+
 class FilterTableHelperCachedTest(unittest.TestCase):
     """The preloaded path, which is the one every long-running service uses.
 

@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 from typing import Any
@@ -12,6 +13,7 @@ from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.GenreRulesHelper import BLACK, VALID_STATES, WHITE
 from services.common.Helpers.PodcastHelper import normalize as normalize_show_name
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
+from services.common.Helpers.RescanInvalidator import rescan_invalidator
 from services.common.version_helper import get_changelog, get_release_notes, get_version
 from services.music_manager import curation_rules
 from services.music_manager.api_key import is_system_api_key
@@ -43,6 +45,11 @@ class GenreDecisionRequest(BaseModel):
 class LabelGenreRule(BaseModel):
     label_name: str
     genre_id: int
+
+class ArtistRedirect(BaseModel):
+    """A name the tagger should rewrite, or ignore when there is no correction."""
+    name: str
+    corrected_name: str | None = None
 
 class PodcastDecisionRequest(BaseModel):
     """A curation decision on a radio show or podcast series.
@@ -425,6 +432,18 @@ def get_genre_curation_queue(state: str | None=None, limit: int=200, _auth: dict
     finally:
         conn.close()
 
+def _invalidate_quietly(term: str, reason: str) -> None:
+    """Mark the files a changed rule touches, without letting that fail the edit.
+
+    The rule is already committed by the time this runs. A rule that saved but did not
+    schedule a retag is a much smaller problem than a rule that refused to save, and
+    the fallback rescan repairs it either way.
+    """
+    try:
+        rescan_invalidator.invalidate_by_term(term, reason)
+    except Exception as e:
+        logging.warning('Rule saved but marking files for retag failed (%s): %s', reason, e)
+
 @router.post('/rules/genres/{genre_id}/decide')
 def decide_genre(genre_id: int, decision: GenreDecisionRequest, auth: dict=Depends(verify_api_key)):
     """Move a genre to white or black, optionally rewriting it to other genres.
@@ -443,8 +462,9 @@ def decide_genre(genre_id: int, decision: GenreDecisionRequest, auth: dict=Depen
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT id FROM rules_genres WHERE id = %s', (genre_id,))
-            if not cursor.fetchone():
+            cursor.execute('SELECT id, name FROM rules_genres WHERE id = %s', (genre_id,))
+            genre_row = cursor.fetchone()
+            if not genre_row:
                 raise HTTPException(status_code=404, detail='Unknown genre')
             for target in targets:
                 cursor.execute('SELECT id FROM rules_genres WHERE id = %s', (target,))
@@ -458,6 +478,10 @@ def decide_genre(genre_id: int, decision: GenreDecisionRequest, auth: dict=Depen
             for position, target in enumerate(targets):
                 cursor.execute('INSERT INTO rules_genre_expansions (genre_id, target_id, position) VALUES (%s, %s, %s)', (genre_id, target, position))
             conn.commit()
+            try:
+                rescan_invalidator.invalidate_by_genre_id(genre_id, genre_row.get('name') or '', 'genre_decision')
+            except Exception as e:
+                logging.warning('Genre decision saved but marking files for retag failed: %s', e)
             return {'status': 'ok'}
     finally:
         conn.close()
@@ -707,6 +731,7 @@ def add_artist_genre_rule(rule: ArtistGenreRule, _auth: dict=Depends(verify_api_
     finally:
         conn.close()
     curation_rules.refresh(curation_rules.ARTIST_GENRE_HELPER)
+    _invalidate_quietly(rule.artist_name, 'artist_genre_rule')
     return {'status': 'ok'}
 
 @router.delete('/rules/artist-genres/{rule_id}')
@@ -716,11 +741,17 @@ def delete_artist_genre_rule(rule_id: int, _auth: dict=Depends(verify_api_key)):
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
+            # The name has to come out before the DELETE; afterwards there is nothing
+            # left to match on.
+            cursor.execute('SELECT artist_name FROM rules_artist_genres WHERE id = %s', (rule_id,))
+            row = cursor.fetchone()
             cursor.execute('DELETE FROM rules_artist_genres WHERE id = %s', (rule_id,))
             conn.commit()
     finally:
         conn.close()
     curation_rules.refresh(curation_rules.ARTIST_GENRE_HELPER)
+    if row:
+        _invalidate_quietly(row['artist_name'], 'artist_genre_rule')
     return {'status': 'ok'}
 
 @router.get('/rules/label-genres')
@@ -747,6 +778,7 @@ def add_label_genre_rule(rule: LabelGenreRule, _auth: dict=Depends(verify_api_ke
     finally:
         conn.close()
     curation_rules.refresh(curation_rules.LABEL_GENRE_HELPER)
+    _invalidate_quietly(rule.label_name, 'label_genre_rule')
     return {'status': 'ok'}
 
 @router.delete('/rules/label-genres/{rule_id}')
@@ -756,11 +788,72 @@ def delete_label_genre_rule(rule_id: int, _auth: dict=Depends(verify_api_key)):
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
+            cursor.execute('SELECT label_name FROM rules_label_genres WHERE id = %s', (rule_id,))
+            row = cursor.fetchone()
             cursor.execute('DELETE FROM rules_label_genres WHERE id = %s', (rule_id,))
             conn.commit()
     finally:
         conn.close()
     curation_rules.refresh(curation_rules.LABEL_GENRE_HELPER)
+    if row:
+        _invalidate_quietly(row['label_name'], 'label_genre_rule')
+    return {'status': 'ok'}
+
+@router.get('/rules/artist-redirects')
+def get_artist_redirects(_auth: dict=Depends(verify_api_key)):
+    """Names the tagger should rewrite, or ignore when there is no correction."""
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT id, name, corrected_name FROM rules_ignored_artists ORDER BY name')
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+@router.post('/rules/artist-redirects')
+def save_artist_redirect(redirect: ArtistRedirect, _auth: dict=Depends(verify_api_key)):
+    """Add a redirect, or change the correction on one that already exists."""
+    name = redirect.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail='A redirect needs a name')
+    corrected = (redirect.corrected_name or '').strip() or None
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT id FROM rules_ignored_artists WHERE LOWER(name) = LOWER(%s)', (name,))
+            if cursor.fetchone():
+                cursor.execute('UPDATE rules_ignored_artists SET corrected_name = %s WHERE LOWER(name) = LOWER(%s)', (corrected, name))
+            else:
+                cursor.execute('INSERT INTO rules_ignored_artists (name, corrected_name) VALUES (%s, %s)', (name, corrected))
+            conn.commit()
+    finally:
+        conn.close()
+    curation_rules.refresh(curation_rules.ARTIST_REDIRECT_HELPER)
+    # The old spelling is what sits in the files today, so that is the term to search
+    # for -- not the corrected name, which nothing carries yet.
+    _invalidate_quietly(name, 'artist_redirect')
+    return {'status': 'ok'}
+
+@router.delete('/rules/artist-redirects/{rule_id}')
+def delete_artist_redirect(rule_id: int, _auth: dict=Depends(verify_api_key)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT name FROM rules_ignored_artists WHERE id = %s', (rule_id,))
+            row = cursor.fetchone()
+            cursor.execute('DELETE FROM rules_ignored_artists WHERE id = %s', (rule_id,))
+            conn.commit()
+    finally:
+        conn.close()
+    curation_rules.refresh(curation_rules.ARTIST_REDIRECT_HELPER)
+    if row:
+        _invalidate_quietly(row['name'], 'artist_redirect')
     return {'status': 'ok'}
 
 @router.get('/scrobble/import/latest')

@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of, and their collaborations live on other people's releases. The list screen and the chooser
   both report how many tracks match, not how many the page holds.
 
+### Changed
+- **The Beheer tab opens on a grouped index instead of a row of tabs.** Group headers and page rows
+  in the order the web sidebar uses -- Collection, Curation, Channels, Access, System and Settings,
+  with Overview and Downloaders standing alone -- replacing the `ViewPager2` and `TabLayout` that
+  worked at three pages and would be unreadable at nineteen. All nineteen management pages are
+  listed; the sixteen the app has not built yet are shown dimmed with a line saying they live on the
+  web for now, so the index is the honest picture of what management contains. Downloaders, Users
+  and Access requests behave exactly as before, now as their own destination with an up arrow.
+  `ManagementPage` mirrors `MANAGEMENT_GROUPS` in `services/frontend/src/lib/router.js`, and a unit
+  test reads that file and compares the two, which is what keeps them from drifting apart.
+
 ## [6.24.0] - 2026-08-24
 
 ### Added

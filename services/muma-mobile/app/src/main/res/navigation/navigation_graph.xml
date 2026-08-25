@@ -64,6 +64,18 @@
         android:name="nl.teunschriks.mumamobile.management.ManagementFragment"
         android:label="@string/management.label" />
 
+    <!-- One destination for every list-shaped management page; which one it shows comes from the
+         managementPage argument, the same way ArtistListFragment is parameterised. -->
+    <fragment
+        android:id="@+id/managementPageFragment"
+        android:name="nl.teunschriks.mumamobile.management.ManagementPageFragment"
+        android:label="@string/management.label">
+        <argument
+            android:name="managementPage"
+            android:defaultValue="DOWNLOADERS"
+            app:argType="string" />
+    </fragment>
+
     <fragment
         android:id="@+id/mediaLibraryFragment"
         android:name="nl.teunschriks.mumamobile.fragment.ArtistListFragment"

@@ -48,6 +48,15 @@ class FilterTableHelper:
         finally:
             connection.close()
 
+    def reload(self):
+        """Re-read the table. See LookupTableHelper.reload for why."""
+        if not self.cache_enabled:
+            return
+        self._exists_cache = set()
+        self._canonical_map = {}
+        self._corrected_map = {}
+        self._preload()
+
     def exists(self, key: str) -> bool:
         key = key.strip()
         if self.cache_enabled:

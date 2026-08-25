@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Het Dependency Dashboard is weg; Renovate maakt gewoon merge requests aan.** Er stonden twee
+  remmen op, los van elkaar. Het
+  weekvenster `before 6am on monday` zette elke voorgestelde update in een lijst "Awaiting Schedule"
+  op het dashboard, en drie regels — Python-majors, Gradle-majors en de basis-images — zetten hun
+  updates in "Pending Approval". In beide gevallen gebeurde er niets tot je het aanvinkte. Allebei
+  weg: een update die klaar is wordt nu vanzelf een merge request.
+
+  Wat er níet verandert is wat zichzelf mag mergen. Geen van de regels waar de goedkeuring vanaf
+  gaat heeft automerge — een major van fastapi, van AGP of van een basis-image opent voortaan uit
+  zichzelf, maar blijft daarna gewoon staan tot iemand hem beoordeelt. Een openstaande merge request
+  ís die beoordeling; de goedkeuringsstap ervóór was er een tweede keer overheen. Ze krijgen wel een
+  label `major` of `docker`, zodat ze in de lijst te onderscheiden zijn van een gewone bump.
+
+  De afkoelperiode van drie dagen blijft onaangeroerd. Dat is de bescherming tegen een pakket dat
+  tien minuten geleden gepubliceerd is, en die reden staat helemaal los van hoe ongeduldig je bent.
+
+  Met beide remmen eraf had het dashboard geen functie meer — het bleef een lijst van dingen die
+  toch al vanzelf gingen gebeuren — dus die is uitgezet. Issue #1 sluit zichzelf bij de volgende
+  draai. Wat je daarmee opgeeft is de plek waar Renovate zijn eigen klachten kwijt kon: dat er geen
+  GitHub-token is voor changelogs, en dat `lucide-svelte` als verouderd staat aangemerkt zonder
+  opvolger. Die staan nu alleen nog in het joblogboek.
+
+  Omdat Renovate nu elk uur draait en niets meer op een venster wacht, staat `prHourlyLimit` expliciet
+  op 2, naast de `prConcurrentLimit` van 5. Dat is géén poort maar een wachtrij: alles komt, alleen
+  niet tegelijk. Dat is met opzet, want elke merge request start een pipeline, en veertien tegelijk
+  betekent veertien pipelines die vechten om dezelfde database-container in `db:integration`.
+
 ### Fixed
 - **Een geplande taak sleepte de hele pipeline mee.** De wekelijkse downloader-verversing vraagt om
   één taak en kreeg de complete suite: lint, unit tests, integratietests, de Android-build. Op master

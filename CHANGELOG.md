@@ -69,6 +69,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   en Versies liet één versienummer zien dat het als zes verschillende presenteerde — `/api/versions`
   vroeg nooit iets aan een worker, dus dat "offline" dat het rood kon kleuren kon domweg niet
   voorkomen. Het echte versienummer staat op Overzicht.
+- **Beheer op de telefoon opent op een index in plaats van op een rij tabbladen.** Dezelfde acht
+  ingangen als op het web, in dezelfde volgorde: Collectie, Curatie, Kanalen, Toegang, Systeem en
+  Instellingen als kopjes, met Overzicht en Downloaders er los tussen. De app had drie van de
+  negentien pagina's en toonde die als drie tabbladen; negentien tabbladen naast elkaar leest
+  niemand. Alle negentien staan nu in de lijst, ook de zestien die de app nog niet bouwt -- die zijn
+  grijs met de regel dat ze voorlopig alleen op het web staan, zodat de index eerlijk laat zien wat
+  Beheer bevat en een volgende ronde een regel aanzet in plaats van er een bij te zetten.
+  Downloaders, Gebruikers en Toegangsverzoeken werken precies zoals eerst, alleen nu als eigen
+  scherm met een terugknop erboven. De groepering is letterlijk overgenomen uit `MANAGEMENT_GROUPS`
+  in de webui, en een test in de app leest dat bestand en vergelijkt het regel voor regel, zodat de
+  twee lijsten niet uit elkaar kunnen lopen.
 
 ### Fixed
 - **De tagger draaide dagenlang door met de regels die hij bij het opstarten had ingelezen.**

@@ -12,23 +12,26 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentManager
-import androidx.lifecycle.Lifecycle
-import androidx.viewpager2.adapter.FragmentStateAdapter
-import androidx.viewpager2.widget.ViewPager2
-import com.google.android.material.tabs.TabLayout
-import com.google.android.material.tabs.TabLayoutMediator
+import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.fragment.FragmentTitle
 
 /**
- * The Beheer tab, mirroring the web UI's management section
- * (`services/frontend/src/lib/management/`). Three of its pages ship here; the rest can follow as
- * further pages rather than further screens.
+ * The Beheer tab: an index of every management page, grouped the way the web sidebar groups them
+ * (`MANAGEMENT_GROUPS` in `services/frontend/src/lib/router.js`).
+ *
+ * It used to be a [androidx.viewpager2.widget.ViewPager2] with a tab per page, which was fine at
+ * three pages and would be unreadable at nineteen. Tapping a row opens that page as its own
+ * destination, so the section has a back stack rather than a row of tabs.
+ *
+ * A plain [Fragment] on purpose: the index touches neither the player nor anything else Koin scopes
+ * to a screen, and a fragment scope here would be a scope nothing lives in.
  */
 class ManagementFragment : Fragment() {
 
-    private var pager: ViewPager2? = null
+    private var recycler: RecyclerView? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -39,32 +42,25 @@ class ManagementFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         FragmentTitle.setTitle(this, R.string.management_label)
 
-        val tabs: TabLayout = view.findViewById(R.id.management_tabs)
+        val adapter = ManagementIndexAdapter(::open)
+        adapter.items = managementIndexItems()
 
-        pager = view.findViewById<ViewPager2>(R.id.management_pager).apply {
-            adapter = ManagementPagerAdapter(childFragmentManager, viewLifecycleOwner.lifecycle)
+        recycler = view.findViewById<RecyclerView>(R.id.management_index).apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            this.adapter = adapter
         }
+    }
 
-        TabLayoutMediator(tabs, pager!!) { tab, position ->
-            tab.setText(ManagementPage.entries[position].titleRes)
-        }.attach()
+    private fun open(page: ManagementPage) {
+        findNavController().navigate(
+            R.id.managementPageFragment,
+            ManagementPageFragment.argumentsFor(page)
+        )
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        pager?.adapter = null
-        pager = null
-    }
-}
-
-class ManagementPagerAdapter(
-    fragmentManager: FragmentManager,
-    lifecycle: Lifecycle
-) : FragmentStateAdapter(fragmentManager, lifecycle) {
-
-    override fun getItemCount() = ManagementPage.entries.size
-
-    override fun createFragment(position: Int): Fragment = ManagementPageFragment().apply {
-        arguments = ManagementPageFragment.argumentsFor(ManagementPage.entries[position])
+        recycler?.adapter = null
+        recycler = null
     }
 }

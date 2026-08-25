@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   en dat elke schedulevariabele erin voorkomt. Die laatste is de val voor later: een nieuwe schedule
   waarvan de variabele hier ontbreekt krijgt stilzwijgend het oude gedrag terug.
 
+## [0.37.0] - 2026-08-25
+
 ### Added
 - **De bot die de afhankelijkheden bijwerkt draait nu ook echt.** `renovate.json` ligt sinds 0.24.0
   in de boom en beschrijft precies wat gegroepeerd wordt en wat zichzelf mag mergen, maar er was

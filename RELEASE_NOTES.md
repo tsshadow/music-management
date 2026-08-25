@@ -11,6 +11,20 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.37.0 (2026-08-25)
+
+- **De knoppen op de beheerpagina zijn weer leesbaar.** Dertien beheertabbladen waren opgemaakt met
+  kleurnamen die nergens gedefinieerd stonden, plus een manier om doorzichtigheid op te geven die in
+  de huidige versie van Tailwind niet meer bestaat. Bij elkaar 786 opmaakregels die niets deden. Je
+  zag dat als knoppen met zwarte tekst op een groen vlak dat er nooit kwam — zwart op zwart dus — en
+  als vlakken die licht doorschijnend hoorden te zijn maar massief wit werden, met witte tekst
+  erop. Ook de grijstinten waren weg, waardoor bijschriften even fel wit waren als de koppen.
+  Alles staat nu op dezelfde kleuren als de rest van de webinterface. Bijkomend voordeel: beheer
+  kleurt voortaan mee met de weergavemodus, dus blauw in Sets-modus in plaats van altijd groen.
+- **De bot die afhankelijkheden bijwerkt draait nu echt.** De configuratie lag er al sinds 0.24.0,
+  maar er was nooit iets dat hem uitvoerde, en de configuratie bleek bovendien ongeldig. Beide zijn
+  verholpen; hij draait vanaf een schedule tegen deze eigen GitLab.
+
 ## Global Version 0.36.0 (2026-08-25)
 
 - **Beheer heeft geen platte lijst van eenentwintig tabbladen meer, maar acht ingangen.** Collectie,

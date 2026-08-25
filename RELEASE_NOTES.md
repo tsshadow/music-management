@@ -11,6 +11,22 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.35.0 (2026-08-25)
+
+- **De webui bladert nu ook op festival, jaar en lineup.** Onder Bibliotheek staan drie nieuwe
+  pagina's, met dezelfde kaartenrasters als Genres en Labels — dezelfde ingangen die de Android-app
+  al had. De server kende die lijsten al; wat ontbrak was dat het endpoint waar de hele webui zijn
+  nummerlijsten uit haalt niet op festival of lineup kon filteren, dus een kaartje leverde geen
+  nummers op. Dat kan het nu wel. Let op wat een lineup is: een tekstbestand met artiestennamen
+  onder `/music/metadata/festival-lineups`, en de match gaat op de héle artiestennaam. `Angerfist`
+  vindt dus niet wat op naam van `Angerfist & Outsiders` staat. Op prod staat nog geen enkel
+  lineup-bestand, dus die pagina begint leeg.
+- **Een lege Festivals- of Jaren-pagina zegt nu waaróm hij leeg is.** Er is verschil tussen "er is
+  nog niets getagd" en "de scanner indexeert deze tag helemaal niet", en dat laatste hield destijds
+  de Podcasts-pagina leeg zonder dat iets dat vertelde. Een beheerder krijgt nu te lezen dat de tag
+  bij de extra tags van de scanner moet staan. Wie geen beheerder is krijgt gewoon "nog niets" te
+  zien, want het antwoord van de server bevat die instelling voor hen niet eens.
+
 ## Global Version 0.34.0 (2026-08-24)
 
 - **Nummers kennen nu hun eigen versies, en er is er één die telt.** Eén nummer stond tot tien keer

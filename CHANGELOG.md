@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Een geplande taak sleepte de hele pipeline mee.** De wekelijkse downloader-verversing vraagt om
+  één taak en kreeg de complete suite: lint, unit tests, integratietests, de Android-build. Op master
+  hoorden `release:tag` en `release:back-merge-develop` daar ook bij, en die hebben dus elke week
+  gedraaid — pipeline 1119 van 17 augustus laat ze allebei geslaagd zien. Het kwam niet aan het licht
+  omdat er niets van kapot gaat; het kost alleen een uur runnertijd per week en het botst met de
+  pipelines die er wél toe doen. Met de renovate-schedule erbij zou dat verdubbelen, en dat is hoe
+  het gevonden werd.
+
+  De oorzaak is één zin uit de GitLab-documentatie: in een geplande pipeline is `changes:` altijd
+  waar. Elke taak die op een `changes:`-lijst draait matcht daar dus onvoorwaardelijk, en dat zijn er
+  vijftien. Er staat nu een `.dedicated_schedule_guard` die als eerste regel in elke taak wordt
+  aangehaald, behalve in de twee taken waarvoor een schedule bestaat. Een schedule zet precies één
+  variabele, en al het andere gaat opzij.
+
+  Vier tests in `tests/ci/test_gitlab_ci_policy.py` bewaken dat: dat elke taak de guard aanhaalt, dat
+  hij vóór elke andere regel staat — regels worden op volgorde beoordeeld, dus een guard achter een
+  `changes:`-regel krijgt het woord nooit — dat de twee uitgezonderde taken hem juist níet aanhalen,
+  en dat elke schedulevariabele erin voorkomt. Die laatste is de val voor later: een nieuwe schedule
+  waarvan de variabele hier ontbreekt krijgt stilzwijgend het oude gedrag terug.
+
 ## [0.37.0] - 2026-08-25
 
 ### Added

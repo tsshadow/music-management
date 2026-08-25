@@ -106,6 +106,25 @@
     "showAll": "Alles tonen",
     "toggleFavorite": "Favoriet toggelen"
   },
+  "equalizer": {
+    "band": "Band {freq}",
+    "close": "Equalizer sluiten",
+    "enabled": "Equalizer aan",
+    "preamp": "Voorversterking",
+    "preset": "Voorinstelling",
+    "presets": {
+      "bassBoost": "Bass boost",
+      "classical": "Klassiek",
+      "custom": "Eigen",
+      "flat": "Vlak",
+      "jazz": "Jazz",
+      "pop": "Pop",
+      "rock": "Rock",
+      "vocal": "Zang"
+    },
+    "reset": "Herstellen",
+    "title": "Equalizer"
+  },
   "filter": {
     "allGenres": "Alle Genres",
     "allRatings": "Alle",
@@ -205,9 +224,6 @@
     "verifying": "Verificeren..."
   },
   "management": {
-    "about": {
-      "loadFailed": "Kon de over-pagina niet laden: {message}"
-    },
     "connectFailed": "Kon niet inloggen bij de Music Management API met je account. Probeer opnieuw in te loggen op de player-pagina.",
     "connecting": "Verbinden met beheer...",
     "downloaders": {
@@ -275,6 +291,14 @@
       "confirmed": "{count} releases naar {label}. {stale} stonden er al niet meer.",
       "rejected": "Voorstel afgewezen."
     },
+    "groups": {
+      "access": "Toegang",
+      "channels": "Kanalen",
+      "collection": "Collectie",
+      "curation": "Curatie",
+      "settings": "Instellingen",
+      "system": "Systeem"
+    },
     "health": {
       "containers": "Docker Containers",
       "logs": "Logs",
@@ -294,6 +318,7 @@
       "deleteImage": "Afbeelding verwijderen",
       "libraryStatus": "Bibliotheek Status",
       "noImage": "Geen afbeelding",
+      "notFound": "Niet gevonden",
       "nothingSaved": "Nog niets opgeslagen voor deze artiest.",
       "primary": "Primair",
       "primaryChanged": "Primaire afbeelding gewijzigd.",
@@ -621,7 +646,6 @@
       "user": "Gebruiker"
     },
     "tabs": {
-      "about": "Over",
       "config": "Configuratie",
       "downloaders": "Downloaders",
       "events": "Logboek",
@@ -640,8 +664,7 @@
       "scrobble": "Scrobble Import",
       "tagger": "Tagger",
       "userRequests": "Toegangsverzoeken",
-      "users": "Gebruikers",
-      "versions": "Versies"
+      "users": "Gebruikers"
     },
     "tagger": {
       "active": "Actief",
@@ -727,15 +750,6 @@
       "tokenPlaceholder": "Token",
       "tokenRevoked": "Subsonic token ingetrokken.",
       "tokenSaveFailed": "Kon Subsonic token niet opslaan."
-    },
-    "versions": {
-      "externalRefs": "Externe Referenties",
-      "musicServer": "Music Server:",
-      "notDetected": "Niet gedetecteerd",
-      "notFound": "Niet gevonden",
-      "subtitle": "Centraal overzicht van alle draaiende service versies.",
-      "title": "Systeemversies",
-      "ultrasonicApk": "MuMa Mobile APK:"
     }
   },
   "memories": {

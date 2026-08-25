@@ -1,5 +1,12 @@
 import { writable, derived, get } from "svelte/store";
 import { locale, setLocaleFromAccount, resetLocaleToBrowser, currentLocale } from "./i18n/index.js";
+import {
+  EQ_FREQUENCIES,
+  EQ_GAIN_MIN,
+  EQ_GAIN_MAX,
+  EQ_PRESETS,
+  CUSTOM_PRESET,
+} from "./equalizerPresets.js";
 
 // Helper to persist store to localStorage
 /**
@@ -81,6 +88,57 @@ export const playerState = writable({
 persist("lms_player_state", playerState, {
   onLoad: (value) => ({ ...value, playing: false }), // Always start paused
 });
+
+/** What a browser that has never touched the equalizer gets. */
+export const EQUALIZER_DEFAULT = Object.freeze({
+  enabled: false,
+  preamp: 0,
+  gains: EQ_FREQUENCIES.map(() => 0),
+  preset: "flat",
+});
+
+function isValidGain(value) {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= EQ_GAIN_MIN &&
+    value <= EQ_GAIN_MAX
+  );
+}
+
+/**
+ * Turns whatever is in localStorage into settings the audio graph can trust.
+ *
+ * A half-valid curve is worse than none: applying it would leave the user with
+ * a sound they cannot explain and did not choose. Anything that does not check
+ * out completely goes back to flat.
+ *
+ * @param {unknown} value
+ * @returns {{ enabled: boolean, preamp: number, gains: number[], preset: string }}
+ */
+export function sanitizeEqualizerSettings(value) {
+  const fallback = { ...EQUALIZER_DEFAULT, gains: EQUALIZER_DEFAULT.gains.slice() };
+  if (!value || typeof value !== "object" || Array.isArray(value)) return fallback;
+
+  const { preamp, gains, preset } = value;
+  if (!Array.isArray(gains) || gains.length !== EQ_FREQUENCIES.length) return fallback;
+  if (!gains.every(isValidGain)) return fallback;
+  if (!isValidGain(preamp)) return fallback;
+  if (preset !== CUSTOM_PRESET && !(preset in EQ_PRESETS)) return fallback;
+
+  return {
+    enabled: Boolean(value.enabled),
+    preamp,
+    gains: gains.slice(),
+    preset,
+  };
+}
+
+export const equalizerSettings = writable({
+  ...EQUALIZER_DEFAULT,
+  gains: EQUALIZER_DEFAULT.gains.slice(),
+});
+persist("lms_equalizer", equalizerSettings, { onLoad: sanitizeEqualizerSettings });
 
 export const audio = writable(null);
 export const currentPlaylist = writable(null);

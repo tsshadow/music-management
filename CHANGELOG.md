@@ -44,6 +44,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   buiten de lock, zodat een trage of onbereikbare LMS niets ophoudt. De bijbehorende sleutels
   `lms_hosts` en `lms_subsonic_api_key` bestonden alleen in de code die ze uitlas en niet als
   instelling; ze staan nu in de groep LMS op de configuratiepagina, met de API-sleutel als geheim.
+- **De webspeler heeft nu een equalizer, net als de Android-app.** Tien banden van 31 Hz tot
+  16 kHz, een voorversterking en zeven voorinstellingen (Vlak, Rock, Pop, Jazz, Klassiek, Bass
+  boost, Zang); zodra je zelf een schuif aanraakt springt de keuze naar "Eigen". De instelling
+  hangt aan de browser, niet aan het account — het is een correctie voor jouw speakers of
+  koptelefoon, en die verschilt per apparaat. Twee dingen aan de Web Audio API bepaalden het
+  ontwerp. Een `AudioContext` mag pas na een klik van de gebruiker beginnen, dus de audioketen
+  wordt pas opgebouwd op het moment dat je de equalizer voor het eerst aanzet; wie het paneel
+  nooit opent betaalt er niets voor. En `createMediaElementSource()` is onomkeerbaar: is hij
+  eenmaal gedraaid, dan loopt alle audio van dat element de rest van de pagina door de keten.
+  Uitzetten breekt de keten daarom niet af maar zet alle tien de banden op 0 dB, wat wiskundig
+  hetzelfde is als niets doen — afbreken en opnieuw opbouwen zou het risico geven dat de speler
+  stil blijft. Kan de keten niet gebouwd worden, of kent de browser geen `AudioContext`, dan
+  verdwijnt de knop en speelt de speler precies zoals hij altijd deed. Een opgeslagen curve die
+  niet helemaal klopt valt terug op vlak: een half geldige curve laat je met een geluid zitten
+  dat je niet kunt verklaren en niet gekozen hebt.
+
+### Changed
+- **Beheer heeft geen platte lijst van eenentwintig tabbladen meer, maar acht ingangen.** Collectie,
+  Curatie, Kanalen, Toegang, Systeem en Instellingen klappen open; Overzicht en Downloaders staan
+  los, want een groep van één voegt alleen een klik toe. De tabbladen zelf en hun `/management/...`
+  adressen zijn niet veranderd, dus bestaande links blijven werken, en welke groep openstond
+  onthoudt je browser. Twee tabbladen zijn weg: Over stond ook al bij je persoonlijke instellingen,
+  en Versies liet één versienummer zien dat het als zes verschillende presenteerde — `/api/versions`
+  vroeg nooit iets aan een worker, dus dat "offline" dat het rood kon kleuren kon domweg niet
+  voorkomen. Het echte versienummer staat op Overzicht.
 
 ### Fixed
 - **De tagger draaide dagenlang door met de regels die hij bij het opstarten had ingelezen.**
@@ -80,6 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   de Podcasts-pagina leeg. Een beheerder krijgt nu te lezen dat de tag bij de extra tags van de
   scanner moet staan; wie geen beheerder is krijgt gewoon "nog niets", want het antwoord van de
   server bevat die instelling voor hen niet eens.
+
 
 ## [0.34.0] - 2026-08-24
 

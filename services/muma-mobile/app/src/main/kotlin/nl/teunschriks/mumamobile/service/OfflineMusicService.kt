@@ -425,7 +425,7 @@ class OfflineMusicService :
             year?.let { add(nl.teunschriks.mumamobile.api.subsonic.models.Filter("YEAR", it)) }
             length?.let { add(nl.teunschriks.mumamobile.api.subsonic.models.Filter("LENGTH", it)) }
         }
-        return getSongs(filters, ratingMin, ratingMax, count, offset, null, null, null, null)
+        return getSongs(filters, ratingMin, ratingMax, count, offset, null, null, null, null, null)
     }
 
     @Throws(Exception::class)
@@ -438,7 +438,10 @@ class OfflineMusicService :
         sortMethod: String?,
         festivalLineup: String?,
         minDuration: Int?,
-        maxDuration: Int?
+        maxDuration: Int?,
+        // Ignored: an offline library holds no artist entities to intersect, the same reason the
+        // filters below only cover what the cached tags can answer.
+        artistIds: List<String>?
     ): MusicDirectory {
         var list = getAllTracks()
 
@@ -534,7 +537,7 @@ class OfflineMusicService :
             year?.let { add(nl.teunschriks.mumamobile.api.subsonic.models.Filter("YEAR", it)) }
             length?.let { add(nl.teunschriks.mumamobile.api.subsonic.models.Filter("LENGTH", it)) }
         }
-        return getSongs(filters, ratingMin, ratingMax, count, offset, null, null, null, null)
+        return getSongs(filters, ratingMin, ratingMax, count, offset, null, null, null, null, null)
     }
 
     @Throws(Exception::class)
@@ -550,7 +553,7 @@ class OfflineMusicService :
             add(nl.teunschriks.mumamobile.api.subsonic.models.Filter("YEAR", year))
             length?.let { add(nl.teunschriks.mumamobile.api.subsonic.models.Filter("LENGTH", it)) }
         }
-        return getSongs(filters, ratingMin, ratingMax, count, offset, null, null, null, null)
+        return getSongs(filters, ratingMin, ratingMax, count, offset, null, null, null, null, null)
     }
 
     @Throws(Exception::class)

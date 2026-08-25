@@ -24,10 +24,25 @@ class AnalyzeBpmRule(TagRule):
     """Uses librosa to estimate BPM and stores it."""
 
     def apply(self, song):
+        # BPM does not change once it is known, and decoding the audio is by far the
+        # most expensive thing the tagger does. A retag triggered by a rule change must
+        # not turn into a full re-analysis of the library.
+        if song.tag_collection.get_item_as_string(BPM).strip():
+            return
         try:
             y, sr = librosa.load(song.path())
             tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
-            song.tag_collection.set_item(BPM, str(round(tempo)))
+            song.tag_collection.set_item(BPM, str(round(self._as_float(tempo))))
         except Exception as e:
             if Settings().debug:
                 logging.info(f'Failed to parse bpm for {song.path()}: {str(e)}')
+
+    @staticmethod
+    def _as_float(tempo) -> float:
+        """librosa 0.10.1+ hands back a one-element ndarray instead of a float.
+
+        round() on an ndarray raises TypeError, which the except above swallows, so
+        without this the rule would quietly store no BPM at all.
+        """
+        item = getattr(tempo, 'item', None)
+        return float(item()) if callable(item) else float(tempo)

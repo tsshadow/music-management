@@ -48,7 +48,14 @@ data class Track(
     var bookmarkPosition: Int = 0,
     var userRating: Int? = null,
     var averageRating: Float? = null,
-    override var name: String? = null
+    override var name: String? = null,
+    /**
+     * One entry per artist, as the server split them. The joined [artist] string stays the
+     * display name; this is what makes the individual artists reachable.
+     */
+    var artists: List<TrackArtistRef> = emptyList(),
+    var moods: List<String> = emptyList(),
+    var labels: List<String> = emptyList()
 ) : MusicDirectoryEntry(),
     Serializable {
     companion object {
@@ -69,4 +76,16 @@ data class Track(
     }
 
     override fun compareTo(other: Identifiable) = compareTo(other as Track)
+}
+
+/**
+ * One of a track's artists, kept as the server split them: the id is what makes the artist
+ * reachable, the name is what a menu can show. Serializable because [Track] travels through
+ * fragment argument bundles and takes this along.
+ */
+data class TrackArtistRef(val id: String, val name: String) : Serializable {
+    companion object {
+        @Suppress("unused")
+        private const val serialVersionUID = 1L
+    }
 }

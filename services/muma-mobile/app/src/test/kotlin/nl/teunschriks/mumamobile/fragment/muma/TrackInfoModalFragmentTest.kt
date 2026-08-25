@@ -18,10 +18,12 @@ import com.google.android.material.chip.ChipGroup
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.`should be false`
 import org.amshove.kluent.`should be true`
+import org.amshove.kluent.`should contain`
 import org.junit.Test
 import org.junit.runner.RunWith
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.domain.TrackArtistRef
 import nl.teunschriks.mumamobile.util.Settings
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
@@ -61,8 +63,19 @@ class TrackInfoModalFragmentTest {
         suffix = "mp3",
         size = 25_500_000L,
         path = "Deadmau5/For Lack of a Better Name/07 Strobe.mp3",
-        userRating = 3
+        userRating = 3,
+        moods = listOf("energetic"),
+        labels = listOf("mau5trap")
     )
+
+    private fun collaboration() = fullTrack().apply {
+        artist = "Headhunterz, Wildstylez"
+        artistId = "ar-1"
+        artists = listOf(
+            TrackArtistRef("ar-1", "Headhunterz"),
+            TrackArtistRef("ar-2", "Wildstylez")
+        )
+    }
 
     /** Everything the sheet can show is optional except the id. */
     private fun bareTrack() = Track(id = "43", title = "Untitled")
@@ -100,6 +113,15 @@ class TrackInfoModalFragmentTest {
 
     private fun Host.isShown(id: Int) = view.findViewById<View>(id).visibility == View.VISIBLE
 
+    private fun Host.target(): TrackInfoTarget {
+        val bundle = result ?: throw AssertionError("The sheet reported nothing")
+        return BundleCompat.getSerializable(
+            bundle,
+            TrackInfoModalFragment.RESULT_TARGET,
+            TrackInfoTarget::class.java
+        ) ?: throw AssertionError("The sheet reported no target")
+    }
+
     @Test
     fun `the sheet shows what the track knows about itself`() {
         val host = show(fullTrack())
@@ -136,7 +158,136 @@ class TrackInfoModalFragmentTest {
         host.isShown(R.id.track_info_genre_row).`should be false`()
         host.isShown(R.id.track_info_track_row).`should be false`()
         host.isShown(R.id.track_info_released_row).`should be false`()
+        host.isShown(R.id.track_info_label_row).`should be false`()
+        host.isShown(R.id.track_info_mood_row).`should be false`()
         host.isShown(R.id.track_info_tech_toggle).`should be false`()
+    }
+
+    @Test
+    fun `tapping a genre chip reports that genre`() {
+        val host = show(fullTrack())
+
+        val genres = host.view.findViewById<ChipGroup>(R.id.track_info_genre_group)
+        genres.getChildAt(0).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        host.target() `should be equal to` TrackInfoTarget.Facet("GENRE", "progressive house")
+    }
+
+    @Test
+    fun `tapping the released row reports the year alone`() {
+        // A server that knows the full release date still only gives a useful year filter.
+        val host = show(fullTrack().apply { date = "2009-10-05" })
+
+        host.view.findViewById<View>(R.id.track_info_released_row).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        host.target() `should be equal to` TrackInfoTarget.Facet("YEAR", "2009")
+    }
+
+    @Test
+    fun `tapping a label chip reports the publisher`() {
+        val host = show(fullTrack())
+
+        host.view.findViewById<ChipGroup>(R.id.track_info_label_group).getChildAt(0).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        host.target() `should be equal to` TrackInfoTarget.Facet("PUBLISHER", "mau5trap")
+    }
+
+    @Test
+    fun `tapping a mood chip reports the mood`() {
+        val host = show(fullTrack())
+
+        host.view.findViewById<ChipGroup>(R.id.track_info_mood_group).getChildAt(0).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        host.target() `should be equal to` TrackInfoTarget.Facet("MOOD", "energetic")
+    }
+
+    @Test
+    fun `one artist still goes straight there`() {
+        val host = show(fullTrack())
+
+        host.view.findViewById<View>(R.id.track_info_artist_row).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        val result = host.result ?: throw AssertionError("The sheet reported nothing")
+        result.getInt(TrackInfoModalFragment.RESULT_ACTION_ID) `should be equal to` R.id.menu_show_artist
+        result.containsKey(TrackInfoModalFragment.RESULT_TARGET).`should be false`()
+    }
+
+    @Test
+    fun `two artists offer each of them and the pair`() {
+        val host = show(collaboration())
+
+        host.view.findViewById<View>(R.id.track_info_artist_row).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        // Nothing is reported until something in the menu is picked.
+        host.result `should be equal to` null
+
+        val menu = host.fragment.artistMenuForTest!!.menu
+        menu.size() `should be equal to` 3
+        menu.getItem(0).title.toString() `should be equal to` "Headhunterz"
+        menu.getItem(1).title.toString() `should be equal to` "Wildstylez"
+        menu.getItem(2).title.toString() `should contain` "Wildstylez"
+    }
+
+    @Test
+    fun `picking one artist from the menu reports that artist`() {
+        val host = show(collaboration())
+
+        host.view.findViewById<View>(R.id.track_info_artist_row).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+        host.fragment.artistMenuForTest!!.menu.performIdentifierAction(1, 0)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        host.target() `should be equal to` TrackInfoTarget.Artist("ar-2", "Wildstylez")
+    }
+
+    @Test
+    fun `picking the pair reports both artist ids`() {
+        val host = show(collaboration())
+
+        host.view.findViewById<View>(R.id.track_info_artist_row).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+        host.fragment.artistMenuForTest!!.menu.performIdentifierAction(2, 0)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        val target = host.target() as TrackInfoTarget.Collaboration
+        target.artistIds `should be equal to` listOf("ar-1", "ar-2")
+    }
+
+    @Test
+    fun `a duplicated artist does not produce a pointless pair`() {
+        val host = show(
+            fullTrack().apply {
+                artists = listOf(
+                    TrackArtistRef("ar-1", "Headhunterz"),
+                    TrackArtistRef("ar-1", "Headhunterz")
+                )
+            }
+        )
+
+        host.view.findViewById<View>(R.id.track_info_artist_row).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        val result = host.result ?: throw AssertionError("The sheet reported nothing")
+        result.getInt(TrackInfoModalFragment.RESULT_ACTION_ID) `should be equal to` R.id.menu_show_artist
+    }
+
+    @Test
+    fun `the pair keeps its name when no count can be fetched`() {
+        // Nothing answers a music service call in a unit test, so this is also what a user on a
+        // dead connection sees.
+        val host = show(collaboration())
+
+        host.view.findViewById<View>(R.id.track_info_artist_row).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        val menu = host.fragment.artistMenuForTest!!.menu
+        menu.getItem(2).title.toString() `should be equal to` "Together: Headhunterz × Wildstylez"
     }
 
     @Test

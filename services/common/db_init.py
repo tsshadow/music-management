@@ -134,6 +134,11 @@ def ensure_tables_exist() -> None:
                     # filters and the analytics year histogram still read that column.
                     'ALTER TABLE library_track_audio_features ADD COLUMN IF NOT EXISTS '
                     'release_date VARCHAR(10)',
+                    # Why a file is on the retag pile. needs_rescan stays the gate the
+                    # tagger reads; this is only so the UI can say what queued the work.
+                    # See migrate_v16_rescan_reason.sql.
+                    'ALTER TABLE tagger_processed_files ADD COLUMN IF NOT EXISTS '
+                    'rescan_reason VARCHAR(64) NULL',
                 ):
                     try:
                         cursor.execute(column_sql)

@@ -24,13 +24,16 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.activityViewModel
 import nl.teunschriks.mumamobile.R
+import nl.teunschriks.mumamobile.fragment.FragmentTitle
 import nl.teunschriks.mumamobile.util.Util.toast
 
 /**
  * One Beheer page: downloaders, users, or access requests.
  *
  * The three differ only in what they list and which actions each row offers, so like the Library
- * browse pages they share a fragment parameterized by an enum.
+ * browse pages they share a fragment parameterized by an enum. Reached from
+ * [ManagementFragment]'s index, which only offers a row for a page [ManagementPage.isBuilt] says
+ * exists; a page this fragment does not know shows an empty list rather than crashing.
  */
 class ManagementPageFragment : Fragment() {
 
@@ -49,11 +52,13 @@ class ManagementPageFragment : Fragment() {
     ): View = inflater.inflate(R.layout.fragment_management_list, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        FragmentTitle.setTitle(this, page.titleRes)
+
         val recycler: RecyclerView = view.findViewById(R.id.management_recycler)
         recycler.layoutManager = LinearLayoutManager(requireContext())
         recycler.adapter = adapter
 
-        if (page == ManagementPage.REQUESTS) setupStatusFilter(view)
+        if (page == ManagementPage.USER_REQUESTS) setupStatusFilter(view)
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -78,7 +83,8 @@ class ManagementPageFragment : Fragment() {
     private fun load() = when (page) {
         ManagementPage.DOWNLOADERS -> viewModel.loadDownloadAccounts()
         ManagementPage.USERS -> viewModel.loadUsers()
-        ManagementPage.REQUESTS -> viewModel.loadRequests()
+        ManagementPage.USER_REQUESTS -> viewModel.loadRequests()
+        else -> Unit
     }
 
     private suspend fun observe() = when (page) {
@@ -91,10 +97,12 @@ class ManagementPageFragment : Fragment() {
         ManagementPage.USERS ->
             viewModel.users.collectLatest { users -> adapter.items = users.map { it.toRow() } }
 
-        ManagementPage.REQUESTS ->
+        ManagementPage.USER_REQUESTS ->
             viewModel.requests.collectLatest { requests ->
                 adapter.items = requests.map { it.toRow() }
             }
+
+        else -> Unit
     }
 
     private fun setupStatusFilter(view: View) {
@@ -179,8 +187,3 @@ class ManagementPageFragment : Fragment() {
     }
 }
 
-enum class ManagementPage(val titleRes: Int) {
-    DOWNLOADERS(R.string.management_tab_downloaders),
-    USERS(R.string.management_tab_users),
-    REQUESTS(R.string.management_tab_requests)
-}

@@ -59,6 +59,12 @@ class TrackCollectionModel(application: Application) : GenericListModel(applicat
         val shareName: String? = null,
         val genre: String? = null,
         val artists: List<String>? = null,
+        /**
+         * Artist entity ids. Unlike [artists], which holds raw tag names and becomes
+         * Filter("ARTIST", name), these go to the server's own artistId parameter and mean
+         * "only tracks every one of these artists is on".
+         */
+        val artistIds: List<String>? = null,
         val festival: String? = null,
         val label: String? = null,
         val songs: String? = null,
@@ -177,7 +183,8 @@ class TrackCollectionModel(application: Application) : GenericListModel(applicat
                     params.sortMethod,
                     params.festivalLineup,
                     params.minDuration,
-                    params.maxDuration
+                    params.maxDuration,
+                    params.artistIds
                 )
             } else if (params.getRandomTracks) {
                 title.postValue(context.getString(R.string.main_songs_random))
@@ -235,6 +242,8 @@ class TrackCollectionModel(application: Application) : GenericListModel(applicat
         }
     }
 
+    // Mirrors MusicService.getSongs plus the append flag; see the note there.
+    @Suppress("LongParameterList")
     suspend fun getSongs(
         filters: Filters,
         ratingMin: Int?,
@@ -245,7 +254,8 @@ class TrackCollectionModel(application: Application) : GenericListModel(applicat
         sortMethod: String,
         festivalLineup: String?,
         minDuration: Int? = null,
-        maxDuration: Int? = null
+        maxDuration: Int? = null,
+        artistIds: List<String>? = null
     ) {
         Timber.d(
             """
@@ -259,6 +269,7 @@ class TrackCollectionModel(application: Application) : GenericListModel(applicat
             - festivalLineup: $festivalLineup
             - minDuration: $minDuration
             - maxDuration: $maxDuration
+            - artistIds: $artistIds
             """.trimIndent()
         )
         // Handle the logic for endless scrolling:
@@ -276,10 +287,24 @@ class TrackCollectionModel(application: Application) : GenericListModel(applicat
                 sortMethod,
                 festivalLineup,
                 minDuration,
-                maxDuration
+                maxDuration,
+                artistIds
             )
             currentListIsSortable = false
             updateList(musicDirectory, append)
+
+            // How many tracks match, not how many this page holds. Only on the first page: while
+            // scrolling endlessly the suffix would otherwise be appended again for every page.
+            val baseTitle = title.value
+            if (!append && musicDirectory.totalCount > 0 && !baseTitle.isNullOrBlank()) {
+                title.postValue(
+                    context.getString(
+                        R.string.track_collection_total,
+                        baseTitle,
+                        musicDirectory.totalCount
+                    )
+                )
+            }
 
             // Update current offset
             loadedUntil = newOffset

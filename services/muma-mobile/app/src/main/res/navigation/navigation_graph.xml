@@ -64,6 +64,18 @@
         android:name="nl.teunschriks.mumamobile.management.ManagementFragment"
         android:label="@string/management.label" />
 
+    <!-- One destination for every list-shaped management page; which one it shows comes from the
+         managementPage argument, the same way ArtistListFragment is parameterised. -->
+    <fragment
+        android:id="@+id/managementPageFragment"
+        android:name="nl.teunschriks.mumamobile.management.ManagementPageFragment"
+        android:label="@string/management.label">
+        <argument
+            android:name="managementPage"
+            android:defaultValue="DOWNLOADERS"
+            app:argType="string" />
+    </fragment>
+
     <fragment
         android:id="@+id/mediaLibraryFragment"
         android:name="nl.teunschriks.mumamobile.fragment.ArtistListFragment"
@@ -167,6 +179,14 @@
             app:nullable="true" />
         <argument
             android:name="artists"
+            android:defaultValue="@null"
+            app:argType="string[]"
+            app:nullable="true" />
+        <!-- Artist entity ids, not names: this goes to the server's artistId parameter and means
+             "only tracks every one of these artists is on". The "artists" argument above holds raw
+             tag names and becomes Filter("ARTIST", name); the two are not interchangeable. -->
+        <argument
+            android:name="artistIds"
             android:defaultValue="@null"
             app:argType="string[]"
             app:nullable="true" />

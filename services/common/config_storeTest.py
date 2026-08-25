@@ -88,6 +88,18 @@ class ConfigStoreDefaultsTest(ConfigStoreTestCase):
         self.assertIn('Database', self.store.groups())
         self.assertIn('SoundCloud', self.store.groups())
 
+    def test_the_lms_fields_are_available(self):
+        # LmsScanTrigger reads these two out of the store; without a declared field they
+        # were unreachable from the config page and the trigger stayed silent.
+        keys = {field['key'] for field in self.store.describe()}
+        self.assertIn('lms_hosts', keys)
+        self.assertIn('lms_subsonic_api_key', keys)
+        self.assertIn('LMS', self.store.groups())
+
+    def test_bpm_analysis_is_a_declared_setting_and_off_by_default(self):
+        self.assertFalse(self.store.get('analyze_bpm'))
+        self.assertIn('analyze_bpm', {field['key'] for field in self.store.describe()})
+
     def test_all_configs_returns_a_copy(self):
         snapshot = self.store.all_configs()
         snapshot['debug'] = 'tampered'

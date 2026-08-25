@@ -35,6 +35,8 @@ READ_ENDPOINTS = [
     ('/api/rules/genres', 200),
     ('/api/rules/artist-genres', 200),
     ('/api/rules/label-genres', 200),
+    ('/api/rules/artist-redirects', 200),
+    ('/api/tagger/retag/pending', 200),
     ('/api/artists?q=anger', 200),
     ('/api/labels?q=scan', 200),
     ('/api/system/activity', 200),

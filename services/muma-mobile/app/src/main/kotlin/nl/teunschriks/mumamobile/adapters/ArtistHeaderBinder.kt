@@ -27,8 +27,10 @@ import nl.teunschriks.mumamobile.util.Settings
  * The header at the top of an artist page: the artist image, the name, and a short overview of
  * the discography below the list of albums that follows it.
  */
-class ArtistHeaderBinder(private val onPlayAll: () -> Unit) :
-    ItemViewBinder<ArtistHeader, ArtistHeaderBinder.ViewHolder>(),
+class ArtistHeaderBinder(
+    private val onPlayAll: () -> Unit,
+    private val onShowAllTracks: () -> Unit = {}
+) : ItemViewBinder<ArtistHeader, ArtistHeaderBinder.ViewHolder>(),
     KoinComponent {
 
     override fun onCreateViewHolder(inflater: LayoutInflater, parent: ViewGroup): ViewHolder = ViewHolder(inflater.inflate(R.layout.list_header_artist_detail, parent, false))
@@ -39,6 +41,7 @@ class ArtistHeaderBinder(private val onPlayAll: () -> Unit) :
         holder.setOrHide(holder.years, item.years)
         holder.setOrHide(holder.genres, item.genres)
         holder.playAll.setOnClickListener { onPlayAll() }
+        holder.allTracks.setOnClickListener { onShowAllTracks() }
 
         if (!showArtistPicture()) {
             holder.coverArt.isVisible = false
@@ -72,6 +75,7 @@ class ArtistHeaderBinder(private val onPlayAll: () -> Unit) :
         val years: TextView = view.findViewById(R.id.artist_years)
         val genres: TextView = view.findViewById(R.id.artist_genres)
         val playAll: View = view.findViewById(R.id.artist_play_all)
+        val allTracks: View = view.findViewById(R.id.artist_all_tracks)
 
         /**
          * Holders are recycled, so a line has to be cleared as explicitly as it is filled -

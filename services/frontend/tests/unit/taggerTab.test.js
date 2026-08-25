@@ -26,6 +26,15 @@ function mockApi({ ok = true } = {}) {
   return vi.fn(async () => ({ ok, json: async () => ({}) }));
 }
 
+/** The calls the tab makes because someone clicked something.
+ *
+ * The tab also polls /api/tagger/retag/pending once on mount, which would otherwise
+ * shift every index in these assertions by one.
+ */
+function actionCalls() {
+  return globalThis.fetch.mock.calls.filter(([url]) => !String(url).includes('/retag/pending'));
+}
+
 /** Fill in an artist (or label) and a genre, so the add button becomes usable.
  *
  * The two name pickers are list boxes without their own label -- the visible
@@ -73,7 +82,7 @@ describe('TaggerTab', () => {
     await fireEvent.click(screen.getByText(/Koppel artiest/i));
 
     await waitFor(() => expect(onMessage).toHaveBeenCalledWith('Regel toegevoegd voor Angerfist'));
-    const [url, options] = globalThis.fetch.mock.calls[0];
+    const [url, options] = actionCalls()[0];
     expect(url).toBe('http://muma/api/rules/artist-genres');
     expect(JSON.parse(options.body)).toEqual({ artist_name: 'Angerfist', genre_id: 1 });
   });
@@ -86,7 +95,7 @@ describe('TaggerTab', () => {
     await fireEvent.click(screen.getByText(/Koppel label/i));
 
     await waitFor(() => expect(onMessage).toHaveBeenCalledWith('Regel toegevoegd voor Roughstate'));
-    expect(globalThis.fetch.mock.calls[0][0]).toBe('http://muma/api/rules/label-genres');
+    expect(actionCalls()[0][0]).toBe('http://muma/api/rules/label-genres');
   });
 
   it('reloads the rules after adding one', async () => {
@@ -108,7 +117,7 @@ describe('TaggerTab', () => {
     await pick(container, { artist: 'Angerfist' });
     await fireEvent.click(screen.getByText(/Koppel artiest/i));
 
-    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    await waitFor(() => expect(actionCalls().length).toBeGreaterThan(0));
     expect(onMessage).not.toHaveBeenCalled();
     expect(fetchRules).not.toHaveBeenCalled();
   });
@@ -153,7 +162,7 @@ describe('TaggerTab', () => {
     await fireEvent.click(deleteArtistRule);
 
     await waitFor(() => expect(onMessage).toHaveBeenCalledWith('Regel verwijderd.'));
-    const [url, options] = globalThis.fetch.mock.calls[0];
+    const [url, options] = actionCalls()[0];
     expect(url).toBe('http://muma/api/rules/artist-genres/11');
     expect(options.method).toBe('DELETE');
   });
@@ -166,7 +175,7 @@ describe('TaggerTab', () => {
     await fireEvent.click(buttons[buttons.length - 1]);
 
     await waitFor(() =>
-      expect(globalThis.fetch.mock.calls[0][0]).toBe('http://muma/api/rules/label-genres/21')
+      expect(actionCalls()[0][0]).toBe('http://muma/api/rules/label-genres/21')
     );
   });
 
@@ -197,7 +206,7 @@ describe('TaggerTab', () => {
 
     await fireEvent.click(screen.getByText('FORCEER VOLLEDIGE RESCAN'));
 
-    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(actionCalls()).toHaveLength(0);
   });
 
   it('a confirmed rescan is triggered', async () => {
@@ -207,7 +216,7 @@ describe('TaggerTab', () => {
     await fireEvent.click(screen.getByText('FORCEER VOLLEDIGE RESCAN'));
 
     await waitFor(() => expect(onMessage).toHaveBeenCalledWith('Rescan voor alle bestanden getriggerd.'));
-    expect(globalThis.fetch.mock.calls[0][0]).toBe('http://muma/api/tagger/rescan');
+    expect(actionCalls()[0][0]).toBe('http://muma/api/tagger/rescan');
   });
 
   it('reports a rescan that never reached the server', async () => {
@@ -218,5 +227,78 @@ describe('TaggerTab', () => {
     await fireEvent.click(screen.getByText('FORCEER VOLLEDIGE RESCAN'));
 
     await waitFor(() => expect(onError).toHaveBeenCalled());
+  });
+
+  describe('the retag pile', () => {
+    /** @param {object} pending what /api/tagger/retag/pending answers */
+    function withPending(pending) {
+      globalThis.fetch = vi.fn(async (url) => ({
+        ok: true,
+        status: 200,
+        json: async () => (String(url).includes('/retag/pending') ? pending : {})
+      }));
+    }
+
+    it('shows the waiting files with the reason that queued them', async () => {
+      withPending({ total: 142, by_reason: [{ reason: 'genre_decision', count: 142 }] });
+
+      render(TaggerTab, props());
+
+      await waitFor(() => expect(screen.getByTestId('retag-pending')).toBeTruthy());
+      expect(screen.getByText('142')).toBeTruthy();
+      expect(screen.getByText(/genre_decision \(142\)/)).toBeTruthy();
+    });
+
+    it('hides the block when nothing is waiting', async () => {
+      withPending({ total: 0, by_reason: [] });
+
+      render(TaggerTab, props());
+
+      await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+      expect(screen.queryByTestId('retag-pending')).toBeNull();
+    });
+
+    it('starts the retag and clears the block', async () => {
+      withPending({ total: 12, by_reason: [{ reason: 'artist_genre_rule', count: 12 }] });
+      const onMessage = vi.fn();
+
+      render(TaggerTab, props({ onMessage }));
+
+      await waitFor(() => expect(screen.getByTestId('retag-pending')).toBeTruthy());
+      await fireEvent.click(screen.getByText('NU RETAGGEN'));
+
+      await waitFor(() => expect(onMessage).toHaveBeenCalledWith('Retag gestart.'));
+      expect(actionCalls()[0][0]).toBe('http://muma/api/tagger/retag/run');
+      expect(screen.queryByTestId('retag-pending')).toBeNull();
+    });
+
+    it('says so when the tagger is already running', async () => {
+      const onError = vi.fn();
+      globalThis.fetch = vi.fn(async (url) => {
+        if (String(url).includes('/retag/pending')) {
+          return { ok: true, status: 200, json: async () => ({ total: 3, by_reason: [] }) };
+        }
+        return { ok: false, status: 409, json: async () => ({}) };
+      });
+
+      render(TaggerTab, props({ onError }));
+
+      await waitFor(() => expect(screen.getByTestId('retag-pending')).toBeTruthy());
+      await fireEvent.click(screen.getByText('NU RETAGGEN'));
+
+      await waitFor(() => expect(onError).toHaveBeenCalledWith('De tagger is al bezig.'));
+      expect(screen.getByTestId('retag-pending')).toBeTruthy();
+    });
+
+    it('stays hidden when the count cannot be fetched', async () => {
+      globalThis.fetch = vi.fn(async () => {
+        throw new Error('network down');
+      });
+
+      render(TaggerTab, props());
+
+      await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+      expect(screen.queryByTestId('retag-pending')).toBeNull();
+    });
   });
 });

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.25.0] - 2026-08-25
+
+### Added
+- **Everything the track info sheet knows about a track is now a way into the library.** The
+  genre, label and mood chips and the released row are tappable and open the track list with that
+  filter; the year filter is always the year, even when the server knows the full release date.
+  Label and mood are new rows on the sheet. A track with more than one artist turns the artist row
+  into a chooser: each artist on their own, plus what they made together - the server's `getSongs`
+  now takes several `artistId` values and returns only the tracks all of them are on. One artist
+  behaves exactly as before, a single tap through to the artist page. That page gained an "All
+  tracks" button, because the album list on it only holds releases the artist is the album artist
+  of, and their collaborations live on other people's releases. The list screen and the chooser
+  both report how many tracks match, not how many the page holds.
+
+### Changed
+- **The Beheer tab opens on a grouped index instead of a row of tabs.** Group headers and page rows
+  in the order the web sidebar uses -- Collection, Curation, Channels, Access, System and Settings,
+  with Overview and Downloaders standing alone -- replacing the `ViewPager2` and `TabLayout` that
+  worked at three pages and would be unreadable at nineteen. All nineteen management pages are
+  listed; the sixteen the app has not built yet are shown dimmed with a line saying they live on the
+  web for now, so the index is the honest picture of what management contains. Downloaders, Users
+  and Access requests behave exactly as before, now as their own destination with an up arrow.
+  `ManagementPage` mirrors `MANAGEMENT_GROUPS` in `services/frontend/src/lib/router.js`, and a unit
+  test reads that file and compares the two, which is what keeps them from drifting apart.
+
 ## [6.24.0] - 2026-08-24
 
 ### Added

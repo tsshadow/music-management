@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Je backups en je migraties zouden stilletjes gebroken zijn bij de volgende database-upgrade.**
+  MariaDB heeft zijn clientprogramma's in 10.5 hernoemd — `mysql` werd `mariadb`, `mysqldump` werd
+  `mariadb-dump` — en in versie 12 zijn de oude namen helemaal verdwenen. Op vier plekken riepen we
+  nog de oude naam aan. Eén daarvan was een test, en die viel om zodra Renovate mariadb 12 voorstelde;
+  zo is het gevonden. De andere drie waren erger, want die worden door niets gedekt: het aanroepen
+  van de migraties in `deploy.sh`, het maken van de backup in `backup_db.sh`, en de wachtlus in
+  `dev.sh`.
+
+  Wat dat zo vervelend maakt is hoe het faalt. Een ontbrekend programma geeft exit 127 en verder
+  niets — geen foutmelding over de database, die draait namelijk prima. Bij de backup betekent het
+  een bestand van nul bytes; de controle verderop in dat script vangt dat wel, maar pas nadat de
+  backup niet gemaakt is. Bij de wachtlus in `dev.sh` zou hij eeuwig blijven wachten in plaats van
+  af te breken.
+
+  In de database-container staat de nieuwe naam er sinds 10.5 altijd, dus daar is het simpelweg de
+  nieuwe naam. Op een host of in een service-image hangt het af van welk clientpakket geïnstalleerd
+  is, en daar kiest `backup_db.sh` nu zelf: eerst `mariadb-dump`, anders `mysqldump`, en anders een
+  duidelijke fout in plaats van een leeg bestand.
+
 ### Changed
 - **numpy mag weer meebewegen, en dat is wat een nieuwere Python mogelijk maakt.** De pin stond op
   `~=2.0.2`, wat alles vanaf 2.1 uitsluit — en precies daar begint de dekking met kant-en-klare

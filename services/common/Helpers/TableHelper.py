@@ -30,6 +30,19 @@ class TableHelper:
         except Exception as e:
             logging.error(f'Error preloading {self.table_name}: {e}')
 
+    def reload(self):
+        """Re-read the table, e.g. after a rule was changed in the web UI.
+
+        The tagger runs as a long-lived loop, so without this a value added today
+        would first take effect after the next container restart. See
+        LookupTableHelper.reload for the same reasoning.
+        """
+        if not self.cache_enabled:
+            return
+        self._values = set()
+        self._canonical_map = {}
+        self._preload()
+
     def exists(self, key: str) -> bool:
         if self.cache_enabled:
             return key.lower() in (k.lower() for k in self._values)

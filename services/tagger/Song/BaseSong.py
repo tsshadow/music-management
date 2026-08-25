@@ -43,7 +43,6 @@ from services.tagger.Song.TagCollection import TagCollection
 
 LOG_FILE = 'broken-files.log'
 s = Settings()
-analyze_bpm = False
 EasyID3.RegisterTXXXKey('publisher', 'publisher')
 EasyID3.RegisterTXXXKey('rating', 'RATING')
 EasyID3.RegisterTXXXKey('parsed', 'parsed')
@@ -108,7 +107,7 @@ class BaseSong:
         if self.type == MusicFileType.FLAC:
             NormalizeFlacTagsRule().apply(self)
         self.rules.append(CleanTitleRule())
-        if analyze_bpm:
+        if s.analyze_bpm:
             self.rules.append(AnalyzeBpmRule())
 
     def parse(self):

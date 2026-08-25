@@ -50,5 +50,20 @@ class TableHelperTest(unittest.TestCase):
         self.mock_cursor.fetchall.return_value = [('Hardcore',), ('Uptempo',)]
         values = self.helper.get_all_values()
         self.assertEqual(values, ['Hardcore', 'Uptempo'])
+    def test_reload_replaces_the_cached_values(self):
+        helper = TableHelper('library_artists', 'name', preload=False)
+        helper.cache_enabled = True
+        helper._values = {'Old Artist'}
+        helper._canonical_map = {'old artist': 'Old Artist'}
+        self.mock_cursor.fetchall.return_value = [('New Artist',)]
+        helper.reload()
+        self.assertTrue(helper.exists('New Artist'))
+        self.assertFalse(helper.exists('Old Artist'))
+
+    def test_reload_does_nothing_when_the_helper_is_not_cached(self):
+        self.helper.reload()
+        self.mock_cursor.execute.assert_not_called()
+
+
 if __name__ == '__main__':
     unittest.main()

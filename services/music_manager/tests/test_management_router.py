@@ -768,3 +768,133 @@ class LabelProposalsTest(ManagementTestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class RuleChangeInvalidationTest(ManagementTestCase):
+    """A saved rule schedules the retag of the files it touches.
+
+    The invalidation runs after the commit and never fails the edit: a rule that saved
+    without queueing a retag is repaired by the fallback rescan, a rule that refused to
+    save is not.
+    """
+
+    def test_adding_an_artist_genre_rule_marks_that_artists_files(self):
+        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+            response = self.client.post('/api/rules/artist-genres',
+                                        json={'artist_name': 'Ran-D', 'genre_id': 3},
+                                        headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        invalidator.invalidate_by_term.assert_called_once_with('Ran-D', 'artist_genre_rule')
+
+    def test_deleting_an_artist_genre_rule_uses_the_name_from_before_the_delete(self):
+        self.cursor.fetchone.return_value = {'artist_name': 'Ran-D'}
+        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+            response = self.client.delete('/api/rules/artist-genres/9', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        invalidator.invalidate_by_term.assert_called_once_with('Ran-D', 'artist_genre_rule')
+
+    def test_deleting_a_rule_that_no_longer_exists_marks_nothing(self):
+        self.cursor.fetchone.return_value = None
+        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+            response = self.client.delete('/api/rules/artist-genres/9', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        invalidator.invalidate_by_term.assert_not_called()
+
+    def test_adding_a_label_genre_rule_marks_that_labels_files(self):
+        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+            response = self.client.post('/api/rules/label-genres',
+                                        json={'label_name': 'Minus Is More', 'genre_id': 3},
+                                        headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        invalidator.invalidate_by_term.assert_called_once_with('Minus Is More', 'label_genre_rule')
+
+    def test_deleting_a_label_genre_rule_uses_the_name_from_before_the_delete(self):
+        self.cursor.fetchone.return_value = {'label_name': 'Minus Is More'}
+        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+            response = self.client.delete('/api/rules/label-genres/9', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        invalidator.invalidate_by_term.assert_called_once_with('Minus Is More', 'label_genre_rule')
+
+    def test_a_genre_decision_marks_the_linked_tracks_and_the_name(self):
+        self.cursor.fetchone.return_value = {'id': 1, 'name': 'Uptempo'}
+        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+            response = self.client.post('/api/rules/genres/1/decide',
+                                        json={'state': management_router.WHITE},
+                                        headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        invalidator.invalidate_by_genre_id.assert_called_once_with(1, 'Uptempo', 'genre_decision')
+
+    def test_a_failing_invalidation_does_not_fail_the_rule_change(self):
+        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+            invalidator.invalidate_by_term.side_effect = RuntimeError('database gone')
+            response = self.client.post('/api/rules/artist-genres',
+                                        json={'artist_name': 'Ran-D', 'genre_id': 3},
+                                        headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+
+    def test_a_failing_genre_invalidation_does_not_fail_the_decision(self):
+        self.cursor.fetchone.return_value = {'id': 1, 'name': 'Uptempo'}
+        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+            invalidator.invalidate_by_genre_id.side_effect = RuntimeError('database gone')
+            response = self.client.post('/api/rules/genres/1/decide',
+                                        json={'state': management_router.WHITE},
+                                        headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+
+
+class ArtistRedirectTest(ManagementTestCase):
+    """rules_ignored_artists had no write path at all before this."""
+
+    def test_the_redirects_are_listed(self):
+        self.cursor.fetchall.return_value = [{'id': 1, 'name': 'Ran D', 'corrected_name': 'Ran-D'}]
+        response = self.client.get('/api/rules/artist-redirects', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]['corrected_name'], 'Ran-D')
+
+    def test_saving_a_redirect_marks_the_old_name_for_retag(self):
+        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+            response = self.client.post('/api/rules/artist-redirects',
+                                        json={'name': 'Ran D', 'corrected_name': 'Ran-D'},
+                                        headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        invalidator.invalidate_by_term.assert_called_once_with('Ran D', 'artist_redirect')
+
+    def test_a_new_name_is_inserted(self):
+        self.cursor.fetchone.return_value = None
+        self.client.post('/api/rules/artist-redirects',
+                         json={'name': 'Ran D', 'corrected_name': 'Ran-D'}, headers=self.headers)
+        self.assertTrue(any('INSERT INTO rules_ignored_artists' in s for s in self.statements()))
+
+    def test_a_known_name_is_updated_rather_than_duplicated(self):
+        self.cursor.fetchone.return_value = {'id': 1}
+        self.client.post('/api/rules/artist-redirects',
+                         json={'name': 'Ran D', 'corrected_name': 'Ran-D'}, headers=self.headers)
+        self.assertTrue(any('UPDATE rules_ignored_artists' in s for s in self.statements()))
+        self.assertFalse(any('INSERT INTO rules_ignored_artists' in s for s in self.statements()))
+
+    def test_a_redirect_without_a_correction_stores_null(self):
+        self.cursor.fetchone.return_value = None
+        self.client.post('/api/rules/artist-redirects', json={'name': 'Various Artists'},
+                         headers=self.headers)
+        insert = [call for call in self.cursor.execute.call_args_list
+                  if 'INSERT INTO rules_ignored_artists' in call.args[0]][0]
+        self.assertEqual(insert.args[1], ('Various Artists', None))
+
+    def test_a_nameless_redirect_is_rejected(self):
+        response = self.client.post('/api/rules/artist-redirects', json={'name': '   '},
+                                    headers=self.headers)
+        self.assertEqual(response.status_code, 400)
+
+    def test_deleting_a_redirect_uses_the_name_from_before_the_delete(self):
+        self.cursor.fetchone.return_value = {'name': 'Ran D'}
+        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+            response = self.client.delete('/api/rules/artist-redirects/4', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        invalidator.invalidate_by_term.assert_called_once_with('Ran D', 'artist_redirect')
+
+    def test_deleting_a_redirect_that_no_longer_exists_marks_nothing(self):
+        self.cursor.fetchone.return_value = None
+        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+            response = self.client.delete('/api/rules/artist-redirects/4', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        invalidator.invalidate_by_term.assert_not_called()

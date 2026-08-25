@@ -15,6 +15,7 @@ from services.common.channels import (
 )
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.GenreRulesHelper import BLACK, GenreRulesHelper
+from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.music_manager.database import get_db_connection
 from services.scanner.Song.ReadonlySong import ReadonlySong
 from services.tagger.Song.BaseSong import ExtensionNotSupportedException
@@ -84,6 +85,10 @@ class ScannerManager:
                 logger.info(f'Scan completed. Total files processed/updated: {count}')
             finally:
                 conn.close()
+        # Deliberately after the lock is released: an unreachable LMS must not keep the
+        # next scan waiting. One trigger per run, not per file -- LMS's incremental scan
+        # only reprocesses what actually changed.
+        lms_scan_trigger.trigger()
 
     def _scan_recursive(self, conn, force):
         count = 0

@@ -22,6 +22,7 @@ ARTIST_GENRE_HELPER = 'artistGenreHelper'
 LABEL_GENRE_HELPER = 'labelGenreHelper'
 SUBGENRE_HELPER = 'subgenreHelper'
 PODCAST_HELPER = 'podcastHelper'
+ARTIST_REDIRECT_HELPER = 'rules_ignored_artists'
 
 MBID_PATTERN = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
 

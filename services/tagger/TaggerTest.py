@@ -128,6 +128,16 @@ class RunTest(TaggerTestCase):
             self.tagger.run()
         labels.assert_called_once()
 
+    def test_a_run_refreshes_the_rule_caches_first(self):
+        # Without this the run would tag with the rules it read at import, so a rule
+        # changed today would look like it had no effect at all.
+        with patch.object(tagger_module, 'reload_rule_caches') as reload_rule_caches, \
+             patch.object(self.tagger, '_parse_label_folders'), \
+             patch.object(self.tagger, '_parse_channel_folders'), \
+             patch.object(self.tagger, '_parse_generic_folders'):
+            self.tagger.run()
+        reload_rule_caches.assert_called_once()
+
     def test_a_run_asks_lms_to_pick_up_what_changed(self):
         with patch.object(self.tagger, '_parse_label_folders'), \
              patch.object(self.tagger, '_parse_channel_folders'), \

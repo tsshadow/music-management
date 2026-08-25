@@ -28,7 +28,7 @@ pyasn1~=0.6.4
 
 # --- Media / tagging ---------------------------------------------------------
 mutagen~=1.47.0
-librosa~=0.10.2.post1
+librosa~=1.0.0
 # Wheel coverage decides this one, not recency. 2.0.x ships no cp313 or cp314
 # wheels, so any Python bump on docker/Dockerfile.music-manager made pip fall
 # back to building 19 MB of C++ from source in an image that has gcc but no

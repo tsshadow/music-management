@@ -22,7 +22,7 @@ markdown~=3.10
 jinja2~=3.1.6
 Pillow~=12.3
 mutagen~=1.47.0
-librosa~=0.10.2
+librosa~=1.0.0
 # Kept in step with the root requirements.txt; see the note there for why this
 # is the 2.4 series and not the newest.
 numpy~=2.4.6

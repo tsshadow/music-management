@@ -22,7 +22,6 @@ function api({ configOk = true, verify = { type: 'user', user: USER }, loginOk =
     '/api/rules': { genres: [] },
     '/api/soundcloud': [],
     '/api/youtube': [],
-    '/api/versions': [],
     '/api/all-notes': {},
     '/api/scrobble/import/latest': [],
     '/api/users': [USER],
@@ -199,5 +198,19 @@ describe('Management', () => {
     render(Management);
 
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+  });
+
+  // /api/versions answered the same music-manager version for every worker and never
+  // contacted one, so the tab it fed was showing one number six times. With the tab
+  // gone, the request is one fewer round trip on every management page load.
+  it('no longer asks for the worker versions', async () => {
+    render(Management);
+
+    // Waiting on the first fetch would only catch the auth call that runs before
+    // the batch; /api/stats is the last entry of that batch, so its arrival is
+    // what says every request the screen makes on load has been made.
+    const urls = () => globalThis.fetch.mock.calls.map(([url]) => String(url));
+    await waitFor(() => expect(urls().some((url) => url.includes('/api/stats'))).toBe(true));
+    expect(urls().some((url) => url.includes('/api/versions'))).toBe(false);
   });
 });

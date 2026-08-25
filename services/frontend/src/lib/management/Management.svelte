@@ -24,10 +24,8 @@
   import LibrariesTab from './tabs/LibrariesTab.svelte';
   import UsersTab from './tabs/UsersTab.svelte';
   import UserRequestsTab from './tabs/UserRequestsTab.svelte';
-  import WorkerVersionsTab from './tabs/WorkerVersionsTab.svelte';
   import EventsTab from './tabs/EventsTab.svelte';
   import ConfigTab from './tabs/ConfigTab.svelte';
-  import AboutTab from './tabs/AboutTab.svelte';
 
   // The active tab is persisted and can also arrive from the URL, so a name
   // that no longer exists -- a renamed tab, an old bookmark, a typo -- would
@@ -47,7 +45,6 @@
   let config = $state({ version: '...', phpmyadmin_url: '#' });
   let notes = $state({ release_notes: '', changelog: '' });
   let rules = $state({ genres: [], ignored_genres: [] });
-  let versions = $state({});
   let allNotes = $state({});
   let accounts = $state([]);
   let youtubeAccounts = $state([]);
@@ -98,13 +95,12 @@
     loading = true;
     const headers = getHeaders();
     try {
-      const [configRes, notesRes, rulesRes, accountsRes, youtubeRes, versionsRes, allNotesRes, importsRes, usersRes, containersRes, activityRes, statsRes] = await Promise.all([
+      const [configRes, notesRes, rulesRes, accountsRes, youtubeRes, allNotesRes, importsRes, usersRes, containersRes, activityRes, statsRes] = await Promise.all([
         fetch(`${$mumaApiUrl}/api/config`, { headers }),
         fetch(`${$mumaApiUrl}/api/notes`, { headers }),
         fetch(`${$mumaApiUrl}/api/rules`, { headers }),
         fetch(`${$mumaApiUrl}/api/soundcloud`, { headers }),
         fetch(`${$mumaApiUrl}/api/youtube`, { headers }),
-        fetch(`${$mumaApiUrl}/api/versions`, { headers }),
         fetch(`${$mumaApiUrl}/api/all-notes`, { headers }),
         fetch(`${$mumaApiUrl}/api/scrobble/import/latest`, { headers }),
         fetch(`${$mumaApiUrl}/api/users`, { headers }),
@@ -122,7 +118,6 @@
       rules = await rulesRes.json();
       accounts = await accountsRes.json();
       youtubeAccounts = await youtubeRes.json();
-      versions = await versionsRes.json();
       allNotes = await allNotesRes.json();
       latestImports = await importsRes.json();
       users = await usersRes.json();
@@ -539,10 +534,6 @@
           onMessage={(m) => message = m} 
           onError={(e) => error = e} 
         />
-      {:else if $activeManagementTab === 'versions'}
-        <WorkerVersionsTab {versions} />
-      {:else if $activeManagementTab === 'about'}
-        <AboutTab {API_BASE} {apiKey} />
       {:else if $activeManagementTab === 'config'}
         <ConfigTab
           {API_BASE} {getHeaders}

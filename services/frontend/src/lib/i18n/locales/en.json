@@ -224,9 +224,6 @@
     "verifying": "Verifying…"
   },
   "management": {
-    "about": {
-      "loadFailed": "Could not load the about page: {message}"
-    },
     "connectFailed": "Could not sign in to the Music Management API with your account. Try logging in again on the player page.",
     "connecting": "Connecting to management…",
     "downloaders": {
@@ -294,6 +291,14 @@
       "confirmed": "{count} releases assigned to {label}. {stale} were already gone.",
       "rejected": "Proposal rejected."
     },
+    "groups": {
+      "access": "Access",
+      "channels": "Channels",
+      "collection": "Collection",
+      "curation": "Curation",
+      "settings": "Settings",
+      "system": "System"
+    },
     "health": {
       "containers": "Docker containers",
       "logs": "Logs",
@@ -313,6 +318,7 @@
       "deleteImage": "Delete image",
       "libraryStatus": "Library status",
       "noImage": "No image",
+      "notFound": "Not found",
       "nothingSaved": "Nothing saved for this artist yet.",
       "primary": "Primary",
       "primaryChanged": "Primary image changed.",
@@ -640,7 +646,6 @@
       "user": "User"
     },
     "tabs": {
-      "about": "About",
       "config": "Configuration",
       "downloaders": "Downloaders",
       "events": "Log",
@@ -659,8 +664,7 @@
       "scrobble": "Scrobble import",
       "tagger": "Tagger",
       "userRequests": "Access requests",
-      "users": "Users",
-      "versions": "Versions"
+      "users": "Users"
     },
     "tagger": {
       "active": "Active",
@@ -741,15 +745,6 @@
       "tokenPlaceholder": "Token",
       "tokenRevoked": "Subsonic token revoked.",
       "tokenSaveFailed": "Could not save the Subsonic token."
-    },
-    "versions": {
-      "externalRefs": "External references",
-      "musicServer": "Music server:",
-      "notDetected": "Not detected",
-      "notFound": "Not found",
-      "subtitle": "One place to see the version of every running service.",
-      "title": "System versions",
-      "ultrasonicApk": "MuMa Mobile APK:"
     }
   },
   "memories": {

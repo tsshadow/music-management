@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  MANAGEMENT_TABS, SETTINGS_TABS, pathToState, viewToPath
+  MANAGEMENT_GROUPS, MANAGEMENT_TABS, SETTINGS_TABS, pathToState, viewToPath
 } from '../../src/lib/router.js';
 
 /** The state object App keeps in its stores, with only the fields a route uses. */
@@ -251,5 +251,53 @@ describe('the configuration tab', () => {
 
   it('reads back as the management view on that tab', () => {
     expect(pathToState('/management/config')).toEqual({ view: 'management', managementTab: 'config' });
+  });
+});
+
+describe('MANAGEMENT_GROUPS', () => {
+  const grouped = () => MANAGEMENT_GROUPS.flatMap((group) => group.pages);
+
+  // This is the test that stops the two lists drifting. A tab added to
+  // MANAGEMENT_TABS but not to a group would be reachable by URL and invisible in
+  // the sidebar; a tab in a group but not in MANAGEMENT_TABS would render a
+  // sidebar entry whose route falls back to home.
+  it('covers every routable management tab exactly once', () => {
+    expect(grouped().slice().sort()).toEqual(MANAGEMENT_TABS.slice().sort());
+  });
+
+  it('contains no page that is not routable', () => {
+    for (const page of grouped()) {
+      expect(MANAGEMENT_TABS).toContain(page);
+    }
+  });
+
+  it('gives every group a non-empty page list', () => {
+    for (const group of MANAGEMENT_GROUPS) {
+      expect(group.pages.length).toBeGreaterThan(0);
+    }
+  });
+
+  // A standalone entry renders as one row rather than a collapsible header, so it
+  // has no label of its own -- the page's own label is the row.
+  it('only lets a single-page group go without a label', () => {
+    for (const group of MANAGEMENT_GROUPS) {
+      if (group.labelKey === null) expect(group.pages.length).toBe(1);
+      else expect(typeof group.labelKey).toBe('string');
+    }
+  });
+
+  it('has unique group ids', () => {
+    const ids = MANAGEMENT_GROUPS.map((group) => group.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('no longer routes the deleted tabs', () => {
+    expect(MANAGEMENT_TABS).not.toContain('versions');
+    expect(MANAGEMENT_TABS).not.toContain('about');
+  });
+
+  it('sends a stale link to a deleted tab to the management view with no tab', () => {
+    expect(pathToState('/management/versions')).toEqual({ view: 'management' });
+    expect(pathToState('/management/about')).toEqual({ view: 'management' });
   });
 });

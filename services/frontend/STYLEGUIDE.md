@@ -24,6 +24,24 @@ The UI uses a limited but high-contrast color palette.
 - **Elevated/Hover Background**: `#282828` (Inputs, Hover states - `bg-muma-spotify-light`)
 - **Lighter Hover**: `#3e3e3e` (Active/Secondary hover states)
 
+### Token Names (Web UI)
+
+The web UI declares these in the `@theme` block of `src/app.css`; Tailwind generates a utility only
+for a token that is declared there. Use the token, never the raw hex, and never invent a name:
+
+| Token | Value | Use |
+|-------|-------|-----|
+| `brand` | `var(--brand-color)` | Anything that must follow the Songs/Sets mode |
+| `brand-green` / `brand-blue` | `#1db954` / `#2d5afc` | Only where a mode must be shown literally |
+| `muma-spotify-black` | `#191414` | Body background |
+| `muma-spotify-dark` | `#121212` | Main content area |
+| `muma-spotify-panel` | `#181818` | Sidebar, cards, filter bar |
+| `muma-spotify-light` | `#282828` | Inputs and hover surfaces |
+| `muma-spotify-text` | `#b3b3b3` | Secondary text |
+
+Transparency uses the slash syntax (`bg-white/10`, `bg-brand/20`). The `bg-opacity-*` family was
+removed in Tailwind v4 and silently produces nothing.
+
 ### Text Colors
 - **Primary Text**: `#ffffff` (Titles, active menu items, important labels)
 - **Secondary Text**: `#b3b3b3` (Artists, durations, inactive menu items - `text-muma-spotify-text`)

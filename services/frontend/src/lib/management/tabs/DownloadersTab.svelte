@@ -144,8 +144,8 @@
   function toneClass(tone) {
     if (tone === 'parked') return 'text-red-400';
     if (tone === 'slowed') return 'text-yellow-400';
-    if (tone === 'ok') return 'text-spotify-green';
-    return 'text-spotify-lightgray';
+    if (tone === 'ok') return 'text-brand';
+    return 'text-muma-spotify-text';
   }
 
   async function addAccount() {
@@ -223,70 +223,70 @@
 <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
   <header>
     <h1 class="text-6xl font-extrabold mb-4 tracking-tighter">{$t('management.tabs.downloaders')}</h1>
-    <p class="text-spotify-lightgray text-lg">{$t('management.downloaders.subtitle')}</p>
+    <p class="text-muma-spotify-text text-lg">{$t('management.downloaders.subtitle')}</p>
   </header>
 
-  <div class="flex gap-6 border-b border-white border-opacity-10">
+  <div class="flex gap-6 border-b border-white/10">
     <button 
       on:click={() => downloaderSubTab = 'soundcloud'}
-      class="pb-4 font-bold text-sm transition-colors relative {downloaderSubTab === 'soundcloud' ? 'text-white' : 'text-spotify-lightgray hover:text-white'}"
+      class="pb-4 font-bold text-sm transition-colors relative {downloaderSubTab === 'soundcloud' ? 'text-white' : 'text-muma-spotify-text hover:text-white'}"
     >
       SoundCloud
       {#if downloaderSubTab === 'soundcloud'}
-        <div class="absolute bottom-0 left-0 right-0 h-1 bg-spotify-green rounded-full animate-in fade-in duration-300"></div>
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-brand rounded-full animate-in fade-in duration-300"></div>
       {/if}
     </button>
     <button 
       on:click={() => downloaderSubTab = 'youtube'}
-      class="pb-4 font-bold text-sm transition-colors relative {downloaderSubTab === 'youtube' ? 'text-white' : 'text-spotify-lightgray hover:text-white'}"
+      class="pb-4 font-bold text-sm transition-colors relative {downloaderSubTab === 'youtube' ? 'text-white' : 'text-muma-spotify-text hover:text-white'}"
     >
       YouTube
       {#if downloaderSubTab === 'youtube'}
-        <div class="absolute bottom-0 left-0 right-0 h-1 bg-spotify-green rounded-full animate-in fade-in duration-300"></div>
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-brand rounded-full animate-in fade-in duration-300"></div>
       {/if}
     </button>
     <button
       on:click={() => downloaderSubTab = 'timing'}
-      class="pb-4 font-bold text-sm transition-colors relative {downloaderSubTab === 'timing' ? 'text-white' : 'text-spotify-lightgray hover:text-white'}"
+      class="pb-4 font-bold text-sm transition-colors relative {downloaderSubTab === 'timing' ? 'text-white' : 'text-muma-spotify-text hover:text-white'}"
     >
       Timing
       {#if downloaderSubTab === 'timing'}
-        <div class="absolute bottom-0 left-0 right-0 h-1 bg-spotify-green rounded-full animate-in fade-in duration-300"></div>
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-brand rounded-full animate-in fade-in duration-300"></div>
       {/if}
     </button>
   </div>
 
   {#if downloaderSubTab === 'soundcloud'}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300">
-      <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 space-y-6">
-        <h3 class="text-xl font-bold flex items-center gap-2"><Plus class="text-spotify-green" /> {$t('management.downloaders.addAccount')}</h3>
+      <div class="bg-muma-spotify-panel p-6 rounded-xl border border-white/5 space-y-6">
+        <h3 class="text-xl font-bold flex items-center gap-2"><Plus class="text-brand" /> {$t('management.downloaders.addAccount')}</h3>
         <form on:submit|preventDefault={addAccount} class="space-y-4">
           <div>
-            <label for="accountSlug" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">{$t('management.downloaders.accountSlug')}</label>
-            <input id="accountSlug" type="text" bind:value={newAccountName} placeholder={$t('management.downloaders.accountSlugPlaceholder')} class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
+            <label for="accountSlug" class="block text-xs font-bold text-muma-spotify-text uppercase mb-2">{$t('management.downloaders.accountSlug')}</label>
+            <input id="accountSlug" type="text" bind:value={newAccountName} placeholder={$t('management.downloaders.accountSlugPlaceholder')} class="w-full bg-muma-spotify-dark border border-muma-spotify-panel rounded-md p-3 text-white focus:outline-none focus:border-brand" />
           </div>
           <div>
-            <label for="soundcloudId" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">{$t('management.downloaders.soundcloudId')}</label>
-            <input id="soundcloudId" type="text" bind:value={newAccountId} placeholder="123456" class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
+            <label for="soundcloudId" class="block text-xs font-bold text-muma-spotify-text uppercase mb-2">{$t('management.downloaders.soundcloudId')}</label>
+            <input id="soundcloudId" type="text" bind:value={newAccountId} placeholder="123456" class="w-full bg-muma-spotify-dark border border-muma-spotify-panel rounded-md p-3 text-white focus:outline-none focus:border-brand" />
           </div>
-          <button type="submit" class="w-full bg-spotify-green text-black font-extrabold py-3 rounded-full hover:scale-105 transition-transform">{$t('management.downloaders.add')}</button>
+          <button type="submit" class="w-full bg-brand text-black font-extrabold py-3 rounded-full hover:scale-105 transition-transform">{$t('management.downloaders.add')}</button>
         </form>
       </div>
-      <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+      <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 overflow-hidden">
         <table class="w-full text-left">
-          <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
+          <thead class="bg-black/20 text-xs uppercase text-muma-spotify-text">
             <tr><th class="p-4">{$t('management.downloaders.account')}</th><th class="p-4 text-right">{$t('management.genres.actions')}</th></tr>
           </thead>
-          <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+          <tbody class="divide-y divide-muma-spotify-panel/30">
             {#each accounts as account (account.name)}
-              <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
+              <tr class="hover:bg-white/5 transition-colors group">
                 <td class="p-4 font-bold">
-                  <a href="https://soundcloud.com/{account.name}" target="_blank" class="flex items-center gap-2 hover:text-spotify-green">
+                  <a href="https://soundcloud.com/{account.name}" target="_blank" class="flex items-center gap-2 hover:text-brand">
                     {account.name} <ExternalLink size={14} />
                   </a>
                 </td>
                 <td class="p-4 text-right">
-                  <button on:click={() => deleteSoundcloudAccount(account.name)} class="text-spotify-lightgray hover:text-red-500">
+                  <button on:click={() => deleteSoundcloudAccount(account.name)} class="text-muma-spotify-text hover:text-red-500">
                     <Trash2 size={16} />
                   </button>
                 </td>
@@ -298,50 +298,50 @@
     </div>
   {:else if downloaderSubTab === 'youtube'}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300">
-      <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 space-y-6">
-        <h3 class="text-xl font-bold mb-6 flex items-center gap-2"><Search class="text-spotify-green" /> {$t('management.downloaders.quickAdd')}</h3>
+      <div class="bg-muma-spotify-panel p-6 rounded-xl border border-white/5 space-y-6">
+        <h3 class="text-xl font-bold mb-6 flex items-center gap-2"><Search class="text-brand" /> {$t('management.downloaders.quickAdd')}</h3>
         <form on:submit|preventDefault={addYoutubeAccount} class="space-y-4">
           <div class="flex gap-2">
-            <input type="text" bind:value={newAccountName} placeholder={$t('management.downloaders.channelPlaceholder')} class="flex-1 bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
-            <select bind:value={newYoutubeDownloadType} aria-label={$t('management.downloaders.downloadType')} class="bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green">
+            <input type="text" bind:value={newAccountName} placeholder={$t('management.downloaders.channelPlaceholder')} class="flex-1 bg-muma-spotify-dark border border-muma-spotify-panel rounded-md p-3 text-white focus:outline-none focus:border-brand" />
+            <select bind:value={newYoutubeDownloadType} aria-label={$t('management.downloaders.downloadType')} class="bg-muma-spotify-dark border border-muma-spotify-panel rounded-md p-3 text-white focus:outline-none focus:border-brand">
               <option value="audio">{$t('management.downloaders.typeAudio')}</option>
               <option value="video">{$t('management.downloaders.typeVideo')}</option>
             </select>
-            <button type="submit" class="bg-spotify-green text-black font-extrabold px-6 rounded-md hover:scale-105 transition-transform">{$t('management.downloaders.addShort')}</button>
+            <button type="submit" class="bg-brand text-black font-extrabold px-6 rounded-md hover:scale-105 transition-transform">{$t('management.downloaders.addShort')}</button>
           </div>
-          <p class="text-xs text-spotify-lightgray italic">{$t('management.downloaders.quickAddHelp')}</p>
+          <p class="text-xs text-muma-spotify-text italic">{$t('management.downloaders.quickAddHelp')}</p>
         </form>
 
-        <div class="pt-6 border-t border-white border-opacity-5">
+        <div class="pt-6 border-t border-white/5">
           <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><Play class="text-red-500" /> {$t('management.downloaders.manualDownload')}</h3>
           <div class="flex gap-2">
-            <input type="text" placeholder={$t('management.downloaders.videoUrlPlaceholder')} class="flex-1 bg-spotify-dark border border-spotify-gray rounded-md p-3 text-white focus:outline-none focus:border-spotify-green" />
+            <input type="text" placeholder={$t('management.downloaders.videoUrlPlaceholder')} class="flex-1 bg-muma-spotify-dark border border-muma-spotify-panel rounded-md p-3 text-white focus:outline-none focus:border-brand" />
             <button class="bg-white text-black font-extrabold px-6 rounded-md hover:scale-105 transition-transform">{$t('management.downloaders.fetch')}</button>
           </div>
         </div>
       </div>
-      <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+      <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 overflow-hidden">
         <table class="w-full text-left">
-          <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
+          <thead class="bg-black/20 text-xs uppercase text-muma-spotify-text">
             <tr><th class="p-4">{$t('management.downloaders.channel')}</th><th class="p-4">{$t('management.downloaders.downloadType')}</th><th class="p-4 text-right">{$t('management.genres.actions')}</th></tr>
           </thead>
-          <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+          <tbody class="divide-y divide-muma-spotify-panel/30">
             <!-- The table's key is (name, download_type): a channel can appear once
                  as audio and once as video, so the name alone is not a unique key. -->
             {#each youtubeAccounts as account (account.name + '/' + (account.download_type || 'audio'))}
-              <tr class="hover:bg-white hover:bg-opacity-5 transition-colors group">
+              <tr class="hover:bg-white/5 transition-colors group">
                 <td class="p-4 font-bold">
-                  <a href="https://youtube.com/{account.name.startsWith('@') ? account.name : 'channel/'+account.name}" target="_blank" class="flex items-center gap-2 hover:text-spotify-green">
+                  <a href="https://youtube.com/{account.name.startsWith('@') ? account.name : 'channel/'+account.name}" target="_blank" class="flex items-center gap-2 hover:text-brand">
                     {account.name} <ExternalLink size={14} />
                   </a>
                 </td>
                 <td class="p-4">
-                  <span class="text-xs font-bold uppercase px-2 py-1 rounded-full {account.download_type === 'video' ? 'bg-red-500 bg-opacity-20 text-red-400' : 'bg-spotify-green bg-opacity-20 text-spotify-green'}">
+                  <span class="text-xs font-bold uppercase px-2 py-1 rounded-full {account.download_type === 'video' ? 'bg-red-500/20 text-red-400' : 'bg-brand/20 text-brand'}">
                     {account.download_type === 'video' ? $t('management.downloaders.typeVideo') : $t('management.downloaders.typeAudio')}
                   </span>
                 </td>
                 <td class="p-4 text-right">
-                  <button on:click={() => deleteYoutubeAccount(account.name, account.download_type || 'audio')} class="text-spotify-lightgray hover:text-red-500">
+                  <button on:click={() => deleteYoutubeAccount(account.name, account.download_type || 'audio')} class="text-muma-spotify-text hover:text-red-500">
                     <Trash2 size={16} />
                   </button>
                 </td>
@@ -353,24 +353,24 @@
     </div>
   {:else if downloaderSubTab === 'timing'}
     <div class="space-y-6 animate-in fade-in duration-300">
-      <p class="text-spotify-lightgray text-sm max-w-3xl">
+      <p class="text-muma-spotify-text text-sm max-w-3xl">
         {$t('management.downloaders.timingHelp')}
       </p>
 
       {#if timingLoading && !timingLoaded}
-        <p class="text-spotify-lightgray">{$t('management.downloaders.loadingSettings')}</p>
+        <p class="text-muma-spotify-text">{$t('management.downloaders.loadingSettings')}</p>
       {/if}
 
       {#if timingError}
-        <div class="bg-red-500 bg-opacity-10 border border-red-500 border-opacity-30 rounded-xl p-6 space-y-3">
+        <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-6 space-y-3">
           <h3 class="text-lg font-bold flex items-center gap-2 text-red-400">
             <AlertTriangle size={20} /> {$t('management.downloaders.timingUnavailable')}
           </h3>
-          <p class="text-sm text-spotify-lightgray">{$t('management.downloaders.timingUnavailableHelp')}</p>
+          <p class="text-sm text-muma-spotify-text">{$t('management.downloaders.timingUnavailableHelp')}</p>
           <p class="text-xs font-mono text-red-300 break-all">{timingError}</p>
           <button
             on:click={loadTiming}
-            class="flex items-center gap-2 text-sm font-bold text-white border border-white border-opacity-20 rounded-full px-4 py-2 hover:bg-white hover:bg-opacity-5"
+            class="flex items-center gap-2 text-sm font-bold text-white border border-white/20 rounded-full px-4 py-2 hover:bg-white/5"
           >
             <RotateCcw size={14} /> {$t('management.downloaders.retry')}
           </button>
@@ -380,15 +380,15 @@
       {#each timingSources as entry (entry.source)}
         {@const state = rateStates[entry.source]}
         {@const backoff = describeBackoff(state)}
-        <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-          <div class="flex flex-wrap items-center justify-between gap-4 p-6 bg-black bg-opacity-20">
+        <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 overflow-hidden">
+          <div class="flex flex-wrap items-center justify-between gap-4 p-6 bg-black/20">
             <div>
               <h3 class="text-xl font-bold flex items-center gap-2">
-                <Timer class="text-spotify-green" size={20} /> {SOURCE_LABELS[entry.source] || entry.source}
+                <Timer class="text-brand" size={20} /> {SOURCE_LABELS[entry.source] || entry.source}
               </h3>
               <p class="text-sm font-bold mt-1 {toneClass(backoff.tone)}">{backoff.label}</p>
               {#if state}
-                <p class="text-xs text-spotify-lightgray mt-1">
+                <p class="text-xs text-muma-spotify-text mt-1">
                   {$t('management.downloaders.cadence', { sweep: formatDuration(state.effective_sweep_interval), cooldown: formatDuration(state.effective_account_cooldown) })}
                   {#if state.last_429_at} · {$t('management.downloaders.last429', { date: new Date(state.last_429_at).toLocaleString($locale) })}{/if}
                 </p>
@@ -397,14 +397,14 @@
             <div class="flex gap-3">
               <button
                 on:click={() => resetBackoff(entry.source)}
-                class="flex items-center gap-2 text-sm font-bold text-spotify-lightgray hover:text-white border border-white border-opacity-10 rounded-full px-4 py-2"
+                class="flex items-center gap-2 text-sm font-bold text-muma-spotify-text hover:text-white border border-white/10 rounded-full px-4 py-2"
               >
                 <RotateCcw size={14} /> {$t('management.downloaders.resetBackoff')}
               </button>
               <button
                 on:click={() => saveTiming(entry.source)}
                 disabled={savingSource === entry.source}
-                class="bg-spotify-green text-black font-extrabold px-6 py-2 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                class="bg-brand text-black font-extrabold px-6 py-2 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
               >
                 {savingSource === entry.source ? 'OPSLAAN...' : 'OPSLAAN'}
               </button>
@@ -424,7 +424,7 @@
           <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 p-6">
             {#each entry.fields as field (field.key)}
               <div>
-                <label for="{entry.source}-{field.key}" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">
+                <label for="{entry.source}-{field.key}" class="block text-xs font-bold text-muma-spotify-text uppercase mb-2">
                   {field.key.replace(/_/g, ' ')}
                 </label>
                 <div class="flex items-center gap-2">
@@ -434,12 +434,12 @@
                     min={field.minimum}
                     max={field.maximum}
                     bind:value={edited[entry.source][field.key]}
-                    class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 text-white focus:outline-none focus:border-spotify-green"
+                    class="w-full bg-muma-spotify-dark border border-muma-spotify-panel rounded-md p-2 text-white focus:outline-none focus:border-brand"
                   />
-                  <span class="text-xs text-spotify-lightgray whitespace-nowrap">{field.unit}</span>
+                  <span class="text-xs text-muma-spotify-text whitespace-nowrap">{field.unit}</span>
                 </div>
-                <p class="text-xs text-spotify-lightgray mt-1">{field.description}</p>
-                <p class="text-xs text-spotify-lightgray opacity-60 mt-1">
+                <p class="text-xs text-muma-spotify-text mt-1">{field.description}</p>
+                <p class="text-xs text-muma-spotify-text opacity-60 mt-1">
                   standaard {field.default}
                   {#if field.unit === 'seconden'} ({formatDuration(field.default)}){/if}
                   · toegestaan {field.minimum}–{field.maximum}

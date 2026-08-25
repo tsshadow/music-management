@@ -266,9 +266,11 @@ security:secret-scan:
 #
 # Self-hosted, because Mend's hosted GitLab app only serves gitlab.com and this
 # instance is our own. The upstream renovate-runner CI template is the usual
-# route; it is not used here because on a self-hosted instance it has to be
-# pulled in as a remote `include:` from gitlab.com on every pipeline, and the
-# job it installs is the dozen lines below.
+# route, and it is unusable here twice over: on a self-hosted instance it has
+# to be pulled in as a remote `include:` from gitlab.com on every pipeline, and
+# the job it installs declares an `image:`, which this shell-executor runner
+# never starts. scripts/ci/renovate.sh runs the container itself, the way
+# secret-scan.sh and sast.sh do.
 #
 # Scheduled only, guarded by $RENOVATE so that an ordinary push can never start
 # a bot that opens merge requests, and by $RENOVATE_TOKEN so the job disappears
@@ -287,24 +289,14 @@ security:secret-scan:
 deps:renovate:
   stage: audit
   needs: []
-  image: renovate/renovate:41
   timeout: 30m
   interruptible: false
+  tags: !reference [.fast_runner, tags]
   retry: !reference [.infra_retry, retry]
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule" && $RENOVATE == "true" && $RENOVATE_TOKEN'
-  variables:
-    RENOVATE_ENDPOINT: "$CI_API_V4_URL"
-    RENOVATE_PLATFORM: gitlab
-    # Never discover other projects on this instance: this job is scoped to the
-    # repository it lives in, and autodiscover on a personal instance would walk
-    # everything the token can see.
-    RENOVATE_AUTODISCOVER: "false"
-    RENOVATE_REPOSITORIES: "$CI_PROJECT_PATH"
-    RENOVATE_GIT_TIMEOUT: "60000"
-    LOG_LEVEL: info
   script:
-    - renovate
+    - ./scripts/ci/renovate.sh
 
 # --- Unit tests -------------------------------------------------------------
 

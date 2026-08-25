@@ -12,10 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in de boom en beschrijft precies wat gegroepeerd wordt en wat zichzelf mag mergen, maar er was
   nooit iets dat het uitvoerde: geen enkele merge request, geen dependency dashboard, niets. De
   `renovate/*`-branches in de geschiedenis zijn van 2023 en komen uit Ultrasonic, niet hier. Er
-  staat nu een `deps:renovate`-taak die de bot draait tegen deze eigen GitLab. Zelf gehost, want de
-  gehoste app van Mend bedient alleen gitlab.com; de gebruikelijke CI-template van renovate-runner
-  is er niet in gegaan omdat die op een eigen instance bij elke pipeline als externe `include:` van
-  gitlab.com gehaald moet worden, en de taak die hij neerzet is het dozijn regels dat er nu staat.
+  staat nu een `deps:renovate`-taak die de bot draait tegen deze eigen GitLab, via
+  `scripts/ci/renovate.sh`. Zelf gehost, want de gehoste app van Mend bedient alleen gitlab.com; de
+  gebruikelijke CI-template van renovate-runner valt om twee redenen af. Die moet op een eigen
+  instance bij elke pipeline als externe `include:` van gitlab.com gehaald worden, én de taak die
+  hij neerzet draait op een `image:` — en de runner hier is een shell executor, die zo'n taak nooit
+  start. Het script draait de container daarom zelf, net als `secret-scan.sh` en `sast.sh` al deden.
+  Er wordt niets van de werkmap in gemount: Renovate kloont de repository zelf via de API, en een
+  tweede, verouderde kopie ernaast is alleen maar verwarrend. Een draai die niets doet omdat er iets
+  misging telt niet als geslaagd — het script leest het logboek na op fatale meldingen, want Renovate
+  eindigt met code 0 nadat het een repository heeft overgeslagen, en bij precies één geconfigureerde
+  repository is dat niet van succes te onderscheiden.
   Hij loopt alleen vanaf een schedule met `RENOVATE=true`, zodat een gewone push nooit een bot kan
   starten die merge requests opent, en verdwijnt vanzelf als er geen token is ingesteld. De twee
   taken die op *elke* schedule meeliftten — de kwetsbaarhedenscan en de geheimenscan — zijn

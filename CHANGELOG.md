@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Beheer heeft geen platte lijst van eenentwintig tabbladen meer, maar acht ingangen.** Collectie,
+  Curatie, Kanalen, Toegang, Systeem en Instellingen klappen open; Overzicht en Downloaders staan
+  los, want een groep van één voegt alleen een klik toe. De tabbladen zelf en hun `/management/...`
+  adressen zijn niet veranderd, dus bestaande links blijven werken, en welke groep openstond
+  onthoudt je browser. Twee tabbladen zijn weg: Over stond ook al bij je persoonlijke instellingen,
+  en Versies liet één versienummer zien dat het als zes verschillende presenteerde — `/api/versions`
+  vroeg nooit iets aan een worker, dus dat "offline" dat het rood kon kleuren kon domweg niet
+  voorkomen. Het echte versienummer staat op Overzicht.
+
+## [0.35.0] - 2026-08-25
+
 ### Added
 - **De webui bladert nu ook op festival, jaar en lineup, net als de Android-app.** Drie pagina's
   onder Bibliotheek, met dezelfde kaartenrasters als Genres en Labels. De server kende de lijsten
@@ -34,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ander en waren zo niet te vinden. De server telt er meteen bij hoeveel nummers er in totaal aan
   het filter voldoen, en dat getal komt in de schermtitel te staan en achter het "samen"-item in
   het keuzemenu.
+
 
 ## [0.34.0] - 2026-08-24
 

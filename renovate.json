@@ -14,8 +14,7 @@
   "lockFileMaintenance": { "enabled": true },
   "vulnerabilityAlerts": {
     "labels": ["dependencies", "security"],
-    "schedule": ["at any time"],
-    "prPriority": 10
+    "schedule": ["at any time"]
   },
   "packageRules": [
     {
@@ -39,7 +38,7 @@
       "description": "yt-dlp ships breaking extractor fixes as ordinary releases; being behind on it is what actually breaks downloading. Merge automatically once the pipeline is green, and exempt it from the repo-wide cooldown -- a three-day wait here is three days of failing downloads.",
       "matchPackageNames": ["yt-dlp"],
       "automerge": true,
-      "minimumReleaseAge": false,
+      "minimumReleaseAge": "0 days",
       "schedule": ["at any time"]
     },
     {
@@ -53,6 +52,49 @@
       "matchDepTypes": ["devDependencies"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "frontend dev dependencies",
+      "automerge": true
+    },
+    {
+      "description": "Frontend runtime dependencies are covered by the same gates as the dev ones -- vitest, typecheck, lint and frontend:browser all run against the built app, so a break here is a red pipeline rather than a bad deploy.",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["dependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "frontend dependencies",
+      "automerge": true
+    },
+    {
+      "description": "muma-mobile's dependencies live in a version catalog and move as one group; reviewing an androidx patch bump by hand is noise. Covered by muma-mobile:check.",
+      "matchManagers": ["gradle"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "muma-mobile (minor/patch)",
+      "automerge": true
+    },
+    {
+      "description": "A Gradle major is AGP, Kotlin or media3 changing its API. Those are migrations and get their own review, exactly like the Python majors above.",
+      "matchManagers": ["gradle"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Test and lint libraries are not in the APK, so the worst a bad one can do is turn muma-mobile:check red -- which is the check. Majors included, for that reason.\n\nThis list is explicit rather than a match on testImplementation, and the reason is the version catalog: Renovate updates a shared version.ref, not a single coordinate. kotlin-test-junit and kotlin-reflect ride on the same `kotlin` ref as the compiler, kotlinx-coroutines-test on the runtime coroutines, and mockwebserver on okhttp. Matching those by their test-sounding names would automerge a Kotlin compiler upgrade. They stay in the runtime group above on purpose.",
+      "matchManagers": ["gradle"],
+      "matchPackageNames": [
+        "junit:junit",
+        "org.junit.vintage:junit-vintage-engine",
+        "org.junit.platform:junit-platform-launcher",
+        "org.mockito:mockito-core",
+        "org.mockito.kotlin:mockito-kotlin",
+        "io.mockk:mockk",
+        "io.mockk:mockk-android",
+        "org.amshove.kluent:kluent",
+        "com.tngtech.archunit:archunit-junit5",
+        "org.robolectric:robolectric",
+        "org.jacoco:org.jacoco.ant",
+        "org.jlleitschuh.gradle:ktlint-gradle",
+        "io.gitlab.arturbosch.detekt:detekt-gradle-plugin"
+      ],
+      "groupName": "muma-mobile test and lint tooling",
+      "dependencyDashboardApproval": false,
       "automerge": true
     },
     {

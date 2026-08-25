@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.25.0] - 2026-08-25
+
 ### Added
 - **Everything the track info sheet knows about a track is now a way into the library.** The
   genre, label and mood chips and the released row are tappable and open the track list with that

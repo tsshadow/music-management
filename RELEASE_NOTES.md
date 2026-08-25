@@ -11,6 +11,31 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.36.0 (2026-08-25)
+
+- **Beheer heeft geen platte lijst van eenentwintig tabbladen meer, maar acht ingangen.** Collectie,
+  Curatie, Kanalen, Toegang, Systeem en Instellingen klappen open; Overzicht en Downloaders staan
+  los. De adressen van de tabbladen zijn niet veranderd, dus bestaande links blijven werken, en je
+  browser onthoudt welke groep openstond. Twee tabbladen zijn weg: Over stond ook al bij je
+  persoonlijke instellingen, en Versies liet één versienummer zien dat het als zes verschillende
+  presenteerde.
+- **De webspeler heeft nu een equalizer.** Tien banden van 31 Hz tot 16 kHz, een voorversterking en
+  zeven voorinstellingen. De instelling hangt aan de browser en niet aan je account, want het is een
+  correctie voor jouw speakers of koptelefoon. Kan de audioketen niet gebouwd worden, dan verdwijnt
+  de knop en speelt de speler precies zoals hij altijd deed.
+- **Een gewijzigde tagger-regel markeert nu zelf de bestanden die eronder vallen.** Tot nu toe moest
+  iemand daaraan denken. De tagger-tab laat zien hoeveel bestanden op een retag wachten en waarom,
+  artiest-omleidingen zijn vanuit de applicatie te bewerken, en BPM is aan te zetten vanaf de
+  configuratiepagina.
+- **Beheer op de telefoon opent op een gegroepeerde index in plaats van een rij tabbladen.** Alle
+  negentien beheerpagina's staan er; de zestien die de app nog niet heeft, staan gedimd met de
+  mededeling dat ze voorlopig alleen op het web zitten. Zo is de index een eerlijk beeld van wat
+  beheer omvat.
+- **Alles wat het infoscherm van een nummer weet, is nu een ingang naar de bibliotheek.** Genre,
+  label, mood en het jaar zijn aantikbaar en openen de nummerlijst met dat filter. Een nummer met
+  meerdere artiesten maakt van de artiestenregel een keuzemenu: elke artiest apart, plus wat ze
+  samen maakten.
+
 ## Global Version 0.35.0 (2026-08-25)
 
 - **De webui bladert nu ook op festival, jaar en lineup.** Onder Bibliotheek staan drie nieuwe

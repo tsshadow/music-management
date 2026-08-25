@@ -181,36 +181,36 @@
   <header class="flex justify-between items-end flex-wrap gap-4">
     <div>
       <h2 class="text-4xl font-extrabold mb-2 flex items-center gap-3">
-        <Radio class="text-spotify-green" size={32} /> {$t('management.tabs.radio')}
+        <Radio class="text-brand" size={32} /> {$t('management.tabs.radio')}
       </h2>
-      <p class="text-spotify-lightgray">{$t('management.radio.subtitle')}</p>
+      <p class="text-muma-spotify-text">{$t('management.radio.subtitle')}</p>
     </div>
     <div class="flex items-center gap-3">
       <button
         onclick={fetchChannels}
         disabled={loading}
         aria-label={$t('common.refresh')}
-        class="text-spotify-lightgray hover:text-white transition-colors disabled:opacity-50"
+        class="text-muma-spotify-text hover:text-white transition-colors disabled:opacity-50"
       >
         <RefreshCw size={18} class={loading ? 'animate-spin' : ''} />
       </button>
       <button
         onclick={startNew}
-        class="bg-spotify-green text-black px-4 py-2 rounded-full font-bold text-sm transition-transform hover:scale-105 flex items-center gap-2"
+        class="bg-brand text-black px-4 py-2 rounded-full font-bold text-sm transition-transform hover:scale-105 flex items-center gap-2"
       >
         <Plus size={16} /> {$t('management.radio.newChannel')}
       </button>
     </div>
   </header>
 
-  <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
+  <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 overflow-hidden">
     <div class="min-h-[120px]">
       {#if loading && channels.length === 0}
         <div class="flex items-center justify-center p-20">
-          <RefreshCw class="animate-spin text-spotify-green" size={32} />
+          <RefreshCw class="animate-spin text-brand" size={32} />
         </div>
       {:else if channels.length === 0}
-        <div class="flex flex-col items-center justify-center p-20 text-spotify-lightgray">
+        <div class="flex flex-col items-center justify-center p-20 text-muma-spotify-text">
           <Radio size={48} class="mb-4 opacity-20" />
           <p>{$t('management.radio.empty')}</p>
         </div>
@@ -218,25 +218,25 @@
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead>
-              <tr class="bg-white/5 text-spotify-lightgray text-[10px] uppercase tracking-wider">
+              <tr class="bg-white/5 text-muma-spotify-text text-[10px] uppercase tracking-wider">
                 <th class="p-4">{$t('management.radio.channel')}</th>
                 <th class="p-4">{$t('management.radio.plays')}</th>
                 <th class="p-4 text-right">{$t('management.genres.actions')}</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+            <tbody class="divide-y divide-muma-spotify-panel/30">
               {#each channels as channel (channel.slug)}
                 <tr class="hover:bg-white/5 transition-colors">
                   <td class="p-4">
                     <div class="font-bold">{channel.name}</div>
-                    <div class="text-[10px] text-spotify-lightgray">/{channel.slug}</div>
+                    <div class="text-[10px] text-muma-spotify-text">/{channel.slug}</div>
                     {#if !channel.enabled}
-                      <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-white/10 text-spotify-lightgray">
+                      <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-white/10 text-muma-spotify-text">
                         {$t('management.radio.disabled')}
                       </span>
                     {/if}
                   </td>
-                  <td class="p-4 text-spotify-lightgray">
+                  <td class="p-4 text-muma-spotify-text">
                     {describeFilter(channel.filter, $t('management.radio.wholeLibrary'))}
                   </td>
                   <td class="p-4 text-right">
@@ -273,39 +273,39 @@
   </div>
 
   {#if editing}
-    <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 p-6 space-y-6">
+    <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 p-6 space-y-6">
       <h3 class="text-xl font-bold">
         {editing === 'new' ? $t('management.radio.newChannel') : form.name}
       </h3>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <label class="flex flex-col gap-1 text-xs text-spotify-lightgray">
+        <label class="flex flex-col gap-1 text-xs text-muma-spotify-text">
           {$t('management.radio.name')}
           <input
             bind:value={form.name}
-            class="bg-spotify-dark border border-spotify-gray rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-spotify-green"
+            class="bg-muma-spotify-dark border border-muma-spotify-panel rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
           />
         </label>
         {#if editing === 'new'}
-          <label class="flex flex-col gap-1 text-xs text-spotify-lightgray">
+          <label class="flex flex-col gap-1 text-xs text-muma-spotify-text">
             {$t('management.radio.slug')}
             <input
               bind:value={form.slug}
               placeholder={slugify(form.name)}
-              class="bg-spotify-dark border border-spotify-gray rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-spotify-green"
+              class="bg-muma-spotify-dark border border-muma-spotify-panel rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
             />
           </label>
         {/if}
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <label class="flex flex-col gap-1 text-xs text-spotify-lightgray">
+        <label class="flex flex-col gap-1 text-xs text-muma-spotify-text">
           {$t('management.radio.label')}
           <input
             bind:value={form.label}
             list="radio-label-suggestions"
             oninput={(e) => fetchLabels(e.currentTarget.value)}
-            class="bg-spotify-dark border border-spotify-gray rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-spotify-green"
+            class="bg-muma-spotify-dark border border-muma-spotify-panel rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
           />
           <datalist id="radio-label-suggestions">
             {#each labelSuggestions as suggestion (suggestion.id)}
@@ -313,59 +313,59 @@
             {/each}
           </datalist>
         </label>
-        <label class="flex flex-col gap-1 text-xs text-spotify-lightgray">
+        <label class="flex flex-col gap-1 text-xs text-muma-spotify-text">
           {$t('management.radio.genre')}
           <input
             bind:value={form.genre}
-            class="bg-spotify-dark border border-spotify-gray rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-spotify-green"
+            class="bg-muma-spotify-dark border border-muma-spotify-panel rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
           />
         </label>
-        <label class="flex flex-col gap-1 text-xs text-spotify-lightgray">
+        <label class="flex flex-col gap-1 text-xs text-muma-spotify-text">
           {$t('management.radio.artist')}
           <input
             bind:value={form.artist}
-            class="bg-spotify-dark border border-spotify-gray rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-spotify-green"
+            class="bg-muma-spotify-dark border border-muma-spotify-panel rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
           />
         </label>
       </div>
 
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <label class="flex flex-col gap-1 text-xs text-spotify-lightgray">
+        <label class="flex flex-col gap-1 text-xs text-muma-spotify-text">
           {$t('management.radio.durationMin')}
           <input
             type="number"
             min="0"
             bind:value={form.duration_min}
-            class="bg-spotify-dark border border-spotify-gray rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-spotify-green"
+            class="bg-muma-spotify-dark border border-muma-spotify-panel rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
           />
         </label>
-        <label class="flex flex-col gap-1 text-xs text-spotify-lightgray">
+        <label class="flex flex-col gap-1 text-xs text-muma-spotify-text">
           {$t('management.radio.durationMax')}
           <input
             type="number"
             min="0"
             bind:value={form.duration_max}
-            class="bg-spotify-dark border border-spotify-gray rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-spotify-green"
+            class="bg-muma-spotify-dark border border-muma-spotify-panel rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
           />
         </label>
-        <label class="flex flex-col gap-1 text-xs text-spotify-lightgray">
+        <label class="flex flex-col gap-1 text-xs text-muma-spotify-text">
           {$t('management.radio.ratingMin')}
           <input
             type="number"
             min="0"
             max="5"
             bind:value={form.rating_min}
-            class="bg-spotify-dark border border-spotify-gray rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-spotify-green"
+            class="bg-muma-spotify-dark border border-muma-spotify-panel rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
           />
         </label>
-        <label class="flex items-center gap-2 text-xs text-spotify-lightgray mt-5">
+        <label class="flex items-center gap-2 text-xs text-muma-spotify-text mt-5">
           <input type="checkbox" bind:checked={form.include_unrated} />
           {$t('management.radio.includeUnrated')}
         </label>
       </div>
 
       <div class="flex items-center justify-between gap-4 flex-wrap border-t border-white/5 pt-4">
-        <div class="text-sm text-spotify-lightgray">
+        <div class="text-sm text-muma-spotify-text">
           <span class="font-bold text-white">{previewLabel}</span>
           {#if preview}
             <span class="ml-2">
@@ -392,7 +392,7 @@
           <button
             onclick={save}
             disabled={saving}
-            class="bg-spotify-green text-black px-4 py-2 rounded-full font-bold text-xs transition-transform hover:scale-105 disabled:opacity-50"
+            class="bg-brand text-black px-4 py-2 rounded-full font-bold text-xs transition-transform hover:scale-105 disabled:opacity-50"
           >
             {$t('common.save')}
           </button>
@@ -400,7 +400,7 @@
       </div>
 
       {#if preview?.sample?.length}
-        <ul class="text-xs text-spotify-lightgray space-y-1">
+        <ul class="text-xs text-muma-spotify-text space-y-1">
           {#each preview.sample as track (track.track_id)}
             <li>{track.artist} — {track.title}</li>
           {/each}

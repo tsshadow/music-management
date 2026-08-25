@@ -177,14 +177,14 @@ describe('ScrobbleTab', () => {
 
     expect(screen.getByText('LB: someuser')).toBeTruthy();
     expect(screen.getByText('500 / 1000')).toBeTruthy();
-    expect(container.querySelector('.bg-spotify-green.h-1\\.5').getAttribute('style')).toContain('width: 50%');
+    expect(container.querySelector('.bg-brand.h-1\\.5').getAttribute('style')).toContain('width: 50%');
   });
 
   it('an import that found nothing shows an empty bar', () => {
     const imports = [{ ...IMPORTS[0], processed: 0, total_found: 0 }];
     const { container } = render(ScrobbleTab, props({ latestImports: imports }));
 
-    expect(container.querySelector('.bg-spotify-green.h-1\\.5').getAttribute('style')).toContain('width: 0%');
+    expect(container.querySelector('.bg-brand.h-1\\.5').getAttribute('style')).toContain('width: 0%');
   });
 
   it('says so when nothing has been imported yet', () => {

@@ -56,18 +56,18 @@
 <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
   <header>
     <h2 class="text-4xl font-extrabold mb-2">📻 {$t('management.scrobble.title')}</h2>
-    <p class="text-spotify-lightgray">{$t('management.scrobble.subtitle')}</p>
+    <p class="text-muma-spotify-text">{$t('management.scrobble.subtitle')}</p>
   </header>
 
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
     <!-- Import Form -->
-    <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
+    <div class="bg-muma-spotify-panel p-6 rounded-xl border border-white/5">
       <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
-        <RefreshCw class="text-spotify-green {isImporting ? 'animate-spin' : ''}" /> {$t('management.scrobble.import')}
+        <RefreshCw class="text-brand {isImporting ? 'animate-spin' : ''}" /> {$t('management.scrobble.import')}
       </h3>
       <form on:submit|preventDefault={startLbImport} class="space-y-4">
         <div>
-          <label for="muma-user" class="block text-sm font-bold text-spotify-lightgray mb-2">{$t('management.scrobble.mumaUser')}</label>
+          <label for="muma-user" class="block text-sm font-bold text-muma-spotify-text mb-2">{$t('management.scrobble.mumaUser')}</label>
           <select 
             id="muma-user" 
             bind:value={importMumaUser}
@@ -79,7 +79,7 @@
                 // This might need a tick or reactive update
               }
             }}
-            class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
+            class="w-full bg-muma-spotify-dark border border-muma-spotify-panel rounded-md p-3 focus:outline-none focus:border-brand transition-colors"
           >
             <option value="">{$t('management.scrobble.pickUser')}</option>
             {#each users as user (user.username)}
@@ -88,27 +88,27 @@
           </select>
         </div>
         <div>
-          <label for="lb-user" class="block text-sm font-bold text-spotify-lightgray mb-2">{$t('management.scrobble.lbUsername')}</label>
+          <label for="lb-user" class="block text-sm font-bold text-muma-spotify-text mb-2">{$t('management.scrobble.lbUsername')}</label>
           <div class="relative">
             <input 
               type="text" 
               id="lb-user" 
               bind:value={importLbUser}
               placeholder={lbUsername ? `Gekoppeld: ${lbUsername}` : "someuser"}
-              class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
+              class="w-full bg-muma-spotify-dark border border-muma-spotify-panel rounded-md p-3 focus:outline-none focus:border-brand transition-colors"
             />
             {#if !importLbUser && lbUsername}
-              <span class="absolute right-3 top-3 text-xs text-spotify-green font-bold">{$t('management.scrobble.linked')}</span>
+              <span class="absolute right-3 top-3 text-xs text-brand font-bold">{$t('management.scrobble.linked')}</span>
             {/if}
           </div>
-          <p class="text-[10px] text-spotify-lightgray mt-1 italic">
+          <p class="text-[10px] text-muma-spotify-text mt-1 italic">
             {$t('management.scrobble.optionalIfLinked')}
           </p>
         </div>
         <button 
           type="submit" 
           disabled={isImporting || !importMumaUser}
-          class="w-full bg-spotify-green text-black font-extrabold py-3 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+          class="w-full bg-brand text-black font-extrabold py-3 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
         >
           {isImporting ? $t('management.scrobble.importing') : $t('management.scrobble.startImport')}
         </button>
@@ -116,16 +116,16 @@
     </div>
 
     <!-- Recent Imports -->
-    <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-      <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex justify-between items-center">
+    <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 overflow-hidden">
+      <h3 class="p-6 text-xl font-bold bg-black/20 flex justify-between items-center">
         {$t('management.scrobble.recentImports')}
-        <button on:click={fetchLatestImports} class="text-spotify-lightgray hover:text-white transition-colors">
+        <button on:click={fetchLatestImports} class="text-muma-spotify-text hover:text-white transition-colors">
           <RefreshCw size={16} />
         </button>
       </h3>
       <div class="overflow-x-auto">
         <table class="w-full text-left">
-          <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
+          <thead class="bg-black/20 text-xs uppercase text-muma-spotify-text">
             <tr>
               <th class="p-4">{$t('management.scrobble.user')}</th>
               <th class="p-4">{$t('management.health.status')}</th>
@@ -133,35 +133,35 @@
               <th class="p-4 text-right">{$t('management.scrobble.started')}</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-spotify-gray divide-opacity-30 text-sm">
+          <tbody class="divide-y divide-muma-spotify-panel/30 text-sm">
             {#each latestImports as imp (imp.started_at)}
-              <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
+              <tr class="hover:bg-white/5 transition-colors">
                 <td class="p-4">
                   <div class="font-bold">{imp.username}</div>
-                  <div class="text-xs text-spotify-lightgray">LB: {imp.lb_username}</div>
+                  <div class="text-xs text-muma-spotify-text">LB: {imp.lb_username}</div>
                 </td>
                 <td class="p-4">
                   <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase
-                    {imp.status === 'completed' ? 'bg-spotify-green text-black' : 
+                    {imp.status === 'completed' ? 'bg-brand text-black' : 
                      imp.status === 'running' ? 'bg-blue-500 text-white' : 
-                     imp.status === 'failed' ? 'bg-red-500 text-white' : 'bg-spotify-gray text-white'}">
+                     imp.status === 'failed' ? 'bg-red-500 text-white' : 'bg-muma-spotify-panel text-white'}">
                     {imp.status}
                   </span>
                 </td>
                 <td class="p-4">
-                  <div class="w-full bg-spotify-dark rounded-full h-1.5 mb-1">
-                    <div class="bg-spotify-green h-1.5 rounded-full" style="width: {imp.total_found > 0 ? (imp.processed / imp.total_found) * 100 : 0}%"></div>
+                  <div class="w-full bg-muma-spotify-dark rounded-full h-1.5 mb-1">
+                    <div class="bg-brand h-1.5 rounded-full" style="width: {imp.total_found > 0 ? (imp.processed / imp.total_found) * 100 : 0}%"></div>
                   </div>
-                  <div class="text-[10px] text-spotify-lightgray">{imp.processed} / {imp.total_found}</div>
+                  <div class="text-[10px] text-muma-spotify-text">{imp.processed} / {imp.total_found}</div>
                 </td>
-                <td class="p-4 text-right text-xs text-spotify-lightgray">
+                <td class="p-4 text-right text-xs text-muma-spotify-text">
                   {new Date(imp.started_at).toLocaleString()}
                 </td>
               </tr>
             {/each}
             {#if latestImports.length === 0}
               <tr>
-                <td colspan="4" class="p-8 text-center text-spotify-lightgray italic">{$t('management.scrobble.noHistory')}</td>
+                <td colspan="4" class="p-8 text-center text-muma-spotify-text italic">{$t('management.scrobble.noHistory')}</td>
               </tr>
             {/if}
           </tbody>

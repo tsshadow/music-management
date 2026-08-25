@@ -106,6 +106,25 @@
     "showAll": "Alles tonen",
     "toggleFavorite": "Favoriet toggelen"
   },
+  "equalizer": {
+    "band": "Band {freq}",
+    "close": "Equalizer sluiten",
+    "enabled": "Equalizer aan",
+    "preamp": "Voorversterking",
+    "preset": "Voorinstelling",
+    "presets": {
+      "bassBoost": "Bass boost",
+      "classical": "Klassiek",
+      "custom": "Eigen",
+      "flat": "Vlak",
+      "jazz": "Jazz",
+      "pop": "Pop",
+      "rock": "Rock",
+      "vocal": "Zang"
+    },
+    "reset": "Herstellen",
+    "title": "Equalizer"
+  },
   "filter": {
     "allGenres": "Alle Genres",
     "allRatings": "Alle",

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-08-25
+
 ### Added
 - **De webui bladert nu ook op festival, jaar en lineup, net als de Android-app.** Drie pagina's
   onder Bibliotheek, met dezelfde kaartenrasters als Genres en Labels. De server kende de lijsten

@@ -10,6 +10,20 @@ import re
 from tests.ci.conftest import REPO_ROOT, job_names, load_ci
 
 
+def first_condition(ci, job):
+    """The job's first real `if:` rule.
+
+    Not `rules[0]`: every job now opens with a `!reference` to
+    .dedicated_schedule_guard, which parses as the reference path rather than a
+    mapping. These assertions are about which branches a job runs on, so they
+    should find that condition wherever it sits.
+    """
+    for rule in ci[job]["rules"]:
+        if isinstance(rule, dict) and "if" in rule:
+            return rule["if"]
+    raise AssertionError(f"{job} has no `if:` rule")
+
+
 def test_ci_file_parses():
     ci = load_ci()
     assert "stages" in ci
@@ -45,6 +59,67 @@ def test_gating_jobs_always_run_on_a_release_branch():
         assert any(
             rule == [".release_rule", "rules"] for rule in rules
         ), f"{name} does not reference .release_rule, so it can be skipped on a release branch"
+
+
+# A dedicated schedule sets exactly one of these, and exists to run exactly one
+# job. Everything else must step aside.
+SCHEDULE_OWNED_JOBS = {
+    "deps:renovate": "$RENOVATE",
+    "images:refresh-downloader": "$REFRESH_DOWNLOADER",
+}
+
+GUARD = [".dedicated_schedule_guard", "rules"]
+
+
+def test_a_dedicated_schedule_does_not_drag_in_the_whole_pipeline():
+    """GitLab treats `changes:` as always true in a scheduled pipeline, so every
+    job whose rule is a `changes:` list matches unconditionally there. Before
+    this guard, the weekly downloader refresh ran the entire suite on master --
+    including release:tag and release:back-merge-develop, which both succeeded
+    on pipeline 1119 for no reason anyone asked for."""
+    ci = load_ci()
+    offenders = [
+        name
+        for name in job_names(ci)
+        if name not in SCHEDULE_OWNED_JOBS and GUARD not in ci[name].get("rules", [])
+    ]
+    assert offenders == [], (
+        "these jobs would run on every dedicated schedule: " f"{offenders}"
+    )
+
+
+def test_the_guard_is_the_first_rule():
+    """Rules are evaluated in order and the first match wins. A guard placed
+    after a `changes:` rule never gets the chance to say no."""
+    ci = load_ci()
+    misplaced = [
+        name
+        for name in job_names(ci)
+        if name not in SCHEDULE_OWNED_JOBS and ci[name].get("rules", [None])[0] != GUARD
+    ]
+    assert misplaced == [], f"guard is not the first rule on: {misplaced}"
+
+
+def test_the_job_a_schedule_exists_for_is_not_guarded():
+    """The inverse, and the one that actually breaks the feature: guarding
+    deps:renovate would mean the renovate schedule runs nothing at all."""
+    ci = load_ci()
+    for name, variable in SCHEDULE_OWNED_JOBS.items():
+        assert GUARD not in ci[name]["rules"], f"{name} must not step aside for its own schedule"
+        conditions = " ".join(
+            rule.get("if", "") for rule in ci[name]["rules"] if isinstance(rule, dict)
+        )
+        assert variable in conditions, f"{name} does not check {variable}"
+
+
+def test_the_guard_covers_every_schedule_variable():
+    """A new dedicated schedule whose variable is missing here silently gets the
+    old behaviour: one job asked for, the whole suite delivered."""
+    ci = load_ci()
+    condition = ci[".dedicated_schedule_guard"]["rules"][0]["if"]
+    for variable in SCHEDULE_OWNED_JOBS.values():
+        assert variable in condition, f"{variable} is not in the guard"
+    assert ci[".dedicated_schedule_guard"]["rules"][0]["when"] == "never"
 
 
 def test_release_rule_covers_release_and_hotfix():
@@ -320,7 +395,7 @@ def test_ci_deploy_ends_in_a_gate_that_can_fail():
 
 def test_deploy_smoke_runs_on_every_release_branch():
     ci = load_ci()
-    condition = ci["deploy:smoke"]["rules"][0]["if"]
+    condition = first_condition(ci, "deploy:smoke")
     assert "release" in condition and "hotfix" in condition
     assert ci["deploy:smoke"]["needs"] == ["deploy:prod"]
 
@@ -331,7 +406,7 @@ def test_tagging_is_gated_on_what_production_actually_serves():
     nothing. Stage ordering cannot catch that -- only asking production can."""
     ci = load_ci()
     assert ci["release:tag"]["needs"] == ["release:verify-deployed"]
-    assert ci["release:verify-deployed"]["rules"][0]["if"] == '$CI_COMMIT_BRANCH == "master"'
+    assert first_condition(ci, "release:verify-deployed") == '$CI_COMMIT_BRANCH == "master"'
 
 
 # --- DAG correctness ---------------------------------------------------------
@@ -406,7 +481,7 @@ def test_branch_cleanup_does_not_depend_on_the_tag_or_the_deploy():
     ci = load_ci()
     job = ci["release:cleanup-branch"]
     assert job["needs"] == [], "cleanup must not wait on the tag or the deploy"
-    assert job["rules"][0]["if"] == '$CI_COMMIT_BRANCH == "master"'
+    assert first_condition(ci, "release:cleanup-branch") == '$CI_COMMIT_BRANCH == "master"'
 
 
 def test_the_back_merge_no_longer_deletes_branches():

@@ -7,77 +7,132 @@
   ],
   "description": "Dependency updates for the music-management monorepo. Every ecosystem in here (pip, npm, Gradle, Dockerfile) is picked up automatically; the rules below only decide how the updates are grouped and how eagerly they are merged.",
   "timezone": "Europe/Amsterdam",
-  "schedule": ["before 6am on monday"],
+  "schedule": [
+    "before 6am on monday"
+  ],
   "prConcurrentLimit": 5,
-  "labels": ["dependencies"],
-  "baseBranches": ["develop"],
-  "lockFileMaintenance": { "enabled": true },
+  "labels": [
+    "dependencies"
+  ],
+  "baseBranchPatterns": [
+    "develop"
+  ],
+  "lockFileMaintenance": {
+    "enabled": true
+  },
   "vulnerabilityAlerts": {
-    "labels": ["dependencies", "security"],
-    "schedule": ["at any time"]
+    "labels": [
+      "dependencies",
+      "security"
+    ],
+    "schedule": [
+      "at any time"
+    ]
   },
   "packageRules": [
     {
       "description": "A version published minutes ago can be unpublished, yanked or found compromised in the days after, and this repository merges several ecosystems automatically. Three days is long enough for that to surface and short enough that nothing waits a week; vulnerabilityAlerts above is scheduled at any time and is not held up by it.",
-      "matchPackageNames": ["*"],
+      "matchPackageNames": [
+        "*"
+      ],
       "minimumReleaseAge": "3 days"
     },
     {
       "description": "Patch and minor updates of the Python runtime stack move together: they are covered by the unit suite and reviewing them one by one is noise.",
-      "matchManagers": ["pip_requirements"],
-      "matchUpdateTypes": ["minor", "patch"],
+      "matchManagers": [
+        "pip_requirements"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
       "groupName": "python (minor/patch)"
     },
     {
       "description": "A major of fastapi/pydantic/sqlalchemy is a migration, not an update. Keep those separate so they get their own review.",
-      "matchManagers": ["pip_requirements"],
-      "matchUpdateTypes": ["major"],
+      "matchManagers": [
+        "pip_requirements"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "dependencyDashboardApproval": true
     },
     {
       "description": "yt-dlp ships breaking extractor fixes as ordinary releases; being behind on it is what actually breaks downloading. Merge automatically once the pipeline is green, and exempt it from the repo-wide cooldown -- a three-day wait here is three days of failing downloads.",
-      "matchPackageNames": ["yt-dlp"],
+      "matchPackageNames": [
+        "yt-dlp"
+      ],
       "automerge": true,
       "minimumReleaseAge": "0 days",
-      "schedule": ["at any time"]
+      "schedule": [
+        "at any time"
+      ]
     },
     {
       "description": "Dev tooling is not shipped to production; an upgrade can only turn the pipeline red, never break a user.",
-      "matchFileNames": ["requirements-dev.txt"],
+      "matchFileNames": [
+        "requirements-dev.txt"
+      ],
       "automerge": true
     },
     {
       "description": "Frontend dev dependencies move fast and are covered by lint + typecheck + vitest.",
-      "matchManagers": ["npm"],
-      "matchDepTypes": ["devDependencies"],
-      "matchUpdateTypes": ["minor", "patch"],
+      "matchManagers": [
+        "npm"
+      ],
+      "matchDepTypes": [
+        "devDependencies"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
       "groupName": "frontend dev dependencies",
       "automerge": true
     },
     {
       "description": "Frontend runtime dependencies are covered by the same gates as the dev ones -- vitest, typecheck, lint and frontend:browser all run against the built app, so a break here is a red pipeline rather than a bad deploy.",
-      "matchManagers": ["npm"],
-      "matchDepTypes": ["dependencies"],
-      "matchUpdateTypes": ["minor", "patch"],
+      "matchManagers": [
+        "npm"
+      ],
+      "matchDepTypes": [
+        "dependencies"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
       "groupName": "frontend dependencies",
       "automerge": true
     },
     {
       "description": "muma-mobile's dependencies live in a version catalog and move as one group; reviewing an androidx patch bump by hand is noise. Covered by muma-mobile:check.",
-      "matchManagers": ["gradle"],
-      "matchUpdateTypes": ["minor", "patch"],
+      "matchManagers": [
+        "gradle"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
       "groupName": "muma-mobile (minor/patch)",
       "automerge": true
     },
     {
       "description": "A Gradle major is AGP, Kotlin or media3 changing its API. Those are migrations and get their own review, exactly like the Python majors above.",
-      "matchManagers": ["gradle"],
-      "matchUpdateTypes": ["major"],
+      "matchManagers": [
+        "gradle"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "dependencyDashboardApproval": true
     },
     {
       "description": "Test and lint libraries are not in the APK, so the worst a bad one can do is turn muma-mobile:check red -- which is the check. Majors included, for that reason.\n\nThis list is explicit rather than a match on testImplementation, and the reason is the version catalog: Renovate updates a shared version.ref, not a single coordinate. kotlin-test-junit and kotlin-reflect ride on the same `kotlin` ref as the compiler, kotlinx-coroutines-test on the runtime coroutines, and mockwebserver on okhttp. Matching those by their test-sounding names would automerge a Kotlin compiler upgrade. They stay in the runtime group above on purpose.",
-      "matchManagers": ["gradle"],
+      "matchManagers": [
+        "gradle"
+      ],
       "matchPackageNames": [
         "junit:junit",
         "org.junit.vintage:junit-vintage-engine",
@@ -99,12 +154,17 @@
     },
     {
       "description": "Base image bumps rebuild every service image, so they are reviewed by hand.",
-      "matchManagers": ["dockerfile", "docker-compose"],
+      "matchManagers": [
+        "dockerfile",
+        "docker-compose"
+      ],
       "dependencyDashboardApproval": true
     },
     {
       "description": "Vendored upstream fork; its dependencies are managed by that project, not here.",
-      "matchFileNames": ["services/music-management-server/**"],
+      "matchFileNames": [
+        "services/music-management-server/**"
+      ],
       "enabled": false
     }
   ]

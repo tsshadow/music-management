@@ -35,8 +35,11 @@ librosa~=1.0.0
 # g++ -- which is what MR !490 died on, with an error naming meson rather than
 # this line.
 #
-# 2.4.6 and not the newest: numpy 2.5 requires Python >=3.12, and this image is
-# still on 3.11, so 2.5 cannot be the version that carries us across. The 2.4
+# 2.4.6 and not the newest: numpy 2.5 requires Python >=3.12, and at the time
+# this moved the image was still on 3.11, so 2.5 could not be the version that
+# carried us across. The images are on 3.14 now, so 2.5 is reachable and this
+# may move again -- it is kept here as the record of why the step was 2.4. The
+# 2.4
 # series is the last one that spans cp311 through cp314, which makes it the
 # only pin that is installable both before and after the Python bump. It also
 # stays under numba's `numpy<2.6`, and librosa 0.10.2 sets no upper bound.

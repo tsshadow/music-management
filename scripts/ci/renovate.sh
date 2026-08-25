@@ -22,7 +22,24 @@ set -o pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
-IMAGE="${RENOVATE_IMAGE:-renovate/renovate:41}"
+# The `-full` tag, not the default slim one, and the reason is npm.
+#
+# The slim image ships no language toolchains: it installs the one it needs at
+# runtime through containerbase, which resolves versions from the GitHub API.
+# Unauthenticated that is 60 requests an hour, and hourly runs blow straight
+# through it -- GitHub answers 403, containerbase reports "No tool releases
+# found", and Renovate cannot run `npm install` to regenerate a lock file.
+#
+# The visible symptom is nothing like the cause: the merge request appears with
+# package.json updated and package-lock.json untouched, and CI then fails on
+# `npm ci` refusing to install from an out-of-sync lock. Nothing in that error
+# mentions GitHub, rate limits or the image.
+#
+# The full image has node and npm preinstalled, so RENOVATE_BINARY_SOURCE=global
+# below uses them directly and no GitHub lookup happens at all. A token would
+# also fix it, but it needs a credential that this project does not otherwise
+# have; the image is bigger, and cached on the runner after the first pull.
+IMAGE="${RENOVATE_IMAGE:-renovate/renovate:41-full}"
 
 if [ -z "${RENOVATE_TOKEN:-}" ]; then
     echo "ERROR: RENOVATE_TOKEN is not set." >&2
@@ -61,6 +78,7 @@ docker run --rm \
     -e RENOVATE_PLATFORM=gitlab \
     -e RENOVATE_AUTODISCOVER=false \
     -e "RENOVATE_REPOSITORIES=${REPOSITORY}" \
+    -e RENOVATE_BINARY_SOURCE=global \
     -e "LOG_LEVEL=${LOG_LEVEL:-info}" \
     "${GITHUB_ENV[@]}" \
     "${DRY_RUN_ENV[@]}" \

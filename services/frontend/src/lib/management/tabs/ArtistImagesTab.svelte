@@ -403,7 +403,7 @@
                     {artist.width}x{artist.height} • {artist.source || 'onbekend'}
                   {:else}
                     <span class={artist.image_status === 'failed' ? 'text-red-400' : ''}>
-                      {artist.image_status === 'failed' ? $t('management.versions.notFound') : $t('management.images.noImage')}
+                      {artist.image_status === 'failed' ? $t('management.images.notFound') : $t('management.images.noImage')}
                     </span>
                   {/if}
                 </p>

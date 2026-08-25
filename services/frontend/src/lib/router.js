@@ -71,7 +71,6 @@ export const SETTINGS_TABS = ['general', 'advanced', 'about'];
 export const MANAGEMENT_TABS = [
   'overview',
   'library',
-  'libraries',
   'scanner',
   'images',
   'playlists',
@@ -79,17 +78,46 @@ export const MANAGEMENT_TABS = [
   'genre-curation',
   'label-proposals',
   'podcast-curation',
+  'downloaders',
   'radio',
   'news',
-  'downloaders',
-  'scrobble',
-  'health',
   'users',
   'user-requests',
-  'versions',
+  'health',
   'events',
-  'config',
-  'about'
+  'scrobble',
+  'libraries',
+  'config'
+];
+
+/**
+ * How the management tabs are grouped in the sidebar.
+ *
+ * The grouping is presentation: the ids and their `/management/<tab>` routes are
+ * untouched, so every existing link keeps working. It lives here rather than in the
+ * sidebar because muma-mobile's `ManagementPage` mirrors it, and a test in this
+ * file's suite is what keeps this list and `MANAGEMENT_TABS` from drifting apart.
+ *
+ * A group with `labelKey: null` renders as a single row rather than a collapsible
+ * header, so it holds exactly one page and shows that page's own label.
+ */
+export const MANAGEMENT_GROUPS = [
+  { id: 'overview', labelKey: null, pages: ['overview'] },
+  {
+    id: 'collection',
+    labelKey: 'management.groups.collection',
+    pages: ['library', 'scanner', 'images', 'playlists']
+  },
+  {
+    id: 'curation',
+    labelKey: 'management.groups.curation',
+    pages: ['tagger', 'genre-curation', 'label-proposals', 'podcast-curation']
+  },
+  { id: 'downloaders', labelKey: null, pages: ['downloaders'] },
+  { id: 'channels', labelKey: 'management.groups.channels', pages: ['radio', 'news'] },
+  { id: 'access', labelKey: 'management.groups.access', pages: ['users', 'user-requests'] },
+  { id: 'system', labelKey: 'management.groups.system', pages: ['health', 'events', 'scrobble'] },
+  { id: 'settings', labelKey: 'management.groups.settings', pages: ['libraries', 'config'] }
 ];
 
 /**

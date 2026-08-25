@@ -44,7 +44,7 @@ services:
   db:
     security_opt:
       - no-new-privileges:true
-    image: mariadb:10.6
+    image: mariadb:10.10
     container_name: music-management-db-1
     restart: unless-stopped
     environment:

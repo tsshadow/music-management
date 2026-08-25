@@ -31,6 +31,8 @@ import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.Album
 import nl.teunschriks.mumamobile.domain.Identifiable
+import nl.teunschriks.mumamobile.fragment.muma.TrackFilterNavigation
+import nl.teunschriks.mumamobile.fragment.muma.TrackInfoTarget
 import nl.teunschriks.mumamobile.home.HomeCard
 import nl.teunschriks.mumamobile.home.HomeCardType
 import nl.teunschriks.mumamobile.home.PlaybackSourceHolder
@@ -226,7 +228,7 @@ class AlbumListFragment(
 
         if (navArgs.byArtist) {
             setTitle(navArgs.title)
-            viewAdapter.register(ArtistHeaderBinder(::playAllOfArtist))
+            viewAdapter.register(ArtistHeaderBinder(::playAllOfArtist, ::showAllTracksOfArtist))
 
             // The artist row arrives from the database after the album list is already on
             // screen, so the header is rebuilt and resubmitted when it does. ArtistHeader is a
@@ -320,6 +322,25 @@ class AlbumListFragment(
             id = artistId,
             name = navArgs.title,
             isArtist = true
+        )
+    }
+
+    /**
+     * The album list only holds releases this artist is the album artist of. Their collaborations
+     * live on other people's releases, so the full track list is its own destination.
+     */
+    private fun showAllTracksOfArtist() {
+        val artistId = headerArtistId ?: return
+
+        findNavController().navigate(
+            TrackFilterNavigation.directionsFor(
+                TrackInfoTarget.Collaboration(
+                    // One artist id means "every track this artist is on", which is exactly the
+                    // intersection of a one-element set.
+                    artistIds = listOf(artistId),
+                    title = navArgs.title ?: getString(R.string.select_album_all_tracks)
+                )
+            )
         )
     }
 

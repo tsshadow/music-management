@@ -679,7 +679,8 @@ open class RESTMusicService(
         sortMethod: String?,
         festivalLineup: String?,
         minDuration: Int?,
-        maxDuration: Int?
+        maxDuration: Int?,
+        artistIds: List<String>?
     ): MusicDirectory {
         Timber.d(filters.toString())
 
@@ -697,11 +698,13 @@ open class RESTMusicService(
             sortMethod,
             festivalLineup,
             minDuration,
-            maxDuration
+            maxDuration,
+            artistIds?.takeIf { it.isNotEmpty() }
         ).execute().throwOnFailure()
 
         val result = MusicDirectory()
         result.addAll(response.body()!!.songsList.toDomainEntityList(activeServerId))
+        result.totalCount = response.body()!!.totalCount
 
         return result
     }

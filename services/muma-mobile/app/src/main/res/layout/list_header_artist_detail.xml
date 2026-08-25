@@ -90,6 +90,18 @@
         app:layout_constraintTop_toBottomOf="@id/artist_years"
         tools:text="Industrial, Rock" />
 
+    <!-- The album list only holds releases this artist is the album artist of, so their
+         collaborations need a way in of their own. -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/artist_all_tracks"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:text="@string/select_album.all_tracks"
+        app:layout_constraintBottom_toTopOf="@id/artist_play_all"
+        app:layout_constraintEnd_toEndOf="parent" />
+
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/artist_play_all"
         android:layout_width="wrap_content"

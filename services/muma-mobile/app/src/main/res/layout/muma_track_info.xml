@@ -343,6 +343,52 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/track_info_label_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:orientation="vertical"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/track_info.label"
+                style="@style/Ultrasonic.TrackInfo.Label" />
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/track_info_label_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                app:chipSpacingVertical="0dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/track_info_mood_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:orientation="vertical"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/track_info.mood"
+                style="@style/Ultrasonic.TrackInfo.Label" />
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/track_info_mood_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                app:chipSpacingVertical="0dp" />
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/track_info_track_row"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

@@ -547,6 +547,7 @@ open class TrackCollectionFragment :
             shareName = navArgs.shareName,
             genre = navArgs.genre,
             artists = navArgs.artists?.toList(),
+            artistIds = navArgs.artistIds?.toList(),
             festival = navArgs.festival,
             label = navArgs.label,
             songs = navArgs.songs,

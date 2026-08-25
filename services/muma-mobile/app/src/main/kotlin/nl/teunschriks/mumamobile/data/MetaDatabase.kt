@@ -23,6 +23,7 @@ import nl.teunschriks.mumamobile.domain.Artist
 import nl.teunschriks.mumamobile.domain.Index
 import nl.teunschriks.mumamobile.domain.MusicFolder
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.domain.TrackArtistRef
 
 /**
  * This database is used to store and cache the ID3 metadata
@@ -43,7 +44,7 @@ import nl.teunschriks.mumamobile.domain.Track
         )
     ],
     exportSchema = true,
-    version = 7
+    version = 8
 )
 @TypeConverters(Converters::class)
 abstract class MetaDatabase : RoomDatabase() {
@@ -74,6 +75,14 @@ class Converters {
     @TypeConverter
     fun toStringList(data: String?): List<String>? =
         Gson().fromJson(data, Array<String>::class.java)?.toList()
+
+    @TypeConverter
+    fun fromArtistRefList(list: List<TrackArtistRef>?): String? = Gson().toJson(list)
+
+    // Deserialize via Array<TrackArtistRef>::class.java for the same R8 reason as toStringList.
+    @TypeConverter
+    fun toArtistRefList(data: String?): List<TrackArtistRef>? =
+        Gson().fromJson(data, Array<TrackArtistRef>::class.java)?.toList()
 }
 
 val META_MIGRATION_2_3: Migration = object : Migration(2, 3) {
@@ -127,5 +136,19 @@ val META_MIGRATION_5_6: Migration = object : Migration(5, 6) {
 val META_MIGRATION_6_7: Migration = object : Migration(6, 7) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE `albums` ADD COLUMN `userRating` INTEGER")
+    }
+}
+
+// Tracks remember their split artists, their moods and their label, so the track info sheet can
+// offer each of them as a way into the library.
+//
+// NOT NULL DEFAULT '[]', not a plain nullable TEXT: the three entity fields are non-null lists,
+// so Room's exported schema marks the columns NOT NULL and refuses to open a database whose
+// columns disagree. The default is what gives every row that already exists an empty list.
+val META_MIGRATION_7_8: Migration = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `tracks` ADD COLUMN `artists` TEXT NOT NULL DEFAULT '[]'")
+        db.execSQL("ALTER TABLE `tracks` ADD COLUMN `moods` TEXT NOT NULL DEFAULT '[]'")
+        db.execSQL("ALTER TABLE `tracks` ADD COLUMN `labels` TEXT NOT NULL DEFAULT '[]'")
     }
 }

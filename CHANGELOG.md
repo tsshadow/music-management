@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **De bot die de afhankelijkheden bijwerkt draait nu ook echt.** `renovate.json` ligt sinds 0.24.0
+  in de boom en beschrijft precies wat gegroepeerd wordt en wat zichzelf mag mergen, maar er was
+  nooit iets dat het uitvoerde: geen enkele merge request, geen dependency dashboard, niets. De
+  `renovate/*`-branches in de geschiedenis zijn van 2023 en komen uit Ultrasonic, niet hier. Er
+  staat nu een `deps:renovate`-taak die de bot draait tegen deze eigen GitLab. Zelf gehost, want de
+  gehoste app van Mend bedient alleen gitlab.com; de gebruikelijke CI-template van renovate-runner
+  is er niet in gegaan omdat die op een eigen instance bij elke pipeline als externe `include:` van
+  gitlab.com gehaald moet worden, en de taak die hij neerzet is het dozijn regels dat er nu staat.
+  Hij loopt alleen vanaf een schedule met `RENOVATE=true`, zodat een gewone push nooit een bot kan
+  starten die merge requests opent, en verdwijnt vanzelf als er geen token is ingesteld. De twee
+  taken die op *elke* schedule meeliftten — de kwetsbaarhedenscan en de geheimenscan — zijn
+  uitgezonderd van die ene, anders draaide de halve pipeline mee voor één bot.
+- **Dependabot is bewust niet toegevoegd.** Dat is een product van GitHub en draait niet op een
+  eigen GitLab; de poort ernaartoe is een losse dienst die je zelf zou moeten hosten, naast de
+  configuratie die er al lag.
+
+### Fixed
+- **De Renovate-configuratie was ongeldig, en dat kon niemand weten.** De yt-dlp-regel zette
+  `minimumReleaseAge` op `false` om de afkoelperiode van drie dagen te omzeilen, maar dat veld wil
+  een tekst: `renovate-config-validator` noemt het een fout en de eerste echte draai zou erop zijn
+  afgeknapt. Het staat nu op `"0 days"`, wat hetzelfde betekent en wél geldig is. Dat dit twee weken
+  onopgemerkt bleef is precies omdat er nooit een bot draaide om erover te struikelen. In dezelfde
+  moeite door is `prPriority` uit `vulnerabilityAlerts` gehaald — dat hoort daar niet en werd
+  genegeerd.
+
+### Changed
+- **Bijwerken zonder tussenkomst geldt nu ook voor de app en voor de webinterface zelf.** Tot nu toe
+  mergede alleen het ontwikkelgereedschap zichzelf. Daar komen de afhankelijkheden van de
+  webinterface bij (kleine en herstelversies, gedekt door vitest, typecheck, lint en de browsertest)
+  en die van muma-mobile, in twee groepen: het test- en lintgereedschap zonder meer, en de
+  bibliotheken waar de app zelf op draait alleen bij kleine en herstelversies. Een grote versie in
+  Gradle is AGP, Kotlin of media3 die zijn API verandert; die wachten net als de Python-equivalenten
+  op het dashboard.
+
+  Dat testgereedschap staat als een uitgeschreven lijst van dertien coördinaten en niet als een
+  match op `testImplementation`, en dat is geen omslachtigheid. De app gebruikt een version catalog,
+  en Renovate werkt daar een gedeelde `version.ref` bij in plaats van één coördinaat. `kotlin-test-junit`
+  en `kotlin-reflect` hangen aan dezelfde `kotlin`-verwijzing als de compiler, `kotlinx-coroutines-test`
+  aan de coroutines waar de app op draait en `mockwebserver` aan okhttp. Wie die vier op hun
+  test-klinkende naam in de veilige groep zet, laat een compilerupgrade zichzelf mergen onder het
+  mom van een testafhankelijkheid. Ze staan daarom bewust in de runtime-groep.
+
 ## [0.36.0] - 2026-08-25
 
 ### Added

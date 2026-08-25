@@ -201,7 +201,9 @@ security:dependency-audit:
   allow_failure: true
   retry: !reference [.infra_retry, retry]
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    # $RENOVATE excludes the renovate schedule: that pipeline exists to run one
+    # job, and every schedule-triggered job would otherwise ride along with it.
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $RENOVATE != "true"'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - when: manual
   script:
@@ -249,12 +251,60 @@ security:secret-scan:
   tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.release_rule, rules]
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    # See security:dependency-audit for why the renovate schedule is excluded.
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $RENOVATE != "true"'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - changes:
         - "**/*"
   script:
     - ./scripts/ci/secret-scan.sh
+
+# Runs Renovate against this repository. renovate.json has been in the tree
+# since 0.24.0 and describes exactly which updates are grouped and which merge
+# themselves -- but nothing ever executed it, so it produced no merge requests
+# and no dependency dashboard. This job is the missing half.
+#
+# Self-hosted, because Mend's hosted GitLab app only serves gitlab.com and this
+# instance is our own. The upstream renovate-runner CI template is the usual
+# route; it is not used here because on a self-hosted instance it has to be
+# pulled in as a remote `include:` from gitlab.com on every pipeline, and the
+# job it installs is the dozen lines below.
+#
+# Scheduled only, guarded by $RENOVATE so that an ordinary push can never start
+# a bot that opens merge requests, and by $RENOVATE_TOKEN so the job disappears
+# instead of failing on an instance where the token was never configured -- the
+# same shape as images:refresh-downloader. The schedule wants RENOVATE=true and
+# should sit shortly before the `before 6am on monday` window in renovate.json;
+# Renovate itself honours that window, so a schedule that fires outside it
+# simply finds nothing to do.
+#
+# The token is a PAT with api, read_user and write_repository, set as a masked
+# CI/CD variable. Its user is the author of every dependency merge request, and
+# needs enough access to merge one for automerge to work at all.
+#
+# `needs: []` and the audit stage: same reasoning as security:dependency-audit
+# -- nothing should wait on this, and it should not wait on a stage boundary.
+deps:renovate:
+  stage: audit
+  needs: []
+  image: renovate/renovate:41
+  timeout: 30m
+  interruptible: false
+  retry: !reference [.infra_retry, retry]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $RENOVATE == "true" && $RENOVATE_TOKEN'
+  variables:
+    RENOVATE_ENDPOINT: "$CI_API_V4_URL"
+    RENOVATE_PLATFORM: gitlab
+    # Never discover other projects on this instance: this job is scoped to the
+    # repository it lives in, and autodiscover on a personal instance would walk
+    # everything the token can see.
+    RENOVATE_AUTODISCOVER: "false"
+    RENOVATE_REPOSITORIES: "$CI_PROJECT_PATH"
+    RENOVATE_GIT_TIMEOUT: "60000"
+    LOG_LEVEL: info
+  script:
+    - renovate
 
 # --- Unit tests -------------------------------------------------------------
 

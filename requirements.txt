@@ -39,7 +39,7 @@ Pillow~=12.3
 # scripts/ci/refresh-downloader-image.sh, which rebuilds this weekly.
 yt-dlp>=2026.7.4
 telethon~=1.44.0
-patool~=1.12
+patool~=4.0
 
 # --- Misc --------------------------------------------------------------------
 requests~=2.33.0

@@ -145,12 +145,12 @@
   <header class="flex justify-between items-end">
     <div>
       <h1 class="text-6xl font-extrabold mb-4 tracking-tighter">{$t('management.tagger.title')}</h1>
-      <p class="text-spotify-lightgray text-lg">{$t('management.tagger.subtitle')}</p>
+      <p class="text-muma-spotify-text text-lg">{$t('management.tagger.subtitle')}</p>
     </div>
     <div class="pb-2">
       <button 
         on:click={triggerRescan}
-        class="bg-white text-black text-xs font-bold px-4 py-2 rounded-full hover:bg-spotify-lightgray transition-colors"
+        class="bg-white text-black text-xs font-bold px-4 py-2 rounded-full hover:bg-white/80 transition-colors"
       >
         {$t('management.tagger.forceRescan')}
       </button>
@@ -160,72 +160,72 @@
   {#if retagPending.total > 0}
     <div
       data-testid="retag-pending"
-      class="bg-spotify-gray p-4 rounded-xl border border-spotify-green border-opacity-40 flex items-center justify-between gap-4"
+      class="bg-muma-spotify-panel p-4 rounded-xl border border-brand/40 flex items-center justify-between gap-4"
     >
       <p class="text-sm">
         <span class="font-bold">{retagPending.total}</span>
         {$t('management.tagger.retagPending')}
-        <span class="text-spotify-lightgray">
+        <span class="text-muma-spotify-text">
           {retagPending.by_reason.map((r) => `${r.reason} (${r.count})`).join(', ')}
         </span>
       </p>
       <button
         on:click={startRetag}
-        class="bg-spotify-green text-black text-xs font-bold px-4 py-2 rounded-full hover:bg-white transition-colors whitespace-nowrap"
+        class="bg-brand text-black text-xs font-bold px-4 py-2 rounded-full hover:bg-white transition-colors whitespace-nowrap"
       >
         {$t('management.tagger.retagNow')}
       </button>
     </div>
   {/if}
 
-  <div class="flex gap-6 border-b border-white border-opacity-10">
+  <div class="flex gap-6 border-b border-white/10">
     <button 
       on:click={() => taggerSubTab = 'artists'}
-      class="pb-4 font-bold text-sm transition-colors relative {taggerSubTab === 'artists' ? 'text-white' : 'text-spotify-lightgray hover:text-white'}"
+      class="pb-4 font-bold text-sm transition-colors relative {taggerSubTab === 'artists' ? 'text-white' : 'text-muma-spotify-text hover:text-white'}"
     >
       Artiesten & Labels
       {#if taggerSubTab === 'artists'}
-        <div class="absolute bottom-0 left-0 right-0 h-1 bg-spotify-green rounded-full animate-in fade-in duration-300"></div>
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-brand rounded-full animate-in fade-in duration-300"></div>
       {/if}
     </button>
     <button 
       on:click={() => taggerSubTab = 'genres'}
-      class="pb-4 font-bold text-sm transition-colors relative {taggerSubTab === 'genres' ? 'text-white' : 'text-spotify-lightgray hover:text-white'}"
+      class="pb-4 font-bold text-sm transition-colors relative {taggerSubTab === 'genres' ? 'text-white' : 'text-muma-spotify-text hover:text-white'}"
     >
       Genre Overzicht
       {#if taggerSubTab === 'genres'}
-        <div class="absolute bottom-0 left-0 right-0 h-1 bg-spotify-green rounded-full animate-in fade-in duration-300"></div>
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-brand rounded-full animate-in fade-in duration-300"></div>
       {/if}
     </button>
     <button 
       on:click={() => taggerSubTab = 'rules'}
-      class="pb-4 font-bold text-sm transition-colors relative {taggerSubTab === 'rules' ? 'text-white' : 'text-spotify-lightgray hover:text-white'}"
+      class="pb-4 font-bold text-sm transition-colors relative {taggerSubTab === 'rules' ? 'text-white' : 'text-muma-spotify-text hover:text-white'}"
     >
       Genre Koppelingen
       {#if taggerSubTab === 'rules'}
-        <div class="absolute bottom-0 left-0 right-0 h-1 bg-spotify-green rounded-full animate-in fade-in duration-300"></div>
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-brand rounded-full animate-in fade-in duration-300"></div>
       {/if}
     </button>
   </div>
 
   {#if taggerSubTab === 'artists'}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300">
-      <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 space-y-6">
-        <h3 class="text-xl font-bold flex items-center gap-2"><Search size={20} class="text-spotify-green" /> {$t('management.tagger.search')}</h3>
+      <div class="bg-muma-spotify-panel p-6 rounded-xl border border-white/5 space-y-6">
+        <h3 class="text-xl font-bold flex items-center gap-2"><Search size={20} class="text-brand" /> {$t('management.tagger.search')}</h3>
         <div class="space-y-4">
           <div>
-            <label for="artistSearchInput" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">{$t('common.artist')}</label>
+            <label for="artistSearchInput" class="block text-xs font-bold text-muma-spotify-text uppercase mb-2">{$t('common.artist')}</label>
             <input 
               id="artistSearchInput"
               type="text" 
               bind:value={artistSearch} 
               on:input={searchArtists}
               placeholder={$t('management.tagger.namePlaceholder')}
-              class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green"
+              class="w-full bg-muma-spotify-dark border border-muma-spotify-panel rounded-md p-3 focus:outline-none focus:border-brand"
             />
             <select 
               bind:value={selectedArtistName}
-              class="w-full bg-spotify-dark border border-spotify-gray rounded-md mt-2 p-2 h-40 focus:outline-none focus:border-spotify-green"
+              class="w-full bg-muma-spotify-dark border border-muma-spotify-panel rounded-md mt-2 p-2 h-40 focus:outline-none focus:border-brand"
               size="5"
             >
               {#each artists as artist (artist.name)}
@@ -234,18 +234,18 @@
             </select>
           </div>
           <div>
-            <label for="labelSearchInput" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">{$t('library.label')}</label>
+            <label for="labelSearchInput" class="block text-xs font-bold text-muma-spotify-text uppercase mb-2">{$t('library.label')}</label>
             <input 
               id="labelSearchInput"
               type="text" 
               bind:value={labelSearch} 
               on:input={searchLabels}
               placeholder={$t('management.tagger.namePlaceholder')}
-              class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green"
+              class="w-full bg-muma-spotify-dark border border-muma-spotify-panel rounded-md p-3 focus:outline-none focus:border-brand"
             />
             <select 
               bind:value={selectedLabelName}
-              class="w-full bg-spotify-dark border border-spotify-gray rounded-md mt-2 p-2 h-40 focus:outline-none focus:border-spotify-green"
+              class="w-full bg-muma-spotify-dark border border-muma-spotify-panel rounded-md mt-2 p-2 h-40 focus:outline-none focus:border-brand"
               size="5"
             >
               {#each labels as label (label.name)}
@@ -256,15 +256,15 @@
         </div>
       </div>
 
-      <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5 space-y-6">
-        <h3 class="text-xl font-bold flex items-center gap-2"><Tag size={20} class="text-spotify-green" /> {$t('management.tagger.assignGenre')}</h3>
-        <div class="p-6 bg-black bg-opacity-20 rounded-xl space-y-6">
+      <div class="bg-muma-spotify-panel p-6 rounded-xl border border-white/5 space-y-6">
+        <h3 class="text-xl font-bold flex items-center gap-2"><Tag size={20} class="text-brand" /> {$t('management.tagger.assignGenre')}</h3>
+        <div class="p-6 bg-black/20 rounded-xl space-y-6">
           <div>
-            <label for="genreSelect" class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">{$t('management.tagger.pickGenre')}</label>
+            <label for="genreSelect" class="block text-xs font-bold text-muma-spotify-text uppercase mb-2">{$t('management.tagger.pickGenre')}</label>
             <select 
               id="genreSelect"
               bind:value={selectedGenreId}
-              class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-3 focus:outline-none focus:border-spotify-green transition-colors"
+              class="w-full bg-muma-spotify-dark border border-muma-spotify-panel rounded-md p-3 focus:outline-none focus:border-brand transition-colors"
             >
               <option value={null}>{$t('management.tagger.select')}</option>
               {#each rules.genres as genre (genre.id)}
@@ -277,7 +277,7 @@
             <button 
               on:click={addArtistRule}
               disabled={!selectedArtistName || !selectedGenreId}
-              class="w-full bg-spotify-green text-black font-extrabold py-4 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
+              class="w-full bg-brand text-black font-extrabold py-4 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
             >
               {$t('management.tagger.linkArtist', { name: selectedArtistName || '...' })}
             </button>
@@ -294,9 +294,9 @@
     </div>
 
   {:else if taggerSubTab === 'genres'}
-    <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden animate-in fade-in duration-300">
+    <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 overflow-hidden animate-in fade-in duration-300">
       <table class="w-full text-left">
-        <thead class="bg-black bg-opacity-20 text-xs uppercase text-spotify-lightgray">
+        <thead class="bg-black/20 text-xs uppercase text-muma-spotify-text">
           <tr>
             <th class="p-4">{$t('management.tagger.genreName')}</th>
             <th class="p-4">{$t('management.tagger.color')}</th>
@@ -304,18 +304,18 @@
             <th class="p-4">{$t('management.health.status')}</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+        <tbody class="divide-y divide-muma-spotify-panel/30">
           {#each rules.genres as genre (genre.id)}
-            <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
+            <tr class="hover:bg-white/5 transition-colors">
               <td class="p-4 font-bold">{genre.name}</td>
               <td class="p-4">
-                <div class="w-6 h-6 rounded-full border border-white border-opacity-10" style="background: {genre.color}"></div>
+                <div class="w-6 h-6 rounded-full border border-white/10" style="background: {genre.color}"></div>
               </td>
-              <td class="p-4 text-spotify-lightgray">
+              <td class="p-4 text-muma-spotify-text">
                 {artistGenreRules.filter(r => r.genre_id === genre.id).length + labelGenreRules.filter(r => r.genre_id === genre.id).length} mappings
               </td>
               <td class="p-4">
-                <span class="px-2 py-1 rounded text-[10px] font-bold uppercase bg-spotify-green text-black">{$t('management.tagger.active')}</span>
+                <span class="px-2 py-1 rounded text-[10px] font-bold uppercase bg-brand text-black">{$t('management.tagger.active')}</span>
               </td>
             </tr>
           {/each}
@@ -325,19 +325,19 @@
 
   {:else if taggerSubTab === 'rules'}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300">
-      <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-        <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex items-center gap-2">{$t('management.tagger.artistLinks')}</h3>
+      <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 overflow-hidden">
+        <h3 class="p-6 text-xl font-bold bg-black/20 flex items-center gap-2">{$t('management.tagger.artistLinks')}</h3>
         <div class="max-h-[600px] overflow-y-auto">
           <table class="w-full text-left text-sm">
-            <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+            <tbody class="divide-y divide-muma-spotify-panel/30">
               {#each artistGenreRules as rule (rule.id)}
-                <tr class="hover:bg-white hover:bg-opacity-5">
+                <tr class="hover:bg-white/5">
                   <td class="p-4 font-bold">{rule.artist_name}</td>
                   <td class="p-4">
-                    <span class="px-2 py-1 bg-spotify-dark rounded text-spotify-green text-xs font-bold">{rule.genre_name}</span>
+                    <span class="px-2 py-1 bg-muma-spotify-dark rounded text-brand text-xs font-bold">{rule.genre_name}</span>
                   </td>
                   <td class="p-4 text-right">
-                    <button on:click={() => deleteArtistRule(rule.id)} class="text-spotify-lightgray hover:text-red-500">
+                    <button on:click={() => deleteArtistRule(rule.id)} class="text-muma-spotify-text hover:text-red-500">
                       <Trash2 size={16} />
                     </button>
                   </td>
@@ -348,19 +348,19 @@
         </div>
       </div>
 
-      <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-        <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex items-center gap-2">{$t('management.tagger.labelLinks')}</h3>
+      <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 overflow-hidden">
+        <h3 class="p-6 text-xl font-bold bg-black/20 flex items-center gap-2">{$t('management.tagger.labelLinks')}</h3>
         <div class="max-h-[600px] overflow-y-auto">
           <table class="w-full text-left text-sm">
-            <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+            <tbody class="divide-y divide-muma-spotify-panel/30">
               {#each labelGenreRules as rule (rule.id)}
-                <tr class="hover:bg-white hover:bg-opacity-5">
+                <tr class="hover:bg-white/5">
                   <td class="p-4 font-bold">{rule.label_name}</td>
                   <td class="p-4">
-                    <span class="px-2 py-1 bg-spotify-dark rounded text-spotify-green text-xs font-bold">{rule.genre_name}</span>
+                    <span class="px-2 py-1 bg-muma-spotify-dark rounded text-brand text-xs font-bold">{rule.genre_name}</span>
                   </td>
                   <td class="p-4 text-right">
-                    <button on:click={() => deleteLabelRule(rule.id)} class="text-spotify-lightgray hover:text-red-500">
+                    <button on:click={() => deleteLabelRule(rule.id)} class="text-muma-spotify-text hover:text-red-500">
                       <Trash2 size={16} />
                     </button>
                   </td>

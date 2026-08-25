@@ -147,17 +147,17 @@
   <header class="flex justify-between items-end flex-wrap gap-4">
     <div>
       <h2 class="text-4xl font-extrabold mb-2 flex items-center gap-3">
-        <ListChecks class="text-spotify-green" size={32} /> {$t('management.tabs.genreCuration')}
+        <ListChecks class="text-brand" size={32} /> {$t('management.tabs.genreCuration')}
       </h2>
-      <p class="text-spotify-lightgray">
+      <p class="text-muma-spotify-text">
         {$t('management.genres.subtitle')}
       </p>
     </div>
 
-    <div class="flex bg-spotify-gray p-1 rounded-full border border-white border-opacity-5">
+    <div class="flex bg-muma-spotify-panel p-1 rounded-full border border-white/5">
       {#each STATE_FILTERS as filter (filter.id)}
         <button
-          class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors {stateFilter === filter.id ? 'bg-white text-black' : 'text-spotify-lightgray hover:text-white'}"
+          class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors {stateFilter === filter.id ? 'bg-white text-black' : 'text-muma-spotify-text hover:text-white'}"
           onclick={() => (stateFilter = filter.id)}
         >
           {filter.label}
@@ -166,32 +166,32 @@
     </div>
   </header>
 
-  <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-    <div class="p-6 bg-black bg-opacity-20 flex justify-between items-center gap-4 flex-wrap">
+  <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 overflow-hidden">
+    <div class="p-6 bg-black/20 flex justify-between items-center gap-4 flex-wrap">
       <h3 class="text-xl font-bold flex items-center gap-2">
         {#if stateFilter === UNKNOWN}<HelpCircle size={20} class="text-yellow-500" />{/if}
-        {#if stateFilter === WHITE}<CircleCheck size={20} class="text-spotify-green" />{/if}
+        {#if stateFilter === WHITE}<CircleCheck size={20} class="text-brand" />{/if}
         {#if stateFilter === BLACK}<CircleSlash size={20} class="text-red-500" />{/if}
         {STATE_FILTERS.find((f) => f.id === stateFilter)?.label}
-        <span class="text-spotify-lightgray text-sm font-normal">({counts.total})</span>
+        <span class="text-muma-spotify-text text-sm font-normal">({counts.total})</span>
       </h3>
 
       <div class="flex items-center gap-3">
         <div class="relative">
-          <Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-spotify-lightgray" />
+          <Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-muma-spotify-text" />
           <input
             type="text"
             bind:value={search}
             placeholder={$t('management.genres.searchPlaceholder')}
             aria-label={$t('management.genres.searchLabel')}
-            class="bg-spotify-dark border border-spotify-gray rounded-full pl-9 pr-4 py-2 text-sm focus:outline-none focus:border-spotify-green transition-colors"
+            class="bg-muma-spotify-dark border border-muma-spotify-panel rounded-full pl-9 pr-4 py-2 text-sm focus:outline-none focus:border-brand transition-colors"
           />
         </div>
         <button
           onclick={fetchGenres}
           disabled={loading}
           aria-label={$t('common.refresh')}
-          class="text-spotify-lightgray hover:text-white transition-colors disabled:opacity-50"
+          class="text-muma-spotify-text hover:text-white transition-colors disabled:opacity-50"
         >
           <RefreshCw size={18} class={loading ? 'animate-spin' : ''} />
         </button>
@@ -201,10 +201,10 @@
     <div class="min-h-[200px]">
       {#if loading && rows.length === 0}
         <div class="flex items-center justify-center p-20">
-          <RefreshCw class="animate-spin text-spotify-green" size={32} />
+          <RefreshCw class="animate-spin text-brand" size={32} />
         </div>
       {:else if visibleRows.length === 0}
-        <div class="flex flex-col items-center justify-center p-20 text-spotify-lightgray">
+        <div class="flex flex-col items-center justify-center p-20 text-muma-spotify-text">
           <ListChecks size={48} class="mb-4 opacity-20" />
           <p>
             {#if search}
@@ -220,7 +220,7 @@
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead>
-              <tr class="bg-white/5 text-spotify-lightgray text-[10px] uppercase tracking-wider">
+              <tr class="bg-white/5 text-muma-spotify-text text-[10px] uppercase tracking-wider">
                 <th class="p-4">{$t('nav.genres')}</th>
                 <th class="p-4">{$t('management.genres.occurrences')}</th>
                 <th class="p-4">{$t('management.genres.outcome')}</th>
@@ -228,28 +228,28 @@
                 <th class="p-4 text-right">{$t('management.genres.actions')}</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+            <tbody class="divide-y divide-muma-spotify-panel/30">
               {#each visibleRows as row (row.id)}
                 <tr class="hover:bg-white/5 transition-colors">
                   <td class="p-4">
                     <div class="font-bold">{row.name}</div>
                     {#if row.state !== UNKNOWN}
                       <span
-                        class="text-[10px] font-bold uppercase px-2 py-0.5 rounded {row.state === WHITE ? 'bg-spotify-green/20 text-spotify-green' : 'bg-red-500/10 text-red-500'}"
+                        class="text-[10px] font-bold uppercase px-2 py-0.5 rounded {row.state === WHITE ? 'bg-brand/20 text-brand' : 'bg-red-500/10 text-red-500'}"
                       >
                         {row.state === WHITE ? 'Goedgekeurd' : 'Afgekeurd'}
                       </span>
                     {/if}
                   </td>
-                  <td class="p-4 text-spotify-lightgray">{row.occurrences ?? 0}</td>
-                  <td class="p-4 text-spotify-lightgray">{describeOutcome(row)}</td>
-                  <td class="p-4 text-spotify-lightgray text-xs">{describeDecision(row)}</td>
+                  <td class="p-4 text-muma-spotify-text">{row.occurrences ?? 0}</td>
+                  <td class="p-4 text-muma-spotify-text">{describeOutcome(row)}</td>
+                  <td class="p-4 text-muma-spotify-text text-xs">{describeDecision(row)}</td>
                   <td class="p-4 text-right">
                     <div class="flex justify-end gap-2">
                       {#if row.state !== WHITE || (row.canonical_targets || []).length}
                         <button
                           onclick={() => decide(row, WHITE)}
-                          class="bg-spotify-green text-black px-3 py-1.5 rounded-full font-bold text-xs transition-transform hover:scale-105 flex items-center gap-1"
+                          class="bg-brand text-black px-3 py-1.5 rounded-full font-bold text-xs transition-transform hover:scale-105 flex items-center gap-1"
                         >
                           <Check size={14} /> {$t('management.genres.approve')}
                         </button>
@@ -282,19 +282,19 @@
 
 {#if deciding}
   <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-[1100] animate-in fade-in duration-200">
-    <div class="bg-[#282828] p-8 rounded-xl border border-white border-opacity-10 max-w-md w-full shadow-2xl">
+    <div class="bg-[#282828] p-8 rounded-xl border border-white/10 max-w-md w-full shadow-2xl">
       <h3 class="text-2xl font-bold mb-4 flex items-center gap-2">
-        <Replace class="text-spotify-green" /> {deciding.name}
+        <Replace class="text-brand" /> {deciding.name}
       </h3>
-      <p class="text-spotify-lightgray mb-6">
+      <p class="text-muma-spotify-text mb-6">
         {$t('management.genres.decisionHelp')}
       </p>
 
       <div class="mb-6">
-        <span class="block text-xs font-bold text-spotify-lightgray uppercase mb-2">{$t('management.health.status')}</span>
+        <span class="block text-xs font-bold text-muma-spotify-text uppercase mb-2">{$t('management.health.status')}</span>
         <div class="flex gap-2">
           <button
-            class="flex-1 py-2 rounded-full font-bold text-sm transition-all {decisionState === WHITE ? 'bg-spotify-green text-black' : 'bg-white/10 text-white hover:bg-white/20'}"
+            class="flex-1 py-2 rounded-full font-bold text-sm transition-all {decisionState === WHITE ? 'bg-brand text-black' : 'bg-white/10 text-white hover:bg-white/20'}"
             onclick={() => (decisionState = WHITE)}
           >
             {$t('management.genres.approve')}
@@ -309,30 +309,30 @@
       </div>
 
       <div class="mb-6">
-        <span class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">
+        <span class="block text-xs font-bold text-muma-spotify-text uppercase mb-1">
           {$t('management.genres.correctTo')}
         </span>
-        <p class="text-xs text-spotify-lightgray mb-2">
+        <p class="text-xs text-muma-spotify-text mb-2">
           {$t('management.genres.pickMultiple')}
         </p>
-        <div class="max-h-48 overflow-y-auto rounded-md border border-spotify-gray bg-spotify-gray bg-opacity-30 divide-y divide-white/5">
+        <div class="max-h-48 overflow-y-auto rounded-md border border-muma-spotify-panel bg-muma-spotify-panel/30 divide-y divide-white/5">
           {#each targets as target (target.id)}
             <label class="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer hover:bg-white/5">
               <input
                 type="checkbox"
                 checked={decisionTargetIds.includes(String(target.id))}
                 onchange={() => toggleTarget(target.id)}
-                class="accent-spotify-green"
+                class="accent-brand"
               />
               {target.name}
             </label>
           {:else}
-            <p class="px-3 py-2 text-sm text-spotify-lightgray">{$t('management.genres.noApprovedGenres')}</p>
+            <p class="px-3 py-2 text-sm text-muma-spotify-text">{$t('management.genres.noApprovedGenres')}</p>
           {/each}
         </div>
       </div>
 
-      <p class="text-sm text-spotify-lightgray mb-6">
+      <p class="text-sm text-muma-spotify-text mb-6">
         {$t('management.genres.outcomeIs', { outcome: previewOutcome })}
       </p>
 
@@ -342,7 +342,7 @@
 
       <div class="flex gap-4">
         <button
-          class="flex-1 py-3 rounded-full font-bold bg-spotify-green text-black hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100"
+          class="flex-1 py-3 rounded-full font-bold bg-brand text-black hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100"
           disabled={!pendingDecision.valid}
           onclick={() => decide(deciding, decisionState, decisionTargetIds)}
         >

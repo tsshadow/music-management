@@ -120,7 +120,7 @@ describe('OverviewTab', () => {
   it('scales each genre bar against the most popular one', () => {
     const { container } = render(OverviewTab, props());
 
-    const [first, second] = [...container.querySelectorAll('.bg-spotify-green.h-1\\.5')];
+    const [first, second] = [...container.querySelectorAll('.bg-brand.h-1\\.5')];
     expect(first.getAttribute('style')).toContain('width: 100%');
     expect(second.getAttribute('style')).toContain('width: 25%');
   });

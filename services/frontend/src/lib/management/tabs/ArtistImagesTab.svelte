@@ -267,16 +267,16 @@
   <header class="flex flex-col md:flex-row md:items-end justify-between gap-6">
     <div>
       <h1 class="text-6xl font-extrabold mb-4 tracking-tighter">{$t('management.images.title')}</h1>
-      <p class="text-spotify-lightgray text-lg">{$t('management.images.subtitle')}</p>
+      <p class="text-muma-spotify-text text-lg">{$t('management.images.subtitle')}</p>
     </div>
 
     <div class="flex items-center gap-4">
       <div class="text-right">
-        <p class="text-xs text-spotify-lightgray uppercase tracking-widest font-bold">{$t('management.images.libraryStatus')}</p>
+        <p class="text-xs text-muma-spotify-text uppercase tracking-widest font-bold">{$t('management.images.libraryStatus')}</p>
         <p class="text-2xl font-black text-white">
-          <span class="text-spotify-green">{imageStats.artists_with_images}</span>
-          <span class="text-spotify-lightgray mx-1">/</span>
-          {imageStats.total_artists} <span class="text-sm font-normal text-spotify-lightgray">artiesten</span>
+          <span class="text-brand">{imageStats.artists_with_images}</span>
+          <span class="text-muma-spotify-text mx-1">/</span>
+          {imageStats.total_artists} <span class="text-sm font-normal text-muma-spotify-text">artiesten</span>
         </p>
       </div>
 
@@ -297,30 +297,30 @@
   </header>
 
   {#if fetchProgress.active || fetchProgress.status === 'completed'}
-    <div class="bg-spotify-gray bg-opacity-40 p-6 rounded-2xl border border-white border-opacity-10 shadow-2xl animate-in slide-in-from-top-4 duration-500">
+    <div class="bg-muma-spotify-panel/40 p-6 rounded-2xl border border-white/10 shadow-2xl animate-in slide-in-from-top-4 duration-500">
       <div class="flex justify-between items-center mb-4">
         <div class="flex items-center gap-3">
-          <div class="bg-spotify-green bg-opacity-20 p-2 rounded-lg">
-            <RefreshCw size={20} class="text-spotify-green {fetchProgress.active ? 'animate-spin' : ''}" />
+          <div class="bg-brand/20 p-2 rounded-lg">
+            <RefreshCw size={20} class="text-brand {fetchProgress.active ? 'animate-spin' : ''}" />
           </div>
           <div>
             <h3 class="font-bold text-lg">
               {fetchProgress.active ? $t('management.images.scanningImages') : $t('management.images.scanComplete')}
             </h3>
             {#if fetchProgress.active && fetchProgress.last_artist}
-              <p class="text-sm text-spotify-lightgray">{$t('management.images.busyWith')} <span class="text-white font-medium">{fetchProgress.last_artist}</span></p>
+              <p class="text-sm text-muma-spotify-text">{$t('management.images.busyWith')} <span class="text-white font-medium">{fetchProgress.last_artist}</span></p>
             {/if}
           </div>
         </div>
         <div class="text-right">
-          <span class="text-2xl font-black text-spotify-green">{progressPercent}%</span>
-          <p class="text-xs text-spotify-lightgray font-bold">{fetchProgress.current} / {fetchProgress.total}</p>
+          <span class="text-2xl font-black text-brand">{progressPercent}%</span>
+          <p class="text-xs text-muma-spotify-text font-bold">{fetchProgress.current} / {fetchProgress.total}</p>
         </div>
       </div>
 
-      <div class="w-full bg-black bg-opacity-40 h-3 rounded-full overflow-hidden border border-white border-opacity-5">
-        <div class="h-full bg-gradient-to-r from-spotify-green to-emerald-400 transition-all duration-500 ease-out relative" style="width: {progressPercent}%">
-          <div class="absolute inset-0 bg-white bg-opacity-20 animate-pulse"></div>
+      <div class="w-full bg-black/40 h-3 rounded-full overflow-hidden border border-white/5">
+        <div class="h-full bg-gradient-to-r from-brand to-emerald-400 transition-all duration-500 ease-out relative" style="width: {progressPercent}%">
+          <div class="absolute inset-0 bg-white/20 animate-pulse"></div>
         </div>
       </div>
     </div>
@@ -329,7 +329,7 @@
   <div class="space-y-6">
     <div class="flex flex-col lg:flex-row lg:items-center gap-4">
       <div class="relative group flex-1 max-w-xl">
-        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-spotify-lightgray group-focus-within:text-spotify-green transition-colors">
+        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-muma-spotify-text group-focus-within:text-brand transition-colors">
           {#if searching}
             <Loader2 size={20} class="animate-spin" />
           {:else}
@@ -341,7 +341,7 @@
           bind:value={query}
           oninput={scheduleSearch}
           placeholder={$t('library.searchArtist')}
-          class="w-full bg-spotify-gray bg-opacity-50 border border-white border-opacity-10 rounded-full py-4 pl-12 pr-4 text-white focus:outline-none focus:border-spotify-green focus:bg-opacity-80 transition-all placeholder:text-spotify-lightgray text-lg shadow-lg"
+          class="w-full bg-muma-spotify-panel/50 border border-white/10 rounded-full py-4 pl-12 pr-4 text-white focus:outline-none focus:border-brand focus:bg-muma-spotify-panel/80 transition-all placeholder:text-muma-spotify-text text-lg shadow-lg"
         />
       </div>
 
@@ -349,7 +349,7 @@
         {#each [['all', 'Alle'], ['with', 'Met afbeelding'], ['without', 'Zonder afbeelding']] as [value, label] (value)}
           <button
             onclick={() => setFilter(value)}
-            class="px-4 py-2 rounded-full text-sm font-bold transition-all border {filter === value ? 'bg-spotify-green text-black border-spotify-green' : 'bg-spotify-gray bg-opacity-40 text-spotify-lightgray border-white border-opacity-10 hover:text-white'}"
+            class="px-4 py-2 rounded-full text-sm font-bold transition-all border {filter === value ? 'bg-brand text-black border-brand' : 'bg-muma-spotify-panel/40 text-muma-spotify-text border-white/10 hover:text-white'}"
           >
             {label}
           </button>
@@ -358,17 +358,17 @@
     </div>
 
     {#if searchError}
-      <div class="bg-red-900 bg-opacity-40 border border-red-500 border-opacity-40 text-red-200 p-4 rounded-xl flex items-center justify-between gap-4">
+      <div class="bg-red-900/40 border border-red-500/40 text-red-200 p-4 rounded-xl flex items-center justify-between gap-4">
         <span>{$t('management.images.searchFailed', { message: searchError })}</span>
         <button onclick={() => runSearch()} class="font-bold underline shrink-0">Opnieuw</button>
       </div>
     {/if}
 
     {#if artists.length > 0}
-      <p class="text-sm text-spotify-lightgray">{artists.length} van {total} artiesten</p>
+      <p class="text-sm text-muma-spotify-text">{artists.length} van {total} artiesten</p>
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
         {#each artists as artist (artist.id)}
-          <div class="bg-spotify-gray bg-opacity-30 rounded-xl overflow-hidden border border-white border-opacity-5 hover:bg-opacity-50 transition-all group shadow-lg flex flex-col">
+          <div class="bg-muma-spotify-panel/30 rounded-xl overflow-hidden border border-white/5 hover:bg-muma-spotify-panel/50 transition-all group shadow-lg flex flex-col">
             <button
               type="button"
               onclick={() => openArtist(artist)}
@@ -383,14 +383,14 @@
                   onerror={() => brokenArtistIds.add(artist.id)}
                 />
               {:else}
-                <div class="flex flex-col items-center justify-center gap-2 text-spotify-lightgray opacity-40">
+                <div class="flex flex-col items-center justify-center gap-2 text-muma-spotify-text opacity-40">
                   <User size={40} />
                   <span class="text-xs">{$t('management.images.noImage')}</span>
                 </div>
               {/if}
               {#if busyArtistIds.has(artist.id)}
-                <div class="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
-                  <Loader2 size={28} class="animate-spin text-spotify-green" />
+                <div class="absolute inset-0 bg-black/60 flex items-center justify-center">
+                  <Loader2 size={28} class="animate-spin text-brand" />
                 </div>
               {/if}
             </button>
@@ -398,7 +398,7 @@
             <div class="p-4 flex-1 flex flex-col gap-3">
               <div>
                 <h3 class="font-bold truncate text-lg" title={artist.name}>{artist.name}</h3>
-                <p class="text-xs text-spotify-lightgray mt-1">
+                <p class="text-xs text-muma-spotify-text mt-1">
                   {#if artist.has_image}
                     {artist.width}x{artist.height} • {artist.source || 'onbekend'}
                   {:else}
@@ -410,17 +410,17 @@
               </div>
 
               <div class="flex items-center gap-1 mt-auto">
-                <button onclick={() => autoFetch(artist)} disabled={busyArtistIds.has(artist.id)} title={$t('management.images.autoSearch')} class="p-2 rounded-lg bg-white bg-opacity-5 hover:bg-spotify-green hover:text-black transition-all disabled:opacity-40">
+                <button onclick={() => autoFetch(artist)} disabled={busyArtistIds.has(artist.id)} title={$t('management.images.autoSearch')} class="p-2 rounded-lg bg-white/5 hover:bg-brand hover:text-black transition-all disabled:opacity-40">
                   <RefreshCw size={16} />
                 </button>
-                <button onclick={() => pickFile(artist)} disabled={busyArtistIds.has(artist.id)} title={$t('management.images.uploadFile')} class="p-2 rounded-lg bg-white bg-opacity-5 hover:bg-spotify-green hover:text-black transition-all disabled:opacity-40">
+                <button onclick={() => pickFile(artist)} disabled={busyArtistIds.has(artist.id)} title={$t('management.images.uploadFile')} class="p-2 rounded-lg bg-white/5 hover:bg-brand hover:text-black transition-all disabled:opacity-40">
                   <Upload size={16} />
                 </button>
-                <button onclick={() => openUrlDialog(artist)} disabled={busyArtistIds.has(artist.id)} title={$t('management.images.viaUrl')} class="p-2 rounded-lg bg-white bg-opacity-5 hover:bg-spotify-green hover:text-black transition-all disabled:opacity-40">
+                <button onclick={() => openUrlDialog(artist)} disabled={busyArtistIds.has(artist.id)} title={$t('management.images.viaUrl')} class="p-2 rounded-lg bg-white/5 hover:bg-brand hover:text-black transition-all disabled:opacity-40">
                   <Link2 size={16} />
                 </button>
                 {#if artist.has_image}
-                  <button onclick={() => clearImage(artist)} disabled={busyArtistIds.has(artist.id)} title={$t('management.images.deleteImage')} class="p-2 rounded-lg bg-white bg-opacity-5 hover:bg-red-500 hover:text-white transition-all disabled:opacity-40 ml-auto">
+                  <button onclick={() => clearImage(artist)} disabled={busyArtistIds.has(artist.id)} title={$t('management.images.deleteImage')} class="p-2 rounded-lg bg-white/5 hover:bg-red-500 hover:text-white transition-all disabled:opacity-40 ml-auto">
                     <Trash2 size={16} />
                   </button>
                 {/if}
@@ -435,16 +435,16 @@
           <button
             onclick={() => runSearch({ append: true })}
             disabled={searching}
-            class="bg-white bg-opacity-10 hover:bg-opacity-20 px-6 py-3 rounded-full font-bold transition-all disabled:opacity-40"
+            class="bg-white/10 hover:bg-white/20 px-6 py-3 rounded-full font-bold transition-all disabled:opacity-40"
           >
             Meer laden
           </button>
         </div>
       {/if}
     {:else if !searching && !searchError}
-      <div class="bg-spotify-gray bg-opacity-20 p-12 rounded-xl text-center border border-dashed border-white border-opacity-10">
-        <Search size={48} class="mx-auto mb-4 text-spotify-lightgray opacity-20" />
-        <p class="text-spotify-lightgray text-xl font-medium">
+      <div class="bg-muma-spotify-panel/20 p-12 rounded-xl text-center border border-dashed border-white/10">
+        <Search size={48} class="mx-auto mb-4 text-muma-spotify-text opacity-20" />
+        <p class="text-muma-spotify-text text-xl font-medium">
           {#if query}
             Geen artiesten gevonden met de naam "{query}"
           {:else}
@@ -457,37 +457,37 @@
 </section>
 
 {#if urlDialogArtist}
-  <div class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
-    <div class="bg-spotify-gray rounded-2xl border border-white border-opacity-10 p-6 w-full max-w-lg space-y-4 shadow-2xl">
+  <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+    <div class="bg-muma-spotify-panel rounded-2xl border border-white/10 p-6 w-full max-w-lg space-y-4 shadow-2xl">
       <div class="flex items-center justify-between">
         <h3 class="text-xl font-bold">{$t('management.images.viaUrlFor', { name: urlDialogArtist.name })}</h3>
-        <button onclick={() => (urlDialogArtist = null)} class="p-1 hover:text-spotify-green"><X size={20} /></button>
+        <button onclick={() => (urlDialogArtist = null)} class="p-1 hover:text-brand"><X size={20} /></button>
       </div>
       <input
         type="url"
         bind:value={imageUrlInput}
         placeholder="https://..."
-        class="w-full bg-black bg-opacity-40 border border-white border-opacity-10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-spotify-green"
+        class="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-brand"
       />
       <div class="flex justify-end gap-2">
-        <button onclick={() => (urlDialogArtist = null)} class="px-4 py-2 rounded-full font-bold bg-white bg-opacity-10 hover:bg-opacity-20">Annuleren</button>
-        <button onclick={saveImageUrl} disabled={!imageUrlInput.trim()} class="px-4 py-2 rounded-full font-bold bg-spotify-green text-black disabled:opacity-40">{$t('common.save')}</button>
+        <button onclick={() => (urlDialogArtist = null)} class="px-4 py-2 rounded-full font-bold bg-white/10 hover:bg-white/20">Annuleren</button>
+        <button onclick={saveImageUrl} disabled={!imageUrlInput.trim()} class="px-4 py-2 rounded-full font-bold bg-brand text-black disabled:opacity-40">{$t('common.save')}</button>
       </div>
     </div>
   </div>
 {/if}
 
 {#if selected}
-  <div class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-40 p-4">
-    <div class="bg-spotify-gray rounded-2xl border border-white border-opacity-10 p-6 w-full max-w-3xl space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+  <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-40 p-4">
+    <div class="bg-muma-spotify-panel rounded-2xl border border-white/10 p-6 w-full max-w-3xl space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
       <div class="flex items-start justify-between gap-4">
         <div>
           <h3 class="text-2xl font-black">{selected.name}</h3>
-          <p class="text-sm text-spotify-lightgray">
+          <p class="text-sm text-muma-spotify-text">
             {selected.has_image ? `${selected.width}x${selected.height} • bron: ${selected.source || 'onbekend'}` : 'Nog geen primaire afbeelding'}
           </p>
         </div>
-        <button onclick={() => (selected = null)} class="p-1 hover:text-spotify-green"><X size={22} /></button>
+        <button onclick={() => (selected = null)} class="p-1 hover:text-brand"><X size={22} /></button>
       </div>
 
       <div class="flex flex-col sm:flex-row gap-6">
@@ -495,42 +495,42 @@
           {#if selected.has_image && !brokenArtistIds.has(selected.id)}
             <img src={artistImageUrl(selected)} alt={selected.name} class="w-full h-full object-cover" />
           {:else}
-            <User size={48} class="text-spotify-lightgray opacity-40" />
+            <User size={48} class="text-muma-spotify-text opacity-40" />
           {/if}
         </div>
 
         <div class="flex-1 space-y-3">
           <div class="flex flex-wrap gap-2">
-            <button onclick={() => autoFetch(selected)} class="px-4 py-2 rounded-full font-bold bg-white bg-opacity-10 hover:bg-opacity-20 flex items-center gap-2"><RefreshCw size={16} /> {$t('management.images.autoSearch')}</button>
-            <button onclick={() => pickFile(selected)} class="px-4 py-2 rounded-full font-bold bg-white bg-opacity-10 hover:bg-opacity-20 flex items-center gap-2"><Upload size={16} /> {$t('management.images.upload')}</button>
-            <button onclick={() => openUrlDialog(selected)} class="px-4 py-2 rounded-full font-bold bg-white bg-opacity-10 hover:bg-opacity-20 flex items-center gap-2"><Link2 size={16} /> {$t('management.images.url')}</button>
+            <button onclick={() => autoFetch(selected)} class="px-4 py-2 rounded-full font-bold bg-white/10 hover:bg-white/20 flex items-center gap-2"><RefreshCw size={16} /> {$t('management.images.autoSearch')}</button>
+            <button onclick={() => pickFile(selected)} class="px-4 py-2 rounded-full font-bold bg-white/10 hover:bg-white/20 flex items-center gap-2"><Upload size={16} /> {$t('management.images.upload')}</button>
+            <button onclick={() => openUrlDialog(selected)} class="px-4 py-2 rounded-full font-bold bg-white/10 hover:bg-white/20 flex items-center gap-2"><Link2 size={16} /> {$t('management.images.url')}</button>
             {#if selected.has_image}
-              <button onclick={() => clearImage(selected)} class="px-4 py-2 rounded-full font-bold bg-white bg-opacity-10 hover:bg-red-500 flex items-center gap-2"><Trash2 size={16} /> {$t('common.remove')}</button>
+              <button onclick={() => clearImage(selected)} class="px-4 py-2 rounded-full font-bold bg-white/10 hover:bg-red-500 flex items-center gap-2"><Trash2 size={16} /> {$t('common.remove')}</button>
             {/if}
           </div>
 
           <div>
             <h4 class="font-bold mb-2 flex items-center gap-2"><Image size={16} /> {$t('management.images.savedImages')}</h4>
             {#if selectedLoading}
-              <p class="text-sm text-spotify-lightgray">{$t('common.loading')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('common.loading')}</p>
             {:else if selectedImages.length === 0}
-              <p class="text-sm text-spotify-lightgray">{$t('management.images.nothingSaved')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('management.images.nothingSaved')}</p>
             {:else}
               <ul class="space-y-2">
                 {#each selectedImages as image (image.id)}
-                  <li class="flex items-center justify-between gap-3 bg-black bg-opacity-30 rounded-lg px-3 py-2">
+                  <li class="flex items-center justify-between gap-3 bg-black/30 rounded-lg px-3 py-2">
                     <div class="text-sm min-w-0">
                       <p class="font-bold truncate">
                         {image.source || 'onbekend'}
-                        {#if image.is_primary}<span class="text-spotify-green ml-1">• primair</span>{/if}
+                        {#if image.is_primary}<span class="text-brand ml-1">• primair</span>{/if}
                       </p>
-                      <p class="text-xs text-spotify-lightgray truncate">
+                      <p class="text-xs text-muma-spotify-text truncate">
                         {image.width}x{image.height} • betrouwbaarheid {image.confidence}
                         {#if !image.exists_on_disk}<span class="text-red-400"> • bestand ontbreekt</span>{/if}
                       </p>
                     </div>
                     {#if !image.is_primary}
-                      <button onclick={() => makePrimary(selected.id, image.id)} class="shrink-0 px-3 py-1 rounded-full text-xs font-bold bg-white bg-opacity-10 hover:bg-spotify-green hover:text-black flex items-center gap-1">
+                      <button onclick={() => makePrimary(selected.id, image.id)} class="shrink-0 px-3 py-1 rounded-full text-xs font-bold bg-white/10 hover:bg-brand hover:text-black flex items-center gap-1">
                         <Star size={14} /> {$t('management.images.primary')}
                       </button>
                     {/if}

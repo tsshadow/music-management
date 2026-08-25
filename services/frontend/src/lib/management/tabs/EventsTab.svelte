@@ -21,7 +21,7 @@
   ];
   const POLL_INTERVAL_MS = 10000;
   const LEVEL_STYLES = {
-    INFO: 'text-spotify-lightgray border-white/10',
+    INFO: 'text-muma-spotify-text border-white/10',
     WARNING: 'text-amber-400 border-amber-400/40',
     ERROR: 'text-red-400 border-red-400/40',
     CRITICAL: 'text-red-300 border-red-300/60 bg-red-950/30',
@@ -156,10 +156,10 @@
   <div class="flex justify-between items-end">
     <div>
       <h1 class="text-4xl font-black mb-2 flex items-center gap-4">
-        <ScrollText size={40} class="text-spotify-green" />
+        <ScrollText size={40} class="text-brand" />
         {$t('management.events.title')}
       </h1>
-      <p class="text-spotify-lightgray">{$t('management.events.subtitle')}</p>
+      <p class="text-muma-spotify-text">{$t('management.events.subtitle')}</p>
     </div>
     <div class="flex gap-4">
       <button on:click={fetchEvents}
@@ -176,13 +176,13 @@
     </div>
   </div>
 
-  <div class="bg-black bg-opacity-40 rounded-xl p-6 border border-white border-opacity-10 flex flex-wrap gap-6 items-end">
+  <div class="bg-black/40 rounded-xl p-6 border border-white/10 flex flex-wrap gap-6 items-end">
     <div class="flex flex-col gap-2">
-      <span class="text-xs uppercase tracking-wider text-spotify-lightgray">{$t('management.events.levelFilter')}</span>
+      <span class="text-xs uppercase tracking-wider text-muma-spotify-text">{$t('management.events.levelFilter')}</span>
       <div class="flex gap-2">
         {#each LEVELS as level (level)}
           <button on:click={() => toggleLevel(level)}
-            class="px-4 py-2 rounded-full text-xs font-bold border transition-all {selectedLevels.includes(level) ? 'bg-white text-black border-white' : 'border-white/20 text-spotify-lightgray hover:text-white'}">
+            class="px-4 py-2 rounded-full text-xs font-bold border transition-all {selectedLevels.includes(level) ? 'bg-white text-black border-white' : 'border-white/20 text-muma-spotify-text hover:text-white'}">
             {level} {counts[level] ?? 0}
           </button>
         {/each}
@@ -190,11 +190,11 @@
     </div>
 
     <div class="flex flex-col gap-2">
-      <span class="text-xs uppercase tracking-wider text-spotify-lightgray">{$t('management.events.sourceFilter')}</span>
+      <span class="text-xs uppercase tracking-wider text-muma-spotify-text">{$t('management.events.sourceFilter')}</span>
       <div class="flex gap-2 flex-wrap">
         {#each SOURCES as source (source)}
           <button on:click={() => toggleSource(source)}
-            class="px-3 py-2 rounded-full text-xs font-bold border transition-all {selectedSources.includes(source) ? 'bg-spotify-green text-black border-spotify-green' : 'border-white/20 text-spotify-lightgray hover:text-white'}">
+            class="px-3 py-2 rounded-full text-xs font-bold border transition-all {selectedSources.includes(source) ? 'bg-brand text-black border-brand' : 'border-white/20 text-muma-spotify-text hover:text-white'}">
             {source}
           </button>
         {/each}
@@ -202,9 +202,9 @@
     </div>
 
     <div class="flex flex-col gap-2">
-      <span class="text-xs uppercase tracking-wider text-spotify-lightgray">{$t('management.events.timeFilter')}</span>
+      <span class="text-xs uppercase tracking-wider text-muma-spotify-text">{$t('management.events.timeFilter')}</span>
       <select bind:value={timeWindow} on:change={fetchEvents}
-        class="bg-spotify-gray text-white rounded-lg px-4 py-2 border border-white/10 text-sm">
+        class="bg-muma-spotify-panel text-white rounded-lg px-4 py-2 border border-white/10 text-sm">
         {#each WINDOWS as window (window.value)}
           <option value={window.value}>{$t(window.labelKey)}</option>
         {/each}
@@ -212,58 +212,58 @@
     </div>
 
     <div class="flex flex-col gap-2 flex-1 min-w-48">
-      <span class="text-xs uppercase tracking-wider text-spotify-lightgray">{$t('management.events.search')}</span>
+      <span class="text-xs uppercase tracking-wider text-muma-spotify-text">{$t('management.events.search')}</span>
       <input bind:value={search} on:input={onSearchInput} type="text"
-        class="bg-spotify-gray text-white rounded-lg px-4 py-2 border border-white/10 text-sm w-full" />
+        class="bg-muma-spotify-panel text-white rounded-lg px-4 py-2 border border-white/10 text-sm w-full" />
     </div>
   </div>
 
-  <div class="bg-black bg-opacity-40 rounded-xl p-6 border border-white border-opacity-10">
+  <div class="bg-black/40 rounded-xl p-6 border border-white/10">
     <h3 class="text-xl font-bold mb-4">{$t('management.events.subscribeTitle')}</h3>
-    <p class="text-sm text-spotify-lightgray mb-4">{$t('management.events.subscribeHelp')}</p>
+    <p class="text-sm text-muma-spotify-text mb-4">{$t('management.events.subscribeHelp')}</p>
     <div class="flex flex-col gap-2">
-      <code class="text-spotify-green font-mono text-sm">{ntfyUrl}{ntfyTopic}</code>
+      <code class="text-brand font-mono text-sm">{ntfyUrl}{ntfyTopic}</code>
       <code class="text-amber-400 font-mono text-sm">{ntfyUrl}{ntfyAlertsTopic}</code>
     </div>
   </div>
 
   <div class="flex flex-col gap-2">
     {#if loading && events.length === 0}
-      <div class="text-center py-20 text-spotify-lightgray">{$t('management.events.loading')}</div>
+      <div class="text-center py-20 text-muma-spotify-text">{$t('management.events.loading')}</div>
     {:else if events.length === 0}
-      <div class="text-center py-20 bg-black bg-opacity-20 rounded-xl border border-dashed border-white border-opacity-10">
-        <ScrollText size={48} class="mx-auto mb-4 text-spotify-gray" />
-        <p class="text-spotify-lightgray">{$t('management.events.empty')}</p>
+      <div class="text-center py-20 bg-black/20 rounded-xl border border-dashed border-white/10">
+        <ScrollText size={48} class="mx-auto mb-4 text-muma-spotify-text" />
+        <p class="text-muma-spotify-text">{$t('management.events.empty')}</p>
       </div>
     {:else}
-      <p class="text-xs text-spotify-lightgray">{total} {$t('management.events.matches')}</p>
+      <p class="text-xs text-muma-spotify-text">{total} {$t('management.events.matches')}</p>
       {#each events as event (event.id)}
-        <div class="bg-black bg-opacity-40 hover:bg-opacity-60 transition-all rounded-lg border {LEVEL_STYLES[event.level] ?? 'border-white/10'} group">
+        <div class="bg-black/40 hover:bg-black/60 transition-all rounded-lg border {LEVEL_STYLES[event.level] ?? 'border-white/10'} group">
           <!-- Uitklappen en verwijderen zijn broers, geen knop-in-een-knop:
                Svelte weigert een <button> binnen een <button> te compileren. -->
           <div class="flex items-center gap-4 p-3">
             <button on:click={() => toggleExpanded(event.id)} class="flex items-center gap-4 text-left flex-1 min-w-0">
               <ChevronRight size={16} class="transition-transform {expanded.includes(event.id) ? 'rotate-90' : ''}" />
               <span class="font-mono text-xs font-bold w-20 shrink-0">{event.level}</span>
-              <span class="text-xs text-spotify-lightgray w-32 shrink-0 flex items-center gap-1">
+              <span class="text-xs text-muma-spotify-text w-32 shrink-0 flex items-center gap-1">
                 <Clock size={12} />{formatDate(event.created_at)}
               </span>
-              <span class="text-xs text-spotify-lightgray w-32 shrink-0">{event.source}</span>
+              <span class="text-xs text-muma-spotify-text w-32 shrink-0">{event.source}</span>
               <span class="text-sm text-white truncate flex-1">{event.title}</span>
             </button>
             <button on:click={() => deleteEvent(event.id)}
-              class="text-spotify-lightgray hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              class="text-muma-spotify-text hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
               <Trash2 size={16} />
             </button>
           </div>
           {#if expanded.includes(event.id)}
             <div class="px-10 pb-4 flex flex-col gap-3">
-              <pre class="text-spotify-lightgray whitespace-pre-wrap font-mono text-xs bg-black bg-opacity-30 p-3 rounded">{event.message}</pre>
+              <pre class="text-muma-spotify-text whitespace-pre-wrap font-mono text-xs bg-black/30 p-3 rounded">{event.message}</pre>
               {#if event.context}
-                <pre class="text-spotify-green whitespace-pre-wrap font-mono text-xs bg-black bg-opacity-30 p-3 rounded">{event.context}</pre>
+                <pre class="text-brand whitespace-pre-wrap font-mono text-xs bg-black/30 p-3 rounded">{event.context}</pre>
               {/if}
               {#if event.logger}
-                <span class="text-xs text-spotify-lightgray font-mono">{event.logger}</span>
+                <span class="text-xs text-muma-spotify-text font-mono">{event.logger}</span>
               {/if}
             </div>
           {/if}

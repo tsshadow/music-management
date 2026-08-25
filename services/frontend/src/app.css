@@ -6,6 +6,7 @@
   --color-brand: var(--brand-color, #1db954);
   --color-muma-spotify-black: #191414;
   --color-muma-spotify-dark: #121212;
+  --color-muma-spotify-panel: #181818;
   --color-muma-spotify-light: #282828;
   --color-muma-spotify-text: #b3b3b3;
 }
@@ -29,7 +30,7 @@ body {
 :focus-visible {
   outline: 3px solid var(--color-brand);
   outline-offset: 2px;
-  box-shadow: 0 0 15px rgba(29, 185, 84, 0.3);
+  box-shadow: 0 0 15px color-mix(in oklab, var(--color-brand) 30%, transparent);
   z-index: 10;
 }
 

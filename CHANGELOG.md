@@ -39,6 +39,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   onopgemerkt bleef is precies omdat er nooit een bot draaide om erover te struikelen. In dezelfde
   moeite door is `prPriority` uit `vulnerabilityAlerts` gehaald — dat hoort daar niet en werd
   genegeerd.
+- **De beheerpagina was gestyled met kleuren die niet bestonden, waardoor knoppen onleesbaar
+  waren.** Dertien van de beheertabbladen gebruikten `spotify-green`, `spotify-gray`,
+  `spotify-dark` en `spotify-lightgray`, maar die tokens staan nergens in `app.css` en er is nooit
+  een `tailwind.config.js` in deze repo geweest. Tailwind maakte er dus geen enkele regel voor aan.
+  Daarbovenop stond er 211 keer een `bg-opacity-*`- of `border-opacity-*`-klasse, en die hele
+  familie is in Tailwind v4 vervangen door schuine-streepsyntax. Samen 786 klassen die niets
+  deden. Zichtbaar werd dat als knoppen met zwarte tekst op een groene achtergrond die er niet
+  kwam — zwart op zwart dus — en als vlakken die `bg-white bg-opacity-10` heetten maar massief wit
+  werden, met witte tekst erop. Alles is nu omgezet naar de tokens die de rest van de webinterface
+  al gebruikt: `brand` in plaats van een vaste groene tint, `muma-spotify-text` voor secundaire
+  tekst en de nieuwe `muma-spotify-panel` (#181818) voor kaarten en panelen. Omdat `brand`
+  meebeweegt met de weergavemodus, kleurt de beheerpagina voortaan ook blauw in Sets-modus in
+  plaats van altijd groen te blijven.
+- **De focusgloed bleef groen in Sets-modus.** De rand om een gefocust element volgde de
+  merkkleur al, maar de gloed eromheen stond hard op de groene tint. Die rekent nu met dezelfde
+  variabele, zodat rand en gloed in beide modi bij elkaar horen.
 
 ### Changed
 - **Bijwerken zonder tussenkomst geldt nu ook voor de app en voor de webinterface zelf.** Tot nu toe

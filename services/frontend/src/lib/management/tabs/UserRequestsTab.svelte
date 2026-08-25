@@ -121,24 +121,24 @@
   <header class="flex justify-between items-end">
     <div>
       <h2 class="text-4xl font-extrabold mb-2">🛡️ {$t('management.tabs.userRequests')}</h2>
-      <p class="text-spotify-lightgray">{$t('management.requests.subtitle')}</p>
+      <p class="text-muma-spotify-text">{$t('management.requests.subtitle')}</p>
     </div>
     
-    <div class="flex bg-spotify-gray p-1 rounded-full border border-white border-opacity-5">
+    <div class="flex bg-muma-spotify-panel p-1 rounded-full border border-white/5">
       <button 
-        class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors {statusFilter === 'pending' ? 'bg-white text-black' : 'text-spotify-lightgray hover:text-white'}"
+        class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors {statusFilter === 'pending' ? 'bg-white text-black' : 'text-muma-spotify-text hover:text-white'}"
         onclick={() => statusFilter = 'pending'}
       >
         {$t('management.requests.pending')}
       </button>
       <button 
-        class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors {statusFilter === 'approved' ? 'bg-white text-black' : 'text-spotify-lightgray hover:text-white'}"
+        class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors {statusFilter === 'approved' ? 'bg-white text-black' : 'text-muma-spotify-text hover:text-white'}"
         onclick={() => statusFilter = 'approved'}
       >
         {$t('management.requests.approved')}
       </button>
       <button 
-        class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors {statusFilter === 'rejected' ? 'bg-white text-black' : 'text-spotify-lightgray hover:text-white'}"
+        class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors {statusFilter === 'rejected' ? 'bg-white text-black' : 'text-muma-spotify-text hover:text-white'}"
         onclick={() => statusFilter = 'rejected'}
       >
         {$t('management.requests.rejected')}
@@ -146,18 +146,18 @@
     </div>
   </header>
 
-  <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-    <div class="p-6 bg-black bg-opacity-20 flex justify-between items-center">
+  <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 overflow-hidden">
+    <div class="p-6 bg-black/20 flex justify-between items-center">
       <h3 class="text-xl font-bold flex items-center gap-2">
         {#if statusFilter === 'pending'}<Clock size={20} class="text-yellow-500" />{/if}
-        {#if statusFilter === 'approved'}<ShieldCheck size={20} class="text-spotify-green" />{/if}
+        {#if statusFilter === 'approved'}<ShieldCheck size={20} class="text-brand" />{/if}
         {#if statusFilter === 'rejected'}<ShieldAlert size={20} class="text-red-500" />{/if}
         {statusFilter === 'pending' ? $t('management.requests.pendingHeading') : statusFilter === 'approved' ? $t('management.requests.approvedHeading') : $t('management.requests.rejectedHeading')}
       </h3>
       <button 
         onclick={fetchRequests} 
         disabled={loading}
-        class="text-spotify-lightgray hover:text-white transition-colors disabled:opacity-50"
+        class="text-muma-spotify-text hover:text-white transition-colors disabled:opacity-50"
       >
         <RefreshCw size={18} class={loading ? 'animate-spin' : ''} />
       </button>
@@ -166,10 +166,10 @@
     <div class="min-h-[200px]">
       {#if loading && requests.length === 0}
         <div class="flex items-center justify-center p-20">
-          <RefreshCw class="animate-spin text-spotify-green" size={32} />
+          <RefreshCw class="animate-spin text-brand" size={32} />
         </div>
       {:else if requests.length === 0}
-        <div class="flex flex-col items-center justify-center p-20 text-spotify-lightgray">
+        <div class="flex flex-col items-center justify-center p-20 text-muma-spotify-text">
           <UserPlus size={48} class="mb-4 opacity-20" />
           <p>{$t('management.requests.emptyForStatus', { status: statusFilter })}</p>
         </div>
@@ -177,7 +177,7 @@
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead>
-              <tr class="bg-white/5 text-spotify-lightgray text-[10px] uppercase tracking-wider">
+              <tr class="bg-white/5 text-muma-spotify-text text-[10px] uppercase tracking-wider">
                 <th class="p-4">{$t('management.scrobble.user')}</th>
                 <th class="p-4">{$t('management.requests.requestedAt')}</th>
                 {#if statusFilter !== 'pending'}
@@ -189,7 +189,7 @@
                 {/if}
               </tr>
             </thead>
-            <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+            <tbody class="divide-y divide-muma-spotify-panel/30">
               {#each requests as request (request.id)}
                 <tr class="hover:bg-white/5 transition-colors">
                   <td class="p-4">
@@ -198,16 +198,16 @@
                         <img src={request.avatar_url} alt="" class="w-10 h-10 rounded-full" />
                       {:else}
                         <div class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
-                          <User size={20} class="text-spotify-lightgray" />
+                          <User size={20} class="text-muma-spotify-text" />
                         </div>
                       {/if}
                       <div>
                         <div class="font-bold">{request.display_name}</div>
-                        <div class="text-xs text-spotify-lightgray">{request.email}</div>
+                        <div class="text-xs text-muma-spotify-text">{request.email}</div>
                       </div>
                     </div>
                   </td>
-                  <td class="p-4 text-spotify-lightgray">
+                  <td class="p-4 text-muma-spotify-text">
                     {new Date(request.requested_at).toLocaleString('nl-NL')}
                   </td>
                   {#if statusFilter !== 'pending'}
@@ -216,7 +216,7 @@
                         {request.reviewed_by_user_id || 'Systeem'}
                       </span>
                     </td>
-                    <td class="p-4 text-spotify-lightgray">
+                    <td class="p-4 text-muma-spotify-text">
                       {request.reviewed_at ? new Date(request.reviewed_at).toLocaleString('nl-NL') : '—'}
                     </td>
                   {/if}
@@ -226,7 +226,7 @@
                         {#if hasPermission('user-requests.approve')}
                           <button 
                             onclick={() => { linkUserId = ''; approveDisplayName = ''; confirmingAction = { type: 'approve', request }; }}
-                            class="bg-spotify-green text-black px-3 py-1.5 rounded-full font-bold text-xs transition-transform hover:scale-105 flex items-center gap-1"
+                            class="bg-brand text-black px-3 py-1.5 rounded-full font-bold text-xs transition-transform hover:scale-105 flex items-center gap-1"
                           >
                             <CheckCircle size={14} /> {$t('management.genres.approve')}
                           </button>
@@ -266,17 +266,17 @@
 
 {#if confirmingAction}
 <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-[1100] animate-in fade-in duration-200">
-  <div class="bg-[#282828] p-8 rounded-xl border border-white border-opacity-10 max-w-md w-full shadow-2xl">
+  <div class="bg-[#282828] p-8 rounded-xl border border-white/10 max-w-md w-full shadow-2xl">
     <h3 class="text-2xl font-bold mb-4 flex items-center gap-2">
       {#if confirmingAction.type === 'approve'}
-        <CheckCircle class="text-spotify-green" /> {$t('management.requests.confirmApprove')}
+        <CheckCircle class="text-brand" /> {$t('management.requests.confirmApprove')}
       {:else if confirmingAction.type === 'unapprove'}
         <ShieldAlert class="text-red-500" /> {$t('management.requests.confirmUndo')}
       {:else}
         <ShieldAlert class="text-red-500" /> {$t('management.requests.confirmReject')}
       {/if}
     </h3>
-    <p class="text-spotify-lightgray mb-6">
+    <p class="text-muma-spotify-text mb-6">
       {#if confirmingAction.type === 'approve'}
         Weet je zeker dat je de toegangsaanvraag van <b>{confirmingAction.request.display_name}</b> wilt goedkeuren?
         {#if linkUserId}
@@ -297,7 +297,7 @@
     </p>
     {#if confirmingAction.type === 'approve'}
       <div class="mb-6">
-        <label for="approve-display-name" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">
+        <label for="approve-display-name" class="block text-xs font-bold text-muma-spotify-text uppercase mb-1">
           {$t('management.requests.displayName')}
         </label>
         <input
@@ -305,19 +305,19 @@
           type="text"
           bind:value={approveDisplayName}
           placeholder={confirmingAction.request.display_name}
-          class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors text-sm text-white"
+          class="w-full bg-muma-spotify-panel/30 border border-muma-spotify-panel rounded-md p-2 focus:outline-none focus:border-brand transition-colors text-sm text-white"
         />
       </div>
     {/if}
     {#if confirmingAction.type === 'approve' && users.length > 0}
       <div class="mb-6">
-        <label for="link-user" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">
+        <label for="link-user" class="block text-xs font-bold text-muma-spotify-text uppercase mb-1">
           {$t('management.requests.samePerson')}
         </label>
         <select
           id="link-user"
           bind:value={linkUserId}
-          class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors text-sm text-white"
+          class="w-full bg-muma-spotify-panel/30 border border-muma-spotify-panel rounded-md p-2 focus:outline-none focus:border-brand transition-colors text-sm text-white"
         >
           <option value="">{$t('management.requests.createNew')}</option>
           {#each users as user (user.id)}
@@ -328,7 +328,7 @@
     {/if}
     <div class="flex gap-4">
       <button 
-        class="flex-1 py-3 rounded-full font-bold transition-all {confirmingAction.type === 'approve' ? 'bg-spotify-green text-black hover:scale-105' : 'bg-red-600 text-white hover:bg-red-700'}"
+        class="flex-1 py-3 rounded-full font-bold transition-all {confirmingAction.type === 'approve' ? 'bg-brand text-black hover:scale-105' : 'bg-red-600 text-white hover:bg-red-700'}"
         onclick={() => {
           if (confirmingAction.type === 'approve') approveRequest(confirmingAction.request);
           else if (confirmingAction.type === 'unapprove') unapproveRequest(confirmingAction.request);

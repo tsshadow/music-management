@@ -347,27 +347,27 @@
 <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
   <header>
     <h2 class="text-4xl font-extrabold mb-2">👥 User Management</h2>
-    <p class="text-spotify-lightgray">{$t('management.users.subtitle')}</p>
+    <p class="text-muma-spotify-text">{$t('management.users.subtitle')}</p>
   </header>
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     <!-- User List -->
     <div class="lg:col-span-1 space-y-6">
-      <div class="bg-spotify-gray bg-opacity-40 rounded-xl border border-white border-opacity-5 overflow-hidden">
-        <h3 class="p-6 text-xl font-bold bg-black bg-opacity-20 flex justify-between items-center">
+      <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 overflow-hidden">
+        <h3 class="p-6 text-xl font-bold bg-black/20 flex justify-between items-center">
           {$t('management.tabs.users')}
           <div class="flex gap-2">
             <button 
               on:click={syncLMSUsers} 
               title={$t('management.users.syncFromServer')}
-              class="text-spotify-lightgray hover:text-spotify-green transition-colors"
+              class="text-muma-spotify-text hover:text-brand transition-colors"
             >
               <RefreshCw size={16} />
             </button>
             <button 
               on:click={fetchUsers} 
               title={$t('common.refresh')}
-              class="text-spotify-lightgray hover:text-white transition-colors"
+              class="text-muma-spotify-text hover:text-white transition-colors"
             >
               <RefreshCw size={16} class="rotate-90" />
             </button>
@@ -375,22 +375,22 @@
         </h3>
         <div class="max-h-[400px] overflow-y-auto">
           <table class="w-full text-left text-sm">
-            <tbody class="divide-y divide-spotify-gray divide-opacity-30">
+            <tbody class="divide-y divide-muma-spotify-panel/30">
               {#each users as user (user.id)}
                 <tr 
-                  class="hover:bg-white hover:bg-opacity-5 cursor-pointer transition-colors {selectedUser?.id === user.id ? 'bg-spotify-gray' : ''}"
+                  class="hover:bg-white/5 cursor-pointer transition-colors {selectedUser?.id === user.id ? 'bg-muma-spotify-panel' : ''}"
                   on:click={() => onSelectUser(user)}
                 >
                   <td class="p-4">
                     <div class="flex justify-between items-center">
                       <div>
-                        <div class="font-bold {selectedUser?.id === user.id ? 'text-spotify-green' : ''}">
+                        <div class="font-bold {selectedUser?.id === user.id ? 'text-brand' : ''}">
                           {user.username}
                           {#if !user.enabled}
                             <span class="ml-2 text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">{$t('management.users.off')}</span>
                           {/if}
                         </div>
-                        <div class="text-xs text-spotify-lightgray flex items-center gap-1.5">
+                        <div class="text-xs text-muma-spotify-text flex items-center gap-1.5">
                           {user.display_name || ''} 
                           {#if user.role_name}
                             <span class="inline-flex items-center gap-0.5 text-[10px] bg-white/10 text-white/60 px-1.5 py-0.5 rounded uppercase font-bold">
@@ -401,7 +401,7 @@
                       </div>
                       <button 
                         on:click|stopPropagation={() => deleteUser(user)}
-                        class="text-spotify-lightgray hover:text-red-500 transition-colors p-2"
+                        class="text-muma-spotify-text hover:text-red-500 transition-colors p-2"
                         title={$t('management.users.deleteUser')}
                         disabled={!hasPermission('users.update')}
                       >
@@ -418,15 +418,15 @@
 
       <!-- Add User Form -->
       {#if hasPermission('users.create')}
-      <div class="bg-spotify-gray p-6 rounded-xl border border-white border-opacity-5">
-        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><Plus size={20} class="text-spotify-green" /> {$t('management.users.addUser')}</h3>
+      <div class="bg-muma-spotify-panel p-6 rounded-xl border border-white/5">
+        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><Plus size={20} class="text-brand" /> {$t('management.users.addUser')}</h3>
         <form on:submit|preventDefault={addUser} class="space-y-4">
           <div>
             <input 
               type="text" 
               bind:value={newUsername}
               placeholder={$t('login.username')}
-              class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
+              class="w-full bg-muma-spotify-dark border border-muma-spotify-panel rounded-md p-2 focus:outline-none focus:border-brand transition-colors"
             />
           </div>
           <div>
@@ -434,7 +434,7 @@
               type="text" 
               bind:value={newDisplayName}
               placeholder={$t('management.users.displayNamePlaceholder')}
-              class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
+              class="w-full bg-muma-spotify-dark border border-muma-spotify-panel rounded-md p-2 focus:outline-none focus:border-brand transition-colors"
             />
           </div>
           <div>
@@ -442,10 +442,10 @@
               type="password" 
               bind:value={newUserPassword}
               placeholder={$t('management.users.defaultPasswordPlaceholder')}
-              class="w-full bg-spotify-dark border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
+              class="w-full bg-muma-spotify-dark border border-muma-spotify-panel rounded-md p-2 focus:outline-none focus:border-brand transition-colors"
             />
           </div>
-          <button type="submit" class="w-full bg-spotify-green text-black font-bold py-2 rounded-full hover:scale-105 transition-transform">
+          <button type="submit" class="w-full bg-brand text-black font-bold py-2 rounded-full hover:scale-105 transition-transform">
             {$t('management.downloaders.add')}
           </button>
         </form>
@@ -457,13 +457,13 @@
     <div class="lg:col-span-2">
       {#if selectedUser}
         <div class="space-y-6 animate-in fade-in duration-300">
-          <div class="bg-spotify-gray p-8 rounded-xl border border-white border-opacity-5">
+          <div class="bg-muma-spotify-panel p-8 rounded-xl border border-white/5">
             <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
               <div class="flex items-center gap-4">
                 {#if selectedUser.avatar_url}
                   <img src={selectedUser.avatar_url} alt={$t('login.avatar')} class="w-16 h-16 rounded-full" />
                 {:else}
-                  <div class="w-16 h-16 bg-spotify-green rounded-full flex items-center justify-center text-black text-2xl font-bold">
+                  <div class="w-16 h-16 bg-brand rounded-full flex items-center justify-center text-black text-2xl font-bold">
                     {selectedUser.username.charAt(0).toUpperCase()}
                   </div>
                 {/if}
@@ -474,7 +474,7 @@
                       <span class="text-xs bg-red-500/20 text-red-400 px-2 py-1 rounded-full uppercase font-bold tracking-wider">{$t('management.users.disabled')}</span>
                     {/if}
                   </h3>
-                  <p class="text-spotify-lightgray">{selectedUser.display_name || 'Geen display name'} • {selectedUser.email || 'Geen e-mail'}</p>
+                  <p class="text-muma-spotify-text">{selectedUser.display_name || 'Geen display name'} • {selectedUser.email || 'Geen e-mail'}</p>
                 </div>
               </div>
 
@@ -503,16 +503,16 @@
               <!-- RBAC Section -->
               <div class="space-y-4">
                 <h4 class="text-xl font-bold flex items-center gap-2 text-white">
-                  <Shield size={20} class="text-spotify-green" /> {$t('management.users.roleAndRights')}
+                  <Shield size={20} class="text-brand" /> {$t('management.users.roleAndRights')}
                 </h4>
-                <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
+                <div class="bg-muma-spotify-dark p-6 rounded-xl border border-muma-spotify-panel space-y-4">
                   <div>
-                    <label for="user-role" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">{$t('management.users.role')}</label>
+                    <label for="user-role" class="block text-xs font-bold text-muma-spotify-text uppercase mb-1">{$t('management.users.role')}</label>
                     {#if hasPermission('users.assign-role')}
                       <div class="flex gap-2">
                         <select 
                           id="user-role"
-                          class="flex-1 bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors text-sm"
+                          class="flex-1 bg-muma-spotify-panel/30 border border-muma-spotify-panel rounded-md p-2 focus:outline-none focus:border-brand transition-colors text-sm"
                           value={roles.find(r => r.name === selectedUser.role_name)?.id}
                           on:change={(e) => updateRole(parseInt(e.target.value))}
                         >
@@ -523,18 +523,18 @@
                         </select>
                       </div>
                     {:else}
-                      <div class="p-2 bg-white/5 rounded text-sm text-spotify-lightgray italic">
+                      <div class="p-2 bg-white/5 rounded text-sm text-muma-spotify-text italic">
                         {selectedUser.role_name || 'user'}
                       </div>
                     {/if}
                   </div>
                   
                   {#if selectedUser.role_name === 'admin'}
-                    <div class="flex items-center gap-2 text-[10px] text-spotify-green font-bold uppercase">
+                    <div class="flex items-center gap-2 text-[10px] text-brand font-bold uppercase">
                       <ShieldCheck size={14} /> {$t('management.users.fullAccess')}
                     </div>
                   {:else}
-                    <div class="flex items-center gap-2 text-[10px] text-spotify-lightgray font-bold uppercase">
+                    <div class="flex items-center gap-2 text-[10px] text-muma-spotify-text font-bold uppercase">
                       <Shield size={14} /> {$t('management.users.limitedAccess')}
                     </div>
                   {/if}
@@ -543,23 +543,23 @@
               <!-- Password Section -->
               <div class="space-y-4">
                 <h4 class="text-xl font-bold flex items-center gap-2 text-white">
-                  <Key size={20} class="text-spotify-green" /> {$t('settings.advanced.security')}
+                  <Key size={20} class="text-brand" /> {$t('settings.advanced.security')}
                 </h4>
-                <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
+                <div class="bg-muma-spotify-dark p-6 rounded-xl border border-muma-spotify-panel space-y-4">
                   <div>
-                    <label for="new-password" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">{$t('settings.advanced.newPassword')}</label>
+                    <label for="new-password" class="block text-xs font-bold text-muma-spotify-text uppercase mb-1">{$t('settings.advanced.newPassword')}</label>
                     <input 
                       id="new-password"
                       type="password" 
                       bind:value={updateUserPassword}
                       placeholder="••••••••"
-                      class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
+                      class="w-full bg-muma-spotify-panel/30 border border-muma-spotify-panel rounded-md p-2 focus:outline-none focus:border-brand transition-colors"
                     />
                   </div>
                   <button 
                     on:click={updatePassword}
                     disabled={!updateUserPassword}
-                    class="w-full bg-spotify-green text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
+                    class="w-full bg-brand text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
                   >
                     {$t('management.users.savePassword')}
                   </button>
@@ -571,27 +571,27 @@
                 <h4 class="text-xl font-bold flex items-center gap-2 text-white">
                   <Radio size={20} class="text-[#EB743B]" /> {$t('management.users.listenBrainz')}
                 </h4>
-                <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
+                <div class="bg-muma-spotify-dark p-6 rounded-xl border border-muma-spotify-panel space-y-4">
                   <div>
-                    <label for="lb-username" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">{$t('management.users.lbUsername')}</label>
+                    <label for="lb-username" class="block text-xs font-bold text-muma-spotify-text uppercase mb-1">{$t('management.users.lbUsername')}</label>
                     <input 
                       id="lb-username"
                       type="text" 
                       bind:value={lbUsername}
                       placeholder={$t('management.users.lbUserPlaceholder')}
-                      class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors"
+                      class="w-full bg-muma-spotify-panel/30 border border-muma-spotify-panel rounded-md p-2 focus:outline-none focus:border-brand transition-colors"
                     />
                   </div>
                   <div>
-                    <label for="lb-token" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">{$t('management.users.apiToken')}</label>
+                    <label for="lb-token" class="block text-xs font-bold text-muma-spotify-text uppercase mb-1">{$t('management.users.apiToken')}</label>
                     <div class="relative">
-                      <Key class="absolute left-2 top-2.5 text-spotify-lightgray" size={16} />
+                      <Key class="absolute left-2 top-2.5 text-muma-spotify-text" size={16} />
                       <input 
                         id="lb-token"
                         type="password" 
                         bind:value={lbToken}
                         placeholder={$t('management.users.tokenPlaceholder')}
-                        class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 pl-9 focus:outline-none focus:border-spotify-green transition-colors font-mono text-sm"
+                        class="w-full bg-muma-spotify-panel/30 border border-muma-spotify-panel rounded-md p-2 pl-9 focus:outline-none focus:border-brand transition-colors font-mono text-sm"
                       />
                     </div>
                   </div>
@@ -604,7 +604,7 @@
                     </button>
                     <button 
                       on:click={updateLBAccount}
-                      class="flex-1 bg-spotify-green text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform"
+                      class="flex-1 bg-brand text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform"
                     >
                       {$t('management.users.saveUpper')}
                     </button>
@@ -615,10 +615,10 @@
               <!-- Subsonic API token -->
               <div class="space-y-4">
                 <h4 class="text-xl font-bold flex items-center gap-2 text-white">
-                  <Key size={20} class="text-spotify-green" /> {$t('management.users.subsonicToken')}
+                  <Key size={20} class="text-brand" /> {$t('management.users.subsonicToken')}
                 </h4>
-                <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
-                  <p class="text-xs text-spotify-lightgray">
+                <div class="bg-muma-spotify-dark p-6 rounded-xl border border-muma-spotify-panel space-y-4">
+                  <p class="text-xs text-muma-spotify-text">
                     {$t('management.users.subsonicTokenHelp')}
                   </p>
                   {#if !$authParams}
@@ -626,20 +626,20 @@
                       {$t('management.users.needsServerLogin')}
                     </p>
                   {:else}
-                    <div class="bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 font-mono text-sm break-all min-h-[38px] flex items-center">
+                    <div class="bg-muma-spotify-panel/30 border border-muma-spotify-panel rounded-md p-2 font-mono text-sm break-all min-h-[38px] flex items-center">
                       {#if !subsonicTokenLoaded}
-                        <span class="text-spotify-lightgray italic">{$t('common.loading')}</span>
+                        <span class="text-muma-spotify-text italic">{$t('common.loading')}</span>
                       {:else if subsonicToken}
                         {subsonicToken}
                       {:else}
-                        <span class="text-spotify-lightgray italic">{$t('management.users.noToken')}</span>
+                        <span class="text-muma-spotify-text italic">{$t('management.users.noToken')}</span>
                       {/if}
                     </div>
                     <div class="flex gap-2">
                       <button
                         on:click={generateSubsonicToken}
                         disabled={isSavingSubsonicToken}
-                        class="flex-1 bg-spotify-green text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
+                        class="flex-1 bg-brand text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
                       >
                         {subsonicToken ? 'NIEUW TOKEN' : 'TOKEN GENEREREN'}
                       </button>
@@ -660,10 +660,10 @@
               <!-- Music Server Settings -->
               <div class="space-y-4">
                 <h4 class="text-xl font-bold flex items-center gap-2 text-white">
-                  <Database size={20} class="text-spotify-green" /> {$t('management.users.serverIntegration')}
+                  <Database size={20} class="text-brand" /> {$t('management.users.serverIntegration')}
                 </h4>
-                <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
-                  <p class="text-xs text-spotify-lightgray">{$t('management.users.serverIntegrationHelp')}</p>
+                <div class="bg-muma-spotify-dark p-6 rounded-xl border border-muma-spotify-panel space-y-4">
+                  <p class="text-xs text-muma-spotify-text">{$t('management.users.serverIntegrationHelp')}</p>
                   <div class="flex flex-col gap-2">
                     <button 
                       on:click={syncLMSUsers}
@@ -673,7 +673,7 @@
                     </button>
                     <button 
                       on:click={syncLMSDbUsers}
-                      class="w-full bg-spotify-green text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform flex items-center justify-center gap-2"
+                      class="w-full bg-brand text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform flex items-center justify-center gap-2"
                     >
                       <Database size={14} /> {$t('management.users.syncViaDatabase')}
                     </button>
@@ -686,7 +686,7 @@
                 <h4 class="text-xl font-bold flex items-center gap-2 text-white">
                   <Link size={20} class="text-blue-400" /> {$t('management.users.linkedAccounts')}
                 </h4>
-                <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
+                <div class="bg-muma-spotify-dark p-6 rounded-xl border border-muma-spotify-panel space-y-4">
                   {#if userIdentities.length > 0}
                     <div class="space-y-3">
                       {#each userIdentities as identity (identity.provider + identity.provider_subject)}
@@ -701,18 +701,18 @@
                             </div>
                             <div>
                               <div class="text-sm font-bold capitalize">{identity.provider}</div>
-                              <div class="text-[10px] text-spotify-lightgray">{identity.email_at_provider || identity.provider_subject}</div>
+                              <div class="text-[10px] text-muma-spotify-text">{identity.email_at_provider || identity.provider_subject}</div>
                             </div>
                           </div>
                           <div class="text-right">
-                            <div class="text-[10px] text-spotify-lightgray uppercase font-bold">{$t('management.users.lastUsed')}</div>
+                            <div class="text-[10px] text-muma-spotify-text uppercase font-bold">{$t('management.users.lastUsed')}</div>
                             <div class="text-[10px]">{identity.last_used_at ? new Date(identity.last_used_at).toLocaleDateString('nl-NL') : 'Nooit'}</div>
                           </div>
                         </div>
                       {/each}
                     </div>
                   {:else}
-                    <p class="text-xs text-spotify-lightgray italic">{$t('management.users.noLinkedAccounts')}</p>
+                    <p class="text-xs text-muma-spotify-text italic">{$t('management.users.noLinkedAccounts')}</p>
                   {/if}
                 </div>
               </div>
@@ -723,16 +723,16 @@
                 <h4 class="text-xl font-bold flex items-center gap-2 text-white">
                   <Users size={20} class="text-yellow-400" /> {$t('management.users.mergeAccounts')}
                 </h4>
-                <div class="bg-spotify-dark p-6 rounded-xl border border-spotify-gray space-y-4">
-                  <p class="text-xs text-spotify-lightgray">
+                <div class="bg-muma-spotify-dark p-6 rounded-xl border border-muma-spotify-panel space-y-4">
+                  <p class="text-xs text-muma-spotify-text">
                     {$t('management.users.mergeHelp')} <strong>{selectedUser.username}</strong>.
                   </p>
                   <div>
-                    <label for="merge-secondary" class="block text-xs font-bold text-spotify-lightgray uppercase mb-1">{$t('management.users.mergeWith')}</label>
+                    <label for="merge-secondary" class="block text-xs font-bold text-muma-spotify-text uppercase mb-1">{$t('management.users.mergeWith')}</label>
                     <select
                       id="merge-secondary"
                       bind:value={mergeSecondaryId}
-                      class="w-full bg-spotify-gray bg-opacity-30 border border-spotify-gray rounded-md p-2 focus:outline-none focus:border-spotify-green transition-colors text-sm"
+                      class="w-full bg-muma-spotify-panel/30 border border-muma-spotify-panel rounded-md p-2 focus:outline-none focus:border-brand transition-colors text-sm"
                     >
                       <option value="">{$t('management.users.selectOtherAccount')}</option>
                       {#each users.filter(u => u.id !== selectedUser.id) as user (user.id)}
@@ -754,7 +754,7 @@
           </div>
         </div>
       {:else}
-        <div class="h-full flex items-center justify-center bg-spotify-gray bg-opacity-20 rounded-xl border border-dashed border-spotify-gray p-12 text-center text-spotify-lightgray">
+        <div class="h-full flex items-center justify-center bg-muma-spotify-panel/20 rounded-xl border border-dashed border-muma-spotify-panel p-12 text-center text-muma-spotify-text">
           <div>
             <Users size={48} class="mx-auto mb-4 opacity-20" />
             <p class="text-xl font-bold">{$t('management.users.selectUser')}</p>

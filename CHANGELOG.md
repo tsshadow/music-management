@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-08-25
+
 ### Added
 - **Alles wat het infoscherm van een nummer over dat nummer weet, is nu een ingang tot de
   bibliotheek.** Genre, jaar, label en mood staan er als chips en rijtjes die je kunt aantikken;

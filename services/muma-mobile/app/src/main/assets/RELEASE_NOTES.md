@@ -1,5 +1,22 @@
 ## [Unreleased]
 
+## [6.25.0] - 2026-08-25
+
+### Added
+- **Alles wat het infoscherm van een nummer weet, is nu een ingang naar de bibliotheek.** Genre,
+  label, mood en het jaar zijn aantikbaar en openen de nummerlijst met dat filter. Label en mood
+  zijn nieuwe regels op het scherm. Een nummer met meerdere artiesten maakt van de artiestenregel
+  een keuzemenu: elke artiest apart, plus wat ze samen maakten. Bij één artiest verandert er niets.
+  De artiestenpagina heeft er een knop "Alle nummers" bij, want de albumlijst daar bevat alleen
+  releases waarvan de artiest ook albumartiest is, en samenwerkingen staan op andermans releases.
+
+### Changed
+- **Beheer opent op een gegroepeerde index in plaats van een rij tabbladen.** Groepskoppen en
+  pagina's in dezelfde volgorde als het web: Collectie, Curatie, Kanalen, Toegang, Systeem en
+  Instellingen, met Overzicht en Downloaders los. Alle negentien beheerpagina's staan er; de
+  zestien die de app nog niet heeft staan gedimd met de mededeling dat ze voorlopig alleen op het
+  web zitten. Downloaders, Gebruikers en Toegangsverzoeken werken precies als voorheen.
+
 ### Added
 - **Alles wat het infoscherm van een nummer weet, is nu een ingang tot de bibliotheek.** Tik op
   het genre, het label, de mood of het jaar en je krijgt de nummerlijst met dat filter. Label en

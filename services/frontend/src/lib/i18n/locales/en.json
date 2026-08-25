@@ -35,14 +35,19 @@
     "hoursShort": "{count} h",
     "minimum": "At least",
     "minutesShort": "{count} m",
+    "noFestivals": "No festivals found yet.",
+    "noLineups": "No lineups yet.",
+    "noLineupsHelp": "A lineup is a text file of artist names under /music/metadata/festival-lineups. Add one and it shows up here.",
     "noMatches": "Nothing matches these filters",
     "noMatchesHelp": "Try a shorter search term, or lower the minimum track count.",
     "noPodcasts": "No podcasts yet. Approve a show under Management > Podcasts and run the tagger.",
+    "noYears": "No years found yet.",
     "reverseOrder": "Reverse sort order",
     "searchLabel": "Search this list",
     "shownOfTotal": "{shown} of {total}",
     "sortedAscending": "Ascending — click for descending",
     "sortedDescending": "Descending — click for ascending",
+    "tagNotIndexed": "This tag is not indexed. Add {tag} to the scanner's extra tags to scan and run a full scan.",
     "thresholdAll": "All",
     "toggleFavoriteLabel": "Toggle favourite label",
     "toggleFavoritePlaylist": "Toggle favourite playlist",
@@ -750,11 +755,13 @@
     "albums": "Albums",
     "artists": "Artists",
     "closeMenu": "Close menu",
+    "festivals": "Festivals",
     "genres": "Genres",
     "history": "History",
     "home": "Home",
     "labels": "Labels",
     "library": "Library",
+    "lineups": "Lineups",
     "management": "Management",
     "memories": "Memories",
     "menu": "Menu",
@@ -765,7 +772,8 @@
     "releaseRadar": "Release Radar",
     "sets": "Sets",
     "songs": "Songs",
-    "starred": "Favourites"
+    "starred": "Favourites",
+    "years": "Years"
   },
   "news": {
     "couldNotPlay": "Could not play the news",
@@ -933,7 +941,8 @@
     "recentlyPlayed": "Recently played",
     "recentlyReleased": "Recently released",
     "recentlyUpdated": "Recently updated",
-    "trackCount": "Track count"
+    "trackCount": "Track count",
+    "year": "Year"
   },
   "starred": {
     "empty": "No favourites yet",

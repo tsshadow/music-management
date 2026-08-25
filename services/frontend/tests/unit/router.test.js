@@ -28,7 +28,10 @@ describe('viewToPath', () => {
     ['playlists', '/playlists'],
     ['memories', '/memories'],
     ['history', '/history'],
-    ['starred', '/starred']
+    ['starred', '/starred'],
+    ['festivals', '/festivals'],
+    ['years', '/years'],
+    ['lineups', '/lineups']
   ])('maps the %s sidebar page to %s', (view, path) => {
     expect(viewToPath(state(view))).toBe(path);
   });
@@ -43,6 +46,20 @@ describe('viewToPath', () => {
 
   it('percent-encodes a show name, which can hold a slash and a hash', () => {
     expect(viewToPath(state('podcast:Q-dance Radio / #40'))).toBe('/podcast/Q-dance%20Radio%20%2F%20%2340');
+  });
+
+  it('percent-encodes a festival name, which routinely contains spaces and ampersands', () => {
+    expect(viewToPath(state('festival:Q-BASE 2024 & Friends')))
+      .toBe('/festival/Q-BASE%202024%20%26%20Friends');
+  });
+
+  it('routes a year like any other argument view', () => {
+    expect(viewToPath(state('year:2024'))).toBe('/year/2024');
+  });
+
+  it('percent-encodes a lineup name so a slash in it cannot change the route', () => {
+    expect(viewToPath(state('lineup:Defqon.1 2025 / Blue')))
+      .toBe('/lineup/Defqon.1%202025%20%2F%20Blue');
   });
 
   it('puts the memory year in the path', () => {
@@ -117,6 +134,28 @@ describe('pathToState', () => {
 
   it('decodes a search query back out of the path', () => {
     expect(pathToState('/search/drum%20%26%20bass')).toEqual({ view: 'search:drum & bass' });
+  });
+
+  it.each([
+    ['/festivals', 'festivals'],
+    ['/years', 'years'],
+    ['/lineups', 'lineups']
+  ])('reads %s back as the %s page', (path, view) => {
+    expect(pathToState(path)).toEqual({ view });
+  });
+
+  it('decodes a festival name back to exactly what was encoded', () => {
+    expect(pathToState('/festival/Q-BASE%202024%20%26%20Friends'))
+      .toEqual({ view: 'festival:Q-BASE 2024 & Friends' });
+  });
+
+  it('decodes a lineup name containing a slash', () => {
+    expect(pathToState('/lineup/Defqon.1%202025%20%2F%20Blue'))
+      .toEqual({ view: 'lineup:Defqon.1 2025 / Blue' });
+  });
+
+  it('reads a year path back as a year view', () => {
+    expect(pathToState('/year/2024')).toEqual({ view: 'year:2024' });
   });
 
   it('reads a memory year off the path', () => {

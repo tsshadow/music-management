@@ -20,10 +20,12 @@
   import GenreEdit from './curation/GenreEdit.svelte';
   import Management from './management/Management.svelte';
   import CollectionBar from './CollectionBar.svelte';
+  import CollectionGrid from './CollectionGrid.svelte';
   import { getArtistImageUrl, viewArgument } from './utils.js';
   import { localDateString, memoryCount, memoryHeading, parseMemoryGroups } from './memories.js';
   import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
   import { defaultCollectionState, durationParts, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
+  import { loadIndexedTags } from './scanTags.js';
   import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, hasPermission } from './store.js';
 
   // Navigation that has to survive a refresh goes through onnavigate, which App turns into a URL.
@@ -47,6 +49,11 @@
   let allGenres = $state([]);
   let allLabels = $state([]);
   let allPodcasts = $state([]);
+  let allFestivals = $state([]);
+  let allYears = $state([]);
+  let allLineups = $state([]);
+  // null until asked, and null again whenever the answer is not knowable -- see loadIndexedTags.
+  let indexedTags = $state(null);
   let playlists = $state([]);
   let tracksOffset = $state(0);
   let tracksHasMore = $state(true);
@@ -69,6 +76,9 @@
   let genreView = $state(defaultCollectionState('genres'));
   let labelView = $state(defaultCollectionState('labels'));
   let podcastView = $state(defaultCollectionState('podcasts'));
+  let festivalView = $state(defaultCollectionState('festivals'));
+  let yearView = $state(defaultCollectionState('years'));
+  let lineupView = $state(defaultCollectionState('lineups'));
   let playlistView = $state(defaultCollectionState('playlists'));
 
   const visibleGenres = $derived(queryCollection(allGenres, 'genres', genreView, { favorites: $favoriteGenres }));
@@ -158,8 +168,20 @@
         if (activeView.startsWith('podcast:')) {
           url += `&podcast=${encodeURIComponent(viewArgument(activeView))}`;
         }
+        if (activeView.startsWith('festival:')) {
+          url += `&festival=${encodeURIComponent(viewArgument(activeView))}`;
+        }
+        if (activeView.startsWith('lineup:')) {
+          url += `&lineup=${encodeURIComponent(viewArgument(activeView))}`;
+        }
 
+        // The year view reuses the parameter the filter bar already drives. Seeding
+        // `currentYear` from the route instead would not survive: resetTrackFiltersFor
+        // clears it on every arrival at a new track view, before the first fetch.
         if (currentYear) url += `&year=${encodeURIComponent(currentYear)}`;
+        else if (activeView.startsWith('year:')) {
+          url += `&year=${encodeURIComponent(viewArgument(activeView))}`;
+        }
         if (currentMinRating !== '0') url += `&minRating=${currentMinRating}`;
         if (includeUnrated) url += `&includeUnrated=true`;
 
@@ -374,6 +396,72 @@
   }
 
   /**
+   * Loads one cluster-type list (festivals, years) and, when it comes back empty,
+   * the scanner settings that say whether the tag is indexed at all.
+   *
+   * @param {string} tag - The cluster type, e.g. 'FESTIVAL'.
+   * @returns {Promise<Object[]>} The tags, possibly empty.
+   */
+  async function loadTagCollection(tag) {
+    if (!$authParams) return [];
+    isLoading = true;
+    try {
+      const response = await fetch(`/rest/getTags?name=${tag}&${$authParams}`);
+      const data = await response.json();
+      const result = data['subsonic-response']?.tags?.tag || [];
+      const list = Array.isArray(result) ? result : [result];
+
+      // Only worth a second request when there is something to explain.
+      indexedTags = list.length === 0 ? await loadIndexedTags($authParams) : null;
+
+      return list;
+    } catch (e) {
+      console.error(`Failed to load the ${tag} list:`, e);
+      return [];
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  /**
+   * Loads the festival lineups.
+   *
+   * These are text files on disk rather than anything the library knows about, so an
+   * empty list is the normal state of a server where nobody has added one yet.
+   */
+  async function loadAllLineups() {
+    if (!$authParams) return;
+    isLoading = true;
+    try {
+      const response = await fetch(`/rest/getLineups?${$authParams}`);
+      const data = await response.json();
+      const result = data['subsonic-response']?.lineups?.lineup || [];
+      const list = Array.isArray(result) ? result : [result];
+      // getLineups answers with a `name` attribute; every collection here keys on `value`.
+      allLineups = list.map((entry) => ({ value: entry.name ?? entry.value }));
+    } catch (e) {
+      console.error('Failed to load lineups:', e);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  /**
+   * The extra line under an empty festival or year grid: shown only when the scanner
+   * settings were readable AND actually lack the tag. A null `indexedTags` means the
+   * settings could not be read -- a non-admin, an older server -- and then the page
+   * says nothing rather than pointing at a setting the viewer cannot see.
+   *
+   * @param {string} tag
+   * @returns {string|null}
+   */
+  function tagHint(tag) {
+    if (indexedTags === null) return null;
+    if (indexedTags.includes(tag)) return null;
+    return $t('collection.tagNotIndexed', { tag });
+  }
+
+  /**
    * Adds or removes one entry in a favorites store, keeping it sorted so the
    * value that gets synced to the account doesn't churn on every toggle.
    *
@@ -528,7 +616,7 @@
         if (view === 'home') {
             loadCurated();
             loadMemoryGroups();
-        } else if (view === 'songs' || view === 'sets' || view.startsWith('genre:') || view.startsWith('label:') || view.startsWith('podcast:')) {
+        } else if (view === 'songs' || view === 'sets' || view.startsWith('genre:') || view.startsWith('label:') || view.startsWith('podcast:') || view.startsWith('festival:') || view.startsWith('year:') || view.startsWith('lineup:')) {
             resetTrackFiltersFor(view);
             loadAllTracks();
         } else if (view === 'radar') {
@@ -541,6 +629,12 @@
             loadAllLabels();
         } else if (view === 'podcasts') {
             loadAllPodcasts();
+        } else if (view === 'festivals') {
+            loadTagCollection('FESTIVAL').then((list) => (allFestivals = list));
+        } else if (view === 'years') {
+            loadTagCollection('YEAR').then((list) => (allYears = list));
+        } else if (view === 'lineups') {
+            loadAllLineups();
         } else if (view === 'artists') {
             loadArtists();
         } else if (view === 'playlists') {
@@ -559,7 +653,7 @@
   });
 
   $effect(() => {
-    if (sentinel && tracksHasMore && !isLoading && (activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('podcast:') || activeView.startsWith('search:'))) {
+    if (sentinel && tracksHasMore && !isLoading && (activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('podcast:') || activeView.startsWith('festival:') || activeView.startsWith('year:') || activeView.startsWith('lineup:') || activeView.startsWith('search:'))) {
       const observer = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting) {
           loadAllTracks(true);
@@ -651,7 +745,7 @@
         </div>
       </section>
     {/each}
-  {:else if activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('podcast:')}
+  {:else if activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('podcast:') || activeView.startsWith('festival:') || activeView.startsWith('year:') || activeView.startsWith('lineup:')}
     <div class="flex flex-col gap-4 mb-6">
         <h2 class="text-2xl font-bold m-0 flex items-center gap-3">
             {#if activeView === 'songs' || activeView === 'sets'}
@@ -693,7 +787,7 @@
               {/if}
             {/if}
         </h2>
-        <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} showGenre={!activeView.startsWith('genre:') && !activeView.startsWith('label:') && !activeView.startsWith('podcast:')} onchange={handleFilterChange} />
+        <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} showGenre={!activeView.startsWith('genre:') && !activeView.startsWith('label:') && !activeView.startsWith('podcast:')} showYear={!activeView.startsWith('year:')} onchange={handleFilterChange} />
     </div>
     {#if isLoading && tracks.length === 0}
         <p>{$t('common.loading')}</p>
@@ -757,153 +851,73 @@
         </div>
     {/if}
   {:else if activeView === 'genres'}
-    <div class="flex flex-col gap-4 mb-6">
-      <h2 class="text-2xl font-bold m-0">{$t('nav.genres')}</h2>
-      <CollectionBar
-        type="genres"
-        bind:state={genreView}
-        total={allGenres.length}
-        shown={visibleGenres.length}
-        favoriteCount={$favoriteGenres.length}
-      />
-    </div>
-    {#if isLoading && allGenres.length === 0}
-        <p>{$t('common.loading')}</p>
-    {:else if allGenres.length === 0}
-        <p class="text-[#b3b3b3]">{$t('dashboard.noGenres')}</p>
-    {:else if visibleGenres.length === 0}
-        {@render noMatches(() => (genreView = defaultCollectionState('genres')))}
-    {:else}
-        <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
-            {#each visibleGenres as g (g.value)}
-                <div
-                  role="button"
-                  tabindex="0"
-                  class="bg-[#181818] p-6 rounded-lg flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors hover:bg-[#282828] aspect-square relative group"
-                  onclick={() => activeView = `genre:${g.value}`}
-                  onkeydown={(e) => e.key === 'Enter' && (activeView = `genre:${g.value}`)}
-                >
-                    <button
-                        class="absolute top-3 right-3 p-2 bg-black/40 rounded-full text-brand transition-all hover:scale-110 active:scale-95 {$favoriteGenres.includes(g.value) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}"
-                        onclick={(e) => { e.stopPropagation(); toggleFavorite(g.value); }}
-                        aria-label={$t('dashboard.toggleFavorite')}
-                    >
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill={$favoriteGenres.includes(g.value) ? "currentColor" : "none"} stroke="currentColor" stroke-width="2">
-                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
-                        </svg>
-                    </button>
-                    <div class="w-16 h-16 rounded-full bg-brand flex items-center justify-center text-black mb-2 shadow-lg">
-                        <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
-                            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"></path>
-                        </svg>
-                    </div>
-                    <span class="font-bold text-center break-words w-full">{g.value}</span>
-                    <span class="text-xs text-[#b3b3b3] text-center">
-                      {$t('common.trackCount', { count: Number(g.songCount) || 0 })}
-                      {#if Number(g.albumCount) > 0}
-                        &middot; {$t('collection.albumCount', { count: Number(g.albumCount) })}
-                      {/if}
-                    </span>
-                </div>
-            {/each}
-        </div>
-    {/if}
+    <CollectionGrid
+      type="genres"
+      title={$t('nav.genres')}
+      items={allGenres}
+      bind:state={genreView}
+      loading={isLoading}
+      favorites={$favoriteGenres}
+      onfavorite={(value) => toggleFavorite(value)}
+      emptyText={$t('dashboard.noGenres')}
+      onselect={(item) => (activeView = `genre:${item.value}`)}
+    />
   {:else if activeView === 'podcasts'}
-    <div class="flex flex-col gap-4 mb-6">
-      <h2 class="text-2xl font-bold m-0">{$t('nav.podcasts')}</h2>
-      <CollectionBar
-        type="podcasts"
-        bind:state={podcastView}
-        total={allPodcasts.length}
-        shown={visiblePodcasts.length}
-        showFavorites={false}
-      />
-    </div>
-    {#if isLoading && allPodcasts.length === 0}
-        <p>{$t('common.loading')}</p>
-    {:else if allPodcasts.length === 0}
-        <p class="text-[#b3b3b3]">{$t('collection.noPodcasts')}</p>
-    {:else if visiblePodcasts.length === 0}
-        {@render noMatches(() => (podcastView = defaultCollectionState('podcasts')))}
-    {:else}
-        <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
-            {#each visiblePodcasts as p (p.value)}
-                <div
-                  role="button"
-                  tabindex="0"
-                  class="bg-[#181818] p-6 rounded-lg flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors hover:bg-[#282828] aspect-square relative group"
-                  onclick={() => activeView = `podcast:${p.value}`}
-                  onkeydown={(e) => e.key === 'Enter' && (activeView = `podcast:${p.value}`)}
-                >
-                    <div class="w-16 h-16 rounded-full bg-brand flex items-center justify-center text-black mb-2 shadow-lg">
-                        <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
-                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-2.08c3.39-.49 6-3.39 6-6.92h-2z"></path>
-                        </svg>
-                    </div>
-                    <span class="font-bold text-center break-words w-full">{p.value}</span>
-                    <span class="text-xs text-[#b3b3b3] text-center">
-                      {$t('collection.episodeCount', { count: Number(p.songCount) || 0 })}
-                    </span>
-                </div>
-            {/each}
-        </div>
-    {/if}
+    <CollectionGrid
+      type="podcasts"
+      title={$t('nav.podcasts')}
+      items={allPodcasts}
+      bind:state={podcastView}
+      loading={isLoading}
+      emptyText={$t('collection.noPodcasts')}
+      onselect={(item) => (activeView = `podcast:${item.value}`)}
+    />
   {:else if activeView === 'labels'}
-    <div class="flex flex-col gap-4 mb-6">
-      <h2 class="text-2xl font-bold m-0">{$t('nav.labels')}</h2>
-      <CollectionBar
-        type="labels"
-        bind:state={labelView}
-        total={allLabels.length}
-        shown={visibleLabels.length}
-        favoriteCount={$favoriteLabels.length}
-      />
-    </div>
-    {#if isLoading && allLabels.length === 0}
-        <p>{$t('common.loading')}</p>
-    {:else if allLabels.length === 0}
-        <p class="text-[#b3b3b3]">{$t('dashboard.noLabels')}</p>
-    {:else if visibleLabels.length === 0}
-        {@render noMatches(() => (labelView = defaultCollectionState('labels')))}
-    {:else}
-        <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
-            {#each visibleLabels as l (l.value)}
-                <div
-                  role="button"
-                  tabindex="0"
-                  class="bg-[#181818] p-6 rounded-lg flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors hover:bg-[#282828] aspect-square relative group"
-                  onclick={() => activeView = `label:${l.value}`}
-                  onkeydown={(e) => e.key === 'Enter' && (activeView = `label:${l.value}`)}
-                >
-                    <button
-                        class="absolute top-3 right-3 p-2 bg-black/40 rounded-full text-brand transition-all hover:scale-110 active:scale-95 {$favoriteLabels.includes(l.value) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}"
-                        onclick={(e) => { e.stopPropagation(); toggleFavoriteIn(favoriteLabels, l.value); }}
-                        aria-label={$t('collection.toggleFavoriteLabel')}
-                    >
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill={$favoriteLabels.includes(l.value) ? "currentColor" : "none"} stroke="currentColor" stroke-width="2">
-                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
-                        </svg>
-                    </button>
-                    <div class="w-16 h-16 rounded-full bg-brand flex items-center justify-center text-black mb-2 shadow-lg">
-                        <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"></path>
-                        </svg>
-                    </div>
-                    <span class="font-bold text-center break-words w-full">{l.value}</span>
-                    <!-- Older servers answer getRecordLabels without any counts; the card
-                         simply leaves the line out rather than showing "0 nummers". -->
-                    {#if l.songCount !== undefined}
-                      <span class="text-xs text-[#b3b3b3] text-center">
-                        {$t('common.trackCount', { count: Number(l.songCount) || 0 })}
-                        {#if Number(l.albumCount) > 0}
-                          &middot; {$t('collection.albumCount', { count: Number(l.albumCount) })}
-                        {/if}
-                      </span>
-                    {/if}
-                </div>
-            {/each}
-        </div>
-    {/if}
+    <CollectionGrid
+      type="labels"
+      title={$t('nav.labels')}
+      items={allLabels}
+      bind:state={labelView}
+      loading={isLoading}
+      favorites={$favoriteLabels}
+      onfavorite={(value) => toggleFavoriteIn(favoriteLabels, value)}
+      favoriteAriaLabel={$t('collection.toggleFavoriteLabel')}
+      emptyText={$t('dashboard.noLabels')}
+      onselect={(item) => (activeView = `label:${item.value}`)}
+    />
+  {:else if activeView === 'festivals'}
+    <CollectionGrid
+      type="festivals"
+      title={$t('nav.festivals')}
+      items={allFestivals}
+      bind:state={festivalView}
+      loading={isLoading}
+      emptyText={$t('collection.noFestivals')}
+      emptyHint={tagHint('FESTIVAL')}
+      onselect={(item) => (activeView = `festival:${item.value}`)}
+    />
+  {:else if activeView === 'years'}
+    <CollectionGrid
+      type="years"
+      title={$t('nav.years')}
+      items={allYears}
+      bind:state={yearView}
+      loading={isLoading}
+      emptyText={$t('collection.noYears')}
+      emptyHint={tagHint('YEAR')}
+      onselect={(item) => (activeView = `year:${item.value}`)}
+    />
+  {:else if activeView === 'lineups'}
+    <CollectionGrid
+      type="lineups"
+      title={$t('nav.lineups')}
+      items={allLineups}
+      bind:state={lineupView}
+      loading={isLoading}
+      emptyText={$t('collection.noLineups')}
+      emptyHint={$t('collection.noLineupsHelp')}
+      onselect={(item) => (activeView = `lineup:${item.value}`)}
+    />
   {:else if activeView === 'artists'}
     <div class="flex flex-col gap-4 mb-6">
       <h2 class="text-2xl font-bold m-0">{$t('nav.artists')}</h2>

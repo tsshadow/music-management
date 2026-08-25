@@ -154,14 +154,80 @@ describe('queryCollection - playlists', () => {
   });
 });
 
+const festival = (value, songCount = 100, albumCount = 10) => ({ value, songCount, albumCount });
+const year = (value, songCount = 100) => ({ value, songCount });
+const lineup = (value) => ({ value });
+
+describe('the year collection', () => {
+  it('sorts newest first by default, because alphabetical years are useless', () => {
+    const items = [year('2019'), year('2026'), year('2022')];
+    const state = defaultCollectionState('years');
+
+    expect(names(queryCollection(items, 'years', state))).toEqual(['2026', '2022', '2019']);
+  });
+
+  it('shows every year, however small, because a thin year is still a real one', () => {
+    const items = [year('2026', 3), year('2025', 900)];
+    const state = defaultCollectionState('years');
+
+    expect(names(queryCollection(items, 'years', state))).toEqual(['2026', '2025']);
+  });
+});
+
+describe('the lineup collection', () => {
+  it('sorts by name, the only field getLineups returns', () => {
+    const items = [lineup('Defqon.1 2025'), lineup('Airforce 2024')];
+    const state = defaultCollectionState('lineups');
+
+    expect(names(queryCollection(items, 'lineups', state))).toEqual([
+      'Airforce 2024',
+      'Defqon.1 2025'
+    ]);
+  });
+
+  it('keeps countless lineups visible under a size threshold', () => {
+    const items = [lineup('Airforce 2024')];
+    const state = { ...defaultCollectionState('lineups'), threshold: '100' };
+
+    expect(names(queryCollection(items, 'lineups', state))).toEqual(['Airforce 2024']);
+  });
+});
+
+describe('the festival collection', () => {
+  it('hides the long tail by default, like genres and labels', () => {
+    const items = [festival('Defqon.1', 400), festival('Mistagged', 2)];
+    const state = defaultCollectionState('festivals');
+
+    expect(names(queryCollection(items, 'festivals', state))).toEqual(['Defqon.1']);
+  });
+
+  it('searches accent- and case-insensitively', () => {
+    const items = [festival('Décibel'), festival('Defqon.1')];
+    const state = { ...defaultCollectionState('festivals'), search: 'decibel' };
+
+    expect(names(queryCollection(items, 'festivals', state))).toEqual(['Décibel']);
+  });
+});
+
 describe('sortOption', () => {
   it('falls back to the first option so a stale sort id cannot blank the view', () => {
     expect(sortOption('genres', 'nonsense').id).toBe('name');
   });
 
-  it('offers a song-count sort for every collection', () => {
+  // Lineups are the one collection the server cannot count: getLineups answers with a bare
+  // name per lineup and no song or album totals, so a count sort would sort on undefined.
+  const COUNTLESS = ['lineups'];
+
+  it('offers a song-count sort for every collection that has counts', () => {
     for (const type of Object.keys(COLLECTION_SORTS)) {
+      if (COUNTLESS.includes(type)) continue;
       expect(COLLECTION_SORTS[type].some((s) => s.id === 'songs')).toBe(true);
+    }
+  });
+
+  it('gives the countless collections a name sort, so they are never unsorted', () => {
+    for (const type of COUNTLESS) {
+      expect(COLLECTION_SORTS[type].some((s) => s.id === 'name')).toBe(true);
     }
   });
 });

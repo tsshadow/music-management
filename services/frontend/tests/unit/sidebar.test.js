@@ -170,4 +170,32 @@ describe('Sidebar', () => {
 
     expect(screen.getByText('Hardcore')).toBeTruthy();
   });
+
+  it('offers the three tag-driven browse pages in the library group', async () => {
+    await renderLoaded();
+    await openLibrary();
+
+    expect(screen.getByText('Festivals')).toBeTruthy();
+    expect(screen.getByText('Jaren')).toBeTruthy();
+    expect(screen.getByText('Lineups')).toBeTruthy();
+  });
+
+  it('navigates to the festivals page when it is picked', async () => {
+    const onnavigate = vi.fn();
+    await renderLoaded({ onnavigate });
+    await openLibrary();
+
+    await fireEvent.click(screen.getByText('Festivals'));
+
+    expect(onnavigate).toHaveBeenCalledWith('festivals');
+  });
+
+  // libraryExpanded derives from libraryItems.some(item => item.id === activeView), so a
+  // page that lives in the group but is missing from that list renders collapsed on a
+  // deep link.
+  it('keeps the library group open when the app lands straight on a lineup page', async () => {
+    await renderLoaded({ activeView: 'lineups' });
+
+    expect(screen.getByText('Lineups')).toBeTruthy();
+  });
 });

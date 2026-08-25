@@ -29,13 +29,20 @@ pyasn1~=0.6.4
 # --- Media / tagging ---------------------------------------------------------
 mutagen~=1.47.0
 librosa~=0.10.2.post1
-# Not pinned low: wheel coverage is what decides this one. numpy 2.0.x ships no
-# cp313 or cp314 wheels, so any Python bump on docker/Dockerfile.music-manager
-# made pip fall back to building 19 MB of C++ from source in an image that has
-# gcc but no g++ -- which is what MR !490 died on. 2.5.x has wheels up to
-# cp314, stays under numba's `numpy<2.6`, and librosa 0.10.2 sets no upper
-# bound at all.
-numpy~=2.5.2
+# Wheel coverage decides this one, not recency. 2.0.x ships no cp313 or cp314
+# wheels, so any Python bump on docker/Dockerfile.music-manager made pip fall
+# back to building 19 MB of C++ from source in an image that has gcc but no
+# g++ -- which is what MR !490 died on, with an error naming meson rather than
+# this line.
+#
+# 2.4.6 and not the newest: numpy 2.5 requires Python >=3.12, and this image is
+# still on 3.11, so 2.5 cannot be the version that carries us across. The 2.4
+# series is the last one that spans cp311 through cp314, which makes it the
+# only pin that is installable both before and after the Python bump. It also
+# stays under numba's `numpy<2.6`, and librosa 0.10.2 sets no upper bound.
+#
+# Once the images are off 3.11, 2.5 becomes available and this can move again.
+numpy~=2.4.6
 Pillow~=12.3
 
 # --- Ingestion ---------------------------------------------------------------

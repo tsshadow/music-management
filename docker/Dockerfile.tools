@@ -1,5 +1,5 @@
 # Gebruik een lichte Python base image
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 # Installeer yt-dlp afhankelijkheden
 RUN apt-get update && apt-get install -y \

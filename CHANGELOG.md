@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **numpy mag weer meebewegen, en dat is wat een nieuwere Python mogelijk maakt.** De pin stond op
+  `~=2.0.2`, wat alles vanaf 2.1 uitsluit — en precies daar begint de dekking met kant-en-klare
+  wheels voor nieuwere Python-versies. Gevolg: elke poging om `docker/Dockerfile.music-manager` van
+  3.11 af te halen liet pip terugvallen op het zelf compileren van negentien megabyte C++-broncode,
+  in een image dat wel `gcc` heeft maar geen `g++`. De foutmelding wees naar meson en naar een
+  ontbrekende compiler, niet naar de pin, en dat is waarom het eruitzag als een probleem met het
+  image in plaats van met een versienummer.
+
+  Nu `~=2.5.2`. Die keuze is niet "de nieuwste": 2.5 is de laagste reeks met wheels tot en met
+  cp314, blijft onder de `numpy<2.6` die numba stelt, en librosa 0.10.2 legt zelf helemaal geen
+  bovengrens op. Daarmee komen de drie Python-versies in de images ook weer in zicht — `base` staat
+  al op 3.13 terwijl `music-manager` en `tools` op 3.11 hangen, en dat verschil was tot nu toe niet
+  te overbruggen.
 - **Het Dependency Dashboard is weg; Renovate maakt gewoon merge requests aan.** Er stonden twee
   remmen op, los van elkaar. Het
   weekvenster `before 6am on monday` zette elke voorgestelde update in een lijst "Awaiting Schedule"

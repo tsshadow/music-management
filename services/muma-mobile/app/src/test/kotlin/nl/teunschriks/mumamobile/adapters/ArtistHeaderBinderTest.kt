@@ -8,6 +8,7 @@
 package nl.teunschriks.mumamobile.adapters
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.appcompat.view.ContextThemeWrapper
@@ -46,8 +47,12 @@ class ArtistHeaderBinderTest {
         parent = FrameLayout(themed)
     }
 
-    private fun bind(header: ArtistHeader, onPlayAll: () -> Unit = {}): ArtistHeaderBinder.ViewHolder {
-        val binder = ArtistHeaderBinder(onPlayAll)
+    private fun bind(
+        header: ArtistHeader,
+        onPlayAll: () -> Unit = {},
+        onShowAllTracks: () -> Unit = {}
+    ): ArtistHeaderBinder.ViewHolder {
+        val binder = ArtistHeaderBinder(onPlayAll, onShowAllTracks)
         val inflater = LayoutInflater.from(parent.context)
         val holder = binder.onCreateViewHolder(inflater, parent)
         binder.onBindViewHolder(holder, header)
@@ -86,7 +91,7 @@ class ArtistHeaderBinderTest {
 
     @Test
     fun `a rebound holder does not keep the previous artist's lines`() {
-        val binder = ArtistHeaderBinder {}
+        val binder = ArtistHeaderBinder(onPlayAll = {})
         val holder = binder.onCreateViewHolder(LayoutInflater.from(parent.context), parent)
 
         binder.onBindViewHolder(holder, fullHeader())
@@ -107,5 +112,25 @@ class ArtistHeaderBinderTest {
         holder.playAll.performClick()
 
         taps `should be equal to` 1
+    }
+
+    @Test
+    fun `the header offers every track, not only the albums`() {
+        var showAllTracksCalled = false
+
+        val holder = bind(
+            ArtistHeader(
+                name = "Headhunterz",
+                coverArtId = null,
+                subtitle = null,
+                years = null,
+                genres = null
+            ),
+            onShowAllTracks = { showAllTracksCalled = true }
+        )
+
+        holder.itemView.findViewById<View>(R.id.artist_all_tracks).performClick()
+
+        showAllTracksCalled `should be equal to` true
     }
 }

@@ -103,6 +103,10 @@
     <string name="track_info.artist">Artist</string>
     <string name="track_info.album">Album</string>
     <string name="track_info.genre">Genre</string>
+    <string name="track_info.label">Label</string>
+    <string name="track_info.mood">Mood</string>
+    <string name="track_info.artists_together">Together: %1$s</string>
+    <string name="track_info.artists_together_counted">Together: %1$s · %2$d tracks</string>
     <string name="track_info.track_number">Track</string>
     <string name="track_info.disc">disc %1$d</string>
     <string name="track_info.released">Released</string>
@@ -206,6 +210,9 @@
     <string name="select_album.no_network">Warning: No usable network available.\n If you are using mobile data, you may need to allow downloads on metered connections in the settings.</string>
     <string name="select_album.no_sdcard">Error: No SD card available.</string>
     <string name="select_album.play_all">Play All</string>
+    <string name="select_album.all_tracks">All tracks</string>
+    <!-- Screen title plus how many tracks match the filter, not how many the page holds. -->
+    <string name="track_collection.total">%1$s · %2$d tracks</string>
     <string name="artist_detail_eps">EPs</string>
     <string name="artist_detail_singles">Singles</string>
     <string name="select_artist.all_folders">All Folders</string>

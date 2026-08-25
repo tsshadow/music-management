@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+### Added
+- **Alles wat het infoscherm van een nummer weet, is nu een ingang tot de bibliotheek.** Tik op
+  het genre, het label, de mood of het jaar en je krijgt de nummerlijst met dat filter. Label en
+  mood zijn nieuwe rijen. Bij een nummer van twee artiesten geeft de artiestenrij een keuzemenu:
+  elke artiest apart, plus wat ze samen maakten. Bij een artiest verandert er niets. Op de
+  artiestenpagina zit nu een knop "All tracks", want de albumlijst toont daar alleen releases
+  waar de artiest de albumartiest van is - samenwerkingen staan op andermans album. Overal staat
+  erbij hoeveel nummers er in totaal aan het filter voldoen.
+
 ## [6.24.0] - 2026-08-24
 
 ### Added

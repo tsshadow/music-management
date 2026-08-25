@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Alles wat het infoscherm van een nummer over dat nummer weet, is nu een ingang tot de
+  bibliotheek.** Genre, jaar, label en mood staan er als chips en rijtjes die je kunt aantikken;
+  je komt dan in de nummerlijst met dat filter. Het jaar filtert altijd op het jaartal, ook als de
+  server een volledige releasedatum kent. Label en mood zijn nieuwe rijen — die stonden er nog
+  niet. Een nummer van twee artiesten geeft bij een tik op de artiestenrij een keuzemenu: elke
+  artiest apart, plus wat ze samen maakten. Dat laatste is het stuk dat nieuw is in de server:
+  `getSongs` accepteert meerdere `artistId`-waarden en levert alleen de nummers waar ze állemaal
+  op staan. Bij één artiest verandert er niets, dan blijft het één tik naar de artiestenpagina.
+  Op de artiestenpagina zelf zit nu een knop "All tracks", want de albumlijst daar toont alleen
+  releases waar de artiest de albumartiest van is — samenwerkingen staan op het album van een
+  ander en waren zo niet te vinden. De server telt er meteen bij hoeveel nummers er in totaal aan
+  het filter voldoen, en dat getal komt in de schermtitel te staan en achter het "samen"-item in
+  het keuzemenu.
 - **Een gewijzigde tagger-regel markeert nu zelf de bestanden die eronder vallen.** Wie een artiest
   aan een genre koppelt, een genre wit of zwart zet of een schrijffout omleidt, moest tot nu toe
   kiezen tussen één bestand (`rerun-parse`) en de hele bibliotheek (`/api/tagger/rescan`). Daartussen
@@ -116,7 +129,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   de Podcasts-pagina leeg. Een beheerder krijgt nu te lezen dat de tag bij de extra tags van de
   scanner moet staan; wie geen beheerder is krijgt gewoon "nog niets", want het antwoord van de
   server bevat die instelling voor hen niet eens.
-
 
 ## [0.34.0] - 2026-08-24
 

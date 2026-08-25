@@ -190,6 +190,9 @@ interface MusicService {
         offset: Int
     ): MusicDirectory
 
+    // One filtered track query with a lot of optional dimensions. Bundling them into a parameter
+    // object would only move the same list one call deeper, and every caller passes defaults.
+    @Suppress("LongParameterList")
     @Throws(Exception::class)
     fun getSongs(
         filters: Filters,
@@ -200,7 +203,9 @@ interface MusicService {
         sortMethod: String?,
         festivalLineup: String? = null,
         minDuration: Int? = null,
-        maxDuration: Int? = null
+        maxDuration: Int? = null,
+        /** Artist entity ids; a track has to involve every one of them to match. */
+        artistIds: List<String>? = null
     ): MusicDirectory
 
     @Throws(Exception::class)

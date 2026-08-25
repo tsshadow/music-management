@@ -12,6 +12,9 @@ import java.util.Date
 class MusicDirectory : ArrayList<MusicDirectory.Child>() {
     var name: String? = null
 
+    /** How many tracks match the filter, as opposed to how many this page holds. Zero when unknown. */
+    var totalCount: Int = 0
+
     @JvmOverloads
     fun getChildren(includeDirs: Boolean = true, includeFiles: Boolean = true): List<Child> {
         if (includeDirs && includeFiles) {

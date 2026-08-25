@@ -52,13 +52,12 @@ class ApiGenre {
     val name: String = ""
 }
 
-class ApiArtistRef {
-    @JsonProperty("id")
-    val id: String = ""
-
-    @JsonProperty("name")
-    val name: String = ""
-}
+// A data class rather than a property-annotated one like ApiGenre: the app's own converter tests
+// build these directly, which a class with only initialized vals cannot express.
+data class ApiArtistRef(
+    @JsonProperty("id") val id: String = "",
+    @JsonProperty("name") val name: String = ""
+)
 
 /** List of genre names from the API. */
 val MusicDirectoryChild.genreNames: List<String>

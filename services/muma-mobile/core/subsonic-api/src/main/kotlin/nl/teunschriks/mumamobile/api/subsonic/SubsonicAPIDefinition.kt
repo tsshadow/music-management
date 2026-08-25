@@ -398,7 +398,10 @@ interface SubsonicAPIDefinition {
         @Query("sortMethod") sortMethod: String? = null,
         @Query("festivalLineup") festivalLineup: String? = null,
         @Query("minDuration") minDuration: Int? = null,
-        @Query("maxDuration") maxDuration: Int? = null
+        @Query("maxDuration") maxDuration: Int? = null,
+        // Retrofit repeats a list as one query parameter per element, which is what the server
+        // reads: several artistId values mean "only tracks all of them are on".
+        @Query("artistId") artistIds: List<String>? = null
     ): Call<GetSongsResponse>
 
     @GET("getSongsByMood.view")

@@ -77,6 +77,9 @@ private fun populateTrackProps(track: Track, source: MusicDirectoryChild) {
     track.type = source.type
     track.userRating = source.userRating
     track.averageRating = source.averageRating
+    track.artists = source.artists.map { TrackArtistRef(it.id, it.name) }
+    track.moods = source.moods
+    track.labels = source.labels
 }
 
 fun List<MusicDirectoryChild>.toDomainEntityList(serverId: Int): List<MusicDirectoryEntry> {

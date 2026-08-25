@@ -14,23 +14,33 @@ import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.Toast
+import androidx.annotation.VisibleForTesting
+import androidx.appcompat.widget.PopupMenu
 import androidx.core.os.BundleCompat
 import androidx.core.os.bundleOf
 import androidx.core.view.isVisible
 import androidx.fragment.app.setFragmentResult
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
 import nl.teunschriks.mumamobile.R
+import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.isOffline
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.shouldUseId3Tags
 import nl.teunschriks.mumamobile.databinding.mumaTrackInfoBinding
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.service.MusicServiceFactory
 import nl.teunschriks.mumamobile.subsonic.ImageLoaderProvider
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Util
@@ -69,8 +79,17 @@ class TrackInfoModalFragment : BottomSheetDialogFragment() {
         /** New star rating, or absent when an action was picked. */
         const val RESULT_RATING = "rating"
 
+        /** Where a tap wants to go, or absent when a menu action or a rating was reported. */
+        const val RESULT_TARGET = "target"
+
         private const val ARG_TRACK = "track"
         private const val BLUR_RADIUS = 32f
+
+        /** What joins two artists in "Headhunterz × Wildstylez". */
+        private const val TOGETHER_SEPARATOR = " × "
+
+        /** The leading part of an ISO date that is the year. */
+        private const val YEAR_LENGTH = 4
 
         fun newInstance(track: Track) = TrackInfoModalFragment().apply {
             arguments = bundleOf(ARG_TRACK to track)
@@ -136,8 +155,85 @@ class TrackInfoModalFragment : BottomSheetDialogFragment() {
         binding.trackInfoAlbumRow.isVisible = !album.isNullOrBlank() && hasAlbumTarget
         binding.trackInfoAlbumValue.text = album
 
-        binding.trackInfoArtistRow.setOnClickListener { reportAction(R.id.menu_show_artist) }
+        binding.trackInfoArtistRow.setOnClickListener { onArtistRowTapped() }
         binding.trackInfoAlbumRow.setOnClickListener { reportAction(R.id.menu_show_album) }
+    }
+
+    /**
+     * Kept so the test can reach the menu it cannot otherwise see; Robolectric renders no
+     * popup window.
+     */
+    @VisibleForTesting
+    internal var artistMenuForTest: PopupMenu? = null
+
+    /**
+     * With one artist there is nothing to choose, so the tap behaves exactly as it always has.
+     * With more, each of them is worth reaching on their own, and so is what they made together.
+     */
+    private fun onArtistRowTapped() {
+        val artists = track.artists.distinctBy { it.id }.filter { it.id.isNotBlank() }
+        if (artists.size < 2) {
+            reportAction(R.id.menu_show_artist)
+            return
+        }
+
+        val menu = PopupMenu(requireContext(), binding.trackInfoArtistRow)
+        artists.forEachIndexed { index, artist ->
+            menu.menu.add(Menu.NONE, index, index, artist.name)
+        }
+
+        val togetherId = artists.size
+        val together = artists.joinToString(TOGETHER_SEPARATOR) { it.name }
+        menu.menu.add(
+            Menu.NONE,
+            togetherId,
+            togetherId,
+            getString(R.string.track_info_artists_together, together)
+        )
+
+        menu.setOnMenuItemClickListener { item ->
+            if (item.itemId == togetherId) {
+                reportTarget(
+                    TrackInfoTarget.Collaboration(
+                        artistIds = artists.map { it.id },
+                        title = together
+                    )
+                )
+            } else {
+                val artist = artists[item.itemId]
+                reportTarget(TrackInfoTarget.Artist(artist.id, artist.name))
+            }
+            true
+        }
+
+        artistMenuForTest = menu
+        menu.show()
+
+        // The count is worth showing but not worth waiting for: the item is usable the moment
+        // the menu opens, and gains its number if the server answers while it is still up.
+        viewLifecycleOwner.lifecycleScope.launch {
+            val count = runCatching {
+                withContext(Dispatchers.IO) {
+                    MusicServiceFactory.getMusicService().getSongs(
+                        filters = Filters(),
+                        ratingMin = null,
+                        ratingMax = null,
+                        count = 1,
+                        offset = 0,
+                        sortMethod = null,
+                        artistIds = artists.map { it.id }
+                    ).totalCount
+                }
+            }.getOrNull() ?: return@launch
+
+            if (count <= 0) return@launch
+
+            menu.menu.findItem(togetherId)?.title = getString(
+                R.string.track_info_artists_together_counted,
+                together,
+                count
+            )
+        }
     }
 
     private fun bindActions() {
@@ -163,17 +259,19 @@ class TrackInfoModalFragment : BottomSheetDialogFragment() {
     private fun bindFacts() {
         val genres = track.genres?.filter { it.isNotBlank() }
             ?: listOfNotNull(track.genre?.takeIf { it.isNotBlank() })
-        binding.trackInfoGenreRow.isVisible = genres.isNotEmpty()
-        binding.trackInfoGenreGroup.removeAllViews()
-        genres.forEach { genre ->
-            binding.trackInfoGenreGroup.addView(
-                Chip(requireContext()).apply {
-                    text = genre
-                    isClickable = false
-                    isCheckable = false
-                }
-            )
-        }
+        bindChips(binding.trackInfoGenreRow, binding.trackInfoGenreGroup, genres, "GENRE")
+        bindChips(
+            binding.trackInfoLabelRow,
+            binding.trackInfoLabelGroup,
+            track.labels.filter { it.isNotBlank() },
+            "PUBLISHER"
+        )
+        bindChips(
+            binding.trackInfoMoodRow,
+            binding.trackInfoMoodGroup,
+            track.moods.filter { it.isNotBlank() },
+            "MOOD"
+        )
 
         val trackNumber = track.track
         val discNumber = track.discNumber
@@ -195,10 +293,36 @@ class TrackInfoModalFragment : BottomSheetDialogFragment() {
         binding.trackInfoReleasedRow.isVisible = released != null
         binding.trackInfoReleasedValue.text = released
 
+        // The row may show a full date, but only the year is a filter the server understands.
+        val releasedYear = track.year?.toString()
+            ?: track.date?.takeIf { it.length >= YEAR_LENGTH }?.substring(0, YEAR_LENGTH)
+        binding.trackInfoReleasedRow.setOnClickListener {
+            releasedYear?.let { reportTarget(TrackInfoTarget.Facet("YEAR", it)) }
+        }
+
         // Track durations are stored in seconds, unlike the player's own position readouts.
         val duration = track.duration
         binding.trackInfoDurationRow.isVisible = duration != null
         binding.trackInfoDurationValue.text = Util.formatTotalDuration(duration?.toLong())
+    }
+
+    /**
+     * A row of chips that are each a way into the library. Chips are rebuilt rather than
+     * updated, because the sheet is created fresh per track.
+     */
+    private fun bindChips(row: View, group: ChipGroup, values: List<String>, filterName: String) {
+        row.isVisible = values.isNotEmpty()
+        group.removeAllViews()
+        values.forEach { value ->
+            group.addView(
+                Chip(requireContext()).apply {
+                    text = value
+                    isCheckable = false
+                    isClickable = true
+                    setOnClickListener { reportTarget(TrackInfoTarget.Facet(filterName, value)) }
+                }
+            )
+        }
     }
 
     private fun bindTechnicalDetails() {
@@ -284,6 +408,17 @@ class TrackInfoModalFragment : BottomSheetDialogFragment() {
         fragmentManager.setFragmentResult(
             RESULT_KEY,
             bundleOf(RESULT_TRACK to track, RESULT_ACTION_ID to actionId)
+        )
+    }
+
+    private fun reportTarget(target: TrackInfoTarget) {
+        // Close first, then report: this navigates away, and doing that while the sheet is
+        // still up leaves the dialog stranded over the new screen.
+        val fragmentManager = parentFragmentManager
+        dismiss()
+        fragmentManager.setFragmentResult(
+            RESULT_KEY,
+            bundleOf(RESULT_TRACK to track, RESULT_TARGET to target)
         )
     }
 }

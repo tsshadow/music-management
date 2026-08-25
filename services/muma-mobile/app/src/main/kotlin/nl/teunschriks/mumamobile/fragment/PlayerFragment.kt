@@ -98,7 +98,9 @@ import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.fragment.FragmentTitle.setTitle
 import nl.teunschriks.mumamobile.fragment.PlayerFragmentDirections
+import nl.teunschriks.mumamobile.fragment.muma.TrackFilterNavigation
 import nl.teunschriks.mumamobile.fragment.muma.TrackInfoModalFragment
+import nl.teunschriks.mumamobile.fragment.muma.TrackInfoTarget
 import nl.teunschriks.mumamobile.service.DownloadService
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
@@ -1429,7 +1431,15 @@ class PlayerFragment :
                 Track::class.java
             ) ?: return@setFragmentResultListener
 
-            if (bundle.containsKey(TrackInfoModalFragment.RESULT_RATING)) {
+            val target = BundleCompat.getSerializable(
+                bundle,
+                TrackInfoModalFragment.RESULT_TARGET,
+                TrackInfoTarget::class.java
+            )
+
+            if (target != null) {
+                findNavController().navigate(TrackFilterNavigation.directionsFor(target))
+            } else if (bundle.containsKey(TrackInfoModalFragment.RESULT_RATING)) {
                 setRatingFor(track, bundle.getInt(TrackInfoModalFragment.RESULT_RATING))
             } else {
                 menuItemSelected(bundle.getInt(TrackInfoModalFragment.RESULT_ACTION_ID), track)

@@ -182,6 +182,14 @@
             android:defaultValue="@null"
             app:argType="string[]"
             app:nullable="true" />
+        <!-- Artist entity ids, not names: this goes to the server's artistId parameter and means
+             "only tracks every one of these artists is on". The "artists" argument above holds raw
+             tag names and becomes Filter("ARTIST", name); the two are not interchangeable. -->
+        <argument
+            android:name="artistIds"
+            android:defaultValue="@null"
+            app:argType="string[]"
+            app:nullable="true" />
         <argument
             android:name="festival"
             android:defaultValue="@null"

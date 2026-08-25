@@ -1,7 +1,8 @@
 <script >
+  import { onMount } from 'svelte';
   import { t } from '../../i18n/index.js';
   import { Search, Tag, Trash2 } from '@lucide/svelte';
-  
+
   export let API_BASE;
   export let getHeaders;
   export let artistSearch;
@@ -92,6 +93,38 @@
     }
   }
 
+  // What a rule change has queued up. Shown before the button is pressed, because a
+  // wide match can touch more files than intended and the count is the only brake.
+  let retagPending = { total: 0, by_reason: [] };
+
+  async function fetchRetagPending() {
+    try {
+      const res = await fetch(`${API_BASE}/api/tagger/retag/pending`, { headers: getHeaders() });
+      if (res.ok) retagPending = await res.json();
+    } catch (err) {
+      // Silent: the block simply stays hidden when the count cannot be fetched.
+    }
+  }
+
+  onMount(fetchRetagPending);
+
+  async function startRetag() {
+    try {
+      const res = await fetch(`${API_BASE}/api/tagger/retag/run`, {
+        method: 'POST',
+        headers: getHeaders()
+      });
+      if (res.ok) {
+        onMessage($t('management.tagger.retagStarted'));
+        retagPending = { total: 0, by_reason: [] };
+      } else if (res.status === 409) {
+        onError($t('management.tagger.retagBusy'));
+      }
+    } catch (err) {
+      onError($t('management.tagger.retagFailed'));
+    }
+  }
+
   async function triggerRescan() {
     if (!confirm($t('management.tagger.confirmRescan'))) return;
     try {
@@ -123,6 +156,27 @@
       </button>
     </div>
   </header>
+
+  {#if retagPending.total > 0}
+    <div
+      data-testid="retag-pending"
+      class="bg-spotify-gray p-4 rounded-xl border border-spotify-green border-opacity-40 flex items-center justify-between gap-4"
+    >
+      <p class="text-sm">
+        <span class="font-bold">{retagPending.total}</span>
+        {$t('management.tagger.retagPending')}
+        <span class="text-spotify-lightgray">
+          {retagPending.by_reason.map((r) => `${r.reason} (${r.count})`).join(', ')}
+        </span>
+      </p>
+      <button
+        on:click={startRetag}
+        class="bg-spotify-green text-black text-xs font-bold px-4 py-2 rounded-full hover:bg-white transition-colors whitespace-nowrap"
+      >
+        {$t('management.tagger.retagNow')}
+      </button>
+    </div>
+  {/if}
 
   <div class="flex gap-6 border-b border-white border-opacity-10">
     <button 

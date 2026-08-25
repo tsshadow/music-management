@@ -9,6 +9,7 @@ from mutagen.easymp4 import EasyMP4Tags
 
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.BrokenSongHelper import BrokenSongHelper
+from services.common.Helpers.Cache import reload as reload_rule_caches
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 from services.tagger.constants import SongTypeEnum
@@ -53,6 +54,10 @@ class Tagger:
         Entrypoint for the tagging process.
         Scans various music directories (library_labels, YouTube, SoundCloud, generic) and applies appropriate tag parsing.
         """
+        # A run started after a rule change must honour it. The helpers in Cache.py
+        # preload at import and this process is a long-lived loop, so without this a
+        # rule added today would only take effect after a restart.
+        reload_rule_caches()
         self.stop_requested = False
         logging.info('Starting Tag Step with options: %s, %s, %s, %s, %s', parse_labels, parse_soundcloud, parse_youtube, parse_generic, parse_telegram)
         if parse_labels and (not self.stop_requested):

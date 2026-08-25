@@ -24,6 +24,7 @@ from services.tagger.constants import (
     OPUSTags,
     WAVTags,
 )
+from services.tagger.Song import BaseSong as BaseSong_module
 from services.tagger.Song.BaseSong import BaseSong, ExtensionNotSupportedException, log_broken_file
 from services.tagger.Song.SongHelper import merge_and_sort_genres, split_artists
 from services.tagger.Song.Tag import Tag
@@ -151,6 +152,14 @@ class BaseSongTest(unittest.TestCase):
 class BaseSongLoadingTest(unittest.TestCase):
     """Covers what __init__ does per container format."""
 
+    def setUp(self):
+        # `s` is a mocked ConfigStore here, so every setting reads as a truthy mock.
+        # The real store answers analyze_bpm with its declared default, which is off,
+        # and these tests assert on the exact rule list.
+        patcher = patch.object(BaseSong_module.s, 'analyze_bpm', False)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_a_wav_without_a_tag_block_gets_one(self):
         music_file = MagicMock()
         music_file.tags = None
@@ -185,11 +194,20 @@ class BaseSongLoadingTest(unittest.TestCase):
         self.assertEqual([type(rule).__name__ for rule in song.rules], ['CleanTitleRule'])
 
     def test_bpm_analysis_is_added_when_it_is_switched_on(self):
+        # The setting lives in ConfigStore now, not in a module constant, so it can be
+        # turned on from the config page instead of by editing the file.
         with patch('services.tagger.Song.BaseSong.OggOpus', return_value=self.opus_file()), \
-             patch('services.tagger.Song.BaseSong.analyze_bpm', True):
+             patch.object(BaseSong_module.s, 'analyze_bpm', True):
             song = BaseSong('some/path/test.opus')
 
         self.assertEqual([type(rule).__name__ for rule in song.rules], ['CleanTitleRule', 'AnalyzeBpmRule'])
+
+    def test_bpm_analysis_stays_out_of_the_rules_when_it_is_off(self):
+        with patch('services.tagger.Song.BaseSong.OggOpus', return_value=self.opus_file()), \
+             patch.object(BaseSong_module.s, 'analyze_bpm', False):
+            song = BaseSong('some/path/test.opus')
+
+        self.assertNotIn('AnalyzeBpmRule', [type(rule).__name__ for rule in song.rules])
 
     def test_extra_info_from_a_downloader_dump_is_applied_on_load(self):
         with patch('services.tagger.Song.BaseSong.OggOpus', return_value=self.opus_file()):

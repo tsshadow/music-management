@@ -149,5 +149,67 @@ class CountStaleTest(ProcessedFilesHelperTestCase):
         self.connection.close.assert_called_once()
 
 
+class RescanReasonTest(ProcessedFilesHelperTestCase):
+    """The reason exists so the UI can say what queued the work, nothing more.
+
+    needs_rescan stays the gate the tagger reads; none of this touches that path.
+    """
+
+    def test_a_reason_is_stored_when_one_file_is_marked(self):
+        self.helper.mark_for_rescan('/music/a.mp3', reason='artist_genre_rule')
+        query = self.executed()[0]
+        self.assertIn('rescan_reason = %s', query)
+        self.assertEqual(
+            self.cursor.execute.call_args_list[0].args[1],
+            ('artist_genre_rule', '/music/a.mp3'),
+        )
+
+    def test_marking_everything_without_a_reason_still_works(self):
+        self.helper.mark_for_rescan()
+        self.assertIn('SET needs_rescan = TRUE', self.executed()[0])
+        self.assertIsNone(self.cursor.execute.call_args_list[0].args[1])
+
+    def test_marking_everything_can_carry_a_reason(self):
+        self.helper.mark_for_rescan(None, reason='fallback')
+        self.assertEqual(self.cursor.execute.call_args_list[0].args[1], ('fallback',))
+
+    def test_marking_a_batch_of_paths_uses_one_statement(self):
+        count = self.helper.mark_paths_for_rescan(['/music/a.mp3', '/music/b.mp3'], 'genre_decision')
+        self.assertEqual(count, 2)
+        query = self.executed()[0]
+        self.assertIn('filepath IN (%s, %s)', query)
+        self.assertEqual(
+            self.cursor.execute.call_args_list[0].args[1],
+            ('genre_decision', '/music/a.mp3', '/music/b.mp3'),
+        )
+
+    def test_an_empty_batch_does_not_touch_the_database_at_all(self):
+        count = self.helper.mark_paths_for_rescan([], 'genre_decision')
+        self.assertEqual(count, 0)
+        self.cursor.execute.assert_not_called()
+
+    def test_a_large_batch_is_split_into_chunks(self):
+        paths = [f'/music/{i}.mp3' for i in range(1200)]
+        self.helper.mark_paths_for_rescan(paths, 'fallback')
+        self.assertEqual(self.cursor.execute.call_count, 3)
+
+    def test_a_failing_batch_reports_nothing_marked(self):
+        self.cursor.execute.side_effect = RuntimeError('database gone')
+        self.assertEqual(self.helper.mark_paths_for_rescan(['/music/a.mp3'], 'fallback'), 0)
+
+    def test_processing_a_file_clears_the_reason(self):
+        self.helper.mark_processed('/music/a.mp3', 100.0)
+        self.assertIn('rescan_reason = NULL', self.executed()[0])
+
+    def test_the_pending_summary_groups_by_reason(self):
+        self.cursor.fetchall.return_value = [('artist_genre_rule', 12), ('genre_decision', 130)]
+        summary = self.helper.pending_summary()
+        self.assertEqual(summary['total'], 142)
+        self.assertEqual(summary['by_reason'][0], {'reason': 'artist_genre_rule', 'count': 12})
+
+    def test_the_pending_summary_survives_a_database_error(self):
+        self.cursor.execute.side_effect = RuntimeError('database gone')
+        self.assertEqual(self.helper.pending_summary(), {'total': 0, 'by_reason': []})
+
 if __name__ == '__main__':
     unittest.main()

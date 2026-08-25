@@ -1,7 +1,9 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
-  import { currentTrack, playerState, audio, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey } from './store.js';
+  import { currentTrack, playerState, audio, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey, equalizerSettings } from './store.js';
+  import Equalizer from './Equalizer.svelte';
+  import * as equalizer from './equalizer.js';
   import { createRadioController } from './radioController.js';
   import { shouldPushJamState } from './radioSync.js';
   import { resolveDuration, progressPercent } from './playerProgress.js';
@@ -31,6 +33,46 @@
   let newsSnapshot = $state(null);
   let newsObjectUrl = null;
   let showRadioPicker = $state(false);
+
+  let showEqualizer = $state(false);
+  let equalizerPanelEl = $state(null);
+  let equalizerButtonEl = $state(null);
+  const equalizerSupported = equalizer.isSupported();
+
+  /**
+   * Closes the panel on a click elsewhere.
+   *
+   * The toggle button has to be excluded as well as the panel: on mobile the
+   * button sits in the mini player and the sheet is a separate fixed element,
+   * so without this check the button's own click would close the sheet again
+   * the instant its handler opened it.
+   */
+  function closeEqualizerOnOutsideClick(event) {
+    if (equalizerPanelEl?.contains(event.target)) return;
+    if (equalizerButtonEl?.contains(event.target)) return;
+    showEqualizer = false;
+  }
+
+  $effect(() => {
+    if (!showEqualizer) return;
+    window.addEventListener('click', closeEqualizerOnOutsideClick);
+    return () => window.removeEventListener('click', closeEqualizerOnOutsideClick);
+  });
+
+  // The one place settings reach the audio graph. Attaching happens lazily,
+  // on the first switch-on: that is always a user gesture, which is what the
+  // browser demands before an AudioContext may start.
+  $effect(() => {
+    const settings = $equalizerSettings;
+    if (!settings.enabled) {
+      equalizer.setEnabled(false);
+      return;
+    }
+    if (!equalizer.attach(audioElement)) return;
+    equalizer.setGains(settings.gains);
+    equalizer.setPreamp(settings.preamp);
+    equalizer.setEnabled(true);
+  });
 
   /**
    * Builds a stream URL for radio playback. `format=mp3` is required: LMS only
@@ -569,6 +611,9 @@
    * Updates playing state and triggers initial scrobble.
    */
   function handlePlay() {
+    // A context the browser suspended passes no sound at all, and play is the
+    // moment that matters.
+    equalizer.resume();
     playerState.update(s => ({ ...s, playing: true }));
     startProgressTicker();
     if (!hasScrobbledStarted) {
@@ -1085,6 +1130,7 @@
 
 <audio
   bind:this={audioElement}
+  crossorigin="anonymous"
   ontimeupdate={handleTimeUpdate}
   onloadedmetadata={handleLoadedMetadata}
   onplay={handlePlay}
@@ -1138,8 +1184,21 @@
         </div>
       {/if}
       <div class="flex items-center gap-3 px-2">
-        <button 
-          class="bg-transparent border-none p-0 text-white hover:scale-105 transition-transform {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}" 
+        {#if equalizerSupported}
+          <button
+            bind:this={equalizerButtonEl}
+            class="bg-transparent border-none p-0 cursor-pointer transition-colors {$equalizerSettings.enabled ? 'text-brand' : 'text-[#b3b3b3]'}"
+            onclick={() => (showEqualizer = !showEqualizer)}
+            aria-label={$t('equalizer.title')}
+            aria-pressed={showEqualizer}
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M4 20V14M4 10V4M12 20V12M12 8V4M20 20V16M20 12V4M1 14h6M9 8h6M17 16h6"></path>
+            </svg>
+          </button>
+        {/if}
+        <button
+          class="bg-transparent border-none p-0 text-white hover:scale-105 transition-transform {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
           onclick={togglePlay} 
           disabled={transportLocked}
           aria-label={playing ? "Pauze" : "Afspelen"}
@@ -1172,6 +1231,11 @@
     {#if track}
       <div class="absolute top-0 left-0 w-full h-[2px] bg-white/10">
         <div class="h-full bg-white transition-[width] duration-100" style="width: {progressPercent(progress, duration)}%"></div>
+      </div>
+    {/if}
+    {#if showEqualizer}
+      <div bind:this={equalizerPanelEl} class="fixed inset-x-0 bottom-0 z-50 flex justify-center p-3 pb-24">
+        <Equalizer onclose={() => (showEqualizer = false)} />
       </div>
     {/if}
   {:else}
@@ -1355,6 +1419,26 @@
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.5-8c0 3.03 2.47 5.5 5.5 5.5s5.5-2.47 5.5-5.5-2.47-5.5-5.5-5.5-5.5 2.47-5.5 5.5z"></path>
           </svg>
       </button>
+      {#if equalizerSupported}
+        <div class="relative">
+          <button
+            bind:this={equalizerButtonEl}
+            class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white {$equalizerSettings.enabled ? 'text-brand' : 'text-[#b3b3b3]'}"
+            onclick={() => (showEqualizer = !showEqualizer)}
+            aria-label={$t('equalizer.title')}
+            aria-pressed={showEqualizer}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M4 20V14M4 10V4M12 20V12M12 8V4M20 20V16M20 12V4M1 14h6M9 8h6M17 16h6"></path>
+            </svg>
+          </button>
+          {#if showEqualizer}
+            <div bind:this={equalizerPanelEl} class="absolute bottom-full right-0 mb-3 z-50">
+              <Equalizer onclose={() => (showEqualizer = false)} />
+            </div>
+          {/if}
+        </div>
+      {/if}
       <button class="mr-2 bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" onclick={ontoggleQueue} aria-label={$t('queue.title')}>
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
               <path d="M15 15H3v-1.5h12V15zm0-4.5H3V9h12v1.5zm0-4.5H3V4.5h12V6zm7 12l-4.5-4.5L13 18h9z"></path>

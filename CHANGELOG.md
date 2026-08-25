@@ -21,6 +21,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ander en waren zo niet te vinden. De server telt er meteen bij hoeveel nummers er in totaal aan
   het filter voldoen, en dat getal komt in de schermtitel te staan en achter het "samen"-item in
   het keuzemenu.
+- **De webspeler heeft nu een equalizer, net als de Android-app.** Tien banden van 31 Hz tot
+  16 kHz, een voorversterking en zeven voorinstellingen (Vlak, Rock, Pop, Jazz, Klassiek, Bass
+  boost, Zang); zodra je zelf een schuif aanraakt springt de keuze naar "Eigen". De instelling
+  hangt aan de browser, niet aan het account — het is een correctie voor jouw speakers of
+  koptelefoon, en die verschilt per apparaat. Twee dingen aan de Web Audio API bepaalden het
+  ontwerp. Een `AudioContext` mag pas na een klik van de gebruiker beginnen, dus de audioketen
+  wordt pas opgebouwd op het moment dat je de equalizer voor het eerst aanzet; wie het paneel
+  nooit opent betaalt er niets voor. En `createMediaElementSource()` is onomkeerbaar: is hij
+  eenmaal gedraaid, dan loopt alle audio van dat element de rest van de pagina door de keten.
+  Uitzetten breekt de keten daarom niet af maar zet alle tien de banden op 0 dB, wat wiskundig
+  hetzelfde is als niets doen — afbreken en opnieuw opbouwen zou het risico geven dat de speler
+  stil blijft. Kan de keten niet gebouwd worden, of kent de browser geen `AudioContext`, dan
+  verdwijnt de knop en speelt de speler precies zoals hij altijd deed. Een opgeslagen curve die
+  niet helemaal klopt valt terug op vlak: een half geldige curve laat je met een geluid zitten
+  dat je niet kunt verklaren en niet gekozen hebt.
 
 ### Changed
 - **Beheer heeft geen platte lijst van eenentwintig tabbladen meer, maar acht ingangen.** Collectie,

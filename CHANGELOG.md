@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Vier werkwijzes van deze repository staan nu als skill in `.claude/skills/`, zodat een agent ze
+  oppakt op het moment dat het ertoe doet in plaats van achteraf.** `muma-release` beschrijft het
+  hele pad van `release/x.y.z` tot een geverifieerde tag, `muma-mr-flow` wat er lokaal gedraaid moet
+  worden voordat een tak de pijplijn in gaat en hoe een rode taak te lezen is, `muma-worktree-bootstrap`
+  wat een verse worktree nodig heeft voordat er iets draait, en `muma-prod-check` hoe je productie en
+  de homelab bereikt en uitleest.
+  Ze zijn geschreven uit wat er in de praktijk misging, niet uit hoe het bedoeld was. Daarom staat er
+  in elk stuk vooral wat er *niet* aan de hand is: een groene tak die toch niets uitrolt, een
+  samenvoeging zonder conflict die de wijzigingenlijst stilzwijgend onder de verkeerde versie zet,
+  vier taken die om de infrastructuur heen omvallen en de schuld bij de wijziging leggen, en een
+  werkstation vol containers die dezelfde namen dragen als productie. `docs/release-management.md`
+  blijft waar het model wordt uitgelegd; deze skills zijn de volgorde waarin het gedaan wordt.
+- **`.claude/.gitignore` houdt de sessie-eigen rommel buiten de geschiedenis.** De map `.claude/` was
+  tot nu toe helemaal onbekend bij git, en daarin staan naast deze skills ook de worktrees van
+  lopende sessies en een `settings.local.json`. Die twee zijn nu uitgesloten, zodat een `git add .claude`
+  niet per ongeluk een halve werkkopie meeneemt.
+
 ### Fixed
 - **Renovate leverde npm-voorstellen af met een lockfile die er niet bij paste.** De eerste
   frontend-MR die de bot uit zichzelf aanmaakte werd meteen rood: `npm ci` weigert te installeren als

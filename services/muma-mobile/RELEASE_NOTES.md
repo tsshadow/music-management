@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+## [6.25.1] - 2026-08-27
+
+### Changed
+- **De app is gebouwd tegen Android 36 en een reeks bijgewerkte bouwstenen.** `compileSdk` staat nu
+  op 36 en loopt daarmee bewust één voor op `targetSdk`, dat op 35 blijft: `compileSdk` bepaalt welke
+  API's de code mág aanroepen, `targetSdk` bepaalt welk gedrag gebruikers krijgen, en dat laatste
+  verhoog je na een test op een toestel, niet als bijvangst van een afhankelijkheid. De aanleiding
+  was dwingend: androidx.activity 1.13 en vijftien verwanten weigeren onder 36 geladen te worden.
+  Verder mee: Retrofit 3.0.0, Gradle 8.14.5, Robolectric 4.16.1 en ArchUnit 1.5.0. Aan de app zelf
+  verandert er niets zichtbaars — dit is een nieuw versienummer omdat de inhoud van de APK
+  daadwerkelijk anders is, niet omdat er iets bij is gekomen.
+
 ## [6.25.0] - 2026-08-25
 
 ### Added

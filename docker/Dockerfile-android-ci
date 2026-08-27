@@ -28,6 +28,7 @@ RUN set -eux; \
     echo "ANDROID_SDK_ROOT=$SDK_ROOT" > /etc/android-sdk-root; \
     yes | sdkmanager --sdk_root="$SDK_ROOT" --licenses >/dev/null 2>&1 || true; \
     sdkmanager --sdk_root="$SDK_ROOT" \
+        "build-tools;36.0.0" "platforms;android-36" \
         "build-tools;35.0.0" "platforms;android-35" \
         "build-tools;34.0.0" "platforms;android-34"; \
     chown -R "$RUNNER_UID:$RUNNER_GID" "$SDK_ROOT"

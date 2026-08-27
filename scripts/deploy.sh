@@ -221,10 +221,14 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
             # used to mask a failed migration and the deploy reported success
             # while the schema had aborted halfway. See
             # docs/bug-reports/021-genre-migration-never-shipped.md.
+            #
+            # `mariadb`, not `mysql`: MariaDB renamed the client in 10.5 and
+            # dropped the old name in 12, where this would exit 127 and fail
+            # every migration on a server that is otherwise perfectly healthy.
             REMOTE_MIGRATE_CMD="
                 echo '$B64_SQL' | base64 -d > /tmp/migration.sql
                 migration_status=0
-                docker exec -i music-management-db-1 mysql -u \"$MIGRATION_USER\" -p\"$MIGRATION_PASS\" \"$DB_DB\" < /tmp/migration.sql || migration_status=\$?
+                docker exec -i music-management-db-1 mariadb -u \"$MIGRATION_USER\" -p\"$MIGRATION_PASS\" \"$DB_DB\" < /tmp/migration.sql || migration_status=\$?
                 rm -f /tmp/migration.sql
                 exit \$migration_status
             "

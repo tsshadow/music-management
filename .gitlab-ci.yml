@@ -74,6 +74,25 @@ stages:
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
 
+# Referenced first by every job that a dedicated schedule must not drag in.
+#
+# GitLab treats `changes:` as always true in a scheduled pipeline. Every job
+# whose rule is a `changes:` list therefore matches unconditionally there, so a
+# schedule created to run one job runs the entire suite -- and on master, where
+# `$CI_COMMIT_BRANCH == "master"` also holds, that included release:tag and
+# release:back-merge-develop, which re-ran every week from the downloader
+# refresh (see pipeline 1119).
+#
+# The two schedule variables are the whole mechanism: a schedule sets exactly
+# one of them, the job that schedule exists for is the only one that does not
+# reference this guard, and everything else steps aside. A new dedicated
+# schedule means a new variable here and a new exemption in
+# tests/ci/test_gitlab_ci_policy.py.
+.dedicated_schedule_guard:
+  rules:
+    - if: '$RENOVATE == "true" || $REFRESH_DOWNLOADER == "true"'
+      when: never
+
 # Retried only where the code under test never got a fair run. Retrying a
 # script_failure would turn a flaky test green and hide it.
 .infra_retry:
@@ -126,6 +145,7 @@ quality:lint:
   # scripts/lint.sh re-runs itself in a container when ruff/pylint are missing.
   tags: !reference [.fast_runner, tags]
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - !reference [.release_rule, rules]
     - changes:
         - services/**/*.py
@@ -148,6 +168,7 @@ quality:shellcheck:
   retry: !reference [.infra_retry, retry]
   tags: !reference [.fast_runner, tags]
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - !reference [.release_rule, rules]
     - changes:
         - "**/*.sh"
@@ -166,6 +187,7 @@ quality:typecheck:
   # Same container fallback as quality:lint, for mypy.
   tags: !reference [.fast_runner, tags]
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - !reference [.release_rule, rules]
     - changes:
         - services/**/*.py
@@ -201,6 +223,7 @@ security:dependency-audit:
   allow_failure: true
   retry: !reference [.infra_retry, retry]
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     # $RENOVATE excludes the renovate schedule: that pipeline exists to run one
     # job, and every schedule-triggered job would otherwise ride along with it.
     - if: '$CI_PIPELINE_SOURCE == "schedule" && $RENOVATE != "true"'
@@ -228,6 +251,7 @@ security:sast:
   retry: !reference [.infra_retry, retry]
   tags: !reference [.fast_runner, tags]
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - !reference [.release_rule, rules]
     - changes:
         - services/**/*
@@ -250,6 +274,7 @@ security:secret-scan:
   # gitleaks runs as a container; nothing is needed on the host.
   tags: !reference [.fast_runner, tags]
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - !reference [.release_rule, rules]
     # See security:dependency-audit for why the renovate schedule is excluded.
     - if: '$CI_PIPELINE_SOURCE == "schedule" && $RENOVATE != "true"'
@@ -305,6 +330,7 @@ music-management:unit:
   timeout: 20m
   retry: !reference [.infra_retry, retry]
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - !reference [.release_rule, rules]
     - changes:
         - services/music_manager/**/*
@@ -348,6 +374,7 @@ muma-server:unit:
   # makes it the one worth handing to a spare 16-core host when there is one.
   tags: !reference [.fast_runner, tags]
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - !reference [.release_rule, rules]
     - changes:
         - services/music-management-server/**/*
@@ -370,6 +397,7 @@ frontend:unit:
   retry: !reference [.infra_retry, retry]
   cache: !reference [.npm_cache, cache]
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - !reference [.release_rule, rules]
     - changes:
         - services/frontend/**/*
@@ -403,6 +431,7 @@ muma-mobile:check:
   timeout: 20m
   retry: !reference [.infra_retry, retry]
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - !reference [.release_rule, rules]
     - changes:
         - services/muma-mobile/**/*
@@ -437,6 +466,7 @@ release:check-secrets:
   interruptible: false
   retry: !reference [.infra_retry, retry]
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
   script:
     - ./scripts/ci/check-required-secrets.sh
@@ -463,6 +493,7 @@ db:integration:
     - job: music-management:unit
       optional: true
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - changes:
         - services/music_manager/**/*
@@ -492,6 +523,7 @@ contracts:
     - job: muma-server:unit
       optional: true
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - changes:
         - services/music-management-server/**/*
@@ -523,6 +555,7 @@ docker:smoke:
   retry: !reference [.infra_retry, retry]
   needs: []
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       changes:
         - docker/**/*
@@ -545,6 +578,7 @@ docker:build-images:
   variables:
     PUSH_IMAGES: "false"
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     # Deliberately not gated on .gitlab-ci.yml: this is the most expensive job
     # in the file, and every edit to this file would otherwise trigger a full
     # seven-image build for a change that cannot affect one.
@@ -590,6 +624,9 @@ e2e:scan-to-listen:
   needs: []
   script:
     - ./scripts/test/core-e2e.sh
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - when: on_success
 
 frontend:browser:
   stage: e2e
@@ -600,6 +637,7 @@ frontend:browser:
     - job: frontend:unit
       optional: true
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - changes:
         - services/frontend/**/*
@@ -627,6 +665,7 @@ release:version-check:
   interruptible: false
   retry: !reference [.infra_retry, retry]
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
   script:
     - ./scripts/ci/release-version-check.sh
@@ -637,6 +676,7 @@ release:build-images:
   interruptible: false
   retry: !reference [.infra_retry, retry]
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\// && $DOCKERHUB_USERNAME && $DOCKERHUB_TOKEN'
   script:
     - ./scripts/ci/build-and-push-images.sh
@@ -665,6 +705,7 @@ muma-mobile:build-debug:
   timeout: 45m
   retry: !reference [.infra_retry, retry]
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $APK_HOSTER_URL'
       changes:
         - services/muma-mobile/**/*
@@ -689,6 +730,7 @@ muma-mobile:build-release:
   needs:
     - release:version-check
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\// && $APK_HOSTER_URL && $SIGNING_STORE_FILE'
   script:
     - ./scripts/ci/muma-mobile-build-upload.sh release
@@ -712,6 +754,7 @@ deploy:prod:
     name: production
     url: $PROD_URL
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
   script:
     - ./scripts/ci-deploy.sh
@@ -734,6 +777,7 @@ deploy:smoke:
     url: $PROD_URL
     action: verify
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
   script:
     - ./scripts/ci/post-deploy-verify.sh
@@ -752,6 +796,7 @@ release:verify-deployed:
   needs: []
   retry: !reference [.infra_retry, retry]
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH == "master"'
   script:
     - ./scripts/ci/verify-prod-version.sh
@@ -770,6 +815,7 @@ release:tag:
   needs:
     - release:verify-deployed
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH == "master"'
   script:
     - ./scripts/ci/create-release-tags.sh
@@ -790,6 +836,7 @@ release:cleanup-branch:
   needs: []
   retry: !reference [.infra_retry, retry]
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH == "master"'
   script:
     - ./scripts/ci/delete-merged-release-branch.sh
@@ -802,6 +849,7 @@ release:back-merge-develop:
   needs:
     - release:tag
   rules:
+    - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH == "master"'
   script:
     - ./scripts/ci/back-merge-develop.sh

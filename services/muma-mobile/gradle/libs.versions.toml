@@ -3,7 +3,13 @@ gradle                 = "8.11.1"
 
 appMinSdk = "33"
 appTargetSdk = "35"
-appCompileSdk = "35"
+# Deliberately one ahead of appTargetSdk. compileSdk decides which APIs the code
+# may reference; targetSdk decides which runtime behaviours apply to users, and
+# raising that is a change to test on a device, not a side effect of a
+# dependency bump. androidx.activity 1.13 and fifteen of its siblings refuse to
+# be consumed below 36 -- `checkDebugAarMetadata` fails with sixteen issues at
+# once, which reads as a broken build rather than one number being too low.
+appCompileSdk = "36"
 
 gson                   = "2.14.0"
 kotlinxSerializationJson = "1.9.0"
@@ -36,22 +42,22 @@ viewModelKtx           = "2.11.0"
 swipeRefresh           = "1.2.0"
 viewPager2             = "1.1.0"
 
-retrofit               = "2.11.0"
+retrofit               = "3.0.0"
 jackson                = "2.22.1"
 okhttp                 = "4.12.0"
 koin                   = "4.0.4"
 picasso               = "2.71828"
 
 junit4                 = "4.13.2"
-junit5                 = "6.1.2"
-junitPlatform          = "6.1.2"
+junit5                 = "6.1.3"
+junitPlatform          = "6.1.3"
 mockito                = "5.23.0"
 mockitoKotlin          = "6.3.0"
 mockk                  = "1.14.11"
 kluent                 = "1.73"
-archunit               = "1.4.2"
+archunit               = "1.5.0"
 apacheCodecs           = "1.22.0"
-robolectric            = "4.14.1"
+robolectric            = "4.16.1"
 timber                 = "5.0.1"
 jacoco                 = "0.8.15"
 markwon                = "4.6.2"

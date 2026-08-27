@@ -9,15 +9,15 @@
 # major does not. Renovate opens a merge request for updates (renovate.json).
 
 # --- Web/API -----------------------------------------------------------------
-fastapi~=0.111.0
-uvicorn~=0.22.0
+fastapi~=0.141.1
+uvicorn~=0.52.4
 pydantic~=2.13
-anyio~=4.10.0
+anyio~=4.14.2
 jinja2~=3.1.6
 
 # --- Database ----------------------------------------------------------------
-pymysql~=1.1.1
-DBUtils~=3.1.2
+pymysql~=1.2.0
+DBUtils~=3.2.0
 
 # --- Auth --------------------------------------------------------------------
 bcrypt~=5.0.0
@@ -27,9 +27,25 @@ google-auth~=2.56
 pyasn1~=0.6.4
 
 # --- Media / tagging ---------------------------------------------------------
-mutagen~=1.47.0
-librosa~=0.10.2.post1
-numpy~=2.0.2
+mutagen~=1.48.1
+librosa~=1.0.0
+# Wheel coverage decides this one, not recency. 2.0.x ships no cp313 or cp314
+# wheels, so any Python bump on docker/Dockerfile.music-manager made pip fall
+# back to building 19 MB of C++ from source in an image that has gcc but no
+# g++ -- which is what MR !490 died on, with an error naming meson rather than
+# this line.
+#
+# 2.4.6 and not the newest: numpy 2.5 requires Python >=3.12, and at the time
+# this moved the image was still on 3.11, so 2.5 could not be the version that
+# carried us across. The images are on 3.14 now, so 2.5 is reachable and this
+# may move again -- it is kept here as the record of why the step was 2.4. The
+# 2.4
+# series is the last one that spans cp311 through cp314, which makes it the
+# only pin that is installable both before and after the Python bump. It also
+# stays under numba's `numpy<2.6`, and librosa 0.10.2 sets no upper bound.
+#
+# Once the images are off 3.11, 2.5 becomes available and this can move again.
+numpy~=2.5.2
 Pillow~=12.3
 
 # --- Ingestion ---------------------------------------------------------------
@@ -39,10 +55,10 @@ Pillow~=12.3
 # scripts/ci/refresh-downloader-image.sh, which rebuilds this weekly.
 yt-dlp>=2026.7.4
 telethon~=1.44.0
-patool~=1.12
+patool~=4.0
 
 # --- Misc --------------------------------------------------------------------
-requests~=2.33.0
+requests~=2.34.2
 python-dotenv~=1.2.2
 markdown~=3.6
 docker~=7.2.0
@@ -52,7 +68,7 @@ docker~=7.2.0
 # the built image, so these have to be present at runtime there.
 pytest>=8.4.0
 pytest-cov>=4.1.0
-coverage~=7.2.7
+coverage~=7.15.4
 # Property-based tests (services/common/Helpers/ArtistNameAnalyzerPropertyTest.py).
 # Here rather than in requirements-dev.txt for the same reason as pytest: those
 # tests guard the text helpers, and without this they skip silently on CI.

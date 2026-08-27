@@ -99,7 +99,9 @@ start_dev() {
 
     # Wait for DB to be ready
     echo "Waiting for database to be ready..."
-    until docker exec music-management-db-1 mysqladmin ping -h "localhost" --silent; do
+    # mariadb-admin, not mysqladmin: the old name is gone in MariaDB 12, and a
+    # 127 here would spin this loop forever instead of failing.
+    until docker exec music-management-db-1 mariadb-admin ping -h "localhost" --silent; do
         sleep 1
     done
 

@@ -11,6 +11,26 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.38.0 (2026-08-27)
+
+- **Vier werkwijzes van deze repository staan nu als handleiding in de repository zelf.** Het cutten
+  van een release, het door de pijplijn loodsen van een merge request, het opzetten van een worktree
+  en het uitlezen van productie stonden alleen in losse aantekeningen. Ze staan nu in
+  `.claude/skills/`, geschreven vanuit wat er in de praktijk misging: een groene tak die toch niets
+  uitrolt, een samenvoeging zonder conflict die de wijzigingenlijst onder de verkeerde versie zet, en
+  taken die om de infrastructuur heen omvallen en de schuld bij de wijziging leggen.
+- **De app is gebouwd tegen Android 36.** Zichtbaar verandert er niets; de bouwstenen eronder zijn
+  bijgewerkt, waaronder Retrofit en Gradle.
+- **Een geplande taak sleepte elke week de hele pipeline mee.** In een geplande pipeline is elke
+  `changes:`-voorwaarde altijd waar, dus vijftien taken draaiden onbedoeld mee — op master ook het
+  taggen en terugmergen. Dat is nu afgeschermd en met tests vastgelegd.
+- **De bot die afhankelijkheden bijwerkt leverde halve voorstellen af.** Het slanke renovate-image
+  haalde node en npm pas tijdens de draai op en liep tegen een limiet van GitHub aan, waardoor het
+  lockfile niet werd bijgewerkt. Draait nu op de volledige variant.
+- **Backups en migraties zouden bij de volgende database-upgrade stilletjes gebroken zijn.** MariaDB
+  heeft zijn clientprogramma's hernoemd en de oude namen zijn in versie 12 verdwenen; op vier plekken
+  werd de oude naam nog aangeroepen.
+
 ## Global Version 0.37.0 (2026-08-25)
 
 - **De knoppen op de beheerpagina zijn weer leesbaar.** Dertien beheertabbladen waren opgemaakt met

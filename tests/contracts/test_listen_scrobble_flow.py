@@ -66,8 +66,11 @@ def _query_listen_count(username):
     """
     cid = _get_container_id(DB_SERVICE)
     sql = f"SELECT COUNT(*) FROM scrobble_listens WHERE username='{username}';"
+    # `mariadb`, not `mysql`: MariaDB renamed the client in 10.5 and removed the
+    # old name in 12, where this exits 127 -- which reads as a broken test
+    # rather than a renamed binary.
     result = subprocess.run(
-        ["docker", "exec", cid, "mysql", f"-u{DB_USER}", f"-p{DB_PASS}", DB_NAME, "-N", "-e", sql],
+        ["docker", "exec", cid, "mariadb", f"-u{DB_USER}", f"-p{DB_PASS}", DB_NAME, "-N", "-e", sql],
         capture_output=True,
         text=True,
         timeout=10,

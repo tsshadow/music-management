@@ -7,6 +7,146 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-08-27
+
+### Added
+- **Vier werkwijzes van deze repository staan nu als skill in `.claude/skills/`, zodat een agent ze
+  oppakt op het moment dat het ertoe doet in plaats van achteraf.** `muma-release` beschrijft het
+  hele pad van `release/x.y.z` tot een geverifieerde tag, `muma-mr-flow` wat er lokaal gedraaid moet
+  worden voordat een tak de pijplijn in gaat en hoe een rode taak te lezen is, `muma-worktree-bootstrap`
+  wat een verse worktree nodig heeft voordat er iets draait, en `muma-prod-check` hoe je productie en
+  de homelab bereikt en uitleest.
+  Ze zijn geschreven uit wat er in de praktijk misging, niet uit hoe het bedoeld was. Daarom staat er
+  in elk stuk vooral wat er *niet* aan de hand is: een groene tak die toch niets uitrolt, een
+  samenvoeging zonder conflict die de wijzigingenlijst stilzwijgend onder de verkeerde versie zet,
+  vier taken die om de infrastructuur heen omvallen en de schuld bij de wijziging leggen, en een
+  werkstation vol containers die dezelfde namen dragen als productie. `docs/release-management.md`
+  blijft waar het model wordt uitgelegd; deze skills zijn de volgorde waarin het gedaan wordt.
+- **`.claude/.gitignore` houdt de sessie-eigen rommel buiten de geschiedenis.** De map `.claude/` was
+  tot nu toe helemaal onbekend bij git, en daarin staan naast deze skills ook de worktrees van
+  lopende sessies en een `settings.local.json`. Die twee zijn nu uitgesloten, zodat een `git add .claude`
+  niet per ongeluk een halve werkkopie meeneemt.
+
+### Changed
+- **De app compileert nu tegen Android 36, en dat is wat de androidx-updates deblokkeert.** Zestien
+  bibliotheken tegelijk — androidx.activity 1.13 voorop — weigeren gebruikt te worden door iets dat
+  tegen 35 compileert. `checkDebugAarMetadata` meldt die zestien in één klap, en dat leest als een
+  kapotte build terwijl er één getal te laag staat.
+
+  Alleen `compileSdk` gaat omhoog, `targetSdk` blijft bewust op 35. Die twee doen verschillende
+  dingen: compileSdk bepaalt welke API's de code mág aanroepen, targetSdk bepaalt welk gedrag
+  Android op het toestel van de gebruiker toepast. Dat laatste verhoog je met een test op een echt
+  apparaat, niet als bijvangst van een dependency-bump.
+
+  Het CI-image installeerde alleen android-34 en android-35, dus daar staat 36 nu ook bij. De tag van
+  dat image bevat een hash van zijn Dockerfile, dus het wordt vanzelf één keer opnieuw gebouwd; er is
+  geen publicatiestap die iemand kan vergeten.
+- **numpy mag weer meebewegen, en dat is wat een nieuwere Python mogelijk maakt.** De pin stond op
+  `~=2.0.2`, wat alles vanaf 2.1 uitsluit — en precies daar begint de dekking met kant-en-klare
+  wheels voor nieuwere Python-versies. Gevolg: elke poging om `docker/Dockerfile.music-manager` van
+  3.11 af te halen liet pip terugvallen op het zelf compileren van negentien megabyte C++-broncode,
+  in een image dat wel `gcc` heeft maar geen `g++`. De foutmelding wees naar meson en naar een
+  ontbrekende compiler, niet naar de pin, en dat is waarom het eruitzag als een probleem met het
+  image in plaats van met een versienummer.
+
+  Nu `~=2.4.6`, en nadrukkelijk niet de nieuwste. numpy 2.5 eist zélf Python ≥3.12, dus dat kan
+  onmogelijk de versie zijn die je over de Python-bump heen tilt — die moet nog installeerbaar zijn
+  op 3.11. De 2.4-reeks is de laatste die cp311 tot en met cp314 bestrijkt en is daarmee de enige
+  pin die vóór én na de overstap werkt. Hij blijft ook onder de `numpy<2.6` die numba stelt, en
+  librosa 0.10.2 legt zelf geen bovengrens op. Zodra de images van 3.11 af zijn komt 2.5 in beeld
+  en mag dit weer verder.
+
+  Daarmee komen de drie Python-versies in de images in zicht: `base` staat al op 3.13 terwijl
+  `music-manager` en `tools` op 3.11 hangen, en dat verschil was tot nu toe niet te overbruggen.
+- **Het Dependency Dashboard is weg; Renovate maakt gewoon merge requests aan.** Er stonden twee
+  remmen op, los van elkaar. Het
+  weekvenster `before 6am on monday` zette elke voorgestelde update in een lijst "Awaiting Schedule"
+  op het dashboard, en drie regels — Python-majors, Gradle-majors en de basis-images — zetten hun
+  updates in "Pending Approval". In beide gevallen gebeurde er niets tot je het aanvinkte. Allebei
+  weg: een update die klaar is wordt nu vanzelf een merge request.
+
+  Wat er níet verandert is wat zichzelf mag mergen. Geen van de regels waar de goedkeuring vanaf
+  gaat heeft automerge — een major van fastapi, van AGP of van een basis-image opent voortaan uit
+  zichzelf, maar blijft daarna gewoon staan tot iemand hem beoordeelt. Een openstaande merge request
+  ís die beoordeling; de goedkeuringsstap ervóór was er een tweede keer overheen. Ze krijgen wel een
+  label `major` of `docker`, zodat ze in de lijst te onderscheiden zijn van een gewone bump.
+
+  De afkoelperiode van drie dagen blijft onaangeroerd. Dat is de bescherming tegen een pakket dat
+  tien minuten geleden gepubliceerd is, en die reden staat helemaal los van hoe ongeduldig je bent.
+
+  Met beide remmen eraf had het dashboard geen functie meer — het bleef een lijst van dingen die
+  toch al vanzelf gingen gebeuren — dus die is uitgezet. Issue #1 sluit zichzelf bij de volgende
+  draai. Wat je daarmee opgeeft is de plek waar Renovate zijn eigen klachten kwijt kon: dat er geen
+  GitHub-token is voor changelogs, en dat `lucide-svelte` als verouderd staat aangemerkt zonder
+  opvolger. Die staan nu alleen nog in het joblogboek.
+
+  Omdat Renovate nu elk uur draait en niets meer op een venster wacht, staat `prHourlyLimit` expliciet
+  op 2, naast de `prConcurrentLimit` van 5. Dat is géén poort maar een wachtrij: alles komt, alleen
+  niet tegelijk. Dat is met opzet, want elke merge request start een pipeline, en veertien tegelijk
+  betekent veertien pipelines die vechten om dezelfde database-container in `db:integration`.
+
+### Fixed
+- **Renovate leverde npm-voorstellen af met een lockfile die er niet bij paste.** De eerste
+  frontend-MR die de bot uit zichzelf aanmaakte werd meteen rood: `npm ci` weigert te installeren als
+  `package.json` en `package-lock.json` uit de pas lopen, en Renovate had alleen de eerste bijgewerkt.
+
+  De oorzaak lag drie stappen verderop en had niets met npm te maken. Het standaard renovate-image is
+  een slanke variant zonder taalgereedschap; het haalt de node- en npm-versie die het nodig heeft pas
+  tijdens de draai op, en vraagt daarvoor de GitHub-API welke releases er zijn. Zonder token zijn dat
+  zestig verzoeken per uur, en met een uurlijkse bot zit je daar zo doorheen. GitHub antwoordde 403,
+  containerbase meldde "No tool releases found", en zonder npm kan Renovate geen lockfile
+  herbouwen — dus stuurde hij de wijziging maar half af.
+
+  Wat het lastig te herkennen maakt is dat geen enkele foutmelding onderweg iets zegt over GitHub,
+  over een limiet of over het image. Je ziet een MR met een halve wijziging en een `npm ci` die
+  klaagt over jouw lockfile.
+
+  Nu draait het op de `-full` variant met `binarySource=global`: node en npm zitten al in dat image,
+  dus er wordt niets meer opgezocht. Een GitHub-token had het ook opgelost, maar dat vraagt om een
+  inlog die dit project verder nergens voor nodig heeft. Het image is groter en staat na de eerste
+  keer in de cache van de runner.
+
+  Gecontroleerd met een droge draai: `Updated 1 lock files`. De enige die daarna nog faalt is
+  TypeScript 7, en terecht — `typescript-eslint` eist `typescript <6.1.0`, dus die past gewoon nog
+  niet.
+- **Je backups en je migraties zouden stilletjes gebroken zijn bij de volgende database-upgrade.**
+  MariaDB heeft zijn clientprogramma's in 10.5 hernoemd — `mysql` werd `mariadb`, `mysqldump` werd
+  `mariadb-dump` — en in versie 12 zijn de oude namen helemaal verdwenen. Op vier plekken riepen we
+  nog de oude naam aan. Eén daarvan was een test, en die viel om zodra Renovate mariadb 12 voorstelde;
+  zo is het gevonden. De andere drie waren erger, want die worden door niets gedekt: het aanroepen
+  van de migraties in `deploy.sh`, het maken van de backup in `backup_db.sh`, en de wachtlus in
+  `dev.sh`.
+
+  Wat dat zo vervelend maakt is hoe het faalt. Een ontbrekend programma geeft exit 127 en verder
+  niets — geen foutmelding over de database, die draait namelijk prima. Bij de backup betekent het
+  een bestand van nul bytes; de controle verderop in dat script vangt dat wel, maar pas nadat de
+  backup niet gemaakt is. Bij de wachtlus in `dev.sh` zou hij eeuwig blijven wachten in plaats van
+  af te breken.
+
+  In de database-container staat de nieuwe naam er sinds 10.5 altijd, dus daar is het simpelweg de
+  nieuwe naam. Op een host of in een service-image hangt het af van welk clientpakket geïnstalleerd
+  is, en daar kiest `backup_db.sh` nu zelf: eerst `mariadb-dump`, anders `mysqldump`, en anders een
+  duidelijke fout in plaats van een leeg bestand.
+- **Een geplande taak sleepte de hele pipeline mee.** De wekelijkse downloader-verversing vraagt om
+  één taak en kreeg de complete suite: lint, unit tests, integratietests, de Android-build. Op master
+  hoorden `release:tag` en `release:back-merge-develop` daar ook bij, en die hebben dus elke week
+  gedraaid — pipeline 1119 van 17 augustus laat ze allebei geslaagd zien. Het kwam niet aan het licht
+  omdat er niets van kapot gaat; het kost alleen een uur runnertijd per week en het botst met de
+  pipelines die er wél toe doen. Met de renovate-schedule erbij zou dat verdubbelen, en dat is hoe
+  het gevonden werd.
+
+  De oorzaak is één zin uit de GitLab-documentatie: in een geplande pipeline is `changes:` altijd
+  waar. Elke taak die op een `changes:`-lijst draait matcht daar dus onvoorwaardelijk, en dat zijn er
+  vijftien. Er staat nu een `.dedicated_schedule_guard` die als eerste regel in elke taak wordt
+  aangehaald, behalve in de twee taken waarvoor een schedule bestaat. Een schedule zet precies één
+  variabele, en al het andere gaat opzij.
+
+  Vier tests in `tests/ci/test_gitlab_ci_policy.py` bewaken dat: dat elke taak de guard aanhaalt, dat
+  hij vóór elke andere regel staat — regels worden op volgorde beoordeeld, dus een guard achter een
+  `changes:`-regel krijgt het woord nooit — dat de twee uitgezonderde taken hem juist níet aanhalen,
+  en dat elke schedulevariabele erin voorkomt. Die laatste is de val voor later: een nieuwe schedule
+  waarvan de variabele hier ontbreekt krijgt stilzwijgend het oude gedrag terug.
+
 ## [0.37.0] - 2026-08-25
 
 ### Added

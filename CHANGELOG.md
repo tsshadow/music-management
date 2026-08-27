@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-08-27
+
 ### Added
 - **Vier werkwijzes van deze repository staan nu als skill in `.claude/skills/`, zodat een agent ze
   oppakt op het moment dat het ertoe doet in plaats van achteraf.** `muma-release` beschrijft het
@@ -24,49 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tot nu toe helemaal onbekend bij git, en daarin staan naast deze skills ook de worktrees van
   lopende sessies en een `settings.local.json`. Die twee zijn nu uitgesloten, zodat een `git add .claude`
   niet per ongeluk een halve werkkopie meeneemt.
-
-### Fixed
-- **Renovate leverde npm-voorstellen af met een lockfile die er niet bij paste.** De eerste
-  frontend-MR die de bot uit zichzelf aanmaakte werd meteen rood: `npm ci` weigert te installeren als
-  `package.json` en `package-lock.json` uit de pas lopen, en Renovate had alleen de eerste bijgewerkt.
-
-  De oorzaak lag drie stappen verderop en had niets met npm te maken. Het standaard renovate-image is
-  een slanke variant zonder taalgereedschap; het haalt de node- en npm-versie die het nodig heeft pas
-  tijdens de draai op, en vraagt daarvoor de GitHub-API welke releases er zijn. Zonder token zijn dat
-  zestig verzoeken per uur, en met een uurlijkse bot zit je daar zo doorheen. GitHub antwoordde 403,
-  containerbase meldde "No tool releases found", en zonder npm kan Renovate geen lockfile
-  herbouwen — dus stuurde hij de wijziging maar half af.
-
-  Wat het lastig te herkennen maakt is dat geen enkele foutmelding onderweg iets zegt over GitHub,
-  over een limiet of over het image. Je ziet een MR met een halve wijziging en een `npm ci` die
-  klaagt over jouw lockfile.
-
-  Nu draait het op de `-full` variant met `binarySource=global`: node en npm zitten al in dat image,
-  dus er wordt niets meer opgezocht. Een GitHub-token had het ook opgelost, maar dat vraagt om een
-  inlog die dit project verder nergens voor nodig heeft. Het image is groter en staat na de eerste
-  keer in de cache van de runner.
-
-  Gecontroleerd met een droge draai: `Updated 1 lock files`. De enige die daarna nog faalt is
-  TypeScript 7, en terecht — `typescript-eslint` eist `typescript <6.1.0`, dus die past gewoon nog
-  niet.
-- **Je backups en je migraties zouden stilletjes gebroken zijn bij de volgende database-upgrade.**
-  MariaDB heeft zijn clientprogramma's in 10.5 hernoemd — `mysql` werd `mariadb`, `mysqldump` werd
-  `mariadb-dump` — en in versie 12 zijn de oude namen helemaal verdwenen. Op vier plekken riepen we
-  nog de oude naam aan. Eén daarvan was een test, en die viel om zodra Renovate mariadb 12 voorstelde;
-  zo is het gevonden. De andere drie waren erger, want die worden door niets gedekt: het aanroepen
-  van de migraties in `deploy.sh`, het maken van de backup in `backup_db.sh`, en de wachtlus in
-  `dev.sh`.
-
-  Wat dat zo vervelend maakt is hoe het faalt. Een ontbrekend programma geeft exit 127 en verder
-  niets — geen foutmelding over de database, die draait namelijk prima. Bij de backup betekent het
-  een bestand van nul bytes; de controle verderop in dat script vangt dat wel, maar pas nadat de
-  backup niet gemaakt is. Bij de wachtlus in `dev.sh` zou hij eeuwig blijven wachten in plaats van
-  af te breken.
-
-  In de database-container staat de nieuwe naam er sinds 10.5 altijd, dus daar is het simpelweg de
-  nieuwe naam. Op een host of in een service-image hangt het af van welk clientpakket geïnstalleerd
-  is, en daar kiest `backup_db.sh` nu zelf: eerst `mariadb-dump`, anders `mysqldump`, en anders een
-  duidelijke fout in plaats van een leeg bestand.
 
 ### Changed
 - **De app compileert nu tegen Android 36, en dat is wat de androidx-updates deblokkeert.** Zestien
@@ -127,6 +86,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   betekent veertien pipelines die vechten om dezelfde database-container in `db:integration`.
 
 ### Fixed
+- **Renovate leverde npm-voorstellen af met een lockfile die er niet bij paste.** De eerste
+  frontend-MR die de bot uit zichzelf aanmaakte werd meteen rood: `npm ci` weigert te installeren als
+  `package.json` en `package-lock.json` uit de pas lopen, en Renovate had alleen de eerste bijgewerkt.
+
+  De oorzaak lag drie stappen verderop en had niets met npm te maken. Het standaard renovate-image is
+  een slanke variant zonder taalgereedschap; het haalt de node- en npm-versie die het nodig heeft pas
+  tijdens de draai op, en vraagt daarvoor de GitHub-API welke releases er zijn. Zonder token zijn dat
+  zestig verzoeken per uur, en met een uurlijkse bot zit je daar zo doorheen. GitHub antwoordde 403,
+  containerbase meldde "No tool releases found", en zonder npm kan Renovate geen lockfile
+  herbouwen — dus stuurde hij de wijziging maar half af.
+
+  Wat het lastig te herkennen maakt is dat geen enkele foutmelding onderweg iets zegt over GitHub,
+  over een limiet of over het image. Je ziet een MR met een halve wijziging en een `npm ci` die
+  klaagt over jouw lockfile.
+
+  Nu draait het op de `-full` variant met `binarySource=global`: node en npm zitten al in dat image,
+  dus er wordt niets meer opgezocht. Een GitHub-token had het ook opgelost, maar dat vraagt om een
+  inlog die dit project verder nergens voor nodig heeft. Het image is groter en staat na de eerste
+  keer in de cache van de runner.
+
+  Gecontroleerd met een droge draai: `Updated 1 lock files`. De enige die daarna nog faalt is
+  TypeScript 7, en terecht — `typescript-eslint` eist `typescript <6.1.0`, dus die past gewoon nog
+  niet.
+- **Je backups en je migraties zouden stilletjes gebroken zijn bij de volgende database-upgrade.**
+  MariaDB heeft zijn clientprogramma's in 10.5 hernoemd — `mysql` werd `mariadb`, `mysqldump` werd
+  `mariadb-dump` — en in versie 12 zijn de oude namen helemaal verdwenen. Op vier plekken riepen we
+  nog de oude naam aan. Eén daarvan was een test, en die viel om zodra Renovate mariadb 12 voorstelde;
+  zo is het gevonden. De andere drie waren erger, want die worden door niets gedekt: het aanroepen
+  van de migraties in `deploy.sh`, het maken van de backup in `backup_db.sh`, en de wachtlus in
+  `dev.sh`.
+
+  Wat dat zo vervelend maakt is hoe het faalt. Een ontbrekend programma geeft exit 127 en verder
+  niets — geen foutmelding over de database, die draait namelijk prima. Bij de backup betekent het
+  een bestand van nul bytes; de controle verderop in dat script vangt dat wel, maar pas nadat de
+  backup niet gemaakt is. Bij de wachtlus in `dev.sh` zou hij eeuwig blijven wachten in plaats van
+  af te breken.
+
+  In de database-container staat de nieuwe naam er sinds 10.5 altijd, dus daar is het simpelweg de
+  nieuwe naam. Op een host of in een service-image hangt het af van welk clientpakket geïnstalleerd
+  is, en daar kiest `backup_db.sh` nu zelf: eerst `mariadb-dump`, anders `mysqldump`, en anders een
+  duidelijke fout in plaats van een leeg bestand.
 - **Een geplande taak sleepte de hele pipeline mee.** De wekelijkse downloader-verversing vraagt om
   één taak en kreeg de complete suite: lint, unit tests, integratietests, de Android-build. Op master
   hoorden `release:tag` en `release:back-merge-develop` daar ook bij, en die hebben dus elke week

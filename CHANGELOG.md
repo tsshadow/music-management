@@ -69,6 +69,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   duidelijke fout in plaats van een leeg bestand.
 
 ### Changed
+- **De app compileert nu tegen Android 36, en dat is wat de androidx-updates deblokkeert.** Zestien
+  bibliotheken tegelijk — androidx.activity 1.13 voorop — weigeren gebruikt te worden door iets dat
+  tegen 35 compileert. `checkDebugAarMetadata` meldt die zestien in één klap, en dat leest als een
+  kapotte build terwijl er één getal te laag staat.
+
+  Alleen `compileSdk` gaat omhoog, `targetSdk` blijft bewust op 35. Die twee doen verschillende
+  dingen: compileSdk bepaalt welke API's de code mág aanroepen, targetSdk bepaalt welk gedrag
+  Android op het toestel van de gebruiker toepast. Dat laatste verhoog je met een test op een echt
+  apparaat, niet als bijvangst van een dependency-bump.
+
+  Het CI-image installeerde alleen android-34 en android-35, dus daar staat 36 nu ook bij. De tag van
+  dat image bevat een hash van zijn Dockerfile, dus het wordt vanzelf één keer opnieuw gebouwd; er is
+  geen publicatiestap die iemand kan vergeten.
 - **numpy mag weer meebewegen, en dat is wat een nieuwere Python mogelijk maakt.** De pin stond op
   `~=2.0.2`, wat alles vanaf 2.1 uitsluit — en precies daar begint de dekking met kant-en-klare
   wheels voor nieuwere Python-versies. Gevolg: elke poging om `docker/Dockerfile.music-manager` van

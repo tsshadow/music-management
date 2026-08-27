@@ -18,7 +18,7 @@
 
 _android_image_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 _android_dockerfile="$_android_image_root/docker/Dockerfile-android-ci"
-_android_tag="35-$(sha256sum "$_android_dockerfile" | cut -c1-12)"
+_android_tag="36-$(sha256sum "$_android_dockerfile" | cut -c1-12)"
 
 ANDROID_CI_IMAGE="music-management/android-ci:${_android_tag}"
 export ANDROID_CI_IMAGE

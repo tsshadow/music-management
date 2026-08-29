@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+## [6.25.2] - 2026-08-29
+
+### Fixed
+- **De app viel om als het downloaden van een nummer mislukte, en dat gebeurde alleen bij slecht
+  bereik.** De downloaddienst haalde een mislukte download uit de lijst met lopend werk en ging
+  meteen op zoek naar het volgende nummer, nog voordat die download terug in de wachtrij stond. De
+  dienst zag dan niets meer te doen en sloot zichzelf af, terwijl er nog twee downloads liepen — en
+  die liepen bij het afronden tegen een afgebroken dienst aan. Bij een wegvallende verbinding
+  gebeurt dat vrijwel altijd, want dan vallen alle downloads tegelijk om. Daarmee verdwijnt ook een
+  stiller gevolg van dezelfde fout: een download die het opnieuw wilde proberen werd bij dat
+  afsluiten uit de wachtrij gegooid en bleef zonder melding hangen.
+
 ## [6.25.1] - 2026-08-27
 
 ### Changed

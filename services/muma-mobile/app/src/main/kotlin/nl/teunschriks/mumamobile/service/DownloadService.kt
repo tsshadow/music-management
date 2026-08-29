@@ -112,6 +112,7 @@ class DownloadService :
         startFuture = null
 
         isShuttingDown = true
+        retrying = false
         isInForeground = false
         stopForegroundRemoveNotification()
 
@@ -130,6 +131,15 @@ class DownloadService :
     @Synchronized
     fun processNextTracks() {
         retrying = false
+
+        // A download can finish on a background thread after the service was destroyed, and
+        // onDestroy() clears the scope. Reading it as a local avoids dereferencing null here.
+        val currentScope = scope
+        if (isShuttingDown || currentScope == null) {
+            Timber.i("DownloadService is shutting down, not processing further tracks")
+            return
+        }
+
         if (
             !Util.hasUsableNetwork() ||
             !Util.isExternalStoragePresent() ||
@@ -147,7 +157,7 @@ class DownloadService :
             // Use poll() instead of remove() which throws an Exception if there is no element.
             val track: DownloadableTrack = downloadQueue.poll() ?: continue
 
-            val downloadTask = DownloadTask(track, scope!!, ::downloadStateChangedCallback)
+            val downloadTask = DownloadTask(track, currentScope, ::downloadStateChangedCallback)
             activeDownloads[track.id] = downloadTask
 
             downloadTask.start()
@@ -170,7 +180,7 @@ class DownloadService :
         if (isShuttingDown || retrying) return
         retrying = true
         Handler(Looper.getMainLooper()).postDelayed(
-            { if (retrying) processNextTracks() },
+            { if (retrying && !isShuttingDown) processNextTracks() },
             CHECK_INTERVAL
         )
     }
@@ -182,11 +192,9 @@ class DownloadService :
     ) {
         postState(item.track, downloadState, progress)
 
-        if (downloadState.isFinalState()) {
-            activeDownloads.remove(item.id)
-            processNextTracks()
-        }
-
+        // Update the queues *before* looking for the next tracks. RETRYING is a final state, so
+        // doing this the other way around means processNextTracks() sees an empty queue, stops
+        // the service, and the retry is dropped by the clearDownloads() in onDestroy().
         when (downloadState) {
             DownloadState.FAILED -> {
                 downloadQueue.remove(item)
@@ -197,6 +205,11 @@ class DownloadService :
                 downloadQueue.add(item)
             }
             else -> {}
+        }
+
+        if (downloadState.isFinalState()) {
+            activeDownloads.remove(item.id)
+            processNextTracks()
         }
     }
 

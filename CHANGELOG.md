@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Een mislukte download nam de hele app mee, en dat gebeurde alleen bij slecht bereik.** In
+  `DownloadService` telt `RETRYING` als eindtoestand, en de terugmeldfunctie haalde de track daarom
+  eerst uit de actieve lijst en ging meteen op zoek naar volgend werk — nog vóór diezelfde track
+  terug in de wachtrij was gezet. Op dat moment zag de dienst een lege wachtrij en geen actieve
+  downloads, en stopte zichzelf. `onDestroy` zet daarbij het coroutine-bereik op `null`. Er lopen
+  standaard drie downloads tegelijk en bij een wegvallende verbinding vallen die vrijwel gelijk om,
+  dus de volgende afmelding liep tegen dat lege bereik aan met een `NullPointerException`. Die
+  ontstaat in de afrondingshandler van de coroutine, waar de `CoroutineExceptionHandler` niet bij
+  kan, en werd dus een harde crash in plaats van een regel in het logboek.
+
+  De volgorde is omgedraaid: de wachtrij wordt bijgewerkt voordat er naar volgend werk wordt
+  gekeken. Daarmee verdwijnt ook het stillere gevolg van dezelfde fout — een track die op
+  opnieuw-proberen ging werd door het opruimen bij het afsluiten uit de wachtrij gegooid, en
+  probeerde het dus nooit echt opnieuw. Verder leest `processNextTracks` het bereik nog één keer als
+  lokale waarde en stopt het als de dienst al aan het afsluiten is, en een uitgestelde herstart die
+  na dat afsluiten alsnog afgaat doet niets meer.
+
 ## [0.38.0] - 2026-08-27
 
 ### Added

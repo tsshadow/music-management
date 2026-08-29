@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.25.2] - 2026-08-29
+
 ### Fixed
 - **Een mislukte download nam de hele app mee, en dat gebeurde alleen bij slecht bereik.** In
   `DownloadService` telt `RETRYING` als eindtoestand, en de terugmeldfunctie haalde de track daarom

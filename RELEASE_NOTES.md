@@ -11,6 +11,18 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.39.0 (2026-08-31)
+
+- **Een crash in de app kan nu automatisch onderzocht worden.** Stuur je vanuit de app een
+  crashrapport op, dan krijgt de server er een haakje aan: een aparte machine leest het rapport,
+  zoekt de oorzaak in de code en opent bij een eenduidige oorzaak een kant-en-klare fix ter
+  goedkeuring. Elke stap is te volgen via meldingen op het topic `music-management-claude`. De
+  goedkeuring blijft altijd handwerk — er wordt nooit iets zonder akkoord samengevoegd of
+  uitgerold.
+- **Crashes uit de echte app zijn voortaan leesbaar.** Release-versies van de app zijn
+  geminificeerd; het vertaalbestand dat nodig is om zo'n crash terug te vertalen werd tot nu toe
+  weggegooid. Vanaf deze release wordt het per versie bewaard.
+
 ## Global Version 0.38.1 (2026-08-29)
 
 - **De app viel om als het downloaden van een nummer mislukte, en dat gebeurde alleen bij slecht

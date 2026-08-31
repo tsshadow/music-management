@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-08-31
+
+### Added
+- **De crash-triage-runner: van crashrapport naar goedgekeurde fix zonder handwerk ertussen.**
+  Nieuw in `scripts/crash-triage/`: een webhook-listener die het rapport-id uit de
+  `crash_hook_url`-POST spoolt en er serieel één Claude-triagerun per rapport op draait, een
+  approved-MR-watcher (systemd-timer) die crash-fix-MR's met approval én groene pipeline merget en
+  daarna de release laat cutten, plus systemd-units, een env-voorbeeld en een runbook-README voor
+  de development-VM. De triagerun zelf volgt de nieuwe `muma-crash-triage`-skill in
+  `.claude/skills/`: rapport ophalen, release-stacktraces eerst deobfusceren met de gearchiveerde
+  R8-mapping, en alleen bij een eenduidige oorzaak een MR openen — mergen mag hij nooit zelf, dat
+  blijft aan de approval-watcher na akkoord van Teun. Elke uitkomst wordt gemeld op ntfy-topic
+  `music-management-claude`.
+- **De R8-mapping van elke release-APK wordt voortaan bewaard.** Release-builds zijn geminificeerd,
+  waardoor een stacktrace uit het veld zonder de bijbehorende `mapping.txt` onleesbaar is — en die
+  werd tot nu toe nergens gearchiveerd. `publish.sh` zet de mapping naast de APK in `dist/` onder
+  dezelfde versienaam (`muma-mobile-v<versie>-<code>-mapping.txt`), en `muma-mobile:build-release`
+  bewaart hem als GitLab-artifact zonder vervaldatum. Daarmee kan de crash-triage een
+  release-stacktrace eerst deobfusceren voordat er iets geanalyseerd wordt.
+- **Een binnengekomen crashrapport kan nu een externe triage-hook wakker maken.** De
+  `crash_reports`-tabel kent voortaan een `status` (`new`/`analyzing`/`mr_open`/`done`/`failed`)
+  en een `stacktrace_hash`, zodat een geautomatiseerde verwerker dezelfde crash herkent en niet
+  twee keer aan het werk gaat. Na het opslaan van een rapport stuurt de server best-effort een
+  POST met het rapport-id naar het nieuwe configveld `crash_hook_url` (groep Notifications, leeg
+  = uit); de app-respons wacht daar niet op. Voor de verwerker zijn er twee nieuwe endpoints
+  achter de system-API-key: `GET /api/diagnostics/crash-reports/{id}` en
+  `PATCH /api/diagnostics/crash-reports/{id}/status`. Migratie: `migrate_v17_crash_report_status.sql`,
+  met de gebruikelijke kolomguard in de router voor bestaande installaties. Dit is de serverhelft
+  van de crash-triage-automatisering; het ontwerp staat in
+  `docs/superpowers/specs/2026-08-31-crash-triage-automation-design.md`.
+
 ## [0.38.1] - 2026-08-29
 
 ### Fixed

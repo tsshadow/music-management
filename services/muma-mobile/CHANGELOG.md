@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.25.3] - 2026-08-31
+
+### Changed
+- **Geen wijzigingen in de app zelf.** Deze versie bestaat omdat het bouwproces voortaan het
+  R8-vertaalbestand (`mapping.txt`) van elke release bewaart. Daarmee zijn crashes uit een
+  geïnstalleerde release-app terug te vertalen naar leesbare code — de basis onder de
+  automatische crash-triage. Eerdere versies hebben zo'n vertaalbestand niet.
+
 ## [6.25.2] - 2026-08-29
 
 ### Fixed

@@ -734,6 +734,13 @@ muma-mobile:build-release:
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\// && $APK_HOSTER_URL && $SIGNING_STORE_FILE'
   script:
     - ./scripts/ci/muma-mobile-build-upload.sh release
+  # The shipped APK is R8-minified; this mapping is the only way to read a
+  # stacktrace it produces. Kept without expiry because a crash report can
+  # arrive long after the next release replaced the APK on the hoster.
+  artifacts:
+    paths:
+      - services/muma-mobile/dist/*-mapping.txt
+    expire_in: never
 
 # --- Deployment --------------------------------------------------------------
 

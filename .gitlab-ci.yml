@@ -235,7 +235,13 @@ quality:typecheck:
 security:dependency-audit:
   stage: audit
   needs: []
-  timeout: 15m
+  # 30m, not the 15m the pip/npm-only version had: the trivy sections generate
+  # an Android SBOM (a Gradle run in the CI container) and pull image layers on
+  # a cold cache. No resource_group despite the Gradle run -- the weekly 6am
+  # schedule makes a collision with a muma-mobile job unlikely, and the shared
+  # Gradle home survives concurrent use (file locks); serializing would let a
+  # busy Monday pipeline delay a job that gates nothing.
+  timeout: 30m
   interruptible: false
   allow_failure: true
   retry: !reference [.infra_retry, retry]

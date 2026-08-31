@@ -1,0 +1,5 @@
+# Accepted trivy findings (Android SBOM scan and production image scan in
+# scripts/ci/dependency-audit.sh), same contract as
+# accepted-vulnerabilities.txt: one CVE/GHSA id per line, with a comment
+# explaining why it cannot be fixed yet and what the way out is. Everything
+# not listed here fails the audit at HIGH/CRITICAL.

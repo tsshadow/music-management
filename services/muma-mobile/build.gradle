@@ -22,12 +22,12 @@ buildscript {
 }
 
 plugins {
-    id "com.github.ben-manes.versions" version "0.54.0"
+    id "com.github.ben-manes.versions" version "0.61.0"
     // SBOM for the dependency audit: scripts/ci/dependency-audit.sh runs
     // `cyclonedxBom` and feeds the result to trivy. Gradle has no lockfiles in
     // this repo, so the resolved graph in the SBOM is the only thing a CVE
     // scanner can read.
-    id "org.cyclonedx.bom" version "2.3.1"
+    id "org.cyclonedx.bom" version "2.4.1"
     alias libs.plugins.androidApplication apply false
     alias libs.plugins.androidLibrary apply false
     alias libs.plugins.kotlinAndroid apply false

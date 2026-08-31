@@ -77,6 +77,10 @@
 ### muma-mobile (Android/Kotlin)
 - Build: Gradle (`build.gradle`, `libs.versions.toml`), JVM target 21, uses `detekt` + `ktlintGradle`
 - Test: JVM unit tests present under `services/muma-mobile/app/src/test/kotlin/...` (e.g. `ArchitectureTest`, `imageloader/*Test`, `domain/*Test`)
+- Static analysis in `muma-mobile:check`: detekt (`./scripts/test/muma-mobile-detekt.sh`,
+  per-module `detekt-baseline.xml`) and Android Lint
+  (`./scripts/test/muma-mobile-lint.sh`, `:app:lintDebug` with `checkDependencies=true`
+  so the core modules are analyzed too; pre-existing findings in `app/lint-baseline.xml`)
 - No instrumentation/Android Auto tests found in this pass (to confirm in a later step)
 
 ### common

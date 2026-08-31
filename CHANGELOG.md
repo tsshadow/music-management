@@ -65,6 +65,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   afdwingt dat elke rules-gatende variabele in het checkscript voorkomt.
 
 ### Changed
+- **Android Lint is nu een gate in `muma-mobile:check`.** Lint stond volledig geconfigureerd in
+  `app/build.gradle` (baseline, `abortOnError`, `warningsAsErrors`) maar geen enkele CI-job riep
+  hem aan — dezelfde geschiedenis als detekt destijds. Ondertussen was de baseline verouderd en
+  stond develop op 98 ongefilterde errors die nergens zichtbaar werden. De baseline is opnieuw
+  gegenereerd (152 bestaande findings, inclusief een aantal echte `MissingPermission`-kandidaten
+  die het afbranden waard zijn) en `./scripts/test/muma-mobile-lint.sh` draait voortaan als derde
+  stap in de bestaande job: groen vandaag, rood op elke nieuwe finding. Via
+  `checkDependencies=true` kijkt `:app:lintDebug` ook naar de core-modules.
 - **Kleinere pipeline-reparaties uit dezelfde doorlichting.** Playwright rapporteert nu junit naar
   de GitLab-testtab (`frontend:browser` had als enige suite geen zichtbare testresultaten);
   `muma-mobile:build-release` is niet langer interruptible, zodat een nieuwe push geen upload

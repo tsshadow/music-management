@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **De R8-mapping van elke release-APK wordt voortaan bewaard.** Release-builds zijn geminificeerd,
+  waardoor een stacktrace uit het veld zonder de bijbehorende `mapping.txt` onleesbaar is — en die
+  werd tot nu toe nergens gearchiveerd. `publish.sh` zet de mapping naast de APK in `dist/` onder
+  dezelfde versienaam (`muma-mobile-v<versie>-<code>-mapping.txt`), en `muma-mobile:build-release`
+  bewaart hem als GitLab-artifact zonder vervaldatum. Daarmee kan de crash-triage een
+  release-stacktrace eerst deobfusceren voordat er iets geanalyseerd wordt.
 - **Een binnengekomen crashrapport kan nu een externe triage-hook wakker maken.** De
   `crash_reports`-tabel kent voortaan een `status` (`new`/`analyzing`/`mr_open`/`done`/`failed`)
   en een `stacktrace_hash`, zodat een geautomatiseerde verwerker dezelfde crash herkent en niet

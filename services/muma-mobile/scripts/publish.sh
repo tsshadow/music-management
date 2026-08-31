@@ -102,6 +102,20 @@ else
     exit 1
 fi
 
+# Release builds are R8-minified, so a stacktrace from the field is unreadable
+# without the mapping that this exact build produced. The mapping is written
+# next to the APK under the same versioned name; CI keeps it as an artifact.
+if [ "$BUILD_TYPE" == "release" ]; then
+    MAPPING_PATH="$MODULE/build/outputs/mapping/release/mapping.txt"
+    if [ -f "$MAPPING_PATH" ]; then
+        MAPPING_DEST="$DIST_DIR/$APK_SERIES-v$VERSION_NAME-$VERSION_CODE-mapping.txt"
+        cp "$MAPPING_PATH" "$MAPPING_DEST"
+        echo "Archived R8 mapping: $MAPPING_DEST"
+    else
+        echo "WARNING: no R8 mapping at $MAPPING_PATH; stacktraces from this build cannot be deobfuscated."
+    fi
+fi
+
 # 3. Generate Index HTML for easy distribution
 echo "--- Updating index.html and changelog.md ---"
 cp CHANGELOG.md "$DIST_DIR/changelog.md"

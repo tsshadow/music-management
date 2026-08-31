@@ -5,7 +5,12 @@ FROM python:3.14-slim
 # levert mariadb-dump en mariadb voor tools/db_backup.py en
 # tools/db_restore_check.py, die als db-backup en db-restore-check uit dit image
 # draaien.
-RUN apt-get update && apt-get install -y \
+#
+# apt-get upgrade: zie de toelichting in Dockerfile.base. De vooraf
+# geinstalleerde openssl van python:3.14-slim beweegt niet mee met een rebuild
+# van deze image, en linux-libc-dev bleef om dezelfde reden op een oude versie
+# staan.
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     ffmpeg \
     curl \
     mariadb-client \

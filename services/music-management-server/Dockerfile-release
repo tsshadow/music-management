@@ -181,7 +181,20 @@ ARG	RUNTIME_PACKAGES=" \
 ARG	MUMA_SERVER_USER=muma-server
 ARG	MUMA_SERVER_GROUP=muma-server
 
-RUN	apk add --no-cache --update ${RUNTIME_PACKAGES}
+# apk upgrade before the runtime packages, and the two halves of the image scan
+# it fixes are not the same problem:
+#
+#   libcrypto3 / libssl3 (CVE-2026-14456) come preinstalled in alpine:3.23 at
+#   3.5.7-r0. `apk add libcrypto3` is a no-op on an already-installed package,
+#   so a plain rebuild keeps shipping them however old the tag is; only an
+#   upgrade reaches the 3.5.8-r0 in the repository.
+#
+#   sqlite-libs (CVE-2026-11822, CVE-2026-11824) is genuinely installed by the
+#   line below and was simply built before 3.53.4-r0 existed.
+#
+# The upgrade covers both, and keeps covering them without anyone watching.
+RUN	apk upgrade --no-cache --update && \
+	apk add --no-cache --update ${RUNTIME_PACKAGES}
 
 RUN	addgroup -S ${MUMA_SERVER_GROUP} && \
 	adduser -S -H ${MUMA_SERVER_USER} && \

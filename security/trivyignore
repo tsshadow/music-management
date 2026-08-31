@@ -3,3 +3,22 @@
 # accepted-vulnerabilities.txt: one CVE/GHSA id per line, with a comment
 # explaining why it cannot be fixed yet and what the way out is. Everything
 # not listed here fails the audit at HIGH/CRITICAL.
+
+# --- pip's vendored dependencies ------------------------------------------
+# Both of these live in pip's own vendor tree, not in anything this repository
+# installs: /usr/local/lib/python3.14/site-packages/pip/_vendor/bom.cdx.json is
+# a CycloneDX SBOM that pip ships to describe what it bundles, and trivy reads
+# it. A stock python:3.14-slim reports both before a single line of our
+# Dockerfiles has run, and pip 26.2.1 is the current release -- there is no
+# version of pip to upgrade to that vendors newer copies, and pinning our own
+# setuptools/msgpack does not touch pip's tree.
+#
+# Way out: drop these two lines when a pip release refreshes its vendored
+# msgpack past 1.2.1 and setuptools past 78.1.1, and confirm with
+#   trivy image python:3.14-slim --scanners vuln --severity HIGH,CRITICAL
+CVE-2025-47273   # setuptools 70.3.0, PackageIndex path traversal. pip vendors
+                 # pkg_resources, not the easy_install PackageIndex the
+                 # advisory is about.
+GHSA-6v7p-g79w-8964  # msgpack 1.1.2, out-of-bounds read on Unpacker reuse.
+                     # pip uses it through cachecontrol, on responses from the
+                     # package index it is already trusting for code.

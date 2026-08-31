@@ -709,11 +709,11 @@ class JukeboxMediaPlayer :
 
     override fun getPlaylistMetadata(): MediaMetadata = MediaMetadata.EMPTY
 
-    fun mute() {
+    override fun mute() {
         setDeviceMuted(true)
     }
 
-    fun unmute() {
+    override fun unmute() {
         setDeviceMuted(false)
     }
 

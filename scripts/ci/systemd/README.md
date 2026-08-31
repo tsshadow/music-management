@@ -45,11 +45,27 @@ journalctl -u muma-disk-janitor.service -n 50
 `--force` ignores the usage threshold; `--dry-run` prints the plan and removes nothing. Together
 they are the safe way to ask "what does it think is disposable" on a host that is not full yet.
 
+## Two passes
+
+The normal pass is gentle on purpose — it keeps `:latest`/`:stable`, the 3 newest version tags per
+repository and the 2 newest android-ci images, because an evicted image costs a rebuild or a pull
+and on a merely-above-threshold host that is a bad trade.
+
+If the disk is *still* at or above the critical mark afterwards, it escalates to keeping one of
+each and sweeps again. That exists so the "tags are no longer the problem" message is true when it
+appears: without it the script could declare tags innocent while a 9GB image sat there protected by
+policy rather than by safety. Everything the escalation takes is still recoverable and still never
+forced.
+
+`--dry-run` prints both passes separately, so you can see what escalating would cost before it does.
+
 ## When it exits 1
 
-That means it swept everything it can safely remove and the disk is still critical. It is not a
-janitor failure, it is the janitor's finding: the space is in the buildkit cache, in a runner build
-directory, or outside Docker entirely. Pruning the build cache does free a lot and does cost the
+That means it swept everything it can safely remove, escalation included, and the disk is still
+critical. It is not a janitor failure, it is the janitor's finding: the space is in the buildkit
+cache, in a runner build directory, or outside Docker entirely. On the workstation on 2026-08-31
+that answer was correct and worth having — Docker held ~66GB of a 207GB-full disk, and the rest was
+snap, an Android SDK and a stray 2.4GB crash dump. Pruning the build cache does free a lot and does cost the
 ccache that keeps `muma-server:unit` at ~90s instead of ~405s — a trade to make deliberately, not a
 cleanup step. The unit treats exit 1 as success so a persistent full disk does not fill the journal
 with failed activations; the message is in the log either way.

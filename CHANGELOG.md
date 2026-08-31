@@ -65,6 +65,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bepaalt welk gedrag Android op het toestel van de gebruiker toepast, en dat verhoog je met een test
   op een echt apparaat.
 
+  Android Lint meldde onder AGP 9 dertig bevindingen die de oude baseline niet dekt. Twee daarvan
+  waren geen registratiewerk. `NewerVersionAvailable` leest `libs.versions.toml` en vlagt elf
+  entries als achterlopend -- dat is Renovate's werk, en elf regels baseline zouden na elke
+  dependency-MR alweer verlopen zijn; die check staat nu uit naast `GradleDependency` en
+  `AndroidGradlePluginVersion`, die er om precies dezelfde reden al stonden. En `DefaultLocale` wees
+  een echte bug aan, apart gefixt. De rest -- `UseKtx`, `TrimLambda`, `ReportShortcutUsage` -- zijn
+  nieuwe checks over ongewijzigde code en gaan de baseline in.
+
   Twee dingen die meemoesten. Het CI-image kende android-37 niet, dus dat staat er nu bij — onder de
   naam `platforms;android-37.0`, want API 37 is de eerste met minor-SDK-versies en het kale
   `platforms;android-37` bestaat niet. sdkmanager meldt dat met één regel `Failed to find package`
@@ -74,6 +82,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   de wrapper al op 8.14.5 zat; die waarde stuurt de
   `wrapper`-taak, dus `./gradlew wrapper` zou de wrapper stilzwijgend hebben gedowngraded. Ze staan
   nu allebei op 9.7.1.
+- **Een standaard-vervaltijd voor delen opslaan brak de instelling in talen met andere cijfers.**
+  `ShareHandler` schrijft `<aantal>:<eenheid>` naar de `defaultShareExpiration`-voorkeur met
+  `String.format` zonder locale, en `Settings` leest hem terug met `split[0].toLong()`. In het
+  Arabisch, Perzisch of Bengaals levert `%d` cijfers op die `toLong()` niet accepteert, dus
+  `NumberFormatException` en een kapotte instelling. Het is een wire-formaat tussen twee regels
+  eigen code, dus `Locale.ROOT`. Gevonden door de lint van AGP 9.
 - **De Android-app zat in images waar hij niets te zoeken had.** Drie Dockerfiles kopieerden de
   complete `services/`-boom naar binnen, terwijl de containers die eruit rollen alleen Python
   draaien: de tools-image start `soundcloud_fetcher.py` en `process_genres.py`, music-manager is

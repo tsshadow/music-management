@@ -34,3 +34,8 @@ htmlcov/
 .ruff_cache/
 # Local runtime data (dev/music bind-mount contents for docker/docker-compose.dev.yml).
 /data/
+
+# Core dumps. The emulator smoke test crashes hard enough to drop one of these
+# next to the sources, and at ~1 GB each they filled the CI runners before
+# anyone noticed three had been committed.
+core.[0-9]*

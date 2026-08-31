@@ -19,7 +19,10 @@
 # passing, even though GitLab has no built-in mechanism to require it.
 #
 # Required GitLab CI/CD variables (same ones deploy already needs, see
-# docs/deployment.md): PROD_ENV_FILE, PROD_ENV_FILE_LMS.
+# docs/deployment.md): PROD_ENV_FILE, PROD_ENV_FILE_LMS -- plus the four
+# variables that gate release jobs at the `rules:` level (DOCKERHUB_USERNAME,
+# DOCKERHUB_TOKEN, APK_HOSTER_URL, SIGNING_STORE_FILE), because a job gated on
+# a missing variable is silently absent rather than red.
 
 set -e
 
@@ -67,7 +70,38 @@ require_any_key() {
     return 1
 }
 
+require_var() {
+    # $1: variable name, $2: what silently disappears without it.
+    local name="$1" consequence="$2"
+    if [ -z "${!name:-}" ]; then
+        echo "Missing required secret: CI/CD variable '${name}' is not set. Without it ${consequence}."
+        return 1
+    fi
+    echo "OK: '${name}' is set."
+    return 0
+}
+
 missing=0
+
+# These four gate entire jobs via `rules:` in .gitlab-ci.yml
+# (release:build-images requires DOCKERHUB_*, muma-mobile:build-release
+# requires APK_HOSTER_URL and SIGNING_STORE_FILE). A rules-level variable check
+# does not fail when the variable is missing -- the job silently drops out of
+# the pipeline, and a skipped job blocks nothing. That failure mode is exactly
+# this script's reason to exist: an expired Docker Hub token would have meant
+# deploy:prod restarting production on stale :latest images (caught only
+# after the restart, by post-deploy-verify), and a dropped APK variable would
+# have shipped a release with no new APK and nothing red anywhere. This job
+# runs unconditionally on every release/hotfix branch, so the absence fails
+# loudly here instead.
+require_var "DOCKERHUB_USERNAME" \
+    "release:build-images vanishes and deploy:prod redeploys stale images" || missing=1
+require_var "DOCKERHUB_TOKEN" \
+    "release:build-images vanishes and deploy:prod redeploys stale images" || missing=1
+require_var "APK_HOSTER_URL" \
+    "muma-mobile:build-release vanishes and the release ships without an APK" || missing=1
+require_var "SIGNING_STORE_FILE" \
+    "muma-mobile:build-release vanishes and the release ships without an APK" || missing=1
 
 if [ -z "${PROD_ENV_FILE}" ]; then
     echo "Error: PROD_ENV_FILE CI/CD variable is not set. See docs/deployment.md."

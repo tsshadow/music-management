@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [6.25.3] - 2026-08-31
+
+### Changed
+- **Geen wijzigingen in de app zelf.** Deze versie bestaat omdat het bouwproces voortaan het
+  vertaalbestand van elke release bewaart, zodat een crash uit de geïnstalleerde app automatisch
+  onderzocht kan worden. Bijwerken is aan te raden: van eerdere versies is zo'n vertaalbestand er
+  niet.
+
 ## [6.25.2] - 2026-08-29
 
 ### Fixed

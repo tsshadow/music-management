@@ -27,6 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   de ruimte zit in de buildcache of buiten Docker.
 
 ### Changed
+- **De cyclonedx-major wacht op het dependency-dashboard.** `org.cyclonedx.bom` 3 splitst de ene
+  `cyclonedxBom`-taak in tweeën: een aggregatietaak die SBOM's van de submodules verzamelt, en een
+  `cyclonedxDirectBom` per project waar `includeConfigs` naartoe verhuist. Het rapport verlaat
+  daarbij `build/reports/bom.json`. `scripts/ci/dependency-audit.sh` noemt zowel die taak als dat
+  pad, en zijn faalbranch slaat de CVE-scan over in plaats van hem rood te maken -- een half
+  uitgevoerde migratie zou dus lezen als een geslaagde audit die niets gescand heeft. Renovate opent
+  er geen merge request meer voor tot die migratie bewust gedaan is.
 - **De mobiele dependencies gaan in één batch omhoog, en media3 vroeg er code voor terug.** Kotlin
   2.4, KSP 2.3, media3 1.11, koin 4.2, navigation 2.10 en een reeks androidx-bumps. media3 1.11
   sluit een deprecatiecyclus af waar de Jukebox-speler nog in stond: `Player` kent

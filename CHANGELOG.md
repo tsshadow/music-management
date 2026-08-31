@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **De crash-triage-runner: van crashrapport naar goedgekeurde fix zonder handwerk ertussen.**
+  Nieuw in `scripts/crash-triage/`: een webhook-listener die het rapport-id uit de
+  `crash_hook_url`-POST spoolt en er serieel één Claude-triagerun per rapport op draait, een
+  approved-MR-watcher (systemd-timer) die crash-fix-MR's met approval én groene pipeline merget en
+  daarna de release laat cutten, plus systemd-units, een env-voorbeeld en een runbook-README voor
+  de development-VM. De triagerun zelf volgt de nieuwe `muma-crash-triage`-skill in
+  `.claude/skills/`: rapport ophalen, release-stacktraces eerst deobfusceren met de gearchiveerde
+  R8-mapping, en alleen bij een eenduidige oorzaak een MR openen — mergen mag hij nooit zelf, dat
+  blijft aan de approval-watcher na akkoord van Teun. Elke uitkomst wordt gemeld op ntfy-topic
+  `music-management-claude`.
 - **De R8-mapping van elke release-APK wordt voortaan bewaard.** Release-builds zijn geminificeerd,
   waardoor een stacktrace uit het veld zonder de bijbehorende `mapping.txt` onleesbaar is — en die
   werd tot nu toe nergens gearchiveerd. `publish.sh` zet de mapping naast de APK in `dist/` onder

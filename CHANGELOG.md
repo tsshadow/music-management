@@ -32,6 +32,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   een tweede identiek rapport na twee keer als opgegeven crash werd afgedaan. De skill zet zo'n
   rapport nu op `done` met ledger-uitkomst `no_defect`, zonder de pogingenteller te raken; de
   serverstatussen zijn ongewijzigd.
+- **MariaDB gaat van 10.10 naar 12.3.** 10.10 is al ruim een jaar end-of-life en kreeg geen
+  securityfixes meer. De bump raakt `docker/compose.test.yml` en alle drie de
+  `docker-compose*.yml`-bestanden, dus ook prod. Let op bij het uitrollen: MariaDB ondersteunt
+  officieel één major per keer en dit slaat er ruim tien over, dus de datadir *niet* ter plekke
+  laten upgraden. De veilige volgorde is een dump maken, het `db`-volume weggooien en de dump
+  terugzetten in de verse 12.3-container; de deploy maakt zelf al een gzipped dump in
+  `/muma/backups`, en er staat een handmatige van 2026-08-31 (102 tabellen) klaar. Draai daarna
+  `mariadb-upgrade` niet meer -- een geïmporteerde dump heeft dat niet nodig.
 - **Een TypeScript-major wacht voortaan op het dependency-dashboard.** TypeScript 7 is de native
   herschrijving en `svelte-check` accepteert die nog niet als gewone upgrade: het weigert te starten
   tenzij TypeScript 6 er onder een npm-alias naast staat en elke aanroep `--tsgo` meekrijgt. Dat is
@@ -39,6 +47,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `svelte-check` TypeScript 7 op zichzelf aankan.
 
 ### Fixed
+- **Een wijziging in `renovate.json` liet de SAST-scan links liggen die hem wél leest.** De
+  `changes:`-regels van `security:sast` noemden het bestand niet, dus de packageRule die in !531
+  werd toegevoegd ging ongescand naar develop -- waar semgrep hem alsnog vond, en de eerstvolgende
+  merge request rood werd op een bevinding die niets met zijn eigen diff te maken had. `renovate.json`
+  staat nu in die regels, en de zesde `renovate-missing-minimum-release-age`-hit is opgenomen in
+  `security/accepted-sast-findings.txt` -- de reden die er al stond dekt hem: de regel wil de sleutel
+  op elke entry herhaald zien, terwijl Renovate hem van de catch-all overneemt.
 - **De Android-app zat in images waar hij niets te zoeken had.** Drie Dockerfiles kopieerden de
   complete `services/`-boom naar binnen, terwijl de containers die eruit rollen alleen Python
   draaien: de tools-image start `soundcloud_fetcher.py` en `process_genres.py`, music-manager is

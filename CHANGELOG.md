@@ -49,6 +49,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   staat nu in die regels, en de zesde `renovate-missing-minimum-release-age`-hit is opgenomen in
   `security/accepted-sast-findings.txt` -- de reden die er al stond dekt hem: de regel wil de sleutel
   op elke entry herhaald zien, terwijl Renovate hem van de catch-all overneemt.
+
+- **De Android-build gaat in één keer naar Gradle 9, AGP 9 en compileSdk 37, omdat het los niet kan.**
+  Renovate bood deze drie als losse voorstellen aan en alle drie bleven rood, hoe vaak je ze ook
+  opnieuw draaide. De reden staat in de foutmeldingen zelf, verspreid over drie taken: androidx.core
+  1.19 weigert gebruikt te worden onder compileSdk 37, AGP 8.13 stelt 36 als maximum, en AGP 9 weigert
+  te starten onder Gradle 8.14.5. Elk stuk wacht dus op het volgende, en pas de combinatie werkt.
+
+  Dat is het patroon dat deze hele reeks kenmerkte. De androidx-bibliotheken duwden het nummer twee
+  keer omhoog: eerst weigerden activity 1.13 en vijftien broertjes onder 36, daarna core 1.19 en nog
+  drie onder 37. `checkDebugAarMetadata` meldt zo'n hele partij in één klap, wat eruitziet als een
+  kapotte build terwijl er één getal te laag staat.
+
+  `targetSdk` blijft bewust op 35. compileSdk bepaalt welke API's de code mág aanroepen; targetSdk
+  bepaalt welk gedrag Android op het toestel van de gebruiker toepast, en dat verhoog je met een test
+  op een echt apparaat.
+
+  Twee dingen die meemoesten. Het CI-image kende android-37 niet, dus dat staat er nu bij — onder de
+  naam `platforms;android-37.0`, want API 37 is de eerste met minor-SDK-versies en het kale
+  `platforms;android-37` bestaat niet. sdkmanager meldt dat met één regel `Failed to find package`
+  tussen twee voortgangsbalken en stopt dan met een foutcode, wat leest als een netwerkstoring in
+  plaats van een verkeerde pakketnaam. De imagetag bevat een hash van het Dockerfile, dus het
+  herbouwt zichzelf één keer. En de Gradle-versie in de version catalog stond nog op 8.11.1 terwijl
+  de wrapper al op 8.14.5 zat; die waarde stuurt de
+  `wrapper`-taak, dus `./gradlew wrapper` zou de wrapper stilzwijgend hebben gedowngraded. Ze staan
+  nu allebei op 9.7.1.
 - **De Android-app zat in images waar hij niets te zoeken had.** Drie Dockerfiles kopieerden de
   complete `services/`-boom naar binnen, terwijl de containers die eruit rollen alleen Python
   draaien: de tools-image start `soundcloud_fetcher.py` en `process_genres.py`, music-manager is

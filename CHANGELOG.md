@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **De crash-triage kent nu een uitkomst voor "geldig rapport, niets te fixen".** Een synthetisch
+  testrapport of een handmatig diagnoserapport zonder crash telde als mislukte fixpoging, waardoor
+  een tweede identiek rapport na twee keer als opgegeven crash werd afgedaan. De skill zet zo'n
+  rapport nu op `done` met ledger-uitkomst `no_defect`, zonder de pogingenteller te raken; de
+  serverstatussen zijn ongewijzigd.
+
 ## [0.39.0] - 2026-08-31
 
 ### Added

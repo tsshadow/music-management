@@ -31,3 +31,20 @@ def test_process_genres_non_dry_run_import_path_is_valid():
     result = process_genres(json_file=None, dry_run=False, interactive=False)
 
     assert isinstance(result, dict)
+
+
+def test_db_backup_imports():
+    """tools/db_backup.py runs as the db-backup container, on a timer, unattended.
+
+    An import error there surfaces as a backup that silently never happened --
+    the exact failure this job exists to make impossible.
+    """
+    module = importlib.import_module('tools.db_backup')
+    assert hasattr(module, 'run_backup')
+    assert hasattr(module, 'check_stale')
+
+
+def test_db_restore_check_imports():
+    """tools/db_restore_check.py runs as the db-restore-check container."""
+    module = importlib.import_module('tools.db_restore_check')
+    assert hasattr(module, 'compare')

@@ -1,0 +1,10 @@
+[Unit]
+Description=Complain when the newest MuMa backup is too old
+
+[Timer]
+# Six hours after the backup window, so a run that started late has finished.
+OnCalendar=*-*-* 09:12:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

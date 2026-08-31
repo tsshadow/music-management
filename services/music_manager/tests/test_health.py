@@ -1,6 +1,11 @@
+import json
+import os
 import sys
 import threading
 import unittest
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
 for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
@@ -113,3 +118,68 @@ class HealthTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 503)
         self.assertFalse(response.json()['threads']['events'])
+
+
+class BackupHealthTest(unittest.TestCase):
+    """De monitor die van buiten de host kijkt of er nog gebackupt wordt.
+
+    Los van /health, want een verlopen backup is een echt probleem maar geen
+    storing van de dienst.
+    """
+
+    def setUp(self):
+        self.client = TestClient(app)
+        self.tmp = TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dest = Path(self.tmp.name)
+
+    def _latest(self, age_hours: float):
+        finished = datetime.now(UTC) - timedelta(hours=age_hours)
+        (self.dest / 'latest.json').write_text(json.dumps({
+            'file': 'muma_db_20260831_031200.sql.gz',
+            'finished_at': finished.isoformat(),
+            'tables': 72,
+        }))
+
+    def _env(self, **extra):
+        env = {'BACKUP_PATH': str(self.dest), 'BACKUP_STALE_AFTER_HOURS': '36'}
+        env.update(extra)
+        return patch.dict('os.environ', env, clear=False)
+
+    def test_recent_backup_reports_ok(self):
+        self._latest(age_hours=5)
+        with self._env():
+            response = self.client.get('/health/backup')
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['status'], 'ok')
+        self.assertEqual(body['tables'], 72)
+        self.assertLess(body['age_hours'], 36)
+
+    def test_stale_backup_returns_503_so_an_outside_monitor_notices(self):
+        self._latest(age_hours=40)
+        with self._env():
+            response = self.client.get('/health/backup')
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()['status'], 'stale')
+
+    def test_missing_latest_json_is_not_silently_ok(self):
+        """Nooit gedraaid en verlopen moeten allebei alarm geven, niet groen."""
+        with self._env():
+            response = self.client.get('/health/backup')
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()['status'], 'missing')
+
+    def test_unset_backup_path_is_reported_rather_than_assumed_fine(self):
+        with patch.dict('os.environ', {}, clear=False):
+            os.environ.pop('BACKUP_PATH', None)
+            response = self.client.get('/health/backup')
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()['status'], 'unconfigured')
+
+    def test_unreadable_latest_json_is_reported(self):
+        (self.dest / 'latest.json').write_text('{not json')
+        with self._env():
+            response = self.client.get('/health/backup')
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()['status'], 'unreadable')

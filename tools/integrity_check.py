@@ -6,11 +6,19 @@ from sqlalchemy import create_engine, text
 load_dotenv()
 
 def check():
-    host = os.getenv("DB_HOST", "192.0.2.27")
+    # Geen defaults voor host of credentials: hier stond het root-wachtwoord van
+    # de productiedatabase als platte string, met het productie-IP ernaast. Dat
+    # zit nog in de git-historie, dus het hoort geroteerd te zijn.
+    host = os.getenv("DB_HOST")
     port = os.getenv("DB_PORT", "3306")
-    user = "root"
-    password = "Paced-Splendid-Deuce-Negotiate3-Sappy-Define"
+    user = os.getenv("DB_USER")
+    password = os.getenv("DB_PASS")
     db_name = os.getenv("DB_DB")
+    missing = [name for name, value in
+               (("DB_HOST", host), ("DB_USER", user),
+                ("DB_PASS", password), ("DB_DB", db_name)) if not value]
+    if missing:
+        raise SystemExit(f"ontbrekende omgevingsvariabelen: {', '.join(missing)}")
     
     url = f"mysql+mysqlconnector://{user}:{password}@{host}:{port}/{db_name}"
     engine = create_engine(url)

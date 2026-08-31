@@ -8,6 +8,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Databasebackups die zichzelf bewijzen, in plaats van bestanden die er staan.** Het ontwerp uit
+  `docs/superpowers/specs/2026-08-02-daily-db-backups-design.md` is gebouwd: `tools/db_backup.py`
+  dumpt, verifieert, schoont op en klaagt als dat niet lukte. Drie systemd-timers in
+  `scripts/backup/systemd/` doen 's nachts de dump, 's ochtends een verval-controle en zondags de
+  herstelproef. Waarom het nodig was: het nieuwste bestand in `/muma/backups` was van 23 juli, er
+  stond een dump van 0 bytes uit 5 juli tussen, en niemand had dat gezien.
+
+  De verificatie is niet cosmetisch. `mariadb-dump | gzip > bestand` levert een geslaagde exit op
+  als alleen de eerste helft faalt -- dat is precies hoe die dump van 0 bytes ontstond -- dus het
+  comprimeren gebeurt nu in het proces zelf en er is één exitcode om te controleren. Daarnaast een
+  ondergrens op de bestandsgrootte en de `-- Dump completed`-trailer, die een halverwege afgekapte
+  dump onderscheidt van een complete.
+
+  **De herstelproef is wat "backup" van "bestand" onderscheidt.** De job schrijft naast de dumps een
+  `latest.json` met een exacte `COUNT(*)` per tabel; `tools/db_restore_check.py` zet de nieuwste
+  dump wekelijks terug in een wegwerpdatabase en vergelijkt daartegen. Een verdwenen tabel, een
+  leeggelopen tabel of een afgekapt bestand vallen daar ver buiten. De marge van 2% is rekenkunde,
+  geen speling: `--single-transaction` fotografeert bij aanvang en de tellingen worden erna gelezen,
+  dus een tabel waar constant bij geschreven wordt komt legitiem iets korter terug.
+
+  **De verval-controle bestaat twee keer, met opzet.** Het ontwerp benoemde de gat eerlijk: een cron
+  die helemaal stopt produceert geen fouten en dus geen alarm. Dat gat is precies wat vijf weken
+  lang open stond. Dus meldt de timer het zelf én rapporteert music-manager het via
+  `GET /health/backup`, dat 503 geeft zodra de nieuwste dump over de limiet is. Die tweede is de
+  enige die blijft werken als hier alles stilvalt, want de Uptime Kuma-monitor die hem pollt draait
+  ergens anders. Bewust los van `/health`: een verlopen backup is een echt probleem, maar geen
+  storing van de dienst, en dat door elkaar halen laat de verkeerde pieper afgaan.
+
+  `scripts/backup/install-systemd.sh` weigert te installeren als `HOST_BACKUP_PATH` op hetzelfde
+  device staat als de datadir. Dat is geen pietluttigheid maar de toestand waarin prod verkeerde:
+  `/muma/backups` en `/docker/music-management/mariadb` waren twee paden op één schijf, dus elke
+  ooit gemaakte dump zou zijn verdwenen samen met wat hij beschermde. De job zelf kan dat niet zien
+  -- die draait in een container zonder de datadir -- dus die check hoort op de host.
 - **Een disk-janitor voor de CI-runners, zodat een volle schijf niet langer willekeurige jobs
   sloopt.** Drie keer deze maand liep een runner vol, en de storing wees telkens overal heen behalve
   naar de schijf: op 31 augustus faalden drie van de vier jobs op `no matching files` bij het
@@ -159,6 +192,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bestanden zijn verwijderd en `.gitignore` weert `core.[0-9]*` voortaan, zodat een volgende crash
   er niet opnieuw een achterlaat. De blobs zitten nog wel in de git-historie: een clone haalt ze op
   tot die historie herschreven wordt.
+
+### Security
+- **Het root-wachtwoord van de productiedatabase stond als platte string in `tools/integrity_check.py`,**
+  met het productie-IP als default host ernaast. De literal is weg; het script eist nu `DB_HOST`,
+  `DB_USER`, `DB_PASS` en `DB_DB` uit de omgeving. Let op: verwijderen is niet genoeg, de waarde
+  staat in de git-historie en hoort geroteerd te worden. `security:secret-scan` sloeg er niet op aan
+  omdat gitleaks op tokenpatronen zoekt en dit een woordenwachtwoord is.
 
 ## [0.39.0] - 2026-08-31
 

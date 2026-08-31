@@ -1,7 +1,10 @@
 import contextlib
+import json
 import logging
 import os
 import threading
+from datetime import UTC, datetime
+from pathlib import Path
 
 import uvicorn
 from dotenv import load_dotenv
@@ -167,6 +170,54 @@ def health(response: Response):
         'version': get_version(),
         'database': database,
         'threads': threads,
+    }
+
+@app.get('/health/backup')
+def health_backup(response: Response):
+    """Meldt hoe oud de nieuwste databasebackup is, voor een monitor buiten deze host.
+
+    tools/db_backup.py kan zijn eigen verval melden, maar deelt dan een blinde
+    vlek met de timer die hem start: een timer die helemaal stopt produceert geen
+    fouten en dus ook geen alarm. Precies dat is hier gebeurd -- tussen 23 juli en
+    31 augustus 2026 liep er geen backup en merkte niemand het.
+
+    Dit endpoint kijkt van de andere kant: het leest het latest.json dat de job
+    naast de dumps schrijft, en geeft 503 zodra die te oud is. De Uptime
+    Kuma-monitor die er tegenaan praat draait niet op deze machine, dus hij blijft
+    het merken als hier alles stilvalt.
+
+    Bewust los van /health: een verlopen backup is een echt probleem, maar geen
+    storing van de dienst, en die twee door elkaar halen levert een piepertje op
+    het verkeerde kanaal.
+    """
+    destination = os.getenv('BACKUP_PATH')
+    if not destination:
+        response.status_code = 503
+        return {'status': 'unconfigured', 'reason': 'BACKUP_PATH is not set'}
+
+    latest = Path(destination) / 'latest.json'
+    try:
+        payload = json.loads(latest.read_text())
+        finished = datetime.fromisoformat(payload['finished_at'])
+    except FileNotFoundError:
+        response.status_code = 503
+        return {'status': 'missing', 'reason': f'{latest} does not exist'}
+    except (OSError, ValueError, KeyError) as exc:
+        response.status_code = 503
+        return {'status': 'unreadable', 'reason': f'{latest}: {exc}'}
+
+    limit_hours = int(os.getenv('BACKUP_STALE_AFTER_HOURS', '36'))
+    age_hours = (datetime.now(UTC) - finished).total_seconds() / 3600
+    stale = age_hours > limit_hours
+    if stale:
+        response.status_code = 503
+    return {
+        'status': 'stale' if stale else 'ok',
+        'file': payload.get('file'),
+        'finished_at': payload['finished_at'],
+        'age_hours': round(age_hours, 1),
+        'limit_hours': limit_hours,
+        'tables': payload.get('tables'),
     }
 
 # Music Manager is API-only and must never serve a UI of its own: the single

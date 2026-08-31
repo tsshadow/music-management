@@ -1,0 +1,12 @@
+[Unit]
+Description=MuMa database restore check (restore the newest dump and compare)
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/muma-backup
+# Restores ~7GB into a throwaway database on the same server and drops it again,
+# so it needs room and takes minutes rather than seconds.
+TimeoutStartSec=2h
+ExecStart=/usr/bin/docker-compose --env-file /opt/muma-backup/.env -f /opt/muma-backup/docker-compose.tools.yml -p music-management run --rm db-restore-check

@@ -55,6 +55,7 @@ docker run --rm \
     -v "$GRADLE_HOME_DIR:/gradle_home" \
     -w "/workspace/services/muma-mobile" \
     -e GRADLE_USER_HOME="/gradle_home" \
+    -e HOME=/tmp/emu-home \
     -e SIGNING_STORE_PASSWORD=dummy-ci-password \
     -e SIGNING_KEY_ALIAS=dummy-ci \
     -e SIGNING_KEY_PASSWORD=dummy-ci-password \

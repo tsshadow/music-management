@@ -64,6 +64,13 @@ dd45bf5b5d0df701 x1  # detected-ssh-password scripts/deploy.sh
 # deployment's own settings rather than from a request.
 215b7d436a195271 x3  # dynamic-proxy-host services/music-management-server/nginx/reverse-proxy.conf
 
+# --- dynamic-urllib-use-detected ---
+# The ntfy notify call in the crash-triage listener builds its URL from
+# NTFY_URL, an operator-set value in a root-owned env file, and the code pins
+# the scheme to http(s) before opening it - a mangled value cannot become a
+# file:// read. Audited 2026-08-31.
+1ad6abb9c22c9ef5 x1  # dynamic-urllib-use-detected scripts/crash-triage/crash_triage_listener.py
+
 # --- exported_activity ---
 # Android activities that are launched by the system or by another app on
 # purpose -- the launcher alias and the media button receiver.

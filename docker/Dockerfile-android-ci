@@ -33,6 +33,25 @@ RUN set -eux; \
         "build-tools;34.0.0" "platforms;android-34"; \
     chown -R "$RUNNER_UID:$RUNNER_GID" "$SDK_ROOT"
 
+# Emulator for scripts/test/muma-mobile-emulator-smoke.sh: the only thing that
+# can execute an R8-minified release build (bug-report 029 existed only there).
+# aosp_atd is the automated-test-device image - a stripped Android without
+# launcher/GMS, made for exactly this - and android-34 is deliberate: the app's
+# minSdk is far below it, ATD images stop at 34, and the emulator OS version
+# does not need to match targetSdk. Runs on KVM (passed through on the runner
+# LXC since 2026-08-22), hence hw acceleration; libpulse keeps qemu's audio
+# stack from crashing headless.
+RUN set -eux; \
+    . /etc/android-sdk-root; \
+    sdkmanager --sdk_root="$ANDROID_SDK_ROOT" \
+        "platform-tools" "emulator" \
+        "system-images;android-34;aosp_atd;x86_64"; \
+    apt-get update && apt-get install -y --no-install-recommends \
+        libpulse0 libxkbfile1 libxkbcommon0 libgl1 libegl1 libnss3 \
+        libfontconfig1 libxcursor1 libxi6 \
+        && rm -rf /var/lib/apt/lists/*; \
+    chown -R "$RUNNER_UID:$RUNNER_GID" "$ANDROID_SDK_ROOT"
+
 # The uid may already exist in the base image, in which case groupadd/useradd
 # fail and are ignored - but the home directory still has to be there and
 # writable, because Gradle puts its daemon registry under $HOME.

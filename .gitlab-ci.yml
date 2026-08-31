@@ -638,11 +638,8 @@ docker:build-images:
 # are both gone, which was the deal: keeping two spellings of one chain means
 # keeping them in sync forever.
 #
-# What it does NOT cover: the Android app. The 6.21.0 startup crash
-# (docs/bug-reports/029) existed only in an R8-minified release build, and
-# nothing here executes one. The old excuse -- no /dev/kvm on the runner LXC --
-# expired on 2026-08-22 when KVM passthrough was applied to debian-dev; what is
-# missing now is an emulator job, not a capability.
+# What it does NOT cover: the Android app -- that is muma-mobile:smoke-release
+# below, which executes the R8-minified build this chain never touches.
 e2e:scan-to-listen:
   stage: e2e
   timeout: 30m
@@ -653,6 +650,39 @@ e2e:scan-to-listen:
   rules:
     - !reference [.dedicated_schedule_guard, rules]
     - when: on_success
+
+# Boots the R8-minified release APK on a headless ATD emulator (KVM) and
+# verifies the app survives startup. The 6.21.0 crash (docs/bug-reports/029)
+# existed only in the minified build -- a Gson TypeToken R8 had stripped -- so
+# every other Android job was structurally blind to it and the first execution
+# was a user's phone. A tripwire, not a UI suite: install, launch, 15s grace,
+# process alive, no FATAL EXCEPTION.
+#
+# Deliberately not gated on .gitlab-ci.yml (same reasoning as
+# docker:build-images): an emulator boot is the most expensive thing in the
+# muma-mobile resource group, and a yml-only edit cannot change what it proves.
+muma-mobile:smoke-release:
+  stage: e2e
+  resource_group: muma-mobile
+  timeout: 30m
+  retry: !reference [.infra_retry, retry]
+  # After the unit tests, not in parallel with them: both jobs queue on the
+  # same resource group anyway, and letting the emulator grab the slot first
+  # would delay the fast feedback for a result that matters less.
+  needs:
+    - job: muma-mobile:check
+      optional: true
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.release_rule, rules]
+    - changes:
+        - services/muma-mobile/**/*
+        - docker/Dockerfile-android-ci
+        - scripts/ci/android-image.sh
+        - scripts/test/muma-mobile-emulator-smoke.sh
+        - scripts/test/muma-mobile-emulator-smoke-inner.sh
+  script:
+    - ./scripts/test/muma-mobile-emulator-smoke.sh
 
 frontend:browser:
   stage: e2e
@@ -771,6 +801,12 @@ muma-mobile:build-release:
   needs:
     - release:version-check
     - job: muma-mobile:check
+      optional: true
+    # Same reasoning, one stage earlier: the smoke test executes the exact
+    # artifact class this job publishes, so a release APK that crashes on
+    # startup must never reach the hoster. On a release branch .release_rule
+    # makes it always present.
+    - job: muma-mobile:smoke-release
       optional: true
   rules:
     - !reference [.dedicated_schedule_guard, rules]

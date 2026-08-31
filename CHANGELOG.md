@@ -27,6 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   de ruimte zit in de buildcache of buiten Docker.
 
 ### Changed
+- **MariaDB gaat van 10.10 naar 12.3.** 10.10 is al ruim een jaar end-of-life en kreeg geen
+  securityfixes meer. De bump raakt `docker/compose.test.yml` en alle drie de
+  `docker-compose*.yml`-bestanden, dus ook prod. Let op bij het uitrollen: MariaDB ondersteunt
+  officieel één major per keer en dit slaat er ruim tien over, dus de datadir *niet* ter plekke
+  laten upgraden. De veilige volgorde is een dump maken, het `db`-volume weggooien en de dump
+  terugzetten in de verse 12.3-container; de deploy maakt zelf al een gzipped dump in
+  `/muma/backups`, en er staat een handmatige van 2026-08-31 (102 tabellen) klaar. Draai daarna
+  `mariadb-upgrade` niet meer -- een geïmporteerde dump heeft dat niet nodig.
 - **Een TypeScript-major wacht voortaan op het dependency-dashboard.** TypeScript 7 is de native
   herschrijving en `svelte-check` accepteert die nog niet als gewone upgrade: het weigert te starten
   tenzij TypeScript 6 er onder een npm-alias naast staat en elke aanroep `--tsgo` meekrijgt. Dat is

@@ -157,6 +157,25 @@ def test_workflow_rules_prevent_duplicate_pipelines():
     assert duplicate_guard, "no rule dropping the branch pipeline when an MR is open"
 
 
+def test_release_branches_do_not_get_a_merge_request_pipeline():
+    """The push-vs-MR dedupe keys on $CI_OPEN_MERGE_REQUESTS, which only exists
+    in push pipelines -- so a release branch with an open MR got a branch
+    pipeline AND an MR pipeline, ran everything twice, and the two Android jobs
+    raced each other for the shared Gradle home. The branch pipeline is where
+    deploy:prod lives, so the MR pipeline is the one that must never start."""
+    ci = load_ci()
+    rules = ci["workflow"]["rules"]
+    guard = [
+        rule
+        for rule in rules
+        if rule.get("when") == "never"
+        and "$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME" in rule.get("if", "")
+        and "release" in rule.get("if", "")
+        and "hotfix" in rule.get("if", "")
+    ]
+    assert guard, "no rule suppressing the MR pipeline for release/hotfix source branches"
+
+
 def test_workflow_never_suppresses_a_release_branch_pipeline():
     """deploy:prod matches on $CI_COMMIT_BRANCH, which is unset in a merge
     request pipeline. If the duplicate-pipeline guard fired for a release
@@ -221,7 +240,7 @@ def test_secret_scanning_runs_on_release_branches():
     assert any(rule == [".release_rule", "rules"] for rule in job["rules"])
 
 
-def test_python_and_android_units_publish_junit():
+def test_test_jobs_publish_junit():
     """Without this, a failed test is only visible by reading the raw log."""
     ci = load_ci()
     for name, path in [
@@ -229,6 +248,8 @@ def test_python_and_android_units_publish_junit():
         # Every module, not just app/: a glob pinned to one module means a new module's
         # tests report green by publishing nothing at all.
         ("muma-mobile:check", "services/muma-mobile/**/build/test-results/**/TEST-*.xml"),
+        # Kept in lockstep with playwright.config.js's junit reporter outputFile.
+        ("frontend:browser", "services/frontend/test-results/junit-browser.xml"),
     ]:
         assert ci[name]["artifacts"]["reports"]["junit"] == path
 
@@ -236,7 +257,7 @@ def test_python_and_android_units_publish_junit():
 def test_junit_artifacts_are_uploaded_even_when_the_job_fails():
     """A report that only appears on success is exactly backwards."""
     ci = load_ci()
-    for name in ["music-management:unit", "muma-mobile:check"]:
+    for name in ["music-management:unit", "muma-mobile:check", "frontend:browser"]:
         assert ci[name]["artifacts"]["when"] == "always"
 
 
@@ -266,6 +287,70 @@ def test_hotfix_branches_get_the_full_release_treatment():
             rule.get("if", "") for rule in ci[name]["rules"] if isinstance(rule, dict)
         )
         assert "hotfix" in conditions, f"{name} does not run on a hotfix branch"
+
+
+def test_release_apk_waits_for_the_android_unit_tests():
+    """`needs:` bypasses stage ordering, and the muma-mobile resource group
+    only serializes jobs, it does not order them. With version-check as the
+    only need, muma-mobile:build-release built and UPLOADED a signed APK while
+    muma-mobile:check on the same commit failed -- phones auto-update from the
+    hoster, so users got untested code even though deploy:prod correctly never
+    ran."""
+    ci = load_ci()
+    targets = [
+        n["job"] if isinstance(n, dict) else n
+        for n in ci["muma-mobile:build-release"]["needs"]
+    ]
+    assert "muma-mobile:check" in targets
+    assert "release:version-check" in targets
+
+
+def test_publishing_jobs_are_not_interruptible():
+    """`default: interruptible: true` lets a newer push cancel a running job.
+    Fine for tests; not for anything that publishes or mutates the outside
+    world halfway through."""
+    ci = load_ci()
+    for name in [
+        "release:build-images",
+        "muma-mobile:build-release",
+        "deploy:prod",
+        "release:tag",
+    ]:
+        assert ci[name].get("interruptible") is False, f"{name} can be cancelled mid-publish"
+
+
+def test_rule_gating_variables_are_verified_by_the_secret_check():
+    """A `rules:` condition like `&& $DOCKERHUB_TOKEN` does not fail when the
+    variable is missing -- the job silently drops out of the pipeline, and a
+    skipped job blocks nothing. Every variable used that way on a release
+    branch must therefore be asserted non-empty by check-required-secrets.sh,
+    which runs unconditionally there."""
+    ci = load_ci()
+    script = (REPO_ROOT / "scripts" / "ci" / "check-required-secrets.sh").read_text(
+        encoding="utf-8"
+    )
+    gating = set()
+    for name in ["release:build-images", "muma-mobile:build-release"]:
+        for rule in ci[name]["rules"]:
+            if not isinstance(rule, dict):
+                continue
+            for var in re.findall(r"\$([A-Z][A-Z0-9_]*)", rule.get("if", "")):
+                if not var.startswith("CI_"):
+                    gating.add(var)
+    assert gating, "no gating variables found - the extraction above broke"
+    unchecked = [var for var in sorted(gating) if var not in script]
+    assert unchecked == [], (
+        f"these variables silently skip a release job when missing: {unchecked}"
+    )
+
+
+def test_db_integration_isolates_per_ci_job():
+    """A fixed container name plus `docker rm -f` at both ends of the run
+    means two concurrent pipelines destroy each other's database mid-test.
+    The script must key its container (and port) on CI_JOB_ID like every
+    compose-based job already does."""
+    script = (REPO_ROOT / "scripts" / "test" / "db-integration.sh").read_text(encoding="utf-8")
+    assert "CI_JOB_ID" in script
 
 
 # --- `changes:` coverage ------------------------------------------------------

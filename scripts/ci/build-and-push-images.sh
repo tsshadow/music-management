@@ -246,4 +246,26 @@ echo "--- Pushing muma-tools image ---"
 docker_push "${DOCKER_USER}/${IMAGE_TOOLS}:latest"
 docker_push "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}"
 
+# In no-push mode, untag the per-version aliases before exiting. Every tag
+# above points at the same image id as its :latest sibling, so this removes
+# no layers and costs the next build nothing -- but without it every
+# merge-request run of docker:build-images left a :${VERSION} tag behind, and
+# each release bump orphaned the previous version's set on the runner's disk.
+# The :latest tags stay: they are overwritten in place on the next run and are
+# what keeps the build cache warm. (The runner LXC has filled up before; see
+# the ops notes on per-pipeline image accumulation.)
+if [ "$PUSH_IMAGES" != "true" ] && [ "$VERSION" != "latest" ]; then
+    echo "--- PUSH_IMAGES=false: untagging per-version aliases ---"
+    docker rmi \
+        "${DOCKER_USER}/${IMAGE_CORE}:${VERSION}" \
+        "${IMAGE_NAME}:stable" \
+        "${IMAGE_NAME}:${LMS_VERSION}" \
+        "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}" \
+        "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}" \
+        "${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSION}" \
+        "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}" \
+        "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}" \
+        >/dev/null 2>&1 || true
+fi
+
 echo "--- build-and-push-images.sh completed: music-manager, lms, and all background worker images (base/downloader/telegram/importer/tools) are now up to date on Docker Hub ---"

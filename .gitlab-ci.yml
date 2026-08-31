@@ -43,6 +43,15 @@ workflow:
     # pipeline -- so if the duplicate-pipeline guard below applied here, the
     # release would simply never be deployed.
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
+    # ...and because they get a branch pipeline, they must NOT also get a merge
+    # request pipeline. The push-vs-MR dedupe below keys on
+    # $CI_OPEN_MERGE_REQUESTS, which is only set in *push* pipelines -- so a
+    # release branch with an open MR used to run everything twice, and the two
+    # Android jobs raced each other for the shared Gradle home (one of them
+    # died on a vanished Gradle cache during the 0.23.x releases). The branch
+    # pipeline is the one deploy:prod lives in, so it is the one that stays.
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME =~ /^(release|hotfix)\//'
+      when: never
     # Scheduled pipelines (security:dependency-audit) always run.
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
     # Prefer the merge request pipeline...
@@ -64,12 +73,20 @@ stages:
   # that the jobs in it cannot gate anything. See security:dependency-audit.
   - audit
 
-# Referenced by every job that gates a production deploy. Those jobs also have
-# `changes:` rules, which is what keeps ordinary feature pushes cheap -- but on
-# a release/hotfix branch the last commit usually touches only VERSION,
-# CHANGELOG.md and RELEASE_NOTES.md, so `changes:` alone would skip them, and a
-# skipped job does not block deploy:prod. This rule makes them unconditional
-# exactly where it matters.
+# Referenced by the quality and unit jobs, which gate a production deploy via
+# stage ordering. Those jobs also have `changes:` rules, which is what keeps
+# ordinary feature pushes cheap -- but on a release/hotfix branch the last
+# commit usually touches only VERSION, CHANGELOG.md and RELEASE_NOTES.md, so
+# `changes:` alone would skip them, and a skipped job does not block
+# deploy:prod. This rule makes them unconditional exactly where it matters.
+#
+# Deliberately NOT referenced by db:integration, contracts, docker:smoke and
+# frontend:browser: those run unconditionally on every develop push, and a
+# release branch is develop plus a VERSION/CHANGELOG commit, so re-running them
+# on the stabilize commit would re-test an already-tested tree for ~30 minutes
+# of wall clock. A release commit that changes actual code trips their
+# `changes:` rules like any other commit. The list of jobs that must reference
+# this anchor is pinned in tests/ci/test_gitlab_ci_policy.py (GATING_JOBS).
 .release_rule:
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
@@ -556,10 +573,9 @@ docker:smoke:
   needs: []
   rules:
     - !reference [.dedicated_schedule_guard, rules]
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-      changes:
-        - docker/**/*
-        - services/music-management-server/Dockerfile-release
+    # One rule, no `if`: it matches every branch, so a separate default-branch
+    # variant of the same `changes:` list was a strict subset and never decided
+    # anything.
     - changes:
         - docker/**/*
         - services/music-management-server/Dockerfile-release
@@ -615,8 +631,9 @@ docker:build-images:
 #
 # What it does NOT cover: the Android app. The 6.21.0 startup crash
 # (docs/bug-reports/029) existed only in an R8-minified release build, and
-# nothing here can execute one -- the runner LXC has no /dev/kvm, so there is no
-# emulator. That step is the next phase and a resource decision, not a code one.
+# nothing here executes one. The old excuse -- no /dev/kvm on the runner LXC --
+# expired on 2026-08-22 when KVM passthrough was applied to debian-dev; what is
+# missing now is an emulator job, not a capability.
 e2e:scan-to-listen:
   stage: e2e
   timeout: 30m
@@ -653,6 +670,10 @@ frontend:browser:
     expire_in: 14 days
     paths:
       - services/frontend/test-results/
+    # Without this, a Playwright failure is only visible by scrolling the raw
+    # log -- every other suite here already reports into the GitLab test tab.
+    reports:
+      junit: services/frontend/test-results/junit-browser.xml
 
 # --- Release stabilization ---------------------------------------------------
 # Branch model: feature/* -> develop (integration) -> release/x.y.z
@@ -726,9 +747,22 @@ muma-mobile:build-release:
   stage: release
   resource_group: muma-mobile
   timeout: 45m
+  # A new push to the release branch must not cancel an APK upload halfway;
+  # every other job that publishes something already carries this.
+  interruptible: false
   retry: !reference [.infra_retry, retry]
+  # version-check because a wrongly-versioned APK must never reach the hoster,
+  # and muma-mobile:check because `needs` bypasses stage ordering: without it
+  # this job built and UPLOADED a signed APK even when the unit tests on the
+  # same commit failed -- phones auto-update from the hoster, so that shipped
+  # untested code to users while deploy:prod (correctly) never ran. The
+  # resource group only serializes the two jobs, it does not order them.
+  # optional: true satisfies the DAG policy (muma-mobile:check has `changes:`
+  # rules); on a release branch .release_rule makes it always present.
   needs:
     - release:version-check
+    - job: muma-mobile:check
+      optional: true
   rules:
     - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\// && $APK_HOSTER_URL && $SIGNING_STORE_FILE'

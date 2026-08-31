@@ -36,6 +36,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   van de crash-triage-automatisering; het ontwerp staat in
   `docs/superpowers/specs/2026-08-31-crash-triage-automation-design.md`.
 
+### Fixed
+- **Een release-APK kan niet langer geüpload worden terwijl de unit-tests op dezelfde commit rood
+  zijn.** `muma-mobile:build-release` had alleen `release:version-check` als `needs`, en `needs`
+  omzeilt de stage-volgorde; de gedeelde resource group serialiseert de Android-jobs wel maar
+  ordent ze niet. Een falende `muma-mobile:check` blokkeerde daardoor de deploy, maar niet de
+  APK-upload — en telefoons updaten automatisch vanaf de hoster. De job wacht nu expliciet op
+  `muma-mobile:check`.
+- **Een release-branch met een open MR draait de pipeline niet meer dubbel.** De bestaande
+  dedupe-regel keek naar `$CI_OPEN_MERGE_REQUESTS`, die alleen in push-pipelines bestaat, dus
+  release/hotfix-branches kregen een branch-pipeline én een MR-pipeline voor dezelfde commit — met
+  twee Android-jobs die om dezelfde Gradle-home vochten. De MR-pipeline wordt nu onderdrukt; de
+  branch-pipeline (waar `deploy:prod` in leeft) blijft.
+- **`db:integration` kan geen database van een parallelle pipeline meer slopen.**
+  `db-integration.sh` gebruikte één vaste containernaam en poort 13306 en ruimt die aan begin én
+  eind van de run met `docker rm -f` op, waardoor twee gelijktijdige pipelines elkaars MariaDB
+  midden in de testrun weghaalden (de bekende `2013 Lost connection`-flake). In CI zijn naam en
+  poort nu per job uniek (`CI_JOB_ID` plus een vrije poort); lokaal blijft het oude vaste adres
+  werken voor `KEEP_DB=1`.
+- **Ontbrekende release-secrets laten de pipeline nu vroeg falen in plaats van jobs stil te laten
+  verdwijnen.** `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN`, `APK_HOSTER_URL` en `SIGNING_STORE_FILE`
+  gaten hun jobs op `rules:`-niveau: is zo'n variabele weg (verlopen token, per ongeluk
+  verwijderd), dan valt de job geruisloos uit de pipeline — een overgeslagen job blokkeert niets,
+  dus prod zou herstarten op oude images of een release zou zonder APK schepen zonder dat iets
+  rood werd. `release:check-secrets` controleert deze vier nu expliciet, met een policy-test die
+  afdwingt dat elke rules-gatende variabele in het checkscript voorkomt.
+
+### Changed
+- **Kleinere pipeline-reparaties uit dezelfde doorlichting.** Playwright rapporteert nu junit naar
+  de GitLab-testtab (`frontend:browser` had als enige suite geen zichtbare testresultaten);
+  `muma-mobile:build-release` is niet langer interruptible, zodat een nieuwe push geen upload
+  halverwege afbreekt; `docker:build-images` ruimt in no-push-modus zijn versie-tags weer op zodat
+  de runner-disk niet per release volloopt; een dode subset-regel op `docker:smoke` is weg; de
+  verouderde "geen /dev/kvm"-claim bij de e2e-job klopt weer met de werkelijkheid (KVM-passthrough
+  staat er sinds 2026-08-22, wat ontbreekt is een emulator-job); en het `.release_rule`-commentaar
+  benoemt nu eerlijk welke jobs er wél en niet onder vallen.
+
 ## [0.38.1] - 2026-08-29
 
 ### Fixed

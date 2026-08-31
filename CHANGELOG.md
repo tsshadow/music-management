@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Een disk-janitor voor de CI-runners, zodat een volle schijf niet langer willekeurige jobs
+  sloopt.** Drie keer deze maand liep een runner vol, en de storing wees telkens overal heen behalve
+  naar de schijf: op 31 augustus faalden drie van de vier jobs op `no matching files` bij het
+  uploaden van artifacts en noemde alleen `docker:build-images` de echte oorzaak. Het handmatige
+  opruimrecept uit die incidenten zit nu in `scripts/ci/disk-janitor.sh`: per repository blijven
+  `:latest`, `:stable` en de drie nieuwste versietags staan, van de Android-CI-images (>5GB per
+  stuk) de twee nieuwste, en achtergebleven `muma-test-*`-stacks ouder dan twee uur gaan weg. Nooit
+  met `-f`, zodat een image dat een lopende pipeline nog vasthoudt geweigerd wordt in plaats van
+  weggerukt, en de buildkit-cache blijft met opzet ongemoeid — dat is de ccache die
+  `muma-server:unit` op ~90s houdt in plaats van ~405s. De keuzelogica staat apart in
+  `disk_janitor_plan.py` en wordt door tien tests gedekt zonder dat er een Docker-daemon of een
+  volle schijf aan te pas komt. Draait geveegd tot 65% en stopt daar, zodat een runner die net
+  boven de drempel zit niet elke keer één image opoffert. Loopt via een geplande pipeline
+  (`DISK_JANITOR=true`) op de LXC — de job is expres ongetagd, want dat is precies wat hem altijd op
+  de altijd-aanstaande host laat landen; voor andere hosts liggen er systemd-units in
+  `scripts/ci/systemd/`. Faalt de job, dan is dát de bevinding: alles wat veilig weg kon is weg en
+  de ruimte zit in de buildcache of buiten Docker.
+
 ## [0.39.0] - 2026-08-31
 
 ### Added

@@ -94,6 +94,14 @@ services:
     image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
     container_name: muma-db-backup
     restart: "no"
+    # Anders dan de langlopende services hierboven staat de root hier wel
+    # read-only. Deze twee schrijven maar op twee plekken: het
+    # --defaults-extra-file met de credentials in /tmp, en de dumps op de
+    # gemounte /backups. Mocht dat toch te krap blijken, dan meldt het zich:
+    # de systemd-unit faalt en /health/backup verloopt binnen 36 uur.
+    read_only: true
+    tmpfs:
+      - /tmp
     command: ["python", "tools/db_backup.py"]
     environment:
       - PYTHONPATH=/app
@@ -120,6 +128,14 @@ services:
     image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
     container_name: muma-db-restore-check
     restart: "no"
+    # Anders dan de langlopende services hierboven staat de root hier wel
+    # read-only. Deze twee schrijven maar op twee plekken: het
+    # --defaults-extra-file met de credentials in /tmp, en de dumps op de
+    # gemounte /backups. Mocht dat toch te krap blijken, dan meldt het zich:
+    # de systemd-unit faalt en /health/backup verloopt binnen 36 uur.
+    read_only: true
+    tmpfs:
+      - /tmp
     command: ["python", "tools/db_restore_check.py"]
     environment:
       - PYTHONPATH=/app

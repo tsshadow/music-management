@@ -38,6 +38,7 @@ import contextlib
 import gzip
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -209,6 +210,23 @@ def verify(path: Path) -> None:
         raise BackupError(f'{path.name} has no {DUMP_TRAILER!r} trailer; it is truncated')
 
 
+IDENTIFIER = re.compile(r'^[A-Za-z0-9_$]+$')
+
+
+def quote_identifier(name: str) -> str:
+    """Backtick-quote a table name, having first checked it is only a name.
+
+    A table name cannot be a bound parameter, so the counting query interpolates
+    it. The value comes from information_schema for the configured database, not
+    from anything a user supplies -- but "it cannot be hostile today" is not a
+    property that survives refactoring, so the shape is checked rather than
+    assumed.
+    """
+    if not IDENTIFIER.match(name):
+        raise BackupError(f'refusing to build a query around table name {name!r}')
+    return f'`{name}`'
+
+
 def row_counts(creds: dict[str, str]) -> dict[str, int]:
     """Exact counts per table, taken right after the dump.
 
@@ -230,7 +248,7 @@ def row_counts(creds: dict[str, str]) -> dict[str, int]:
             (creds['database'], 'BASE TABLE'))
         tables = [row[0] for row in cursor.fetchall()]
         for table in tables:
-            cursor.execute(f'SELECT COUNT(*) FROM `{table}`')
+            cursor.execute(f'SELECT COUNT(*) FROM {quote_identifier(table)}')  # noqa: S608
             counts[table] = int(cursor.fetchone()[0])
     return counts
 

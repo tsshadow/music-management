@@ -347,3 +347,16 @@ class RunBackupTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class QuoteIdentifierTest(unittest.TestCase):
+    """A table name cannot be bound, so its shape is checked before it is used."""
+
+    def test_accepts_the_names_this_schema_actually_has(self):
+        for name in ('library_tracks', 'events', 'downloads_soundcloud_archive'):
+            self.assertEqual(db_backup.quote_identifier(name), f'`{name}`')
+
+    def test_refuses_anything_that_is_not_just_a_name(self):
+        for name in ('tracks`; DROP TABLE users; --', 'a b', 'tracks)', ''):
+            with self.assertRaises(db_backup.BackupError):
+                db_backup.quote_identifier(name)

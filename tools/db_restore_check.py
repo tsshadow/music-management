@@ -40,7 +40,14 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
-from tools.db_backup import BackupError, _credentials, alert, read_latest, resolve_destination  # noqa: E402
+from tools.db_backup import (  # noqa: E402
+    BackupError,
+    _credentials,
+    alert,
+    quote_identifier,
+    read_latest,
+    resolve_destination,
+)
 
 SOURCE = 'db-restore-check'
 
@@ -127,7 +134,7 @@ def restored_counts(defaults_path: str, creds: dict[str, str],
     if not tables:
         return {}
     union = ' UNION ALL '.join(
-        f"SELECT '{table}', COUNT(*) FROM `{table}`" for table in tables)
+        f"SELECT '{table}', COUNT(*) FROM {quote_identifier(table)}" for table in tables)
     output = _run_sql(defaults_path, creds, f'{union};', database=database)
     counts: dict[str, int] = {}
     for line in output.splitlines():

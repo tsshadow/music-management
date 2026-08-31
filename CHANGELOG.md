@@ -207,6 +207,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Verwijderen is niet genoeg: de waarde staat in de git-historie en is daarmee gepubliceerd tot hij
   bij de bron vervangen wordt. `security:secret-scan` sloeg er nooit op aan omdat gitleaks op
   tokenpatronen zoekt en dit een woordenwachtwoord is.
+- **De twee backupcontainers draaien met een read-only rootfilesystem.** Ze schrijven maar op twee
+  plekken -- het credential-bestand in een tmpfs op `/tmp` en de dumps op de gemounte `/backups` --
+  dus hier kon de hardening wél aan, in plaats van de bevinding te accepteren zoals bij de
+  langlopende services. Breekt het toch, dan meldt het zich: de systemd-unit faalt en
+  `/health/backup` verloopt binnen 36 uur.
 
 ## [0.39.0] - 2026-08-31
 

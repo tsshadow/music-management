@@ -5,7 +5,10 @@ ARG VERSION=latest
 FROM python:3.14-slim
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
+# apt-get upgrade: see the note in Dockerfile.base -- the base image's
+# preinstalled openssl does not move when this image is rebuilt, so without
+# this the security pocket is never reached.
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     gcc \
     libmariadb-dev \
     pkg-config \

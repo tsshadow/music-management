@@ -1,8 +1,13 @@
 # Gebruik een lichte Python base image
 FROM python:3.14-slim
 
-# Installeer yt-dlp afhankelijkheden
-RUN apt-get update && apt-get install -y \
+# Installeer yt-dlp afhankelijkheden.
+#
+# apt-get upgrade: zie de toelichting in Dockerfile.base. De vooraf
+# geinstalleerde openssl van python:3.14-slim beweegt niet mee met een rebuild
+# van deze image, en linux-libc-dev bleef om dezelfde reden op een oude versie
+# staan.
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     ffmpeg \
     curl \
     unrar-free \

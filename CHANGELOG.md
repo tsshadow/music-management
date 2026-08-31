@@ -81,6 +81,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `svelte-check` TypeScript 7 op zichzelf aankan.
 
 ### Fixed
+- **Alle 22 HIGH-bevindingen in de productie-images van de dependency-audit.** Ze vielen in drie
+  groepen en alleen de derde was echt onoplosbaar. Twintig ervan kwamen niet uit dit project maar
+  uit de base image: `python:3.14-slim` levert openssl 3.5.6-1~deb13u2 vooraf geinstalleerd, en
+  omdat de Dockerfiles alleen `apt-get install` deden bleef die versie staan hoeveel rebuilds er ook
+  overheen gingen — Debian-Security had 3.5.7-1~deb13u2 allang klaar (CVE-2026-14456). Hetzelfde
+  patroon bij LMS: `alpine:3.23` levert libcrypto3 en libssl3 op 3.5.7-r0 mee, en `apk add` op een
+  al geinstalleerd pakket doet niets. `docker/Dockerfile.base`, `.music-manager`, `.tools` en
+  `services/music-management-server/Dockerfile-release` upgraden nu eerst, zodat elke release-build
+  de securitypocket meepakt in plaats van de bouwdatum van een base image te erven. Dat ruimt ook
+  `linux-libc-dev` (CVE-2026-74662) en `sqlite-libs` (CVE-2026-11822, CVE-2026-11824) op, die
+  simpelweg ouder waren dan de fix.
+- **De laatste twee image-bevindingen staan opgeschreven in plaats van weggekeken.**
+  `setuptools 70.3.0` (CVE-2025-47273) en `msgpack 1.1.2` (GHSA-6v7p-g79w-8964) zitten in de
+  vendor-boom van pip zelf: pip levert `_vendor/bom.cdx.json` mee om te beschrijven wat het bundelt,
+  en trivy leest dat bestand. Een kale `python:3.14-slim` meldt ze allebei voordat er ook maar één
+  regel van onze Dockerfiles gedraaid heeft, en pip 26.2.1 is de huidige release — er is geen pip om
+  naartoe te upgraden. Ze staan nu in `security/trivyignore` met die reden en met de controle
+  waarmee je ze weer weghaalt.
 - **De Python-helft van de dependency-audit scande drie van de vijf requirements-bestanden niet.**
   pip-audit lost elk bestand op in een wegwerp-virtualenv van de tooling-interpreter, en die stond
   in `scripts/lib/python-tooling.sh` nog op `python:3.11-slim` terwijl de service-images al op 3.14

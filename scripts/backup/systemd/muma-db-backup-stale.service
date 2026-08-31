@@ -1,0 +1,9 @@
+[Unit]
+Description=MuMa database backup staleness check
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/muma-backup
+ExecStart=/usr/bin/docker-compose --env-file /opt/muma-backup/.env -f /opt/muma-backup/docker-compose.tools.yml -p music-management run --rm db-backup python tools/db_backup.py --check-stale

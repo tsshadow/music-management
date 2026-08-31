@@ -1,0 +1,11 @@
+[Unit]
+Description=Prove the newest MuMa backup restores, weekly
+
+[Timer]
+# Sunday 05:30, after the nightly backup and clear of the janitor windows.
+OnCalendar=Sun *-*-* 05:30:00
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

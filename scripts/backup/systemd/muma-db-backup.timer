@@ -1,0 +1,13 @@
+[Unit]
+Description=Take the MuMa database backup nightly
+
+[Timer]
+# 03:12 rather than 03:00: the disk janitor runs at 04:00 and 16:00 and the
+# weekly downloader refresh at 04:17, and a dump that overlaps either just makes
+# both slower.
+OnCalendar=*-*-* 03:12:00
+Persistent=true
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

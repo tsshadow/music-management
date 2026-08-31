@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Een standaard-vervaltijd voor delen opslaan brak de instelling in talen met andere cijfers.** De
+  waarde wordt weggeschreven als `<aantal>:<eenheid>` en teruggelezen met een gewone
+  getalconversie, maar het wegschrijven gebruikte de taalinstelling van het toestel. In het
+  Arabisch, Perzisch of Bengaals levert dat cijfers op die die conversie niet accepteert, waarna de
+  instelling stukliep. Het formaat staat nu vast, los van de taal.
+
 ## [6.25.3] - 2026-08-31
 
 ### Changed

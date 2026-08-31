@@ -1,15 +1,26 @@
 [versions]
-gradle                 = "8.11.1"
+# Drives the `wrapper` task in build.gradle, so it has to match
+# gradle/wrapper/gradle-wrapper.properties below -- the two had drifted
+# (8.11.1 here against 8.14.5 there), which meant running `./gradlew wrapper`
+# would quietly downgrade the wrapper.
+gradle                 = "9.7.1"
 
 appMinSdk = "33"
 appTargetSdk = "35"
-# Deliberately one ahead of appTargetSdk. compileSdk decides which APIs the code
-# may reference; targetSdk decides which runtime behaviours apply to users, and
-# raising that is a change to test on a device, not a side effect of a
-# dependency bump. androidx.activity 1.13 and fifteen of its siblings refuse to
-# be consumed below 36 -- `checkDebugAarMetadata` fails with sixteen issues at
+# Deliberately ahead of appTargetSdk. compileSdk decides which APIs the code may
+# reference; targetSdk decides which runtime behaviours Android applies on a
+# user's device, and raising that is a change to verify on a device rather than
+# a side effect of a dependency bump.
+#
+# The androidx libraries drive this number, four at a time: activity 1.13 and
+# fifteen siblings refused to be consumed below 36, then core 1.19 and three
+# others refused below 37. `checkDebugAarMetadata` reports the whole batch at
 # once, which reads as a broken build rather than one number being too low.
-appCompileSdk = "36"
+#
+# 37 is also why the Gradle and AGP majors in this file are not optional:
+# AGP 8.13 caps compileSdk at 36, and AGP 9 needs Gradle 9. None of the three
+# can move on its own.
+appCompileSdk = "37"
 
 gson                   = "2.14.0"
 kotlinxSerializationJson = "1.9.0"
@@ -19,7 +30,7 @@ navigation             = "2.7.7"
 credentials            = "1.3.0"
 googleid               = "1.1.1"
 security               = "1.1.0-alpha06"
-gradlePlugin           = "8.7.2"
+gradlePlugin           = "9.3.2"
 androidxcar            = "1.7.0"
 appcompat              = "1.7.1"
 activity               = "1.9.3"

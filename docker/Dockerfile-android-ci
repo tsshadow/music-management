@@ -21,6 +21,11 @@ USER root
 # Resolve the SDK location once and record it, so the scripts do not have to
 # re-derive it with `find` on every run. The platforms directory is the only
 # reliable landmark: the base image moves it between releases.
+#
+# API 37 is the first release with minor SDK versions, so the platform package
+# is "platforms;android-37.0" -- plain "platforms;android-37" does not exist and
+# sdkmanager only warns "Failed to find package" before exiting non-zero, which
+# reads as a network problem rather than a wrong name.
 RUN set -eux; \
     SDK_ROOT="$(find /opt /usr /usr/local -name platforms -type d -print -quit)"; \
     SDK_ROOT="${SDK_ROOT%/platforms}"; \
@@ -28,6 +33,7 @@ RUN set -eux; \
     echo "ANDROID_SDK_ROOT=$SDK_ROOT" > /etc/android-sdk-root; \
     yes | sdkmanager --sdk_root="$SDK_ROOT" --licenses >/dev/null 2>&1 || true; \
     sdkmanager --sdk_root="$SDK_ROOT" \
+        "build-tools;37.0.0" "platforms;android-37.0" \
         "build-tools;36.0.0" "platforms;android-36" \
         "build-tools;35.0.0" "platforms;android-35" \
         "build-tools;34.0.0" "platforms;android-34"; \

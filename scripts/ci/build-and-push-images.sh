@@ -70,6 +70,50 @@ cd "$PROJECT_ROOT"
 # drifts from the release build and stops proving anything.
 PUSH_IMAGES="${PUSH_IMAGES:-true}"
 
+# The throwaway namespace a no-push run builds under.
+#
+# It used to be the fixed string "muma-ci", which meant every concurrent
+# docker:build-images job wrote the same tags into the one image store the
+# runner has. Seen on pipeline 2074 (2026-08-31, six pipelines at once): the job
+# built muma-ci/muma-base:0.39.0, used it for the downloader image, and 80
+# seconds later failed on the telegram image with
+#
+#   #4 [internal] load metadata for docker.io/muma-ci/muma-base:0.39.0
+#   #4 ERROR: pull access denied, repository does not exist or may require authorization
+#
+# A sibling job had retagged the name out from under it, so buildkit went
+# looking for it on Docker Hub -- where "muma-ci" does not and should not exist.
+# The error reads as a missing credential and is nothing of the sort. Same
+# defect db-integration.sh had before it keyed its container name on CI_JOB_ID.
+#
+# Outside CI there is no CI_JOB_ID, so the PID keeps two hand-runs on one
+# machine apart.
+THROWAWAY_NS="muma-ci-${CI_JOB_ID:-local-$$}"
+
+# Applied after every `source` of a .env file below, because those files carry a
+# DOCKER_USER/IMAGE_NAME of their own and would otherwise put the shared name
+# back. Only the repository half is forced: two jobs under different namespaces
+# cannot collide no matter what the rest of the name is.
+scope_image_names() {
+    if [ "$PUSH_IMAGES" != "true" ]; then
+        DOCKER_USER="$THROWAWAY_NS"
+        IMAGE_NAME="${THROWAWAY_NS}/lms"
+    fi
+}
+
+# A no-push run proves the build and then has no use for what it built. Left
+# behind, every job would strand a full set of images under a namespace no later
+# job ever reuses -- the runner's disk janitor keeps ":latest" per repository, so
+# these would accumulate rather than age out. Removed by tag rather than by image
+# id, so no `-f` is needed: the shared id goes when its last tag does.
+cleanup_throwaway_images() {
+    [ "$PUSH_IMAGES" = "true" ] && return 0
+    echo "--- Removing throwaway images under ${THROWAWAY_NS}/ ---"
+    docker images --filter "reference=${THROWAWAY_NS}/*" --format '{{.Repository}}:{{.Tag}}' \
+        | xargs -r docker rmi 2>/dev/null || true
+}
+trap cleanup_throwaway_images EXIT
+
 docker_push() {
     if [ "$PUSH_IMAGES" != "true" ]; then
         echo "    (PUSH_IMAGES=false, not pushing $1)"
@@ -123,12 +167,12 @@ else
     # so a fresh checkout has none), but this script is runnable by hand, and
     # overwriting a developer's real .env with placeholders would be a nasty
     # way to find that out.
-    echo "--- PUSH_IMAGES=false: building under local names, no Docker Hub login ---"
+    echo "--- PUSH_IMAGES=false: building under ${THROWAWAY_NS}/, no Docker Hub login ---"
     if [ ! -f "$PROJECT_ROOT/.env" ]; then
-        printf 'DOCKER_USER=muma-ci\nIMAGE_CORE=music-manager\n' > "$PROJECT_ROOT/.env"
+        printf 'DOCKER_USER=%s\nIMAGE_CORE=music-manager\n' "$THROWAWAY_NS" > "$PROJECT_ROOT/.env"
     fi
     if [ ! -f "$PROJECT_ROOT/services/music-management-server/.env" ]; then
-        printf 'IMAGE_NAME=muma-ci/lms\n' > "$PROJECT_ROOT/services/music-management-server/.env"
+        printf 'IMAGE_NAME=%s/lms\n' "$THROWAWAY_NS" > "$PROJECT_ROOT/services/music-management-server/.env"
     fi
 fi
 
@@ -139,6 +183,7 @@ VERSION=$(cat VERSION 2>/dev/null || echo "latest")
 set -a; source "$PROJECT_ROOT/.env"; set +a
 DOCKER_USER="${DOCKER_USER:-$DOCKERHUB_USERNAME}"
 IMAGE_CORE="${IMAGE_CORE:-music-manager}"
+scope_image_names
 
 echo "--- Building music-manager image (${DOCKER_USER}/${IMAGE_CORE}:${VERSION}) ---"
 docker build \
@@ -155,6 +200,7 @@ docker_push "${DOCKER_USER}/${IMAGE_CORE}:${VERSION}"
 # 2. Build + push lms (music-management-server) -------------------------------
 # shellcheck disable=SC1091
 set -a; source "$PROJECT_ROOT/services/music-management-server/.env"; set +a
+scope_image_names
 if [ -z "${IMAGE_NAME}" ]; then
     echo "Error: IMAGE_NAME is not set in PROD_ENV_FILE_LMS."
     exit 1
@@ -185,6 +231,7 @@ IMAGE_DOWNLOADER="${IMAGE_DOWNLOADER:-muma-downloader}"
 IMAGE_TELEGRAM="${IMAGE_TELEGRAM:-muma-telegram}"
 IMAGE_IMPORTER="${IMAGE_IMPORTER:-muma-importer}"
 IMAGE_TOOLS="${IMAGE_TOOLS:-muma-tools}"
+scope_image_names
 
 echo "--- Building muma-base image (${DOCKER_USER}/${IMAGE_BASE}:${VERSION}) ---"
 docker build \

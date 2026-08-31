@@ -14,7 +14,12 @@ gitlab-runner-disk-fills-up notes):
 
 * Release images (`muma/*`) are the big win: every release build keeps its
   version tag forever, and they are all recoverable from Docker Hub.
-* `muma-ci/*` is the same story for the merge-request image builds.
+* `muma-ci/*` is the same story for the merge-request image builds. Those now
+  build under a per-job `muma-ci-<job-id>/*` namespace instead, which
+  build-and-push-images.sh removes itself on exit -- so what is left under one
+  is a job that died without running its trap, and the whole namespace goes on
+  age, `:latest` included. The old shared prefix stays here for images still on
+  a runner from before that change.
 * `music-management/android-ci:<dockerfile-hash>` gains a new tag whenever the
   Dockerfile changes, and each one is >5GB.
 * `muma-test-<job-id>-*` should be cleaned up by `--rmi local` in the compose
@@ -44,6 +49,10 @@ VERSIONED_PREFIXES = ("muma/", "muma-ci/")
 MOVING_TAGS = frozenset({"latest", "stable"})
 ANDROID_CI_REPO = "music-management/android-ci"
 TEST_STACK_PREFIX = "muma-test-"
+# Per-job merge-request build images (`muma-ci-<job-id>/muma-base`, ...). Their
+# own build script deletes them; anything still here outlives the job that made
+# it, so age decides and no tag is spared.
+THROWAWAY_BUILD_PREFIX = "muma-ci-"
 
 
 @dataclass(frozen=True)
@@ -109,11 +118,13 @@ def select_removals(
         by_repository.setdefault(image.repository, []).append(image)
 
     for repository, group in by_repository.items():
-        if repository.startswith(TEST_STACK_PREFIX):
-            # A per-job stack image. Age, not count: a running pipeline's
-            # images are minutes old, and `docker rmi` would refuse them
-            # anyway because their containers exist -- but not asking is
-            # better than being refused.
+        if repository.startswith((TEST_STACK_PREFIX, THROWAWAY_BUILD_PREFIX)):
+            # A per-job image, from a test stack or a merge-request build.
+            # Age, not count: no job reuses another job's namespace, so a
+            # per-repository count would keep every one of them forever. A
+            # running pipeline's images are minutes old, and `docker rmi`
+            # would refuse them anyway because their containers exist -- but
+            # not asking is better than being refused.
             cutoff = now - timedelta(hours=test_stack_min_age_hours)
             doomed.extend(image for image in group if image.created < cutoff)
             continue

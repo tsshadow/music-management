@@ -194,11 +194,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tot die historie herschreven wordt.
 
 ### Security
-- **Het root-wachtwoord van de productiedatabase stond als platte string in `tools/integrity_check.py`,**
-  met het productie-IP als default host ernaast. De literal is weg; het script eist nu `DB_HOST`,
-  `DB_USER`, `DB_PASS` en `DB_DB` uit de omgeving. Let op: verwijderen is niet genoeg, de waarde
-  staat in de git-historie en hoort geroteerd te worden. `security:secret-scan` sloeg er niet op aan
-  omdat gitleaks op tokenpatronen zoekt en dit een woordenwachtwoord is.
+- **Het root-wachtwoord van de productiedatabase stond als platte string in zeven tools.**
+  `check_backlog.py`, `check_media.py`, `cleanup_db.py`, `describe_tables.py`,
+  `finalize_genres.py`, `integrity_check.py` en `migrate_db_renames.py` droegen alle zeven hetzelfde
+  blok: `user = "root"`, het wachtwoord als literal, en `DB_HOST` met `192.0.2.27` als default.
+  Wie zo'n script uit een checkout draaide, richtte zich dus als root op productie zonder daarom te
+  vragen -- en `migrate_db_renames.rename_tables()` zet foreign key checks uit en hernoemt tabellen.
+  De URL komt nu uit `tools/db_url.py`, dat de omgeving leest en niets invult: een ontbrekende
+  variabele geeft een foutmelding in plaats van een gok. Een test in `tools/test_tools_imports.py`
+  bewaakt dat.
+
+  Verwijderen is niet genoeg: de waarde staat in de git-historie en is daarmee gepubliceerd tot hij
+  bij de bron vervangen wordt. `security:secret-scan` sloeg er nooit op aan omdat gitleaks op
+  tokenpatronen zoekt en dit een woordenwachtwoord is.
 
 ## [0.39.0] - 2026-08-31
 

@@ -1,27 +1,13 @@
-import os
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
+from tools.db_url import database_url
+
 load_dotenv()
 
 def check():
-    # Geen defaults voor host of credentials: hier stond het root-wachtwoord van
-    # de productiedatabase als platte string, met het productie-IP ernaast. Dat
-    # zit nog in de git-historie, dus het hoort geroteerd te zijn.
-    host = os.getenv("DB_HOST")
-    port = os.getenv("DB_PORT", "3306")
-    user = os.getenv("DB_USER")
-    password = os.getenv("DB_PASS")
-    db_name = os.getenv("DB_DB")
-    missing = [name for name, value in
-               (("DB_HOST", host), ("DB_USER", user),
-                ("DB_PASS", password), ("DB_DB", db_name)) if not value]
-    if missing:
-        raise SystemExit(f"ontbrekende omgevingsvariabelen: {', '.join(missing)}")
-    
-    url = f"mysql+mysqlconnector://{user}:{password}@{host}:{port}/{db_name}"
-    engine = create_engine(url)
+    engine = create_engine(database_url())
     
     with engine.connect() as conn:
         print("--- Integriteits Check ---")

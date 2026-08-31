@@ -156,20 +156,6 @@
       "automerge": true
     },
     {
-      "description": "org.cyclonedx.bom 3 splits the single cyclonedxBom task in two: an aggregate task that collects SBOMs from the subprojects, and a per-project cyclonedxDirectBom that carries includeConfigs. The report also moves out of build/reports/bom.json. scripts/ci/dependency-audit.sh names both the task and that path, and its failure branch skips the CVE scan rather than failing it -- so a wrong migration would read as a green audit that scanned nothing. Park it until the migration is done deliberately.",
-      "matchManagers": [
-        "gradle"
-      ],
-      "matchPackageNames": [
-        "org.cyclonedx.bom",
-        "org.cyclonedx:cyclonedx-gradle-plugin"
-      ],
-      "matchUpdateTypes": [
-        "major"
-      ],
-      "dependencyDashboardApproval": true
-    },
-    {
       "description": "TypeScript 7 is the native rewrite, and svelte-check does not accept it as a plain upgrade yet: it refuses to start unless TypeScript 6 is installed alongside it under an npm alias and every invocation passes --tsgo. That is a toolchain migration, not a version bump, so it waits on the dashboard until svelte-check can consume TypeScript 7 on its own.",
       "matchManagers": [
         "npm"

@@ -27,6 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   de ruimte zit in de buildcache of buiten Docker.
 
 ### Changed
+- **De mobiele dependencies gaan in één batch omhoog, en media3 vroeg er code voor terug.** Kotlin
+  2.4, KSP 2.3, media3 1.11, koin 4.2, navigation 2.10 en een reeks androidx-bumps. media3 1.11
+  sluit een deprecatiecyclus af waar de Jukebox-speler nog in stond: `Player` kent
+  `hasPrevious`/`previous`/`seekToPreviousWindow` en hun vier Next-tegenhangers niet meer, dus die
+  acht `override`s overschreven niets en compileerden niet. Niemand riep ze aan -- ze stuurden
+  alleen door naar de MediaItem-varianten die ze vervingen -- dus ze zijn weg. Andersom voor
+  `mute`/`unmute`: die staan nu wél in `Player` en hebben een `override` nodig.
 - **De crash-triage kent nu een uitkomst voor "geldig rapport, niets te fixen".** Een synthetisch
   testrapport of een handmatig diagnoserapport zonder crash telde als mislukte fixpoging, waardoor
   een tweede identiek rapport na twee keer als opgegeven crash werd afgedaan. De skill zet zo'n

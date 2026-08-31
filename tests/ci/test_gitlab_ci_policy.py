@@ -67,6 +67,7 @@ def test_gating_jobs_always_run_on_a_release_branch():
 SCHEDULE_OWNED_JOBS = {
     "deps:renovate": "$RENOVATE",
     "images:refresh-downloader": "$REFRESH_DOWNLOADER",
+    "runner:disk-janitor": "$DISK_JANITOR",
 }
 
 GUARD = [".dedicated_schedule_guard", "rules"]
@@ -121,6 +122,15 @@ def test_the_guard_covers_every_schedule_variable():
     for variable in SCHEDULE_OWNED_JOBS.values():
         assert variable in condition, f"{variable} is not in the guard"
     assert ci[".dedicated_schedule_guard"]["rules"][0]["when"] == "never"
+
+
+def test_the_disk_janitor_stays_untagged():
+    """Runner selection here is the absence of a tag. Both runners carry
+    `fast`, so tagging this would hand it to whichever polls first -- a coin
+    flip between the host that fills up and a desktop that is usually off.
+    Untagged always lands on the always-on LXC."""
+    ci = load_ci()
+    assert "tags" not in ci["runner:disk-janitor"]
 
 
 def test_release_rule_covers_release_and_hotfix():

@@ -107,7 +107,7 @@ stages:
 # tests/ci/test_gitlab_ci_policy.py.
 .dedicated_schedule_guard:
   rules:
-    - if: '$RENOVATE == "true" || $REFRESH_DOWNLOADER == "true"'
+    - if: '$RENOVATE == "true" || $REFRESH_DOWNLOADER == "true" || $DISK_JANITOR == "true"'
       when: never
 
 # Retried only where the code under test never got a fair run. Retrying a
@@ -345,6 +345,33 @@ deps:renovate:
     - if: '$CI_PIPELINE_SOURCE == "schedule" && $RENOVATE == "true" && $RENOVATE_TOKEN'
   script:
     - ./scripts/ci/renovate.sh
+
+# Reclaims disk on the runner before a full one breaks jobs that have nothing
+# wrong with them. Three times in August the host filled up and the failures
+# pointed everywhere but at the disk -- on 2026-08-31 three of four failed on
+# "no matching files" during artifact upload. scripts/ci/disk-janitor.sh is the
+# by-hand recipe from those incidents, made repeatable.
+#
+# Untagged on purpose, and that is the whole runner-selection mechanism: the
+# always-on LXC picks up untagged jobs and the workstation is tagged-only, so
+# this always lands on the host that actually fills up. The workstation is not
+# reachable from a schedule at all (both runners share the `fast` tag, so
+# tagging would be a coin flip) and gets the systemd timer in
+# scripts/ci/systemd/ instead.
+#
+# Not allow_failure: the script exits non-zero only when it has swept
+# everything it safely can and the disk is *still* critical, which is exactly
+# the moment a human should hear about it. Everything else is a green log.
+runner:disk-janitor:
+  stage: audit
+  needs: []
+  timeout: 30m
+  interruptible: false
+  retry: !reference [.infra_retry, retry]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $DISK_JANITOR == "true"'
+  script:
+    - ./scripts/ci/disk-janitor.sh
 
 # --- Unit tests -------------------------------------------------------------
 

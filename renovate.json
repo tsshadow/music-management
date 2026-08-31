@@ -156,6 +156,19 @@
       "automerge": true
     },
     {
+      "description": "TypeScript 7 is the native rewrite, and svelte-check does not accept it as a plain upgrade yet: it refuses to start unless TypeScript 6 is installed alongside it under an npm alias and every invocation passes --tsgo. That is a toolchain migration, not a version bump, so it waits on the dashboard until svelte-check can consume TypeScript 7 on its own.",
+      "matchManagers": [
+        "npm"
+      ],
+      "matchPackageNames": [
+        "typescript"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "dependencyDashboardApproval": true
+    },
+    {
       "description": "Base image bumps rebuild every service image, so they are reviewed by hand -- which is what an unmerged merge request already is. Nothing here automerges; the label is what makes them stand out from a library bump in the list.",
       "matchManagers": [
         "dockerfile",

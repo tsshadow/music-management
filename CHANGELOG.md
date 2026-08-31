@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   de ruimte zit in de buildcache of buiten Docker.
 
 ### Changed
+- **De crash-triage kent nu een uitkomst voor "geldig rapport, niets te fixen".** Een synthetisch
+  testrapport of een handmatig diagnoserapport zonder crash telde als mislukte fixpoging, waardoor
+  een tweede identiek rapport na twee keer als opgegeven crash werd afgedaan. De skill zet zo'n
+  rapport nu op `done` met ledger-uitkomst `no_defect`, zonder de pogingenteller te raken; de
+  serverstatussen zijn ongewijzigd.
 - **MariaDB gaat van 10.10 naar 12.3.** 10.10 is al ruim een jaar end-of-life en kreeg geen
   securityfixes meer. De bump raakt `docker/compose.test.yml` en alle drie de
   `docker-compose*.yml`-bestanden, dus ook prod. Let op bij het uitrollen: MariaDB ondersteunt

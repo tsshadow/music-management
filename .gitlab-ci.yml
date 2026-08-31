@@ -665,6 +665,12 @@ muma-mobile:smoke-release:
   stage: e2e
   resource_group: muma-mobile
   timeout: 30m
+  # Needs nothing from the host but Docker, git and /dev/kvm - and both `fast`
+  # hosts have KVM (the LXC via the 2026-08-22 passthrough, the workstation
+  # natively, where this script was developed). The emulator boot is among the
+  # heaviest jobs here, so the 32GB workstation taking it when awake is exactly
+  # what the tag is for.
+  tags: !reference [.fast_runner, tags]
   retry: !reference [.infra_retry, retry]
   # After the unit tests, not in parallel with them: both jobs queue on the
   # same resource group anyway, and letting the emulator grab the slot first

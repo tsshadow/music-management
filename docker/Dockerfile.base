@@ -17,7 +17,18 @@ COPY requirements.txt /tmp/requirements.txt
 RUN grep -E "pymysql|python-dotenv|requests|fastapi|uvicorn|anyio|mutagen|markdown|pydantic|yt-dlp|telethon|patool" /tmp/requirements.txt > /tmp/base_reqs.txt && \
     pip install --no-cache-dir -r /tmp/base_reqs.txt
 
-COPY services/ /app/services/
+# Alleen de Python-services die de afgeleide images (downloader, telegram,
+# importer -- zie de FROM in Dockerfile.downloader/.telegram/.importer) nodig
+# hebben. Dit was `COPY services/`, dat ook de Svelte-bron van
+# services/frontend en de C++-bron van services/music-management-server in
+# elke worker-image legde. De Android-boom valt hier al af via .dockerignore.
+COPY services/__init__.py /app/services/
+COPY services/common/ /app/services/common/
+COPY services/tagger/ /app/services/tagger/
+COPY services/scanner/ /app/services/scanner/
+COPY services/downloader/ /app/services/downloader/
+COPY services/importer/ /app/services/importer/
+COPY services/other/ /app/services/other/
 COPY VERSION RELEASE_NOTES.md CHANGELOG.md /app/
 
 ENV PYTHONPATH=/app

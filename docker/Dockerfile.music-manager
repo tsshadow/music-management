@@ -16,7 +16,19 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend code
 COPY VERSION /app/VERSION
-COPY services/ /app/services/
+# Alleen de pakketten die services.music_manager importeert (common, tagger,
+# scanner, downloader). Deze image is API-only en serveert bewust geen UI (zie
+# de root-route in main.py), dus de Svelte-bron in services/frontend hoort hier
+# niet; die wordt in de svelte-build stage van
+# services/music-management-server/Dockerfile-release gebouwd. De C++-bron van
+# music-management-server en de Android-boom (die laatste via .dockerignore)
+# vallen om dezelfde reden af.
+COPY services/__init__.py /app/services/
+COPY services/common/ /app/services/common/
+COPY services/tagger/ /app/services/tagger/
+COPY services/scanner/ /app/services/scanner/
+COPY services/downloader/ /app/services/downloader/
+COPY services/music_manager/ /app/services/music_manager/
 
 # NOTE: intentionally NOT copying a .env file into the image.
 # /.env is gitignored (see .gitignore) and is never present on a fresh clone,

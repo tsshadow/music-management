@@ -22,8 +22,29 @@ WORKDIR /app
 COPY services/music_manager/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Kopieer de rest van de applicatie
-COPY services/ /app/services/
+# Kopieer de rest van de applicatie.
+#
+# Alleen de Python-pakketten die tools/ daadwerkelijk importeert. Dit was
+# `COPY services/ /app/services/`, wat de complete boom meenam: de 18 MB
+# Android-broncode van services/muma-mobile (inclusief testresources zoals
+# core/subsonic-api/src/integrationTest/resources/self-signed.pem, een
+# self-signed certificaat met private key dat een imagescan als HIGH secret
+# aanmerkt), de Svelte-bron van services/frontend en de C++-bron van
+# services/music-management-server. Niets daarvan is Python en niets daarvan
+# wordt in deze image uitgevoerd.
+#
+# De lijst hieronder is de import-closure van tools/*.py:
+#   common        - Helpers/, config_store, db_init (elk tool raakt dit)
+#   tagger        - Song/SoundcloudSong (soundcloud_fetcher)
+#   music_manager - database, routers/users, song_versions (set_password e.a.)
+#   scanner, downloader - alleen omdat services.music_manager ze importeert
+# Zie tools/test_tools_imports.py: die test bewaakt precies deze paden.
+COPY services/__init__.py /app/services/
+COPY services/common/ /app/services/common/
+COPY services/tagger/ /app/services/tagger/
+COPY services/scanner/ /app/services/scanner/
+COPY services/downloader/ /app/services/downloader/
+COPY services/music_manager/ /app/services/music_manager/
 COPY tools/ /app/tools/
 COPY VERSION RELEASE_NOTES.md /app/
 

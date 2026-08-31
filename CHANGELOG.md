@@ -31,13 +31,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   als `$NTFY_URL/$NTFY_TOPIC`; eindigt `NTFY_URL` op een slash, dan antwoordt ntfy op de dubbele
   slash met een 301 die curl niet volgt, en verdwijnt de melding geruisloos (zo miste het bericht
   van e2e-testrapport 20). De skill gebruikt nu `${NTFY_URL%/}/$NTFY_TOPIC` en legt uit waarom.
-- **De cyclonedx-major wacht op het dependency-dashboard.** `org.cyclonedx.bom` 3 splitst de ene
-  `cyclonedxBom`-taak in tweeën: een aggregatietaak die SBOM's van de submodules verzamelt, en een
-  `cyclonedxDirectBom` per project waar `includeConfigs` naartoe verhuist. Het rapport verlaat
-  daarbij `build/reports/bom.json`. `scripts/ci/dependency-audit.sh` noemt zowel die taak als dat
-  pad, en zijn faalbranch slaat de CVE-scan over in plaats van hem rood te maken -- een half
-  uitgevoerde migratie zou dus lezen als een geslaagde audit die niets gescand heeft. Renovate opent
-  er geen merge request meer voor tot die migratie bewust gedaan is.
+- **muma-mobile bouwt zijn SBOM met `org.cyclonedx.bom` 3.4.1.** De 3.x-plugin splitst de ene
+  `cyclonedxBom`-taak in tweeën: een `cyclonedxDirectBom` per project die de configuraties oplost,
+  en `cyclonedxBom` die de resultaten samenvoegt. `includeConfigs` verhuisde daarmee naar die eerste
+  taak, dus de losse `cyclonedxBom { includeConfigs = ... }` uit 2.x is vervangen door een
+  `allprojects`-blok dat elke `cyclonedxDirectBom` op `releaseRuntimeClasspath` en
+  `runtimeClasspath` zet. Dat het bij één `plugins`-regel op het rootproject blijft, is geen
+  toeval: `CyclonedxPlugin.apply` registreert de directe taak ook in de submodules. De bedoeling
+  van vroeger is daarmee overeind: het rapport telt 206 componenten en geen enkele
+  detekt-, ktlint- of AGP-afhankelijkheid, waarvan de netty- en bouncycastle-bevindingen niets
+  zeggen over de APK die daadwerkelijk verscheept wordt. Het rapport verhuisde van
+  `build/reports/bom.json` naar `build/reports/cyclonedx/bom.json`; de halffabricaten per module
+  staan in `build/reports/cyclonedx-direct/`. Renovate mag de major weer zelf oppakken.
+- **Een mislukte SBOM maakt de dependency-audit rood in plaats van hem over te slaan.**
+  `scripts/ci/dependency-audit.sh` zette bij een kapotte SBOM-stap `SKIPPED=1` en liep door, en
+  omdat lokaal en op een feature branch ook `PROD_ENV_FILE` ontbreekt, eindigt die run sowieso met
+  exit 2 -- een echte breuk in de Android-scan viel dus niet te onderscheiden van de dagelijkse ruis
+  en las als een audit die geslaagd was. Zo'n sectie gaat nu in een aparte `BROKEN`-lijst die met
+  exit 1 eindigt en bij naam vertelt wat er niet gedraaid heeft: exit 2 blijft voor een tool of
+  variabele die er niet is, exit 1 is voor een scanner die alles had en tóch niets opleverde. De
+  Gradle-uitvoer wordt bij zo'n mislukking meegeprint (de laatste 40 regels) in plaats van
+  weggegooid, want een rode job zonder uitvoer is niet te repareren. Daarbovenop faalt de sectie nu
+  ook op een SBOM die wél geschreven is maar minder dan 50 componenten bevat: precies wat een
+  verkeerde `includeConfigs` oplevert, en anders een groene scan van vrijwel niets.
 - **De mobiele dependencies gaan in één batch omhoog, en media3 vroeg er code voor terug.** Kotlin
   2.4, KSP 2.3, media3 1.11, koin 4.2, navigation 2.10 en een reeks androidx-bumps. media3 1.11
   sluit een deprecatiecyclus af waar de Jukebox-speler nog in stond: `Player` kent

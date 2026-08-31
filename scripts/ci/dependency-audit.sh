@@ -21,8 +21,16 @@
 #
 # Exit codes:
 #   0  clean (or only accepted findings)
-#   1  vulnerabilities found
-#   2  a scanner could not run
+#   1  vulnerabilities found, or a scanner that had everything it needs broke
+#   2  a scanner could not run because this environment does not have it
+#
+# The difference between 1 and 2 is deliberate. Exit 2 means a tool or a CI
+# variable is simply absent -- that is the normal outcome of running this
+# locally, where docker or PROD_ENV_FILE may be missing, and it says nothing
+# about the code. A scanner that had its tool and its input and still produced
+# nothing is a broken audit, and a broken audit must not read as a quiet skip:
+# the section scanned zero packages, so passing it would mean "not checked"
+# rather than "clean". Those go in BROKEN below and exit 1.
 #
 # Usage: ./scripts/ci/dependency-audit.sh [--strict]
 #   --strict  also fail on moderate npm findings (default: high and above)
@@ -51,6 +59,9 @@ REQUIREMENTS=(
 
 STATUS=0
 SKIPPED=0
+# Sections that should have produced a result and did not. Reported by name and
+# fatal; see the exit-code note at the top of this file.
+BROKEN=()
 
 # Advisory IDs from the accepted list, as repeated --ignore-vuln arguments.
 IGNORE_ARGS=()
@@ -109,17 +120,46 @@ echo "=== Android dependencies (CycloneDX SBOM + trivy) ==="
 # build.gradle of muma-mobile) writes the resolved graph as an SBOM; trivy
 # scans that. Renovate keeps the versions moving, but Renovate answers "is
 # there something newer", not "is what I run vulnerable".
-SBOM="services/muma-mobile/build/reports/bom.json"
+#
+# Plugin 3.x writes the merged graph to build/reports/cyclonedx/ (the
+# per-module halves land in each module's build/reports/cyclonedx-direct/),
+# where 2.x wrote build/reports/bom.json.
+SBOM="services/muma-mobile/build/reports/cyclonedx/bom.json"
+# How many components trivy has to see before this section counts as a scan.
+# Not a taste threshold: it separates "scanned the APK's dependency graph" from
+# "scanned a file that happens to be valid CycloneDX". The graph is in the
+# hundreds; a build.gradle mistake that resolves nothing yields the handful of
+# project components and would otherwise pass green.
+SBOM_MIN_COMPONENTS=50
 if command -v docker >/dev/null 2>&1; then
-    if ./scripts/test/muma-mobile-detekt.sh cyclonedxBom >/dev/null 2>&1 && [ -f "$SBOM" ]; then
-        if ! run_trivy sbom "$SBOM" \
+    # Kept out of the log on success -- a Gradle run is thousands of lines --
+    # but shown when it fails, because this now fails the audit and a failure
+    # with no output is not something anyone can act on.
+    SBOM_LOG="$(mktemp)"
+    if ./scripts/test/muma-mobile-detekt.sh cyclonedxBom >"$SBOM_LOG" 2>&1 && [ -f "$SBOM" ]; then
+        if command -v python3 >/dev/null 2>&1; then
+            COMPONENTS="$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1])).get("components") or []))' \
+                          "$SBOM" 2>/dev/null)"
+        else
+            COMPONENTS="$(grep -c '"purl"' "$SBOM")"
+        fi
+        echo "SBOM $SBOM lists ${COMPONENTS:-0} components"
+        if [ "${COMPONENTS:-0}" -lt "$SBOM_MIN_COMPONENTS" ]; then
+            echo "Fewer than $SBOM_MIN_COMPONENTS components: the SBOM was written but resolved"
+            echo "next to nothing, so scanning it would prove nothing. Check the"
+            echo "includeConfigs block in services/muma-mobile/build.gradle against the"
+            echo "configuration names the modules actually have."
+            BROKEN+=("Android SBOM (empty dependency graph)")
+        elif ! run_trivy sbom "$SBOM" \
             --severity HIGH,CRITICAL --exit-code 1 --ignorefile "$TRIVY_IGNORE"; then
             STATUS=1
         fi
     else
-        echo "SBOM generation failed (see ./scripts/test/muma-mobile-detekt.sh cyclonedxBom), skipping"
-        SKIPPED=1
+        echo "SBOM generation failed (./scripts/test/muma-mobile-detekt.sh cyclonedxBom):"
+        tail -40 "$SBOM_LOG"
+        BROKEN+=("Android SBOM (cyclonedxBom)")
     fi
+    rm -f "$SBOM_LOG"
 else
     echo "docker missing, skipping"
     SKIPPED=1
@@ -172,12 +212,23 @@ else
     SKIPPED=1
 fi
 
+if [ "${#BROKEN[@]}" -ne 0 ]; then
+    echo
+    echo "A scanner had everything it needed and still produced no result:"
+    printf '  - %s\n' "${BROKEN[@]}"
+    echo "Fix the section itself. It is failed rather than skipped on purpose:"
+    echo "a section that scans nothing must not be able to report clean."
+fi
+
 if [ "$STATUS" -ne 0 ]; then
     echo
     echo "Vulnerable dependencies found."
     echo "Fix: bump the pin in the requirements file / package.json the finding names."
     echo "Only if that is genuinely not possible yet, add the advisory ID to"
     echo "$ACCEPTED_FILE with a reason and a way out."
+fi
+
+if [ "$STATUS" -ne 0 ] || [ "${#BROKEN[@]}" -ne 0 ]; then
     exit 1
 fi
 

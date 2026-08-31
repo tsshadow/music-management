@@ -81,6 +81,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `svelte-check` TypeScript 7 op zichzelf aankan.
 
 ### Fixed
+- **De Python-helft van de dependency-audit scande drie van de vijf requirements-bestanden niet.**
+  pip-audit lost elk bestand op in een wegwerp-virtualenv van de tooling-interpreter, en die stond
+  in `scripts/lib/python-tooling.sh` nog op `python:3.11-slim` terwijl de service-images al op 3.14
+  draaien. `librosa~=1.0.0` vraagt Python >= 3.12, dus `requirements.txt`,
+  `services/music_manager/requirements.txt` en `services/ml-analyzer/requirements.txt` faalden met
+  `No matching distribution found for librosa~=1.0.0` — wat leest als een verkeerde pin en het niet
+  is. De reden dat de pin ooit 3.11 was, namelijk dat numpy 2.0.x geen wheel voor 3.13 had, verviel
+  bij diezelfde stap: `requirements.txt` staat op `numpy~=2.5.2`, dat zelf >= 3.12 eist. De
+  tooling-image volgt nu `docker/Dockerfile.*`. Alle vijf bestanden auditen weer, en `ruff`,
+  `pylint` (9.66) en `mypy` draaien ongewijzigd in dezelfde image. Dat de job `allow_failure` is, is
+  precies waarom dit maanden rood kon staan zonder gelezen te worden.
 - **Twee merge requests die tegelijk hun images bouwden, sloopten elkaars build.** `docker:build-images`
   bouwt zonder te pushen onder een wegwerpnaam, en die naam was voor iedereen dezelfde: `muma-ci`.
   Alle gelijktijdige jobs schreven dus dezelfde tags in de ene image-store die de runner heeft. Op

@@ -23,6 +23,11 @@ buildscript {
 
 plugins {
     id "com.github.ben-manes.versions" version "0.54.0"
+    // SBOM for the dependency audit: scripts/ci/dependency-audit.sh runs
+    // `cyclonedxBom` and feeds the result to trivy. Gradle has no lockfiles in
+    // this repo, so the resolved graph in the SBOM is the only thing a CVE
+    // scanner can read.
+    id "org.cyclonedx.bom" version "2.3.1"
     alias libs.plugins.androidApplication apply false
     alias libs.plugins.androidLibrary apply false
     alias libs.plugins.kotlinAndroid apply false
@@ -65,6 +70,14 @@ allprojects {
             options.compilerArgs.add("-Xlint:deprecation")
         }
     }
+}
+
+// Only what ships: the default SBOM also walks detekt/ktlint/AGP tooling
+// classpaths, whose netty/bouncycastle findings say nothing about the APK.
+// releaseRuntimeClasspath covers the Android modules, runtimeClasspath the
+// pure-Kotlin ones.
+cyclonedxBom {
+    includeConfigs = ["releaseRuntimeClasspath", "runtimeClasspath"]
 }
 
 tasks.register("generateKeystore") {

@@ -65,6 +65,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   afdwingt dat elke rules-gatende variabele in het checkscript voorkomt.
 
 ### Changed
+- **De dependency-audit dekt nu ook Android en de productie-images.** `pip-audit` en `npm audit`
+  lazen elk een declaratiebestand, maar de Android-dependencygraf had geen CVE-dekking (Gradle
+  heeft hier geen lockfiles) en de gepubliceerde images bevatten een Debian/Alpine-userland dat
+  nergens gescand werd. De CycloneDX-plugin schrijft voortaan de opgeloste graf van muma-mobile
+  als SBOM (alleen runtime-classpaths — tooling-vondsten over detekt/AGP zeggen niets over de
+  APK), en trivy scant die plus de zeven `:latest`-images op HIGH/CRITICAL, met `--ignore-unfixed`
+  voor de images zodat onoplosbare base-image-CVE's de job niet permanent rood houden.
+  Geaccepteerde vondsten horen met reden in `security/trivyignore`; de job blijft `allow_failure`
+  en de timeout ging van 15 naar 30 minuten.
 - **Android Lint is nu een gate in `muma-mobile:check`.** Lint stond volledig geconfigureerd in
   `app/build.gradle` (baseline, `abortOnError`, `warningsAsErrors`) maar geen enkele CI-job riep
   hem aan — dezelfde geschiedenis als detekt destijds. Ondertussen was de baseline verouderd en

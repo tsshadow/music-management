@@ -41,6 +41,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `scripts/ci/systemd/`. Faalt de job, dan is dát de bevinding: alles wat veilig weg kon is weg en
   de ruimte zit in de buildcache of buiten Docker.
 
+### Fixed
+- **Drie emulator-core dumps van samen 3,9 GB stonden in de repository.** Bij het debuggen van de
+  segfault in de emulator-smoketest zijn `services/muma-mobile/core.91`, `core.92` en `core.387`
+  meegecommit. Ze zitten sindsdien in elke clone en elke runner-checkout, en dat is de directe
+  oorzaak van de `No space left on device`-fouten die dependency-pipelines lieten falen. De
+  bestanden zijn verwijderd en `.gitignore` weert `core.[0-9]*` voortaan, zodat een volgende crash
+  er niet opnieuw een achterlaat. De blobs zitten nog wel in de git-historie: een clone haalt ze op
+  tot die historie herschreven wordt.
+
 ## [0.39.0] - 2026-08-31
 
 ### Added

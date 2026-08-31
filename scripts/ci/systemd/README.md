@@ -4,9 +4,13 @@
 needs. It is wired two ways, because the two runners cannot be reached the same way.
 
 **The LXC (192.0.2.40) gets it from CI.** The `runner:disk-janitor` job is untagged, and untagged
-jobs always land on the LXC — the workstation runner is tagged-only. Create a pipeline schedule with
-`DISK_JANITOR` = `true` on `develop`; every other job steps aside via `.dedicated_schedule_guard`,
-so that pipeline runs the janitor and nothing else. Nothing to install on the host.
+jobs always land on the LXC — the workstation runner is tagged-only. Pipeline schedule 3 ("Daily CI
+runner disk janitor", `develop`, `23 5 * * *` Europe/Amsterdam) sets `DISK_JANITOR` = `true`; every
+other job steps aside via `.dedicated_schedule_guard`, so that pipeline runs the janitor and nothing
+else. Nothing to install on the host.
+
+The minute is deliberate: the hourly Renovate schedule runs at `:41` and the weekly downloader
+refresh at 04:17, and a sweep landing on top of either would be refused images and a confusing log.
 
 **Everything else gets the timer here.** A schedule cannot target the workstation (both runners
 carry the `fast` tag, so tagging would be a coin flip), and it fills up too — mostly with buildkit

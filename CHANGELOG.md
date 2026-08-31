@@ -64,6 +64,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rood werd. `release:check-secrets` controleert deze vier nu expliciet, met een policy-test die
   afdwingt dat elke rules-gatende variabele in het checkscript voorkomt.
 
+### Added
+- **Een emulator-smoketest voert voortaan de échte release-APK uit.** De 6.21.0-startupcrash
+  (bug-report 029) bestond alleen in de R8-geminificeerde build; unit-tests, detekt en lint zien
+  allemaal ongeminificeerde code, dus de eerste uitvoering van een release-build was de telefoon
+  van een gebruiker. `muma-mobile:smoke-release` bouwt de release-APK, boot een headless
+  ATD-emulator op KVM (passthrough op de runner-LXC sinds 2026-08-22), installeert, start via de
+  launcher-intent (overleeft de icon-aliases) en eist na 15 seconden een levend proces zonder
+  `FATAL EXCEPTION`. Een tripwire, geen UI-suite. De job gate't de release: `deploy:prod` wacht
+  via de stage-volgorde en `muma-mobile:build-release` heeft hem expliciet in `needs`, zodat een
+  crashende APK de hoster nooit bereikt. De CI-image kreeg emulator, platform-tools en het
+  `android-34 aosp_atd`-systeembeeld.
+
 ### Changed
 - **De dependency-audit dekt nu ook Android en de productie-images.** `pip-audit` en `npm audit`
   lazen elk een declaratiebestand, maar de Android-dependencygraf had geen CVE-dekking (Gradle

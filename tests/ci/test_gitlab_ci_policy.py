@@ -46,6 +46,7 @@ GATING_JOBS = [
     "muma-server:unit",
     "frontend:unit",
     "muma-mobile:check",
+    "muma-mobile:smoke-release",
 ]
 
 
@@ -303,6 +304,9 @@ def test_release_apk_waits_for_the_android_unit_tests():
     ]
     assert "muma-mobile:check" in targets
     assert "release:version-check" in targets
+    # And the emulator smoke test: a release APK that crashes on startup must
+    # never reach the hoster (docs/bug-reports/029 shipped exactly that way).
+    assert "muma-mobile:smoke-release" in targets
 
 
 def test_publishing_jobs_are_not_interruptible():

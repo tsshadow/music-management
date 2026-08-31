@@ -81,7 +81,10 @@
   per-module `detekt-baseline.xml`) and Android Lint
   (`./scripts/test/muma-mobile-lint.sh`, `:app:lintDebug` with `checkDependencies=true`
   so the core modules are analyzed too; pre-existing findings in `app/lint-baseline.xml`)
-- No instrumentation/Android Auto tests found in this pass (to confirm in a later step)
+- Release-build smoke: `./scripts/test/muma-mobile-emulator-smoke.sh` boots the R8-minified
+  APK on a headless ATD emulator (needs `/dev/kvm`) and fails on a startup crash — the class
+  of defect (bug-report 029) every JVM-side check is structurally blind to
+- No instrumentation/Android Auto tests beyond that smoke tripwire (UI flows still uncovered)
 
 ### common
 - Shared helpers (`config_store.py`, `db_init.py`, `job_manager.py`, `step.py`, `version_helper.py`) — partly covered directly (`TableHelperTest.py`, `FilterTableHelperTest.py`, `LookupTableHelperTest.py`, `FestivalHelperTest.py`, `NotificationServiceTest.py`, `ProcessedFilesHelperTest.py`), the rest indirectly via dependent modules

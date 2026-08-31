@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   de ruimte zit in de buildcache of buiten Docker.
 
 ### Changed
+- **De crash-triage-skill strijkt de trailing slash uit `NTFY_URL`.** De notify-stap bouwde de URL
+  als `$NTFY_URL/$NTFY_TOPIC`; eindigt `NTFY_URL` op een slash, dan antwoordt ntfy op de dubbele
+  slash met een 301 die curl niet volgt, en verdwijnt de melding geruisloos (zo miste het bericht
+  van e2e-testrapport 20). De skill gebruikt nu `${NTFY_URL%/}/$NTFY_TOPIC` en legt uit waarom.
 - **De cyclonedx-major wacht op het dependency-dashboard.** `org.cyclonedx.bom` 3 splitst de ene
   `cyclonedxBom`-taak in tweeën: een aggregatietaak die SBOM's van de submodules verzamelt, en een
   `cyclonedxDirectBom` per project waar `includeConfigs` naartoe verhuist. Het rapport verlaat

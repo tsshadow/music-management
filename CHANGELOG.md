@@ -7,12 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Een disk-janitor voor de CI-runners, zodat een volle schijf niet langer willekeurige jobs
+  sloopt.** Drie keer deze maand liep een runner vol, en de storing wees telkens overal heen behalve
+  naar de schijf: op 31 augustus faalden drie van de vier jobs op `no matching files` bij het
+  uploaden van artifacts en noemde alleen `docker:build-images` de echte oorzaak. Het handmatige
+  opruimrecept uit die incidenten zit nu in `scripts/ci/disk-janitor.sh`: per repository blijven
+  `:latest`, `:stable` en de drie nieuwste versietags staan, van de Android-CI-images (>5GB per
+  stuk) de twee nieuwste, en achtergebleven `muma-test-*`-stacks ouder dan twee uur gaan weg. Nooit
+  met `-f`, zodat een image dat een lopende pipeline nog vasthoudt geweigerd wordt in plaats van
+  weggerukt, en de buildkit-cache blijft met opzet ongemoeid — dat is de ccache die
+  `muma-server:unit` op ~90s houdt in plaats van ~405s. De keuzelogica staat apart in
+  `disk_janitor_plan.py` en wordt door tien tests gedekt zonder dat er een Docker-daemon of een
+  volle schijf aan te pas komt. Draait geveegd tot 65% en stopt daar, zodat een runner die net
+  boven de drempel zit niet elke keer één image opoffert. Loopt via een geplande pipeline
+  (`DISK_JANITOR=true`) op de LXC — de job is expres ongetagd, want dat is precies wat hem altijd op
+  de altijd-aanstaande host laat landen; voor andere hosts liggen er systemd-units in
+  `scripts/ci/systemd/`. Faalt de job, dan is dát de bevinding: alles wat veilig weg kon is weg en
+  de ruimte zit in de buildcache of buiten Docker.
+
 ### Changed
 - **De crash-triage kent nu een uitkomst voor "geldig rapport, niets te fixen".** Een synthetisch
   testrapport of een handmatig diagnoserapport zonder crash telde als mislukte fixpoging, waardoor
   een tweede identiek rapport na twee keer als opgegeven crash werd afgedaan. De skill zet zo'n
   rapport nu op `done` met ledger-uitkomst `no_defect`, zonder de pogingenteller te raken; de
   serverstatussen zijn ongewijzigd.
+- **Een TypeScript-major wacht voortaan op het dependency-dashboard.** TypeScript 7 is de native
+  herschrijving en `svelte-check` accepteert die nog niet als gewone upgrade: het weigert te starten
+  tenzij TypeScript 6 er onder een npm-alias naast staat en elke aanroep `--tsgo` meekrijgt. Dat is
+  een toolchain-migratie, geen versiebump, dus Renovate opent er geen merge request meer voor tot
+  `svelte-check` TypeScript 7 op zichzelf aankan.
+
+### Fixed
+- **De Android-app zat in images waar hij niets te zoeken had.** Drie Dockerfiles kopieerden de
+  complete `services/`-boom naar binnen, terwijl de containers die eruit rollen alleen Python
+  draaien: de tools-image start `soundcloud_fetcher.py` en `process_genres.py`, music-manager is
+  bewust API-only en de worker-images draaien downloader, telegram of importer. Meegereisd waren de
+  18 MB Kotlin-bron van `services/muma-mobile`, de Svelte-bron van `services/frontend` en de
+  C++-bron van `services/music-management-server`. Dat kostte niet alleen ruimte: bij de mobiele
+  testresources zit een self-signed certificaat mét private key
+  (`core/subsonic-api/src/integrationTest/resources/self-signed.pem`), dat een imagescan terecht
+  als gelekt geheim aanmerkt. Elke Dockerfile kopieert nu alleen de pakketten die zijn eigen
+  startcommando importeert, en de Android-boom is daarnaast uit elke build-context geweerd, zodat
+  een volgende image hem niet opnieuw per ongeluk meeneemt. De frontend en de LMS-bron blijven
+  bereikbaar voor de enige build die ze echt nodig heeft,
+  `services/music-management-server/Dockerfile-release`.
+- **Drie emulator-core dumps van samen 3,9 GB stonden in de repository.** Bij het debuggen van de
+  segfault in de emulator-smoketest zijn `services/muma-mobile/core.91`, `core.92` en `core.387`
+  meegecommit. Ze zitten sindsdien in elke clone en elke runner-checkout, en dat is de directe
+  oorzaak van de `No space left on device`-fouten die dependency-pipelines lieten falen. De
+  bestanden zijn verwijderd en `.gitignore` weert `core.[0-9]*` voortaan, zodat een volgende crash
+  er niet opnieuw een achterlaat. De blobs zitten nog wel in de git-historie: een clone haalt ze op
+  tot die historie herschreven wordt.
 
 ## [0.39.0] - 2026-08-31
 

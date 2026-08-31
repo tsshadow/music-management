@@ -7,21 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- **De Android-app zat in images waar hij niets te zoeken had.** Drie Dockerfiles kopieerden de
-  complete `services/`-boom naar binnen, terwijl de containers die eruit rollen alleen Python
-  draaien: de tools-image start `soundcloud_fetcher.py` en `process_genres.py`, music-manager is
-  bewust API-only en de worker-images draaien downloader, telegram of importer. Meegereisd waren de
-  18 MB Kotlin-bron van `services/muma-mobile`, de Svelte-bron van `services/frontend` en de
-  C++-bron van `services/music-management-server`. Dat kostte niet alleen ruimte: bij de mobiele
-  testresources zit een self-signed certificaat mét private key
-  (`core/subsonic-api/src/integrationTest/resources/self-signed.pem`), dat een imagescan terecht
-  als gelekt geheim aanmerkt. Elke Dockerfile kopieert nu alleen de pakketten die zijn eigen
-  startcommando importeert, en de Android-boom is daarnaast uit elke build-context geweerd, zodat
-  een volgende image hem niet opnieuw per ongeluk meeneemt. De frontend en de LMS-bron blijven
-  bereikbaar voor de enige build die ze echt nodig heeft,
-  `services/music-management-server/Dockerfile-release`.
-
 ### Added
 - **Een disk-janitor voor de CI-runners, zodat een volle schijf niet langer willekeurige jobs
   sloopt.** Drie keer deze maand liep een runner vol, en de storing wees telkens overal heen behalve
@@ -41,7 +26,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `scripts/ci/systemd/`. Faalt de job, dan is dát de bevinding: alles wat veilig weg kon is weg en
   de ruimte zit in de buildcache of buiten Docker.
 
+### Changed
+- **Een TypeScript-major wacht voortaan op het dependency-dashboard.** TypeScript 7 is de native
+  herschrijving en `svelte-check` accepteert die nog niet als gewone upgrade: het weigert te starten
+  tenzij TypeScript 6 er onder een npm-alias naast staat en elke aanroep `--tsgo` meekrijgt. Dat is
+  een toolchain-migratie, geen versiebump, dus Renovate opent er geen merge request meer voor tot
+  `svelte-check` TypeScript 7 op zichzelf aankan.
+
 ### Fixed
+- **De Android-app zat in images waar hij niets te zoeken had.** Drie Dockerfiles kopieerden de
+  complete `services/`-boom naar binnen, terwijl de containers die eruit rollen alleen Python
+  draaien: de tools-image start `soundcloud_fetcher.py` en `process_genres.py`, music-manager is
+  bewust API-only en de worker-images draaien downloader, telegram of importer. Meegereisd waren de
+  18 MB Kotlin-bron van `services/muma-mobile`, de Svelte-bron van `services/frontend` en de
+  C++-bron van `services/music-management-server`. Dat kostte niet alleen ruimte: bij de mobiele
+  testresources zit een self-signed certificaat mét private key
+  (`core/subsonic-api/src/integrationTest/resources/self-signed.pem`), dat een imagescan terecht
+  als gelekt geheim aanmerkt. Elke Dockerfile kopieert nu alleen de pakketten die zijn eigen
+  startcommando importeert, en de Android-boom is daarnaast uit elke build-context geweerd, zodat
+  een volgende image hem niet opnieuw per ongeluk meeneemt. De frontend en de LMS-bron blijven
+  bereikbaar voor de enige build die ze echt nodig heeft,
+  `services/music-management-server/Dockerfile-release`.
 - **Drie emulator-core dumps van samen 3,9 GB stonden in de repository.** Bij het debuggen van de
   segfault in de emulator-smoketest zijn `services/muma-mobile/core.91`, `core.92` en `core.387`
   meegecommit. Ze zitten sindsdien in elke clone en elke runner-checkout, en dat is de directe

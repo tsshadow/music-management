@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<issues format="6" by="lint 8.7.2" type="baseline" client="gradle" dependencies="true" name="AGP (8.7.2)" variant="all" version="8.7.2">
+<issues format="6" by="lint 9.3.2" type="baseline" client="gradle" dependencies="true" name="AGP (9.3.2)" variant="all" version="9.3.2">
 
     <issue
         id="MissingPermission"
@@ -24,25 +24,36 @@
     </issue>
 
     <issue
-        id="CredentialManagerSignInWithGoogle"
-        message="Use of `:googleid` classes without use of `GoogleIdTokenCredential`"
-        errorLine1="        val googleIdTokenRequest = GetSignInWithGoogleOption"
-        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        id="TrimLambda"
+        message="The lambda argument (`{ it &lt;= &apos; &apos; }`) is unnecessary"
+        errorLine1="        if (name == null || name.trim { it &lt;= &apos; &apos; }.isEmpty()) {"
+        errorLine2="                                      ~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/EditServerFragment.kt"
-            line="596"
-            column="36"/>
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/FileUtil.kt"
+            line="310"
+            column="39"/>
     </issue>
 
     <issue
-        id="CredentialManagerSignInWithGoogle"
-        message="Use of `:googleid` classes without use of `GoogleIdTokenCredential`"
-        errorLine1="        val googleIdTokenRequest = GetSignInWithGoogleOption.Builder(BuildConfig.GOOGLE_WEB_CLIENT_ID)"
-        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        id="TrimLambda"
+        message="The lambda argument (`{ it &lt;= &apos; &apos; }`) is unnecessary"
+        errorLine1="        if (path == null || path.trim { it &lt;= &apos; &apos; }.isEmpty()) {"
+        errorLine2="                                      ~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/nl/teunschriks/mumamobile/activity/NavigationActivity.kt"
-            line="895"
-            column="36"/>
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/FileUtil.kt"
+            line="329"
+            column="39"/>
+    </issue>
+
+    <issue
+        id="TrimLambda"
+        message="The lambda argument (`{ it &lt;= &apos; &apos; }`) is unnecessary"
+        errorLine1="    fun isNullOrWhiteSpace(string: String?): Boolean = string.isNullOrEmpty() || string.trim { it &lt;= &apos; &apos; }.isEmpty()"
+        errorLine2="                                                                                             ~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/Util.kt"
+            line="415"
+            column="94"/>
     </issue>
 
     <issue
@@ -148,63 +159,8 @@
     </issue>
 
     <issue
-        id="Recycle"
-        message="This `OutputStream` should be freed up after use with `#close()`"
-        errorLine1="            resolver.openOutputStream(uri)?.use { out ->"
-        errorLine2="                     ~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/kotlin/nl/teunschriks/mumamobile/diagnostics/CrashReportManager.kt"
-            line="178"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="Recycle"
-        message="This `OutputStream` should be freed up after use with `#close()`"
-        errorLine1="                    context.contentResolver.openOutputStream(documentFile.uri)?.use { outputStream ->"
-        errorLine2="                                            ~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/kotlin/nl/teunschriks/mumamobile/util/MediaDeviceExporter.kt"
-            line="72"
-            column="45"/>
-    </issue>
-
-    <issue
-        id="Recycle"
-        message="This `Cursor` should be freed up after use with `#close()`"
-        errorLine1="                resolver.query(uri, column, null, null, null)?.use { cursor ->"
-        errorLine2="                         ~~~~~">
-        <location
-            file="src/main/kotlin/nl/teunschriks/mumamobile/util/StorageFile.kt"
-            line="38"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="Recycle"
-        message="This `Cursor` should be freed up after use with `#close()`"
-        errorLine1="                resolver.query(uri, column, null, null, null)?.use { cursor ->"
-        errorLine2="                         ~~~~~">
-        <location
-            file="src/main/kotlin/nl/teunschriks/mumamobile/util/StorageFile.kt"
-            line="54"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="Recycle"
-        message="This `Cursor` should be freed up after use with `#close()`"
-        errorLine1="        resolver.query(uri, column, null, null, null)?.use { cursor ->"
-        errorLine2="                 ~~~~~">
-        <location
-            file="src/main/kotlin/nl/teunschriks/mumamobile/util/StorageFile.kt"
-            line="194"
-            column="18"/>
-    </issue>
-
-    <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; SDK_INT is always >= 29"
+        message="Unnecessary; `SDK_INT` is always >= 29"
         errorLine1="        tools:targetApi=&quot;q&quot;>"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~">
         <location
@@ -215,7 +171,7 @@
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; SDK_INT is always >= 33"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="    private fun Intent.getBluetoothDevice(): BluetoothDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {"
         errorLine2="                                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -226,7 +182,7 @@
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; SDK_INT is always >= 33"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -237,7 +193,7 @@
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; SDK_INT is always >= 33"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="                val event = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {"
         errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -248,7 +204,7 @@
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; SDK_INT is always >= 33"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -259,7 +215,7 @@
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; SDK_INT is always >= 33"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="                    val immutableFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
         errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -270,7 +226,7 @@
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; SDK_INT is always >= 33"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="        if (Settings.cacheLocationUri != &quot;&quot; &amp;&amp; Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
         errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -281,7 +237,7 @@
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; SDK_INT is always >= 33"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -292,7 +248,7 @@
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; SDK_INT is always >= 33"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -303,7 +259,7 @@
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; SDK_INT is always >= 33"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -314,7 +270,7 @@
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; SDK_INT is always >= 33"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -325,7 +281,7 @@
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; SDK_INT is always >= 33"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -336,7 +292,7 @@
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; SDK_INT is always >= 33"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -347,7 +303,7 @@
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; SDK_INT is always >= 33"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -358,7 +314,7 @@
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; SDK_INT is always >= 33"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -379,17 +335,6 @@
         message="This folder configuration (`v31`) is unnecessary; `minSdkVersion` is 33. Merge all the resources in this folder into `values`.">
         <location
             file="src/main/res/values-v31"/>
-    </issue>
-
-    <issue
-        id="VectorPath"
-        message="Very long vector path (904 characters), which is bad for performance. Considering reducing precision, removing minor details or rasterizing vector."
-        errorLine1="      android:pathData=&quot;M19.14,12.94c0.04,-0.3 0.06,-0.61 0.06,-0.94c0,-0.32 -0.02,-0.64 -0.07,-0.94l2.03,-1.58c0.18,-0.14 0.23,-0.41 0.12,-0.61l-1.92,-3.32c-0.12,-0.22 -0.37,-0.29 -0.59,-0.22l-2.39,0.96c-0.5,-0.38 -1.03,-0.7 -1.62,-0.94L14.4,2.81c-0.04,-0.24 -0.24,-0.41 -0.48,-0.41h-3.84c-0.24,0 -0.43,0.17 -0.47,0.41L9.25,5.35C8.66,5.59 8.12,5.92 7.63,6.29L5.24,5.33c-0.22,-0.08 -0.47,0 -0.59,0.22L2.74,8.87C2.62,9.08 2.66,9.34 2.86,9.48l2.03,1.58C4.84,11.36 4.8,11.69 4.8,12s0.02,0.64 0.07,0.94l-2.03,1.58c-0.18,0.14 -0.23,0.41 -0.12,0.61l1.92,3.32c0.12,0.22 0.37,0.29 0.59,0.22l2.39,-0.96c0.5,0.38 1.03,0.7 1.62,0.94l0.36,2.54c0.05,0.24 0.24,0.41 0.48,0.41h3.84c0.24,0 0.44,-0.17 0.47,-0.41l0.36,-2.54c0.59,-0.24 1.13,-0.56 1.62,-0.94l2.39,0.96c0.22,0.08 0.47,0 0.59,-0.22l1.92,-3.32c0.12,-0.22 0.07,-0.47 -0.12,-0.61L19.14,12.94zM12,15.6c-1.98,0 -3.6,-1.62 -3.6,-3.6s1.62,-3.6 3.6,-3.6s3.6,1.62 3.6,3.6S13.98,15.6 12,15.6z&quot;/>"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/drawable/ic_menu_settings.xml"
-            line="9"
-            column="25"/>
     </issue>
 
     <issue
@@ -1440,6 +1385,204 @@
     </issue>
 
     <issue
+        id="ReportShortcutUsage"
+        message="Calling this method indicates use of dynamic shortcuts, but there are no calls to methods that track shortcut usage, such as `pushDynamicShortcut` or `reportShortcutUsed`. Calling these methods is recommended, as they track shortcut usage and allow launchers to adjust which shortcuts appear based on activation history. Please see https://developer.android.com/develop/ui/views/launch/shortcuts/managing-shortcuts#track-usage"
+        errorLine1="        shortcutManager?.dynamicShortcuts = listOf(shortcut)"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/ShortcutUtil.kt"
+            line="32"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            imageUri = Uri.parse(&quot;android.resource://$packageName/${R.drawable.ic_menu_playlists}&quot;),"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/service/androidauto/MediaLibraryBrowser.kt"
+            line="467"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            imageUri = Uri.parse(&quot;android.resource://$packageName/${R.drawable.ic_menu_search}&quot;),"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/service/androidauto/MediaLibraryBrowser.kt"
+            line="475"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            imageUri = Uri.parse(&quot;android.resource://$packageName/${R.drawable.ic_menu_podcasts}&quot;),"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/service/androidauto/MediaLibraryBrowser.kt"
+            line="483"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            imageUri = Uri.parse(&quot;android.resource://$packageName/${R.drawable.ic_menu_podcasts}&quot;),"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/service/androidauto/MediaLibraryBrowser.kt"
+            line="491"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            imageUri = Uri.parse(&quot;android.resource://$packageName/${R.drawable.ic_menu_podcasts}&quot;),"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/service/androidauto/MediaLibraryBrowser.kt"
+            line="499"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            imageUri = Uri.parse(&quot;android.resource://$packageName/${R.drawable.ic_star_full}&quot;),"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/service/androidauto/MediaLibraryBrowser.kt"
+            line="509"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(value) = sharedPreferences.edit().putString(&quot;muma_access_token&quot;, value).apply()"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/SecureSettings.kt"
+            line="30"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(value) = sharedPreferences.edit().putString(&quot;muma_refresh_token&quot;, value).apply()"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/SecureSettings.kt"
+            line="34"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        sharedPreferences.edit().clear().apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/SecureSettings.kt"
+            line="37"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val uri = Uri.parse(Settings.cacheLocationUri)"
+        errorLine2="                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/SettingsFragment.kt"
+            line="258"
+            column="19"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="                    .setData(android.net.Uri.parse(&quot;package:${requireContext().packageName}&quot;))"
+        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/SettingsFragment.kt"
+            line="360"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="                    .setData(android.net.Uri.parse(&quot;package:${requireContext().packageName}&quot;))"
+        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/SettingsFragment.kt"
+            line="360"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            val uri = Uri.parse(path)"
+        errorLine2="                      ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/SettingsFragment.kt"
+            line="536"
+            column="23"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="                Uri.parse(Settings.cacheLocationUri)"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/Storage.kt"
+            line="104"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preference.sharedPreferences!!.edit().putString(preference.key, persisted).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/TimeSpanPreferenceDialogFragmentCompat.kt"
+            line="54"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val uri = Uri.parse(baseUrl).buildUpon()"
+        errorLine2="                  ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/UpdateChecker.kt"
+            line="37"
+            column="19"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="                    val uri = Uri.parse(downloadUrl).buildUpon()"
+        errorLine2="                              ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/UpdateChecker.kt"
+            line="131"
+            column="31"/>
+    </issue>
+
+    <issue
         id="ContentDescription"
         message="Missing `contentDescription` attribute on image"
         errorLine1="        &lt;ImageView"
@@ -1481,6 +1624,17 @@
             file="src/main/res/layout/time_span_dialog.xml"
             line="28"
             column="10"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Number formatting does not take into account locale settings. Consider using `String.format` instead."
+        errorLine1="                                mumaUserIdEditText!!.editText?.setText(it.userId?.toString())"
+        errorLine2="                                                                       ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/EditServerFragment.kt"
+            line="493"
+            column="72"/>
     </issue>
 
     <issue

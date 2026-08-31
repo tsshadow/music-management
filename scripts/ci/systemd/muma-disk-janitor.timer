@@ -1,0 +1,15 @@
+[Unit]
+Description=Sweep the CI runner's Docker images twice a day
+
+[Timer]
+# Twice a day, not weekly: a single release plus a few merge-request image
+# builds can put 20GB on a host, and the script is a no-op below its threshold
+# so the extra runs cost a `df` and a `docker images`.
+OnCalendar=*-*-* 04,16:00:00
+# The workstation is asleep most of the time; without this it would simply skip
+# every window it missed, which is precisely when it has been filling up.
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

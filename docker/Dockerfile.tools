@@ -1,10 +1,14 @@
 # Gebruik een lichte Python base image
 FROM python:3.14-slim
 
-# Installeer yt-dlp afhankelijkheden
+# Installeer yt-dlp afhankelijkheden. mariadb-client hoort hier ook thuis: het
+# levert mariadb-dump en mariadb voor tools/db_backup.py en
+# tools/db_restore_check.py, die als db-backup en db-restore-check uit dit image
+# draaien.
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     curl \
+    mariadb-client \
     unrar-free \
     p7zip-full \
     unar \

@@ -34,6 +34,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `svelte-check` TypeScript 7 op zichzelf aankan.
 
 ### Fixed
+- **Twee merge requests die tegelijk hun images bouwden, sloopten elkaars build.** `docker:build-images`
+  bouwt zonder te pushen onder een wegwerpnaam, en die naam was voor iedereen dezelfde: `muma-ci`.
+  Alle gelijktijdige jobs schreven dus dezelfde tags in de ene image-store die de runner heeft. Op
+  31 augustus bouwde pipeline 2074 zijn eigen `muma-ci/muma-base:0.39.0`, gebruikte die voor de
+  downloader-image, en viel tachtig seconden later om bij de telegram-image met `pull access denied,
+  repository does not exist or may require authorization` — een zusterjob had de tag er tussenuit
+  gehaald, waarna buildkit hem op Docker Hub ging zoeken, waar `muma-ci` niet bestaat en ook nooit
+  hoort te bestaan. De melding leest als een ontbrekende inloggegeven en is dat niet. Elke job bouwt
+  nu onder `muma-ci-<job-id>`, dezelfde behandeling die `db:integration` eerder kreeg, en ruimt die
+  naamruimte bij afloop zelf op. De disk-janitor rekent zo'n naamruimte voortaan af op ouderdom in
+  plaats van op aantal, want geen enkele job hergebruikt die van een ander — op de oude telling zou
+  elke afgebroken job zijn `:latest` voor altijd houden. Wat de release-build pusht verandert niet.
 - **Een wijziging in `renovate.json` liet de SAST-scan links liggen die hem wél leest.** De
   `changes:`-regels van `security:sast` noemden het bestand niet, dus de packageRule die in !531
   werd toegevoegd ging ongescand naar develop -- waar semgrep hem alsnog vond, en de eerstvolgende

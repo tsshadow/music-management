@@ -119,6 +119,29 @@ def test_a_running_pipelines_test_stack_is_left_alone():
     assert removals(lines) == ["muma-test-15086-music-manager:latest"]
 
 
+def test_a_stranded_merge_request_build_namespace_goes_entirely():
+    """build-and-push-images.sh builds under `muma-ci-<job-id>/` and removes
+    that namespace on exit, so what is still here belongs to a job that never
+    ran its trap. No later job reuses the namespace, which is why the count
+    rule cannot apply: it would keep every dead job's `:latest` forever."""
+    lines = listing(
+        ("muma-ci-15540/muma-base:latest", days_ago(1)),
+        ("muma-ci-15540/muma-base:0.39.0", days_ago(1)),
+        ("muma-ci-15540/lms:stable", days_ago(1)),
+    )
+    assert removals(lines) == [
+        "muma-ci-15540/muma-base:latest",
+        "muma-ci-15540/muma-base:0.39.0",
+        "muma-ci-15540/lms:stable",
+    ]
+
+
+def test_a_running_merge_request_build_is_left_alone():
+    """Same reason as the test stack above: the job is still using them."""
+    lines = listing(("muma-ci-15601/muma-tools:latest", NOW - timedelta(minutes=5)))
+    assert removals(lines) == []
+
+
 def test_third_party_images_are_never_touched():
     """Deleting mariadb or the trivy image frees little and costs a re-pull on
     the next job; an unrecognised image is not this script's business."""

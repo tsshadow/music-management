@@ -34,6 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `svelte-check` TypeScript 7 op zichzelf aankan.
 
 ### Fixed
+- **Een wijziging in `renovate.json` liet de SAST-scan links liggen die hem wél leest.** De
+  `changes:`-regels van `security:sast` noemden het bestand niet, dus de packageRule die in !531
+  werd toegevoegd ging ongescand naar develop -- waar semgrep hem alsnog vond, en de eerstvolgende
+  merge request rood werd op een bevinding die niets met zijn eigen diff te maken had. `renovate.json`
+  staat nu in die regels, en de zesde `renovate-missing-minimum-release-age`-hit is opgenomen in
+  `security/accepted-sast-findings.txt` -- de reden die er al stond dekt hem: de regel wil de sleutel
+  op elke entry herhaald zien, terwijl Renovate hem van de catch-all overneemt.
 - **De Android-app zat in images waar hij niets te zoeken had.** Drie Dockerfiles kopieerden de
   complete `services/`-boom naar binnen, terwijl de containers die eruit rollen alleen Python
   draaien: de tools-image start `soundcloud_fetcher.py` en `process_genres.py`, music-manager is

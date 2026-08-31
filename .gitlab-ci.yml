@@ -282,6 +282,10 @@ security:sast:
         - tools/**/*
         - docker/**/*
         - security/accepted-sast-findings.txt
+        # semgrep reads renovate.json, so a change to it can add a finding --
+        # and without this entry no pipeline would run the scan that catches
+        # it, leaving develop red for the next unrelated merge request.
+        - renovate.json
         - .gitlab-ci.yml
   script:
     - ./scripts/ci/sast.sh

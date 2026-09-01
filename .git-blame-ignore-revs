@@ -17,3 +17,9 @@ ed050f0d8dc49d217f86f7885a912b27aa9fd062
 
 # style(python): apply ruff format to services/, tools/ and tests/
 61917176a07fa340edf5efc801a7e38225c03205
+
+# style(mobile): apply ktlintFormat to every Kotlin module
+0a2d36b48284bd9413ecc66e88d1e412b4eb8efb
+
+# style(server): apply clang-format to the MuMa Server sources
+594acfbbd6d038cc273cc449b8aaa83ab5b24df9

@@ -114,6 +114,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `svelte-check` TypeScript 7 op zichzelf aankan.
 
 ### Fixed
+- **De databaseserver stond na de MariaDB 12-migratie op een andere collatie dan zijn eigen
+  tabellen.** MariaDB 11.5 wijzigde de standaard naar `utf8mb4_uca1400_ai_ci`, en de overstap van
+  10.10 naar 12.3 erfde die: de teruggezette tabellen hielden hun eigen `utf8mb4_general_ci`, maar
+  alles wat er daarna bij gemaakt zou worden niet. Een join tussen die twee geeft `Illegal mix of
+  collations` -- een fout die opduikt bij de eerstvolgende nieuwe tabel, ver van de upgrade die hem
+  veroorzaakte. De drie productie-composebestanden pinnen de server nu op `utf8mb4_general_ci`, en
+  `docker/compose.test.yml` doet hetzelfde, want anders draait CI op een andere collatie dan
+  productie en zou juist dit verschil daar groen blijven. De schema's naar `uca1400` tillen is een
+  aparte, bewuste klus: dat verandert wat als gelijk telt in een unique key.
 - **Alle 22 HIGH-bevindingen in de productie-images van de dependency-audit.** Ze vielen in drie
   groepen en alleen de derde was echt onoplosbaar. Twintig ervan kwamen niet uit dit project maar
   uit de base image: `python:3.14-slim` levert openssl 3.5.6-1~deb13u2 vooraf geinstalleerd, en

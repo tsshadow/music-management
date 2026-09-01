@@ -38,6 +38,7 @@
 #include "core/String.hpp"
 #include "core/SystemPaths.hpp"
 
+#include "api/muma/MumaResource.hpp"
 #include "audio/IAudioOutput.hpp"
 #include "database/IDb.hpp"
 #include "database/IQueryPlanRecorder.hpp"
@@ -57,7 +58,6 @@
 #include "services/scrobbling/IScrobblingService.hpp"
 #include "services/transcoding/ITranscodeService.hpp"
 #include "subsonic/SubsonicResource.hpp"
-#include "api/muma/MumaResource.hpp"
 #include "ui/Auth.hpp"
 #include "ui/LmsApplication.hpp"
 #include "ui/LmsApplicationManager.hpp"

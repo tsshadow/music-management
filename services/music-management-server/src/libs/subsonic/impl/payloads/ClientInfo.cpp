@@ -215,7 +215,7 @@ namespace lms::api::subsonic
                     res.maxTranscodingAudioBitrate = *maxTranscodingAudioBitrate;
             }
 
-            if (const Wt::Json::Value & directPlayProfiles{ root.get("directPlayProfiles") }; directPlayProfiles.type() != Wt::Json::Type::Null)
+            if (const Wt::Json::Value& directPlayProfiles{ root.get("directPlayProfiles") }; directPlayProfiles.type() != Wt::Json::Type::Null)
             {
                 for (const Wt::Json::Object& profile : static_cast<const Wt::Json::Array&>(directPlayProfiles))
                 {
@@ -248,7 +248,7 @@ namespace lms::api::subsonic
                 }
             }
 
-            if (const Wt::Json::Value & transcodingProfiles{ root.get("transcodingProfiles") }; transcodingProfiles.type() != Wt::Json::Type::Null)
+            if (const Wt::Json::Value& transcodingProfiles{ root.get("transcodingProfiles") }; transcodingProfiles.type() != Wt::Json::Type::Null)
             {
                 for (const Wt::Json::Object& profile : static_cast<const Wt::Json::Array&>(transcodingProfiles))
                 {
@@ -285,7 +285,7 @@ namespace lms::api::subsonic
             }
 
             // codecProfiles
-            if (const Wt::Json::Value & codecProfiles{ root.get("codecProfiles") }; codecProfiles.type() != Wt::Json::Type::Null)
+            if (const Wt::Json::Value& codecProfiles{ root.get("codecProfiles") }; codecProfiles.type() != Wt::Json::Type::Null)
             {
                 for (const Wt::Json::Object& profile : static_cast<const Wt::Json::Array&>(codecProfiles))
                 {
@@ -298,7 +298,7 @@ namespace lms::api::subsonic
                     if (codecProfile.name.empty())
                         throw BadParameterGenericError{ "ClientInfo::CodecProfile::name", "name must not be empty" };
 
-                    if (const Wt::Json::Value & limitations{ profile.get("limitations") }; limitations.type() != Wt::Json::Type::Null)
+                    if (const Wt::Json::Value& limitations{ profile.get("limitations") }; limitations.type() != Wt::Json::Type::Null)
                     {
                         for (const Wt::Json::Object& limitation : static_cast<const Wt::Json::Array&>(limitations))
                         {

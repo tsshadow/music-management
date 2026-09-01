@@ -1865,7 +1865,6 @@ FROM track)");
         utils::executeCommand(*session.getDboSession(), "UPDATE user SET feedback_backend = 2 WHERE feedback_backend = 0");
     }
 
-
     void migrateFromV115(Session& session)
     {
         // Auth tokens used to be mapped into the in-memory database attached as "volatile", so
@@ -1881,7 +1880,6 @@ FROM track)");
         utils::executeCommand(*session.getDboSession(), "DROP TABLE IF EXISTS main.auth_token");
         utils::executeCommand(*session.getDboSession(), "CREATE TABLE main.auth_token (id INTEGER PRIMARY KEY AUTOINCREMENT, version INTEGER NOT NULL DEFAULT 0, domain TEXT NOT NULL DEFAULT '', value TEXT NOT NULL DEFAULT '', expiry DATETIME, use_count INTEGER NOT NULL DEFAULT 0, last_used TEXT, max_use_count INTEGER, user_id INTEGER)");
     }
-
 
     bool doDbMigration(Session& session)
     {

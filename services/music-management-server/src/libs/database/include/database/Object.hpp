@@ -48,7 +48,10 @@ namespace lms::db
         bool operator!=(const ObjectPtr& other) const { return other._obj != _obj; }
 
         template<typename U = T>
-        operator typename U::IdType() const { return _obj ? _obj->getId() : typename U::IdType{}; }
+        operator typename U::IdType() const
+        {
+            return _obj ? _obj->getId() : typename U::IdType{};
+        }
 
         auto modify()
         {

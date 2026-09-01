@@ -21,10 +21,10 @@
 
 #include "core/Service.hpp"
 #include "core/String.hpp"
+#include "database/Session.hpp"
 #include "database/objects/Artwork.hpp"
 #include "database/objects/TrackList.hpp"
 #include "database/objects/User.hpp"
-#include "database/Session.hpp"
 #include "services/artwork/IArtworkService.hpp"
 
 #include "CoverArtId.hpp"

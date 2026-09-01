@@ -24,8 +24,8 @@
 
 #include "RequestContext.hpp"
 #include "SubsonicId.hpp"
-#include "services/auth/IAuthTokenService.hpp"
 #include "core/Service.hpp"
+#include "services/auth/IAuthTokenService.hpp"
 
 namespace lms::api::subsonic
 {

@@ -34,7 +34,7 @@ namespace lms::core
             std::transform(envName.begin(), envName.end(), envName.begin(), ::toupper);
             return envName;
         }
-    }
+    } // namespace
 
     std::unique_ptr<IConfig> createConfig(const std::filesystem::path& p)
     {

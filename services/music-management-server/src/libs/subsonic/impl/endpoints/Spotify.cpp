@@ -23,6 +23,7 @@
 #include "../RequestContext.hpp"
 #include "../SubsonicId.hpp"
 #include "FestivalLineupRepository.hpp"
+#include "core/Service.hpp"
 #include "core/String.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Cluster.hpp"
@@ -32,7 +33,6 @@
 #include "database/objects/User.hpp"
 #include "responses/Playlist.hpp"
 #include "responses/Song.hpp"
-#include "core/Service.hpp"
 #include "services/scrobbling/IScrobblingService.hpp"
 
 #include <unordered_map>
@@ -44,11 +44,11 @@ namespace lms::api::subsonic
         std::string normalizeArtist(std::string_view artist)
         {
             std::string lower{ core::stringUtils::stringToLower(artist) };
-            
+
             // Basic splitting by common separators
             std::vector<std::string_view> separators = { ",", "&", " feat.", " ft.", " and " };
             std::vector<std::string_view> parts_view = core::stringUtils::splitString(lower, std::span{ separators });
-            
+
             std::vector<std::string> parts;
             for (auto p : parts_view)
             {
@@ -56,9 +56,9 @@ namespace lms::api::subsonic
                 if (!trimmed.empty())
                     parts.push_back(std::string(trimmed));
             }
-            
+
             std::sort(parts.begin(), parts.end());
-            
+
             return core::stringUtils::joinStrings(parts, "|");
         }
 
@@ -66,14 +66,14 @@ namespace lms::api::subsonic
         {
             std::string lower{ core::stringUtils::stringToLower(title) };
             std::string normalized{ core::stringUtils::stringTrim(lower) };
-            
+
             // Strip version info from key to treat them as duplicates
             auto strip = [&](std::string_view search) {
                 auto pos = normalized.find(search);
                 if (pos != std::string::npos)
                     normalized.erase(pos, search.length());
             };
-            
+
             strip("(radio edit)");
             strip("radio edit");
             strip("(extended mix)");
@@ -92,43 +92,51 @@ namespace lms::api::subsonic
             strip("official hardstyle visualizer");
             strip("(hardstyle videoclip)");
             strip("hardstyle videoclip");
-            
+
             return std::string(core::stringUtils::stringTrim(normalized));
         }
 
         int getTrackScore(const db::Track::pointer& track)
         {
             int score = 0;
-            
+
             // Quality
             std::string suffix = core::stringUtils::stringToLower(track->getAbsoluteFilePath().extension().string());
             if (!suffix.empty() && suffix[0] == '.')
                 suffix = suffix.substr(1);
 
             int bitRate = static_cast<int>(track->getBitrate() / 1000);
-            
-            if (suffix == "flac") score += 10000;
+
+            if (suffix == "flac")
+                score += 10000;
             else if (suffix == "mp3")
             {
-                if (bitRate >= 320) score += 5000;
-                else if (bitRate >= 192) score += 2000;
-                else if (bitRate > 0) score += 1000;
+                if (bitRate >= 320)
+                    score += 5000;
+                else if (bitRate >= 192)
+                    score += 2000;
+                else if (bitRate > 0)
+                    score += 1000;
             }
-            
+
             // Version
             std::string name = core::stringUtils::stringToLower(track->getName());
-            bool isVideo = name.find("videoclip") != std::string::npos || 
-                           name.find("official video") != std::string::npos ||
-                           name.find("video clip") != std::string::npos;
+            bool isVideo = name.find("videoclip") != std::string::npos || name.find("official video") != std::string::npos || name.find("video clip") != std::string::npos;
             bool isVisualizer = name.find("visualizer") != std::string::npos;
 
-            if (name.find("radio edit") != std::string::npos) score += 500;
-            else if (name.find("extended mix") != std::string::npos) score += 100;
-            else if (name.find("original mix") != std::string::npos) score += 300;
-            else score += 200;
-            
-            if (isVideo) score -= 50;
-            else if (isVisualizer) score -= 40;
+            if (name.find("radio edit") != std::string::npos)
+                score += 500;
+            else if (name.find("extended mix") != std::string::npos)
+                score += 100;
+            else if (name.find("original mix") != std::string::npos)
+                score += 300;
+            else
+                score += 200;
+
+            if (isVideo)
+                score -= 50;
+            else if (isVisualizer)
+                score -= 40;
 
             return score;
         }
@@ -147,20 +155,20 @@ namespace lms::api::subsonic
             {
                 std::unordered_map<std::string, db::Track::pointer> bestTracks;
                 std::vector<std::string> orderedKeys;
-                
+
                 int uniqueCount = 0;
                 int totalScanned = 0;
                 bool batchMoreResults = false;
-                
+
                 // We iterate in batches to fill requestedCount unique tracks
                 int currentScanOffset = initialOffset;
                 int scanBatchSize = std::max(requestedCount, 100);
                 const int maxScanCount = 5000; // Limit scanning to avoid server hangs
-                
+
                 while (uniqueCount < requestedCount && totalScanned < maxScanCount)
                 {
                     params.range = db::Range{ static_cast<std::size_t>(currentScanOffset), static_cast<std::size_t>(scanBatchSize) };
-                    
+
                     int batchScanned = 0;
                     db::Track::find_advanced(session, params, clusterGroups, [&](const db::Track::pointer& track) {
                         batchScanned++;
@@ -183,10 +191,10 @@ namespace lms::api::subsonic
                             }
                         }
                     });
-                    
+
                     totalScanned += batchScanned;
                     currentScanOffset += batchScanned;
-                    
+
                     // We need to know if there were more results in the batch
                     // find_advanced doesn't easily tell us this for raw SQL unless we check if we got scanBatchSize results
                     batchMoreResults = (batchScanned >= scanBatchSize);
@@ -199,7 +207,7 @@ namespace lms::api::subsonic
                 {
                     callback(bestTracks[key]);
                 }
-                
+
                 moreResults = batchMoreResults;
                 nextOffset = initialOffset + totalScanned;
             }
@@ -211,12 +219,12 @@ namespace lms::api::subsonic
                     callback(track);
                 });
                 nextOffset = initialOffset + actualCount;
-                
+
                 // Simplified moreResults check
                 moreResults = (actualCount >= requestedCount);
             }
         }
-    }
+    } // namespace
     Response handleGetSpotifyCuratedPlaylists(RequestContext& ctx)
     {
         auto& session{ ctx.getDbSession() };

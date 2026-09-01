@@ -1,0 +1,25 @@
+# Commits that only reformat: no behaviour change, no review value, and every
+# line they touch is attributed to them by `git blame` unless it is told to
+# skip them.
+#
+# Enable it once, locally:
+#
+#     git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# GitLab's blame view honours this file on its own.
+#
+# Only add a commit here that a formatter produced in full. A commit mixing a
+# reformat with a real change does not belong in this file, and does not belong
+# in the history either -- split it.
+
+# style(frontend): apply oxfmt to the whole frontend
+ed050f0d8dc49d217f86f7885a912b27aa9fd062
+
+# style(python): apply ruff format to services/, tools/ and tests/
+61917176a07fa340edf5efc801a7e38225c03205
+
+# style(mobile): apply ktlintFormat to every Kotlin module
+0a2d36b48284bd9413ecc66e88d1e412b4eb8efb
+
+# style(server): apply clang-format to the MuMa Server sources
+594acfbbd6d038cc273cc449b8aaa83ab5b24df9

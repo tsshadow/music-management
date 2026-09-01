@@ -43,13 +43,36 @@ fi
 SCAN_LOG="$(mktemp)"
 trap 'rm -f "$SCAN_LOG"' EXIT
 
+# On a merge request, scan only the commits the merge request adds.
+#
+# Git history is immutable: a commit that was clean when it landed is still
+# clean, so re-scanning it on every unrelated merge request buys nothing and
+# costs the whole job. That was tolerable until 2026-09-01, when four
+# whole-tree reformats (~700 files) landed inside the runner's 20-commit
+# shallow clone and every scan went from ~9 minutes to over 20 -- past the
+# job's wall, failing merge requests and a release branch for a reason that
+# had nothing to do with either.
+#
+# The full history is still scanned where that means something: on develop, on
+# master, on release branches and on the schedule, none of which set this
+# variable. So a secret reaches at most one merge request before a full scan
+# sees it.
+#
+# Verified to still catch: committing an AWS key into the scanned range fails
+# the scan with `leaks found: 1` and RuleID aws-access-token.
+SCOPE=(--source=/repo)
+if [ -n "${CI_MERGE_REQUEST_DIFF_BASE_SHA:-}" ]; then
+    echo "--- Merge request: scanning ${CI_MERGE_REQUEST_DIFF_BASE_SHA}..HEAD only ---"
+    SCOPE+=(--log-opts="${CI_MERGE_REQUEST_DIFF_BASE_SHA}..HEAD")
+fi
+
 echo "--- Scanning the git history for committed secrets (${IMAGE}) ---"
 docker run --rm \
     -v "$ROOT_DIR:/repo" \
     "${GIT_MOUNT[@]}" \
     -w /repo \
     "$IMAGE" detect \
-    --source=/repo \
+    "${SCOPE[@]}" \
     --config=/repo/security/gitleaks.toml \
     --redact \
     --verbose 2>&1 | tee "$SCAN_LOG"

@@ -374,7 +374,13 @@ security:sast:
 # live in security/gitleaks.toml, per-finding ones in .gitleaksignore.
 security:secret-scan:
   stage: quality
-  timeout: 15m
+  # 30m, not 15m. A merge request now scans only its own commits and finishes
+  # in seconds (see scripts/ci/secret-scan.sh), but develop, master, release
+  # branches and the schedule still scan the whole history -- and that crossed
+  # 20 minutes on 2026-09-01, when four whole-tree reformats landed inside the
+  # runner's 20-commit shallow clone. It failed a release branch for a reason
+  # that had nothing to do with the release.
+  timeout: 30m
   retry: !reference [.infra_retry, retry]
   # gitleaks runs as a container; nothing is needed on the host.
   tags: !reference [.fast_runner, tags]

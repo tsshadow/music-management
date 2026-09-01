@@ -1,11 +1,11 @@
 package nl.teunschriks.mumamobile.api.subsonic.interceptors
 
+import nl.teunschriks.mumamobile.api.subsonic.rules.MockWebServerRule
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.junit.Before
 import org.junit.Rule
-import nl.teunschriks.mumamobile.api.subsonic.rules.MockWebServerRule
 
 /**
  * Base class for testing [okhttp3.Interceptor] implementations.

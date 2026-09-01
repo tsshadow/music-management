@@ -37,8 +37,6 @@ import java.util.TimerTask
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.fragment.FragmentTitle.setTitle
@@ -50,6 +48,8 @@ import nl.teunschriks.mumamobile.util.Util.applyTheme
 import nl.teunschriks.mumamobile.util.Util.isNullOrWhiteSpace
 import nl.teunschriks.mumamobile.util.toastingExceptionHandler
 import nl.teunschriks.mumamobile.view.ChatAdapter
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 class ChatFragment :
     Fragment(),

@@ -1,8 +1,8 @@
 package nl.teunschriks.mumamobile.api.subsonic.interceptors
 
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions
 import okhttp3.Interceptor
 import okhttp3.Interceptor.Chain
-import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions
 
 /**
  * Special [Interceptor] that adds client supported version to request

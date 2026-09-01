@@ -25,8 +25,7 @@ import org.robolectric.annotation.Config
 @Config(application = nl.teunschriks.mumamobile.app.UApp::class, manifest = Config.NONE)
 class BundleDumpTest {
 
-    private fun trace() =
-        QueryTrace(entryPoint = VoiceEntryPoint.ON_ADD_MEDIA_ITEMS, caller = "gearhead")
+    private fun trace() = QueryTrace(entryPoint = VoiceEntryPoint.ON_ADD_MEDIA_ITEMS, caller = "gearhead")
 
     @Test
     fun `renders every key the bundle carries`() {

@@ -23,18 +23,18 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.get
-import org.koin.core.component.inject
-import org.koin.core.context.loadKoinModules
-import org.koin.core.context.unloadKoinModules
-import org.koin.core.qualifier.named
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.di.OFFLINE_MUSIC_SERVICE
 import nl.teunschriks.mumamobile.di.ONLINE_MUSIC_SERVICE
 import nl.teunschriks.mumamobile.di.musicServiceModule
 import nl.teunschriks.mumamobile.util.Settings
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.get
+import org.koin.core.component.inject
+import org.koin.core.context.loadKoinModules
+import org.koin.core.context.unloadKoinModules
+import org.koin.core.qualifier.named
 import timber.log.Timber
 
 /*

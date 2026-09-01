@@ -7,7 +7,6 @@
 
 package nl.teunschriks.mumamobile.api.subsonic
 
-import okhttp3.ResponseBody
 import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType
 import nl.teunschriks.mumamobile.api.subsonic.models.JukeboxAction
 import nl.teunschriks.mumamobile.api.subsonic.response.ArtistListResponse
@@ -49,6 +48,7 @@ import nl.teunschriks.mumamobile.api.subsonic.response.SubsonicResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.TagsResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.VideosResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.YearsResponse
+import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.http.GET
 import retrofit2.http.Header
@@ -198,7 +198,6 @@ interface SubsonicAPIDefinition {
         @Query("songIdToAdd") songIdsToAdd: List<String>? = null,
         @Query("songIndexToRemove") songIndexesToRemove: List<Int>? = null
     ): Call<SubsonicResponse>
-
 
     @GET("getPodcasts.view")
     fun getPodcasts(

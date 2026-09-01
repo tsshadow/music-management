@@ -1,12 +1,12 @@
 package nl.teunschriks.mumamobile.util
 
 import java.io.File
+import nl.teunschriks.mumamobile.log.RingBufferLoggerTree
 import org.amshove.kluent.shouldContain
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import nl.teunschriks.mumamobile.log.RingBufferLoggerTree
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config

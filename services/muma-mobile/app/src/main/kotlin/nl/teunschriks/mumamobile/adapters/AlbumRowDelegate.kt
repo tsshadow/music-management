@@ -18,14 +18,14 @@ import android.widget.TextView
 import androidx.media3.common.StarRating
 import androidx.recyclerview.widget.RecyclerView
 import com.drakeet.multitype.ItemViewDelegate
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.data.RatingUpdate
 import nl.teunschriks.mumamobile.domain.Album
 import nl.teunschriks.mumamobile.service.RxBus
 import nl.teunschriks.mumamobile.subsonic.ImageLoaderProvider
 import nl.teunschriks.mumamobile.util.LayoutType
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 /**
  * Creates a Row in a RecyclerView which contains the details of an Album

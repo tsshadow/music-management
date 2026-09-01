@@ -1,14 +1,13 @@
 package nl.teunschriks.mumamobile.home
 
+import nl.teunschriks.mumamobile.fragment.TrackCollectionFragmentArgs
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.shouldBeNull
 import org.junit.Test
-import nl.teunschriks.mumamobile.fragment.TrackCollectionFragmentArgs
 
 class PlaybackSourceFactoryTest {
 
-    private fun source(args: TrackCollectionFragmentArgs) =
-        PlaybackSourceFactory.forTrackCollection(args)
+    private fun source(args: TrackCollectionFragmentArgs) = PlaybackSourceFactory.forTrackCollection(args)
 
     @Test
     fun `a genre list is remembered as the genre, not as its tracks`() {

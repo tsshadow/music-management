@@ -3,25 +3,24 @@ package nl.teunschriks.mumamobile.imageloader
 import android.net.Uri
 import com.squareup.picasso.Picasso
 import com.squareup.picasso.Request
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
+import nl.teunschriks.mumamobile.api.subsonic.response.StreamResponse
+import nl.teunschriks.mumamobile.api.subsonic.toStreamResponse
+import okhttp3.ResponseBody
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.`should not be`
 import org.amshove.kluent.`should throw`
 import org.amshove.kluent.shouldBeEqualTo
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.Answers
 import org.mockito.kotlin.any
-import org.mockito.kotlin.mock
 import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
-import okhttp3.ResponseBody
-import retrofit2.Call
-import retrofit2.Response
-import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
-import nl.teunschriks.mumamobile.api.subsonic.response.StreamResponse
-import nl.teunschriks.mumamobile.api.subsonic.toStreamResponse
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import retrofit2.Call
+import retrofit2.Response
 
 @RunWith(RobolectricTestRunner::class)
 @Config(application = nl.teunschriks.mumamobile.app.UApp::class, manifest = Config.NONE)

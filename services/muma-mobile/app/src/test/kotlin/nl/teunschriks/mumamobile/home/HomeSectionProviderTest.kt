@@ -1,11 +1,11 @@
 package nl.teunschriks.mumamobile.home
 
 import kotlinx.coroutines.runBlocking
+import nl.teunschriks.mumamobile.R
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.`should be null`
 import org.amshove.kluent.shouldBeNull
 import org.junit.Test
-import nl.teunschriks.mumamobile.R
 
 class HomeSectionProviderTest {
 
@@ -21,10 +21,9 @@ class HomeSectionProviderTest {
         resolveCoverArt = resolve
     )
 
-    private fun storeWith(vararg cards: HomeCard) =
-        RecentActivityStore(FakePreferences(), separatePerMode = { false }).apply {
-            cards.reversed().forEach { record(it, setsMode = false) }
-        }
+    private fun storeWith(vararg cards: HomeCard) = RecentActivityStore(FakePreferences(), separatePerMode = { false }).apply {
+        cards.reversed().forEach { record(it, setsMode = false) }
+    }
 
     private fun artistCard(coverArtId: String? = null) = HomeCard(
         type = HomeCardType.ARTIST,
@@ -86,7 +85,10 @@ class HomeSectionProviderTest {
         var asked: HomeCard? = null
         val festival = HomeCard(type = HomeCardType.FESTIVAL, itemId = "Defqon.1", title = "Defqon.1")
 
-        shortcuts(storeWith(festival), resolve = { asked = it; null }).load()
+        shortcuts(storeWith(festival), resolve = {
+            asked = it
+            null
+        }).load()
 
         asked?.type `should be equal to` HomeCardType.FESTIVAL
         asked?.itemId `should be equal to` "Defqon.1"

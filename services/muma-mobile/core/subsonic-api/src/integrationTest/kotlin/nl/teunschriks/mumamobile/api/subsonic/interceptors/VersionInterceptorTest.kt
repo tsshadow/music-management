@@ -1,11 +1,11 @@
 package nl.teunschriks.mumamobile.api.subsonic.interceptors
 
 import kotlin.LazyThreadSafetyMode.NONE
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions
+import nl.teunschriks.mumamobile.api.subsonic.enqueueResponse
 import okhttp3.Interceptor
 import org.amshove.kluent.`should contain`
 import org.junit.Test
-import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions
-import nl.teunschriks.mumamobile.api.subsonic.enqueueResponse
 
 /**
  * Integration test for [VersionInterceptor].

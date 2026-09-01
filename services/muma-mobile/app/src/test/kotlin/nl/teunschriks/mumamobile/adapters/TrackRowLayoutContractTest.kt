@@ -2,11 +2,11 @@ package nl.teunschriks.mumamobile.adapters
 
 import android.view.LayoutInflater
 import androidx.appcompat.app.AppCompatActivity
+import nl.teunschriks.mumamobile.R
+import nl.teunschriks.mumamobile.util.Settings
 import org.amshove.kluent.`should be equal to`
 import org.junit.Test
 import org.junit.runner.RunWith
-import nl.teunschriks.mumamobile.R
-import nl.teunschriks.mumamobile.util.Settings
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config

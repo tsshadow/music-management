@@ -11,11 +11,11 @@ import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.util.Settings
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import timber.log.Timber
 
 /**
@@ -140,5 +140,4 @@ private fun parseObjectOrNull(blob: String): JsonObject? = try {
     null
 }
 
-private fun com.google.gson.JsonElement.asStringOrNull(): String? =
-    if (isJsonPrimitive) asString else null
+private fun com.google.gson.JsonElement.asStringOrNull(): String? = if (isJsonPrimitive) asString else null

@@ -1,22 +1,22 @@
 package nl.teunschriks.mumamobile.fragment.muma
 
-import nl.teunschriks.mumamobile.R
-import nl.teunschriks.mumamobile.fragment.FragmentTitle.setTitle
-import nl.teunschriks.mumamobile.fragment.FilterableFragment
-import nl.teunschriks.mumamobile.view.ViewCapabilities
-import nl.teunschriks.mumamobile.view.SortOrder
-import nl.teunschriks.mumamobile.util.Settings
-import android.graphics.Color
 import android.os.Bundle
 import android.view.View
-import timber.log.Timber
+import nl.teunschriks.mumamobile.R
+import nl.teunschriks.mumamobile.fragment.FilterableFragment
+import nl.teunschriks.mumamobile.fragment.FragmentTitle.setTitle
+import nl.teunschriks.mumamobile.util.Settings
+import nl.teunschriks.mumamobile.view.SortOrder
+import nl.teunschriks.mumamobile.view.ViewCapabilities
 
 /**
  * Fragment for selecting or saving tile presets for regular songs and livesets.
  * Allows filtering by genre, year, rating, sort method, and optionally label.
  * Search results or saved tiles navigate to a TrackCollection.
  */
-class SelectSongFragment : SelectFragment(), FilterableFragment {
+class SelectSongFragment :
+    SelectFragment(),
+    FilterableFragment {
     override var pageKey = "song"
     override var defaultLength = if (Settings.isSetsMode) "long" else "short"
     override var filterModalType = FilterModalType.SONG

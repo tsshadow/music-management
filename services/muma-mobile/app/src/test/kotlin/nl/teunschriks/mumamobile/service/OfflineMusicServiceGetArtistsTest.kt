@@ -7,10 +7,10 @@
 
 package nl.teunschriks.mumamobile.service
 
+import nl.teunschriks.mumamobile.domain.Artist
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.`should throw`
 import org.junit.Test
-import nl.teunschriks.mumamobile.domain.Artist
 
 /**
  * [OfflineMusicService.getArtists] used to ignore [offset]/[count] entirely and always return the

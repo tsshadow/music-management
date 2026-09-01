@@ -171,8 +171,11 @@ class ImageLoader(
     ) {
         val requestedSize = resolveSize(size, large)
 
-        if (id != null && key != null && id.isNotEmpty() &&
-            !failureCache.isKnownMissing(id) && view is ImageView
+        if (id != null &&
+            key != null &&
+            id.isNotEmpty() &&
+            !failureCache.isKnownMissing(id) &&
+            view is ImageView
         ) {
             val request = ImageRequest.CoverArt(
                 id,

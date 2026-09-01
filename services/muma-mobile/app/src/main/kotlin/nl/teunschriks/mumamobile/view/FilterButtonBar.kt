@@ -23,7 +23,6 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
 import com.google.android.material.chip.Chip
-import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.TextInputLayout
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.util.LayoutType
@@ -133,7 +132,6 @@ class FilterButtonBar : ConstraintLayout {
     fun setOnQueryChangedListener(callback: (String?) -> Unit) {
         queryChangedListener = callback
     }
-
 
     /**
      * Setup the necessary bindings
@@ -250,9 +248,7 @@ class FilterButtonBar : ConstraintLayout {
         viewTypeToggle?.chipIconTint = ColorStateList.valueOf(brandColor)
     }
 
-    private fun Int.withAlpha(alpha: Int): Int {
-        return (this and 0x00FFFFFF) or (alpha shl 24)
-    }
+    private fun Int.withAlpha(alpha: Int): Int = (this and 0x00FFFFFF) or (alpha shl 24)
 
     // internal rather than private so a test can assert the mapping directly, without going
     // through the AutoCompleteTextView/ArrayAdapter machinery this is otherwise only reachable

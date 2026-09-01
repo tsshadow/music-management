@@ -1,11 +1,11 @@
 package nl.teunschriks.mumamobile.api.subsonic
 
 import java.util.Calendar
+import nl.teunschriks.mumamobile.api.subsonic.models.MusicDirectoryChild
+import nl.teunschriks.mumamobile.api.subsonic.models.SearchResult
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.`should not be`
 import org.junit.Test
-import nl.teunschriks.mumamobile.api.subsonic.models.MusicDirectoryChild
-import nl.teunschriks.mumamobile.api.subsonic.models.SearchResult
 
 /**
  * Integration test for [SubsonicAPIClient] for search call.

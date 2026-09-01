@@ -2,11 +2,11 @@
 
 package nl.teunschriks.mumamobile.domain
 
-import org.amshove.kluent.`should be equal to`
-import org.junit.Test
 import nl.teunschriks.mumamobile.api.subsonic.models.Artist
 import nl.teunschriks.mumamobile.api.subsonic.models.Index
 import nl.teunschriks.mumamobile.api.subsonic.models.Indexes
+import org.amshove.kluent.`should be equal to`
+import org.junit.Test
 
 /**
  * Unit tests for extension functions in [APIIndexesConverter.kt].

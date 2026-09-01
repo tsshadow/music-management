@@ -1,9 +1,9 @@
 package nl.teunschriks.mumamobile.api.subsonic
 
 import java.util.Calendar
+import nl.teunschriks.mumamobile.api.subsonic.models.MusicDirectoryChild
 import org.amshove.kluent.`should be equal to`
 import org.junit.Test
-import nl.teunschriks.mumamobile.api.subsonic.models.MusicDirectoryChild
 
 /**
  * Instrumentation test for [SubsonicAPIDefinition.createShare] call.

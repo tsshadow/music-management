@@ -9,8 +9,6 @@ package nl.teunschriks.mumamobile.service
 import java.io.InputStream
 import java.util.concurrent.TimeUnit
 import kotlin.Pair
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType
 import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
@@ -24,8 +22,8 @@ import nl.teunschriks.mumamobile.domain.Index
 import nl.teunschriks.mumamobile.domain.JukeboxStatus
 import nl.teunschriks.mumamobile.domain.Label
 import nl.teunschriks.mumamobile.domain.Lineup
-import nl.teunschriks.mumamobile.domain.MemoryGroup
 import nl.teunschriks.mumamobile.domain.Lyrics
+import nl.teunschriks.mumamobile.domain.MemoryGroup
 import nl.teunschriks.mumamobile.domain.Mood
 import nl.teunschriks.mumamobile.domain.MumaTile
 import nl.teunschriks.mumamobile.domain.MusicDirectory
@@ -43,6 +41,8 @@ import nl.teunschriks.mumamobile.util.LRUCache
 import nl.teunschriks.mumamobile.util.MediaItemConverter
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.TimeLimitedCache
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 @Suppress("TooManyFunctions")
 class CachedMusicService(private val musicService: MusicService) :
@@ -355,7 +355,6 @@ class CachedMusicService(private val musicService: MusicService) :
         musicService.updatePlaylist(id, name, comment, pub)
     }
 
-
     @Throws(Exception::class)
     override fun getLyrics(artist: String, title: String): Lyrics? = musicService.getLyrics(artist, title)
 
@@ -401,8 +400,7 @@ class CachedMusicService(private val musicService: MusicService) :
     @Throws(Exception::class)
     override fun getStreamUrl(id: String, maxBitRate: Int?, format: String?): String? = musicService.getStreamUrl(id, maxBitRate, format)
 
-    override fun getTranscodedStreamUrl(id: String, maxBitRate: Int?, format: String?, timeOffset: Int?): String? =
-        musicService.getTranscodedStreamUrl(id, maxBitRate, format, timeOffset)
+    override fun getTranscodedStreamUrl(id: String, maxBitRate: Int?, format: String?, timeOffset: Int?): String? = musicService.getTranscodedStreamUrl(id, maxBitRate, format, timeOffset)
 
     override fun isJukeboxAvailable(): Boolean = musicService.isJukeboxAvailable()
 
@@ -725,14 +723,10 @@ class CachedMusicService(private val musicService: MusicService) :
     }
 
     @Throws(Exception::class)
-    override fun getMumaTiles(): List<MumaTile> {
-        return musicService.getMumaTiles()
-    }
+    override fun getMumaTiles(): List<MumaTile> = musicService.getMumaTiles()
 
     @Throws(Exception::class)
-    override fun saveMumaTile(tile: MumaTile): String {
-        return musicService.saveMumaTile(tile)
-    }
+    override fun saveMumaTile(tile: MumaTile): String = musicService.saveMumaTile(tile)
 
     @Throws(Exception::class)
     override fun deleteMumaTile(id: String) {
@@ -740,9 +734,7 @@ class CachedMusicService(private val musicService: MusicService) :
     }
 
     @Throws(Exception::class)
-    override fun getMumaSettings(userId: Int, appId: String): String? {
-        return musicService.getMumaSettings(userId, appId)
-    }
+    override fun getMumaSettings(userId: Int, appId: String): String? = musicService.getMumaSettings(userId, appId)
 
     @Throws(Exception::class)
     override fun saveMumaSettings(userId: Int, appId: String, settings: String) {

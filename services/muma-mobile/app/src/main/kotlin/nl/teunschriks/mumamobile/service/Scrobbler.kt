@@ -10,13 +10,13 @@ package nl.teunschriks.mumamobile.service
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.car.CarModeSession
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.isScrobblingEnabled
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.home.PlayHistoryRecorder
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import timber.log.Timber
 
 /**
@@ -132,8 +132,7 @@ class Scrobbler :
          * An unknown duration counts. The caller not having measured it is not evidence that the
          * play was short, and refusing those would drop listens that used to be recorded.
          */
-        fun isLongEnoughToCount(playedSeconds: Long?): Boolean =
-            playedSeconds == null || playedSeconds >= MINIMUM_PLAYED_SECONDS
+        fun isLongEnoughToCount(playedSeconds: Long?): Boolean = playedSeconds == null || playedSeconds >= MINIMUM_PLAYED_SECONDS
 
         /** The origin to report. The car is its own answer, not a variation of the phone. */
         fun sourceFor(inCar: Boolean): String = if (inCar) SOURCE_AUTO else SOURCE_MOBILE

@@ -3,11 +3,11 @@
 package nl.teunschriks.mumamobile.domain
 
 import java.util.Calendar
+import nl.teunschriks.mumamobile.api.subsonic.models.Album
+import nl.teunschriks.mumamobile.api.subsonic.models.Artist
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.shouldBeNull
 import org.junit.Test
-import nl.teunschriks.mumamobile.api.subsonic.models.Album
-import nl.teunschriks.mumamobile.api.subsonic.models.Artist
 
 /**
  * Unit test for extension functions in APIArtistConverter.kt file.

@@ -38,8 +38,7 @@ class MemoriesProvider(
      */
     override val cacheKey: String get() = "memories:${today()}"
 
-    override fun sectionOf(cards: List<HomeCard>): HomeSection =
-        HomeSection(titleRes, CardStyle.BANNER, cards)
+    override fun sectionOf(cards: List<HomeCard>): HomeSection = HomeSection(titleRes, CardStyle.BANNER, cards)
 
     /**
      * A server that does not know the endpoint (an older LMS, or a plain Subsonic server) throws

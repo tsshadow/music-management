@@ -210,7 +210,7 @@ class TrackCollectionModel(application: Application) : GenericListModel(applicat
             } else {
                 loadedUntil = size
             }
-            
+
             // Check if we have more data
             val currentItems = currentList.value ?: emptyList()
             if (currentItems.size < size + offset) {

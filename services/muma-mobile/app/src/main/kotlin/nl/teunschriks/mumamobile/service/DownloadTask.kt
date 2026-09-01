@@ -16,8 +16,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.MetaDatabase
 import nl.teunschriks.mumamobile.domain.Album
@@ -30,6 +28,8 @@ import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Storage
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.Util.safeClose
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import timber.log.Timber
 
 private const val MAX_RETRIES = 5

@@ -1,6 +1,5 @@
 package nl.teunschriks.mumamobile.util
 
-import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import nl.teunschriks.mumamobile.api.muma.MumaTokenStorage

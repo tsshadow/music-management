@@ -14,7 +14,6 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.adapters.BaseAdapter
-import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.MusicDirectoryEntry
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.fragment.FragmentTitle.setTitle

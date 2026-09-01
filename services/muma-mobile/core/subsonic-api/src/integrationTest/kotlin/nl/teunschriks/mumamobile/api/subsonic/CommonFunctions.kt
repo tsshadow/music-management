@@ -6,6 +6,8 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
+import nl.teunschriks.mumamobile.api.subsonic.response.SubsonicResponse
+import nl.teunschriks.mumamobile.api.subsonic.rules.MockWebServerRule
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okio.buffer
@@ -13,8 +15,6 @@ import okio.source
 import org.amshove.kluent.`should be`
 import org.amshove.kluent.`should contain`
 import org.amshove.kluent.`should not be`
-import nl.teunschriks.mumamobile.api.subsonic.response.SubsonicResponse
-import nl.teunschriks.mumamobile.api.subsonic.rules.MockWebServerRule
 import retrofit2.Response
 
 const val USERNAME = "some-user"

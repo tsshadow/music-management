@@ -3,15 +3,15 @@ package nl.teunschriks.mumamobile.util
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import androidx.appcompat.app.AlertDialog
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import nl.teunschriks.mumamobile.BuildConfig
+import nl.teunschriks.mumamobile.R
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
-import nl.teunschriks.mumamobile.BuildConfig
-import nl.teunschriks.mumamobile.R
 import timber.log.Timber
 
 /**
@@ -38,7 +38,7 @@ object UpdateChecker {
             .appendQueryParameter("v", versionName)
             .appendQueryParameter("c", versionCode.toString())
             .build()
-        
+
         Timber.d("Opening update site: $uri")
         try {
             val intent = Intent(Intent.ACTION_VIEW, uri)
@@ -69,9 +69,9 @@ object UpdateChecker {
                 if (latestVersionCode > currentVersionCode) {
                     val latestVersionName = latestVersion.optString("versionName", "")
                     val downloadUrl = latestVersion.optString("url", "")
-                    
+
                     Timber.i("New version available: $latestVersionName ($latestVersionCode)")
-                    
+
                     withContext(Dispatchers.Main) {
                         showUpdateDialog(context, latestVersionName, downloadUrl)
                     }
@@ -106,7 +106,7 @@ object UpdateChecker {
             .header("User-Agent", "Ultrasonic/${BuildConfig.VERSION_NAME}")
             .header("X-Upload-Password", BuildConfig.APK_HOST_PASSWORD)
             .build()
-        
+
         try {
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {

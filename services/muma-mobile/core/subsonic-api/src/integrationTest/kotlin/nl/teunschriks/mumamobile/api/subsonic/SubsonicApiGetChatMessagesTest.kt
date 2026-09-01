@@ -1,8 +1,8 @@
 package nl.teunschriks.mumamobile.api.subsonic
 
+import nl.teunschriks.mumamobile.api.subsonic.models.ChatMessage
 import org.amshove.kluent.`should be equal to`
 import org.junit.Test
-import nl.teunschriks.mumamobile.api.subsonic.models.ChatMessage
 
 /**
  * Integration test for [SubsonicAPIDefinition.getChatMessages] call.

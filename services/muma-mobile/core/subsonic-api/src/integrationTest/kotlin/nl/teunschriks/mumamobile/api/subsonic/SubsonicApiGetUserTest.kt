@@ -1,8 +1,8 @@
 package nl.teunschriks.mumamobile.api.subsonic
 
+import nl.teunschriks.mumamobile.api.subsonic.models.User
 import org.amshove.kluent.`should be equal to`
 import org.junit.Test
-import nl.teunschriks.mumamobile.api.subsonic.models.User
 
 /**
  * Integration test for [SubsonicAPIDefinition.getUser] call.

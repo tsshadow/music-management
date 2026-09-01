@@ -2,10 +2,10 @@ package nl.teunschriks.mumamobile.di
 
 import android.content.Context
 import androidx.room.Room
-import org.koin.android.ext.koin.androidContext
-import org.koin.core.module.dsl.viewModel
-import org.koin.core.qualifier.named
-import org.koin.dsl.module
+import nl.teunschriks.mumamobile.car.CarConnectionWatcher
+import nl.teunschriks.mumamobile.car.CarModeNotifier
+import nl.teunschriks.mumamobile.car.CarModeSession
+import nl.teunschriks.mumamobile.car.CarPresence
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.AppDatabase
 import nl.teunschriks.mumamobile.data.MIGRATION_1_2
@@ -21,10 +21,6 @@ import nl.teunschriks.mumamobile.data.MIGRATION_6_5
 import nl.teunschriks.mumamobile.data.MIGRATION_6_7
 import nl.teunschriks.mumamobile.data.MIGRATION_7_8
 import nl.teunschriks.mumamobile.data.MIGRATION_8_9
-import nl.teunschriks.mumamobile.car.CarConnectionWatcher
-import nl.teunschriks.mumamobile.car.CarModeNotifier
-import nl.teunschriks.mumamobile.car.CarModeSession
-import nl.teunschriks.mumamobile.car.CarPresence
 import nl.teunschriks.mumamobile.home.CardListCache
 import nl.teunschriks.mumamobile.home.FavoritesViewModel
 import nl.teunschriks.mumamobile.home.HomeViewModel
@@ -38,6 +34,10 @@ import nl.teunschriks.mumamobile.model.AlbumListModel
 import nl.teunschriks.mumamobile.model.ArtistListModel
 import nl.teunschriks.mumamobile.model.ServerSettingsModel
 import nl.teunschriks.mumamobile.util.Settings
+import org.koin.android.ext.koin.androidContext
+import org.koin.core.module.dsl.viewModel
+import org.koin.core.qualifier.named
+import org.koin.dsl.module
 
 const val SP_NAME = "Default_SP"
 const val DB_FILENAME = "ultrasonic-database"

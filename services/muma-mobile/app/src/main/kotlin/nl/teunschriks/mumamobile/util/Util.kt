@@ -46,6 +46,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.navigation.fragment.findNavController
+import io.noties.markwon.Markwon
 import java.io.Closeable
 import java.io.UnsupportedEncodingException
 import java.security.MessageDigest
@@ -64,7 +65,6 @@ import nl.teunschriks.mumamobile.domain.Bookmark
 import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.SearchResult
 import nl.teunschriks.mumamobile.domain.Track
-import io.noties.markwon.Markwon
 import timber.log.Timber
 
 private const val LINE_LENGTH = 60
@@ -99,14 +99,13 @@ object Util {
         context.theme.applyStyle(R.style.UltrasonicTheme_Base, true)
     }
 
-    private fun getStyleFromSettings(context: Context): Int =
-        if (Settings.style.lowercase() == context.getString(R.string.setting_key_style_muma)) {
-            R.style.UltrasonicTheme_Muma
-        } else {
-            // Anything else, including a value left behind by the old accent preference, is the
-            // Spotify style - the one the app already rendered, so an upgrade changes nothing.
-            R.style.UltrasonicTheme_Spotify
-        }
+    private fun getStyleFromSettings(context: Context): Int = if (Settings.style.lowercase() == context.getString(R.string.setting_key_style_muma)) {
+        R.style.UltrasonicTheme_Muma
+    } else {
+        // Anything else, including a value left behind by the old accent preference, is the
+        // Spotify style - the one the app already rendered, so an upgrade changes nothing.
+        R.style.UltrasonicTheme_Spotify
+    }
 
     fun getString(@StringRes resId: Int): String = applicationContext().resources.getString(resId)
 

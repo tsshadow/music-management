@@ -16,10 +16,10 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
 import androidx.fragment.app.Fragment
-import androidx.navigation.fragment.findNavController
 import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
+import androidx.navigation.fragment.findNavController
 import java.util.Locale
+import kotlinx.coroutines.launch
 import nl.teunschriks.mumamobile.BuildConfig
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.util.UpdateChecker

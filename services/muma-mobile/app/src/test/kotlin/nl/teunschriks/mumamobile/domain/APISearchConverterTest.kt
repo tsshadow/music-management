@@ -2,15 +2,15 @@
 
 package nl.teunschriks.mumamobile.domain
 
-import org.amshove.kluent.`should be equal to`
-import org.amshove.kluent.`should not be equal to`
-import org.junit.Test
 import nl.teunschriks.mumamobile.api.subsonic.models.Album
 import nl.teunschriks.mumamobile.api.subsonic.models.Artist
 import nl.teunschriks.mumamobile.api.subsonic.models.MusicDirectoryChild
 import nl.teunschriks.mumamobile.api.subsonic.models.SearchResult
 import nl.teunschriks.mumamobile.api.subsonic.models.SearchThreeResult
 import nl.teunschriks.mumamobile.api.subsonic.models.SearchTwoResult
+import org.amshove.kluent.`should be equal to`
+import org.amshove.kluent.`should not be equal to`
+import org.junit.Test
 
 /**
  * Unit test for extension function in APISearchConverter.kt file.

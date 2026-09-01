@@ -3,9 +3,6 @@
 package nl.teunschriks.mumamobile.di
 
 import kotlin.math.abs
-import okhttp3.logging.HttpLoggingInterceptor
-import org.koin.core.qualifier.named
-import org.koin.dsl.module
 import nl.teunschriks.mumamobile.BuildConfig
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions
@@ -17,6 +14,9 @@ import nl.teunschriks.mumamobile.service.MusicService
 import nl.teunschriks.mumamobile.service.OfflineMusicService
 import nl.teunschriks.mumamobile.service.RESTMusicService
 import nl.teunschriks.mumamobile.util.Constants
+import okhttp3.logging.HttpLoggingInterceptor
+import org.koin.core.qualifier.named
+import org.koin.dsl.module
 
 /**
  * This Koin module contains the registration of classes related to the Music Services

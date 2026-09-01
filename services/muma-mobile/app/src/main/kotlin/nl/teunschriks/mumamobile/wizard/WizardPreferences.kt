@@ -26,8 +26,7 @@ class SharedWizardPreferences(context: Context) : WizardPreferences {
 
     override fun putBoolean(key: String, value: Boolean) = store.edit { putBoolean(key, value) }
 
-    override fun getString(key: String, default: String): String =
-        store.getString(key, default) ?: default
+    override fun getString(key: String, default: String): String = store.getString(key, default) ?: default
 
     override fun putString(key: String, value: String) = store.edit { putString(key, value) }
 }

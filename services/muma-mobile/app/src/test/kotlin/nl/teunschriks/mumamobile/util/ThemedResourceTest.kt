@@ -30,8 +30,7 @@ class ThemedResourceTest {
     private val green = 0xFF1DB954.toInt()
     private val setsBlue = 0xFF2D5AFC.toInt()
 
-    private fun themed(theme: Int): Context =
-        ContextThemeWrapper(RuntimeEnvironment.getApplication(), theme)
+    private fun themed(theme: Int): Context = ContextThemeWrapper(RuntimeEnvironment.getApplication(), theme)
 
     private fun buttonColor(theme: Int): Int {
         val drawable =

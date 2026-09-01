@@ -18,14 +18,14 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.ServerSetting
 import nl.teunschriks.mumamobile.domain.MusicFolder
 import nl.teunschriks.mumamobile.service.MusicService
 import nl.teunschriks.mumamobile.service.MusicServiceFactory
 import nl.teunschriks.mumamobile.util.CommunicationError
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 /**
  * An abstract Model, which can be extended to retrieve a list of items from the API

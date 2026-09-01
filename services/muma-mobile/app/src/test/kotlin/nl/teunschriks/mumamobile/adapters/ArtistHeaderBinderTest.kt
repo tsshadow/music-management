@@ -13,13 +13,13 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.view.isVisible
+import nl.teunschriks.mumamobile.R
+import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.util.Settings
 import org.amshove.kluent.`should be equal to`
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import nl.teunschriks.mumamobile.R
-import nl.teunschriks.mumamobile.app.UApp
-import nl.teunschriks.mumamobile.util.Settings
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config

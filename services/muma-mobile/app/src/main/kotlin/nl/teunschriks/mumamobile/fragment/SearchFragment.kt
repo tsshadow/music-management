@@ -8,7 +8,6 @@
 package nl.teunschriks.mumamobile.fragment
 
 import android.os.Bundle
-import android.graphics.Color
 import android.view.MenuItem
 import android.view.View
 import androidx.core.view.isVisible
@@ -17,9 +16,10 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.google.android.material.snackbar.Snackbar
+import com.google.gson.Gson
 import kotlinx.coroutines.launch
-import org.koin.core.component.KoinScopeComponent
-import org.koin.core.component.inject
+import nl.teunschriks.mumamobile.NavigationGraphDirections
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.adapters.AlbumRowDelegate
 import nl.teunschriks.mumamobile.adapters.ArtistRowBinder
@@ -42,20 +42,18 @@ import nl.teunschriks.mumamobile.subsonic.VideoPlayer.Companion.playVideo
 import nl.teunschriks.mumamobile.util.ContextMenuUtil.handleContextMenu
 import nl.teunschriks.mumamobile.util.ContextMenuUtil.handleContextMenuTracks
 import nl.teunschriks.mumamobile.util.RefreshableFragment
-import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.Settings
+import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.Util.toast
 import nl.teunschriks.mumamobile.util.toastingExceptionHandler
-import nl.teunschriks.mumamobile.voice.SearchIntent
-import nl.teunschriks.mumamobile.voice.VoiceRequest
-import nl.teunschriks.mumamobile.voice.searchIntentFor
 import nl.teunschriks.mumamobile.voice.QueryResolution
+import nl.teunschriks.mumamobile.voice.SearchIntent
 import nl.teunschriks.mumamobile.voice.Target
 import nl.teunschriks.mumamobile.voice.VoiceEntryPoint
-import nl.teunschriks.mumamobile.NavigationGraphDirections
-import androidx.navigation.fragment.findNavController
-import com.google.android.material.snackbar.Snackbar
-import com.google.gson.Gson
+import nl.teunschriks.mumamobile.voice.VoiceRequest
+import nl.teunschriks.mumamobile.voice.searchIntentFor
+import org.koin.core.component.KoinScopeComponent
+import org.koin.core.component.inject
 
 /**
  * Initiates a search on the media library and displays the results
@@ -251,7 +249,6 @@ class SearchFragment :
     }
 
     private fun onArtistSelected(item: ArtistOrIndex) {
-
         // Create action based on type
         val action = if (item is Index) {
             SearchFragmentDirections.searchToTrackCollection(
@@ -278,7 +275,6 @@ class SearchFragment :
     }
 
     private fun onAlbumSelected(album: Album, autoplay: Boolean) {
-
         val action = SearchFragmentDirections.searchToTrackCollection(
             id = album.id,
             name = album.title,

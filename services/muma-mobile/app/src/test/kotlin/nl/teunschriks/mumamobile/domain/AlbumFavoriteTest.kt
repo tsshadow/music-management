@@ -25,6 +25,5 @@ class AlbumFavoriteTest {
         favoriteFor(5) `should be equal to` true
     }
 
-    private fun favoriteFor(rating: Int?): Boolean =
-        Album(id = "album-1", userRating = rating).isFavorite
+    private fun favoriteFor(rating: Int?): Boolean = Album(id = "album-1", userRating = rating).isFavorite
 }

@@ -30,9 +30,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
-import org.koin.java.KoinJavaComponent.inject
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.domain.Track
@@ -45,6 +42,9 @@ import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Storage
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.Util.stopForegroundRemoveNotification
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+import org.koin.java.KoinJavaComponent.inject
 import timber.log.Timber
 
 private const val NOTIFICATION_CHANNEL_ID = "org.moire.ultrasonic"

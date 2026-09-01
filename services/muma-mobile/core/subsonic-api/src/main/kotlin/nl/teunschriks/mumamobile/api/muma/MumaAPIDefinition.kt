@@ -15,7 +15,7 @@ interface MumaAPIDefinition {
     fun login(
         @Body request: LoginRequest
     ): Call<LoginResponse>
-    
+
     @POST("api/auth/google")
     fun googleAuth(
         @Body request: GoogleAuthRequest

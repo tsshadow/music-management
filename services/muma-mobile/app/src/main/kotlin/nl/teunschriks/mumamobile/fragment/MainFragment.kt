@@ -25,10 +25,6 @@ import com.google.android.material.progressindicator.LinearProgressIndicator
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import org.koin.androidx.scope.ScopeFragment
-import org.koin.androidx.viewmodel.ext.android.viewModel
-import org.koin.core.component.KoinScopeComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.home.CardStyle
 import nl.teunschriks.mumamobile.home.HomeCard
@@ -41,6 +37,10 @@ import nl.teunschriks.mumamobile.home.HomeSorts
 import nl.teunschriks.mumamobile.home.HomeViewModel
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.service.RxBus
+import org.koin.androidx.scope.ScopeFragment
+import org.koin.androidx.viewmodel.ext.android.viewModel
+import org.koin.core.component.KoinScopeComponent
+import org.koin.core.component.inject
 import timber.log.Timber
 
 /**

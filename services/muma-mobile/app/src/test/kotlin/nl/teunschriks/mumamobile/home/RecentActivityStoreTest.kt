@@ -7,8 +7,7 @@ import org.junit.Test
 
 class RecentActivityStoreTest {
 
-    private fun card(id: String, type: HomeCardType = HomeCardType.ALBUM) =
-        HomeCard(type = type, itemId = id, title = "T$id")
+    private fun card(id: String, type: HomeCardType = HomeCardType.ALBUM) = HomeCard(type = type, itemId = id, title = "T$id")
 
     private fun store(
         separatePerMode: Boolean = true,

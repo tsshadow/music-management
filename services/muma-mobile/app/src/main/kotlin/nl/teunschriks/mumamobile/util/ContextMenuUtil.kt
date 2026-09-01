@@ -9,13 +9,13 @@ package nl.teunschriks.mumamobile.util
 
 import android.view.MenuItem
 import androidx.fragment.app.Fragment
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.domain.Identifiable
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.subsonic.ShareHandler
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 object ContextMenuUtil : KoinComponent {
 

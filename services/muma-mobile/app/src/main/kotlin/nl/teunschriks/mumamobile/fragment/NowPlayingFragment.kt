@@ -21,8 +21,6 @@ import com.google.android.material.button.MaterialButton
 import io.reactivex.rxjava3.disposables.Disposable
 import java.lang.Exception
 import kotlin.math.abs
-import org.koin.android.ext.android.inject
-import org.koin.androidx.scope.ScopeFragment
 import nl.teunschriks.mumamobile.NavigationGraphDirections
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
@@ -31,8 +29,10 @@ import nl.teunschriks.mumamobile.subsonic.ImageLoaderProvider
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Util.applyTheme
 import nl.teunschriks.mumamobile.util.Util.getNotificationImageSize
-import nl.teunschriks.mumamobile.util.toTrack
 import nl.teunschriks.mumamobile.util.themeColor
+import nl.teunschriks.mumamobile.util.toTrack
+import org.koin.android.ext.android.inject
+import org.koin.androidx.scope.ScopeFragment
 import timber.log.Timber
 
 /**

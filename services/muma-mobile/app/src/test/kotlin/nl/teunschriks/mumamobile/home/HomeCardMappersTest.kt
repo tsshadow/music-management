@@ -1,13 +1,13 @@
 package nl.teunschriks.mumamobile.home
 
-import org.amshove.kluent.`should be equal to`
-import org.amshove.kluent.shouldBeNull
-import org.junit.Test
 import nl.teunschriks.mumamobile.domain.Album
 import nl.teunschriks.mumamobile.domain.Artist
 import nl.teunschriks.mumamobile.domain.Label
 import nl.teunschriks.mumamobile.domain.Playlist
 import nl.teunschriks.mumamobile.domain.Track
+import org.amshove.kluent.`should be equal to`
+import org.amshove.kluent.shouldBeNull
+import org.junit.Test
 
 class HomeCardMappersTest {
 

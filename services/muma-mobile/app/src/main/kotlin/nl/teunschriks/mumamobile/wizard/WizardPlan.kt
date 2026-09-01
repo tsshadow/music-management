@@ -1,3 +1,9 @@
+// ktlint's filename rule wants this file called PlannedStep.kt, after the only
+// class in it. The class is the *result* of plan() below; naming the file after
+// it would describe the less interesting half of what lives here, and
+// WizardPlanTest.kt would then no longer sit beside the thing it tests.
+@file:Suppress("ktlint:standard:filename")
+
 package nl.teunschriks.mumamobile.wizard
 
 data class PlannedStep(val step: WizardStep, val isNew: Boolean)

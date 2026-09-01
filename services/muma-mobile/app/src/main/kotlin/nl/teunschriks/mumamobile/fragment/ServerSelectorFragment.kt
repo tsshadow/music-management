@@ -9,8 +9,6 @@ import android.widget.ListView
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import org.koin.android.ext.android.inject
-import org.koin.androidx.viewmodel.ext.android.viewModel
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.adapters.ServerRowAdapter
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
@@ -19,6 +17,8 @@ import nl.teunschriks.mumamobile.data.ServerSetting
 import nl.teunschriks.mumamobile.model.ServerSettingsModel
 import nl.teunschriks.mumamobile.util.ErrorDialog
 import nl.teunschriks.mumamobile.util.Util
+import org.koin.android.ext.android.inject
+import org.koin.androidx.viewmodel.ext.android.viewModel
 import timber.log.Timber
 
 /**

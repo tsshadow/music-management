@@ -6,12 +6,12 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceGroup
 import androidx.preference.PreferenceManager
 import androidx.preference.PreferenceScreen
+import nl.teunschriks.mumamobile.R
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.`should contain same`
 import org.amshove.kluent.`should not be null`
 import org.junit.Test
 import org.junit.runner.RunWith
-import nl.teunschriks.mumamobile.R
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
@@ -57,9 +57,8 @@ class TrackListLinesSettingTest {
         preference.entries.size `should be equal to` 2
     }
 
-    private fun flatten(group: PreferenceGroup): List<Preference> =
-        (0 until group.preferenceCount).flatMap {
-            val child = group.getPreference(it)
-            if (child is PreferenceGroup) listOf(child) + flatten(child) else listOf(child)
-        }
+    private fun flatten(group: PreferenceGroup): List<Preference> = (0 until group.preferenceCount).flatMap {
+        val child = group.getPreference(it)
+        if (child is PreferenceGroup) listOf(child) + flatten(child) else listOf(child)
+    }
 }

@@ -1,8 +1,8 @@
 package nl.teunschriks.mumamobile.api.subsonic
 
+import nl.teunschriks.mumamobile.api.subsonic.response.SubsonicResponse
 import org.amshove.kluent.`should be`
 import org.junit.Test
-import nl.teunschriks.mumamobile.api.subsonic.response.SubsonicResponse
 
 /**
  * Integration test for [SubsonicAPIClient] for star request.

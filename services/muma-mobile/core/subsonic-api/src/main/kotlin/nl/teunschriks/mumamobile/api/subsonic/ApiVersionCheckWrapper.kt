@@ -7,7 +7,6 @@
 
 package nl.teunschriks.mumamobile.api.subsonic
 
-import okhttp3.ResponseBody
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_11_0
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_12_0
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_14_0
@@ -32,7 +31,6 @@ import nl.teunschriks.mumamobile.api.subsonic.response.GetArtistInfo2Response
 import nl.teunschriks.mumamobile.api.subsonic.response.GetArtistResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.GetArtistsResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.GetLyricsResponse
-import nl.teunschriks.mumamobile.api.subsonic.response.GetPlaylistResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.GetPlaylistsResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.GetPodcastsResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.GetRandomSongsResponse
@@ -51,6 +49,7 @@ import nl.teunschriks.mumamobile.api.subsonic.response.SubsonicResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.TagsResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.VideosResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.YearsResponse
+import okhttp3.ResponseBody
 import retrofit2.Call
 
 /**
@@ -182,7 +181,6 @@ internal class ApiVersionCheckWrapper(
         checkVersion(V1_8_0)
         return api.updatePlaylist(id, name, comment, public, songIdsToAdd, songIndexesToRemove)
     }
-
 
     override fun getPodcasts(includeEpisodes: Boolean?, id: String?): Call<GetPodcastsResponse> {
         checkVersion(V1_6_0)

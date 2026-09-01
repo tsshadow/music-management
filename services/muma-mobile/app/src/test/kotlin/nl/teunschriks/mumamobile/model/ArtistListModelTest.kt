@@ -12,6 +12,13 @@ import io.mockk.every
 import io.mockk.mockk
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.di.OFFLINE_MUSIC_SERVICE
+import nl.teunschriks.mumamobile.di.musicServiceModule
+import nl.teunschriks.mumamobile.domain.Artist
+import nl.teunschriks.mumamobile.fragment.LibraryQuery
+import nl.teunschriks.mumamobile.service.MusicService
+import nl.teunschriks.mumamobile.util.Settings
 import org.amshove.kluent.`should be equal to`
 import org.junit.After
 import org.junit.Before
@@ -22,13 +29,6 @@ import org.koin.core.context.unloadKoinModules
 import org.koin.core.module.Module
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
-import nl.teunschriks.mumamobile.app.UApp
-import nl.teunschriks.mumamobile.di.OFFLINE_MUSIC_SERVICE
-import nl.teunschriks.mumamobile.di.musicServiceModule
-import nl.teunschriks.mumamobile.domain.Artist
-import nl.teunschriks.mumamobile.fragment.LibraryQuery
-import nl.teunschriks.mumamobile.service.MusicService
-import nl.teunschriks.mumamobile.util.Settings
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-09-01
+
 ### Added
 - **Databasebackups die zichzelf bewijzen, in plaats van bestanden die er staan.** Het ontwerp uit
   `docs/superpowers/specs/2026-08-02-daily-db-backups-design.md` is gebouwd: `tools/db_backup.py`

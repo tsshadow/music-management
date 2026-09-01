@@ -37,7 +37,6 @@ def mocked_db(mock_get_db):
 
 
 class AnalyticsTest(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         self.headers = {'x-api-key': API_KEY}
@@ -50,9 +49,15 @@ class AnalyticsTest(unittest.TestCase):
     def test_summary_reports_counts_and_coverage(self, mock_get_db):
         cursor = mocked_db(mock_get_db)
         cursor.fetchone.return_value = {
-            'tracks': 100, 'artists': 20, 'labels': 5, 'genres': 8,
+            'tracks': 100,
+            'artists': 20,
+            'labels': 5,
+            'genres': 8,
             'total_duration_secs': 36000.0,
-            'with_bpm': 40, 'with_genre': 25, 'with_artist': 80, 'analyzed': 40,
+            'with_bpm': 40,
+            'with_genre': 25,
+            'with_artist': 80,
+            'analyzed': 40,
         }
         res = self.client.get('/api/analytics/summary', headers=self.headers)
         self.assertEqual(res.status_code, 200)
@@ -68,9 +73,15 @@ class AnalyticsTest(unittest.TestCase):
     def test_summary_coverage_is_zero_when_no_tracks_match(self, mock_get_db):
         cursor = mocked_db(mock_get_db)
         cursor.fetchone.return_value = {
-            'tracks': 0, 'artists': 0, 'labels': 0, 'genres': 0,
+            'tracks': 0,
+            'artists': 0,
+            'labels': 0,
+            'genres': 0,
             'total_duration_secs': None,
-            'with_bpm': 0, 'with_genre': 0, 'with_artist': 0, 'analyzed': 0,
+            'with_bpm': 0,
+            'with_genre': 0,
+            'with_artist': 0,
+            'analyzed': 0,
         }
         res = self.client.get('/api/analytics/summary', headers=self.headers)
         self.assertEqual(res.status_code, 200)
@@ -116,8 +127,7 @@ class AnalyticsTest(unittest.TestCase):
 
     def test_bpm_histogram_rejects_an_out_of_range_bucket(self):
         for bucket in (0, 51):
-            res = self.client.get(f'/api/analytics/bpm-histogram?bucket={bucket}',
-                                  headers=self.headers)
+            res = self.client.get(f'/api/analytics/bpm-histogram?bucket={bucket}', headers=self.headers)
             self.assertEqual(res.status_code, 422)
 
     @patch('services.music_manager.routers.analytics.get_db_connection')
@@ -164,8 +174,7 @@ class AnalyticsTest(unittest.TestCase):
     def test_filter_values_are_passed_as_bound_parameters(self, mock_get_db):
         cursor = mocked_db(mock_get_db)
         cursor.fetchall.return_value = []
-        self.client.get('/api/analytics/top-artists?genre=Hardcore&bpm_min=190',
-                        headers=self.headers)
+        self.client.get('/api/analytics/top-artists?genre=Hardcore&bpm_min=190', headers=self.headers)
         sql, params = cursor.execute.call_args.args
         self.assertNotIn('Hardcore', sql)
         self.assertIn('Hardcore', params)

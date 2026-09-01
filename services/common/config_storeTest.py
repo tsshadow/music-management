@@ -53,7 +53,6 @@ class ConfigStoreTestCase(unittest.TestCase):
 
 
 class ConfigStoreDefaultsTest(ConfigStoreTestCase):
-
     def test_unset_keys_fall_back_to_their_declared_default(self):
         self.assertFalse(self.store.get('debug'))
         self.assertEqual(self.store.get('telegram_max_concurrent'), 4)
@@ -221,7 +220,6 @@ class ConfigStoreUppercaseEnvironmentTest(ConfigStoreTestCase):
 
 
 class ConfigStoreDiskTest(ConfigStoreTestCase):
-
     def write_config_file(self):
         self.config_path.write_text(
             json.dumps({'notify_topic': 'from-disk', 'db_port': '3308', 'unknown_key': 'ignored', 'debug': 'nonsense'}),
@@ -238,7 +236,6 @@ class ConfigStoreDiskTest(ConfigStoreTestCase):
 
 
 class ConfigStoreBrokenDiskTest(ConfigStoreTestCase):
-
     def write_config_file(self):
         self.config_path.write_text('{ this is not json', encoding='utf-8')
 
@@ -247,7 +244,6 @@ class ConfigStoreBrokenDiskTest(ConfigStoreTestCase):
 
 
 class ConfigStoreNonMappingDiskTest(ConfigStoreTestCase):
-
     def write_config_file(self):
         self.config_path.write_text('["not", "a", "mapping"]', encoding='utf-8')
 
@@ -256,7 +252,6 @@ class ConfigStoreNonMappingDiskTest(ConfigStoreTestCase):
 
 
 class ConfigStoreUpdateTest(ConfigStoreTestCase):
-
     def test_update_stores_and_persists_the_new_values(self):
         result = self.store.update({'notify_topic': 'muma', 'debug': 'on'})
 
@@ -333,7 +328,6 @@ class ConfigStoreUpdateTest(ConfigStoreTestCase):
 
 
 class ConfigStoreCoercionTest(ConfigStoreTestCase):
-
     def coerce(self, value, type_='string', nullable=True):
         return self.store._coerce(ConfigField(key='sample', type=type_, nullable=nullable), value)
 

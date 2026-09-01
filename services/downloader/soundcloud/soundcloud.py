@@ -50,10 +50,12 @@ DURATION_BOUNDS = (60, 21600)
 # setting, which should track the Firefox in docker-compose.
 FIREFOX_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0'
 
+
 def account_from_url(url: str) -> str:
     """The account a SoundCloud URL belongs to, for reporting and write-offs."""
     parts = [part for part in str(url).split('/') if part]
     return parts[2] if len(parts) > 2 else str(url)
+
 
 def get_accounts_from_db():
     try:
@@ -64,6 +66,7 @@ def get_accounts_from_db():
     except Exception as e:
         logging.error(f'Failed to fetch SoundCloud accounts from DB: {e}')
         return []
+
 
 class SoundcloudDownloader:
     """
@@ -82,8 +85,17 @@ class SoundcloudDownloader:
     which is how the tests stay away from the database.
     """
 
-    def __init__(self, break_on_existing=True, dry_run=False, timing=None, rate_state=None,
-                 schedule=None, unavailable=None, notifier=None, deep=False):
+    def __init__(
+        self,
+        break_on_existing=True,
+        dry_run=False,
+        timing=None,
+        rate_state=None,
+        schedule=None,
+        unavailable=None,
+        notifier=None,
+        deep=False,
+    ):
         self._config = ConfigStore()
         self.default_break_on_existing = break_on_existing
         self.dry_run = dry_run
@@ -91,10 +103,12 @@ class SoundcloudDownloader:
         # Forces the deep path for every account this run, whatever the cadence
         # says. What `--deep` on the CLI turns on.
         self.deep_mode = deep
-        self.policy = SweepPolicy(SOURCE, timing=timing, rate_state=rate_state, schedule=schedule,
-                                  notifier=notifier)
-        self.unavailable = unavailable if unavailable is not None else WriteOffs(
-            SOURCE, retry_days=self.policy.timing.unavailable_retry_days)
+        self.policy = SweepPolicy(SOURCE, timing=timing, rate_state=rate_state, schedule=schedule, notifier=notifier)
+        self.unavailable = (
+            unavailable
+            if unavailable is not None
+            else WriteOffs(SOURCE, retry_days=self.policy.timing.unavailable_retry_days)
+        )
         self._profile_snapshot: str | None = None
         # What this sweep learned per account, waiting to be written to the
         # schedule once the account's future comes back.
@@ -120,6 +134,7 @@ class SoundcloudDownloader:
         signal that separates "one track is not for us" from "we are being kept
         out": an account that yields no metadata *and* a 403 gave us nothing.
         """
+
         def _filter(info):
             report.note_extracted(info.get('id'), info.get('timestamp'))
             if self.unavailable.should_skip(account, info.get('id'), DURATION_BOUNDS):
@@ -132,9 +147,9 @@ class SoundcloudDownloader:
                 # and could never report the account finished.
                 duration = int(info.get('duration') or 0)
                 reason = 'too_short' if duration < DURATION_BOUNDS[0] else 'too_long'
-                self.unavailable.remember(account, info.get('id'), reason,
-                                          duration=duration)
+                self.unavailable.remember(account, info.get('id'), reason, duration=duration)
             return verdict
+
         return _filter
 
     def _match_filter(self, info):
@@ -208,13 +223,19 @@ class SoundcloudDownloader:
         ids = [entry.track_id for entry in listing]
         held = self._held_ids(account, ids)
         write_offs = self.unavailable.load_many(account, ids)
-        wanted = wanted_tracks(listing, held, write_offs,
-                               self.timing.unavailable_retry_days, datetime.now(),
-                               DURATION_BOUNDS)
-        batch = wanted[:self.timing.deep_sweep_max_downloads]
-        logging.info('Deep sweep of %s: %d listed, %d held, %d written off, '
-                     '%d missing, fetching %d.', account, len(listing), len(held),
-                     len(write_offs), len(wanted), len(batch))
+        wanted = wanted_tracks(
+            listing, held, write_offs, self.timing.unavailable_retry_days, datetime.now(), DURATION_BOUNDS
+        )
+        batch = wanted[: self.timing.deep_sweep_max_downloads]
+        logging.info(
+            'Deep sweep of %s: %d listed, %d held, %d written off, %d missing, fetching %d.',
+            account,
+            len(listing),
+            len(held),
+            len(write_offs),
+            len(wanted),
+            len(batch),
+        )
         parked = False
         attempted: list = []
         try:
@@ -229,21 +250,20 @@ class SoundcloudDownloader:
             parked = True
             raise
         finally:
-            report = self._settle_deep(account, listing, held, write_offs, wanted,
-                                       batch, attempted, parked)
+            report = self._settle_deep(account, listing, held, write_offs, wanted, batch, attempted, parked)
             logging.info('Deep sweep of %s: %s', account, report.summary())
         return report
 
-    def _settle_deep(self, account: str, listing, held, write_offs, wanted, batch,
-                     attempted, parked: bool) -> DeepSweepReport:
+    def _settle_deep(
+        self, account: str, listing, held, write_offs, wanted, batch, attempted, parked: bool
+    ) -> DeepSweepReport:
         """Count what actually arrived, and write off what did not.
 
         One extra lookup per pass. A track that neither downloaded nor rejected
         has to be counted, or a single permanently broken track keeps its account
         incomplete and re-swept every day forever.
         """
-        arrived = self._held_ids(
-            account, [entry.track_id for entry in attempted]) if attempted else set()
+        arrived = self._held_ids(account, [entry.track_id for entry in attempted]) if attempted else set()
         downloaded = 0
         for entry in attempted:
             if entry.track_id in arrived:
@@ -257,10 +277,15 @@ class SoundcloudDownloader:
                 # Rejected during this very pass. A decision, not a failure.
                 continue
             self.unavailable.note_failure(account, entry.track_id)
-        return DeepSweepReport(listed=len(listing), held=len(held),
-                               written_off=len(write_offs), wanted=len(wanted),
-                               downloaded=downloaded,
-                               capped=len(wanted) > len(batch), parked=parked)
+        return DeepSweepReport(
+            listed=len(listing),
+            held=len(held),
+            written_off=len(write_offs),
+            wanted=len(wanted),
+            downloaded=downloaded,
+            capped=len(wanted) > len(batch),
+            parked=parked,
+        )
 
     def _check_account(self, account: str, ydl_opts: dict) -> None:
         """One account: ask what its newest track is, and only dig in if it is new."""
@@ -274,8 +299,7 @@ class SoundcloudDownloader:
         if probe is not None:
             self._seen_tracks[account] = probe.track_id
             if SoundcloudArchive.track_exists(probe.track_id):
-                logging.info('%s has nothing new; newest track %s is already archived.',
-                             account, probe.track_id)
+                logging.info('%s has nothing new; newest track %s is already archived.', account, probe.track_id)
                 # Not optional: without this a stretch of quiet accounts leaves
                 # the blank run untouched, and the next genuinely blank account
                 # can tip the source over block_threshold and park it.
@@ -300,14 +324,14 @@ class SoundcloudDownloader:
             learned['last_seen_track_id'] = track_id
         return learned
 
-    def download_account(self, name: str, yt_dl_opts: dict=None):
+    def download_account(self, name: str, yt_dl_opts: dict = None):
         self.policy.guard(name)
         link = f'http://soundcloud.com/{name}/tracks'
         logging.info(f'Downloading from SoundCloud account: {name}')
         self.download_url(link, yt_dl_opts, account=name)
         logging.info(f'Finished downloading from: {name}')
 
-    def download_url(self, url: str, yt_dl_opts: dict=None, account: str | None=None):
+    def download_url(self, url: str, yt_dl_opts: dict = None, account: str | None = None):
         """
         Download tracks from a specific SoundCloud URL (account, playlist, or single track).
 
@@ -349,8 +373,7 @@ class SoundcloudDownloader:
                     logging.info(f'Track for {url} already in archive — skipping.')
                     return
                 if shutdown.is_requested():
-                    raise SweepAborted(
-                        f'Abandoned {url}; the {SOURCE} worker is shutting down.') from e
+                    raise SweepAborted(f'Abandoned {url}; the {SOURCE} worker is shutting down.') from e
                 logging.warning(f'Attempt {attempt} failed for {url}: {e}', exc_info=True)
                 time.sleep(5 * attempt)
         logging.error(f'SoundCloud download failed for {url} after {self.timing.retry_attempts} attempts.')
@@ -368,8 +391,11 @@ class SoundcloudDownloader:
         if outcome == UNAVAILABLE_TRACKS:
             for track_id in report.forbidden_tracks:
                 self.unavailable.remember(account, track_id, reason='403')
-            logging.info('%d track(s) of %s are not available to us; the rest of the '
-                         'account was fine.', len(report.forbidden_tracks), account)
+            logging.info(
+                '%d track(s) of %s are not available to us; the rest of the account was fine.',
+                len(report.forbidden_tracks),
+                account,
+            )
             self.policy.note_progress()
             return
         if outcome == BLANK:
@@ -379,7 +405,7 @@ class SoundcloudDownloader:
             return
         self.policy.note_progress()
 
-    def run(self, account: str='', break_on_existing_arg: bool | None=None, redownload: bool=False):
+    def run(self, account: str = '', break_on_existing_arg: bool | None = None, redownload: bool = False):
         if not getattr(self, 'downloader_config', {}).get('enabled', True):
             logging.warning('SoundCloud soundcloud is not configured; skipping run().')
             return
@@ -399,7 +425,7 @@ class SoundcloudDownloader:
         total_batches = math.ceil(total_accounts / burst_size)
         processed = 0
         for i in range(0, total_accounts, burst_size):
-            batch = accounts[i:i + burst_size]
+            batch = accounts[i : i + burst_size]
             batch_num = i // burst_size + 1
             logging.info(f'Processing batch {batch_num} of {total_batches}')
             try:
@@ -440,7 +466,9 @@ class SoundcloudDownloader:
                     logging.info(str(exc))
                 except Exception as exc:
                     logging.error(f'Unhandled error downloading {acc}: {exc}')
-                job_manager.publish({'type': 'soundcloud-account', 'account': acc, 'current': processed, 'total': total_accounts})
+                job_manager.publish(
+                    {'type': 'soundcloud-account', 'account': acc, 'current': processed, 'total': total_accounts}
+                )
         if rate_limited is not None:
             raise rate_limited
         return processed
@@ -490,11 +518,30 @@ class SoundcloudDownloader:
         return snapshot
 
     def _apply_config(self) -> None:
-        values = self._config.get_many(['soundcloud_folder', 'soundcloud_archive', 'soundcloud_cookies', 'ffmpeg_location', 'soundcloud_user_agent'])
-        self.downloader_config = {'output_folder': values.get('soundcloud_folder') or None, 'archive_dir': values.get('soundcloud_archive') or None, 'cookies_file': values.get('soundcloud_cookies') or 'soundcloud.com_cookies.txt', 'ffmpeg_location': values.get('ffmpeg_location') or '/usr/bin', 'user_agent': values.get('soundcloud_user_agent') or FIREFOX_USER_AGENT, 'enabled': True, 'archive_file': None, 'ydl_opts': {}}
+        values = self._config.get_many(
+            [
+                'soundcloud_folder',
+                'soundcloud_archive',
+                'soundcloud_cookies',
+                'ffmpeg_location',
+                'soundcloud_user_agent',
+            ]
+        )
+        self.downloader_config = {
+            'output_folder': values.get('soundcloud_folder') or None,
+            'archive_dir': values.get('soundcloud_archive') or None,
+            'cookies_file': values.get('soundcloud_cookies') or 'soundcloud.com_cookies.txt',
+            'ffmpeg_location': values.get('ffmpeg_location') or '/usr/bin',
+            'user_agent': values.get('soundcloud_user_agent') or FIREFOX_USER_AGENT,
+            'enabled': True,
+            'archive_file': None,
+            'ydl_opts': {},
+        }
         if not self.downloader_config['output_folder'] or not self.downloader_config['archive_dir']:
             if getattr(self, 'downloader_config', {}).get('enabled', True):
-                logging.warning('Missing required configuration for SoundCloud downloads. SoundCloud downloads will be disabled.')
+                logging.warning(
+                    'Missing required configuration for SoundCloud downloads. SoundCloud downloads will be disabled.'
+                )
             self.downloader_config['enabled'] = False
             self.downloader_config['ydl_opts'] = {}
             self.downloader_config['archive_file'] = None
@@ -506,7 +553,20 @@ class SoundcloudDownloader:
             os.makedirs(self.downloader_config['archive_dir'], exist_ok=True)
             self.downloader_config['archive_file'] = None
         self.downloader_config['enabled'] = True
-        self.downloader_config['ydl_opts'] = {'http_headers': {'User-Agent': self.downloader_config['user_agent']}, 'outtmpl': f"{self.downloader_config['output_folder']}/%(uploader)s/%(title)s.%(ext)s", 'compat_opts': ['filename'], 'nooverwrites': False, 'no_part': True, 'format': 'bestaudio[ext=mp3]', 'quiet': False, 'ignoreerrors': True, 'set_file_timestamp': True, 'ffmpeg_location': self.downloader_config['ffmpeg_location'], 'lazy_playlist': True, **self.timing.to_ydl_opts()}
+        self.downloader_config['ydl_opts'] = {
+            'http_headers': {'User-Agent': self.downloader_config['user_agent']},
+            'outtmpl': f"{self.downloader_config['output_folder']}/%(uploader)s/%(title)s.%(ext)s",
+            'compat_opts': ['filename'],
+            'nooverwrites': False,
+            'no_part': True,
+            'format': 'bestaudio[ext=mp3]',
+            'quiet': False,
+            'ignoreerrors': True,
+            'set_file_timestamp': True,
+            'ffmpeg_location': self.downloader_config['ffmpeg_location'],
+            'lazy_playlist': True,
+            **self.timing.to_ydl_opts(),
+        }
         cookies_file = self.downloader_config['cookies_file']
         if cookies_file:
             if cookies_file.startswith('firefox:'):

@@ -55,12 +55,15 @@ EasyMP4Tags.RegisterTextKey('parsed', 'parsed')
 EasyMP4Tags.RegisterTextKey('festival', 'festival')
 EasyMP4Tags.RegisterTextKey('original_title', 'original_title')
 
+
 class ExtensionNotSupportedException(Exception):
     """Raised when an unsupported music file extension is encountered."""
+
 
 def log_broken_file(pad: str):
     with open(LOG_FILE, 'a', encoding='utf-8') as f:
         f.write(pad + '\n')
+
 
 class BaseSong:
     """
@@ -82,7 +85,13 @@ class BaseSong:
         self._path: str = path
         self._filename = str(paths[-1])
         self._extension = os.path.splitext(self._filename)[1].lower()
-        music_file_classes = {'.mp3': lambda p: (MP3(p, ID3=EasyID3), MusicFileType.MP3), '.flac': lambda p: (FLAC(p), MusicFileType.FLAC), '.wav': lambda p: (WAVE(p), MusicFileType.WAV), '.m4a': lambda p: (MP4(p), MusicFileType.M4A), '.opus': lambda p: (OggOpus(p), MusicFileType.OPUS)}
+        music_file_classes = {
+            '.mp3': lambda p: (MP3(p, ID3=EasyID3), MusicFileType.MP3),
+            '.flac': lambda p: (FLAC(p), MusicFileType.FLAC),
+            '.wav': lambda p: (WAVE(p), MusicFileType.WAV),
+            '.m4a': lambda p: (MP4(p), MusicFileType.M4A),
+            '.opus': lambda p: (OggOpus(p), MusicFileType.OPUS),
+        }
         try:
             self.music_file, self.type = music_file_classes[self._extension](path)
         except KeyError as exc:
@@ -151,7 +160,7 @@ class BaseSong:
         prefix = '----:com.apple.iTunes:'
         changed = False
         for key in [k for k in list(tags.keys()) if str(k).startswith(prefix)]:
-            canonical = prefix + str(key)[len(prefix):].upper()
+            canonical = prefix + str(key)[len(prefix) :].upper()
             if str(key) == canonical:
                 continue
             value = tags[key]
@@ -234,7 +243,11 @@ class BaseSong:
         """
         Apply extra metadata from yt-dlp dump to tag collection.
         """
-        artist = info.get('library_artists', [None])[0] if isinstance(info.get('library_artists'), list) else info.get('artist')
+        artist = (
+            info.get('library_artists', [None])[0]
+            if isinstance(info.get('library_artists'), list)
+            else info.get('artist')
+        )
         if not artist:
             artist = info.get('uploader') or info.get('channel')
         if artist and (not self.tag_collection.get_item_as_string(ARTIST)):
@@ -320,5 +333,12 @@ class BaseSong:
             rule.apply(self)
 
     def __str__(self):
-        fields = [('Title', self.title()), ('Artists', self.artist()), ('Album', self.album()), ('Genre', self.genre()), ('Publisher', self.publisher()), ('Path', self.path())]
+        fields = [
+            ('Title', self.title()),
+            ('Artists', self.artist()),
+            ('Album', self.album()),
+            ('Genre', self.genre()),
+            ('Publisher', self.publisher()),
+            ('Path', self.path()),
+        ]
         return '\n'.join([f'{label}={value}' for label, value in fields if value])

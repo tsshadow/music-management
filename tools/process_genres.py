@@ -8,9 +8,11 @@ sys.path.append(os.getcwd())
 
 try:
     from services.common.config_store import ConfigStore as Settings
-    Settings() # This calls load_dotenv()
+
+    Settings()  # This calls load_dotenv()
     # Force reload environment variables just in case
     from dotenv import load_dotenv
+
     load_dotenv(override=True)
 except ImportError:
     pass
@@ -48,27 +50,28 @@ CORRECTIONS = {
 # Regex for items that are definitely NOT rules_genres
 JUNK_PATTERNS = [
     r'^[\d\s\W]+$',  # Only numbers, spaces, or symbols (e.g., "#", "(", "2021", "---")
-    r'^\d+bpm$',     # BPM values (e.g., "170BPM")
-    r'^@.*',         # Social media handles
-    r'^#.*',         # Hashtag lists (often junk/multiple rules_genres)
-    r'^[\'"].*',     # Starts with quote (often malformed)
-    r'.*mix.*',      # Mixes
-    r'.*festival.*', # Festivals
-    r'.*record.*',   # Records/Labels (mostly)
-    r'^vol\..*',     # Volumes
-    r'^edit$',       # Edit
-    r'^bootleg$',    # Bootleg
-    r'^preview$',    # Preview
-    r'^set$',        # Set
-    r'^live$',       # Live
-    r'^liveset$',    # Liveset
-    r'^track$',      # Track
-    r'^podcast$',    # Podcast
-    r'^ep$',         # EP
-    r'^album$',      # Album
-    r'.*\d{4}.*',    # Years (e.g., "2024")
-    r'.*likes.*',    # "10k likes" etc
+    r'^\d+bpm$',  # BPM values (e.g., "170BPM")
+    r'^@.*',  # Social media handles
+    r'^#.*',  # Hashtag lists (often junk/multiple rules_genres)
+    r'^[\'"].*',  # Starts with quote (often malformed)
+    r'.*mix.*',  # Mixes
+    r'.*festival.*',  # Festivals
+    r'.*record.*',  # Records/Labels (mostly)
+    r'^vol\..*',  # Volumes
+    r'^edit$',  # Edit
+    r'^bootleg$',  # Bootleg
+    r'^preview$',  # Preview
+    r'^set$',  # Set
+    r'^live$',  # Live
+    r'^liveset$',  # Liveset
+    r'^track$',  # Track
+    r'^podcast$',  # Podcast
+    r'^ep$',  # EP
+    r'^album$',  # Album
+    r'.*\d{4}.*',  # Years (e.g., "2024")
+    r'.*likes.*',  # "10k likes" etc
 ]
+
 
 def is_junk(value):
     val_lower = value.lower().strip()
@@ -76,16 +79,18 @@ def is_junk(value):
         return True
     return any(re.match(pattern, val_lower) for pattern in JUNK_PATTERNS)
 
+
 def get_correction(value):
     val_lower = value.lower().strip()
     # Direct match in corrections
     if val_lower in CORRECTIONS:
         return CORRECTIONS[val_lower]
-    
+
     # Check if it contains a known keyword and we want to expand it
     # But be careful not to over-correct valid complex rules_genres
     # For now, let's stick to explicit corrections or simple expansions
     return None
+
 
 class MockHelper:
     def __init__(self, table):
@@ -106,43 +111,41 @@ class MockHelper:
             self.data[key] = corrected or key
         return True
 
+
 def process_genres(json_file=None, dry_run=True, interactive=False):
     genres_list = []
     if json_file:
         with open(json_file) as f:
             data = json.load(f)
         genres_list = [{'value': item['value']} for item in data['subsonic-response']['rules_genres']['genre']]
-    
+
     if dry_run:
         genre_helper = MockHelper('rules_genres')
         ignored_helper = MockHelper('rules_ignored_genres')
         backlog_helper = MockHelper('rules_genre_backlog')
     else:
         from services.common.db_init import ensure_tables_exist
+
         ensure_tables_exist()
-        
+
         from services.common.Helpers.FilterTableHelper import FilterTableHelper
         from services.common.Helpers.TableHelper import TableHelper
+
         genre_helper = FilterTableHelper('rules_genres', 'name', 'corrected_genre')
         ignored_helper = TableHelper('rules_ignored_genres', 'name')
         backlog_helper = TableHelper('rules_genre_backlog', 'genre')
-        
+
     if not json_file and not dry_run:
         print("Reading rules_genres from database backlog...")
         genres_list = [{'value': g} for g in backlog_helper.get_all_values()]
-    
-    results = {
-        'ignored': [],
-        'corrected': [],
-        'valid': [],
-        'already_exists': []
-    }
+
+    results = {'ignored': [], 'corrected': [], 'valid': [], 'already_exists': []}
 
     for item in genres_list:
         value = item['value'].strip()
         if not value:
             continue
-            
+
         # 1. Check if alrady in DB (including corrected_genre)
         existing_correction = genre_helper.get_corrected_or_exists(value)
         if existing_correction:
@@ -150,15 +153,15 @@ def process_genres(json_file=None, dry_run=True, interactive=False):
                 results['already_exists'].append(f"{value} (already corrected to {existing_correction})")
             else:
                 results['already_exists'].append(value)
-            
+
             if not dry_run and hasattr(backlog_helper, 'delete'):
-                 backlog_helper.delete(value)
+                backlog_helper.delete(value)
             continue
 
         if ignored_helper.exists(value):
             results['already_exists'].append(value + " (ignored)")
             if not dry_run and hasattr(backlog_helper, 'delete'):
-                 backlog_helper.delete(value)
+                backlog_helper.delete(value)
             continue
 
         # 2. Check for junk
@@ -181,7 +184,7 @@ def process_genres(json_file=None, dry_run=True, interactive=False):
                     backlog_helper.delete(value)
             results['corrected'].append(f"{value} -> {correction}")
             continue
-            
+
         # 4. Interactive or default handling
         if interactive and not dry_run:
             print(f"\nUnknown genre detected: '{value}'")
@@ -208,12 +211,12 @@ def process_genres(json_file=None, dry_run=True, interactive=False):
         # 5. Default: Normalize and keep if not interactive
         normalized = value.title()
         if normalized != value:
-             print(f"Normalizing: '{value}' -> '{normalized}'")
-             if not dry_run:
-                 genre_helper.add(value, normalized)
-                 if hasattr(backlog_helper, 'delete'):
+            print(f"Normalizing: '{value}' -> '{normalized}'")
+            if not dry_run:
+                genre_helper.add(value, normalized)
+                if hasattr(backlog_helper, 'delete'):
                     backlog_helper.delete(value)
-             results['corrected'].append(f"{value} -> {normalized}")
+            results['corrected'].append(f"{value} -> {normalized}")
         else:
             print(f"Keeping as valid: '{value}'")
             if not dry_run:
@@ -224,26 +227,36 @@ def process_genres(json_file=None, dry_run=True, interactive=False):
 
     return results
 
+
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Process and clean rules_genres from Subsonic JSON or Database backlog.")
-    parser.add_argument("json_file", nargs="?", help="Path to the JSON file containing rules_genres (optional, defaults to DB backlog if --run is used).")
+
+    parser = argparse.ArgumentParser(
+        description="Process and clean rules_genres from Subsonic JSON or Database backlog."
+    )
+    parser.add_argument(
+        "json_file",
+        nargs="?",
+        help="Path to the JSON file containing rules_genres (optional, defaults to DB backlog if --run is used).",
+    )
     parser.add_argument("--run", action="store_true", help="Actually update the database (requires dependencies).")
-    parser.add_argument("--interactive", "-i", action="store_true", help="Ask for confirmation/corrections on unknown rules_genres.")
-    
+    parser.add_argument(
+        "--interactive", "-i", action="store_true", help="Ask for confirmation/corrections on unknown rules_genres."
+    )
+
     args = parser.parse_args()
-    
+
     if not args.json_file and not args.run:
         print("Error: Specify a JSON file or use --run to process the database backlog.")
         sys.exit(1)
 
     res = process_genres(args.json_file, dry_run=not args.run, interactive=args.interactive)
-    
+
     print("\n--- Summary ---")
     print(f"Ignored: {len(res['ignored'])}")
     print(f"Corrected: {len(res['corrected'])}")
     print(f"New Valid: {len(res['valid'])}")
     print(f"Already in DB: {len(res['already_exists'])}")
-    
+
     if not args.run:
         print("\nNote: This was a DRY-RUN. Use --run to apply changes to the database.")

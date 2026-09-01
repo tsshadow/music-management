@@ -1,4 +1,5 @@
 """Coverage for the scanner/tagger routers."""
+
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
@@ -21,7 +22,6 @@ API_KEY = users_router.API_KEY
 
 
 class ScannerEndpointTest(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         self.headers = {'x-api-key': API_KEY}
@@ -57,15 +57,16 @@ class ScannerEndpointTest(unittest.TestCase):
         self.assertEqual(self.client.post('/api/scanner/scan/all').status_code, 401)
 
     def test_the_background_loop_scans_and_then_sleeps(self):
-        with patch.object(scanner_router.scanner_manager, 'run_full') as run_full, \
-             patch.object(scanner_router.time, 'sleep', side_effect=[None, KeyboardInterrupt]):
+        with (
+            patch.object(scanner_router.scanner_manager, 'run_full') as run_full,
+            patch.object(scanner_router.time, 'sleep', side_effect=[None, KeyboardInterrupt]),
+        ):
             with self.assertRaises(KeyboardInterrupt):
                 scanner_router.run_scanner_loop(sleeptime=1)
         self.assertEqual(run_full.call_count, 2)
 
 
 class ScannerManagerTest(unittest.TestCase):
-
     def setUp(self):
         self.manager = scanner_router.ScannerManager()
         self.manager.music_path = '/music'
@@ -78,10 +79,8 @@ class ScannerManagerTest(unittest.TestCase):
         self.addCleanup(patcher.stop)
 
     def test_the_same_path_always_hashes_the_same(self):
-        self.assertEqual(self.manager.get_file_hash('/music/a.mp3'),
-                         self.manager.get_file_hash('/music/a.mp3'))
-        self.assertNotEqual(self.manager.get_file_hash('/music/a.mp3'),
-                            self.manager.get_file_hash('/music/b.mp3'))
+        self.assertEqual(self.manager.get_file_hash('/music/a.mp3'), self.manager.get_file_hash('/music/a.mp3'))
+        self.assertNotEqual(self.manager.get_file_hash('/music/a.mp3'), self.manager.get_file_hash('/music/b.mp3'))
 
     def test_scanning_a_missing_file_reports_failure(self):
         with patch.object(scanner_router.os.path, 'exists', return_value=False):
@@ -92,8 +91,10 @@ class ScannerManagerTest(unittest.TestCase):
             self.assertFalse(self.manager.scan_single('/music/a.mp3'))
 
     def test_scanning_a_present_file_delegates_to_the_processor(self):
-        with patch.object(scanner_router.os.path, 'exists', return_value=True), \
-             patch.object(self.manager, '_process_file_safe', return_value=True) as process:
+        with (
+            patch.object(scanner_router.os.path, 'exists', return_value=True),
+            patch.object(self.manager, '_process_file_safe', return_value=True) as process,
+        ):
             self.assertTrue(self.manager.scan_single('/music/a.mp3'))
         process.assert_called_once()
 
@@ -104,36 +105,45 @@ class ScannerManagerTest(unittest.TestCase):
         scan.assert_not_called()
 
     def test_a_full_run_is_skipped_while_another_one_holds_the_lock(self):
-        with patch.object(scanner_router.os.path, 'exists', return_value=True), \
-             patch.object(self.manager, '_lock', MagicMock(locked=lambda: True)), \
-             patch.object(self.manager, '_scan_recursive') as scan:
+        with (
+            patch.object(scanner_router.os.path, 'exists', return_value=True),
+            patch.object(self.manager, '_lock', MagicMock(locked=lambda: True)),
+            patch.object(self.manager, '_scan_recursive') as scan,
+        ):
             self.manager.run_full()
         scan.assert_not_called()
 
     def test_a_full_run_reloads_the_curation_rules_first(self):
-        with patch.object(scanner_router.os.path, 'exists', return_value=True), \
-             patch.object(self.manager.genre_helper, 'reload') as reload_rules, \
-             patch.object(self.manager, '_scan_recursive', return_value=0):
+        with (
+            patch.object(scanner_router.os.path, 'exists', return_value=True),
+            patch.object(self.manager.genre_helper, 'reload') as reload_rules,
+            patch.object(self.manager, '_scan_recursive', return_value=0),
+        ):
             self.manager.run_full()
         reload_rules.assert_called_once()
 
     def test_a_full_run_without_a_database_stops_early(self):
-        with patch.object(scanner_router.os.path, 'exists', return_value=True), \
-             patch.object(self.manager.genre_helper, 'reload'), \
-             patch.object(scanner_router, 'get_db_connection', return_value=None), \
-             patch.object(self.manager, '_scan_recursive') as scan:
+        with (
+            patch.object(scanner_router.os.path, 'exists', return_value=True),
+            patch.object(self.manager.genre_helper, 'reload'),
+            patch.object(scanner_router, 'get_db_connection', return_value=None),
+            patch.object(self.manager, '_scan_recursive') as scan,
+        ):
             self.manager.run_full()
         scan.assert_not_called()
 
     def test_hidden_files_are_not_scanned(self):
-        with patch.object(scanner_router.os, 'walk', return_value=[('/music', [], ['.DS_Store', 'a.mp3'])]), \
-             patch.object(self.manager, '_process_file_safe', return_value=True) as process:
+        with (
+            patch.object(scanner_router.os, 'walk', return_value=[('/music', [], ['.DS_Store', 'a.mp3'])]),
+            patch.object(self.manager, '_process_file_safe', return_value=True) as process,
+        ):
             self.assertEqual(self.manager._scan_recursive(self.conn, False), 1)
         process.assert_called_once_with(self.conn, '/music/a.mp3', False)
 
     def test_an_unsupported_extension_is_skipped_quietly(self):
-        with patch.object(self.manager, 'process_file',
-                          side_effect=scanner_router.ExtensionNotSupportedException('.txt')):
+        with patch.object(
+            self.manager, 'process_file', side_effect=scanner_router.ExtensionNotSupportedException('.txt')
+        ):
             self.assertFalse(self.manager._process_file_safe(self.conn, '/music/a.txt', False))
 
     def test_an_unexpected_processing_error_is_logged_and_skipped(self):
@@ -142,7 +152,6 @@ class ScannerManagerTest(unittest.TestCase):
 
 
 class ResolveGenreIdsTest(unittest.TestCase):
-
     def setUp(self):
         self.manager = scanner_router.ScannerManager()
         self.helper = MagicMock()
@@ -189,7 +198,6 @@ class ResolveGenreIdsTest(unittest.TestCase):
 
 
 class ProcessFileTest(unittest.TestCase):
-
     def setUp(self):
         self.manager = scanner_router.ScannerManager()
         self.manager.genre_helper = MagicMock()
@@ -223,9 +231,15 @@ class ProcessFileTest(unittest.TestCase):
 
     def test_force_reprocesses_an_unchanged_file(self):
         self.cursor.fetchone.side_effect = [
-            {'id': 1, 'file_mtime': 100.0, 'file_size': 1024}, {'id': 3}, {'id': 4}, {'id': 5}]
-        with patch.object(scanner_router, 'ReadonlySong', return_value=self.song()), \
-             patch.object(self.manager, '_resolve_genre_ids', return_value=[]):
+            {'id': 1, 'file_mtime': 100.0, 'file_size': 1024},
+            {'id': 3},
+            {'id': 4},
+            {'id': 5},
+        ]
+        with (
+            patch.object(scanner_router, 'ReadonlySong', return_value=self.song()),
+            patch.object(self.manager, '_resolve_genre_ids', return_value=[]),
+        ):
             self.assertTrue(self.manager.process_file(self.conn, '/music/a.mp3', force=True))
 
     def test_a_file_that_cannot_be_read_is_skipped(self):
@@ -235,8 +249,10 @@ class ProcessFileTest(unittest.TestCase):
 
     def test_a_new_file_creates_its_artist_label_track_and_media_row(self):
         self.cursor.fetchone.side_effect = [None, {'id': 3}, {'id': 4}, {'id': 5}]
-        with patch.object(scanner_router, 'ReadonlySong', return_value=self.song()), \
-             patch.object(self.manager, '_resolve_genre_ids', return_value=[9]):
+        with (
+            patch.object(scanner_router, 'ReadonlySong', return_value=self.song()),
+            patch.object(self.manager, '_resolve_genre_ids', return_value=[9]),
+        ):
             self.assertTrue(self.manager.process_file(self.conn, '/music/a.mp3'))
         statements = self.statements()
         self.assertTrue(any('INSERT IGNORE INTO library_artists' in s for s in statements))
@@ -247,27 +263,37 @@ class ProcessFileTest(unittest.TestCase):
 
     def test_the_first_artist_becomes_the_primary_and_the_rest_featuring(self):
         self.cursor.fetchone.side_effect = [None, {'id': 3}, {'id': 4}, {'id': 5}, {'id': 6}]
-        with patch.object(scanner_router, 'ReadonlySong',
-                          return_value=self.song(artists=('Angerfist', 'Outsiders'), publisher=None)), \
-             patch.object(self.manager, '_resolve_genre_ids', return_value=[]):
+        with (
+            patch.object(
+                scanner_router,
+                'ReadonlySong',
+                return_value=self.song(artists=('Angerfist', 'Outsiders'), publisher=None),
+            ),
+            patch.object(self.manager, '_resolve_genre_ids', return_value=[]),
+        ):
             self.manager.process_file(self.conn, '/music/a.mp3')
-        roles = [call.args[1][2] for call in self.cursor.execute.call_args_list
-                 if 'library_track_artists' in call.args[0] and 'DELETE' not in call.args[0]]
+        roles = [
+            call.args[1][2]
+            for call in self.cursor.execute.call_args_list
+            if 'library_track_artists' in call.args[0] and 'DELETE' not in call.args[0]
+        ]
         self.assertEqual(roles, ['primary', 'featuring'])
 
     def test_a_file_without_a_publisher_gets_no_label_row(self):
         self.cursor.fetchone.side_effect = [None, {'id': 3}, {'id': 5}]
-        with patch.object(scanner_router, 'ReadonlySong',
-                          return_value=self.song(publisher=None)), \
-             patch.object(self.manager, '_resolve_genre_ids', return_value=[]):
+        with (
+            patch.object(scanner_router, 'ReadonlySong', return_value=self.song(publisher=None)),
+            patch.object(self.manager, '_resolve_genre_ids', return_value=[]),
+        ):
             self.manager.process_file(self.conn, '/music/a.mp3')
         self.assertFalse(any('library_track_labels' in s for s in self.statements()))
 
     def test_empty_artist_names_are_ignored(self):
         self.cursor.fetchone.side_effect = [None, {'id': 5}]
-        with patch.object(scanner_router, 'ReadonlySong',
-                          return_value=self.song(artists=('', None), publisher=None)), \
-             patch.object(self.manager, '_resolve_genre_ids', return_value=[]):
+        with (
+            patch.object(scanner_router, 'ReadonlySong', return_value=self.song(artists=('', None), publisher=None)),
+            patch.object(self.manager, '_resolve_genre_ids', return_value=[]),
+        ):
             self.manager.process_file(self.conn, '/music/a.mp3')
         self.assertFalse(any('INSERT IGNORE INTO library_artists' in s for s in self.statements()))
 
@@ -280,7 +306,6 @@ class ProcessFileTest(unittest.TestCase):
 
 
 class TaggerEndpointTest(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         self.headers = {'x-api-key': API_KEY}
@@ -306,8 +331,10 @@ class TaggerEndpointTest(unittest.TestCase):
         self.assertIn('No tagging operation', body['message'])
 
     def test_stopping_a_running_tagger_forwards_the_request(self):
-        with patch.object(tagger_router.tagger_manager, '_lock', MagicMock(locked=lambda: True)), \
-             patch.object(tagger_router.tagger_manager, 'stop') as stop:
+        with (
+            patch.object(tagger_router.tagger_manager, '_lock', MagicMock(locked=lambda: True)),
+            patch.object(tagger_router.tagger_manager, 'stop') as stop,
+        ):
             body = self.client.post('/api/tagger/tag/stop', headers=self.headers).json()
         self.assertIn('Stop request sent', body['message'])
         stop.assert_called_once()
@@ -323,7 +350,6 @@ class TaggerEndpointTest(unittest.TestCase):
 
 
 class TaggerManagerTest(unittest.TestCase):
-
     def setUp(self):
         with patch.object(tagger_router, 'Tagger'):
             self.manager = tagger_router.TaggerManager()
@@ -347,25 +373,31 @@ class TaggerManagerTest(unittest.TestCase):
         tag_single.assert_called_once_with('/music/a.mp3', extra_info=None)
 
     def test_the_background_loop_tags_and_then_sleeps(self):
-        with patch.object(tagger_router.tagger_manager, 'run_full') as run_full, \
-             patch.object(tagger_router, 'deep_run_tick'), \
-             patch.object(tagger_router.time, 'sleep', side_effect=[None, KeyboardInterrupt]):
+        with (
+            patch.object(tagger_router.tagger_manager, 'run_full') as run_full,
+            patch.object(tagger_router, 'deep_run_tick'),
+            patch.object(tagger_router.time, 'sleep', side_effect=[None, KeyboardInterrupt]),
+        ):
             with self.assertRaises(KeyboardInterrupt):
                 tagger_router.run_tagger_loop(sleeptime=1)
         self.assertEqual(run_full.call_count, 2)
 
     def test_every_round_first_queues_a_slice_of_the_deep_run(self):
-        with patch.object(tagger_router.tagger_manager, 'run_full'), \
-             patch.object(tagger_router, 'deep_run_tick') as deep_run, \
-             patch.object(tagger_router.time, 'sleep', side_effect=[None, KeyboardInterrupt]):
+        with (
+            patch.object(tagger_router.tagger_manager, 'run_full'),
+            patch.object(tagger_router, 'deep_run_tick') as deep_run,
+            patch.object(tagger_router.time, 'sleep', side_effect=[None, KeyboardInterrupt]),
+        ):
             with self.assertRaises(KeyboardInterrupt):
                 tagger_router.run_tagger_loop(sleeptime=1)
         self.assertEqual(deep_run.call_count, 2)
 
     def test_a_broken_deep_run_never_stops_the_tagging_round(self):
-        with patch.object(tagger_router.tagger_manager, 'run_full') as run_full, \
-             patch.object(tagger_router, 'deep_run_tick', side_effect=RuntimeError('database gone')), \
-             patch.object(tagger_router.time, 'sleep', side_effect=KeyboardInterrupt):
+        with (
+            patch.object(tagger_router.tagger_manager, 'run_full') as run_full,
+            patch.object(tagger_router, 'deep_run_tick', side_effect=RuntimeError('database gone')),
+            patch.object(tagger_router.time, 'sleep', side_effect=KeyboardInterrupt),
+        ):
             with self.assertRaises(KeyboardInterrupt):
                 tagger_router.run_tagger_loop(sleeptime=1)
         run_full.assert_called_once()
@@ -406,27 +438,29 @@ class RetagEndpointsTest(unittest.TestCase):
     def test_a_retag_run_tags_and_then_indexes(self):
         # No dedicated execution path: Tagger.run skips unmarked files by itself, so a
         # full run is the retag.
-        with patch.object(tagger_router.tagger_manager, 'run_full') as run_full, \
-             patch.object(scanner_router.scanner_manager, 'run_full') as scan_full:
+        with (
+            patch.object(tagger_router.tagger_manager, 'run_full') as run_full,
+            patch.object(scanner_router.scanner_manager, 'run_full') as scan_full,
+        ):
             tagger_router.run_retag()
         run_full.assert_called_once()
         scan_full.assert_called_once()
 
 
 class LmsTriggerTest(unittest.TestCase):
-
     def test_tagging_a_single_file_tells_lms(self):
-        with patch.object(tagger_router, 'lms_scan_trigger') as trigger, \
-             patch.object(tagger_router, 'TagSingleFile'):
+        with patch.object(tagger_router, 'lms_scan_trigger') as trigger, patch.object(tagger_router, 'TagSingleFile'):
             tagger_router.tagger_manager.tag_single('/music/a.mp3')
         trigger.trigger.assert_called_once()
 
     def test_a_finished_scan_tells_lms_once(self):
         manager = scanner_router.scanner_manager
-        with patch.object(scanner_router, 'lms_scan_trigger') as trigger, \
-             patch.object(manager, '_scan_recursive', return_value=0), \
-             patch.object(scanner_router, 'get_db_connection', return_value=MagicMock()), \
-             patch.object(manager, 'music_path', '/'), \
-             patch.object(manager, 'genre_helper', MagicMock()):
+        with (
+            patch.object(scanner_router, 'lms_scan_trigger') as trigger,
+            patch.object(manager, '_scan_recursive', return_value=0),
+            patch.object(scanner_router, 'get_db_connection', return_value=MagicMock()),
+            patch.object(manager, 'music_path', '/'),
+            patch.object(manager, 'genre_helper', MagicMock()),
+        ):
             manager.run_full()
         trigger.trigger.assert_called_once()

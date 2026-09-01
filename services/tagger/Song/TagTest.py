@@ -4,7 +4,6 @@ from services.tagger.Song.Tag import Tag
 
 
 class TestTag(unittest.TestCase):
-
     def test_init_with_string(self):
         tag = Tag('artist', 'A;B')
         self.assertEqual(tag.to_array(), ['A', 'B'])
@@ -94,5 +93,7 @@ class TestTag(unittest.TestCase):
     def test_str_output(self):
         tag = Tag('title', 'My Track')
         self.assertEqual(str(tag), 'title: My Track')
+
+
 if __name__ == '__main__':
     unittest.main()

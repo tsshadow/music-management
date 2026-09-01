@@ -38,7 +38,6 @@ class DetectHttpStatusTest(unittest.TestCase):
 
 
 class ClassifyAccountTest(unittest.TestCase):
-
     def test_an_account_with_no_trouble_is_clean(self):
         self.assertEqual(classify_account(extracted=12, forbidden=0, throttled=False), CLEAN)
 
@@ -49,8 +48,7 @@ class ClassifyAccountTest(unittest.TestCase):
         self.assertEqual(classify_account(extracted=0, forbidden=0, throttled=True), THROTTLED)
 
     def test_some_tracks_forbidden_among_extracted_ones_means_unavailable_tracks(self):
-        self.assertEqual(classify_account(extracted=12, forbidden=3, throttled=False),
-                         UNAVAILABLE_TRACKS)
+        self.assertEqual(classify_account(extracted=12, forbidden=3, throttled=False), UNAVAILABLE_TRACKS)
 
     def test_forbidden_with_nothing_extracted_is_blank(self):
         self.assertEqual(classify_account(extracted=0, forbidden=1, throttled=False), BLANK)
@@ -61,7 +59,6 @@ class ClassifyAccountTest(unittest.TestCase):
 
 
 class AccountReportTest(unittest.TestCase):
-
     def setUp(self):
         self.report = AccountReport()
 

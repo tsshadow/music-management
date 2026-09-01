@@ -4,6 +4,7 @@ The migration runs once, against a live library, and there is no undo. What has 
 an explicit rating is never overwritten, a star without a rating becomes rating 5, and a
 second run changes nothing.
 """
+
 import importlib.util
 import json
 import sqlite3
@@ -45,8 +46,7 @@ def build_lms_database(path):
 
 def star(conn, table, foreign_key, object_id, user_id, date_time="2026-01-01T12:00:00"):
     conn.execute(
-        f"INSERT INTO {table} ({foreign_key}, user_id, backend, sync_state, date_time) "
-        "VALUES (?, ?, 2, 0, ?)",
+        f"INSERT INTO {table} ({foreign_key}, user_id, backend, sync_state, date_time) VALUES (?, ?, 2, 0, ?)",
         (object_id, user_id, date_time),
     )
     conn.commit()
@@ -61,10 +61,7 @@ def rate(conn, table, foreign_key, object_id, user_id, rating):
 
 
 def ratings_in(conn, table, foreign_key):
-    return {
-        (row[0], row[1]): row[2]
-        for row in conn.execute(f"SELECT {foreign_key}, user_id, rating FROM {table}")
-    }
+    return {(row[0], row[1]): row[2] for row in conn.execute(f"SELECT {foreign_key}, user_id, rating FROM {table}")}
 
 
 @pytest.fixture(name="conn")

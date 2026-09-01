@@ -5,7 +5,6 @@ from services.tagger.Song.rules.MergeDrumAndBassGenresRule import MergeDrumAndBa
 
 
 class MergeDrumAndBassGenresRuleTest(unittest.TestCase):
-
     def setUp(self):
         self.rule = MergeDrumAndBassGenresRule()
         self.song = MagicMock()
@@ -55,5 +54,7 @@ class MergeDrumAndBassGenresRuleTest(unittest.TestCase):
         self._set_genres(['drum', 'bass', 'hardcore'])
         self.rule.apply(self.song)
         self.tag.set.assert_called_once_with(['hardcore', "drum 'n bass"])
+
+
 if __name__ == '__main__':
     unittest.main()

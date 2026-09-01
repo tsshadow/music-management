@@ -5,7 +5,6 @@ from services.tagger.Song.rules.CheckArtistRule import CheckArtistRule
 
 
 class CheckArtistRuleTest(unittest.TestCase):
-
     def setUp(self):
         self.song = MagicMock()
         self.tag_item = MagicMock()
@@ -50,5 +49,7 @@ class CheckArtistRuleTest(unittest.TestCase):
         self.tag_item.add.assert_not_called()
         self.tag_item.remove.assert_not_called()
         self.ignored_table.delete.assert_not_called()
+
+
 if __name__ == '__main__':
     unittest.main()

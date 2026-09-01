@@ -17,7 +17,6 @@ def load_module():
 
 
 class RescanInvalidatorTestCase(unittest.TestCase):
-
     def setUp(self):
         self.module = load_module()
         self.connection = MagicMock()
@@ -34,13 +33,13 @@ class RescanInvalidatorTestCase(unittest.TestCase):
 
 
 class InvalidateByTermTest(RescanInvalidatorTestCase):
-
     def test_a_matching_term_marks_the_files_it_found(self):
         self.cursor.fetchall.return_value = [('/music/a.mp3',), ('/music/b.mp3',)]
         count = self.invalidator.invalidate_by_term('Ran-D', 'artist_genre_rule')
         self.assertEqual(count, 2)
         self.processed.mark_paths_for_rescan.assert_called_once_with(
-            ['/music/a.mp3', '/music/b.mp3'], 'artist_genre_rule')
+            ['/music/a.mp3', '/music/b.mp3'], 'artist_genre_rule'
+        )
 
     def test_a_long_term_searches_title_and_path_as_well(self):
         self.cursor.fetchall.return_value = []
@@ -81,7 +80,6 @@ class InvalidateByTermTest(RescanInvalidatorTestCase):
 
 
 class InvalidateByGenreTest(RescanInvalidatorTestCase):
-
     def test_tracks_linked_to_the_genre_are_marked_alongside_the_name_match(self):
         self.cursor.fetchall.side_effect = [[('/music/a.mp3',)], [('/music/b.mp3',)]]
         count = self.invalidator.invalidate_by_genre_id(7, 'Uptempo', 'genre_decision')
@@ -96,7 +94,6 @@ class InvalidateByGenreTest(RescanInvalidatorTestCase):
 
 
 class InvalidateAllTest(RescanInvalidatorTestCase):
-
     def test_everything_is_marked_through_the_processed_files_helper(self):
         self.invalidator.invalidate_all('fallback')
         self.processed.mark_for_rescan.assert_called_once_with(None, reason='fallback')

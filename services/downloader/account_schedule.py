@@ -11,6 +11,7 @@ ladder in `cooldown_for` turns the age of an account's newest upload into its ow
 cooldown, which is what stops the quiet majority from setting the request budget
 for everyone.
 """
+
 from __future__ import annotations
 
 import logging
@@ -33,8 +34,7 @@ MONTHLY_DAYS = 90
 OCCASIONAL_DAYS = 365
 
 
-def cooldown_for(last_upload_at: datetime | None, now: datetime,
-                 timing: DownloaderTiming) -> int:
+def cooldown_for(last_upload_at: datetime | None, now: datetime, timing: DownloaderTiming) -> int:
     """How long to leave an account alone, given when it last uploaded.
 
     An unknown date counts as fresh. A newly added account has to be checked
@@ -57,16 +57,20 @@ def cooldown_for(last_upload_at: datetime | None, now: datetime,
 @dataclass(frozen=True)
 class AccountCheck:
     """What we know about one account after the last time we looked at it."""
+
     last_checked_at: datetime
     last_upload_at: datetime | None = None
     last_seen_track_id: str | None = None
     last_deep_sweep_at: datetime | None = None
 
 
-def due_accounts(accounts: Iterable[str], checks: Mapping[str, AccountCheck],
-                 cooldown: int, now: datetime,
-                 cooldown_for_account: Callable[[AccountCheck | None], int] | None = None
-                 ) -> list[str]:
+def due_accounts(
+    accounts: Iterable[str],
+    checks: Mapping[str, AccountCheck],
+    cooldown: int,
+    now: datetime,
+    cooldown_for_account: Callable[[AccountCheck | None], int] | None = None,
+) -> list[str]:
     """Return the accounts that may be checked again, in their original order.
 
     ``cooldown_for_account`` decides the wait per account. Without it every
@@ -93,10 +97,15 @@ class InMemoryCheckStore:
     def load(self, source: str) -> dict[str, AccountCheck]:
         return dict(self._rows.get(source, {}))
 
-    def mark(self, source: str, account: str, when: datetime,
-             last_upload_at: datetime | None = None,
-             last_seen_track_id: str | None = None,
-             last_deep_sweep_at: datetime | None = None) -> None:
+    def mark(
+        self,
+        source: str,
+        account: str,
+        when: datetime,
+        last_upload_at: datetime | None = None,
+        last_seen_track_id: str | None = None,
+        last_deep_sweep_at: datetime | None = None,
+    ) -> None:
         rows = self._rows.setdefault(source, {})
         previous = rows.get(account)
         rows[account] = AccountCheck(
@@ -134,6 +143,7 @@ class DatabaseCheckStore:
     def _connect(self):
         from services.common.Helpers.DatabaseConnector import DatabaseConnector
         from services.downloader.db_schema import ensure_once
+
         connection = DatabaseConnector().connect()
         ensure_once(connection)
         return connection
@@ -146,19 +156,24 @@ class DatabaseCheckStore:
                     'SELECT account, last_checked_at, last_upload_at, last_seen_track_id, '
                     '       last_deep_sweep_at '
                     'FROM downloads_account_checks WHERE source = %s',
-                    (source,))
+                    (source,),
+                )
                 return {
                     account: AccountCheck(checked_at, upload_at, track_id, deep_at)
-                    for account, checked_at, upload_at, track_id, deep_at
-                    in cursor.fetchall()
+                    for account, checked_at, upload_at, track_id, deep_at in cursor.fetchall()
                 }
         finally:
             connection.close()
 
-    def mark(self, source: str, account: str, when: datetime,
-             last_upload_at: datetime | None = None,
-             last_seen_track_id: str | None = None,
-             last_deep_sweep_at: datetime | None = None) -> None:
+    def mark(
+        self,
+        source: str,
+        account: str,
+        when: datetime,
+        last_upload_at: datetime | None = None,
+        last_seen_track_id: str | None = None,
+        last_deep_sweep_at: datetime | None = None,
+    ) -> None:
         connection = self._connect()
         try:
             with connection.cursor() as cursor:
@@ -174,8 +189,8 @@ class DatabaseCheckStore:
                     '  last_upload_at = COALESCE(VALUES(last_upload_at), last_upload_at), '
                     '  last_seen_track_id = COALESCE(VALUES(last_seen_track_id), last_seen_track_id), '
                     '  last_deep_sweep_at = COALESCE(VALUES(last_deep_sweep_at), last_deep_sweep_at)',
-                    (source, account, when, last_upload_at, last_seen_track_id,
-                     last_deep_sweep_at))
+                    (source, account, when, last_upload_at, last_seen_track_id, last_deep_sweep_at),
+                )
             connection.commit()
         finally:
             connection.close()
@@ -193,7 +208,8 @@ class DatabaseCheckStore:
                     'VALUES (%s, %s, %s, %s) '
                     'ON DUPLICATE KEY UPDATE '
                     '  last_deep_sweep_at = VALUES(last_deep_sweep_at)',
-                    (source, account, when, when))
+                    (source, account, when, when),
+                )
             connection.commit()
         finally:
             connection.close()
@@ -206,8 +222,7 @@ class AccountSchedule:
     keeps the downloader working when the database is briefly unavailable.
     """
 
-    def __init__(self, source: str, store=None,
-                 now: Callable[[], datetime] = datetime.now) -> None:
+    def __init__(self, source: str, store=None, now: Callable[[], datetime] = datetime.now) -> None:
         self.source = source
         self._store = store if store is not None else DatabaseCheckStore()
         self._now = now
@@ -233,8 +248,7 @@ class AccountSchedule:
         def wait_for(record: AccountCheck | None) -> int:
             return cooldown_for(record.last_upload_at if record else None, now, timing)
 
-        ready = due_accounts(accounts, checks, timing.account_cooldown, now,
-                             cooldown_for_account=wait_for)
+        ready = due_accounts(accounts, checks, timing.account_cooldown, now, cooldown_for_account=wait_for)
 
         def overdue_by(account: str) -> float:
             record = checks.get(account)
@@ -264,14 +278,16 @@ class AccountSchedule:
         try:
             self._store.mark_deep(self.source, account, when or self._now())
         except Exception as exc:
-            logging.warning('Could not record the deep sweep of %s/%s: %s',
-                            self.source, account, exc)
+            logging.warning('Could not record the deep sweep of %s/%s: %s', self.source, account, exc)
 
-    def mark_checked(self, account: str, when: datetime | None = None,
-                     last_upload_at: datetime | None = None,
-                     last_seen_track_id: str | None = None) -> None:
+    def mark_checked(
+        self,
+        account: str,
+        when: datetime | None = None,
+        last_upload_at: datetime | None = None,
+        last_seen_track_id: str | None = None,
+    ) -> None:
         try:
-            self._store.mark(self.source, account, when or self._now(),
-                             last_upload_at, last_seen_track_id)
+            self._store.mark(self.source, account, when or self._now(), last_upload_at, last_seen_track_id)
         except Exception as exc:
             logging.warning('Could not record the check of %s/%s: %s', self.source, account, exc)

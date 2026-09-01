@@ -6,6 +6,7 @@ regular services/ test suite, so a refactor of services/common (e.g. moving/remo
 modules) can silently break them with a ModuleNotFoundError that only surfaces at
 container runtime. This test just imports/exercises them to catch that early.
 """
+
 import importlib
 import pathlib
 
@@ -64,15 +65,21 @@ def test_ad_hoc_db_tools_have_no_credentials_of_their_own():
     the source.
     """
     tools_dir = pathlib.Path(__file__).parent
-    for name in ('check_backlog', 'check_media', 'cleanup_db', 'describe_tables',
-                 'finalize_genres', 'integrity_check', 'migrate_db_renames'):
+    for name in (
+        'check_backlog',
+        'check_media',
+        'cleanup_db',
+        'describe_tables',
+        'finalize_genres',
+        'integrity_check',
+        'migrate_db_renames',
+    ):
         source = (tools_dir / f'{name}.py').read_text(encoding='utf-8')
-        assert 'mysql+mysqlconnector://' not in source, (
-            f'tools/{name}.py builds its own database URL again')
-        assert '192.0.2.27' not in source, (
-            f'tools/{name}.py defaults to the production host again')
+        assert 'mysql+mysqlconnector://' not in source, f'tools/{name}.py builds its own database URL again'
+        assert '192.0.2.27' not in source, f'tools/{name}.py defaults to the production host again'
         assert 'from tools.db_url import database_url' in source, (
-            f'tools/{name}.py no longer takes its URL from the shared helper')
+            f'tools/{name}.py no longer takes its URL from the shared helper'
+        )
 
 
 def test_database_url_refuses_to_guess():
@@ -81,8 +88,7 @@ def test_database_url_refuses_to_guess():
 
     from tools.db_url import database_url
 
-    saved = {name: os.environ.pop(name, None)
-             for name in ('DB_HOST', 'DB_USER', 'DB_PASS', 'DB_DB')}
+    saved = {name: os.environ.pop(name, None) for name in ('DB_HOST', 'DB_USER', 'DB_PASS', 'DB_DB')}
     try:
         raised = False
         try:
@@ -102,8 +108,7 @@ def test_database_url_builds_from_the_environment():
 
     from tools.db_url import database_url
 
-    env = {'DB_HOST': 'db', 'DB_USER': 'u', 'DB_PASS': 'p', 'DB_DB': 'muma',
-           'DB_PORT': '3307'}
+    env = {'DB_HOST': 'db', 'DB_USER': 'u', 'DB_PASS': 'p', 'DB_DB': 'muma', 'DB_PORT': '3307'}
     saved = {name: os.environ.get(name) for name in env}
     os.environ.update(env)
     try:

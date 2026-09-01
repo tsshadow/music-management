@@ -1,4 +1,5 @@
 """Covers the Google login and access-request review flow in routers/user_requests.py."""
+
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -35,7 +36,6 @@ PENDING_REQUEST = {
 
 
 class UserRequestsTestCase(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
 
@@ -52,7 +52,6 @@ class UserRequestsTestCase(unittest.TestCase):
 
 
 class VerifyGoogleIdTokenTest(unittest.TestCase):
-
     def test_an_unconfigured_server_refuses_to_validate_anything(self):
         with patch.object(user_requests, 'GOOGLE_CLIENT_ID', None), self.assertRaises(HTTPException) as raised:
             user_requests._verify_google_id_token('a-token')
@@ -70,13 +69,18 @@ class VerifyGoogleIdTokenTest(unittest.TestCase):
             'google.auth.transport.requests': MagicMock(),
             'google.oauth2.id_token': google_id_token,
         }
-        with patch.object(user_requests, 'GOOGLE_CLIENT_ID', 'client-id'), \
-             patch.dict('sys.modules', {
-                 'google.auth.transport': MagicMock(requests=modules['google.auth.transport.requests']),
-                 'google.auth.transport.requests': modules['google.auth.transport.requests'],
-                 'google.oauth2': MagicMock(id_token=google_id_token),
-                 'google.oauth2.id_token': google_id_token,
-             }):
+        with (
+            patch.object(user_requests, 'GOOGLE_CLIENT_ID', 'client-id'),
+            patch.dict(
+                'sys.modules',
+                {
+                    'google.auth.transport': MagicMock(requests=modules['google.auth.transport.requests']),
+                    'google.auth.transport.requests': modules['google.auth.transport.requests'],
+                    'google.oauth2': MagicMock(id_token=google_id_token),
+                    'google.oauth2.id_token': google_id_token,
+                },
+            ),
+        ):
             return user_requests._verify_google_id_token('a-token'), google_id_token
 
     def test_a_valid_token_yields_its_claims(self):
@@ -101,7 +105,6 @@ class VerifyGoogleIdTokenTest(unittest.TestCase):
 
 
 class GoogleLoginTest(UserRequestsTestCase):
-
     def setUp(self):
         super().setUp()
         patcher = patch.object(user_requests, '_verify_google_id_token', return_value=CLAIMS)
@@ -114,7 +117,11 @@ class GoogleLoginTest(UserRequestsTestCase):
     def test_a_linked_account_gets_a_session(self):
         rules = [
             ('FROM user_identities WHERE provider', None, {'id': 3, 'user_id': 1}),
-            ('SELECT * FROM users WHERE id = %s', None, {'id': 1, 'username': 'user', 'api_key': None, 'enabled': True}),
+            (
+                'SELECT * FROM users WHERE id = %s',
+                None,
+                {'id': 1, 'username': 'user', 'api_key': None, 'enabled': True},
+            ),
         ]
 
         with patch('services.music_manager.routers.users.build_auth_user', return_value={'id': 1}):
@@ -131,7 +138,11 @@ class GoogleLoginTest(UserRequestsTestCase):
     def test_an_existing_api_key_is_kept(self):
         rules = [
             ('FROM user_identities WHERE provider', None, {'id': 3, 'user_id': 1}),
-            ('SELECT * FROM users WHERE id = %s', None, {'id': 1, 'username': 'user', 'api_key': 'existing-key', 'enabled': True}),
+            (
+                'SELECT * FROM users WHERE id = %s',
+                None,
+                {'id': 1, 'username': 'user', 'api_key': 'existing-key', 'enabled': True},
+            ),
         ]
 
         with patch('services.music_manager.routers.users.build_auth_user', return_value={'id': 1}):
@@ -149,7 +160,11 @@ class GoogleLoginTest(UserRequestsTestCase):
     def test_a_disabled_account_is_refused(self):
         rules = [
             ('FROM user_identities WHERE provider', None, {'id': 3, 'user_id': 1}),
-            ('SELECT * FROM users WHERE id = %s', None, {'id': 1, 'username': 'user', 'api_key': 'k', 'enabled': False}),
+            (
+                'SELECT * FROM users WHERE id = %s',
+                None,
+                {'id': 1, 'username': 'user', 'api_key': 'k', 'enabled': False},
+            ),
         ]
 
         response, _cursor, _connection = self.login(rules)
@@ -159,15 +174,18 @@ class GoogleLoginTest(UserRequestsTestCase):
     def test_an_unknown_identity_reports_what_google_said_about_it(self):
         response, _cursor, _connection = self.login()
 
-        self.assertEqual(response.json(), {
-            'status': 'unknown',
-            'google': {
-                'subject': 'google-sub-1',
-                'email': 'user@example.com',
-                'display_name': 'Teun',
-                'avatar_url': 'https://example.com/user.jpg',
+        self.assertEqual(
+            response.json(),
+            {
+                'status': 'unknown',
+                'google': {
+                    'subject': 'google-sub-1',
+                    'email': 'user@example.com',
+                    'display_name': 'Teun',
+                    'avatar_url': 'https://example.com/user.jpg',
+                },
             },
-        })
+        )
 
     def test_an_identity_with_a_pending_request_reports_its_status(self):
         rules = [
@@ -189,7 +207,6 @@ class GoogleLoginTest(UserRequestsTestCase):
 
 
 class CreateAccessRequestTest(UserRequestsTestCase):
-
     def setUp(self):
         super().setUp()
         patcher = patch.object(user_requests, '_verify_google_id_token', return_value=CLAIMS)
@@ -249,7 +266,6 @@ class CreateAccessRequestTest(UserRequestsTestCase):
 
 
 class ListUserRequestsTest(UserRequestsTestCase):
-
     def test_every_request_is_listed_by_default(self):
         rules = [('SELECT * FROM user_requests ORDER BY', None, [PENDING_REQUEST])]
 
@@ -274,7 +290,6 @@ class ListUserRequestsTest(UserRequestsTestCase):
 
 
 class ApproveUserRequestTest(UserRequestsTestCase):
-
     def approve(self, rules=(), body=None, lastrowid=99):
         return self.call('post', '/api/user-requests/7/approve', rules, body=body or {}, lastrowid=lastrowid)
 
@@ -282,8 +297,10 @@ class ApproveUserRequestTest(UserRequestsTestCase):
         return [('SELECT * FROM user_requests WHERE id = %s', None, request or PENDING_REQUEST)]
 
     def test_approval_creates_a_new_account_with_the_default_role(self):
-        with patch.object(user_requests.rbac, 'get_role_by_name', return_value={'id': 2}), \
-             patch.object(user_requests.rbac, 'record_audit_event'):
+        with (
+            patch.object(user_requests.rbac, 'get_role_by_name', return_value={'id': 2}),
+            patch.object(user_requests.rbac, 'record_audit_event'),
+        ):
             response, cursor, connection = self.approve(self.base_rules())
 
         self.assertEqual(response.status_code, 200)
@@ -296,15 +313,19 @@ class ApproveUserRequestTest(UserRequestsTestCase):
     def test_a_request_without_an_email_falls_back_to_a_generated_username(self):
         request = {**PENDING_REQUEST, 'email': None}
 
-        with patch.object(user_requests.rbac, 'get_role_by_name', return_value={'id': 2}), \
-             patch.object(user_requests.rbac, 'record_audit_event'):
+        with (
+            patch.object(user_requests.rbac, 'get_role_by_name', return_value={'id': 2}),
+            patch.object(user_requests.rbac, 'record_audit_event'),
+        ):
             _response, cursor, _connection = self.approve(self.base_rules(request))
 
         self.assertEqual(cursor.statements_matching('INSERT INTO users')[0][1][0], 'google-google-sub-1')
 
     def test_the_new_account_is_linked_to_the_google_identity(self):
-        with patch.object(user_requests.rbac, 'get_role_by_name', return_value={'id': 2}), \
-             patch.object(user_requests.rbac, 'record_audit_event'):
+        with (
+            patch.object(user_requests.rbac, 'get_role_by_name', return_value={'id': 2}),
+            patch.object(user_requests.rbac, 'record_audit_event'),
+        ):
             _response, cursor, _connection = self.approve(self.base_rules())
 
         self.assertEqual(
@@ -359,7 +380,6 @@ class ApproveUserRequestTest(UserRequestsTestCase):
 
 
 class RejectUserRequestTest(UserRequestsTestCase):
-
     def reject(self, rules=(), body=None):
         return self.call('post', '/api/user-requests/7/reject', rules, body=body or {})
 
@@ -394,7 +414,6 @@ class RejectUserRequestTest(UserRequestsTestCase):
 
 
 class UnapproveUserRequestTest(UserRequestsTestCase):
-
     APPROVED = {**PENDING_REQUEST, 'status': 'approved', 'created_user_id': 99, 'linked_existing': False}
 
     def unapprove(self, rules=(), body=None):
@@ -403,8 +422,10 @@ class UnapproveUserRequestTest(UserRequestsTestCase):
     def test_an_account_the_approval_created_is_deleted_again(self):
         rules = [('SELECT * FROM user_requests WHERE id = %s', None, self.APPROVED)]
 
-        with patch('services.music_manager.routers.users.delete_user_row') as delete_user, \
-             patch.object(user_requests.rbac, 'record_audit_event'):
+        with (
+            patch('services.music_manager.routers.users.delete_user_row') as delete_user,
+            patch.object(user_requests.rbac, 'record_audit_event'),
+        ):
             response, cursor, connection = self.unapprove(rules)
 
         self.assertEqual(response.status_code, 200)
@@ -416,8 +437,10 @@ class UnapproveUserRequestTest(UserRequestsTestCase):
     def test_a_pre_existing_account_only_loses_its_identity_link(self):
         rules = [('SELECT * FROM user_requests WHERE id = %s', None, {**self.APPROVED, 'linked_existing': True})]
 
-        with patch('services.music_manager.routers.users.delete_user_row') as delete_user, \
-             patch.object(user_requests.rbac, 'record_audit_event'):
+        with (
+            patch('services.music_manager.routers.users.delete_user_row') as delete_user,
+            patch.object(user_requests.rbac, 'record_audit_event'),
+        ):
             _response, cursor, _connection = self.unapprove(rules)
 
         delete_user.assert_not_called()
@@ -429,8 +452,10 @@ class UnapproveUserRequestTest(UserRequestsTestCase):
     def test_an_approval_that_created_nothing_only_reopens_the_request(self):
         rules = [('SELECT * FROM user_requests WHERE id = %s', None, {**self.APPROVED, 'created_user_id': None})]
 
-        with patch('services.music_manager.routers.users.delete_user_row') as delete_user, \
-             patch.object(user_requests.rbac, 'record_audit_event'):
+        with (
+            patch('services.music_manager.routers.users.delete_user_row') as delete_user,
+            patch.object(user_requests.rbac, 'record_audit_event'),
+        ):
             _response, cursor, _connection = self.unapprove(rules)
 
         delete_user.assert_not_called()
@@ -468,7 +493,6 @@ class UnapproveUserRequestTest(UserRequestsTestCase):
 
 
 class InitDbTest(unittest.TestCase):
-
     def test_the_tables_are_created_by_rbac_so_this_does_nothing(self):
         cursor = ScriptedCursor()
 

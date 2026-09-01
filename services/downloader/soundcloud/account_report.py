@@ -10,6 +10,7 @@ track that is not for us. A 403 with nothing read at all is an account that gave
 us nothing, and only a run of those is evidence of an actual block. A 429 is the
 one unambiguous "slow down".
 """
+
 from __future__ import annotations
 
 import logging
@@ -70,8 +71,7 @@ class AccountReport:
         """
         self.extracted += 1
         self._current_track = track_id
-        if timestamp is not None and (self.newest_timestamp is None
-                                      or timestamp > self.newest_timestamp):
+        if timestamp is not None and (self.newest_timestamp is None or timestamp > self.newest_timestamp):
             self.newest_timestamp = timestamp
 
     @property

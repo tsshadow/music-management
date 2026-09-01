@@ -4,6 +4,7 @@ Twee topics, want de ntfy Android-app abonneert per topic en filtert niet
 betrouwbaar op priority. Wat aandacht vraagt hoort daarom in een eigen topic,
 niet in een header van het topic dat je de hele dag ziet.
 """
+
 from __future__ import annotations
 
 import sys
@@ -27,7 +28,6 @@ REQUEST_TIMEOUT_SECONDS = 10
 
 
 class NtfySink:
-
     def __init__(self, config=None, clock=time.monotonic) -> None:
         self._config = config if config is not None else ConfigStore()
         self._clock = clock
@@ -66,8 +66,7 @@ class NtfySink:
         return False
 
     def _prune(self, now: float) -> None:
-        stale = [key for key, sent in self._last_sent.items()
-                 if now - sent >= DEDUP_WINDOW_SECONDS]
+        stale = [key for key, sent in self._last_sent.items() if now - sent >= DEDUP_WINDOW_SECONDS]
         for key in stale:
             del self._last_sent[key]
 
@@ -77,8 +76,9 @@ class NtfySink:
             headers['Priority'] = PRIORITY_BY_LEVEL[event.level]
             headers['Tags'] = TAG_BY_LEVEL[event.level]
         try:
-            response = requests.post(url, data=event.message.encode('utf-8'),
-                                     headers=headers, timeout=REQUEST_TIMEOUT_SECONDS)
+            response = requests.post(
+                url, data=event.message.encode('utf-8'), headers=headers, timeout=REQUEST_TIMEOUT_SECONDS
+            )
             response.raise_for_status()
         except Exception as exc:
             # stderr, niet logging: een logregel komt via de handler terug als event

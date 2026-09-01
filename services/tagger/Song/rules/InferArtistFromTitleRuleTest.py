@@ -6,7 +6,6 @@ from services.tagger.Song.rules.InferArtistFromTitleRule import InferArtistFromT
 
 
 class InferArtistFromTitleRuleTest(unittest.TestCase):
-
     def setUp(self):
         self.song = MagicMock()
         self.song.tag_collection.set_item = MagicMock()
@@ -15,7 +14,19 @@ class InferArtistFromTitleRuleTest(unittest.TestCase):
         self.song.tag_collection.get_item_as_string = MagicMock()
         self.song.path = lambda: '/home/user/Music/D-Fence/track.mp3'
         self.mock_artist_db = MagicMock()
-        self.mock_artist_db.get_all_values.return_value = ['Noisekick', 'D-Fence', 'Angerfist', 'Headhunterz', 'Wildstylez', 'D-Sturb', 'Hans Glock', 'Lunakorpz', 'The Viper', 'Unresolved', 'Bloodlust']
+        self.mock_artist_db.get_all_values.return_value = [
+            'Noisekick',
+            'D-Fence',
+            'Angerfist',
+            'Headhunterz',
+            'Wildstylez',
+            'D-Sturb',
+            'Hans Glock',
+            'Lunakorpz',
+            'The Viper',
+            'Unresolved',
+            'Bloodlust',
+        ]
         self.mock_genres_db = MagicMock()
         self.mock_genres_db.get_all.return_value = ['Hardstyle']
         self.mock_ignored_db = MagicMock()
@@ -23,9 +34,15 @@ class InferArtistFromTitleRuleTest(unittest.TestCase):
 
     def _apply_rule(self, title):
         self.song.tag_collection.has_item.return_value = False
-        self.song.tag_collection.get_item_as_string.side_effect = lambda key: {ARTIST: '', TITLE: title, ORIGINAL_TITLE: title}[key]
+        self.song.tag_collection.get_item_as_string.side_effect = lambda key: {
+            ARTIST: '',
+            TITLE: title,
+            ORIGINAL_TITLE: title,
+        }[key]
         self.song.tag_collection.get_item = MagicMock(return_value=title)
-        rule = InferArtistFromTitleRule(artist_db=self.mock_artist_db, genre_db=self.mock_genres_db, ignored_db=self.mock_ignored_db)
+        rule = InferArtistFromTitleRule(
+            artist_db=self.mock_artist_db, genre_db=self.mock_genres_db, ignored_db=self.mock_ignored_db
+        )
         rule.apply(self.song)
 
     def test_artist_at_event(self):
@@ -155,14 +172,18 @@ class InferArtistFromTitleRuleTest(unittest.TestCase):
         title = 'Bloodlust presents: The Assassination | Decibel outdoor 2024 | Mainstage | SAVAGE SUNDAY'
         self._apply_rule(title)
         self.song.tag_collection.set_item.assert_any_call(ARTIST, 'Bloodlust')
-        self.song.tag_collection.set_item.assert_any_call(TITLE, 'The Assassination | Decibel outdoor 2024 | Mainstage | SAVAGE SUNDAY')
+        self.song.tag_collection.set_item.assert_any_call(
+            TITLE, 'The Assassination | Decibel outdoor 2024 | Mainstage | SAVAGE SUNDAY'
+        )
 
     def test_artist_colon_title_stripped(self):
         self.song.path = lambda: '/home/user/Music/Unresolved/track.mp3'
         title = 'Unresolved: Bad Blood LIVE | Decibel outdoor 2024 | Mainstage | SAVAGE SUNDAY'
         self._apply_rule(title)
         self.song.tag_collection.set_item.assert_any_call(ARTIST, 'Unresolved')
-        self.song.tag_collection.set_item.assert_any_call(TITLE, 'Bad Blood LIVE | Decibel outdoor 2024 | Mainstage | SAVAGE SUNDAY')
+        self.song.tag_collection.set_item.assert_any_call(
+            TITLE, 'Bad Blood LIVE | Decibel outdoor 2024 | Mainstage | SAVAGE SUNDAY'
+        )
 
     def test_manual_test(self):
         self.song.path = lambda: '/home/user/Music/The Viper/track.mp3'
@@ -183,18 +204,32 @@ class InferArtistFromTitleRuleTest(unittest.TestCase):
     def test_idempotent_rule_application(self):
         title = 'D-Fence - Emporium 2025'
         self.song.tag_collection.has_item.return_value = False
-        self.song.tag_collection.get_item_as_string.side_effect = lambda key: {ARTIST: '', TITLE: title, ORIGINAL_TITLE: title}[key]
+        self.song.tag_collection.get_item_as_string.side_effect = lambda key: {
+            ARTIST: '',
+            TITLE: title,
+            ORIGINAL_TITLE: title,
+        }[key]
         self.song.tag_collection.get_item = MagicMock(return_value=title)
-        rule = InferArtistFromTitleRule(artist_db=self.mock_artist_db, genre_db=self.mock_genres_db, ignored_db=self.mock_ignored_db)
+        rule = InferArtistFromTitleRule(
+            artist_db=self.mock_artist_db, genre_db=self.mock_genres_db, ignored_db=self.mock_ignored_db
+        )
         rule.apply(self.song)
-        first_calls = [call for call in self.song.tag_collection.set_item.call_args_list if call.args[0] != ORIGINAL_TITLE]
+        first_calls = [
+            call for call in self.song.tag_collection.set_item.call_args_list if call.args[0] != ORIGINAL_TITLE
+        ]
         self.song.tag_collection.set_item.reset_mock()
         self.song.tag_collection.set_artist.reset_mock()
         self.song.tag_collection.add.reset_mock()
         self.song.tag_collection.has_item.return_value = True
         rule.apply(self.song)
-        second_calls = [call for call in self.song.tag_collection.set_item.call_args_list if call.args[0] != ORIGINAL_TITLE]
-        self.assertEqual(first_calls, second_calls, 'Repeated rule application should yield identical tag changes (except for ORIGINAL_TITLE)')
+        second_calls = [
+            call for call in self.song.tag_collection.set_item.call_args_list if call.args[0] != ORIGINAL_TITLE
+        ]
+        self.assertEqual(
+            first_calls,
+            second_calls,
+            'Repeated rule application should yield identical tag changes (except for ORIGINAL_TITLE)',
+        )
 
 
 class InferArtistFromEventPrefixRuleTest(unittest.TestCase):
@@ -217,9 +252,18 @@ class InferArtistFromEventPrefixRuleTest(unittest.TestCase):
             self.mock_artist_db.get_all_values.return_value = known_artists
         self.song.tag_collection.reset_mock()
         self.song.tag_collection.has_item.return_value = False
-        self.song.tag_collection.get_item_as_string.side_effect = lambda key: {ARTIST: '', TITLE: title, ORIGINAL_TITLE: title}[key]
+        self.song.tag_collection.get_item_as_string.side_effect = lambda key: {
+            ARTIST: '',
+            TITLE: title,
+            ORIGINAL_TITLE: title,
+        }[key]
         self.song.tag_collection.get_item = MagicMock(return_value=title)
-        rule = InferArtistFromTitleRule(artist_db=self.mock_artist_db, genre_db=self.mock_genres_db, ignored_db=self.mock_ignored_db, festival_helper=self.mock_festival_helper)
+        rule = InferArtistFromTitleRule(
+            artist_db=self.mock_artist_db,
+            genre_db=self.mock_genres_db,
+            ignored_db=self.mock_ignored_db,
+            festival_helper=self.mock_festival_helper,
+        )
         rule.apply(self.song)
 
     def _artist_calls(self):
@@ -238,7 +282,9 @@ class InferArtistFromEventPrefixRuleTest(unittest.TestCase):
     def test_event_name_already_in_artist_database_does_not_win(self):
         # The mistake feeds itself: once "Thunderdome 2025" is a known artist the
         # single dash rule matches it exactly and keeps picking the wrong side.
-        self._apply_rule('Thunderdome 2025 ｜ Akimbo vs. Barber', known_artists=['Akimbo', 'Barber', 'Thunderdome 2025'])
+        self._apply_rule(
+            'Thunderdome 2025 ｜ Akimbo vs. Barber', known_artists=['Akimbo', 'Barber', 'Thunderdome 2025']
+        )
         self.song.tag_collection.set_item.assert_any_call(ARTIST, 'Akimbo;Barber')
         self.song.tag_collection.set_item.assert_any_call(TITLE, 'Thunderdome 2025')
 
@@ -248,7 +294,9 @@ class InferArtistFromEventPrefixRuleTest(unittest.TestCase):
             self.song.tag_collection.set_item.assert_any_call(ARTIST, 'Akimbo;Barber')
 
     def test_festival_without_a_year_is_recognised_by_the_helper(self):
-        self.mock_festival_helper.get.side_effect = lambda text, **kwargs: {'festival': 'Thunderdome'} if text.strip() == 'Thunderdome' else None
+        self.mock_festival_helper.get.side_effect = lambda text, **kwargs: (
+            {'festival': 'Thunderdome'} if text.strip() == 'Thunderdome' else None
+        )
         self._apply_rule('Thunderdome ｜ Akimbo vs. Barber')
         self.song.tag_collection.set_item.assert_any_call(ARTIST, 'Akimbo;Barber')
         self.song.tag_collection.set_item.assert_any_call(TITLE, 'Thunderdome')

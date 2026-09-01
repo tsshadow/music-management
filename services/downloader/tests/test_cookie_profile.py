@@ -67,8 +67,7 @@ class CookieProfileSnapshotTest(unittest.TestCase):
         self._write_cookie('oauth_token', 'secret')
         snapshot = snapshot_cookie_profile(self.profile)
         self.addCleanup(shutil.rmtree, snapshot, True)
-        self.assertEqual(self._names_in(os.path.join(snapshot, 'cookies.sqlite')),
-                         ['datadome', 'oauth_token'])
+        self.assertEqual(self._names_in(os.path.join(snapshot, 'cookies.sqlite')), ['datadome', 'oauth_token'])
 
     def test_the_live_profile_is_left_alone(self):
         self._write_cookie('datadome', 'fresh')

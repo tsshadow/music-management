@@ -104,7 +104,7 @@ class ProcessedFilesHelper:
         finally:
             connection.close()
 
-    def mark_for_rescan(self, song_path: str=None, reason: str | None=None):
+    def mark_for_rescan(self, song_path: str = None, reason: str | None = None):
         """Marks one or all songs for rescan, optionally recording why."""
         reason_sql = ', rescan_reason = %s' if reason else ''
         if song_path:
@@ -137,10 +137,12 @@ class ProcessedFilesHelper:
         try:
             with connection.cursor() as cursor:
                 for start in range(0, len(paths), self.BATCH_SIZE):
-                    chunk = paths[start:start + self.BATCH_SIZE]
+                    chunk = paths[start : start + self.BATCH_SIZE]
                     placeholders = ', '.join(['%s'] * len(chunk))
-                    query = (f'UPDATE {self.table_name} SET needs_rescan = TRUE, rescan_reason = %s '
-                             f'WHERE filepath IN ({placeholders})')
+                    query = (
+                        f'UPDATE {self.table_name} SET needs_rescan = TRUE, rescan_reason = %s '
+                        f'WHERE filepath IN ({placeholders})'
+                    )
                     cursor.execute(query, (reason, *chunk))
                     marked += len(chunk)
             connection.commit()
@@ -153,8 +155,10 @@ class ProcessedFilesHelper:
 
     def pending_summary(self) -> dict:
         """How many files are waiting for a retag, grouped by why."""
-        query = (f'SELECT COALESCE(rescan_reason, %s) AS reason, COUNT(*) FROM {self.table_name} '
-                 f'WHERE needs_rescan = TRUE GROUP BY reason ORDER BY COUNT(*) DESC')
+        query = (
+            f'SELECT COALESCE(rescan_reason, %s) AS reason, COUNT(*) FROM {self.table_name} '
+            f'WHERE needs_rescan = TRUE GROUP BY reason ORDER BY COUNT(*) DESC'
+        )
         connection = self.db_connector.connect()
         try:
             with connection.cursor() as cursor:

@@ -10,13 +10,15 @@ from services.tagger.Song.rules.TagRule import TagRule
 
 logger = logging.getLogger(__name__)
 
+
 class VerifyArtistRule(TagRule):
     """Validate and normalize the ARTIST tag of a song."""
+
     NUMERIC_ONLY = re.compile('^#?\\d+[.)]?$')
     NUMERIC_PREFIX = re.compile('^#?\\d{1,3}[.)\\s-]+')
     INVALID_START = re.compile('^[&#\\-\\(\\*\'\\"\\[]+')
 
-    def __init__(self, artist_db: TableHelper | None=None, lookup: ExternalArtistLookup | None=None):
+    def __init__(self, artist_db: TableHelper | None = None, lookup: ExternalArtistLookup | None = None):
         self.artist_db = artist_db or TableHelper('library_artists', 'name')
         self.lookup = lookup or ExternalArtistLookup()
         self.seen_counts: defaultdict[str, int] = defaultdict(int)
@@ -29,7 +31,7 @@ class VerifyArtistRule(TagRule):
             return (name, False, True)
         prefix = self.NUMERIC_PREFIX.match(name)
         if prefix:
-            name = name[prefix.end():].strip()
+            name = name[prefix.end() :].strip()
             if not name:
                 return (original, False, True)
             return (name, True, False)

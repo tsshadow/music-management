@@ -1,4 +1,5 @@
 """The stop signal a deploy sends, and what the downloaders do with it."""
+
 import signal
 import unittest
 from unittest import mock
@@ -19,7 +20,6 @@ from services.downloader.youtube.youtube import YoutubeDownloader
 
 
 class ShutdownFlagTest(unittest.TestCase):
-
     def setUp(self):
         shutdown.reset()
         self.addCleanup(shutdown.reset)
@@ -47,8 +47,7 @@ class ShutdownFlagTest(unittest.TestCase):
 
     def test_installing_the_handlers_arms_sigterm_and_sigint(self):
         previous = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT)}
-        self.addCleanup(lambda: [signal.signal(sig, handler)
-                                 for sig, handler in previous.items()])
+        self.addCleanup(lambda: [signal.signal(sig, handler) for sig, handler in previous.items()])
 
         shutdown.install_handlers()
 
@@ -86,9 +85,11 @@ class GuardTest(unittest.TestCase):
         self.addCleanup(shutdown.reset)
         timing = load_timing('soundcloud', overrides={})
         self.policy = SweepPolicy(
-            'soundcloud', timing=timing,
+            'soundcloud',
+            timing=timing,
             rate_state=RateState('soundcloud', timing, store=InMemoryRateStateStore()),
-            schedule=AccountSchedule('soundcloud', store=InMemoryCheckStore()))
+            schedule=AccountSchedule('soundcloud', store=InMemoryCheckStore()),
+        )
 
     def test_the_guard_lets_an_account_through_normally(self):
         self.policy.guard('dj_a')
@@ -165,12 +166,12 @@ class RetryStopsOnShutdownTest(unittest.TestCase):
     def test_a_download_aborted_by_a_shutdown_is_not_retried(self):
         shutdown.request()
 
-        with mock.patch('services.downloader.soundcloud.soundcloud.YoutubeDL',
-                        side_effect=self._failing_ydl), \
-             mock.patch('services.downloader.soundcloud.soundcloud.time.sleep') as slept:
+        with (
+            mock.patch('services.downloader.soundcloud.soundcloud.YoutubeDL', side_effect=self._failing_ydl),
+            mock.patch('services.downloader.soundcloud.soundcloud.time.sleep') as slept,
+        ):
             with self.assertRaises(SweepAborted):
-                self.downloader.download_url('https://soundcloud.com/dj_a/t1', {},
-                                             account='dj_a')
+                self.downloader.download_url('https://soundcloud.com/dj_a/t1', {}, account='dj_a')
 
         self.assertEqual(1, self.attempts)
         slept.assert_not_called()
@@ -180,11 +181,11 @@ class RetryStopsOnShutdownTest(unittest.TestCase):
             self.attempts += 1
             raise RuntimeError('network down')
 
-        with mock.patch('services.downloader.soundcloud.soundcloud.YoutubeDL',
-                        side_effect=_boom), \
-             mock.patch('services.downloader.soundcloud.soundcloud.time.sleep'):
-            self.downloader.download_url('https://soundcloud.com/dj_a/t1', {},
-                                         account='dj_a')
+        with (
+            mock.patch('services.downloader.soundcloud.soundcloud.YoutubeDL', side_effect=_boom),
+            mock.patch('services.downloader.soundcloud.soundcloud.time.sleep'),
+        ):
+            self.downloader.download_url('https://soundcloud.com/dj_a/t1', {}, account='dj_a')
 
         self.assertEqual(self.downloader.timing.retry_attempts, self.attempts)
 
@@ -205,9 +206,8 @@ class BookkeepingSurvivesShutdownTest(unittest.TestCase):
         self.write_off_store = InMemoryWriteOffStore()
         parts = _policy_parts('soundcloud')
         self.downloader = SoundcloudDownloader(
-            unavailable=WriteOffs('soundcloud', store=self.write_off_store,
-                                  retry_days=30),
-            **parts)
+            unavailable=WriteOffs('soundcloud', store=self.write_off_store, retry_days=30), **parts
+        )
         self.downloader.downloader_config['archive_file'] = None
         self.downloader.downloader_config['archive_dir'] = '/nonexistent'
         self.fetched = []
@@ -219,13 +219,14 @@ class BookkeepingSurvivesShutdownTest(unittest.TestCase):
 
     def test_a_pass_cut_short_still_records_what_it_learned(self):
         self.downloader.download_url = self._fetch_then_stop
-        listing = [FlatTrack(t, f'https://soundcloud.com/dj_a/{t}', t)
-                   for t in ('a', 'b', 'c')]
+        listing = [FlatTrack(t, f'https://soundcloud.com/dj_a/{t}', t) for t in ('a', 'b', 'c')]
 
-        with mock.patch('services.downloader.soundcloud.soundcloud.list_flat',
-                        return_value=listing), \
-             mock.patch('services.downloader.soundcloud.soundcloud.SoundcloudArchive'
-                        '.held_ids', side_effect=[set(), set()]):
+        with (
+            mock.patch('services.downloader.soundcloud.soundcloud.list_flat', return_value=listing),
+            mock.patch(
+                'services.downloader.soundcloud.soundcloud.SoundcloudArchive.held_ids', side_effect=[set(), set()]
+            ),
+        ):
             with self.assertRaises(SweepAborted):
                 self.downloader.deep_sweep_account('dj_a', {})
 
@@ -240,13 +241,14 @@ class BookkeepingSurvivesShutdownTest(unittest.TestCase):
         # `failed` for a month -- the deep sweep skipping exactly the tracks it
         # exists to fetch.
         self.downloader.download_url = self._fetch_then_stop
-        listing = [FlatTrack(t, f'https://soundcloud.com/dj_a/{t}', t)
-                   for t in ('a', 'b', 'c')]
+        listing = [FlatTrack(t, f'https://soundcloud.com/dj_a/{t}', t) for t in ('a', 'b', 'c')]
 
-        with mock.patch('services.downloader.soundcloud.soundcloud.list_flat',
-                        return_value=listing), \
-             mock.patch('services.downloader.soundcloud.soundcloud.SoundcloudArchive'
-                        '.held_ids', side_effect=[set(), set()]):
+        with (
+            mock.patch('services.downloader.soundcloud.soundcloud.list_flat', return_value=listing),
+            mock.patch(
+                'services.downloader.soundcloud.soundcloud.SoundcloudArchive.held_ids', side_effect=[set(), set()]
+            ),
+        ):
             with self.assertRaises(SweepAborted):
                 self.downloader.deep_sweep_account('dj_a', {})
 
@@ -260,10 +262,12 @@ class BookkeepingSurvivesShutdownTest(unittest.TestCase):
         self.downloader.download_url = self._fetch_then_stop
         listing = [FlatTrack('a', 'https://soundcloud.com/dj_a/a', 'a')]
 
-        with mock.patch('services.downloader.soundcloud.soundcloud.list_flat',
-                        return_value=listing), \
-             mock.patch('services.downloader.soundcloud.soundcloud.SoundcloudArchive'
-                        '.held_ids', side_effect=[set(), set()]):
+        with (
+            mock.patch('services.downloader.soundcloud.soundcloud.list_flat', return_value=listing),
+            mock.patch(
+                'services.downloader.soundcloud.soundcloud.SoundcloudArchive.held_ids', side_effect=[set(), set()]
+            ),
+        ):
             self.downloader._check_account('dj_a', {})
 
         self.assertTrue(self.downloader.policy.deep_due('dj_a'))
@@ -279,11 +283,12 @@ class MainLoopStopsTest(unittest.TestCase):
     def _run_main(self, argv, on_download):
         service = mock.MagicMock()
         service.download.side_effect = on_download
-        with mock.patch.object(downloader_service, 'DownloaderService', return_value=service), \
-             mock.patch.object(downloader_service, 'parse_args',
-                               return_value=downloader_service.parse_args(argv)), \
-             mock.patch.object(downloader_service, 'setup_logging'), \
-             mock.patch.object(downloader_service.time, 'sleep') as slept:
+        with (
+            mock.patch.object(downloader_service, 'DownloaderService', return_value=service),
+            mock.patch.object(downloader_service, 'parse_args', return_value=downloader_service.parse_args(argv)),
+            mock.patch.object(downloader_service, 'setup_logging'),
+            mock.patch.object(downloader_service.time, 'sleep') as slept,
+        ):
             downloader_service.main()
         return service, slept
 
@@ -291,8 +296,7 @@ class MainLoopStopsTest(unittest.TestCase):
         def _stop_after_one(*_args, **_kwargs):
             shutdown.request()
 
-        _service, slept = self._run_main(['--step', 'soundcloud', '--repeat'],
-                                         _stop_after_one)
+        _service, slept = self._run_main(['--step', 'soundcloud', '--repeat'], _stop_after_one)
 
         slept.assert_not_called()
 

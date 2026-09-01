@@ -23,6 +23,7 @@ Re-tagging an unchanged file is cheap on purpose: `BaseSong.save_file` only writ
 rule actually produced a different value, so a round that finds nothing new touches no
 files on disk and gives LMS nothing to re-index.
 """
+
 from __future__ import annotations
 
 import logging
@@ -53,7 +54,7 @@ def _positive(value) -> int:
     return number if number > 0 else 0
 
 
-def deep_run_tick(helper: ProcessedFilesHelper | None=None, settings=None) -> int:
+def deep_run_tick(helper: ProcessedFilesHelper | None = None, settings=None) -> int:
     """Queue one slice of the deep run. Returns how many files were handed back.
 
     Never raises: a database that is briefly away may delay the deep run, but it may not
@@ -69,7 +70,12 @@ def deep_run_tick(helper: ProcessedFilesHelper | None=None, settings=None) -> in
     try:
         marked = helper.mark_stale_for_rescan(days, batch)
         if marked:
-            logger.info('Deep run queued %d file(s) last tagged over %d days ago, %d still waiting', marked, days, helper.count_stale(days))
+            logger.info(
+                'Deep run queued %d file(s) last tagged over %d days ago, %d still waiting',
+                marked,
+                days,
+                helper.count_stale(days),
+            )
     except Exception as e:
         logger.error('Deep run could not queue files: %s', e)
     return marked

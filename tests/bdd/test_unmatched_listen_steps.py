@@ -5,6 +5,7 @@ The feature file is the description; this is only what the steps do.
 Started by scripts/test/core-e2e.sh, which brings the stack up. Without it these
 skip.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -34,9 +35,7 @@ def _no_unmatched_yet(manager, api_key, context):
     # scenario that scrobbles a track the library *does* have, and it belongs in
     # that feature rather than this one, or both baselines stop holding.
     context['unmatched_before'] = _unmatched_count(manager, api_key)
-    assert context['unmatched_before'] == 0, (
-        f'the stack came up with {context["unmatched_before"]} unmatched listens'
-    )
+    assert context['unmatched_before'] == 0, f'the stack came up with {context["unmatched_before"]} unmatched listens'
 
 
 @when('a listen is recorded for a track the library does not have')
@@ -74,6 +73,5 @@ def _not_reported_as_a_match(context):
 def _kept_for_rematching(manager, api_key, context):
     after = _unmatched_count(manager, api_key)
     assert after == context['unmatched_before'] + 1, (
-        f'unmatched listens went from {context["unmatched_before"]} to {after}: '
-        f'the listen was answered but not kept'
+        f'unmatched listens went from {context["unmatched_before"]} to {after}: the listen was answered but not kept'
     )

@@ -14,6 +14,7 @@ comes from the full run instead.
 What "flat" means lives in `services.downloader.deep_sweep`, which the deep pass
 uses to read the same listing without a limit. One definition, two questions.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -26,6 +27,7 @@ from services.downloader.deep_sweep import list_flat
 @dataclass(frozen=True)
 class ProbeResult:
     """The newest track of one account, as far as a flat listing can tell."""
+
     track_id: str
     title: str | None
     url: str | None

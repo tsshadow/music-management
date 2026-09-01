@@ -38,6 +38,7 @@ parse_aac = False
 broken_song_helper = BrokenSongHelper()
 processed_files_helper = ProcessedFilesHelper()
 
+
 class Tagger:
     """
     Handles automatic tagging of music files using Mutagen,
@@ -49,7 +50,9 @@ class Tagger:
         self.stop_requested = False
         processed_files_helper.create_table()
 
-    def run(self, parse_labels=True, parse_soundcloud=True, parse_youtube=True, parse_generic=True, parse_telegram=True):
+    def run(
+        self, parse_labels=True, parse_soundcloud=True, parse_youtube=True, parse_generic=True, parse_telegram=True
+    ):
         """
         Entrypoint for the tagging process.
         Scans various music directories (library_labels, YouTube, SoundCloud, generic) and applies appropriate tag parsing.
@@ -59,7 +62,14 @@ class Tagger:
         # rule added today would only take effect after a restart.
         reload_rule_caches()
         self.stop_requested = False
-        logging.info('Starting Tag Step with options: %s, %s, %s, %s, %s', parse_labels, parse_soundcloud, parse_youtube, parse_generic, parse_telegram)
+        logging.info(
+            'Starting Tag Step with options: %s, %s, %s, %s, %s',
+            parse_labels,
+            parse_soundcloud,
+            parse_youtube,
+            parse_generic,
+            parse_telegram,
+        )
         if parse_labels and (not self.stop_requested):
             self._parse_label_folders()
         if parse_soundcloud and (not self.stop_requested):
@@ -141,12 +151,21 @@ class Tagger:
             return
         try:
             files = []
-            for ext, enabled in {'mp3': parse_mp3, 'flac': parse_flac, 'wav': parse_wav, 'm4a': parse_m4a, 'aac': parse_aac}.items():
+            for ext, enabled in {
+                'mp3': parse_mp3,
+                'flac': parse_flac,
+                'wav': parse_wav,
+                'm4a': parse_m4a,
+                'aac': parse_aac,
+            }.items():
                 if enabled:
                     files.extend(folder.glob(f'*.{ext}'))
             if self.parallel and files:
                 with ThreadPoolExecutor(max_workers=16) as executor:
-                    futures = [executor.submit(Tagger._parse_worker, str(file), song_type.name, None, extra_info) for file in files]
+                    futures = [
+                        executor.submit(Tagger._parse_worker, str(file), song_type.name, None, extra_info)
+                        for file in files
+                    ]
                     for future in as_completed(futures):
                         if self.stop_requested:
                             executor.shutdown(wait=False, cancel_futures=True)
@@ -183,7 +202,7 @@ class Tagger:
             logging.error(f'Parse_song failed: {e} -> {file}', exc_info=True)
 
     @staticmethod
-    def parse_song(path: Path, song_type: SongTypeEnum, manual_tags: dict[str, str] | None=None, extra_info=None):
+    def parse_song(path: Path, song_type: SongTypeEnum, manual_tags: dict[str, str] | None = None, extra_info=None):
         """
         Creates a Song instance to trigger tag parsing logic.
 
@@ -211,7 +230,7 @@ class Tagger:
         return song
 
     @staticmethod
-    def _parse_worker(file: str, song_type_str: str, manual_tags: dict[str, str] | None=None, extra_info=None):
+    def _parse_worker(file: str, song_type_str: str, manual_tags: dict[str, str] | None = None, extra_info=None):
         try:
             path = Path(file)
             mtime = path.stat().st_mtime
@@ -223,6 +242,7 @@ class Tagger:
             return (file, 'OK')
         except Exception as e:
             return (file, f'{type(e).__name__}: {e}')
+
 
 def TagSingleFile(path: str | Path, extra_info=None):
     """

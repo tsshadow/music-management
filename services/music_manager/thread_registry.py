@@ -4,6 +4,7 @@ Alleen oneindige lussen horen hier thuis. Eenmalige achtergrondtaken zoals
 run_lms_db_sync en run_fetch_missing geven na afloop netjes terug; die zouden
 de liveness-controle permanent rood zetten.
 """
+
 from __future__ import annotations
 
 import threading

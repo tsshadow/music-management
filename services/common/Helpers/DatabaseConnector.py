@@ -6,11 +6,10 @@ import pymysql
 
 
 class DatabaseConnector:
-
     def __init__(self):
         self.host = os.getenv('DB_HOST')
         port = os.getenv('DB_PORT')
-        
+
         # Handle host:port format
         if self.host and ':' in self.host and not self.host.startswith('['):
             self.host, port_str = self.host.split(':', 1)
@@ -29,7 +28,14 @@ class DatabaseConnector:
     def connect(self):
         if not all([self.host, self.user, self.password, self.db, self.port]):
             raise RuntimeError('Database connection parameters are not fully configured')
-        return pymysql.connect(host=self.host, port=self.port, user=self.user, password=self.password, db=self.db, connect_timeout=self.connect_timeout)
+        return pymysql.connect(
+            host=self.host,
+            port=self.port,
+            user=self.user,
+            password=self.password,
+            db=self.db,
+            connect_timeout=self.connect_timeout,
+        )
 
     @contextmanager
     def connection(self):

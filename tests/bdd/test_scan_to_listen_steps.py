@@ -9,6 +9,7 @@ which was deleted rather than kept alongside.
 Started by scripts/test/core-e2e.sh, which brings the stack up and puts the
 fixture in place. Without it these skip.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -99,9 +100,7 @@ def _subsonic_search_returns_the_track(context):
 
     songs = body.get('searchResult3', {}).get('song', [])
     titles = [song.get('title') for song in songs]
-    assert TRACK_TITLE in titles, (
-        f'LMS answered but does not have the fixture track; it returned {titles!r}'
-    )
+    assert TRACK_TITLE in titles, f'LMS answered but does not have the fixture track; it returned {titles!r}'
     # LMS's own id for the track, which is not music-manager's. The streaming
     # steps need it, and it only exists once LMS has scanned.
     context['song'] = next(song for song in songs if song.get('title') == TRACK_TITLE)
@@ -135,9 +134,7 @@ def _audio_comes_back_whole(context):
         f'streamed {len(body)} bytes, but LMS said the track is '
         f'{context["song"]["size"]}: it was converted on the way out'
     )
-    assert body.startswith(b'ID3'), (
-        f'streamed bytes do not start an MP3 file: {body[:16]!r}'
-    )
+    assert body.startswith(b'ID3'), f'streamed bytes do not start an MP3 file: {body[:16]!r}'
 
 
 @then('a player can ask for a single byte in the middle of it')
@@ -154,11 +151,9 @@ def _one_byte_can_be_fetched(lms, subsonic_auth, context):
     # 206, not 200: a server that ignores Range answers 200 with the whole file,
     # which reads as success to anything that only checks the status code and
     # leaves a player unable to seek.
-    assert partial.status_code == 206, (
-        f'expected 206 for a range request, got {partial.status_code}'
-    )
-    assert partial.headers.get('Content-Range') == f'bytes {offset}-{offset}/{size}', (
-        partial.headers.get('Content-Range')
+    assert partial.status_code == 206, f'expected 206 for a range request, got {partial.status_code}'
+    assert partial.headers.get('Content-Range') == f'bytes {offset}-{offset}/{size}', partial.headers.get(
+        'Content-Range'
     )
     assert len(partial.content) == 1, f'asked for one byte, got {len(partial.content)}'
 

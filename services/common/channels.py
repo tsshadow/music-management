@@ -76,8 +76,8 @@ def channel_from_path(path: str, music_root: str | None = None, delimiter: str =
     root = str(music_root or '').strip(delimiter)
     if root:
         root_parts = [part for part in root.split(delimiter) if part]
-        if parts[:len(root_parts)] == root_parts:
-            parts = parts[len(root_parts):]
+        if parts[: len(root_parts)] == root_parts:
+            parts = parts[len(root_parts) :]
 
     for index, part in enumerate(parts):
         platform = PLATFORM_FOLDERS.get(_normalize(part))
@@ -105,8 +105,8 @@ def path_can_carry_a_label(path: str, music_root: str | None = None, delimiter: 
     root = str(music_root or '').strip(delimiter)
     if root:
         root_parts = [part for part in root.split(delimiter) if part]
-        if parts[:len(root_parts)] == root_parts:
-            parts = parts[len(root_parts):]
+        if parts[: len(root_parts)] == root_parts:
+            parts = parts[len(root_parts) :]
 
     if not parts:
         return False

@@ -13,6 +13,7 @@ def test_normalizer():
     assert norm.normalize('Label_Records') == 'label'
     print('Normalizer tests passed!')
 
+
 def test_matcher():
     matcher = ArtistMatcher()
     target = {'id': 1, 'name': 'A-Lusion', 'mbid': 'abc'}
@@ -26,6 +27,8 @@ def test_matcher():
     score3 = matcher.calculate_confidence(target, cand3)
     assert score3 == 0
     print('Matcher tests passed!')
+
+
 if __name__ == '__main__':
     test_normalizer()
     test_matcher()

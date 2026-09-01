@@ -7,6 +7,7 @@ fix was invisible to a mocked cursor.
 
 Design and measurements: docs/superpowers/specs/2026-08-21-scrobble-rematching-design.md
 """
+
 from __future__ import annotations
 
 import difflib

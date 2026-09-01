@@ -19,6 +19,7 @@ Requiring an episode marker here while `InferPodcastFromTitleRule` does not is
 deliberate: detection has to be conservative because it proposes new rows, and the rule
 is already fenced in by a human decision.
 """
+
 import argparse
 import os
 import re
@@ -40,11 +41,38 @@ AUDIO_EXTENSIONS = {'.mp3', '.flac', '.wav', '.m4a', '.aac', '.opus'}
 # Label releases live in EPs and are the one place where a show name and a label name
 # collide -- "Hard With Style" and "Hardcore Blasters" are labels there. The rest are
 # not music the tagger owns.
-EXCLUDED_ROOTS = {'EPs', 'archives', 'dump', 'download', 'private', 'Lidarr', 'images', 'metadata', 'scripts', '#recycle', '@eaDir'}
+EXCLUDED_ROOTS = {
+    'EPs',
+    'archives',
+    'dump',
+    'download',
+    'private',
+    'Lidarr',
+    'images',
+    'metadata',
+    'scripts',
+    '#recycle',
+    '@eaDir',
+}
 
 # Folders that say where a file came from rather than what series it is, so climbing out
 # of a year folder does not stop on one of them.
-SOURCE_ROOTS = {'mnt', 'music', 'Podcasts', 'Soundcloud', 'Youtube', 'Telegram', 'Livesets', 'Warm Up Mixes', 'Top 100', 'Spotify', 'Mashups', 'Hitzone', 'artists', 'EPs'}
+SOURCE_ROOTS = {
+    'mnt',
+    'music',
+    'Podcasts',
+    'Soundcloud',
+    'Youtube',
+    'Telegram',
+    'Livesets',
+    'Warm Up Mixes',
+    'Top 100',
+    'Spotify',
+    'Mashups',
+    'Hitzone',
+    'artists',
+    'EPs',
+}
 
 # A stripped name that says "this is an episode of something" without saying of what.
 # `Podcasts/The Magic Show/2011/Podcast week 023.mp3` leaves exactly this behind, and the
@@ -57,6 +85,7 @@ YEAR_FOLDER = re.compile('^(19|20)\\d{2}$')
 @dataclass
 class Series:
     """One candidate show: how it is spelled, how often, and where it lives."""
+
     key: str
     name: str
     count: int = 0
@@ -99,7 +128,7 @@ def series_name_for(path: str) -> str | None:
     return raw
 
 
-def group_series(paths, min_episodes: int=5) -> list[Series]:
+def group_series(paths, min_episodes: int = 5) -> list[Series]:
     """
     Groups paths into candidate shows, largest first.
 
@@ -157,6 +186,7 @@ def apply_to_database(series_list, connector=None) -> dict:
     @return: counts of what was inserted or refreshed
     """
     from services.common.Helpers.DatabaseConnector import DatabaseConnector
+
     connection = (connector or DatabaseConnector()).connect()
     stats = {'shows': 0, 'aliases': 0}
     try:
@@ -165,7 +195,8 @@ def apply_to_database(series_list, connector=None) -> dict:
                 cursor.execute(
                     'INSERT INTO rules_podcasts (name, normalized_name, occurrences) VALUES (%s, %s, %s) '
                     'ON DUPLICATE KEY UPDATE occurrences = VALUES(occurrences)',
-                    (series.name, series.key, series.count))
+                    (series.name, series.key, series.count),
+                )
                 stats['shows'] += 1
                 cursor.execute('SELECT id FROM rules_podcasts WHERE normalized_name = %s', (series.key,))
                 row = cursor.fetchone()
@@ -174,7 +205,8 @@ def apply_to_database(series_list, connector=None) -> dict:
                     cursor.execute(
                         'INSERT INTO rules_podcast_aliases (podcast_id, alias, normalized_alias, occurrences) '
                         'VALUES (%s, %s, %s, %s) ON DUPLICATE KEY UPDATE occurrences = VALUES(occurrences)',
-                        (podcast_id, alias, normalize(alias), series.count))
+                        (podcast_id, alias, normalize(alias), series.count),
+                    )
                     stats['aliases'] += 1
         connection.commit()
     finally:
@@ -197,6 +229,7 @@ def main(argv=None):
         root = args.path
         if not root:
             from services.common.config_store import ConfigStore
+
             root = ConfigStore().music_folder_path
         paths = walk(root)
 

@@ -8,10 +8,10 @@ from services.tagger.Song.SoundcloudSong import SoundcloudSong
 
 
 class TestSoundcloudMultiPart(unittest.TestCase):
-
     def setUp(self):
         reset_database_helpers()
         from services.common.Helpers.Cache import databaseHelpers
+
         databaseHelpers['library_artists'].get_all_values.return_value = ['Devin Wild']
         databaseHelpers['library_artists'].exists.return_value = True
 
@@ -28,5 +28,7 @@ class TestSoundcloudMultiPart(unittest.TestCase):
         self.assertEqual(song.artist(), 'Devin Wild')
         self.assertIn('Defqon 2025', song.title())
         self.assertIn('Blue', song.title())
+
+
 if __name__ == '__main__':
     unittest.main()

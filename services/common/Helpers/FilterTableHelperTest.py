@@ -5,7 +5,6 @@ from services.common.Helpers.FilterTableHelper import FilterTableHelper
 
 
 class FilterTableHelperTest(unittest.TestCase):
-
     def setUp(self):
         patcher = patch('services.common.Helpers.FilterTableHelper.DatabaseConnector')
         self.addCleanup(patcher.stop)
@@ -76,7 +75,6 @@ class FilterTableHelperTest(unittest.TestCase):
         result = self.helper.get_all()
         self.assertEqual(result, ['Hardcore', 'Speedcore', 'Terror'])
 
-
     def test_reload_replaces_the_cached_values(self):
         helper = FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name', preload=False)
         helper.cache_enabled = True
@@ -90,6 +88,7 @@ class FilterTableHelperTest(unittest.TestCase):
     def test_reload_does_nothing_when_the_helper_is_not_cached(self):
         self.helper.reload()
         self.mock_cursor.execute.assert_not_called()
+
 
 class FilterTableHelperCachedTest(unittest.TestCase):
     """The preloaded path, which is the one every long-running service uses.
@@ -131,4 +130,6 @@ class FilterTableHelperCachedTest(unittest.TestCase):
 
     def test_unknown_genre_is_still_rejected(self):
         self.assertFalse(self.helper.get_corrected_or_exists('jazz'))
+
+
 unittest.TextTestRunner().run(unittest.defaultTestLoader.loadTestsFromTestCase(FilterTableHelperTest))

@@ -50,7 +50,6 @@ class JobManagerRegistryTest(unittest.TestCase):
 
 
 class JobManagerPushTest(unittest.TestCase):
-
     def _manager(self, **env):
         with patch.dict('os.environ', env, clear=True):
             return JobManager()

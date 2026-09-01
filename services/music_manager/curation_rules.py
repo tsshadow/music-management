@@ -9,6 +9,7 @@ never sees it.
 
 Everything in here takes an open cursor and leaves the transaction to the caller.
 """
+
 import re
 import unicodedata
 
@@ -83,8 +84,8 @@ def require_white_genre(cursor, genre_id: int) -> dict:
 
 def find_genre_by_name(cursor, name: str) -> dict | None:
     cursor.execute(
-        'SELECT id, name, state, occurrences FROM rules_genres WHERE normalized_name = %s',
-        (normalize_genre(name),))
+        'SELECT id, name, state, occurrences FROM rules_genres WHERE normalized_name = %s', (normalize_genre(name),)
+    )
     return cursor.fetchone()
 
 
@@ -104,99 +105,121 @@ def artist_track_count(cursor, name: str) -> int:
     Counts through library_media_files rather than library_tracks: a track with no
     file on disk cannot be retagged, so counting it would overstate the work.
     """
-    cursor.execute('''
+    cursor.execute(
+        '''
         SELECT COUNT(DISTINCT mf.track_id) AS affected
         FROM library_track_artists ta
         JOIN library_artists a ON a.id = ta.artist_id
         JOIN library_media_files mf ON mf.track_id = ta.track_id
         WHERE a.name = %s
-    ''', (name,))
+    ''',
+        (name,),
+    )
     row = cursor.fetchone()
     return int((row or {}).get('affected') or 0)
 
 
 def label_track_count(cursor, name: str) -> int:
-    cursor.execute('''
+    cursor.execute(
+        '''
         SELECT COUNT(DISTINCT mf.track_id) AS affected
         FROM library_track_labels tl
         JOIN library_labels l ON l.id = tl.label_id
         JOIN library_media_files mf ON mf.track_id = tl.track_id
         WHERE l.name = %s
-    ''', (name,))
+    ''',
+        (name,),
+    )
     row = cursor.fetchone()
     return int((row or {}).get('affected') or 0)
 
 
 def artist_track_paths(cursor, name: str, limit: int) -> list[str]:
-    cursor.execute('''
+    cursor.execute(
+        '''
         SELECT DISTINCT mf.file_path
         FROM library_track_artists ta
         JOIN library_artists a ON a.id = ta.artist_id
         JOIN library_media_files mf ON mf.track_id = ta.track_id
         WHERE a.name = %s
         LIMIT %s
-    ''', (name, limit))
+    ''',
+        (name, limit),
+    )
     return [row['file_path'] for row in cursor.fetchall() if row.get('file_path')]
 
 
 def label_track_paths(cursor, name: str, limit: int) -> list[str]:
-    cursor.execute('''
+    cursor.execute(
+        '''
         SELECT DISTINCT mf.file_path
         FROM library_track_labels tl
         JOIN library_labels l ON l.id = tl.label_id
         JOIN library_media_files mf ON mf.track_id = tl.track_id
         WHERE l.name = %s
         LIMIT %s
-    ''', (name, limit))
+    ''',
+        (name, limit),
+    )
     return [row['file_path'] for row in cursor.fetchall() if row.get('file_path')]
 
 
 def artist_genre_rules(cursor, name: str) -> list[dict]:
-    cursor.execute('''
+    cursor.execute(
+        '''
         SELECT r.genre_id, g.name, r.created_by
         FROM rules_artist_genres r
         JOIN rules_genres g ON g.id = r.genre_id
         WHERE r.artist_name = %s
         ORDER BY g.name
-    ''', (name,))
+    ''',
+        (name,),
+    )
     return list(cursor.fetchall())
 
 
 def label_genre_rules(cursor, name: str) -> list[dict]:
-    cursor.execute('''
+    cursor.execute(
+        '''
         SELECT r.genre_id, g.name, r.created_by
         FROM rules_label_genres r
         JOIN rules_genres g ON g.id = r.genre_id
         WHERE r.label_name = %s
         ORDER BY g.name
-    ''', (name,))
+    ''',
+        (name,),
+    )
     return list(cursor.fetchall())
 
 
 def add_artist_genre_rule(cursor, artist_name: str, genre_id: int, actor: str) -> None:
-    cursor.execute('''
+    cursor.execute(
+        '''
         INSERT INTO rules_artist_genres (artist_name, genre_id, created_by)
         VALUES (%s, %s, %s)
         ON DUPLICATE KEY UPDATE created_by = VALUES(created_by)
-    ''', (artist_name, genre_id, actor))
+    ''',
+        (artist_name, genre_id, actor),
+    )
 
 
 def remove_artist_genre_rule(cursor, artist_name: str, genre_id: int) -> None:
-    cursor.execute('DELETE FROM rules_artist_genres WHERE artist_name = %s AND genre_id = %s',
-                   (artist_name, genre_id))
+    cursor.execute('DELETE FROM rules_artist_genres WHERE artist_name = %s AND genre_id = %s', (artist_name, genre_id))
 
 
 def add_label_genre_rule(cursor, label_name: str, genre_id: int, actor: str) -> None:
-    cursor.execute('''
+    cursor.execute(
+        '''
         INSERT INTO rules_label_genres (label_name, genre_id, created_by)
         VALUES (%s, %s, %s)
         ON DUPLICATE KEY UPDATE created_by = VALUES(created_by)
-    ''', (label_name, genre_id, actor))
+    ''',
+        (label_name, genre_id, actor),
+    )
 
 
 def remove_label_genre_rule(cursor, label_name: str, genre_id: int) -> None:
-    cursor.execute('DELETE FROM rules_label_genres WHERE label_name = %s AND genre_id = %s',
-                   (label_name, genre_id))
+    cursor.execute('DELETE FROM rules_label_genres WHERE label_name = %s AND genre_id = %s', (label_name, genre_id))
 
 
 def refresh(helper_key: str) -> None:

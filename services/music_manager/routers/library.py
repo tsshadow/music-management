@@ -34,12 +34,14 @@ def _order_by(sort: str, direction: str) -> str:
     column = _SORTS.get(sort, _SORTS['created'])
     return f'{column} {"ASC" if direction == "asc" else "DESC"}'
 
-def verify_api_key(x_api_key: str | None=Header(None)):
+
+def verify_api_key(x_api_key: str | None = Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
     if is_system_api_key(x_api_key):
         return {'type': 'system'}
     from services.music_manager.routers.users import verify_token
+
     try:
         res = verify_token(x_api_key)
         if res.get('status') == 'ok':
@@ -48,8 +50,9 @@ def verify_api_key(x_api_key: str | None=Header(None)):
         pass
     raise HTTPException(status_code=401, detail='Invalid API key')
 
+
 @router.get('/tracks')
-def get_tracks(q: str='', page: int=1, limit: int=50, _auth: dict=Depends(verify_api_key)):
+def get_tracks(q: str = '', page: int = 1, limit: int = 50, _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
@@ -60,11 +63,15 @@ def get_tracks(q: str='', page: int=1, limit: int=50, _auth: dict=Depends(verify
             search_pattern = f'%{q}%'
             cursor.execute(query, (search_pattern, search_pattern, search_pattern, limit, offset))
             tracks = cursor.fetchall()
-            cursor.execute('\n                SELECT COUNT(*) as total\n                FROM library_tracks t\n                LEFT JOIN library_artists a ON t.primary_artist_id = a.id\n                WHERE t.title LIKE %s OR a.name LIKE %s OR \n                      EXISTS (SELECT 1 FROM library_track_labels tl \n                              JOIN library_labels l ON tl.label_id = l.id \n                              WHERE tl.track_id = t.id AND l.name LIKE %s)\n            ', (search_pattern, search_pattern, search_pattern))
+            cursor.execute(
+                '\n                SELECT COUNT(*) as total\n                FROM library_tracks t\n                LEFT JOIN library_artists a ON t.primary_artist_id = a.id\n                WHERE t.title LIKE %s OR a.name LIKE %s OR \n                      EXISTS (SELECT 1 FROM library_track_labels tl \n                              JOIN library_labels l ON tl.label_id = l.id \n                              WHERE tl.track_id = t.id AND l.name LIKE %s)\n            ',
+                (search_pattern, search_pattern, search_pattern),
+            )
             total = cursor.fetchone()['total']
             return {'tracks': tracks, 'total': total, 'page': page, 'limit': limit}
     finally:
         conn.close()
+
 
 @router.get('/advanced')
 def get_advanced_library(
@@ -91,7 +98,8 @@ def get_advanced_library(
     where, params = build_filter(f)
     try:
         with conn.cursor() as cursor:
-            cursor.execute(f"""
+            cursor.execute(
+                f"""
                 SELECT
                     t.id, t.title, a.name AS artist, t.duration_secs,
                     (SELECT l.name FROM library_labels l
@@ -111,21 +119,22 @@ def get_advanced_library(
                 WHERE {where}
                 ORDER BY {_order_by(sort, direction)}
                 LIMIT %s OFFSET %s
-            """, (*params, limit, offset))
+            """,
+                (*params, limit, offset),
+            )
             tracks = cursor.fetchall()
 
             for track in tracks:
                 raw = track.get('genres')
                 track['genres'] = [g for g in (raw or '').split(',') if g]
 
-            cursor.execute(
-                f'SELECT COUNT(DISTINCT t.id) AS total {FROM_CLAUSE} WHERE {where}',
-                tuple(params))
+            cursor.execute(f'SELECT COUNT(DISTINCT t.id) AS total {FROM_CLAUSE} WHERE {where}', tuple(params))
             total = cursor.fetchone()['total']
 
             return {'tracks': tracks, 'total': total, 'page': page, 'limit': limit}
     finally:
         conn.close()
+
 
 @router.get('/genres')
 def get_library_genres(_auth: dict = Depends(verify_api_key)):
@@ -153,8 +162,9 @@ def get_library_genres(_auth: dict = Depends(verify_api_key)):
     finally:
         conn.close()
 
+
 @router.post('/tracks/{track_id}/rerun-parse')
-def rerun_parse(track_id: int, _auth: dict=Depends(verify_api_key)):
+def rerun_parse(track_id: int, _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
@@ -170,6 +180,7 @@ def rerun_parse(track_id: int, _auth: dict=Depends(verify_api_key)):
             try:
                 from services.music_manager.routers.scanner import scanner_manager
                 from services.music_manager.routers.tagger import tagger_manager
+
                 tagger_manager.tag_single(filepath)
                 logging.info(f'Successfully executed immediate tagger rescan for {filepath}')
                 scanner_manager.scan_single(filepath)
@@ -180,8 +191,9 @@ def rerun_parse(track_id: int, _auth: dict=Depends(verify_api_key)):
     finally:
         conn.close()
 
+
 @router.post('/tracks/rerun-parse-path')
-def rerun_parse_path(path: str=Query(...), _auth: dict=Depends(verify_api_key)):
+def rerun_parse_path(path: str = Query(...), _auth: dict = Depends(verify_api_key)):
     """
     Triggers a re-tagging and re-scanning of a file based on its absolute path.
     Useful for external integrations like LMS.
@@ -192,6 +204,7 @@ def rerun_parse_path(path: str=Query(...), _auth: dict=Depends(verify_api_key)):
     try:
         from services.music_manager.routers.scanner import scanner_manager
         from services.music_manager.routers.tagger import tagger_manager
+
         tagger_manager.tag_single(filepath)
         logging.info(f'Successfully executed immediate tagger rescan for {filepath}')
         scanner_manager.scan_single(filepath)
@@ -200,8 +213,9 @@ def rerun_parse_path(path: str=Query(...), _auth: dict=Depends(verify_api_key)):
         logging.warning(f'Could not execute immediate rescan/scan for path {filepath}: {e}')
     return {'status': 'ok', 'message': f'Track at {filepath} marked for rescan and immediate trigger attempted'}
 
+
 @router.post('/tracks/{track_id}/redownload')
-def redownload_track(track_id: int, background_tasks: BackgroundTasks, _auth: dict=Depends(verify_api_key)):
+def redownload_track(track_id: int, background_tasks: BackgroundTasks, _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
@@ -215,13 +229,17 @@ def redownload_track(track_id: int, background_tasks: BackgroundTasks, _auth: di
             filename = os.path.basename(filepath)
             source_url = None
             source_type = None
-            cursor.execute('SELECT url FROM downloads_soundcloud_archive WHERE filename LIKE %s LIMIT 1', (f'%{filename}%',))
+            cursor.execute(
+                'SELECT url FROM downloads_soundcloud_archive WHERE filename LIKE %s LIMIT 1', (f'%{filename}%',)
+            )
             res = cursor.fetchone()
             if res:
                 source_url = res['url']
                 source_type = 'soundcloud'
             if not source_url:
-                cursor.execute('SELECT url FROM downloads_youtube_archive WHERE filename LIKE %s LIMIT 1', (f'%{filename}%',))
+                cursor.execute(
+                    'SELECT url FROM downloads_youtube_archive WHERE filename LIKE %s LIMIT 1', (f'%{filename}%',)
+                )
                 res = cursor.fetchone()
                 if res:
                     source_url = res['url']
@@ -233,17 +251,20 @@ def redownload_track(track_id: int, background_tasks: BackgroundTasks, _auth: di
     finally:
         conn.close()
 
+
 def run_redownload_task(url: str, source_type: str):
     logging.info(f'Starting redownload task for {source_type}: {url}')
     try:
         if source_type == 'soundcloud':
             from services.downloader.soundcloud.soundcloud import SoundcloudDownloader
+
             downloader = SoundcloudDownloader(break_on_existing=False)
             downloader.redownload_mode = True
             ydl_opts = downloader._prepare_ydl_opts('', break_on_existing_arg=False, redownload=True)
             downloader.download_url(url, ydl_opts)
         elif source_type == 'youtube':
             from services.downloader.youtube.youtube import YoutubeDownloader
+
             downloader = YoutubeDownloader(break_on_existing=False)
             downloader.download_link(url, breakOnExisting=False, redownload=True)
         logging.info(f'Redownload task completed for {url}')

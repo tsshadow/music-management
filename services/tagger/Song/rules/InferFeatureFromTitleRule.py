@@ -15,7 +15,10 @@ class InferFeatureFromTitleRule(TagRule):
         title = song.tag_collection.get_item_as_string(TITLE)
         if not title:
             return False
-        patterns = ['[\\(\\[]\\s*(?i:feat\\.?|ft\\.?|featuring|features|with|invite|invites|pres\\.?|presents?)\\s+([^\\]\\)]+)\\s*[\\)\\]]', '\\s+\\b(?i:feat\\.?|ft\\.?|featuring|features|with|invite|invites|pres\\.?|presents?)\\s+(.*)$']
+        patterns = [
+            '[\\(\\[]\\s*(?i:feat\\.?|ft\\.?|featuring|features|with|invite|invites|pres\\.?|presents?)\\s+([^\\]\\)]+)\\s*[\\)\\]]',
+            '\\s+\\b(?i:feat\\.?|ft\\.?|featuring|features|with|invite|invites|pres\\.?|presents?)\\s+(.*)$',
+        ]
         modified = False
         for pattern in patterns:
             match = re.search(pattern, title)

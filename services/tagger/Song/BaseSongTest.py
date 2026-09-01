@@ -31,7 +31,6 @@ from services.tagger.Song.Tag import Tag
 
 
 class BaseSongTest(unittest.TestCase):
-
     @patch('services.tagger.Song.BaseSong.MP3')
     @patch('services.tagger.Song.BaseSong.EasyID3')
     def test_initialization_with_supported_extension(self, _mock_easyid3, mock_mp3):
@@ -65,6 +64,7 @@ class BaseSongTest(unittest.TestCase):
 
         def mock_sort():
             mock_tag.value.sort()
+
         mock_tag.sort.side_effect = mock_sort
         tag_collection = MagicMock()
         tag_collection.has_item.return_value = True
@@ -181,8 +181,10 @@ class BaseSongLoadingTest(unittest.TestCase):
         return music_file
 
     def test_a_flac_is_normalized_on_load(self):
-        with patch('services.tagger.Song.BaseSong.FLAC', return_value=self.flac_file()), \
-             patch('services.tagger.Song.BaseSong.NormalizeFlacTagsRule') as normalize:
+        with (
+            patch('services.tagger.Song.BaseSong.FLAC', return_value=self.flac_file()),
+            patch('services.tagger.Song.BaseSong.NormalizeFlacTagsRule') as normalize,
+        ):
             BaseSong('some/path/test.flac')
 
         normalize.return_value.apply.assert_called_once()
@@ -196,15 +198,19 @@ class BaseSongLoadingTest(unittest.TestCase):
     def test_bpm_analysis_is_added_when_it_is_switched_on(self):
         # The setting lives in ConfigStore now, not in a module constant, so it can be
         # turned on from the config page instead of by editing the file.
-        with patch('services.tagger.Song.BaseSong.OggOpus', return_value=self.opus_file()), \
-             patch.object(BaseSong_module.s, 'analyze_bpm', True):
+        with (
+            patch('services.tagger.Song.BaseSong.OggOpus', return_value=self.opus_file()),
+            patch.object(BaseSong_module.s, 'analyze_bpm', True),
+        ):
             song = BaseSong('some/path/test.opus')
 
         self.assertEqual([type(rule).__name__ for rule in song.rules], ['CleanTitleRule', 'AnalyzeBpmRule'])
 
     def test_bpm_analysis_stays_out_of_the_rules_when_it_is_off(self):
-        with patch('services.tagger.Song.BaseSong.OggOpus', return_value=self.opus_file()), \
-             patch.object(BaseSong_module.s, 'analyze_bpm', False):
+        with (
+            patch('services.tagger.Song.BaseSong.OggOpus', return_value=self.opus_file()),
+            patch.object(BaseSong_module.s, 'analyze_bpm', False),
+        ):
             song = BaseSong('some/path/test.opus')
 
         self.assertNotIn('AnalyzeBpmRule', [type(rule).__name__ for rule in song.rules])
@@ -216,9 +222,11 @@ class BaseSongLoadingTest(unittest.TestCase):
         self.assertEqual(song.title(), 'Raise Your Fist')
 
     def test_an_unreadable_m4a_is_deleted_and_logged(self):
-        with patch('services.tagger.Song.BaseSong.MP4', side_effect=MP4StreamInfoError('broken')), \
-             patch('services.tagger.Song.BaseSong.os.remove') as remove, \
-             patch('services.tagger.Song.BaseSong.log_broken_file') as log_broken:
+        with (
+            patch('services.tagger.Song.BaseSong.MP4', side_effect=MP4StreamInfoError('broken')),
+            patch('services.tagger.Song.BaseSong.os.remove') as remove,
+            patch('services.tagger.Song.BaseSong.log_broken_file') as log_broken,
+        ):
             song = BaseSong('some/path/test.m4a')
 
         remove.assert_called_once_with('some/path/test.m4a')
@@ -226,8 +234,10 @@ class BaseSongLoadingTest(unittest.TestCase):
         self.assertFalse(hasattr(song, 'tag_collection'))
 
     def test_an_unreadable_m4a_that_cannot_be_deleted_does_not_break_the_load(self):
-        with patch('services.tagger.Song.BaseSong.MP4', side_effect=MP4StreamInfoError('broken')), \
-             patch('services.tagger.Song.BaseSong.os.remove', side_effect=OSError('read-only')):
+        with (
+            patch('services.tagger.Song.BaseSong.MP4', side_effect=MP4StreamInfoError('broken')),
+            patch('services.tagger.Song.BaseSong.os.remove', side_effect=OSError('read-only')),
+        ):
             song = BaseSong('some/path/test.m4a')
 
         self.assertFalse(hasattr(song, 'tag_collection'))
@@ -341,26 +351,34 @@ class BaseSongTagWritingTest(unittest.TestCase):
         self.assertEqual(song.music_file.tags, {'----:com.apple.iTunes:FESTIVAL': [b'Reverze']})
 
     def test_the_canonical_atom_wins_when_both_are_present(self):
-        song = self.m4a_song({
-            '----:com.apple.iTunes:FESTIVAL': [b'Reverze'],
-            '----:com.apple.iTunes:festival': [b'Defqon'],
-        })
+        song = self.m4a_song(
+            {
+                '----:com.apple.iTunes:FESTIVAL': [b'Reverze'],
+                '----:com.apple.iTunes:festival': [b'Defqon'],
+            }
+        )
 
         self.assertTrue(song.normalize_custom_atoms())
 
         self.assertEqual(song.music_file.tags, {'----:com.apple.iTunes:FESTIVAL': [b'Reverze']})
 
     def test_every_custom_atom_is_folded_not_just_the_festival(self):
-        song = self.m4a_song({
-            '----:com.apple.iTunes:Publisher': [b'Q-dance'],
-            '----:com.apple.iTunes:parsed': [b'1'],
-        })
+        song = self.m4a_song(
+            {
+                '----:com.apple.iTunes:Publisher': [b'Q-dance'],
+                '----:com.apple.iTunes:parsed': [b'1'],
+            }
+        )
 
         self.assertTrue(song.normalize_custom_atoms())
 
-        self.assertEqual(sorted(song.music_file.tags), [
-            '----:com.apple.iTunes:PARSED', '----:com.apple.iTunes:PUBLISHER',
-        ])
+        self.assertEqual(
+            sorted(song.music_file.tags),
+            [
+                '----:com.apple.iTunes:PARSED',
+                '----:com.apple.iTunes:PUBLISHER',
+            ],
+        )
 
     def test_a_file_that_is_already_canonical_is_left_alone(self):
         tags = {'----:com.apple.iTunes:FESTIVAL': [b'Reverze'], '©ART': 'Angerfist'}
@@ -433,7 +451,6 @@ class BaseSongTagWritingTest(unittest.TestCase):
 
 
 class BaseSongExtraInfoTest(unittest.TestCase):
-
     def setUp(self):
         self.song = BaseSong.__new__(BaseSong)
         self.collection = MagicMock()
@@ -480,7 +497,6 @@ class BaseSongExtraInfoTest(unittest.TestCase):
 
 
 class BaseSongMiscTest(unittest.TestCase):
-
     def test_length_comes_from_the_file_info(self):
         song = BaseSong.__new__(BaseSong)
         song.music_file = MagicMock()

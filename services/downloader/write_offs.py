@@ -11,6 +11,7 @@ all: the duration is stored alongside it and the verdict is formed again from th
 bounds in force, so widening the filter brings those tracks back without a single
 request spent rediscovering what they are.
 """
+
 from __future__ import annotations
 
 import logging
@@ -29,6 +30,7 @@ _CHUNK = 500
 @dataclass(frozen=True)
 class WriteOff:
     """One recorded decision not to fetch a track."""
+
     reason: str
     last_seen: datetime
     duration: int | None = None
@@ -42,8 +44,7 @@ def is_still_written_off(last_seen: datetime, retry_days: int, now: datetime) ->
     return now - last_seen < timedelta(days=retry_days)
 
 
-def still_written_off(entry: WriteOff, retry_days: int, now: datetime,
-                      bounds: tuple[int, int] | None = None) -> bool:
+def still_written_off(entry: WriteOff, retry_days: int, now: datetime, bounds: tuple[int, int] | None = None) -> bool:
     """Whether this recorded decision still stands.
 
     A duration verdict is re-formed from ``bounds`` rather than believed, so a
@@ -61,7 +62,7 @@ def still_written_off(entry: WriteOff, retry_days: int, now: datetime,
 def chunked(values: list[str], size: int = _CHUNK):
     """Split a list of ids into blocks a single statement can carry."""
     for start in range(0, len(values), size):
-        yield values[start:start + size]
+        yield values[start : start + size]
 
 
 class InMemoryWriteOffStore:
@@ -73,8 +74,7 @@ class InMemoryWriteOffStore:
     def load(self, source: str, account: str, track_id: str) -> WriteOff | None:
         return self.rows.get((source, account, track_id))
 
-    def load_many(self, source: str, account: str,
-                  track_ids: Iterable[str]) -> dict[str, WriteOff]:
+    def load_many(self, source: str, account: str, track_ids: Iterable[str]) -> dict[str, WriteOff]:
         wanted = set(track_ids)
         return {
             track_id: row
@@ -82,13 +82,12 @@ class InMemoryWriteOffStore:
             if row_source == source and row_account == account and track_id in wanted
         }
 
-    def remember(self, source: str, account: str, track_id: str, reason: str,
-                 when: datetime, duration: int | None, attempts: int) -> None:
+    def remember(
+        self, source: str, account: str, track_id: str, reason: str, when: datetime, duration: int | None, attempts: int
+    ) -> None:
         previous = self.rows.get((source, account, track_id))
-        kept_duration = duration if duration is not None else (
-            previous.duration if previous else None)
-        self.rows[(source, account, track_id)] = WriteOff(
-            reason, when, kept_duration, attempts)
+        kept_duration = duration if duration is not None else (previous.duration if previous else None)
+        self.rows[(source, account, track_id)] = WriteOff(reason, when, kept_duration, attempts)
 
 
 class DatabaseWriteOffStore:
@@ -101,6 +100,7 @@ class DatabaseWriteOffStore:
     def _connect(self):
         from services.common.Helpers.DatabaseConnector import DatabaseConnector
         from services.downloader.db_schema import ensure_once
+
         connection = DatabaseConnector().connect()
         ensure_once(connection)
         return connection
@@ -108,9 +108,12 @@ class DatabaseWriteOffStore:
     @staticmethod
     def _write_off(row) -> WriteOff:
         reason, last_seen, duration, attempts = row
-        return WriteOff(reason=reason, last_seen=last_seen,
-                        duration=None if duration is None else int(duration),
-                        attempts=int(attempts or 0))
+        return WriteOff(
+            reason=reason,
+            last_seen=last_seen,
+            duration=None if duration is None else int(duration),
+            attempts=int(attempts or 0),
+        )
 
     def load(self, source: str, account: str, track_id: str) -> WriteOff | None:
         connection = self._connect()
@@ -120,14 +123,14 @@ class DatabaseWriteOffStore:
                     'SELECT reason, last_seen, duration_seconds, attempts '
                     'FROM downloads_soundcloud_unavailable '
                     'WHERE source = %s AND account = %s AND track_id = %s',
-                    (source, account, track_id))
+                    (source, account, track_id),
+                )
                 row = cursor.fetchone()
                 return self._write_off(row) if row else None
         finally:
             connection.close()
 
-    def load_many(self, source: str, account: str,
-                  track_ids: Iterable[str]) -> dict[str, WriteOff]:
+    def load_many(self, source: str, account: str, track_ids: Iterable[str]) -> dict[str, WriteOff]:
         ids = [str(track_id) for track_id in track_ids]
         if not ids:
             return {}
@@ -142,15 +145,17 @@ class DatabaseWriteOffStore:
                         'FROM downloads_soundcloud_unavailable '
                         'WHERE source = %s AND account = %s '
                         f'AND track_id IN ({placeholders})',
-                        (source, account, *chunk))
+                        (source, account, *chunk),
+                    )
                     for row in cursor.fetchall():
                         found[str(row[0])] = self._write_off(row[1:])
         finally:
             connection.close()
         return found
 
-    def remember(self, source: str, account: str, track_id: str, reason: str,
-                 when: datetime, duration: int | None, attempts: int) -> None:
+    def remember(
+        self, source: str, account: str, track_id: str, reason: str, when: datetime, duration: int | None, attempts: int
+    ) -> None:
         connection = self._connect()
         try:
             with connection.cursor() as cursor:
@@ -164,8 +169,21 @@ class DatabaseWriteOffStore:
                     'VALUES (%s, %s, %s, %s, %s, %s, %s, %s) '
                     'ON DUPLICATE KEY UPDATE reason = %s, last_seen = %s, '
                     '  duration_seconds = COALESCE(%s, duration_seconds), attempts = %s',
-                    (source, account, track_id, reason, when, when, duration, attempts,
-                     reason, when, duration, attempts))
+                    (
+                        source,
+                        account,
+                        track_id,
+                        reason,
+                        when,
+                        when,
+                        duration,
+                        attempts,
+                        reason,
+                        when,
+                        duration,
+                        attempts,
+                    ),
+                )
             connection.commit()
         finally:
             connection.close()
@@ -179,22 +197,21 @@ class WriteOffs:
     blinked costs the whole point of the sweep.
     """
 
-    def __init__(self, source: str, store=None, retry_days: int = 30,
-                 now: Callable[[], datetime] = datetime.now) -> None:
+    def __init__(
+        self, source: str, store=None, retry_days: int = 30, now: Callable[[], datetime] = datetime.now
+    ) -> None:
         self.source = source
         self._store = store if store is not None else DatabaseWriteOffStore()
         self.retry_days = retry_days
         self._now = now
 
-    def should_skip(self, account: str, track_id: str | None,
-                    bounds: tuple[int, int] | None = None) -> bool:
+    def should_skip(self, account: str, track_id: str | None, bounds: tuple[int, int] | None = None) -> bool:
         if not track_id:
             return False
         try:
             entry = self._store.load(self.source, account, str(track_id))
         except Exception as exc:
-            logging.warning('Could not read the %s write-offs for %s: %s',
-                            self.source, account, exc)
+            logging.warning('Could not read the %s write-offs for %s: %s', self.source, account, exc)
             return False
         if entry is None:
             return False
@@ -207,21 +224,17 @@ class WriteOffs:
         download, so an unreadable store has to stop the pass instead of quietly
         enlarging it into a re-download of the whole account.
         """
-        return self._store.load_many(self.source, account,
-                                     [str(track_id) for track_id in track_ids])
+        return self._store.load_many(self.source, account, [str(track_id) for track_id in track_ids])
 
-    def remember(self, account: str, track_id: str | None, reason: str,
-                 duration: int | None = None) -> None:
+    def remember(self, account: str, track_id: str | None, reason: str, duration: int | None = None) -> None:
         if not track_id:
             return
         try:
-            self._store.remember(self.source, account, str(track_id), reason,
-                                 self._now(), duration, 0)
+            self._store.remember(self.source, account, str(track_id), reason, self._now(), duration, 0)
         except Exception as exc:
             logging.warning('Could not write off %s/%s: %s', account, track_id, exc)
 
-    def note_failure(self, account: str, track_id: str | None,
-                     max_attempts: int = 3) -> bool:
+    def note_failure(self, account: str, track_id: str | None, max_attempts: int = 3) -> bool:
         """Count one failed attempt, and write the track off once it runs out.
 
         A track that neither downloads nor rejects would otherwise keep its
@@ -235,10 +248,8 @@ class WriteOffs:
             entry = self._store.load(self.source, account, str(track_id))
             attempts = (entry.attempts if entry else 0) + 1
             reason = 'failed' if attempts >= max_attempts else 'failing'
-            self._store.remember(self.source, account, str(track_id), reason,
-                                 self._now(), None, attempts)
+            self._store.remember(self.source, account, str(track_id), reason, self._now(), None, attempts)
             return reason == 'failed'
         except Exception as exc:
-            logging.warning('Could not record the failure of %s/%s: %s',
-                            account, track_id, exc)
+            logging.warning('Could not record the failure of %s/%s: %s', account, track_id, exc)
             return False

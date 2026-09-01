@@ -14,6 +14,7 @@ Proves:
 - repeating the identical scrobble does not create a duplicate listen
   (enforced by the `UNIQUE KEY (username, listened_at, track_id)` constraint).
 """
+
 import os
 import subprocess
 import time
@@ -46,9 +47,13 @@ def _get_container_id(service_name):
     """
     project = os.environ.get("COMPOSE_PROJECT_NAME", "muma-test")
     cmd = [
-        "docker", "ps", "-q",
-        "-f", f"label=com.docker.compose.project={project}",
-        "-f", f"label=com.docker.compose.service={service_name}",
+        "docker",
+        "ps",
+        "-q",
+        "-f",
+        f"label=com.docker.compose.project={project}",
+        "-f",
+        f"label=com.docker.compose.service={service_name}",
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, check=True)
     cid = result.stdout.strip()

@@ -10,7 +10,6 @@ from services.tagger.Song.LabelSong import LabelSong
 
 
 class TestBasicImport(unittest.TestCase):
-
     def setUp(self):
         reset_database_helpers()
         self.path_exists_patcher = patch('os.path.exists')

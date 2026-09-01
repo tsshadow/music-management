@@ -20,6 +20,7 @@ sys.modules.setdefault(__name__ + '.librosa', librosa)
 if getattr(librosa, 'beat', None):
     sys.modules.setdefault(__name__ + '.librosa.beat', librosa.beat)
 
+
 class AnalyzeBpmRule(TagRule):
     """Uses librosa to estimate BPM and stores it."""
 

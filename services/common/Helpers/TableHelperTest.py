@@ -5,7 +5,6 @@ from services.common.Helpers.TableHelper import TableHelper
 
 
 class TableHelperTest(unittest.TestCase):
-
     def setUp(self):
         patcher = patch('services.common.Helpers.TableHelper.DatabaseConnector')
         self.addCleanup(patcher.stop)
@@ -50,6 +49,7 @@ class TableHelperTest(unittest.TestCase):
         self.mock_cursor.fetchall.return_value = [('Hardcore',), ('Uptempo',)]
         values = self.helper.get_all_values()
         self.assertEqual(values, ['Hardcore', 'Uptempo'])
+
     def test_reload_replaces_the_cached_values(self):
         helper = TableHelper('library_artists', 'name', preload=False)
         helper.cache_enabled = True

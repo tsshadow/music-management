@@ -18,6 +18,7 @@ rely on:
 Assertions are made against individual fields, not full literal response
 snapshots (see plan 4.2), so an unrelated extra property never breaks this test.
 """
+
 import json
 import os
 import time
@@ -37,9 +38,7 @@ SUBSONIC_VERSION = "1.16.1"
 TEST_USERNAME = "ci-contract-admin"
 TEST_PASSWORD = "ci-contract-password"
 
-FIXTURE_EXPECTED_PATH = (
-    Path(__file__).resolve().parents[1] / "fixtures" / "expected" / "ci-test-track-001.json"
-)
+FIXTURE_EXPECTED_PATH = Path(__file__).resolve().parents[1] / "fixtures" / "expected" / "ci-test-track-001.json"
 
 
 def wait_until(predicate, timeout=60, interval=1, description="condition"):
@@ -120,7 +119,9 @@ def media_library(admin_credentials):
             return None
         return create_resp
 
-    resp = wait_until(create_library, timeout=30, interval=1, description="admin flag synced into LMS for media library creation")
+    resp = wait_until(
+        create_library, timeout=30, interval=1, description="admin flag synced into LMS for media library creation"
+    )
     assert resp.status_code == 200, resp.text
     library = resp.json()
 
@@ -261,7 +262,9 @@ def test_artist_cover_art_falls_back_to_release_artwork(admin_credentials, media
                 return artist
         return None
 
-    artist = wait_until(find_artist, timeout=60, interval=2, description="fixture artist visible via OpenSubsonic search3")
+    artist = wait_until(
+        find_artist, timeout=60, interval=2, description="fixture artist visible via OpenSubsonic search3"
+    )
 
     cover_art_id = artist.get("coverArt")
     assert cover_art_id, "artists must always carry a cover art id, so clients have something to request"
@@ -303,9 +306,7 @@ def test_get_memories_accepts_a_single_year(admin_credentials, media_library):
     """
     username, password = admin_credentials
 
-    resp = _subsonic_get(
-        "getMemories.view", username, password, date="2026-08-02", year=2025, maxPerYear=1000
-    )
+    resp = _subsonic_get("getMemories.view", username, password, date="2026-08-02", year=2025, maxPerYear=1000)
 
     assert resp.status_code == 200, resp.text[:500]
     body = resp.json()["subsonic-response"]
@@ -329,9 +330,7 @@ def test_get_memories_clamps_absurd_parameters(admin_credentials, media_library)
     """Out-of-range paging values are clamped into range rather than rejected."""
     username, password = admin_credentials
 
-    resp = _subsonic_get(
-        "getMemories.view", username, password, date="2026-08-02", windowDays=999, maxPerYear=0
-    )
+    resp = _subsonic_get("getMemories.view", username, password, date="2026-08-02", windowDays=999, maxPerYear=0)
 
     assert resp.status_code == 200, resp.text[:500]
     body = resp.json()["subsonic-response"]

@@ -3,6 +3,7 @@
 The backfill writes tags across the whole library in one pass, so what matters is what it plans:
 the year guard has to reject a rip date on old music before anything touches a file.
 """
+
 import importlib.util
 from pathlib import Path
 from unittest.mock import MagicMock

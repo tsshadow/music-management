@@ -5,6 +5,7 @@ production and wrong against the integration database, where the radio scheduler
 held radio_timeline rows while the fixtures were emptying every table between
 tests and the two waited on each other's locks.
 """
+
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
@@ -22,7 +23,6 @@ from services.music_manager import main
 
 
 class BackgroundWorkersEnabledTest(unittest.TestCase):
-
     def test_workers_run_by_default(self):
         with patch.dict('os.environ', {}, clear=True):
             self.assertTrue(main.background_workers_enabled())
@@ -39,22 +39,25 @@ class BackgroundWorkersEnabledTest(unittest.TestCase):
     def test_startup_starts_no_thread_when_disabled(self):
         # The long-running loops go through the thread registry so /health can see them, the
         # one-shot tasks are plain Threads; the switch has to hold both back.
-        with patch.dict('os.environ', {'MUMA_DISABLE_BACKGROUND_WORKERS': '1'}, clear=True), \
-                patch.object(main, 'start_thread') as start_thread, \
-                patch.object(main.threading, 'Thread') as thread:
+        with (
+            patch.dict('os.environ', {'MUMA_DISABLE_BACKGROUND_WORKERS': '1'}, clear=True),
+            patch.object(main, 'start_thread') as start_thread,
+            patch.object(main.threading, 'Thread') as thread,
+        ):
             main.startup_event()
         thread.assert_not_called()
         start_thread.assert_not_called()
 
     def test_startup_starts_the_loops_when_enabled(self):
-        with patch.dict('os.environ', {}, clear=True), \
-                patch.object(main, 'start_thread') as start_thread, \
-                patch.object(main.threading, 'Thread') as thread:
+        with (
+            patch.dict('os.environ', {}, clear=True),
+            patch.object(main, 'start_thread') as start_thread,
+            patch.object(main.threading, 'Thread') as thread,
+        ):
             main.startup_event()
         self.assertTrue(thread.called)
         registered = {call.args[0] for call in start_thread.call_args_list}
         self.assertEqual(
-            {'tagger', 'scanner', 'radio', 'news', 'events-retention', 'scrobble-rematch',
-             'song-versions'},
+            {'tagger', 'scanner', 'radio', 'news', 'events-retention', 'scrobble-rematch', 'song-versions'},
             registered,
         )

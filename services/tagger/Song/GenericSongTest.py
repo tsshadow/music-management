@@ -16,7 +16,6 @@ def song_with(**accessors):
 
 
 class CalculateCopyrightTest(unittest.TestCase):
-
     def test_the_album_artist_and_release_year_form_the_copyright(self):
         song = song_with(album_artist='Masters of Hardcore', date='2024-03-01')
 
@@ -39,7 +38,6 @@ class CalculateCopyrightTest(unittest.TestCase):
 
 
 class GenericSongParseTest(unittest.TestCase):
-
     def parse(self, song):
         with patch('services.tagger.Song.GenericSong.BaseSong.parse') as base_parse:
             song.parse()
@@ -103,7 +101,6 @@ class GenericSongParseTest(unittest.TestCase):
 
 
 class GenericSongLoadingTest(unittest.TestCase):
-
     def test_a_freshly_loaded_song_has_no_catalog_number_yet(self):
         with patch('services.tagger.Song.GenericSong.BaseSong.__init__', return_value=None) as base_init:
             song = GenericSong('/music/test.mp3')

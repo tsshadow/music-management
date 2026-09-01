@@ -20,7 +20,6 @@ def _load_real_module():
 
 
 class DatabaseConnectorTimeoutTest(unittest.TestCase):
-
     def setUp(self):
         os.environ['DB_HOST'] = 'localhost'
         os.environ['DB_USER'] = 'user'

@@ -26,6 +26,7 @@ Usage:
     python tools/db_restore_check.py
     python tools/db_restore_check.py --keep   # leave the restored copy in place
 """
+
 from __future__ import annotations
 
 import argparse
@@ -67,8 +68,7 @@ def target_database(source_database: str) -> str:
     """Never the live database, and it must be impossible to get there by typo."""
     name = os.getenv('RESTORE_CHECK_DB', f'{source_database}_restore_check')
     if name == source_database:
-        raise RestoreCheckError(
-            f'restore target {name!r} is the live database; refusing to restore over it')
+        raise RestoreCheckError(f'restore target {name!r} is the live database; refusing to restore over it')
     return name
 
 
@@ -82,33 +82,43 @@ def _defaults_file(creds: dict[str, str]) -> str:
     return path
 
 
-def _run_sql(defaults_path: str, creds: dict[str, str], sql: str,
-             database: str | None = None) -> str:
-    command = ['mariadb', f'--defaults-extra-file={defaults_path}',
-               '--host', creds['host'], '--port', creds['port'], '-N', '-B']
+def _run_sql(defaults_path: str, creds: dict[str, str], sql: str, database: str | None = None) -> str:
+    command = [
+        'mariadb',
+        f'--defaults-extra-file={defaults_path}',
+        '--host',
+        creds['host'],
+        '--port',
+        creds['port'],
+        '-N',
+        '-B',
+    ]
     if database:
         command.append(database)
-    result = subprocess.run(command, input=sql.encode('utf-8'),
-                            capture_output=True, check=False)
+    result = subprocess.run(command, input=sql.encode('utf-8'), capture_output=True, check=False)
     if result.returncode != 0:
         detail = result.stderr.decode('utf-8', 'replace').strip().splitlines()
-        raise RestoreCheckError(
-            f'mariadb exited {result.returncode}: {detail[-1] if detail else "no output"}')
+        raise RestoreCheckError(f'mariadb exited {result.returncode}: {detail[-1] if detail else "no output"}')
     return result.stdout.decode('utf-8', 'replace')
 
 
-def restore(defaults_path: str, creds: dict[str, str], dump_path: Path,
-            database: str) -> None:
+def restore(defaults_path: str, creds: dict[str, str], dump_path: Path, database: str) -> None:
     """Stream the dump into the target, checking the producer's return code.
 
     Same shape as the dump side: decompressing in this process leaves one exit
     status to inspect instead of a pipeline whose front half can fail silently.
     """
-    command = ['mariadb', f'--defaults-extra-file={defaults_path}',
-               '--host', creds['host'], '--port', creds['port'], database]
+    command = [
+        'mariadb',
+        f'--defaults-extra-file={defaults_path}',
+        '--host',
+        creds['host'],
+        '--port',
+        creds['port'],
+        database,
+    ]
     with gzip.open(dump_path, 'rb') as handle:
-        process = subprocess.Popen(command, stdin=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)
+        process = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
         assert process.stdin is not None
         try:
             for chunk in iter(lambda: handle.read(1024 * 1024), b''):
@@ -119,22 +129,22 @@ def restore(defaults_path: str, creds: dict[str, str], dump_path: Path,
     if process.returncode != 0:
         detail = stderr.decode('utf-8', 'replace').strip().splitlines()
         raise RestoreCheckError(
-            f'restoring {dump_path.name} failed with exit {process.returncode}: '
-            f'{detail[-1] if detail else "no output"}')
+            f'restoring {dump_path.name} failed with exit {process.returncode}: {detail[-1] if detail else "no output"}'
+        )
 
 
-def restored_counts(defaults_path: str, creds: dict[str, str],
-                    database: str) -> dict[str, int]:
+def restored_counts(defaults_path: str, creds: dict[str, str], database: str) -> dict[str, int]:
     listing = _run_sql(
-        defaults_path, creds,
+        defaults_path,
+        creds,
         'SELECT table_name FROM information_schema.tables '
         f"WHERE table_schema = '{database}' AND table_type = 'BASE TABLE' "
-        'ORDER BY table_name;')
+        'ORDER BY table_name;',
+    )
     tables = [line.strip() for line in listing.splitlines() if line.strip()]
     if not tables:
         return {}
-    union = ' UNION ALL '.join(
-        f"SELECT '{table}', COUNT(*) FROM {quote_identifier(table)}" for table in tables)
+    union = ' UNION ALL '.join(f"SELECT '{table}', COUNT(*) FROM {quote_identifier(table)}" for table in tables)
     output = _run_sql(defaults_path, creds, f'{union};', database=database)
     counts: dict[str, int] = {}
     for line in output.splitlines():
@@ -160,30 +170,25 @@ def compare(recorded: dict[str, int], restored: dict[str, int]) -> list[str]:
             continue
         floor = want if want < EXACT_BELOW_ROWS else int(want * ROW_TOLERANCE)
         if got < floor:
-            problems.append(f'{table}: {got} rows restored, {want} recorded '
-                            f'(floor {floor})')
+            problems.append(f'{table}: {got} rows restored, {want} recorded (floor {floor})')
     return problems
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--destination', help='override BACKUP_PATH')
-    parser.add_argument('--keep', action='store_true',
-                        help='leave the restored database in place for inspection')
+    parser.add_argument('--keep', action='store_true', help='leave the restored database in place for inspection')
     args = parser.parse_args(argv)
 
     defaults_path = None
     database = None
     creds = _credentials()
     try:
-        destination = resolve_destination(
-            args.destination or os.getenv('BACKUP_PATH', ''), os.getenv('DATA_PATH'))
+        destination = resolve_destination(args.destination or os.getenv('BACKUP_PATH', ''), os.getenv('DATA_PATH'))
         latest = read_latest(destination)
         dump_path = destination / latest['file']
         if not dump_path.exists():
-            raise RestoreCheckError(
-                f'{latest["file"]} is named in latest.json but is not on disk')
+            raise RestoreCheckError(f'{latest["file"]} is named in latest.json but is not on disk')
         recorded = {name: int(count) for name, count in latest['row_counts'].items()}
         if not recorded:
             raise RestoreCheckError('latest.json records no row counts to check against')
@@ -193,24 +198,24 @@ def main(argv: list[str] | None = None) -> int:
 
         started = datetime.now(UTC)
         _run_sql(defaults_path, creds, f'DROP DATABASE IF EXISTS `{database}`;')
-        _run_sql(defaults_path, creds,
-                 f'CREATE DATABASE `{database}` CHARACTER SET utf8mb4 '
-                 'COLLATE utf8mb4_general_ci;')
+        _run_sql(
+            defaults_path, creds, f'CREATE DATABASE `{database}` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;'
+        )
         restore(defaults_path, creds, dump_path, database)
         restored = restored_counts(defaults_path, creds, database)
         elapsed = (datetime.now(UTC) - started).total_seconds()
 
         problems = compare(recorded, restored)
         if problems:
-            message = (f'{dump_path.name} restored, but it does not match what was '
-                       f'recorded:\n' + '\n'.join(f'- {line}' for line in problems))
+            message = f'{dump_path.name} restored, but it does not match what was recorded:\n' + '\n'.join(
+                f'- {line}' for line in problems
+            )
             alert('Database restore check failed', message)
             print(message, file=sys.stderr)
             return 1
 
         total = sum(restored.values())
-        print(f'restore check ok: {dump_path.name} -> {database}, '
-              f'{len(restored)} tables, {total} rows, {elapsed:.0f}s')
+        print(f'restore check ok: {dump_path.name} -> {database}, {len(restored)} tables, {total} rows, {elapsed:.0f}s')
         return 0
     except (RestoreCheckError, BackupError) as exc:
         alert('Database restore check failed', str(exc))
@@ -227,8 +232,7 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 _run_sql(defaults_path, creds, f'DROP DATABASE IF EXISTS `{database}`;')
             except Exception as exc:  # pragma: no cover - defensive
-                print(f'db_restore_check: dropping {database} failed: {exc}',
-                      file=sys.stderr)
+                print(f'db_restore_check: dropping {database} failed: {exc}', file=sys.stderr)
         if defaults_path:
             with contextlib.suppress(FileNotFoundError):
                 os.unlink(defaults_path)

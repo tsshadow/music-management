@@ -5,7 +5,6 @@ ROOT = Path(__file__).resolve().parents[1]  # repo root
 
 MODULE_MAP = {
     # ---------- postprocessing.* ----------
-
     # constants / top-level
     "postprocessing.constants": "services.tagger.constants",
     "postprocessing.tagger": "services.tagger.tagger",
@@ -15,7 +14,6 @@ MODULE_MAP = {
     "postprocessing.artistfixer": "services.other.artistfixer",
     "postprocessing.repair": "services.other.repair",
     "postprocessing": "services.tagger_service",  # 1 gebruik; even checken of dit klopt
-
     # Helpers -> services/common/Helpers/*
     "postprocessing.Song.Helpers.DatabaseConnector": "services.common.Helpers.DatabaseConnector",
     "postprocessing.Song.Helpers.TableHelper": "services.common.Helpers.TableHelper",
@@ -25,7 +23,6 @@ MODULE_MAP = {
     "postprocessing.Song.Helpers.FestivalHelper": "services.common.Helpers.FestivalHelper",
     "postprocessing.Song.Helpers.BrokenSongHelper": "services.common.Helpers.BrokenSongHelper",
     "postprocessing.Song.Helpers.BrokenSongArtistLookupHelper": "services.common.Helpers.BrokenSongArtistLookupHelper",
-
     # Song classes -> services/tagger/Song/*
     "postprocessing.Song.BaseSong": "services.tagger.Song.BaseSong",
     "postprocessing.Song.Tag": "services.tagger.Song.Tag",
@@ -35,7 +32,6 @@ MODULE_MAP = {
     "postprocessing.Song.GenericSong": "services.tagger.Song.GenericSong",
     "postprocessing.Song.TelegramSong": "services.tagger.Song.TelegramSong",
     "postprocessing.Song.TagCollection": "services.tagger.Song.TagCollection",
-
     # rules -> services/tagger/Song/rules/*
     "postprocessing.Song.rules.TagRule": "services.tagger.Song.rules.TagRule",
     "postprocessing.Song.rules.CleanAndFilterGenreRule": "services.tagger.Song.rules.CleanAndFilterGenreRule",
@@ -58,25 +54,19 @@ MODULE_MAP = {
     "postprocessing.Song.rules.MergeDrumAndBassGenresRule": "services.tagger.Song.rules.MergeDrumAndBassGenresRule",
     "postprocessing.Song.rules.ExternalArtistLookup": "services.tagger.Song.rules.ExternalArtistLookup",
     "postprocessing.Song.rules.InferRemixerFromTitleRule": "services.tagger.Song.rules.InferRemixerFromTitleRule",
-
     # ---------- processing.* ----------
-
     # importer
     "processing.extractor": "services.importer_service.extractor",
     "processing.mover": "services.importer_service.mover",
     "processing.renamer": "services.importer_service.renamer",
-
     # other-service
     "processing.converter": "services.other.converter",
     "processing.epsflattener": "services.other.epsflattener",
-
     # ---------- analyzer.* ----------
-
     # db / matching
     "analyzer.db.repo": "services.analyzer_service.analyzer.db.repo",
     "analyzer.matching.uid": "services.analyzer_service.analyzer.matching.uid",
     "analyzer.matching.normalizer": "services.analyzer_service.analyzer.matching.normalizer",
-
     # services
     "analyzer.services.library_admin_service": "services.analyzer_service.analyzer.services.library_admin_service",
     "analyzer.services.library_stats_service": "services.analyzer_service.analyzer.services.library_stats_service",
@@ -84,12 +74,10 @@ MODULE_MAP = {
     "analyzer.services.library_service": "services.analyzer_service.analyzer.services.library_service",
     "analyzer.services.match_service": "services.analyzer_service.analyzer.services.match_service",
     "analyzer.services.enrich_service": "services.analyzer_service.analyzer.services.enrich_service",
-
     # api / jobs / ingestion
     "analyzer.api.router": "services.analyzer_service.analyzer.api.router",
     "analyzer.jobs.queue": "services.analyzer_service.analyzer.jobs.queue",
     "analyzer.ingestion.filesystem": "services.analyzer_service.analyzer.ingestion.filesystem",
-
     # services.common.api.* -> services.common.*
     "services.common.api.config_store": "services.common.config_store",
     "services.common.api.version_helper": "services.common.version_helper",

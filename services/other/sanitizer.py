@@ -5,6 +5,7 @@ from services.common.config_store import ConfigStore as Settings
 
 s = Settings()
 
+
 class Sanitizer:
     """
     Handles the sanitization of filenames and folder names in the music directory.

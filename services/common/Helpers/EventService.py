@@ -8,6 +8,7 @@ hangen.
 Foutmeldingen gaan hier bewust naar stderr en niet via `logging`. Een logregel
 zou via EventLogHandler opnieuw als event binnenkomen en zichzelf voeden.
 """
+
 from __future__ import annotations
 
 import json
@@ -26,10 +27,7 @@ QUEUE_MAXSIZE = 1000
 RETRY_DELAYS = (1, 4, 16)
 TITLE_MAX_LENGTH = 255
 
-_INSERT = (
-    'INSERT INTO events (level, source, logger, title, message, context) '
-    'VALUES (%s, %s, %s, %s, %s, %s)'
-)
+_INSERT = 'INSERT INTO events (level, source, logger, title, message, context) VALUES (%s, %s, %s, %s, %s, %s)'
 
 
 @dataclass
@@ -85,7 +83,6 @@ class EventQueue:
 
 
 class EventService:
-
     def __init__(self, sinks: list | None = None, queue_maxsize: int = QUEUE_MAXSIZE) -> None:
         self._queue = EventQueue(maxsize=queue_maxsize)
         self._sinks = list(sinks) if sinks is not None else []
@@ -98,13 +95,27 @@ class EventService:
     def is_alive(self) -> bool:
         return self._worker is not None and self._worker.is_alive()
 
-    def emit(self, level: str, title: str, message: str, source: str,
-             logger: str | None = None, context: dict[str, Any] | None = None,
-             push: bool = False) -> bool:
+    def emit(
+        self,
+        level: str,
+        title: str,
+        message: str,
+        source: str,
+        logger: str | None = None,
+        context: dict[str, Any] | None = None,
+        push: bool = False,
+    ) -> bool:
         if level not in LEVELS:
             raise ValueError(f'unknown level {level!r}, expected one of {LEVELS}')
-        event = Event(level=level, title=title[:TITLE_MAX_LENGTH], message=message,
-                      source=source, logger=logger, context=context, push=push)
+        event = Event(
+            level=level,
+            title=title[:TITLE_MAX_LENGTH],
+            message=message,
+            source=source,
+            logger=logger,
+            context=context,
+            push=push,
+        )
         self._ensure_worker()
         accepted = self._queue.put(event)
         if not accepted:
@@ -136,19 +147,27 @@ class EventService:
                 conn = DatabaseConnector().connect()
                 try:
                     with conn.cursor() as cursor:
-                        cursor.execute(_INSERT, (
-                            event.level, event.source, event.logger, event.title,
-                            event.message,
-                            json.dumps(event.context) if event.context else None,
-                        ))
+                        cursor.execute(
+                            _INSERT,
+                            (
+                                event.level,
+                                event.source,
+                                event.logger,
+                                event.title,
+                                event.message,
+                                json.dumps(event.context) if event.context else None,
+                            ),
+                        )
                     conn.commit()
                 finally:
                     conn.close()
                 return True
             except Exception as exc:
                 if attempt == attempts - 1:
-                    print(f'EventService: {event.level} event verloren na {attempts} '
-                          f'pogingen ({exc}): {event.title}', file=sys.stderr)
+                    print(
+                        f'EventService: {event.level} event verloren na {attempts} pogingen ({exc}): {event.title}',
+                        file=sys.stderr,
+                    )
                     return False
                 time.sleep(RETRY_DELAYS[attempt])
         return False

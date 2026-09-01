@@ -15,7 +15,6 @@ TRACK = {
 
 
 class SoundcloudArchiveTestCase(unittest.TestCase):
-
     def setUp(self):
         patcher = patch('services.downloader.soundcloud.SoundcloudArchive.DatabaseConnector')
         self.addCleanup(patcher.stop)
@@ -57,7 +56,6 @@ class TrackExistsTest(SoundcloudArchiveTestCase):
 
 
 class ExistsTest(SoundcloudArchiveTestCase):
-
     def test_a_known_track_is_reported_as_archived(self):
         self.cursor.fetchone.return_value = (1,)
 
@@ -76,11 +74,8 @@ class ExistsTest(SoundcloudArchiveTestCase):
 
 
 class UploaderIdTest(unittest.TestCase):
-
     def test_the_channel_id_is_preferred(self):
-        self.assertEqual(
-            SoundcloudArchive._get_uploader_id({'channel_id': 'c1', 'uploader_id': 'u1'}), 'c1'
-        )
+        self.assertEqual(SoundcloudArchive._get_uploader_id({'channel_id': 'c1', 'uploader_id': 'u1'}), 'c1')
 
     def test_the_uploader_id_is_the_fallback(self):
         self.assertEqual(SoundcloudArchive._get_uploader_id({'uploader_id': 'u1'}), 'u1')
@@ -90,7 +85,6 @@ class UploaderIdTest(unittest.TestCase):
 
 
 class InsertTest(SoundcloudArchiveTestCase):
-
     def archive_insert(self):
         for sql, params in (args[0] for args in self.cursor.execute.call_args_list):
             if 'INSERT IGNORE INTO downloads_soundcloud_archive' in sql:
@@ -113,7 +107,8 @@ class InsertTest(SoundcloudArchiveTestCase):
         SoundcloudArchive.insert(TRACK)
 
         updates = [
-            args[0] for args in self.cursor.execute.call_args_list
+            args[0]
+            for args in self.cursor.execute.call_args_list
             if 'UPDATE downloads_soundcloud_accounts' in args[0][0]
         ]
         self.assertEqual(len(updates), 1)

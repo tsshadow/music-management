@@ -5,6 +5,7 @@ the wait doubles up with every repeat until it hits the cap. The notification is
 therefore sent whenever the wait actually grows, and stays quiet once the ladder
 has plateaued so a parked source cannot spam the topic forever.
 """
+
 import unittest
 from datetime import datetime
 
@@ -34,15 +35,12 @@ class ExplodingNotifier:
 
 def build_policy(notifier, overrides=None, source='soundcloud'):
     timing = load_timing(source, overrides=overrides or {})
-    rate_state = RateState(source, timing, store=InMemoryRateStateStore(), now=lambda: NOW,
-                           jitter=lambda: 1.0)
+    rate_state = RateState(source, timing, store=InMemoryRateStateStore(), now=lambda: NOW, jitter=lambda: 1.0)
     schedule = AccountSchedule(source, store=InMemoryCheckStore())
-    return SweepPolicy(source, timing=timing, rate_state=rate_state, schedule=schedule,
-                       notifier=notifier)
+    return SweepPolicy(source, timing=timing, rate_state=rate_state, schedule=schedule, notifier=notifier)
 
 
 class TestFormatWait(unittest.TestCase):
-
     def test_seconds_stay_seconds(self):
         self.assertEqual(format_wait(45), '45 sec')
 
@@ -57,7 +55,6 @@ class TestFormatWait(unittest.TestCase):
 
 
 class TestNotifyOn403(unittest.TestCase):
-
     def test_the_first_403_is_announced(self):
         notifier = RecordingNotifier()
         build_policy(notifier).park('403', 'monstercat')

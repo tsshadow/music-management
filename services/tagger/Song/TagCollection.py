@@ -22,12 +22,14 @@ missing_tags_mp3 = []
 missing_tags_wav = []
 missing_tags_m4a = []
 
+
 class UnsupportedExtension(Exception):
     """Raised when an unsupported file extension is encountered."""
 
     def __init__(self, extension: str):
         super().__init__(f'Unsupported file extension: {extension}')
         self.extension = extension
+
 
 class TagCollection:
     """

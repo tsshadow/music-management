@@ -13,6 +13,7 @@ listing tells you which files and how many bytes are involved.
 Usage:
     python -m tools.list_youtube_video_residue [--folder /mnt/music/Youtube]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -34,9 +35,23 @@ def probe_resolution(path: str) -> str:
     """Return "WIDTHxHEIGHT", or "?" when ffprobe cannot say."""
     try:
         result = subprocess.run(
-            ['ffprobe', '-v', 'error', '-select_streams', 'v:0',
-             '-show_entries', 'stream=width,height', '-of', 'json', path],
-            capture_output=True, text=True, timeout=30, check=True)
+            [
+                'ffprobe',
+                '-v',
+                'error',
+                '-select_streams',
+                'v:0',
+                '-show_entries',
+                'stream=width,height',
+                '-of',
+                'json',
+                path,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=True,
+        )
         streams = json.loads(result.stdout).get('streams') or []
         if not streams:
             return '?'
@@ -57,23 +72,27 @@ def scan(folder: str, probe: bool = True) -> list[dict]:
             except OSError:
                 size = 0
             stem = os.path.splitext(name)[0]
-            findings.append({
-                'path': path,
-                'size': size,
-                'fragment': bool(FRAGMENT_RE.search(name)),
-                'placeholder_title': bool(PLACEHOLDER_TITLE_RE.match(stem)),
-                'resolution': probe_resolution(path) if probe else '-',
-            })
+            findings.append(
+                {
+                    'path': path,
+                    'size': size,
+                    'fragment': bool(FRAGMENT_RE.search(name)),
+                    'placeholder_title': bool(PLACEHOLDER_TITLE_RE.match(stem)),
+                    'resolution': probe_resolution(path) if probe else '-',
+                }
+            )
     findings.sort(key=lambda entry: entry['path'])
     return findings
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--folder', default=os.environ.get('youtube_folder', '/mnt/music/Youtube'),
-                        help='The audio download tree to scan.')
-    parser.add_argument('--no-probe', action='store_true',
-                        help='Skip ffprobe; much faster, but no resolutions.')
+    parser.add_argument(
+        '--folder',
+        default=os.environ.get('youtube_folder', '/mnt/music/Youtube'),
+        help='The audio download tree to scan.',
+    )
+    parser.add_argument('--no-probe', action='store_true', help='Skip ffprobe; much faster, but no resolutions.')
     args = parser.parse_args()
 
     findings = scan(args.folder, probe=not args.no_probe)
@@ -93,8 +112,10 @@ def main() -> None:
         print(f"{entry['resolution']:>10}  {entry['size'] / 1024 / 1024:8.1f} MB  {entry['path']}{suffix}")
 
     fragments = sum(1 for entry in findings if entry['fragment'])
-    print(f'\n{len(findings)} stray video files, {fragments} of them unmerged fragments, '
-          f'{total / 1024 / 1024 / 1024:.2f} GB in total.')
+    print(
+        f'\n{len(findings)} stray video files, {fragments} of them unmerged fragments, '
+        f'{total / 1024 / 1024 / 1024:.2f} GB in total.'
+    )
     print('Nothing was deleted. Remove what you do not want by hand.')
 
 

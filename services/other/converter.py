@@ -7,9 +7,9 @@ from services.common.config_store import ConfigStore as Settings
 
 s = Settings()
 
-class Converter:
 
-    def __init__(self, max_age_hours: int=24):
+class Converter:
+    def __init__(self, max_age_hours: int = 24):
         """
         Initializes the Converter using the music folder from settings.
 

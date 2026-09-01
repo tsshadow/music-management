@@ -19,7 +19,6 @@ from services.music_manager.routers.events import parse_since
 
 
 class ParseSinceTest(unittest.TestCase):
-
     def test_relative_hours(self):
         result = parse_since('-2h')
         self.assertAlmostEqual((datetime.now() - result).total_seconds(), 7200, delta=5)
@@ -41,7 +40,6 @@ class ParseSinceTest(unittest.TestCase):
 
 
 class EventsRouterTest(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         self.api_key = resolve_system_api_key()

@@ -13,7 +13,6 @@ from services.downloader.youtube.YoutubeArchive import YoutubeArchive
 
 
 class FakeCursor:
-
     def __init__(self, row):
         self.row = row
         self.queries = []
@@ -32,7 +31,6 @@ class FakeCursor:
 
 
 class FakeConnection:
-
     def __init__(self, row=None):
         self.fake_cursor = FakeCursor(row)
 
@@ -47,7 +45,6 @@ class FakeConnection:
 
 
 class YoutubeArchiveTest(unittest.TestCase):
-
     def setUp(self):
         reset_database_helpers()
 
@@ -61,9 +58,10 @@ class YoutubeArchiveTest(unittest.TestCase):
             finally:
                 connection.close()
 
-        return patch('services.downloader.youtube.YoutubeArchive.DatabaseConnector',
-                     return_value=type('Connector', (), {'connect': lambda _self: connection,
-                                                         'connection': _connection})())
+        return patch(
+            'services.downloader.youtube.YoutubeArchive.DatabaseConnector',
+            return_value=type('Connector', (), {'connect': lambda _self: connection, 'connection': _connection})(),
+        )
 
     def test_exists_returns_false_when_not_present(self):
         connection = FakeConnection(row=None)
@@ -87,8 +85,14 @@ class YoutubeArchiveTest(unittest.TestCase):
     def test_insert_records_the_download_type(self):
         connection = FakeConnection(row=None)
         with self._with_connection(connection):
-            YoutubeArchive.insert('@qdance', 'vid', '/mnt/music/Youtube_Video/Q-dance/Set.mkv',
-                                  'https://youtu.be/vid', 'Set', download_type='video')
+            YoutubeArchive.insert(
+                '@qdance',
+                'vid',
+                '/mnt/music/Youtube_Video/Q-dance/Set.mkv',
+                'https://youtu.be/vid',
+                'Set',
+                download_type='video',
+            )
         query, params = connection.fake_cursor.queries[-1]
         self.assertIn('INSERT IGNORE INTO downloads_youtube_archive', query)
         self.assertEqual(params[-1], 'video')

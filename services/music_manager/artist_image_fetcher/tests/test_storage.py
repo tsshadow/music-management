@@ -19,7 +19,6 @@ def png_bytes(size=(200, 100), mode='RGB', color=(10, 20, 30)):
 
 
 class ImageStorageTest(unittest.TestCase):
-
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -65,7 +64,6 @@ class ImageStorageTest(unittest.TestCase):
 
 
 class ImageDownloaderTest(unittest.TestCase):
-
     def test_the_body_of_a_successful_response_is_returned(self):
         downloader = storage.ImageDownloader()
         with patch.object(storage, 'requests') as http:

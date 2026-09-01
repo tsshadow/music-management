@@ -4,6 +4,7 @@ Everything runs against the FastAPI TestClient with the system API key, which
 ``verify_api_key`` accepts outright, so these tests exercise the endpoint bodies
 rather than the permission wiring (that already lives in test_rbac.py).
 """
+
 import json
 import os
 import sqlite3
@@ -31,7 +32,6 @@ API_KEY = users_router.API_KEY
 
 
 class UsersEndpointTestCase(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         self.headers = {'x-api-key': API_KEY}
@@ -48,7 +48,6 @@ class UsersEndpointTestCase(unittest.TestCase):
 
 
 class AuthEndpointTest(UsersEndpointTestCase):
-
     def test_the_system_key_verifies_as_a_system_caller(self):
         response = self.client.get('/api/auth/verify', headers=self.headers)
         self.assertEqual(response.status_code, 200)
@@ -99,7 +98,6 @@ class AuthEndpointTest(UsersEndpointTestCase):
 
 
 class RefreshTokenTest(UsersEndpointTestCase):
-
     def test_a_valid_refresh_token_yields_a_fresh_access_token(self):
         self.cursor.fetchone.side_effect = [
             {'id': 9, 'user_id': 4},
@@ -128,7 +126,6 @@ class RefreshTokenTest(UsersEndpointTestCase):
 
 
 class SetupTest(UsersEndpointTestCase):
-
     def test_an_empty_user_table_means_setup_is_required(self):
         self.cursor.fetchone.return_value = {'count': 0}
         self.assertTrue(self.client.get('/api/auth/setup-status').json()['setup_required'])
@@ -140,8 +137,10 @@ class SetupTest(UsersEndpointTestCase):
     def test_the_first_admin_can_be_created(self):
         self.cursor.fetchone.return_value = {'count': 0}
         self.cursor.lastrowid = 1
-        with patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 1}), \
-             patch.object(users_router, 'notify_server_sync_users') as notify:
+        with (
+            patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 1}),
+            patch.object(users_router, 'notify_server_sync_users') as notify,
+        ):
             response = self.client.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()['is_admin'])
@@ -159,7 +158,6 @@ class SetupTest(UsersEndpointTestCase):
 
 
 class DynamicPlaylistTest(UsersEndpointTestCase):
-
     def test_the_playlists_of_a_user_are_listed(self):
         self.cursor.fetchall.return_value = [{'id': 1, 'name': 'Hardstyle'}]
         response = self.client.get('/api/users/4/dynamic-playlists', headers=self.headers)
@@ -177,13 +175,13 @@ class DynamicPlaylistTest(UsersEndpointTestCase):
 
     def test_a_playlist_can_be_created(self):
         self.cursor.lastrowid = 12
-        response = self.client.post('/api/users/4/dynamic-playlists', headers=self.headers,
-                                    json={'name': 'New', 'params': '{}'})
+        response = self.client.post(
+            '/api/users/4/dynamic-playlists', headers=self.headers, json={'name': 'New', 'params': '{}'}
+        )
         self.assertEqual(response.json(), {'status': 'ok', 'id': 12})
 
     def test_updating_both_name_and_params_writes_both(self):
-        self.client.put('/api/users/4/dynamic-playlists/1', headers=self.headers,
-                        json={'name': 'New', 'params': '{}'})
+        self.client.put('/api/users/4/dynamic-playlists/1', headers=self.headers, json={'name': 'New', 'params': '{}'})
         self.assertIn('SET name = %s, params = %s', self.statements()[0])
 
     def test_updating_only_the_name_leaves_the_params_alone(self):
@@ -255,7 +253,6 @@ class DynamicPlaylistTracksTest(UsersEndpointTestCase):
 
 
 class PlaylistTracksTest(UsersEndpointTestCase):
-
     def build(self, params):
         self.cursor.fetchone.side_effect = [{'username': 'user'}, {'params': params}]
         self.cursor.fetchall.return_value = []
@@ -289,8 +286,9 @@ class PlaylistTracksTest(UsersEndpointTestCase):
         self.assertEqual(params.count('Uptempo'), 2)
 
     def test_a_rule_repeating_a_selected_genre_is_not_added_twice(self):
-        query, params = self.build(json.dumps({'genres': ['Hardstyle'],
-                                               'rules': [{'column': 'genre', 'value': 'Hardstyle'}]}))
+        query, params = self.build(
+            json.dumps({'genres': ['Hardstyle'], 'rules': [{'column': 'genre', 'value': 'Hardstyle'}]})
+        )
         self.assertEqual(params.count('Hardstyle'), 2)
 
     def test_short_tracks_only(self):
@@ -334,7 +332,6 @@ class PlaylistTracksTest(UsersEndpointTestCase):
 
 
 class UserManagementTest(UsersEndpointTestCase):
-
     def test_all_users_are_listed(self):
         self.cursor.fetchall.return_value = [{'id': 1, 'username': 'root'}]
         response = self.client.get('/api/users', headers=self.headers)
@@ -343,8 +340,9 @@ class UserManagementTest(UsersEndpointTestCase):
     def test_a_new_user_gets_the_default_role_and_never_admin(self):
         self.cursor.lastrowid = 5
         with patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 2}) as get_role:
-            response = self.client.post('/api/users', headers=self.headers,
-                                        json={'username': 'newbie', 'is_admin': True})
+            response = self.client.post(
+                '/api/users', headers=self.headers, json={'username': 'newbie', 'is_admin': True}
+            )
         self.assertEqual(response.json(), {'status': 'ok', 'id': 5})
         self.assertEqual(get_role.call_args.args[1], users_router.rbac.DEFAULT_ROLE_NAME)
         self.assertFalse(self.cursor.execute.call_args.args[1][2])
@@ -356,8 +354,7 @@ class UserManagementTest(UsersEndpointTestCase):
 
     def test_a_supplied_password_is_stored_hashed(self):
         with patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 2}):
-            self.client.post('/api/users', headers=self.headers,
-                             json={'username': 'newbie', 'password': 'hunter2'})
+            self.client.post('/api/users', headers=self.headers, json={'username': 'newbie', 'password': 'hunter2'})
         stored = self.cursor.execute.call_args.args[1][5]
         self.assertNotEqual(stored, 'hunter2')
         self.assertTrue(stored.startswith('$2'))
@@ -371,8 +368,10 @@ class UserManagementTest(UsersEndpointTestCase):
         self.assertEqual(self.client.get('/api/users/permissions', headers=self.headers).status_code, 200)
 
     def test_a_role_can_be_assigned(self):
-        with patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 1}), \
-             patch.object(users_router.rbac, 'record_audit_event') as audit:
+        with (
+            patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 1}),
+            patch.object(users_router.rbac, 'record_audit_event') as audit,
+        ):
             response = self.client.put('/api/users/4/role', headers=self.headers, json={'role': 'admin'})
         self.assertEqual(response.json(), {'status': 'ok'})
         self.assertEqual(audit.call_args.args[1], 'user.role_assigned')
@@ -413,7 +412,6 @@ class UserManagementTest(UsersEndpointTestCase):
 
 
 class ListenBrainzTest(UsersEndpointTestCase):
-
     def test_a_linked_account_is_returned(self):
         self.cursor.fetchone.return_value = {'lb_username': 'user', 'lb_token': 'tok'}
         response = self.client.get('/api/users/4/listenbrainz', headers=self.headers)
@@ -425,14 +423,14 @@ class ListenBrainzTest(UsersEndpointTestCase):
         self.assertEqual(response.json(), {'lb_username': '', 'lb_token': ''})
 
     def test_an_account_can_be_linked(self):
-        response = self.client.post('/api/users/4/listenbrainz', headers=self.headers,
-                                    json={'lb_username': 'user', 'lb_token': 'tok'})
+        response = self.client.post(
+            '/api/users/4/listenbrainz', headers=self.headers, json={'lb_username': 'user', 'lb_token': 'tok'}
+        )
         self.assertEqual(response.json(), {'status': 'ok'})
         self.assertEqual(self.cursor.execute.call_args.args[1], (4, 'user', 'tok'))
 
 
 class AppSettingsTest(UsersEndpointTestCase):
-
     def test_stored_settings_are_returned(self):
         self.cursor.fetchone.return_value = {'settings_json': '{"theme":"dark"}', 'updated_at': '2026-01-01'}
         response = self.client.get('/api/users/4/settings/ultrasonic', headers=self.headers)
@@ -444,22 +442,29 @@ class AppSettingsTest(UsersEndpointTestCase):
         self.assertEqual(response.json(), {'settings': None})
 
     def test_settings_can_be_stored(self):
-        response = self.client.post('/api/users/4/settings/ultrasonic', headers=self.headers,
-                                    json={'settings': '{"theme":"dark"}'})
+        response = self.client.post(
+            '/api/users/4/settings/ultrasonic', headers=self.headers, json={'settings': '{"theme":"dark"}'}
+        )
         self.assertEqual(response.json(), {'status': 'ok'})
         self.assertEqual(self.cursor.execute.call_args.args[1], (4, 'ultrasonic', '{"theme":"dark"}'))
 
 
 class DeleteUserTest(UsersEndpointTestCase):
-
     def test_a_user_and_all_its_dependent_rows_are_removed(self):
         self.cursor.fetchone.return_value = {'id': 4, 'username': 'user', 'role_id': 2}
-        with patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 1}), \
-             patch.object(users_router.rbac, 'record_audit_event'):
+        with (
+            patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 1}),
+            patch.object(users_router.rbac, 'record_audit_event'),
+        ):
             response = self.client.delete('/api/users/4', headers=self.headers)
         self.assertEqual(response.json(), {'status': 'ok'})
-        for table in ('user_identities', 'user_refresh_tokens', 'dynamic_playlists',
-                      'user_app_settings', 'user_listenbrainz_accounts'):
+        for table in (
+            'user_identities',
+            'user_refresh_tokens',
+            'dynamic_playlists',
+            'user_app_settings',
+            'user_listenbrainz_accounts',
+        ):
             self.assertTrue(any(f'DELETE FROM {table}' in s for s in self.statements()))
 
     def test_deleting_an_unknown_user_is_a_not_found(self):
@@ -475,8 +480,10 @@ class DeleteUserTest(UsersEndpointTestCase):
 
     def test_one_of_several_admins_can_be_deleted(self):
         self.cursor.fetchone.side_effect = [{'id': 1, 'username': 'root', 'role_id': 1}, {'cnt': 2}]
-        with patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 1}), \
-             patch.object(users_router.rbac, 'record_audit_event'):
+        with (
+            patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 1}),
+            patch.object(users_router.rbac, 'record_audit_event'),
+        ):
             response = self.client.delete('/api/users/1', headers=self.headers)
         self.assertEqual(response.status_code, 200)
 
@@ -490,7 +497,6 @@ class DeleteUserTest(UsersEndpointTestCase):
 
 
 class ServerSyncTest(unittest.TestCase):
-
     def test_the_sync_endpoint_reports_how_many_users_were_synced(self):
         client = TestClient(app)
         with patch.object(users_router, 'run_lms_db_sync', return_value=3):
@@ -498,20 +504,25 @@ class ServerSyncTest(unittest.TestCase):
         self.assertEqual(response.json()['synced'], 3)
 
     def test_every_configured_server_host_is_notified(self):
-        with patch.object(users_router, 'MUMA_SERVER_HOSTS', 'a:5082, b:5082'), \
-             patch.object(users_router, 'requests') as http, patch('builtins.print'):
+        with (
+            patch.object(users_router, 'MUMA_SERVER_HOSTS', 'a:5082, b:5082'),
+            patch.object(users_router, 'requests') as http,
+            patch('builtins.print'),
+        ):
             users_router.notify_server_sync_users()
         self.assertEqual(http.post.call_count, 2)
 
     def test_without_configured_hosts_nothing_is_notified(self):
-        with patch.object(users_router, 'MUMA_SERVER_HOSTS', ''), \
-             patch.object(users_router, 'requests') as http:
+        with patch.object(users_router, 'MUMA_SERVER_HOSTS', ''), patch.object(users_router, 'requests') as http:
             users_router.notify_server_sync_users()
         http.post.assert_not_called()
 
     def test_a_host_that_cannot_be_reached_does_not_stop_the_others(self):
-        with patch.object(users_router, 'MUMA_SERVER_HOSTS', 'a:5082,b:5082'), \
-             patch.object(users_router, 'requests') as http, patch('builtins.print'):
+        with (
+            patch.object(users_router, 'MUMA_SERVER_HOSTS', 'a:5082,b:5082'),
+            patch.object(users_router, 'requests') as http,
+            patch('builtins.print'),
+        ):
             http.post.side_effect = [RuntimeError('down'), None]
             users_router.notify_server_sync_users()
         self.assertEqual(http.post.call_count, 2)
@@ -556,14 +567,15 @@ class ServerSyncTest(unittest.TestCase):
 
 
 class SyncSingleServerDbTest(unittest.TestCase):
-
     def test_a_sqlite_database_is_opened_read_and_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             db_path = os.path.join(tmp, 'lms.db')
             sqlite3.connect(db_path).close()
             muma_conn = MagicMock()
-            with patch('services.music_manager.routers.artist_images.sync_artist_images_to_server') as sync_images, \
-                 patch('builtins.print'):
+            with (
+                patch('services.music_manager.routers.artist_images.sync_artist_images_to_server') as sync_images,
+                patch('builtins.print'),
+            ):
                 users_router.sync_single_server_db(muma_conn, db_path, 'lms')
             sync_images.assert_called_once()
         self.assertEqual(muma_conn.commit.call_count, 2)

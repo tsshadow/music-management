@@ -21,7 +21,6 @@ START = datetime(2026, 7, 30, 12, 0, 0)
 
 
 class LadderMathTest(unittest.TestCase):
-
     def test_first_429_doubles_the_multiplier(self):
         self.assertEqual(next_multiplier_on_429(1, max_multiplier=16), 2)
 
@@ -80,22 +79,23 @@ class LadderMathTest(unittest.TestCase):
 
 
 class RateStateTest(unittest.TestCase):
-
     def setUp(self):
         self.store = InMemoryRateStateStore()
         self.now = START
-        self.timing = load_timing('soundcloud', overrides={
-            'backoff_429_base': 3600,
-            'backoff_403_base': 240,
-            'backoff_403_factor': 4,
-            'backoff_403_cap': 86400,
-            'max_multiplier': 16,
-            'recovery_runs': 3,
-        })
+        self.timing = load_timing(
+            'soundcloud',
+            overrides={
+                'backoff_429_base': 3600,
+                'backoff_403_base': 240,
+                'backoff_403_factor': 4,
+                'backoff_403_cap': 86400,
+                'max_multiplier': 16,
+                'recovery_runs': 3,
+            },
+        )
 
     def _state(self):
-        return RateState('soundcloud', self.timing, store=self.store,
-                         now=lambda: self.now, jitter=lambda: 1.0)
+        return RateState('soundcloud', self.timing, store=self.store, now=lambda: self.now, jitter=lambda: 1.0)
 
     def test_403s_spread_far_apart_do_not_climb_the_ladder(self):
         """A track that is unavailable once a day must not park the source for a day."""
@@ -221,9 +221,7 @@ class RateStateTest(unittest.TestCase):
 
 
 class RateStateSurvivesStorageFailureTest(unittest.TestCase):
-
     class BrokenStore:
-
         def load(self, source):
             raise RuntimeError('database is down')
 
@@ -237,13 +235,11 @@ class RateStateSurvivesStorageFailureTest(unittest.TestCase):
 
     def test_a_broken_store_still_returns_a_wait_time(self):
         timing = load_timing('soundcloud', overrides={'backoff_429_base': 3600, 'max_multiplier': 16})
-        state = RateState('soundcloud', timing, store=self.BrokenStore(),
-                          now=lambda: START, jitter=lambda: 1.0)
+        state = RateState('soundcloud', timing, store=self.BrokenStore(), now=lambda: START, jitter=lambda: 1.0)
         self.assertEqual(state.record_429(), 7200)
 
 
 class SnapshotDefaultsTest(unittest.TestCase):
-
     def test_a_snapshot_defaults_to_a_neutral_multiplier(self):
         self.assertEqual(RateSnapshot(source='youtube').multiplier, 1)
 

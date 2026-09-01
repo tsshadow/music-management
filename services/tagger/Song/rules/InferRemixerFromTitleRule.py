@@ -14,14 +14,23 @@ class InferRemixerFromTitleRule(TagRule):
     aan het ARTIST-veld én het aparte REMIXERS-tagveld (nieuw).
     Nieuwe artiesten kunnen toegevoegd of genegeerd worden via gebruikersprompt.
     """
+
     BRACKET_RE = re.compile('\\(([^()]*)\\)')
-    SUFFIX_CLEANUP_FULL = re.compile('\\s*\\b(album|bootleg|cinematic|climax|cut|dub|dubstep|edit|extended|hardcore|hardstyle|instrumental|kick|live|mix|non vocal|non-vocal|nostalgia|old school|original|pro remix|radio|refix|remastered|remix|re-kick|uptempo|version|vip|vocal|\\d{4}|2k\\d{2})\\b\\s*$', re.IGNORECASE)
+    SUFFIX_CLEANUP_FULL = re.compile(
+        '\\s*\\b(album|bootleg|cinematic|climax|cut|dub|dubstep|edit|extended|hardcore|hardstyle|instrumental|kick|live|mix|non vocal|non-vocal|nostalgia|old school|original|pro remix|radio|refix|remastered|remix|re-kick|uptempo|version|vip|vocal|\\d{4}|2k\\d{2})\\b\\s*$',
+        re.IGNORECASE,
+    )
     SUFFIX_CLEANUP_SIMPLE = re.compile('\\s*\\b(edit|remix|refix|bootleg)\\b\\s*$', re.IGNORECASE)
 
-    def __init__(self, artist_db=None, ignored_db=None, ask_for_missing: bool=False):
+    def __init__(self, artist_db=None, ignored_db=None, ask_for_missing: bool = False):
         from services.common.Helpers.Cache import databaseHelpers
+
         self.artist_db = artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
-        self.ignored_db = ignored_db or databaseHelpers.get('rules_ignored_artists') or FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name')
+        self.ignored_db = (
+            ignored_db
+            or databaseHelpers.get('rules_ignored_artists')
+            or FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name')
+        )
         self.ask_for_missing = ask_for_missing
 
     def _clean_artist_name(self, name: str) -> str:

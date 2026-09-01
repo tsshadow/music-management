@@ -5,6 +5,7 @@ once as an audio source and once as a video source. Passing plain strings around
 loses that distinction, which is how the downloader ended up sweeping seven
 channels twice as audio and never as video.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -52,5 +53,4 @@ class YoutubeAccount:
         min_duration = DEFAULT_MIN_DURATION if raw_duration is None else int(raw_duration)
         raw_active = row[3] if len(row) > 3 else None
         active = True if raw_active is None else bool(raw_active)
-        return cls(name=name, download_type=download_type,
-                   min_duration=min_duration, active=active)
+        return cls(name=name, download_type=download_type, min_duration=min_duration, active=active)

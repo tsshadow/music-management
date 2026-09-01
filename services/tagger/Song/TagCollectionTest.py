@@ -12,7 +12,6 @@ from services.tagger.Song.TagCollection import TagCollection, UnsupportedExtensi
 
 
 class TagCollectionTest(unittest.TestCase):
-
     def test_mp3_tags_mapped_correctly(self):
         tags = EasyID3()
         tags['artist'] = ['Test Artist']
@@ -52,6 +51,7 @@ class TagCollectionTest(unittest.TestCase):
 
         class DummyTags:
             pass
+
         with self.assertRaises(UnsupportedExtension):
             TagCollection(DummyTags())
 
@@ -93,5 +93,7 @@ class TagCollectionTest(unittest.TestCase):
         collection.set_item('artist', 'My Artist')
         output = str(collection)
         self.assertIn('artist: My Artist', output)
+
+
 if __name__ == '__main__':
     unittest.main()

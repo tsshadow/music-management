@@ -6,6 +6,7 @@ do not share ``config.json``. The database is the one thing they do share.
 
 Only the knobs that differ from their default are stored.
 """
+
 from __future__ import annotations
 
 import logging
@@ -44,6 +45,7 @@ class DatabaseSettingsStore:
     def _connect(self):
         from services.common.Helpers.DatabaseConnector import DatabaseConnector
         from services.downloader.db_schema import ensure_once
+
         connection = DatabaseConnector().connect()
         ensure_once(connection)
         return connection
@@ -52,9 +54,7 @@ class DatabaseSettingsStore:
         connection = self._connect()
         try:
             with connection.cursor() as cursor:
-                cursor.execute(
-                    'SELECT setting_key, value FROM downloads_settings WHERE source = %s',
-                    (source,))
+                cursor.execute('SELECT setting_key, value FROM downloads_settings WHERE source = %s', (source,))
                 return rows_to_settings(cursor.fetchall())
         finally:
             connection.close()
@@ -68,7 +68,8 @@ class DatabaseSettingsStore:
                         'INSERT INTO downloads_settings (source, setting_key, value) '
                         'VALUES (%s, %s, %s) '
                         'ON DUPLICATE KEY UPDATE value = %s',
-                        (source, key, str(value), str(value)))
+                        (source, key, str(value), str(value)),
+                    )
             connection.commit()
         finally:
             connection.close()
@@ -96,7 +97,7 @@ def load_settings(source: str, store=None) -> dict[str, int]:
     return sanitize_settings(source, raw)
 
 
-def load_timing_for(source: str, multiplier: int=1, store=None) -> DownloaderTiming:
+def load_timing_for(source: str, multiplier: int = 1, store=None) -> DownloaderTiming:
     """The effective timing of ``source``, with the stored overrides applied."""
     return load_timing(source, overrides=load_settings(source, store=store), multiplier=multiplier)
 

@@ -1,11 +1,11 @@
 """The origin allowlist."""
+
 import unittest
 
 from services.music_manager.cors import DEFAULT_ORIGINS, allowed_origins
 
 
 class AllowedOriginsTest(unittest.TestCase):
-
     def test_an_unset_setting_falls_back_to_the_development_origins(self):
         self.assertEqual(allowed_origins(None), list(DEFAULT_ORIGINS))
 

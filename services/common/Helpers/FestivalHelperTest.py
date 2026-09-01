@@ -19,7 +19,6 @@ INTENTS = Festival(name='Intents Festival', aliases=['Intents', 'Intents Festiva
 
 
 class NormalizeTest(unittest.TestCase):
-
     def test_strips_accents_and_case(self):
         self.assertEqual(FestivalHelper.normalize('Décibel'), ' decibel ')
 
@@ -32,7 +31,6 @@ class NormalizeTest(unittest.TestCase):
 
 
 class FestivalHelperMatchTest(unittest.TestCase):
-
     def test_matches_an_alias_anywhere_in_the_text(self):
         result = helper_with(QLIMAX).get('Ran-D at Qlimax, full set')
         self.assertEqual(result['festival'], 'Qlimax')
@@ -100,7 +98,6 @@ FLASHBACK = Festival(name='Flashback', aliases=['Flashback', 'Flashback Festival
 
 
 class FestivalHelperGetAllTest(unittest.TestCase):
-
     def test_two_festivals_in_one_title_are_both_returned(self):
         results = helper_with(REVERZE, FLASHBACK).get_all('Reverze 2023 - Reverze Flashback by Pat B')
         self.assertEqual({r['festival'] for r in results}, {'Reverze', 'Flashback'})
@@ -112,8 +109,7 @@ class FestivalHelperGetAllTest(unittest.TestCase):
     def test_an_alias_inside_a_longer_match_is_dropped(self):
         # The combined spelling is an alias of Karnaval Festival in the seed, which is
         # what makes "Intents" here part of one event name rather than a second event.
-        karnaval = Festival(name='Karnaval Festival',
-                            aliases=['Karnaval Festival', 'Intents Karnaval'], editions={})
+        karnaval = Festival(name='Karnaval Festival', aliases=['Karnaval Festival', 'Intents Karnaval'], editions={})
         results = helper_with(INTENTS, karnaval).get_all('VA - Intents Karnaval Festival 2021 (Warm Up Mix)')
         self.assertEqual([r['festival'] for r in results], ['Karnaval Festival'])
 
@@ -143,12 +139,12 @@ class FestivalHelperGetAllTest(unittest.TestCase):
 
     def test_get_returns_the_first_result_of_get_all(self):
         helper = helper_with(REVERZE, FLASHBACK)
-        self.assertEqual(helper.get('Reverze Flashback 2023')['festival'],
-                         helper.get_all('Reverze Flashback 2023')[0]['festival'])
+        self.assertEqual(
+            helper.get('Reverze Flashback 2023')['festival'], helper.get_all('Reverze Flashback 2023')[0]['festival']
+        )
 
 
 class FestivalHelperPreloadTest(unittest.TestCase):
-
     def setUp(self):
         patcher = patch('services.common.Helpers.FestivalHelper.DatabaseConnector')
         self.addCleanup(patcher.stop)

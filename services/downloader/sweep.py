@@ -5,6 +5,7 @@ walk a list of accounts, in batches, and hold back when the service pushes back.
 Keeping that policy in one place means "how do we behave when we get a 429" has a
 single answer rather than one per downloader.
 """
+
 from __future__ import annotations
 
 import logging
@@ -47,8 +48,9 @@ class SweepPolicy:
     database. Tests hand in all three and stay off the database entirely.
     """
 
-    def __init__(self, source: str, timing: DownloaderTiming | None = None,
-                 rate_state=None, schedule=None, notifier=None) -> None:
+    def __init__(
+        self, source: str, timing: DownloaderTiming | None = None, rate_state=None, schedule=None, notifier=None
+    ) -> None:
         self.source = source
         self.timing = timing if timing is not None else load_timing_for(source)
         self.rate_state = rate_state if rate_state is not None else RateState(source, self.timing)
@@ -64,8 +66,7 @@ class SweepPolicy:
         """Return whether a sweep may start, or False while the source is parked."""
         remaining = self.rate_state.cooldown_remaining()
         if remaining > 0:
-            logging.warning('%s is still cooling down for %ds; skipping this sweep.',
-                            self.source, remaining)
+            logging.warning('%s is still cooling down for %ds; skipping this sweep.', self.source, remaining)
             return False
         self.stop.clear()
         self._blank_run = 0
@@ -85,8 +86,13 @@ class SweepPolicy:
         self._blank_run += 1
         threshold = self.timing.block_threshold
         if self._blank_run < threshold:
-            logging.info('%s returned nothing for %s (%d of %d before backing off).',
-                         self.source, account, self._blank_run, threshold)
+            logging.info(
+                '%s returned nothing for %s (%d of %d before backing off).',
+                self.source,
+                account,
+                self._blank_run,
+                threshold,
+            )
             return None
         return self.park('403', f'{self._blank_run} accounts in a row ending at {account}')
 
@@ -113,8 +119,14 @@ class SweepPolicy:
         previous = self._current_403_wait()
         wait = self.rate_state.record_429() if reason == '429' else self.rate_state.record_403()
         self.stop.set()
-        logging.warning('HTTP %s for %s. Pausing %s for %ds (multiplier %sx).',
-                        reason, target, self.source, wait, self.rate_state.multiplier)
+        logging.warning(
+            'HTTP %s for %s. Pausing %s for %ds (multiplier %sx).',
+            reason,
+            target,
+            self.source,
+            wait,
+            self.rate_state.multiplier,
+        )
         if reason == '403':
             self._announce_403(target, previous, wait)
         return RateLimited(self.source, wait, reason)
@@ -124,8 +136,9 @@ class SweepPolicy:
         count = self.rate_state.snapshot().consecutive_403
         if count <= 0:
             return 0
-        return backoff_403_wait(count, self.timing.backoff_403_base,
-                                self.timing.backoff_403_factor, self.timing.backoff_403_cap)
+        return backoff_403_wait(
+            count, self.timing.backoff_403_base, self.timing.backoff_403_factor, self.timing.backoff_403_cap
+        )
 
     def _announce_403(self, target: str, previous: int, wait: int) -> None:
         """Push a 403 to ntfy, but only while the wait is still climbing.
@@ -141,14 +154,14 @@ class SweepPolicy:
             change = f'Pauze loopt op van {format_wait(previous)} naar {format_wait(wait)}.'
         else:
             change = f'Pauze is nu {format_wait(wait)}.'
-        self._notify(f'403 (Forbidden) van {self.source} bij {target}. {change}',
-                     f'{self.source} 403 Forbidden')
+        self._notify(f'403 (Forbidden) van {self.source} bij {target}. {change}', f'{self.source} 403 Forbidden')
 
     def _notify(self, message: str, title: str) -> None:
         """Send a notification without letting the notifier break the backoff."""
         notifier = self._notifier
         if notifier is None:
             from services.common.Helpers.NotificationService import notification_service
+
             notifier = notification_service
         try:
             notifier.notify(message, title=title)
@@ -172,10 +185,8 @@ class SweepPolicy:
         logging.info('Throttling %s: sleeping %d seconds...', self.source, pause)
         time.sleep(pause)
 
-    def mark_checked(self, account: str, last_upload_at=None,
-                     last_seen_track_id: str | None = None) -> None:
-        self.schedule.mark_checked(account, last_upload_at=last_upload_at,
-                                   last_seen_track_id=last_seen_track_id)
+    def mark_checked(self, account: str, last_upload_at=None, last_seen_track_id: str | None = None) -> None:
+        self.schedule.mark_checked(account, last_upload_at=last_upload_at, last_seen_track_id=last_seen_track_id)
 
     def deep_due(self, account: str) -> bool:
         """Whether this account is due a deep sweep rather than a probe."""

@@ -5,7 +5,6 @@ from services.common.Helpers.LmsScanTrigger import LmsScanTrigger
 
 
 class LmsScanTriggerTest(unittest.TestCase):
-
     def setUp(self):
         patcher = patch('services.common.Helpers.LmsScanTrigger.ConfigStore')
         self.addCleanup(patcher.stop)

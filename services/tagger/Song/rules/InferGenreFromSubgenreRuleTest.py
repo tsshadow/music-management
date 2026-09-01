@@ -6,7 +6,6 @@ from services.tagger.Song.rules.InferGenreFromSubgenreRule import InferGenreFrom
 
 
 class InferGenreFromSubgenreRuleTest(unittest.TestCase):
-
     def setUp(self):
         self.song = MagicMock()
         self.song.merge_and_sort_genres = lambda a, b: sorted(set(a + b))
@@ -38,5 +37,7 @@ class InferGenreFromSubgenreRuleTest(unittest.TestCase):
         rule = InferGenreFromSubgenreRule(helper=helper)
         rule.apply(self.song)
         self.song.tag_collection.set_item.assert_called_once_with(GENRE, 'Hardcore')
+
+
 if __name__ == '__main__':
     unittest.main()

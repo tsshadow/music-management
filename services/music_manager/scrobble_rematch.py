@@ -7,6 +7,7 @@ same query.
 
 Design: docs/superpowers/specs/2026-08-21-scrobble-rematching-design.md
 """
+
 from __future__ import annotations
 
 import os
@@ -30,12 +31,8 @@ INTERVAL_SECONDS = int(os.getenv('SCROBBLE_REMATCH_INTERVAL', '3600'))
 # will never match costs one lookup a week rather than one a cycle.
 RETRY_HOURS = [1, 24, 168]
 
-_BACKFILL_ARTISTS = (
-    'SELECT id, name FROM library_artists WHERE normalized_name IS NULL LIMIT %s'
-)
-_BACKFILL_TRACKS = (
-    'SELECT id, title FROM library_tracks WHERE normalized_title IS NULL LIMIT %s'
-)
+_BACKFILL_ARTISTS = 'SELECT id, name FROM library_artists WHERE normalized_name IS NULL LIMIT %s'
+_BACKFILL_TRACKS = 'SELECT id, title FROM library_tracks WHERE normalized_title IS NULL LIMIT %s'
 
 
 def tiers() -> list[MatchTier]:
@@ -64,8 +61,7 @@ def backfill_normalized(cursor, limit: int = BATCH_SIZE) -> int:
     for row in cursor.fetchall():
         title = row['title']
         cursor.execute(
-            'UPDATE library_tracks SET normalized_title = %s, normalized_base_title = %s '
-            'WHERE id = %s',
+            'UPDATE library_tracks SET normalized_title = %s, normalized_base_title = %s WHERE id = %s',
             (normalize(title)[:191], normalize(base_title(title))[:191], row['id']),
         )
         filled += 1
@@ -167,8 +163,7 @@ def _try_fuzzy(cursor, artist, title):
     return None
 
 
-def record_match(cursor, track_id, listened_at, username, source, tier, score, mbid=None,
-                 played_secs=None) -> None:
+def record_match(cursor, track_id, listened_at, username, source, tier, score, mbid=None, played_secs=None) -> None:
     """Write a listen that resolved to a library track.
 
     `played_secs` is how long the track was actually played. It stays NULL for every listen whose
@@ -188,10 +183,7 @@ def record_match(cursor, track_id, listened_at, username, source, tier, score, m
 
 def _retry_cutoff_sql() -> str:
     """A row is due when it has never been tried, or its window has passed."""
-    branches = ' '.join(
-        f'WHEN attempts <= {index + 1} THEN {hours}'
-        for index, hours in enumerate(RETRY_HOURS)
-    )
+    branches = ' '.join(f'WHEN attempts <= {index + 1} THEN {hours}' for index, hours in enumerate(RETRY_HOURS))
     return (
         'last_attempt_at IS NULL OR last_attempt_at < DATE_SUB(NOW(), INTERVAL '
         f'(CASE {branches} ELSE {RETRY_HOURS[-1]} END) HOUR)'
@@ -224,15 +216,19 @@ def rematch_once(conn, limit: int = BATCH_SIZE) -> dict:
             if found:
                 track_id, tier, score = found
                 record_match(
-                    cursor, track_id, row['listened_at'], row['username'],
-                    row['source'], tier, score, row.get('mbid_track'),
+                    cursor,
+                    track_id,
+                    row['listened_at'],
+                    row['username'],
+                    row['source'],
+                    tier,
+                    score,
+                    row.get('mbid_track'),
                     row.get('played_secs'),
                 )
                 # Deleting is what makes the table an honest work queue: its size
                 # is what is still missing, not a log of everything that arrived.
-                cursor.execute(
-                    'DELETE FROM scrobble_unmatched_listens WHERE id = %s', (row['id'],)
-                )
+                cursor.execute('DELETE FROM scrobble_unmatched_listens WHERE id = %s', (row['id'],))
                 stats['linked'] += 1
             else:
                 cursor.execute(
@@ -253,10 +249,7 @@ def run_scrobble_rematch() -> None:
                 try:
                     stats = rematch_once(conn)
                     if stats['linked']:
-                        print(
-                            f"scrobble-rematch: linked {stats['linked']} of "
-                            f"{stats['tried']} retried"
-                        )
+                        print(f"scrobble-rematch: linked {stats['linked']} of {stats['tried']} retried")
                 finally:
                     conn.close()
         except Exception as exc:

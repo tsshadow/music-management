@@ -9,7 +9,6 @@ from services.tagger.Song.SoundcloudSong import SoundcloudSong
 
 
 class SoundcloudSongTest(unittest.TestCase):
-
     def setUp(self):
         reset_database_helpers()
 
@@ -27,5 +26,7 @@ class SoundcloudSongTest(unittest.TestCase):
         song = SoundcloudSong('/tmp/Scantraxx/test.mp3', {'uploader': 'Scantraxx'})
         song.parse()
         tag_collection.set_item.assert_any_call(ALBUM, 'Soundcloud (Scantraxx)')
+
+
 if __name__ == '__main__':
     unittest.main()

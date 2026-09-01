@@ -5,7 +5,6 @@ from services.music_manager.artist_image_fetcher import cli
 
 
 class CliTestCase(unittest.TestCase):
-
     def setUp(self):
         self.fetcher = MagicMock()
         self.conn = MagicMock()
@@ -33,7 +32,6 @@ class CliTestCase(unittest.TestCase):
 
 
 class FetchCommandTest(CliTestCase):
-
     def test_an_artist_id_is_fetched_directly(self):
         self.run_cli('fetch', '--artist-id', '7', '--name', 'Angerfist')
         self.fetcher.fetch_for_artist.assert_called_once_with(7, 'Angerfist', force_refresh=False)
@@ -60,7 +58,6 @@ class FetchCommandTest(CliTestCase):
 
 
 class FetchMissingCommandTest(CliTestCase):
-
     def test_every_artist_without_an_image_is_fetched(self):
         self.cursor.fetchall.return_value = [{'id': 1, 'name': 'One'}, {'id': 2, 'name': 'Two'}]
         output = self.run_cli('fetch-missing', '--limit', '5')
@@ -92,7 +89,6 @@ class FetchMissingCommandTest(CliTestCase):
 
 
 class RefreshCommandTest(CliTestCase):
-
     def test_stale_artists_are_refetched_with_force(self):
         self.cursor.fetchall.return_value = [{'id': 3, 'name': 'Three'}]
         output = self.run_cli('refresh', '--older-than-days', '30', '--limit', '9')
@@ -102,25 +98,27 @@ class RefreshCommandTest(CliTestCase):
 
 
 class LoopingTest(CliTestCase):
-
     def test_without_a_command_the_help_is_printed_and_the_loop_stops(self):
-        with patch('sys.argv', ['artist-image-fetcher']), \
-             patch.object(cli.argparse.ArgumentParser, 'print_help') as help_text:
+        with (
+            patch('sys.argv', ['artist-image-fetcher']),
+            patch.object(cli.argparse.ArgumentParser, 'print_help') as help_text,
+        ):
             cli.main()
         help_text.assert_called_once()
 
     def test_the_daemon_flag_keeps_the_loop_running_between_sleeps(self):
         self.cursor.fetchall.return_value = []
         with patch('time.sleep', side_effect=[None, KeyboardInterrupt]) as sleep:
-            with patch('sys.argv', ['artist-image-fetcher', '--daemon', '--sleeptime', '1', 'fetch-missing']), \
-                 patch('builtins.print'):
+            with (
+                patch('sys.argv', ['artist-image-fetcher', '--daemon', '--sleeptime', '1', 'fetch-missing']),
+                patch('builtins.print'),
+            ):
                 with self.assertRaises(KeyboardInterrupt):
                     cli.main()
         self.assertEqual(sleep.call_args.args, (1,))
 
 
 class SetupLoggingTest(CliTestCase):
-
     def test_main_sets_up_logging_with_the_music_manager_source(self):
         self.run_cli('fetch', '--artist-id', '7', '--name', 'Angerfist')
         cli.setup_logging.assert_called_once_with('music-manager')

@@ -3,6 +3,7 @@
 Fouten blijven lang genoeg staan om een patroon te herkennen; INFO verdwijnt
 snel, want dat is het volume.
 """
+
 from __future__ import annotations
 
 import sys
@@ -14,10 +15,7 @@ RETENTION_DAYS = {'INFO': 14, 'WARNING': 60, 'ERROR': 365, 'CRITICAL': 365}
 BATCH_SIZE = 10000
 INTERVAL_SECONDS = 86400
 
-_DELETE = (
-    'DELETE FROM events WHERE level = %s '
-    'AND created_at < DATE_SUB(NOW(), INTERVAL %s DAY) LIMIT %s'
-)
+_DELETE = 'DELETE FROM events WHERE level = %s AND created_at < DATE_SUB(NOW(), INTERVAL %s DAY) LIMIT %s'
 
 
 def purge_once(conn) -> dict[str, int]:

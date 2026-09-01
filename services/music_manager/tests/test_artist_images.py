@@ -39,10 +39,32 @@ class ArtistImagesManagerTest(unittest.TestCase):
         cursor = MagicMock()
         cursor.fetchone.return_value = {'total': 2}
         cursor.fetchall.return_value = [
-            {'id': 1, 'name': 'Daft Punk', 'primary_image_id': 11, 'image_status': 'active', 'image_updated_at': None,
-             'width': 640, 'height': 640, 'mime_type': 'image/jpeg', 'file_size': 1234, 'source': 'spotify', 'original_url': 'http://x/y.jpg'},
-            {'id': 2, 'name': 'Daft Monk', 'primary_image_id': None, 'image_status': 'failed', 'image_updated_at': None,
-             'width': None, 'height': None, 'mime_type': None, 'file_size': None, 'source': None, 'original_url': None},
+            {
+                'id': 1,
+                'name': 'Daft Punk',
+                'primary_image_id': 11,
+                'image_status': 'active',
+                'image_updated_at': None,
+                'width': 640,
+                'height': 640,
+                'mime_type': 'image/jpeg',
+                'file_size': 1234,
+                'source': 'spotify',
+                'original_url': 'http://x/y.jpg',
+            },
+            {
+                'id': 2,
+                'name': 'Daft Monk',
+                'primary_image_id': None,
+                'image_status': 'failed',
+                'image_updated_at': None,
+                'width': None,
+                'height': None,
+                'mime_type': None,
+                'file_size': None,
+                'source': None,
+                'original_url': None,
+            },
         ]
         mock_get_db.return_value = make_conn(cursor)
 
@@ -85,9 +107,20 @@ class ArtistImagesManagerTest(unittest.TestCase):
         cursor = MagicMock()
         cursor.fetchone.return_value = {'id': 1, 'name': 'Daft Punk', 'primary_image_id': 11}
         cursor.fetchall.return_value = [
-            {'id': 11, 'source': 'spotify', 'source_id': 'sp1', 'original_url': None, 'cached_path': '/nope/a.jpg',
-             'public_path': '/media/artist-images/1/a.jpg', 'width': 640, 'height': 640, 'mime_type': 'image/jpeg',
-             'file_size': 10, 'confidence': 90, 'is_primary': 1},
+            {
+                'id': 11,
+                'source': 'spotify',
+                'source_id': 'sp1',
+                'original_url': None,
+                'cached_path': '/nope/a.jpg',
+                'public_path': '/media/artist-images/1/a.jpg',
+                'width': 640,
+                'height': 640,
+                'mime_type': 'image/jpeg',
+                'file_size': 10,
+                'confidence': 90,
+                'is_primary': 1,
+            },
         ]
         mock_get_db.return_value = make_conn(cursor)
 
@@ -160,7 +193,9 @@ class ArtistImagesManagerTest(unittest.TestCase):
         mock_downloader.return_value.download.return_value = b'jpeg-bytes'
         mock_store.return_value = {'status': 'ok', 'artist_id': 1, 'image_id': 43}
 
-        res = self.client.post('/api/artists/1/image/url', json={'url': 'https://example.com/a.jpg'}, headers=self.headers)
+        res = self.client.post(
+            '/api/artists/1/image/url', json={'url': 'https://example.com/a.jpg'}, headers=self.headers
+        )
 
         self.assertEqual(res.status_code, 200)
         self.assertEqual(mock_store.call_args.args[1], b'jpeg-bytes')

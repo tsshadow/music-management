@@ -5,8 +5,7 @@ from services.common.Helpers.DatabaseConnector import DatabaseConnector
 
 
 class TableHelper:
-
-    def __init__(self, table_name: str, column_name: str, preload: bool=True):
+    def __init__(self, table_name: str, column_name: str, preload: bool = True):
         self.table_name = table_name
         self.column_name = column_name
         self.db_connector = DatabaseConnector()

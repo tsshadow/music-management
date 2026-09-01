@@ -11,8 +11,7 @@ from unittest.mock import MagicMock, patch
 from tools import db_backup
 
 
-def write_dump(path: Path, body: bytes = b'CREATE TABLE t (id INT);\n',
-               trailer: bool = True) -> Path:
+def write_dump(path: Path, body: bytes = b'CREATE TABLE t (id INT);\n', trailer: bool = True) -> Path:
     """A gzip file that looks enough like a dump to exercise verify().
 
     The padding is random rather than repeated text on purpose: the size floor
@@ -29,15 +28,13 @@ def write_dump(path: Path, body: bytes = b'CREATE TABLE t (id INT);\n',
 
 
 class ResolveDestinationTest(unittest.TestCase):
-
     def test_accepts_a_writable_directory_outside_the_datadir(self):
         with TemporaryDirectory() as tmp:
             dest = Path(tmp) / 'backups'
             dest.mkdir()
             data = Path(tmp) / 'data'
             (data / 'mariadb').mkdir(parents=True)
-            self.assertEqual(db_backup.resolve_destination(str(dest), str(data)),
-                             dest.resolve())
+            self.assertEqual(db_backup.resolve_destination(str(dest), str(data)), dest.resolve())
 
     def test_rejects_a_destination_inside_the_datadir(self):
         with TemporaryDirectory() as tmp:
@@ -70,7 +67,6 @@ class ResolveDestinationTest(unittest.TestCase):
 
 
 class VerifyTest(unittest.TestCase):
-
     def test_rejects_an_empty_dump(self):
         with TemporaryDirectory() as tmp:
             path = Path(tmp) / 'empty.sql.gz'
@@ -125,17 +121,17 @@ class DumpTest(unittest.TestCase):
                 seen['defaults'] = path
                 return fd, path
 
-            with patch.object(db_backup.tempfile, 'mkstemp', spy_mkstemp), \
-                    patch.object(db_backup.subprocess, 'Popen', FakeProcess):
-                creds = {'host': 'db', 'port': '3306', 'user': 'u',
-                         'password': 'p', 'database': 'music-management'}
+            with (
+                patch.object(db_backup.tempfile, 'mkstemp', spy_mkstemp),
+                patch.object(db_backup.subprocess, 'Popen', FakeProcess),
+            ):
+                creds = {'host': 'db', 'port': '3306', 'user': 'u', 'password': 'p', 'database': 'music-management'}
                 seen['mode_during'] = None
 
                 real_open = db_backup.gzip.open
 
                 def capture_mode(*args, **kwargs):
-                    seen['mode_during'] = stat.S_IMODE(
-                        os.stat(seen['defaults']).st_mode)
+                    seen['mode_during'] = stat.S_IMODE(os.stat(seen['defaults']).st_mode)
                     return real_open(*args, **kwargs)
 
                 with patch.object(db_backup.gzip, 'open', capture_mode):
@@ -164,7 +160,6 @@ class DumpTest(unittest.TestCase):
 
 
 class PruneTest(unittest.TestCase):
-
     def setUp(self):
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -213,7 +208,6 @@ class PruneTest(unittest.TestCase):
 
 
 class PromoteMonthlyTest(unittest.TestCase):
-
     def setUp(self):
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -231,22 +225,24 @@ class PromoteMonthlyTest(unittest.TestCase):
         self.assertTrue(self.backup.exists())
 
     def test_does_nothing_on_any_other_day(self):
-        self.assertIsNone(
-            db_backup.promote_monthly(self.backup, datetime(2026, 9, 2, tzinfo=UTC)))
+        self.assertIsNone(db_backup.promote_monthly(self.backup, datetime(2026, 9, 2, tzinfo=UTC)))
 
 
 class StalenessTest(unittest.TestCase):
-
     def setUp(self):
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.dest = Path(self.tmp.name)
 
     def _latest(self, finished: datetime):
-        (self.dest / db_backup.LATEST_NAME).write_text(json.dumps({
-            'file': 'muma_db_20260831_030000.sql.gz',
-            'finished_at': finished.isoformat(),
-        }))
+        (self.dest / db_backup.LATEST_NAME).write_text(
+            json.dumps(
+                {
+                    'file': 'muma_db_20260831_030000.sql.gz',
+                    'finished_at': finished.isoformat(),
+                }
+            )
+        )
 
     def test_silent_when_the_backup_is_recent(self):
         now = datetime(2026, 8, 31, 12, tzinfo=UTC)
@@ -266,11 +262,9 @@ class StalenessTest(unittest.TestCase):
 
 
 class AlertingTest(unittest.TestCase):
-
     def test_failure_pushes_synchronously_and_records_the_event(self):
         sink = MagicMock()
-        with patch.object(db_backup, 'NtfySink', return_value=sink), \
-                patch.object(db_backup, 'event_service') as events:
+        with patch.object(db_backup, 'NtfySink', return_value=sink), patch.object(db_backup, 'event_service') as events:
             db_backup.alert('title', 'message')
         sink.handle.assert_called_once()
         pushed = sink.handle.call_args[0][0]
@@ -282,40 +276,44 @@ class AlertingTest(unittest.TestCase):
         """The two paths fail independently on purpose."""
         sink = MagicMock()
         sink.handle.side_effect = RuntimeError('ntfy unreachable')
-        with patch.object(db_backup, 'NtfySink', return_value=sink), \
-                patch.object(db_backup, 'event_service') as events:
+        with patch.object(db_backup, 'NtfySink', return_value=sink), patch.object(db_backup, 'event_service') as events:
             db_backup.alert('title', 'message')
         events.emit.assert_called_once()
 
     def test_main_alerts_when_the_run_raises(self):
-        with patch.object(db_backup, 'run_backup',
-                          side_effect=db_backup.BackupError('disk gone')), \
-                patch.object(db_backup, 'alert') as alert:
+        with (
+            patch.object(db_backup, 'run_backup', side_effect=db_backup.BackupError('disk gone')),
+            patch.object(db_backup, 'alert') as alert,
+        ):
             self.assertEqual(db_backup.main([]), 1)
         alert.assert_called_once()
         self.assertIn('disk gone', alert.call_args[0][1])
 
     def test_main_stays_quiet_on_success(self):
-        with patch.object(db_backup, 'run_backup', return_value=0), \
-                patch.object(db_backup, 'alert') as alert:
+        with patch.object(db_backup, 'run_backup', return_value=0), patch.object(db_backup, 'alert') as alert:
             self.assertEqual(db_backup.main([]), 0)
         alert.assert_not_called()
 
 
 class RunBackupTest(unittest.TestCase):
-
     def setUp(self):
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.dest = Path(self.tmp.name)
-        env = {'BACKUP_PATH': str(self.dest), 'DB_DB': 'music-management',
-               'DB_USER': 'u', 'DB_PASS': 'p', 'DB_HOST': 'db'}
+        env = {
+            'BACKUP_PATH': str(self.dest),
+            'DB_DB': 'music-management',
+            'DB_USER': 'u',
+            'DB_PASS': 'p',
+            'DB_HOST': 'db',
+        }
         patcher = patch.dict(os.environ, env, clear=False)
         patcher.start()
         self.addCleanup(patcher.stop)
 
     def test_a_failed_dump_leaves_no_file_behind(self):
         """A partial file is a trap for whoever restores under pressure."""
+
         def fake_dump(target, _creds):
             target.write_bytes(b'half a dump')
             raise db_backup.BackupError('connection lost')
@@ -326,17 +324,17 @@ class RunBackupTest(unittest.TestCase):
         self.assertEqual(list(self.dest.glob('*.sql.gz')), [])
 
     def test_a_dump_that_fails_verification_is_removed(self):
-        with patch.object(db_backup, 'dump',
-                          lambda target, _c: target.write_bytes(b'tiny')):
+        with patch.object(db_backup, 'dump', lambda target, _c: target.write_bytes(b'tiny')):
             with self.assertRaises(db_backup.BackupError):
                 db_backup.run_backup()
         self.assertEqual(list(self.dest.glob('*.sql.gz')), [])
 
     def test_a_successful_run_records_what_it_can_be_checked_against(self):
         counts = {'library_tracks': 332856, 'events': 13290365}
-        with patch.object(db_backup, 'dump',
-                          lambda target, _c: write_dump(target)), \
-                patch.object(db_backup, 'row_counts', return_value=counts):
+        with (
+            patch.object(db_backup, 'dump', lambda target, _c: write_dump(target)),
+            patch.object(db_backup, 'row_counts', return_value=counts),
+        ):
             self.assertEqual(db_backup.run_backup(), 0)
         latest = json.loads((self.dest / db_backup.LATEST_NAME).read_text())
         self.assertEqual(latest['row_counts'], counts)

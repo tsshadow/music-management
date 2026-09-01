@@ -10,6 +10,7 @@ definitions from conftest.py as well as from the module next to the feature, so
 this is where a Given shared by two features belongs -- copying it into both is
 how the two slowly stop meaning the same thing.
 """
+
 from __future__ import annotations
 
 import os

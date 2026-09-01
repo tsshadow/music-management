@@ -9,14 +9,15 @@ from services.tagger.Song.rules.VerifyArtistRule import VerifyArtistRule
 
 
 class VerifyArtistRuleTest(unittest.TestCase):
-
     def setUp(self):
         self.tag = MagicMock()
         self.song = MagicMock()
         self.song.artist.return_value = 'Unknown'
         self.song.tag_collection.get_item.return_value = self.tag
         self.artist_db = MagicMock()
-        patcher = patch('services.tagger.Song.rules.ExternalArtistLookup.ExternalArtistLookup.is_known_artist', return_value=False)
+        patcher = patch(
+            'services.tagger.Song.rules.ExternalArtistLookup.ExternalArtistLookup.is_known_artist', return_value=False
+        )
         self.addCleanup(patcher.stop)
         self.mock_lookup_default = patcher.start()
 
@@ -65,5 +66,7 @@ class VerifyArtistRuleTest(unittest.TestCase):
         result = rule.apply(self.song)
         self.tag.remove.assert_called_once_with('Unknown Artist')
         self.assertEqual(result.result_type, TagResultType.IGNORED)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -9,6 +9,7 @@ passed and production reported 0% coverage on everything anyone had listened to.
 
 These tests run the real relink against a real MariaDB.
 """
+
 import pytest
 
 pytestmark = pytest.mark.integration
@@ -30,8 +31,7 @@ def library(database):
         )
         scanner_id = cursor.lastrowid
         cursor.execute(
-            'INSERT INTO library_media_files (file_path, file_path_hash, track_id) '
-            'VALUES (%s, %s, %s)',
+            'INSERT INTO library_media_files (file_path, file_path_hash, track_id) VALUES (%s, %s, %s)',
             ('/music/played.mp3', 'hash-played', scanner_id),
         )
 
@@ -43,8 +43,7 @@ def library(database):
         )
         analyzer_id = cursor.lastrowid
         cursor.execute(
-            'INSERT INTO library_media_files (file_path, file_path_hash, track_id) '
-            'VALUES (%s, %s, %s)',
+            'INSERT INTO library_media_files (file_path, file_path_hash, track_id) VALUES (%s, %s, %s)',
             ('/music/analyzed.mp3', 'hash-analyzed', analyzer_id),
         )
 
@@ -84,8 +83,7 @@ def test_a_features_row_keyed_by_path_hash_finds_its_track(database, library):
 def test_a_features_row_with_only_a_path_finds_its_track(database, library):
     with database.cursor() as cursor:
         cursor.execute(
-            'INSERT INTO library_track_audio_features (track_id, file_path, tempo) '
-            'VALUES (%s, %s, %s)',
+            'INSERT INTO library_track_audio_features (track_id, file_path, tempo) VALUES (%s, %s, %s)',
             ('some-other-key', '/music/played.mp3', 150.0),
         )
 
@@ -98,8 +96,7 @@ def test_a_wrong_internal_id_is_repaired_not_left_alone(database, library):
     """migrate_paths.py only fills NULLs, so a row pointing at the wrong track stayed wrong."""
     with database.cursor() as cursor:
         cursor.execute(
-            'INSERT INTO library_track_audio_features (track_id, internal_track_id, tempo) '
-            'VALUES (%s, %s, %s)',
+            'INSERT INTO library_track_audio_features (track_id, internal_track_id, tempo) VALUES (%s, %s, %s)',
             ('hash-played', library['analyzer_id'], 150.0),
         )
 
@@ -111,8 +108,7 @@ def test_a_wrong_internal_id_is_repaired_not_left_alone(database, library):
 def test_a_row_the_library_does_not_know_is_left_unlinked(database, library):
     with database.cursor() as cursor:
         cursor.execute(
-            'INSERT INTO library_track_audio_features (track_id, file_path, tempo) '
-            'VALUES (%s, %s, %s)',
+            'INSERT INTO library_track_audio_features (track_id, file_path, tempo) VALUES (%s, %s, %s)',
             ('hash-deleted', '/music/gone.mp3', 150.0),
         )
 

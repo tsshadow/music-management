@@ -5,7 +5,6 @@ from services.music_manager.artist_image_fetcher.normalizer import ArtistNameNor
 
 
 class NormalizerTest(unittest.TestCase):
-
     def test_an_empty_name_normalizes_to_an_empty_string(self):
         self.assertEqual(ArtistNameNormalizer.normalize(''), '')
         self.assertEqual(ArtistNameNormalizer.normalize(None), '')
@@ -38,7 +37,6 @@ class NormalizerTest(unittest.TestCase):
 
 
 class MatcherTest(unittest.TestCase):
-
     def setUp(self):
         self.matcher = ArtistMatcher()
         self.target = {'id': 1, 'name': 'A-Lusion', 'mbid': 'abc'}
@@ -56,18 +54,26 @@ class MatcherTest(unittest.TestCase):
         self.assertEqual(score, 0)
 
     def test_a_name_that_only_matches_once_punctuation_is_dropped_scores_below_an_exact_match(self):
-        exact = self.matcher.calculate_confidence({'id': 1, 'name': 'Da Tweekaz'}, {'name': 'Da Tweekaz', 'source': 'lastfm'})
-        slug = self.matcher.calculate_confidence({'id': 1, 'name': 'Da Tweekaz'}, {'name': 'DaTweekaz', 'source': 'lastfm'})
+        exact = self.matcher.calculate_confidence(
+            {'id': 1, 'name': 'Da Tweekaz'}, {'name': 'Da Tweekaz', 'source': 'lastfm'}
+        )
+        slug = self.matcher.calculate_confidence(
+            {'id': 1, 'name': 'Da Tweekaz'}, {'name': 'DaTweekaz', 'source': 'lastfm'}
+        )
         self.assertGreater(exact, slug)
         self.assertGreater(slug, 0)
 
     def test_a_near_miss_still_earns_partial_credit(self):
-        score = self.matcher.calculate_confidence({'id': 1, 'name': 'Headhunterz'}, {'name': 'Headhunterez', 'source': 'lastfm'})
+        score = self.matcher.calculate_confidence(
+            {'id': 1, 'name': 'Headhunterz'}, {'name': 'Headhunterez', 'source': 'lastfm'}
+        )
         self.assertGreater(score, 0)
         self.assertLess(score, 60)
 
     def test_a_matching_mbid_is_worth_more_than_the_name_alone(self):
-        with_mbid = self.matcher.calculate_confidence(self.target, {'name': 'Different Artist', 'mbid': 'abc', 'source': 'lastfm'})
+        with_mbid = self.matcher.calculate_confidence(
+            self.target, {'name': 'Different Artist', 'mbid': 'abc', 'source': 'lastfm'}
+        )
         without = self.matcher.calculate_confidence(self.target, {'name': 'Different Artist', 'source': 'lastfm'})
         self.assertGreater(with_mbid, without)
 
@@ -76,28 +82,45 @@ class MatcherTest(unittest.TestCase):
         self.assertEqual(score, 60)
 
     def test_a_known_match_outweighs_a_name_that_does_not_look_alike(self):
-        known = self.matcher.calculate_confidence(self.target, {'name': 'Whatever Else', 'is_known_match': True, 'source': 'spotify'})
+        known = self.matcher.calculate_confidence(
+            self.target, {'name': 'Whatever Else', 'is_known_match': True, 'source': 'spotify'}
+        )
         unknown = self.matcher.calculate_confidence(self.target, {'name': 'Whatever Else', 'source': 'spotify'})
         self.assertEqual(unknown, 0)
         self.assertTrue(self.matcher.is_candidate(known))
 
     def test_a_label_sounding_candidate_is_penalised(self):
-        plain = self.matcher.calculate_confidence({'id': 1, 'name': 'Scantraxx'}, {'name': 'Scantraxx', 'source': 'lastfm'})
-        labelled = self.matcher.calculate_confidence({'id': 1, 'name': 'Scantraxx'}, {'name': 'Scantraxx Records', 'source': 'lastfm'})
+        plain = self.matcher.calculate_confidence(
+            {'id': 1, 'name': 'Scantraxx'}, {'name': 'Scantraxx', 'source': 'lastfm'}
+        )
+        labelled = self.matcher.calculate_confidence(
+            {'id': 1, 'name': 'Scantraxx'}, {'name': 'Scantraxx Records', 'source': 'lastfm'}
+        )
         self.assertGreater(plain, labelled)
 
     def test_a_popular_spotify_artist_gets_a_bonus(self):
-        popular = self.matcher.calculate_confidence({'id': 1, 'name': 'Brennan Heart'}, {'name': 'Brennan Heart', 'source': 'spotify', 'popularity': 80})
-        obscure = self.matcher.calculate_confidence({'id': 1, 'name': 'Brennan Heart'}, {'name': 'Brennan Heart', 'source': 'spotify', 'popularity': 5})
+        popular = self.matcher.calculate_confidence(
+            {'id': 1, 'name': 'Brennan Heart'}, {'name': 'Brennan Heart', 'source': 'spotify', 'popularity': 80}
+        )
+        obscure = self.matcher.calculate_confidence(
+            {'id': 1, 'name': 'Brennan Heart'}, {'name': 'Brennan Heart', 'source': 'spotify', 'popularity': 5}
+        )
         self.assertGreater(popular, obscure)
 
     def test_a_soundcloud_account_already_linked_to_this_artist_gets_a_bonus(self):
-        linked = self.matcher.calculate_confidence(self.target, {'name': 'A-Lusion', 'source': 'soundcloud', 'linked_artist_id': 1})
-        unlinked = self.matcher.calculate_confidence(self.target, {'name': 'A-Lusion', 'source': 'soundcloud', 'linked_artist_id': 99})
+        linked = self.matcher.calculate_confidence(
+            self.target, {'name': 'A-Lusion', 'source': 'soundcloud', 'linked_artist_id': 1}
+        )
+        unlinked = self.matcher.calculate_confidence(
+            self.target, {'name': 'A-Lusion', 'source': 'soundcloud', 'linked_artist_id': 99}
+        )
         self.assertGreater(linked, unlinked)
 
     def test_the_score_never_leaves_the_zero_to_hundred_range(self):
-        huge = self.matcher.calculate_confidence(self.target, {'name': 'A-Lusion', 'mbid': 'abc', 'is_known_match': True, 'source': 'spotify', 'popularity': 99})
+        huge = self.matcher.calculate_confidence(
+            self.target,
+            {'name': 'A-Lusion', 'mbid': 'abc', 'is_known_match': True, 'source': 'spotify', 'popularity': 99},
+        )
         self.assertEqual(huge, 100)
         awful = self.matcher.calculate_confidence(self.target, {'name': 'Completely Other Records', 'source': 'lastfm'})
         self.assertEqual(awful, 0)

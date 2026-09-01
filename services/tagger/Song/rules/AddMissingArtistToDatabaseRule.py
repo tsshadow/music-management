@@ -19,10 +19,17 @@ class AddMissingArtistToDatabaseRule(TagRule):
     - Als artiest nergens staat en ask_for_missing == True -> prompt geven
     """
 
-    def __init__(self, artist_db=None, ignored_db=None, ask_for_missing: bool=False):
+    def __init__(self, artist_db=None, ignored_db=None, ask_for_missing: bool = False):
         from services.common.Helpers.Cache import databaseHelpers
-        self.artist_table = artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
-        self.ignored_table = ignored_db or databaseHelpers.get('rules_ignored_artists') or FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name')
+
+        self.artist_table = (
+            artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
+        )
+        self.ignored_table = (
+            ignored_db
+            or databaseHelpers.get('rules_ignored_artists')
+            or FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name')
+        )
         self.ask_for_missing = ask_for_missing
 
     def get_user_input(self, artist, library_artists, title, path) -> str:

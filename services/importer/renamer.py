@@ -11,8 +11,10 @@ from services.common.config_store import ConfigStore as Settings
 def has_numbers(input_string):
     return any(char.isdigit() for char in input_string)
 
+
 def is_parsed(folder):
     return '- ' in folder
+
 
 def find_cat_id(folder):
     res = re.findall('\\(.*?\\)', folder)
@@ -26,14 +28,18 @@ def find_cat_id(folder):
             return item + ' - ' + folder
     return ' - ' + folder
 
-class Renamer:
 
+class Renamer:
     def __init__(self):
         self.settings = Settings()
 
     def run(self, dry_run=False):
         logging.info('Starting Rename Step')
-        only_folders = [f for f in listdir(self.settings.import_folder_path) if not isfile(join(self.settings.import_folder_path, f))]
+        only_folders = [
+            f
+            for f in listdir(self.settings.import_folder_path)
+            if not isfile(join(self.settings.import_folder_path, f))
+        ]
         for folder in only_folders:
             if '@eaDir' in folder:
                 logging.info('skipping @eaDir')
@@ -45,7 +51,10 @@ class Renamer:
                     logging.info('Dry run - would rename: %s -> %s', folder, new_name)
                     continue
                 try:
-                    os.rename(self.settings.import_folder_path + self.settings.delimiter + folder, self.settings.import_folder_path + self.settings.delimiter + new_name)
+                    os.rename(
+                        self.settings.import_folder_path + self.settings.delimiter + folder,
+                        self.settings.import_folder_path + self.settings.delimiter + new_name,
+                    )
                 except FileExistsError:
                     src = self.settings.import_folder_path + self.settings.delimiter + folder
                     logging.info('File exists: %s', src)

@@ -56,9 +56,7 @@ GATING_VARS = {
 }
 
 
-def run_secrets_check(
-    env_content: str, lms_env_content: str, **overrides: str
-) -> subprocess.CompletedProcess:
+def run_secrets_check(env_content: str, lms_env_content: str, **overrides: str) -> subprocess.CompletedProcess:
     env = {
         "PATH": "/usr/bin:/bin",
         "PROD_ENV_FILE": env_content,
@@ -90,7 +88,8 @@ def test_secrets_check_accepts_the_muma_api_key_spelling():
     """The production .env leaves API_KEY empty and sets MUMA_API_KEY; that is
     a valid deployment, not a missing secret."""
     result = run_secrets_check(
-        BASE_ENV + textwrap.dedent("""\
+        BASE_ENV
+        + textwrap.dedent("""\
             API_KEY=
             MUMA_API_KEY=a-real-key
         """),
@@ -110,8 +109,6 @@ def test_secrets_check_rejects_a_missing_gating_variable():
     skipped job blocks nothing. check-required-secrets.sh is the loud version
     of that requirement, so each gating variable's absence must fail it."""
     for name in GATING_VARS:
-        result = run_secrets_check(
-            BASE_ENV + "API_KEY=a-real-key\n", LMS_ENV, **{name: None}
-        )
+        result = run_secrets_check(BASE_ENV + "API_KEY=a-real-key\n", LMS_ENV, **{name: None})
         assert result.returncode != 0, f"missing {name} passed the check"
         assert name in result.stdout

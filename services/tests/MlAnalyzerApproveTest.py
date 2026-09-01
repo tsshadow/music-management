@@ -4,6 +4,7 @@ as usable training data.
 See services/tests/MlAnalyzerTest.py for why the module is loaded by file and why
 its third-party dependencies are stubbed.
 """
+
 import os
 import unittest
 from unittest.mock import MagicMock, patch
@@ -21,22 +22,43 @@ def readable_sql():
     return patch.object(approve, 'text', side_effect=lambda statement: statement)
 
 
-def track_row(track_id=1, artist='Angerfist', label='Roughstate', genre_tag='Hardcore',
-              ml_genre='Uptempo', review_status='unreviewed', approved=0):
+def track_row(
+    track_id=1,
+    artist='Angerfist',
+    label='Roughstate',
+    genre_tag='Hardcore',
+    ml_genre='Uptempo',
+    review_status='unreviewed',
+    approved=0,
+):
     """One row in the exact column order approve_tracks() selects."""
     row = [
-        track_id, '/music/a.mp3', artist, label, genre_tag, ml_genre,
-        174.0, 0.5, 0.1, 2024,
-        2000.0, 100.0, 1500.0, 90.0, 4000.0, 200.0, 20.0, 3.0,
+        track_id,
+        '/music/a.mp3',
+        artist,
+        label,
+        genre_tag,
+        ml_genre,
+        174.0,
+        0.5,
+        0.1,
+        2024,
+        2000.0,
+        100.0,
+        1500.0,
+        90.0,
+        4000.0,
+        200.0,
+        20.0,
+        3.0,
     ]
-    row.extend(float(i) for i in range(1, 14))    # mfcc_1..13
-    row.extend(float(i) for i in range(14, 27))   # std_mfcc_1..13
+    row.extend(float(i) for i in range(1, 14))  # mfcc_1..13
+    row.extend(float(i) for i in range(14, 27))  # std_mfcc_1..13
     row.extend([0.05, 0.01, 0.4, 0.02, 'Soundcloud', 300.0, review_status, approved])
     return row
 
 
 class DatabaseUrlTest(unittest.TestCase):
-
     def url_for(self, env):
         with patch.dict(os.environ, env, clear=True):
             return approve._get_db_url()
@@ -45,8 +67,9 @@ class DatabaseUrlTest(unittest.TestCase):
         self.assertEqual(self.url_for({'DATABASE_URL': 'mysql://elsewhere'}), 'mysql://elsewhere')
 
     def test_the_url_is_built_from_the_separate_settings(self):
-        url = self.url_for({'DB_HOST': 'db.example', 'DB_PORT': '3307', 'DB_USER': 'muma',
-                            'DB_PASS': 'secret', 'DB_DB': 'music'})
+        url = self.url_for(
+            {'DB_HOST': 'db.example', 'DB_PORT': '3307', 'DB_USER': 'muma', 'DB_PASS': 'secret', 'DB_DB': 'music'}
+        )
 
         self.assertEqual(url, 'mysql+mysqlconnector://muma:secret@db.example:3307/music')
 
@@ -60,7 +83,6 @@ class DatabaseUrlTest(unittest.TestCase):
 
 
 class GetPredictionTest(unittest.TestCase):
-
     def test_without_a_model_there_is_no_prediction(self):
         self.assertEqual(approve.get_prediction(None, {}, MagicMock(), {}), (None, 0))
 
@@ -78,12 +100,14 @@ class GetPredictionTest(unittest.TestCase):
 
 
 class ProcessSingleTrackTest(unittest.TestCase):
-
     def process(self, answers, row=None, prediction=('Uptempo', 0.9)):
         connection = MagicMock()
-        with patch.object(approve, 'get_prediction', return_value=prediction), \
-             patch('builtins.input', side_effect=answers), \
-             patch('builtins.print'), readable_sql():
+        with (
+            patch.object(approve, 'get_prediction', return_value=prediction),
+            patch('builtins.input', side_effect=answers),
+            patch('builtins.print'),
+            readable_sql(),
+        ):
             choice = approve._process_single_track(connection, row or track_row(), (MagicMock(),) * 3)
         return choice, connection
 
@@ -131,7 +155,6 @@ class ProcessSingleTrackTest(unittest.TestCase):
 
 
 class ApproveTracksTest(unittest.TestCase):
-
     def run_approve(self, tracks, argv=None, choices=None, models_exist=False, failure=None):
         connection = MagicMock()
         if failure is not None:
@@ -142,12 +165,16 @@ class ApproveTracksTest(unittest.TestCase):
         engine.connect.return_value.__enter__.return_value = connection
 
         arguments = ['approve.py', *(argv or [])]
-        with patch.object(approve, 'create_engine', return_value=engine), \
-             patch.object(approve.os.path, 'exists', return_value=models_exist), \
-             patch.object(approve, 'joblib') as joblib, \
-             patch.object(approve, '_process_single_track', side_effect=choices or []) as process, \
-             patch.dict(os.environ, {'DB_HOST': 'db', 'DB_PASS': 'secret'}, clear=True), \
-             patch('sys.argv', arguments), patch('builtins.print') as printed, readable_sql():
+        with (
+            patch.object(approve, 'create_engine', return_value=engine),
+            patch.object(approve.os.path, 'exists', return_value=models_exist),
+            patch.object(approve, 'joblib') as joblib,
+            patch.object(approve, '_process_single_track', side_effect=choices or []) as process,
+            patch.dict(os.environ, {'DB_HOST': 'db', 'DB_PASS': 'secret'}, clear=True),
+            patch('sys.argv', arguments),
+            patch('builtins.print') as printed,
+            readable_sql(),
+        ):
             approve.approve_tracks()
         return connection, process, joblib, printed
 
@@ -188,26 +215,31 @@ class ApproveTracksTest(unittest.TestCase):
         engine = MagicMock()
         engine.connect.return_value.__enter__.return_value = connection
 
-        with patch.object(approve, 'create_engine', return_value=engine), \
-             patch.object(approve.os.path, 'exists', return_value=True), \
-             patch.object(approve, 'joblib') as joblib, \
-             patch.dict(os.environ, {'DB_HOST': 'db', 'DB_PASS': 'secret'}, clear=True), \
-             patch('sys.argv', ['approve.py']), patch('builtins.print'), readable_sql():
+        with (
+            patch.object(approve, 'create_engine', return_value=engine),
+            patch.object(approve.os.path, 'exists', return_value=True),
+            patch.object(approve, 'joblib') as joblib,
+            patch.dict(os.environ, {'DB_HOST': 'db', 'DB_PASS': 'secret'}, clear=True),
+            patch('sys.argv', ['approve.py']),
+            patch('builtins.print'),
+            readable_sql(),
+        ):
             joblib.load.side_effect = Exception('corrupt model')
             approve.approve_tracks()
 
     def test_without_a_database_configuration_nothing_runs(self):
-        with patch.dict(os.environ, {}, clear=True), \
-             patch.object(approve, 'create_engine') as create_engine, \
-             patch('sys.argv', ['approve.py']), patch('builtins.print'):
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch.object(approve, 'create_engine') as create_engine,
+            patch('sys.argv', ['approve.py']),
+            patch('builtins.print'),
+        ):
             approve.approve_tracks()
 
         create_engine.assert_not_called()
 
     def test_a_database_failure_is_reported_rather_than_raised(self):
-        _connection, _process, _joblib, printed = self.run_approve(
-            [], choices=[], failure=Exception('deadlock')
-        )
+        _connection, _process, _joblib, printed = self.run_approve([], choices=[], failure=Exception('deadlock'))
 
         output = ' '.join(str(call.args[0]) for call in printed.call_args_list if call.args)
         self.assertIn('deadlock', output)

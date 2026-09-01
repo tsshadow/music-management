@@ -3,6 +3,7 @@
 Pure functions, no database: this is where the matching itself is pinned down,
 so scrobble_rematch.py only has to be right about SQL.
 """
+
 import unittest
 
 from services.music_manager.scrobble_matching import (
@@ -15,7 +16,6 @@ from services.music_manager.scrobble_matching import (
 
 
 class NormalizeTest(unittest.TestCase):
-
     def test_case_and_surrounding_space_do_not_matter(self):
         self.assertEqual(normalize('  Angerfist  '), normalize('angerfist'))
 
@@ -51,7 +51,6 @@ class NormalizeTest(unittest.TestCase):
 
 
 class BaseTitleTest(unittest.TestCase):
-
     def test_a_remix_suffix_is_removed(self):
         self.assertEqual(base_title('Raise Your Fist (Angerfist Remix)'), 'Raise Your Fist')
 
@@ -75,7 +74,6 @@ class BaseTitleTest(unittest.TestCase):
 
 
 class SimilarityTest(unittest.TestCase):
-
     def test_an_identical_pair_scores_full_marks(self):
         self.assertEqual(similarity('angerfist raise your fist', 'angerfist raise your fist'), 100)
 
@@ -92,7 +90,6 @@ class SimilarityTest(unittest.TestCase):
 
 
 class EnabledTiersTest(unittest.TestCase):
-
     def test_the_default_is_the_whole_ladder(self):
         self.assertEqual(
             enabled_tiers(None),

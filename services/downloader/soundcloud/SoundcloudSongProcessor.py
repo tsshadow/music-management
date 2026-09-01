@@ -47,7 +47,16 @@ class SoundcloudSongProcessor(PostProcessor):
         if SoundcloudArchive.exists(account_id, video_id):
             logging.info(f'Track already in downloads_soundcloud_archive: {account_name}/{video_id} — skipping.')
         else:
-            SoundcloudArchive.insert({'account_name': account_name, 'account_id': account_id, 'video_id': video_id, 'path': path, 'url': enriched_info.get('original_url'), 'title': enriched_info.get('title')})
+            SoundcloudArchive.insert(
+                {
+                    'account_name': account_name,
+                    'account_id': account_id,
+                    'video_id': video_id,
+                    'path': path,
+                    'url': enriched_info.get('original_url'),
+                    'title': enriched_info.get('title'),
+                }
+            )
         song = Tagger.parse_song(Path(path), SongTypeEnum.SOUNDCLOUD, extra_info=enriched_info)
         if song:
             notification_service.notify(str(song), title='SoundCloud Download Complete')
@@ -79,7 +88,9 @@ class SoundcloudSongProcessor(PostProcessor):
             dict: Enriched metadata, or None if the fetch failed.
         """
         try:
-            result = subprocess.run(['yt-dlp', '--dump-single-json', '--no-playlist', url], capture_output=True, text=True, check=True)
+            result = subprocess.run(
+                ['yt-dlp', '--dump-single-json', '--no-playlist', url], capture_output=True, text=True, check=True
+            )
             return json.loads(result.stdout)
         except subprocess.CalledProcessError as e:
             logging.error(f'Failed to enrich metadata for {url}: {e.stderr}')

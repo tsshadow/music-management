@@ -6,8 +6,8 @@ import unittest
 
 telethon_mod = types.ModuleType('telethon')
 
-class DummyClient:
 
+class DummyClient:
     def __init__(self, *_a, **_k):
         self.loop = types.SimpleNamespace(run_until_complete=lambda _coro: None)
 
@@ -23,13 +23,14 @@ class DummyClient:
 
     async def download_media(self, *_a, **_k):
         pass
+
+
 telethon_mod.TelegramClient = DummyClient
 sys.modules['telethon'] = telethon_mod
 from downloader.telegram import TelegramDownloader
 
 
 class TelegramDownloaderTest(unittest.TestCase):
-
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory()
         os.environ['telegram_folder'] = self.tempdir.name
@@ -46,5 +47,7 @@ class TelegramDownloaderTest(unittest.TestCase):
         self.assertTrue(dl._is_audio(msg))
         msg2 = types.SimpleNamespace(file=types.SimpleNamespace(mime_type='video/mp4'))
         self.assertFalse(dl._is_audio(msg2))
+
+
 if __name__ == '__main__':
     unittest.main()

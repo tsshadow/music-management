@@ -87,8 +87,11 @@ def _walk(folder_path: str):
 def _audio_files(folder_path: str) -> list[str]:
     found = []
     for dirpath, files in _walk(folder_path):
-        found.extend(join(dirpath, name) for name in files
-                     if name.lower().endswith(AUDIO_EXTENSIONS) and isfile(join(dirpath, name)))
+        found.extend(
+            join(dirpath, name)
+            for name in files
+            if name.lower().endswith(AUDIO_EXTENSIONS) and isfile(join(dirpath, name))
+        )
     return found
 
 
@@ -141,7 +144,9 @@ def _catid_from_tags(per_file: list[dict[str, str]]) -> str | None:
     return None
 
 
-def resolve(folder_path: str, import_folder_name: str = '', catid_from_name: str | None = None, tag_reader=read_tags) -> LabelProposal:
+def resolve(
+    folder_path: str, import_folder_name: str = '', catid_from_name: str | None = None, tag_reader=read_tags
+) -> LabelProposal:
     """
     Propose the record label for one release folder, from the release's own contents.
 

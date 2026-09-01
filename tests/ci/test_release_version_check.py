@@ -48,9 +48,7 @@ def repo(tmp_path: Path) -> Path:
     _git(origin, "config", "receive.denyCurrentBranch", "ignore")
 
     clone = tmp_path / "clone"
-    subprocess.run(
-        ["git", "clone", str(origin), str(clone)], check=True, capture_output=True
-    )
+    subprocess.run(["git", "clone", str(origin), str(clone)], check=True, capture_output=True)
     _git(clone, "config", "user.email", "ci@example.com")
     _git(clone, "config", "user.name", "CI")
     return clone

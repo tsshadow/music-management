@@ -5,6 +5,7 @@ The feature file is the description; this is only what the steps do.
 Started by scripts/test/core-e2e.sh, which brings the stack up and tags the
 fixture. Without it these skip.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -42,9 +43,7 @@ def _curation_queue(manager: str, api_key: str) -> list[dict]:
 
 def _library_genres(manager: str, api_key: str) -> list[dict]:
     """What the sidebar shows: genres that actually have tracks behind them."""
-    response = requests.get(
-        f'{manager}/api/library/genres', headers={'x-api-key': api_key}, timeout=TIMEOUT
-    )
+    response = requests.get(f'{manager}/api/library/genres', headers={'x-api-key': api_key}, timeout=TIMEOUT)
     assert response.status_code == 200, response.text
     return response.json()
 
@@ -89,14 +88,10 @@ def _genre_is_listed_with_a_count(manager, api_key):
     rows = _library_genres(manager, api_key)
     row = next((r for r in rows if r.get('genre') == FIXTURE_GENRE), None)
     assert row is not None, f'{FIXTURE_GENRE} has tracks but is not listed: {rows!r}'
-    assert row.get('count', 0) >= 1, (
-        f'{FIXTURE_GENRE} is listed but no track counts towards it: {row!r}'
-    )
+    assert row.get('count', 0) >= 1, f'{FIXTURE_GENRE} is listed but no track counts towards it: {row!r}'
 
 
 @then('the genre is still waiting for a decision')
 def _genre_still_queued(manager, api_key):
     queued = [row.get('name') for row in _curation_queue(manager, api_key)]
-    assert FIXTURE_GENRE in queued, (
-        f'{FIXTURE_GENRE} left the curation queue without anyone deciding on it: {queued!r}'
-    )
+    assert FIXTURE_GENRE in queued, f'{FIXTURE_GENRE} left the curation queue without anyone deciding on it: {queued!r}'

@@ -23,7 +23,8 @@ class YoutubeArchive:
                     '\n                    SELECT 1 FROM downloads_youtube_archive\n'
                     '                    WHERE account = %s AND video_id = %s AND download_type = %s\n'
                     '                    ',
-                    (account, video_id, download_type))
+                    (account, video_id, download_type),
+                )
                 return cursor.fetchone() is not None
         except Exception as e:
             logging.warning(f'Could not check archive for {account}/{video_id}: {e}', exc_info=True)
@@ -46,19 +47,19 @@ class YoutubeArchive:
         found: set[str] = set()
         with DatabaseConnector().connection() as conn, conn.cursor() as cursor:
             for start in range(0, len(ids), 500):
-                chunk = ids[start:start + 500]
+                chunk = ids[start : start + 500]
                 placeholders = ', '.join(['%s'] * len(chunk))
                 cursor.execute(
                     'SELECT video_id FROM downloads_youtube_archive '
                     'WHERE account = %s AND download_type = %s '
                     f'AND video_id IN ({placeholders})',
-                    (account, download_type, *chunk))
+                    (account, download_type, *chunk),
+                )
                 found.update(str(row[0]) for row in cursor.fetchall())
         return found
 
     @staticmethod
-    def insert(account: str, video_id: str, path: str, url: str, title: str,
-               download_type: str = AUDIO):
+    def insert(account: str, video_id: str, path: str, url: str, title: str, download_type: str = AUDIO):
         """Insert a newly downloaded track into the downloads_youtube_archive table."""
         if not all([account, video_id, url]):
             logging.warning(f'Missing fields for archive insert: account={account}, video_id={video_id}, url={url}')
@@ -67,13 +68,15 @@ class YoutubeArchive:
             with DatabaseConnector().connection() as conn, conn.cursor() as cursor:
                 cursor.execute(
                     'INSERT IGNORE INTO downloads_youtube_accounts (name, download_type) VALUES (%s, %s)',
-                    (account, download_type))
+                    (account, download_type),
+                )
                 cursor.execute(
                     '\n                    INSERT IGNORE INTO downloads_youtube_archive '
                     '(account, video_id, filename, path, url, title, download_type)\n'
                     '                    VALUES (%s, %s, %s, %s, %s, %s, %s)\n'
                     '                    ',
-                    (account, video_id, os.path.basename(path), path, url, title, download_type))
+                    (account, video_id, os.path.basename(path), path, url, title, download_type),
+                )
                 conn.commit()
                 logging.debug(f'Added to downloads_youtube_archive: {account}/{video_id} ({download_type})')
         except Exception as e:

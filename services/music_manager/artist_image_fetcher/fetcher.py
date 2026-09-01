@@ -17,8 +17,8 @@ from .storage import ImageDownloader, ImageStorage
 
 load_dotenv()
 
-class ArtistImageFetcher:
 
+class ArtistImageFetcher:
     def __init__(self, db_conn=None):
         self.db_conn = db_conn or DatabaseConnector().connect()
         self.logger = logging.getLogger(__name__)
@@ -29,14 +29,22 @@ class ArtistImageFetcher:
         self.storage = ImageStorage(storage_path, public_base_url)
         self.downloader = ImageDownloader()
         self.mb_provider = MusicBrainzArtistProvider()
-        self.providers = [SpotifyArtistImageProvider(), SoundCloudArtistImageProvider(self.db_conn), LastFmArtistImageProvider()]
-        enabled_providers = [p.name for p in self.providers if getattr(p, 'api_key', True) or getattr(p, 'client_id', True)]
+        self.providers = [
+            SpotifyArtistImageProvider(),
+            SoundCloudArtistImageProvider(self.db_conn),
+            LastFmArtistImageProvider(),
+        ]
+        enabled_providers = [
+            p.name for p in self.providers if getattr(p, 'api_key', True) or getattr(p, 'client_id', True)
+        ]
         self.logger.info(f'ArtistImageFetcher initialized with providers: {enabled_providers}')
 
     def fetch_for_artist(self, artist_id, artist_name=None, force_refresh=False):
         if not artist_name:
             with self.db_conn.cursor(pymysql.cursors.DictCursor) as cursor:
-                cursor.execute('SELECT id, name, mbid, primary_image_id FROM library_artists WHERE id = %s', (artist_id,))
+                cursor.execute(
+                    'SELECT id, name, mbid, primary_image_id FROM library_artists WHERE id = %s', (artist_id,)
+                )
                 artist = cursor.fetchone()
                 if not artist:
                     self.logger.error(f'Artist with ID {artist_id} not found')
@@ -69,7 +77,9 @@ class ArtistImageFetcher:
         for provider in self.providers:
             try:
                 provider_candidates = provider.get_artist_images(artist_name, mbid, external_ids)
-                self.logger.info(f'Provider {provider.name} found {len(provider_candidates)} candidates for {artist_name}')
+                self.logger.info(
+                    f'Provider {provider.name} found {len(provider_candidates)} candidates for {artist_name}'
+                )
                 for cand in provider_candidates:
                     cand['confidence'] = self.matcher.calculate_confidence(target_artist, cand)
                     candidates.append(cand)
@@ -127,7 +137,22 @@ class ArtistImageFetcher:
     def _save_image_to_db(self, artist_id, candidate, meta):
         with self.db_conn.cursor() as cursor:
             query = '\n                INSERT INTO library_artist_images\n                (artist_id, source, source_id, original_url, cached_path, public_path, width, height, mime_type, file_size, confidence, created_at)\n                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())\n            '
-            cursor.execute(query, (artist_id, candidate['source'], candidate['source_id'], candidate.get('url'), meta['cached_path'], meta['public_path'], meta['width'], meta['height'], meta['mime_type'], meta['file_size'], candidate['confidence']))
+            cursor.execute(
+                query,
+                (
+                    artist_id,
+                    candidate['source'],
+                    candidate['source_id'],
+                    candidate.get('url'),
+                    meta['cached_path'],
+                    meta['public_path'],
+                    meta['width'],
+                    meta['height'],
+                    meta['mime_type'],
+                    meta['file_size'],
+                    candidate['confidence'],
+                ),
+            )
             image_id = cursor.lastrowid
         self.db_conn.commit()
         return image_id
@@ -136,16 +161,23 @@ class ArtistImageFetcher:
         with self.db_conn.cursor() as cursor:
             cursor.execute('UPDATE library_artist_images SET is_primary = 0 WHERE artist_id = %s', (artist_id,))
             cursor.execute('UPDATE library_artist_images SET is_primary = 1 WHERE id = %s', (image_id,))
-            cursor.execute("\n                UPDATE library_artists\n                SET primary_image_id = %s, image_updated_at = NOW(), image_status = 'active'\n                WHERE id = %s\n            ", (image_id, artist_id))
+            cursor.execute(
+                "\n                UPDATE library_artists\n                SET primary_image_id = %s, image_updated_at = NOW(), image_status = 'active'\n                WHERE id = %s\n            ",
+                (image_id, artist_id),
+            )
         self.db_conn.commit()
 
     def _update_artist_image_status(self, artist_id, status):
         with self.db_conn.cursor() as cursor:
-            cursor.execute('UPDATE library_artists SET image_status = %s, image_updated_at = NOW() WHERE id = %s', (status, artist_id))
+            cursor.execute(
+                'UPDATE library_artists SET image_status = %s, image_updated_at = NOW() WHERE id = %s',
+                (status, artist_id),
+            )
         self.db_conn.commit()
 
     def _update_manifest(self, artist_id, artist_name, candidate, meta):
         import json
+
         manifest_path = os.path.join(self.storage.storage_path, 'manifest.json')
         manifest = []
         if os.path.exists(manifest_path):
@@ -155,7 +187,18 @@ class ArtistImageFetcher:
             except (OSError, ValueError):
                 manifest = []
         manifest = [e for e in manifest if e['artist_id'] != artist_id]
-        manifest.append({'artist_id': artist_id, 'name': artist_name, 'image': meta['public_path'], 'primary_jpg': f'{self.storage.public_base_url}/{artist_id}/primary.jpg', 'thumb_160': f'{self.storage.public_base_url}/{artist_id}/thumb_160.jpg', 'source': candidate['source'], 'confidence': candidate['confidence'], 'updated_at': datetime.now().isoformat()})
+        manifest.append(
+            {
+                'artist_id': artist_id,
+                'name': artist_name,
+                'image': meta['public_path'],
+                'primary_jpg': f'{self.storage.public_base_url}/{artist_id}/primary.jpg',
+                'thumb_160': f'{self.storage.public_base_url}/{artist_id}/thumb_160.jpg',
+                'source': candidate['source'],
+                'confidence': candidate['confidence'],
+                'updated_at': datetime.now().isoformat(),
+            }
+        )
         try:
             with open(manifest_path, 'w') as f:
                 json.dump(manifest, f, indent=2)

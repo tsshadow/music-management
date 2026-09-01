@@ -20,7 +20,6 @@ from services.tagger.constants import SongTypeEnum
 
 
 class TaggerManualOverrideTest(unittest.TestCase):
-
     def test_manual_tag_applied_after_parse(self):
         dummy_song = MagicMock()
         dummy_song.tag_collection = MagicMock()
@@ -29,15 +28,23 @@ class TaggerManualOverrideTest(unittest.TestCase):
         cache_mod = types.ModuleType('postprocessing.Song.Helpers.Cache')
         cache_mod.databaseHelpers = {'library_artists': MagicMock(), 'rules_genres': MagicMock()}
         sys.modules['postprocessing.Song.Helpers.Cache'] = cache_mod
-        for mod_name, class_name in [('postprocessing.Song.TelegramSong', 'TelegramSong'), ('postprocessing.Song.GenericSong', 'GenericSong'), ('postprocessing.Song.SoundcloudSong', 'SoundcloudSong'), ('postprocessing.Song.YoutubeSong', 'YoutubeSong')]:
+        for mod_name, class_name in [
+            ('postprocessing.Song.TelegramSong', 'TelegramSong'),
+            ('postprocessing.Song.GenericSong', 'GenericSong'),
+            ('postprocessing.Song.SoundcloudSong', 'SoundcloudSong'),
+            ('postprocessing.Song.YoutubeSong', 'YoutubeSong'),
+        ]:
             mod = types.ModuleType(mod_name)
             setattr(mod, class_name, type(class_name, (), {}))
             sys.modules[mod_name] = mod
         from services.tagger import tagger as tagger_module
+
         with patch.object(tagger_module, 'LabelSong', return_value=dummy_song):
             tagger_module.Tagger.parse_song(Path('file.mp3'), SongTypeEnum.LABEL, {'genre': 'Trance'})
         dummy_song.parse.assert_called_once()
         dummy_song.tag_collection.add.assert_called_with('genre', 'Trance')
         dummy_song.save_file.assert_called_once()
+
+
 if __name__ == '__main__':
     unittest.main()

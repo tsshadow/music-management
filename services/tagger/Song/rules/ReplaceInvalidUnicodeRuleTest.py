@@ -7,7 +7,6 @@ from services.tagger.Song.Tag import Tag
 
 
 class ReplaceInvalidUnicodeRuleTest(unittest.TestCase):
-
     def test_replaces_invalid_unicode_chars(self):
         rule = ReplaceInvalidUnicodeRule()
         artist = Tag(ARTIST, 'Soulblast\ufeffChaotic Brotherz\ufeffMaus999')
@@ -22,5 +21,7 @@ class ReplaceInvalidUnicodeRuleTest(unittest.TestCase):
         self.assertEqual(artist.value, ['Soulblast', 'Chaotic Brotherz', 'Maus999'])
         self.assertEqual(album_artist.value, ['Label', 'Label2'])
         self.assertEqual(genre.value, ['Hardcore', 'Uptempo'])
+
+
 if __name__ == '__main__':
     unittest.main()

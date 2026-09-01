@@ -43,11 +43,20 @@ MAX_DURATION = 21600
 # which is exactly how the existing pile of 640x360 files came about.
 VIDEO_FORMAT = 'bestvideo*+bestaudio/best'
 
-class YoutubeDownloader:
 
-    def __init__(self, break_on_existing: bool=True, dry_run: bool=False,
-                 timing=None, rate_state=None, schedule=None, socket_timeout: int=30,
-                 notifier=None, write_offs=None, deep: bool=False):
+class YoutubeDownloader:
+    def __init__(
+        self,
+        break_on_existing: bool = True,
+        dry_run: bool = False,
+        timing=None,
+        rate_state=None,
+        schedule=None,
+        socket_timeout: int = 30,
+        notifier=None,
+        write_offs=None,
+        deep: bool = False,
+    ):
         """
         Initializes the YoutubeDownloader instance with configuration settings.
 
@@ -65,19 +74,41 @@ class YoutubeDownloader:
                 the cadence says. What `--deep` on the CLI turns on.
         """
         self._config = ConfigStore()
-        self.policy = SweepPolicy(SOURCE, timing=timing, rate_state=rate_state, schedule=schedule,
-                                  notifier=notifier)
-        values = self._config.get_many(['youtube_folder', 'youtube_video_folder', 'youtube_archive', 'ffmpeg_location', 'yt_cookies', 'yt_user_agent'])
-        self.downloader_config = {'output_folder': values.get('youtube_folder'), 'video_folder': values.get('youtube_video_folder'), 'archive_dir': values.get('youtube_archive'), 'ffmpeg_location': values.get('ffmpeg_location') or '/usr/bin', 'cookies_file': values.get('yt_cookies'), 'user_agent': values.get('yt_user_agent'), 'enabled': False, 'video_enabled': False}
+        self.policy = SweepPolicy(SOURCE, timing=timing, rate_state=rate_state, schedule=schedule, notifier=notifier)
+        values = self._config.get_many(
+            [
+                'youtube_folder',
+                'youtube_video_folder',
+                'youtube_archive',
+                'ffmpeg_location',
+                'yt_cookies',
+                'yt_user_agent',
+            ]
+        )
+        self.downloader_config = {
+            'output_folder': values.get('youtube_folder'),
+            'video_folder': values.get('youtube_video_folder'),
+            'archive_dir': values.get('youtube_archive'),
+            'ffmpeg_location': values.get('ffmpeg_location') or '/usr/bin',
+            'cookies_file': values.get('yt_cookies'),
+            'user_agent': values.get('yt_user_agent'),
+            'enabled': False,
+            'video_enabled': False,
+        }
         self.socket_timeout = socket_timeout
         self.default_break_on_existing = break_on_existing
         self.dry_run = dry_run
         self.redownload_mode = False
         self.deep_mode = deep
-        self.write_offs = write_offs if write_offs is not None else WriteOffs(
-            SOURCE, retry_days=self.policy.timing.unavailable_retry_days)
+        self.write_offs = (
+            write_offs
+            if write_offs is not None
+            else WriteOffs(SOURCE, retry_days=self.policy.timing.unavailable_retry_days)
+        )
         if not self.downloader_config['output_folder'] or not self.downloader_config['archive_dir']:
-            logging.warning('Missing required configuration for youtube_folder or youtube_archive. YouTube downloads will be disabled.')
+            logging.warning(
+                'Missing required configuration for youtube_folder or youtube_archive. YouTube downloads will be disabled.'
+            )
             self.downloader_config['output_folder'] = None
             self.downloader_config['archive_dir'] = None
             self.downloader_config['enabled'] = False
@@ -89,7 +120,25 @@ class YoutubeDownloader:
             self._base_ydl_opts = {}
             self._video_ydl_opts = {}
             return
-        self._base_ydl_opts = {'outtmpl': f"{self.downloader_config['output_folder']}/%(uploader)s/%(title)s.%(ext)s", 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'm4a'}, {'key': 'EmbedThumbnail'}, {'key': 'FFmpegMetadata'}], 'compat_opts': ['filename'], 'nooverwrites': True, 'keepvideo': False, 'ffmpeg_location': self.downloader_config['ffmpeg_location'], 'match_filter': self._match_filter, 'ignoreerrors': True, 'socket_timeout': self.socket_timeout, 'playlist_random': True, 'http_chunk_size': 10 * 1024 * 1024, 'extractor_args': {'youtubetab': {'skip': ['authcheck']}}, **self.timing.to_ydl_opts()}
+        self._base_ydl_opts = {
+            'outtmpl': f"{self.downloader_config['output_folder']}/%(uploader)s/%(title)s.%(ext)s",
+            'postprocessors': [
+                {'key': 'FFmpegExtractAudio', 'preferredcodec': 'm4a'},
+                {'key': 'EmbedThumbnail'},
+                {'key': 'FFmpegMetadata'},
+            ],
+            'compat_opts': ['filename'],
+            'nooverwrites': True,
+            'keepvideo': False,
+            'ffmpeg_location': self.downloader_config['ffmpeg_location'],
+            'match_filter': self._match_filter,
+            'ignoreerrors': True,
+            'socket_timeout': self.socket_timeout,
+            'playlist_random': True,
+            'http_chunk_size': 10 * 1024 * 1024,
+            'extractor_args': {'youtubetab': {'skip': ['authcheck']}},
+            **self.timing.to_ydl_opts(),
+        }
         self._base_ydl_opts.update(self._cookie_options())
         if self.downloader_config['user_agent']:
             self._base_ydl_opts['user_agent'] = self.downloader_config['user_agent']
@@ -145,12 +194,16 @@ class YoutubeDownloader:
                 logging.info(f'Using cookies.txt from YT_COOKIES: {cookies_file}')
                 opts['cookies'] = cookies_file
                 return opts
-            logging.warning(f'YT_COOKIES is set but file not found: {cookies_file}. Falling back to cookiesfrombrowser=firefox.')
+            logging.warning(
+                f'YT_COOKIES is set but file not found: {cookies_file}. Falling back to cookiesfrombrowser=firefox.'
+            )
         opts['cookiesfrombrowser'] = ('firefox',)
         logging.info('Using cookiesfrombrowser=firefox (no YT_COOKIES file).')
         return opts
 
-    def _build_ydl_opts(self, archive_file: str, break_on_existing: bool=True, redownload: bool=False, download_type: str=AUDIO) -> dict:
+    def _build_ydl_opts(
+        self, archive_file: str, break_on_existing: bool = True, redownload: bool = False, download_type: str = AUDIO
+    ) -> dict:
         """
         Constructs yt-dlp options based on the given download requirements.
 
@@ -182,7 +235,7 @@ class YoutubeDownloader:
             opts.pop('break_on_existing', None)
         return opts
 
-    def _create_ydl(self, ydl_opts: dict, download_type: str=AUDIO) -> YoutubeDL:
+    def _create_ydl(self, ydl_opts: dict, download_type: str = AUDIO) -> YoutubeDL:
         """
         Creates and configures a YoutubeDL instance.
 
@@ -228,12 +281,16 @@ class YoutubeDownloader:
                 # whole channel would otherwise rediscover this video every time,
                 # and could never report the channel finished.
                 reason = 'too_short' if (duration or 0) < min_duration else 'too_long'
-                self.write_offs.remember(ledger_key, info.get('id'), reason,
-                                         duration=int(duration or 0))
+                self.write_offs.remember(ledger_key, info.get('id'), reason, duration=int(duration or 0))
                 return 'Outside allowed duration range'
             uploader = info.get('uploader_id') or info.get('channel_id') or info.get('uploader') or info.get('channel')
             video_id = info.get('id')
-            if not self.redownload_mode and uploader and video_id and YoutubeArchive.exists(uploader, video_id, download_type):
+            if (
+                not self.redownload_mode
+                and uploader
+                and video_id
+                and YoutubeArchive.exists(uploader, video_id, download_type)
+            ):
                 logging.info(f"Skipping video '{title}' (already in database archive)")
                 return 'Already in database archive'
             return None
@@ -261,8 +318,9 @@ class YoutubeDownloader:
             try:
                 opts = dict(ydl_opts)
                 if 'postprocessors' in ydl_opts:
-                    opts['postprocessors'] = [pp.copy() if isinstance(pp, dict) else pp
-                                              for pp in ydl_opts['postprocessors']]
+                    opts['postprocessors'] = [
+                        pp.copy() if isinstance(pp, dict) else pp for pp in ydl_opts['postprocessors']
+                    ]
                 with self._create_ydl(opts, download_type=account.download_type) as ydl:
                     ydl.download([url])
                 return
@@ -276,12 +334,10 @@ class YoutubeDownloader:
                     logging.info('Got 404 for %s — skip.', url)
                     return
                 if shutdown.is_requested():
-                    raise SweepAborted(
-                        f'Abandoned {url}; the {SOURCE} worker is shutting down.') from exc
+                    raise SweepAborted(f'Abandoned {url}; the {SOURCE} worker is shutting down.') from exc
                 logging.warning('Attempt %d failed for %s: %s', attempt, url, exc)
                 time.sleep(5 * attempt)
-        logging.error('YouTube download failed for %s after %d attempts.',
-                      url, self.timing.retry_attempts)
+        logging.error('YouTube download failed for %s after %d attempts.', url, self.timing.retry_attempts)
 
     def deep_sweep_account(self, account: YoutubeAccount, ydl_opts: dict) -> DeepSweepReport:
         """Walk a channel's whole videos tab and fetch whatever is missing.
@@ -302,13 +358,18 @@ class YoutubeDownloader:
         ids = [entry.track_id for entry in listing]
         held = self._held_ids(account, ids)
         write_offs = self.write_offs.load_many(ledger_key, ids)
-        wanted = wanted_tracks(listing, held, write_offs,
-                               self.timing.unavailable_retry_days, datetime.now(),
-                               bounds)
-        batch = wanted[:self.timing.deep_sweep_max_downloads]
-        logging.info('Deep sweep of %s (%s): %d listed, %d held, %d written off, '
-                     '%d missing, fetching %d.', account.name, account.download_type,
-                     len(listing), len(held), len(write_offs), len(wanted), len(batch))
+        wanted = wanted_tracks(listing, held, write_offs, self.timing.unavailable_retry_days, datetime.now(), bounds)
+        batch = wanted[: self.timing.deep_sweep_max_downloads]
+        logging.info(
+            'Deep sweep of %s (%s): %d listed, %d held, %d written off, %d missing, fetching %d.',
+            account.name,
+            account.download_type,
+            len(listing),
+            len(held),
+            len(write_offs),
+            len(wanted),
+            len(batch),
+        )
         parked = False
         attempted: list = []
         try:
@@ -323,14 +384,13 @@ class YoutubeDownloader:
             parked = True
             raise
         finally:
-            report = self._settle_deep(account, listing, held, write_offs, wanted,
-                                       batch, attempted, parked, bounds)
-            logging.info('Deep sweep of %s (%s): %s', account.name,
-                         account.download_type, report.summary())
+            report = self._settle_deep(account, listing, held, write_offs, wanted, batch, attempted, parked, bounds)
+            logging.info('Deep sweep of %s (%s): %s', account.name, account.download_type, report.summary())
         return report
 
-    def _settle_deep(self, account: YoutubeAccount, listing, held, write_offs,
-                     wanted, batch, attempted, parked: bool, bounds) -> DeepSweepReport:
+    def _settle_deep(
+        self, account: YoutubeAccount, listing, held, write_offs, wanted, batch, attempted, parked: bool, bounds
+    ) -> DeepSweepReport:
         """Count what actually arrived, and write off what did not.
 
         One extra lookup per pass. A video that neither downloaded nor rejected
@@ -338,8 +398,7 @@ class YoutubeDownloader:
         incomplete and re-swept every day forever.
         """
         ledger_key = account.schedule_key
-        arrived = self._held_ids(
-            account, [entry.track_id for entry in attempted]) if attempted else set()
+        arrived = self._held_ids(account, [entry.track_id for entry in attempted]) if attempted else set()
         downloaded = 0
         for entry in attempted:
             if entry.track_id in arrived:
@@ -353,10 +412,15 @@ class YoutubeDownloader:
                 # Rejected during this very pass. A decision, not a failure.
                 continue
             self.write_offs.note_failure(ledger_key, entry.track_id)
-        return DeepSweepReport(listed=len(listing), held=len(held),
-                               written_off=len(write_offs), wanted=len(wanted),
-                               downloaded=downloaded,
-                               capped=len(wanted) > len(batch), parked=parked)
+        return DeepSweepReport(
+            listed=len(listing),
+            held=len(held),
+            written_off=len(write_offs),
+            wanted=len(wanted),
+            downloaded=downloaded,
+            capped=len(wanted) > len(batch),
+            parked=parked,
+        )
 
     def _check_account(self, account: YoutubeAccount, ydl_opts: dict) -> None:
         """One channel: the deep path when it is due one, the ordinary run otherwise."""
@@ -380,7 +444,7 @@ class YoutubeDownloader:
             os.makedirs(archive_dir, exist_ok=True)
         return os.path.join(archive_dir, f'{account.name}.txt')
 
-    def download_account(self, account, ydl_opts: dict=None):
+    def download_account(self, account, ydl_opts: dict = None):
         """
         Downloads videos from a specific YouTube account.
 
@@ -392,12 +456,18 @@ class YoutubeDownloader:
         name = account.name
         self.policy.guard(name)
         link = f'http://www.youtube.com/{name}'
-        opts_template = ydl_opts or self._build_ydl_opts(self._archive_file_for(account), break_on_existing=self.default_break_on_existing, download_type=account.download_type)
+        opts_template = ydl_opts or self._build_ydl_opts(
+            self._archive_file_for(account),
+            break_on_existing=self.default_break_on_existing,
+            download_type=account.download_type,
+        )
         for attempt in range(1, self.timing.retry_attempts + 1):
             try:
                 opts = dict(opts_template)
                 if 'postprocessors' in opts_template:
-                    opts['postprocessors'] = [pp.copy() if isinstance(pp, dict) else pp for pp in opts_template['postprocessors']]
+                    opts['postprocessors'] = [
+                        pp.copy() if isinstance(pp, dict) else pp for pp in opts_template['postprocessors']
+                    ]
                 with self._create_ydl(opts, download_type=account.download_type) as ydl:
                     logging.info(f'Downloading {account.download_type} from account: {name} ({link})')
                     ydl.download([link])
@@ -428,7 +498,9 @@ class YoutubeDownloader:
                 time.sleep(5 * attempt)
         logging.error(f'YouTube download failed for {name} after {self.timing.retry_attempts} attempts.')
 
-    def download_link(self, url: str, breakOnExisting: bool=True, redownload: bool=False, download_type: str=AUDIO):
+    def download_link(
+        self, url: str, breakOnExisting: bool = True, redownload: bool = False, download_type: str = AUDIO
+    ):
         """
         Download a single video using a direct URL.
 
@@ -450,7 +522,9 @@ class YoutubeDownloader:
             os.makedirs(archive_dir, exist_ok=True)
         archive_file = os.path.join(archive_dir, 'manual.txt')
         try:
-            opts = self._build_ydl_opts(archive_file, break_on_existing=breakOnExisting, redownload=redownload, download_type=download_type)
+            opts = self._build_ydl_opts(
+                archive_file, break_on_existing=breakOnExisting, redownload=redownload, download_type=download_type
+            )
             with self._create_ydl(opts, download_type=download_type) as ydl:
                 logging.info(f'Downloading from url: {url}')
                 ydl.download([url])
@@ -496,13 +570,15 @@ class YoutubeDownloader:
             logging.warning('Channels are marked as video but youtube_video_folder is not configured; skipping them.')
             return False
         if not self._ffmpeg_available():
-            logging.error('ffmpeg was not found at %s. Skipping the YouTube video pass, because without it '
-                          'yt-dlp falls back to the 360p progressive stream.',
-                          self.downloader_config.get('ffmpeg_location'))
+            logging.error(
+                'ffmpeg was not found at %s. Skipping the YouTube video pass, because without it '
+                'yt-dlp falls back to the 360p progressive stream.',
+                self.downloader_config.get('ffmpeg_location'),
+            )
             return False
         return True
 
-    def run(self, break_on_existing_arg: bool | None=None, redownload: bool=False, account: str=''):
+    def run(self, break_on_existing_arg: bool | None = None, redownload: bool = False, account: str = ''):
         if not getattr(self, 'downloader_config', {}).get('enabled', True):
             logging.warning('YouTube downloader is not configured; skipping run().')
             return
@@ -519,12 +595,22 @@ class YoutubeDownloader:
         video_accounts = [entry for entry in accounts if entry.is_video]
         if not self._run_pass(audio_accounts, AUDIO, break_on_existing_arg, redownload, bool(account)):
             return
-        if video_accounts and self._video_ready() and not self._run_pass(video_accounts, VIDEO, break_on_existing_arg, redownload, bool(account)):
+        if (
+            video_accounts
+            and self._video_ready()
+            and not self._run_pass(video_accounts, VIDEO, break_on_existing_arg, redownload, bool(account))
+        ):
             return
         self.policy.finish()
 
-    def _run_pass(self, accounts: list[YoutubeAccount], download_type: str,
-                  break_on_existing_arg, redownload: bool, explicit_account: bool) -> bool:
+    def _run_pass(
+        self,
+        accounts: list[YoutubeAccount],
+        download_type: str,
+        break_on_existing_arg,
+        redownload: bool,
+        explicit_account: bool,
+    ) -> bool:
         """Sweep one set of accounts. Returns False when the sweep was parked."""
         if not accounts:
             return True
@@ -538,7 +624,7 @@ class YoutubeDownloader:
         total_batches = (total_accounts + burst_size - 1) // burst_size
         processed = 0
         for i in range(0, total_accounts, burst_size):
-            batch = accounts[i:i + burst_size]
+            batch = accounts[i : i + burst_size]
             batch_index = i // burst_size + 1
             logging.info('Processing YouTube %s batch %s of %s', download_type, batch_index, total_batches)
             try:
@@ -597,7 +683,15 @@ class YoutubeDownloader:
                     logging.info(str(exc))
                 except Exception as exc:
                     logging.error(f'Unhandled error downloading {acc.name}: {exc}')
-                job_manager.publish({'type': 'youtube-account', 'account': acc.name, 'download_type': acc.download_type, 'current': processed, 'total': total_accounts})
+                job_manager.publish(
+                    {
+                        'type': 'youtube-account',
+                        'account': acc.name,
+                        'download_type': acc.download_type,
+                        'current': processed,
+                        'total': total_accounts,
+                    }
+                )
         if rate_limited is not None:
             raise rate_limited
         return processed
@@ -605,6 +699,11 @@ class YoutubeDownloader:
     def _prepare_ydl_opts(self, acc, break_on_existing_arg, redownload):
         acc = self._as_account(acc)
         effective_break = self.default_break_on_existing if break_on_existing_arg is None else break_on_existing_arg
-        opts = self._build_ydl_opts(self._archive_file_for(acc), break_on_existing=effective_break, redownload=redownload, download_type=acc.download_type)
+        opts = self._build_ydl_opts(
+            self._archive_file_for(acc),
+            break_on_existing=effective_break,
+            redownload=redownload,
+            download_type=acc.download_type,
+        )
         opts['match_filter'] = self._filter_for(acc)
         return opts

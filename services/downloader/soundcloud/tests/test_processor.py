@@ -7,7 +7,6 @@ from services.downloader.soundcloud.SoundcloudSongProcessor import SoundcloudSon
 
 
 class SoundcloudProcessorTest(unittest.TestCase):
-
     def setUp(self):
         reset_database_helpers()
 
@@ -17,5 +16,7 @@ class SoundcloudProcessorTest(unittest.TestCase):
 
     def test_extract_account_name_from_url_invalid(self):
         self.assertEqual(SoundcloudSongProcessor._extract_account_name_from_url('not a url'), 'not a url')
+
+
 if __name__ == '__main__':
     unittest.main()

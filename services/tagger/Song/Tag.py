@@ -187,6 +187,7 @@ class Tag:
 
         def normalize(val):
             return [v.strip() for v in val if v.strip()]
+
         old_value = normalize(self.value[:])
         if isinstance(value, str):
             self.value = normalize(value.split(';'))

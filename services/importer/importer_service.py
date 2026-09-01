@@ -14,6 +14,7 @@ from services.importer.renamer import Renamer
 
 faulthandler.register(signal.SIGUSR1)
 
+
 def parse_args() -> argparse.Namespace:
     """
     Parse command-line arguments for the importer service.
@@ -25,10 +26,17 @@ def parse_args() -> argparse.Namespace:
       --sleeptime   Time (in seconds) to sleep between repeated runs.
       --repeat      If set, the importer will run in a loop.
     """
-    parser = argparse.ArgumentParser(description='Run the music importer pipeline (Extractor -> Flattener -> Renamer -> Mover).')
-    parser.add_argument('--sleeptime', type=int, default=300, help='Time in seconds to sleep between repeated runs (default: 300).')
-    parser.add_argument('--repeat', help='Repeat the importer pipeline in a loop, sleeping between runs.', action='store_true')
+    parser = argparse.ArgumentParser(
+        description='Run the music importer pipeline (Extractor -> Flattener -> Renamer -> Mover).'
+    )
+    parser.add_argument(
+        '--sleeptime', type=int, default=300, help='Time in seconds to sleep between repeated runs (default: 300).'
+    )
+    parser.add_argument(
+        '--repeat', help='Repeat the importer pipeline in a loop, sleeping between runs.', action='store_true'
+    )
     return parser.parse_args()
+
 
 class ImporterService:
     """
@@ -50,7 +58,12 @@ class ImporterService:
         self.renamer = Renamer()
         self.mover = Mover()
         self.dry_run = getattr(self.settings, 'dryrun', False)
-        self.steps: list[Step] = [Step('Extractor', self.extractor.run), Step('Flattener', self.flattener.run), Step('Renamer', self.renamer.run), Step('Mover', self.mover.run)]
+        self.steps: list[Step] = [
+            Step('Extractor', self.extractor.run),
+            Step('Flattener', self.flattener.run),
+            Step('Renamer', self.renamer.run),
+            Step('Mover', self.mover.run),
+        ]
 
     def run_import(self) -> None:
         """
@@ -65,6 +78,7 @@ class ImporterService:
             logging.info('Running step: %s', step.name)
             step.run(self.steps, dry_run=self.dry_run)
         logging.info('Importer pipeline completed.')
+
 
 def main() -> None:
     setup_logging('importer')
@@ -84,5 +98,7 @@ def main() -> None:
             break
         logging.info('Waiting for %d seconds before next importer run.', args.sleeptime)
         sleep(args.sleeptime)
+
+
 if __name__ == '__main__':
     main()

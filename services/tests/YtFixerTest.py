@@ -13,7 +13,6 @@ _spec.loader.exec_module(yt_fixer)
 
 
 class YtFixerTest(unittest.TestCase):
-
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)

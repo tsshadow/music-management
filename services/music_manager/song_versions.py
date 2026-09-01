@@ -9,6 +9,7 @@ Pure functions, no database. The worker owns the SQL.
 
 Design: docs/superpowers/specs/2026-08-23-song-versions-and-canonical-design.md
 """
+
 from __future__ import annotations
 
 import re
@@ -21,14 +22,44 @@ from services.music_manager.scrobble_matching import normalize
 #
 # remix, bootleg, vip, rework, mashup and flip are deliberately absent: those are
 # songs of their own and must never group.
-_MODIFIER_TOKENS = frozenset({
-    'radio', 'extended', 'original', 'album', 'club', 'short', 'full', 'long',
-    'edit', 'mix', 'version', 'cut',
-    'official', 'video', 'videoclip', 'clip', 'visualizer', 'visualiser', 'lyric', 'lyrics',
-    'free', 'download', 'hq', 'hd', 'out', 'now', 'preview',
-    'remaster', 'remastered', 'master',
-    'instrumental', 'acapella', 'accapella', 'dub',
-})
+_MODIFIER_TOKENS = frozenset(
+    {
+        'radio',
+        'extended',
+        'original',
+        'album',
+        'club',
+        'short',
+        'full',
+        'long',
+        'edit',
+        'mix',
+        'version',
+        'cut',
+        'official',
+        'video',
+        'videoclip',
+        'clip',
+        'visualizer',
+        'visualiser',
+        'lyric',
+        'lyrics',
+        'free',
+        'download',
+        'hq',
+        'hd',
+        'out',
+        'now',
+        'preview',
+        'remaster',
+        'remastered',
+        'master',
+        'instrumental',
+        'acapella',
+        'accapella',
+        'dub',
+    }
+)
 
 _TRAILING_BRACKET = re.compile(r'\s*[\(\[]([^\(\)\[\]]*)[\)\]]\s*$')
 _TOKEN_SPLIT = re.compile(r'[^\w]+', re.UNICODE)
@@ -67,7 +98,7 @@ def _strip_version_brackets(title: str) -> tuple[str, list[str]]:
         if not tokens or not all(token in _MODIFIER_TOKENS for token in tokens):
             break
         stripped.extend(tokens)
-        result = result[:match.start()].strip()
+        result = result[: match.start()].strip()
     return result, stripped
 
 

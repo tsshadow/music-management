@@ -3,6 +3,7 @@
 The moves themselves are five directory renames, so the only thing worth pinning down is their
 order and the refusal: half a restructure is far worse than none.
 """
+
 import os
 import tempfile
 import unittest
@@ -11,7 +12,6 @@ from scripts.restructure_music_folders import check_moves, planned_moves
 
 
 class PlannedMovesTest(unittest.TestCase):
-
     def test_the_two_piles_leave_before_the_tree_is_renamed(self):
         # __Free&None and __TODO live inside EPs. Rename EPs first and they travel with it.
         pairs = planned_moves('/mnt/music', revert=False)
@@ -44,7 +44,6 @@ class PlannedMovesTest(unittest.TestCase):
 
 
 class CheckMovesTest(unittest.TestCase):
-
     def test_a_missing_source_is_refused(self):
         with tempfile.TemporaryDirectory() as root:
             problems = check_moves(planned_moves(root, revert=False))

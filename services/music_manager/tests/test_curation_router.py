@@ -9,6 +9,7 @@ Two things these tests exist to pin down, beyond the ordinary CRUD:
   has not accepted) is a bad request against a legitimate page. A subject that may not
   be edited at all (a rejected genre) is a page that should not exist.
 """
+
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
@@ -62,7 +63,11 @@ class CurationTestCase(unittest.TestCase):
 class ArtistReadTest(CurationTestCase):
     rules = (
         ('FROM library_artists', None, ARTIST_ROW),
-        ('FROM artist_external_ids', None, [{'source': 'spotify', 'external_id': 'abc', 'external_url': None, 'verified': 0}]),
+        (
+            'FROM artist_external_ids',
+            None,
+            [{'source': 'spotify', 'external_id': 'abc', 'external_url': None, 'verified': 0}],
+        ),
         ('FROM library_artist_aliases', None, [{'alias': 'DJ Angerfist'}]),
         ('FROM rules_artist_genres', None, [{'genre_id': 12, 'name': 'Hardcore', 'created_by': 'user'}]),
         ('COUNT(DISTINCT', None, {'affected': 143}),
@@ -105,8 +110,9 @@ class ArtistGenreRuleTest(CurationTestCase):
     )
 
     def test_adding_a_rule_writes_it_and_reports_what_it_touches(self):
-        response = self.client.post('/api/curation/artists/Angerfist/genres',
-                                    json={'genre_id': 12}, headers=self.headers)
+        response = self.client.post(
+            '/api/curation/artists/Angerfist/genres', json={'genre_id': 12}, headers=self.headers
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['affected_tracks'], 143)
         inserts = self.statements('INSERT INTO rules_artist_genres')
@@ -114,14 +120,12 @@ class ArtistGenreRuleTest(CurationTestCase):
         self.assertEqual(inserts[0][1][:2], ('Angerfist', 12))
 
     def test_adding_a_rule_records_who_wrote_it(self):
-        self.client.post('/api/curation/artists/Angerfist/genres',
-                         json={'genre_id': 12}, headers=self.headers)
+        self.client.post('/api/curation/artists/Angerfist/genres', json={'genre_id': 12}, headers=self.headers)
         params = self.statements('INSERT INTO rules_artist_genres')[0][1]
         self.assertEqual(params[2], 'system')
 
     def test_adding_a_rule_refreshes_the_artist_genre_helper(self):
-        self.client.post('/api/curation/artists/Angerfist/genres',
-                         json={'genre_id': 12}, headers=self.headers)
+        self.client.post('/api/curation/artists/Angerfist/genres', json={'genre_id': 12}, headers=self.headers)
         self.assertEqual(self.reloaded_helpers(), ['artistGenreHelper'])
 
     def test_removing_a_rule_refreshes_the_artist_genre_helper(self):
@@ -136,8 +140,9 @@ class RejectedGenreTargetTest(CurationTestCase):
     rules = (('FROM rules_genres WHERE id', None, BLACK_GENRE),)
 
     def test_a_rule_cannot_point_at_a_genre_curation_rejected(self):
-        response = self.client.post('/api/curation/artists/Angerfist/genres',
-                                    json={'genre_id': 99}, headers=self.headers)
+        response = self.client.post(
+            '/api/curation/artists/Angerfist/genres', json={'genre_id': 99}, headers=self.headers
+        )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(self.statements('INSERT INTO rules_artist_genres'), [])
         self.assertEqual(self.reloaded_helpers(), [])
@@ -147,8 +152,9 @@ class UnknownGenreTargetTest(CurationTestCase):
     rules = ()
 
     def test_a_rule_cannot_point_at_a_genre_that_does_not_exist(self):
-        response = self.client.post('/api/curation/artists/Angerfist/genres',
-                                    json={'genre_id': 4242}, headers=self.headers)
+        response = self.client.post(
+            '/api/curation/artists/Angerfist/genres', json={'genre_id': 4242}, headers=self.headers
+        )
         self.assertEqual(response.status_code, 400)
 
 
@@ -157,8 +163,7 @@ class ArtistMbidTest(CurationTestCase):
 
     def test_a_valid_mbid_is_stored_on_the_artist(self):
         mbid = '5b11f4ce-a62d-471e-81fc-a69a8278c7da'
-        response = self.client.put('/api/curation/artists/Angerfist/mbid',
-                                   json={'mbid': mbid}, headers=self.headers)
+        response = self.client.put('/api/curation/artists/Angerfist/mbid', json={'mbid': mbid}, headers=self.headers)
         self.assertEqual(response.status_code, 200)
         updates = self.statements('UPDATE library_artists SET mbid')
         self.assertEqual(updates[0][1], (mbid, 7))
@@ -166,29 +171,30 @@ class ArtistMbidTest(CurationTestCase):
     def test_setting_an_mbid_also_records_it_as_a_verified_external_id(self):
         """The two places an MBID can live must not be able to disagree."""
         mbid = '5b11f4ce-a62d-471e-81fc-a69a8278c7da'
-        self.client.put('/api/curation/artists/Angerfist/mbid',
-                        json={'mbid': mbid}, headers=self.headers)
+        self.client.put('/api/curation/artists/Angerfist/mbid', json={'mbid': mbid}, headers=self.headers)
         inserts = self.statements('INSERT INTO artist_external_ids')
         self.assertEqual(len(inserts), 1)
         self.assertIn('musicbrainz', inserts[0][1])
 
     def test_a_malformed_mbid_is_rejected(self):
-        response = self.client.put('/api/curation/artists/Angerfist/mbid',
-                                   json={'mbid': 'not-a-uuid'}, headers=self.headers)
+        response = self.client.put(
+            '/api/curation/artists/Angerfist/mbid', json={'mbid': 'not-a-uuid'}, headers=self.headers
+        )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(self.statements('UPDATE library_artists SET mbid'), [])
 
     def test_an_mbid_can_be_cleared(self):
-        response = self.client.put('/api/curation/artists/Angerfist/mbid',
-                                   json={'mbid': None}, headers=self.headers)
+        response = self.client.put('/api/curation/artists/Angerfist/mbid', json={'mbid': None}, headers=self.headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.statements('UPDATE library_artists SET mbid')[0][1], (None, 7))
 
     def test_an_artist_the_library_does_not_know_cannot_be_given_an_mbid(self):
         self.cursor.rules = []
-        response = self.client.put('/api/curation/artists/Nobody/mbid',
-                                   json={'mbid': '5b11f4ce-a62d-471e-81fc-a69a8278c7da'},
-                                   headers=self.headers)
+        response = self.client.put(
+            '/api/curation/artists/Nobody/mbid',
+            json={'mbid': '5b11f4ce-a62d-471e-81fc-a69a8278c7da'},
+            headers=self.headers,
+        )
         self.assertEqual(response.status_code, 404)
 
 
@@ -196,24 +202,26 @@ class ArtistAliasTest(CurationTestCase):
     rules = (('FROM library_artists', None, ARTIST_ROW),)
 
     def test_an_alias_is_added_for_the_artist(self):
-        response = self.client.post('/api/curation/artists/Angerfist/aliases',
-                                    json={'alias': 'DJ Angerfist'}, headers=self.headers)
+        response = self.client.post(
+            '/api/curation/artists/Angerfist/aliases', json={'alias': 'DJ Angerfist'}, headers=self.headers
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.statements('INSERT INTO library_artist_aliases')[0][1], (7, 'DJ Angerfist'))
 
     def test_an_alias_identical_to_the_artist_name_is_rejected(self):
-        response = self.client.post('/api/curation/artists/Angerfist/aliases',
-                                    json={'alias': ' angerfist '}, headers=self.headers)
+        response = self.client.post(
+            '/api/curation/artists/Angerfist/aliases', json={'alias': ' angerfist '}, headers=self.headers
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_an_empty_alias_is_rejected(self):
-        response = self.client.post('/api/curation/artists/Angerfist/aliases',
-                                    json={'alias': '   '}, headers=self.headers)
+        response = self.client.post(
+            '/api/curation/artists/Angerfist/aliases', json={'alias': '   '}, headers=self.headers
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_an_alias_can_be_removed(self):
-        response = self.client.delete('/api/curation/artists/Angerfist/aliases/DJ%20Angerfist',
-                                      headers=self.headers)
+        response = self.client.delete('/api/curation/artists/Angerfist/aliases/DJ%20Angerfist', headers=self.headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.statements('DELETE FROM library_artist_aliases')[0][1], (7, 'DJ Angerfist'))
 
@@ -244,8 +252,9 @@ class LabelGenreRuleTest(CurationTestCase):
     )
 
     def test_adding_a_rule_refreshes_the_label_genre_helper(self):
-        response = self.client.post('/api/curation/labels/Masters%20of%20Hardcore/genres',
-                                    json={'genre_id': 12}, headers=self.headers)
+        response = self.client.post(
+            '/api/curation/labels/Masters%20of%20Hardcore/genres', json={'genre_id': 12}, headers=self.headers
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.reloaded_helpers(), ['labelGenreHelper'])
 
@@ -254,13 +263,15 @@ class LabelParentTest(CurationTestCase):
     rules = (('FROM library_labels', None, LABEL_ROW),)
 
     def test_a_label_cannot_be_its_own_parent(self):
-        response = self.client.put('/api/curation/labels/Masters%20of%20Hardcore/parent',
-                                   json={'parent_label_id': 3}, headers=self.headers)
+        response = self.client.put(
+            '/api/curation/labels/Masters%20of%20Hardcore/parent', json={'parent_label_id': 3}, headers=self.headers
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_a_parent_can_be_cleared(self):
-        response = self.client.put('/api/curation/labels/Masters%20of%20Hardcore/parent',
-                                   json={'parent_label_id': None}, headers=self.headers)
+        response = self.client.put(
+            '/api/curation/labels/Masters%20of%20Hardcore/parent', json={'parent_label_id': None}, headers=self.headers
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.statements('UPDATE library_labels SET parent_label_id')[0][1], (None, 3))
 
@@ -269,8 +280,9 @@ class LabelCatidTest(CurationTestCase):
     rules = (('FROM library_labels', None, LABEL_ROW),)
 
     def test_a_catalogue_prefix_is_stored_uppercase(self):
-        response = self.client.post('/api/curation/labels/Masters%20of%20Hardcore/catids',
-                                    json={'catid': 'moh'}, headers=self.headers)
+        response = self.client.post(
+            '/api/curation/labels/Masters%20of%20Hardcore/catids', json={'catid': 'moh'}, headers=self.headers
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.statements('INSERT INTO rules_catid_label')[0][1], ('MOH', 'Masters of Hardcore'))
 
@@ -294,27 +306,31 @@ class GenreHierarchyTest(CurationTestCase):
     rules = (('FROM rules_genres WHERE normalized_name', None, WHITE_GENRE),)
 
     def test_parents_replace_the_previous_set_rather_than_merging(self):
-        response = self.client.put('/api/curation/genres/Industrial%20Hardcore/parents',
-                                   json={'parents': ['Hardcore']}, headers=self.headers)
+        response = self.client.put(
+            '/api/curation/genres/Industrial%20Hardcore/parents', json={'parents': ['Hardcore']}, headers=self.headers
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(self.statements('DELETE FROM rules_subgenre_hierarchy')), 1)
         self.assertEqual(len(self.statements('INSERT INTO rules_subgenre_hierarchy')), 1)
 
     def test_setting_parents_refreshes_the_subgenre_helper(self):
-        self.client.put('/api/curation/genres/Industrial%20Hardcore/parents',
-                        json={'parents': ['Hardcore']}, headers=self.headers)
+        self.client.put(
+            '/api/curation/genres/Industrial%20Hardcore/parents', json={'parents': ['Hardcore']}, headers=self.headers
+        )
         self.assertEqual(self.reloaded_helpers(), ['subgenreHelper'])
 
     def test_an_empty_list_clears_the_hierarchy(self):
-        response = self.client.put('/api/curation/genres/Industrial%20Hardcore/parents',
-                                   json={'parents': []}, headers=self.headers)
+        response = self.client.put(
+            '/api/curation/genres/Industrial%20Hardcore/parents', json={'parents': []}, headers=self.headers
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(self.statements('DELETE FROM rules_subgenre_hierarchy')), 1)
         self.assertEqual(self.statements('INSERT INTO rules_subgenre_hierarchy'), [])
 
     def test_a_genre_cannot_be_its_own_parent(self):
-        response = self.client.put('/api/curation/genres/Hardcore/parents',
-                                   json={'parents': ['hardcore']}, headers=self.headers)
+        response = self.client.put(
+            '/api/curation/genres/Hardcore/parents', json={'parents': ['hardcore']}, headers=self.headers
+        )
         self.assertEqual(response.status_code, 400)
 
 
@@ -323,8 +339,9 @@ class RejectedGenreSubjectTest(CurationTestCase):
 
     def test_a_rejected_genre_has_no_hierarchy_to_edit(self):
         """Curation decides whether a genre exists. A rejected one is not in the library."""
-        response = self.client.put('/api/curation/genres/Arts/parents',
-                                   json={'parents': ['Hardcore']}, headers=self.headers)
+        response = self.client.put(
+            '/api/curation/genres/Arts/parents', json={'parents': ['Hardcore']}, headers=self.headers
+        )
         self.assertEqual(response.status_code, 403)
         self.assertEqual(self.statements('INSERT INTO rules_subgenre_hierarchy'), [])
 
@@ -346,39 +363,48 @@ class PermissionTest(unittest.TestCase):
         self.addCleanup(patcher.stop)
 
     def _as_plain_user(self):
-        return patch.object(users_router, 'verify_token', return_value={
-            'status': 'ok', 'type': 'user',
-            'user': {'username': 'user', 'role_name': 'user', 'permissions': ['music.read']}})
+        return patch.object(
+            users_router,
+            'verify_token',
+            return_value={
+                'status': 'ok',
+                'type': 'user',
+                'user': {'username': 'user', 'role_name': 'user', 'permissions': ['music.read']},
+            },
+        )
 
     def test_a_plain_user_may_read_an_artist(self):
         with self._as_plain_user():
-            response = TestClient(app).get('/api/curation/artists/Angerfist',
-                                           headers={'x-api-key': 'user-key'})
+            response = TestClient(app).get('/api/curation/artists/Angerfist', headers={'x-api-key': 'user-key'})
         self.assertEqual(response.status_code, 200)
 
     def test_a_plain_user_may_not_write_a_rule(self):
         with self._as_plain_user():
-            response = TestClient(app).post('/api/curation/artists/Angerfist/genres',
-                                            json={'genre_id': 12},
-                                            headers={'x-api-key': 'user-key'})
+            response = TestClient(app).post(
+                '/api/curation/artists/Angerfist/genres', json={'genre_id': 12}, headers={'x-api-key': 'user-key'}
+            )
         self.assertEqual(response.status_code, 403)
 
     def test_a_plain_user_may_not_set_an_mbid(self):
         with self._as_plain_user():
-            response = TestClient(app).put('/api/curation/artists/Angerfist/mbid',
-                                           json={'mbid': None},
-                                           headers={'x-api-key': 'user-key'})
+            response = TestClient(app).put(
+                '/api/curation/artists/Angerfist/mbid', json={'mbid': None}, headers={'x-api-key': 'user-key'}
+            )
         self.assertEqual(response.status_code, 403)
 
     def test_a_request_without_a_key_is_unauthorized(self):
         self.assertEqual(TestClient(app).get('/api/curation/artists/Angerfist').status_code, 401)
 
+
 class RetagTest(CurationTestCase):
     """Applying a rule to the files it matches, rather than waiting for the next pass."""
 
     rules = (
-        ('SELECT DISTINCT mf.file_path FROM library_track_artists', None,
-         [{'file_path': '/mnt/music/a.mp3'}, {'file_path': '/mnt/music/b.mp3'}]),
+        (
+            'SELECT DISTINCT mf.file_path FROM library_track_artists',
+            None,
+            [{'file_path': '/mnt/music/a.mp3'}, {'file_path': '/mnt/music/b.mp3'}],
+        ),
         ('COUNT(DISTINCT', None, {'affected': 2}),
     )
 
@@ -390,38 +416,37 @@ class RetagTest(CurationTestCase):
         self.addCleanup(patcher.stop)
 
     def test_queues_the_files_the_rule_matches(self):
-        response = self.client.post('/api/curation/retag',
-                                    json={'scope': 'artist', 'name': 'Angerfist'},
-                                    headers=self.headers)
+        response = self.client.post(
+            '/api/curation/retag', json={'scope': 'artist', 'name': 'Angerfist'}, headers=self.headers
+        )
         self.assertEqual(response.status_code, 202)
         self.assertEqual(response.json()['files'], 2)
         self.assertTrue(response.json()['job_id'])
 
     def test_every_matched_file_is_actually_retagged(self):
-        self.client.post('/api/curation/retag',
-                         json={'scope': 'artist', 'name': 'Angerfist'},
-                         headers=self.headers)
+        self.client.post('/api/curation/retag', json={'scope': 'artist', 'name': 'Angerfist'}, headers=self.headers)
         tagged = [call.args[0] for call in self.tagger.tag_single.call_args_list]
         self.assertEqual(tagged, ['/mnt/music/a.mp3', '/mnt/music/b.mp3'])
 
     def test_one_unreadable_file_does_not_abandon_the_rest(self):
         self.tagger.tag_single.side_effect = [OSError('permission denied'), None]
-        self.client.post('/api/curation/retag',
-                         json={'scope': 'artist', 'name': 'Angerfist'},
-                         headers=self.headers)
+        self.client.post('/api/curation/retag', json={'scope': 'artist', 'name': 'Angerfist'}, headers=self.headers)
         self.assertEqual(self.tagger.tag_single.call_count, 2)
 
     def test_a_scope_that_is_not_artist_or_label_is_rejected(self):
-        response = self.client.post('/api/curation/retag',
-                                    json={'scope': 'playlist', 'name': 'x'},
-                                    headers=self.headers)
+        response = self.client.post(
+            '/api/curation/retag', json={'scope': 'playlist', 'name': 'x'}, headers=self.headers
+        )
         self.assertEqual(response.status_code, 422)
 
 
 class RetagCeilingTest(CurationTestCase):
     rules = (
-        ('SELECT DISTINCT mf.file_path FROM library_track_artists', None,
-         [{'file_path': f'/mnt/music/{n}.mp3'} for n in range(curation_router.MAX_RETAG_FILES_DEFAULT + 1)]),
+        (
+            'SELECT DISTINCT mf.file_path FROM library_track_artists',
+            None,
+            [{'file_path': f'/mnt/music/{n}.mp3'} for n in range(curation_router.MAX_RETAG_FILES_DEFAULT + 1)],
+        ),
     )
 
     def setUp(self):
@@ -432,33 +457,44 @@ class RetagCeilingTest(CurationTestCase):
 
     def test_too_large_a_retag_is_refused_rather_than_started(self):
         """A rule on a prolific artist would hold the tagger lock for hours."""
-        response = self.client.post('/api/curation/retag',
-                                    json={'scope': 'artist', 'name': 'Angerfist'},
-                                    headers=self.headers)
+        response = self.client.post(
+            '/api/curation/retag', json={'scope': 'artist', 'name': 'Angerfist'}, headers=self.headers
+        )
         self.assertEqual(response.status_code, 400)
         self.assertIn('full tagger run', response.json()['detail'])
 
 
 class RetagPermissionTest(unittest.TestCase):
-
     def test_a_plain_user_may_not_start_a_retag(self):
         conn = MagicMock()
         conn.cursor.return_value = ScriptedCursor(())
-        with patch.object(curation_router, 'get_db_connection', return_value=conn), \
-             patch.object(users_router, 'verify_token', return_value={
-                 'status': 'ok', 'type': 'user',
-                 'user': {'username': 'user', 'role_name': 'user', 'permissions': ['music.read']}}):
-            response = TestClient(app).post('/api/curation/retag',
-                                            json={'scope': 'artist', 'name': 'Angerfist'},
-                                            headers={'x-api-key': 'user-key'})
+        with (
+            patch.object(curation_router, 'get_db_connection', return_value=conn),
+            patch.object(
+                users_router,
+                'verify_token',
+                return_value={
+                    'status': 'ok',
+                    'type': 'user',
+                    'user': {'username': 'user', 'role_name': 'user', 'permissions': ['music.read']},
+                },
+            ),
+        ):
+            response = TestClient(app).post(
+                '/api/curation/retag', json={'scope': 'artist', 'name': 'Angerfist'}, headers={'x-api-key': 'user-key'}
+            )
         self.assertEqual(response.status_code, 403)
+
 
 class RetagConfigurableCeilingTest(CurationTestCase):
     """The ceiling comes from the configuration, so it can be tuned without a deploy."""
 
     rules = (
-        ('SELECT DISTINCT mf.file_path FROM library_track_artists', None,
-         [{'file_path': f'/mnt/music/{n}.mp3'} for n in range(3)]),
+        (
+            'SELECT DISTINCT mf.file_path FROM library_track_artists',
+            None,
+            [{'file_path': f'/mnt/music/{n}.mp3'} for n in range(3)],
+        ),
         ('COUNT(DISTINCT', None, {'affected': 3}),
     )
 
@@ -469,9 +505,9 @@ class RetagConfigurableCeilingTest(CurationTestCase):
         self.addCleanup(patcher.stop)
 
     def _retag(self):
-        return self.client.post('/api/curation/retag',
-                                json={'scope': 'artist', 'name': 'Angerfist'},
-                                headers=self.headers)
+        return self.client.post(
+            '/api/curation/retag', json={'scope': 'artist', 'name': 'Angerfist'}, headers=self.headers
+        )
 
     def test_three_files_are_accepted_under_the_default_ceiling(self):
         self.assertEqual(self._retag().status_code, 202)

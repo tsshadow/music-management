@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from services.tagger.Song.BaseSong import BaseSong
 
-class TagRule(ABC):
 
+class TagRule(ABC):
     @abstractmethod
     def apply(self, song: 'BaseSong') -> None:
         """Pas de regel toe op een BaseSong."""

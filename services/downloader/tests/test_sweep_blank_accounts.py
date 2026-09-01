@@ -28,18 +28,22 @@ class BlankAccountRunTest(unittest.TestCase):
     """
 
     def setUp(self):
-        self.timing = load_timing('soundcloud', overrides={
-            'backoff_403_base': 240, 'backoff_403_factor': 4, 'backoff_403_cap': 3600,
-            'block_threshold': 3,
-        })
+        self.timing = load_timing(
+            'soundcloud',
+            overrides={
+                'backoff_403_base': 240,
+                'backoff_403_factor': 4,
+                'backoff_403_cap': 3600,
+                'block_threshold': 3,
+            },
+        )
         self.store = InMemoryRateStateStore()
 
     def _policy(self):
         return SweepPolicy(
             'soundcloud',
             timing=self.timing,
-            rate_state=RateState('soundcloud', self.timing, store=self.store,
-                                 now=lambda: NOW, jitter=lambda: 1.0),
+            rate_state=RateState('soundcloud', self.timing, store=self.store, now=lambda: NOW, jitter=lambda: 1.0),
             schedule=AccountSchedule('soundcloud', store=InMemoryCheckStore(), now=lambda: NOW),
             notifier=StubNotifier(),
         )
@@ -92,9 +96,13 @@ class BlankAccountRunTest(unittest.TestCase):
         self.assertIsInstance(policy.note_blank('dj_d'), RateLimited)
 
     def test_a_threshold_of_one_parks_on_the_first_blank_account(self):
-        self.timing = load_timing('soundcloud', overrides={
-            'backoff_403_base': 240, 'block_threshold': 1,
-        })
+        self.timing = load_timing(
+            'soundcloud',
+            overrides={
+                'backoff_403_base': 240,
+                'block_threshold': 1,
+            },
+        )
         self.assertIsInstance(self._policy().note_blank('dj_a'), RateLimited)
 
 

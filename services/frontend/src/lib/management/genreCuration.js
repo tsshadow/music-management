@@ -7,16 +7,16 @@
  * will do to a tag — so the component only has to render them.
  */
 
-export const WHITE = 'white';
-export const BLACK = 'black';
-export const UNKNOWN = 'unknown';
+export const WHITE = "white";
+export const BLACK = "black";
+export const UNKNOWN = "unknown";
 
 /** The filter tabs, in the order a curator works through them. */
 export const STATE_FILTERS = [
-  { id: UNKNOWN, label: 'Te beoordelen' },
-  { id: WHITE, label: 'Goedgekeurd' },
-  { id: BLACK, label: 'Afgekeurd' },
-  { id: 'all', label: 'Alles' }
+  { id: UNKNOWN, label: "Te beoordelen" },
+  { id: WHITE, label: "Goedgekeurd" },
+  { id: BLACK, label: "Afgekeurd" },
+  { id: "all", label: "Alles" },
 ];
 
 /**
@@ -27,11 +27,11 @@ export const STATE_FILTERS = [
  * 'Hardstyle' are one genre, 'hard style' is a different one.
  */
 export function normalizeGenre(name) {
-  return (name || '')
-    .normalize('NFKD')
-    .replace(/\p{M}/gu, '')
+  return (name || "")
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/[^a-z0-9]+/g, " ")
     .trim();
 }
 
@@ -61,11 +61,11 @@ export function summarize(rows) {
 export function describeOutcome(row) {
   const targets = row.canonical_targets || [];
   if (targets.length) {
-    return `Wordt vervangen door ${targets.map((target) => target.name).join(' + ')}`;
+    return `Wordt vervangen door ${targets.map((target) => target.name).join(" + ")}`;
   }
-  if (row.state === WHITE) return 'Blijft staan';
-  if (row.state === BLACK) return 'Wordt verwijderd';
-  return 'Blijft in het bestand, wordt niet opgeslagen';
+  if (row.state === WHITE) return "Blijft staan";
+  if (row.state === BLACK) return "Wordt verwijderd";
+  return "Blijft in het bestand, wordt niet opgeslagen";
 }
 
 /**
@@ -83,10 +83,10 @@ export function buildDecision({ genreId, state, canonicalIds = [] }) {
   }
   const targets = [];
   for (const raw of canonicalIds || []) {
-    if (raw === '' || raw === null || raw === undefined) continue;
+    if (raw === "" || raw === null || raw === undefined) continue;
     const target = Number(raw);
     if (target === Number(genreId)) {
-      return { valid: false, error: 'Een genre kan niet naar zichzelf corrigeren.' };
+      return { valid: false, error: "Een genre kan niet naar zichzelf corrigeren." };
     }
     if (!targets.includes(target)) targets.push(target);
   }
@@ -102,12 +102,12 @@ export function buildDecision({ genreId, state, canonicalIds = [] }) {
 export function correctionTargets(rows, genreId) {
   return rows
     .filter((row) => row.state === WHITE && Number(row.id) !== Number(genreId))
-    .sort((a, b) => a.name.localeCompare(b.name, 'nl'));
+    .sort((a, b) => a.name.localeCompare(b.name, "nl"));
 }
 
 /** Human-readable provenance line for a decided genre. */
 export function describeDecision(row) {
-  if (!row.decided_at) return 'Nog niet beoordeeld';
-  const when = new Date(row.decided_at.replace(' ', 'T')).toLocaleString('nl-NL');
+  if (!row.decided_at) return "Nog niet beoordeeld";
+  const when = new Date(row.decided_at.replace(" ", "T")).toLocaleString("nl-NL");
   return row.decided_by ? `${when} door ${row.decided_by}` : when;
 }

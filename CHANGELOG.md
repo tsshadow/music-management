@@ -241,6 +241,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dus hier kon de hardening wél aan, in plaats van de bevinding te accepteren zoals bij de
   langlopende services. Breekt het toch, dan meldt het zich: de systemd-unit faalt en
   `/health/backup` verloopt binnen 36 uur.
+- **De music-manager-image draagt geen C-compiler meer met zich mee.**
+  `docker/Dockerfile.music-manager` installeerde `gcc`, `libmariadb-dev` en `pkg-config` om een
+  handvol wheels te bouwen waarvoor nog geen cp314-wheel bestaat, en haalde ze daarna nooit weg:
+  `rm -rf /var/lib/apt/lists/*` gooit alleen de apt-index weg, niet de pakketten. Elke draaiende
+  container had daardoor een complete toolchain aan boord, inclusief de kernel-headers uit
+  `linux-libc-dev` waar `security:dependency-audit` CVE-2026-74662 op meldde. Het bouwen gebeurt
+  nu in een aparte builder-stage; de runtime-stage is een schone `python:3.14-slim` waar alleen de
+  virtualenv uit de builder in wordt gekopieerd, plus `libmariadb3` -- de gedeelde bibliotheek, niet
+  het `-dev`-pakket met de headers. 135 pakketten werden er 90, en de image ging van 906 MB naar
+  696 MB.
+
+  Dit is niet dezelfde reparatie als !545. Die voegde `apt-get upgrade -y` toe en lost de melding op
+  door *versie*: de gepatchte `linux-libc-dev` komt binnen bij elke rebuild. Deze lost hem op door
+  *afwezigheid*, wat het verschil is tussen "vandaag niet kwetsbaar" en "kan er niet kwetsbaar voor
+  zijn" -- en de volgende kernel-header-CVE raakt deze image niet meer. De `apt-get upgrade` blijft
+  overigens in beide stages staan, om dezelfde reden als in `Dockerfile.base`.
+
+  Wat er niet meekopieerde is even belangrijk: `pymysql` is pure Python, dus niets in
+  `services/music_manager/requirements.txt` heeft bij het *importeren* een compiler nodig. De
+  pakketten die wel uit broncode gebouwd worden -- soundfile, soxr, numba, scipy, scikit-learn --
+  laden in de runtime-image zonder headers gewoon, wat nagelopen is door ze daar allemaal te
+  importeren, en `scripts/test/core-smoke.sh` start de stack nog steeds groen op.
+- **`unar` trok een complete build-essential de tools-image in.** Dezelfde kernel-headers zaten ook
+  in `docker/Dockerfile.tools`, terwijl daar geen enkele compiler geïnstalleerd wordt. De oorzaak
+  was `unar`: dat hangt via `gnustep-base-runtime` aan `gcc`, `g++`, `binutils`, `libc6-dev` en
+  graphviz, en sleepte zo `linux-libc-dev` mee. De drie uitpakkers (`unrar-free`, `p7zip-full`,
+  `unar`) stonden daar bovendien meegekopieerd uit `Dockerfile.base` en hoorden er nooit: alleen
+  `services/importer/extractor.py` roept patoolib aan, en juist dat pakket wordt in deze image niet
+  gekopieerd. Ze zijn weg, samen met de recommends. 501 pakketten werden er 314 en de image ging van
+  1,85 GB naar 1,28 GB; ffmpeg, ffprobe, mariadb-dump, mariadb, curl en yt-dlp draaien er
+  ongewijzigd, en de vijf modules die `tools/test_tools_imports.py` bewaakt importeren er nog.
+
+  `docker/Dockerfile.base` heeft `unar` nog wel, en daarmee dezelfde build-essential in muma-base,
+  muma-downloader, muma-telegram en muma-importer. Daar is het niet zomaar weg te halen -- de
+  importer pakt er echt archieven mee uit -- dus dat is bewust een aparte vraag gebleven.
 
 ## [0.39.0] - 2026-08-31
 

@@ -43,4 +43,4 @@ export const EQ_PRESET_NAMES = Object.keys(EQ_PRESETS);
  * The pseudo-preset the picker falls back to once the user drags a slider.
  * It has no curve of its own -- it only means "these gains match no preset".
  */
-export const CUSTOM_PRESET = 'custom';
+export const CUSTOM_PRESET = "custom";

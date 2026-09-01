@@ -86,8 +86,9 @@ describe("getTrackScore", () => {
   });
 
   it("is case-insensitive about the format and the version", () => {
-    expect(getTrackScore({ suffix: "FLAC", title: "Track (RADIO EDIT)" }))
-      .toBe(getTrackScore({ suffix: "flac", title: "track (radio edit)" }));
+    expect(getTrackScore({ suffix: "FLAC", title: "Track (RADIO EDIT)" })).toBe(
+      getTrackScore({ suffix: "flac", title: "track (radio edit)" }),
+    );
   });
 });
 
@@ -113,7 +114,13 @@ describe("getDeduplicateKey", () => {
 
 describe("deduplicateTracks", () => {
   const flac = { id: 1, artist: "Angerfist", title: "Raise Your Fist", suffix: "flac" };
-  const mp3 = { id: 2, artist: "Angerfist", title: "Raise Your Fist (Extended Mix)", suffix: "mp3", bitRate: 192 };
+  const mp3 = {
+    id: 2,
+    artist: "Angerfist",
+    title: "Raise Your Fist (Extended Mix)",
+    suffix: "mp3",
+    bitRate: 192,
+  };
   const other = { id: 3, artist: "Angerfist", title: "Incoming", suffix: "mp3", bitRate: 320 };
 
   it("keeps the best version of a duplicated track", () => {

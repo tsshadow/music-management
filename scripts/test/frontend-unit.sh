@@ -1,9 +1,7 @@
 #!/bin/bash
 # scripts/test/frontend-unit.sh
-# Runs the frontend static checks. NOTE: there is currently no unit test tool
-# (e.g. Vitest) configured in services/frontend/package.json — see
-# docs/testing-inventory.md, open question #2. Until that is added (Phase 5),
-# this script runs the closest available checks: lint + typecheck.
+# Every static check the frontend has, in the order that fails cheapest first:
+# formatting, lint, typecheck, then the Vitest suite with coverage.
 # Usage: ./scripts/test/frontend-unit.sh
 
 set -e
@@ -17,6 +15,14 @@ if [ ! -d node_modules ]; then
     echo "--- Installing frontend dependencies ---"
     npm install
 fi
+
+# Formatting first: it is the cheapest check and the one whose failure is
+# fixed by a single command. `npm run format:check` existed in package.json
+# from the start and no job ever called it, which is how 96 of 125 files came
+# to be unformatted -- the same way ktlint and Android Lint sat configured and
+# unrun. Fix a failure here with `npm run format`.
+echo "--- Checking frontend formatting (oxfmt) ---"
+npm run format:check
 
 echo "--- Running frontend lint ---"
 npm run lint

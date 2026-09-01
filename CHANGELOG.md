@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docker/docker-compose.backup.yml` dat op zichzelf klopt; een `depends_on` hebben ze niet nodig,
   want ze verbinden over het externe netwerk en falen luid als de database er niet is. Vier tests
   bewaken dat het bestand zelfstandig blijft werken en dat de units bestaande services aanroepen.
+- **De herstelproef weigerde te starten op precies de read-only mount die hem veilig maakt.** Hij
+  hergebruikte de padvalidatie van de backupjob, en die eist schrijfrechten -- terecht voor een job
+  die dumps wegschrijft, maar de proef mount de dumpmap bewust alleen-lezen omdat een controle die
+  zijn eigen bron kan overschrijven geen controle is. Twee juiste eisen die elkaar tegenspraken; de
+  validatie kent nu `require_writable`, en de proef zet hem uit.
 
 ### Added
 - **Databasebackups die zichzelf bewijzen, in plaats van bestanden die er staan.** Het ontwerp uit

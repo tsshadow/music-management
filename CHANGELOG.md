@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **`security:secret-scan` liep tegen zijn tijdslimiet en liet daarmee releases stranden.** De job
+  groeide deze maand van vier naar veertien minuten, tegen een limiet van vijftien, en viel om zodra
+  er iets zwaars naast draaide. De oorzaak zijn de drie emulator-core dumps: die zijn wel uit de
+  werkboom gehaald maar blijven bereikbaar in de historie, en gitleaks pakt elke blob uit die hij
+  langsloopt -- dus herleest hij 3,9 GB bij elke run. Ze staan nu in de pad-uitzonderingen van
+  `security/gitleaks.toml` en de scan doet er **30 seconden** over in plaats van 834.
+
+  De reden bij die uitzondering is bewust een andere dan bij de regels erboven. Die gaan over
+  bestanden die geen echte credential kúnnen bevatten; een core dump is een geheugenafdruk en kan
+  dat juist wél. Daarom zijn ze eerst gescand en pas daarna uitgezonderd -- gitleaks heeft ze
+  wekenlang bij elke run gelezen en niets gevonden. Het zijn bovendien drie vaste blobs die niet
+  meer in de boom staan, dus deze uitzondering kan nooit stilletjes nieuwe inhoud gaan dekken.
+
+### Fixed
 - **De backupjob kon niet starten omdat een andere service in hetzelfde compose-bestand naar een
   database verwees die daar niet in stond.** De timers draaien hun compose-bestand standalone, en
   docker-compose v1 -- wat productie draait -- valideert het hele bestand voordat het één service

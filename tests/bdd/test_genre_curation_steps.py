@@ -12,33 +12,13 @@ import pytest
 import requests
 from pytest_bdd import given, scenarios, then
 
-from .conftest import TRACK_TITLE, wait_for, wait_for_fixture_track
+from .conftest import FIXTURE_GENRE, TRACK_TITLE, curation_queue, wait_for, wait_for_fixture_track
 
 pytestmark = pytest.mark.e2e
 
 scenarios('features/genre_curation.feature')
 
-# The genre in the fixture's tag, per tests/fixtures/expected/ci-test-track-001.json.
-FIXTURE_GENRE = 'Electronic'
 TIMEOUT = 30
-
-
-def _curation_queue(manager: str, api_key: str) -> list[dict]:
-    """Genres awaiting a decision.
-
-    A different view than /api/library/genres below: that one inner-joins the
-    per-track table, so a genre nothing has been attached to yet is invisible
-    there however correctly it was registered.
-    """
-    response = requests.get(
-        f'{manager}/api/rules/genres',
-        headers={'x-api-key': api_key},
-        params={'state': 'unknown'},
-        timeout=TIMEOUT,
-    )
-    assert response.status_code == 200, response.text
-    body = response.json()
-    return body if isinstance(body, list) else body.get('genres', [])
 
 
 def _library_genres(manager: str, api_key: str) -> list[dict]:
@@ -46,15 +26,6 @@ def _library_genres(manager: str, api_key: str) -> list[dict]:
     response = requests.get(f'{manager}/api/library/genres', headers={'x-api-key': api_key}, timeout=TIMEOUT)
     assert response.status_code == 200, response.text
     return response.json()
-
-
-@given("the fixture's genre is waiting for a decision")
-def _genre_is_queued(manager, api_key):
-    queued = [row.get('name') for row in _curation_queue(manager, api_key)]
-    assert FIXTURE_GENRE in queued, (
-        f'{FIXTURE_GENRE} is not in the curation queue: {queued!r} -- the tagger step in '
-        f'scripts/lib/e2e-stack.sh is what puts it there, and nothing else does'
-    )
 
 
 @given('no track carries that genre yet')
@@ -93,5 +64,5 @@ def _genre_is_listed_with_a_count(manager, api_key):
 
 @then('the genre is still waiting for a decision')
 def _genre_still_queued(manager, api_key):
-    queued = [row.get('name') for row in _curation_queue(manager, api_key)]
+    queued = [row.get('name') for row in curation_queue(manager, api_key)]
     assert FIXTURE_GENRE in queued, f'{FIXTURE_GENRE} left the curation queue without anyone deciding on it: {queued!r}'

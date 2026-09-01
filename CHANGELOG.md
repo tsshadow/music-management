@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **De end-to-end keten dekt vier gaten meer.** `muma:e2e` liep tot nu toe de scan, de Subsonic-zoekopdracht,
+  de stream, de rating-hop en één rechtstreekse scrobble na. Vier nieuwe Gherkin-features onder `tests/bdd/`
+  lopen wat daar omheen zat en in productie al eens stuk is geweest: een play die via LMS's `/rest/scrobble`
+  binnenkomt en als match landt in plaats van als unmatched (de echte route van telefoon en auto, die tot
+  nu toe geen enkele test aanraakte); een genre-goedkeuring die de wachtrij verlaat, als besluit wordt
+  vastgelegd en het bestand voor een retag markeert; de standaard-afspeellijst die een ongewaardeerd nummer
+  aanbiedt aan een luisteraar die nog nooit een ster gaf; en een account dat in music-manager wordt
+  uitgeschakeld en door LMS wordt geweigerd, zonder herstart of hersync. Die laatste legde onderweg vast wat
+  niemand had opgeschreven: LMS onthoudt een goedgekeurd wachtwoord vijf minuten (de auth-cache uit de
+  thread-pool-fix), dus een account dat al in gebruik was blijft op LMS zolang werken. De feature zegt dat
+  hardop en test daarom met een account dat LMS wel kent maar nog nooit heeft binnengelaten. De volgorde van
+  de features is bewust: elke nieuwe module sorteert achter de feature waarvan hij de uitgangssituatie
+  verandert, en zegt dat in zijn docstring.
+
 ## [0.40.1] - 2026-09-01
 
 ### Fixed

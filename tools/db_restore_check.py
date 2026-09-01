@@ -33,6 +33,7 @@ import argparse
 import contextlib
 import gzip
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -58,6 +59,31 @@ ROW_TOLERANCE = 0.98
 # Below this, a percentage is meaningless: a five-row table losing one row is
 # worth looking at, so small tables are compared exactly.
 EXACT_BELOW_ROWS = 100
+
+
+# mariadb-dump writes the two views with a DEFINER clause, and recreating an
+# object owned by someone else needs the SET USER privilege. Handing that to the
+# backup account would let it act as any user -- a large privilege to buy a
+# weekly check.
+#
+# The dump itself keeps its definers: a real restore runs as root, which has the
+# privilege, and a faithful dump is the point. Only this check neutralises them,
+# in the stream, on its way in.
+#
+# Matched narrowly on purpose. mariadb-dump emits the clause either inside a
+# versioned comment on its own line, or directly after CREATE. Data rows are
+# INSERT statements and start with neither, so a row that happens to contain the
+# text "DEFINER=" is left alone.
+DEFINER_IN_COMMENT = re.compile(rb'^(/\*!\d+ )DEFINER=`[^`]*`@`[^`]*` ?')
+DEFINER_AFTER_CREATE = re.compile(rb'^CREATE DEFINER=`[^`]*`@`[^`]*` ')
+
+
+def strip_definer(line: bytes) -> bytes:
+    """Remove a DEFINER clause from a statement line, leaving data untouched."""
+    if b'DEFINER=' not in line:
+        return line
+    line = DEFINER_IN_COMMENT.sub(rb'\1', line)
+    return DEFINER_AFTER_CREATE.sub(rb'CREATE ', line)
 
 
 class RestoreCheckError(Exception):
@@ -121,8 +147,8 @@ def restore(defaults_path: str, creds: dict[str, str], dump_path: Path, database
         process = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
         assert process.stdin is not None
         try:
-            for chunk in iter(lambda: handle.read(1024 * 1024), b''):
-                process.stdin.write(chunk)
+            for line in handle:
+                process.stdin.write(strip_definer(line))
         finally:
             process.stdin.close()
         _, stderr = process.communicate()

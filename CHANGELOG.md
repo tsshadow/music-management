@@ -22,6 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   die dumps wegschrijft, maar de proef mount de dumpmap bewust alleen-lezen omdat een controle die
   zijn eigen bron kan overschrijven geen controle is. Twee juiste eisen die elkaar tegenspraken; de
   validatie kent nu `require_writable`, en de proef zet hem uit.
+- **De herstelproef had superuser-rechten nodig voor twee views, en krijgt die niet.** De dump
+  schrijft de views met een `DEFINER`-clausule, en zoiets terugzetten namens een ander account
+  vereist `SET USER` -- een recht waarmee je je als elke gebruiker kunt voordoen, veel te breed voor
+  een wekelijkse controle. De dump blijft ongewijzigd, want een echte restore draait als root en een
+  getrouwe dump is het hele punt; alleen de proef haalt de clausule uit de stroom terwijl hij hem
+  inleest. Die vervanging is bewust smal: alleen regels die met `/*!<nummer> DEFINER=` of
+  `CREATE DEFINER=` beginnen, zodat een van de miljoenen INSERT-regels die toevallig de tekst
+  bevat onaangeroerd blijft.
 
 ### Added
 - **Databasebackups die zichzelf bewijzen, in plaats van bestanden die er staan.** Het ontwerp uit

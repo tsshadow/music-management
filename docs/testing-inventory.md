@@ -74,6 +74,15 @@
 - The only remaining large uncovered block in the Python suite (~715 statements at 0%). Its dependencies (`sqlalchemy`, `pandas`, `scikit-learn`, `joblib`) are in its own `requirements.txt` but not in the repo root one, so tests for it would either need those added to the CI environment or an `importorskip` guard that makes them silently skip there
 - Compose service is commented out in `docker-compose.yml` (inactive)
 
+### music-management-server (C++)
+- Formatting: `./scripts/test/muma-server-format.sh` (`quality:cpp-format`), clang-format pinned
+  to 20.1.8 via `silkeh/clang:20` — the version matters, releases disagree about output.
+  `--fix` rewrites in place. `ColumnLimit: 0` in `.clang-format` means lines are never reflowed
+- No other static analysis. clang-tidy has a config (`.clang-tidy`) that nothing runs; it needs
+  the compilation database, so it belongs with the build rather than in a quality job
+- Test: `./scripts/test/muma-server-unit.sh` builds and runs the CTest/GTest suite inside
+  `Dockerfile-build-alpine` and extracts coverage
+
 ### muma-mobile (Android/Kotlin)
 - Build: Gradle (`build.gradle`, `libs.versions.toml`), JVM target 21, uses `detekt` + `ktlintGradle`
 - Test: JVM unit tests present under `services/muma-mobile/app/src/test/kotlin/...` (e.g. `ArchitectureTest`, `imageloader/*Test`, `domain/*Test`)

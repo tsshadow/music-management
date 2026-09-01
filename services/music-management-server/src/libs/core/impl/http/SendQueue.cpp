@@ -59,7 +59,7 @@ namespace lms::core::http
         {
             std::optional<T> res;
 
-            if (const std::string * headerValue{ msg.getHeader(std::string{ headerName }) })
+            if (const std::string* headerValue{ msg.getHeader(std::string{ headerName }) })
                 res = stringUtils::readAs<T>(*headerValue);
 
             return res;

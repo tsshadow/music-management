@@ -545,7 +545,7 @@ namespace lms::api::subsonic
             // here is what used to drain the whole HTTP thread pool and take the server down with
             // it: every request, a plain ping included, then had nowhere left to run.
             const auto answer{ core::http::proxyRequest(request, response, context.getIoContext(),
-                getMumaCoverArtClient(context.getIoContext(), mumaApiUrl), std::move(getParams), mumaCoverArtDeadline) };
+                                                        getMumaCoverArtClient(context.getIoContext(), mumaApiUrl), std::move(getParams), mumaCoverArtDeadline) };
             if (!answer)
                 return; // in flight; nothing may be written yet
 

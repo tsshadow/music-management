@@ -1087,7 +1087,7 @@ namespace lms::api::subsonic
         for (const Track::pointer& track : Track::find(context.getDbSession(), params).results)
         {
             bool single{ false };
-            if (const Release::pointer & release{ track->getRelease() })
+            if (const Release::pointer& release{ track->getRelease() })
             {
                 if (!isRealAlbum(release))
                     single = true;

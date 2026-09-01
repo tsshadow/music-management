@@ -193,6 +193,31 @@ quality:shellcheck:
   script:
     - ./scripts/shellcheck.sh
 
+# C++ formatting for the MuMa Server. Its own job rather than a step in
+# muma-server:unit, which builds the whole server and takes up to 45 minutes:
+# a formatting mistake should be reported in under a minute, not after a
+# compile. .clang-format has been in that directory since the fork and was
+# read by nothing, which left 37 of 870 files unformatted.
+#
+# This is the server's only static analysis. clang-tidy is the obvious next
+# step and is a bigger job: it needs the compilation database, so it belongs
+# with the build rather than here.
+quality:cpp-format:
+  stage: quality
+  timeout: 10m
+  retry: !reference [.infra_retry, retry]
+  tags: !reference [.fast_runner, tags]
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.release_rule, rules]
+    - changes:
+        - services/music-management-server/src/**/*
+        - services/music-management-server/.clang-format
+        - scripts/test/muma-server-format.sh
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/test/muma-server-format.sh
+
 # Type checking, rolled out per module. pyproject.toml holds a loose floor for
 # the whole tree plus a list of modules checked strictly; scripts/typecheck.sh
 # runs that list. The list only ever grows -- cleaning a module up means fixing

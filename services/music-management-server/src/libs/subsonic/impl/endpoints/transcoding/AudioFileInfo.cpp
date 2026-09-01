@@ -68,7 +68,7 @@ namespace lms::api::subsonic
 
         auto transaction{ session.createReadTransaction() };
 
-        if (const db::TrackId * trackId{ std::get_if<db::TrackId>(&audioFileId) })
+        if (const db::TrackId* trackId{ std::get_if<db::TrackId>(&audioFileId) })
         {
             const db::Track::pointer track{ db::Track::find(session, *trackId) };
             if (!track)
@@ -90,7 +90,7 @@ namespace lms::api::subsonic
                 res.audioProperties = getAudioProperties(res.path);
             }
         }
-        else if (const db::PodcastEpisodeId * episodeId{ std::get_if<db::PodcastEpisodeId>(&audioFileId) })
+        else if (const db::PodcastEpisodeId* episodeId{ std::get_if<db::PodcastEpisodeId>(&audioFileId) })
         {
             const db::PodcastEpisode::pointer episode{ db::PodcastEpisode::find(session, *episodeId) };
             if (!episode)

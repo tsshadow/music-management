@@ -39,13 +39,37 @@ MODE=check
 # shellcheck source=scripts/ci/cpp-tidy-image.sh
 source "$ROOT_DIR/scripts/ci/cpp-tidy-image.sh"
 
+# Parallelism is bounded by memory, and the sum is done HERE rather than inside
+# the container, because /proc/meminfo is not namespaced. On the runner LXC the
+# host correctly reports 15GB while a container on it reads 30GB -- it sees
+# straight past the LXC's limit to the Proxmox node. Computing this inside the
+# container picked -j15 where -j7 was the honest answer, and the job was killed
+# at 45 minutes for the second time.
+#
+# Each clang-tidy process pulls in boost and Wt headers and comfortably passes
+# 1GB, so budget 2GB and take the lower of the two limits:
+#
+#   workstation  16 cores, 31GB  ->  -j15, 10 minutes
+#   runner LXC   20 cores, 15GB  ->  -j7
+# TIDY_JOBS can be set to override, which is how the -j7 the LXC gets was
+# timed on a machine that is not the LXC.
+TIDY_CORES=$(nproc)
+TIDY_MEM_GB=$(awk '/MemTotal/ {print int($2 / 1024 / 1024)}' /proc/meminfo)
+if [ -z "${TIDY_JOBS:-}" ]; then
+    TIDY_JOBS=$((TIDY_MEM_GB / 2))
+    [ "$TIDY_JOBS" -lt 2 ] && TIDY_JOBS=2
+    [ "$TIDY_JOBS" -gt "$TIDY_CORES" ] && TIDY_JOBS=$TIDY_CORES
+fi
+
 echo "--- Running clang-tidy over the MuMa Server sources ---"
+echo "--- Host: ${TIDY_CORES} cores, ${TIDY_MEM_GB}GB -> -j${TIDY_JOBS} ---"
 
 docker run --rm \
     -u "$(id -u):$(id -g)" \
     -v "$SERVER_DIR:/src" \
     -v "$ROOT_DIR:/repo" \
     -w /src \
+    -e TIDY_JOBS="$TIDY_JOBS" \
     "$CPP_TIDY_IMAGE" \
     sh -c '
 set -e
@@ -60,26 +84,11 @@ cmake -S /src -B /tmp/tidybuild \
     -DBUILD_TESTING=OFF \
     -DBUILD_BENCHMARKS=OFF >/tmp/cmake.log 2>&1 || { tail -30 /tmp/cmake.log; exit 1; }
 
-# Parallelism is bounded by memory, not by cores. Each clang-tidy process
-# analysing this codebase pulls in boost and Wt headers and comfortably passes
-# 1GB, so -j$(nproc) is only safe where there is RAM to match:
-#
-#   workstation  16 cores, 31GB  ->  ~2GB per process, 10 minutes
-#   runner LXC   20 cores, 15GB  ->  0.75GB per process, over 30 and killed
-#
-# More cores, three times slower. Budget 2GB per process and take whichever of
-# the two limits is lower.
-CORES=$(nproc)
-MEM_GB=$(awk "/MemTotal/ {print int(\$2 / 1024 / 1024)}" /proc/meminfo)
-JOBS=$(( MEM_GB / 2 ))
-[ "$JOBS" -lt 2 ] && JOBS=2
-[ "$JOBS" -gt "$CORES" ] && JOBS=$CORES
-
-echo "--- $(python3 -c "import json;print(len(json.load(open(\"/tmp/tidybuild/compile_commands.json\"))))") translation units, -j${JOBS} (${CORES} cores, ${MEM_GB}GB) ---"
+echo "--- $(python3 -c "import json;print(len(json.load(open(\"/tmp/tidybuild/compile_commands.json\"))))") translation units, -j${TIDY_JOBS} ---"
 
 # run-clang-tidy exits non-zero whenever it emitted anything; the baseline
 # decides pass or fail, so its status is not the answer here.
-run-clang-tidy -p /tmp/tidybuild -j "$JOBS" -quiet >/repo/clang-tidy.log 2>&1 || true
+run-clang-tidy -p /tmp/tidybuild -j "$TIDY_JOBS" -quiet >/repo/clang-tidy.log 2>&1 || true
 '
 
 echo "--- Comparing against the baseline ---"

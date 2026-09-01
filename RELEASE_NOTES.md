@@ -11,6 +11,45 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.40.1 (2026-09-01)
+
+Een correctie op 0.40.0. Aan de app verandert niets.
+
+- **De wekelijkse controle die bewijst dat een backup terug te zetten is, kon zelf niet starten.**
+  Drie losse oorzaken, alle drie gevonden door de controle met de hand te draaien in plaats van tot
+  zondagnacht te wachten: hij kreeg een startbestand mee dat naar een dienst verwees die er niet in
+  stond, hij weigerde de map te lezen die hij bewust alleen-lezen krijgt, en hij had beheerdersrechten
+  nodig voor twee onderdelen van de database. Alle drie zijn verholpen en de controle is daarna van
+  begin tot eind gedraaid: 70 tabellen en bijna 16 miljoen rijen teruggezet en gecontroleerd.
+- **De controle op gelekte wachtwoorden was zo traag geworden dat hij releases blokkeerde.** Hij
+  doorzocht bij elke run 3,9 GB aan oude crashbestanden die al lang niet meer in het project zitten
+  maar wel in de geschiedenis. Die worden nu overgeslagen — nadat ze zijn nagekeken en schoon bleken —
+  en de controle duurt 30 seconden in plaats van 14 minuten.
+
+## Global Version 0.40.0 (2026-09-01)
+
+Deze release is er vooral een van onderhoud: er is weinig aan de app zelf veranderd, en veel aan wat
+eronder ligt.
+
+- **De database heeft eindelijk backups die zichzelf bewijzen.** Er liep al vijf weken niets, en
+  tussen de oude bestanden zat er een van nul bytes die niemand had gezien. Er draait nu elke nacht
+  een backup die zichzelf controleert, en wekelijks wordt de nieuwste backup daadwerkelijk
+  teruggezet en vergeleken met wat erin hoorde te zitten — want een backup die nooit is
+  teruggezet is een bestand, geen backup. Blijft een backup uit, dan meldt het systeem dat op twee
+  onafhankelijke manieren, zodat een stilgevallen planning niet opnieuw wekenlang onopgemerkt blijft.
+- **De database draait op MariaDB 12.3.** De vorige versie was al ruim een jaar zonder
+  beveiligingsupdates. De overstap is gedaan met een volledige export en herimport in plaats van een
+  upgrade ter plekke, omdat er meer dan tien hoofdversies tussen zaten.
+- **Een standaard-vervaltijd voor delen instellen werkte niet in alle talen.** Op een toestel dat
+  Arabische, Perzische of Bengaalse cijfers gebruikt liep die instelling stuk. Nu niet meer.
+- **De Android-app is bijgewerkt naar de huidige bouwgereedschappen** — Gradle 9, Android Gradle
+  Plugin 9 en compileSdk 37, samen met een reeks bibliotheken. Voor gebruikers verandert er niets;
+  het houdt de app bouwbaar en bij.
+- **Opgeruimd op het gebied van beveiliging.** Het wachtwoord van de database stond in zeven
+  hulpscripts in platte tekst en is daar weg en inmiddels vervangen. Daarnaast zijn alle 22
+  hoog-ingeschaalde bevindingen in de productie-images verholpen en dragen de images geen
+  compiler en bouwgereedschap meer met zich mee.
+
 ## Global Version 0.39.0 (2026-08-31)
 
 - **Een crash in de app kan nu automatisch onderzocht worden.** Stuur je vanuit de app een

@@ -9,6 +9,7 @@ as backfill_normalized() in scrobble_rematch.py.
 
 Design: docs/superpowers/specs/2026-08-23-song-versions-and-canonical-design.md
 """
+
 from __future__ import annotations
 
 import os
@@ -118,8 +119,7 @@ def assign_works(cursor, limit: int = BATCH_SIZE) -> tuple[set[int], int]:
         work_id = cursor.fetchone()['id']
 
         cursor.execute(
-            'UPDATE library_tracks SET work_id = %s, version_kind = %s, version_score = %s '
-            'WHERE id = %s',
+            'UPDATE library_tracks SET work_id = %s, version_kind = %s, version_score = %s WHERE id = %s',
             (work_id, candidate['kind'], candidate['score'], track_id),
         )
         touched.add(work_id)
@@ -162,9 +162,7 @@ def group_once(conn) -> dict:
 
         recomputed = recompute_canonicals(cursor, touched)
 
-        cursor.execute(
-            'SELECT COUNT(*) AS n FROM library_tracks WHERE work_id IS NULL AND work_locked = 0'
-        )
+        cursor.execute('SELECT COUNT(*) AS n FROM library_tracks WHERE work_id IS NULL AND work_locked = 0')
         remaining = cursor.fetchone()['n']
     conn.commit()
     return {'assigned': assigned, 'remaining': remaining, 'recomputed': recomputed}

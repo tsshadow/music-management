@@ -6,6 +6,7 @@ result. The feature assembly in between is pandas and scikit-learn calls, and
 those libraries are stubbed here (see services/tests/MlAnalyzerTest.py), so
 asserting on it would prove nothing.
 """
+
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -35,12 +36,13 @@ def predictor_with(model=None, encoders=None, engine=None):
 
 
 class LoadingTest(unittest.TestCase):
-
     def build(self, model_exists):
-        with patch.object(predict, 'TrackAnalyzer'), \
-             patch.object(predict.os.path, 'exists', return_value=model_exists), \
-             patch.object(predict, 'joblib') as joblib, \
-             patch('builtins.print'):
+        with (
+            patch.object(predict, 'TrackAnalyzer'),
+            patch.object(predict.os.path, 'exists', return_value=model_exists),
+            patch.object(predict, 'joblib') as joblib,
+            patch('builtins.print'),
+        ):
             instance = predict.GenrePredictor()
         return instance, joblib
 
@@ -58,7 +60,6 @@ class LoadingTest(unittest.TestCase):
 
 
 class PredictTest(unittest.TestCase):
-
     def test_without_a_model_there_is_no_prediction(self):
         self.assertIsNone(predictor_with().predict('/music/a.mp3'))
 
@@ -80,7 +81,6 @@ class PredictTest(unittest.TestCase):
 
 
 class SavePredictionTest(unittest.TestCase):
-
     def save(self, engine, track_info=('hash-1', 42), failure=None):
         instance = predictor_with(engine=engine)
         instance.analyzer.get_track_info.return_value = track_info

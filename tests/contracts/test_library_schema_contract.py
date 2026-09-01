@@ -7,6 +7,7 @@ exercised against a database built by services/common/db_init.py.
 
 Assumes docker/compose.test.yml is already running; see scripts/test/contracts.sh.
 """
+
 import os
 
 import pytest
@@ -49,9 +50,7 @@ ENDPOINTS = [
 @pytest.mark.parametrize("path", ENDPOINTS)
 def test_endpoint_runs_against_a_real_schema(path):
     response = requests.get(f"{MUSIC_MANAGER_URL}{path}", headers=HEADERS, timeout=30)
-    assert response.status_code == 200, (
-        f"{path} returned {response.status_code}: {response.text[:400]}"
-    )
+    assert response.status_code == 200, f"{path} returned {response.status_code}: {response.text[:400]}"
 
 
 @pytest.mark.parametrize("path", ENDPOINTS)
@@ -63,23 +62,22 @@ def test_endpoint_requires_an_api_key(path):
 def test_empty_filter_result_is_not_an_error():
     """A filter matching nothing is a 200 with empty content, never a 4xx or 5xx."""
     response = requests.get(
-        f"{MUSIC_MANAGER_URL}/library/advanced?genre=DefinitelyNotAGenre",
-        headers=HEADERS, timeout=30)
+        f"{MUSIC_MANAGER_URL}/library/advanced?genre=DefinitelyNotAGenre", headers=HEADERS, timeout=30
+    )
     assert response.status_code == 200
     assert response.json()["tracks"] == []
     assert response.json()["total"] == 0
 
     response = requests.get(
-        f"{MUSIC_MANAGER_URL}/analytics/genre-distribution?genre=DefinitelyNotAGenre",
-        headers=HEADERS, timeout=30)
+        f"{MUSIC_MANAGER_URL}/analytics/genre-distribution?genre=DefinitelyNotAGenre", headers=HEADERS, timeout=30
+    )
     assert response.status_code == 200
     assert response.json() == []
 
 
 def test_advanced_response_carries_no_phantom_column():
     """The five columns that never existed must not reappear in the response."""
-    response = requests.get(f"{MUSIC_MANAGER_URL}/library/advanced?limit=1",
-                            headers=HEADERS, timeout=30)
+    response = requests.get(f"{MUSIC_MANAGER_URL}/library/advanced?limit=1", headers=HEADERS, timeout=30)
     assert response.status_code == 200
     for track in response.json()["tracks"]:
         for column in ("musical_key", "energy", "danceability", "valence", "popularity"):
@@ -89,20 +87,16 @@ def test_advanced_response_carries_no_phantom_column():
 def test_summary_track_count_matches_the_advanced_total():
     """Both must interpret the same filter identically -- they share build_filter."""
     query = "genre=Hardcore&bpm_min=180"
-    summary = requests.get(f"{MUSIC_MANAGER_URL}/analytics/summary?{query}",
-                           headers=HEADERS, timeout=30).json()
-    advanced = requests.get(f"{MUSIC_MANAGER_URL}/library/advanced?{query}&limit=1",
-                            headers=HEADERS, timeout=30).json()
+    summary = requests.get(f"{MUSIC_MANAGER_URL}/analytics/summary?{query}", headers=HEADERS, timeout=30).json()
+    advanced = requests.get(f"{MUSIC_MANAGER_URL}/library/advanced?{query}&limit=1", headers=HEADERS, timeout=30).json()
     assert summary["tracks"] == advanced["total"]
 
 
 def test_bpm_histogram_rejects_an_out_of_range_bucket():
-    response = requests.get(f"{MUSIC_MANAGER_URL}/analytics/bpm-histogram?bucket=99",
-                            headers=HEADERS, timeout=30)
+    response = requests.get(f"{MUSIC_MANAGER_URL}/analytics/bpm-histogram?bucket=99", headers=HEADERS, timeout=30)
     assert response.status_code == 422
 
 
 def test_artist_search_rejects_a_one_character_query():
-    response = requests.get(f"{MUSIC_MANAGER_URL}/analytics/artist-search?q=a",
-                            headers=HEADERS, timeout=30)
+    response = requests.get(f"{MUSIC_MANAGER_URL}/analytics/artist-search?q=a", headers=HEADERS, timeout=30)
     assert response.status_code == 422

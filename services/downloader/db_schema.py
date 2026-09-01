@@ -3,6 +3,7 @@
 The worker containers and the manager both touch these tables, and either one can
 be the first to start, so both call ``ensure_downloader_tables`` before use.
 """
+
 from __future__ import annotations
 
 import logging
@@ -47,12 +48,9 @@ _CREATE_ACCOUNT_CHECKS = """
 # Installs that predate the tier ladder and the deep sweep already have the table
 # without these three, and CREATE TABLE IF NOT EXISTS leaves such a table alone.
 _ALTER_ACCOUNT_CHECKS = (
-    'ALTER TABLE downloads_account_checks '
-    'ADD COLUMN IF NOT EXISTS last_upload_at DATETIME NULL',
-    'ALTER TABLE downloads_account_checks '
-    'ADD COLUMN IF NOT EXISTS last_seen_track_id VARCHAR(64) NULL',
-    'ALTER TABLE downloads_account_checks '
-    'ADD COLUMN IF NOT EXISTS last_deep_sweep_at DATETIME NULL',
+    'ALTER TABLE downloads_account_checks ADD COLUMN IF NOT EXISTS last_upload_at DATETIME NULL',
+    'ALTER TABLE downloads_account_checks ADD COLUMN IF NOT EXISTS last_seen_track_id VARCHAR(64) NULL',
+    'ALTER TABLE downloads_account_checks ADD COLUMN IF NOT EXISTS last_deep_sweep_at DATETIME NULL',
 )
 
 _CREATE_UNAVAILABLE = """
@@ -79,10 +77,8 @@ _CREATE_UNAVAILABLE = """
 _ALTER_UNAVAILABLE = (
     "ALTER TABLE downloads_soundcloud_unavailable "
     "ADD COLUMN IF NOT EXISTS source VARCHAR(32) NOT NULL DEFAULT 'soundcloud'",
-    'ALTER TABLE downloads_soundcloud_unavailable '
-    'ADD COLUMN IF NOT EXISTS duration_seconds INT NULL',
-    'ALTER TABLE downloads_soundcloud_unavailable '
-    'ADD COLUMN IF NOT EXISTS attempts INT NOT NULL DEFAULT 0',
+    'ALTER TABLE downloads_soundcloud_unavailable ADD COLUMN IF NOT EXISTS duration_seconds INT NULL',
+    'ALTER TABLE downloads_soundcloud_unavailable ADD COLUMN IF NOT EXISTS attempts INT NOT NULL DEFAULT 0',
 )
 
 _STATEMENTS = (_CREATE_SETTINGS, _CREATE_RATE_STATE, _CREATE_ACCOUNT_CHECKS, _CREATE_UNAVAILABLE)

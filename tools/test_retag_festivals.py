@@ -14,7 +14,6 @@ def fake_connection(rowcount=0, count=0):
 
 
 class CountCandidatesTest(unittest.TestCase):
-
     def test_counts_per_prefix_and_ignores_rows_already_queued(self):
         connection, cursor = fake_connection(count=7)
         counts = retag_festivals.count_candidates(connection, ('/mnt/music/Livesets',))
@@ -25,7 +24,6 @@ class CountCandidatesTest(unittest.TestCase):
 
 
 class MarkForRescanTest(unittest.TestCase):
-
     def test_flags_the_rows_and_commits(self):
         connection, cursor = fake_connection(rowcount=3)
         marked = retag_festivals.mark_for_rescan(connection, ('/a', '/b'))
@@ -35,7 +33,6 @@ class MarkForRescanTest(unittest.TestCase):
 
 
 class StripLegacyAtomTest(unittest.TestCase):
-
     def setUp(self):
         patcher = patch.object(retag_festivals, 'MP4')
         self.mp4 = patcher.start()
@@ -48,8 +45,7 @@ class StripLegacyAtomTest(unittest.TestCase):
         return audio
 
     def test_removes_only_the_legacy_atom(self):
-        tags = {retag_festivals.LEGACY_ATOM: ['Defqon 2024'],
-                retag_festivals.CURRENT_ATOM: ['Defqon']}
+        tags = {retag_festivals.LEGACY_ATOM: ['Defqon 2024'], retag_festivals.CURRENT_ATOM: ['Defqon']}
         audio = self._audio_with(tags)
         self.assertTrue(retag_festivals.strip_legacy_atom('/x.m4a'))
         self.assertEqual(list(tags), [retag_festivals.CURRENT_ATOM])
@@ -62,7 +58,6 @@ class StripLegacyAtomTest(unittest.TestCase):
 
 
 class MainTest(unittest.TestCase):
-
     def setUp(self):
         self.connection, _ = fake_connection(rowcount=2, count=5)
         connector = MagicMock()
@@ -87,15 +82,19 @@ class MainTest(unittest.TestCase):
         self.assertEqual(count.call_args.args[1], ('/mnt/music/Livesets',))
 
     def test_the_legacy_atom_is_only_touched_when_asked(self):
-        with patch.object(retag_festivals, 'find_legacy_atoms', return_value=['/x.m4a']) as find, \
-             patch.object(retag_festivals, 'strip_legacy_atom') as strip:
+        with (
+            patch.object(retag_festivals, 'find_legacy_atoms', return_value=['/x.m4a']) as find,
+            patch.object(retag_festivals, 'strip_legacy_atom') as strip,
+        ):
             retag_festivals.main(['--apply'])
         find.assert_not_called()
         strip.assert_not_called()
 
     def test_the_legacy_atom_is_reported_before_it_is_cleared(self):
-        with patch.object(retag_festivals, 'find_legacy_atoms', return_value=['/x.m4a']), \
-             patch.object(retag_festivals, 'strip_legacy_atom') as strip:
+        with (
+            patch.object(retag_festivals, 'find_legacy_atoms', return_value=['/x.m4a']),
+            patch.object(retag_festivals, 'strip_legacy_atom') as strip,
+        ):
             retag_festivals.main(['--strip-legacy-atom'])
         strip.assert_not_called()
 

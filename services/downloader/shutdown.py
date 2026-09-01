@@ -18,6 +18,7 @@ Nothing here decides *what* to clean up. It only says "stop soon", and the
 existing checkpoints -- ``SweepPolicy.guard`` between tracks and the ``finally``
 in the deep pass -- do the rest.
 """
+
 from __future__ import annotations
 
 import logging

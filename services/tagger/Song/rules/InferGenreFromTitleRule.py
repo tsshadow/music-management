@@ -6,14 +6,15 @@ from services.tagger.Song.rules.TagRule import TagRule
 
 
 class InferGenreFromTitleRule(TagRule):
-
     def __init__(self, genre_db=None, dryrun=True, dryrun_output_path='genre_matches.txt'):
         self.genre_db = genre_db or TableHelper('rules_genres', 'name')
         self.dryrun = dryrun
         self.dryrun_output_path = dryrun_output_path
         all_genres = self.genre_db.get_all_values()
         self.genre_set = {g.lower() for g in all_genres if g}
-        self.genre_patterns = {genre: re.compile(f'\\b{re.escape(genre)}\\b', flags=re.IGNORECASE) for genre in self.genre_set}
+        self.genre_patterns = {
+            genre: re.compile(f'\\b{re.escape(genre)}\\b', flags=re.IGNORECASE) for genre in self.genre_set
+        }
         if self.dryrun:
             # Held open across apply() calls for the whole dry run; closed in close().
             self._output_file = open(self.dryrun_output_path, 'w', encoding='utf-8')  # noqa: SIM115

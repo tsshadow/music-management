@@ -19,7 +19,6 @@ def make_response(status_code=200, payload=None):
 
 
 class DiscogsLookupTest(unittest.TestCase):
-
     def setUp(self):
         self.lookup = DiscogsLookup(token='tok')
 
@@ -52,7 +51,6 @@ class DiscogsLookupTest(unittest.TestCase):
 
 
 class MusicBrainzLookupTest(unittest.TestCase):
-
     def setUp(self):
         self.lookup = MusicBrainzLookup()
 
@@ -78,7 +76,6 @@ class MusicBrainzLookupTest(unittest.TestCase):
 
 
 class LastfmLookupTest(unittest.TestCase):
-
     def setUp(self):
         self.lookup = LastfmLookup(api_key='key')
 
@@ -111,7 +108,6 @@ class LastfmLookupTest(unittest.TestCase):
 
 
 class SpotifyLookupTest(unittest.TestCase):
-
     def setUp(self):
         self.lookup = SpotifyLookup(client_id='id', client_secret='secret')
 
@@ -138,44 +134,39 @@ class SpotifyLookupTest(unittest.TestCase):
             self.assertIsNone(self.lookup._get_token())
 
     def test_without_a_token_the_search_is_skipped(self):
-        with patch.object(self.lookup, '_get_token', return_value=None), \
-             patch.object(module, 'requests') as http:
+        with patch.object(self.lookup, '_get_token', return_value=None), patch.object(module, 'requests') as http:
             self.assertFalse(self.lookup.is_known_artist('Angerfist'))
         http.get.assert_not_called()
 
     def test_an_exact_name_match_counts_as_known(self):
-        with patch.object(self.lookup, '_get_token', return_value='tok'), \
-             patch.object(module, 'requests') as http:
+        with patch.object(self.lookup, '_get_token', return_value='tok'), patch.object(module, 'requests') as http:
             http.get.return_value = make_response(payload={'artists': {'items': [{'name': 'Angerfist'}]}})
             self.assertTrue(self.lookup.is_known_artist('angerfist'))
 
     def test_a_different_name_does_not_count(self):
-        with patch.object(self.lookup, '_get_token', return_value='tok'), \
-             patch.object(module, 'requests') as http:
+        with patch.object(self.lookup, '_get_token', return_value='tok'), patch.object(module, 'requests') as http:
             http.get.return_value = make_response(payload={'artists': {'items': [{'name': 'Someone Else'}]}})
             self.assertFalse(self.lookup.is_known_artist('Angerfist'))
 
     def test_a_non_200_search_counts_as_unknown(self):
-        with patch.object(self.lookup, '_get_token', return_value='tok'), \
-             patch.object(module, 'requests') as http:
+        with patch.object(self.lookup, '_get_token', return_value='tok'), patch.object(module, 'requests') as http:
             http.get.return_value = make_response(status_code=429)
             self.assertFalse(self.lookup.is_known_artist('Angerfist'))
 
     def test_a_transport_error_counts_as_unknown(self):
-        with patch.object(self.lookup, '_get_token', return_value='tok'), \
-             patch.object(module, 'requests') as http:
+        with patch.object(self.lookup, '_get_token', return_value='tok'), patch.object(module, 'requests') as http:
             http.get.side_effect = RuntimeError('network down')
             self.assertFalse(self.lookup.is_known_artist('Angerfist'))
 
 
 class ExternalArtistLookupTest(unittest.TestCase):
-
     def setUp(self):
         self.lookup = ExternalArtistLookup()
 
     def test_all_four_services_are_consulted(self):
-        self.assertEqual([service.name for service in self.lookup.services],
-                         ['Discogs', 'MusicBrainz', 'Last.fm', 'Spotify'])
+        self.assertEqual(
+            [service.name for service in self.lookup.services], ['Discogs', 'MusicBrainz', 'Last.fm', 'Spotify']
+        )
 
     def test_the_first_service_that_knows_the_artist_ends_the_search(self):
         first, second = MagicMock(name='Discogs'), MagicMock(name='MusicBrainz')

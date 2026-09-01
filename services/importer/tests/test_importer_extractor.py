@@ -10,7 +10,6 @@ PATOOL_ERROR = extractor.patoolib.util.PatoolError
 
 
 class ExtractorTest(unittest.TestCase):
-
     def setUp(self):
         settings = MagicMock(import_folder_path='/import', delimiter='/')
         patcher = patch.object(extractor, 'Settings', return_value=settings)
@@ -19,10 +18,12 @@ class ExtractorTest(unittest.TestCase):
         self.extractor = Extractor()
 
     def run_with(self, entries, dry_run=False, extract_side_effect=None, remove_side_effect=None):
-        with patch.object(extractor, 'listdir', return_value=entries), \
-             patch.object(extractor, 'isfile', return_value=True), \
-             patch.object(extractor, 'patoolib') as patool, \
-             patch.object(extractor.os, 'remove', side_effect=remove_side_effect) as remove:
+        with (
+            patch.object(extractor, 'listdir', return_value=entries),
+            patch.object(extractor, 'isfile', return_value=True),
+            patch.object(extractor, 'patoolib') as patool,
+            patch.object(extractor.os, 'remove', side_effect=remove_side_effect) as remove,
+        ):
             patool.util.PatoolError = PATOOL_ERROR
             if extract_side_effect is not None:
                 patool.extract_archive.side_effect = extract_side_effect
@@ -41,15 +42,19 @@ class ExtractorTest(unittest.TestCase):
         remove.assert_not_called()
 
     def test_directories_are_not_treated_as_archives(self):
-        with patch.object(extractor, 'listdir', return_value=['a-folder']), \
-             patch.object(extractor, 'isfile', return_value=False), \
-             patch.object(extractor, 'patoolib') as patool:
+        with (
+            patch.object(extractor, 'listdir', return_value=['a-folder']),
+            patch.object(extractor, 'isfile', return_value=False),
+            patch.object(extractor, 'patoolib') as patool,
+        ):
             self.extractor.run()
         patool.extract_archive.assert_not_called()
 
     def test_an_unreadable_import_folder_ends_the_step_quietly(self):
-        with patch.object(extractor, 'listdir', side_effect=OSError('no such folder')), \
-             patch.object(extractor, 'patoolib') as patool:
+        with (
+            patch.object(extractor, 'listdir', side_effect=OSError('no such folder')),
+            patch.object(extractor, 'patoolib') as patool,
+        ):
             self.extractor.run()
         patool.extract_archive.assert_not_called()
 

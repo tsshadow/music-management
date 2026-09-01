@@ -21,7 +21,8 @@ class InferReleaseDateFromNfoRule(TagRule):
 
     def __init__(self, format_helper=None):
         self.format_helper = format_helper or LookupTableHelper(
-            'rules_scene_group_date_format', 'scene_group', 'date_format')
+            'rules_scene_group_date_format', 'scene_group', 'date_format'
+        )
 
     def apply(self, song):
         if _is_day_precision(song.tag_collection.get_item_as_string(ORIGINAL_DATE)):

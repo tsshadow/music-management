@@ -22,7 +22,6 @@ class StubNotifier:
 
 
 class YoutubeTimingTestBase(unittest.TestCase):
-
     overrides: dict = {}
 
     def setUp(self):
@@ -42,8 +41,7 @@ class YoutubeTimingTestBase(unittest.TestCase):
         # This suite is about the ordinary path: the cooldowns, the batching and
         # the backoff. Without this every channel would be deep-due -- none has
         # ever been deep-swept -- and take the full-listing path instead.
-        self.timing = load_timing('youtube',
-                                  overrides={'deep_sweep_days': 0, **self.overrides})
+        self.timing = load_timing('youtube', overrides={'deep_sweep_days': 0, **self.overrides})
         self.rate_store = InMemoryRateStateStore()
         self.check_store = InMemoryCheckStore()
 
@@ -55,8 +53,7 @@ class YoutubeTimingTestBase(unittest.TestCase):
         return 0
 
     def _rate_state(self):
-        return RateState('youtube', self.timing, store=self.rate_store,
-                         now=lambda: self.now, jitter=lambda: 1.0)
+        return RateState('youtube', self.timing, store=self.rate_store, now=lambda: self.now, jitter=lambda: 1.0)
 
     def _downloader(self):
         downloader = YoutubeDownloader(
@@ -71,7 +68,6 @@ class YoutubeTimingTestBase(unittest.TestCase):
 
 
 class AccountCooldownTest(YoutubeTimingTestBase):
-
     overrides = {'account_cooldown': 3600, 'burst_size': 10, 'min_pause': 0, 'max_pause': 0}
 
     def test_a_first_run_visits_every_channel(self):
@@ -93,14 +89,20 @@ class AccountCooldownTest(YoutubeTimingTestBase):
 
 
 class RateLimitTest(YoutubeTimingTestBase):
-
-    overrides = {'account_cooldown': 0, 'burst_size': 10, 'min_pause': 0, 'max_pause': 0,
-                 'backoff_429_base': 3600, 'max_multiplier': 16}
+    overrides = {
+        'account_cooldown': 0,
+        'burst_size': 10,
+        'min_pause': 0,
+        'max_pause': 0,
+        'backoff_429_base': 3600,
+        'max_multiplier': 16,
+    }
 
     def _fail_with(self, message):
         def _raise(urls):
             self.downloaded.extend(urls)
             raise RuntimeError(message)
+
         self.mock_ydl.return_value.__enter__.return_value.download.side_effect = _raise
 
     def test_youtube_now_recognises_a_429(self):
@@ -129,15 +131,12 @@ class RateLimitTest(YoutubeTimingTestBase):
     def test_a_rate_limit_never_blocks_the_process_for_hours(self):
         self._fail_with('HTTP Error 429: Too Many Requests')
         self._downloader().run()
-        long_sleeps = [call.args[0] for call in self.mock_sleep.call_args_list
-                       if call.args and call.args[0] > 300]
+        long_sleeps = [call.args[0] for call in self.mock_sleep.call_args_list if call.args and call.args[0] > 300]
         self.assertEqual(long_sleeps, [])
 
 
 class BatchThrottleTest(YoutubeTimingTestBase):
-
-    overrides = {'account_cooldown': 0, 'burst_size': 1, 'min_pause': 45, 'max_pause': 45,
-                 'max_workers': 1}
+    overrides = {'account_cooldown': 0, 'burst_size': 1, 'min_pause': 45, 'max_pause': 45, 'max_workers': 1}
 
     def test_youtube_pauses_between_batches(self):
         self._downloader().run()
@@ -146,9 +145,7 @@ class BatchThrottleTest(YoutubeTimingTestBase):
 
 
 class YdlOptionsTest(YoutubeTimingTestBase):
-
-    overrides = {'account_cooldown': 0, 'sleep_interval': 20, 'ratelimit_kbps': 1024,
-                 'min_pause': 0, 'max_pause': 0}
+    overrides = {'account_cooldown': 0, 'sleep_interval': 20, 'ratelimit_kbps': 1024, 'min_pause': 0, 'max_pause': 0}
 
     def test_yt_dlp_gets_the_configured_pauses(self):
         self._downloader().run()

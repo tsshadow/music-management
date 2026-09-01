@@ -11,6 +11,7 @@ requirements and CI installs nothing before running this suite. What is asserted
 here is therefore the analyzer's own branching and the SQL it issues, never
 SQLAlchemy's behaviour.
 """
+
 import importlib.util
 import os
 import sys
@@ -70,11 +71,9 @@ def connection_yielding(rows):
 
 
 class DatabaseEngineTest(unittest.TestCase):
-
     def build(self, env):
         instance = analyzer_with()
-        with patch.dict(os.environ, env, clear=True), \
-             patch.object(analyzer_module, 'create_engine') as create_engine:
+        with patch.dict(os.environ, env, clear=True), patch.object(analyzer_module, 'create_engine') as create_engine:
             engine = instance._get_db_engine()
         return engine, create_engine
 
@@ -85,10 +84,15 @@ class DatabaseEngineTest(unittest.TestCase):
         create_engine.assert_not_called()
 
     def test_the_connection_url_is_built_from_the_environment(self):
-        _engine, create_engine = self.build({
-            'DB_HOST': 'db.example', 'DB_PORT': '3307', 'DB_USER': 'muma',
-            'DB_PASS': 'secret', 'DB_DB': 'music',
-        })
+        _engine, create_engine = self.build(
+            {
+                'DB_HOST': 'db.example',
+                'DB_PORT': '3307',
+                'DB_USER': 'muma',
+                'DB_PASS': 'secret',
+                'DB_DB': 'music',
+            }
+        )
 
         create_engine.assert_called_once_with('mysql+mysqlconnector://muma:secret@db.example:3307/music')
 
@@ -107,7 +111,6 @@ class DatabaseEngineTest(unittest.TestCase):
 
 
 class LoadAudioTest(unittest.TestCase):
-
     def test_a_readable_file_yields_its_samples(self):
         instance = analyzer_with()
 
@@ -125,7 +128,6 @@ class LoadAudioTest(unittest.TestCase):
 
 
 class ExtractMetadataTest(unittest.TestCase):
-
     def setUp(self):
         self.instance = analyzer_with()
 
@@ -180,7 +182,6 @@ class ExtractMetadataTest(unittest.TestCase):
 
 
 class Mp3MetadataTest(unittest.TestCase):
-
     def read(self, tags):
         instance = analyzer_with()
         metadata = {'label_name': None}
@@ -189,10 +190,15 @@ class Mp3MetadataTest(unittest.TestCase):
         return metadata
 
     def test_the_common_tags_are_taken_over(self):
-        metadata = self.read({
-            'artist': ['Angerfist'], 'genre': ['Hardcore'], 'publisher': ['Roughstate'],
-            'date': ['2024-03-01'], 'bpm': ['174.5'],
-        })
+        metadata = self.read(
+            {
+                'artist': ['Angerfist'],
+                'genre': ['Hardcore'],
+                'publisher': ['Roughstate'],
+                'date': ['2024-03-01'],
+                'bpm': ['174.5'],
+            }
+        )
 
         self.assertEqual(metadata['artist_name'], 'Angerfist')
         self.assertEqual(metadata['genre_tag'], 'Hardcore')
@@ -225,7 +231,6 @@ class Mp3MetadataTest(unittest.TestCase):
 
 
 class FlacAndM4aMetadataTest(unittest.TestCase):
-
     def test_a_flac_yields_artist_genre_label_and_year(self):
         instance = analyzer_with()
         metadata = {'label_name': None}
@@ -252,7 +257,9 @@ class FlacAndM4aMetadataTest(unittest.TestCase):
         instance = analyzer_with()
         metadata = {'label_name': None}
         tags = {
-            '©ART': ['Angerfist'], '©gen': ['Hardcore'], '©day': ['2024-03-01'],
+            '©ART': ['Angerfist'],
+            '©gen': ['Hardcore'],
+            '©day': ['2024-03-01'],
             '----:com.apple.iTunes:PUBLISHER': ['Roughstate'],
         }
 
@@ -266,7 +273,6 @@ class FlacAndM4aMetadataTest(unittest.TestCase):
 
 
 class IsAlreadyAnalyzedTest(unittest.TestCase):
-
     def test_without_a_database_nothing_counts_as_analyzed(self):
         self.assertFalse(analyzer_with().is_already_analyzed('track-1'))
 
@@ -288,11 +294,11 @@ class IsAlreadyAnalyzedTest(unittest.TestCase):
 
 
 class GetTrackInfoTest(unittest.TestCase):
-
     PATH = '/music/Angerfist/raise-your-fist.mp3'
 
     def expected_hash(self):
         import hashlib
+
         return hashlib.sha256(self.PATH.encode()).hexdigest()
 
     def test_without_a_database_only_the_path_hash_comes_back(self):
@@ -320,10 +326,12 @@ class GetTrackInfoTest(unittest.TestCase):
         engine, connection, _result = connection_yielding([None])
         connection.execute.return_value.scalar.return_value = 99
 
-        with sql_is_readable(), \
-             patch.object(analyzer_module.os.path, 'exists', return_value=True), \
-             patch.object(analyzer_module.os.path, 'getsize', return_value=1234), \
-             patch.object(analyzer_module.os.path, 'getmtime', return_value=99.0):
+        with (
+            sql_is_readable(),
+            patch.object(analyzer_module.os.path, 'exists', return_value=True),
+            patch.object(analyzer_module.os.path, 'getsize', return_value=1234),
+            patch.object(analyzer_module.os.path, 'getmtime', return_value=99.0),
+        ):
             track_hash, internal_id = analyzer_with(engine).get_track_info(self.PATH)
 
         self.assertEqual((track_hash, internal_id), (self.expected_hash(), 99))
@@ -338,8 +346,7 @@ class GetTrackInfoTest(unittest.TestCase):
             analyzer_with(engine).get_track_info(self.PATH)
 
         insert = next(
-            call for call in connection.execute.call_args_list
-            if 'INSERT INTO library_media_files' in call.args[0]
+            call for call in connection.execute.call_args_list if 'INSERT INTO library_media_files' in call.args[0]
         )
         self.assertEqual(insert.args[1]['size'], 0)
         self.assertEqual(insert.args[1]['mtime'], 0)
@@ -352,7 +359,6 @@ class GetTrackInfoTest(unittest.TestCase):
 
 
 class AnalyzeTrackTest(unittest.TestCase):
-
     def setUp(self):
         self.instance = analyzer_with()
         self.instance.get_track_info = MagicMock(return_value=('hash-1', 42))
@@ -407,8 +413,11 @@ class AnalyzeTrackTest(unittest.TestCase):
         self.instance.analyze_track('/music/a.mp3', save=True)
 
         self.instance.save_features.assert_called_once_with(
-            'hash-1', {'tempo': 174.0}, internal_track_id=42,
-            metadata={'artist_name': 'Angerfist'}, file_path='/music/a.mp3',
+            'hash-1',
+            {'tempo': 174.0},
+            internal_track_id=42,
+            metadata={'artist_name': 'Angerfist'},
+            file_path='/music/a.mp3',
         )
 
     def test_nothing_is_written_unless_saving_was_asked_for(self):

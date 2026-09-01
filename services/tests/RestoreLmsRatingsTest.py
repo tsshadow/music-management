@@ -4,6 +4,7 @@ The script writes into a live LMS database and there is no undo, so what has to 
 an existing rating is never touched, the music-management mirror beats the file tag,
 paths are matched across both library roots, and a second run changes nothing.
 """
+
 import importlib.util
 import json
 import sqlite3
@@ -62,10 +63,14 @@ def run(tmp_path, db_path, entries, extra=()):
     muma_json.write_text(json.dumps(entries), encoding="utf-8")
     argv = [
         "restore",
-        "--database", str(db_path),
-        "--muma-json", str(muma_json),
-        "--user", "user",
-        "--export", str(tmp_path / "before.json"),
+        "--database",
+        str(db_path),
+        "--muma-json",
+        str(muma_json),
+        "--user",
+        "user",
+        "--export",
+        str(tmp_path / "before.json"),
         "--apply",
         *extra,
     ]
@@ -174,9 +179,7 @@ def test_dry_run_writes_nothing(lms_db, tmp_path):
     path, conn = lms_db
     muma_json = tmp_path / "muma.json"
     muma_json.write_text(json.dumps([muma_entry("/mnt/music/Soundcloud/a.mp3", 5)]), encoding="utf-8")
-    restore_lms_ratings.main(
-        ["restore", "--database", str(path), "--muma-json", str(muma_json), "--user", "user"]
-    )
+    restore_lms_ratings.main(["restore", "--database", str(path), "--muma-json", str(muma_json), "--user", "user"])
 
     assert ratings(conn) == {}
 

@@ -9,16 +9,26 @@ from services.music_manager import lms_subsonic
 
 
 class NormalizeSongTest(unittest.TestCase):
-
     def test_maps_subsonic_song_to_internal_shape(self):
         song = {
-            'id': 'tr-42', 'title': 'Song', 'artist': 'Artist', 'album': 'Album',
-            'coverArt': 'al-7', 'duration': 215,
+            'id': 'tr-42',
+            'title': 'Song',
+            'artist': 'Artist',
+            'album': 'Album',
+            'coverArt': 'al-7',
+            'duration': 215,
         }
-        self.assertEqual(lms_subsonic.normalize_song(song), {
-            'track_id': 'tr-42', 'title': 'Song', 'artist': 'Artist', 'album': 'Album',
-            'cover_art': 'al-7', 'duration_ms': 215000,
-        })
+        self.assertEqual(
+            lms_subsonic.normalize_song(song),
+            {
+                'track_id': 'tr-42',
+                'title': 'Song',
+                'artist': 'Artist',
+                'album': 'Album',
+                'cover_art': 'al-7',
+                'duration_ms': 215000,
+            },
+        )
 
     def test_drops_song_without_usable_duration(self):
         self.assertIsNone(lms_subsonic.normalize_song({'id': 'tr-1', 'duration': 0}))
@@ -29,22 +39,38 @@ class NormalizeSongTest(unittest.TestCase):
 
 
 class BuildFilterParamsTest(unittest.TestCase):
-
     def test_empty_filter_sends_nothing(self):
         self.assertEqual(lms_subsonic.build_filter_params({}), {})
         self.assertEqual(lms_subsonic.build_filter_params(None), {})
 
     def test_maps_stored_keys_to_subsonic_parameters(self):
-        params = lms_subsonic.build_filter_params({
-            'label': 'Q-dance Records', 'genre': 'hardstyle', 'artist': 'Headhunterz',
-            'length': 'short', 'year': '2024',
-            'rating_min': 4, 'rating_max': 5, 'duration_min': 60, 'duration_max': 300,
-        })
-        self.assertEqual(params, {
-            'label': 'Q-dance Records', 'genre': 'hardstyle', 'artist': 'Headhunterz',
-            'length': 'short', 'year': '2024',
-            'ratingMin': 4, 'ratingMax': 5, 'durationMin': 60, 'durationMax': 300,
-        })
+        params = lms_subsonic.build_filter_params(
+            {
+                'label': 'Q-dance Records',
+                'genre': 'hardstyle',
+                'artist': 'Headhunterz',
+                'length': 'short',
+                'year': '2024',
+                'rating_min': 4,
+                'rating_max': 5,
+                'duration_min': 60,
+                'duration_max': 300,
+            }
+        )
+        self.assertEqual(
+            params,
+            {
+                'label': 'Q-dance Records',
+                'genre': 'hardstyle',
+                'artist': 'Headhunterz',
+                'length': 'short',
+                'year': '2024',
+                'ratingMin': 4,
+                'ratingMax': 5,
+                'durationMin': 60,
+                'durationMax': 300,
+            },
+        )
 
     def test_drops_blank_and_missing_values(self):
         params = lms_subsonic.build_filter_params({'label': '  ', 'genre': None, 'artist': 'X'})
@@ -65,7 +91,6 @@ class BuildFilterParamsTest(unittest.TestCase):
 
 
 class FetchCandidateTracksTest(unittest.TestCase):
-
     def _response(self, payload):
         response = MagicMock()
         response.json.return_value = payload
@@ -98,16 +123,23 @@ class FetchCandidateTracksTest(unittest.TestCase):
 
     @patch('services.music_manager.lms_subsonic.requests.get')
     def test_raises_on_subsonic_error_status(self, mock_get):
-        mock_get.return_value = self._response({'subsonic-response': {
-            'status': 'failed', 'error': {'code': 40, 'message': 'Wrong username or password'}
-        }})
+        mock_get.return_value = self._response(
+            {'subsonic-response': {'status': 'failed', 'error': {'code': 40, 'message': 'Wrong username or password'}}}
+        )
         with self.assertRaises(RuntimeError):
             lms_subsonic.fetch_candidate_tracks({})
 
     @patch('services.music_manager.lms_subsonic.requests.get')
     def test_handles_single_song_object_instead_of_list(self, mock_get):
-        mock_get.return_value = self._response({'subsonic-response': {'status': 'ok', 'songsByFilter': {
-            'song': {'id': 'tr-9', 'title': 'Solo', 'artist': 'X', 'album': 'Y', 'duration': 90}
-        }}})
+        mock_get.return_value = self._response(
+            {
+                'subsonic-response': {
+                    'status': 'ok',
+                    'songsByFilter': {
+                        'song': {'id': 'tr-9', 'title': 'Solo', 'artist': 'X', 'album': 'Y', 'duration': 90}
+                    },
+                }
+            }
+        )
         tracks = lms_subsonic.fetch_candidate_tracks({})
         self.assertEqual([t['track_id'] for t in tracks], ['tr-9'])

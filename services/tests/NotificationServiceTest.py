@@ -9,7 +9,6 @@ from services.common.Helpers.NotificationService import NotificationService
 
 
 class NotificationServiceTest(unittest.TestCase):
-
     @patch('services.common.Helpers.NotificationService.event_service')
     def test_notify_emits_a_pushed_info_event(self, mock_service):
         mock_service.emit.return_value = True

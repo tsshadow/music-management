@@ -4,6 +4,7 @@ The backfill rewrites the publisher of tracks across the whole library, so what 
 plans: it has to repair a release folder that was stored as a label, and leave every other
 disagreement between a track and its folder alone.
 """
+
 import errno
 import importlib.util
 import os
@@ -141,8 +142,7 @@ def test_reads_a_plan_written_as_lines_or_as_one_array(tmp_path):
     """The plan is appended per label, but a plan written in one go still has to load."""
     lines = tmp_path / 'lines.json'
     lines.write_text(
-        '{"path": "/a.mp3", "changes": {"publisher": "X"}}\n'
-        '{"path": "/b.mp3", "changes": {"publisher": "Y"}}\n'
+        '{"path": "/a.mp3", "changes": {"publisher": "X"}}\n{"path": "/b.mp3", "changes": {"publisher": "Y"}}\n'
     )
     array = tmp_path / 'array.json'
     array.write_text('[["/a.mp3", {"publisher": "X"}], ["/b.mp3", {"publisher": "Y"}]]')

@@ -16,6 +16,7 @@ os.environ.setdefault('API_KEY', 'test-api-key')
 
 def pytest_configure(config):
     from services.tests import mock_base
+
     mock_base.setup_mocks()
 
 

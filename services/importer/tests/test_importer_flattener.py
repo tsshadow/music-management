@@ -81,9 +81,14 @@ class FlattenerTest(unittest.TestCase):
 
         self.flattener.run()
 
-        self.assertEqual(self.entries(), ['Artist_-_One-(BONKERS084)-WEB-2026', 'Artist_-_Two-(BONKERS085)-WEB-2026', 'HHC-2026-WEEK-33'])
+        self.assertEqual(
+            self.entries(),
+            ['Artist_-_One-(BONKERS084)-WEB-2026', 'Artist_-_Two-(BONKERS085)-WEB-2026', 'HHC-2026-WEEK-33'],
+        )
         self.assertTrue(os.path.isfile(os.path.join(self.root, 'Artist_-_One-(BONKERS084)-WEB-2026', 'original.mp3')))
-        self.assertEqual(os.listdir(os.path.join(self.root, 'HHC-2026-WEEK-33')), ['Artist_-_One-(BONKERS084)-WEB-2026'])
+        self.assertEqual(
+            os.listdir(os.path.join(self.root, 'HHC-2026-WEEK-33')), ['Artist_-_One-(BONKERS084)-WEB-2026']
+        )
 
     def test_the_synology_thumbnail_folder_is_never_flattened(self):
         self.make('@eaDir', 'Artist_-_One-(BONKERS084)-WEB-2026', 'SYNOPHOTO', files=['thumb.jpg'])

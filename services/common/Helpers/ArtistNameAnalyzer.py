@@ -15,6 +15,7 @@ data, and will change once it has been.
 No database, no network — those belong to the callers, so this stays testable
 and cheap enough to run over the whole library repeatedly.
 """
+
 import difflib
 import re
 import unicodedata
@@ -42,9 +43,34 @@ DEFAULT_AFFIX_PATTERNS = (
 )
 
 DEFAULT_STOPWORDS = (
-    'de', 'het', 'een', 'en', 'van', 'wij', 'we', 'je', 'jij', 'ik', 'dat', 'als',
-    'niet', 'maar', 'voor', 'met', 'the', 'and', 'of', 'you', 'is', 'are', 'this',
-    'that', 'when', 'what', 'my', 'your',
+    'de',
+    'het',
+    'een',
+    'en',
+    'van',
+    'wij',
+    'we',
+    'je',
+    'jij',
+    'ik',
+    'dat',
+    'als',
+    'niet',
+    'maar',
+    'voor',
+    'met',
+    'the',
+    'and',
+    'of',
+    'you',
+    'is',
+    'are',
+    'this',
+    'that',
+    'when',
+    'what',
+    'my',
+    'your',
 )
 
 
@@ -55,6 +81,7 @@ class AnalyzerConfig:
     Defaults are a starting point, not a recommendation: they are meant to be
     tuned against a report over the real library and then stored in ConfigStore.
     """
+
     affix_patterns: tuple = DEFAULT_AFFIX_PATTERNS
     stopwords: tuple = DEFAULT_STOPWORDS
     # Shape alone does not reject. `Boaz Van De Beatz`, `We Are Loud` and
@@ -98,6 +125,7 @@ class Proposal:
     answer", which is a queue entry for a human or an external lookup, never a
     decision.
     """
+
     kind: str
     values: list
     confidence: int
@@ -357,7 +385,9 @@ class ArtistNameAnalyzer:
 
         closest, ratio = self.closest_known(stripped)
         if closest and ratio >= self.config.fuzzy_rewrite_threshold:
-            return Proposal(REWRITE, [closest], int(ratio * 100), evidence + [f"looks like approved '{closest}' ({ratio:.2f})"])
+            return Proposal(
+                REWRITE, [closest], int(ratio * 100), evidence + [f"looks like approved '{closest}' ({ratio:.2f})"]
+            )
 
         if removed:
             evidence.append('noise removed but remainder is not approved')

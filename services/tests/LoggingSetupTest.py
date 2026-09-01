@@ -16,14 +16,11 @@ from services.common.Helpers.logging_setup import (
 )
 
 
-def make_record(name='music-manager.radio', levelno=logging.INFO, msg='iets gebeurde',
-                exc_info=None):
-    return logging.LogRecord(name=name, level=levelno, pathname=__file__, lineno=1,
-                             msg=msg, args=(), exc_info=exc_info)
+def make_record(name='music-manager.radio', levelno=logging.INFO, msg='iets gebeurde', exc_info=None):
+    return logging.LogRecord(name=name, level=levelno, pathname=__file__, lineno=1, msg=msg, args=(), exc_info=exc_info)
 
 
 class IsCapturedTest(unittest.TestCase):
-
     def test_own_logger_captured_from_info(self):
         self.assertTrue(is_captured('music-manager.radio', logging.INFO))
         self.assertTrue(is_captured('downloader', logging.INFO))
@@ -49,7 +46,6 @@ class IsCapturedTest(unittest.TestCase):
 
 
 class LevelNameTest(unittest.TestCase):
-
     def test_maps_python_levels_to_event_levels(self):
         self.assertEqual(level_name(logging.INFO), 'INFO')
         self.assertEqual(level_name(logging.WARNING), 'WARNING')
@@ -61,7 +57,6 @@ class LevelNameTest(unittest.TestCase):
 
 
 class EventLogHandlerTest(unittest.TestCase):
-
     def setUp(self):
         self.service = MagicMock()
         self.handler = EventLogHandler(source='music-manager', service=self.service)
@@ -126,12 +121,12 @@ class EventLogHandlerTest(unittest.TestCase):
 
 
 class SetupLoggingTest(unittest.TestCase):
-
     def setUp(self):
         # Save current root logger handlers so we can restore them
         self.saved_handlers = logging.getLogger().handlers[:]
         # Reset the _sink_registered flag for each test
         import services.common.Helpers.logging_setup as logging_setup_module
+
         logging_setup_module._sink_registered = False
 
     def tearDown(self):
@@ -143,6 +138,7 @@ class SetupLoggingTest(unittest.TestCase):
             root.addHandler(handler)
         # Reset the flag again
         import services.common.Helpers.logging_setup as logging_setup_module
+
         logging_setup_module._sink_registered = False
 
     @patch('services.common.Helpers.logging_setup.NtfySink')
@@ -160,7 +156,9 @@ class SetupLoggingTest(unittest.TestCase):
 
         root = logging.getLogger()
         event_handlers = [h for h in root.handlers if isinstance(h, EventLogHandler)]
-        stream_handlers = [h for h in root.handlers if isinstance(h, logging.StreamHandler) and not isinstance(h, EventLogHandler)]
+        stream_handlers = [
+            h for h in root.handlers if isinstance(h, logging.StreamHandler) and not isinstance(h, EventLogHandler)
+        ]
 
         self.assertEqual(len(event_handlers), 1)
         self.assertEqual(len(stream_handlers), 1)

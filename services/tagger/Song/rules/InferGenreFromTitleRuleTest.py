@@ -6,7 +6,6 @@ from services.tagger.Song.rules.InferGenreFromTitleRule import InferGenreFromTit
 
 
 class InferGenreFromTitleRuleTest(unittest.TestCase):
-
     def setUp(self):
         self.song = MagicMock()
         self.song.path.return_value = '/path/to/song.mp3'
@@ -39,5 +38,7 @@ class InferGenreFromTitleRuleTest(unittest.TestCase):
         result = self.rule.apply(self.song)
         self.assertFalse(result)
         self.song.tag_collection.add.assert_not_called()
+
+
 if __name__ == '__main__':
     unittest.main()

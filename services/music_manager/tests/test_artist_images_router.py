@@ -1,4 +1,5 @@
 """Coverage for the /api/artists router: search, the image manager, and the fetch tasks."""
+
 import base64
 import os
 import sys
@@ -23,7 +24,6 @@ API_KEY = resolve_system_api_key()
 
 
 class ArtistImagesTestCase(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         self.headers = {'x-api-key': API_KEY}
@@ -35,20 +35,22 @@ class ArtistImagesTestCase(unittest.TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
         artist_images_router.fetch_progress.update(
-            {'active': False, 'total': 0, 'current': 0, 'last_artist': None, 'status': 'idle', 'message': None})
+            {'active': False, 'total': 0, 'current': 0, 'last_artist': None, 'status': 'idle', 'message': None}
+        )
 
     def statements(self):
         return [call.args[0] for call in self.cursor.execute.call_args_list]
 
 
 class AuthTest(unittest.TestCase):
-
     def test_a_request_without_a_key_is_unauthorized(self):
         self.assertEqual(TestClient(app).get('/api/artists/search').status_code, 401)
 
     def test_a_user_key_that_verifies_is_accepted(self):
-        with patch.object(users_router, 'verify_token', return_value={'status': 'ok', 'type': 'user'}), \
-             patch.object(artist_images_router, 'get_db_connection', return_value=None):
+        with (
+            patch.object(users_router, 'verify_token', return_value={'status': 'ok', 'type': 'user'}),
+            patch.object(artist_images_router, 'get_db_connection', return_value=None),
+        ):
             response = TestClient(app).get('/api/artists/search', headers={'x-api-key': 'user-key'})
         self.assertEqual(response.status_code, 500)
 
@@ -59,7 +61,6 @@ class AuthTest(unittest.TestCase):
 
 
 class SearchTest(ArtistImagesTestCase):
-
     def test_an_empty_search_lists_the_artists_that_have_an_image(self):
         self.cursor.fetchall.return_value = [{'id': 1, 'name': 'Angerfist'}]
         response = self.client.get('/api/artists/search', headers=self.headers)
@@ -93,11 +94,11 @@ class SearchTest(ArtistImagesTestCase):
 
 
 class ManageSearchTest(ArtistImagesTestCase):
-
     def search(self, query=''):
         self.cursor.fetchone.return_value = {'total': 1}
-        self.cursor.fetchall.return_value = [{'id': 1, 'name': 'Angerfist', 'primary_image_id': None,
-                                              'image_status': None, 'image_updated_at': None}]
+        self.cursor.fetchall.return_value = [
+            {'id': 1, 'name': 'Angerfist', 'primary_image_id': None, 'image_status': None, 'image_updated_at': None}
+        ]
         return self.client.get(f'/api/artists/manage/search{query}', headers=self.headers)
 
     def test_every_artist_is_returned_with_its_image_metadata(self):
@@ -142,17 +143,23 @@ class ManageSearchTest(ArtistImagesTestCase):
 
     def test_a_timestamp_is_serialized_as_an_iso_string(self):
         from datetime import datetime
+
         self.cursor.fetchone.return_value = {'total': 1}
-        self.cursor.fetchall.return_value = [{'id': 1, 'name': 'A', 'primary_image_id': 2,
-                                              'image_status': 'active',
-                                              'image_updated_at': datetime(2026, 1, 2, 3, 4, 5)}]
+        self.cursor.fetchall.return_value = [
+            {
+                'id': 1,
+                'name': 'A',
+                'primary_image_id': 2,
+                'image_status': 'active',
+                'image_updated_at': datetime(2026, 1, 2, 3, 4, 5),
+            }
+        ]
         body = self.client.get('/api/artists/manage/search', headers=self.headers).json()
         self.assertEqual(body['items'][0]['image_updated_at'], '2026-01-02T03:04:05')
         self.assertTrue(body['items'][0]['has_image'])
 
 
 class ListArtistImagesTest(ArtistImagesTestCase):
-
     def test_all_stored_images_are_listed(self):
         self.cursor.fetchone.return_value = {'id': 1, 'name': 'Angerfist', 'primary_image_id': 5}
         self.cursor.fetchall.return_value = [{'id': 5, 'cached_path': '/mnt/a.jpg'}]
@@ -173,16 +180,19 @@ class ListArtistImagesTest(ArtistImagesTestCase):
 
 
 class ManualImageTest(ArtistImagesTestCase):
-
     def setUp(self):
         super().setUp()
         self.storage_module = MagicMock()
         self.storage = self.storage_module.ImageStorage.return_value
-        self.storage.save_image.return_value = {'cached_path': '/mnt/a.jpg', 'public_path': '/media/a.jpg',
-                                                'width': 100, 'height': 100, 'mime_type': 'image/jpeg',
-                                                'file_size': 10}
-        patcher = patch.dict(sys.modules,
-                             {'services.music_manager.artist_image_fetcher.storage': self.storage_module})
+        self.storage.save_image.return_value = {
+            'cached_path': '/mnt/a.jpg',
+            'public_path': '/media/a.jpg',
+            'width': 100,
+            'height': 100,
+            'mime_type': 'image/jpeg',
+            'file_size': 10,
+        }
+        patcher = patch.dict(sys.modules, {'services.music_manager.artist_image_fetcher.storage': self.storage_module})
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -190,34 +200,37 @@ class ManualImageTest(ArtistImagesTestCase):
         self.storage_module.ImageDownloader.return_value.download.return_value = b'binary'
         self.cursor.fetchone.return_value = {'id': 1, 'name': 'Angerfist'}
         self.cursor.lastrowid = 9
-        body = self.client.post('/api/artists/1/image/url', headers=self.headers,
-                                json={'url': 'https://img.test/a.jpg'}).json()
+        body = self.client.post(
+            '/api/artists/1/image/url', headers=self.headers, json={'url': 'https://img.test/a.jpg'}
+        ).json()
         self.assertEqual(body['image_id'], 9)
         self.assertTrue(any('is_primary = 1' in s for s in self.statements()))
 
     def test_a_non_http_url_is_rejected(self):
-        response = self.client.post('/api/artists/1/image/url', headers=self.headers,
-                                    json={'url': 'ftp://img.test/a.jpg'})
+        response = self.client.post(
+            '/api/artists/1/image/url', headers=self.headers, json={'url': 'ftp://img.test/a.jpg'}
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_a_download_that_fails_is_reported(self):
         self.storage_module.ImageDownloader.return_value.download.side_effect = RuntimeError('404')
-        response = self.client.post('/api/artists/1/image/url', headers=self.headers,
-                                    json={'url': 'https://img.test/a.jpg'})
+        response = self.client.post(
+            '/api/artists/1/image/url', headers=self.headers, json={'url': 'https://img.test/a.jpg'}
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_a_download_that_yields_nothing_is_reported(self):
         self.storage_module.ImageDownloader.return_value.download.return_value = None
-        response = self.client.post('/api/artists/1/image/url', headers=self.headers,
-                                    json={'url': 'https://img.test/a.jpg'})
+        response = self.client.post(
+            '/api/artists/1/image/url', headers=self.headers, json={'url': 'https://img.test/a.jpg'}
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_base64_image_bytes_can_be_uploaded(self):
         self.cursor.fetchone.return_value = {'id': 1, 'name': 'Angerfist'}
         self.cursor.lastrowid = 9
         payload = base64.b64encode(b'binary').decode()
-        body = self.client.post('/api/artists/1/image/upload', headers=self.headers,
-                                json={'data': payload}).json()
+        body = self.client.post('/api/artists/1/image/upload', headers=self.headers, json={'data': payload}).json()
         self.assertEqual(body['image_id'], 9)
 
     def test_a_data_url_prefix_is_stripped(self):
@@ -229,8 +242,7 @@ class ManualImageTest(ArtistImagesTestCase):
         self.assertEqual(self.storage.save_image.call_args.args[2], b'binary')
 
     def test_data_that_is_not_base64_is_rejected(self):
-        response = self.client.post('/api/artists/1/image/upload', headers=self.headers,
-                                    json={'data': 'not base64!!'})
+        response = self.client.post('/api/artists/1/image/upload', headers=self.headers, json={'data': 'not base64!!'})
         self.assertEqual(response.status_code, 400)
 
     def test_empty_data_is_rejected(self):
@@ -252,7 +264,6 @@ class ManualImageTest(ArtistImagesTestCase):
 
 
 class PrimaryImageTest(ArtistImagesTestCase):
-
     def test_an_existing_image_can_be_promoted_to_primary(self):
         self.cursor.fetchone.return_value = {'id': 5}
         body = self.client.post('/api/artists/1/image/select/5', headers=self.headers).json()
@@ -276,11 +287,12 @@ class PrimaryImageTest(ArtistImagesTestCase):
 
 
 class ServeArtistImageTest(ArtistImagesTestCase):
-
     def test_a_cached_image_is_served_from_disk(self):
         self.cursor.fetchone.return_value = {'cached_path': '/mnt/a.jpg'}
-        with patch.object(artist_images_router.os.path, 'exists', return_value=True), \
-             patch.object(artist_images_router, 'FileResponse', return_value={'served': True}) as file_response:
+        with (
+            patch.object(artist_images_router.os.path, 'exists', return_value=True),
+            patch.object(artist_images_router, 'FileResponse', return_value={'served': True}) as file_response,
+        ):
             self.client.get('/api/artists/Angerfist/image')
         file_response.assert_called_once_with('/mnt/a.jpg')
 
@@ -295,14 +307,15 @@ class ServeArtistImageTest(ArtistImagesTestCase):
 
     def test_a_row_whose_file_disappeared_also_reports_not_found(self):
         self.cursor.fetchone.return_value = {'cached_path': '/mnt/gone.jpg'}
-        with patch.object(artist_images_router.os.path, 'exists', return_value=False), \
-             patch.object(artist_images_router, 'trigger_fetch'):
+        with (
+            patch.object(artist_images_router.os.path, 'exists', return_value=False),
+            patch.object(artist_images_router, 'trigger_fetch'),
+        ):
             response = self.client.get('/api/artists/Angerfist/image')
         self.assertEqual(response.status_code, 404)
 
 
 class FetchEndpointTest(ArtistImagesTestCase):
-
     def test_a_global_fetch_is_started_in_the_background(self):
         with patch.object(artist_images_router, 'run_fetch_missing') as task:
             body = self.client.post('/api/artists/fetch-missing', headers=self.headers).json()
@@ -324,7 +337,6 @@ class FetchEndpointTest(ArtistImagesTestCase):
 
 
 class BackgroundFetchTest(unittest.TestCase):
-
     def setUp(self):
         self.conn = MagicMock()
         self.cursor = MagicMock()
@@ -334,8 +346,7 @@ class BackgroundFetchTest(unittest.TestCase):
         self.fetcher = self.fetcher_module.ArtistImageFetcher.return_value
         patches = [
             patch.object(artist_images_router, 'get_db_connection', return_value=self.conn),
-            patch.dict(sys.modules,
-                       {'services.music_manager.artist_image_fetcher.fetcher': self.fetcher_module}),
+            patch.dict(sys.modules, {'services.music_manager.artist_image_fetcher.fetcher': self.fetcher_module}),
         ]
         for p in patches:
             p.start()
@@ -418,7 +429,7 @@ class BackgroundFetchTest(unittest.TestCase):
 
     def test_a_single_artist_fetch_by_name_looks_up_the_id(self):
         self.cursor.fetchone.return_value = {'id': 7}
-        artist_images_router.trigger_fetch(  'Angerfist')
+        artist_images_router.trigger_fetch('Angerfist')
         self.fetcher.fetch_for_artist.assert_called_once_with(7, 'Angerfist')
 
     def test_an_unknown_artist_name_fetches_nothing(self):
@@ -438,7 +449,6 @@ class BackgroundFetchTest(unittest.TestCase):
 
 
 class SyncImagesToServerTest(unittest.TestCase):
-
     def setUp(self):
         self.muma_conn = MagicMock()
         self.muma_cursor = MagicMock()
@@ -452,8 +462,14 @@ class SyncImagesToServerTest(unittest.TestCase):
             artist_images_router.sync_artist_images_to_server(self.muma_conn, self.server_conn)
 
     def image_row(self):
-        return {'artist_name': 'Angerfist', 'cached_path': '/mnt/a.jpg', 'width': 1, 'height': 1,
-                'mime_type': 'image/jpeg', 'file_size': 10}
+        return {
+            'artist_name': 'Angerfist',
+            'cached_path': '/mnt/a.jpg',
+            'width': 1,
+            'height': 1,
+            'mime_type': 'image/jpeg',
+            'file_size': 10,
+        }
 
     def test_a_new_image_and_artwork_row_are_created_and_linked(self):
         self.muma_cursor.fetchall.return_value = [self.image_row()]

@@ -7,7 +7,7 @@ import requests
 class DiscogsLookup:
     API_URL = 'https://api.discogs.com/database/search'
 
-    def __init__(self, token: str | None=None):
+    def __init__(self, token: str | None = None):
         self.name = 'Discogs'
         self.token = token or os.getenv('DISCOGS_TOKEN')
 
@@ -26,6 +26,7 @@ class DiscogsLookup:
             logging.error('Discogs lookup failed: %s', e)
         return False
 
+
 class MusicBrainzLookup:
     API_URL = 'https://musicbrainz.org/ws/2/artist'
 
@@ -34,7 +35,12 @@ class MusicBrainzLookup:
 
     def is_known_artist(self, name: str) -> bool:
         try:
-            response = requests.get(self.API_URL, params={'query': name, 'fmt': 'json', 'limit': 1}, headers={'User-Agent': 'MusicManagement/1.0 (codex@example.com)'}, timeout=5)
+            response = requests.get(
+                self.API_URL,
+                params={'query': name, 'fmt': 'json', 'limit': 1},
+                headers={'User-Agent': 'MusicManagement/1.0 (codex@example.com)'},
+                timeout=5,
+            )
             if response.status_code != 200:
                 return False
             data = response.json()
@@ -45,10 +51,11 @@ class MusicBrainzLookup:
             logging.error('MusicBrainz lookup failed: %s', e)
         return False
 
+
 class LastfmLookup:
     API_URL = 'https://ws.audioscrobbler.com/2.0/'
 
-    def __init__(self, api_key: str | None=None):
+    def __init__(self, api_key: str | None = None):
         self.name = 'Last.fm'
         self.api_key = api_key or os.getenv('LASTFM_API_KEY')
 
@@ -56,7 +63,11 @@ class LastfmLookup:
         if not self.api_key:
             return False
         try:
-            response = requests.get(self.API_URL, params={'method': 'artist.getinfo', 'artist': name, 'api_key': self.api_key, 'format': 'json'}, timeout=5)
+            response = requests.get(
+                self.API_URL,
+                params={'method': 'artist.getinfo', 'artist': name, 'api_key': self.api_key, 'format': 'json'},
+                timeout=5,
+            )
             if response.status_code != 200:
                 return False
             data = response.json()
@@ -67,11 +78,12 @@ class LastfmLookup:
             logging.error('Last.fm lookup failed: %s', e)
         return False
 
+
 class SpotifyLookup:
     TOKEN_URL = 'https://accounts.spotify.com/api/token'
     SEARCH_URL = 'https://api.spotify.com/v1/search'
 
-    def __init__(self, client_id: str | None=None, client_secret: str | None=None):
+    def __init__(self, client_id: str | None = None, client_secret: str | None = None):
         self.name = 'Spotify'
         self.client_id = client_id or os.getenv('SPOTIFY_CLIENT_ID')
         self.client_secret = client_secret or os.getenv('SPOTIFY_CLIENT_SECRET')
@@ -83,7 +95,12 @@ class SpotifyLookup:
         if not self.client_id or not self.client_secret:
             return None
         try:
-            resp = requests.post(self.TOKEN_URL, data={'grant_type': 'client_credentials'}, auth=(self.client_id, self.client_secret), timeout=5)
+            resp = requests.post(
+                self.TOKEN_URL,
+                data={'grant_type': 'client_credentials'},
+                auth=(self.client_id, self.client_secret),
+                timeout=5,
+            )
             if resp.status_code == 200:
                 self._token = resp.json().get('access_token')
         except Exception as e:
@@ -95,7 +112,12 @@ class SpotifyLookup:
         if not token:
             return False
         try:
-            response = requests.get(self.SEARCH_URL, params={'q': name, 'type': 'artist', 'limit': 1}, headers={'Authorization': f'Bearer {token}'}, timeout=5)
+            response = requests.get(
+                self.SEARCH_URL,
+                params={'q': name, 'type': 'artist', 'limit': 1},
+                headers={'Authorization': f'Bearer {token}'},
+                timeout=5,
+            )
             if response.status_code != 200:
                 return False
             data = response.json()
@@ -106,6 +128,7 @@ class SpotifyLookup:
         except Exception as e:
             logging.error('Spotify lookup failed: %s', e)
         return False
+
 
 class ExternalArtistLookup:
     """Check if an artist exists on various external music services."""

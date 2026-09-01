@@ -9,12 +9,10 @@ from tools import db_restore_check
 
 
 class TargetDatabaseTest(unittest.TestCase):
-
     def test_defaults_to_a_suffixed_name(self):
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop('RESTORE_CHECK_DB', None)
-            self.assertEqual(db_restore_check.target_database('music-management'),
-                             'music-management_restore_check')
+            self.assertEqual(db_restore_check.target_database('music-management'), 'music-management_restore_check')
 
     def test_refuses_to_restore_over_the_live_database(self):
         """The whole point of naming the target is that this cannot happen."""
@@ -25,7 +23,6 @@ class TargetDatabaseTest(unittest.TestCase):
 
 
 class CompareTest(unittest.TestCase):
-
     def test_matching_counts_produce_no_problems(self):
         recorded = {'tracks': 1000, 'events': 500}
         self.assertEqual(db_restore_check.compare(recorded, dict(recorded)), [])
@@ -64,40 +61,50 @@ class CompareTest(unittest.TestCase):
 
 
 class MainTest(unittest.TestCase):
-
     def setUp(self):
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.dest = Path(self.tmp.name)
         dump = self.dest / 'muma_db_20260831_030000.sql.gz'
         dump.write_bytes(b'irrelevant, the restore is mocked')
-        (self.dest / 'latest.json').write_text(json.dumps({
-            'file': dump.name,
-            'finished_at': '2026-08-31T03:10:00+00:00',
-            'row_counts': {'tracks': 1000},
-        }))
-        env = {'BACKUP_PATH': str(self.dest), 'DB_DB': 'music-management',
-               'DB_USER': 'u', 'DB_PASS': 'p', 'DB_HOST': 'db'}
+        (self.dest / 'latest.json').write_text(
+            json.dumps(
+                {
+                    'file': dump.name,
+                    'finished_at': '2026-08-31T03:10:00+00:00',
+                    'row_counts': {'tracks': 1000},
+                }
+            )
+        )
+        env = {
+            'BACKUP_PATH': str(self.dest),
+            'DB_DB': 'music-management',
+            'DB_USER': 'u',
+            'DB_PASS': 'p',
+            'DB_HOST': 'db',
+        }
         patcher = patch.dict(os.environ, env, clear=False)
         patcher.start()
         self.addCleanup(patcher.stop)
         os.environ.pop('RESTORE_CHECK_DB', None)
 
     def test_a_matching_restore_passes_quietly(self):
-        with patch.object(db_restore_check, '_run_sql', return_value=''), \
-                patch.object(db_restore_check, 'restore'), \
-                patch.object(db_restore_check, 'restored_counts',
-                             return_value={'tracks': 1000}), \
-                patch.object(db_restore_check, 'alert') as alert:
+        with (
+            patch.object(db_restore_check, '_run_sql', return_value=''),
+            patch.object(db_restore_check, 'restore'),
+            patch.object(db_restore_check, 'restored_counts', return_value={'tracks': 1000}),
+            patch.object(db_restore_check, 'alert') as alert,
+        ):
             self.assertEqual(db_restore_check.main([]), 0)
         alert.assert_not_called()
 
     def test_a_mismatch_alerts_with_the_detail(self):
-        with patch.object(db_restore_check, '_run_sql', return_value=''), \
-                patch.object(db_restore_check, 'restore'), \
-                patch.object(db_restore_check, 'restored_counts',
-                             return_value={'tracks': 3}), \
-                patch.object(db_restore_check, 'alert') as alert:
+        with (
+            patch.object(db_restore_check, '_run_sql', return_value=''),
+            patch.object(db_restore_check, 'restore'),
+            patch.object(db_restore_check, 'restored_counts', return_value={'tracks': 3}),
+            patch.object(db_restore_check, 'alert') as alert,
+        ):
             self.assertEqual(db_restore_check.main([]), 1)
         alert.assert_called_once()
         self.assertIn('tracks: 3 rows restored, 1000 recorded', alert.call_args[0][1])
@@ -110,10 +117,11 @@ class MainTest(unittest.TestCase):
             statements.append(sql)
             return ''
 
-        with patch.object(db_restore_check, '_run_sql', record), \
-                patch.object(db_restore_check, 'restore',
-                             side_effect=db_restore_check.RestoreCheckError('boom')), \
-                patch.object(db_restore_check, 'alert'):
+        with (
+            patch.object(db_restore_check, '_run_sql', record),
+            patch.object(db_restore_check, 'restore', side_effect=db_restore_check.RestoreCheckError('boom')),
+            patch.object(db_restore_check, 'alert'),
+        ):
             self.assertEqual(db_restore_check.main([]), 1)
         drops = [s for s in statements if s.startswith('DROP DATABASE')]
         self.assertEqual(len(drops), 2, 'expected a drop before and after the restore')

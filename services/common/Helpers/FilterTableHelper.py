@@ -14,7 +14,7 @@ class FilterTableHelper:
     entering the library under three different casings.
     """
 
-    def __init__(self, table_name: str, column_name: str, corrected_column_name: str, preload: bool=True):
+    def __init__(self, table_name: str, column_name: str, corrected_column_name: str, preload: bool = True):
         self.table_name = table_name
         self.column_name = column_name
         self.corrected_column_name = corrected_column_name
@@ -100,8 +100,10 @@ class FilterTableHelper:
             if normalized in self._canonical_map:
                 return str(self._canonical_map[normalized])
             return False
-        query = (f'SELECT {self.column_name}, {self.corrected_column_name} FROM {self.table_name} '
-                 f'WHERE LOWER({self.column_name}) = LOWER(%s) LIMIT 1')
+        query = (
+            f'SELECT {self.column_name}, {self.corrected_column_name} FROM {self.table_name} '
+            f'WHERE LOWER({self.column_name}) = LOWER(%s) LIMIT 1'
+        )
         connection = self.db_connector.connect()
         try:
             with connection.cursor() as cursor:
@@ -117,7 +119,7 @@ class FilterTableHelper:
         finally:
             connection.close()
 
-    def add(self, key: str, corrected: str | None=None) -> bool:
+    def add(self, key: str, corrected: str | None = None) -> bool:
         key = key.strip()
         values = [key]
         columns = [self.column_name]

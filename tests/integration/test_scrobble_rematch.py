@@ -5,6 +5,7 @@ cursor everywhere else, so it can prove which SQL is produced but not that
 MariaDB accepts it -- and this change adds an ENUM, a CASE expression built at
 runtime, and four new indexed columns. This is where those fail instead.
 """
+
 import pytest
 
 from services.music_manager import scrobble_rematch
@@ -16,15 +17,13 @@ pytestmark = pytest.mark.integration
 @pytest.fixture()
 def library(database):
     with database.cursor() as cursor:
-        for table in ('scrobble_listens', 'scrobble_unmatched_listens',
-                      'library_tracks', 'library_artists'):
+        for table in ('scrobble_listens', 'scrobble_unmatched_listens', 'library_tracks', 'library_artists'):
             cursor.execute(f'DELETE FROM {table}')
 
         cursor.execute('INSERT INTO library_artists (name) VALUES (%s)', ('Angerfist',))
         artist_id = cursor.lastrowid
         cursor.execute(
-            'INSERT INTO library_tracks (track_uid, title, primary_artist_id) '
-            'VALUES (%s, %s, %s)',
+            'INSERT INTO library_tracks (track_uid, title, primary_artist_id) VALUES (%s, %s, %s)',
             ('uid-1', 'Raise Your Fist', artist_id),
         )
         track_id = cursor.lastrowid

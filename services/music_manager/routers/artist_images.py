@@ -14,12 +14,14 @@ router = APIRouter(tags=['artists'])
 logger = logging.getLogger(__name__)
 fetch_progress = {'active': False, 'total': 0, 'current': 0, 'last_artist': None, 'status': 'idle', 'message': None}
 
-def verify_api_key(x_api_key: str | None=Header(None)):
+
+def verify_api_key(x_api_key: str | None = Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
     if is_system_api_key(x_api_key):
         return {'type': 'system'}
     from services.music_manager.routers.users import verify_token
+
     try:
         res = verify_token(x_api_key)
         if res.get('status') == 'ok':
@@ -27,52 +29,77 @@ def verify_api_key(x_api_key: str | None=Header(None)):
     except Exception:
         pass
     raise HTTPException(status_code=401, detail='Invalid API key')
+
+
 STORAGE_PATH = os.getenv('STORAGE_PATH', '/mnt/music/artists')
 
+
 def init_db(cursor):
-    cursor.execute('\n        CREATE TABLE IF NOT EXISTS library_artist_images (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            artist_id INT NOT NULL,\n            source VARCHAR(50),\n            source_id VARCHAR(255),\n            original_url TEXT,\n            cached_path TEXT,\n            public_path TEXT,\n            width INT,\n            height INT,\n            mime_type VARCHAR(50),\n            file_size INT,\n            confidence INT DEFAULT 0,\n            is_primary TINYINT(1) DEFAULT 0,\n            created_at DATETIME,\n            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            INDEX (artist_id),\n            INDEX (is_primary)\n        )\n    ')
+    cursor.execute(
+        '\n        CREATE TABLE IF NOT EXISTS library_artist_images (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            artist_id INT NOT NULL,\n            source VARCHAR(50),\n            source_id VARCHAR(255),\n            original_url TEXT,\n            cached_path TEXT,\n            public_path TEXT,\n            width INT,\n            height INT,\n            mime_type VARCHAR(50),\n            file_size INT,\n            confidence INT DEFAULT 0,\n            is_primary TINYINT(1) DEFAULT 0,\n            created_at DATETIME,\n            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            INDEX (artist_id),\n            INDEX (is_primary)\n        )\n    '
+    )
     # external_url and verified are in production but were missing here, so a fresh
     # database got a narrower table than the code reads from. See migrate_v13 for the
     # matching ALTER on databases that already have the narrow shape.
-    cursor.execute('\n        CREATE TABLE IF NOT EXISTS artist_external_ids (\n            artist_id INT NOT NULL,\n            source VARCHAR(50) NOT NULL,\n            external_id VARCHAR(255) NOT NULL,\n            external_url TEXT NULL,\n            verified TINYINT(1) NOT NULL DEFAULT 0,\n            created_at DATETIME,\n            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            PRIMARY KEY (artist_id, source)\n        )\n    ')
-    columns_to_add = [('primary_image_id', 'INT NULL'), ('image_updated_at', 'DATETIME NULL'), ('image_status', 'VARCHAR(50) NULL'), ('mbid', 'VARCHAR(100) NULL')]
+    cursor.execute(
+        '\n        CREATE TABLE IF NOT EXISTS artist_external_ids (\n            artist_id INT NOT NULL,\n            source VARCHAR(50) NOT NULL,\n            external_id VARCHAR(255) NOT NULL,\n            external_url TEXT NULL,\n            verified TINYINT(1) NOT NULL DEFAULT 0,\n            created_at DATETIME,\n            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            PRIMARY KEY (artist_id, source)\n        )\n    '
+    )
+    columns_to_add = [
+        ('primary_image_id', 'INT NULL'),
+        ('image_updated_at', 'DATETIME NULL'),
+        ('image_status', 'VARCHAR(50) NULL'),
+        ('mbid', 'VARCHAR(100) NULL'),
+    ]
     for col_name, col_type in columns_to_add:
         cursor.execute(f"SHOW COLUMNS FROM library_artists LIKE '{col_name}'")
         if not cursor.fetchone():
             cursor.execute(f'ALTER TABLE library_artists ADD COLUMN {col_name} {col_type}')
 
+
 @router.get('/search')
-def search_artist_images(q: str='', _auth: dict=Depends(verify_api_key)):
+def search_artist_images(q: str = '', _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             if q == '':
-                cursor.execute('\n                    SELECT a.id, a.name, a.primary_image_id, i.width, i.height, i.mime_type, a.image_status\n                    FROM library_artists a\n                    JOIN library_artist_images i ON a.primary_image_id = i.id\n                    ORDER BY a.name\n                    LIMIT 100\n                ')
+                cursor.execute(
+                    '\n                    SELECT a.id, a.name, a.primary_image_id, i.width, i.height, i.mime_type, a.image_status\n                    FROM library_artists a\n                    JOIN library_artist_images i ON a.primary_image_id = i.id\n                    ORDER BY a.name\n                    LIMIT 100\n                '
+                )
             else:
-                cursor.execute('\n                    SELECT a.id, a.name, a.primary_image_id, i.width, i.height, i.mime_type, a.image_status\n                    FROM library_artists a\n                    JOIN library_artist_images i ON a.primary_image_id = i.id\n                    WHERE a.name LIKE %s\n                    ORDER BY a.name\n                    LIMIT 100\n                ', (f'%{q}%',))
+                cursor.execute(
+                    '\n                    SELECT a.id, a.name, a.primary_image_id, i.width, i.height, i.mime_type, a.image_status\n                    FROM library_artists a\n                    JOIN library_artist_images i ON a.primary_image_id = i.id\n                    WHERE a.name LIKE %s\n                    ORDER BY a.name\n                    LIMIT 100\n                ',
+                    (f'%{q}%',),
+                )
             return cursor.fetchall()
     finally:
         conn.close()
+
 
 @router.get('/search-all')
-def search_all_artists(q: str='', _auth: dict=Depends(verify_api_key)):
+def search_all_artists(q: str = '', _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             if q == '':
-                cursor.execute('\n                    SELECT a.id, a.name, a.primary_image_id, a.image_status\n                    FROM library_artists a\n                    ORDER BY a.name\n                    LIMIT 100\n                ')
+                cursor.execute(
+                    '\n                    SELECT a.id, a.name, a.primary_image_id, a.image_status\n                    FROM library_artists a\n                    ORDER BY a.name\n                    LIMIT 100\n                '
+                )
             else:
-                cursor.execute('\n                    SELECT a.id, a.name, a.primary_image_id, a.image_status\n                    FROM library_artists a\n                    WHERE a.name LIKE %s\n                    ORDER BY a.name\n                    LIMIT 100\n                ', (f'%{q}%',))
+                cursor.execute(
+                    '\n                    SELECT a.id, a.name, a.primary_image_id, a.image_status\n                    FROM library_artists a\n                    WHERE a.name LIKE %s\n                    ORDER BY a.name\n                    LIMIT 100\n                ',
+                    (f'%{q}%',),
+                )
             return cursor.fetchall()
     finally:
         conn.close()
 
+
 @router.get('/images/stats')
-def get_artist_image_stats(_auth: dict=Depends(verify_api_key)):
+def get_artist_image_stats(_auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
@@ -82,13 +109,19 @@ def get_artist_image_stats(_auth: dict=Depends(verify_api_key)):
             total = cursor.fetchone()['total']
             cursor.execute('SELECT COUNT(*) as with_image FROM library_artists WHERE primary_image_id IS NOT NULL')
             with_image = cursor.fetchone()['with_image']
-            return {'total_artists': total, 'artists_with_images': with_image, 'artists_without_images': total - with_image}
+            return {
+                'total_artists': total,
+                'artists_with_images': with_image,
+                'artists_without_images': total - with_image,
+            }
     finally:
         conn.close()
 
+
 @router.get('/fetch-progress')
-def get_fetch_progress(_auth: dict=Depends(verify_api_key)):
+def get_fetch_progress(_auth: dict = Depends(verify_api_key)):
     return fetch_progress
+
 
 # --- Artist image manager -------------------------------------------------
 #
@@ -99,8 +132,10 @@ def get_fetch_progress(_auth: dict=Depends(verify_api_key)):
 #     ("/image/url", "/image/upload", "/image/clear", "/image/select/{id}");
 #   * DELETE is forwarded to MuMa as a POST, so mutations are POST-only.
 
+
 class ArtistImageUrlRequest(BaseModel):
     url: str
+
 
 class ArtistImageUploadRequest(BaseModel):
     filename: str | None = None
@@ -109,10 +144,14 @@ class ArtistImageUploadRequest(BaseModel):
     # uploads would be corrupted in transit.
     data: str
 
+
 MANAGE_SEARCH_MAX_LIMIT = 200
 
+
 @router.get('/manage/search')
-def manage_search_artists(q: str='', only: str='all', limit: int=60, offset: int=0, _auth: dict=Depends(verify_api_key)):
+def manage_search_artists(
+    q: str = '', only: str = 'all', limit: int = 60, offset: int = 0, _auth: dict = Depends(verify_api_key)
+):
     """Single search endpoint for the artist image manager.
 
     Unlike ``/search`` (only artists that already have an image) and ``/search-all``
@@ -142,7 +181,8 @@ def manage_search_artists(q: str='', only: str='all', limit: int=60, offset: int
             cursor.execute(f'SELECT COUNT(*) AS total FROM library_artists a {where_sql}', tuple(params))
             row = cursor.fetchone()
             total = (row or {}).get('total', 0)
-            cursor.execute(f'''
+            cursor.execute(
+                f'''
                 SELECT a.id, a.name, a.primary_image_id, a.image_status, a.image_updated_at,
                        i.width, i.height, i.mime_type, i.file_size, i.source, i.original_url
                 FROM library_artists a
@@ -150,30 +190,35 @@ def manage_search_artists(q: str='', only: str='all', limit: int=60, offset: int
                 {where_sql}
                 ORDER BY a.name
                 LIMIT %s OFFSET %s
-            ''', tuple(params) + (limit, offset))
+            ''',
+                tuple(params) + (limit, offset),
+            )
             items = []
             for artist in cursor.fetchall():
                 updated_at = artist.get('image_updated_at')
-                items.append({
-                    'id': artist['id'],
-                    'name': artist['name'],
-                    'primary_image_id': artist['primary_image_id'],
-                    'has_image': artist['primary_image_id'] is not None,
-                    'image_status': artist['image_status'],
-                    'image_updated_at': updated_at.isoformat() if hasattr(updated_at, 'isoformat') else updated_at,
-                    'width': artist.get('width'),
-                    'height': artist.get('height'),
-                    'mime_type': artist.get('mime_type'),
-                    'file_size': artist.get('file_size'),
-                    'source': artist.get('source'),
-                    'original_url': artist.get('original_url')
-                })
+                items.append(
+                    {
+                        'id': artist['id'],
+                        'name': artist['name'],
+                        'primary_image_id': artist['primary_image_id'],
+                        'has_image': artist['primary_image_id'] is not None,
+                        'image_status': artist['image_status'],
+                        'image_updated_at': updated_at.isoformat() if hasattr(updated_at, 'isoformat') else updated_at,
+                        'width': artist.get('width'),
+                        'height': artist.get('height'),
+                        'mime_type': artist.get('mime_type'),
+                        'file_size': artist.get('file_size'),
+                        'source': artist.get('source'),
+                        'original_url': artist.get('original_url'),
+                    }
+                )
             return {'items': items, 'total': total, 'limit': limit, 'offset': offset}
     finally:
         conn.close()
 
+
 @router.get('/{artist_id}/images')
-def list_artist_images(artist_id: int, _auth: dict=Depends(verify_api_key)):
+def list_artist_images(artist_id: int, _auth: dict = Depends(verify_api_key)):
     """All images stored for one artist, so the manager can switch the primary one."""
     conn = get_db_connection()
     if not conn:
@@ -184,34 +229,48 @@ def list_artist_images(artist_id: int, _auth: dict=Depends(verify_api_key)):
             artist = cursor.fetchone()
             if not artist:
                 raise HTTPException(status_code=404, detail='Artist not found')
-            cursor.execute('''
+            cursor.execute(
+                '''
                 SELECT id, source, source_id, original_url, cached_path, public_path,
                        width, height, mime_type, file_size, confidence, is_primary
                 FROM library_artist_images
                 WHERE artist_id = %s
                 ORDER BY is_primary DESC, confidence DESC, id DESC
-            ''', (artist_id,))
+            ''',
+                (artist_id,),
+            )
             images = []
             for image in cursor.fetchall():
                 image = dict(image)
                 image['exists_on_disk'] = bool(image.get('cached_path')) and os.path.exists(image['cached_path'])
                 images.append(image)
-            return {'artist_id': artist['id'], 'artist_name': artist['name'], 'primary_image_id': artist['primary_image_id'], 'images': images}
+            return {
+                'artist_id': artist['id'],
+                'artist_name': artist['name'],
+                'primary_image_id': artist['primary_image_id'],
+                'images': images,
+            }
     finally:
         conn.close()
+
 
 def _set_primary_image(cursor, artist_id: int, image_id: int):
     cursor.execute('UPDATE library_artist_images SET is_primary = 0 WHERE artist_id = %s', (artist_id,))
     cursor.execute('UPDATE library_artist_images SET is_primary = 1 WHERE id = %s', (image_id,))
-    cursor.execute("""
+    cursor.execute(
+        """
         UPDATE library_artists
         SET primary_image_id = %s, image_updated_at = NOW(), image_status = 'active'
         WHERE id = %s
-    """, (image_id, artist_id))
+    """,
+        (image_id, artist_id),
+    )
 
-def _store_manual_image(artist_id: int, image_data: bytes, original_url: str | None=None):
+
+def _store_manual_image(artist_id: int, image_data: bytes, original_url: str | None = None):
     """Saves manually supplied image bytes and makes them the artist's primary image."""
     from services.music_manager.artist_image_fetcher.storage import ImageStorage
+
     storage_path = os.getenv('ARTIST_IMAGE_STORAGE_PATH') or os.getenv('STORAGE_PATH') or '/mnt/music/artists'
     public_base_url = os.getenv('ARTIST_IMAGE_PUBLIC_BASE_URL', '/media/artist-images')
     storage = ImageStorage(storage_path, public_base_url)
@@ -230,25 +289,51 @@ def _store_manual_image(artist_id: int, image_data: bytes, original_url: str | N
             logger.error(f'Failed to store manual image for artist {artist_id}: {e}')
             raise HTTPException(status_code=400, detail=f'Could not process image: {e}') from e
         with conn.cursor() as cursor:
-            cursor.execute('''
+            cursor.execute(
+                '''
                 INSERT INTO library_artist_images
                 (artist_id, source, source_id, original_url, cached_path, public_path,
                  width, height, mime_type, file_size, confidence, created_at)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-            ''', (artist_id, 'manual', None, original_url, meta['cached_path'], meta['public_path'], meta['width'], meta['height'], meta['mime_type'], meta['file_size'], 100))
+            ''',
+                (
+                    artist_id,
+                    'manual',
+                    None,
+                    original_url,
+                    meta['cached_path'],
+                    meta['public_path'],
+                    meta['width'],
+                    meta['height'],
+                    meta['mime_type'],
+                    meta['file_size'],
+                    100,
+                ),
+            )
             image_id = cursor.lastrowid
             _set_primary_image(cursor, artist_id, image_id)
         conn.commit()
-        return {'status': 'ok', 'artist_id': artist_id, 'artist_name': artist['name'], 'image_id': image_id, 'width': meta['width'], 'height': meta['height'], 'mime_type': meta['mime_type'], 'file_size': meta['file_size']}
+        return {
+            'status': 'ok',
+            'artist_id': artist_id,
+            'artist_name': artist['name'],
+            'image_id': image_id,
+            'width': meta['width'],
+            'height': meta['height'],
+            'mime_type': meta['mime_type'],
+            'file_size': meta['file_size'],
+        }
     finally:
         conn.close()
 
+
 @router.post('/{artist_id}/image/url')
-def set_artist_image_from_url(artist_id: int, req: ArtistImageUrlRequest, _auth: dict=Depends(verify_api_key)):
+def set_artist_image_from_url(artist_id: int, req: ArtistImageUrlRequest, _auth: dict = Depends(verify_api_key)):
     url = (req.url or '').strip()
     if not url.lower().startswith(('http://', 'https://')):
         raise HTTPException(status_code=400, detail='Only http(s) image URLs are supported')
     from services.music_manager.artist_image_fetcher.storage import ImageDownloader
+
     try:
         image_data = ImageDownloader().download(url)
     except Exception as e:
@@ -257,8 +342,9 @@ def set_artist_image_from_url(artist_id: int, req: ArtistImageUrlRequest, _auth:
         raise HTTPException(status_code=400, detail='Could not download image')
     return _store_manual_image(artist_id, image_data, original_url=url)
 
+
 @router.post('/{artist_id}/image/upload')
-def upload_artist_image(artist_id: int, req: ArtistImageUploadRequest, _auth: dict=Depends(verify_api_key)):
+def upload_artist_image(artist_id: int, req: ArtistImageUploadRequest, _auth: dict = Depends(verify_api_key)):
     payload = (req.data or '').strip()
     if ',' in payload and payload.lower().startswith('data:'):
         payload = payload.split(',', 1)[1]
@@ -270,14 +356,17 @@ def upload_artist_image(artist_id: int, req: ArtistImageUploadRequest, _auth: di
         raise HTTPException(status_code=400, detail='Image data is empty')
     return _store_manual_image(artist_id, image_data)
 
+
 @router.post('/{artist_id}/image/select/{image_id}')
-def select_artist_primary_image(artist_id: int, image_id: int, _auth: dict=Depends(verify_api_key)):
+def select_artist_primary_image(artist_id: int, image_id: int, _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT id FROM library_artist_images WHERE id = %s AND artist_id = %s', (image_id, artist_id))
+            cursor.execute(
+                'SELECT id FROM library_artist_images WHERE id = %s AND artist_id = %s', (image_id, artist_id)
+            )
             if not cursor.fetchone():
                 raise HTTPException(status_code=404, detail='Image not found for this artist')
             _set_primary_image(cursor, artist_id, image_id)
@@ -286,8 +375,9 @@ def select_artist_primary_image(artist_id: int, image_id: int, _auth: dict=Depen
     finally:
         conn.close()
 
+
 @router.post('/{artist_id}/image/clear')
-def clear_artist_primary_image(artist_id: int, _auth: dict=Depends(verify_api_key)):
+def clear_artist_primary_image(artist_id: int, _auth: dict = Depends(verify_api_key)):
     """Unsets the artist's primary image.
 
     The stored image rows and files are kept so a previously fetched image can be
@@ -302,15 +392,19 @@ def clear_artist_primary_image(artist_id: int, _auth: dict=Depends(verify_api_ke
             if not cursor.fetchone():
                 raise HTTPException(status_code=404, detail='Artist not found')
             cursor.execute('UPDATE library_artist_images SET is_primary = 0 WHERE artist_id = %s', (artist_id,))
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE library_artists
                 SET primary_image_id = NULL, image_updated_at = NOW(), image_status = 'none'
                 WHERE id = %s
-            """, (artist_id,))
+            """,
+                (artist_id,),
+            )
         conn.commit()
         return {'status': 'ok', 'artist_id': artist_id}
     finally:
         conn.close()
+
 
 @router.get('/{artist_name}/image')
 def get_artist_image(artist_name: str, background_tasks: BackgroundTasks):
@@ -319,7 +413,10 @@ def get_artist_image(artist_name: str, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=500, detail='Database connection failed')
     try:
         with conn.cursor() as cursor:
-            cursor.execute('\n                SELECT i.cached_path\n                FROM library_artists a\n                JOIN library_artist_images i ON a.primary_image_id = i.id\n                WHERE a.name = %s\n            ', (artist_name,))
+            cursor.execute(
+                '\n                SELECT i.cached_path\n                FROM library_artists a\n                JOIN library_artist_images i ON a.primary_image_id = i.id\n                WHERE a.name = %s\n            ',
+                (artist_name,),
+            )
             row = cursor.fetchone()
             if row and row['cached_path'] and os.path.exists(row['cached_path']):
                 return FileResponse(row['cached_path'])
@@ -328,9 +425,10 @@ def get_artist_image(artist_name: str, background_tasks: BackgroundTasks):
     finally:
         conn.close()
 
+
 @router.post('/fetch-missing')
 @router.post('/fetch-images')
-def fetch_missing_images(background_tasks: BackgroundTasks, _auth: dict=Depends(verify_api_key)):
+def fetch_missing_images(background_tasks: BackgroundTasks, _auth: dict = Depends(verify_api_key)):
     """
     Triggers a background task to fetch missing artist images for all artists.
     """
@@ -341,17 +439,29 @@ def fetch_missing_images(background_tasks: BackgroundTasks, _auth: dict=Depends(
     background_tasks.add_task(run_fetch_missing)
     return {'status': 'ok', 'message': 'Fetching missing artist images started in background'}
 
+
 @router.post('/{artist_id}/fetch-image')
-def fetch_artist_image_manual(artist_id: int, background_tasks: BackgroundTasks, _auth: dict=Depends(verify_api_key)):
+def fetch_artist_image_manual(artist_id: int, background_tasks: BackgroundTasks, _auth: dict = Depends(verify_api_key)):
     background_tasks.add_task(trigger_fetch_by_id, artist_id)
     return {'status': 'ok', 'message': f'Fetching image for artist ID {artist_id} started'}
 
+
 def run_fetch_missing():
     logger.info('Background task run_fetch_missing started')
-    fetch_progress.update({'active': True, 'total': 0, 'current': 0, 'last_artist': None, 'status': 'initializing', 'message': 'Starting background fetch process...'})
+    fetch_progress.update(
+        {
+            'active': True,
+            'total': 0,
+            'current': 0,
+            'last_artist': None,
+            'status': 'initializing',
+            'message': 'Starting background fetch process...',
+        }
+    )
     try:
         logger.info('Importing ArtistImageFetcher...')
         from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetcher
+
         logger.info('Connecting to database...')
         conn = get_db_connection()
         if not conn:
@@ -372,7 +482,8 @@ def run_fetch_missing():
                 # become findable in the meantime, so the retry only cost a third-party API
                 # several seconds per artist, forever.
                 retry_after_days = int(os.getenv('ARTIST_IMAGE_RETRY_AFTER_DAYS', '30'))
-                cursor.execute('''
+                cursor.execute(
+                    '''
                     SELECT id, name
                     FROM library_artists
                     WHERE primary_image_id IS NULL
@@ -381,15 +492,30 @@ def run_fetch_missing():
                            OR image_updated_at IS NULL
                            OR image_updated_at < NOW() - INTERVAL %s DAY)
                     ORDER BY image_updated_at ASC, name ASC
-                ''', (retry_after_days,))
+                ''',
+                    (retry_after_days,),
+                )
                 artists = cursor.fetchall()
-                logger.info(f'Query returned {len(artists)} artists needing images '
-                            f'(no image, and no failed attempt in the last {retry_after_days} days)')
+                logger.info(
+                    f'Query returned {len(artists)} artists needing images '
+                    f'(no image, and no failed attempt in the last {retry_after_days} days)'
+                )
                 if not artists:
                     logger.info('No artists found with missing images.')
-                    fetch_progress.update({'active': False, 'status': 'completed', 'message': 'No artists found with missing images.'})
+                    fetch_progress.update(
+                        {'active': False, 'status': 'completed', 'message': 'No artists found with missing images.'}
+                    )
                     return
-                fetch_progress.update({'active': True, 'total': len(artists), 'current': 0, 'last_artist': None, 'status': 'running', 'message': f'Processing {len(artists)} artists'})
+                fetch_progress.update(
+                    {
+                        'active': True,
+                        'total': len(artists),
+                        'current': 0,
+                        'last_artist': None,
+                        'status': 'running',
+                        'message': f'Processing {len(artists)} artists',
+                    }
+                )
                 logger.info(f'Starting background fetch for {len(artists)} artists')
                 success_count = 0
                 failed_count = 0
@@ -406,13 +532,22 @@ def run_fetch_missing():
                         logger.error(f"Failed to fetch for {artist['name']}: {e}")
                         failed_count += 1
                 logger.info('Background fetch for missing artist images completed.')
-                fetch_progress.update({'active': False, 'status': 'completed', 'message': f'Completed: {success_count} succeeded, {failed_count} failed'})
+                fetch_progress.update(
+                    {
+                        'active': False,
+                        'status': 'completed',
+                        'message': f'Completed: {success_count} succeeded, {failed_count} failed',
+                    }
+                )
                 try:
                     from services.common.Helpers.EventService import event_service
+
                     event_service.emit(
-                        level='INFO', title='Artist Image Fetcher',
+                        level='INFO',
+                        title='Artist Image Fetcher',
                         message=f'Background fetch completed.\nSucceeded: {success_count}\nFailed: {failed_count}',
-                        source='music-manager', context={'succeeded': success_count, 'failed': failed_count},
+                        source='music-manager',
+                        context={'succeeded': success_count, 'failed': failed_count},
                         push=True,
                     )
                 except Exception as e:
@@ -423,9 +558,11 @@ def run_fetch_missing():
         logger.error(f'Global background fetch failed: {e}')
         fetch_progress.update({'active': False, 'status': 'failed', 'message': str(e)})
 
+
 def trigger_fetch_by_id(artist_id: int):
     try:
         from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetcher
+
         conn = get_db_connection()
         if not conn:
             return
@@ -441,9 +578,11 @@ def trigger_fetch_by_id(artist_id: int):
     except Exception as e:
         print(f'Background fetch failed for artist ID {artist_id}: {e}')
 
+
 def trigger_fetch(artist_name: str):
     try:
         from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetcher
+
         conn = get_db_connection()
         if not conn:
             return
@@ -459,6 +598,7 @@ def trigger_fetch(artist_name: str):
     except Exception as e:
         print(f'Background fetch failed for {artist_name}: {e}')
 
+
 def sync_artist_images_to_server(muma_conn, server_conn):
     """
     Syncs primary artist images from MuMa MariaDB to Music Management Server SQLite DB.
@@ -466,7 +606,9 @@ def sync_artist_images_to_server(muma_conn, server_conn):
     print('Syncing artist images to Music Management Server...')
     try:
         with muma_conn.cursor() as muma_cursor:
-            muma_cursor.execute('\n                SELECT a.name as artist_name, i.cached_path, i.width, i.height, i.mime_type, i.file_size\n                FROM library_artists a\n                JOIN library_artist_images i ON a.primary_image_id = i.id\n                WHERE i.cached_path IS NOT NULL\n            ')
+            muma_cursor.execute(
+                '\n                SELECT a.name as artist_name, i.cached_path, i.width, i.height, i.mime_type, i.file_size\n                FROM library_artists a\n                JOIN library_artist_images i ON a.primary_image_id = i.id\n                WHERE i.cached_path IS NOT NULL\n            '
+            )
             images = muma_cursor.fetchall()
             server_cursor = server_conn.cursor()
             for img in images:
@@ -484,7 +626,10 @@ def sync_artist_images_to_server(muma_conn, server_conn):
                     image_id = image_row[0]
                 else:
                     stem = os.path.splitext(os.path.basename(abs_path))[0]
-                    server_cursor.execute('\n                        INSERT INTO image (version, absolute_file_path, stem, file_size, width, height, mime_type)\n                        VALUES (?, ?, ?, ?, ?, ?, ?)\n                    ', (1, abs_path, stem, img['file_size'], img['width'], img['height'], img['mime_type']))
+                    server_cursor.execute(
+                        '\n                        INSERT INTO image (version, absolute_file_path, stem, file_size, width, height, mime_type)\n                        VALUES (?, ?, ?, ?, ?, ?, ?)\n                    ',
+                        (1, abs_path, stem, img['file_size'], img['width'], img['height'], img['mime_type']),
+                    )
                     image_id = server_cursor.lastrowid
                 server_cursor.execute('SELECT id FROM artwork WHERE image_id = ?', (image_id,))
                 artwork_row = server_cursor.fetchone()
@@ -494,7 +639,9 @@ def sync_artist_images_to_server(muma_conn, server_conn):
                 else:
                     server_cursor.execute('INSERT INTO artwork (version, image_id) VALUES (?, ?)', (1, image_id))
                     artwork_id = server_cursor.lastrowid
-                server_cursor.execute('UPDATE artist SET preferred_artwork_id = ? WHERE id = ?', (artwork_id, artist_id))
+                server_cursor.execute(
+                    'UPDATE artist SET preferred_artwork_id = ? WHERE id = ?', (artwork_id, artist_id)
+                )
             server_conn.commit()
             print(f'Synced {len(images)} artist images to Music Management Server')
     except Exception as e:

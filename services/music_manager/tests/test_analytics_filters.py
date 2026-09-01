@@ -4,7 +4,6 @@ from services.music_manager.routers.analytics_filters import LibraryFilter, buil
 
 
 class BuildFilterTest(unittest.TestCase):
-
     def test_no_filters_is_unrestricted(self):
         where, params = build_filter(LibraryFilter())
         self.assertEqual(where, '1=1')
@@ -71,18 +70,15 @@ class BuildFilterTest(unittest.TestCase):
     def test_parameters_are_combined_with_and(self):
         """Counted on clauses without subqueries, so the AND inside an EXISTS
         does not get mistaken for a top-level one."""
-        where, params = build_filter(
-            LibraryFilter(bpm_min=190, year_min=2020, analyzed=True))
+        where, params = build_filter(LibraryFilter(bpm_min=190, year_min=2020, analyzed=True))
         self.assertEqual(where.count(' AND '), 2)
         self.assertEqual(
-            where,
-            'COALESCE(af.tempo, af.bpm_tag) >= %s AND af.release_year >= %s '
-            'AND af.track_id IS NOT NULL')
+            where, 'COALESCE(af.tempo, af.bpm_tag) >= %s AND af.release_year >= %s AND af.track_id IS NOT NULL'
+        )
         self.assertEqual(params, [190, 2020])
 
     def test_subquery_parameters_appear_in_declaration_order(self):
-        where, params = build_filter(
-            LibraryFilter(genre=['Hardcore'], label=['Footworxx'], bpm_min=190))
+        where, params = build_filter(LibraryFilter(genre=['Hardcore'], label=['Footworxx'], bpm_min=190))
         self.assertIn('rg.name IN (%s)', where)
         self.assertIn('l.name IN (%s)', where)
         self.assertIn('COALESCE(af.tempo, af.bpm_tag) >= %s', where)

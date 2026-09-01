@@ -51,7 +51,7 @@ class TestUsers(unittest.TestCase):
         mock_cursor = MagicMock()
         mock_get_db.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-        
+
         payload = {'password': 'newpassword123'}
         response = self.client.put('/api/users/1/password', json=payload, headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 200)
@@ -67,6 +67,7 @@ class TestLoginFlows(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
         import bcrypt
+
         self.password_hash = bcrypt.hashpw(b'correct-password', bcrypt.gensalt()).decode('utf-8')
 
     @patch('services.music_manager.routers.users.get_db_connection')
@@ -88,7 +89,10 @@ class TestLoginFlows(unittest.TestCase):
         mock_get_db.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         mock_cursor.fetchone.return_value = {
-            'id': 3, 'username': 'google-user', 'password_hash': None, 'enabled': True,
+            'id': 3,
+            'username': 'google-user',
+            'password_hash': None,
+            'enabled': True,
         }
 
         response = self.client.post('/api/auth/login', json={'username': 'google-user', 'password': 'whatever'})
@@ -102,10 +106,15 @@ class TestLoginFlows(unittest.TestCase):
         mock_get_db.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         mock_cursor.fetchone.return_value = {
-            'id': 4, 'username': 'disabled-user', 'password_hash': self.password_hash, 'enabled': False,
+            'id': 4,
+            'username': 'disabled-user',
+            'password_hash': self.password_hash,
+            'enabled': False,
         }
 
-        response = self.client.post('/api/auth/login', json={'username': 'disabled-user', 'password': 'correct-password'})
+        response = self.client.post(
+            '/api/auth/login', json={'username': 'disabled-user', 'password': 'correct-password'}
+        )
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json()['detail'], 'Account disabled')
 
@@ -116,7 +125,10 @@ class TestLoginFlows(unittest.TestCase):
         mock_get_db.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         mock_cursor.fetchone.return_value = {
-            'id': 5, 'username': 'plain-user', 'password_hash': self.password_hash, 'enabled': True,
+            'id': 5,
+            'username': 'plain-user',
+            'password_hash': self.password_hash,
+            'enabled': True,
         }
 
         response = self.client.post('/api/auth/login', json={'username': 'plain-user', 'password': 'wrong-password'})
@@ -135,9 +147,16 @@ class TestLoginFlows(unittest.TestCase):
         mock_get_db.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         user_row = {
-            'id': 7, 'username': 'google-user', 'display_name': 'Google User', 'email': 'g@example.com',
-            'avatar_url': None, 'server_user_id': None, 'password_hash': None,
-            'api_key': 'the-api-key', 'role_id': 2, 'enabled': True,
+            'id': 7,
+            'username': 'google-user',
+            'display_name': 'Google User',
+            'email': 'g@example.com',
+            'avatar_url': None,
+            'server_user_id': None,
+            'password_hash': None,
+            'api_key': 'the-api-key',
+            'role_id': 2,
+            'enabled': True,
         }
         mock_cursor.fetchone.side_effect = [user_row, {'name': 'user'}]
         mock_cursor.fetchall.return_value = []
@@ -155,11 +174,16 @@ class TestLoginFlows(unittest.TestCase):
         mock_get_db.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         mock_cursor.fetchone.return_value = {
-            'id': 8, 'username': 'google-user-2', 'password_hash': None,
-            'api_key': 'the-real-api-key', 'enabled': True,
+            'id': 8,
+            'username': 'google-user-2',
+            'password_hash': None,
+            'api_key': 'the-real-api-key',
+            'enabled': True,
         }
 
-        response = self.client.post('/api/auth/login', json={'username': 'google-user-2', 'password': 'not-the-api-key'})
+        response = self.client.post(
+            '/api/auth/login', json={'username': 'google-user-2', 'password': 'not-the-api-key'}
+        )
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json()['detail'], 'Invalid username or password')
 
@@ -170,9 +194,16 @@ class TestLoginFlows(unittest.TestCase):
         mock_get_db.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         user_row = {
-            'id': 6, 'username': 'plain-user', 'display_name': 'Plain User', 'email': None,
-            'avatar_url': None, 'server_user_id': None, 'password_hash': self.password_hash,
-            'api_key': 'existing-api-key', 'role_id': 2, 'enabled': True,
+            'id': 6,
+            'username': 'plain-user',
+            'display_name': 'Plain User',
+            'email': None,
+            'avatar_url': None,
+            'server_user_id': None,
+            'password_hash': self.password_hash,
+            'api_key': 'existing-api-key',
+            'role_id': 2,
+            'enabled': True,
         }
         # 1) user lookup, 2) role-name lookup (inside build_auth_user)
         mock_cursor.fetchone.side_effect = [user_row, {'name': 'user'}]
@@ -201,8 +232,12 @@ class TestServerDbSyncNeverDropsUserTable(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             db_path = os.path.join(tmp_dir, 'lms.db')
             conn = sqlite3.connect(db_path)
-            conn.execute("CREATE TABLE user (id INTEGER PRIMARY KEY, login_name TEXT, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL)")
-            conn.execute("INSERT INTO user (id, login_name, password_salt, password_hash) VALUES (1, 'user', 'salt', 'hash')")
+            conn.execute(
+                "CREATE TABLE user (id INTEGER PRIMARY KEY, login_name TEXT, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL)"
+            )
+            conn.execute(
+                "INSERT INTO user (id, login_name, password_salt, password_hash) VALUES (1, 'user', 'salt', 'hash')"
+            )
             conn.commit()
             conn.close()
 

@@ -3,6 +3,7 @@
 Keeping the arithmetic pure is what lets this be checked without a database; the
 script around it only supplies rows.
 """
+
 import unittest
 
 from tools.song_version_report import summarize
@@ -13,7 +14,6 @@ def _row(track_id, artist, title, path):
 
 
 class SummarizeTest(unittest.TestCase):
-
     def setUp(self):
         self.rows = [
             _row(1, 'Angerfist', 'Raise Your Fist (Radio Edit)', '/m/a.mp3'),

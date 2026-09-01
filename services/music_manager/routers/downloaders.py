@@ -4,6 +4,7 @@ The settings live in the database rather than in ConfigStore, because the manage
 and the worker containers mount different host directories for /app/data and so
 do not share config.json. See services/downloader/settings_store.py.
 """
+
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -36,12 +37,11 @@ def _stored(source: str) -> dict[str, Any]:
     settings that were never saved, with nothing on screen to say otherwise.
     """
     from services.downloader.timing import sanitize_settings
+
     try:
         raw = settings_store.load(source)
     except Exception as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=f'Could not read the downloader settings: {exc}') from exc
+        raise HTTPException(status_code=503, detail=f'Could not read the downloader settings: {exc}') from exc
     return sanitize_settings(source, raw)
 
 
@@ -62,22 +62,21 @@ def _fields_for(source: str) -> list[dict[str, Any]]:
 
 
 @router.get('/settings')
-def get_settings(_auth: dict=Depends(verify_api_key)):
+def get_settings(_auth: dict = Depends(verify_api_key)):
     """The schema of every knob, with the value that is currently in effect."""
     return {'sources': [{'source': source, 'fields': _fields_for(source)} for source in SOURCES]}
 
 
 @router.post('/settings')
-def update_settings(payload: SettingsUpdatePayload, _auth: dict=Depends(verify_api_key)):
+def update_settings(payload: SettingsUpdatePayload, _auth: dict = Depends(verify_api_key)):
     from services.downloader.settings_store import save_settings
+
     try:
         updated = save_settings(payload.source, payload.updates, store=settings_store)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=f'Could not store the downloader settings: {exc}') from exc
+        raise HTTPException(status_code=503, detail=f'Could not store the downloader settings: {exc}') from exc
     return {'status': 'success', 'source': payload.source, 'updated': updated}
 
 
@@ -102,13 +101,13 @@ def _state_for(source: str) -> dict[str, Any]:
 
 
 @router.get('/rate-state')
-def get_rate_state(_auth: dict=Depends(verify_api_key)):
+def get_rate_state(_auth: dict = Depends(verify_api_key)):
     """How hard each downloader is currently holding back, and until when."""
     return {'sources': [_state_for(source) for source in SOURCES]}
 
 
 @router.post('/rate-state/{source}/reset')
-def reset_rate_state(source: str, _auth: dict=Depends(verify_api_key)):
+def reset_rate_state(source: str, _auth: dict = Depends(verify_api_key)):
     """Forget the backoff for one source and let it run at full speed again."""
     if source not in SOURCES:
         raise HTTPException(status_code=400, detail=f'Unknown downloader source: {source}')
@@ -118,7 +117,7 @@ def reset_rate_state(source: str, _auth: dict=Depends(verify_api_key)):
 
 
 @router.get('/schedule/{source}')
-def get_schedule(source: str, _auth: dict=Depends(verify_api_key)):
+def get_schedule(source: str, _auth: dict = Depends(verify_api_key)):
     """When each account of a source was last checked."""
     if source not in SOURCES:
         raise HTTPException(status_code=400, detail=f'Unknown downloader source: {source}')
@@ -126,12 +125,16 @@ def get_schedule(source: str, _auth: dict=Depends(verify_api_key)):
         checked = DatabaseCheckStore().load(source)
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f'Could not read the schedule: {exc}') from exc
-    return {'source': source,
-            'accounts': [{'account': account, 'last_checked_at': when.isoformat()}
-                         for account, when in sorted(checked.items())]}
+    return {
+        'source': source,
+        'accounts': [
+            {'account': account, 'last_checked_at': when.isoformat()} for account, when in sorted(checked.items())
+        ],
+    }
 
 
 def init_db(cursor) -> None:
     """Create the downloader tables at startup, alongside the other routers."""
     from services.downloader.db_schema import ensure_downloader_tables
+
     ensure_downloader_tables(cursor)

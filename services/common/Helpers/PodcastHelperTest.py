@@ -32,10 +32,12 @@ class PodcastHelperGetTest(unittest.TestCase):
 
     def test_the_longest_alias_wins(self):
         """A subseries must not be swallowed by the shorter show name it contains."""
-        helper = self.helper({
-            "Isaac's Hardstyle Sessions": ["Hardstyle Sessions"],
-            "Isaac's Hardstyle Sessions Yearmix": ["Hardstyle Sessions Yearmix"]
-        })
+        helper = self.helper(
+            {
+                "Isaac's Hardstyle Sessions": ["Hardstyle Sessions"],
+                "Isaac's Hardstyle Sessions Yearmix": ["Hardstyle Sessions Yearmix"],
+            }
+        )
 
         result = helper.get("Isaac's Hardstyle Sessions Yearmix #136")
 
@@ -74,7 +76,7 @@ class PodcastHelperGetTest(unittest.TestCase):
             "Louder ep. 40": "40",
             "Louder podcast 40": "40",
             "Louder week 040": "040",
-            "Louder afl 40": "40"
+            "Louder afl 40": "40",
         }
 
         for title, expected in cases.items():
@@ -107,15 +109,14 @@ class StripEpisodeAndGuestTest(unittest.TestCase):
 
     def test_removes_a_trailing_guest(self):
         self.assertEqual(
-            "official masters of hardcore",
-            strip_episode_and_guest("Official Masters of Hardcore #204 by Korsakoff")
+            "official masters of hardcore", strip_episode_and_guest("Official Masters of Hardcore #204 by Korsakoff")
         )
 
     def test_collapses_guest_variants_onto_one_key(self):
         keys = {
             strip_episode_and_guest("Hardcore Italia #151 mixed by Art of Fighters"),
             strip_episode_and_guest("Hardcore Italia #147 mixed by Meccano Twins"),
-            strip_episode_and_guest("Hardcore Italia - Episode 140 - hosted by Nico & Tetta")
+            strip_episode_and_guest("Hardcore Italia - Episode 140 - hosted by Nico & Tetta"),
         }
 
         self.assertEqual({"hardcore italia"}, keys)
@@ -123,24 +124,19 @@ class StripEpisodeAndGuestTest(unittest.TestCase):
     def test_keeps_podcast_when_it_is_part_of_the_show_name(self):
         """'The Uptempo Tribe Podcast' is the name; 'Episode' never is."""
         self.assertEqual(
-            "the uptempo tribe podcast",
-            strip_episode_and_guest("The Uptempo Tribe Podcast #44 - Deviation")
+            "the uptempo tribe podcast", strip_episode_and_guest("The Uptempo Tribe Podcast #44 - Deviation")
         )
-        self.assertEqual(
-            "monstercat podcast",
-            strip_episode_and_guest("Monstercat Podcast 151")
-        )
+        self.assertEqual("monstercat podcast", strip_episode_and_guest("Monstercat Podcast 151"))
 
     def test_reads_a_scene_release_joined_with_underscores(self):
         self.assertEqual(
             "angerfist twisted darkside podcast",
-            strip_episode_and_guest("Angerfist-Twisted_Darkside_Podcast_130-WEB-04-30-2013-CiN_INT")
+            strip_episode_and_guest("Angerfist-Twisted_Darkside_Podcast_130-WEB-04-30-2013-CiN_INT"),
         )
 
     def test_removes_a_month_and_year(self):
         self.assertEqual(
-            "isaac s hardstyle sessions",
-            strip_episode_and_guest("ISAAC'S HARDSTYLE SESSIONS #129 | MAY 2020")
+            "isaac s hardstyle sessions", strip_episode_and_guest("ISAAC'S HARDSTYLE SESSIONS #129 | MAY 2020")
         )
 
     def test_keeps_a_name_that_carries_no_episode_marker_intact(self):
@@ -148,7 +144,6 @@ class StripEpisodeAndGuestTest(unittest.TestCase):
 
 
 class NormalizeTest(unittest.TestCase):
-
     def test_matches_the_genre_normalizer(self):
         self.assertEqual("hard with style", normalize("Härd  With—Style!"))
 

@@ -4,6 +4,7 @@ Label rips arrive tagged with a year and nothing more, but the NFO that ships in
 directory usually states an exact date. The parsing lives here rather than in the rule that uses it,
 so every branch of the order resolution can be tested without a song, a file or a database.
 """
+
 import logging
 import os
 import re

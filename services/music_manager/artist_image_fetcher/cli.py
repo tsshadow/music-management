@@ -13,6 +13,7 @@ from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetch
 
 load_dotenv()
 
+
 def main():
     setup_logging('music-manager')
     parser = argparse.ArgumentParser(description='Artist Image Fetcher CLI')
@@ -55,7 +56,9 @@ def main():
                 artists = cursor.fetchall()
                 if not artists:
                     print('Found 0 artists missing images.')
-                    cursor.execute('\n                        SELECT image_status, COUNT(*) as count \n                        FROM library_artists \n                        WHERE primary_image_id IS NULL \n                        GROUP BY image_status\n                    ')
+                    cursor.execute(
+                        '\n                        SELECT image_status, COUNT(*) as count \n                        FROM library_artists \n                        WHERE primary_image_id IS NULL \n                        GROUP BY image_status\n                    '
+                    )
                     stats = cursor.fetchall()
                     if stats:
                         print(f'Stats for NULL primary_image_id: {stats}')
@@ -78,6 +81,9 @@ def main():
             break
         print(f'Sleeping for {args.sleeptime} seconds...')
         import time
+
         time.sleep(args.sleeptime)
+
+
 if __name__ == '__main__':
     main()

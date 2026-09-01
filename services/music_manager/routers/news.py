@@ -79,8 +79,15 @@ def init_db(cursor):
         'INSERT IGNORE INTO news_sources'
         ' (slug, name, stream_url, minute_of_hour, duration_seconds, lead_seconds,'
         ' retention_count) VALUES (%s, %s, %s, %s, %s, %s, %s)',
-        ('nos', 'NOS Nieuws (NPO Radio 1)', DEFAULT_STREAM_URL, 0,
-         DEFAULT_DURATION_SECONDS, DEFAULT_LEAD_SECONDS, DEFAULT_RETENTION),
+        (
+            'nos',
+            'NOS Nieuws (NPO Radio 1)',
+            DEFAULT_STREAM_URL,
+            0,
+            DEFAULT_DURATION_SECONDS,
+            DEFAULT_LEAD_SECONDS,
+            DEFAULT_RETENTION,
+        ),
     )
 
 
@@ -125,6 +132,7 @@ def probe_duration_ms(path: str) -> int:
     so this is the seam tests patch.
     """
     from mutagen.mp3 import MP3  # pylint: disable=import-outside-toplevel
+
     return int(MP3(path).info.length * 1000)
 
 
@@ -181,9 +189,7 @@ def capture_once(conn, source: dict, capture_at: float):
     duration_ms = probe_duration_ms(part_path)
 
     if duration_ms < MIN_BULLETIN_SECONDS * 1000:
-        logger.warning(
-            'News capture for %s was only %s ms, discarding', source['slug'], duration_ms
-        )
+        logger.warning('News capture for %s was only %s ms, discarding', source['slug'], duration_ms)
         os.remove(part_path)
         return None
 
@@ -224,14 +230,10 @@ def record_source(conn, source: dict, capture_at: float):
     for attempt in (1, 2):
         try:
             bulletin_id = capture_once(conn, source, capture_at)
-            _mark_source(
-                conn, source['id'], None if bulletin_id else 'Capture too short, discarded'
-            )
+            _mark_source(conn, source['id'], None if bulletin_id else 'Capture too short, discarded')
             return bulletin_id
-        except Exception as e: # pylint: disable=broad-except
-            logger.warning(
-                'News capture for %s failed (attempt %s): %s', source['slug'], attempt, e
-            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning('News capture for %s failed (attempt %s): %s', source['slug'], attempt, e)
             if attempt == 1:
                 time.sleep(RETRY_DELAY_SECONDS)
             else:
@@ -255,10 +257,7 @@ def sources_due_at(sources: list, capture_at: float, now: float) -> list:
     every source's boundary: a second source recording at half past would
     otherwise be captured on the hour and filed under the wrong one.
     """
-    return [
-        s for s in sources
-        if abs(next_capture_at(now, s['minute_of_hour'], s['lead_seconds']) - capture_at) < 1.0
-    ]
+    return [s for s in sources if abs(next_capture_at(now, s['minute_of_hour'], s['lead_seconds']) - capture_at) < 1.0]
 
 
 def run_news_recorder():
@@ -270,7 +269,7 @@ def run_news_recorder():
             continue
         try:
             sources = _enabled_sources(conn)
-        except Exception as e: # pylint: disable=broad-except
+        except Exception as e:  # pylint: disable=broad-except
             logger.error('News recorder could not read its sources: %s', e)
             sources = None
         finally:
@@ -284,9 +283,7 @@ def run_news_recorder():
             continue
 
         now = time.time()
-        capture_at = min(
-            next_capture_at(now, s['minute_of_hour'], s['lead_seconds']) for s in sources
-        )
+        capture_at = min(next_capture_at(now, s['minute_of_hour'], s['lead_seconds']) for s in sources)
         due = sources_due_at(sources, capture_at, now)
         time.sleep(max(0.0, capture_at - time.time()))
 
@@ -308,8 +305,13 @@ def _require_db():
 
 
 def _row_to_bulletin(row: dict) -> dict:
-    return {'id': row['id'], 'source': row['slug'], 'started_at': row['started_at'],
-            'duration_ms': row['duration_ms'], 'size_bytes': row['size_bytes']}
+    return {
+        'id': row['id'],
+        'source': row['slug'],
+        'started_at': row['started_at'],
+        'duration_ms': row['duration_ms'],
+        'size_bytes': row['size_bytes'],
+    }
 
 
 def _load_source(cursor, slug: str) -> dict:
@@ -336,6 +338,7 @@ class SourceCreate(BaseModel):
 
 class SourceUpdate(BaseModel):
     """Every field optional: the management screen sends only what changed."""
+
     name: str | None = None
     stream_url: str | None = None
     minute_of_hour: int | None = None
@@ -357,20 +360,30 @@ def list_sources(_auth: dict = Depends(verify_api_key)):
                 ' FROM news_sources ORDER BY id'
             )
             rows = cursor.fetchall() or []
-        return {'sources': [
-            {'slug': r['slug'], 'name': r['name'], 'stream_url': r['stream_url'],
-             'minute_of_hour': r['minute_of_hour'], 'duration_seconds': r['duration_seconds'],
-             'retention_count': r['retention_count'], 'enabled': bool(r['enabled']),
-             'last_error': r['last_error'], 'last_success_at': r['last_success_at']}
-            for r in rows
-        ]}
+        return {
+            'sources': [
+                {
+                    'slug': r['slug'],
+                    'name': r['name'],
+                    'stream_url': r['stream_url'],
+                    'minute_of_hour': r['minute_of_hour'],
+                    'duration_seconds': r['duration_seconds'],
+                    'retention_count': r['retention_count'],
+                    'enabled': bool(r['enabled']),
+                    'last_error': r['last_error'],
+                    'last_success_at': r['last_success_at'],
+                }
+                for r in rows
+            ]
+        }
     finally:
         conn.close()
 
 
 @router.get('/bulletins')
-def list_bulletins(source: str = DEFAULT_SOURCE, limit: int = Query(12, ge=1, le=100),
-                   _auth: dict = Depends(verify_api_key)):
+def list_bulletins(
+    source: str = DEFAULT_SOURCE, limit: int = Query(12, ge=1, le=100), _auth: dict = Depends(verify_api_key)
+):
     conn = _require_db()
     try:
         with conn.cursor() as cursor:
@@ -461,16 +474,14 @@ def stream_bulletin(bulletin_id: int, request: Request, _auth: dict = Depends(ve
     headers = {'Accept-Ranges': 'bytes'}
     if span is None:
         headers['Content-Length'] = str(size)
-        return StreamingResponse(_file_chunks(path, 0, size - 1),
-                                 media_type='audio/mpeg', headers=headers)
+        return StreamingResponse(_file_chunks(path, 0, size - 1), media_type='audio/mpeg', headers=headers)
 
     start, end = span
     if start >= size:
         raise HTTPException(status_code=416, detail='Range beyond end of file')
     headers['Content-Range'] = f'bytes {start}-{end}/{size}'
     headers['Content-Length'] = str(end - start + 1)
-    return StreamingResponse(_file_chunks(path, start, end), status_code=206,
-                             media_type='audio/mpeg', headers=headers)
+    return StreamingResponse(_file_chunks(path, start, end), status_code=206, media_type='audio/mpeg', headers=headers)
 
 
 @router.post('/sources', status_code=201)
@@ -484,8 +495,15 @@ def create_source(body: SourceCreate, _auth: dict = Depends(require_permission('
                 'INSERT INTO news_sources (slug, name, stream_url, minute_of_hour,'
                 ' duration_seconds, lead_seconds, retention_count)'
                 ' VALUES (%s, %s, %s, %s, %s, %s, %s)',
-                (body.slug, body.name.strip(), body.stream_url, body.minute_of_hour,
-                 body.duration_seconds, body.lead_seconds, body.retention_count),
+                (
+                    body.slug,
+                    body.name.strip(),
+                    body.stream_url,
+                    body.minute_of_hour,
+                    body.duration_seconds,
+                    body.lead_seconds,
+                    body.retention_count,
+                ),
             )
         conn.commit()
         return {'slug': body.slug}
@@ -494,8 +512,7 @@ def create_source(body: SourceCreate, _auth: dict = Depends(require_permission('
 
 
 @router.put('/sources/{slug}')
-def update_source(slug: str, body: SourceUpdate,
-                  _auth: dict = Depends(require_permission('news.manage'))):
+def update_source(slug: str, body: SourceUpdate, _auth: dict = Depends(require_permission('news.manage'))):
     fields = body.model_dump(exclude_none=True)
     if not fields:
         raise HTTPException(status_code=400, detail='Nothing to update')
@@ -560,7 +577,9 @@ def record_now(slug: str, _auth: dict = Depends(require_permission('news.manage'
         conn.close()
 
     threading.Thread(
-        target=_record_in_background, args=(source,), daemon=True,
+        target=_record_in_background,
+        args=(source,),
+        daemon=True,
         name=f'news-record-{slug}',
     ).start()
     return {'started': True, 'slug': slug, 'duration_seconds': source['duration_seconds']}

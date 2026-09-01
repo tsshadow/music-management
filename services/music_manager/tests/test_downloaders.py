@@ -26,7 +26,6 @@ NOW = datetime(2026, 7, 30, 12, 0, 0)
 
 
 class DownloaderApiTestBase(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         self.api_key = resolve_system_api_key()
@@ -41,19 +40,15 @@ class DownloaderApiTestBase(unittest.TestCase):
 
 
 class SettingsEndpointTest(DownloaderApiTestBase):
-
     def test_the_schema_lists_every_source(self):
         body = self.client.get('/api/downloaders/settings', headers=self.headers).json()
-        self.assertEqual({entry['source'] for entry in body['sources']},
-                         {'soundcloud', 'youtube', 'telegram'})
+        self.assertEqual({entry['source'] for entry in body['sources']}, {'soundcloud', 'youtube', 'telegram'})
 
     def test_a_field_carries_everything_the_ui_needs_to_render_it(self):
         body = self.client.get('/api/downloaders/settings', headers=self.headers).json()
         soundcloud = next(entry for entry in body['sources'] if entry['source'] == 'soundcloud')
         sweep = next(field for field in soundcloud['fields'] if field['key'] == 'sweep_interval')
-        self.assertEqual(
-            set(sweep),
-            {'key', 'value', 'default', 'minimum', 'maximum', 'unit', 'description'})
+        self.assertEqual(set(sweep), {'key', 'value', 'default', 'minimum', 'maximum', 'unit', 'description'})
 
     def test_an_unset_field_reports_its_default_as_the_value(self):
         body = self.client.get('/api/downloaders/settings', headers=self.headers).json()
@@ -62,44 +57,61 @@ class SettingsEndpointTest(DownloaderApiTestBase):
         self.assertEqual(sweep['value'], sweep['default'])
 
     def test_a_saved_value_shows_up_on_the_next_read(self):
-        self.client.post('/api/downloaders/settings', headers=self.headers,
-                         json={'source': 'soundcloud', 'updates': {'sweep_interval': 4200}})
+        self.client.post(
+            '/api/downloaders/settings',
+            headers=self.headers,
+            json={'source': 'soundcloud', 'updates': {'sweep_interval': 4200}},
+        )
         body = self.client.get('/api/downloaders/settings', headers=self.headers).json()
         soundcloud = next(entry for entry in body['sources'] if entry['source'] == 'soundcloud')
         sweep = next(field for field in soundcloud['fields'] if field['key'] == 'sweep_interval')
         self.assertEqual(sweep['value'], 4200)
 
     def test_saving_reports_what_was_stored(self):
-        response = self.client.post('/api/downloaders/settings', headers=self.headers,
-                                    json={'source': 'soundcloud', 'updates': {'burst_size': 3}})
+        response = self.client.post(
+            '/api/downloaders/settings',
+            headers=self.headers,
+            json={'source': 'soundcloud', 'updates': {'burst_size': 3}},
+        )
         self.assertEqual(response.json()['updated'], {'burst_size': 3})
 
     def test_an_out_of_range_value_is_refused(self):
-        response = self.client.post('/api/downloaders/settings', headers=self.headers,
-                                    json={'source': 'soundcloud', 'updates': {'max_workers': 0}})
+        response = self.client.post(
+            '/api/downloaders/settings',
+            headers=self.headers,
+            json={'source': 'soundcloud', 'updates': {'max_workers': 0}},
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_an_unknown_knob_is_refused(self):
-        response = self.client.post('/api/downloaders/settings', headers=self.headers,
-                                    json={'source': 'soundcloud', 'updates': {'nonsense_knob': 1}})
+        response = self.client.post(
+            '/api/downloaders/settings',
+            headers=self.headers,
+            json={'source': 'soundcloud', 'updates': {'nonsense_knob': 1}},
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_an_unknown_source_is_refused(self):
-        response = self.client.post('/api/downloaders/settings', headers=self.headers,
-                                    json={'source': 'bandcamp', 'updates': {'burst_size': 1}})
+        response = self.client.post(
+            '/api/downloaders/settings', headers=self.headers, json={'source': 'bandcamp', 'updates': {'burst_size': 1}}
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_a_refused_save_stores_nothing(self):
-        self.client.post('/api/downloaders/settings', headers=self.headers,
-                         json={'source': 'soundcloud', 'updates': {'max_workers': 0}})
+        self.client.post(
+            '/api/downloaders/settings',
+            headers=self.headers,
+            json={'source': 'soundcloud', 'updates': {'max_workers': 0}},
+        )
         self.assertEqual(self.settings_store.load('soundcloud'), {})
 
     def test_reading_the_settings_needs_a_key(self):
         self.assertEqual(self.client.get('/api/downloaders/settings').status_code, 401)
 
     def test_writing_the_settings_needs_a_key(self):
-        response = self.client.post('/api/downloaders/settings',
-                                    json={'source': 'soundcloud', 'updates': {'burst_size': 3}})
+        response = self.client.post(
+            '/api/downloaders/settings', json={'source': 'soundcloud', 'updates': {'burst_size': 3}}
+        )
         self.assertEqual(response.status_code, 401)
 
 
@@ -135,18 +147,27 @@ class UnreachableStorageTest(DownloaderApiTestBase):
         self.assertIn('Connection refused', response.json()['detail'])
 
     def test_writing_the_settings_reports_the_outage(self):
-        response = self.client.post('/api/downloaders/settings', headers=self.headers,
-                                    json={'source': 'soundcloud', 'updates': {'burst_size': 3}})
+        response = self.client.post(
+            '/api/downloaders/settings',
+            headers=self.headers,
+            json={'source': 'soundcloud', 'updates': {'burst_size': 3}},
+        )
         self.assertEqual(response.status_code, 503)
 
     def test_the_write_failure_says_what_went_wrong(self):
-        response = self.client.post('/api/downloaders/settings', headers=self.headers,
-                                    json={'source': 'soundcloud', 'updates': {'burst_size': 3}})
+        response = self.client.post(
+            '/api/downloaders/settings',
+            headers=self.headers,
+            json={'source': 'soundcloud', 'updates': {'burst_size': 3}},
+        )
         self.assertIn('Connection refused', response.json()['detail'])
 
     def test_an_invalid_value_is_still_a_400(self):
-        response = self.client.post('/api/downloaders/settings', headers=self.headers,
-                                    json={'source': 'soundcloud', 'updates': {'max_workers': 0}})
+        response = self.client.post(
+            '/api/downloaders/settings',
+            headers=self.headers,
+            json={'source': 'soundcloud', 'updates': {'max_workers': 0}},
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_the_rate_state_reports_the_outage_too(self):
@@ -155,11 +176,9 @@ class UnreachableStorageTest(DownloaderApiTestBase):
 
 
 class RateStateEndpointTest(DownloaderApiTestBase):
-
     def _park_soundcloud(self):
         timing = load_timing('soundcloud', overrides={'backoff_429_base': 3600, 'max_multiplier': 16})
-        state = RateState('soundcloud', timing, store=self.rate_store,
-                          now=lambda: NOW, jitter=lambda: 1.0)
+        state = RateState('soundcloud', timing, store=self.rate_store, now=lambda: NOW, jitter=lambda: 1.0)
         state.record_429()
 
     def test_a_quiet_source_reports_a_neutral_multiplier(self):
@@ -169,8 +188,7 @@ class RateStateEndpointTest(DownloaderApiTestBase):
 
     def test_every_source_is_reported(self):
         body = self.client.get('/api/downloaders/rate-state', headers=self.headers).json()
-        self.assertEqual({entry['source'] for entry in body['sources']},
-                         {'soundcloud', 'youtube', 'telegram'})
+        self.assertEqual({entry['source'] for entry in body['sources']}, {'soundcloud', 'youtube', 'telegram'})
 
     def test_a_parked_source_reports_its_multiplier(self):
         self._park_soundcloud()

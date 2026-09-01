@@ -8,10 +8,10 @@ from services.tagger.Song.SoundcloudSong import SoundcloudSong
 
 
 class TestSoundcloudArtistTitle(unittest.TestCase):
-
     def setUp(self):
         reset_database_helpers()
         from services.common.Helpers.Cache import databaseHelpers
+
         self.mock_artists = ['Albino', 'Qriminal', 'Devin Wild', 'Hard Driver', 'Sub Zero Project']
         databaseHelpers['library_artists'].get_all_values.return_value = self.mock_artists
         databaseHelpers['library_artists'].exists.side_effect = lambda x: x in self.mock_artists
@@ -250,5 +250,7 @@ class TestSoundcloudArtistTitle(unittest.TestCase):
         song.parse()
         self.assertEqual(song.artist(), 'Albino;Qriminal')
         self.assertEqual(song.title(), 'RIJE MOAT')
+
+
 if __name__ == '__main__':
     unittest.main()

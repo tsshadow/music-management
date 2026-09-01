@@ -1,4 +1,5 @@
 """The authentication endpoints stop answering once a caller hammers them."""
+
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
@@ -18,7 +19,6 @@ from services.music_manager.main import app
 
 
 class SlidingWindowTest(unittest.TestCase):
-
     def setUp(self):
         self.limiter = rate_limit.SlidingWindowRateLimiter(attempts=3, window_seconds=60)
 
@@ -88,7 +88,6 @@ class SlidingWindowTest(unittest.TestCase):
 
 
 class ClientKeyTest(unittest.TestCase):
-
     def make_request(self, headers=None, host='10.0.0.1'):
         request = MagicMock()
         request.headers = headers or {}
@@ -107,7 +106,6 @@ class ClientKeyTest(unittest.TestCase):
 
 
 class ConfigurationTest(unittest.TestCase):
-
     def test_an_unparseable_limit_falls_back_to_the_default(self):
         with patch.dict('os.environ', {'AUTH_RATE_LIMIT_ATTEMPTS': 'many'}):
             self.assertEqual(rate_limit._int_env('AUTH_RATE_LIMIT_ATTEMPTS', 10), 10)
@@ -153,7 +151,6 @@ def _connection_returning(user):
 
 
 class AuthEndpointRateLimitTest(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         rate_limit.auth_limiter.reset()
@@ -163,8 +160,7 @@ class AuthEndpointRateLimitTest(unittest.TestCase):
         self.answer_queries_with(None)
 
     def answer_queries_with(self, row):
-        patcher = patch.object(users_router, 'get_db_connection',
-                               return_value=_connection_returning(row))
+        patcher = patch.object(users_router, 'get_db_connection', return_value=_connection_returning(row))
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -207,8 +203,9 @@ class AuthEndpointRateLimitTest(unittest.TestCase):
     def test_a_different_caller_is_not_affected(self):
         for _ in range(rate_limit.auth_limiter.attempts):
             self.client.post('/api/auth/refresh', json={'refresh_token': 'x'})
-        other = self.client.post('/api/auth/refresh', json={'refresh_token': 'x'},
-                                 headers={'x-forwarded-for': '203.0.113.9'})
+        other = self.client.post(
+            '/api/auth/refresh', json={'refresh_token': 'x'}, headers={'x-forwarded-for': '203.0.113.9'}
+        )
         self.assertNotEqual(other.status_code, 429)
 
     def test_an_authenticated_endpoint_is_not_rate_limited(self):
@@ -234,28 +231,25 @@ class SuccessfulLoginsAreNotAttemptsTest(unittest.TestCase):
         self.client = TestClient(app)
         rate_limit.auth_limiter.reset()
         self.addCleanup(rate_limit.auth_limiter.reset)
-        user = {'id': 1, 'username': 'root', 'enabled': True, 'password_hash': None,
-                'api_key': 'sekrit'}
-        patcher = patch.object(users_router, 'get_db_connection',
-                               return_value=_connection_returning(user))
+        user = {'id': 1, 'username': 'root', 'enabled': True, 'password_hash': None, 'api_key': 'sekrit'}
+        patcher = patch.object(users_router, 'get_db_connection', return_value=_connection_returning(user))
         patcher.start()
         self.addCleanup(patcher.stop)
-        auth_user = patch.object(users_router, 'build_auth_user',
-                                 return_value={'id': 1, 'username': 'root', 'permissions': []})
+        auth_user = patch.object(
+            users_router, 'build_auth_user', return_value={'id': 1, 'username': 'root', 'permissions': []}
+        )
         auth_user.start()
         self.addCleanup(auth_user.stop)
 
     def test_a_long_run_of_successful_logins_keeps_working(self):
         for _ in range(rate_limit.auth_limiter.attempts * 3):
-            response = self.client.post('/api/auth/login',
-                                        json={'username': 'root', 'password': 'sekrit'})
+            response = self.client.post('/api/auth/login', json={'username': 'root', 'password': 'sekrit'})
             self.assertEqual(response.status_code, 200)
 
     def test_a_correct_password_still_works_after_a_few_wrong_ones(self):
         for _ in range(rate_limit.auth_limiter.attempts - 1):
             self.client.post('/api/auth/login', json={'username': 'root', 'password': 'nope'})
-        response = self.client.post('/api/auth/login',
-                                    json={'username': 'root', 'password': 'sekrit'})
+        response = self.client.post('/api/auth/login', json={'username': 'root', 'password': 'sekrit'})
         self.assertEqual(response.status_code, 200)
 
 

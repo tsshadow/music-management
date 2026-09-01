@@ -11,7 +11,6 @@ def helper_with(rows, expansions=None):
 
 
 class GenreRulesHelperNormalizeTest(unittest.TestCase):
-
     def test_normalizes_casing_and_punctuation(self):
         self.assertEqual(GenreRulesHelper.normalize('Raw  Hardstyle'), 'raw hardstyle')
         self.assertEqual(GenreRulesHelper.normalize('raw-hardstyle'), 'raw hardstyle')
@@ -26,7 +25,6 @@ class GenreRulesHelperNormalizeTest(unittest.TestCase):
 
 
 class GenreRulesHelperResolveTest(unittest.TestCase):
-
     def setUp(self):
         self.hardstyle = GenreRow(1, 'Hardstyle', 'hardstyle', WHITE, None)
         self.uptempo_hardcore = GenreRow(2, 'Uptempo Hardcore', 'uptempo hardcore', WHITE, None)
@@ -35,7 +33,17 @@ class GenreRulesHelperResolveTest(unittest.TestCase):
         self.pending = GenreRow(5, 'Tribecore', 'tribecore', UNKNOWN, None)
         self.raw_alias = GenreRow(6, 'rawstyle', 'rawstyle', WHITE, 7)
         self.raw_hardstyle = GenreRow(7, 'Raw Hardstyle', 'raw hardstyle', WHITE, None)
-        self.helper = helper_with([self.hardstyle, self.uptempo_hardcore, self.uptempo_alias, self.arts, self.pending, self.raw_alias, self.raw_hardstyle])
+        self.helper = helper_with(
+            [
+                self.hardstyle,
+                self.uptempo_hardcore,
+                self.uptempo_alias,
+                self.arts,
+                self.pending,
+                self.raw_alias,
+                self.raw_hardstyle,
+            ]
+        )
 
     def test_white_genre_is_kept_with_database_casing(self):
         decision = self.helper.resolve('hardstyle')
@@ -125,7 +133,9 @@ class GenreRulesHelperSplitTest(unittest.TestCase):
         self.assertEqual(self.helper.split_composite('Hardstyle/Hardcore'), ['Hardstyle', 'Hardcore'])
 
     def test_splits_more_than_two(self):
-        self.assertEqual(self.helper.split_composite('Hardcore/Frenchcore/Hardmusic'), ['Hardcore', 'Frenchcore', 'Hardmusic'])
+        self.assertEqual(
+            self.helper.split_composite('Hardcore/Frenchcore/Hardmusic'), ['Hardcore', 'Frenchcore', 'Hardmusic']
+        )
 
     def test_trims_the_parts(self):
         self.assertEqual(self.helper.split_composite('Hardstyle / Hardcore'), ['Hardstyle', 'Hardcore'])

@@ -6,7 +6,6 @@ from services.tagger.Song.rules.InferFestivalFromTitleRule import InferFestivalF
 
 
 class InferFestivalFromTitleRuleTest(unittest.TestCase):
-
     def setUp(self):
         self.song = MagicMock()
         self.song.length.return_value = 1800

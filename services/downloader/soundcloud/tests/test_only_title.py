@@ -8,7 +8,6 @@ from services.tagger.Song.SoundcloudSong import SoundcloudSong
 
 
 class TestSoundcloudOnlyTitle(unittest.TestCase):
-
     def setUp(self):
         reset_database_helpers()
 
@@ -23,5 +22,7 @@ class TestSoundcloudOnlyTitle(unittest.TestCase):
         song.parse()
         self.assertEqual(song.artist(), 'Albino')
         self.assertEqual(song.title(), 'RIJE MOAT')
+
+
 if __name__ == '__main__':
     unittest.main()

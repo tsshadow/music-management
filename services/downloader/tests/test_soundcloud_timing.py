@@ -22,7 +22,6 @@ class StubNotifier:
 
 
 class SoundcloudTimingTestBase(unittest.TestCase):
-
     overrides: dict = {}
 
     def setUp(self):
@@ -46,8 +45,7 @@ class SoundcloudTimingTestBase(unittest.TestCase):
         # These suites are about the ordinary path: the probe, the batching and
         # the backoff. Without this every account would be deep-due -- none has
         # ever been deep-swept -- and take the full-listing path instead.
-        self.timing = load_timing('soundcloud',
-                                  overrides={'deep_sweep_days': 0, **self.overrides})
+        self.timing = load_timing('soundcloud', overrides={'deep_sweep_days': 0, **self.overrides})
         self.rate_store = InMemoryRateStateStore()
         self.check_store = InMemoryCheckStore()
 
@@ -59,8 +57,7 @@ class SoundcloudTimingTestBase(unittest.TestCase):
         return 0
 
     def _rate_state(self):
-        return RateState('soundcloud', self.timing, store=self.rate_store,
-                         now=lambda: self.now, jitter=lambda: 1.0)
+        return RateState('soundcloud', self.timing, store=self.rate_store, now=lambda: self.now, jitter=lambda: 1.0)
 
     def _downloader(self):
         rate_state = self._rate_state()
@@ -74,7 +71,6 @@ class SoundcloudTimingTestBase(unittest.TestCase):
 
 
 class AccountCooldownTest(SoundcloudTimingTestBase):
-
     overrides = {'account_cooldown': 3600, 'burst_size': 10, 'min_pause': 0, 'max_pause': 0}
 
     def test_a_first_run_visits_every_account(self):
@@ -109,14 +105,21 @@ class AccountCooldownTest(SoundcloudTimingTestBase):
 
 
 class RateLimitTest(SoundcloudTimingTestBase):
-
-    overrides = {'account_cooldown': 0, 'burst_size': 10, 'min_pause': 0, 'max_pause': 0,
-                 'backoff_429_base': 3600, 'max_multiplier': 16, 'recovery_runs': 2}
+    overrides = {
+        'account_cooldown': 0,
+        'burst_size': 10,
+        'min_pause': 0,
+        'max_pause': 0,
+        'backoff_429_base': 3600,
+        'max_multiplier': 16,
+        'recovery_runs': 2,
+    }
 
     def _fail_with(self, message):
         def _raise(urls):
             self.downloaded.extend(urls)
             raise RuntimeError(message)
+
         self.mock_ydl.return_value.__enter__.return_value.download.side_effect = _raise
 
     def test_a_429_stops_the_sweep_instead_of_walking_on(self):
@@ -149,8 +152,7 @@ class RateLimitTest(SoundcloudTimingTestBase):
     def test_a_429_never_blocks_the_process_for_hours(self):
         self._fail_with('HTTP Error 429: Too Many Requests')
         self._downloader().run()
-        long_sleeps = [call.args[0] for call in self.mock_sleep.call_args_list
-                       if call.args and call.args[0] > 300]
+        long_sleeps = [call.args[0] for call in self.mock_sleep.call_args_list if call.args and call.args[0] > 300]
         self.assertEqual(long_sleeps, [])
 
     def test_a_403_stops_the_sweep_too(self):
@@ -174,9 +176,7 @@ class RateLimitTest(SoundcloudTimingTestBase):
 
 
 class BatchThrottleTest(SoundcloudTimingTestBase):
-
-    overrides = {'account_cooldown': 0, 'burst_size': 1, 'min_pause': 45, 'max_pause': 45,
-                 'max_workers': 1}
+    overrides = {'account_cooldown': 0, 'burst_size': 1, 'min_pause': 45, 'max_pause': 45, 'max_workers': 1}
 
     def test_soundcloud_pauses_between_batches(self):
         self._downloader().run()
@@ -191,9 +191,15 @@ class BatchThrottleTest(SoundcloudTimingTestBase):
 
 
 class MultiplierReachesTheDownloadTest(SoundcloudTimingTestBase):
-
-    overrides = {'account_cooldown': 0, 'sleep_interval': 15, 'max_sleep_interval': 90,
-                 'ratelimit_kbps': 512, 'sleep_requests': 2, 'min_pause': 0, 'max_pause': 0}
+    overrides = {
+        'account_cooldown': 0,
+        'sleep_interval': 15,
+        'max_sleep_interval': 90,
+        'ratelimit_kbps': 512,
+        'sleep_requests': 2,
+        'min_pause': 0,
+        'max_pause': 0,
+    }
 
     def test_yt_dlp_gets_the_configured_pauses(self):
         self._downloader().run()
@@ -210,13 +216,13 @@ class MultiplierReachesTheDownloadTest(SoundcloudTimingTestBase):
 
 
 class AccountsAreOnlyMarkedWhenVisitedTest(SoundcloudTimingTestBase):
-
     overrides = {'account_cooldown': 3600, 'burst_size': 10, 'min_pause': 0, 'max_pause': 0}
 
     def test_an_account_skipped_by_a_rate_limit_is_retried_next_sweep(self):
         def _raise(urls):
             self.downloaded.extend(urls)
             raise RuntimeError('HTTP Error 429: Too Many Requests')
+
         self.mock_ydl.return_value.__enter__.return_value.download.side_effect = _raise
         self._downloader().run()
         visited_first = list(self.downloaded)
@@ -235,7 +241,6 @@ if __name__ == '__main__':
 
 
 class DeepSweepSettingsTest(unittest.TestCase):
-
     def test_both_sources_offer_the_deep_sweep_knobs(self):
         for source in ('soundcloud', 'youtube'):
             keys = field_map(source)

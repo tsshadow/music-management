@@ -10,10 +10,10 @@ from services.tagger.Song.LabelSong import LabelSong
 
 
 class TestGenreRules(unittest.TestCase):
-
     def setUp(self):
         reset_database_helpers()
         from services.common.Helpers.Cache import databaseHelpers
+
         self.db_helpers = databaseHelpers
         self.path_exists_patcher = patch('os.path.exists')
         self.mock_path_exists = self.path_exists_patcher.start()
@@ -46,7 +46,9 @@ class TestGenreRules(unittest.TestCase):
         file_path = '/tmp/Label/CAT/song.mp3'
         song = LabelSong(file_path)
         song.tag_collection.set_item(GENRE, 'Arts;Hardstyle')
-        self.db_helpers['genre_rules'].set_rows([GenreRow(1, 'Hardstyle', 'hardstyle', WHITE, None), GenreRow(2, 'Arts', 'arts', BLACK, None)])
+        self.db_helpers['genre_rules'].set_rows(
+            [GenreRow(1, 'Hardstyle', 'hardstyle', WHITE, None), GenreRow(2, 'Arts', 'arts', BLACK, None)]
+        )
         song.parse()
         self.assertEqual(song.genre(), 'Hardstyle')
 
@@ -55,7 +57,13 @@ class TestGenreRules(unittest.TestCase):
         file_path = '/tmp/Label/CAT/song.mp3'
         song = LabelSong(file_path)
         song.tag_collection.set_item(GENRE, 'uptempo')
-        self.db_helpers['genre_rules'].set_rows([GenreRow(1, 'Uptempo Hardcore', 'uptempo hardcore', WHITE, None), GenreRow(2, 'uptempo', 'uptempo', BLACK, 1)], expansions={2: [1]})
+        self.db_helpers['genre_rules'].set_rows(
+            [
+                GenreRow(1, 'Uptempo Hardcore', 'uptempo hardcore', WHITE, None),
+                GenreRow(2, 'uptempo', 'uptempo', BLACK, 1),
+            ],
+            expansions={2: [1]},
+        )
         song.parse()
         self.assertEqual(song.genre(), 'Uptempo Hardcore')
 
@@ -64,7 +72,9 @@ class TestGenreRules(unittest.TestCase):
         file_path = '/tmp/Label/CAT/song.mp3'
         song = LabelSong(file_path)
         song.tag_collection.set_item(GENRE, 'Hardstyle/Hardcore')
-        self.db_helpers['genre_rules'].set_rows([GenreRow(1, 'Hardstyle', 'hardstyle', WHITE, None), GenreRow(2, 'Hardcore', 'hardcore', WHITE, None)])
+        self.db_helpers['genre_rules'].set_rows(
+            [GenreRow(1, 'Hardstyle', 'hardstyle', WHITE, None), GenreRow(2, 'Hardcore', 'hardcore', WHITE, None)]
+        )
         song.parse()
         self.assertEqual(song.genre(), 'Hardcore;Hardstyle')
 
@@ -73,7 +83,14 @@ class TestGenreRules(unittest.TestCase):
         file_path = '/tmp/Label/CAT/song.mp3'
         song = LabelSong(file_path)
         song.tag_collection.set_item(GENRE, 'Upterror')
-        self.db_helpers['genre_rules'].set_rows([GenreRow(1, 'Uptempo Hardcore', 'uptempo hardcore', WHITE, None), GenreRow(2, 'Terror', 'terror', WHITE, None), GenreRow(3, 'Upterror', 'upterror', BLACK, None)], expansions={3: [1, 2]})
+        self.db_helpers['genre_rules'].set_rows(
+            [
+                GenreRow(1, 'Uptempo Hardcore', 'uptempo hardcore', WHITE, None),
+                GenreRow(2, 'Terror', 'terror', WHITE, None),
+                GenreRow(3, 'Upterror', 'upterror', BLACK, None),
+            ],
+            expansions={3: [1, 2]},
+        )
         song.parse()
         self.assertEqual(song.genre(), 'Terror;Uptempo Hardcore')
 
@@ -86,5 +103,7 @@ class TestGenreRules(unittest.TestCase):
         song.parse()
         self.db_helpers['genre_rules'].record_unknown.assert_called_with('Unknown Genre')
         self.assertEqual(song.genre(), 'Unknown Genre')
+
+
 if __name__ == '__main__':
     unittest.main()

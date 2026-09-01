@@ -9,14 +9,17 @@ from services.common.config_store import ConfigStore as Settings
 
 
 class Extractor:
-
     def __init__(self):
         self.settings = Settings()
 
     def run(self, dry_run=False):
         logging.info('Starting Extract Step')
         try:
-            only_files = [f for f in listdir(self.settings.import_folder_path) if isfile(join(self.settings.import_folder_path, f))]
+            only_files = [
+                f
+                for f in listdir(self.settings.import_folder_path)
+                if isfile(join(self.settings.import_folder_path, f))
+            ]
             logging.info(f'Found {len(only_files)} files: {only_files}')
         except Exception as e:
             logging.error(f'Failed to list files: {e}')

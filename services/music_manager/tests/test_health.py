@@ -23,7 +23,6 @@ from services.music_manager.main import app
 
 
 class ThreadRegistryTest(unittest.TestCase):
-
     def setUp(self):
         thread_registry.reset()
 
@@ -45,7 +44,6 @@ class ThreadRegistryTest(unittest.TestCase):
 
 
 class HealthTest(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         thread_registry.reset()
@@ -135,11 +133,15 @@ class BackupHealthTest(unittest.TestCase):
 
     def _latest(self, age_hours: float):
         finished = datetime.now(UTC) - timedelta(hours=age_hours)
-        (self.dest / 'latest.json').write_text(json.dumps({
-            'file': 'muma_db_20260831_031200.sql.gz',
-            'finished_at': finished.isoformat(),
-            'tables': 72,
-        }))
+        (self.dest / 'latest.json').write_text(
+            json.dumps(
+                {
+                    'file': 'muma_db_20260831_031200.sql.gz',
+                    'finished_at': finished.isoformat(),
+                    'tables': 72,
+                }
+            )
+        )
 
     def _env(self, **extra):
         env = {'BACKUP_PATH': str(self.dest), 'BACKUP_STALE_AFTER_HOURS': '36'}

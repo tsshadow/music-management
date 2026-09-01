@@ -4,6 +4,7 @@
 unused, so a channel marked as video was swept as audio instead — twice, for the
 seven channels that carry both rows. These tests pin down the split.
 """
+
 import unittest
 from unittest.mock import patch
 
@@ -17,7 +18,6 @@ from services.downloader.youtube.YoutubeAccount import YoutubeAccount
 
 
 class YoutubeVideoDownloaderTest(unittest.TestCase):
-
     def setUp(self):
         self.patchers = []
         config_patcher = patch('services.downloader.youtube.youtube.ConfigStore')
@@ -46,8 +46,8 @@ class YoutubeVideoDownloaderTest(unittest.TestCase):
         # every channel would be deep-due -- none has ever been deep-swept --
         # and take the full-listing path instead.
         downloader = YoutubeDownloader(
-            break_on_existing=False,
-            timing=load_timing('youtube', overrides={'deep_sweep_days': 0}))
+            break_on_existing=False, timing=load_timing('youtube', overrides={'deep_sweep_days': 0})
+        )
         downloader.downloader_config['enabled'] = True
         return downloader
 
@@ -108,8 +108,7 @@ class YoutubeVideoDownloaderTest(unittest.TestCase):
         """Without ffmpeg yt-dlp silently drops to the 360p progressive stream."""
         downloader = self._downloader()
 
-        with patch('os.path.exists', return_value=False), \
-             patch('shutil.which', return_value=None):
+        with patch('os.path.exists', return_value=False), patch('shutil.which', return_value=None):
             self.assertFalse(downloader._video_ready())
 
     def test_video_is_skipped_without_a_configured_folder(self):
@@ -182,7 +181,6 @@ class YoutubeVideoDownloaderTest(unittest.TestCase):
 
 
 class YoutubeAccountRowTest(unittest.TestCase):
-
     def test_a_short_row_falls_back_to_the_old_behaviour(self):
         account = YoutubeAccount.from_row(('Noisia',))
 

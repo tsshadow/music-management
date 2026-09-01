@@ -12,7 +12,8 @@ def get_version() -> str:
                 return f.read().strip()
     return 'unknown'
 
-def get_release_notes(service_name: str | None=None) -> str:
+
+def get_release_notes(service_name: str | None = None) -> str:
     """Read and parse the RELEASE_NOTES.md file."""
     paths = []
     if service_name:
@@ -26,6 +27,7 @@ def get_release_notes(service_name: str | None=None) -> str:
                 content = f.read()
                 return str(markdown.markdown(content, extensions=['extra', 'toc']))
     return '<p>No release notes found.</p>'
+
 
 def get_changelog() -> str:
     """Read and parse the CHANGELOG.md file."""

@@ -1,4 +1,5 @@
 """Coverage for the /api management router: rules, accounts, system info and proxies."""
+
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
@@ -22,7 +23,6 @@ API_KEY = resolve_system_api_key()
 
 
 class ManagementTestCase(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         self.headers = {'x-api-key': API_KEY}
@@ -39,13 +39,14 @@ class ManagementTestCase(unittest.TestCase):
 
 
 class AuthTest(unittest.TestCase):
-
     def test_a_request_without_a_key_is_unauthorized(self):
         self.assertEqual(TestClient(app).get('/api/artists').status_code, 401)
 
     def test_a_user_key_that_verifies_is_accepted(self):
-        with patch.object(users_router, 'verify_token', return_value={'status': 'ok', 'type': 'user'}), \
-             patch.object(management_router, 'get_db_connection', return_value=None):
+        with (
+            patch.object(users_router, 'verify_token', return_value={'status': 'ok', 'type': 'user'}),
+            patch.object(management_router, 'get_db_connection', return_value=None),
+        ):
             response = TestClient(app).get('/api/artists', headers={'x-api-key': 'user-key'})
         self.assertEqual(response.status_code, 500)
 
@@ -56,7 +57,6 @@ class AuthTest(unittest.TestCase):
 
 
 class GenreRulesTest(ManagementTestCase):
-
     def test_the_genre_rules_are_returned_with_the_ignore_list(self):
         self.cursor.fetchall.side_effect = [[{'id': 1, 'name': 'Hardcore'}], [{'name': 'Misc'}]]
         self.cursor.fetchone.return_value = ('rules_ignored_genres',)
@@ -76,7 +76,6 @@ class GenreRulesTest(ManagementTestCase):
 
 
 class SearchTest(ManagementTestCase):
-
     def test_artists_are_searched_with_a_wildcard(self):
         self.cursor.fetchall.return_value = [{'id': 1, 'name': 'Angerfist'}]
         response = self.client.get('/api/artists?q=anger', headers=self.headers)
@@ -90,7 +89,6 @@ class SearchTest(ManagementTestCase):
 
 
 class ConfigAndDocsTest(ManagementTestCase):
-
     def test_the_config_reports_the_database_and_version(self):
         with patch.dict('os.environ', {'DB_HOST': 'db.internal', 'DB_DB': 'muma'}):
             body = self.client.get('/api/config', headers=self.headers).json()
@@ -104,29 +102,37 @@ class ConfigAndDocsTest(ManagementTestCase):
         self.assertEqual(body['VERSION'], '1.3.0')
 
     def test_the_about_page_is_rendered_from_the_readme(self):
-        with patch.object(management_router.os.path, 'exists', return_value=True), \
-             patch('builtins.open', unittest.mock.mock_open(read_data='# Title')), \
-             patch.object(management_router, 'markdown') as md:
+        with (
+            patch.object(management_router.os.path, 'exists', return_value=True),
+            patch('builtins.open', unittest.mock.mock_open(read_data='# Title')),
+            patch.object(management_router, 'markdown') as md,
+        ):
             md.markdown.return_value = '<h1>Title</h1>'
             response = self.client.get('/api/about', headers=self.headers)
         self.assertIn('<h1>Title</h1>', response.text)
 
     def test_a_missing_readme_still_renders_a_page(self):
-        with patch.object(management_router.os.path, 'exists', return_value=False), \
-             patch.object(management_router, 'markdown') as md:
+        with (
+            patch.object(management_router.os.path, 'exists', return_value=False),
+            patch.object(management_router, 'markdown') as md,
+        ):
             md.markdown.return_value = '<h1>Music Manager</h1>'
             response = self.client.get('/api/about', headers=self.headers)
         self.assertEqual(response.status_code, 200)
 
     def test_the_release_notes_and_changelog_are_served(self):
-        with patch.object(management_router, 'get_release_notes', return_value='notes'), \
-             patch.object(management_router, 'get_changelog', return_value='log'):
+        with (
+            patch.object(management_router, 'get_release_notes', return_value='notes'),
+            patch.object(management_router, 'get_changelog', return_value='log'),
+        ):
             body = self.client.get('/api/notes', headers=self.headers).json()
         self.assertEqual(body, {'release_notes': 'notes', 'changelog': 'log'})
 
     def test_the_all_notes_alias_serves_the_same_payload(self):
-        with patch.object(management_router, 'get_release_notes', return_value='notes'), \
-             patch.object(management_router, 'get_changelog', return_value='log'):
+        with (
+            patch.object(management_router, 'get_release_notes', return_value='notes'),
+            patch.object(management_router, 'get_changelog', return_value='log'),
+        ):
             body = self.client.get('/api/all-notes', headers=self.headers).json()
         self.assertEqual(body['release_notes'], 'notes')
 
@@ -139,7 +145,6 @@ class ConfigAndDocsTest(ManagementTestCase):
 
 
 class SystemTest(ManagementTestCase):
-
     def make_container(self, name, image_tags=('muma:latest',)):
         container = MagicMock()
         container.name = name
@@ -151,14 +156,17 @@ class SystemTest(ManagementTestCase):
     def test_only_the_projects_own_containers_are_listed(self):
         with patch.object(management_router, 'docker') as docker:
             docker.from_env.return_value.containers.list.return_value = [
-                self.make_container('muma-manager'), self.make_container('unrelated-nginx')]
+                self.make_container('muma-manager'),
+                self.make_container('unrelated-nginx'),
+            ]
             body = self.client.get('/api/system/containers', headers=self.headers).json()
         self.assertEqual([c['name'] for c in body], ['muma-manager'])
 
     def test_a_container_without_an_image_tag_is_reported_as_unknown(self):
         with patch.object(management_router, 'docker') as docker:
             docker.from_env.return_value.containers.list.return_value = [
-                self.make_container('muma-manager', image_tags=())]
+                self.make_container('muma-manager', image_tags=())
+            ]
             body = self.client.get('/api/system/containers', headers=self.headers).json()
         self.assertEqual(body[0]['image'], 'unknown')
 
@@ -187,15 +195,15 @@ class SystemTest(ManagementTestCase):
 
 
 class DownloadAccountsTest(ManagementTestCase):
-
     def test_the_soundcloud_accounts_are_listed(self):
         self.cursor.fetchall.return_value = [{'name': 'artist', 'soundcloud_id': 1}]
         response = self.client.get('/api/soundcloud', headers=self.headers)
         self.assertEqual(response.json()[0]['name'], 'artist')
 
     def test_a_soundcloud_account_can_be_added(self):
-        response = self.client.post('/api/soundcloud', headers=self.headers,
-                                    json={'name': 'artist', 'soundcloud_id': 7})
+        response = self.client.post(
+            '/api/soundcloud', headers=self.headers, json={'name': 'artist', 'soundcloud_id': 7}
+        )
         self.assertEqual(response.json()['status'], 'ok')
         self.assertEqual(self.cursor.execute.call_args.args[1], ('artist', 7))
 
@@ -216,14 +224,16 @@ class DownloadAccountsTest(ManagementTestCase):
 
     def test_a_youtube_account_can_be_added_as_a_video_download(self):
         """The duration floor keeps trailers and teasers out of an event channel."""
-        response = self.client.post('/api/youtube', headers=self.headers,
-                                    json={'name': '@qdance', 'download_type': 'video'})
+        response = self.client.post(
+            '/api/youtube', headers=self.headers, json={'name': '@qdance', 'download_type': 'video'}
+        )
         self.assertEqual(response.json()['status'], 'ok')
         self.assertEqual(self.cursor.execute.call_args.args[1], ('@qdance', 'video', 1200))
 
     def test_an_unknown_youtube_download_type_is_rejected(self):
-        response = self.client.post('/api/youtube', headers=self.headers,
-                                    json={'name': 'channel', 'download_type': 'hologram'})
+        response = self.client.post(
+            '/api/youtube', headers=self.headers, json={'name': 'channel', 'download_type': 'hologram'}
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_a_youtube_account_can_be_removed(self):
@@ -238,7 +248,6 @@ class DownloadAccountsTest(ManagementTestCase):
 
 
 class GenreCurationQueueTest(ManagementTestCase):
-
     def test_the_whole_table_is_returned_without_a_state_filter(self):
         self.cursor.fetchall.side_effect = [[{'id': 1, 'name': 'Hardcore'}], []]
         response = self.client.get('/api/rules/genres', headers=self.headers)
@@ -257,8 +266,10 @@ class GenreCurationQueueTest(ManagementTestCase):
     def test_the_rewrite_targets_are_attached_to_each_genre(self):
         self.cursor.fetchall.side_effect = [
             [{'id': 1, 'name': 'Upterror'}, {'id': 2, 'name': 'Hardcore'}],
-            [{'genre_id': 1, 'target_id': 9, 'target_name': 'Uptempo Hardcore'},
-             {'genre_id': 1, 'target_id': 8, 'target_name': 'Terror'}],
+            [
+                {'genre_id': 1, 'target_id': 9, 'target_name': 'Uptempo Hardcore'},
+                {'genre_id': 1, 'target_id': 8, 'target_name': 'Terror'},
+            ],
         ]
         body = self.client.get('/api/rules/genres', headers=self.headers).json()
         self.assertEqual([t['name'] for t in body[0]['canonical_targets']], ['Uptempo Hardcore', 'Terror'])
@@ -271,7 +282,6 @@ class GenreCurationQueueTest(ManagementTestCase):
 
 
 class DecideGenreTest(ManagementTestCase):
-
     def decide(self, payload, genre_id=1):
         return self.client.post(f'/api/rules/genres/{genre_id}/decide', headers=self.headers, json=payload)
 
@@ -301,8 +311,11 @@ class DecideGenreTest(ManagementTestCase):
         self.cursor.fetchone.side_effect = [{'id': 1}, {'id': 8}, {'id': 9}]
         response = self.decide({'state': management_router.BLACK, 'canonical_ids': [8, 9]})
         self.assertEqual(response.json(), {'status': 'ok'})
-        inserts = [call.args[1] for call in self.cursor.execute.call_args_list
-                   if 'INSERT INTO rules_genre_expansions' in call.args[0]]
+        inserts = [
+            call.args[1]
+            for call in self.cursor.execute.call_args_list
+            if 'INSERT INTO rules_genre_expansions' in call.args[0]
+        ]
         self.assertEqual(inserts, [(1, 8, 0), (1, 9, 1)])
 
     def test_the_previous_targets_are_replaced_not_merged(self):
@@ -313,38 +326,41 @@ class DecideGenreTest(ManagementTestCase):
     def test_a_system_decision_is_attributed_to_the_system(self):
         self.cursor.fetchone.return_value = {'id': 1}
         self.decide({'state': management_router.WHITE})
-        update = [call for call in self.cursor.execute.call_args_list
-                  if 'UPDATE rules_genres' in call.args[0]][0]
+        update = [call for call in self.cursor.execute.call_args_list if 'UPDATE rules_genres' in call.args[0]][0]
         self.assertEqual(update.args[1][2], 'system')
 
     def test_a_user_decision_is_attributed_to_that_user(self):
         self.cursor.fetchone.return_value = {'id': 1}
-        with patch.object(users_router, 'verify_token',
-                          return_value={'status': 'ok', 'type': 'user', 'user': {'username': 'user'}}):
-            self.client.post('/api/rules/genres/1/decide', headers={'x-api-key': 'user-key'},
-                             json={'state': management_router.WHITE})
-        update = [call for call in self.cursor.execute.call_args_list
-                  if 'UPDATE rules_genres' in call.args[0]][0]
+        with patch.object(
+            users_router, 'verify_token', return_value={'status': 'ok', 'type': 'user', 'user': {'username': 'user'}}
+        ):
+            self.client.post(
+                '/api/rules/genres/1/decide', headers={'x-api-key': 'user-key'}, json={'state': management_router.WHITE}
+            )
+        update = [call for call in self.cursor.execute.call_args_list if 'UPDATE rules_genres' in call.args[0]][0]
         self.assertEqual(update.args[1][2], 'user')
 
     def test_duplicate_targets_are_stored_once(self):
         self.cursor.fetchone.side_effect = [{'id': 1}, {'id': 8}]
         self.decide({'state': management_router.BLACK, 'canonical_ids': [8, 8]})
-        inserts = [call.args[1] for call in self.cursor.execute.call_args_list
-                   if 'INSERT INTO rules_genre_expansions' in call.args[0]]
+        inserts = [
+            call.args[1]
+            for call in self.cursor.execute.call_args_list
+            if 'INSERT INTO rules_genre_expansions' in call.args[0]
+        ]
         self.assertEqual(inserts, [(1, 8, 0)])
 
 
 class ArtistAndLabelRulesTest(ManagementTestCase):
-
     def test_the_artist_genre_rules_are_listed(self):
         self.cursor.fetchall.return_value = [{'id': 1, 'artist_name': 'Angerfist'}]
         response = self.client.get('/api/rules/artist-genres', headers=self.headers)
         self.assertEqual(response.json()[0]['artist_name'], 'Angerfist')
 
     def test_an_artist_genre_rule_can_be_added(self):
-        response = self.client.post('/api/rules/artist-genres', headers=self.headers,
-                                    json={'artist_name': 'Angerfist', 'genre_id': 3})
+        response = self.client.post(
+            '/api/rules/artist-genres', headers=self.headers, json={'artist_name': 'Angerfist', 'genre_id': 3}
+        )
         self.assertEqual(response.json(), {'status': 'ok'})
         self.assertEqual(self.cursor.execute.call_args.args[1], ('Angerfist', 3, 'system'))
 
@@ -355,8 +371,9 @@ class ArtistAndLabelRulesTest(ManagementTestCase):
         the refresh a rule added from the Tagger tab did nothing until a restart.
         """
         Cache.reload.reset_mock()
-        self.client.post('/api/rules/artist-genres', headers=self.headers,
-                         json={'artist_name': 'Angerfist', 'genre_id': 3})
+        self.client.post(
+            '/api/rules/artist-genres', headers=self.headers, json={'artist_name': 'Angerfist', 'genre_id': 3}
+        )
         Cache.reload.assert_called_once_with('artistGenreHelper')
 
     def test_removing_a_rule_here_refreshes_the_tagger_cache_too(self):
@@ -366,8 +383,9 @@ class ArtistAndLabelRulesTest(ManagementTestCase):
 
     def test_adding_a_label_rule_refreshes_the_label_helper(self):
         Cache.reload.reset_mock()
-        self.client.post('/api/rules/label-genres', headers=self.headers,
-                         json={'label_name': 'Scantraxx', 'genre_id': 3})
+        self.client.post(
+            '/api/rules/label-genres', headers=self.headers, json={'label_name': 'Scantraxx', 'genre_id': 3}
+        )
         Cache.reload.assert_called_once_with('labelGenreHelper')
 
     def test_an_artist_genre_rule_can_be_removed(self):
@@ -380,8 +398,9 @@ class ArtistAndLabelRulesTest(ManagementTestCase):
         self.assertEqual(response.json()[0]['label_name'], 'Scantraxx')
 
     def test_a_label_genre_rule_can_be_added(self):
-        response = self.client.post('/api/rules/label-genres', headers=self.headers,
-                                    json={'label_name': 'Scantraxx', 'genre_id': 3})
+        response = self.client.post(
+            '/api/rules/label-genres', headers=self.headers, json={'label_name': 'Scantraxx', 'genre_id': 3}
+        )
         self.assertEqual(response.json(), {'status': 'ok'})
 
     def test_a_label_genre_rule_can_be_removed(self):
@@ -390,7 +409,6 @@ class ArtistAndLabelRulesTest(ManagementTestCase):
 
 
 class ProxyAndRescanTest(ManagementTestCase):
-
     def test_the_stats_proxy_delegates_to_the_stats_router(self):
         with patch('services.music_manager.routers.stats.get_stats', return_value={'tracks': 1}) as get_stats:
             body = self.client.get('/api/stats', headers=self.headers).json()
@@ -406,10 +424,10 @@ class ProxyAndRescanTest(ManagementTestCase):
         proxied.assert_called_once()
 
     def test_a_scrobble_import_is_proxied(self):
-        with patch('services.music_manager.routers.scrobbler.trigger_lb_import',
-                   return_value={'status': 'ok'}) as proxied:
-            result = management_router.trigger_lb_import_proxy(MagicMock(), {'username': 'user'},
-                                                               {'type': 'system'})
+        with patch(
+            'services.music_manager.routers.scrobbler.trigger_lb_import', return_value={'status': 'ok'}
+        ) as proxied:
+            result = management_router.trigger_lb_import_proxy(MagicMock(), {'username': 'user'}, {'type': 'system'})
         self.assertEqual(result, {'status': 'ok'})
         proxied.assert_called_once()
 
@@ -421,14 +439,14 @@ class ProxyAndRescanTest(ManagementTestCase):
 
     def test_a_single_file_can_be_flagged_for_a_retag(self):
         with patch.object(management_router, 'ProcessedFilesHelper') as helper:
-            body = self.client.post('/api/tagger/rescan/file', headers=self.headers,
-                                    json={'filepath': '/music/a.mp3'}).json()
+            body = self.client.post(
+                '/api/tagger/rescan/file', headers=self.headers, json={'filepath': '/music/a.mp3'}
+            ).json()
         self.assertEqual(body['status'], 'ok')
         helper.return_value.mark_for_rescan.assert_called_once_with('/music/a.mp3')
 
 
 class PodcastCurationQueueTest(ManagementTestCase):
-
     def test_the_whole_table_is_returned_without_a_state_filter(self):
         self.cursor.fetchall.side_effect = [[{'id': 1, 'name': 'Hard With Style'}], []]
         response = self.client.get('/api/rules/podcasts', headers=self.headers)
@@ -447,8 +465,10 @@ class PodcastCurationQueueTest(ManagementTestCase):
     def test_the_spellings_are_attached_to_each_show(self):
         self.cursor.fetchall.side_effect = [
             [{'id': 1, 'name': "Isaac's Hardstyle Sessions"}, {'id': 2, 'name': 'Euphoricast'}],
-            [{'podcast_id': 1, 'alias': "Isaac's Hardstyle Sessions"},
-             {'podcast_id': 1, 'alias': 'DJ ISAAC - HARDSTYLE SESSIONS'}],
+            [
+                {'podcast_id': 1, 'alias': "Isaac's Hardstyle Sessions"},
+                {'podcast_id': 1, 'alias': 'DJ ISAAC - HARDSTYLE SESSIONS'},
+            ],
         ]
         body = self.client.get('/api/rules/podcasts', headers=self.headers).json()
         self.assertEqual(body[0]['aliases'], ["Isaac's Hardstyle Sessions", 'DJ ISAAC - HARDSTYLE SESSIONS'])
@@ -461,7 +481,6 @@ class PodcastCurationQueueTest(ManagementTestCase):
 
 
 class DecidePodcastTest(ManagementTestCase):
-
     def decide(self, payload, podcast_id=1):
         return self.client.post(f'/api/rules/podcasts/{podcast_id}/decide', headers=self.headers, json=payload)
 
@@ -492,8 +511,11 @@ class DecidePodcastTest(ManagementTestCase):
         self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'DJ ISAAC - HARDSTYLE SESSIONS'}, {'id': 9}]
         response = self.decide({'state': management_router.WHITE, 'merge_into_podcast_id': 9})
         self.assertEqual(response.json(), {'status': 'ok', 'merged_into': 9})
-        moves = [call.args[1] for call in self.cursor.execute.call_args_list
-                 if 'UPDATE rules_podcast_aliases' in call.args[0]]
+        moves = [
+            call.args[1]
+            for call in self.cursor.execute.call_args_list
+            if 'UPDATE rules_podcast_aliases' in call.args[0]
+        ]
         self.assertEqual(moves, [(9, 1)])
         self.assertTrue(any('DELETE FROM rules_podcasts' in s for s in self.statements()))
 
@@ -505,15 +527,13 @@ class DecidePodcastTest(ManagementTestCase):
     def test_a_system_decision_is_attributed_to_the_system(self):
         self.cursor.fetchone.return_value = {'id': 1, 'name': 'x'}
         self.decide({'state': management_router.WHITE})
-        update = [call for call in self.cursor.execute.call_args_list
-                  if 'UPDATE rules_podcasts' in call.args[0]][0]
+        update = [call for call in self.cursor.execute.call_args_list if 'UPDATE rules_podcasts' in call.args[0]][0]
         self.assertEqual(update.args[1][3], 'system')
 
     def test_the_host_and_station_are_stored_when_given(self):
         self.cursor.fetchone.return_value = {'id': 1, 'name': 'x'}
         self.decide({'state': management_router.WHITE, 'host': 'DJ Isaac', 'station': 'Q-dance'})
-        update = [call for call in self.cursor.execute.call_args_list
-                  if 'UPDATE rules_podcasts' in call.args[0]][0]
+        update = [call for call in self.cursor.execute.call_args_list if 'UPDATE rules_podcasts' in call.args[0]][0]
         self.assertEqual(update.args[1][1:3], ('DJ Isaac', 'Q-dance'))
 
     def test_a_decision_refreshes_the_tagger_cache(self):
@@ -530,10 +550,12 @@ class DecidePodcastTest(ManagementTestCase):
         """
         self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'Pure Hardstyle'}, {'id': 9}]
         self.decide({'state': management_router.WHITE, 'merge_into_podcast_id': 9})
-        inserts = [call for call in self.cursor.execute.call_args_list
-                   if 'INSERT' in call.args[0] and 'rules_podcast_aliases' in call.args[0]]
+        inserts = [
+            call
+            for call in self.cursor.execute.call_args_list
+            if 'INSERT' in call.args[0] and 'rules_podcast_aliases' in call.args[0]
+        ]
         self.assertEqual(inserts[0].args[1][:3], (9, 'Pure Hardstyle', 'pure hardstyle'))
-
 
 
 class RenamePodcastTest(ManagementTestCase):
@@ -547,15 +569,13 @@ class RenamePodcastTest(ManagementTestCase):
     """
 
     def rename(self, payload, podcast_id=1):
-        return self.client.post(f'/api/rules/podcasts/{podcast_id}/rename',
-                                headers=self.headers, json=payload)
+        return self.client.post(f'/api/rules/podcasts/{podcast_id}/rename', headers=self.headers, json=payload)
 
     def test_a_show_can_be_renamed(self):
         self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'KELTEK Presents | Pure Hardstyle |'}, None]
         response = self.rename({'name': 'Pure Hardstyle'})
         self.assertEqual(response.json()['status'], 'ok')
-        update = [call for call in self.cursor.execute.call_args_list
-                  if 'UPDATE rules_podcasts' in call.args[0]][0]
+        update = [call for call in self.cursor.execute.call_args_list if 'UPDATE rules_podcasts' in call.args[0]][0]
         self.assertEqual(update.args[1][:3], ('Pure Hardstyle', 'pure hardstyle', 1))
 
     def test_an_unknown_show_is_a_not_found(self):
@@ -591,10 +611,14 @@ class RenamePodcastTest(ManagementTestCase):
         """
         self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'KELTEK Presents | Pure Hardstyle |'}, None]
         self.rename({'name': 'Pure Hardstyle'})
-        inserts = [call for call in self.cursor.execute.call_args_list
-                   if 'rules_podcast_aliases' in call.args[0] and 'INSERT' in call.args[0]]
-        self.assertEqual(inserts[0].args[1][:3],
-                         (1, 'KELTEK Presents | Pure Hardstyle |', 'keltek presents pure hardstyle'))
+        inserts = [
+            call
+            for call in self.cursor.execute.call_args_list
+            if 'rules_podcast_aliases' in call.args[0] and 'INSERT' in call.args[0]
+        ]
+        self.assertEqual(
+            inserts[0].args[1][:3], (1, 'KELTEK Presents | Pure Hardstyle |', 'keltek presents pure hardstyle')
+        )
 
     def test_a_rename_refreshes_the_tagger_cache(self):
         Cache.reload.reset_mock()
@@ -613,19 +637,20 @@ class PodcastAliasTest(ManagementTestCase):
     """
 
     def add(self, payload, podcast_id=1):
-        return self.client.post(f'/api/rules/podcasts/{podcast_id}/aliases',
-                                headers=self.headers, json=payload)
+        return self.client.post(f'/api/rules/podcasts/{podcast_id}/aliases', headers=self.headers, json=payload)
 
     def remove(self, alias, podcast_id=1):
-        return self.client.request('DELETE', f'/api/rules/podcasts/{podcast_id}/aliases',
-                                   headers=self.headers, params={'alias': alias})
+        return self.client.request(
+            'DELETE', f'/api/rules/podcasts/{podcast_id}/aliases', headers=self.headers, params={'alias': alias}
+        )
 
     def test_a_spelling_can_be_added(self):
         self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'Pure Hardstyle'}, None]
         response = self.add({'alias': 'KELTEK | Pure Hardstyle |'})
         self.assertEqual(response.json()['status'], 'ok')
-        insert = [call for call in self.cursor.execute.call_args_list
-                  if 'INSERT INTO rules_podcast_aliases' in call.args[0]][0]
+        insert = [
+            call for call in self.cursor.execute.call_args_list if 'INSERT INTO rules_podcast_aliases' in call.args[0]
+        ][0]
         self.assertEqual(insert.args[1][:3], (1, 'KELTEK | Pure Hardstyle |', 'keltek pure hardstyle'))
 
     def test_adding_to_an_unknown_show_is_a_not_found(self):
@@ -643,15 +668,13 @@ class PodcastAliasTest(ManagementTestCase):
         self.assertIn('4', response.json()['detail'])
 
     def test_a_spelling_another_show_owns_is_a_conflict(self):
-        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'a'},
-                                            {'podcast_id': 7, 'name': 'Hardcore Italia'}]
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'a'}, {'podcast_id': 7, 'name': 'Hardcore Italia'}]
         response = self.add({'alias': 'Hardcore Italia'})
         self.assertEqual(response.status_code, 409)
         self.assertIn('Hardcore Italia', response.json()['detail'])
 
     def test_a_spelling_this_show_already_has_is_accepted_quietly(self):
-        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'a'},
-                                            {'podcast_id': 1, 'name': 'a'}]
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'a'}, {'podcast_id': 1, 'name': 'a'}]
         response = self.add({'alias': 'Pure Hardstyle'})
         self.assertEqual(response.status_code, 200)
         self.assertFalse(any('INSERT INTO rules_podcast_aliases' in s for s in self.statements()))
@@ -666,8 +689,9 @@ class PodcastAliasTest(ManagementTestCase):
         self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'a'}, {'id': 4}]
         response = self.remove('KELTEK | Pure Hardstyle |')
         self.assertEqual(response.json()['status'], 'ok')
-        delete = [call for call in self.cursor.execute.call_args_list
-                  if 'DELETE FROM rules_podcast_aliases' in call.args[0]][0]
+        delete = [
+            call for call in self.cursor.execute.call_args_list if 'DELETE FROM rules_podcast_aliases' in call.args[0]
+        ][0]
         self.assertEqual(delete.args[1], (4,))
 
     def test_removing_a_spelling_the_show_does_not_have_is_a_not_found(self):
@@ -705,12 +729,21 @@ class LabelProposalsTest(ManagementTestCase):
         self.addCleanup(patcher.stop)
 
     def confirm(self, proposal_id, label):
-        return self.client.post(f'/api/label-proposals/{proposal_id}/confirm', json={'label': label}, headers=self.headers)
+        return self.client.post(
+            f'/api/label-proposals/{proposal_id}/confirm', json={'label': label}, headers=self.headers
+        )
 
     def test_the_open_proposals_are_listed(self):
         self.cursor.fetchall.return_value = [
-            {'id': 1, 'folder': 'BKRP104 - Darwin', 'catid': 'BKRP', 'proposed_label': 'Brutal Kuts',
-             'source': 'tag:label', 'confidence': 90, 'status': 'new'}
+            {
+                'id': 1,
+                'folder': 'BKRP104 - Darwin',
+                'catid': 'BKRP',
+                'proposed_label': 'Brutal Kuts',
+                'source': 'tag:label',
+                'confidence': 90,
+                'status': 'new',
+            }
         ]
 
         response = self.client.get('/api/label-proposals', headers=self.headers)
@@ -720,7 +753,12 @@ class LabelProposalsTest(ManagementTestCase):
         self.assertEqual(response.json()[0]['folder'], 'BKRP104 - Darwin')
 
     def test_confirming_a_proposal_with_a_cat_id_writes_the_label_rule(self):
-        self.cursor.fetchone.return_value = {'id': 1, 'folder': 'BKRP104 - Darwin', 'catid': 'BKRP', 'proposed_label': 'Brutal Kuts'}
+        self.cursor.fetchone.return_value = {
+            'id': 1,
+            'folder': 'BKRP104 - Darwin',
+            'catid': 'BKRP',
+            'proposed_label': 'Brutal Kuts',
+        }
 
         response = self.confirm(1, 'Brutal Kuts')
 
@@ -728,7 +766,12 @@ class LabelProposalsTest(ManagementTestCase):
         self.assertTrue(any('rules_catid_label' in s for s in self.statements()))
 
     def test_confirming_a_proposal_with_a_cat_id_moves_nothing_itself(self):
-        self.cursor.fetchone.return_value = {'id': 1, 'folder': 'BKRP104 - Darwin', 'catid': 'BKRP', 'proposed_label': 'Brutal Kuts'}
+        self.cursor.fetchone.return_value = {
+            'id': 1,
+            'folder': 'BKRP104 - Darwin',
+            'catid': 'BKRP',
+            'proposed_label': 'Brutal Kuts',
+        }
 
         with patch.object(management_router, 'shutil') as shutil_module:
             self.confirm(1, 'Brutal Kuts')
@@ -738,8 +781,10 @@ class LabelProposalsTest(ManagementTestCase):
     def test_confirming_a_proposal_without_a_cat_id_moves_the_folder(self):
         self.cursor.fetchone.return_value = {'id': 2, 'folder': ' - Dewstate', 'catid': None, 'proposed_label': None}
 
-        with patch.object(management_router, 'shutil') as shutil_module, \
-             patch.object(management_router, 'folder_exists', return_value=True):
+        with (
+            patch.object(management_router, 'shutil') as shutil_module,
+            patch.object(management_router, 'folder_exists', return_value=True),
+        ):
             response = self.confirm(2, 'Different Solution Records')
 
         self.assertEqual(response.status_code, 200)
@@ -780,9 +825,9 @@ class RuleChangeInvalidationTest(ManagementTestCase):
 
     def test_adding_an_artist_genre_rule_marks_that_artists_files(self):
         with patch.object(management_router, 'rescan_invalidator') as invalidator:
-            response = self.client.post('/api/rules/artist-genres',
-                                        json={'artist_name': 'Ran-D', 'genre_id': 3},
-                                        headers=self.headers)
+            response = self.client.post(
+                '/api/rules/artist-genres', json={'artist_name': 'Ran-D', 'genre_id': 3}, headers=self.headers
+            )
         self.assertEqual(response.status_code, 200)
         invalidator.invalidate_by_term.assert_called_once_with('Ran-D', 'artist_genre_rule')
 
@@ -802,9 +847,9 @@ class RuleChangeInvalidationTest(ManagementTestCase):
 
     def test_adding_a_label_genre_rule_marks_that_labels_files(self):
         with patch.object(management_router, 'rescan_invalidator') as invalidator:
-            response = self.client.post('/api/rules/label-genres',
-                                        json={'label_name': 'Minus Is More', 'genre_id': 3},
-                                        headers=self.headers)
+            response = self.client.post(
+                '/api/rules/label-genres', json={'label_name': 'Minus Is More', 'genre_id': 3}, headers=self.headers
+            )
         self.assertEqual(response.status_code, 200)
         invalidator.invalidate_by_term.assert_called_once_with('Minus Is More', 'label_genre_rule')
 
@@ -818,27 +863,27 @@ class RuleChangeInvalidationTest(ManagementTestCase):
     def test_a_genre_decision_marks_the_linked_tracks_and_the_name(self):
         self.cursor.fetchone.return_value = {'id': 1, 'name': 'Uptempo'}
         with patch.object(management_router, 'rescan_invalidator') as invalidator:
-            response = self.client.post('/api/rules/genres/1/decide',
-                                        json={'state': management_router.WHITE},
-                                        headers=self.headers)
+            response = self.client.post(
+                '/api/rules/genres/1/decide', json={'state': management_router.WHITE}, headers=self.headers
+            )
         self.assertEqual(response.status_code, 200)
         invalidator.invalidate_by_genre_id.assert_called_once_with(1, 'Uptempo', 'genre_decision')
 
     def test_a_failing_invalidation_does_not_fail_the_rule_change(self):
         with patch.object(management_router, 'rescan_invalidator') as invalidator:
             invalidator.invalidate_by_term.side_effect = RuntimeError('database gone')
-            response = self.client.post('/api/rules/artist-genres',
-                                        json={'artist_name': 'Ran-D', 'genre_id': 3},
-                                        headers=self.headers)
+            response = self.client.post(
+                '/api/rules/artist-genres', json={'artist_name': 'Ran-D', 'genre_id': 3}, headers=self.headers
+            )
         self.assertEqual(response.status_code, 200)
 
     def test_a_failing_genre_invalidation_does_not_fail_the_decision(self):
         self.cursor.fetchone.return_value = {'id': 1, 'name': 'Uptempo'}
         with patch.object(management_router, 'rescan_invalidator') as invalidator:
             invalidator.invalidate_by_genre_id.side_effect = RuntimeError('database gone')
-            response = self.client.post('/api/rules/genres/1/decide',
-                                        json={'state': management_router.WHITE},
-                                        headers=self.headers)
+            response = self.client.post(
+                '/api/rules/genres/1/decide', json={'state': management_router.WHITE}, headers=self.headers
+            )
         self.assertEqual(response.status_code, 200)
 
 
@@ -853,36 +898,37 @@ class ArtistRedirectTest(ManagementTestCase):
 
     def test_saving_a_redirect_marks_the_old_name_for_retag(self):
         with patch.object(management_router, 'rescan_invalidator') as invalidator:
-            response = self.client.post('/api/rules/artist-redirects',
-                                        json={'name': 'Ran D', 'corrected_name': 'Ran-D'},
-                                        headers=self.headers)
+            response = self.client.post(
+                '/api/rules/artist-redirects', json={'name': 'Ran D', 'corrected_name': 'Ran-D'}, headers=self.headers
+            )
         self.assertEqual(response.status_code, 200)
         invalidator.invalidate_by_term.assert_called_once_with('Ran D', 'artist_redirect')
 
     def test_a_new_name_is_inserted(self):
         self.cursor.fetchone.return_value = None
-        self.client.post('/api/rules/artist-redirects',
-                         json={'name': 'Ran D', 'corrected_name': 'Ran-D'}, headers=self.headers)
+        self.client.post(
+            '/api/rules/artist-redirects', json={'name': 'Ran D', 'corrected_name': 'Ran-D'}, headers=self.headers
+        )
         self.assertTrue(any('INSERT INTO rules_ignored_artists' in s for s in self.statements()))
 
     def test_a_known_name_is_updated_rather_than_duplicated(self):
         self.cursor.fetchone.return_value = {'id': 1}
-        self.client.post('/api/rules/artist-redirects',
-                         json={'name': 'Ran D', 'corrected_name': 'Ran-D'}, headers=self.headers)
+        self.client.post(
+            '/api/rules/artist-redirects', json={'name': 'Ran D', 'corrected_name': 'Ran-D'}, headers=self.headers
+        )
         self.assertTrue(any('UPDATE rules_ignored_artists' in s for s in self.statements()))
         self.assertFalse(any('INSERT INTO rules_ignored_artists' in s for s in self.statements()))
 
     def test_a_redirect_without_a_correction_stores_null(self):
         self.cursor.fetchone.return_value = None
-        self.client.post('/api/rules/artist-redirects', json={'name': 'Various Artists'},
-                         headers=self.headers)
-        insert = [call for call in self.cursor.execute.call_args_list
-                  if 'INSERT INTO rules_ignored_artists' in call.args[0]][0]
+        self.client.post('/api/rules/artist-redirects', json={'name': 'Various Artists'}, headers=self.headers)
+        insert = [
+            call for call in self.cursor.execute.call_args_list if 'INSERT INTO rules_ignored_artists' in call.args[0]
+        ][0]
         self.assertEqual(insert.args[1], ('Various Artists', None))
 
     def test_a_nameless_redirect_is_rejected(self):
-        response = self.client.post('/api/rules/artist-redirects', json={'name': '   '},
-                                    headers=self.headers)
+        response = self.client.post('/api/rules/artist-redirects', json={'name': '   '}, headers=self.headers)
         self.assertEqual(response.status_code, 400)
 
     def test_deleting_a_redirect_uses_the_name_from_before_the_delete(self):

@@ -14,10 +14,10 @@ RAW_TITLE = 'Deadly Guns & The Dark Horror - In The Pit (Official Videoclip)'
 
 
 class YoutubeSongTest(unittest.TestCase):
-
     def setUp(self):
         reset_database_helpers()
         from services.common.Helpers.Cache import databaseHelpers
+
         self.mock_artists = ['Deadly Guns', 'The Dark Horror', 'Angerfist', 'Miss K8']
         databaseHelpers['library_artists'].get_all_values.return_value = self.mock_artists
         databaseHelpers['library_artists'].exists.side_effect = lambda x: x in self.mock_artists

@@ -29,6 +29,7 @@ class GenreDecision:
     one entry for a plain keep or a rename, several when the genre is a
     contraction that expands ('Upterror' becomes 'Uptempo Hardcore' + 'Terror').
     """
+
     state: str
     values: list[str]
 
@@ -48,10 +49,13 @@ class GenreRulesHelper:
     `rules_genre_expansions` rather than in the single `canonical_id` column,
     which stays only for the tools that still read it.
     """
+
     table_name = 'rules_genres'
     expansion_table = 'rules_genre_expansions'
 
-    def __init__(self, preload: bool=True, rows: list[GenreRow] | None=None, expansions: dict[int, list[int]] | None=None):
+    def __init__(
+        self, preload: bool = True, rows: list[GenreRow] | None = None, expansions: dict[int, list[int]] | None = None
+    ):
         self.db_connector = DatabaseConnector()
         self._rows: dict[str, GenreRow] = {}
         self._by_id: dict[int, GenreRow] = {}
@@ -68,12 +72,12 @@ class GenreRulesHelper:
         without_accents = ''.join(c for c in decomposed if not unicodedata.combining(c))
         return re.sub('[^a-z0-9]+', ' ', without_accents.lower()).strip()
 
-    def _index(self, rows: list[GenreRow], expansions: dict[int, list[int]] | None=None) -> None:
+    def _index(self, rows: list[GenreRow], expansions: dict[int, list[int]] | None = None) -> None:
         self._rows = {row.normalized_name: row for row in rows}
         self._by_id = {row.id: row for row in rows}
         self._expansions = dict(expansions or {})
 
-    def set_rows(self, rows: list[GenreRow], expansions: dict[int, list[int]] | None=None) -> None:
+    def set_rows(self, rows: list[GenreRow], expansions: dict[int, list[int]] | None = None) -> None:
         """Replace the cached rules, e.g. after a curation decision."""
         self._index(rows, expansions)
 
@@ -82,11 +86,16 @@ class GenreRulesHelper:
 
     def _preload(self) -> None:
         query = f'SELECT id, name, normalized_name, state, canonical_id FROM {self.table_name}'
-        expansion_query = f'SELECT genre_id, target_id FROM {self.expansion_table} ORDER BY genre_id, position, target_id'
+        expansion_query = (
+            f'SELECT genre_id, target_id FROM {self.expansion_table} ORDER BY genre_id, position, target_id'
+        )
         try:
             with closing(self.db_connector.connect()) as connection, connection.cursor() as cursor:
                 cursor.execute(query)
-                rows = [GenreRow(id=row[0], name=row[1], normalized_name=row[2], state=row[3], canonical_id=row[4]) for row in cursor.fetchall()]
+                rows = [
+                    GenreRow(id=row[0], name=row[1], normalized_name=row[2], state=row[3], canonical_id=row[4])
+                    for row in cursor.fetchall()
+                ]
                 expansions: dict[int, list[int]] = {}
                 cursor.execute(expansion_query)
                 for genre_id, target_id in cursor.fetchall():
@@ -134,7 +143,11 @@ class GenreRulesHelper:
         row = self._rows.get(key)
         if row is None or row.state == UNKNOWN:
             return GenreDecision(UNKNOWN, [name.strip()])
-        targets = [self._by_id[target_id] for target_id in self._expansions.get(row.id, []) if target_id in self._by_id and target_id != row.id]
+        targets = [
+            self._by_id[target_id]
+            for target_id in self._expansions.get(row.id, [])
+            if target_id in self._by_id and target_id != row.id
+        ]
         if targets:
             return GenreDecision(row.state, [target.name for target in targets])
         if row.state == BLACK:

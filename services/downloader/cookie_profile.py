@@ -12,6 +12,7 @@ Copying the database together with its log and checkpointing the copy leaves a
 single self-contained file, so the copy yt-dlp then makes is complete. The live
 profile is mounted read-only in the worker and is never written to.
 """
+
 from __future__ import annotations
 
 import contextlib

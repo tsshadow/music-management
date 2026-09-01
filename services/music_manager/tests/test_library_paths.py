@@ -3,13 +3,13 @@
 LMS and muma mount the same music tree at different roots, so a lookup that
 knows only one of them silently matches nothing.
 """
+
 import unittest
 
 from services.music_manager.library_paths import candidate_paths
 
 
 class CandidatePathsTest(unittest.TestCase):
-
     def test_the_given_path_comes_first(self):
         result = candidate_paths('/mnt/music/Angerfist/Raise.mp3')
         self.assertEqual(result[0], '/mnt/music/Angerfist/Raise.mp3')

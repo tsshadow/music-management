@@ -53,14 +53,15 @@ class MusicBrainzArtistProvider(ArtistImageProvider):
                 return requests.get(url, params=params, headers=headers, timeout=self._timeout)
             except Timeout as timeout:
                 last_timeout = timeout
-                self.logger.warning('MusicBrainz timed out (attempt %d/%d): %s',
-                                    attempt + 1, self._attempts, timeout)
+                self.logger.warning('MusicBrainz timed out (attempt %d/%d): %s', attempt + 1, self._attempts, timeout)
         raise last_timeout
 
     def get_artist_metadata(self, artist_name, mbid=None):
         self._rate_limit()
         try:
-            headers = {'User-Agent': 'MusicManagementArtistImageFetcher/1.0 (https://github.com/muma/music-management)'}
+            headers = {
+                'User-Agent': 'MusicManagementArtistImageFetcher/1.0 (https://github.com/muma/music-management)'
+            }
             if mbid:
                 url = f'{self.API_URL}/{mbid}'
                 params = {'inc': 'url-rels', 'fmt': 'json'}

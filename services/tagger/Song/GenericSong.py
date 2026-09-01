@@ -15,8 +15,8 @@ from services.tagger.Song.rules.ResolveGenreRule import ResolveGenreRule
 
 s = Settings()
 
-class GenericSong(BaseSong):
 
+class GenericSong(BaseSong):
     def __init__(self, path):
         super().__init__(path)
         self._catalog_number = None
@@ -25,7 +25,11 @@ class GenericSong(BaseSong):
         if not self.copyright() and self.calculate_copyright():
             self.tag_collection.set_item(COPYRIGHT, self.calculate_copyright())
         self.sort_genres()
-        self.rules.append(InferRemixerFromTitleRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']))
+        self.rules.append(
+            InferRemixerFromTitleRule(
+                artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']
+            )
+        )
         # The Livesets, Podcasts and Warm Up Mixes folders all arrive here, so this is
         # where most of the actual festival recordings pass through, and the Podcasts
         # folder is the whole reason the show rule has to run here too.
@@ -35,9 +39,17 @@ class GenericSong(BaseSong):
         self.rules.append(InferGenreFromArtistRule(helper=databaseHelpers['artistGenreHelper']))
         self.rules.append(InferGenreFromSubgenreRule(databaseHelpers['subgenreHelper']))
         self.rules.append(CleanTagsRule())
-        self.rules.append(AddMissingArtistToDatabaseRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']))
+        self.rules.append(
+            AddMissingArtistToDatabaseRule(
+                artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']
+            )
+        )
         self.rules.append(ResolveGenreRule(databaseHelpers['genre_rules']))
-        self.rules.append(CheckArtistRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']))
+        self.rules.append(
+            CheckArtistRule(
+                artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']
+            )
+        )
         self.rules.append(ReplaceInvalidUnicodeRule())
         super().parse()
 

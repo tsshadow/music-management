@@ -8,6 +8,7 @@ the same `artist` parameter the sidebar sends.
 Kept free of response models so it can be unit-tested on its own, and importable
 from library.py without a circular import.
 """
+
 from dataclasses import dataclass, field
 
 from fastapi import Query
@@ -29,13 +30,17 @@ FROM_CLAUSE = """
     LEFT JOIN library_track_audio_features af ON af.internal_track_id = t.id
 """
 
-_LABEL_EXISTS = ("EXISTS (SELECT 1 FROM library_track_labels tl "
-                 "JOIN library_labels l ON tl.label_id = l.id "
-                 "WHERE tl.track_id = t.id AND l.name {op})")
+_LABEL_EXISTS = (
+    "EXISTS (SELECT 1 FROM library_track_labels tl "
+    "JOIN library_labels l ON tl.label_id = l.id "
+    "WHERE tl.track_id = t.id AND l.name {op})"
+)
 
-_GENRE_EXISTS = ("EXISTS (SELECT 1 FROM library_track_genres tg "
-                 "JOIN rules_genres rg ON tg.genre_id = rg.id "
-                 "WHERE tg.track_id = t.id AND rg.name {op})")
+_GENRE_EXISTS = (
+    "EXISTS (SELECT 1 FROM library_track_genres tg "
+    "JOIN rules_genres rg ON tg.genre_id = rg.id "
+    "WHERE tg.track_id = t.id AND rg.name {op})"
+)
 
 
 @dataclass
@@ -66,8 +71,7 @@ def _term_clause(term, clauses, params):
         params.extend([bpm - BPM_SEARCH_TOLERANCE, bpm + BPM_SEARCH_TOLERANCE])
         return
     pattern = f'%{term}%'
-    clauses.append('(t.title LIKE %s OR a.name LIKE %s OR '
-                   + _LABEL_EXISTS.format(op='LIKE %s') + ')')
+    clauses.append('(t.title LIKE %s OR a.name LIKE %s OR ' + _LABEL_EXISTS.format(op='LIKE %s') + ')')
     params.extend([pattern, pattern, pattern])
 
 
@@ -139,7 +143,13 @@ def parse_filter(
 ) -> LibraryFilter:
     """FastAPI dependency turning query parameters into a LibraryFilter."""
     return LibraryFilter(
-        q=q, artist=artist, genre=genre, label=label,
-        bpm_min=bpm_min, bpm_max=bpm_max,
-        year_min=year_min, year_max=year_max, analyzed=analyzed,
+        q=q,
+        artist=artist,
+        genre=genre,
+        label=label,
+        bpm_min=bpm_min,
+        bpm_max=bpm_max,
+        year_min=year_min,
+        year_max=year_max,
+        analyzed=analyzed,
     )

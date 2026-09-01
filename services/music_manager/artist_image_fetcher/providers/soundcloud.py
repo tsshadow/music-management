@@ -4,7 +4,6 @@ from .base import ArtistImageProvider
 
 
 class SoundCloudArtistImageProvider(ArtistImageProvider):
-
     def __init__(self, db_conn=None):
         self.db_conn = db_conn
         self.logger = logging.getLogger(__name__)
@@ -21,7 +20,9 @@ class SoundCloudArtistImageProvider(ArtistImageProvider):
                 with self.db_conn.cursor() as cursor:
                     cursor.execute("SHOW TABLES LIKE 'downloads_soundcloud_accounts'")
                     if cursor.fetchone():
-                        query = 'SELECT name, soundcloud_id FROM downloads_soundcloud_accounts WHERE name = %s OR name = %s'
+                        query = (
+                            'SELECT name, soundcloud_id FROM downloads_soundcloud_accounts WHERE name = %s OR name = %s'
+                        )
                         cursor.execute(query, (artist_name, artist_name.replace(' ', '-').lower()))
                         row = cursor.fetchone()
                         if row:

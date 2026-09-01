@@ -2,7 +2,6 @@ import re
 
 
 class ArtistNameNormalizer:
-
     @staticmethod
     def normalize(name):
         if not name:

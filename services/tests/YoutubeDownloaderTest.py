@@ -12,13 +12,15 @@ from services.tagger.Song.YoutubeSong import YoutubeSong
 
 
 class YoutubeDownloaderTest(unittest.TestCase):
-
     def setUp(self):
         self.patchers = []
         config_patcher = patch('services.downloader.youtube.youtube.ConfigStore')
         self.mock_config = config_patcher.start()
         self.patchers.append(config_patcher)
-        self.mock_config.return_value.get_many.return_value = {'youtube_folder': '/tmp/youtube', 'youtube_archive': '/tmp/archive'}
+        self.mock_config.return_value.get_many.return_value = {
+            'youtube_folder': '/tmp/youtube',
+            'youtube_archive': '/tmp/archive',
+        }
         reset_database_helpers()
         self.processor = None
         archive_patcher = patch('services.downloader.youtube.YoutubeSongProcessor.YoutubeArchive')
@@ -55,26 +57,36 @@ class YoutubeDownloaderTest(unittest.TestCase):
         Test the YouTube downloader pipeline:
         Mock(yt-dlp returns) -> do run -> assert(tags)
         """
-        dl_info = {'id': 'collider_id', 'title': 'Noisia - Collider', 'uploader': 'Noisia', 'uploader_id': 'noisia_id', 'webpage_url': 'https://www.youtube.com/watch?v=collider_id', 'ext': 'mp3', 'filepath': '/tmp/youtube/Noisia/Noisia - Collider.mp3'}
+        dl_info = {
+            'id': 'collider_id',
+            'title': 'Noisia - Collider',
+            'uploader': 'Noisia',
+            'uploader_id': 'noisia_id',
+            'webpage_url': 'https://www.youtube.com/watch?v=collider_id',
+            'ext': 'mp3',
+            'filepath': '/tmp/youtube/Noisia/Noisia - Collider.mp3',
+        }
         mock_instance = mock_ytdlp.return_value.__enter__.return_value
         self.processor = None
 
         def mock_add_pp(pp, **_kwargs):
             if 'YoutubeSongProcessor' in str(type(pp)):
                 self.processor = pp
+
         mock_ytdlp.return_value.add_post_processor.side_effect = mock_add_pp
 
         def mock_download(_links):
             if self.processor:
                 self.processor.run(dl_info)
             return 0
+
         mock_instance.download.side_effect = mock_download
         # This test drives the ordinary run. Without turning the cadence off the
         # channel would be deep-due -- it has never been deep-swept -- and take
         # the full-listing path instead.
         downloader = YoutubeDownloader(
-            break_on_existing=False,
-            timing=load_timing('youtube', overrides={'deep_sweep_days': 0}))
+            break_on_existing=False, timing=load_timing('youtube', overrides={'deep_sweep_days': 0})
+        )
         downloader.downloader_config['enabled'] = True
         with patch('time.sleep'):
             downloader.run(account='Noisia')
@@ -119,11 +131,13 @@ class YoutubeDownloaderTest(unittest.TestCase):
         # channel would be deep-due -- it has never been deep-swept -- and take
         # the full-listing path instead.
         downloader = YoutubeDownloader(
-            break_on_existing=False,
-            timing=load_timing('youtube', overrides={'deep_sweep_days': 0}))
+            break_on_existing=False, timing=load_timing('youtube', overrides={'deep_sweep_days': 0})
+        )
         downloader._create_ydl({})
-        registered = [(type(call.args[0]).__name__, call.kwargs.get('when'))
-                      for call in mock_ytdlp.return_value.add_post_processor.call_args_list]
+        registered = [
+            (type(call.args[0]).__name__, call.kwargs.get('when'))
+            for call in mock_ytdlp.return_value.add_post_processor.call_args_list
+        ]
         self.assertIn(('DropCategoryGenrePP', 'pre_process'), registered)
 
 

@@ -5,8 +5,8 @@ from services.common.Helpers.DatabaseConnector import DatabaseConnector
 
 class BrokenSongArtistLookupHelper:
     """
-     Helper class to map raw artist names to normalized SoundCloud slugs.
-     """
+    Helper class to map raw artist names to normalized SoundCloud slugs.
+    """
 
     def __init__(self, table_name='library_broken_song_artist_lookup'):
         self.table_name = table_name
@@ -31,7 +31,7 @@ class BrokenSongArtistLookupHelper:
             connection.close()
         return raw_name.strip().lower().replace(' ', '-')
 
-    def insert_if_missing(self, raw_name: str, normalized_name: str=''):
+    def insert_if_missing(self, raw_name: str, normalized_name: str = ''):
         """
         Inserts a raw artist name into the table if it doesn't already exist.
         The normalized_name will be left empty if not provided.

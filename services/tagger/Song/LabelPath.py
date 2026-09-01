@@ -16,7 +16,7 @@ def split(path: str, eps_root: str | None, delimiter: str) -> tuple[str, str]:
     """
     root = str(eps_root or '').rstrip(delimiter)
     if root and path.startswith(root + delimiter):
-        parts = [part for part in path[len(root) + 1:].split(delimiter) if part]
+        parts = [part for part in path[len(root) + 1 :].split(delimiter) if part]
         if len(parts) >= 3:
             return (parts[0], parts[1])
         if len(parts) == 2:

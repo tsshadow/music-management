@@ -57,9 +57,9 @@ def test_gating_jobs_always_run_on_a_release_branch():
     ci = load_ci()
     for name in GATING_JOBS:
         rules = ci[name]["rules"]
-        assert any(
-            rule == [".release_rule", "rules"] for rule in rules
-        ), f"{name} does not reference .release_rule, so it can be skipped on a release branch"
+        assert any(rule == [".release_rule", "rules"] for rule in rules), (
+            f"{name} does not reference .release_rule, so it can be skipped on a release branch"
+        )
 
 
 # A dedicated schedule sets exactly one of these, and exists to run exactly one
@@ -81,13 +81,9 @@ def test_a_dedicated_schedule_does_not_drag_in_the_whole_pipeline():
     on pipeline 1119 for no reason anyone asked for."""
     ci = load_ci()
     offenders = [
-        name
-        for name in job_names(ci)
-        if name not in SCHEDULE_OWNED_JOBS and GUARD not in ci[name].get("rules", [])
+        name for name in job_names(ci) if name not in SCHEDULE_OWNED_JOBS and GUARD not in ci[name].get("rules", [])
     ]
-    assert offenders == [], (
-        "these jobs would run on every dedicated schedule: " f"{offenders}"
-    )
+    assert offenders == [], f"these jobs would run on every dedicated schedule: {offenders}"
 
 
 def test_the_guard_is_the_first_rule():
@@ -95,9 +91,7 @@ def test_the_guard_is_the_first_rule():
     after a `changes:` rule never gets the chance to say no."""
     ci = load_ci()
     misplaced = [
-        name
-        for name in job_names(ci)
-        if name not in SCHEDULE_OWNED_JOBS and ci[name].get("rules", [None])[0] != GUARD
+        name for name in job_names(ci) if name not in SCHEDULE_OWNED_JOBS and ci[name].get("rules", [None])[0] != GUARD
     ]
     assert misplaced == [], f"guard is not the first rule on: {misplaced}"
 
@@ -108,9 +102,7 @@ def test_the_job_a_schedule_exists_for_is_not_guarded():
     ci = load_ci()
     for name, variable in SCHEDULE_OWNED_JOBS.items():
         assert GUARD not in ci[name]["rules"], f"{name} must not step aside for its own schedule"
-        conditions = " ".join(
-            rule.get("if", "") for rule in ci[name]["rules"] if isinstance(rule, dict)
-        )
+        conditions = " ".join(rule.get("if", "") for rule in ci[name]["rules"] if isinstance(rule, dict))
         assert variable in conditions, f"{name} does not check {variable}"
 
 
@@ -161,9 +153,7 @@ def test_workflow_rules_prevent_duplicate_pipelines():
     ci = load_ci()
     rules = ci["workflow"]["rules"]
     duplicate_guard = [
-        rule
-        for rule in rules
-        if rule.get("when") == "never" and "$CI_OPEN_MERGE_REQUESTS" in rule.get("if", "")
+        rule for rule in rules if rule.get("when") == "never" and "$CI_OPEN_MERGE_REQUESTS" in rule.get("if", "")
     ]
     assert duplicate_guard, "no rule dropping the branch pipeline when an MR is open"
 
@@ -201,8 +191,7 @@ def test_workflow_never_suppresses_a_release_branch_pipeline():
             assert rule.get("when") != "never"
             break
         assert rule.get("when") != "never", (
-            "a `when: never` rule is evaluated before release/hotfix branches "
-            "are allowed through"
+            "a `when: never` rule is evaluated before release/hotfix branches are allowed through"
         )
     else:
         raise AssertionError("no workflow rule admits release/hotfix branches")
@@ -294,9 +283,7 @@ def test_hotfix_branches_get_the_full_release_treatment():
     that deploys unverified straight to production."""
     ci = load_ci()
     for name in RELEASE_STAGE_JOBS:
-        conditions = " ".join(
-            rule.get("if", "") for rule in ci[name]["rules"] if isinstance(rule, dict)
-        )
+        conditions = " ".join(rule.get("if", "") for rule in ci[name]["rules"] if isinstance(rule, dict))
         assert "hotfix" in conditions, f"{name} does not run on a hotfix branch"
 
 
@@ -308,10 +295,7 @@ def test_release_apk_waits_for_the_android_unit_tests():
     hoster, so users got untested code even though deploy:prod correctly never
     ran."""
     ci = load_ci()
-    targets = [
-        n["job"] if isinstance(n, dict) else n
-        for n in ci["muma-mobile:build-release"]["needs"]
-    ]
+    targets = [n["job"] if isinstance(n, dict) else n for n in ci["muma-mobile:build-release"]["needs"]]
     assert "muma-mobile:check" in targets
     assert "release:version-check" in targets
     # And the emulator smoke test: a release APK that crashes on startup must
@@ -340,9 +324,7 @@ def test_rule_gating_variables_are_verified_by_the_secret_check():
     branch must therefore be asserted non-empty by check-required-secrets.sh,
     which runs unconditionally there."""
     ci = load_ci()
-    script = (REPO_ROOT / "scripts" / "ci" / "check-required-secrets.sh").read_text(
-        encoding="utf-8"
-    )
+    script = (REPO_ROOT / "scripts" / "ci" / "check-required-secrets.sh").read_text(encoding="utf-8")
     gating = set()
     for name in ["release:build-images", "muma-mobile:build-release"]:
         for rule in ci[name]["rules"]:
@@ -353,9 +335,7 @@ def test_rule_gating_variables_are_verified_by_the_secret_check():
                     gating.add(var)
     assert gating, "no gating variables found - the extraction above broke"
     unchecked = [var for var in sorted(gating) if var not in script]
-    assert unchecked == [], (
-        f"these variables silently skip a release job when missing: {unchecked}"
-    )
+    assert unchecked == [], f"these variables silently skip a release job when missing: {unchecked}"
 
 
 def test_db_integration_isolates_per_ci_job():
@@ -414,10 +394,7 @@ def test_python_unit_job_runs_for_every_directory_it_tests():
     ci = load_ci()
     globs = _changes_globs(ci, "music-management:unit")
     missing = [path for path in PYTHON_UNIT_SOURCES if not _is_covered(path, globs)]
-    assert missing == [], (
-        "music-management:unit collects these but no `changes:` glob triggers it "
-        f"for them: {missing}"
-    )
+    assert missing == [], f"music-management:unit collects these but no `changes:` glob triggers it for them: {missing}"
 
 
 # scripts/lint.sh: TARGET=${1:-services/ tools/ tests/}

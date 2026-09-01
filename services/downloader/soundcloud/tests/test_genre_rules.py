@@ -8,10 +8,10 @@ from services.tagger.Song.SoundcloudSong import SoundcloudSong
 
 
 class TestSoundcloudGenreRules(unittest.TestCase):
-
     def setUp(self):
         reset_database_helpers()
         from services.common.Helpers.Cache import databaseHelpers
+
         databaseHelpers['artistGenreHelper'].get.side_effect = lambda x: ['Hardstyle'] if x == 'Albino' else []
         databaseHelpers['rules_genres'].exists.return_value = True
 
@@ -25,5 +25,7 @@ class TestSoundcloudGenreRules(unittest.TestCase):
         song.tag_collection.set_item(TITLE, extra_info['title'])
         song.parse()
         self.assertEqual(song.genre(), 'Hardstyle')
+
+
 if __name__ == '__main__':
     unittest.main()

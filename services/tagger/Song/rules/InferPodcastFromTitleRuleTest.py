@@ -6,7 +6,6 @@ from services.tagger.Song.rules.InferPodcastFromTitleRule import InferPodcastFro
 
 
 class InferPodcastFromTitleRuleTest(unittest.TestCase):
-
     def setUp(self):
         self.song = MagicMock()
         self.song.length.return_value = 3438

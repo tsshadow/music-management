@@ -20,9 +20,9 @@ from services.tagger.Song.SoundcloudSong import SoundcloudSong
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # How a failed yt-dlp call is understood.
-PERMANENT = 'permanent'      # the track is gone or encrypted: it will never arrive
+PERMANENT = 'permanent'  # the track is gone or encrypted: it will never arrive
 RATE_LIMITED = 'rate_limited'  # SoundCloud is refusing us for now
-TRANSIENT = 'transient'      # anything else: network hiccups, unexpected output
+TRANSIENT = 'transient'  # anything else: network hiccups, unexpected output
 
 # The pause after a call. A successful fetch pays the full rate-limit pause; a
 # track that SoundCloud answered instantly with "gone" is not worth a minute,
@@ -56,6 +56,7 @@ _RATE_LIMIT_MARKERS = (
 
 class FetchResult(NamedTuple):
     """The metadata, or why it could not be had."""
+
     metadata: dict | None
     failure: str | None
 
@@ -63,6 +64,7 @@ class FetchResult(NamedTuple):
 @dataclass
 class FetcherCounts:
     """What one pass over the archive did."""
+
     updated: int = 0
     skipped: int = 0
     not_found: int = 0
@@ -101,7 +103,7 @@ def pause_for(status: str | None, consecutive_rate_limits: int = 0) -> int:
         return PERMANENT_PAUSE
     if status == RATE_LIMITED:
         steps = max(0, consecutive_rate_limits - 1)
-        return min(RATE_LIMIT_PAUSE * 2 ** steps, RATE_LIMIT_PAUSE_CAP)
+        return min(RATE_LIMIT_PAUSE * 2**steps, RATE_LIMIT_PAUSE_CAP)
     if status == TRANSIENT:
         return TRANSIENT_PAUSE
     return SUCCESS_PAUSE
@@ -119,8 +121,9 @@ def fetch_metadata(url) -> FetchResult:
     """Fetch metadata from SoundCloud using yt-dlp binary."""
     try:
         # Using the same approach as SoundcloudSongProcessor
-        result = subprocess.run(['yt-dlp', '--dump-single-json', '--no-playlist', url],
-                               capture_output=True, text=True, check=True)
+        result = subprocess.run(
+            ['yt-dlp', '--dump-single-json', '--no-playlist', url], capture_output=True, text=True, check=True
+        )
         return FetchResult(json.loads(result.stdout), None)
     except subprocess.CalledProcessError as e:
         status = classify_failure(e.stderr)
@@ -147,8 +150,9 @@ def resolve_path(filename: str, track_id) -> str | None:
     return None
 
 
-def process_tracks(tracks, genre_helper, fetch=fetch_metadata, sleep=time.sleep,
-                   song_factory=SoundcloudSong) -> FetcherCounts:
+def process_tracks(
+    tracks, genre_helper, fetch=fetch_metadata, sleep=time.sleep, song_factory=SoundcloudSong
+) -> FetcherCounts:
     """Walk the archive, tagging what SoundCloud is still willing to describe."""
     counts = FetcherCounts()
     consecutive_rate_limits = 0
@@ -167,8 +171,7 @@ def process_tracks(tracks, genre_helper, fetch=fetch_metadata, sleep=time.sleep,
                 consecutive_rate_limits += 1
                 counts.rate_limited += 1
                 if consecutive_rate_limits >= MAX_CONSECUTIVE_RATE_LIMITS:
-                    logging.error(f"SoundCloud refused {consecutive_rate_limits} calls in a row; "
-                                  f"stopping this pass.")
+                    logging.error(f"SoundCloud refused {consecutive_rate_limits} calls in a row; stopping this pass.")
                     counts.aborted = True
                     break
             elif result.failure == PERMANENT:

@@ -44,21 +44,21 @@ class JobManager:
             return
         try:
             url = f"{self.hub_url.rstrip('/')}/register/{job_id}"
-            requests.post(
-                url,
-                json=job_data,
-                headers={"X-API-KEY": self.api_key},
-                timeout=2
-            )
+            requests.post(url, json=job_data, headers={"X-API-KEY": self.api_key}, timeout=2)
         except Exception as e:
             logging.debug(f"Failed to push job status to hub: {e}")
 
     def list_active(self) -> list[dict[str, Any]]:
         with self.lock:
-            return [{'job_id': job_id, 'step': data['step']} for job_id, data in self.jobs.items() if data.get('status') == 'running']
+            return [
+                {'job_id': job_id, 'step': data['step']}
+                for job_id, data in self.jobs.items()
+                if data.get('status') == 'running'
+            ]
 
     def get(self, job_id: str) -> dict[str, Any] | None:
         with self.lock:
             return self.jobs.get(job_id)
+
 
 job_manager = JobManager()

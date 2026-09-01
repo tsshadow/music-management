@@ -84,7 +84,14 @@ class TestPermissionGatedEndpoints(unittest.TestCase):
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         # verify_token: user lookup, then role-name lookup; no permissions granted.
         mock_cursor.fetchone.side_effect = [
-            {'id': 5, 'username': 'plain-user', 'display_name': 'Plain', 'is_admin': False, 'role_id': 2, 'enabled': True},
+            {
+                'id': 5,
+                'username': 'plain-user',
+                'display_name': 'Plain',
+                'is_admin': False,
+                'role_id': 2,
+                'enabled': True,
+            },
             {'name': 'user'},
         ]
         mock_cursor.fetchall.return_value = []  # no permissions for this role
@@ -99,7 +106,14 @@ class TestPermissionGatedEndpoints(unittest.TestCase):
         mock_get_db.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         mock_cursor.fetchone.side_effect = [
-            {'id': 5, 'username': 'plain-user', 'display_name': 'Plain', 'is_admin': False, 'role_id': 2, 'enabled': True},
+            {
+                'id': 5,
+                'username': 'plain-user',
+                'display_name': 'Plain',
+                'is_admin': False,
+                'role_id': 2,
+                'enabled': True,
+            },
             {'name': 'user'},
         ]
         mock_cursor.fetchall.return_value = []
@@ -161,8 +175,15 @@ class TestGoogleLoginAndUserRequests(unittest.TestCase):
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         identity_row = {'id': 1, 'user_id': 1, 'provider': 'google', 'provider_subject': 'google-subject-123'}
         user_row = {
-            'id': 1, 'username': 'user', 'display_name': 'user', 'email': None, 'avatar_url': None,
-            'server_user_id': '1', 'api_key': 'existing-api-key', 'role_id': 1, 'enabled': True,
+            'id': 1,
+            'username': 'user',
+            'display_name': 'user',
+            'email': None,
+            'avatar_url': None,
+            'server_user_id': '1',
+            'api_key': 'existing-api-key',
+            'role_id': 1,
+            'enabled': True,
         }
         # 1) identity lookup, 2) user lookup, 3) role-name lookup (inside build_auth_user)
         mock_cursor.fetchone.side_effect = [identity_row, user_row, {'name': 'admin'}]
@@ -187,9 +208,16 @@ class TestGoogleLoginAndUserRequests(unittest.TestCase):
         mock_get_db.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         existing_request = {
-            'id': 1, 'google_subject': 'google-subject-123', 'email': 'newperson@example.com',
-            'display_name': 'New Person', 'avatar_url': None, 'status': 'pending',
-            'requested_at': None, 'reviewed_at': None, 'reviewed_by_user_id': None, 'created_user_id': None,
+            'id': 1,
+            'google_subject': 'google-subject-123',
+            'email': 'newperson@example.com',
+            'display_name': 'New Person',
+            'avatar_url': None,
+            'status': 'pending',
+            'requested_at': None,
+            'reviewed_at': None,
+            'reviewed_by_user_id': None,
+            'created_user_id': None,
         }
         # No linked identity yet, but a request already exists for this subject.
         mock_cursor.fetchone.side_effect = [None, existing_request]
@@ -210,8 +238,12 @@ class TestGoogleLoginAndUserRequests(unittest.TestCase):
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         mock_get_role.return_value = {'id': 2, 'name': 'user'}
         pending_request = {
-            'id': 7, 'google_subject': 'google-subject-123', 'email': 'newperson@example.com',
-            'display_name': 'New Person', 'avatar_url': None, 'status': 'pending',
+            'id': 7,
+            'google_subject': 'google-subject-123',
+            'email': 'newperson@example.com',
+            'display_name': 'New Person',
+            'avatar_url': None,
+            'status': 'pending',
         }
         approved_request = {**pending_request, 'status': 'approved'}
         mock_cursor.fetchone.side_effect = [pending_request, approved_request]
@@ -234,8 +266,12 @@ class TestGoogleLoginAndUserRequests(unittest.TestCase):
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         mock_get_role.return_value = {'id': 2, 'name': 'user'}
         pending_request = {
-            'id': 8, 'google_subject': 'google-subject-456', 'email': 'weird.name@example.com',
-            'display_name': 'weird google name', 'avatar_url': None, 'status': 'pending',
+            'id': 8,
+            'google_subject': 'google-subject-456',
+            'email': 'weird.name@example.com',
+            'display_name': 'weird google name',
+            'avatar_url': None,
+            'status': 'pending',
         }
         approved_request = {**pending_request, 'status': 'approved'}
         mock_cursor.fetchone.side_effect = [pending_request, approved_request]
@@ -256,8 +292,12 @@ class TestGoogleLoginAndUserRequests(unittest.TestCase):
         mock_get_db.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         pending_request = {
-            'id': 9, 'google_subject': 'google-subject-789', 'email': 'user@example.com',
-            'display_name': 'Teun', 'avatar_url': None, 'status': 'pending',
+            'id': 9,
+            'google_subject': 'google-subject-789',
+            'email': 'user@example.com',
+            'display_name': 'Teun',
+            'avatar_url': None,
+            'status': 'pending',
         }
         existing_user = {'id': 1, 'username': 'user', 'display_name': 'Teun Schriks'}
         approved_request = {**pending_request, 'status': 'approved', 'created_user_id': 1, 'linked_existing': True}
@@ -282,8 +322,12 @@ class TestGoogleLoginAndUserRequests(unittest.TestCase):
         mock_get_db.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         pending_request = {
-            'id': 10, 'google_subject': 'google-subject-000', 'email': 'nope@example.com',
-            'display_name': 'Nope', 'avatar_url': None, 'status': 'pending',
+            'id': 10,
+            'google_subject': 'google-subject-000',
+            'email': 'nope@example.com',
+            'display_name': 'Nope',
+            'avatar_url': None,
+            'status': 'pending',
         }
         rejected_request = {**pending_request, 'status': 'rejected'}
         mock_cursor.fetchone.side_effect = [pending_request, rejected_request]
@@ -311,8 +355,12 @@ class TestGoogleLoginAndUserRequests(unittest.TestCase):
         mock_get_db.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         approved_request = {
-            'id': 12, 'google_subject': 'google-subject-111', 'email': 'newacc@example.com',
-            'status': 'approved', 'created_user_id': 55, 'linked_existing': False,
+            'id': 12,
+            'google_subject': 'google-subject-111',
+            'email': 'newacc@example.com',
+            'status': 'approved',
+            'created_user_id': 55,
+            'linked_existing': False,
         }
         pending_again = {**approved_request, 'status': 'pending', 'created_user_id': None, 'linked_existing': False}
         # 1) the request itself, 2) delete_user_row's own "SELECT id, username, role_id" lookup, 3) final re-fetch
@@ -326,7 +374,9 @@ class TestGoogleLoginAndUserRequests(unittest.TestCase):
         response = self.client.post('/api/user-requests/12/unapprove', headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['request']['status'], 'pending')
-        delete_calls = [c for c in mock_cursor.execute.call_args_list if c[0][0].strip().startswith('DELETE FROM users')]
+        delete_calls = [
+            c for c in mock_cursor.execute.call_args_list if c[0][0].strip().startswith('DELETE FROM users')
+        ]
         self.assertEqual(len(delete_calls), 1, 'unapproving a freshly-created account must delete it')
 
     @patch('services.music_manager.routers.user_requests.get_db_connection')
@@ -336,17 +386,25 @@ class TestGoogleLoginAndUserRequests(unittest.TestCase):
         mock_get_db.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         approved_request = {
-            'id': 13, 'google_subject': 'google-subject-222', 'email': 'user@example.com',
-            'status': 'approved', 'created_user_id': 1, 'linked_existing': True,
+            'id': 13,
+            'google_subject': 'google-subject-222',
+            'email': 'user@example.com',
+            'status': 'approved',
+            'created_user_id': 1,
+            'linked_existing': True,
         }
         pending_again = {**approved_request, 'status': 'pending', 'created_user_id': None, 'linked_existing': False}
         mock_cursor.fetchone.side_effect = [approved_request, pending_again]
 
         response = self.client.post('/api/user-requests/13/unapprove', headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 200)
-        delete_user_calls = [c for c in mock_cursor.execute.call_args_list if c[0][0].strip().startswith('DELETE FROM users')]
+        delete_user_calls = [
+            c for c in mock_cursor.execute.call_args_list if c[0][0].strip().startswith('DELETE FROM users')
+        ]
         self.assertEqual(len(delete_user_calls), 0, 'a merely-linked account must never be deleted')
-        delete_identity_calls = [c for c in mock_cursor.execute.call_args_list if 'DELETE FROM user_identities' in c[0][0]]
+        delete_identity_calls = [
+            c for c in mock_cursor.execute.call_args_list if 'DELETE FROM user_identities' in c[0][0]
+        ]
         self.assertEqual(len(delete_identity_calls), 1)
 
 

@@ -14,7 +14,6 @@ def make_response(status_code=200, payload=None):
 
 
 class LastFmProviderTest(unittest.TestCase):
-
     def setUp(self):
         self.provider = lastfm.LastFmArtistImageProvider(api_key='key')
 
@@ -29,12 +28,20 @@ class LastFmProviderTest(unittest.TestCase):
         http.get.assert_not_called()
 
     def test_only_the_largest_images_become_candidates(self):
-        payload = {'artist': {'name': 'Angerfist', 'mbid': 'mb-1', 'image': [
-            {'size': 'small', '#text': 'https://img.test/small.jpg'},
-            {'size': 'extralarge', '#text': 'https://img.test/xl.jpg'},
-            {'size': 'mega', '#text': 'https://img.test/mega.jpg'},
-            {'size': 'mega', '#text': ''},
-        ], 'stats': {'listeners': '10', 'playcount': '20'}, 'bio': {'summary': 'bio text'}}}
+        payload = {
+            'artist': {
+                'name': 'Angerfist',
+                'mbid': 'mb-1',
+                'image': [
+                    {'size': 'small', '#text': 'https://img.test/small.jpg'},
+                    {'size': 'extralarge', '#text': 'https://img.test/xl.jpg'},
+                    {'size': 'mega', '#text': 'https://img.test/mega.jpg'},
+                    {'size': 'mega', '#text': ''},
+                ],
+                'stats': {'listeners': '10', 'playcount': '20'},
+                'bio': {'summary': 'bio text'},
+            }
+        }
         with patch.object(lastfm, 'requests') as http:
             http.get.return_value = make_response(payload=payload)
             candidates = self.provider.get_artist_images('Angerfist', mbid='mb-1')
@@ -55,7 +62,6 @@ class LastFmProviderTest(unittest.TestCase):
 
 
 class SpotifyProviderTest(unittest.TestCase):
-
     def setUp(self):
         self.provider = spotify.SpotifyArtistImageProvider(client_id='id', client_secret='secret')
 
@@ -88,12 +94,23 @@ class SpotifyProviderTest(unittest.TestCase):
             self.assertIsNone(self.provider._get_token())
 
     def test_a_search_turns_every_image_of_every_hit_into_a_candidate(self):
-        payload = {'artists': {'items': [
-            {'id': 'sp1', 'name': 'Angerfist', 'popularity': 60, 'genres': ['hardcore'],
-             'followers': {'total': 1000},
-             'images': [{'url': 'https://img.test/a.jpg', 'width': 640, 'height': 640},
-                        {'url': 'https://img.test/b.jpg', 'width': 320, 'height': 320}]},
-        ]}}
+        payload = {
+            'artists': {
+                'items': [
+                    {
+                        'id': 'sp1',
+                        'name': 'Angerfist',
+                        'popularity': 60,
+                        'genres': ['hardcore'],
+                        'followers': {'total': 1000},
+                        'images': [
+                            {'url': 'https://img.test/a.jpg', 'width': 640, 'height': 640},
+                            {'url': 'https://img.test/b.jpg', 'width': 320, 'height': 320},
+                        ],
+                    },
+                ]
+            }
+        }
         with patch.object(spotify, 'requests') as http:
             http.post.return_value = make_response(payload={'access_token': 'tok'})
             http.get.return_value = make_response(payload=payload)
@@ -105,8 +122,14 @@ class SpotifyProviderTest(unittest.TestCase):
         self.assertEqual(http.get.call_args.args[0], spotify.SpotifyArtistImageProvider.SEARCH_URL)
 
     def test_a_known_spotify_id_is_looked_up_directly_and_marked_as_a_known_match(self):
-        artist = {'id': 'sp9', 'name': 'Angerfist', 'popularity': 70, 'genres': [],
-                  'followers': {'total': 5}, 'images': [{'url': 'https://img.test/x.jpg', 'width': 1, 'height': 1}]}
+        artist = {
+            'id': 'sp9',
+            'name': 'Angerfist',
+            'popularity': 70,
+            'genres': [],
+            'followers': {'total': 5},
+            'images': [{'url': 'https://img.test/x.jpg', 'width': 1, 'height': 1}],
+        }
         with patch.object(spotify, 'requests') as http:
             http.post.return_value = make_response(payload={'access_token': 'tok'})
             http.get.return_value = make_response(payload=artist)
@@ -129,7 +152,6 @@ class SpotifyProviderTest(unittest.TestCase):
 
 
 class MusicBrainzProviderTest(unittest.TestCase):
-
     def setUp(self):
         musicbrainz.MusicBrainzArtistProvider._last_call_time = 0
         self.provider = musicbrainz.MusicBrainzArtistProvider()
@@ -152,7 +174,9 @@ class MusicBrainzProviderTest(unittest.TestCase):
 
     def test_a_search_returns_the_first_hit(self):
         with patch.object(musicbrainz, 'requests') as http:
-            http.get.return_value = make_response(payload={'artists': [{'id': 'mb1', 'name': 'Angerfist'}, {'id': 'mb2'}]})
+            http.get.return_value = make_response(
+                payload={'artists': [{'id': 'mb1', 'name': 'Angerfist'}, {'id': 'mb2'}]}
+            )
             metadata = self.provider.get_artist_metadata('Angerfist')
         self.assertEqual(metadata['mbid'], 'mb1')
         self.assertEqual(metadata['name'], 'Angerfist')
@@ -190,12 +214,16 @@ class MusicBrainzProviderTest(unittest.TestCase):
         self.assertGreater(read_timeout, connect_timeout)
 
     def test_a_lookup_by_mbid_uses_the_direct_url_and_reads_the_relations(self):
-        payload = {'id': 'mb1', 'name': 'Angerfist', 'relations': [
-            {'target-type': 'url', 'url': {'resource': 'https://open.spotify.com/artist/sp1?si=x'}},
-            {'target-type': 'url', 'url': {'resource': 'https://soundcloud.com/angerfist'}},
-            {'target-type': 'url', 'url': {'resource': 'https://www.last.fm/music/Angerfist'}},
-            {'target-type': 'url', 'url': {'resource': 'https://example.test/other'}},
-        ]}
+        payload = {
+            'id': 'mb1',
+            'name': 'Angerfist',
+            'relations': [
+                {'target-type': 'url', 'url': {'resource': 'https://open.spotify.com/artist/sp1?si=x'}},
+                {'target-type': 'url', 'url': {'resource': 'https://soundcloud.com/angerfist'}},
+                {'target-type': 'url', 'url': {'resource': 'https://www.last.fm/music/Angerfist'}},
+                {'target-type': 'url', 'url': {'resource': 'https://example.test/other'}},
+            ],
+        }
         with patch.object(musicbrainz, 'requests') as http:
             http.get.return_value = make_response(payload=payload)
             metadata = self.provider.get_artist_metadata('Angerfist', mbid='mb1')
@@ -214,7 +242,6 @@ class MusicBrainzProviderTest(unittest.TestCase):
 
 
 class SoundCloudProviderTest(unittest.TestCase):
-
     def test_the_provider_is_named_after_its_source(self):
         self.assertEqual(soundcloud.SoundCloudArtistImageProvider().name, 'soundcloud')
 

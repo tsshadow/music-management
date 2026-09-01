@@ -7,7 +7,6 @@ from services.tagger.Song.Tag import Tag
 
 
 class CleanTitleRuleTest(unittest.TestCase):
-
     def setUp(self):
         self.song = MagicMock()
         self.title_tag = None
@@ -16,7 +15,9 @@ class CleanTitleRuleTest(unittest.TestCase):
         self.title_tag = Tag(TITLE, title_value)
         self.song.tag_collection.has_item.side_effect = lambda key: key == TITLE
         self.song.tag_collection.get_item.side_effect = lambda key: self.title_tag if key == TITLE else None
-        self.song.tag_collection.get_item_as_string.side_effect = lambda key: self.title_tag.to_string() if key == TITLE else ''
+        self.song.tag_collection.get_item_as_string.side_effect = lambda key: (
+            self.title_tag.to_string() if key == TITLE else ''
+        )
 
     def test_premiere(self):
         self._setup_song('Premiere: My Song')
@@ -59,5 +60,7 @@ class CleanTitleRuleTest(unittest.TestCase):
         rule = CleanTitleRule()
         rule.apply(self.song)
         self.assertEqual(self.title_tag.to_string(), 'My Song')
+
+
 if __name__ == '__main__':
     unittest.main()

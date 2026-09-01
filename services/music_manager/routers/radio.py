@@ -48,9 +48,7 @@ def init_db(cursor):
         ')'
     )
     # The single beta channel: genre NULL means "draw from the whole library".
-    cursor.execute(
-        "INSERT IGNORE INTO radio_channels (slug, name, genre) VALUES ('main', 'Radio', NULL)"
-    )
+    cursor.execute("INSERT IGNORE INTO radio_channels (slug, name, genre) VALUES ('main', 'Radio', NULL)")
 
 
 SCHEDULE_HORIZON_SECONDS = 600.0
@@ -154,8 +152,17 @@ def fill_channel(conn, channel: dict, now: float) -> int:
                 'INSERT INTO radio_timeline'
                 ' (channel_id, track_id, title, artist, album, cover_art, duration_ms, started_at, ends_at)'
                 ' VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                (channel['id'], entry['track_id'], entry['title'], entry['artist'], entry['album'],
-                 entry['cover_art'], entry['duration_ms'], entry['started_at'], entry['ends_at']),
+                (
+                    channel['id'],
+                    entry['track_id'],
+                    entry['title'],
+                    entry['artist'],
+                    entry['album'],
+                    entry['cover_art'],
+                    entry['duration_ms'],
+                    entry['started_at'],
+                    entry['ends_at'],
+                ),
             )
         cursor.execute(
             'DELETE FROM radio_timeline WHERE channel_id = %s AND ends_at < %s',
@@ -201,11 +208,18 @@ def list_channels(include_disabled: bool = False, auth: dict = Depends(verify_ap
                 + ' ORDER BY id'
             )
             channels = cursor.fetchall() or []
-        return {'channels': [
-            {'slug': c['slug'], 'name': c['name'], 'genre': c['genre'],
-             'enabled': bool(c['enabled']), 'filter': channel_filter(c)}
-            for c in channels
-        ]}
+        return {
+            'channels': [
+                {
+                    'slug': c['slug'],
+                    'name': c['name'],
+                    'genre': c['genre'],
+                    'enabled': bool(c['enabled']),
+                    'filter': channel_filter(c),
+                }
+                for c in channels
+            ]
+        }
     finally:
         conn.close()
 
@@ -218,6 +232,7 @@ PREVIEW_SAMPLE_SIZE = 10
 class ChannelFilter(BaseModel):
     """The filter a channel selects on. Every field is optional; all of them empty
     means the whole library, which is what the seeded `main` channel is."""
+
     label: str | None = None
     genre: str | None = None
     artist: str | None = None
@@ -312,10 +327,16 @@ def update_channel(slug: str, body: ChannelUpdate, _auth: dict = Depends(require
         conn.commit()
 
         with conn.cursor() as cursor:
-            cursor.execute('SELECT slug, name, genre, filter_json, enabled FROM radio_channels WHERE slug = %s', (slug,))
+            cursor.execute(
+                'SELECT slug, name, genre, filter_json, enabled FROM radio_channels WHERE slug = %s', (slug,)
+            )
             channel = cursor.fetchone()
-        return {'slug': channel['slug'], 'name': channel['name'],
-                'enabled': bool(channel['enabled']), 'filter': channel_filter(channel)}
+        return {
+            'slug': channel['slug'],
+            'name': channel['name'],
+            'enabled': bool(channel['enabled']),
+            'filter': channel_filter(channel),
+        }
     finally:
         conn.close()
 

@@ -22,7 +22,6 @@ from services.music_manager.routers import news
 
 
 class NewsSchemaTest(unittest.TestCase):
-
     def test_creates_both_tables_and_seeds_the_nos_source(self):
         cursor = MagicMock()
         cursor.fetchone.return_value = None
@@ -36,7 +35,6 @@ class NewsSchemaTest(unittest.TestCase):
 
 
 class NewsScheduleTest(unittest.TestCase):
-
     def test_next_capture_is_five_seconds_before_the_coming_hour(self):
         # 2026-08-20 17:30:00 UTC -> the 18:00 capture opens at 17:59:55
         self.assertEqual(
@@ -62,10 +60,15 @@ class NewsScheduleTest(unittest.TestCase):
 
 
 class NewsCaptureTest(unittest.TestCase):
-
     def _source(self):
-        return {'id': 1, 'slug': 'nos', 'stream_url': 'http://stream.test/mp3',
-                'duration_seconds': 600, 'lead_seconds': 5, 'retention_count': 12}
+        return {
+            'id': 1,
+            'slug': 'nos',
+            'stream_url': 'http://stream.test/mp3',
+            'duration_seconds': 600,
+            'lead_seconds': 5,
+            'retention_count': 12,
+        }
 
     @patch('services.music_manager.routers.news.prune_bulletins', return_value=0)
     @patch('services.music_manager.routers.news.probe_duration_ms', return_value=612000)
@@ -74,8 +77,10 @@ class NewsCaptureTest(unittest.TestCase):
         conn = MagicMock()
         cursor = conn.cursor.return_value.__enter__.return_value
         cursor.lastrowid = 42
-        with patch('services.music_manager.routers.news.news_dir', return_value='/tmp/news'), \
-             patch('services.music_manager.routers.news.os.replace') as mock_replace:
+        with (
+            patch('services.music_manager.routers.news.news_dir', return_value='/tmp/news'),
+            patch('services.music_manager.routers.news.os.replace') as mock_replace,
+        ):
             bulletin_id = news.capture_once(conn, self._source(), 1787248795.0)
         self.assertEqual(bulletin_id, 42)
         self.assertTrue(mock_capture.call_args[0][1].endswith('.part'))
@@ -88,9 +93,11 @@ class NewsCaptureTest(unittest.TestCase):
     @patch('services.music_manager.routers.news.capture_stream', return_value=720000)
     def test_discards_a_capture_shorter_than_a_minute(self, _mock_capture, _mock_probe):
         conn = MagicMock()
-        with patch('services.music_manager.routers.news.news_dir', return_value='/tmp/news'), \
-             patch('services.music_manager.routers.news.os.replace') as mock_replace, \
-             patch('services.music_manager.routers.news.os.remove') as mock_remove:
+        with (
+            patch('services.music_manager.routers.news.news_dir', return_value='/tmp/news'),
+            patch('services.music_manager.routers.news.os.replace') as mock_replace,
+            patch('services.music_manager.routers.news.os.remove') as mock_remove,
+        ):
             bulletin_id = news.capture_once(conn, self._source(), 1787248795.0)
         self.assertIsNone(bulletin_id)
         mock_replace.assert_not_called()
@@ -100,9 +107,11 @@ class NewsCaptureTest(unittest.TestCase):
         conn = MagicMock()
         cursor = conn.cursor.return_value.__enter__.return_value
         cursor.fetchall.return_value = [{'id': 7, 'filename': 'nos-old.mp3'}]
-        with patch('services.music_manager.routers.news.news_dir', return_value='/tmp/news'), \
-             patch('services.music_manager.routers.news.os.path.exists', return_value=True), \
-             patch('services.music_manager.routers.news.os.remove') as mock_remove:
+        with (
+            patch('services.music_manager.routers.news.news_dir', return_value='/tmp/news'),
+            patch('services.music_manager.routers.news.os.path.exists', return_value=True),
+            patch('services.music_manager.routers.news.os.remove') as mock_remove,
+        ):
             removed = news.prune_bulletins(conn, self._source())
         self.assertEqual(removed, 1)
         mock_remove.assert_called_once_with('/tmp/news/nos-old.mp3')
@@ -110,10 +119,15 @@ class NewsCaptureTest(unittest.TestCase):
 
 
 class NewsRecorderTest(unittest.TestCase):
-
     def _source(self):
-        return {'id': 1, 'slug': 'nos', 'stream_url': 'http://stream.test/mp3',
-                'duration_seconds': 600, 'lead_seconds': 5, 'retention_count': 12}
+        return {
+            'id': 1,
+            'slug': 'nos',
+            'stream_url': 'http://stream.test/mp3',
+            'duration_seconds': 600,
+            'lead_seconds': 5,
+            'retention_count': 12,
+        }
 
     @patch('services.music_manager.routers.news.capture_once')
     def test_retries_once_after_a_failure(self, mock_capture):
@@ -144,9 +158,7 @@ class NewsRecorderTest(unittest.TestCase):
         on_the_hour = {'slug': 'nos', 'minute_of_hour': 0, 'lead_seconds': 5}
         half_past = {'slug': 'other', 'minute_of_hour': 30, 'lead_seconds': 5}
         sources = [on_the_hour, half_past]
-        capture_at = min(
-            news.next_capture_at(now, s['minute_of_hour'], s['lead_seconds']) for s in sources
-        )
+        capture_at = min(news.next_capture_at(now, s['minute_of_hour'], s['lead_seconds']) for s in sources)
         self.assertEqual(news.sources_due_at(sources, capture_at, now), [on_the_hour])
 
     @patch('services.music_manager.routers.news.capture_once', return_value=9)
@@ -160,7 +172,6 @@ class NewsRecorderTest(unittest.TestCase):
 
 
 class NewsEndpointsTest(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         self.api_key = resolve_system_api_key()
@@ -171,16 +182,24 @@ class NewsEndpointsTest(unittest.TestCase):
         mock_get_db.return_value = conn
         cursor = conn.cursor.return_value.__enter__.return_value
         cursor.fetchall.return_value = [
-            {'id': 2, 'slug': 'nos', 'started_at': 1787248800.0, 'duration_ms': 612000,
-             'size_bytes': 14688000},
+            {'id': 2, 'slug': 'nos', 'started_at': 1787248800.0, 'duration_ms': 612000, 'size_bytes': 14688000},
         ]
-        response = self.client.get('/api/news/bulletins?source=nos',
-                                   headers={'x-api-key': self.api_key})
+        response = self.client.get('/api/news/bulletins?source=nos', headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {'bulletins': [
-            {'id': 2, 'source': 'nos', 'started_at': 1787248800.0,
-             'duration_ms': 612000, 'size_bytes': 14688000},
-        ]})
+        self.assertEqual(
+            response.json(),
+            {
+                'bulletins': [
+                    {
+                        'id': 2,
+                        'source': 'nos',
+                        'started_at': 1787248800.0,
+                        'duration_ms': 612000,
+                        'size_bytes': 14688000,
+                    },
+                ]
+            },
+        )
         self.assertIn('ORDER BY started_at DESC', cursor.execute.call_args[0][0])
 
     @patch('services.music_manager.routers.news.get_db_connection')
@@ -189,10 +208,17 @@ class NewsEndpointsTest(unittest.TestCase):
         mock_get_db.return_value = conn
         cursor = conn.cursor.return_value.__enter__.return_value
         cursor.fetchall.return_value = [
-            {'slug': 'nos', 'name': 'NOS Nieuws (NPO Radio 1)',
-             'stream_url': news.DEFAULT_STREAM_URL, 'minute_of_hour': 0,
-             'duration_seconds': 600, 'retention_count': 12, 'enabled': 1,
-             'last_error': None, 'last_success_at': 1787248800.0},
+            {
+                'slug': 'nos',
+                'name': 'NOS Nieuws (NPO Radio 1)',
+                'stream_url': news.DEFAULT_STREAM_URL,
+                'minute_of_hour': 0,
+                'duration_seconds': 600,
+                'retention_count': 12,
+                'enabled': 1,
+                'last_error': None,
+                'last_success_at': 1787248800.0,
+            },
         ]
         response = self.client.get('/api/news/sources', headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 200)
@@ -206,8 +232,7 @@ class NewsEndpointsTest(unittest.TestCase):
         conn = MagicMock()
         mock_get_db.return_value = conn
         conn.cursor.return_value.__enter__.return_value.fetchone.return_value = None
-        response = self.client.get('/api/news/bulletins/latest?source=nos',
-                                   headers={'x-api-key': self.api_key})
+        response = self.client.get('/api/news/bulletins/latest?source=nos', headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 404)
 
     def test_bulletins_require_an_api_key(self):
@@ -215,7 +240,6 @@ class NewsEndpointsTest(unittest.TestCase):
 
 
 class NewsRangeTest(unittest.TestCase):
-
     def test_no_header_means_the_whole_file(self):
         self.assertIsNone(news.parse_range(None, 10))
 
@@ -233,7 +257,6 @@ class NewsRangeTest(unittest.TestCase):
 
 
 class NewsStreamTest(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         self.api_key = resolve_system_api_key()
@@ -249,13 +272,11 @@ class NewsStreamTest(unittest.TestCase):
     def test_serves_the_whole_file_without_a_range_header(self, mock_get_db):
         conn = MagicMock()
         mock_get_db.return_value = conn
-        conn.cursor.return_value.__enter__.return_value.fetchone.return_value = {
-            'filename': 'nos-2026-08-20T18-00.mp3'}
+        conn.cursor.return_value.__enter__.return_value.fetchone.return_value = {'filename': 'nos-2026-08-20T18-00.mp3'}
         with tempfile.TemporaryDirectory() as tmpdir:
             self._write_bulletin(tmpdir)
             with patch('services.music_manager.routers.news.news_dir', return_value=tmpdir):
-                response = self.client.get('/api/news/bulletins/1/stream',
-                                           headers={'x-api-key': self.api_key})
+                response = self.client.get('/api/news/bulletins/1/stream', headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, b'0123456789')
         self.assertEqual(response.headers['accept-ranges'], 'bytes')
@@ -264,14 +285,13 @@ class NewsStreamTest(unittest.TestCase):
     def test_serves_a_partial_range(self, mock_get_db):
         conn = MagicMock()
         mock_get_db.return_value = conn
-        conn.cursor.return_value.__enter__.return_value.fetchone.return_value = {
-            'filename': 'nos-2026-08-20T18-00.mp3'}
+        conn.cursor.return_value.__enter__.return_value.fetchone.return_value = {'filename': 'nos-2026-08-20T18-00.mp3'}
         with tempfile.TemporaryDirectory() as tmpdir:
             self._write_bulletin(tmpdir)
             with patch('services.music_manager.routers.news.news_dir', return_value=tmpdir):
-                response = self.client.get('/api/news/bulletins/1/stream',
-                                           headers={'x-api-key': self.api_key,
-                                                    'Range': 'bytes=2-5'})
+                response = self.client.get(
+                    '/api/news/bulletins/1/stream', headers={'x-api-key': self.api_key, 'Range': 'bytes=2-5'}
+                )
         self.assertEqual(response.status_code, 206)
         self.assertEqual(response.content, b'2345')
         self.assertEqual(response.headers['content-range'], 'bytes 2-5/10')
@@ -280,17 +300,14 @@ class NewsStreamTest(unittest.TestCase):
     def test_missing_file_is_a_404_not_a_crash(self, mock_get_db):
         conn = MagicMock()
         mock_get_db.return_value = conn
-        conn.cursor.return_value.__enter__.return_value.fetchone.return_value = {
-            'filename': 'gone.mp3'}
+        conn.cursor.return_value.__enter__.return_value.fetchone.return_value = {'filename': 'gone.mp3'}
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch('services.music_manager.routers.news.news_dir', return_value=tmpdir):
-                response = self.client.get('/api/news/bulletins/1/stream',
-                                           headers={'x-api-key': self.api_key})
+                response = self.client.get('/api/news/bulletins/1/stream', headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 404)
 
 
 class NewsManagementTest(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         self.api_key = resolve_system_api_key()
@@ -312,9 +329,15 @@ class NewsManagementTest(unittest.TestCase):
 
     @staticmethod
     def _source_row():
-        return {'id': 1, 'slug': 'nos', 'stream_url': 'http://stream.test/mp3',
-                'minute_of_hour': 0, 'duration_seconds': 600, 'lead_seconds': 5,
-                'retention_count': 12}
+        return {
+            'id': 1,
+            'slug': 'nos',
+            'stream_url': 'http://stream.test/mp3',
+            'minute_of_hour': 0,
+            'duration_seconds': 600,
+            'lead_seconds': 5,
+            'retention_count': 12,
+        }
 
     @patch('services.music_manager.routers.news.get_db_connection')
     def test_record_now_answers_at_once_and_records_in_the_background(self, mock_get_db):
@@ -324,12 +347,9 @@ class NewsManagementTest(unittest.TestCase):
         mock_get_db.return_value = conn
         conn.cursor.return_value.__enter__.return_value.fetchone.return_value = self._source_row()
         with patch('services.music_manager.routers.news.threading.Thread') as mock_thread:
-            response = self.client.post('/api/news/sources/nos/record-now',
-                                        headers={'x-api-key': self.api_key})
+            response = self.client.post('/api/news/sources/nos/record-now', headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(), {'started': True, 'slug': 'nos', 'duration_seconds': 600}
-        )
+        self.assertEqual(response.json(), {'started': True, 'slug': 'nos', 'duration_seconds': 600})
         self.assertEqual(mock_thread.call_args.kwargs['target'], news._record_in_background)
         mock_thread.return_value.start.assert_called_once()
 
@@ -351,7 +371,7 @@ class NewsManagementTest(unittest.TestCase):
         conn = MagicMock()
         mock_get_db.return_value = conn
         conn.cursor.return_value.__enter__.return_value.fetchone.return_value = None
-        response = self.client.put('/api/news/sources/bbc',
-                                   headers={'x-api-key': self.api_key},
-                                   json={'duration_seconds': 300})
+        response = self.client.put(
+            '/api/news/sources/bbc', headers={'x-api-key': self.api_key}, json={'duration_seconds': 300}
+        )
         self.assertEqual(response.status_code, 404)

@@ -5,23 +5,24 @@ from sqlalchemy import create_engine, text
 
 load_dotenv()
 
+
 def init_db():
     host = os.getenv("DB_HOST", "192.0.2.27")
     port = os.getenv("DB_PORT", "3306")
     user = os.getenv("DB_USER", "music-management")
     password = os.getenv("DB_PASS", "")
     db_name = os.getenv("DB_DB", "music-management")
-    
+
     url = f"mysql+mysqlconnector://{user}:{password}@{host}:{port}/{db_name}"
     engine = create_engine(url)
-    
+
     sql_file = "services/ml-analyzer/db_init.sql"
     with open(sql_file) as f:
         sql = f.read()
-    
+
     # Split SQL into individual statements
     statements = sql.split(";")
-    
+
     with engine.connect() as conn:
         for statement in statements:
             if statement.strip():
@@ -29,6 +30,7 @@ def init_db():
                 conn.execute(text(statement))
         conn.commit()
     print("Database succesvol geïnitialiseerd!")
+
 
 if __name__ == "__main__":
     init_db()

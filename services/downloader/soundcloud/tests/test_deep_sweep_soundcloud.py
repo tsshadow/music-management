@@ -1,4 +1,5 @@
 """The pass that goes looking for the tail of an account."""
+
 import unittest
 from datetime import datetime
 from unittest import mock
@@ -23,25 +24,19 @@ class StubNotifier:
 
 
 def listing(*ids):
-    return [FlatTrack(track_id, f'https://soundcloud.com/dj_a/{track_id}', track_id)
-            for track_id in ids]
+    return [FlatTrack(track_id, f'https://soundcloud.com/dj_a/{track_id}', track_id) for track_id in ids]
 
 
 class DeepSweepSoundcloudTest(unittest.TestCase):
-
     def setUp(self):
-        self.timing = load_timing('soundcloud',
-                                  overrides={'deep_sweep_max_downloads': 2})
+        self.timing = load_timing('soundcloud', overrides={'deep_sweep_max_downloads': 2})
         self.write_off_store = InMemoryWriteOffStore()
         self.check_store = InMemoryCheckStore()
         self.downloader = SoundcloudDownloader(
             timing=self.timing,
-            rate_state=RateState('soundcloud', self.timing,
-                                 store=InMemoryRateStateStore()),
-            schedule=AccountSchedule('soundcloud', store=self.check_store,
-                                     now=lambda: NOW),
-            unavailable=WriteOffs('soundcloud', store=self.write_off_store,
-                                  retry_days=30, now=lambda: NOW),
+            rate_state=RateState('soundcloud', self.timing, store=InMemoryRateStateStore()),
+            schedule=AccountSchedule('soundcloud', store=self.check_store, now=lambda: NOW),
+            unavailable=WriteOffs('soundcloud', store=self.write_off_store, retry_days=30, now=lambda: NOW),
             notifier=StubNotifier(),
         )
         # No text archive on disk; the database is the only record here.
@@ -55,10 +50,12 @@ class DeepSweepSoundcloudTest(unittest.TestCase):
 
     def _sweep(self, tracks, held, held_after=None):
         after = held if held_after is None else held_after
-        with mock.patch('services.downloader.soundcloud.soundcloud.list_flat',
-                        return_value=tracks), \
-             mock.patch('services.downloader.soundcloud.soundcloud.SoundcloudArchive'
-                        '.held_ids', side_effect=[held, after]):
+        with (
+            mock.patch('services.downloader.soundcloud.soundcloud.list_flat', return_value=tracks),
+            mock.patch(
+                'services.downloader.soundcloud.soundcloud.SoundcloudArchive.held_ids', side_effect=[held, after]
+            ),
+        ):
             return self.downloader.deep_sweep_account('dj_a', {})
 
     def test_it_fetches_the_tracks_the_archive_does_not_hold(self):
@@ -69,11 +66,9 @@ class DeepSweepSoundcloudTest(unittest.TestCase):
 
     def test_it_reaches_a_gap_behind_a_track_it_already_holds(self):
         # This is the whole point: break_on_existing would stop at 'held'.
-        self._sweep(listing('new', 'held', 'gap'), held={'held'},
-                    held_after={'held', 'new', 'gap'})
+        self._sweep(listing('new', 'held', 'gap'), held={'held'}, held_after={'held', 'new', 'gap'})
 
-        self.assertEqual(['https://soundcloud.com/dj_a/new',
-                          'https://soundcloud.com/dj_a/gap'], self.fetched)
+        self.assertEqual(['https://soundcloud.com/dj_a/new', 'https://soundcloud.com/dj_a/gap'], self.fetched)
 
     def test_an_account_with_no_gaps_fetches_nothing_and_is_complete(self):
         report = self._sweep(listing('a', 'b'), held={'a', 'b'})
@@ -83,8 +78,7 @@ class DeepSweepSoundcloudTest(unittest.TestCase):
         self.assertEqual(0, report.wanted)
 
     def test_it_stops_at_the_cap_and_reports_the_pass_unfinished(self):
-        report = self._sweep(listing('a', 'b', 'c'), held=set(),
-                             held_after={'a', 'b'})
+        report = self._sweep(listing('a', 'b', 'c'), held=set(), held_after={'a', 'b'})
 
         self.assertEqual(2, len(self.fetched))
         self.assertTrue(report.capped)
@@ -98,12 +92,13 @@ class DeepSweepSoundcloudTest(unittest.TestCase):
         self.assertEqual('failing', row.reason)
 
     def test_a_track_rejected_during_this_pass_is_not_counted_as_a_failure(self):
-        self.write_off_store.remember('soundcloud', 'dj_a', 'a', 'too_short',
-                                      NOW, 30, 0)
-        with mock.patch('services.downloader.soundcloud.soundcloud.list_flat',
-                        return_value=listing('a')), \
-             mock.patch('services.downloader.soundcloud.soundcloud.SoundcloudArchive'
-                        '.held_ids', side_effect=[set(), set()]):
+        self.write_off_store.remember('soundcloud', 'dj_a', 'a', 'too_short', NOW, 30, 0)
+        with (
+            mock.patch('services.downloader.soundcloud.soundcloud.list_flat', return_value=listing('a')),
+            mock.patch(
+                'services.downloader.soundcloud.soundcloud.SoundcloudArchive.held_ids', side_effect=[set(), set()]
+            ),
+        ):
             # The ledger was empty when the pass started; the filter wrote the
             # verdict while it ran.
             self.downloader.unavailable.load_many = lambda account, ids: {}
@@ -121,11 +116,9 @@ class DeepSweepSoundcloudTest(unittest.TestCase):
         self.assertEqual(1, report.written_off)
 
     def test_a_short_track_is_wanted_again_once_the_floor_drops_below_it(self):
-        self.write_off_store.remember('soundcloud', 'dj_a', 'a', 'too_short',
-                                      NOW, 30, 0)
+        self.write_off_store.remember('soundcloud', 'dj_a', 'a', 'too_short', NOW, 30, 0)
 
-        with mock.patch('services.downloader.soundcloud.soundcloud.DURATION_BOUNDS',
-                        (10, 21600)):
+        with mock.patch('services.downloader.soundcloud.soundcloud.DURATION_BOUNDS', (10, 21600)):
             report = self._sweep(listing('a'), held=set(), held_after={'a'})
 
         self.assertEqual(['https://soundcloud.com/dj_a/a'], self.fetched)
@@ -140,18 +133,17 @@ class DeepSweepBranchTest(unittest.TestCase):
         self.check_store = InMemoryCheckStore()
         self.downloader = SoundcloudDownloader(
             timing=self.timing,
-            rate_state=RateState('soundcloud', self.timing,
-                                 store=InMemoryRateStateStore()),
-            schedule=AccountSchedule('soundcloud', store=self.check_store,
-                                     now=lambda: NOW),
-            unavailable=WriteOffs('soundcloud', store=InMemoryWriteOffStore(),
-                                  retry_days=30, now=lambda: NOW),
+            rate_state=RateState('soundcloud', self.timing, store=InMemoryRateStateStore()),
+            schedule=AccountSchedule('soundcloud', store=self.check_store, now=lambda: NOW),
+            unavailable=WriteOffs('soundcloud', store=InMemoryWriteOffStore(), retry_days=30, now=lambda: NOW),
             notifier=StubNotifier(),
         )
 
     def test_an_account_never_deep_swept_takes_the_deep_path(self):
-        with mock.patch.object(self.downloader, 'deep_sweep_account') as deep, \
-             mock.patch.object(self.downloader, '_probe') as probe:
+        with (
+            mock.patch.object(self.downloader, 'deep_sweep_account') as deep,
+            mock.patch.object(self.downloader, '_probe') as probe,
+        ):
             deep.return_value = mock.Mock(complete=True)
             self.downloader._check_account('dj_a', {})
 
@@ -176,9 +168,11 @@ class DeepSweepBranchTest(unittest.TestCase):
     def test_a_recently_deep_swept_account_goes_back_to_the_probe(self):
         self.downloader.policy.schedule.mark_deep_swept('dj_a')
 
-        with mock.patch.object(self.downloader, 'deep_sweep_account') as deep, \
-             mock.patch.object(self.downloader, '_probe', return_value=None), \
-             mock.patch.object(self.downloader, 'download_account') as download:
+        with (
+            mock.patch.object(self.downloader, 'deep_sweep_account') as deep,
+            mock.patch.object(self.downloader, '_probe', return_value=None),
+            mock.patch.object(self.downloader, 'download_account') as download,
+        ):
             self.downloader._check_account('dj_a', {})
 
         deep.assert_not_called()

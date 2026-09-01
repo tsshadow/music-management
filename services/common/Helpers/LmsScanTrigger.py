@@ -20,7 +20,7 @@ class LmsScanTrigger:
     def __init__(self):
         self._config = ConfigStore()
 
-    def trigger(self, full_scan: bool=False) -> None:
+    def trigger(self, full_scan: bool = False) -> None:
         hosts = self._config.get('lms_hosts')
         api_key = self._config.get('lms_subsonic_api_key')
         if not hosts or not api_key:

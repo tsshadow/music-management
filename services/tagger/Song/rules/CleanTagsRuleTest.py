@@ -7,7 +7,6 @@ from services.tagger.Song.Tag import Tag
 
 
 class CleanTagsRuleTest(unittest.TestCase):
-
     def setUp(self):
         self.rule = CleanTagsRule()
 
@@ -18,7 +17,12 @@ class CleanTagsRuleTest(unittest.TestCase):
         tag_genre = MagicMock()
         tag_collection = MagicMock()
         tag_collection.has_item.side_effect = lambda k: True
-        tag_collection.get_item.side_effect = lambda k: {ARTIST: tag_artist, ALBUM_ARTIST: tag_album_artist, GENRE: tag_genre, REMIXER: tag_remixer}[k]
+        tag_collection.get_item.side_effect = lambda k: {
+            ARTIST: tag_artist,
+            ALBUM_ARTIST: tag_album_artist,
+            GENRE: tag_genre,
+            REMIXER: tag_remixer,
+        }[k]
         song = MagicMock()
         song.tag_collection = tag_collection
         self.rule.apply(song)
@@ -100,5 +104,7 @@ class CleanTagsRuleTest(unittest.TestCase):
         tag = Tag(ARTIST, ['Anime: The new world'])
         tag.regex()
         self.assertEqual(sorted(tag.value), sorted(['Anime', 'The new world']))
+
+
 if __name__ == '__main__':
     unittest.main()

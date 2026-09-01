@@ -6,7 +6,6 @@ from services.importer.importer_service import ImporterService, parse_args
 
 
 class ParseArgsTest(unittest.TestCase):
-
     def test_the_defaults_run_the_pipeline_once(self):
         with patch('sys.argv', ['importer']):
             args = parse_args()
@@ -21,7 +20,6 @@ class ParseArgsTest(unittest.TestCase):
 
 
 class ImporterServiceTest(unittest.TestCase):
-
     def setUp(self):
         self.settings = MagicMock(dryrun=False)
         patches = [
@@ -59,7 +57,6 @@ class ImporterServiceTest(unittest.TestCase):
 
 
 class MainTest(unittest.TestCase):
-
     def setUp(self):
         self.service = MagicMock()
         patches = [
@@ -82,8 +79,10 @@ class MainTest(unittest.TestCase):
         importer_service.setup_logging.assert_called_once_with('importer')
 
     def test_with_the_repeat_flag_the_pipeline_sleeps_between_runs(self):
-        with patch('sys.argv', ['importer', '--repeat', '--sleeptime', '7']), \
-             patch.object(importer_service, 'sleep', side_effect=[None, KeyboardInterrupt]) as sleep:
+        with (
+            patch('sys.argv', ['importer', '--repeat', '--sleeptime', '7']),
+            patch.object(importer_service, 'sleep', side_effect=[None, KeyboardInterrupt]) as sleep,
+        ):
             with self.assertRaises(KeyboardInterrupt):
                 importer_service.main()
         self.assertEqual(sleep.call_args.args, (7,))
@@ -97,8 +96,10 @@ class MainTest(unittest.TestCase):
 
     def test_a_failing_run_is_logged_and_the_loop_continues(self):
         self.service.run_import.side_effect = [RuntimeError('boom'), None]
-        with patch('sys.argv', ['importer', '--repeat']), \
-             patch.object(importer_service, 'sleep', side_effect=[KeyboardInterrupt]):
+        with (
+            patch('sys.argv', ['importer', '--repeat']),
+            patch.object(importer_service, 'sleep', side_effect=[KeyboardInterrupt]),
+        ):
             with self.assertRaises(KeyboardInterrupt):
                 importer_service.main()
         self.assertEqual(self.service.run_import.call_count, 1)

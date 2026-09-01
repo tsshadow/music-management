@@ -2,7 +2,6 @@ from .normalizer import ArtistNameNormalizer
 
 
 class ArtistMatcher:
-
     def __init__(self, db_conn=None):
         self.db_conn = db_conn
         self.normalizer = ArtistNameNormalizer()
@@ -18,6 +17,7 @@ class ArtistMatcher:
         target_name_slug = ''.join(filter(str.isalnum, target_name_norm))
         candidate_name_slug = ''.join(filter(str.isalnum, candidate_name_norm))
         import difflib
+
         ratio = difflib.SequenceMatcher(None, target_name_norm, candidate_name_norm).ratio()
         if target_name_norm == candidate_name_norm:
             score += 60
@@ -31,8 +31,11 @@ class ArtistMatcher:
             score += 25
         elif ratio < 0.5:
             score -= 40
-        if (target_artist.get('mbid') and candidate_artist.get('mbid')
-                and target_artist['mbid'] == candidate_artist['mbid']):
+        if (
+            target_artist.get('mbid')
+            and candidate_artist.get('mbid')
+            and target_artist['mbid'] == candidate_artist['mbid']
+        ):
             score += 100
         if candidate_artist.get('is_known_match'):
             score += 100
@@ -41,7 +44,9 @@ class ArtistMatcher:
             score -= 30
         if candidate_artist.get('source') == 'spotify' and candidate_artist.get('popularity', 0) > 50:
             score += 10
-        if candidate_artist.get('source') == 'soundcloud' and candidate_artist.get('linked_artist_id') == target_artist.get('id'):
+        if candidate_artist.get('source') == 'soundcloud' and candidate_artist.get(
+            'linked_artist_id'
+        ) == target_artist.get('id'):
             score += 40
         return max(0, min(100, score))
 

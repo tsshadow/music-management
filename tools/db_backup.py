@@ -31,6 +31,7 @@ Usage:
     python tools/db_backup.py --check-stale   # alert if the newest is too old
     python tools/db_backup.py --check-destination  # validate config, dump nothing
 """
+
 from __future__ import annotations
 
 import argparse
@@ -86,8 +87,7 @@ def alert(title: str, message: str) -> None:
     except Exception as exc:  # pragma: no cover - defensive
         print(f'db_backup: pushing the alert failed: {exc}', file=sys.stderr)
     try:
-        event_service.emit(level='ERROR', title=title, message=message,
-                           source=SOURCE, push=True)
+        event_service.emit(level='ERROR', title=title, message=message, source=SOURCE, push=True)
     except Exception as exc:  # pragma: no cover - defensive
         print(f'db_backup: recording the alert failed: {exc}', file=sys.stderr)
 
@@ -116,8 +116,8 @@ def resolve_destination(destination: str, data_path: str | None) -> Path:
         datadir = (Path(data_path) / 'mariadb').resolve()
         if dest == datadir or datadir in dest.parents:
             raise BackupError(
-                f'backup destination {dest} is inside the MariaDB data directory '
-                f'{datadir}; that is not a backup')
+                f'backup destination {dest} is inside the MariaDB data directory {datadir}; that is not a backup'
+            )
     return dest
 
 
@@ -163,8 +163,10 @@ def dump(target: Path, creds: dict[str, str]) -> None:
         command = [
             'mariadb-dump',
             f'--defaults-extra-file={defaults_path}',
-            '--host', creds['host'],
-            '--port', creds['port'],
+            '--host',
+            creds['host'],
+            '--port',
+            creds['port'],
             '--single-transaction',
             '--quick',
             '--routines',
@@ -174,17 +176,14 @@ def dump(target: Path, creds: dict[str, str]) -> None:
             creds['database'],
         ]
         with gzip.open(target, 'wb') as out:
-            process = subprocess.Popen(command, stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE)
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             assert process.stdout is not None
             for chunk in iter(lambda: process.stdout.read(1024 * 1024), b''):
                 out.write(chunk)
             _, stderr = process.communicate()
         if process.returncode != 0:
             detail = stderr.decode('utf-8', 'replace').strip().splitlines()
-            raise BackupError(
-                f'mariadb-dump exited {process.returncode}: '
-                f'{detail[-1] if detail else "no output"}')
+            raise BackupError(f'mariadb-dump exited {process.returncode}: {detail[-1] if detail else "no output"}')
     finally:
         with contextlib.suppress(FileNotFoundError):
             os.unlink(defaults_path)
@@ -245,7 +244,8 @@ def row_counts(creds: dict[str, str]) -> dict[str, int]:
         cursor.execute(
             'SELECT table_name FROM information_schema.tables '
             'WHERE table_schema = %s AND table_type = %s ORDER BY table_name',
-            (creds['database'], 'BASE TABLE'))
+            (creds['database'], 'BASE TABLE'),
+        )
         tables = [row[0] for row in cursor.fetchall()]
         for table in tables:
             cursor.execute(f'SELECT COUNT(*) FROM {quote_identifier(table)}')  # noqa: S608
@@ -280,7 +280,7 @@ def prune(destination: Path, retention_days: int, now: datetime) -> list[Path]:
 
 
 def _parse_daily(name: str) -> datetime | None:
-    stem = name[len(DAILY_PREFIX):-len(SUFFIX)]
+    stem = name[len(DAILY_PREFIX) : -len(SUFFIX)]
     try:
         return datetime.strptime(stem, '%Y%m%d_%H%M%S').replace(tzinfo=UTC)
     except ValueError:
@@ -288,7 +288,7 @@ def _parse_daily(name: str) -> datetime | None:
 
 
 def _parse_monthly(name: str) -> datetime | None:
-    stem = name[len(MONTHLY_PREFIX):-len(SUFFIX)]
+    stem = name[len(MONTHLY_PREFIX) : -len(SUFFIX)]
     try:
         return datetime.strptime(stem, '%Y%m').replace(tzinfo=UTC)
     except ValueError:
@@ -310,8 +310,9 @@ def promote_monthly(backup: Path, now: datetime) -> Path | None:
     return target
 
 
-def write_latest(destination: Path, backup: Path, started: datetime,
-                 finished: datetime, counts: dict[str, int]) -> Path:
+def write_latest(
+    destination: Path, backup: Path, started: datetime, finished: datetime, counts: dict[str, int]
+) -> Path:
     payload = {
         'file': backup.name,
         'finished_at': finished.isoformat(),
@@ -346,14 +347,12 @@ def check_stale(destination: Path, hours: int, now: datetime) -> str | None:
     finished = datetime.fromisoformat(latest['finished_at'])
     age_hours = (now - finished).total_seconds() / 3600
     if age_hours > hours:
-        return (f'newest backup {latest["file"]} finished {age_hours:.1f} hours ago, '
-                f'over the {hours} hour limit')
+        return f'newest backup {latest["file"]} finished {age_hours:.1f} hours ago, over the {hours} hour limit'
     return None
 
 
 def run_backup(argv_destination: str | None = None) -> int:
-    destination = resolve_destination(
-        argv_destination or os.getenv('BACKUP_PATH', ''), os.getenv('DATA_PATH'))
+    destination = resolve_destination(argv_destination or os.getenv('BACKUP_PATH', ''), os.getenv('DATA_PATH'))
     retention = int(os.getenv('BACKUP_RETENTION_DAYS', str(DEFAULT_RETENTION_DAYS)))
     creds = _credentials()
     if not creds['database']:
@@ -375,8 +374,10 @@ def run_backup(argv_destination: str | None = None) -> int:
     promoted = promote_monthly(backup, finished)
     removed = prune(destination, retention, finished)
 
-    print(f'backup: {backup} ({backup.stat().st_size} bytes, '
-          f'{(finished - started).total_seconds():.0f}s, {len(counts)} tables)')
+    print(
+        f'backup: {backup} ({backup.stat().st_size} bytes, '
+        f'{(finished - started).total_seconds():.0f}s, {len(counts)} tables)'
+    )
     if promoted:
         print(f'promoted to monthly: {promoted.name}')
     for path in removed:
@@ -385,27 +386,26 @@ def run_backup(argv_destination: str | None = None) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--destination', help='override BACKUP_PATH')
-    parser.add_argument('--check-destination', action='store_true',
-                        help='validate the destination and exit without dumping')
-    parser.add_argument('--check-stale', action='store_true',
-                        help='alert when the newest backup is older than the limit')
-    parser.add_argument('--stale-hours', type=int,
-                        default=int(os.getenv('BACKUP_STALE_AFTER_HOURS',
-                                              str(DEFAULT_STALE_AFTER_HOURS))))
+    parser.add_argument(
+        '--check-destination', action='store_true', help='validate the destination and exit without dumping'
+    )
+    parser.add_argument(
+        '--check-stale', action='store_true', help='alert when the newest backup is older than the limit'
+    )
+    parser.add_argument(
+        '--stale-hours', type=int, default=int(os.getenv('BACKUP_STALE_AFTER_HOURS', str(DEFAULT_STALE_AFTER_HOURS)))
+    )
     args = parser.parse_args(argv)
 
     try:
         if args.check_destination:
-            dest = resolve_destination(
-                args.destination or os.getenv('BACKUP_PATH', ''), os.getenv('DATA_PATH'))
+            dest = resolve_destination(args.destination or os.getenv('BACKUP_PATH', ''), os.getenv('DATA_PATH'))
             print(f'destination ok: {dest}')
             return 0
         if args.check_stale:
-            dest = resolve_destination(
-                args.destination or os.getenv('BACKUP_PATH', ''), os.getenv('DATA_PATH'))
+            dest = resolve_destination(args.destination or os.getenv('BACKUP_PATH', ''), os.getenv('DATA_PATH'))
             reason = check_stale(dest, args.stale_hours, datetime.now(UTC))
             if reason:
                 alert('Database backup is stale', reason)

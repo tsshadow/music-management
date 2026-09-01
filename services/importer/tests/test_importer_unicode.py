@@ -9,7 +9,6 @@ from services.tagger.Song.LabelSong import LabelSong
 
 
 class TestImporterUnicode(unittest.TestCase):
-
     def setUp(self):
         reset_database_helpers()
         self.path_exists_patcher = patch('os.path.exists')
@@ -26,5 +25,7 @@ class TestImporterUnicode(unittest.TestCase):
         song.tag_collection.set_item(ARTIST, 'Artist\ufeffName')
         song.parse()
         self.assertEqual(song.artist(), 'Artist;Name')
+
+
 if __name__ == '__main__':
     unittest.main()

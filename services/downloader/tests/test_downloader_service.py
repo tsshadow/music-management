@@ -27,21 +27,24 @@ def stub_telegram_downloader():
     module.TelegramDownloader = downloader
     package = types.ModuleType('services.downloader.telegram')
     package.telegram = module
-    with patch.dict(sys.modules, {
-        'services.downloader.telegram': package,
-        'services.downloader.telegram.telegram': module,
-    }):
+    with patch.dict(
+        sys.modules,
+        {
+            'services.downloader.telegram': package,
+            'services.downloader.telegram.telegram': module,
+        },
+    ):
         yield downloader
 
 
 def _timing_for(intervals):
     def _load(source):
         return load_timing(source, overrides={'sweep_interval': intervals[source]})
+
     return _load
 
 
 class SweepSleepTest(unittest.TestCase):
-
     def test_the_interval_comes_from_the_settings(self):
         seconds = sweep_sleep_seconds(['soundcloud'], None, load=_timing_for({'soundcloud': 1800}))
         self.assertEqual(seconds, 1800)
@@ -51,13 +54,15 @@ class SweepSleepTest(unittest.TestCase):
         self.assertEqual(seconds, 60)
 
     def test_several_steps_wake_up_on_the_shortest_interval(self):
-        seconds = sweep_sleep_seconds(['soundcloud', 'youtube'], None,
-                                      load=_timing_for({'soundcloud': 1800, 'youtube': 900}))
+        seconds = sweep_sleep_seconds(
+            ['soundcloud', 'youtube'], None, load=_timing_for({'soundcloud': 1800, 'youtube': 900})
+        )
         self.assertEqual(seconds, 900)
 
     def test_a_settings_failure_falls_back_to_a_safe_interval(self):
         def _broken(_source):
             raise RuntimeError('database is down')
+
         self.assertEqual(sweep_sleep_seconds(['soundcloud'], None, load=_broken), 900)
 
     def test_no_steps_falls_back_to_a_safe_interval(self):
@@ -65,7 +70,6 @@ class SweepSleepTest(unittest.TestCase):
 
 
 class CurrentTimingTest(unittest.TestCase):
-
     def test_the_timing_of_a_source_comes_from_its_sweep_policy(self):
         policy = MagicMock()
         with patch.object(downloader_service, 'SweepPolicy', return_value=policy) as sweep_policy:
@@ -75,7 +79,6 @@ class CurrentTimingTest(unittest.TestCase):
 
 
 class CommandLineTest(unittest.TestCase):
-
     def test_sleeptime_is_unset_by_default_so_the_settings_decide(self):
         args = parse_args([])
         self.assertIsNone(args.sleeptime)
@@ -159,7 +162,6 @@ class DownloadDispatchTest(unittest.TestCase):
 
 
 class MainLoopTest(unittest.TestCase):
-
     def run_main(self, argv, sleep=None):
         """Run main() with every downloader stubbed out.
 
@@ -167,10 +169,12 @@ class MainLoopTest(unittest.TestCase):
         having the last sleep raise; that exception is the expected way out.
         """
         service = MagicMock()
-        with patch.object(downloader_service, 'DownloaderService', return_value=service), \
-             patch.object(downloader_service, 'parse_args', return_value=parse_args(argv)), \
-             patch.object(downloader_service.time, 'sleep', side_effect=sleep) as sleeper, \
-             contextlib.suppress(KeyboardInterrupt):
+        with (
+            patch.object(downloader_service, 'DownloaderService', return_value=service),
+            patch.object(downloader_service, 'parse_args', return_value=parse_args(argv)),
+            patch.object(downloader_service.time, 'sleep', side_effect=sleep) as sleeper,
+            contextlib.suppress(KeyboardInterrupt),
+        ):
             main()
         return service, sleeper
 
@@ -192,8 +196,7 @@ class MainLoopTest(unittest.TestCase):
         service, _sleeper = self.run_main(['--step', 'youtube', '--account', 'Angerfist', '--no-break-on-existing'])
 
         self.assertEqual(
-            service.download.call_args.kwargs,
-            {'break_on_existing': False, 'account': 'Angerfist', 'deep': False}
+            service.download.call_args.kwargs, {'break_on_existing': False, 'account': 'Angerfist', 'deep': False}
         )
 
     def test_deep_is_off_by_default(self):

@@ -9,12 +9,10 @@ from services.common.Helpers.EventService import Event, EventQueue, EventService
 
 
 def make_event(level='INFO', title='t', source='downloader'):
-    return Event(level=level, title=title, message='m', source=source,
-                 logger=None, context=None, push=False)
+    return Event(level=level, title=title, message='m', source=source, logger=None, context=None, push=False)
 
 
 class EventQueueTest(unittest.TestCase):
-
     def test_put_and_get_round_trip(self):
         q = EventQueue(maxsize=2)
         event = make_event()
@@ -47,7 +45,6 @@ class EventQueueTest(unittest.TestCase):
 
 
 class EventServiceWriteTest(unittest.TestCase):
-
     def setUp(self):
         self.service = EventService(sinks=[])
 
@@ -58,9 +55,15 @@ class EventServiceWriteTest(unittest.TestCase):
         mock_connector.return_value.connect.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
 
-        event = Event(level='ERROR', title='kapot', message='details',
-                      source='importer', logger='importer.mover',
-                      context={'track': 'x'}, push=False)
+        event = Event(
+            level='ERROR',
+            title='kapot',
+            message='details',
+            source='importer',
+            logger='importer.mover',
+            context={'track': 'x'},
+            push=False,
+        )
         self.assertTrue(self.service._write(event))
 
         sql, params = mock_cursor.execute.call_args[0]

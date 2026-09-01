@@ -1,5 +1,6 @@
 """Leeskant van de events-stroom: het logboek in de web-UI en de REST-sensor in
 Home Assistant komen hier binnen."""
+
 from __future__ import annotations
 
 import re
@@ -74,10 +75,16 @@ def _build_filters(level, source, since, until, q):
 
 @router.get('')
 @router.get('/')
-def list_events(level: list[str] = Query(default=[]), source: list[str] = Query(default=[]),
-                since: str | None = None, until: str | None = None, q: str | None = None,
-                limit: int = DEFAULT_LIMIT, offset: int = 0,
-                _auth: dict = Depends(verify_api_key)):
+def list_events(
+    level: list[str] = Query(default=[]),
+    source: list[str] = Query(default=[]),
+    since: str | None = None,
+    until: str | None = None,
+    q: str | None = None,
+    limit: int = DEFAULT_LIMIT,
+    offset: int = 0,
+    _auth: dict = Depends(verify_api_key),
+):
     unknown = [item for item in level if item not in LEVELS]
     if unknown:
         raise HTTPException(status_code=400, detail=f'unknown level(s): {unknown}')
@@ -104,16 +111,17 @@ def list_events(level: list[str] = Query(default=[]), source: list[str] = Query(
     try:
         with conn.cursor() as cursor:
             cursor.execute(
-                f'SELECT * FROM events {where} ORDER BY created_at DESC, id DESC '
-                'LIMIT %s OFFSET %s', (*params, limit, offset))
+                f'SELECT * FROM events {where} ORDER BY created_at DESC, id DESC LIMIT %s OFFSET %s',
+                (*params, limit, offset),
+            )
             events = cursor.fetchall()
 
             cursor.execute(f'SELECT COUNT(*) AS total FROM events {where}', tuple(params))
             total = (cursor.fetchone() or {}).get('total', 0)
 
             cursor.execute(
-                f'SELECT level, COUNT(*) AS n FROM events {counts_where} GROUP BY level',
-                tuple(counts_params))
+                f'SELECT level, COUNT(*) AS n FROM events {counts_where} GROUP BY level', tuple(counts_params)
+            )
             counts = {row['level']: row['n'] for row in cursor.fetchall()}
 
         return {

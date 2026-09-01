@@ -25,7 +25,8 @@ API_KEY = os.getenv('API_KEY') or MUMA_SERVER_API_KEY
 MUMA_SERVER_SUBSONIC_API_KEY = os.getenv('MUMA_SERVER_SUBSONIC_API_KEY') or os.getenv('LMS_SUBSONIC_API_KEY') or API_KEY
 MUMA_SERVER_HOSTS = os.getenv('MUMA_SERVER_HOSTS', 'music-management-server:5082')
 
-async def verify_api_key(x_api_key: str=Header(None)):
+
+async def verify_api_key(x_api_key: str = Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
     if is_system_api_key(x_api_key):
@@ -35,6 +36,7 @@ async def verify_api_key(x_api_key: str=Header(None)):
         return res
     raise HTTPException(status_code=401, detail='Invalid API Key')
 
+
 class UserCreate(BaseModel):
     username: str
     display_name: str | None = None
@@ -43,6 +45,7 @@ class UserCreate(BaseModel):
     api_key: str | None = None
     password: str | None = None
 
+
 class UserUpdate(BaseModel):
     username: str | None = None
     display_name: str | None = None
@@ -50,31 +53,40 @@ class UserUpdate(BaseModel):
     server_user_id: str | None = None
     api_key: str | None = None
 
+
 class MergeUsersRequest(BaseModel):
     secondary_user_id: int
+
 
 class RoleAssign(BaseModel):
     role: str
 
+
 class EnabledUpdate(BaseModel):
     enabled: bool
+
 
 class GoogleLoginRequest(BaseModel):
     id_token: str
 
+
 class AccessRequestCreate(BaseModel):
     id_token: str
 
+
 class RefreshRequest(BaseModel):
     refresh_token: str
+
 
 class LBAccountUpdate(BaseModel):
     lb_username: str
     lb_token: str
 
+
 class DynamicPlaylistCreate(BaseModel):
     name: str
     params: str
+
 
 class DynamicPlaylistUpdate(BaseModel):
     name: str | None = None
@@ -85,18 +97,24 @@ class DynamicPlaylistUpdate(BaseModel):
     sort_method: str | None = None
     song_type: str | None = None
 
+
 class PasswordUpdate(BaseModel):
     password: str
 
+
 class AppSettingsUpdate(BaseModel):
     settings: str
+
 
 class LoginRequest(BaseModel):
     username: str
     password: str
 
+
 def init_db(cursor):
-    cursor.execute('\n        CREATE TABLE IF NOT EXISTS users (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            username VARCHAR(255) UNIQUE NOT NULL,\n            display_name VARCHAR(255),\n            is_admin BOOLEAN DEFAULT FALSE,\n            password_hash VARCHAR(255),\n            api_key VARCHAR(255),\n            server_user_id VARCHAR(255),\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        )\n    ')
+    cursor.execute(
+        '\n        CREATE TABLE IF NOT EXISTS users (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            username VARCHAR(255) UNIQUE NOT NULL,\n            display_name VARCHAR(255),\n            is_admin BOOLEAN DEFAULT FALSE,\n            password_hash VARCHAR(255),\n            api_key VARCHAR(255),\n            server_user_id VARCHAR(255),\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        )\n    '
+    )
     cursor.execute("SHOW COLUMNS FROM users LIKE 'server_user_id'")
     if not cursor.fetchone():
         cursor.execute("SHOW COLUMNS FROM users LIKE 'lms_user_id'")
@@ -131,8 +149,12 @@ def init_db(cursor):
         except Exception as e:
             if "Duplicate column name" not in str(e):
                 raise e
-    cursor.execute('\n        CREATE TABLE IF NOT EXISTS user_listenbrainz_accounts (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            user_id INT NOT NULL,\n            lb_username VARCHAR(255) NOT NULL,\n            lb_token VARCHAR(255) NOT NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            UNIQUE KEY (user_id),\n            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE\n        )\n    ')
-    cursor.execute('\n        CREATE TABLE IF NOT EXISTS dynamic_playlists (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            user_id INT NOT NULL,\n            remote_id INT,\n            source VARCHAR(50),\n            name VARCHAR(255) NOT NULL,\n            params TEXT NOT NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE\n        )\n    ')
+    cursor.execute(
+        '\n        CREATE TABLE IF NOT EXISTS user_listenbrainz_accounts (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            user_id INT NOT NULL,\n            lb_username VARCHAR(255) NOT NULL,\n            lb_token VARCHAR(255) NOT NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            UNIQUE KEY (user_id),\n            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE\n        )\n    '
+    )
+    cursor.execute(
+        '\n        CREATE TABLE IF NOT EXISTS dynamic_playlists (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            user_id INT NOT NULL,\n            remote_id INT,\n            source VARCHAR(50),\n            name VARCHAR(255) NOT NULL,\n            params TEXT NOT NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE\n        )\n    '
+    )
     cursor.execute("SHOW COLUMNS FROM dynamic_playlists LIKE 'remote_id'")
     if not cursor.fetchone():
         cursor.execute('ALTER TABLE dynamic_playlists ADD COLUMN remote_id INT AFTER user_id')
@@ -141,10 +163,13 @@ def init_db(cursor):
         cursor.execute('ALTER TABLE dynamic_playlists ADD COLUMN source VARCHAR(50) AFTER remote_id')
     with contextlib.suppress(Exception):
         cursor.execute('ALTER TABLE dynamic_playlists ADD UNIQUE INDEX uq_source_remote_id (source, remote_id)')
-    cursor.execute('\n        CREATE TABLE IF NOT EXISTS user_app_settings (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            user_id INT NOT NULL,\n            app_id VARCHAR(50) NOT NULL,\n            settings_json LONGTEXT NOT NULL,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            UNIQUE KEY (user_id, app_id),\n            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE\n        )\n    ')
+    cursor.execute(
+        '\n        CREATE TABLE IF NOT EXISTS user_app_settings (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            user_id INT NOT NULL,\n            app_id VARCHAR(50) NOT NULL,\n            settings_json LONGTEXT NOT NULL,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            UNIQUE KEY (user_id, app_id),\n            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE\n        )\n    '
+    )
 
     # Roles/permissions, Google identities, access requests, refresh tokens, audit log.
     rbac.init_db(cursor)
+
 
 def _role_name(cursor, role_id):
     if not role_id:
@@ -152,6 +177,7 @@ def _role_name(cursor, role_id):
     cursor.execute('SELECT name FROM roles WHERE id = %s', (role_id,))
     row = cursor.fetchone()
     return row['name'] if row else None
+
 
 def build_auth_user(cursor, user_row):
     """Build the permission-bearing user payload used by verify_token/login/etc.
@@ -176,8 +202,9 @@ def build_auth_user(cursor, user_row):
         'permissions': permissions,
     }
 
+
 @router.get('/auth/verify')
-def verify_token(x_api_key: str=Header(None)):
+def verify_token(x_api_key: str = Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
     if is_system_api_key(x_api_key):
@@ -195,6 +222,7 @@ def verify_token(x_api_key: str=Header(None)):
         finally:
             conn.close()
     raise HTTPException(status_code=403, detail='Invalid API Key')
+
 
 @router.post('/auth/login')
 def login(req: LoginRequest, request: Request):
@@ -226,7 +254,12 @@ def login(req: LoginRequest, request: Request):
                     raise HTTPException(status_code=403, detail='Account disabled')
 
                 password_valid = False
-                if user.get('password_hash') and bcrypt.checkpw(req.password.encode('utf-8'), user['password_hash'].encode('utf-8')) or user.get('api_key') and secrets.compare_digest(req.password, user['api_key']):
+                if (
+                    user.get('password_hash')
+                    and bcrypt.checkpw(req.password.encode('utf-8'), user['password_hash'].encode('utf-8'))
+                    or user.get('api_key')
+                    and secrets.compare_digest(req.password, user['api_key'])
+                ):
                     password_valid = True
 
                 if not password_valid:
@@ -238,12 +271,21 @@ def login(req: LoginRequest, request: Request):
                     cursor.execute('UPDATE users SET api_key = %s WHERE id = %s', (api_key, user['id']))
                 cursor.execute('UPDATE users SET last_login_at = NOW() WHERE id = %s', (user['id'],))
                 refresh_token = secrets.token_hex(32)
-                cursor.execute('INSERT INTO user_refresh_tokens (user_id, token) VALUES (%s, %s)', (user['id'], refresh_token))
+                cursor.execute(
+                    'INSERT INTO user_refresh_tokens (user_id, token) VALUES (%s, %s)', (user['id'], refresh_token)
+                )
                 conn.commit()
                 auth_user = build_auth_user(cursor, user)
-                return {'status': 'ok', 'user': auth_user, 'api_key': api_key, 'access_token': api_key, 'refresh_token': refresh_token}
+                return {
+                    'status': 'ok',
+                    'user': auth_user,
+                    'api_key': api_key,
+                    'access_token': api_key,
+                    'refresh_token': refresh_token,
+                }
         finally:
             conn.close()
+
 
 @router.post('/auth/refresh')
 def refresh_access_token(req: RefreshRequest, request: Request):
@@ -254,7 +296,9 @@ def refresh_access_token(req: RefreshRequest, request: Request):
             raise HTTPException(status_code=500, detail='Database connection failed')
         try:
             with conn.cursor() as cursor:
-                cursor.execute('SELECT * FROM user_refresh_tokens WHERE token = %s AND revoked_at IS NULL', (req.refresh_token,))
+                cursor.execute(
+                    'SELECT * FROM user_refresh_tokens WHERE token = %s AND revoked_at IS NULL', (req.refresh_token,)
+                )
                 token_row = cursor.fetchone()
                 if not token_row:
                     raise HTTPException(status_code=401, detail='Invalid or revoked refresh token')
@@ -269,6 +313,7 @@ def refresh_access_token(req: RefreshRequest, request: Request):
         finally:
             conn.close()
 
+
 @router.get('/auth/setup-status')
 def get_setup_status():
     conn = get_db_connection()
@@ -281,6 +326,7 @@ def get_setup_status():
             return {'setup_required': res['count'] == 0}
     finally:
         conn.close()
+
 
 @router.post('/auth/setup')
 def setup_admin(user: UserCreate, request: Request):
@@ -306,7 +352,16 @@ def setup_admin(user: UserCreate, request: Request):
 
                 cursor.execute(
                     'INSERT INTO users (username, display_name, is_admin, role_id, enabled, password_hash, api_key, server_user_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
-                    (user.username, user.display_name or user.username, True, admin_role['id'] if admin_role else None, True, password_hash, token, user.server_user_id)
+                    (
+                        user.username,
+                        user.display_name or user.username,
+                        True,
+                        admin_role['id'] if admin_role else None,
+                        True,
+                        password_hash,
+                        token,
+                        user.server_user_id,
+                    ),
                 )
                 conn.commit()
 
@@ -320,13 +375,14 @@ def setup_admin(user: UserCreate, request: Request):
                     'display_name': user.display_name or user.username,
                     'role_name': rbac.ADMIN_ROLE_NAME,
                     'is_admin': True,
-                    'api_key': token
+                    'api_key': token,
                 }
         finally:
             conn.close()
 
+
 @router.get('/{user_id}/dynamic-playlists')
-def get_dynamic_playlists(user_id: int, auth: dict=Depends(verify_api_key)):
+def get_dynamic_playlists(user_id: int, auth: dict = Depends(verify_api_key)):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
@@ -339,8 +395,9 @@ def get_dynamic_playlists(user_id: int, auth: dict=Depends(verify_api_key)):
     finally:
         conn.close()
 
+
 @router.get('/{user_id}/dynamic-playlists/{playlist_id}')
-def get_dynamic_playlist(user_id: int, playlist_id: int, auth: dict=Depends(verify_api_key)):
+def get_dynamic_playlist(user_id: int, playlist_id: int, auth: dict = Depends(verify_api_key)):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
@@ -356,8 +413,9 @@ def get_dynamic_playlist(user_id: int, playlist_id: int, auth: dict=Depends(veri
     finally:
         conn.close()
 
+
 @router.post('/{user_id}/dynamic-playlists')
-def create_dynamic_playlist(user_id: int, playlist: DynamicPlaylistCreate, auth: dict=Depends(verify_api_key)):
+def create_dynamic_playlist(user_id: int, playlist: DynamicPlaylistCreate, auth: dict = Depends(verify_api_key)):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
@@ -365,14 +423,20 @@ def create_dynamic_playlist(user_id: int, playlist: DynamicPlaylistCreate, auth:
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
-            cursor.execute('INSERT INTO dynamic_playlists (user_id, name, params) VALUES (%s, %s, %s)', (user_id, playlist.name, playlist.params))
+            cursor.execute(
+                'INSERT INTO dynamic_playlists (user_id, name, params) VALUES (%s, %s, %s)',
+                (user_id, playlist.name, playlist.params),
+            )
             conn.commit()
             return {'status': 'ok', 'id': cursor.lastrowid}
     finally:
         conn.close()
 
+
 @router.put('/{user_id}/dynamic-playlists/{playlist_id}')
-def update_dynamic_playlist(user_id: int, playlist_id: int, playlist: DynamicPlaylistUpdate, auth: dict=Depends(verify_api_key)):
+def update_dynamic_playlist(
+    user_id: int, playlist_id: int, playlist: DynamicPlaylistUpdate, auth: dict = Depends(verify_api_key)
+):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
@@ -381,18 +445,28 @@ def update_dynamic_playlist(user_id: int, playlist_id: int, playlist: DynamicPla
     try:
         with conn.cursor() as cursor:
             if playlist.name and playlist.params:
-                cursor.execute('UPDATE dynamic_playlists SET name = %s, params = %s WHERE id = %s AND user_id = %s', (playlist.name, playlist.params, playlist_id, user_id))
+                cursor.execute(
+                    'UPDATE dynamic_playlists SET name = %s, params = %s WHERE id = %s AND user_id = %s',
+                    (playlist.name, playlist.params, playlist_id, user_id),
+                )
             elif playlist.name:
-                cursor.execute('UPDATE dynamic_playlists SET name = %s WHERE id = %s AND user_id = %s', (playlist.name, playlist_id, user_id))
+                cursor.execute(
+                    'UPDATE dynamic_playlists SET name = %s WHERE id = %s AND user_id = %s',
+                    (playlist.name, playlist_id, user_id),
+                )
             elif playlist.params:
-                cursor.execute('UPDATE dynamic_playlists SET params = %s WHERE id = %s AND user_id = %s', (playlist.params, playlist_id, user_id))
+                cursor.execute(
+                    'UPDATE dynamic_playlists SET params = %s WHERE id = %s AND user_id = %s',
+                    (playlist.params, playlist_id, user_id),
+                )
             conn.commit()
             return {'status': 'ok'}
     finally:
         conn.close()
 
+
 @router.delete('/{user_id}/dynamic-playlists/{playlist_id}')
-def delete_dynamic_playlist(user_id: int, playlist_id: int, auth: dict=Depends(verify_api_key)):
+def delete_dynamic_playlist(user_id: int, playlist_id: int, auth: dict = Depends(verify_api_key)):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
@@ -406,8 +480,9 @@ def delete_dynamic_playlist(user_id: int, playlist_id: int, auth: dict=Depends(v
     finally:
         conn.close()
 
+
 @router.get('/{user_id}/dynamic-playlists/{playlist_id}/tracks')
-def get_playlist_tracks(user_id: int, playlist_id: int, auth: dict=Depends(verify_api_key)):
+def get_playlist_tracks(user_id: int, playlist_id: int, auth: dict = Depends(verify_api_key)):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
@@ -418,7 +493,9 @@ def get_playlist_tracks(user_id: int, playlist_id: int, auth: dict=Depends(verif
             cursor.execute('SELECT username FROM users WHERE id = %s', (user_id,))
             user_row = cursor.fetchone()
             username = user_row['username'] if user_row else 'unknown'
-            cursor.execute('SELECT params FROM dynamic_playlists WHERE id = %s AND user_id = %s', (playlist_id, user_id))
+            cursor.execute(
+                'SELECT params FROM dynamic_playlists WHERE id = %s AND user_id = %s', (playlist_id, user_id)
+            )
             row = cursor.fetchone()
             if not row:
                 raise HTTPException(status_code=404)
@@ -478,8 +555,9 @@ def get_playlist_tracks(user_id: int, playlist_id: int, auth: dict=Depends(verif
     finally:
         conn.close()
 
+
 @router.post('/{user_id}/dynamic-playlists/seed-defaults')
-def seed_defaults(user_id: int, auth: dict=Depends(verify_api_key)):
+def seed_defaults(user_id: int, auth: dict = Depends(verify_api_key)):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
@@ -487,17 +565,70 @@ def seed_defaults(user_id: int, auth: dict=Depends(verify_api_key)):
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
-            defaults = [('Hardstyle', json.dumps({'genres': ['Hardstyle'], 'rating_range': [0, 100], 'size': 500, 'sort_method': 'newest', 'song_type': 'both'})), ('Hardcore', json.dumps({'genres': ['Hardcore'], 'rating_range': [0, 100], 'size': 500, 'sort_method': 'newest', 'song_type': 'both'})), ('Techno', json.dumps({'genres': ['Techno'], 'rating_range': [0, 100], 'size': 500, 'sort_method': 'newest', 'song_type': 'both'})), ('Recently Added', json.dumps({'genres': [], 'rating_range': [0, 100], 'size': 100, 'sort_method': 'newest', 'song_type': 'both'}))]
+            defaults = [
+                (
+                    'Hardstyle',
+                    json.dumps(
+                        {
+                            'genres': ['Hardstyle'],
+                            'rating_range': [0, 100],
+                            'size': 500,
+                            'sort_method': 'newest',
+                            'song_type': 'both',
+                        }
+                    ),
+                ),
+                (
+                    'Hardcore',
+                    json.dumps(
+                        {
+                            'genres': ['Hardcore'],
+                            'rating_range': [0, 100],
+                            'size': 500,
+                            'sort_method': 'newest',
+                            'song_type': 'both',
+                        }
+                    ),
+                ),
+                (
+                    'Techno',
+                    json.dumps(
+                        {
+                            'genres': ['Techno'],
+                            'rating_range': [0, 100],
+                            'size': 500,
+                            'sort_method': 'newest',
+                            'song_type': 'both',
+                        }
+                    ),
+                ),
+                (
+                    'Recently Added',
+                    json.dumps(
+                        {
+                            'genres': [],
+                            'rating_range': [0, 100],
+                            'size': 100,
+                            'sort_method': 'newest',
+                            'song_type': 'both',
+                        }
+                    ),
+                ),
+            ]
             for name, params in defaults:
-                cursor.execute('\n                    INSERT INTO dynamic_playlists (user_id, name, params, source)\n                    VALUES (%s, %s, %s, %s)\n                    ON DUPLICATE KEY UPDATE params = VALUES(params)\n                ', (user_id, name, params, 'default'))
+                cursor.execute(
+                    '\n                    INSERT INTO dynamic_playlists (user_id, name, params, source)\n                    VALUES (%s, %s, %s, %s)\n                    ON DUPLICATE KEY UPDATE params = VALUES(params)\n                ',
+                    (user_id, name, params, 'default'),
+                )
             conn.commit()
             return {'status': 'ok'}
     finally:
         conn.close()
 
+
 @router.get('')
 @router.get('/')
-def get_users(auth: dict=Depends(verify_api_key)):
+def get_users(auth: dict = Depends(verify_api_key)):
     if auth.get('type') == 'user' and (not has_permission(auth, 'users.read')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
@@ -505,14 +636,17 @@ def get_users(auth: dict=Depends(verify_api_key)):
         raise HTTPException(status_code=500, detail='DB failed')
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT u.id, u.username, u.display_name, u.email, u.avatar_url, u.is_admin, u.role_id, r.name as role_name, u.enabled, u.server_user_id, u.api_key, CAST(u.created_at AS CHAR) as created_at, CAST(u.last_login_at AS CHAR) as last_login_at FROM users u LEFT JOIN roles r ON u.role_id = r.id')
+            cursor.execute(
+                'SELECT u.id, u.username, u.display_name, u.email, u.avatar_url, u.is_admin, u.role_id, r.name as role_name, u.enabled, u.server_user_id, u.api_key, CAST(u.created_at AS CHAR) as created_at, CAST(u.last_login_at AS CHAR) as last_login_at FROM users u LEFT JOIN roles r ON u.role_id = r.id'
+            )
             return cursor.fetchall()
     finally:
         conn.close()
 
+
 @router.post('')
 @router.post('/')
-def create_user(user: UserCreate, auth: dict=Depends(verify_api_key)):
+def create_user(user: UserCreate, auth: dict = Depends(verify_api_key)):
     if auth.get('type') == 'user' and (not has_permission(auth, 'users.create')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
@@ -527,14 +661,27 @@ def create_user(user: UserCreate, auth: dict=Depends(verify_api_key)):
             # New users are never given the admin role here: role assignment
             # (including admin) is a separate action gated by users.assign-role.
             default_role = rbac.get_role_by_name(cursor, rbac.DEFAULT_ROLE_NAME)
-            cursor.execute('\n                INSERT INTO users (username, display_name, is_admin, role_id, enabled, password_hash, api_key, server_user_id)\n                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)\n            ', (user.username, user.display_name, False, default_role['id'] if default_role else None, True, password_hash, token, user.server_user_id))
+            cursor.execute(
+                '\n                INSERT INTO users (username, display_name, is_admin, role_id, enabled, password_hash, api_key, server_user_id)\n                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)\n            ',
+                (
+                    user.username,
+                    user.display_name,
+                    False,
+                    default_role['id'] if default_role else None,
+                    True,
+                    password_hash,
+                    token,
+                    user.server_user_id,
+                ),
+            )
             conn.commit()
             return {'status': 'ok', 'id': cursor.lastrowid}
     finally:
         conn.close()
 
+
 @router.get('/roles')
-def list_roles(auth: dict=Depends(require_permission('roles.read'))):
+def list_roles(auth: dict = Depends(require_permission('roles.read'))):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='DB failed')
@@ -545,8 +692,9 @@ def list_roles(auth: dict=Depends(require_permission('roles.read'))):
     finally:
         conn.close()
 
+
 @router.get('/permissions')
-def list_permissions(auth: dict=Depends(require_permission('permissions.read'))):
+def list_permissions(auth: dict = Depends(require_permission('permissions.read'))):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='DB failed')
@@ -557,8 +705,9 @@ def list_permissions(auth: dict=Depends(require_permission('permissions.read')))
     finally:
         conn.close()
 
+
 @router.put('/{user_id}/role')
-def assign_role(user_id: int, req: RoleAssign, auth: dict=Depends(require_permission('users.assign-role'))):
+def assign_role(user_id: int, req: RoleAssign, auth: dict = Depends(require_permission('users.assign-role'))):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='DB failed')
@@ -567,16 +716,22 @@ def assign_role(user_id: int, req: RoleAssign, auth: dict=Depends(require_permis
             role = rbac.get_role_by_name(cursor, req.role)
             if not role:
                 raise HTTPException(status_code=404, detail=f"Unknown role: {req.role}")
-            cursor.execute('UPDATE users SET role_id = %s, is_admin = %s WHERE id = %s', (role['id'], req.role == rbac.ADMIN_ROLE_NAME, user_id))
+            cursor.execute(
+                'UPDATE users SET role_id = %s, is_admin = %s WHERE id = %s',
+                (role['id'], req.role == rbac.ADMIN_ROLE_NAME, user_id),
+            )
             actor_id = (auth.get('user') or {}).get('id')
-            rbac.record_audit_event(cursor, 'user.role_assigned', actor_user_id=actor_id, target_user_id=user_id, details=f"role={req.role}")
+            rbac.record_audit_event(
+                cursor, 'user.role_assigned', actor_user_id=actor_id, target_user_id=user_id, details=f"role={req.role}"
+            )
             conn.commit()
             return {'status': 'ok'}
     finally:
         conn.close()
 
+
 @router.post('/{user_id}/enable')
-def enable_user(user_id: int, auth: dict=Depends(require_permission('users.disable'))):
+def enable_user(user_id: int, auth: dict = Depends(require_permission('users.disable'))):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='DB failed')
@@ -590,8 +745,9 @@ def enable_user(user_id: int, auth: dict=Depends(require_permission('users.disab
     finally:
         conn.close()
 
+
 @router.post('/{user_id}/disable')
-def disable_user(user_id: int, auth: dict=Depends(require_permission('users.disable'))):
+def disable_user(user_id: int, auth: dict = Depends(require_permission('users.disable'))):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='DB failed')
@@ -605,8 +761,9 @@ def disable_user(user_id: int, auth: dict=Depends(require_permission('users.disa
     finally:
         conn.close()
 
+
 @router.post('/{user_id}/sessions/revoke')
-def revoke_sessions(user_id: int, auth: dict=Depends(verify_api_key)):
+def revoke_sessions(user_id: int, auth: dict = Depends(verify_api_key)):
     """Revoke all active sessions for a user (their api_key + refresh tokens).
 
     Allowed for the user themselves (sessions.manage-own) or an admin acting
@@ -615,7 +772,11 @@ def revoke_sessions(user_id: int, auth: dict=Depends(verify_api_key)):
     is_self = auth.get('type') == 'user' and auth['user']['id'] == user_id
     if not is_self and not has_permission(auth, 'users.revoke-sessions'):
         raise HTTPException(status_code=403, detail='Forbidden')
-    if is_self and not has_permission(auth, 'sessions.manage-own') and not has_permission(auth, 'users.revoke-sessions'):
+    if (
+        is_self
+        and not has_permission(auth, 'sessions.manage-own')
+        and not has_permission(auth, 'users.revoke-sessions')
+    ):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
@@ -623,7 +784,10 @@ def revoke_sessions(user_id: int, auth: dict=Depends(verify_api_key)):
     try:
         with conn.cursor() as cursor:
             cursor.execute('UPDATE users SET api_key = NULL WHERE id = %s', (user_id,))
-            cursor.execute('UPDATE user_refresh_tokens SET revoked_at = NOW() WHERE user_id = %s AND revoked_at IS NULL', (user_id,))
+            cursor.execute(
+                'UPDATE user_refresh_tokens SET revoked_at = NOW() WHERE user_id = %s AND revoked_at IS NULL',
+                (user_id,),
+            )
             actor_id = (auth.get('user') or {}).get('id')
             rbac.record_audit_event(cursor, 'user.sessions_revoked', actor_user_id=actor_id, target_user_id=user_id)
             conn.commit()
@@ -631,8 +795,9 @@ def revoke_sessions(user_id: int, auth: dict=Depends(verify_api_key)):
     finally:
         conn.close()
 
+
 @router.get('/{user_id}/identities')
-def list_identities(user_id: int, auth: dict=Depends(verify_api_key)):
+def list_identities(user_id: int, auth: dict = Depends(verify_api_key)):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.read')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
@@ -640,14 +805,18 @@ def list_identities(user_id: int, auth: dict=Depends(verify_api_key)):
         raise HTTPException(status_code=500, detail='DB failed')
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT id, provider, provider_subject, email_at_provider, CAST(created_at AS CHAR) as created_at, CAST(last_used_at AS CHAR) as last_used_at FROM user_identities WHERE user_id = %s', (user_id,))
+            cursor.execute(
+                'SELECT id, provider, provider_subject, email_at_provider, CAST(created_at AS CHAR) as created_at, CAST(last_used_at AS CHAR) as last_used_at FROM user_identities WHERE user_id = %s',
+                (user_id,),
+            )
             return cursor.fetchall()
     finally:
         conn.close()
 
+
 @router.get('/{user_id}/listenbrainz')
 @router.get('/{user_id}/lb-account')
-def get_lb_account(user_id: int, auth: dict=Depends(verify_api_key)):
+def get_lb_account(user_id: int, auth: dict = Depends(verify_api_key)):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
@@ -655,16 +824,19 @@ def get_lb_account(user_id: int, auth: dict=Depends(verify_api_key)):
         raise HTTPException(status_code=500, detail='DB failed')
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT lb_username, lb_token FROM user_listenbrainz_accounts WHERE user_id = %s', (user_id,))
+            cursor.execute(
+                'SELECT lb_username, lb_token FROM user_listenbrainz_accounts WHERE user_id = %s', (user_id,)
+            )
             res = cursor.fetchone()
             return res or {'lb_username': '', 'lb_token': ''}
     finally:
         conn.close()
 
+
 @router.post('/{user_id}/listenbrainz')
 @router.put('/{user_id}/listenbrainz')
 @router.put('/{user_id}/lb-account')
-def update_lb_account(user_id: int, lb_data: LBAccountUpdate, auth: dict=Depends(verify_api_key)):
+def update_lb_account(user_id: int, lb_data: LBAccountUpdate, auth: dict = Depends(verify_api_key)):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
@@ -672,11 +844,15 @@ def update_lb_account(user_id: int, lb_data: LBAccountUpdate, auth: dict=Depends
         raise HTTPException(status_code=500, detail='DB failed')
     try:
         with conn.cursor() as cursor:
-            cursor.execute('\n                INSERT INTO user_listenbrainz_accounts (user_id, lb_username, lb_token)\n                VALUES (%s, %s, %s)\n                ON DUPLICATE KEY UPDATE lb_username = VALUES(lb_username), lb_token = VALUES(lb_token)\n            ', (user_id, lb_data.lb_username, lb_data.lb_token))
+            cursor.execute(
+                '\n                INSERT INTO user_listenbrainz_accounts (user_id, lb_username, lb_token)\n                VALUES (%s, %s, %s)\n                ON DUPLICATE KEY UPDATE lb_username = VALUES(lb_username), lb_token = VALUES(lb_token)\n            ',
+                (user_id, lb_data.lb_username, lb_data.lb_token),
+            )
             conn.commit()
             return {'status': 'ok'}
     finally:
         conn.close()
+
 
 def delete_user_row(cursor, user_id: int, actor_id=None, protect_last_admin: bool = True):
     """Delete a user and all its dependent rows; shared by ``delete_user`` and
@@ -710,17 +886,26 @@ def delete_user_row(cursor, user_id: int, actor_id=None, protect_last_admin: boo
     # stray leftover row there could otherwise turn this into an
     # unhandled 500 with no clear cause ("verwijderen gaat niet altijd
     # goed").
-    for table in ('user_identities', 'user_refresh_tokens', 'dynamic_playlists', 'user_app_settings', 'user_listenbrainz_accounts'):
+    for table in (
+        'user_identities',
+        'user_refresh_tokens',
+        'dynamic_playlists',
+        'user_app_settings',
+        'user_listenbrainz_accounts',
+    ):
         cursor.execute(f'DELETE FROM {table} WHERE user_id = %s', (user_id,))
     cursor.execute('UPDATE user_requests SET reviewed_by_user_id = NULL WHERE reviewed_by_user_id = %s', (user_id,))
     cursor.execute('UPDATE user_requests SET created_user_id = NULL WHERE created_user_id = %s', (user_id,))
 
     cursor.execute('DELETE FROM users WHERE id = %s', (user_id,))
-    rbac.record_audit_event(cursor, 'user.deleted', actor_user_id=actor_id, target_user_id=user_id, details=f"username={target['username']}")
+    rbac.record_audit_event(
+        cursor, 'user.deleted', actor_user_id=actor_id, target_user_id=user_id, details=f"username={target['username']}"
+    )
     return target
 
+
 @router.delete('/{user_id}')
-def delete_user(user_id: int, auth: dict=Depends(verify_api_key)):
+def delete_user(user_id: int, auth: dict = Depends(verify_api_key)):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
@@ -739,8 +924,9 @@ def delete_user(user_id: int, auth: dict=Depends(verify_api_key)):
     finally:
         conn.close()
 
+
 @router.post('/{user_id}/merge')
-def merge_users(user_id: int, req: MergeUsersRequest, auth: dict=Depends(require_permission('users.merge'))):
+def merge_users(user_id: int, req: MergeUsersRequest, auth: dict = Depends(require_permission('users.merge'))):
     """Merge ``req.secondary_user_id`` into ``user_id`` (the account that survives).
 
     This is the fix for ending up with two separate accounts for the same
@@ -782,7 +968,9 @@ def merge_users(user_id: int, req: MergeUsersRequest, auth: dict=Depends(require
                 if identity['provider'] in existing_providers:
                     cursor.execute('DELETE FROM user_identities WHERE id = %s', (identity['id'],))
                 else:
-                    cursor.execute('UPDATE user_identities SET user_id = %s WHERE id = %s', (primary_id, identity['id']))
+                    cursor.execute(
+                        'UPDATE user_identities SET user_id = %s WHERE id = %s', (primary_id, identity['id'])
+                    )
 
             # 2) Sessions: the secondary's refresh tokens/api_key are dropped;
             #    whoever was logged in on it needs to log in again, on the
@@ -802,14 +990,18 @@ def merge_users(user_id: int, req: MergeUsersRequest, auth: dict=Depends(require
                 if setting['app_id'] in existing_apps:
                     cursor.execute('DELETE FROM user_app_settings WHERE id = %s', (setting['id'],))
                 else:
-                    cursor.execute('UPDATE user_app_settings SET user_id = %s WHERE id = %s', (primary_id, setting['id']))
+                    cursor.execute(
+                        'UPDATE user_app_settings SET user_id = %s WHERE id = %s', (primary_id, setting['id'])
+                    )
 
             # 5) ListenBrainz link (unique on user_id): keep the primary's if set.
             cursor.execute('SELECT user_id FROM user_listenbrainz_accounts WHERE user_id = %s', (primary_id,))
             if cursor.fetchone():
                 cursor.execute('DELETE FROM user_listenbrainz_accounts WHERE user_id = %s', (secondary_id,))
             else:
-                cursor.execute('UPDATE user_listenbrainz_accounts SET user_id = %s WHERE user_id = %s', (primary_id, secondary_id))
+                cursor.execute(
+                    'UPDATE user_listenbrainz_accounts SET user_id = %s WHERE user_id = %s', (primary_id, secondary_id)
+                )
 
             # 6) Ratings & scrobble history are keyed by *username* (not
             #    user_id) -- repoint them to the primary's username. Wherever
@@ -827,29 +1019,42 @@ def merge_users(user_id: int, req: MergeUsersRequest, auth: dict=Depends(require
                     where_clause = ' AND '.join(f'{c} = %s' for c in key_cols)
                     cursor.execute(
                         f'SELECT id FROM {table} WHERE username = %s AND {where_clause}',
-                        (primary['username'], *[row[c] for c in key_cols])
+                        (primary['username'], *[row[c] for c in key_cols]),
                     )
                     if cursor.fetchone():
                         cursor.execute(f'DELETE FROM {table} WHERE id = %s', (row['id'],))
                     else:
-                        cursor.execute(f'UPDATE {table} SET username = %s WHERE id = %s', (primary['username'], row['id']))
-            cursor.execute('UPDATE scrobble_imports SET username = %s WHERE username = %s', (primary['username'], secondary['username']))
+                        cursor.execute(
+                            f'UPDATE {table} SET username = %s WHERE id = %s', (primary['username'], row['id'])
+                        )
+            cursor.execute(
+                'UPDATE scrobble_imports SET username = %s WHERE username = %s',
+                (primary['username'], secondary['username']),
+            )
 
             # 7) Historical references to the secondary account.
-            cursor.execute('UPDATE user_requests SET reviewed_by_user_id = %s WHERE reviewed_by_user_id = %s', (primary_id, secondary_id))
-            cursor.execute('UPDATE user_requests SET created_user_id = %s WHERE created_user_id = %s', (primary_id, secondary_id))
+            cursor.execute(
+                'UPDATE user_requests SET reviewed_by_user_id = %s WHERE reviewed_by_user_id = %s',
+                (primary_id, secondary_id),
+            )
+            cursor.execute(
+                'UPDATE user_requests SET created_user_id = %s WHERE created_user_id = %s', (primary_id, secondary_id)
+            )
 
             cursor.execute('DELETE FROM users WHERE id = %s', (secondary_id,))
 
             actor_id = (auth.get('user') or {}).get('id')
             rbac.record_audit_event(
-                cursor, 'user.merged', actor_user_id=actor_id, target_user_id=primary_id,
-                details=f"merged user_id={secondary_id} (username={secondary['username']}) into user_id={primary_id} (username={primary['username']})"
+                cursor,
+                'user.merged',
+                actor_user_id=actor_id,
+                target_user_id=primary_id,
+                details=f"merged user_id={secondary_id} (username={secondary['username']}) into user_id={primary_id} (username={primary['username']})",
             )
             conn.commit()
             cursor.execute(
                 'SELECT u.id, u.username, u.display_name, u.email, u.avatar_url, u.is_admin, u.role_id, r.name as role_name, u.enabled, u.server_user_id, u.api_key FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.id = %s',
-                (primary_id,)
+                (primary_id,),
             )
             return {'status': 'ok', 'user': cursor.fetchone()}
     except HTTPException:
@@ -859,9 +1064,10 @@ def merge_users(user_id: int, req: MergeUsersRequest, auth: dict=Depends(require
     finally:
         conn.close()
 
+
 @router.post('/{user_id}/password')
 @router.put('/{user_id}/password')
-def update_password(user_id: int, req: PasswordUpdate, auth: dict=Depends(verify_api_key)):
+def update_password(user_id: int, req: PasswordUpdate, auth: dict = Depends(verify_api_key)):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
@@ -876,8 +1082,9 @@ def update_password(user_id: int, req: PasswordUpdate, auth: dict=Depends(verify
     finally:
         conn.close()
 
+
 @router.get('/{user_id}/settings/{app_id}')
-def get_user_app_settings(user_id: int, app_id: str, auth: dict=Depends(verify_api_key)):
+def get_user_app_settings(user_id: int, app_id: str, auth: dict = Depends(verify_api_key)):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
@@ -885,7 +1092,10 @@ def get_user_app_settings(user_id: int, app_id: str, auth: dict=Depends(verify_a
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT settings_json, CAST(updated_at AS CHAR) as updated_at FROM user_app_settings WHERE user_id = %s AND app_id = %s', (user_id, app_id))
+            cursor.execute(
+                'SELECT settings_json, CAST(updated_at AS CHAR) as updated_at FROM user_app_settings WHERE user_id = %s AND app_id = %s',
+                (user_id, app_id),
+            )
             res = cursor.fetchone()
             if not res:
                 return {'settings': None}
@@ -893,8 +1103,9 @@ def get_user_app_settings(user_id: int, app_id: str, auth: dict=Depends(verify_a
     finally:
         conn.close()
 
+
 @router.post('/{user_id}/settings/{app_id}')
-def update_user_app_settings(user_id: int, app_id: str, req: AppSettingsUpdate, auth: dict=Depends(verify_api_key)):
+def update_user_app_settings(user_id: int, app_id: str, req: AppSettingsUpdate, auth: dict = Depends(verify_api_key)):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
@@ -902,24 +1113,29 @@ def update_user_app_settings(user_id: int, app_id: str, req: AppSettingsUpdate, 
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
-            cursor.execute('\n                INSERT INTO user_app_settings (user_id, app_id, settings_json)\n                VALUES (%s, %s, %s)\n                ON DUPLICATE KEY UPDATE settings_json = VALUES(settings_json)\n            ', (user_id, app_id, req.settings))
+            cursor.execute(
+                '\n                INSERT INTO user_app_settings (user_id, app_id, settings_json)\n                VALUES (%s, %s, %s)\n                ON DUPLICATE KEY UPDATE settings_json = VALUES(settings_json)\n            ',
+                (user_id, app_id, req.settings),
+            )
             conn.commit()
             return {'status': 'ok'}
     finally:
         conn.close()
 
+
 @router.post('/sync/muma-server')
 @router.post('/sync/lms')
 @router.post('/sync/lms-db')
-def sync_lms_db(background_tasks: BackgroundTasks, _api_key: str=Depends(verify_api_key)):
+def sync_lms_db(background_tasks: BackgroundTasks, _api_key: str = Depends(verify_api_key)):
     # Run synchronously to return count to UI
     synced = run_lms_db_sync()
     return {'message': 'Music Management Server DB sync completed', 'synced': synced}
 
+
 def notify_server_sync_users():
     if not MUMA_SERVER_HOSTS:
         return
-    
+
     for host in MUMA_SERVER_HOSTS.split(','):
         host = host.strip()
         if not host:
@@ -929,16 +1145,18 @@ def notify_server_sync_users():
             headers = {}
             if API_KEY:
                 headers['X-API-Key'] = API_KEY
-            
+
             requests.post(url, headers=headers, timeout=5)
             print(f"Notified server {host} to sync users")
         except Exception as e:
             print(f"Failed to notify server {host}: {e}")
 
+
 def _sync_server_users(cursor, sqlite_cursor):
     # Users are now managed by Music Manager and fetched by the server
     # We no longer pull users from the server
     return 0
+
 
 def _sync_server_playlists(cursor, sqlite_cursor, source):
     try:
@@ -950,9 +1168,13 @@ def _sync_server_playlists(cursor, sqlite_cursor, source):
                 cursor.execute('SELECT id FROM users WHERE server_user_id = %s', (str(lms_user_ptr),))
                 u_row = cursor.fetchone()
                 if u_row:
-                    cursor.execute('\n                        INSERT INTO dynamic_playlists (user_id, remote_id, source, name, params)\n                        VALUES (%s, %s, %s, %s, %s)\n                        ON DUPLICATE KEY UPDATE name = VALUES(name), params = VALUES(params)\n                    ', (u_row['id'], lms_id, source, name, params))
+                    cursor.execute(
+                        '\n                        INSERT INTO dynamic_playlists (user_id, remote_id, source, name, params)\n                        VALUES (%s, %s, %s, %s, %s)\n                        ON DUPLICATE KEY UPDATE name = VALUES(name), params = VALUES(params)\n                    ',
+                        (u_row['id'], lms_id, source, name, params),
+                    )
     except Exception as pe:
         print(f'Playlist sync failed for {source}: {pe}')
+
 
 def sync_single_server_db(muma_conn, db_path, source):
     print(f'Syncing Music Management Server DB: {db_path} ({source})')
@@ -978,16 +1200,18 @@ def sync_single_server_db(muma_conn, db_path, source):
             _sync_server_playlists(cursor, sqlite_cursor, source)
             muma_conn.commit()
         from services.music_manager.routers.artist_images import sync_artist_images_to_server
+
         sync_artist_images_to_server(muma_conn, sqlite_conn)
         sqlite_conn.close()
     except Exception as e:
         print(f'Sync failed for {db_path}: {e}')
     return synced_users
 
+
 def run_lms_db_sync():
     db_root = os.getenv('MUMA_SERVER_DB_ROOT') or os.getenv('LMS_DB_ROOT') or '/app/data'
     targets = []
-    
+
     # Check for a direct database path first
     direct_db = os.getenv('MUMA_SERVER_DB_PATH') or os.getenv('LMS_DB_PATH')
     if direct_db and os.path.exists(direct_db):
@@ -1001,12 +1225,12 @@ def run_lms_db_sync():
                 db_file = os.path.join(full_path, 'lms.db')
                 if os.path.exists(db_file):
                     targets.append((db_file, f'server-{entry}'))
-        
+
         # Also look for lms.db directly in root (consolidated support)
         root_db = os.path.join(db_root, 'lms.db')
         if os.path.exists(root_db):
             targets.append((root_db, 'server-root'))
-    
+
     conn = get_db_connection()
     if not conn:
         return 0

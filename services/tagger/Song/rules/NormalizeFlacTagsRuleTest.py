@@ -13,7 +13,6 @@ def flac_song(tags):
 
 
 class NormalizeFlacTagsRuleTest(unittest.TestCase):
-
     def setUp(self):
         self.rule = NormalizeFlacTagsRule()
 

@@ -24,7 +24,6 @@ REMOVED_COLUMNS = ('musical_key', 'energy', 'danceability', 'valence', 'populari
 
 
 class LibraryAdvancedTest(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         self.headers = {'x-api-key': API_KEY}
@@ -47,12 +46,23 @@ class LibraryAdvancedTest(unittest.TestCase):
 
     @patch('services.music_manager.routers.library.get_db_connection')
     def test_response_carries_duration_and_release_year(self, mock_get_db):
-        self._mock(mock_get_db, rows=[{
-            'id': 1, 'title': 'Track', 'artist': 'Angerfist', 'label': 'Footworxx',
-            'genres': 'Hardcore,Uptempo Hardcore', 'bpm': 190.0, 'release_year': 2024,
-            'duration_secs': 312.0, 'file_path': '/mnt/music/a.mp3',
-            'created_at': '2026-07-01 10:00:00',
-        }])
+        self._mock(
+            mock_get_db,
+            rows=[
+                {
+                    'id': 1,
+                    'title': 'Track',
+                    'artist': 'Angerfist',
+                    'label': 'Footworxx',
+                    'genres': 'Hardcore,Uptempo Hardcore',
+                    'bpm': 190.0,
+                    'release_year': 2024,
+                    'duration_secs': 312.0,
+                    'file_path': '/mnt/music/a.mp3',
+                    'created_at': '2026-07-01 10:00:00',
+                }
+            ],
+        )
         res = self.client.get('/api/library/advanced', headers=self.headers)
         self.assertEqual(res.status_code, 200)
         track = res.json()['tracks'][0]
@@ -64,11 +74,23 @@ class LibraryAdvancedTest(unittest.TestCase):
 
     @patch('services.music_manager.routers.library.get_db_connection')
     def test_null_genres_become_an_empty_list(self, mock_get_db):
-        self._mock(mock_get_db, rows=[{
-            'id': 1, 'title': 'Track', 'artist': None, 'label': None, 'genres': None,
-            'bpm': None, 'release_year': None, 'duration_secs': None,
-            'file_path': None, 'created_at': '2026-07-01 10:00:00',
-        }])
+        self._mock(
+            mock_get_db,
+            rows=[
+                {
+                    'id': 1,
+                    'title': 'Track',
+                    'artist': None,
+                    'label': None,
+                    'genres': None,
+                    'bpm': None,
+                    'release_year': None,
+                    'duration_secs': None,
+                    'file_path': None,
+                    'created_at': '2026-07-01 10:00:00',
+                }
+            ],
+        )
         res = self.client.get('/api/library/advanced', headers=self.headers)
         self.assertEqual(res.json()['tracks'][0]['genres'], [])
 
@@ -135,7 +157,6 @@ class LibraryAdvancedTest(unittest.TestCase):
 
 
 class LibraryGenresTest(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         self.headers = {'x-api-key': API_KEY}
@@ -149,10 +170,13 @@ class LibraryGenresTest(unittest.TestCase):
 
     @patch('services.music_manager.routers.library.get_db_connection')
     def test_genres_carry_state_and_count(self, mock_get_db):
-        self._mock(mock_get_db, [
-            {'genre': 'Hardcore', 'state': 'white', 'count': 9001},
-            {'genre': 'zaagtempo', 'state': 'unknown', 'count': 12},
-        ])
+        self._mock(
+            mock_get_db,
+            [
+                {'genre': 'Hardcore', 'state': 'white', 'count': 9001},
+                {'genre': 'zaagtempo', 'state': 'unknown', 'count': 12},
+            ],
+        )
         res = self.client.get('/api/library/genres', headers=self.headers)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()[0], {'genre': 'Hardcore', 'state': 'white', 'count': 9001})

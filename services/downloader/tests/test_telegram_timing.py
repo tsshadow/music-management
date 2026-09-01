@@ -14,7 +14,6 @@ _errors = types.ModuleType('telethon.errors')
 
 
 class FloodWaitError(Exception):
-
     def __init__(self, seconds=60):
         super().__init__(f'A wait of {seconds} seconds is required')
         self.seconds = seconds
@@ -29,7 +28,6 @@ RECORDED_CLIENTS = []
 
 
 class DummyClient:
-
     raise_on_iter = None
 
     def __init__(self, *args, **kwargs):
@@ -74,7 +72,6 @@ class StubNotifier:
 
 
 class TelegramTimingTestBase(unittest.TestCase):
-
     overrides: dict = {}
 
     def setUp(self):
@@ -87,8 +84,7 @@ class TelegramTimingTestBase(unittest.TestCase):
         self.downloaded_channels = []
 
     def _rate_state(self):
-        return RateState('telegram', self.timing, store=self.rate_store,
-                         now=lambda: self.now, jitter=lambda: 1.0)
+        return RateState('telegram', self.timing, store=self.rate_store, now=lambda: self.now, jitter=lambda: 1.0)
 
     def _downloader(self, tmpdir='/tmp/telegram'):
         downloader = TelegramDownloader(
@@ -112,7 +108,6 @@ class TelegramTimingTestBase(unittest.TestCase):
 
 
 class ConcurrencyTest(TelegramTimingTestBase):
-
     overrides = {'max_concurrent': 7, 'account_cooldown': 0}
 
     def test_the_concurrency_limit_comes_from_the_settings(self):
@@ -120,7 +115,6 @@ class ConcurrencyTest(TelegramTimingTestBase):
 
 
 class FloodThresholdTest(TelegramTimingTestBase):
-
     overrides = {'flood_sleep_threshold': 120, 'account_cooldown': 0}
 
     def test_telethon_is_told_how_long_it_may_wait_by_itself(self):
@@ -129,7 +123,6 @@ class FloodThresholdTest(TelegramTimingTestBase):
 
 
 class ChannelCooldownTest(TelegramTimingTestBase):
-
     overrides = {'account_cooldown': 3600}
 
     def test_a_first_run_visits_the_channel(self):
@@ -157,7 +150,6 @@ class ChannelCooldownTest(TelegramTimingTestBase):
 
 
 class FloodWaitTest(TelegramTimingTestBase):
-
     overrides = {'account_cooldown': 0, 'backoff_429_base': 3600, 'max_multiplier': 16}
 
     def test_a_flood_wait_raises_the_multiplier(self):

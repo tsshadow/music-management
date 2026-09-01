@@ -3,6 +3,7 @@
 Pure functions, no database: the grouping rule is pinned down here so the worker
 only has to be right about SQL.
 """
+
 import unittest
 
 from services.music_manager.song_versions import (
@@ -17,7 +18,6 @@ from services.music_manager.song_versions import (
 
 
 class VersionFreeTitleTest(unittest.TestCase):
-
     def test_length_variants_of_one_recording_collapse(self):
         titles = [
             'Raise Your Fist',
@@ -76,7 +76,6 @@ class VersionFreeTitleTest(unittest.TestCase):
 
 
 class VersionKindTest(unittest.TestCase):
-
     def test_radio_beats_edit_when_both_words_are_present(self):
         self.assertEqual(version_kind('Raise Your Fist (Radio Edit)'), 'radio')
 
@@ -107,7 +106,6 @@ class VersionKindTest(unittest.TestCase):
 
 
 class WorkKeyTest(unittest.TestCase):
-
     def test_the_same_song_by_the_same_artist_shares_a_key(self):
         self.assertEqual(
             work_key('Angerfist', 'Raise Your Fist (Radio Edit)'),
@@ -126,7 +124,6 @@ class WorkKeyTest(unittest.TestCase):
 
 
 class DerivedBitrateTest(unittest.TestCase):
-
     def test_a_320k_file_reads_as_320ish(self):
         # 320 kbit/s over 300 seconds is 12 MB.
         self.assertGreaterEqual(derived_bitrate(12_000_000, 300.0), 300)
@@ -143,7 +140,6 @@ class DerivedBitrateTest(unittest.TestCase):
 
 
 class FormatTierTest(unittest.TestCase):
-
     def test_flac_outranks_every_lossy_format(self):
         self.assertLess(format_tier('a.flac', 1000), format_tier('a.mp3', 320))
         self.assertLess(format_tier('a.flac', 1000), format_tier('a.m4a', 256))
@@ -156,7 +152,6 @@ class FormatTierTest(unittest.TestCase):
 
 
 class VersionScoreTest(unittest.TestCase):
-
     def test_an_official_192k_radio_edit_beats_a_320k_rip(self):
         official = version_score(True, 'radio', 'a.mp3', 192)
         rip = version_score(False, 'none', 'b.mp3', 320)

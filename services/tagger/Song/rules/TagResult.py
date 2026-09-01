@@ -8,6 +8,7 @@ class TagResultType(Enum):
     IGNORED = auto()
     UNKNOWN = auto()
 
+
 @dataclass
 class TagResult:
     value: str | None

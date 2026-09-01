@@ -1,4 +1,3 @@
-
 import contextlib
 import hashlib
 import threading
@@ -55,7 +54,9 @@ def init_db(cursor):
     # only runs for a fresh database. Mirrors migrate_v17_crash_report_status.sql.
     cursor.execute("SHOW COLUMNS FROM crash_reports LIKE 'status'")
     if not cursor.fetchone():
-        cursor.execute("ALTER TABLE crash_reports ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'new' AFTER ring_buffer_text")
+        cursor.execute(
+            "ALTER TABLE crash_reports ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'new' AFTER ring_buffer_text"
+        )
     cursor.execute("SHOW COLUMNS FROM crash_reports LIKE 'stacktrace_hash'")
     if not cursor.fetchone():
         cursor.execute('ALTER TABLE crash_reports ADD COLUMN stacktrace_hash CHAR(64) AFTER status')
@@ -94,17 +95,25 @@ def create_crash_report(report: CrashReportCreate, auth: dict = Depends(verify_a
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ''',
                 (
-                    user_id, report.device_model, report.os_version, report.app_version_name,
-                    report.app_version_code, report.build_type, report.stacktrace_text,
-                    report.ring_buffer_text, stacktrace_hash,
-                )
+                    user_id,
+                    report.device_model,
+                    report.os_version,
+                    report.app_version_name,
+                    report.app_version_code,
+                    report.build_type,
+                    report.stacktrace_text,
+                    report.ring_buffer_text,
+                    stacktrace_hash,
+                ),
             )
             conn.commit()
             report_id = cursor.lastrowid
     finally:
         conn.close()
     threading.Thread(
-        target=_post_crash_hook, args=(report_id,), daemon=True,
+        target=_post_crash_hook,
+        args=(report_id,),
+        daemon=True,
         name=f'crash-hook-{report_id}',
     ).start()
     return {'status': 'ok', 'id': report_id}
@@ -128,9 +137,7 @@ def get_crash_report(report_id: int, auth: dict = Depends(verify_api_key)):
 
 
 @router.patch('/crash-reports/{report_id}/status')
-def update_crash_report_status(
-    report_id: int, update: CrashReportStatusUpdate, auth: dict = Depends(verify_api_key)
-):
+def update_crash_report_status(report_id: int, update: CrashReportStatusUpdate, auth: dict = Depends(verify_api_key)):
     _require_system(auth)
     conn = get_db_connection()
     if not conn:

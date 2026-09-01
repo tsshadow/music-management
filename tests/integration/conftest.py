@@ -12,6 +12,7 @@ These deliberately live outside `services/`, for two reasons:
 Start the database with ./scripts/test/db-integration.sh, which also sets the
 DB_* environment variables these fixtures read.
 """
+
 import os
 import sys
 from pathlib import Path
@@ -84,8 +85,7 @@ def _apply_schema(connection):
     with connection.cursor() as cursor:
         # Order matters: rbac.init_db creates `roles`, which users.init_db's
         # foreign keys and the user_requests table depend on.
-        for init in (users.init_db, rbac.init_db, scrobbler.init_db,
-                     artist_images.init_db, events.init_db):
+        for init in (users.init_db, rbac.init_db, scrobbler.init_db, artist_images.init_db, events.init_db):
             init(cursor)
     _apply_migrations(connection)
 
@@ -112,10 +112,7 @@ _IDEMPOTENT_ERRORS = {1050, 1060, 1061, 1091, 1826, 1146, 1054}
 
 def _split_statements(sql: str) -> list[str]:
     """Split on `;` at statement level, dropping comments and empty fragments."""
-    cleaned = '\n'.join(
-        line for line in sql.splitlines()
-        if not line.strip().startswith('--') and line.strip() != ''
-    )
+    cleaned = '\n'.join(line for line in sql.splitlines() if not line.strip().startswith('--') and line.strip() != '')
     return [statement.strip() for statement in cleaned.split(';') if statement.strip()]
 
 
@@ -214,6 +211,7 @@ def api_key():
     # The resolver is what the app actually checks X-API-Key against, so asking it
     # keeps the fixture correct no matter which variable the compose file sets.
     from services.music_manager.api_key import resolve_system_api_key
+
     return resolve_system_api_key()
 
 

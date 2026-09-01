@@ -16,7 +16,9 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
         self._token = None
         self.logger = logging.getLogger(__name__)
         if not self.client_id or not self.client_secret:
-            self.logger.warning('Spotify API credentials (SPOTIFY_CLIENT_ID/SECRET) not found. Spotify provider will be disabled.')
+            self.logger.warning(
+                'Spotify API credentials (SPOTIFY_CLIENT_ID/SECRET) not found. Spotify provider will be disabled.'
+            )
 
     @property
     def name(self):
@@ -28,7 +30,12 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
         if not self.client_id or not self.client_secret:
             return None
         try:
-            resp = requests.post(self.TOKEN_URL, data={'grant_type': 'client_credentials'}, auth=(self.client_id, self.client_secret), timeout=5)
+            resp = requests.post(
+                self.TOKEN_URL,
+                data={'grant_type': 'client_credentials'},
+                auth=(self.client_id, self.client_secret),
+                timeout=5,
+            )
             if resp.status_code == 200:
                 self._token = resp.json().get('access_token')
         except Exception as e:
@@ -47,7 +54,9 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
                 response = requests.get(url, headers={'Authorization': f'Bearer {token}'}, timeout=5)
             else:
                 params = {'q': artist_name, 'type': 'artist', 'limit': 5}
-                response = requests.get(self.SEARCH_URL, params=params, headers={'Authorization': f'Bearer {token}'}, timeout=5)
+                response = requests.get(
+                    self.SEARCH_URL, params=params, headers={'Authorization': f'Bearer {token}'}, timeout=5
+                )
             if response.status_code != 200:
                 return []
             data = response.json()
@@ -55,7 +64,26 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
             for artist in artists:
                 images = artist.get('images', [])
                 for img in images:
-                    candidates.append({'source': self.name, 'source_id': artist.get('id'), 'name': artist.get('name'), 'url': img.get('url'), 'width': img.get('width'), 'height': img.get('height'), 'confidence': 0, 'is_known_match': bool(spotify_id), 'popularity': artist.get('popularity'), 'genres': artist.get('genres'), 'metadata': {'artist_name': artist.get('name'), 'popularity': artist.get('popularity'), 'followers': artist.get('followers', {}).get('total'), 'genres': artist.get('genres')}})
+                    candidates.append(
+                        {
+                            'source': self.name,
+                            'source_id': artist.get('id'),
+                            'name': artist.get('name'),
+                            'url': img.get('url'),
+                            'width': img.get('width'),
+                            'height': img.get('height'),
+                            'confidence': 0,
+                            'is_known_match': bool(spotify_id),
+                            'popularity': artist.get('popularity'),
+                            'genres': artist.get('genres'),
+                            'metadata': {
+                                'artist_name': artist.get('name'),
+                                'popularity': artist.get('popularity'),
+                                'followers': artist.get('followers', {}).get('total'),
+                                'genres': artist.get('genres'),
+                            },
+                        }
+                    )
         except Exception as e:
             self.logger.error('Spotify artist image lookup failed: %s', e)
         return candidates

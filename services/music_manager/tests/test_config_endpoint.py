@@ -33,7 +33,8 @@ def load_real_config_store(config_path: str):
     """
     os.environ['CONFIG_PATH'] = config_path
     spec = importlib.util.spec_from_file_location(
-        'real_config_store', REPO_ROOT / 'services' / 'common' / 'config_store.py')
+        'real_config_store', REPO_ROOT / 'services' / 'common' / 'config_store.py'
+    )
     module = importlib.util.module_from_spec(spec)
     # dataclass() looks the defining module up in sys.modules while the class body
     # is executed, so it has to be registered before the module is run.
@@ -61,24 +62,22 @@ class ConfigEndpointTest(unittest.TestCase):
         os.environ.pop('CONFIG_PATH', None)
 
     def test_saving_a_setting_reports_success(self):
-        response = self.client.post('/api/config/', headers=self.headers,
-                                    json={'updates': {'notify_topic': 'music-alerts'}})
+        response = self.client.post(
+            '/api/config/', headers=self.headers, json={'updates': {'notify_topic': 'music-alerts'}}
+        )
         self.assertEqual(response.status_code, 200)
 
     def test_saving_a_setting_actually_changes_it(self):
-        self.client.post('/api/config/', headers=self.headers,
-                         json={'updates': {'notify_topic': 'music-alerts'}})
+        self.client.post('/api/config/', headers=self.headers, json={'updates': {'notify_topic': 'music-alerts'}})
         self.assertEqual(self.store.get('notify_topic'), 'music-alerts')
 
     def test_the_new_value_is_readable_over_the_api(self):
-        self.client.post('/api/config/', headers=self.headers,
-                         json={'updates': {'notify_topic': 'music-alerts'}})
+        self.client.post('/api/config/', headers=self.headers, json={'updates': {'notify_topic': 'music-alerts'}})
         body = self.client.get('/api/config/', headers=self.headers).json()
         self.assertEqual(body['config']['notify_topic'], 'music-alerts')
 
     def test_an_unknown_key_is_refused(self):
-        response = self.client.post('/api/config/', headers=self.headers,
-                                    json={'updates': {'nonsense_key': 'x'}})
+        response = self.client.post('/api/config/', headers=self.headers, json={'updates': {'nonsense_key': 'x'}})
         self.assertEqual(response.status_code, 400)
 
     def test_saving_needs_a_key(self):
@@ -95,10 +94,14 @@ class ConfigPermissionTest(ConfigEndpointTest):
 
     def _as_plain_user(self):
         return patch.object(
-            services.music_manager.routers.users, 'verify_token',
-            return_value={'status': 'ok', 'type': 'user',
-                          'user': {'username': 'user', 'role_name': 'user',
-                                   'permissions': ['music.read']}})
+            services.music_manager.routers.users,
+            'verify_token',
+            return_value={
+                'status': 'ok',
+                'type': 'user',
+                'user': {'username': 'user', 'role_name': 'user', 'permissions': ['music.read']},
+            },
+        )
 
     def test_a_plain_user_may_not_read_the_configuration(self):
         with self._as_plain_user():
@@ -112,8 +115,9 @@ class ConfigPermissionTest(ConfigEndpointTest):
 
     def test_a_plain_user_may_not_write_the_configuration(self):
         with self._as_plain_user():
-            response = self.client.post('/api/config/', headers={'x-api-key': 'user-key'},
-                                        json={'updates': {'notify_topic': 'x'}})
+            response = self.client.post(
+                '/api/config/', headers={'x-api-key': 'user-key'}, json={'updates': {'notify_topic': 'x'}}
+            )
         self.assertEqual(response.status_code, 403)
 
     def test_reading_the_schema_still_needs_a_key(self):
@@ -129,8 +133,7 @@ class ConfigSecretTest(ConfigEndpointTest):
         self.assertNotEqual(body['config']['db_pass'], 'hunter2')
 
     def test_the_schema_marks_which_fields_are_secret(self):
-        fields = {row['key']: row for row in self.client.get('/api/config/fields',
-                                                             headers=self.headers).json()}
+        fields = {row['key']: row for row in self.client.get('/api/config/fields', headers=self.headers).json()}
         self.assertTrue(fields['db_pass']['secret'])
         self.assertFalse(fields['db_user']['secret'])
         # An identifier is not a credential: the Spotify client id is public.
@@ -146,8 +149,7 @@ class ConfigSecretTest(ConfigEndpointTest):
         self.assertEqual(self.store.get('notify_topic'), 'something-else')
 
     def test_a_deliberately_typed_secret_is_stored(self):
-        self.client.post('/api/config/', headers=self.headers,
-                         json={'updates': {'db_pass': 'correct horse'}})
+        self.client.post('/api/config/', headers=self.headers, json={'updates': {'db_pass': 'correct horse'}})
         self.assertEqual(self.store.get('db_pass'), 'correct horse')
 
 
@@ -155,14 +157,12 @@ class ConfigRetagLimitTest(ConfigEndpointTest):
     """The curation retag ceiling is read from the configuration, not hardcoded."""
 
     def test_the_ceiling_is_exposed_as_a_tagger_setting(self):
-        fields = {row['key']: row for row in self.client.get('/api/config/fields',
-                                                             headers=self.headers).json()}
+        fields = {row['key']: row for row in self.client.get('/api/config/fields', headers=self.headers).json()}
         self.assertEqual(fields['max_retag_files']['group'], 'Tagger')
         self.assertEqual(fields['max_retag_files']['default'], 2000)
 
     def test_the_ceiling_can_be_lowered(self):
-        response = self.client.post('/api/config/', headers=self.headers,
-                                    json={'updates': {'max_retag_files': 50}})
+        response = self.client.post('/api/config/', headers=self.headers, json={'updates': {'max_retag_files': 50}})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.store.get('max_retag_files'), 50)
 

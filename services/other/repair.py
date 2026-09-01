@@ -10,7 +10,6 @@ from services.common.Helpers.BrokenSongHelper import BrokenSongHelper
 
 
 class FileRepair:
-
     def __init__(self):
         self.broken_helper = BrokenSongHelper()
         self.artist_lookup = BrokenSongArtistLookupHelper()
@@ -113,7 +112,13 @@ class FileRepair:
 
     def download_from_soundcloud(self, url: str, target_path: str) -> bool:
         try:
-            ydl_opts = {'format': 'bestaudio/best', 'outtmpl': str(Path(target_path)), 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'm4a', 'preferredquality': '192'}], 'quiet': True, 'noplaylist': True}
+            ydl_opts = {
+                'format': 'bestaudio/best',
+                'outtmpl': str(Path(target_path)),
+                'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'm4a', 'preferredquality': '192'}],
+                'quiet': True,
+                'noplaylist': True,
+            }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
             return True
@@ -123,7 +128,13 @@ class FileRepair:
 
     def download_from_youtube(self, url: str, target_path: str) -> bool:
         try:
-            ydl_opts = {'format': 'bestaudio/best', 'outtmpl': str(Path(target_path)), 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'm4a', 'preferredquality': '192'}], 'quiet': True, 'noplaylist': True}
+            ydl_opts = {
+                'format': 'bestaudio/best',
+                'outtmpl': str(Path(target_path)),
+                'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'm4a', 'preferredquality': '192'}],
+                'quiet': True,
+                'noplaylist': True,
+            }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
             return True
@@ -139,6 +150,8 @@ class FileRepair:
         except Exception as e:
             logging.warning(f'Failed to fetch uploader for {url}: {e}')
             return None
+
+
 if __name__ == '__main__':
     repairer = FileRepair()
     repairer.run()

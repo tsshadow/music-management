@@ -40,13 +40,14 @@ def set_password(username, password):
                 notify_server_sync_users()
             except Exception as e:
                 print(f"Warning: Failed to notify server for sync: {e}")
-            
+
             return True
     except Exception as e:
         print(f"Error: {e}")
         return False
     finally:
         conn.close()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Set the password for a Music Management user.")

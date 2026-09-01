@@ -26,6 +26,7 @@ class YoutubeSongProcessor(PostProcessor):
     two-hour festival set is not a track, and running it through the tagger would
     only add a bogus artist/title split to the library.
     """
+
     _GENERIC_TITLE_RE = re.compile('.+ video #[0-9A-Za-z_-]+$', re.IGNORECASE)
 
     def __init__(self, downloader=None, download_type: str = AUDIO):
@@ -46,11 +47,12 @@ class YoutubeSongProcessor(PostProcessor):
         account = info.get('uploader_id') or info.get('channel_id') or info.get('uploader') or info.get('channel')
         video_id = info.get('id')
         if not YoutubeArchive.exists(account, video_id, self.download_type):
-            YoutubeArchive.insert(account, video_id, path, url, title_for_archive,
-                                  download_type=self.download_type)
+            YoutubeArchive.insert(account, video_id, path, url, title_for_archive, download_type=self.download_type)
         else:
-            logging.info(f'Track already in downloads_youtube_archive: {account}/{video_id} '
-                         f'({self.download_type}) — skipping insert.')
+            logging.info(
+                f'Track already in downloads_youtube_archive: {account}/{video_id} '
+                f'({self.download_type}) — skipping insert.'
+            )
         if self.download_type == VIDEO:
             self._report_resolution(info, title_for_archive)
             notification_service.notify(str(title_for_archive), title='YouTube Video Download Complete')
@@ -72,7 +74,9 @@ class YoutubeSongProcessor(PostProcessor):
             logging.warning(
                 'Video %s came in at only %sp. Either the channel offers nothing better, '
                 'or yt-dlp fell back to a progressive stream because merging failed.',
-                title, height)
+                title,
+                height,
+            )
 
     def _ensure_real_title(self, info: dict, url: str) -> str | None:
         """Return a better title if yt-dlp provided a generic placeholder."""
@@ -111,7 +115,11 @@ class YoutubeSongProcessor(PostProcessor):
             webpage = data.decode('utf-8', 'replace')
         except Exception:
             webpage = data.decode('latin-1', 'replace')
-        for pattern in ('<meta[^>]+property=["\\\']og:title["\\\'][^>]+content=["\\\']([^"\\\']+)["\\\']', '<meta[^>]+name=["\\\']title["\\\'][^>]+content=["\\\']([^"\\\']+)["\\\']', '<title>([^<]+)</title>'):
+        for pattern in (
+            '<meta[^>]+property=["\\\']og:title["\\\'][^>]+content=["\\\']([^"\\\']+)["\\\']',
+            '<meta[^>]+name=["\\\']title["\\\'][^>]+content=["\\\']([^"\\\']+)["\\\']',
+            '<title>([^<]+)</title>',
+        ):
             match = re.search(pattern, webpage, flags=re.IGNORECASE | re.DOTALL)
             if not match:
                 continue

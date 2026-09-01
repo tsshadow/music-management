@@ -11,7 +11,9 @@ from services.common.Helpers.DatabaseConnector import DatabaseConnector
 # never reads as an episode. The separator class includes '_' and '-' because scene
 # releases join every word with them, and the marker is preceded by a lookbehind rather
 # than \b because '_' is a word character: \b never fires in 'Twisted_Darkside_Podcast_130'.
-EPISODE_PATTERN = re.compile('(?<![a-z])(?:episode|podcast|afl|ep|week)\\.?[\\s_-]*#?[\\s_-]*(\\d{1,4})\\b|#\\s*(\\d{1,4})\\b', re.IGNORECASE)
+EPISODE_PATTERN = re.compile(
+    '(?<![a-z])(?:episode|podcast|afl|ep|week)\\.?[\\s_-]*#?[\\s_-]*(\\d{1,4})\\b|#\\s*(\\d{1,4})\\b', re.IGNORECASE
+)
 
 # "Podcast" is regularly part of a show's own name -- The Uptempo Tribe Podcast,
 # Monstercat Podcast, Twisted Darkside Podcast -- so it is kept when the series key is
@@ -22,6 +24,7 @@ NAME_MARKERS = ('podcast',)
 @dataclass
 class Show:
     """One radio show or podcast series, and the spellings it is known by."""
+
     name: str
     aliases: list[str] = field(default_factory=list)
 
@@ -55,7 +58,7 @@ def series_cut(text: str | None) -> int | None:
     match = EPISODE_PATTERN.search(text or '')
     if not match:
         return None
-    tail = (text or '')[match.start():].lower()
+    tail = (text or '')[match.start() :].lower()
     for marker in NAME_MARKERS:
         if tail.startswith(marker):
             return match.start() + len(marker)
@@ -104,7 +107,9 @@ class PodcastHelper:
     Sessions Yearmix" resolve to the yearmix series rather than to the show it contains.
     """
 
-    def __init__(self, preload: bool=True, table_name: str='rules_podcasts', alias_table_name: str='rules_podcast_aliases'):
+    def __init__(
+        self, preload: bool = True, table_name: str = 'rules_podcasts', alias_table_name: str = 'rules_podcast_aliases'
+    ):
         self.table_name = table_name
         self.alias_table_name = alias_table_name
         self.db_connector = DatabaseConnector()
@@ -149,7 +154,9 @@ class PodcastHelper:
             with connection.cursor() as cursor:
                 cursor.execute(query, ('white',))
                 for row in cursor.fetchall():
-                    show_id, name, alias = (row['id'], row['name'], row['alias']) if isinstance(row, dict) else (row[0], row[1], row[2])
+                    show_id, name, alias = (
+                        (row['id'], row['name'], row['alias']) if isinstance(row, dict) else (row[0], row[1], row[2])
+                    )
                     show = by_id.setdefault(show_id, Show(name=name, aliases=[name]))
                     if alias and alias not in show.aliases:
                         show.aliases.append(alias)

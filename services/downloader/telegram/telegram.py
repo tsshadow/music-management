@@ -10,6 +10,7 @@ from services.downloader.sweep import SweepPolicy
 
 SOURCE = 'telegram'
 
+
 def _is_flood_wait(error: Exception) -> bool:
     """Recognise Telethon's flood wait without importing it.
 
@@ -18,6 +19,7 @@ def _is_flood_wait(error: Exception) -> bool:
     tests install.
     """
     return 'floodwait' in type(error).__name__.lower() or hasattr(error, 'seconds')
+
 
 class TelegramDownloader:
     """Downloads audio and video from Telegram channels.
@@ -30,10 +32,8 @@ class TelegramDownloader:
     def __init__(self, dry_run=False, timing=None, rate_state=None, schedule=None, notifier=None):
         self.dry_run = dry_run
         self._config = ConfigStore()
-        values = self._config.get_many(['telegram_folder', 'telegram_api_id', 'telegram_api_hash',
-                                        'telegram_session'])
-        self.policy = SweepPolicy(SOURCE, timing=timing, rate_state=rate_state, schedule=schedule,
-                                  notifier=notifier)
+        values = self._config.get_many(['telegram_folder', 'telegram_api_id', 'telegram_api_hash', 'telegram_session'])
+        self.policy = SweepPolicy(SOURCE, timing=timing, rate_state=rate_state, schedule=schedule, notifier=notifier)
         self.output_folder = values.get('telegram_folder')
         self.api_id = values.get('telegram_api_id')
         self.api_hash = values.get('telegram_api_hash')
@@ -44,7 +44,9 @@ class TelegramDownloader:
             self.session = session_name
         self.max_concurrent_downloads = self.policy.timing.max_concurrent
         if not self.output_folder or not self.api_id or (not self.api_hash):
-            logging.warning('Missing required configuration: telegram_folder, telegram_api_id, telegram_api_hash. Telegram downloads will be disabled.')
+            logging.warning(
+                'Missing required configuration: telegram_folder, telegram_api_id, telegram_api_hash. Telegram downloads will be disabled.'
+            )
             self.output_folder = None
             self.api_id = None
             self.api_hash = None
@@ -77,7 +79,7 @@ class TelegramDownloader:
             except Exception as e:
                 print(f'❌ Fout bij downloaden van {safe_path}: {e}')
 
-    async def _download_channel(self, client, channel: str, limit: int | None=None):
+    async def _download_channel(self, client, channel: str, limit: int | None = None):
         channel_folder = os.path.join(self.output_folder, channel)
         os.makedirs(channel_folder, exist_ok=True)
         semaphore = asyncio.Semaphore(self.max_concurrent_downloads)
@@ -88,13 +90,18 @@ class TelegramDownloader:
                 download_tasks.append(task)
         await asyncio.gather(*download_tasks)
 
-    async def _run_async(self, channel: str, limit: int | None=None):
+    async def _run_async(self, channel: str, limit: int | None = None):
         loop = asyncio.get_running_loop()
-        async with TelegramClient(self.session, int(self.api_id), self.api_hash, loop=loop,
-                                  flood_sleep_threshold=self.policy.timing.flood_sleep_threshold) as client:
+        async with TelegramClient(
+            self.session,
+            int(self.api_id),
+            self.api_hash,
+            loop=loop,
+            flood_sleep_threshold=self.policy.timing.flood_sleep_threshold,
+        ) as client:
             await self._download_channel(client, channel, limit)
 
-    def run(self, channel: str, limit: int | None=None):
+    def run(self, channel: str, limit: int | None = None):
         if not self.output_folder or not self.api_id or (not self.api_hash):
             logging.warning('Telegram is not configured; skipping run().')
             return

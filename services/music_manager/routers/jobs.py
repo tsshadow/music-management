@@ -9,7 +9,6 @@ try:
 except Exception:
 
     class WebSocket:
-
         async def accept(self) -> None:
             pass
 
@@ -24,13 +23,16 @@ except Exception:
         pass
 
     class APIRouter:
-
         def websocket(self, *_args: Any, **_kwargs: Any):
 
             def decorator(func):
                 return func
+
             return decorator
+
+
 current_job_id = contextvars.ContextVar('current_job_id', default=None)
+
 
 class JobManager:
     """Simple in-memory job manager for Step based pipelines.
@@ -83,7 +85,7 @@ class JobManager:
         if job_id in self.connections:
             self.connections[job_id].remove(websocket)
 
-    async def _notify(self, job_id: str, payload: dict[str, Any] | None=None) -> None:
+    async def _notify(self, job_id: str, payload: dict[str, Any] | None = None) -> None:
         data = payload or self.jobs.get(job_id)
         for ws in list(self.connections.get(job_id, [])):
             try:
@@ -100,8 +102,11 @@ class JobManager:
 
     def recent(self) -> list[dict[str, Any]]:
         return [self.results[jid] for jid in self.history]
+
+
 job_manager = JobManager()
 router = APIRouter(tags=['jobs'])
+
 
 @router.websocket('/ws/jobs/{job_id}')
 async def job_updates(websocket: WebSocket, job_id: str):
@@ -111,6 +116,7 @@ async def job_updates(websocket: WebSocket, job_id: str):
             await websocket.receive_text()
     except WebSocketDisconnect:
         job_manager.disconnect(job_id, websocket)
+
 
 @router.post("/register/{job_id}")
 async def register_external_job(job_id: str, payload: dict[str, Any]):
@@ -123,9 +129,11 @@ async def register_external_job(job_id: str, payload: dict[str, Any]):
     await job_manager._notify(job_id)
     return {"status": "ok"}
 
+
 @router.get("/active")
 async def list_active_jobs():
     return {"jobs": job_manager.jobs}
+
 
 @router.get("/history")
 async def list_job_history():

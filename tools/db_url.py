@@ -17,6 +17,7 @@ host, because "which database did that script just rewrite" should never be a
 question. `rename_tables()` in migrate_db_renames.py, for one, disables foreign
 key checks and renames tables.
 """
+
 from __future__ import annotations
 
 import os
@@ -36,7 +37,9 @@ def database_url() -> str:
         raise SystemExit(
             f"ontbrekende omgevingsvariabelen: {', '.join(missing)}. "
             'Deze tools praten met de database waar de omgeving naar wijst en '
-            'kennen geen standaardwaarden.')
+            'kennen geen standaardwaarden.'
+        )
     port = os.getenv('DB_PORT', '3306')
-    return (f"mysql+mysqlconnector://{values['DB_USER']}:{values['DB_PASS']}"
-            f"@{values['DB_HOST']}:{port}/{values['DB_DB']}")
+    return (
+        f"mysql+mysqlconnector://{values['DB_USER']}:{values['DB_PASS']}@{values['DB_HOST']}:{port}/{values['DB_DB']}"
+    )

@@ -4,6 +4,7 @@ migration and the metadata refresh.
 See services/tests/MlAnalyzerTest.py for why these modules are loaded by file and
 why their third-party dependencies are stubbed.
 """
+
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -31,7 +32,6 @@ def readable_sql(module):
 
 
 class FixSchemaTest(unittest.TestCase):
-
     def run_fix(self, existing_columns=None, has_table=True, alter_fails=False):
         connection = MagicMock()
         if alter_fails:
@@ -42,9 +42,11 @@ class FixSchemaTest(unittest.TestCase):
         inspector.has_table.return_value = has_table
         inspector.get_columns.return_value = [{'name': name} for name in (existing_columns or [])]
 
-        with patch.object(fix_db_schema, 'TrackAnalyzer', return_value=analyzer_returning(engine)), \
-             patch.object(fix_db_schema, 'inspect', return_value=inspector), \
-             readable_sql(fix_db_schema):
+        with (
+            patch.object(fix_db_schema, 'TrackAnalyzer', return_value=analyzer_returning(engine)),
+            patch.object(fix_db_schema, 'inspect', return_value=inspector),
+            readable_sql(fix_db_schema),
+        ):
             fix_db_schema.fix_schema()
         return connection
 
@@ -52,9 +54,7 @@ class FixSchemaTest(unittest.TestCase):
         connection = self.run_fix(existing_columns=[])
 
         statements = [call.args[0] for call in connection.execute.call_args_list]
-        self.assertIn(
-            'ALTER TABLE library_track_audio_features ADD COLUMN internal_track_id INT', statements
-        )
+        self.assertIn('ALTER TABLE library_track_audio_features ADD COLUMN internal_track_id INT', statements)
         self.assertIn(
             'ALTER TABLE library_track_ml_labels ADD COLUMN approved_for_training BOOLEAN DEFAULT FALSE',
             statements,
@@ -62,8 +62,16 @@ class FixSchemaTest(unittest.TestCase):
 
     def test_a_column_that_is_already_there_is_left_alone(self):
         columns = [
-            'internal_track_id', 'file_path', 'artist_name', 'label_name', 'release_year',
-            'source_platform', 'bpm_tag', 'genre_tag', 'ml_review_status', 'approved_for_training',
+            'internal_track_id',
+            'file_path',
+            'artist_name',
+            'label_name',
+            'release_year',
+            'source_platform',
+            'bpm_tag',
+            'genre_tag',
+            'ml_review_status',
+            'approved_for_training',
         ]
 
         connection = self.run_fix(existing_columns=columns)
@@ -81,15 +89,16 @@ class FixSchemaTest(unittest.TestCase):
         self.assertEqual(len(connection.execute.call_args_list), 10)
 
     def test_nothing_happens_without_a_database(self):
-        with patch.object(fix_db_schema, 'TrackAnalyzer', return_value=analyzer_returning(None)), \
-             patch.object(fix_db_schema, 'inspect') as inspect:
+        with (
+            patch.object(fix_db_schema, 'TrackAnalyzer', return_value=analyzer_returning(None)),
+            patch.object(fix_db_schema, 'inspect') as inspect,
+        ):
             fix_db_schema.fix_schema()
 
         inspect.assert_not_called()
 
 
 class MigratePathsTest(unittest.TestCase):
-
     def run_migration(self, failure=None, rowcount=3):
         connection = MagicMock()
         if failure is not None:
@@ -99,8 +108,10 @@ class MigratePathsTest(unittest.TestCase):
         engine = MagicMock()
         engine.begin.return_value.__enter__.return_value = connection
 
-        with patch.object(migrate_paths, 'TrackAnalyzer', return_value=analyzer_returning(engine)), \
-             readable_sql(migrate_paths):
+        with (
+            patch.object(migrate_paths, 'TrackAnalyzer', return_value=analyzer_returning(engine)),
+            readable_sql(migrate_paths),
+        ):
             migrate_paths.migrate_paths()
         return connection
 
@@ -137,13 +148,10 @@ class MigratePathsTest(unittest.TestCase):
 
 
 class UpdateMetadataTest(unittest.TestCase):
-
     def run_update(self, rows, metadata=None, path_exists=True, lookup=None, update_fails=False):
         connection = MagicMock()
         select_result = MagicMock()
-        select_result.__iter__.return_value = iter(
-            [MagicMock(_mapping=row) for row in rows]
-        )
+        select_result.__iter__.return_value = iter([MagicMock(_mapping=row) for row in rows])
         connection.execute.return_value = select_result
         # Always pinned: an unset fetchone() would hand back a truthy MagicMock, and a
         # row whose path cannot be found would look like a row that has one.
@@ -159,13 +167,19 @@ class UpdateMetadataTest(unittest.TestCase):
 
         analyzer = analyzer_returning(engine)
         analyzer.extract_metadata.return_value = metadata or {
-            'artist_name': 'Angerfist', 'label_name': 'Roughstate', 'release_year': 2024,
-            'bpm_tag': 174.0, 'genre_tag': 'Hardcore', 'source_platform': 'Soundcloud',
+            'artist_name': 'Angerfist',
+            'label_name': 'Roughstate',
+            'release_year': 2024,
+            'bpm_tag': 174.0,
+            'genre_tag': 'Hardcore',
+            'source_platform': 'Soundcloud',
         }
 
-        with patch.object(update_metadata, 'TrackAnalyzer', return_value=analyzer), \
-             patch.object(update_metadata.os.path, 'exists', return_value=path_exists), \
-             readable_sql(update_metadata):
+        with (
+            patch.object(update_metadata, 'TrackAnalyzer', return_value=analyzer),
+            patch.object(update_metadata.os.path, 'exists', return_value=path_exists),
+            readable_sql(update_metadata),
+        ):
             update_metadata.update_metadata()
         return analyzer, write_connection
 
@@ -219,13 +233,14 @@ class UpdateMetadataTest(unittest.TestCase):
 
     def test_an_outdated_schema_points_at_the_schema_fixer(self):
         engine = MagicMock()
-        engine.connect.return_value.__enter__.return_value.execute.side_effect = Exception(
-            "Unknown column 'file_path'"
-        )
+        engine.connect.return_value.__enter__.return_value.execute.side_effect = Exception("Unknown column 'file_path'")
         analyzer = analyzer_returning(engine)
 
-        with patch.object(update_metadata, 'TrackAnalyzer', return_value=analyzer), \
-             readable_sql(update_metadata), patch('builtins.print') as printed:
+        with (
+            patch.object(update_metadata, 'TrackAnalyzer', return_value=analyzer),
+            readable_sql(update_metadata),
+            patch('builtins.print') as printed,
+        ):
             update_metadata.update_metadata()
 
         output = ' '.join(str(call.args[0]) for call in printed.call_args_list if call.args)
@@ -236,8 +251,11 @@ class UpdateMetadataTest(unittest.TestCase):
         engine.connect.return_value.__enter__.return_value.execute.side_effect = Exception('deadlock')
         analyzer = analyzer_returning(engine)
 
-        with patch.object(update_metadata, 'TrackAnalyzer', return_value=analyzer), \
-             readable_sql(update_metadata), patch('builtins.print') as printed:
+        with (
+            patch.object(update_metadata, 'TrackAnalyzer', return_value=analyzer),
+            readable_sql(update_metadata),
+            patch('builtins.print') as printed,
+        ):
             update_metadata.update_metadata()
 
         output = ' '.join(str(call.args[0]) for call in printed.call_args_list if call.args)

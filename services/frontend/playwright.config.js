@@ -32,10 +32,7 @@ export default defineConfig({
   // junit next to list: .gitlab-ci.yml uploads test-results/junit-browser.xml
   // into the GitLab test tab, so a browser failure is visible without reading
   // the raw job log. Harmless locally -- the file just lands in test-results/.
-  reporter: [
-    ["list"],
-    ["junit", { outputFile: "test-results/junit-browser.xml" }],
-  ],
+  reporter: [["list"], ["junit", { outputFile: "test-results/junit-browser.xml" }]],
   use: {
     baseURL: devServerUrl,
     screenshot: "only-on-failure",

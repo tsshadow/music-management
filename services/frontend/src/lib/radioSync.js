@@ -22,9 +22,7 @@ export const DEADBAND = 0.15;
  */
 export function medianClockOffset(samples) {
   if (!samples || samples.length === 0) return 0;
-  const offsets = samples
-    .map((s) => s.serverTime - (s.t0 + s.t1) / 2)
-    .sort((a, b) => a - b);
+  const offsets = samples.map((s) => s.serverTime - (s.t0 + s.t1) / 2).sort((a, b) => a - b);
   const mid = Math.floor(offsets.length / 2);
   return offsets.length % 2 ? offsets[mid] : (offsets[mid - 1] + offsets[mid]) / 2;
 }
@@ -50,13 +48,13 @@ export function targetPosition(entry, serverNowMs) {
 export function correction(localPos, targetPos) {
   const error = targetPos - localPos; // positive => we are behind
   if (Math.abs(error) > HARD_SEEK_THRESHOLD) {
-    return { action: 'seek', position: targetPos, rate: 1 };
+    return { action: "seek", position: targetPos, rate: 1 };
   }
   if (Math.abs(error) < DEADBAND) {
-    return { action: 'none', rate: 1 };
+    return { action: "none", rate: 1 };
   }
   const rate = Math.min(1.02, Math.max(0.98, 1 + error / 10));
-  return { action: 'rate', rate };
+  return { action: "rate", rate };
 }
 
 /**
@@ -74,5 +72,5 @@ export function correction(localPos, targetPos) {
  * @returns {boolean}
  */
 export function shouldPushJamState(syncMode, isSyncing, hasCredentials) {
-  return syncMode === 'host' && !isSyncing && Boolean(hasCredentials);
+  return syncMode === "host" && !isSyncing && Boolean(hasCredentials);
 }

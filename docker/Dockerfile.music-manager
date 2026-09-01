@@ -1,21 +1,53 @@
 ARG DOCKER_USER=muma
 ARG VERSION=latest
 
-# Stage 1: Python Backend
-FROM python:3.14-slim
-WORKDIR /app
-
+# Stage 1: wheel builder.
+#
+# gcc, libmariadb-dev and pkg-config exist purely to compile the handful of
+# requirements that have no cp314 wheel yet. They used to be installed in the
+# single stage that also ran in production, so every music-manager container
+# shipped a full C toolchain: gcc pulls libc6-dev, which pulls linux-libc-dev
+# (the kernel headers), and that is the package security:dependency-audit kept
+# reporting CVEs against. Nothing at runtime executes a compiler, so nothing at
+# runtime needs those headers -- they only have to exist while pip builds.
+#
 # apt-get upgrade: see the note in Dockerfile.base -- the base image's
 # preinstalled openssl does not move when this image is rebuilt, so without
 # this the security pocket is never reached.
-RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+FROM python:3.14-slim AS builder
+WORKDIR /app
+
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     gcc \
     libmariadb-dev \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
+# A virtualenv rather than pip's --prefix: it puts the interpreter, the
+# site-packages and the console scripts (uvicorn) under one directory that the
+# runtime stage can copy wholesale, instead of merging a second tree into
+# /usr/local and hoping nothing collides. The venv's python symlink points at
+# /usr/local/bin/python, which the runtime stage has at the same path because
+# both stages are the same base image.
 COPY services/music_manager/requirements.txt .
+RUN python -m venv /opt/venv
+ENV PATH=/opt/venv/bin:$PATH
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Stage 2: runtime.
+#
+# Only the MariaDB *runtime* shared library, not the -dev package: the headers
+# and the static archive are a build-time concern. This image has no compiler
+# and no kernel headers.
+FROM python:3.14-slim
+WORKDIR /app
+
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+    libmariadb3 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH=/opt/venv/bin:$PATH
 
 # Copy backend code
 COPY VERSION /app/VERSION

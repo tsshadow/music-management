@@ -11,6 +11,21 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.40.1 (2026-09-01)
+
+Een correctie op 0.40.0. Aan de app verandert niets.
+
+- **De wekelijkse controle die bewijst dat een backup terug te zetten is, kon zelf niet starten.**
+  Drie losse oorzaken, alle drie gevonden door de controle met de hand te draaien in plaats van tot
+  zondagnacht te wachten: hij kreeg een startbestand mee dat naar een dienst verwees die er niet in
+  stond, hij weigerde de map te lezen die hij bewust alleen-lezen krijgt, en hij had beheerdersrechten
+  nodig voor twee onderdelen van de database. Alle drie zijn verholpen en de controle is daarna van
+  begin tot eind gedraaid: 70 tabellen en bijna 16 miljoen rijen teruggezet en gecontroleerd.
+- **De controle op gelekte wachtwoorden was zo traag geworden dat hij releases blokkeerde.** Hij
+  doorzocht bij elke run 3,9 GB aan oude crashbestanden die al lang niet meer in het project zitten
+  maar wel in de geschiedenis. Die worden nu overgeslagen — nadat ze zijn nagekeken en schoon bleken —
+  en de controle duurt 30 seconden in plaats van 14 minuten.
+
 ## Global Version 0.40.0 (2026-09-01)
 
 Deze release is er vooral een van onderhoud: er is weinig aan de app zelf veranderd, en veel aan wat
@@ -284,7 +299,7 @@ was dat een dubbele sleutel — voor Svelte een harde fout die het hele scherm b
 
 Zie `CHANGELOG.md` voor de volledige lijst. Deze release is een herhaling van 0.26.0: die versie is
 wel naar master gegaan maar nooit naar productie, doordat de release-branch werd opgeruimd terwijl
-`deploy:prod` nog in de wachtrij stond. Inhoudelijk dus dezelfde wijziging — de downloaders halen de
+`muma:deploy` nog in de wachtrij stond. Inhoudelijk dus dezelfde wijziging — de downloaders halen de
 staart van een account weer op via een diepe ronde die het account plat uitleest en alleen de echt
 ontbrekende tracks binnenhaalt.
 
@@ -385,7 +400,7 @@ de nummers herstelt die al fout getagd op schijf staan.
   Android-app nog dode GitHub-CI-bestanden uit het Ultrasonic-verleden meedraagt.
 - **De pijplijn controleert nu ook de shellscripts.** Drieënzestig scripts sturen het uitrollen,
   het taggen en elke testronde aan, en geen enkele taak keek er ooit naar — een fout erin bleek pas
-  op het moment dat een uitrol hem uitvoerde. `quality:shellcheck` draait er shellcheck overheen bij
+  op het moment dat een uitrol hem uitvoerde. `muma:shellcheck` draait er shellcheck overheen bij
   elke wijziging aan een `.sh`-bestand. De lat ligt voorlopig op fouten, niet op waarschuwingen: er
   staan er tweeëndertig van de tweede soort open, en een controle die rood is op de dag dat je hem
   toevoegt leert iedereen hem te negeren. De ene echte fout die er stond is meteen verholpen — het
@@ -534,7 +549,7 @@ de nummers herstelt die al fout getagd op schijf staan.
   kapt-annotatieverwerker, waarvoor geen verwerker meer bestond sinds Room op KSP overging, en
   DataBinding, dat in geen van de 78 layouts voorkwam. Zonder DataBinding kon ook de
   configuratiecache aan.
-- Precies deze tijdslimiet blokkeerde de uitrol van 0.19.0: `muma-mobile:check` viel om, waardoor het
+- Precies deze tijdslimiet blokkeerde de uitrol van 0.19.0: `mobile:unit` viel om, waardoor het
   bouwen van de images en de productie-uitrol werden overgeslagen. 0.19.0 staat daardoor wel getagd
   op master maar heeft productie nooit bereikt; deze release brengt beide alsnog naar buiten.
 

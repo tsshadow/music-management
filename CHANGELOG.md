@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.40.1] - 2026-09-01
+
+### Fixed
+- **`security:secret-scan` liep tegen zijn tijdslimiet en liet daarmee releases stranden.** De job
+  groeide deze maand van vier naar veertien minuten, tegen een limiet van vijftien, en viel om zodra
+  er iets zwaars naast draaide. De oorzaak zijn de drie emulator-core dumps: die zijn wel uit de
+  werkboom gehaald maar blijven bereikbaar in de historie, en gitleaks pakt elke blob uit die hij
+  langsloopt -- dus herleest hij 3,9 GB bij elke run. Ze staan nu in de pad-uitzonderingen van
+  `security/gitleaks.toml` en de scan doet er **30 seconden** over in plaats van 834.
+
+  De reden bij die uitzondering is bewust een andere dan bij de regels erboven. Die gaan over
+  bestanden die geen echte credential kúnnen bevatten; een core dump is een geheugenafdruk en kan
+  dat juist wél. Daarom zijn ze eerst gescand en pas daarna uitgezonderd -- gitleaks heeft ze
+  wekenlang bij elke run gelezen en niets gevonden. Het zijn bovendien drie vaste blobs die niet
+  meer in de boom staan, dus deze uitzondering kan nooit stilletjes nieuwe inhoud gaan dekken.
+- **De backupjob kon niet starten omdat een andere service in hetzelfde compose-bestand naar een
+  database verwees die daar niet in stond.** De timers draaien hun compose-bestand standalone, en
+  docker-compose v1 -- wat productie draait -- valideert het hele bestand voordat het één service
+  start. `run --rm db-backup` stierf daardoor op `Service 'soundcloud-fetcher' depends on service
+  'db' which is undefined`: een melding die naar de backup wijst terwijl het probleem de indeling
+  van het compose-bestand is. De twee backupservices staan nu in een eigen
+  `docker/docker-compose.backup.yml` dat op zichzelf klopt; een `depends_on` hebben ze niet nodig,
+  want ze verbinden over het externe netwerk en falen luid als de database er niet is. Vier tests
+  bewaken dat het bestand zelfstandig blijft werken en dat de units bestaande services aanroepen.
+- **De herstelproef weigerde te starten op precies de read-only mount die hem veilig maakt.** Hij
+  hergebruikte de padvalidatie van de backupjob, en die eist schrijfrechten -- terecht voor een job
+  die dumps wegschrijft, maar de proef mount de dumpmap bewust alleen-lezen omdat een controle die
+  zijn eigen bron kan overschrijven geen controle is. Twee juiste eisen die elkaar tegenspraken; de
+  validatie kent nu `require_writable`, en de proef zet hem uit.
+- **De herstelproef had superuser-rechten nodig voor twee views, en krijgt die niet.** De dump
+  schrijft de views met een `DEFINER`-clausule, en zoiets terugzetten namens een ander account
+  vereist `SET USER` -- een recht waarmee je je als elke gebruiker kunt voordoen, veel te breed voor
+  een wekelijkse controle. De dump blijft ongewijzigd, want een echte restore draait als root en een
+  getrouwe dump is het hele punt; alleen de proef haalt de clausule uit de stroom terwijl hij hem
+  inleest. Die vervanging is bewust smal: alleen regels die met `/*!<nummer> DEFINER=` of
+  `CREATE DEFINER=` beginnen, zodat een van de miljoenen INSERT-regels die toevallig de tekst
+  bevat onaangeroerd blijft.
+
 ## [0.40.0] - 2026-09-01
 
 ### Added
@@ -304,7 +342,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **De R8-mapping van elke release-APK wordt voortaan bewaard.** Release-builds zijn geminificeerd,
   waardoor een stacktrace uit het veld zonder de bijbehorende `mapping.txt` onleesbaar is — en die
   werd tot nu toe nergens gearchiveerd. `publish.sh` zet de mapping naast de APK in `dist/` onder
-  dezelfde versienaam (`muma-mobile-v<versie>-<code>-mapping.txt`), en `muma-mobile:build-release`
+  dezelfde versienaam (`muma-mobile-v<versie>-<code>-mapping.txt`), en `mobile:build-release`
   bewaart hem als GitLab-artifact zonder vervaldatum. Daarmee kan de crash-triage een
   release-stacktrace eerst deobfusceren voordat er iets geanalyseerd wordt.
 - **Een binnengekomen crashrapport kan nu een externe triage-hook wakker maken.** De
@@ -321,17 +359,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Een release-APK kan niet langer geüpload worden terwijl de unit-tests op dezelfde commit rood
-  zijn.** `muma-mobile:build-release` had alleen `release:version-check` als `needs`, en `needs`
+  zijn.** `mobile:build-release` had alleen `release:version-check` als `needs`, en `needs`
   omzeilt de stage-volgorde; de gedeelde resource group serialiseert de Android-jobs wel maar
-  ordent ze niet. Een falende `muma-mobile:check` blokkeerde daardoor de deploy, maar niet de
+  ordent ze niet. Een falende `mobile:unit` blokkeerde daardoor de deploy, maar niet de
   APK-upload — en telefoons updaten automatisch vanaf de hoster. De job wacht nu expliciet op
-  `muma-mobile:check`.
+  `mobile:unit`.
 - **Een release-branch met een open MR draait de pipeline niet meer dubbel.** De bestaande
   dedupe-regel keek naar `$CI_OPEN_MERGE_REQUESTS`, die alleen in push-pipelines bestaat, dus
   release/hotfix-branches kregen een branch-pipeline én een MR-pipeline voor dezelfde commit — met
   twee Android-jobs die om dezelfde Gradle-home vochten. De MR-pipeline wordt nu onderdrukt; de
-  branch-pipeline (waar `deploy:prod` in leeft) blijft.
-- **`db:integration` kan geen database van een parallelle pipeline meer slopen.**
+  branch-pipeline (waar `muma:deploy` in leeft) blijft.
+- **`backend:integration` kan geen database van een parallelle pipeline meer slopen.**
   `db-integration.sh` gebruikte één vaste containernaam en poort 13306 en ruimt die aan begin én
   eind van de run met `docker rm -f` op, waardoor twee gelijktijdige pipelines elkaars MariaDB
   midden in de testrun weghaalden (de bekende `2013 Lost connection`-flake). In CI zijn naam en
@@ -349,11 +387,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Een emulator-smoketest voert voortaan de échte release-APK uit.** De 6.21.0-startupcrash
   (bug-report 029) bestond alleen in de R8-geminificeerde build; unit-tests, detekt en lint zien
   allemaal ongeminificeerde code, dus de eerste uitvoering van een release-build was de telefoon
-  van een gebruiker. `muma-mobile:smoke-release` bouwt de release-APK, boot een headless
+  van een gebruiker. `mobile:smoke` bouwt de release-APK, boot een headless
   ATD-emulator op KVM (passthrough op de runner-LXC sinds 2026-08-22), installeert, start via de
   launcher-intent (overleeft de icon-aliases) en eist na 15 seconden een levend proces zonder
-  `FATAL EXCEPTION`. Een tripwire, geen UI-suite. De job gate't de release: `deploy:prod` wacht
-  via de stage-volgorde en `muma-mobile:build-release` heeft hem expliciet in `needs`, zodat een
+  `FATAL EXCEPTION`. Een tripwire, geen UI-suite. De job gate't de release: `muma:deploy` wacht
+  via de stage-volgorde en `mobile:build-release` heeft hem expliciet in `needs`, zodat een
   crashende APK de hoster nooit bereikt. De CI-image kreeg emulator, platform-tools en het
   `android-34 aosp_atd`-systeembeeld.
 
@@ -367,7 +405,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   voor de images zodat onoplosbare base-image-CVE's de job niet permanent rood houden.
   Geaccepteerde vondsten horen met reden in `security/trivyignore`; de job blijft `allow_failure`
   en de timeout ging van 15 naar 30 minuten.
-- **Android Lint is nu een gate in `muma-mobile:check`.** Lint stond volledig geconfigureerd in
+- **Android Lint is nu een gate in `mobile:unit`.** Lint stond volledig geconfigureerd in
   `app/build.gradle` (baseline, `abortOnError`, `warningsAsErrors`) maar geen enkele CI-job riep
   hem aan — dezelfde geschiedenis als detekt destijds. Ondertussen was de baseline verouderd en
   stond develop op 98 ongefilterde errors die nergens zichtbaar werden. De baseline is opnieuw
@@ -376,10 +414,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stap in de bestaande job: groen vandaag, rood op elke nieuwe finding. Via
   `checkDependencies=true` kijkt `:app:lintDebug` ook naar de core-modules.
 - **Kleinere pipeline-reparaties uit dezelfde doorlichting.** Playwright rapporteert nu junit naar
-  de GitLab-testtab (`frontend:browser` had als enige suite geen zichtbare testresultaten);
-  `muma-mobile:build-release` is niet langer interruptible, zodat een nieuwe push geen upload
-  halverwege afbreekt; `docker:build-images` ruimt in no-push-modus zijn versie-tags weer op zodat
-  de runner-disk niet per release volloopt; een dode subset-regel op `docker:smoke` is weg; de
+  de GitLab-testtab (`frontend:e2e` had als enige suite geen zichtbare testresultaten);
+  `mobile:build-release` is niet langer interruptible, zodat een nieuwe push geen upload
+  halverwege afbreekt; `muma:images` ruimt in no-push-modus zijn versie-tags weer op zodat
+  de runner-disk niet per release volloopt; een dode subset-regel op `muma:smoke` is weg; de
   verouderde "geen /dev/kvm"-claim bij de e2e-job klopt weer met de werkelijkheid (KVM-passthrough
   staat er sinds 2026-08-22, wat ontbreekt is een emulator-job); en het `.release_rule`-commentaar
   benoemt nu eerlijk welke jobs er wél en niet onder vallen.
@@ -480,7 +518,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Omdat Renovate nu elk uur draait en niets meer op een venster wacht, staat `prHourlyLimit` expliciet
   op 2, naast de `prConcurrentLimit` van 5. Dat is géén poort maar een wachtrij: alles komt, alleen
   niet tegelijk. Dat is met opzet, want elke merge request start een pipeline, en veertien tegelijk
-  betekent veertien pipelines die vechten om dezelfde database-container in `db:integration`.
+  betekent veertien pipelines die vechten om dezelfde database-container in `backend:integration`.
 
 ### Fixed
 - **Renovate leverde npm-voorstellen af met een lockfile die er niet bij paste.** De eerste
@@ -1112,7 +1150,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **0.26.0 heeft productie nooit gehaald; deze release brengt hem er alsnog heen.** De release-branch
-  werd naar master gemerged terwijl `deploy:prod` nog in de wachtrij stond, waarna het opruimen van
+  werd naar master gemerged terwijl `muma:deploy` nog in de wachtrij stond, waarna het opruimen van
   die branch de job onder zich vandaan trok: `couldn't find remote ref refs/heads/release/0.26.0`.
   De images waren op dat moment al gebouwd en zijn actueel, dus er is niets verouderds gepubliceerd —
   alleen de deploy bleef liggen, en `release:verify-deployed` weigerde daarop terecht te taggen. Deze
@@ -1224,7 +1262,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   de test zelf duurt twee seconden. Een test die de enige is die de hele keten bewijst en die pas
   draait als iemand eraan denkt, bewijst in de praktijk niets, dus hij draait nu overal mee en houdt
   de pipeline tegen als hij rood is. Hij heet ook niet langer `e2e:golden-path` maar
-  `e2e:scan-to-listen`, want dat is wat hij doet. Wat hij nog steeds niet doet is de luisterbeurt uit
+  `muma:e2e`, want dat is wat hij doet. Wat hij nog steeds niet doet is de luisterbeurt uit
   de geschiedenis teruglezen — dat komt uit het antwoord op de registratie zelf — en dat staat er nu
   ook zo bij.
 
@@ -1300,7 +1338,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Android-app nog dode GitHub-CI-bestanden uit het Ultrasonic-verleden meedraagt.
 - **De pijplijn controleert nu ook de shellscripts.** Drieënzestig scripts sturen het uitrollen,
   het taggen en elke testronde aan, en geen enkele taak keek er ooit naar — een fout erin bleek pas
-  op het moment dat een uitrol hem uitvoerde. `quality:shellcheck` draait er shellcheck overheen bij
+  op het moment dat een uitrol hem uitvoerde. `muma:shellcheck` draait er shellcheck overheen bij
   elke wijziging aan een `.sh`-bestand. De lat ligt voorlopig op fouten, niet op waarschuwingen: er
   staan er tweeëndertig van de tweede soort open, en een controle die rood is op de dag dat je hem
   toevoegt leert iedereen hem te negeren. De ene echte fout die er stond is meteen verholpen — het
@@ -2319,7 +2357,7 @@ completes the Android app's rename to MuMa Mobile.
 - **The built-in server entry is now called "MuMa" instead of "LMS".** Installs that already store
   the old name keep matching it, so nobody has to re-add the server.
 - CI jobs, scripts and coverage artifacts followed the module rename: `ultrasonic:check` is now
-  `muma-mobile:check`, `ultrasonic:build-debug`/`build-release` are now `muma-mobile:build-debug`/
+  `mobile:unit`, `ultrasonic:build-debug`/`build-release` are now `mobile:build-debug`/
   `build-release`, and the app release tag prefix changed from `ultrasonic-v*` to `muma-mobile-v*`.
   Existing tags are immutable and keep their old prefix; the version line continues unbroken.
 
@@ -2408,7 +2446,7 @@ own [CHANGELOG](services/muma-mobile/CHANGELOG.md) carries the full detail.
 - The README carries a functional overview of the CI/CD pipeline: which jobs run on which branch,
   and what each one gates.
 - A design document for a release-candidate acceptance stack — an environment where a release
-  branch can be exercised against production-like data before `deploy:prod` runs.
+  branch can be exercised against production-like data before `muma:deploy` runs.
 
 ## [0.1.3] - 2026-08-02
 
@@ -3140,7 +3178,7 @@ own [CHANGELOG](services/muma-mobile/CHANGELOG.md) carries the full detail.
   `changes: - services/ultrasonic/**/*` filter, so a release branch that didn't happen to touch
   `services/ultrasonic/` would skip the official, signed Ultrasonic build+upload entirely — contrary
   to `docs/release-management.md`'s job-to-branch mapping, where `ultrasonic:build-release` is meant
-  to run unconditionally on `release/*` (same as `release:build-images` and `deploy:prod`, neither of
+  to run unconditionally on `release/*` (same as `release:build-images` and `muma:deploy`, neither of
   which has a `changes` filter). The optional, manual debug build on merge requests
   (`ultrasonic:build-debug`) was already correct and is unchanged. Removed the `changes` filter so
   the official build+upload always runs on `release/*` when the required secrets are present.
@@ -3189,12 +3227,12 @@ own [CHANGELOG](services/muma-mobile/CHANGELOG.md) carries the full detail.
 ## [0.0.42] - 2026-07-30
 
 ### Fixed
-- **Re-deploy 0.0.41 after its own `deploy:prod` job failed (`bug 018`)**: `release/0.0.41`'s MR
+- **Re-deploy 0.0.41 after its own `muma:deploy` job failed (`bug 018`)**: `release/0.0.41`'s MR
   merged into `master` while its own, still-running full pipeline's `release:build-images` job was
   still going — because GitLab associated the MR's mergeability with a smaller, faster duplicate
   pipeline for the same commit rather than the full one. `release:back-merge-develop` then deleted
   the (already-merged) `release/0.0.41` branch as usual, so by the time the full pipeline reached
-  `deploy:prod`, `git fetch`/checkout for that branch failed outright (`fatal: couldn't find remote
+  `muma:deploy`, `git fetch`/checkout for that branch failed outright (`fatal: couldn't find remote
   ref refs/heads/release/0.0.41`) — production was never actually redeployed with 0.0.41's artist-
   images fix, even though `master`/`develop` and the `release-v0.0.41` tag were correct. No
   functional code change in this release — this is purely the automated re-deploy of 0.0.41's
@@ -3263,7 +3301,7 @@ own [CHANGELOG](services/muma-mobile/CHANGELOG.md) carries the full detail.
 ### Fixed
 - **A stale, already-merged-but-never-deleted `release/0.0.35` branch's delayed pipeline
   re-pushed old code as `muma/muma-tools:latest` and redeployed it to production right after
-  `bug 015`'s fix went live (`bug 016`)**: `release:build-images`/`deploy:prod` trigger on any
+  `bug 015`'s fix went live (`bug 016`)**: `release:build-images`/`muma:deploy` trigger on any
   `release/*` branch push or pipeline run, and the repository had accumulated many old, merged
   `release/*` branches; one of them (`release/0.0.35`) had a job stuck queued on the shared
   runner that finally executed *after* the `0.0.37` fix's pipeline, overwriting `latest` with its
@@ -3475,7 +3513,7 @@ own [CHANGELOG](services/muma-mobile/CHANGELOG.md) carries the full detail.
 > **Automated the Ultrasonic Android release APK build and publish flow, end to end.** This CI/CD automation already existed in the codebase from earlier work, but had never actually produced a real signed release: the original signing keystore could no longer be located anywhere, so official release APKs were never built by CI before.
 
 ### Added
-- **Ultrasonic release APK now built and published entirely by CI**: generated a brand-new, dedicated signing keystore (the original could not be recovered) and configured it, together with the `apk-hoster` upload credentials, as GitLab CI/CD variables. `ultrasonic:build-release` now runs automatically on every `release/*` pipeline, builds a signed APK, and uploads it to `https://apk.example.com` alongside `deploy:prod` - no manual local build/upload is needed anymore.
+- **Ultrasonic release APK now built and published entirely by CI**: generated a brand-new, dedicated signing keystore (the original could not be recovered) and configured it, together with the `apk-hoster` upload credentials, as GitLab CI/CD variables. `ultrasonic:build-release` now runs automatically on every `release/*` pipeline, builds a signed APK, and uploads it to `https://apk.example.com` alongside `muma:deploy` - no manual local build/upload is needed anymore.
 - **Fixed `SIGNING_STORE_FILE` handling**: `scripts/ci/ultrasonic-build-upload.sh` now base64-decodes `SIGNING_STORE_FILE` before use, since GitLab CI/CD variables (even file-type ones) are transmitted as text and can't reliably carry raw binary `.jks` bytes; documented the required `base64 -w0` encoding in `docs/deployment.md`.
 - **Clean slate on `apk-hoster`**: removed all previously, manually-published APKs (and their DB records) from `apk-hoster`, since none of them can be validly updated-from once we move to CI-built, newly-signed releases.
 - Removed the stale, unusable `services/ultrasonic/ultrasonic-keystore.enc` (an encrypted backup with no known password/decryption method) from the repository.
@@ -3498,7 +3536,7 @@ own [CHANGELOG](services/muma-mobile/CHANGELOG.md) carries the full detail.
 
 ### Fixed
 - **Telegram worker session schema mismatch (`bug 007`)**: `docker/Dockerfile.telegram` ran an unpinned `pip install telethon` in addition to the pinned version from `requirements.txt`, so different rebuilds could install different `telethon` releases. `telethon` changed its session SQLite schema (added a `tmp_auth_key` column) starting with `1.43.0`; an older rebuild could no longer read a `.session` file a newer rebuild had upgraded. Pinned `telethon~=1.44.0` in `requirements.txt` (matching the schema already on disk) and removed the redundant unpinned install so the image always uses a single, reproducible version.
-- **`release:build-images` never covered background worker images (`bug 007`)**: `scripts/ci/build-and-push-images.sh` only ever built/pushed `music-manager` and `lms`; `muma-base`, `muma-downloader`, `muma-telegram`, `muma-importer`, and `muma-tools` were never rebuilt or pushed by CI, so `deploy:prod`'s `docker compose pull` kept re-pulling stale, manually-pushed images for every background worker — the telegram fix above went through a fully green `release/*` pipeline including `deploy:prod` without actually reaching production. Extended the script to build and push all five of these images on every `release/*` pipeline.
+- **`release:build-images` never covered background worker images (`bug 007`)**: `scripts/ci/build-and-push-images.sh` only ever built/pushed `music-manager` and `lms`; `muma-base`, `muma-downloader`, `muma-telegram`, `muma-importer`, and `muma-tools` were never rebuilt or pushed by CI, so `muma:deploy`'s `docker compose pull` kept re-pulling stale, manually-pushed images for every background worker — the telegram fix above went through a fully green `release/*` pipeline including `muma:deploy` without actually reaching production. Extended the script to build and push all five of these images on every `release/*` pipeline.
 
 ## [0.0.18] - 2026-07-28
 
@@ -3734,7 +3772,7 @@ own [CHANGELOG](services/muma-mobile/CHANGELOG.md) carries the full detail.
 ## [0.0.2] - 2026-07-26
 
 > **Fix: production was deploying stale images.** After cutting `0.0.1`, `music.example.com`
-> kept showing old behavior post-deploy. Root cause: `deploy:prod` only ever ran
+> kept showing old behavior post-deploy. Root cause: `muma:deploy` only ever ran
 > `docker compose pull`, but nothing in the pipeline actually *built and pushed* fresh
 > `music-manager`/`lms` images first — it silently kept re-pulling whatever image had last been
 > pushed **manually**, so a release could "deploy successfully" while production kept running old
@@ -3744,10 +3782,10 @@ own [CHANGELOG](services/muma-mobile/CHANGELOG.md) carries the full detail.
 - **Missing image build/publish step in the release pipeline**: added a new `release:build-images`
   CI job (stage `release`, before `deploy`) that builds and pushes fresh `music-manager` and `lms`
   (`music-management-server`) Docker images to Docker Hub on every `release/*` branch, via the new
-  `scripts/ci/build-and-push-images.sh`. `deploy:prod` now always pulls an image that was just built
+  `scripts/ci/build-and-push-images.sh`. `muma:deploy` now always pulls an image that was just built
   from the code actually being released, instead of a possibly-stale, manually-pushed one.
 - `release:build-images` is gated on the new `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` CI/CD variables
-  and runs in the same `release` stage as `release:version-check`, so `deploy:prod` (stage `deploy`)
+  and runs in the same `release` stage as `release:version-check`, so `muma:deploy` (stage `deploy`)
   cannot start until both have succeeded — a failed or skipped image build blocks the deploy.
 
 ## [0.0.1] - 2026-07-26
@@ -3780,7 +3818,7 @@ own [CHANGELOG](services/muma-mobile/CHANGELOG.md) carries the full detail.
   history preserved (via `git subtree`). The `frontend` (which never had its own separate history) is
   now tracked here too. There are no more submodules or separate gitlab remotes for these projects —
   see `AGENTS.md` for the rationale (solo developer, tightly-coupled apps, one shared history).
-- **Production deployment**: the `deploy:prod` pipeline job was fixed to use dedicated, CI-managed SSH
+- **Production deployment**: the `muma:deploy` pipeline job was fixed to use dedicated, CI-managed SSH
   key authentication and now reliably deploys both production stacks (`music-management` and `lms`)
   idempotently from a `release/*` branch, instead of the previously broken/manual `main`/`develop` flow.
 

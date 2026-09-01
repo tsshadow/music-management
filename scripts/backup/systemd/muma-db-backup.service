@@ -8,4 +8,4 @@ Type=oneshot
 WorkingDirectory=/opt/muma-backup
 # One-shot compose service from the tools stack. --rm so a failed run does not
 # leave a stopped container that the next run collides with by name.
-ExecStart=/usr/bin/docker-compose --env-file /opt/muma-backup/.env -f /opt/muma-backup/docker-compose.tools.yml -p music-management run --rm db-backup
+ExecStart=/usr/bin/docker-compose --env-file /opt/muma-backup/.env -f /opt/muma-backup/docker-compose.backup.yml -p music-management run --rm db-backup

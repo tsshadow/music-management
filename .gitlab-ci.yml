@@ -38,7 +38,7 @@ default:
 workflow:
   rules:
     # Release and hotfix branches always get their own branch pipeline, even
-    # while an MR is open for them. deploy:prod, release:version-check and
+    # while an MR is open for them. muma:deploy, release:version-check and
     # friends all match on $CI_COMMIT_BRANCH, which is unset in a merge request
     # pipeline -- so if the duplicate-pipeline guard below applied here, the
     # release would simply never be deployed.
@@ -49,7 +49,7 @@ workflow:
     # release branch with an open MR used to run everything twice, and the two
     # Android jobs raced each other for the shared Gradle home (one of them
     # died on a vanished Gradle cache during the 0.23.x releases). The branch
-    # pipeline is the one deploy:prod lives in, so it is the one that stays.
+    # pipeline is the one muma:deploy lives in, so it is the one that stays.
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME =~ /^(release|hotfix)\//'
       when: never
     # Scheduled pipelines (security:dependency-audit) always run.
@@ -73,15 +73,50 @@ stages:
   # that the jobs in it cannot gate anything. See security:dependency-audit.
   - audit
 
+# --- Job naming ---------------------------------------------------------------
+# Every job is `<scope>:<what>`. Enforced by tests/ci/test_gitlab_ci_policy.py,
+# which also checks that no component is missing one of the core checks.
+#
+# The scope is the **source component** -- what you edited -- which is the same
+# thing the `changes:` rules key on:
+#
+#   backend    the Python tree: music_manager, importer, downloader, tagger,
+#              scanner, common, tools. 384 files, five shipped images. Called
+#              backend rather than manager because music_manager is 96 of those
+#              files; the rest are its workers and shared code.
+#   server     the C++ playback server (services/music-management-server)
+#   frontend   the Svelte web UI. Not a deployable of its own: it is built in
+#              the first stage of the server's Dockerfile-release and ends up
+#              inside that image, under docroot/spotify.
+#   mobile     the Android app
+#
+# `backend` and `server` are both server-side, so to be explicit: `server` is
+# the C++ playback/streaming server, `backend` is everything Python. The
+# toolchains tell them apart at a glance -- server:format is clang-format,
+# backend:format is ruff.
+#
+# Every component answers the same three questions -- format, lint, unit --
+# with component-specific extras where they genuinely exist (backend:typecheck
+# is mypy, mobile:smoke boots an APK on an emulator). Forcing perfect symmetry
+# would mean inventing empty jobs.
+#
+# Two other scopes:
+#
+#   muma       spans components, or is the whole product: muma:contracts,
+#              muma:e2e, muma:smoke, muma:images, muma:deploy, muma:verify
+#   security, deps, runner, release
+#              concerns that belong to no component. `release` stays its own
+#              scope because those seven jobs are a sequence you read together.
+
 # Referenced by the quality and unit jobs, which gate a production deploy via
 # stage ordering. Those jobs also have `changes:` rules, which is what keeps
 # ordinary feature pushes cheap -- but on a release/hotfix branch the last
 # commit usually touches only VERSION, CHANGELOG.md and RELEASE_NOTES.md, so
 # `changes:` alone would skip them, and a skipped job does not block
-# deploy:prod. This rule makes them unconditional exactly where it matters.
+# muma:deploy. This rule makes them unconditional exactly where it matters.
 #
-# Deliberately NOT referenced by db:integration, contracts, docker:smoke and
-# frontend:browser: those run unconditionally on every develop push, and a
+# Deliberately NOT referenced by backend:integration, muma:contracts, muma:smoke and
+# frontend:e2e: those run unconditionally on every develop push, and a
 # release branch is develop plus a VERSION/CHANGELOG commit, so re-running them
 # on the stabilize commit would re-test an already-tested tree for ~30 minutes
 # of wall clock. A release commit that changes actual code trips their
@@ -141,7 +176,7 @@ stages:
 #
 # Only add a job here when it needs nothing from the host but Docker and git.
 # The workstation has no project Python environment, so anything invoking
-# `python3 -m pytest` (music-management:unit) or `npm` (frontend:unit) directly
+# `python3 -m pytest` (backend:unit) or `npm` (frontend:unit) directly
 # stays untagged and LXC-only until those dependencies are provisioned there.
 # Deploy and release jobs must never carry this tag: they hold the production
 # SSH key and push tags, and neither belongs on a desktop.
@@ -150,12 +185,39 @@ stages:
     - fast
 
 # --- Static analysis ---------------------------------------------------------
-# Runs the same scripts/lint.sh the pre-commit hook runs, so a commit made with
+# Runs the same scripts the pre-commit hook runs, so a commit made with
 # --no-verify, or through the GitLab web UI, still meets the same bar. Both the
 # ruff rule set and the pylint threshold live in the repo (pyproject.toml,
 # .pylintrc) rather than in this file.
+#
+# format and lint are separate jobs on purpose. "Run the formatter" and "fix a
+# lint finding" are very different amounts of work, and bundling them reports
+# both as one red box.
 
-quality:lint:
+.backend_paths: &backend_paths
+        - services/**/*.py
+        - tools/**/*.py
+        # Both scripts cover tests/ too, so a change there has to re-run them.
+        - tests/**/*.py
+        - scripts/**/*.sh
+        - pyproject.toml
+        - .pylintrc
+        - .gitlab-ci.yml
+
+backend:format:
+  stage: quality
+  timeout: 10m
+  retry: !reference [.infra_retry, retry]
+  # scripts/format.sh re-runs itself in a container when ruff is missing.
+  tags: !reference [.fast_runner, tags]
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.release_rule, rules]
+    - changes: *backend_paths
+  script:
+    - ./scripts/format.sh --check
+
+backend:lint:
   stage: quality
   timeout: 10m
   retry: !reference [.infra_retry, retry]
@@ -164,22 +226,14 @@ quality:lint:
   rules:
     - !reference [.dedicated_schedule_guard, rules]
     - !reference [.release_rule, rules]
-    - changes:
-        - services/**/*.py
-        - tools/**/*.py
-        # scripts/lint.sh lints tests/ too, so a change there has to re-run it.
-        - tests/**/*.py
-        - scripts/**/*.sh
-        - pyproject.toml
-        - .pylintrc
-        - .gitlab-ci.yml
+    - changes: *backend_paths
   script:
     - ./scripts/lint.sh
 
 # Shell scripts. Gates at `error` only -- see scripts/shellcheck.sh for why the
 # floor is not `warning` yet. Deploy, release and test scripts are the ones that
 # break production quietly, and nothing else in the pipeline reads them.
-quality:shellcheck:
+muma:shellcheck:
   stage: quality
   timeout: 10m
   retry: !reference [.infra_retry, retry]
@@ -194,7 +248,7 @@ quality:shellcheck:
     - ./scripts/shellcheck.sh
 
 # C++ formatting for the MuMa Server. Its own job rather than a step in
-# muma-server:unit, which builds the whole server and takes up to 45 minutes:
+# server:unit, which builds the whole server and takes up to 45 minutes:
 # a formatting mistake should be reported in under a minute, not after a
 # compile. .clang-format has been in that directory since the fork and was
 # read by nothing, which left 37 of 870 files unformatted.
@@ -202,7 +256,7 @@ quality:shellcheck:
 # This is the server's only static analysis. clang-tidy is the obvious next
 # step and is a bigger job: it needs the compilation database, so it belongs
 # with the build rather than here.
-quality:cpp-format:
+server:format:
   stage: quality
   timeout: 10m
   retry: !reference [.infra_retry, retry]
@@ -219,16 +273,21 @@ quality:cpp-format:
     - ./scripts/test/muma-server-format.sh
 
 # clang-tidy over the same sources. Its own job rather than a step in
-# quality:cpp-format, which answers in under a minute: this one configures cmake
+# server:format, which answers in under a minute: this one configures cmake
 # and analyses 307 translation units, and took ~10 minutes at -j16 when it was
 # wired. Keeping them apart means a misplaced brace is still reported fast.
 #
 # Findings are baselined (1540 of them on day one), so this is green today and
 # red on anything new -- the contract detekt, Android Lint and semgrep already
 # have here. The baseline names the checks worth burning down first.
-quality:cpp-tidy:
+#
+# 45m, after its first CI run was killed at 30. The cause was memory rather
+# than the wall -- see the parallelism block in scripts/test/muma-server-tidy.sh
+# -- but the runner also has every other job of the pipeline on it, so the
+# margin is worth having on a job that gates nothing downstream.
+server:lint:
   stage: quality
-  timeout: 30m
+  timeout: 45m
   retry: !reference [.infra_retry, retry]
   tags: !reference [.fast_runner, tags]
   rules:
@@ -250,7 +309,7 @@ quality:cpp-tidy:
 # the whole tree plus a list of modules checked strictly; scripts/typecheck.sh
 # runs that list. The list only ever grows -- cleaning a module up means fixing
 # its findings and adding it there in the same merge request.
-quality:typecheck:
+backend:typecheck:
   stage: quality
   timeout: 10m
   retry: !reference [.infra_retry, retry]
@@ -349,7 +408,13 @@ security:sast:
 # live in security/gitleaks.toml, per-finding ones in .gitleaksignore.
 security:secret-scan:
   stage: quality
-  timeout: 15m
+  # 30m, not 15m. A merge request now scans only its own commits and finishes
+  # in seconds (see scripts/ci/secret-scan.sh), but develop, master, release
+  # branches and the schedule still scan the whole history -- and that crossed
+  # 20 minutes on 2026-09-01, when four whole-tree reformats landed inside the
+  # runner's 20-commit shallow clone. It failed a release branch for a reason
+  # that had nothing to do with the release.
+  timeout: 30m
   retry: !reference [.infra_retry, retry]
   # gitleaks runs as a container; nothing is needed on the host.
   tags: !reference [.fast_runner, tags]
@@ -380,7 +445,7 @@ security:secret-scan:
 # Scheduled only, guarded by $RENOVATE so that an ordinary push can never start
 # a bot that opens merge requests, and by $RENOVATE_TOKEN so the job disappears
 # instead of failing on an instance where the token was never configured -- the
-# same shape as images:refresh-downloader. The schedule wants RENOVATE=true and
+# same shape as muma:refresh-downloader. The schedule wants RENOVATE=true and
 # should sit shortly before the `before 6am on monday` window in renovate.json;
 # Renovate itself honours that window, so a schedule that fires outside it
 # simply finds nothing to do.
@@ -432,7 +497,7 @@ runner:disk-janitor:
 
 # --- Unit tests -------------------------------------------------------------
 
-music-management:unit:
+backend:unit:
   stage: unit
   timeout: 20m
   retry: !reference [.infra_retry, retry]
@@ -472,7 +537,7 @@ music-management:unit:
         coverage_format: cobertura
         path: coverage-python.xml
 
-muma-server:unit:
+server:unit:
   stage: unit
   timeout: 45m
   retry: !reference [.infra_retry, retry]
@@ -498,6 +563,50 @@ muma-server:unit:
         coverage_format: cobertura
         path: coverage-muma-server.xml
 
+# The four frontend checks used to be one job running them in sequence. Split
+# so the job name says which one broke, and because on two runners they can now
+# run at once instead of end to end. The cost is a node_modules cache restore
+# per job, which the .npm_cache key makes cheap.
+.frontend_paths: &frontend_paths
+        - services/frontend/**/*
+        - .gitlab-ci.yml
+
+frontend:format:
+  stage: quality
+  timeout: 10m
+  retry: !reference [.infra_retry, retry]
+  cache: !reference [.npm_cache, cache]
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.release_rule, rules]
+    - changes: *frontend_paths
+  script:
+    - ./scripts/test/frontend-unit.sh format
+
+frontend:lint:
+  stage: quality
+  timeout: 10m
+  retry: !reference [.infra_retry, retry]
+  cache: !reference [.npm_cache, cache]
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.release_rule, rules]
+    - changes: *frontend_paths
+  script:
+    - ./scripts/test/frontend-unit.sh lint
+
+frontend:typecheck:
+  stage: quality
+  timeout: 10m
+  retry: !reference [.infra_retry, retry]
+  cache: !reference [.npm_cache, cache]
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.release_rule, rules]
+    - changes: *frontend_paths
+  script:
+    - ./scripts/test/frontend-unit.sh typecheck
+
 frontend:unit:
   stage: unit
   timeout: 15m
@@ -506,57 +615,85 @@ frontend:unit:
   rules:
     - !reference [.dedicated_schedule_guard, rules]
     - !reference [.release_rule, rules]
-    - changes:
-        - services/frontend/**/*
-        - .gitlab-ci.yml
+    - changes: *frontend_paths
   script:
-    - ./scripts/test/frontend-unit.sh
+    - ./scripts/test/frontend-unit.sh unit
   coverage: '/All files\s*\|\s*[\d\.]+\s*\|\s*[\d\.]+\s*\|\s*[\d\.]+\s*\|\s*([\d\.]+)/'
   artifacts:
-    # See muma-server:unit above.
+    # See server:unit above.
     when: always
     reports:
       coverage_report:
         coverage_format: cobertura
         path: services/frontend/coverage/cobertura-coverage.xml
 
-muma-mobile:check:
-  stage: unit
-  # All MuMa Mobile jobs share one Gradle home per runner
-  # (scripts/ci/android-gradle-home.sh) so that no job ever starts from a cold
-  # dependency/build cache. That is only safe while at most one of them runs at
-  # a time, which is what this resource group guarantees - project-wide, so it
-  # also covers two pipelines on different branches landing on the same runner.
-  # They were already serialized inside a single pipeline (different stages),
-  # so this costs no wall-clock time in the normal case.
+# The Android checks, split by what they check like every other component.
+#
+# The cost here is real and worth stating, because it is the one place where
+# this scheme is not free. All MuMa Mobile jobs share one Gradle home per runner
+# (scripts/ci/android-gradle-home.sh) so that none starts from a cold
+# dependency cache, and that is only safe while at most one runs at a time --
+# which is what the resource group guarantees, project-wide, so it also covers
+# two pipelines landing on the same runner. Splitting therefore buys no
+# parallelism the way the frontend split does: these three still run one after
+# another, and each now pays its own checkout and container start, about two
+# minutes over the pipeline.
+#
+# Bought with it: the job name says whether formatting, a linter or a test
+# failed, and one of them can be retried without re-running the other two.
+.mobile_paths: &mobile_paths
+        - services/muma-mobile/**/*
+        # The image these jobs build in. A change to it went untested by
+        # anything: no other job's rules mention it either.
+        - docker/Dockerfile-android-ci
+        - scripts/ci/android-image.sh
+        - .gitlab-ci.yml
+
+mobile:format:
+  stage: quality
   resource_group: muma-mobile
-  # 20m, not the 45m this used to have. The old wall was set when three Android
-  # jobs could run at once and starve each other; the resource group above ended
-  # that, and the job now averages ~6 minutes. 45m only ever bought a hung
-  # Gradle daemon three quarters of an hour before .infra_retry could react.
-  # Queue time waiting for the resource group does not count against this.
   timeout: 20m
   retry: !reference [.infra_retry, retry]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
     - !reference [.release_rule, rules]
-    - changes:
-        - services/muma-mobile/**/*
-        # The image this job builds in. A change to it went untested by
-        # anything: no other job's rules mention it either.
-        - docker/Dockerfile-android-ci
-        - scripts/ci/android-image.sh
-        - .gitlab-ci.yml
+    - changes: *mobile_paths
   script:
-    # Formatting first: cheapest of the four, and `ktlintFormat` fixes it.
-    # Same job, not a second one: every Android job shares one Gradle home and
-    # would queue behind the same resource group for no gain.
     - ./scripts/test/muma-mobile-ktlint.sh
-    - ./scripts/test/muma-mobile-unit.sh
+
+# detekt and Android Lint together: both are linters, they share a Gradle
+# invocation cost, and neither has a fix-it-for-me command the way ktlint does.
+mobile:lint:
+  stage: quality
+  resource_group: muma-mobile
+  timeout: 20m
+  retry: !reference [.infra_retry, retry]
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.release_rule, rules]
+    - changes: *mobile_paths
+  script:
     - ./scripts/test/muma-mobile-detekt.sh
-    # Android Lint (manifest/resource/API-level checks detekt cannot see).
+    # Android Lint sees manifest/resource/API-level problems detekt cannot.
     # Baselined like detekt: green on the day it was wired, red on new findings.
     - ./scripts/test/muma-mobile-lint.sh
+
+mobile:unit:
+  stage: unit
+  resource_group: muma-mobile
+  # 20m, not the 45m this used to have. The old wall was set when three Android
+  # jobs could run at once and starve each other; the resource group above ended
+  # that. 45m only ever bought a hung Gradle daemon three quarters of an hour
+  # before .infra_retry could react. Queue time waiting for the resource group
+  # does not count against this.
+  timeout: 20m
+  retry: !reference [.infra_retry, retry]
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.release_rule, rules]
+    - changes: *mobile_paths
+  script:
+    - ./scripts/test/muma-mobile-unit.sh
   coverage: '/Total.*?(\d+(?:\.\d+)?\%)/'
   artifacts:
     when: always
@@ -592,17 +729,17 @@ release:check-secrets:
 # re-runnable fails here rather than on deploy.
 # The three jobs below declare `needs:` instead of waiting for the whole unit
 # stage. Nothing here depends on the Android build, but stage ordering made them
-# wait for it anyway: on the 0.19.0 release pipeline muma-mobile:check ran for
+# wait for it anyway: on the 0.19.0 release pipeline the Android jobs ran for
 # 37 minutes and every integration job sat behind it, for a result none of them
 # used. `optional: true` on every entry is load-bearing - each upstream job has
 # `changes:` rules, so it is frequently not in the pipeline at all, and a
 # non-optional need on an absent job is a pipeline-level YAML error, not a skip.
-db:integration:
+backend:integration:
   stage: integration
   timeout: 30m
   retry: !reference [.infra_retry, retry]
   needs:
-    - job: music-management:unit
+    - job: backend:unit
       optional: true
   rules:
     - !reference [.dedicated_schedule_guard, rules]
@@ -625,14 +762,14 @@ db:integration:
 # always run on the default branch, and on any merge request that touches
 # something the test stack itself depends on.
 
-contracts:
+muma:contracts:
   stage: integration
   timeout: 30m
   retry: !reference [.infra_retry, retry]
   needs:
-    - job: music-management:unit
+    - job: backend:unit
       optional: true
-    - job: muma-server:unit
+    - job: server:unit
       optional: true
   rules:
     - !reference [.dedicated_schedule_guard, rules]
@@ -644,7 +781,7 @@ contracts:
         - tests/fixtures/**/*
         - tests/contracts/**/*
         - .gitlab-ci.yml
-        # Same reason as db:integration above.
+        # Same reason as backend:integration above.
         - scripts/test/contracts.sh
   script:
     - ./scripts/test/contracts.sh
@@ -653,15 +790,15 @@ contracts:
 # Until these two jobs existed, a merge request that changed nothing but a
 # Dockerfile matched no `changes:` rule anywhere in this file and ran zero jobs
 # beyond the secret scan. The first thing that ever built those images was
-# release:build-images, on a release branch, minutes before deploy:prod.
+# release:build-images, on a release branch, minutes before muma:deploy.
 #
-# They are split because they cost very different amounts. docker:smoke starts
+# They are split because they cost very different amounts. muma:smoke starts
 # the stack and proves it comes up healthy, but compose.test.yml only builds
-# music-manager and lms. docker:build-images compiles all seven, which is the
+# music-manager and lms. muma:images compiles all seven, which is the
 # only way to cover base/downloader/telegram/importer/tools, and takes about as
 # long as the release build does.
 
-docker:smoke:
+muma:smoke:
   stage: integration
   timeout: 30m
   retry: !reference [.infra_retry, retry]
@@ -678,7 +815,7 @@ docker:smoke:
   script:
     - ./scripts/test/core-smoke.sh
 
-docker:build-images:
+muma:images:
   stage: integration
   timeout: 60m
   retry: !reference [.infra_retry, retry]
@@ -713,7 +850,7 @@ docker:build-images:
 # it runs on every pipeline and it gates, like every other test here. The
 # compose project name carries CI_JOB_ID and both ports are picked free at
 # runtime, so two pipelines running it at once do not collide the way
-# db:integration used to, and core-e2e.sh removes its images on the way out
+# backend:integration used to, and core-e2e.sh removes its images on the way out
 # rather than leaving a pair per run on the runner's disk.
 #
 # The chain is written as Gherkin: tests/bdd/features/scan_to_listen.feature,
@@ -724,9 +861,9 @@ docker:build-images:
 # are both gone, which was the deal: keeping two spellings of one chain means
 # keeping them in sync forever.
 #
-# What it does NOT cover: the Android app -- that is muma-mobile:smoke-release
+# What it does NOT cover: the Android app -- that is mobile:smoke
 # below, which executes the R8-minified build this chain never touches.
-e2e:scan-to-listen:
+muma:e2e:
   stage: e2e
   timeout: 30m
   retry: !reference [.infra_retry, retry]
@@ -745,9 +882,9 @@ e2e:scan-to-listen:
 # process alive, no FATAL EXCEPTION.
 #
 # Deliberately not gated on .gitlab-ci.yml (same reasoning as
-# docker:build-images): an emulator boot is the most expensive thing in the
+# muma:images): an emulator boot is the most expensive thing in the
 # muma-mobile resource group, and a yml-only edit cannot change what it proves.
-muma-mobile:smoke-release:
+mobile:smoke:
   stage: e2e
   resource_group: muma-mobile
   timeout: 30m
@@ -762,7 +899,7 @@ muma-mobile:smoke-release:
   # same resource group anyway, and letting the emulator grab the slot first
   # would delay the fast feedback for a result that matters less.
   needs:
-    - job: muma-mobile:check
+    - job: mobile:unit
       optional: true
   rules:
     - !reference [.dedicated_schedule_guard, rules]
@@ -776,7 +913,7 @@ muma-mobile:smoke-release:
   script:
     - ./scripts/test/muma-mobile-emulator-smoke.sh
 
-frontend:browser:
+frontend:e2e:
   stage: e2e
   timeout: 30m
   retry: !reference [.infra_retry, retry]
@@ -792,7 +929,7 @@ frontend:browser:
         - docker/compose.test.yml
         - tests/fixtures/**/*
         - .gitlab-ci.yml
-        # Same reason as db:integration above.
+        # Same reason as backend:integration above.
         - scripts/test/frontend-browser.sh
   script:
     - ./scripts/test/frontend-browser.sh
@@ -841,7 +978,7 @@ release:build-images:
 # Runs only from a GitLab schedule with REFRESH_DOWNLOADER set, and only on
 # master, so the image published as :latest is built from the commit production
 # is already running. It does not deploy: Watchtower pulls :latest on the host.
-images:refresh-downloader:
+muma:refresh-downloader:
   stage: release
   timeout: 60m
   interruptible: false
@@ -851,7 +988,7 @@ images:refresh-downloader:
   script:
     - ./scripts/ci/refresh-downloader-image.sh
 
-muma-mobile:build-debug:
+mobile:build-debug:
   stage: release
   resource_group: muma-mobile
   timeout: 45m
@@ -874,7 +1011,7 @@ muma-mobile:build-debug:
   script:
     - ./scripts/ci/muma-mobile-build-upload.sh debug
 
-muma-mobile:build-release:
+mobile:build-release:
   stage: release
   resource_group: muma-mobile
   timeout: 45m
@@ -883,22 +1020,22 @@ muma-mobile:build-release:
   interruptible: false
   retry: !reference [.infra_retry, retry]
   # version-check because a wrongly-versioned APK must never reach the hoster,
-  # and muma-mobile:check because `needs` bypasses stage ordering: without it
+  # and mobile:unit because `needs` bypasses stage ordering: without it
   # this job built and UPLOADED a signed APK even when the unit tests on the
   # same commit failed -- phones auto-update from the hoster, so that shipped
-  # untested code to users while deploy:prod (correctly) never ran. The
+  # untested code to users while muma:deploy (correctly) never ran. The
   # resource group only serializes the two jobs, it does not order them.
-  # optional: true satisfies the DAG policy (muma-mobile:check has `changes:`
+  # optional: true satisfies the DAG policy (mobile:unit has `changes:`
   # rules); on a release branch .release_rule makes it always present.
   needs:
     - release:version-check
-    - job: muma-mobile:check
+    - job: mobile:unit
       optional: true
     # Same reasoning, one stage earlier: the smoke test executes the exact
     # artifact class this job publishes, so a release APK that crashes on
     # startup must never reach the hoster. On a release branch .release_rule
     # makes it always present.
-    - job: muma-mobile:smoke-release
+    - job: mobile:smoke
       optional: true
   rules:
     - !reference [.dedicated_schedule_guard, rules]
@@ -915,7 +1052,7 @@ muma-mobile:build-release:
 
 # --- Deployment --------------------------------------------------------------
 
-deploy:prod:
+muma:deploy:
   stage: deploy
   timeout: 30m
   interruptible: false
@@ -938,18 +1075,18 @@ deploy:prod:
     - ./scripts/ci-deploy.sh
 
 # The independent read of whether the deploy worked. ci-deploy.sh runs the same
-# script at its own last step, so a broken deploy fails deploy:prod itself; this
-# job re-runs it afterwards for two reasons. It is retryable where deploy:prod
+# script at its own last step, so a broken deploy fails muma:deploy itself; this
+# job re-runs it afterwards for two reasons. It is retryable where muma:deploy
 # deliberately is not, so a probe that timed out is distinguishable from a
 # deploy that broke production. And it can be re-run on its own later to ask
 # "is prod still healthy" without redeploying anything.
-deploy:smoke:
+muma:verify:
   stage: deploy
   timeout: 15m
   interruptible: false
   retry: !reference [.infra_retry, retry]
   needs:
-    - deploy:prod
+    - muma:deploy
   environment:
     name: production
     url: $PROD_URL
@@ -961,11 +1098,11 @@ deploy:smoke:
     - ./scripts/ci/post-deploy-verify.sh
 
 # Guards release:tag below. Release 0.19.0 was tagged on master and back-merged
-# to develop while production stayed on 0.18.2 for a day: muma-mobile:check
-# failed on the release branch, so deploy:prod was *skipped*, and a skipped job
+# to develop while production stayed on 0.18.2 for a day: mobile:unit
+# failed on the release branch, so muma:deploy was *skipped*, and a skipped job
 # blocks nothing. Every signal in GitLab said it had shipped.
 #
-# deploy:smoke cannot catch that, because it lives inside the pipeline that
+# muma:verify cannot catch that, because it lives inside the pipeline that
 # never ran. This job runs in the master pipeline and asks production directly.
 release:verify-deployed:
   stage: release
@@ -987,7 +1124,7 @@ release:tag:
   # `needs` rather than stage order, so tagging waits for the one check that
   # says something new and not for a re-run of the unit suite. This commit was
   # already tested on the release branch and is already in production; on the
-  # 0.19.0 master pipeline the wait was 8.7 minutes, 6.7 of it muma-mobile:check
+  # 0.19.0 master pipeline the wait was 8.7 minutes, 6.7 of it the Android jobs
   # re-testing an unchanged tree. Those jobs still run and still red the
   # pipeline - they just no longer hold the tag.
   needs:

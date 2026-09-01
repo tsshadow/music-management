@@ -227,17 +227,44 @@ pipeline, matching the branch model `feature/*` → `develop` → `release/x.y.z
 
 ### Which job runs when
 
+Every job is named `<scope>:<what>`. The scope is the **source component** — the thing you
+edited, which is also what the `changes:` rules key on:
+
+| Scope | Is |
+| --- | --- |
+| `backend` | the Python tree: music-manager, importer, downloader, tagger, scanner, tools |
+| `server` | the C++ playback server |
+| `frontend` | the Svelte web UI (built into the server's image, not deployed separately) |
+| `mobile` | the Android app |
+| `muma` | spans components, or is the whole product: contracts, e2e, images, deploy |
+| `security`, `deps`, `runner`, `release` | concerns that belong to no component |
+
+Every component answers the same three questions — **format**, **lint**, **unit** — plus
+extras where they genuinely exist (`backend:typecheck`, `mobile:smoke`). A policy test
+enforces both halves of the name, and fails if a component is missing one of the three.
+
+`backend` and `server` are both server-side: `server` is the C++ playback server,
+`backend` is everything Python. The toolchains tell them apart at a glance —
+`server:format` is clang-format, `backend:format` is ruff.
+
 **Test jobs** — these only start when something they care about actually changed, so an
 MuMa Mobile-only change doesn't wait on the C++ or frontend suites:
 
 | Job | Runs when | Purpose |
 | --- | --- | --- |
-| `music-management:unit` | the Python services changed | Unit tests for music-manager, importer, downloader, tagger, scanner and shared code. Reports coverage. |
-| `muma-server:unit` | the playback server (C++) changed | Builds and runs the LMS test suite. Reports coverage. |
-| `frontend:unit` | the Svelte frontend changed | Lint + typecheck of the frontend. Reports coverage. |
-| `muma-mobile:check` | the Android app changed | MuMa Mobile unit tests with coverage. |
-| `contracts` | always on `develop`; elsewhere only if the server, music-manager or the test stack changed | Starts the real test stack and verifies the Subsonic/OpenSubsonic API still behaves as the mobile clients expect. |
-| `frontend:browser` | always on `develop`; elsewhere only if the frontend or test stack changed | Real browser (Playwright) run against a live stack: import a track, scan it, click through the UI. Screenshots/traces are kept for 14 days. |
+| `backend:format` / `:lint` / `:typecheck` | the Python services changed | ruff format, ruff + pylint, mypy. Fix formatting with `./scripts/format.sh`. |
+| `backend:unit` | the Python services changed | Unit tests for music-manager, importer, downloader, tagger, scanner and shared code. Reports coverage. |
+| `backend:integration` | the manager's SQL, a migration or the integration suite changed | Runs every endpoint's SQL against a real MariaDB. |
+| `server:format` | the server sources changed | clang-format check, pinned to one clang version. Fix with `./scripts/test/muma-server-format.sh --fix`. |
+| `server:lint` | the server sources changed | clang-tidy over 307 translation units against a baseline of accepted findings. ~12 minutes, so it is deliberately not on every pipeline. |
+| `server:unit` | the playback server (C++) changed | Builds and runs the LMS test suite. Reports coverage. |
+| `frontend:format` / `:lint` / `:typecheck` | the Svelte frontend changed | oxfmt, oxlint + eslint, svelte-check. |
+| `frontend:unit` | the Svelte frontend changed | Vitest with coverage. |
+| `mobile:format` | the Android app changed | ktlint. Fix with `./scripts/test/muma-mobile-ktlint.sh ktlintFormat`. |
+| `mobile:lint` | the Android app changed | detekt and Android Lint, both against a baseline. |
+| `mobile:unit` | the Android app changed | MuMa Mobile unit tests with coverage. |
+| `muma:contracts` | always on `develop`; elsewhere only if the server, music-manager or the test stack changed | Starts the real test stack and verifies the Subsonic/OpenSubsonic API still behaves as the mobile clients expect. |
+| `frontend:e2e` | always on `develop`; elsewhere only if the frontend or test stack changed | Real browser (Playwright) run against a live stack: import a track, scan it, click through the UI. Screenshots/traces are kept for 14 days. |
 
 **Release jobs** — these only exist on a `release/*` branch, and they run in order so the
 pipeline fails as early and as cheaply as possible:
@@ -247,8 +274,8 @@ pipeline fails as early and as cheaply as possible:
 | `release:check-secrets` | Runs first, before anything is built: refuses to continue if a deployment secret needed by production is missing or empty. A release pipeline that skips this job is not considered green. |
 | `release:version-check` | Enforces that the release was actually prepared: `VERSION` bumped, a dated `CHANGELOG.md` entry, release notes updated, and an MuMa Mobile version bump if the app changed. |
 | `release:build-images` | Builds and pushes every Docker image production pulls, so the deploy can never pick up a stale, manually pushed image. |
-| `muma-mobile:build-release` | Builds and uploads the signed Android release APK to the APK hoster. Waits for `release:version-check`. |
-| `deploy:prod` | Deploys both production stacks (music-management and the playback/UI stack) over SSH. |
+| `mobile:build-release` | Builds and uploads the signed Android release APK to the APK hoster. Waits for `release:version-check`. |
+| `muma:deploy` | Deploys both production stacks (music-management and the playback/UI stack) over SSH. |
 
 **Post-release jobs** — these run on `master` after the release branch is merged:
 
@@ -259,7 +286,7 @@ pipeline fails as early and as cheaply as possible:
 
 ### Handy extras
 
-- **Debug APK on demand**: `muma-mobile:build-debug` runs automatically on `develop` when the app
+- **Debug APK on demand**: `mobile:build-debug` runs automatically on `develop` when the app
   changed, and is available as a *manual* button on any other branch — useful for handing a
   reviewer a test build of a UI fix before merging.
 - **Interruptible by default**: pushing again cancels the previous run of the same branch, except

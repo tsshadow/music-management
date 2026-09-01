@@ -92,7 +92,7 @@ def alert(title: str, message: str) -> None:
         print(f'db_backup: recording the alert failed: {exc}', file=sys.stderr)
 
 
-def resolve_destination(destination: str, data_path: str | None) -> Path:
+def resolve_destination(destination: str, data_path: str | None, require_writable: bool = True) -> Path:
     """Refuse a destination that is not a usable, separate place to write.
 
     A backup on the database's own disk protects against nothing, and writing one
@@ -110,7 +110,10 @@ def resolve_destination(destination: str, data_path: str | None) -> Path:
     dest = Path(destination).resolve()
     if not dest.is_dir():
         raise BackupError(f'backup destination {dest} does not exist or is not a directory')
-    if not os.access(dest, os.W_OK):
+    # The restore check passes require_writable=False: it mounts the dump
+    # directory read-only on purpose, because a check that can overwrite its own
+    # source is not a check. Only the job that writes backups needs to write.
+    if require_writable and not os.access(dest, os.W_OK):
         raise BackupError(f'backup destination {dest} is not writable')
     if data_path:
         datadir = (Path(data_path) / 'mariadb').resolve()

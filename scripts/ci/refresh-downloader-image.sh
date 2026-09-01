@@ -12,7 +12,7 @@
 # repo having changed.
 #
 # What it deliberately does NOT do:
-#   - It does not run deploy:prod. It republishes an image; Watchtower, which
+#   - It does not run muma:deploy. It republishes an image; Watchtower, which
 #     already runs on the production host, pulls it.
 #   - It does not re-push the ":${VERSION}" tag. That tag names a release and has
 #     to keep meaning the artifact that release shipped. Only ":latest" (what

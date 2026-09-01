@@ -6,7 +6,7 @@
 #
 # A forgotten, already-merged release branch is a real production risk: any
 # later delayed or manually re-run pipeline against it re-triggers
-# release:build-images and deploy:prod from that branch's now-stale checkout,
+# release:build-images and muma:deploy from that branch's now-stale checkout,
 # silently overwriting `latest` and redeploying old code. See
 # docs/bug-reports/016-stale-release-branch-clobbered-latest-deploy.md.
 #

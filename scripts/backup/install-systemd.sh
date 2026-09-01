@@ -56,7 +56,7 @@ echo "--- destination ok: $HOST_BACKUP_PATH is on a different device than $DATA_
 
 install -d -m 0755 "$TARGET_DIR"
 install -m 0640 "$ENV_FILE" "$TARGET_DIR/.env"
-install -m 0644 "$PROJECT_ROOT/docker/docker-compose.tools.yml" "$TARGET_DIR/"
+install -m 0644 "$PROJECT_ROOT/docker/docker-compose.backup.yml" "$TARGET_DIR/"
 
 for unit in muma-db-backup muma-db-backup-stale muma-db-restore-check; do
     install -m 0644 "$SCRIPT_DIR/systemd/$unit.service" /etc/systemd/system/

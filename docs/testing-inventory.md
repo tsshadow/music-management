@@ -75,10 +75,10 @@
 - Compose service is commented out in `docker-compose.yml` (inactive)
 
 ### music-management-server (C++)
-- Formatting: `./scripts/test/muma-server-format.sh` (`quality:cpp-format`), clang-format pinned
+- Formatting: `./scripts/test/muma-server-format.sh` (`server:format`), clang-format pinned
   to 20.1.8 via `silkeh/clang:20` — the version matters, releases disagree about output.
   `--fix` rewrites in place. `ColumnLimit: 0` in `.clang-format` means lines are never reflowed
-- Static analysis: `./scripts/test/muma-server-tidy.sh` (`quality:cpp-tidy`) runs clang-tidy
+- Static analysis: `./scripts/test/muma-server-tidy.sh` (`server:lint`) runs clang-tidy
   against the repo's own `.clang-tidy`. It configures cmake with
   `CMAKE_EXPORT_COMPILE_COMMANDS=ON` and `UNITY_BUILD=OFF` (the shipped images merge
   translation units, which would make clang-tidy report against files that do not exist),
@@ -91,7 +91,7 @@
 ### muma-mobile (Android/Kotlin)
 - Build: Gradle (`build.gradle`, `libs.versions.toml`), JVM target 21, uses `detekt` + `ktlintGradle`
 - Test: JVM unit tests present under `services/muma-mobile/app/src/test/kotlin/...` (e.g. `ArchitectureTest`, `imageloader/*Test`, `domain/*Test`)
-- Static analysis in `muma-mobile:check`: ktlint formatting
+- Static analysis in `mobile:unit`: ktlint formatting
   (`./scripts/test/muma-mobile-ktlint.sh`, no baseline — `ktlintFormat` fixes what it finds),
   detekt (`./scripts/test/muma-mobile-detekt.sh`, per-module `detekt-baseline.xml`) and
   Android Lint (`./scripts/test/muma-mobile-lint.sh`, `:app:lintDebug` with

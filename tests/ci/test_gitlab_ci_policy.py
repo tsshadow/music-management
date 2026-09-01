@@ -38,22 +38,25 @@ def test_no_job_declares_an_image():
 
 
 # Jobs that gate a production deploy. If one of these does not run on a
-# release branch, deploy:prod ships code this pipeline never tested.
+# release branch, muma:deploy ships code this pipeline never tested.
 GATING_JOBS = [
-    "quality:lint",
-    "quality:typecheck",
-    "music-management:unit",
-    "muma-server:unit",
+    "backend:format",
+    "backend:lint",
+    "backend:typecheck",
+    "backend:unit",
+    "server:unit",
     "frontend:unit",
-    "muma-mobile:check",
-    "muma-mobile:smoke-release",
+    "mobile:format",
+    "mobile:lint",
+    "mobile:unit",
+    "mobile:smoke",
 ]
 
 
 def test_gating_jobs_always_run_on_a_release_branch():
     """A `changes:`-only rule skips these on the stabilize commit, which
     touches nothing but VERSION/CHANGELOG/RELEASE_NOTES -- and a skipped job
-    does not block deploy:prod."""
+    does not block muma:deploy."""
     ci = load_ci()
     for name in GATING_JOBS:
         rules = ci[name]["rules"]
@@ -66,7 +69,7 @@ def test_gating_jobs_always_run_on_a_release_branch():
 # job. Everything else must step aside.
 SCHEDULE_OWNED_JOBS = {
     "deps:renovate": "$RENOVATE",
-    "images:refresh-downloader": "$REFRESH_DOWNLOADER",
+    "muma:refresh-downloader": "$REFRESH_DOWNLOADER",
     "runner:disk-janitor": "$DISK_JANITOR",
 }
 
@@ -116,6 +119,81 @@ def test_the_guard_covers_every_schedule_variable():
     assert ci[".dedicated_schedule_guard"]["rules"][0]["when"] == "never"
 
 
+# Every job is `<scope>:<what>`. The scope is a source component -- what you
+# edited -- or `muma` when the job spans them, or a concern that belongs to no
+# component. Adding one here is a deliberate act: three competing schemes at
+# once is how this drifted the first time.
+COMPONENT_SCOPES = {
+    "backend",  # the Python tree: 5 shipped images, 384 files
+    "server",  # the C++ playback server
+    "frontend",  # the Svelte web UI (ships inside the server image)
+    "mobile",  # the Android app
+}
+
+JOB_SCOPES = COMPONENT_SCOPES | {
+    "muma",  # spans components, or is the whole product
+    "security",
+    "deps",
+    "runner",
+    "release",
+}
+
+# What each component is checked for. Every component has all three; anything
+# beyond them is component-specific and lives in EXTRA_VERBS.
+CORE_VERBS = {"format", "lint", "unit"}
+EXTRA_VERBS = {
+    "backend": {"typecheck", "integration"},
+    "frontend": {"typecheck", "e2e"},
+    "mobile": {"smoke", "build-debug", "build-release"},
+    "server": set(),
+}
+
+
+def test_every_job_is_scoped():
+    """A red job should say whose problem it is before you open it. `contracts`
+    said nothing; `quality:cpp-format` said "quality" about a job that only ever
+    touches the C++ server, whose own tests answered to a different prefix."""
+    ci = load_ci()
+    unscoped = [name for name in job_names(ci) if ":" not in name]
+    assert unscoped == [], f"jobs without a scope: {unscoped}"
+
+    unknown = sorted({name.split(":", 1)[0] for name in job_names(ci)} - JOB_SCOPES)
+    assert unknown == [], (
+        f"unknown job scopes: {unknown}. Add it to JOB_SCOPES only if it is a "
+        "real component or concern, not to make a one-off name pass."
+    )
+
+
+def test_every_component_is_checked_the_same_way():
+    """The point of the scheme: the same three questions are asked of every
+    component, so a gap is visible as a missing job rather than as something
+    nobody thought to add. Each of these was genuinely absent at some point --
+    the frontend had no format check, the server had no linter at all."""
+    ci = load_ci()
+    names = set(job_names(ci))
+    missing = {
+        f"{component}:{verb}"
+        for component in COMPONENT_SCOPES
+        for verb in CORE_VERBS
+        if f"{component}:{verb}" not in names
+    }
+    assert missing == set(), f"components missing a core check: {sorted(missing)}"
+
+
+def test_component_jobs_use_a_known_verb():
+    """Keeps the second half of the name as disciplined as the first: a new
+    `mobile:checkstuff` has to be either a core verb or an admitted extra."""
+    ci = load_ci()
+    offenders = []
+    for name in job_names(ci):
+        scope, _, verb = name.partition(":")
+        if scope not in COMPONENT_SCOPES:
+            continue
+        if verb not in CORE_VERBS | EXTRA_VERBS[scope]:
+            offenders.append(name)
+    assert offenders == [], f"component jobs with an unknown verb: {offenders}"
+
+
 def test_the_disk_janitor_stays_untagged():
     """Runner selection here is the absence of a tag. Both runners carry
     `fast`, so tagging this would hand it to whichever polls first -- a coin
@@ -135,14 +213,14 @@ def test_deploy_prod_is_serialised():
     """Without a resource_group two pipelines deploy over each other -- see
     docs/bug-reports/016-stale-release-branch-clobbered-latest-deploy.md."""
     ci = load_ci()
-    assert ci["deploy:prod"]["resource_group"] == "production"
+    assert ci["muma:deploy"]["resource_group"] == "production"
 
 
 def test_deploy_prod_declares_its_environment():
     """Gives GitLab a deployment history, so "what is live" is answerable
     without SSHing to the host."""
     ci = load_ci()
-    environment = ci["deploy:prod"]["environment"]
+    environment = ci["muma:deploy"]["environment"]
     assert environment["name"] == "production"
     assert environment["url"] == "$PROD_URL"
 
@@ -163,7 +241,7 @@ def test_release_branches_do_not_get_a_merge_request_pipeline():
     in push pipelines -- so a release branch with an open MR got a branch
     pipeline AND an MR pipeline, ran everything twice, and the two Android jobs
     raced each other for the shared Gradle home. The branch pipeline is where
-    deploy:prod lives, so the MR pipeline is the one that must never start."""
+    muma:deploy lives, so the MR pipeline is the one that must never start."""
     ci = load_ci()
     rules = ci["workflow"]["rules"]
     guard = [
@@ -178,7 +256,7 @@ def test_release_branches_do_not_get_a_merge_request_pipeline():
 
 
 def test_workflow_never_suppresses_a_release_branch_pipeline():
-    """deploy:prod matches on $CI_COMMIT_BRANCH, which is unset in a merge
+    """muma:deploy matches on $CI_COMMIT_BRANCH, which is unset in a merge
     request pipeline. If the duplicate-pipeline guard fired for a release
     branch that happens to have an MR open, the branch pipeline would vanish
     and production would never be deployed at all. The release rule therefore
@@ -229,7 +307,7 @@ def test_the_infra_retry_template_only_covers_infrastructure_failures():
 def test_deploy_prod_is_never_retried():
     """A half-applied deploy must be looked at, not repeated."""
     ci = load_ci()
-    assert "retry" not in ci["deploy:prod"]
+    assert "retry" not in ci["muma:deploy"]
 
 
 def test_secret_scanning_runs_on_release_branches():
@@ -244,12 +322,12 @@ def test_test_jobs_publish_junit():
     """Without this, a failed test is only visible by reading the raw log."""
     ci = load_ci()
     for name, path in [
-        ("music-management:unit", "report-python.xml"),
+        ("backend:unit", "report-python.xml"),
         # Every module, not just app/: a glob pinned to one module means a new module's
         # tests report green by publishing nothing at all.
-        ("muma-mobile:check", "services/muma-mobile/**/build/test-results/**/TEST-*.xml"),
+        ("mobile:unit", "services/muma-mobile/**/build/test-results/**/TEST-*.xml"),
         # Kept in lockstep with playwright.config.js's junit reporter outputFile.
-        ("frontend:browser", "services/frontend/test-results/junit-browser.xml"),
+        ("frontend:e2e", "services/frontend/test-results/junit-browser.xml"),
     ]:
         assert ci[name]["artifacts"]["reports"]["junit"] == path
 
@@ -257,7 +335,7 @@ def test_test_jobs_publish_junit():
 def test_junit_artifacts_are_uploaded_even_when_the_job_fails():
     """A report that only appears on success is exactly backwards."""
     ci = load_ci()
-    for name in ["music-management:unit", "muma-mobile:check", "frontend:browser"]:
+    for name in ["backend:unit", "mobile:unit", "frontend:e2e"]:
         assert ci[name]["artifacts"]["when"] == "always"
 
 
@@ -273,8 +351,8 @@ RELEASE_STAGE_JOBS = [
     "release:check-secrets",
     "release:version-check",
     "release:build-images",
-    "muma-mobile:build-release",
-    "deploy:prod",
+    "mobile:build-release",
+    "muma:deploy",
 ]
 
 
@@ -290,17 +368,17 @@ def test_hotfix_branches_get_the_full_release_treatment():
 def test_release_apk_waits_for_the_android_unit_tests():
     """`needs:` bypasses stage ordering, and the muma-mobile resource group
     only serializes jobs, it does not order them. With version-check as the
-    only need, muma-mobile:build-release built and UPLOADED a signed APK while
-    muma-mobile:check on the same commit failed -- phones auto-update from the
-    hoster, so users got untested code even though deploy:prod correctly never
+    only need, mobile:build-release built and UPLOADED a signed APK while
+    mobile:unit on the same commit failed -- phones auto-update from the
+    hoster, so users got untested code even though muma:deploy correctly never
     ran."""
     ci = load_ci()
-    targets = [n["job"] if isinstance(n, dict) else n for n in ci["muma-mobile:build-release"]["needs"]]
-    assert "muma-mobile:check" in targets
+    targets = [n["job"] if isinstance(n, dict) else n for n in ci["mobile:build-release"]["needs"]]
+    assert "mobile:unit" in targets
     assert "release:version-check" in targets
     # And the emulator smoke test: a release APK that crashes on startup must
     # never reach the hoster (docs/bug-reports/029 shipped exactly that way).
-    assert "muma-mobile:smoke-release" in targets
+    assert "mobile:smoke" in targets
 
 
 def test_publishing_jobs_are_not_interruptible():
@@ -310,8 +388,8 @@ def test_publishing_jobs_are_not_interruptible():
     ci = load_ci()
     for name in [
         "release:build-images",
-        "muma-mobile:build-release",
-        "deploy:prod",
+        "mobile:build-release",
+        "muma:deploy",
         "release:tag",
     ]:
         assert ci[name].get("interruptible") is False, f"{name} can be cancelled mid-publish"
@@ -326,7 +404,7 @@ def test_rule_gating_variables_are_verified_by_the_secret_check():
     ci = load_ci()
     script = (REPO_ROOT / "scripts" / "ci" / "check-required-secrets.sh").read_text(encoding="utf-8")
     gating = set()
-    for name in ["release:build-images", "muma-mobile:build-release"]:
+    for name in ["release:build-images", "mobile:build-release"]:
         for rule in ci[name]["rules"]:
             if not isinstance(rule, dict):
                 continue
@@ -392,9 +470,9 @@ PYTHON_UNIT_SOURCES = [
 
 def test_python_unit_job_runs_for_every_directory_it_tests():
     ci = load_ci()
-    globs = _changes_globs(ci, "music-management:unit")
+    globs = _changes_globs(ci, "backend:unit")
     missing = [path for path in PYTHON_UNIT_SOURCES if not _is_covered(path, globs)]
-    assert missing == [], f"music-management:unit collects these but no `changes:` glob triggers it for them: {missing}"
+    assert missing == [], f"backend:unit collects these but no `changes:` glob triggers it for them: {missing}"
 
 
 # scripts/lint.sh: TARGET=${1:-services/ tools/ tests/}
@@ -403,15 +481,15 @@ LINT_SOURCES = ["services/", "tools/", "tests/"]
 
 def test_lint_job_runs_for_every_directory_it_lints():
     ci = load_ci()
-    globs = _changes_globs(ci, "quality:lint")
+    globs = _changes_globs(ci, "backend:lint")
     missing = [path for path in LINT_SOURCES if not _is_covered(path, globs)]
-    assert missing == [], f"quality:lint lints these but is not triggered by them: {missing}"
+    assert missing == [], f"backend:lint lints these but is not triggered by them: {missing}"
 
 
 # --- Docker image coverage ---------------------------------------------------
 # A merge request that changed only a Dockerfile used to match no `changes:`
 # rule in the whole file and ran nothing but the secret scan. The first build
-# was release:build-images, on a release branch, minutes before deploy:prod.
+# was release:build-images, on a release branch, minutes before muma:deploy.
 
 
 def _matches_file(glob: str, path: str) -> bool:
@@ -445,10 +523,10 @@ def test_every_dockerfile_is_built_or_tested_by_some_job():
 
 
 def test_merge_request_image_build_never_pushes():
-    """docker:build-images runs on merge requests, where a push would publish
+    """muma:images runs on merge requests, where a push would publish
     an unreviewed image to the tag production pulls."""
     ci = load_ci()
-    assert ci["docker:build-images"]["variables"]["PUSH_IMAGES"] == "false"
+    assert ci["muma:images"]["variables"]["PUSH_IMAGES"] == "false"
 
 
 def test_the_release_image_build_still_pushes():
@@ -471,14 +549,14 @@ def test_ci_deploy_ends_in_a_gate_that_can_fail():
 
 def test_deploy_smoke_runs_on_every_release_branch():
     ci = load_ci()
-    condition = first_condition(ci, "deploy:smoke")
+    condition = first_condition(ci, "muma:verify")
     assert "release" in condition and "hotfix" in condition
-    assert ci["deploy:smoke"]["needs"] == ["deploy:prod"]
+    assert ci["muma:verify"]["needs"] == ["muma:deploy"]
 
 
 def test_tagging_is_gated_on_what_production_actually_serves():
     """Release 0.19.0 was tagged on master and back-merged to develop while
-    production sat on 0.18.2: deploy:prod was skipped, and a skipped job blocks
+    production sat on 0.18.2: muma:deploy was skipped, and a skipped job blocks
     nothing. Stage ordering cannot catch that -- only asking production can."""
     ci = load_ci()
     assert ci["release:tag"]["needs"] == ["release:verify-deployed"]
@@ -509,14 +587,14 @@ def test_needs_on_a_conditional_job_is_optional():
 
 
 def test_integration_jobs_do_not_wait_for_the_android_build():
-    """muma-mobile:check ran 37 minutes on the 0.19.0 pipeline and every
+    """The Android jobs ran 37 minutes on the 0.19.0 pipeline and every
     integration job sat behind it for a result none of them use."""
     ci = load_ci()
-    for name in ["db:integration", "contracts", "frontend:browser"]:
+    for name in ["backend:integration", "muma:contracts", "frontend:e2e"]:
         needs = ci[name].get("needs")
         assert needs is not None, f"{name} still waits for the entire unit stage"
         targets = [n["job"] if isinstance(n, dict) else n for n in needs]
-        assert "muma-mobile:check" not in targets
+        assert not any(t.startswith("mobile:") for t in targets)
 
 
 # --- Artifacts ---------------------------------------------------------------
@@ -535,7 +613,7 @@ def test_coverage_reports_are_uploaded_even_when_the_job_fails():
 
 
 def test_no_job_ships_environment_debugging():
-    """music-management:unit carried an `ENV DEBUG` block - hostname, ip addr,
+    """backend:unit carried an `ENV DEBUG` block - hostname, ip addr,
     whoami, ls of the runner build dir - in every single run."""
     ci = load_ci()
     offenders = [

@@ -20,8 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dat juist wél. Daarom zijn ze eerst gescand en pas daarna uitgezonderd -- gitleaks heeft ze
   wekenlang bij elke run gelezen en niets gevonden. Het zijn bovendien drie vaste blobs die niet
   meer in de boom staan, dus deze uitzondering kan nooit stilletjes nieuwe inhoud gaan dekken.
-
-### Fixed
 - **De backupjob kon niet starten omdat een andere service in hetzelfde compose-bestand naar een
   database verwees die daar niet in stond.** De timers draaien hun compose-bestand standalone, en
   docker-compose v1 -- wat productie draait -- valideert het hele bestand voordat het één service
@@ -44,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   inleest. Die vervanging is bewust smal: alleen regels die met `/*!<nummer> DEFINER=` of
   `CREATE DEFINER=` beginnen, zodat een van de miljoenen INSERT-regels die toevallig de tekst
   bevat onaangeroerd blijft.
+
+## [0.40.0] - 2026-09-01
 
 ### Added
 - **Databasebackups die zichzelf bewijzen, in plaats van bestanden die er staan.** Het ontwerp uit
@@ -82,13 +82,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Een disk-janitor voor de CI-runners, zodat een volle schijf niet langer willekeurige jobs
   sloopt.** Drie keer deze maand liep een runner vol, en de storing wees telkens overal heen behalve
   naar de schijf: op 31 augustus faalden drie van de vier jobs op `no matching files` bij het
-  uploaden van artifacts en noemde alleen `muma:images` de echte oorzaak. Het handmatige
+  uploaden van artifacts en noemde alleen `docker:build-images` de echte oorzaak. Het handmatige
   opruimrecept uit die incidenten zit nu in `scripts/ci/disk-janitor.sh`: per repository blijven
   `:latest`, `:stable` en de drie nieuwste versietags staan, van de Android-CI-images (>5GB per
   stuk) de twee nieuwste, en achtergebleven `muma-test-*`-stacks ouder dan twee uur gaan weg. Nooit
   met `-f`, zodat een image dat een lopende pipeline nog vasthoudt geweigerd wordt in plaats van
   weggerukt, en de buildkit-cache blijft met opzet ongemoeid — dat is de ccache die
-  `server:unit` op ~90s houdt in plaats van ~405s. De keuzelogica staat apart in
+  `muma-server:unit` op ~90s houdt in plaats van ~405s. De keuzelogica staat apart in
   `disk_janitor_plan.py` en wordt door tien tests gedekt zonder dat er een Docker-daemon of een
   volle schijf aan te pas komt. Draait geveegd tot 65% en stopt daar, zodat een runner die net
   boven de drempel zit niet elke keer één image opoffert. Loopt via een geplande pipeline
@@ -190,7 +190,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tooling-image volgt nu `docker/Dockerfile.*`. Alle vijf bestanden auditen weer, en `ruff`,
   `pylint` (9.66) en `mypy` draaien ongewijzigd in dezelfde image. Dat de job `allow_failure` is, is
   precies waarom dit maanden rood kon staan zonder gelezen te worden.
-- **Twee merge requests die tegelijk hun images bouwden, sloopten elkaars build.** `muma:images`
+- **Twee merge requests die tegelijk hun images bouwden, sloopten elkaars build.** `docker:build-images`
   bouwt zonder te pushen onder een wegwerpnaam, en die naam was voor iedereen dezelfde: `muma-ci`.
   Alle gelijktijdige jobs schreven dus dezelfde tags in de ene image-store die de runner heeft. Op
   31 augustus bouwde pipeline 2074 zijn eigen `muma-ci/muma-base:0.39.0`, gebruikte die voor de
@@ -198,7 +198,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   repository does not exist or may require authorization` — een zusterjob had de tag er tussenuit
   gehaald, waarna buildkit hem op Docker Hub ging zoeken, waar `muma-ci` niet bestaat en ook nooit
   hoort te bestaan. De melding leest als een ontbrekende inloggegeven en is dat niet. Elke job bouwt
-  nu onder `muma-ci-<job-id>`, dezelfde behandeling die `backend:integration` eerder kreeg, en ruimt die
+  nu onder `muma-ci-<job-id>`, dezelfde behandeling die `db:integration` eerder kreeg, en ruimt die
   naamruimte bij afloop zelf op. De disk-janitor rekent zo'n naamruimte voortaan af op ouderdom in
   plaats van op aantal, want geen enkele job hergebruikt die van een ander — op de oude telling zou
   elke afgebroken job zijn `:latest` voor altijd houden. Wat de release-build pusht verandert niet.

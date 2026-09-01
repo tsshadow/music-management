@@ -495,9 +495,11 @@ muma-mobile:check:
         - scripts/ci/android-image.sh
         - .gitlab-ci.yml
   script:
-    - ./scripts/test/muma-mobile-unit.sh
+    # Formatting first: cheapest of the four, and `ktlintFormat` fixes it.
     # Same job, not a second one: every Android job shares one Gradle home and
     # would queue behind the same resource group for no gain.
+    - ./scripts/test/muma-mobile-ktlint.sh
+    - ./scripts/test/muma-mobile-unit.sh
     - ./scripts/test/muma-mobile-detekt.sh
     # Android Lint (manifest/resource/API-level checks detekt cannot see).
     # Baselined like detekt: green on the day it was wired, red on new findings.

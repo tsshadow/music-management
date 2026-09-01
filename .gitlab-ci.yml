@@ -251,9 +251,14 @@ muma-server:format:
 # Findings are baselined (1540 of them on day one), so this is green today and
 # red on anything new -- the contract detekt, Android Lint and semgrep already
 # have here. The baseline names the checks worth burning down first.
+#
+# 45m, after its first CI run was killed at 30. The cause was memory rather
+# than the wall -- see the parallelism block in scripts/test/muma-server-tidy.sh
+# -- but the runner also has every other job of the pipeline on it, so the
+# margin is worth having on a job that gates nothing downstream.
 muma-server:tidy:
   stage: quality
-  timeout: 30m
+  timeout: 45m
   retry: !reference [.infra_retry, retry]
   tags: !reference [.fast_runner, tags]
   rules:

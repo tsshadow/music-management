@@ -10,8 +10,9 @@
 # cannot be a two-line container invocation the way the formatter is.
 #
 # Cost, measured 2026-09-01: 307 translation units, ~15s each single-threaded,
-# so ~10 minutes at -j16. That is why it is `changes:`-gated on the server
-# sources and not run on every pipeline.
+# so ~10 minutes at -j16 with memory to spare. That is why it is
+# `changes:`-gated on the server sources and not run on every pipeline. See the
+# parallelism block below for why the -j is not simply nproc.
 #
 # UNITY_BUILD=OFF matters. The shipped images merge many .cpp files into one
 # translation unit; clang-tidy would then report against the merged file and
@@ -59,11 +60,26 @@ cmake -S /src -B /tmp/tidybuild \
     -DBUILD_TESTING=OFF \
     -DBUILD_BENCHMARKS=OFF >/tmp/cmake.log 2>&1 || { tail -30 /tmp/cmake.log; exit 1; }
 
-echo "--- $(python3 -c "import json;print(len(json.load(open(\"/tmp/tidybuild/compile_commands.json\"))))") translation units, -j$(nproc) ---"
+# Parallelism is bounded by memory, not by cores. Each clang-tidy process
+# analysing this codebase pulls in boost and Wt headers and comfortably passes
+# 1GB, so -j$(nproc) is only safe where there is RAM to match:
+#
+#   workstation  16 cores, 31GB  ->  ~2GB per process, 10 minutes
+#   runner LXC   20 cores, 15GB  ->  0.75GB per process, over 30 and killed
+#
+# More cores, three times slower. Budget 2GB per process and take whichever of
+# the two limits is lower.
+CORES=$(nproc)
+MEM_GB=$(awk "/MemTotal/ {print int(\$2 / 1024 / 1024)}" /proc/meminfo)
+JOBS=$(( MEM_GB / 2 ))
+[ "$JOBS" -lt 2 ] && JOBS=2
+[ "$JOBS" -gt "$CORES" ] && JOBS=$CORES
+
+echo "--- $(python3 -c "import json;print(len(json.load(open(\"/tmp/tidybuild/compile_commands.json\"))))") translation units, -j${JOBS} (${CORES} cores, ${MEM_GB}GB) ---"
 
 # run-clang-tidy exits non-zero whenever it emitted anything; the baseline
 # decides pass or fail, so its status is not the answer here.
-run-clang-tidy -p /tmp/tidybuild -j "$(nproc)" -quiet >/repo/clang-tidy.log 2>&1 || true
+run-clang-tidy -p /tmp/tidybuild -j "$JOBS" -quiet >/repo/clang-tidy.log 2>&1 || true
 '
 
 echo "--- Comparing against the baseline ---"

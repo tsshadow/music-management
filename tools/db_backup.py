@@ -92,8 +92,7 @@ def alert(title: str, message: str) -> None:
         print(f'db_backup: recording the alert failed: {exc}', file=sys.stderr)
 
 
-def resolve_destination(destination: str, data_path: str | None,
-                        require_writable: bool = True) -> Path:
+def resolve_destination(destination: str, data_path: str | None, require_writable: bool = True) -> Path:
     """Refuse a destination that is not a usable, separate place to write.
 
     A backup on the database's own disk protects against nothing, and writing one

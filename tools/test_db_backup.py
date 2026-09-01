@@ -391,9 +391,6 @@ class ReadOnlyDestinationTest(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             dest = self._read_only_dir(tmp)
             try:
-                self.assertEqual(
-                    db_backup.resolve_destination(str(dest), None,
-                                                  require_writable=False),
-                    dest.resolve())
+                self.assertEqual(db_backup.resolve_destination(str(dest), None, require_writable=False), dest.resolve())
             finally:
                 dest.chmod(0o700)

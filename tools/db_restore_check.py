@@ -185,8 +185,8 @@ def main(argv: list[str] | None = None) -> int:
     creds = _credentials()
     try:
         destination = resolve_destination(
-            args.destination or os.getenv('BACKUP_PATH', ''), os.getenv('DATA_PATH'),
-            require_writable=False)
+            args.destination or os.getenv('BACKUP_PATH', ''), os.getenv('DATA_PATH'), require_writable=False
+        )
         latest = read_latest(destination)
         dump_path = destination / latest['file']
         if not dump_path.exists():

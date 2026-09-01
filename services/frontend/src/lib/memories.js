@@ -15,8 +15,8 @@
  * @returns {string} The local date in `YYYY-MM-DD` form.
  */
 export function localDateString(date = new Date()) {
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
@@ -44,7 +44,7 @@ export const MEMORIES_YEAR_SONGS = 1000;
  */
 export function memoriesUrl(authParams, { date = localDateString(), year } = {}) {
   const maxPerYear = year ? MEMORIES_YEAR_SONGS : MEMORIES_TILE_SONGS;
-  const yearParam = year ? `year=${year}&` : '';
+  const yearParam = year ? `year=${year}&` : "";
 
   return `/rest/getMemories?date=${date}&maxPerYear=${maxPerYear}&${yearParam}${authParams}`;
 }
@@ -59,14 +59,14 @@ export function memoriesUrl(authParams, { date = localDateString(), year } = {})
  * @returns {Array<{year: number, yearsAgo: number, exact: boolean, songs: Object[]}>} The groups.
  */
 export function parseMemoryGroups(data) {
-  const raw = data?.['subsonic-response']?.memories?.memory;
+  const raw = data?.["subsonic-response"]?.memories?.memory;
   if (!raw) return [];
 
   const list = Array.isArray(raw) ? raw : [raw];
 
   return list.map((group) => ({
     ...group,
-    songs: Array.isArray(group.song) ? group.song : group.song ? [group.song] : []
+    songs: Array.isArray(group.song) ? group.song : group.song ? [group.song] : [],
   }));
 }
 
@@ -81,8 +81,8 @@ export function parseMemoryGroups(data) {
  */
 export function memoryHeading(group) {
   return {
-    key: group.exact ? 'memories.today' : 'memories.thisWeek',
-    vars: { count: group.yearsAgo }
+    key: group.exact ? "memories.today" : "memories.thisWeek",
+    vars: { count: group.yearsAgo },
   };
 }
 
@@ -124,7 +124,7 @@ export function rankSongs(songs) {
   const favourite = (song) => (rating(song) >= 5 ? 1 : 0);
 
   return [...songs].sort(
-    (a, b) => favourite(b) - favourite(a) || listens(b) - listens(a) || rating(b) - rating(a)
+    (a, b) => favourite(b) - favourite(a) || listens(b) - listens(a) || rating(b) - rating(a),
   );
 }
 
@@ -156,7 +156,8 @@ export function yearTiles(groups) {
 
       // The Subsonic JSON encoding collapses a single-element array into a bare object here too.
       const named = Array.isArray(group.cover) ? group.cover : group.cover ? [group.cover] : [];
-      const coverIds = named.length > 0 ? named.map((cover) => cover?.id) : ranked.map((song) => song.coverArt);
+      const coverIds =
+        named.length > 0 ? named.map((cover) => cover?.id) : ranked.map((song) => song.coverArt);
 
       return {
         year: group.year,
@@ -164,7 +165,7 @@ export function yearTiles(groups) {
         exact: group.exact,
         count: memoryCount(group),
         top: ranked.slice(0, TILE_TOP_COUNT),
-        covers: [...new Set(coverIds.filter(Boolean))].slice(0, TILE_COVER_COUNT)
+        covers: [...new Set(coverIds.filter(Boolean))].slice(0, TILE_COVER_COUNT),
       };
     });
 }

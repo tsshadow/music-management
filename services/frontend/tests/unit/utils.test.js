@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { get } from "svelte/store";
 
 import { mumaApiUrl } from "../../src/lib/store.js";
-import { formatArtistList, getArtistImageUrl, splitArtists, viewArgument } from "../../src/lib/utils.js";
+import {
+  formatArtistList,
+  getArtistImageUrl,
+  splitArtists,
+  viewArgument,
+} from "../../src/lib/utils.js";
 
 describe("splitArtists", () => {
   it("returns nothing for an empty value", () => {

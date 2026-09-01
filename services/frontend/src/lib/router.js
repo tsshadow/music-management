@@ -13,20 +13,20 @@
 
 /** Sidebar and top-level pages that map straight onto a path of the same name. */
 const PLAIN_VIEWS = [
-  'songs',
-  'sets',
-  'albums',
-  'genres',
-  'labels',
-  'podcasts',
-  'festivals',
-  'years',
-  'lineups',
-  'artists',
-  'playlists',
-  'memories',
-  'history',
-  'starred'
+  "songs",
+  "sets",
+  "albums",
+  "genres",
+  "labels",
+  "podcasts",
+  "festivals",
+  "years",
+  "lineups",
+  "artists",
+  "playlists",
+  "memories",
+  "history",
+  "starred",
 ];
 
 /**
@@ -43,51 +43,51 @@ const PLAIN_VIEWS = [
  * runs first in both directions, so the two never collide.
  */
 const ARGUMENT_VIEWS = [
-  { kind: 'genre', segment: 'genre', encode: true },
-  { kind: 'label', segment: 'label', encode: true },
-  { kind: 'podcast', segment: 'podcast', encode: true },
-  { kind: 'festival', segment: 'festival', encode: true },
+  { kind: "genre", segment: "genre", encode: true },
+  { kind: "label", segment: "label", encode: true },
+  { kind: "podcast", segment: "podcast", encode: true },
+  { kind: "festival", segment: "festival", encode: true },
   // A year is digits in practice, but the value comes from the server's YEAR cluster,
   // which is free text -- an entry like '2024 (reissue)' would otherwise break the route.
-  { kind: 'year', segment: 'year', encode: true },
-  { kind: 'lineup', segment: 'lineup', encode: true },
-  { kind: 'search', segment: 'search', encode: true },
-  { kind: 'memories', segment: 'memories', encode: false },
-  { kind: 'artist', segment: 'artist', encode: false },
-  { kind: 'album', segment: 'album', encode: false },
+  { kind: "year", segment: "year", encode: true },
+  { kind: "lineup", segment: "lineup", encode: true },
+  { kind: "search", segment: "search", encode: true },
+  { kind: "memories", segment: "memories", encode: false },
+  { kind: "artist", segment: "artist", encode: false },
+  { kind: "album", segment: "album", encode: false },
   // The admin edit pages hang off the thing they edit: /artist/123/edit. `suffix` is
   // what keeps them apart from the plain view, and it is why pathToState checks the
   // suffixed entries first -- '/genre/Hardcore/edit' has to read as the edit page of
   // 'Hardcore', not as the view of a genre called 'Hardcore/edit'.
-  { kind: 'artist-edit', segment: 'artist', encode: false, suffix: 'edit' },
-  { kind: 'label-edit', segment: 'label', encode: true, suffix: 'edit' },
-  { kind: 'genre-edit', segment: 'genre', encode: true, suffix: 'edit' }
+  { kind: "artist-edit", segment: "artist", encode: false, suffix: "edit" },
+  { kind: "label-edit", segment: "label", encode: true, suffix: "edit" },
+  { kind: "genre-edit", segment: "genre", encode: true, suffix: "edit" },
 ];
 
 /** The personal settings tabs, in sidebar order. */
-export const SETTINGS_TABS = ['general', 'advanced', 'about'];
+export const SETTINGS_TABS = ["general", "advanced", "about"];
 
 /** The management tabs, in sidebar order. */
 export const MANAGEMENT_TABS = [
-  'overview',
-  'library',
-  'scanner',
-  'images',
-  'playlists',
-  'tagger',
-  'genre-curation',
-  'label-proposals',
-  'podcast-curation',
-  'downloaders',
-  'radio',
-  'news',
-  'users',
-  'user-requests',
-  'health',
-  'events',
-  'scrobble',
-  'libraries',
-  'config'
+  "overview",
+  "library",
+  "scanner",
+  "images",
+  "playlists",
+  "tagger",
+  "genre-curation",
+  "label-proposals",
+  "podcast-curation",
+  "downloaders",
+  "radio",
+  "news",
+  "users",
+  "user-requests",
+  "health",
+  "events",
+  "scrobble",
+  "libraries",
+  "config",
 ];
 
 /**
@@ -102,22 +102,22 @@ export const MANAGEMENT_TABS = [
  * header, so it holds exactly one page and shows that page's own label.
  */
 export const MANAGEMENT_GROUPS = [
-  { id: 'overview', labelKey: null, pages: ['overview'] },
+  { id: "overview", labelKey: null, pages: ["overview"] },
   {
-    id: 'collection',
-    labelKey: 'management.groups.collection',
-    pages: ['library', 'scanner', 'images', 'playlists']
+    id: "collection",
+    labelKey: "management.groups.collection",
+    pages: ["library", "scanner", "images", "playlists"],
   },
   {
-    id: 'curation',
-    labelKey: 'management.groups.curation',
-    pages: ['tagger', 'genre-curation', 'label-proposals', 'podcast-curation']
+    id: "curation",
+    labelKey: "management.groups.curation",
+    pages: ["tagger", "genre-curation", "label-proposals", "podcast-curation"],
   },
-  { id: 'downloaders', labelKey: null, pages: ['downloaders'] },
-  { id: 'channels', labelKey: 'management.groups.channels', pages: ['radio', 'news'] },
-  { id: 'access', labelKey: 'management.groups.access', pages: ['users', 'user-requests'] },
-  { id: 'system', labelKey: 'management.groups.system', pages: ['health', 'events', 'scrobble'] },
-  { id: 'settings', labelKey: 'management.groups.settings', pages: ['libraries', 'config'] }
+  { id: "downloaders", labelKey: null, pages: ["downloaders"] },
+  { id: "channels", labelKey: "management.groups.channels", pages: ["radio", "news"] },
+  { id: "access", labelKey: "management.groups.access", pages: ["users", "user-requests"] },
+  { id: "system", labelKey: "management.groups.system", pages: ["health", "events", "scrobble"] },
+  { id: "settings", labelKey: "management.groups.settings", pages: ["libraries", "config"] },
 ];
 
 /**
@@ -135,13 +135,13 @@ export const MANAGEMENT_GROUPS = [
 export function viewToPath(state) {
   const { view, loggedIn = true, playlistId, settingsTab, managementTab } = state ?? {};
 
-  if (!loggedIn) return '/login';
-  if (view === 'login') return '/login';
-  if (view === 'home') return '/';
+  if (!loggedIn) return "/login";
+  if (view === "login") return "/login";
+  if (view === "home") return "/";
   if (PLAIN_VIEWS.includes(view)) return `/${view}`;
 
   for (const { kind, segment, encode, suffix } of ARGUMENT_VIEWS) {
-    if (typeof view === 'string' && view.startsWith(`${kind}:`)) {
+    if (typeof view === "string" && view.startsWith(`${kind}:`)) {
       const argument = view.slice(kind.length + 1);
       const encoded = encode ? encodeURIComponent(argument) : argument;
       return suffix ? `/${segment}/${encoded}/${suffix}` : `/${segment}/${encoded}`;
@@ -152,10 +152,10 @@ export function viewToPath(state) {
   // app (a card sets the view, the fetch fills in the rest). Rewriting the URL
   // to a bare '/playlist' there would break a refresh, so leave it alone until
   // there is something to link to.
-  if (view === 'playlist-detail') return playlistId ? `/playlist/${playlistId}` : null;
+  if (view === "playlist-detail") return playlistId ? `/playlist/${playlistId}` : null;
 
-  if (view === 'settings') return tabbedPath('settings', settingsTab, SETTINGS_TABS);
-  if (view === 'management') return tabbedPath('management', managementTab, MANAGEMENT_TABS);
+  if (view === "settings") return tabbedPath("settings", settingsTab, SETTINGS_TABS);
+  if (view === "management") return tabbedPath("management", managementTab, MANAGEMENT_TABS);
 
   return null;
 }
@@ -172,8 +172,8 @@ export function viewToPath(state) {
 export function pathToState(path) {
   const normalized = normalize(path);
 
-  if (normalized === '/login') return { view: 'login' };
-  if (normalized === '/') return { view: 'home' };
+  if (normalized === "/login") return { view: "login" };
+  if (normalized === "/") return { view: "home" };
 
   const plain = normalized.slice(1);
   if (PLAIN_VIEWS.includes(plain)) return { view: plain };
@@ -192,17 +192,17 @@ export function pathToState(path) {
     return { view: `${kind}:${encode ? decodeURIComponent(raw) : raw}` };
   }
 
-  if (normalized.startsWith('/playlist/')) {
-    return { view: 'playlist-detail', playlistId: normalized.slice('/playlist/'.length) };
+  if (normalized.startsWith("/playlist/")) {
+    return { view: "playlist-detail", playlistId: normalized.slice("/playlist/".length) };
   }
 
-  const settings = tabbedState('settings', normalized, SETTINGS_TABS, 'settingsTab');
+  const settings = tabbedState("settings", normalized, SETTINGS_TABS, "settingsTab");
   if (settings) return settings;
 
-  const management = tabbedState('management', normalized, MANAGEMENT_TABS, 'managementTab');
+  const management = tabbedState("management", normalized, MANAGEMENT_TABS, "managementTab");
   if (management) return management;
 
-  return { view: 'home' };
+  return { view: "home" };
 }
 
 /**
@@ -249,7 +249,7 @@ function tabbedState(view, path, known, field) {
  * @returns {string} The normalized path, always starting with a slash.
  */
 function normalize(path) {
-  if (!path) return '/';
-  const trimmed = path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path;
-  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  if (!path) return "/";
+  const trimmed = path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
 }

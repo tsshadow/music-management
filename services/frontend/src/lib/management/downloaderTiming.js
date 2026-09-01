@@ -11,9 +11,9 @@ const DAY = 86400;
 
 /** Render a number of seconds as a short Dutch duration. */
 export function formatDuration(seconds) {
-  if (seconds === null || seconds === undefined || Number.isNaN(Number(seconds))) return '—';
+  if (seconds === null || seconds === undefined || Number.isNaN(Number(seconds))) return "—";
   const total = Number(seconds);
-  if (total === 0) return 'uit';
+  if (total === 0) return "uit";
   if (total < MINUTE) return `${total} sec`;
   if (total < HOUR) return `${Math.round(total / MINUTE)} min`;
   if (total < DAY) {
@@ -23,7 +23,7 @@ export function formatDuration(seconds) {
   }
   const days = Math.floor(total / DAY);
   const hours = Math.round((total % DAY) / HOUR);
-  return hours ? `${days} dag ${hours} uur` : `${days} dag${days > 1 ? 'en' : ''}`;
+  return hours ? `${days} dag ${hours} uur` : `${days} dag${days > 1 ? "en" : ""}`;
 }
 
 /**
@@ -33,19 +33,19 @@ export function formatDuration(seconds) {
  * multiplier is up, `parked` while a cooldown is running.
  */
 export function describeBackoff(state) {
-  if (!state) return { tone: 'unknown', label: 'Onbekend' };
+  if (!state) return { tone: "unknown", label: "Onbekend" };
   const multiplier = Number(state.multiplier || 1);
   const remaining = Number(state.cooldown_remaining || 0);
   if (remaining > 0) {
     return {
-      tone: 'parked',
+      tone: "parked",
       label: `Gepauzeerd, nog ${formatDuration(remaining)} (${multiplier}x vertraagd)`,
     };
   }
   if (multiplier > 1) {
-    return { tone: 'slowed', label: `${multiplier}x vertraagd, herstelt na schone rondes` };
+    return { tone: "slowed", label: `${multiplier}x vertraagd, herstelt na schone rondes` };
   }
-  return { tone: 'ok', label: 'Normaal tempo' };
+  return { tone: "ok", label: "Normaal tempo" };
 }
 
 /**
@@ -58,7 +58,7 @@ export function changedValues(fields, edited) {
   const updates = {};
   for (const field of fields) {
     const raw = edited[field.key];
-    if (raw === '' || raw === null || raw === undefined) continue;
+    if (raw === "" || raw === null || raw === undefined) continue;
     const value = Number(raw);
     if (Number.isNaN(value)) continue;
     if (value !== Number(field.value)) updates[field.key] = value;

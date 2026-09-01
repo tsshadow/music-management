@@ -1,36 +1,36 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
-import { get } from 'svelte/store';
-import Sidebar from '../../src/lib/Sidebar.svelte';
-import { credentials, favoriteGenres, viewMode } from '../../src/lib/store.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
+import { get } from "svelte/store";
+import Sidebar from "../../src/lib/Sidebar.svelte";
+import { credentials, favoriteGenres, viewMode } from "../../src/lib/store.js";
 
 const GENRES = [
-  { value: 'Hardcore', songCount: 1200 },
-  { value: 'Uptempo', songCount: 400 },
-  { value: 'Obscure', songCount: 2 }
+  { value: "Hardcore", songCount: 1200 },
+  { value: "Uptempo", songCount: 400 },
+  { value: "Obscure", songCount: 2 },
 ];
 
 function subsonic(genres = GENRES) {
   return vi.fn(async () => ({
     ok: true,
-    json: async () => ({ 'subsonic-response': { genres: { genre: genres } } })
+    json: async () => ({ "subsonic-response": { genres: { genre: genres } } }),
   }));
 }
 
 async function renderLoaded(props = {}) {
-  const rendered = render(Sidebar, { activeView: 'home', onnavigate: vi.fn(), ...props });
-  await waitFor(() => expect(screen.getByText('Hardcore')).toBeTruthy());
+  const rendered = render(Sidebar, { activeView: "home", onnavigate: vi.fn(), ...props });
+  await waitFor(() => expect(screen.getByText("Hardcore")).toBeTruthy());
   return rendered;
 }
 
 async function openLibrary() {
-  await fireEvent.click(screen.getByText('Bibliotheek'));
+  await fireEvent.click(screen.getByText("Bibliotheek"));
 }
 
-describe('Sidebar', () => {
+describe("Sidebar", () => {
   beforeEach(() => {
-    credentials.set({ url: '', username: 'user', password: 'pw' });
-    viewMode.set('songs');
+    credentials.set({ url: "", username: "user", password: "pw" });
+    viewMode.set("songs");
     favoriteGenres.set([]);
     localStorage.clear();
     globalThis.fetch = subsonic();
@@ -40,162 +40,164 @@ describe('Sidebar', () => {
     vi.restoreAllMocks();
   });
 
-  it('lists the genres the library has', async () => {
+  it("lists the genres the library has", async () => {
     await renderLoaded();
 
-    expect(screen.getByText('Uptempo')).toBeTruthy();
+    expect(screen.getByText("Uptempo")).toBeTruthy();
   });
 
-  it('leaves out genres with almost nothing in them', async () => {
+  it("leaves out genres with almost nothing in them", async () => {
     await renderLoaded();
 
-    expect(screen.queryByText('Obscure')).toBeNull();
+    expect(screen.queryByText("Obscure")).toBeNull();
   });
 
-  it('shows only the favourites once some are marked', async () => {
-    favoriteGenres.set(['Uptempo']);
+  it("shows only the favourites once some are marked", async () => {
+    favoriteGenres.set(["Uptempo"]);
 
-    render(Sidebar, { activeView: 'home', onnavigate: vi.fn() });
+    render(Sidebar, { activeView: "home", onnavigate: vi.fn() });
 
-    await waitFor(() => expect(screen.getByText('Uptempo')).toBeTruthy());
-    expect(screen.queryByText('Hardcore')).toBeNull();
+    await waitFor(() => expect(screen.getByText("Uptempo")).toBeTruthy());
+    expect(screen.queryByText("Hardcore")).toBeNull();
   });
 
-  it('navigating to a genre is reported to the parent', async () => {
+  it("navigating to a genre is reported to the parent", async () => {
     const onnavigate = vi.fn();
     await renderLoaded({ onnavigate });
 
-    await fireEvent.click(screen.getByText('Hardcore'));
+    await fireEvent.click(screen.getByText("Hardcore"));
 
-    expect(onnavigate).toHaveBeenCalledWith('genre:Hardcore');
+    expect(onnavigate).toHaveBeenCalledWith("genre:Hardcore");
   });
 
-  it('navigating to a section is reported to the parent', async () => {
+  it("navigating to a section is reported to the parent", async () => {
     const onnavigate = vi.fn();
     await renderLoaded({ onnavigate });
     await openLibrary();
 
-    await fireEvent.click(screen.getByText('Albums'));
+    await fireEvent.click(screen.getByText("Albums"));
 
-    expect(onnavigate).toHaveBeenCalledWith('albums');
+    expect(onnavigate).toHaveBeenCalledWith("albums");
   });
 
-  it('keeps the library sections out of the way until asked', async () => {
+  it("keeps the library sections out of the way until asked", async () => {
     await renderLoaded();
 
-    expect(screen.queryByText('Albums')).toBeNull();
-    expect(screen.queryByText('Artiesten')).toBeNull();
+    expect(screen.queryByText("Albums")).toBeNull();
+    expect(screen.queryByText("Artiesten")).toBeNull();
   });
 
-  it('reveals every library section at once', async () => {
+  it("reveals every library section at once", async () => {
     await renderLoaded();
 
     await openLibrary();
 
-    for (const label of ['Artiesten', 'Albums', 'Genres', 'Labels']) {
+    for (const label of ["Artiesten", "Albums", "Genres", "Labels"]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
   });
 
-  it('folds the library away again on a second click', async () => {
+  it("folds the library away again on a second click", async () => {
     await renderLoaded();
     await openLibrary();
 
     await openLibrary();
 
-    expect(screen.queryByText('Albums')).toBeNull();
+    expect(screen.queryByText("Albums")).toBeNull();
   });
 
-  it('remembers that the library was left open', async () => {
+  it("remembers that the library was left open", async () => {
     const { unmount } = await renderLoaded();
     await openLibrary();
     unmount();
 
-    render(Sidebar, { activeView: 'home', onnavigate: vi.fn() });
+    render(Sidebar, { activeView: "home", onnavigate: vi.fn() });
 
-    await waitFor(() => expect(screen.getByText('Albums')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Albums")).toBeTruthy());
   });
 
-  it('opens the library when the current view lives inside it', async () => {
-    await renderLoaded({ activeView: 'labels' });
+  it("opens the library when the current view lives inside it", async () => {
+    await renderLoaded({ activeView: "labels" });
 
-    expect(screen.getByText('Labels')).toBeTruthy();
+    expect(screen.getByText("Labels")).toBeTruthy();
   });
 
-  it('no longer offers the release radar', async () => {
+  it("no longer offers the release radar", async () => {
     await renderLoaded();
 
-    expect(screen.queryByText('Release Radar')).toBeNull();
+    expect(screen.queryByText("Release Radar")).toBeNull();
   });
 
-  it('keeps the songs list reachable next to the mode switch', async () => {
+  it("keeps the songs list reachable next to the mode switch", async () => {
     const onnavigate = vi.fn();
     await renderLoaded({ onnavigate });
 
-    await fireEvent.click(screen.getAllByText('Nummers')[1]);
+    await fireEvent.click(screen.getAllByText("Nummers")[1]);
 
-    expect(onnavigate).toHaveBeenCalledWith('songs');
-    expect(get(viewMode)).toBe('songs');
+    expect(onnavigate).toHaveBeenCalledWith("songs");
+    expect(get(viewMode)).toBe("songs");
   });
 
-  it('switching to sets changes the mode', async () => {
+  it("switching to sets changes the mode", async () => {
     await renderLoaded();
 
-    await fireEvent.click(screen.getByText('Sets'));
+    await fireEvent.click(screen.getByText("Sets"));
 
-    expect(get(viewMode)).toBe('sets');
+    expect(get(viewMode)).toBe("sets");
   });
 
-  it('switching back to songs changes the mode', async () => {
-    viewMode.set('sets');
+  it("switching back to songs changes the mode", async () => {
+    viewMode.set("sets");
     await renderLoaded();
 
-    await fireEvent.click(screen.getByText('Nummers'));
+    await fireEvent.click(screen.getByText("Nummers"));
 
-    expect(get(viewMode)).toBe('songs');
+    expect(get(viewMode)).toBe("songs");
   });
 
-  it('survives a genre list that fails to load', async () => {
-    globalThis.fetch = vi.fn(async () => { throw new Error('network down'); });
+  it("survives a genre list that fails to load", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      throw new Error("network down");
+    });
 
-    render(Sidebar, { activeView: 'home', onnavigate: vi.fn() });
+    render(Sidebar, { activeView: "home", onnavigate: vi.fn() });
 
-    await waitFor(() => expect(screen.getByText('Bibliotheek')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Bibliotheek")).toBeTruthy());
   });
 
-  it('copes with a server that returns a single genre rather than a list', async () => {
-    globalThis.fetch = subsonic({ value: 'Hardcore', songCount: 1200 });
+  it("copes with a server that returns a single genre rather than a list", async () => {
+    globalThis.fetch = subsonic({ value: "Hardcore", songCount: 1200 });
 
     await renderLoaded();
 
-    expect(screen.getByText('Hardcore')).toBeTruthy();
+    expect(screen.getByText("Hardcore")).toBeTruthy();
   });
 
-  it('offers the three tag-driven browse pages in the library group', async () => {
+  it("offers the three tag-driven browse pages in the library group", async () => {
     await renderLoaded();
     await openLibrary();
 
-    expect(screen.getByText('Festivals')).toBeTruthy();
-    expect(screen.getByText('Jaren')).toBeTruthy();
-    expect(screen.getByText('Lineups')).toBeTruthy();
+    expect(screen.getByText("Festivals")).toBeTruthy();
+    expect(screen.getByText("Jaren")).toBeTruthy();
+    expect(screen.getByText("Lineups")).toBeTruthy();
   });
 
-  it('navigates to the festivals page when it is picked', async () => {
+  it("navigates to the festivals page when it is picked", async () => {
     const onnavigate = vi.fn();
     await renderLoaded({ onnavigate });
     await openLibrary();
 
-    await fireEvent.click(screen.getByText('Festivals'));
+    await fireEvent.click(screen.getByText("Festivals"));
 
-    expect(onnavigate).toHaveBeenCalledWith('festivals');
+    expect(onnavigate).toHaveBeenCalledWith("festivals");
   });
 
   // libraryExpanded derives from libraryItems.some(item => item.id === activeView), so a
   // page that lives in the group but is missing from that list renders collapsed on a
   // deep link.
-  it('keeps the library group open when the app lands straight on a lineup page', async () => {
-    await renderLoaded({ activeView: 'lineups' });
+  it("keeps the library group open when the app lands straight on a lineup page", async () => {
+    await renderLoaded({ activeView: "lineups" });
 
-    expect(screen.getByText('Lineups')).toBeTruthy();
+    expect(screen.getByText("Lineups")).toBeTruthy();
   });
 });

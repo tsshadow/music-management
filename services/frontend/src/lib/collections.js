@@ -37,7 +37,8 @@ export function matchesSearch(name, search) {
 }
 
 /** Sorts text case-insensitively and in the user's locale. */
-const text = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), "nl", { sensitivity: "base" });
+const text = (a, b) =>
+  String(a ?? "").localeCompare(String(b ?? ""), "nl", { sensitivity: "base" });
 /** Sorts numerically, treating a missing value as 0 rather than as NaN. */
 const number = (a, b) => (Number(a) || 0) - (Number(b) || 0);
 
@@ -50,40 +51,154 @@ const number = (a, b) => (Number(a) || 0) - (Number(b) || 0);
  */
 export const COLLECTION_SORTS = {
   genres: [
-    { id: "name", labelKey: "sort.alphabetical", of: (g) => g.value, compare: text, defaultDirection: "asc" },
-    { id: "songs", labelKey: "sort.trackCount", of: (g) => g.songCount, compare: number, defaultDirection: "desc" },
-    { id: "albums", labelKey: "sort.albumCount", of: (g) => g.albumCount, compare: number, defaultDirection: "desc" },
+    {
+      id: "name",
+      labelKey: "sort.alphabetical",
+      of: (g) => g.value,
+      compare: text,
+      defaultDirection: "asc",
+    },
+    {
+      id: "songs",
+      labelKey: "sort.trackCount",
+      of: (g) => g.songCount,
+      compare: number,
+      defaultDirection: "desc",
+    },
+    {
+      id: "albums",
+      labelKey: "sort.albumCount",
+      of: (g) => g.albumCount,
+      compare: number,
+      defaultDirection: "desc",
+    },
   ],
   labels: [
-    { id: "name", labelKey: "sort.alphabetical", of: (l) => l.value, compare: text, defaultDirection: "asc" },
-    { id: "songs", labelKey: "sort.trackCount", of: (l) => l.songCount, compare: number, defaultDirection: "desc" },
-    { id: "albums", labelKey: "sort.albumCount", of: (l) => l.albumCount, compare: number, defaultDirection: "desc" },
+    {
+      id: "name",
+      labelKey: "sort.alphabetical",
+      of: (l) => l.value,
+      compare: text,
+      defaultDirection: "asc",
+    },
+    {
+      id: "songs",
+      labelKey: "sort.trackCount",
+      of: (l) => l.songCount,
+      compare: number,
+      defaultDirection: "desc",
+    },
+    {
+      id: "albums",
+      labelKey: "sort.albumCount",
+      of: (l) => l.albumCount,
+      compare: number,
+      defaultDirection: "desc",
+    },
   ],
   podcasts: [
-    { id: "name", labelKey: "sort.alphabetical", of: (p) => p.value, compare: text, defaultDirection: "asc" },
-    { id: "songs", labelKey: "sort.episodeCount", of: (p) => p.songCount, compare: number, defaultDirection: "desc" },
+    {
+      id: "name",
+      labelKey: "sort.alphabetical",
+      of: (p) => p.value,
+      compare: text,
+      defaultDirection: "asc",
+    },
+    {
+      id: "songs",
+      labelKey: "sort.episodeCount",
+      of: (p) => p.songCount,
+      compare: number,
+      defaultDirection: "desc",
+    },
   ],
   festivals: [
-    { id: "name", labelKey: "sort.alphabetical", of: (f) => f.value, compare: text, defaultDirection: "asc" },
-    { id: "songs", labelKey: "sort.trackCount", of: (f) => f.songCount, compare: number, defaultDirection: "desc" },
-    { id: "albums", labelKey: "sort.albumCount", of: (f) => f.albumCount, compare: number, defaultDirection: "desc" },
+    {
+      id: "name",
+      labelKey: "sort.alphabetical",
+      of: (f) => f.value,
+      compare: text,
+      defaultDirection: "asc",
+    },
+    {
+      id: "songs",
+      labelKey: "sort.trackCount",
+      of: (f) => f.songCount,
+      compare: number,
+      defaultDirection: "desc",
+    },
+    {
+      id: "albums",
+      labelKey: "sort.albumCount",
+      of: (f) => f.albumCount,
+      compare: number,
+      defaultDirection: "desc",
+    },
   ],
   // A year list reads newest-first; "name" here is the year itself, so its useful
   // direction is descending rather than the A-Z every other collection wants.
   years: [
-    { id: "name", labelKey: "sort.year", of: (y) => y.value, compare: text, defaultDirection: "desc" },
-    { id: "songs", labelKey: "sort.trackCount", of: (y) => y.songCount, compare: number, defaultDirection: "desc" },
+    {
+      id: "name",
+      labelKey: "sort.year",
+      of: (y) => y.value,
+      compare: text,
+      defaultDirection: "desc",
+    },
+    {
+      id: "songs",
+      labelKey: "sort.trackCount",
+      of: (y) => y.songCount,
+      compare: number,
+      defaultDirection: "desc",
+    },
   ],
   // getLineups answers with a name and nothing else, so there is nothing else to sort on.
   lineups: [
-    { id: "name", labelKey: "sort.alphabetical", of: (l) => l.value, compare: text, defaultDirection: "asc" },
+    {
+      id: "name",
+      labelKey: "sort.alphabetical",
+      of: (l) => l.value,
+      compare: text,
+      defaultDirection: "asc",
+    },
   ],
   playlists: [
-    { id: "name", labelKey: "sort.alphabetical", of: (p) => p.name, compare: text, defaultDirection: "asc" },
-    { id: "songs", labelKey: "sort.trackCount", of: (p) => p.songCount, compare: number, defaultDirection: "desc" },
-    { id: "duration", labelKey: "sort.duration", of: (p) => p.duration, compare: number, defaultDirection: "desc" },
-    { id: "changed", labelKey: "sort.recentlyUpdated", of: (p) => Date.parse(p.changed) || 0, compare: number, defaultDirection: "desc" },
-    { id: "created", labelKey: "sort.recentlyCreated", of: (p) => Date.parse(p.created) || 0, compare: number, defaultDirection: "desc" },
+    {
+      id: "name",
+      labelKey: "sort.alphabetical",
+      of: (p) => p.name,
+      compare: text,
+      defaultDirection: "asc",
+    },
+    {
+      id: "songs",
+      labelKey: "sort.trackCount",
+      of: (p) => p.songCount,
+      compare: number,
+      defaultDirection: "desc",
+    },
+    {
+      id: "duration",
+      labelKey: "sort.duration",
+      of: (p) => p.duration,
+      compare: number,
+      defaultDirection: "desc",
+    },
+    {
+      id: "changed",
+      labelKey: "sort.recentlyUpdated",
+      of: (p) => Date.parse(p.changed) || 0,
+      compare: number,
+      defaultDirection: "desc",
+    },
+    {
+      id: "created",
+      labelKey: "sort.recentlyCreated",
+      of: (p) => Date.parse(p.created) || 0,
+      compare: number,
+      defaultDirection: "desc",
+    },
   ],
 };
 
@@ -198,7 +313,12 @@ export function queryCollection(items, type, state, context = {}) {
     // Neither does it when the server didn't send a count at all (an older
     // build answering getRecordLabels): hiding the whole list would be a far
     // worse answer than ignoring the chip.
-    if (type !== "playlists" && min > 0 && item.songCount !== undefined && (Number(item.songCount) || 0) < min) {
+    if (
+      type !== "playlists" &&
+      min > 0 &&
+      item.songCount !== undefined &&
+      (Number(item.songCount) || 0) < min
+    ) {
       return false;
     }
     if (type === "playlists" && state.visibility !== "all") {

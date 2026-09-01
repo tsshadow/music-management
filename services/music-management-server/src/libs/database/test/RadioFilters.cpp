@@ -76,10 +76,10 @@ namespace lms::db::tests
         ScopedUser user{ session, "radio" };
         ScopedLabel label{ session, "Q-dance Records" };
         ScopedRelease release{ session, "Release" };
-        ScopedTrack shortLiked{ session };  // 3 min, rated 4
-        ScopedTrack longLiked{ session };   // 9 min, rated 4
+        ScopedTrack shortLiked{ session };    // 3 min, rated 4
+        ScopedTrack longLiked{ session };     // 9 min, rated 4
         ScopedTrack shortDisliked{ session }; // 3 min, rated 2
-        ScopedTrack shortUnrated{ session }; // 3 min, no rating
+        ScopedTrack shortUnrated{ session };  // 3 min, no rating
 
         {
             auto transaction{ session.createWriteTransaction() };

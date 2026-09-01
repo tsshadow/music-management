@@ -85,7 +85,7 @@ namespace lms::ui
                 parseOptions.readTags = false;
                 const auto audioFile{ parser->parse(trackPath, parseOptions) };
 
-                if (const audio::AudioProperties * properties{ audioFile->getAudioProperties() })
+                if (const audio::AudioProperties* properties{ audioFile->getAudioProperties() })
                     res = *properties;
             }
             catch (const audio::Exception& e)

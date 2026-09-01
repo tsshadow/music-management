@@ -1,10 +1,10 @@
 #pragma once
 
-#include <boost/asio/io_context.hpp>
-#include <Wt/WResource.h>
-#include "database/IDb.hpp"
 #include "core/ConcurrencyGate.hpp"
 #include "core/http/IClient.hpp"
+#include "database/IDb.hpp"
+#include <Wt/WResource.h>
+#include <boost/asio/io_context.hpp>
 
 namespace lms::auth
 {
@@ -32,4 +32,4 @@ namespace lms::api::muma
         // are only as many of those as the machine has cores.
         core::ConcurrencyGate _mumaCallGate;
     };
-}
+} // namespace lms::api::muma

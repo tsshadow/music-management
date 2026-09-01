@@ -293,9 +293,9 @@ namespace lms::audio::taglib
         };
 
         // WMA
-        if (const ::TagLib::ASF::File * asfFile{ dynamic_cast<const ::TagLib::ASF::File*>(&_file) })
+        if (const ::TagLib::ASF::File* asfFile{ dynamic_cast<const ::TagLib::ASF::File*>(&_file) })
         {
-            if (const ::TagLib::ASF::Tag * tag{ asfFile->tag() })
+            if (const ::TagLib::ASF::Tag* tag{ asfFile->tag() })
             {
                 for (const auto& [name, attributeList] : tag->attributeListMap())
                 {
@@ -347,7 +347,7 @@ namespace lms::audio::taglib
             getAPETags(mp3File->APETag());
         }
         // MP4
-        else if (const ::TagLib::MP4::File * mp4File{ dynamic_cast<const ::TagLib::MP4::File*>(&_file) })
+        else if (const ::TagLib::MP4::File* mp4File{ dynamic_cast<const ::TagLib::MP4::File*>(&_file) })
         {
             // Taglib does not expose rtng in properties
             if (const ::TagLib::MP4::Item rtngItem{ mp4File->tag()->item("rtng") }; rtngItem.isValid())
@@ -395,12 +395,12 @@ namespace lms::audio::taglib
             if (flacFile->hasID3v2Tag()) // discouraged usage
                 processID3v2Tags(*flacFile->ID3v2Tag());
         }
-        else if (const TagLib::RIFF::AIFF::File * aiffFile{ dynamic_cast<const TagLib::RIFF::AIFF::File*>(&_file) })
+        else if (const TagLib::RIFF::AIFF::File* aiffFile{ dynamic_cast<const TagLib::RIFF::AIFF::File*>(&_file) })
         {
             if (aiffFile->hasID3v2Tag())
                 processID3v2Tags(*aiffFile->tag());
         }
-        else if (const TagLib::RIFF::WAV::File * wavFile{ dynamic_cast<const TagLib::RIFF::WAV::File*>(&_file) })
+        else if (const TagLib::RIFF::WAV::File* wavFile{ dynamic_cast<const TagLib::RIFF::WAV::File*>(&_file) })
         {
             if (wavFile->hasID3v2Tag())
                 processID3v2Tags(*wavFile->ID3v2Tag());

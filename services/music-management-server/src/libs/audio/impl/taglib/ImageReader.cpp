@@ -362,14 +362,14 @@ namespace lms::audio::taglib
                 visitID3V2Images(*mp3File->ID3v2Tag(), visitor);
         }
         // MP4
-        else if (const TagLib::MP4::File * mp4File{ dynamic_cast<const TagLib::MP4::File*>(&_file) })
+        else if (const TagLib::MP4::File* mp4File{ dynamic_cast<const TagLib::MP4::File*>(&_file) })
         {
             visitMP4Images(*mp4File, visitor);
         }
         // WMA
-        else if (const TagLib::ASF::File * asfFile{ dynamic_cast<const TagLib::ASF::File*>(&_file) })
+        else if (const TagLib::ASF::File* asfFile{ dynamic_cast<const TagLib::ASF::File*>(&_file) })
         {
-            if (const ::TagLib::ASF::Tag * tag{ asfFile->tag() })
+            if (const ::TagLib::ASF::Tag* tag{ asfFile->tag() })
                 visitASFImages(*tag, visitor);
         }
         // FLAC
@@ -381,23 +381,23 @@ namespace lms::audio::taglib
                 visitFLACImages(flacFile->pictureList(), visitor);
         }
         // Ogg vorbis
-        else if (const TagLib::Ogg::Vorbis::File * vorbisFile{ dynamic_cast<const TagLib::Ogg::Vorbis::File*>(&_file) })
+        else if (const TagLib::Ogg::Vorbis::File* vorbisFile{ dynamic_cast<const TagLib::Ogg::Vorbis::File*>(&_file) })
         {
             visitFLACImages(vorbisFile->tag()->pictureList(), visitor);
         }
         // Ogg Opus
-        else if (const TagLib::Ogg::Opus::File * opusFile{ dynamic_cast<TagLib::Ogg::Opus::File*>(&_file) })
+        else if (const TagLib::Ogg::Opus::File* opusFile{ dynamic_cast<TagLib::Ogg::Opus::File*>(&_file) })
         {
             visitFLACImages(opusFile->tag()->pictureList(), visitor);
         }
         // Aiff
-        else if (const TagLib::RIFF::AIFF::File * aiffFile{ dynamic_cast<TagLib::RIFF::AIFF::File*>(&_file) })
+        else if (const TagLib::RIFF::AIFF::File* aiffFile{ dynamic_cast<TagLib::RIFF::AIFF::File*>(&_file) })
         {
             if (aiffFile->hasID3v2Tag())
                 visitID3V2Images(*aiffFile->tag(), visitor);
         }
         // Wav
-        else if (const TagLib::RIFF::WAV::File * wavFile{ dynamic_cast<TagLib::RIFF::WAV::File*>(&_file) })
+        else if (const TagLib::RIFF::WAV::File* wavFile{ dynamic_cast<TagLib::RIFF::WAV::File*>(&_file) })
         {
             if (wavFile->hasID3v2Tag())
                 visitID3V2Images(*wavFile->ID3v2Tag(), visitor);

@@ -22,5 +22,5 @@ namespace lms::core::http
     // separately here: whether this request deserves another go, and whether the endpoint looks
     // down badly enough to stop sending altogether.
     RetryDecision decideAfterTransportError(std::size_t requestRetryCount, std::size_t maxRetryCount,
-        std::size_t consecutiveErrorCount, std::size_t consecutiveErrorsBeforeThrottling);
+                                            std::size_t consecutiveErrorCount, std::size_t consecutiveErrorsBeforeThrottling);
 } // namespace lms::core::http

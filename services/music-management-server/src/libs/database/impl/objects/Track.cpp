@@ -93,7 +93,7 @@ namespace lms::db
 
                 char monthDay[6];
                 std::snprintf(monthDay, sizeof(monthDay), "%02u-%02u",
-                    static_cast<unsigned>(shifted.month()), static_cast<unsigned>(shifted.day()));
+                              static_cast<unsigned>(shifted.month()), static_cast<unsigned>(shifted.day()));
                 monthDays.emplace_back(monthDay);
             }
 
@@ -1307,16 +1307,16 @@ namespace lms::db
                "WHERE id = ?")
             .bind(trackId);
     }
-    
+
     void Track::registerListen(Session& session, TrackId trackId, const Wt::WDateTime& dateTime)
     {
         auto& dbo = *session.getDboSession();
-        
+
         dbo.execute(
-            "UPDATE track SET "
-            "play_count = COALESCE(play_count, 0) + 1, "
-            "last_played = (CASE WHEN last_played IS NULL OR ? > last_played THEN ? ELSE last_played END) "
-            "WHERE id = ?")
+               "UPDATE track SET "
+               "play_count = COALESCE(play_count, 0) + 1, "
+               "last_played = (CASE WHEN last_played IS NULL OR ? > last_played THEN ? ELSE last_played END) "
+               "WHERE id = ?")
             .bind(dateTime)
             .bind(dateTime)
             .bind(trackId);

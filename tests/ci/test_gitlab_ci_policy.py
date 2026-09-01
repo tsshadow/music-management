@@ -66,7 +66,7 @@ def test_gating_jobs_always_run_on_a_release_branch():
 # job. Everything else must step aside.
 SCHEDULE_OWNED_JOBS = {
     "deps:renovate": "$RENOVATE",
-    "images:refresh-downloader": "$REFRESH_DOWNLOADER",
+    "docker:refresh-downloader": "$REFRESH_DOWNLOADER",
     "runner:disk-janitor": "$DISK_JANITOR",
 }
 
@@ -114,6 +114,55 @@ def test_the_guard_covers_every_schedule_variable():
     for variable in SCHEDULE_OWNED_JOBS.values():
         assert variable in condition, f"{variable} is not in the guard"
     assert ci[".dedicated_schedule_guard"]["rules"][0]["when"] == "never"
+
+
+# Every job is `<scope>:<what>`, where the scope answers "whose failure is
+# this?". Components first, then the concerns that belong to no single one.
+# Adding a scope here is a deliberate act: three competing schemes is how this
+# drifted the first time.
+JOB_SCOPES = {
+    # components
+    "music-management",
+    "muma-server",
+    "muma-mobile",
+    "frontend",
+    "docker",
+    "db",
+    "api",
+    # concerns
+    "quality",
+    "security",
+    "deps",
+    "runner",
+    "release",
+    "deploy",
+    "e2e",
+}
+
+
+def test_every_job_is_scoped():
+    """A red job should say whose problem it is before you open it. `contracts`
+    said nothing; `quality:cpp-format` and `quality:cpp-tidy` said "quality"
+    about jobs that only ever touch the C++ server, whose own tests answered to
+    `muma-server:`. One component, two names, neither grouping complete."""
+    ci = load_ci()
+    unscoped = [name for name in job_names(ci) if ":" not in name]
+    assert unscoped == [], f"jobs without a scope: {unscoped}"
+
+    unknown = sorted({name.split(":", 1)[0] for name in job_names(ci)} - JOB_SCOPES)
+    assert unknown == [], (
+        f"unknown job scopes: {unknown}. Add it to JOB_SCOPES only if it is a "
+        "real component or concern, not to make a one-off name pass."
+    )
+
+
+def test_a_components_jobs_share_its_scope():
+    """The C++ server is the case this exists for: formatting, static analysis
+    and tests are one component's business and belong under one prefix, so
+    `muma-server:` shows all of them and nothing else."""
+    ci = load_ci()
+    server_jobs = {name for name in job_names(ci) if name.startswith("muma-server:")}
+    assert {"muma-server:format", "muma-server:tidy", "muma-server:unit"} <= server_jobs
 
 
 def test_the_disk_janitor_stays_untagged():
@@ -512,7 +561,7 @@ def test_integration_jobs_do_not_wait_for_the_android_build():
     """muma-mobile:check ran 37 minutes on the 0.19.0 pipeline and every
     integration job sat behind it for a result none of them use."""
     ci = load_ci()
-    for name in ["db:integration", "contracts", "frontend:browser"]:
+    for name in ["db:integration", "api:contracts", "frontend:browser"]:
         needs = ci[name].get("needs")
         assert needs is not None, f"{name} still waits for the entire unit stage"
         targets = [n["job"] if isinstance(n, dict) else n for n in needs]

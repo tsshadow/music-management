@@ -73,6 +73,31 @@ stages:
   # that the jobs in it cannot gate anything. See security:dependency-audit.
   - audit
 
+# --- Job naming ---------------------------------------------------------------
+# Every job is `<scope>:<what>`, and the scope answers "whose failure is this?"
+# -- because that is the question a red pipeline actually poses. Enforced by
+# tests/ci/test_gitlab_ci_policy.py.
+#
+# A scope is a component when the job belongs to one:
+#
+#   music-management  the Python tree (manager, importer, downloader, tagger,
+#                     scanner, tools) -- named after the repository because the
+#                     job covers all of it, not just music_manager
+#   muma-server       the C++ playback server
+#   muma-mobile       the Android app
+#   frontend          the Svelte web UI
+#   docker            the images and the compose stacks
+#   db, api           the integration and contract suites, named after what
+#                     they exercise rather than what they test
+#
+# ...and a concern when it belongs to no single component:
+#
+#   quality, security, deps, runner, release, deploy, e2e
+#
+# The rule earns its keep on the C++ server: its checks were `quality:cpp-*`
+# while its tests were `muma-server:unit`, so one component answered to two
+# names and neither grouping was complete. `api:contracts` had no scope at all.
+
 # Referenced by the quality and unit jobs, which gate a production deploy via
 # stage ordering. Those jobs also have `changes:` rules, which is what keeps
 # ordinary feature pushes cheap -- but on a release/hotfix branch the last
@@ -80,7 +105,7 @@ stages:
 # `changes:` alone would skip them, and a skipped job does not block
 # deploy:prod. This rule makes them unconditional exactly where it matters.
 #
-# Deliberately NOT referenced by db:integration, contracts, docker:smoke and
+# Deliberately NOT referenced by db:integration, api:contracts, docker:smoke and
 # frontend:browser: those run unconditionally on every develop push, and a
 # release branch is develop plus a VERSION/CHANGELOG commit, so re-running them
 # on the stabilize commit would re-test an already-tested tree for ~30 minutes
@@ -202,7 +227,7 @@ quality:shellcheck:
 # This is the server's only static analysis. clang-tidy is the obvious next
 # step and is a bigger job: it needs the compilation database, so it belongs
 # with the build rather than here.
-quality:cpp-format:
+muma-server:format:
   stage: quality
   timeout: 10m
   retry: !reference [.infra_retry, retry]
@@ -219,14 +244,14 @@ quality:cpp-format:
     - ./scripts/test/muma-server-format.sh
 
 # clang-tidy over the same sources. Its own job rather than a step in
-# quality:cpp-format, which answers in under a minute: this one configures cmake
+# muma-server:format, which answers in under a minute: this one configures cmake
 # and analyses 307 translation units, and took ~10 minutes at -j16 when it was
 # wired. Keeping them apart means a misplaced brace is still reported fast.
 #
 # Findings are baselined (1540 of them on day one), so this is green today and
 # red on anything new -- the contract detekt, Android Lint and semgrep already
 # have here. The baseline names the checks worth burning down first.
-quality:cpp-tidy:
+muma-server:tidy:
   stage: quality
   timeout: 30m
   retry: !reference [.infra_retry, retry]
@@ -349,7 +374,13 @@ security:sast:
 # live in security/gitleaks.toml, per-finding ones in .gitleaksignore.
 security:secret-scan:
   stage: quality
-  timeout: 15m
+  # 30m, not 15m. A merge request now scans only its own commits and finishes
+  # in seconds (see scripts/ci/secret-scan.sh), but develop, master, release
+  # branches and the schedule still scan the whole history -- and that crossed
+  # 20 minutes on 2026-09-01, when four whole-tree reformats landed inside the
+  # runner's 20-commit shallow clone. It failed a release branch for a reason
+  # that had nothing to do with the release.
+  timeout: 30m
   retry: !reference [.infra_retry, retry]
   # gitleaks runs as a container; nothing is needed on the host.
   tags: !reference [.fast_runner, tags]
@@ -380,7 +411,7 @@ security:secret-scan:
 # Scheduled only, guarded by $RENOVATE so that an ordinary push can never start
 # a bot that opens merge requests, and by $RENOVATE_TOKEN so the job disappears
 # instead of failing on an instance where the token was never configured -- the
-# same shape as images:refresh-downloader. The schedule wants RENOVATE=true and
+# same shape as docker:refresh-downloader. The schedule wants RENOVATE=true and
 # should sit shortly before the `before 6am on monday` window in renovate.json;
 # Renovate itself honours that window, so a schedule that fires outside it
 # simply finds nothing to do.
@@ -625,7 +656,7 @@ db:integration:
 # always run on the default branch, and on any merge request that touches
 # something the test stack itself depends on.
 
-contracts:
+api:contracts:
   stage: integration
   timeout: 30m
   retry: !reference [.infra_retry, retry]
@@ -841,7 +872,7 @@ release:build-images:
 # Runs only from a GitLab schedule with REFRESH_DOWNLOADER set, and only on
 # master, so the image published as :latest is built from the commit production
 # is already running. It does not deploy: Watchtower pulls :latest on the host.
-images:refresh-downloader:
+docker:refresh-downloader:
   stage: release
   timeout: 60m
   interruptible: false

@@ -78,8 +78,13 @@
 - Formatting: `./scripts/test/muma-server-format.sh` (`quality:cpp-format`), clang-format pinned
   to 20.1.8 via `silkeh/clang:20` — the version matters, releases disagree about output.
   `--fix` rewrites in place. `ColumnLimit: 0` in `.clang-format` means lines are never reflowed
-- No other static analysis. clang-tidy has a config (`.clang-tidy`) that nothing runs; it needs
-  the compilation database, so it belongs with the build rather than in a quality job
+- Static analysis: `./scripts/test/muma-server-tidy.sh` (`quality:cpp-tidy`) runs clang-tidy
+  against the repo's own `.clang-tidy`. It configures cmake with
+  `CMAKE_EXPORT_COMPILE_COMMANDS=ON` and `UNITY_BUILD=OFF` (the shipped images merge
+  translation units, which would make clang-tidy report against files that do not exist),
+  then compares the result to `security/accepted-clang-tidy-findings.txt`.
+  `--write-baseline` accepts the current state. ~10 minutes at `-j16` over 307 translation
+  units, so it is `changes:`-gated on the server sources
 - Test: `./scripts/test/muma-server-unit.sh` builds and runs the CTest/GTest suite inside
   `Dockerfile-build-alpine` and extracts coverage
 

@@ -218,6 +218,34 @@ quality:cpp-format:
   script:
     - ./scripts/test/muma-server-format.sh
 
+# clang-tidy over the same sources. Its own job rather than a step in
+# quality:cpp-format, which answers in under a minute: this one configures cmake
+# and analyses 307 translation units, and took ~10 minutes at -j16 when it was
+# wired. Keeping them apart means a misplaced brace is still reported fast.
+#
+# Findings are baselined (1540 of them on day one), so this is green today and
+# red on anything new -- the contract detekt, Android Lint and semgrep already
+# have here. The baseline names the checks worth burning down first.
+quality:cpp-tidy:
+  stage: quality
+  timeout: 30m
+  retry: !reference [.infra_retry, retry]
+  tags: !reference [.fast_runner, tags]
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.release_rule, rules]
+    - changes:
+        - services/music-management-server/src/**/*
+        - services/music-management-server/CMakeLists.txt
+        - services/music-management-server/.clang-tidy
+        - security/accepted-clang-tidy-findings.txt
+        - docker/Dockerfile-cpp-tidy
+        - scripts/test/muma-server-tidy.sh
+        - scripts/ci/clang_tidy_baseline.py
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/test/muma-server-tidy.sh
+
 # Type checking, rolled out per module. pyproject.toml holds a loose floor for
 # the whole tree plus a list of modules checked strictly; scripts/typecheck.sh
 # runs that list. The list only ever grows -- cleaning a module up means fixing

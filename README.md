@@ -227,6 +227,12 @@ pipeline, matching the branch model `feature/*` → `develop` → `release/x.y.z
 
 ### Which job runs when
 
+Every job is named `<scope>:<what>`, where the scope answers *whose failure is this?* —
+a component (`music-management`, `muma-server`, `muma-mobile`, `frontend`, `docker`,
+`db`, `api`) or a concern that belongs to no single one (`quality`, `security`, `deps`,
+`runner`, `release`, `deploy`, `e2e`). So `muma-server:` shows everything the C++ server
+gates on and nothing else. A policy test enforces it.
+
 **Test jobs** — these only start when something they care about actually changed, so an
 MuMa Mobile-only change doesn't wait on the C++ or frontend suites:
 
@@ -234,9 +240,11 @@ MuMa Mobile-only change doesn't wait on the C++ or frontend suites:
 | --- | --- | --- |
 | `music-management:unit` | the Python services changed | Unit tests for music-manager, importer, downloader, tagger, scanner and shared code. Reports coverage. |
 | `muma-server:unit` | the playback server (C++) changed | Builds and runs the LMS test suite. Reports coverage. |
+| `muma-server:format` | the server sources changed | clang-format check, pinned to one clang version. Fix with `./scripts/test/muma-server-format.sh --fix`. |
+| `muma-server:tidy` | the server sources changed | clang-tidy over 307 translation units against a baseline of accepted findings. ~10 minutes, so it is deliberately not on every pipeline. |
 | `frontend:unit` | the Svelte frontend changed | Lint + typecheck of the frontend. Reports coverage. |
 | `muma-mobile:check` | the Android app changed | MuMa Mobile unit tests with coverage. |
-| `contracts` | always on `develop`; elsewhere only if the server, music-manager or the test stack changed | Starts the real test stack and verifies the Subsonic/OpenSubsonic API still behaves as the mobile clients expect. |
+| `api:contracts` | always on `develop`; elsewhere only if the server, music-manager or the test stack changed | Starts the real test stack and verifies the Subsonic/OpenSubsonic API still behaves as the mobile clients expect. |
 | `frontend:browser` | always on `develop`; elsewhere only if the frontend or test stack changed | Real browser (Playwright) run against a live stack: import a track, scan it, click through the UI. Screenshots/traces are kept for 14 days. |
 
 **Release jobs** — these only exist on a `release/*` branch, and they run in order so the

@@ -2,15 +2,15 @@
 # scripts/ci/build-and-push-images.sh
 #
 # Builds and pushes ALL Docker images that production actually pulls, from CI,
-# on a release/* branch, *before* deploy:prod runs. This closes the gap that
-# caused deploy:prod to only ever "docker compose pull" whatever image was
+# on a release/* branch, *before* muma:deploy runs. This closes the gap that
+# caused muma:deploy to only ever "docker compose pull" whatever image was
 # last pushed manually (often stale/old) - see docs/release-management.md and
 # CHANGELOG.md 0.0.2 for the full story.
 #
 # NOTE: this originally only covered music-manager/lms (bullets 1-2 below).
 # See docs/bug-reports/007-telegram-session-schema-mismatch.md: a fix to the
 # telegram worker's Dockerfile/dependencies went through a full green
-# release/deploy:prod pipeline but never actually reached production, because
+# release/muma:deploy pipeline but never actually reached production, because
 # nothing in CI ever rebuilt+pushed the muma-telegram (or muma-downloader/
 # muma-importer/muma-tools/muma-base) images - "docker compose pull" just kept
 # re-pulling the same old manually-pushed ":latest" tag. Bullets 3-6 close
@@ -40,15 +40,15 @@
 #
 # Required CI/CD variables (see docs/deployment.md):
 #   - DOCKERHUB_USERNAME, DOCKERHUB_TOKEN: Docker Hub login used to push.
-#   - PROD_ENV_FILE, PROD_ENV_FILE_LMS: same file-type variables deploy:prod
+#   - PROD_ENV_FILE, PROD_ENV_FILE_LMS: same file-type variables muma:deploy
 #     already uses, needed here too so IMAGE_CORE/IMAGE_NAME/IMAGE_* resolve
 #     to the exact same values docker-compose.yml will pull on the
 #     production host.
 #
 # This job is gated in .gitlab-ci.yml on DOCKERHUB_USERNAME/DOCKERHUB_TOKEN
-# being present, but since it runs before deploy:prod (same "release" stage,
+# being present, but since it runs before muma:deploy (same "release" stage,
 # earlier than the "deploy" stage), a missing/failed build here blocks
-# deploy:prod from ever running against a stale image.
+# muma:deploy from ever running against a stale image.
 
 set -e
 
@@ -58,7 +58,7 @@ cd "$PROJECT_ROOT"
 
 # PUSH_IMAGES=false builds every image and pushes none of it.
 #
-# That mode exists for the docker:build-images job, which runs on merge requests
+# That mode exists for the muma:images job, which runs on merge requests
 # that touch a Dockerfile. Until it existed, a Dockerfile-only change ran no job
 # that built anything: five of the seven images below (base, downloader,
 # telegram, importer, tools) are not in docker/compose.test.yml either, so the
@@ -73,7 +73,7 @@ PUSH_IMAGES="${PUSH_IMAGES:-true}"
 # The throwaway namespace a no-push run builds under.
 #
 # It used to be the fixed string "muma-ci", which meant every concurrent
-# docker:build-images job wrote the same tags into the one image store the
+# muma:images job wrote the same tags into the one image store the
 # runner has. Seen on pipeline 2074 (2026-08-31, six pipelines at once): the job
 # built muma-ci/muma-base:0.39.0, used it for the downloader image, and 80
 # seconds later failed on the telegram image with
@@ -128,7 +128,7 @@ if [ "$PUSH_IMAGES" = "true" ] && { [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKE
 fi
 
 # Materialize the .env files from the same file-type CI/CD variables
-# deploy:prod uses, so IMAGE_CORE/DOCKER_USER/IMAGE_NAME/LMS_TAG match exactly
+# muma:deploy uses, so IMAGE_CORE/DOCKER_USER/IMAGE_NAME/LMS_TAG match exactly
 # what production will pull (jobs don't share a filesystem, so this has to be
 # redone here rather than relying on what ci-deploy.sh writes in a later job).
 write_env_file() {
@@ -296,7 +296,7 @@ docker_push "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}"
 # In no-push mode, untag the per-version aliases before exiting. Every tag
 # above points at the same image id as its :latest sibling, so this removes
 # no layers and costs the next build nothing -- but without it every
-# merge-request run of docker:build-images left a :${VERSION} tag behind, and
+# merge-request run of muma:images left a :${VERSION} tag behind, and
 # each release bump orphaned the previous version's set on the runner's disk.
 # The :latest tags stay: they are overwritten in place on the next run and are
 # what keeps the build cache warm. (The runner LXC has filled up before; see

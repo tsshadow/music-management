@@ -1,7 +1,7 @@
 #!/bin/bash
 # scripts/ci/release-version-check.sh
 #
-# Gates deploy:prod on a release/* or hotfix/* branch: fails the pipeline
+# Gates muma:deploy on a release/* or hotfix/* branch: fails the pipeline
 # (before any production deploy or official MuMa Mobile upload happens) if the
 # stabilization work required by docs/release-management.md wasn't actually
 # done. Every check is measured against the branch this one was cut from -

@@ -32,7 +32,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Standalone invocation (the deploy:smoke job) has no agent yet; being called
+# Standalone invocation (the muma:verify job) has no agent yet; being called
 # from ci-deploy.sh it already does, and re-running the setup would pointlessly
 # start a second one.
 if [ -z "${REMOTE_HOST}" ]; then

@@ -4,14 +4,14 @@
 # Refuses to tag a release that never reached production.
 #
 # Release 0.19.0 is why this exists. muma-mobile:check failed on the release
-# branch, so release:build-images, muma-mobile:build-release and deploy:prod
+# branch, so release:build-images, mobile:build-release and muma:deploy
 # were all reported as *skipped* - and a skipped job blocks nothing. The merge
 # to master went through, release:tag and release:back-merge-develop ran
 # happily from the master pipeline, and every signal in GitLab said 0.19.0 had
 # shipped while production sat on 0.18.2 for a day.
 #
 # The post-deploy gate (scripts/ci/post-deploy-verify.sh) cannot catch that
-# one: it runs inside deploy:prod, and deploy:prod is exactly the job that
+# one: it runs inside muma:deploy, and muma:deploy is exactly the job that
 # never ran. This check is the other half - it asks production what it is
 # serving and compares that against the VERSION being tagged.
 #
@@ -42,9 +42,9 @@ fi
 if [ "$version" != "$EXPECTED_VERSION" ]; then
     echo "Error: refusing to tag ${EXPECTED_VERSION} - production is serving ${version}."
     echo
-    echo "This means the release branch's deploy:prod did not run, or did not"
+    echo "This means the release branch's muma:deploy did not run, or did not"
     echo "succeed. A skipped job blocks nothing in GitLab, so check the release"
-    echo "branch pipeline for a *skipped* deploy:prod before re-running this."
+    echo "branch pipeline for a *skipped* muma:deploy before re-running this."
     echo
     echo "Two things follow from this job failing, for whoever picks it up:"
     echo

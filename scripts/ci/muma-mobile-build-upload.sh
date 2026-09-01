@@ -37,9 +37,9 @@ fi
 # token it produces has the same audience the backend already verifies against - no separate
 # Android OAuth client/SHA-1 registration or extra CI/CD variable is needed. GOOGLE_CLIENT_ID
 # itself isn't a plain CI/CD variable but a key inside the PROD_ENV_FILE file-type variable
-# (same one release:build-images/deploy:prod already require), so extract it from there.
+# (same one release:build-images/muma:deploy already require), so extract it from there.
 # NOTE: PROD_ENV_FILE may not be available/set for a debug build on develop (only APK_HOSTER_URL
-# is required by .gitlab-ci.yml's muma-mobile:build-debug rule) - fall back to the app's own
+# is required by .gitlab-ci.yml's mobile:build-debug rule) - fall back to the app's own
 # "placeholder-id" default in that case rather than failing the build.
 if [ -n "$PROD_ENV_FILE" ] && [ -f "$PROD_ENV_FILE" ]; then
     GOOGLE_WEB_CLIENT_ID=$(grep -E '^GOOGLE_CLIENT_ID=' "$PROD_ENV_FILE" | tail -n1 | cut -d= -f2- | xargs)

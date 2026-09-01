@@ -4,7 +4,7 @@
 
 # reported problem
 After release 0.0.52 the Genre Curation page in the management UI returned an error in production,
-while every job in the release pipeline had been green and `deploy:prod` reported success.
+while every job in the release pipeline had been green and `muma:deploy` reported success.
 
 # Possible reason
 `.gitignore` line 5 is `*.sql`. The migration written for the genre curation states,
@@ -64,7 +64,7 @@ unique index, and the ignore list, backlog and corrections were not folded in. T
 worked again, while previously-ignored genres were no longer dropped, and `record_unknown` lost the
 unique key it relies on to count sightings instead of inserting a new row each time.
 
-**Worse, `deploy:prod` reported success.** The remote migration command ended with `rm
+**Worse, `muma:deploy` reported success.** The remote migration command ended with `rm
 /tmp/migration.sql`, so the shell returned *that* status and the failed `mysql` was masked.
 
 Both are fixed on `release/0.0.53`:
@@ -83,7 +83,7 @@ state recovers to the same end state.
 
 # Follow-up 2: what the honest exit status revealed
 
-The very next release failed at `deploy:prod` — correctly this time:
+The very next release failed at `muma:deploy` — correctly this time:
 
 ```
 ERROR 1062 (23000) at line 89: Duplicate entry 'acidcore melodic' for key 'name'

@@ -10,7 +10,7 @@
 # It ran manually for a while on the assumption that a full stack is expensive.
 # Measured, it is about 35 seconds: three containers over an empty database and
 # a single fixture track, with the image build the largest part of it. So
-# e2e:scan-to-listen runs on every pipeline and gates.
+# muma:e2e runs on every pipeline and gates.
 #
 # The chain is written as Gherkin -- tests/bdd/features/scan_to_listen.feature,
 # with pytest-bdd steps under it. It was piloted next to a plain pytest function

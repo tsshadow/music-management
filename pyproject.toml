@@ -60,8 +60,8 @@ ignore = [
 known-first-party = ["services", "tools"]
 
 [tool.ruff.format]
-# Not enforced in CI yet: a repository-wide reformat would rewrite almost every
-# file at once. `./scripts/format.sh` applies it opt-in, per directory.
+# Enforced by scripts/lint.sh since the whole-tree reformat. Was deferred while
+# a repo-wide rewrite would have conflicted with every open branch.
 quote-style = "preserve"
 
 [tool.mypy]

@@ -11,6 +11,21 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.40.1 (2026-09-01)
+
+Een correctie op 0.40.0. Aan de app verandert niets.
+
+- **De wekelijkse controle die bewijst dat een backup terug te zetten is, kon zelf niet starten.**
+  Drie losse oorzaken, alle drie gevonden door de controle met de hand te draaien in plaats van tot
+  zondagnacht te wachten: hij kreeg een startbestand mee dat naar een dienst verwees die er niet in
+  stond, hij weigerde de map te lezen die hij bewust alleen-lezen krijgt, en hij had beheerdersrechten
+  nodig voor twee onderdelen van de database. Alle drie zijn verholpen en de controle is daarna van
+  begin tot eind gedraaid: 70 tabellen en bijna 16 miljoen rijen teruggezet en gecontroleerd.
+- **De controle op gelekte wachtwoorden was zo traag geworden dat hij releases blokkeerde.** Hij
+  doorzocht bij elke run 3,9 GB aan oude crashbestanden die al lang niet meer in het project zitten
+  maar wel in de geschiedenis. Die worden nu overgeslagen — nadat ze zijn nagekeken en schoon bleken —
+  en de controle duurt 30 seconden in plaats van 14 minuten.
+
 ## Global Version 0.39.0 (2026-08-31)
 
 - **Een crash in de app kan nu automatisch onderzocht worden.** Stuur je vanuit de app een

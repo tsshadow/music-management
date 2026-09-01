@@ -2,9 +2,9 @@
 
 package nl.teunschriks.mumamobile.domain
 
+import nl.teunschriks.mumamobile.api.subsonic.models.JukeboxStatus
 import org.amshove.kluent.`should be equal to`
 import org.junit.Test
-import nl.teunschriks.mumamobile.api.subsonic.models.JukeboxStatus
 
 /**
  * Unit test for functions in [APIJukeboxConverter.kt] file.

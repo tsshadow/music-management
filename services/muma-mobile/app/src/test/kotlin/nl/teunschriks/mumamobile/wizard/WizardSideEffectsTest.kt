@@ -110,7 +110,9 @@ class WizardSideEffectsTest {
             override fun getBoolean(key: String, default: Boolean) = default
             override fun putBoolean(key: String, value: Boolean) = Unit
             override fun getString(key: String, default: String) = strings[key] ?: default
-            override fun putString(key: String, value: String) { strings[key] = value }
+            override fun putString(key: String, value: String) {
+                strings[key] = value
+            }
         }
         val adapter = WizardPagerAdapter(
             steps = listOf(

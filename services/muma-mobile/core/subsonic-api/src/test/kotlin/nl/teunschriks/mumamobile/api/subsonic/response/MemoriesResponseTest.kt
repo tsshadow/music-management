@@ -1,7 +1,7 @@
 package nl.teunschriks.mumamobile.api.subsonic.response
 
-import org.amshove.kluent.`should be equal to`
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
+import org.amshove.kluent.`should be equal to`
 import org.junit.Test
 
 /**

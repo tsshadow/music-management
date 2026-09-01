@@ -45,8 +45,12 @@ class MumaAPIClientAuthHeaderTest {
 
     @Test
     fun `should not send the api key when logging in`() {
-        server.enqueue(MockResponse().setBody("""{"id":1,"username":"user","display_name":"Teun",
-            "is_admin":true,"api_key":"k"}"""))
+        server.enqueue(
+            MockResponse().setBody(
+                """{"id":1,"username":"user","display_name":"Teun",
+            "is_admin":true,"api_key":"k"}"""
+            )
+        )
 
         client.api.login(LoginRequest("user", "pw")).execute()
 

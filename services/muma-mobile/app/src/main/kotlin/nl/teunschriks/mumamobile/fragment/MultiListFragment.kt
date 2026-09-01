@@ -22,22 +22,22 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.simplecityapps.recyclerview_fastscroll.views.FastScrollRecyclerView
-import org.koin.android.ext.android.inject
-import org.koin.androidx.scope.ScopeFragment
-import org.koin.androidx.viewmodel.ext.android.viewModel
+import io.reactivex.rxjava3.disposables.CompositeDisposable
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.adapters.BaseAdapter
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.Identifiable
 import nl.teunschriks.mumamobile.model.GenericListModel
 import nl.teunschriks.mumamobile.model.ServerSettingsModel
-import nl.teunschriks.mumamobile.subsonic.ImageLoaderProvider
-import io.reactivex.rxjava3.disposables.CompositeDisposable
 import nl.teunschriks.mumamobile.service.RxBus
 import nl.teunschriks.mumamobile.service.plusAssign
+import nl.teunschriks.mumamobile.subsonic.ImageLoaderProvider
 import nl.teunschriks.mumamobile.util.RefreshableFragment
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.themeColor
+import org.koin.android.ext.android.inject
+import org.koin.androidx.scope.ScopeFragment
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 /**
  * An abstract Model, which can be extended to display a list of items of type T from the API

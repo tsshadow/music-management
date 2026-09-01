@@ -26,8 +26,8 @@ import nl.teunschriks.mumamobile.voice.MusicServiceVocabulary
 import nl.teunschriks.mumamobile.voice.ParsedQuery
 import nl.teunschriks.mumamobile.voice.QueryResolution
 import nl.teunschriks.mumamobile.voice.QueryResolver
-import nl.teunschriks.mumamobile.voice.Target
 import nl.teunschriks.mumamobile.voice.QueryTrace
+import nl.teunschriks.mumamobile.voice.Target
 import nl.teunschriks.mumamobile.voice.VoiceEntryPoint
 import nl.teunschriks.mumamobile.voice.VoiceQuery
 import nl.teunschriks.mumamobile.voice.VoiceTraceLog

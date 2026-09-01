@@ -3,12 +3,12 @@ package nl.teunschriks.mumamobile.fragment
 import android.view.View
 import android.widget.Spinner
 import androidx.appcompat.app.AppCompatActivity
-import org.amshove.kluent.`should be equal to`
-import org.junit.Test
-import org.junit.runner.RunWith
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.home.BrowseCategory
 import nl.teunschriks.mumamobile.util.Settings
+import org.amshove.kluent.`should be equal to`
+import org.junit.Test
+import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config

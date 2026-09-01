@@ -2,9 +2,9 @@
 
 package nl.teunschriks.mumamobile.domain
 
+import nl.teunschriks.mumamobile.api.subsonic.models.ChatMessage
 import org.amshove.kluent.`should be equal to`
 import org.junit.Test
-import nl.teunschriks.mumamobile.api.subsonic.models.ChatMessage
 
 /**
  * Unit test for functions converting api [ChatMessage] to domain entity.

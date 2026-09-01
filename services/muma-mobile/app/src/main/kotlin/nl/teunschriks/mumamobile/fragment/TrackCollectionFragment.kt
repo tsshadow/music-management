@@ -19,36 +19,27 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.viewModelScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
-import com.google.gson.Gson
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.koin.android.ext.android.inject
 import nl.teunschriks.mumamobile.NavigationGraphDirections
-import android.widget.TextView
-import com.google.android.material.floatingactionbutton.FloatingActionButton
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.adapters.AlbumHeader
 import nl.teunschriks.mumamobile.adapters.AlbumRowDelegate
 import nl.teunschriks.mumamobile.adapters.HeaderViewBinder
 import nl.teunschriks.mumamobile.adapters.TrackViewBinder
-import nl.teunschriks.mumamobile.api.subsonic.models.Filter
-import nl.teunschriks.mumamobile.api.subsonic.models.Filters
-import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.isOffline
 import nl.teunschriks.mumamobile.domain.Identifiable
-import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.MusicDirectoryEntry
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.fragment.FragmentTitle.setTitle
 import nl.teunschriks.mumamobile.home.PlaybackSourceFactory
 import nl.teunschriks.mumamobile.home.PlaybackSourceHolder
-import nl.teunschriks.mumamobile.fragment.FragmentTitle.setTitle
 import nl.teunschriks.mumamobile.model.TrackCollectionModel
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.service.RxBus
@@ -63,11 +54,11 @@ import nl.teunschriks.mumamobile.util.EntryByDiscAndTrackComparator
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Util.navigateToCurrent
 import nl.teunschriks.mumamobile.util.Util.toast
-import nl.teunschriks.mumamobile.util.toastingExceptionHandler
 import nl.teunschriks.mumamobile.view.FilterButtonBar
 import nl.teunschriks.mumamobile.view.SortOrder
 import nl.teunschriks.mumamobile.view.TrackSortMethods
 import nl.teunschriks.mumamobile.view.ViewCapabilities
+import org.koin.android.ext.android.inject
 import timber.log.Timber
 
 /**
@@ -199,7 +190,6 @@ open class TrackCollectionFragment :
         listModel.title.observe(viewLifecycleOwner) {
             setTitle(it)
         }
-
 
         listModel.isLoading.observe(viewLifecycleOwner) {
             swipeRefresh?.isRefreshing = it
@@ -670,6 +660,5 @@ open class TrackCollectionFragment :
      * Offline the tracks come from the cache instead of a query, and none of these orders reach it,
      * so there is nothing to offer.
      */
-    private fun getListOfSortOrders(): List<SortOrder> =
-        if (isOffline()) emptyList() else TrackSortMethods.SUPPORTED
+    private fun getListOfSortOrders(): List<SortOrder> = if (isOffline()) emptyList() else TrackSortMethods.SUPPORTED
 }

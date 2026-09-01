@@ -2,9 +2,9 @@
 
 package nl.teunschriks.mumamobile.domain
 
+import nl.teunschriks.mumamobile.api.subsonic.models.PodcastChannel
 import org.amshove.kluent.`should be equal to`
 import org.junit.Test
-import nl.teunschriks.mumamobile.api.subsonic.models.PodcastChannel
 
 /**
  * Unit test for extension functions in APIPodcastConverter.kt file.

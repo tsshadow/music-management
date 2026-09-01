@@ -4,11 +4,11 @@ import com.fasterxml.jackson.databind.JavaType
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.ObjectReader
 import java.lang.reflect.Type
+import nl.teunschriks.mumamobile.api.subsonic.response.SubsonicResponse
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import okhttp3.ResponseBody.Companion.toResponseBody
-import nl.teunschriks.mumamobile.api.subsonic.response.SubsonicResponse
 import retrofit2.Converter
 import retrofit2.Retrofit
 import retrofit2.converter.jackson.JacksonConverterFactory

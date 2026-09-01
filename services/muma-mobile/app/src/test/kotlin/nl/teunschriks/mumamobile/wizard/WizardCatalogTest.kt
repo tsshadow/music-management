@@ -5,6 +5,7 @@ import androidx.preference.ListPreference
 import androidx.preference.PreferenceGroup
 import androidx.preference.PreferenceManager
 import androidx.preference.PreferenceScreen
+import nl.teunschriks.mumamobile.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -13,7 +14,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
-import nl.teunschriks.mumamobile.R
 
 /**
  * The wizard writes preference keys directly. If one of them is renamed in res/xml/settings.xml
@@ -34,11 +34,10 @@ class WizardCatalogTest {
 
     private fun settingsKeys(): Set<String> = settingsPreferences().mapNotNull { it.key }.toSet()
 
-    private fun flatten(group: PreferenceGroup): List<androidx.preference.Preference> =
-        (0 until group.preferenceCount).flatMap {
-            val child = group.getPreference(it)
-            if (child is PreferenceGroup) listOf(child) + flatten(child) else listOf(child)
-        }
+    private fun flatten(group: PreferenceGroup): List<androidx.preference.Preference> = (0 until group.preferenceCount).flatMap {
+        val child = group.getPreference(it)
+        if (child is PreferenceGroup) listOf(child) + flatten(child) else listOf(child)
+    }
 
     @Test
     fun `every key the wizard writes exists on the settings screen`() {

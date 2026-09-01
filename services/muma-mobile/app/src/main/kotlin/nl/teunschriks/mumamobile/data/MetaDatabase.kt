@@ -73,16 +73,14 @@ class Converters {
     // R8 in full mode can merge away the generic superclass of such anonymous classes, after
     // which TypeToken.getType() throws "... isn't parameterized" in release builds only.
     @TypeConverter
-    fun toStringList(data: String?): List<String>? =
-        Gson().fromJson(data, Array<String>::class.java)?.toList()
+    fun toStringList(data: String?): List<String>? = Gson().fromJson(data, Array<String>::class.java)?.toList()
 
     @TypeConverter
     fun fromArtistRefList(list: List<TrackArtistRef>?): String? = Gson().toJson(list)
 
     // Deserialize via Array<TrackArtistRef>::class.java for the same R8 reason as toStringList.
     @TypeConverter
-    fun toArtistRefList(data: String?): List<TrackArtistRef>? =
-        Gson().fromJson(data, Array<TrackArtistRef>::class.java)?.toList()
+    fun toArtistRefList(data: String?): List<TrackArtistRef>? = Gson().fromJson(data, Array<TrackArtistRef>::class.java)?.toList()
 }
 
 val META_MIGRATION_2_3: Migration = object : Migration(2, 3) {

@@ -1,10 +1,10 @@
 package nl.teunschriks.mumamobile.util
 
+import nl.teunschriks.mumamobile.R
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.`should contain`
 import org.junit.Test
 import org.junit.runner.RunWith
-import nl.teunschriks.mumamobile.R
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config

@@ -19,9 +19,8 @@ class AppIconVariantTest {
 
     private val context: Context get() = RuntimeEnvironment.getApplication()
 
-    private fun enabled(variant: AppIconVariant): Boolean =
-        context.packageManager.getComponentEnabledSetting(variant.componentName(context)) ==
-            PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+    private fun enabled(variant: AppIconVariant): Boolean = context.packageManager.getComponentEnabledSetting(variant.componentName(context)) ==
+        PackageManager.COMPONENT_ENABLED_STATE_ENABLED
 
     @Test
     fun `selecting blue enables only the blue alias`() {

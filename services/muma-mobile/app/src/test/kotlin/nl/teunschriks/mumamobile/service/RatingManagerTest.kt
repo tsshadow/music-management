@@ -10,9 +10,9 @@ package nl.teunschriks.mumamobile.service
 import androidx.media3.common.StarRating
 import io.mockk.mockk
 import io.mockk.verify
+import nl.teunschriks.mumamobile.data.RatingUpdate
 import org.junit.Test
 import org.junit.runner.RunWith
-import nl.teunschriks.mumamobile.data.RatingUpdate
 import org.robolectric.RobolectricTestRunner
 
 /**

@@ -96,16 +96,12 @@ abstract class JukeboxUnimplementedFunctions : Player {
         TODO("Not yet implemented")
     }
 
-    override fun hasPreviousMediaItem(): Boolean {
-        return false
-    }
+    override fun hasPreviousMediaItem(): Boolean = false
 
     override fun seekToPreviousMediaItem() {
     }
 
-    override fun hasNextMediaItem(): Boolean {
-        return false
-    }
+    override fun hasNextMediaItem(): Boolean = false
 
     override fun seekToNextMediaItem() {
     }

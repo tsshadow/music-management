@@ -8,9 +8,8 @@ package nl.teunschriks.mumamobile.service
 
 import java.io.IOException
 import java.io.InputStream
-import okhttp3.Protocol
-import okhttp3.Response
-import okhttp3.ResponseBody.Companion.toResponseBody
+import nl.teunschriks.mumamobile.api.muma.LoginRequest
+import nl.teunschriks.mumamobile.api.muma.MumaTile as MumaApiTile
 import nl.teunschriks.mumamobile.api.subsonic.ApiNotSupportedException
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType
@@ -29,8 +28,8 @@ import nl.teunschriks.mumamobile.domain.Index
 import nl.teunschriks.mumamobile.domain.JukeboxStatus
 import nl.teunschriks.mumamobile.domain.Label
 import nl.teunschriks.mumamobile.domain.Lineup
-import nl.teunschriks.mumamobile.domain.MemoryGroup
 import nl.teunschriks.mumamobile.domain.Lyrics
+import nl.teunschriks.mumamobile.domain.MemoryGroup
 import nl.teunschriks.mumamobile.domain.Mood
 import nl.teunschriks.mumamobile.domain.MumaTile
 import nl.teunschriks.mumamobile.domain.MusicDirectory
@@ -51,10 +50,11 @@ import nl.teunschriks.mumamobile.domain.toDomainEntityList
 import nl.teunschriks.mumamobile.domain.toIndexList
 import nl.teunschriks.mumamobile.domain.toMusicDirectoryDomainEntity
 import nl.teunschriks.mumamobile.domain.toTrackEntity
-import nl.teunschriks.mumamobile.api.muma.MumaTile as MumaApiTile
-import nl.teunschriks.mumamobile.api.muma.LoginRequest
 import nl.teunschriks.mumamobile.util.FileUtil
 import nl.teunschriks.mumamobile.util.Settings
+import okhttp3.Protocol
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import timber.log.Timber
 
 /**
@@ -837,8 +837,10 @@ open class RESTMusicService(
     @Throws(Exception::class)
     private fun ensureMumaLogin(force: Boolean = false) {
         val activeServer = activeServerProvider.getActiveServer()
-        if (!force && !activeServer.apiKey.isNullOrEmpty() &&
-            activeServer.mumaUserId != null && activeServer.mumaUserId != -1
+        if (!force &&
+            !activeServer.apiKey.isNullOrEmpty() &&
+            activeServer.mumaUserId != null &&
+            activeServer.mumaUserId != -1
         ) {
             subsonicAPIClient.mumaApi.setApiKey(activeServer.apiKey!!)
             return

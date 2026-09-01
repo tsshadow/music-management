@@ -58,8 +58,11 @@ class CardListCache(
             // Belt and braces against the failure above ever returning in another shape: an entry
             // that did not deserialize into real cards is a miss, not something to hand to an
             // adapter that will cast it.
-            if (cards.any { it !is HomeCard }) null
-            else Snapshot(cards, preferences.getLong(timeKeyFor(slot), 0L))
+            if (cards.any { it !is HomeCard }) {
+                null
+            } else {
+                Snapshot(cards, preferences.getLong(timeKeyFor(slot), 0L))
+            }
         }
     } catch (_: Exception) {
         // A corrupt or half-written entry -- including one written by the version that stored a

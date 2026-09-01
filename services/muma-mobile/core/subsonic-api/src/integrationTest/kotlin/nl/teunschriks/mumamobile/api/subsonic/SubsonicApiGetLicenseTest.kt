@@ -1,9 +1,9 @@
 package nl.teunschriks.mumamobile.api.subsonic
 
+import nl.teunschriks.mumamobile.api.subsonic.models.License
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.`should not be`
 import org.junit.Test
-import nl.teunschriks.mumamobile.api.subsonic.models.License
 
 /**
  * Integration test [SubsonicAPIClient] for getLicense() request.

@@ -1,10 +1,10 @@
 package nl.teunschriks.mumamobile.api.subsonic
 
-import org.amshove.kluent.`should be equal to`
-import org.junit.Test
 import nl.teunschriks.mumamobile.api.subsonic.models.Album
 import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType
 import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType.STARRED
+import org.amshove.kluent.`should be equal to`
+import org.junit.Test
 
 /**
  * Integration test for [SubsonicAPIClient] for getAlbumList2() call.

@@ -1,9 +1,9 @@
 package nl.teunschriks.mumamobile.fragment
 
-import org.amshove.kluent.`should be equal to`
-import org.junit.Test
 import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType
 import nl.teunschriks.mumamobile.view.SortOrder
+import org.amshove.kluent.`should be equal to`
+import org.junit.Test
 
 class AlbumSortOrderTest {
 

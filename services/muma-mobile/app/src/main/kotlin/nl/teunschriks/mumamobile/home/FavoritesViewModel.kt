@@ -85,9 +85,8 @@ class FavoritesViewModel : ViewModel() {
         ).getTracks()
     }
 
-    private fun section(titleRes: Int, cards: () -> List<HomeCard>): HomeSection? =
-        cards().takeIf { it.isNotEmpty() }
-            ?.let { HomeSection(titleRes, CardStyle.CAROUSEL, it) }
+    private fun section(titleRes: Int, cards: () -> List<HomeCard>): HomeSection? = cards().takeIf { it.isNotEmpty() }
+        ?.let { HomeSection(titleRes, CardStyle.CAROUSEL, it) }
 
     private companion object {
         const val MIN_RATING = 4

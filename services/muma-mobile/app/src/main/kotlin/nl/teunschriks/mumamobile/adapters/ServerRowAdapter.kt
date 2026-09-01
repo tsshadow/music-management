@@ -58,7 +58,7 @@ internal class ServerRowAdapter(
 
         // We want LMS, offline, others
         // LMS has index 0, offline has index 1
-        
+
         var offlineAdded = false
         for (server in sortedData) {
             if (!offlineAdded && server.index > ActiveServerProvider.OFFLINE_DB_INDEX) {
@@ -67,7 +67,7 @@ internal class ServerRowAdapter(
             }
             this.data.add(server)
         }
-        
+
         if (!offlineAdded) {
             this.data.add(ActiveServerProvider.OFFLINE_DB)
         }

@@ -1,8 +1,8 @@
 package nl.teunschriks.mumamobile.home
 
+import nl.teunschriks.mumamobile.domain.Track
 import org.amshove.kluent.`should be equal to`
 import org.junit.Test
-import nl.teunschriks.mumamobile.domain.Track
 
 class PlayHistoryTest {
 
@@ -192,6 +192,5 @@ class PlayHistoryTest {
         store.recent(setsMode = false) `should be equal to` emptyList()
     }
 
-    private fun parseGenres(json: String): List<String> =
-        json.trim('[', ']').split(",").filter { it.isNotBlank() }
+    private fun parseGenres(json: String): List<String> = json.trim('[', ']').split(",").filter { it.isNotBlank() }
 }

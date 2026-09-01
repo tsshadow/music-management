@@ -31,9 +31,6 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.koin.androidx.scope.ScopeFragment
-import org.koin.core.component.KoinScopeComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.NavigationGraphDirections
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
@@ -50,6 +47,9 @@ import nl.teunschriks.mumamobile.util.RefreshableFragment
 import nl.teunschriks.mumamobile.util.Util.applyTheme
 import nl.teunschriks.mumamobile.util.Util.toast
 import nl.teunschriks.mumamobile.util.toastingExceptionHandler
+import org.koin.androidx.scope.ScopeFragment
+import org.koin.core.component.KoinScopeComponent
+import org.koin.core.component.inject
 
 /**
  * Displays the playlists stored on the server
@@ -98,7 +98,6 @@ class PlaylistsFragment :
         playlistsListView?.setOnItemClickListener { parent, _, position, _ ->
             val playlist = parent.getItemAtPosition(position) as Playlist
             val (id, name) = playlist
-
 
             val action = NavigationGraphDirections.toTrackCollection(
                 id = id,

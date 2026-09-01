@@ -15,16 +15,16 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.os.BundleCompat
 import androidx.fragment.app.FragmentActivity
 import com.google.android.material.chip.ChipGroup
+import nl.teunschriks.mumamobile.R
+import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.domain.TrackArtistRef
+import nl.teunschriks.mumamobile.util.Settings
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.`should be false`
 import org.amshove.kluent.`should be true`
 import org.amshove.kluent.`should contain`
 import org.junit.Test
 import org.junit.runner.RunWith
-import nl.teunschriks.mumamobile.R
-import nl.teunschriks.mumamobile.domain.Track
-import nl.teunschriks.mumamobile.domain.TrackArtistRef
-import nl.teunschriks.mumamobile.util.Settings
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf

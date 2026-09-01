@@ -50,8 +50,7 @@ object RadioSync {
     }
 
     /** Where playback should be, in seconds into the track. */
-    fun targetPositionSeconds(entry: RadioEntry, serverNowMs: Long): Double =
-        (serverNowMs - entry.startedAt * 1000.0) / 1000.0
+    fun targetPositionSeconds(entry: RadioEntry, serverNowMs: Long): Double = (serverNowMs - entry.startedAt * 1000.0) / 1000.0
 
     /** Decide how to close the gap between where we are and where we should be. */
     fun correctionFor(localPos: Double, targetPos: Double): RadioCorrection {

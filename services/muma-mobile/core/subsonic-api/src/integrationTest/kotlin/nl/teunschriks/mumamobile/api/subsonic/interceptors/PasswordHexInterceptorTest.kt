@@ -1,12 +1,12 @@
 package nl.teunschriks.mumamobile.api.subsonic.interceptors
 
+import nl.teunschriks.mumamobile.api.subsonic.PASSWORD
 import okhttp3.Interceptor
 import okhttp3.mockwebserver.MockResponse
 import org.amshove.kluent.`should contain`
 import org.amshove.kluent.`should not contain`
 import org.apache.commons.codec.binary.Hex
 import org.junit.Test
-import nl.teunschriks.mumamobile.api.subsonic.PASSWORD
 
 /**
  * Integration test for [PasswordHexInterceptor].

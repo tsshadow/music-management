@@ -32,5 +32,4 @@ fun memoryHeadingRes(group: MemoryGroup): Int {
 }
 
 /** The format arguments [memoryHeadingRes] needs; the singular wordings take none. */
-fun memoryHeadingArgs(group: MemoryGroup): List<Any> =
-    if (group.yearsAgo == 1) emptyList() else listOf(group.yearsAgo)
+fun memoryHeadingArgs(group: MemoryGroup): List<Any> = if (group.yearsAgo == 1) emptyList() else listOf(group.yearsAgo)

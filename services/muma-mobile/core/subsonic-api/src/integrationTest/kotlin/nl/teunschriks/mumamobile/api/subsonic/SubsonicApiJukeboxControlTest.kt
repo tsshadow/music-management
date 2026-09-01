@@ -1,12 +1,12 @@
 package nl.teunschriks.mumamobile.api.subsonic
 
-import org.amshove.kluent.`should be equal to`
-import org.junit.Test
 import nl.teunschriks.mumamobile.api.subsonic.models.JukeboxAction
 import nl.teunschriks.mumamobile.api.subsonic.models.JukeboxAction.GET
 import nl.teunschriks.mumamobile.api.subsonic.models.JukeboxAction.STATUS
 import nl.teunschriks.mumamobile.api.subsonic.models.JukeboxStatus
 import nl.teunschriks.mumamobile.api.subsonic.models.MusicDirectoryChild
+import org.amshove.kluent.`should be equal to`
+import org.junit.Test
 
 /**
  * Integration test for [SubsonicAPIDefinition.jukeboxControl] call.

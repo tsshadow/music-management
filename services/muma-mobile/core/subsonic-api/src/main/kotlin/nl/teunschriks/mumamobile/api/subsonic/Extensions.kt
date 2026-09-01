@@ -2,9 +2,9 @@ package nl.teunschriks.mumamobile.api.subsonic
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import java.io.IOException
-import okhttp3.ResponseBody
 import nl.teunschriks.mumamobile.api.subsonic.response.StreamResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.SubsonicResponse
+import okhttp3.ResponseBody
 import retrofit2.Response
 
 /**

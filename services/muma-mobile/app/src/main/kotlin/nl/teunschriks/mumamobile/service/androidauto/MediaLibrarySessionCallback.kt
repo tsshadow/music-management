@@ -12,6 +12,7 @@ import android.provider.MediaStore
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player
 import androidx.media3.common.Rating
 import androidx.media3.common.StarRating
 import androidx.media3.common.util.UnstableApi
@@ -32,9 +33,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import androidx.media3.common.Player
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.data.RatingUpdate
 import nl.teunschriks.mumamobile.domain.SearchCriteria
@@ -51,6 +49,8 @@ import nl.teunschriks.mumamobile.voice.QueryTrace
 import nl.teunschriks.mumamobile.voice.VoiceEntryPoint
 import nl.teunschriks.mumamobile.voice.VoiceTraceLog
 import nl.teunschriks.mumamobile.voice.dumpInto
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import timber.log.Timber
 
 /**
@@ -354,8 +354,7 @@ class MediaLibrarySessionCallback :
      * from the server, there is nothing to insert after and the request is better served as a
      * plain play.
      */
-    private fun canQueueNext(player: Player): Boolean =
-        !radioPlaybackController.isActive && player.mediaItemCount > 0
+    private fun canQueueNext(player: Player): Boolean = !radioPlaybackController.isActive && player.mediaItemCount > 0
 
     @OptIn(UnstableApi::class)
     private fun queueNextFromSearch(
@@ -677,18 +676,17 @@ class MediaLibrarySessionCallback :
      * plays. The car then greys the buttons out instead of letting a tap do
      * nothing, or worse, fight the sync loop.
      */
-    private fun radioAwarePlayerCommands(commands: Player.Commands): Player.Commands =
-        if (radioPlaybackController.isActive) {
-            commands.buildUpon()
-                .remove(Player.COMMAND_SEEK_TO_NEXT)
-                .remove(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
-                .remove(Player.COMMAND_SEEK_TO_PREVIOUS)
-                .remove(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
-                .remove(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
-                .build()
-        } else {
-            commands
-        }
+    private fun radioAwarePlayerCommands(commands: Player.Commands): Player.Commands = if (radioPlaybackController.isActive) {
+        commands.buildUpon()
+            .remove(Player.COMMAND_SEEK_TO_NEXT)
+            .remove(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+            .remove(Player.COMMAND_SEEK_TO_PREVIOUS)
+            .remove(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+            .remove(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
+            .build()
+    } else {
+        commands
+    }
 
     /**
      * onConnect only runs once per controller, so switching radio on or off has

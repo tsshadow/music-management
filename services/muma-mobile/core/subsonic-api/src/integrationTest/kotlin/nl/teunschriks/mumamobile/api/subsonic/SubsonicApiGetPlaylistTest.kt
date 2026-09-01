@@ -1,10 +1,10 @@
 package nl.teunschriks.mumamobile.api.subsonic
 
+import nl.teunschriks.mumamobile.api.subsonic.models.MusicDirectoryChild
+import nl.teunschriks.mumamobile.api.subsonic.models.Playlist
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.`should not be`
 import org.junit.Test
-import nl.teunschriks.mumamobile.api.subsonic.models.MusicDirectoryChild
-import nl.teunschriks.mumamobile.api.subsonic.models.Playlist
 
 /**
  * Integration test for [SubsonicAPIClient] for getPlaylist call.

@@ -10,9 +10,9 @@ package nl.teunschriks.mumamobile.receiver
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import nl.teunschriks.mumamobile.service.MediaPlayerLifecycleSupport
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import nl.teunschriks.mumamobile.service.MediaPlayerLifecycleSupport
 import timber.log.Timber
 
 class UltrasonicIntentReceiver :

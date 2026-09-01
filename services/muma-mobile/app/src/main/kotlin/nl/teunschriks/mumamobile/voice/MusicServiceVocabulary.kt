@@ -77,20 +77,17 @@ class MusicServiceVocabulary(private val musicService: MusicService) : LibraryVo
         musicService.getPlaylists(false).map { NamedRef(it.id, it.name) }
     }
 
-    private fun tagNames(type: String): List<String> =
-        safely(type) { musicService.getTags(false, type, null, null).map { it.name } }
+    private fun tagNames(type: String): List<String> = safely(type) { musicService.getTags(false, type, null, null).map { it.name } }
 
-    private fun safely(what: String, block: () -> List<String>): List<String> =
-        runCatching(block).getOrElse {
-            Timber.w(it, "voice vocabulary lookup failed: %s", what)
-            emptyList()
-        }
+    private fun safely(what: String, block: () -> List<String>): List<String> = runCatching(block).getOrElse {
+        Timber.w(it, "voice vocabulary lookup failed: %s", what)
+        emptyList()
+    }
 
-    private fun safelyRefs(what: String, block: () -> List<NamedRef>): List<NamedRef> =
-        runCatching(block).getOrElse {
-            Timber.w(it, "voice vocabulary lookup failed: %s", what)
-            emptyList()
-        }
+    private fun safelyRefs(what: String, block: () -> List<NamedRef>): List<NamedRef> = runCatching(block).getOrElse {
+        Timber.w(it, "voice vocabulary lookup failed: %s", what)
+        emptyList()
+    }
 
     companion object {
         const val TAG_PUBLISHER = "PUBLISHER"

@@ -3,10 +3,10 @@
 package nl.teunschriks.mumamobile.domain
 
 import java.util.Calendar
-import org.amshove.kluent.`should be equal to`
-import org.junit.Test
 import nl.teunschriks.mumamobile.api.subsonic.models.MusicDirectoryChild
 import nl.teunschriks.mumamobile.api.subsonic.models.Share
+import org.amshove.kluent.`should be equal to`
+import org.junit.Test
 
 /**
  * Unit test for api to domain share entity converter functions.

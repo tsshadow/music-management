@@ -1,11 +1,11 @@
 package nl.teunschriks.mumamobile.home
 
 import kotlinx.coroutines.runBlocking
+import nl.teunschriks.mumamobile.R
+import nl.teunschriks.mumamobile.domain.Track
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.shouldBeNull
 import org.junit.Test
-import nl.teunschriks.mumamobile.R
-import nl.teunschriks.mumamobile.domain.Track
 
 class RecentTracksProviderTest {
 

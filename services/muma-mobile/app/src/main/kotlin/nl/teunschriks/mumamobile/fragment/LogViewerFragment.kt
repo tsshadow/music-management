@@ -26,7 +26,6 @@ import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.log.FileLoggerTree
 import nl.teunschriks.mumamobile.util.Util.applyTheme
 import nl.teunschriks.mumamobile.util.Util.toast
-import java.io.File
 
 /**
  * Fragment to view the application logs.
@@ -45,9 +44,7 @@ class LogViewerFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        return inflater.inflate(R.layout.fragment_log_viewer, container, false)
-    }
+    ): View? = inflater.inflate(R.layout.fragment_log_viewer, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -81,18 +78,16 @@ class LogViewerFragment : Fragment() {
         super.onCreateOptionsMenu(menu, inflater)
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.menu_share_log -> {
-                shareLog()
-                true
-            }
-            R.id.menu_refresh_log -> {
-                loadLogs()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
+        R.id.menu_share_log -> {
+            shareLog()
+            true
         }
+        R.id.menu_refresh_log -> {
+            loadLogs()
+            true
+        }
+        else -> super.onOptionsItemSelected(item)
     }
 
     private fun shareLog() {

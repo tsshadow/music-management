@@ -12,9 +12,6 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
-import org.koin.java.KoinJavaComponent.inject
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.Playlist
 import nl.teunschriks.mumamobile.domain.Track
@@ -30,6 +27,9 @@ import nl.teunschriks.mumamobile.util.FileUtil.musicDirectory
 import nl.teunschriks.mumamobile.util.Settings.cacheSizeMB
 import nl.teunschriks.mumamobile.util.Storage.delete
 import nl.teunschriks.mumamobile.util.Util.formatBytes
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+import org.koin.java.KoinJavaComponent.inject
 import timber.log.Timber
 
 /**

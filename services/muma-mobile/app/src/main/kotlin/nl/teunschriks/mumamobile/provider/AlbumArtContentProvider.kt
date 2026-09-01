@@ -15,12 +15,12 @@ import android.net.Uri
 import android.os.ParcelFileDescriptor
 import java.io.File
 import java.util.Locale
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.subsonic.ImageLoaderProvider
 import nl.teunschriks.mumamobile.util.FileUtil
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import timber.log.Timber
 
 class AlbumArtContentProvider :

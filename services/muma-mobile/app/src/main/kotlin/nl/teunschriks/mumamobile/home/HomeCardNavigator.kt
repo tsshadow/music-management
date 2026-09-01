@@ -108,8 +108,7 @@ object HomeCardNavigator {
         }
     }
 
-    private fun labelDirections(card: HomeCard): NavDirections =
-        filteredDirections(card, Filter("PUBLISHER", card.itemId))
+    private fun labelDirections(card: HomeCard): NavDirections = filteredDirections(card, Filter("PUBLISHER", card.itemId))
 
     /** Every browse-by-tag card opens the same filtered track collection. */
     private fun filteredDirections(card: HomeCard, filter: Filter): NavDirections {

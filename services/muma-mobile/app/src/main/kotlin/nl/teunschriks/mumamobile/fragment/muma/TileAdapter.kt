@@ -1,8 +1,6 @@
 package nl.teunschriks.mumamobile.fragment.muma
 
 import android.content.Context
-import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,12 +8,10 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.navigation.NavController
 import androidx.recyclerview.widget.RecyclerView
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
-import nl.teunschriks.mumamobile.R
-
-import nl.teunschriks.mumamobile.domain.Playlist
 import nl.teunschriks.mumamobile.NavigationGraphDirections
+import nl.teunschriks.mumamobile.R
+import nl.teunschriks.mumamobile.domain.Playlist
+import org.koin.core.component.KoinComponent
 
 interface TileAdapterCallback {
     fun onEditTile(tile: TileInfo, position: Int)
@@ -29,7 +25,6 @@ class TileAdapter(
     private val callback: TileAdapterCallback
 ) : RecyclerView.Adapter<TileAdapter.TileViewHolder>(),
     KoinComponent {
-
 
     inner class TileViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val iconContainer: View = view.findViewById(R.id.tile_icon_container)
@@ -74,11 +69,11 @@ class TileAdapter(
         private fun setupIconAndText(tile: TileInfo) {
             val firstGenre = tile.genre?.firstOrNull { it.isNotBlank() && it != "All" }
             val iconRes = genreIconMap[firstGenre] ?: R.drawable.baseline_music_note_24
-            
+
             tileIcon.setImageResource(iconRes)
             tileIcon.contentDescription = firstGenre ?: tile.title
             tileText.text = tile.title
-            
+
             subtext.text = when {
                 !tile.artists.isNullOrEmpty() -> {
                     val list = tile.artists

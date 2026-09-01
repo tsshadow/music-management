@@ -86,10 +86,12 @@
 ### muma-mobile (Android/Kotlin)
 - Build: Gradle (`build.gradle`, `libs.versions.toml`), JVM target 21, uses `detekt` + `ktlintGradle`
 - Test: JVM unit tests present under `services/muma-mobile/app/src/test/kotlin/...` (e.g. `ArchitectureTest`, `imageloader/*Test`, `domain/*Test`)
-- Static analysis in `muma-mobile:check`: detekt (`./scripts/test/muma-mobile-detekt.sh`,
-  per-module `detekt-baseline.xml`) and Android Lint
-  (`./scripts/test/muma-mobile-lint.sh`, `:app:lintDebug` with `checkDependencies=true`
-  so the core modules are analyzed too; pre-existing findings in `app/lint-baseline.xml`)
+- Static analysis in `muma-mobile:check`: ktlint formatting
+  (`./scripts/test/muma-mobile-ktlint.sh`, no baseline — `ktlintFormat` fixes what it finds),
+  detekt (`./scripts/test/muma-mobile-detekt.sh`, per-module `detekt-baseline.xml`) and
+  Android Lint (`./scripts/test/muma-mobile-lint.sh`, `:app:lintDebug` with
+  `checkDependencies=true` so the core modules are analyzed too; pre-existing findings in
+  `app/lint-baseline.xml`)
 - Release-build smoke: `./scripts/test/muma-mobile-emulator-smoke.sh` boots the R8-minified
   APK on a headless ATD emulator (needs `/dev/kvm`) and fails on a startup crash — the class
   of defect (bug-report 029) every JVM-side check is structurally blind to

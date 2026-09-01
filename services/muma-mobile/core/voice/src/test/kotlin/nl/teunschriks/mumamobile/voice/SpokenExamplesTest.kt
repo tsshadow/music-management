@@ -33,8 +33,10 @@ class SpokenExamplesTest {
 
     private fun sort(query: String): String {
         val parsed = VoiceQuery.parse(query)!!
-        return ((resolver.resolve(parsed, null) as QueryResolution.Resolved).target
-            as Target.Filtered).sortMethod
+        return (
+            (resolver.resolve(parsed, null) as QueryResolution.Resolved).target
+                as Target.Filtered
+            ).sortMethod
     }
 
     private fun resolve(query: String): QueryResolution {

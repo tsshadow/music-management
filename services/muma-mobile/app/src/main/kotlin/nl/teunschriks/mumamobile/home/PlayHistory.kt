@@ -24,15 +24,13 @@ fun Track.isLiveSet(): Boolean = (duration ?: 0) > LIVE_SET_SECONDS
  * Genre tags are free text and one field regularly holds several names ("Hardcore; Uptempo"), so
  * they are split before anything is stored.
  */
-fun splitGenreNames(values: List<String>): List<String> =
-    values.flatMap { it.split(';', ',', '/') }
-        .map(String::trim)
-        .filter(String::isNotEmpty)
-        .distinct()
+fun splitGenreNames(values: List<String>): List<String> = values.flatMap { it.split(';', ',', '/') }
+    .map(String::trim)
+    .filter(String::isNotEmpty)
+    .distinct()
 
 /** Newest first, no duplicates, capped at [MAX_LAST_PLAYED_GENRES]. */
-fun mergeLastPlayedGenres(existing: List<String>, played: List<String>): List<String> =
-    (played + existing.filterNot { it in played }).take(MAX_LAST_PLAYED_GENRES)
+fun mergeLastPlayedGenres(existing: List<String>, played: List<String>): List<String> = (played + existing.filterNot { it in played }).take(MAX_LAST_PLAYED_GENRES)
 
 /**
  * Records what was actually *played*.

@@ -17,9 +17,9 @@ import nl.teunschriks.mumamobile.domain.Genre
 import nl.teunschriks.mumamobile.domain.Index
 import nl.teunschriks.mumamobile.domain.JukeboxStatus
 import nl.teunschriks.mumamobile.domain.Label
-import nl.teunschriks.mumamobile.domain.MemoryGroup
 import nl.teunschriks.mumamobile.domain.Lineup
 import nl.teunschriks.mumamobile.domain.Lyrics
+import nl.teunschriks.mumamobile.domain.MemoryGroup
 import nl.teunschriks.mumamobile.domain.Mood
 import nl.teunschriks.mumamobile.domain.MumaTile
 import nl.teunschriks.mumamobile.domain.MusicDirectory

@@ -24,12 +24,10 @@ enum class AppIconVariant(private val aliasClass: String) {
      * the debug build carries an `.debug` applicationIdSuffix, so the two differ there and
      * building the name from the package would point at a component that does not exist.
      */
-    fun componentName(context: Context): ComponentName =
-        ComponentName(context.packageName, aliasClass)
+    fun componentName(context: Context): ComponentName = ComponentName(context.packageName, aliasClass)
 
     companion object {
-        fun fromSetting(value: String): AppIconVariant =
-            entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: GREEN
+        fun fromSetting(value: String): AppIconVariant = entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: GREEN
 
         fun apply(context: Context, variant: AppIconVariant) {
             val packageManager = context.packageManager

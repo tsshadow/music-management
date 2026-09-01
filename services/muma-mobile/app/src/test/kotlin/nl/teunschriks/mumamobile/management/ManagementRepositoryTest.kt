@@ -1,8 +1,8 @@
 package nl.teunschriks.mumamobile.management
 
+import nl.teunschriks.mumamobile.api.muma.MumaAuthUser
 import org.amshove.kluent.`should be equal to`
 import org.junit.Test
-import nl.teunschriks.mumamobile.api.muma.MumaAuthUser
 
 /**
  * Admin detection decides whether the Beheer tab is shown at all, so it is worth pinning down.

@@ -7,8 +7,7 @@ class CoverArtFailureCacheTest {
 
     private var now = 0L
 
-    private fun cache(ttlMillis: Long = 1000L) =
-        CoverArtFailureCache(ttlMillis = ttlMillis, now = { now })
+    private fun cache(ttlMillis: Long = 1000L) = CoverArtFailureCache(ttlMillis = ttlMillis, now = { now })
 
     @Test
     fun `an id nobody asked about is not missing`() {

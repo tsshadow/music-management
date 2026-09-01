@@ -11,11 +11,11 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.drakeet.multitype.ItemViewBinder
 import java.lang.ref.WeakReference
-import org.koin.core.component.KoinComponent
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.domain.Identifiable
 import nl.teunschriks.mumamobile.domain.MusicFolder
 import nl.teunschriks.mumamobile.service.RxBus
+import org.koin.core.component.KoinComponent
 
 /**
  * This little view shows the currently selected Folder (or catalog) on the music server.

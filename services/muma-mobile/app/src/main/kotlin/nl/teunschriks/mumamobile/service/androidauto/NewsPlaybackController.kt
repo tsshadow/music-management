@@ -15,9 +15,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.api.muma.MumaAPIDefinition
 import nl.teunschriks.mumamobile.api.muma.NewsBulletin
-import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.service.PlaybackState
 import nl.teunschriks.mumamobile.util.FileUtil

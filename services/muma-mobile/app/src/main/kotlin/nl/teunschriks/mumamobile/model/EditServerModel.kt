@@ -15,8 +15,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.flatMapMerge
 import kotlinx.coroutines.flow.flow
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.BuildConfig
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIDefinition
@@ -28,6 +26,8 @@ import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.ServerSetting
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.SecureSettings
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import retrofit2.HttpException
 import timber.log.Timber
 

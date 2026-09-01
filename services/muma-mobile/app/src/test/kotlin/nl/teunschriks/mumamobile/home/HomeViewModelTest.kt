@@ -8,13 +8,13 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import nl.teunschriks.mumamobile.R
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.`should be instance of`
 import org.amshove.kluent.`should be null`
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
-import nl.teunschriks.mumamobile.R
 
 /**
  * Unit test for the home screen's per-section loading states, which decide when a skeleton is

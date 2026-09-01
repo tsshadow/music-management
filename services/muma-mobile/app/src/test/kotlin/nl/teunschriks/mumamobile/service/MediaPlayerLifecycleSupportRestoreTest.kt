@@ -10,11 +10,11 @@ package nl.teunschriks.mumamobile.service
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import org.junit.Test
-import org.junit.runner.RunWith
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.subsonic.ImageLoaderProvider
 import nl.teunschriks.mumamobile.util.CacheCleaner
+import org.junit.Test
+import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**

@@ -11,8 +11,8 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.content.res.ColorStateList
-import android.graphics.Color
 import android.content.res.Resources
+import android.graphics.Color
 import android.media.AudioManager
 import android.os.Bundle
 import android.provider.MediaStore
@@ -26,19 +26,16 @@ import android.view.ViewGroup
 import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.annotation.StringRes
 import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
+import androidx.core.os.bundleOf
+import androidx.core.view.MenuProvider
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.NoCredentialException
-import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
-import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
-import androidx.annotation.StringRes
-import androidx.core.os.bundleOf
-import androidx.core.view.MenuProvider
 import androidx.fragment.app.FragmentContainerView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -54,23 +51,21 @@ import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.onNavDestinationSelected
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.TextInputEditText
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.Request
-import org.koin.android.ext.android.inject
-import org.koin.androidx.scope.ScopeActivity
-import org.koin.androidx.viewmodel.ext.android.viewModel
 import nl.teunschriks.mumamobile.BuildConfig
 import nl.teunschriks.mumamobile.NavigationGraphDirections
 import nl.teunschriks.mumamobile.R
@@ -78,15 +73,13 @@ import nl.teunschriks.mumamobile.api.muma.GoogleAuthRequest
 import nl.teunschriks.mumamobile.api.muma.MumaAPIClient
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.app.UApp
-import nl.teunschriks.mumamobile.data.ActiveServerProvider
-import nl.teunschriks.mumamobile.data.ServerSetting
-import nl.teunschriks.mumamobile.diagnostics.CrashReportManager
 import nl.teunschriks.mumamobile.car.CarConnectionWatcher
 import nl.teunschriks.mumamobile.car.CarModeIntent
 import nl.teunschriks.mumamobile.car.CarModeNotifier
 import nl.teunschriks.mumamobile.car.CarModeSession
 import nl.teunschriks.mumamobile.car.CarPresence
-import nl.teunschriks.mumamobile.voice.VoiceTileService
+import nl.teunschriks.mumamobile.data.ActiveServerProvider
+import nl.teunschriks.mumamobile.diagnostics.CrashReportManager
 import nl.teunschriks.mumamobile.fragment.SetupWizardFragment
 import nl.teunschriks.mumamobile.management.ManagementRepository
 import nl.teunschriks.mumamobile.model.ServerSettingsModel
@@ -107,12 +100,17 @@ import nl.teunschriks.mumamobile.util.UncaughtExceptionHandler
 import nl.teunschriks.mumamobile.util.UpdateChecker
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.themeColor
+import nl.teunschriks.mumamobile.voice.VoiceTileService
 import nl.teunschriks.mumamobile.wizard.UpdateEntry
 import nl.teunschriks.mumamobile.wizard.WIZARD_INTRODUCED_IN
 import nl.teunschriks.mumamobile.wizard.plan
 import nl.teunschriks.mumamobile.wizard.shouldStampVersion
 import nl.teunschriks.mumamobile.wizard.updateEntryFor
 import nl.teunschriks.mumamobile.wizard.wizardCatalog
+import okhttp3.Request
+import org.koin.android.ext.android.inject
+import org.koin.androidx.scope.ScopeActivity
+import org.koin.androidx.viewmodel.ext.android.viewModel
 import timber.log.Timber
 
 /**
@@ -382,9 +380,7 @@ class NavigationActivity : ScopeActivity() {
         toggle.trackTintList = ColorStateList(states, trackColors)
     }
 
-    private fun Int.withAlpha(alpha: Int): Int {
-        return (this and 0x00FFFFFF) or (alpha shl 24)
-    }
+    private fun Int.withAlpha(alpha: Int): Int = (this and 0x00FFFFFF) or (alpha shl 24)
 
     fun setupSearchField(menu: Menu) {
         Timber.i("Recreating search field")
@@ -775,8 +771,11 @@ class NavigationActivity : ScopeActivity() {
                             // ping() here can only mean the credentials were rejected - saying
                             // "could not connect" instead sends people chasing a network
                             // problem that doesn't exist (see bug report 020).
-                            if (reachable) R.string.welcome_invalid_credentials
-                            else R.string.welcome_server_unreachable
+                            if (reachable) {
+                                R.string.welcome_invalid_credentials
+                            } else {
+                                R.string.welcome_server_unreachable
+                            }
                         )
                         errorText.visibility = View.VISIBLE
                         usernameField.isEnabled = true
@@ -1182,8 +1181,10 @@ class NavigationActivity : ScopeActivity() {
 
     private fun checkMumaLogin() {
         val activeServer = activeServerProvider.getActiveServer()
-        if (!ActiveServerProvider.isOffline() && activeServer.apiKey.isNullOrEmpty() &&
-            (activeServer.mumaUserId == null || activeServer.mumaUserId == -1)) {
+        if (!ActiveServerProvider.isOffline() &&
+            activeServer.apiKey.isNullOrEmpty() &&
+            (activeServer.mumaUserId == null || activeServer.mumaUserId == -1)
+        ) {
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     MusicServiceFactory.getMusicService().mumaLogin()
@@ -1208,8 +1209,7 @@ class NavigationActivity : ScopeActivity() {
  * back into the overflow only on the screens whose own actions need the room. The player owns
  * actions too and still shows it: a queue is exactly where the next request gets spoken.
  */
-internal fun voiceMenuSlot(destinationId: Int): Int =
-    when (destinationId) {
-        R.id.trackCollectionFragment, R.id.logViewerFragment -> MenuItem.SHOW_AS_ACTION_NEVER
-        else -> MenuItem.SHOW_AS_ACTION_ALWAYS
-    }
+internal fun voiceMenuSlot(destinationId: Int): Int = when (destinationId) {
+    R.id.trackCollectionFragment, R.id.logViewerFragment -> MenuItem.SHOW_AS_ACTION_NEVER
+    else -> MenuItem.SHOW_AS_ACTION_ALWAYS
+}

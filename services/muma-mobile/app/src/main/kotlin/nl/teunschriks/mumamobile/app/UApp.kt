@@ -10,9 +10,6 @@ import io.reactivex.rxjava3.plugins.RxJavaPlugins
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.koin.android.ext.koin.androidContext
-import org.koin.core.context.GlobalContext
-import org.koin.core.context.startKoin
 import nl.teunschriks.mumamobile.BuildConfig
 import nl.teunschriks.mumamobile.api.subsonic.AuthenticationFailureNotifier
 import nl.teunschriks.mumamobile.di.appPermanentStorage
@@ -29,6 +26,9 @@ import nl.teunschriks.mumamobile.util.FileUtil
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Storage
 import nl.teunschriks.mumamobile.util.Util
+import org.koin.android.ext.koin.androidContext
+import org.koin.core.context.GlobalContext
+import org.koin.core.context.startKoin
 import timber.log.Timber
 import timber.log.Timber.DebugTree
 

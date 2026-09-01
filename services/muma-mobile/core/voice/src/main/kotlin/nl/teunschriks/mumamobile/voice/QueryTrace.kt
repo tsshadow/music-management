@@ -19,6 +19,7 @@ object VoiceEntryPoint {
     const val ON_ADD_MEDIA_ITEMS = "onAddMediaItems"
     const val ON_SET_MEDIA_ITEMS = "onSetMediaItems"
     const val MUMA_VOICE = "MumaVoice"
+
     /** The voice screen's own field, for trying a request without speaking it. */
     const val TEXT_INPUT = "TextInput"
 
@@ -70,8 +71,7 @@ class QueryTrace(
     fun extra(key: String, value: String) = add("extra", "$key = $value")
 
     /** One speech-recognition hypothesis, with its confidence when the recogniser gave one. */
-    fun hypothesis(text: String, confidence: Float?) =
-        add("hypothesis", if (confidence == null) "\"$text\"" else "\"$text\" (%.2f)".format(confidence))
+    fun hypothesis(text: String, confidence: Float?) = add("hypothesis", if (confidence == null) "\"$text\"" else "\"$text\" (%.2f)".format(confidence))
 
     /** What the tokens looked like after one stage of stripping. */
     fun tokens(stage: String, tokens: List<String>) = add("tokens", "$stage: $tokens")
@@ -80,16 +80,13 @@ class QueryTrace(
     fun rule(text: String) = add("rule", text)
 
     /** One question put to the library, and how many names came back. */
-    fun lookup(kind: String, term: String, count: Int) =
-        add("lookup", "$kind(\"$term\") -> $count names")
+    fun lookup(kind: String, term: String, count: Int) = add("lookup", "$kind(\"$term\") -> $count names")
 
     /** What one spoken term matched, or that it matched nothing. */
-    fun match(kind: String, term: String, name: String?) =
-        add("match", "$kind \"$term\" -> ${name?.let { "\"$it\"" } ?: "nothing"}")
+    fun match(kind: String, term: String, name: String?) = add("match", "$kind \"$term\" -> ${name?.let { "\"$it\"" } ?: "nothing"}")
 
     /** One scored candidate for the term nobody qualified. */
-    fun candidate(kind: String, name: String, score: Int) =
-        add("candidate", "$kind \"$name\" score $score")
+    fun candidate(kind: String, name: String, score: Int) = add("candidate", "$kind \"$name\" score $score")
 
     /** The filters as they will be serialised onto the request. */
     fun filters(text: String) = add("filters", text)

@@ -9,11 +9,11 @@ import android.view.ViewGroup
 import android.widget.PopupMenu
 import androidx.lifecycle.LifecycleOwner
 import com.drakeet.multitype.ItemViewBinder
-import org.koin.core.component.KoinComponent
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.domain.Identifiable
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.util.Settings
+import org.koin.core.component.KoinComponent
 
 @Suppress("LongParameterList")
 class TrackViewBinder(

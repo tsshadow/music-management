@@ -1,10 +1,10 @@
 package nl.teunschriks.mumamobile.service.androidauto
 
+import nl.teunschriks.mumamobile.api.muma.RadioEntry
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeGreaterThan
 import org.amshove.kluent.shouldBeLessThan
 import org.junit.Test
-import nl.teunschriks.mumamobile.api.muma.RadioEntry
 
 class RadioSyncTest {
 

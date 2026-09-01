@@ -28,7 +28,6 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.koin.android.ext.android.inject
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.adapters.Utils
 import nl.teunschriks.mumamobile.home.BrowseCategory
@@ -52,6 +51,7 @@ import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.view.FilterButtonBar
 import nl.teunschriks.mumamobile.view.SortOrder
 import nl.teunschriks.mumamobile.view.ViewCapabilities
+import org.koin.android.ext.android.inject
 import timber.log.Timber
 
 /**

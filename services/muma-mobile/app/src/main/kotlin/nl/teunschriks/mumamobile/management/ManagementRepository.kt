@@ -64,32 +64,29 @@ class ManagementRepository(private val client: SubsonicAPIClient) {
         Unit
     }
 
-    suspend fun downloadAccounts(source: DownloadSource): List<MumaDownloadAccount> =
-        withContext(Dispatchers.IO) {
-            when (source) {
-                DownloadSource.SOUNDCLOUD -> api.getSoundcloudAccounts()
-                DownloadSource.YOUTUBE -> api.getYoutubeAccounts()
-            }.execute().body().orEmpty()
-        }
+    suspend fun downloadAccounts(source: DownloadSource): List<MumaDownloadAccount> = withContext(Dispatchers.IO) {
+        when (source) {
+            DownloadSource.SOUNDCLOUD -> api.getSoundcloudAccounts()
+            DownloadSource.YOUTUBE -> api.getYoutubeAccounts()
+        }.execute().body().orEmpty()
+    }
 
-    suspend fun addDownloadAccount(source: DownloadSource, name: String, id: String?) =
-        withContext(Dispatchers.IO) {
-            val request = MumaDownloadAccountRequest(name = name, id = id?.takeIf { it.isNotBlank() })
-            when (source) {
-                DownloadSource.SOUNDCLOUD -> api.addSoundcloudAccount(request)
-                DownloadSource.YOUTUBE -> api.addYoutubeAccount(request)
-            }.execute()
-            Unit
-        }
+    suspend fun addDownloadAccount(source: DownloadSource, name: String, id: String?) = withContext(Dispatchers.IO) {
+        val request = MumaDownloadAccountRequest(name = name, id = id?.takeIf { it.isNotBlank() })
+        when (source) {
+            DownloadSource.SOUNDCLOUD -> api.addSoundcloudAccount(request)
+            DownloadSource.YOUTUBE -> api.addYoutubeAccount(request)
+        }.execute()
+        Unit
+    }
 
-    suspend fun deleteDownloadAccount(source: DownloadSource, name: String) =
-        withContext(Dispatchers.IO) {
-            when (source) {
-                DownloadSource.SOUNDCLOUD -> api.deleteSoundcloudAccount(name)
-                DownloadSource.YOUTUBE -> api.deleteYoutubeAccount(name)
-            }.execute()
-            Unit
-        }
+    suspend fun deleteDownloadAccount(source: DownloadSource, name: String) = withContext(Dispatchers.IO) {
+        when (source) {
+            DownloadSource.SOUNDCLOUD -> api.deleteSoundcloudAccount(name)
+            DownloadSource.YOUTUBE -> api.deleteYoutubeAccount(name)
+        }.execute()
+        Unit
+    }
 
     companion object {
         private const val ADMIN_ROLE = "admin"

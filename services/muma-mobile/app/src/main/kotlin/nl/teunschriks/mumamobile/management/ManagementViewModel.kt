@@ -71,11 +71,10 @@ class ManagementViewModel(private val repository: ManagementRepository) : ViewMo
         mutableYoutube.value = repository.downloadAccounts(DownloadSource.YOUTUBE)
     }
 
-    fun addDownloadAccount(source: DownloadSource, name: String, id: String?) =
-        run("add account") {
-            repository.addDownloadAccount(source, name, id)
-            loadDownloadAccountsNow()
-        }
+    fun addDownloadAccount(source: DownloadSource, name: String, id: String?) = run("add account") {
+        repository.addDownloadAccount(source, name, id)
+        loadDownloadAccountsNow()
+    }
 
     fun deleteDownloadAccount(source: DownloadSource, name: String) = run("delete account") {
         repository.deleteDownloadAccount(source, name)

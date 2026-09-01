@@ -17,12 +17,12 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.ImageView
 import android.widget.TextView
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.ChatMessage
 import nl.teunschriks.mumamobile.subsonic.ImageLoaderProvider
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 class ChatAdapter(private val context: Context, private val messages: List<ChatMessage>) :
     ArrayAdapter<ChatMessage>(

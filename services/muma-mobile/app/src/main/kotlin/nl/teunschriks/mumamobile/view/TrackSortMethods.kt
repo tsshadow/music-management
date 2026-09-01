@@ -46,6 +46,5 @@ object TrackSortMethods {
      * home lists pass `OriginalDateDescAndRelease`, for one -- fall back to the first option, which
      * is the one the bar displays anyway.
      */
-    fun fromSortMethod(method: String?): SortOrder =
-        toServer.entries.firstOrNull { it.value == method }?.key ?: SUPPORTED.first()
+    fun fromSortMethod(method: String?): SortOrder = toServer.entries.firstOrNull { it.value == method }?.key ?: SUPPORTED.first()
 }

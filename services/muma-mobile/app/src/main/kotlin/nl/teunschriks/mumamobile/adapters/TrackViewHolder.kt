@@ -16,7 +16,6 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.koin.core.component.KoinComponent
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.Track
@@ -27,6 +26,7 @@ import nl.teunschriks.mumamobile.service.plusAssign
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.TrackDateFormatter
 import nl.teunschriks.mumamobile.util.Util
+import org.koin.core.component.KoinComponent
 
 const val INDICATOR_THICKNESS_INDEFINITE = 5
 const val INDICATOR_THICKNESS_DEFINITE = 10

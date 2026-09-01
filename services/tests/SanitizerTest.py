@@ -15,7 +15,6 @@ from services.other.sanitizer import Sanitizer
 
 
 class SanitizerTest(unittest.TestCase):
-
     def test_replace_invalid_characters(self):
         sanitizer = Sanitizer()
         original = 'bad/name|with:chars'
@@ -30,5 +29,7 @@ class SanitizerTest(unittest.TestCase):
             sanitizer.sanitize_file(bad_path)
             self.assertFalse(bad_path.exists())
             self.assertTrue((Path(tmp) / 'bad-name.txt').exists())
+
+
 if __name__ == '__main__':
     unittest.main()

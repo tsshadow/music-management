@@ -4,6 +4,7 @@ The unit suite pins the rules down (test_song_versions.py); this proves the SQL
 that applies them, including that a second pass changes nothing and that a manual
 pin and a manual split both survive one.
 """
+
 import pytest
 
 from services.music_manager import song_version_worker
@@ -13,8 +14,7 @@ pytestmark = pytest.mark.integration
 
 def _add_track(cursor, uid, title, artist_id, path, size=7_200_000, duration=300.0, label_id=None):
     cursor.execute(
-        'INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id) '
-        'VALUES (%s, %s, %s, %s)',
+        'INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id) VALUES (%s, %s, %s, %s)',
         (uid, title, duration, artist_id),
     )
     track_id = cursor.lastrowid
@@ -34,9 +34,15 @@ def _add_track(cursor, uid, title, artist_id, path, size=7_200_000, duration=300
 @pytest.fixture()
 def library(database):
     with database.cursor() as cursor:
-        for table in ('library_track_labels', 'library_media_files', 'library_tracks',
-                      'library_works', 'library_labels', 'library_artists',
-                      'downloads_soundcloud_archive'):
+        for table in (
+            'library_track_labels',
+            'library_media_files',
+            'library_tracks',
+            'library_works',
+            'library_labels',
+            'library_artists',
+            'downloads_soundcloud_archive',
+        ):
             cursor.execute(f'DELETE FROM {table}')
 
         cursor.execute('INSERT INTO library_artists (name) VALUES (%s)', ('Angerfist',))
@@ -45,28 +51,46 @@ def library(database):
         label_id = cursor.lastrowid
 
         official = _add_track(
-            cursor, 'uid-radio', 'Raise Your Fist (Radio Edit)', artist_id,
+            cursor,
+            'uid-radio',
+            'Raise Your Fist (Radio Edit)',
+            artist_id,
             '/mnt/music/MOH/Angerfist - Raise Your Fist (Radio Edit).mp3',
-            size=7_200_000, label_id=label_id)
+            size=7_200_000,
+            label_id=label_id,
+        )
         extended = _add_track(
-            cursor, 'uid-ext', 'Raise Your Fist (Extended Mix)', artist_id,
+            cursor,
+            'uid-ext',
+            'Raise Your Fist (Extended Mix)',
+            artist_id,
             '/mnt/music/MOH/Angerfist - Raise Your Fist (Extended Mix).flac',
-            size=60_000_000, label_id=label_id)
+            size=60_000_000,
+            label_id=label_id,
+        )
         rip = _add_track(
-            cursor, 'uid-rip', 'Raise Your Fist', artist_id,
+            cursor,
+            'uid-rip',
+            'Raise Your Fist',
+            artist_id,
             '/mnt/music/soundcloud/Angerfist - Raise Your Fist.mp3',
-            size=12_000_000)
+            size=12_000_000,
+        )
         cursor.execute(
             'INSERT INTO downloads_soundcloud_archive (url, filename) VALUES (%s, %s)',
             ('https://soundcloud.example/x', 'Angerfist - Raise Your Fist.mp3'),
         )
         remix = _add_track(
-            cursor, 'uid-remix', 'Raise Your Fist (Wildstylez Remix)', artist_id,
+            cursor,
+            'uid-remix',
+            'Raise Your Fist (Wildstylez Remix)',
+            artist_id,
             '/mnt/music/MOH/Angerfist - Raise Your Fist (Wildstylez Remix).mp3',
-            size=7_200_000, label_id=label_id)
+            size=7_200_000,
+            label_id=label_id,
+        )
     database.commit()
-    return {'artist_id': artist_id, 'official': official, 'extended': extended,
-            'rip': rip, 'remix': remix}
+    return {'artist_id': artist_id, 'official': official, 'extended': extended, 'rip': rip, 'remix': remix}
 
 
 def _work_of(database, track_id):

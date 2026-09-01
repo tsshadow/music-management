@@ -1,5 +1,6 @@
 """Covers the account merge endpoint, the users schema bootstrap and the
 server-database discovery in services/music_manager/routers/users.py."""
+
 import importlib.util
 import os
 import sys
@@ -44,7 +45,6 @@ SECONDARY = {'id': 2, 'username': 'user.google', 'display_name': 'Teun G'}
 
 
 class MergeUsersTest(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
 
@@ -149,9 +149,7 @@ class MergeUsersTest(unittest.TestCase):
     def test_dynamic_playlists_are_repointed(self):
         _response, cursor, _connection = self.merge(self.base_rules())
 
-        self.assertIn(
-            ('UPDATE dynamic_playlists SET user_id = %s WHERE user_id = %s', (1, 2)), cursor.executed
-        )
+        self.assertIn(('UPDATE dynamic_playlists SET user_id = %s WHERE user_id = %s', (1, 2)), cursor.executed)
 
     def test_app_settings_the_primary_lacks_are_moved_over(self):
         rules = self.base_rules() + [
@@ -191,7 +189,11 @@ class MergeUsersTest(unittest.TestCase):
 
     def test_ratings_and_listens_are_repointed_to_the_surviving_username(self):
         rules = self.base_rules() + [
-            ('SELECT id, entity_type, entity_id FROM rating_tracks', ('user.google',), [{'id': 7, 'entity_type': 'track', 'entity_id': 55}]),
+            (
+                'SELECT id, entity_type, entity_id FROM rating_tracks',
+                ('user.google',),
+                [{'id': 7, 'entity_type': 'track', 'entity_id': 55}],
+            ),
         ]
 
         _response, cursor, _connection = self.merge(rules)
@@ -204,7 +206,11 @@ class MergeUsersTest(unittest.TestCase):
 
     def test_a_rating_the_primary_already_has_is_dropped(self):
         rules = self.base_rules() + [
-            ('SELECT id, entity_type, entity_id FROM rating_tracks', ('user.google',), [{'id': 7, 'entity_type': 'track', 'entity_id': 55}]),
+            (
+                'SELECT id, entity_type, entity_id FROM rating_tracks',
+                ('user.google',),
+                [{'id': 7, 'entity_type': 'track', 'entity_id': 55}],
+            ),
             ('SELECT id FROM rating_tracks WHERE username = %s', ('user', 'track', 55), {'id': 3}),
         ]
 
@@ -238,10 +244,12 @@ class InitDbTest(unittest.TestCase):
     the users table has had, so the branches are driven by what SHOW COLUMNS returns."""
 
     def run_init(self, present_columns):
-        cursor = ScriptedCursor([
-            (f"SHOW COLUMNS FROM {table} LIKE '{column}'", None, {'Field': column})
-            for table, column in present_columns
-        ])
+        cursor = ScriptedCursor(
+            [
+                (f"SHOW COLUMNS FROM {table} LIKE '{column}'", None, {'Field': column})
+                for table, column in present_columns
+            ]
+        )
         with patch.object(users_router.rbac, 'init_db') as rbac_init:
             users_router.init_db(cursor)
         return cursor, rbac_init
@@ -267,8 +275,12 @@ class InitDbTest(unittest.TestCase):
 
     def test_an_up_to_date_schema_is_left_alone(self):
         columns = [
-            ('users', 'server_user_id'), ('users', 'is_admin'), ('users', 'password_hash'),
-            ('users', 'api_key'), ('dynamic_playlists', 'remote_id'), ('dynamic_playlists', 'source'),
+            ('users', 'server_user_id'),
+            ('users', 'is_admin'),
+            ('users', 'password_hash'),
+            ('users', 'api_key'),
+            ('dynamic_playlists', 'remote_id'),
+            ('dynamic_playlists', 'source'),
         ]
 
         cursor, _rbac_init = self.run_init(columns)
@@ -316,9 +328,11 @@ class RunServerDbSyncTest(unittest.TestCase):
 
     def run_sync(self, env, per_db_result=1):
         environment = {'MUMA_SERVER_DB_ROOT': str(self.root), **env}
-        with patch.dict(os.environ, environment, clear=False), \
-             patch.object(pristine_users, 'get_db_connection', return_value=self.connection), \
-             patch.object(pristine_users, 'sync_single_server_db', return_value=per_db_result) as sync:
+        with (
+            patch.dict(os.environ, environment, clear=False),
+            patch.object(pristine_users, 'get_db_connection', return_value=self.connection),
+            patch.object(pristine_users, 'sync_single_server_db', return_value=per_db_result) as sync,
+        ):
             total = pristine_users.run_lms_db_sync()
         return total, sync
 
@@ -371,16 +385,17 @@ class RunServerDbSyncTest(unittest.TestCase):
     def test_a_database_that_is_down_syncs_nothing(self):
         (self.root / 'lms.db').write_text('', encoding='utf-8')
 
-        with patch.dict(os.environ, {'MUMA_SERVER_DB_ROOT': str(self.root)}, clear=False), \
-             patch.object(pristine_users, 'get_db_connection', return_value=None), \
-             patch.object(pristine_users, 'sync_single_server_db') as sync:
+        with (
+            patch.dict(os.environ, {'MUMA_SERVER_DB_ROOT': str(self.root)}, clear=False),
+            patch.object(pristine_users, 'get_db_connection', return_value=None),
+            patch.object(pristine_users, 'sync_single_server_db') as sync,
+        ):
             self.assertEqual(pristine_users.run_lms_db_sync(), 0)
 
         sync.assert_not_called()
 
 
 class VerifyApiKeyTest(unittest.TestCase):
-
     def test_a_request_without_a_key_is_unauthorized(self):
         response = TestClient(app).get('/api/users')
 

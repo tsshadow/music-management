@@ -34,8 +34,7 @@ import org.robolectric.annotation.Config
 @Config(application = nl.teunschriks.mumamobile.app.UApp::class)
 class ManualContentTest {
 
-    private fun themed(theme: Int): Context =
-        ContextThemeWrapper(RuntimeEnvironment.getApplication(), theme)
+    private fun themed(theme: Int): Context = ContextThemeWrapper(RuntimeEnvironment.getApplication(), theme)
 
     private fun spotify(): Context = themed(R.style.UltrasonicTheme_Spotify)
 

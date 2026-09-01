@@ -13,17 +13,16 @@ from services.downloader.settings_store import (
 
 
 class RowParsingTest(unittest.TestCase):
-
     def test_rows_become_a_mapping(self):
-        self.assertEqual(rows_to_settings([('burst_size', '5'), ('max_workers', '1')]),
-                         {'burst_size': '5', 'max_workers': '1'})
+        self.assertEqual(
+            rows_to_settings([('burst_size', '5'), ('max_workers', '1')]), {'burst_size': '5', 'max_workers': '1'}
+        )
 
     def test_no_rows_means_no_overrides(self):
         self.assertEqual(rows_to_settings([]), {})
 
 
 class LoadAndSaveTest(unittest.TestCase):
-
     def setUp(self):
         self.store = InMemorySettingsStore()
 
@@ -42,8 +41,7 @@ class LoadAndSaveTest(unittest.TestCase):
     def test_saving_one_knob_leaves_the_others_alone(self):
         save_settings('soundcloud', {'burst_size': 3}, store=self.store)
         save_settings('soundcloud', {'max_workers': 2}, store=self.store)
-        self.assertEqual(load_settings('soundcloud', store=self.store),
-                         {'burst_size': 3, 'max_workers': 2})
+        self.assertEqual(load_settings('soundcloud', store=self.store), {'burst_size': 3, 'max_workers': 2})
 
     def test_sources_keep_their_own_settings(self):
         save_settings('soundcloud', {'burst_size': 3}, store=self.store)
@@ -60,9 +58,7 @@ class LoadAndSaveTest(unittest.TestCase):
 
 
 class StorageFailureTest(unittest.TestCase):
-
     class BrokenStore:
-
         def load(self, source):
             raise RuntimeError('database is down')
 

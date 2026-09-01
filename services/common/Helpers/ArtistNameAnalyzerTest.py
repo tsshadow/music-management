@@ -3,6 +3,7 @@
 Every case in `TestRealWorldExamples` is a name the maintainer pointed at in the
 actual artist list, with the outcome they said it should have.
 """
+
 import unittest
 
 from services.common.Helpers.ArtistNameAnalyzer import (
@@ -20,7 +21,6 @@ KNOWN = ['Angerfist', 'Headhunterz', 'Terrorclown', 'R3trix', 'DJ KURT', 'Da Twe
 
 
 class NormalizeTest(unittest.TestCase):
-
     def test_casing_and_punctuation_collapse(self):
         self.assertEqual(normalize('DJ  Kurt!'), 'dj kurt')
 
@@ -162,7 +162,6 @@ class ProposalSafetyTest(unittest.TestCase):
 
 
 class AffixStrippingTest(unittest.TestCase):
-
     def setUp(self):
         self.analyzer = ArtistNameAnalyzer(KNOWN)
 
@@ -186,7 +185,6 @@ class AffixStrippingTest(unittest.TestCase):
 
 
 class FuzzyMatchTest(unittest.TestCase):
-
     def setUp(self):
         self.analyzer = ArtistNameAnalyzer(KNOWN)
 
@@ -253,7 +251,6 @@ class LengthWindowTest(unittest.TestCase):
 
 
 class ConfigTest(unittest.TestCase):
-
     def test_thresholds_are_configurable(self):
         strict = ArtistNameAnalyzer(KNOWN, AnalyzerConfig(fuzzy_rewrite_threshold=0.99))
         self.assertEqual(strict.propose('Angerfyst').kind, UNKNOWN)
@@ -267,8 +264,7 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(config.junk_score_threshold, 7)
 
     def test_from_dict_without_values_returns_defaults(self):
-        self.assertEqual(AnalyzerConfig.from_dict(None).junk_score_threshold,
-                         AnalyzerConfig().junk_score_threshold)
+        self.assertEqual(AnalyzerConfig.from_dict(None).junk_score_threshold, AnalyzerConfig().junk_score_threshold)
 
 
 class DictionaryGrowthTest(unittest.TestCase):

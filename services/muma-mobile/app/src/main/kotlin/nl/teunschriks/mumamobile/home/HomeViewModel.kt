@@ -164,8 +164,7 @@ class HomeViewModel(
      * Hiding it is enforced here rather than in the provider so that the provider stays a plain
      * mapper with no opinion about settings.
      */
-    private fun memories(date: String): List<MemoryGroup> =
-        if (Settings.memoriesOnHome) getMusicService().getMemories(date) else emptyList()
+    private fun memories(date: String): List<MemoryGroup> = if (Settings.memoriesOnHome) getMusicService().getMemories(date) else emptyList()
 
     /** Resolved here rather than in the provider, which is deliberately free of a context. */
     private fun memoryLabel(group: MemoryGroup): String = UApp.applicationContext().getString(
@@ -185,8 +184,7 @@ class HomeViewModel(
         return context.getString(R.string.home_memories_summary, memoryLabel(group), trackCount)
     }
 
-    private fun string(@StringRes resId: Int): String =
-        UApp.applicationContext().getString(resId)
+    private fun string(@StringRes resId: Int): String = UApp.applicationContext().getString(resId)
 
     private fun listRows(): Int = HomeLimits.listRows(Settings.homeListCount)
 

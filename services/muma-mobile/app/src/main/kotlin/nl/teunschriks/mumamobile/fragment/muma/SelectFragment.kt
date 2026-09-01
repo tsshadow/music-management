@@ -1,5 +1,6 @@
 package nl.teunschriks.mumamobile.fragment.muma
 
+import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -14,7 +15,6 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import android.content.res.ColorStateList
 import com.google.gson.Gson
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import java.util.Locale
@@ -23,18 +23,18 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.NavigationGraphDirections
 import nl.teunschriks.mumamobile.R
-import nl.teunschriks.mumamobile.fragment.FilterableFragment
 import nl.teunschriks.mumamobile.api.subsonic.models.Filter
 import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.isOffline
 import nl.teunschriks.mumamobile.domain.Tag
+import nl.teunschriks.mumamobile.fragment.FilterableFragment
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.service.RxBus
 import nl.teunschriks.mumamobile.service.plusAssign
 import nl.teunschriks.mumamobile.util.RefreshableFragment
 import nl.teunschriks.mumamobile.util.Util.applyTheme
-import nl.teunschriks.mumamobile.util.toastingExceptionHandler
 import nl.teunschriks.mumamobile.util.themeColor
+import nl.teunschriks.mumamobile.util.toastingExceptionHandler
 import timber.log.Timber
 
 abstract class SelectFragment :
@@ -320,8 +320,6 @@ abstract class SelectFragment :
         }
     }
 
-
-
     private fun loadTilesFromServer() {
         swipeRefresh?.isRefreshing = true
         lifecycleScope.launch(Dispatchers.IO) {
@@ -336,7 +334,7 @@ abstract class SelectFragment :
                     val mumaTiles = getMusicService().getMumaTiles()
                     val remoteTiles = mumaTiles.mapNotNull { it.toTileInfo() }
                         .filter { it.pageKey == pageKey }
-                    
+
                     withContext(Dispatchers.Main) {
                         items.clear()
                         items.addAll(remoteTiles)

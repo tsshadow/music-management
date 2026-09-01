@@ -10,6 +10,7 @@ from a single leaking lookup in the importer.
 These tests pin the close, not the query: they assert on `connection.close()`
 for the call sites that run in a loop and therefore leak fastest.
 """
+
 import unittest
 from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
@@ -50,9 +51,7 @@ class RecordingConnector:
     def assert_all_closed(self, testcase):
         testcase.assertTrue(self.connections, 'no connection was opened at all')
         for index, connection in enumerate(self.connections):
-            testcase.assertTrue(
-                connection.close.called,
-                f'connection #{index} was opened but never closed')
+            testcase.assertTrue(connection.close.called, f'connection #{index} was opened but never closed')
 
 
 class MoverConnectionLeakTest(unittest.TestCase):
@@ -60,6 +59,7 @@ class MoverConnectionLeakTest(unittest.TestCase):
 
     def _mover(self, connector):
         from services.importer.mover import Mover
+
         with patch('services.importer.mover.Settings'):
             mover = Mover()
         mover.db_connector = connector
@@ -109,25 +109,25 @@ class ArchiveConnectionLeakTest(unittest.TestCase):
 
     def test_soundcloud_archive_exists_closes_connection(self):
         connector = RecordingConnector(cursor_rows=(1,))
-        with patch('services.downloader.soundcloud.SoundcloudArchive.DatabaseConnector',
-                   return_value=connector):
+        with patch('services.downloader.soundcloud.SoundcloudArchive.DatabaseConnector', return_value=connector):
             from services.downloader.soundcloud.SoundcloudArchive import SoundcloudArchive
+
             self.assertTrue(SoundcloudArchive.exists('acct', 'vid'))
         connector.assert_all_closed(self)
 
     def test_soundcloud_archive_track_exists_closes_connection(self):
         connector = RecordingConnector(cursor_rows=(1,))
-        with patch('services.downloader.soundcloud.SoundcloudArchive.DatabaseConnector',
-                   return_value=connector):
+        with patch('services.downloader.soundcloud.SoundcloudArchive.DatabaseConnector', return_value=connector):
             from services.downloader.soundcloud.SoundcloudArchive import SoundcloudArchive
+
             self.assertTrue(SoundcloudArchive.track_exists('123'))
         connector.assert_all_closed(self)
 
     def test_youtube_archive_exists_closes_connection(self):
         connector = RecordingConnector(cursor_rows=(1,))
-        with patch('services.downloader.youtube.YoutubeArchive.DatabaseConnector',
-                   return_value=connector):
+        with patch('services.downloader.youtube.YoutubeArchive.DatabaseConnector', return_value=connector):
             from services.downloader.youtube.YoutubeArchive import YoutubeArchive
+
             self.assertTrue(YoutubeArchive.exists('acct', 'vid'))
         connector.assert_all_closed(self)
 
@@ -139,6 +139,7 @@ class DatabaseConnectorContextManagerTest(unittest.TestCase):
         import importlib.util
         import sys
         from pathlib import Path
+
         source = Path(__file__).resolve().parents[1] / 'common' / 'Helpers' / 'DatabaseConnector.py'
         spec = importlib.util.spec_from_file_location('_leaktest_connector', source)
         module = importlib.util.module_from_spec(spec)
@@ -156,6 +157,7 @@ class DatabaseConnectorContextManagerTest(unittest.TestCase):
         import importlib.util
         import sys
         from pathlib import Path
+
         source = Path(__file__).resolve().parents[1] / 'common' / 'Helpers' / 'DatabaseConnector.py'
         spec = importlib.util.spec_from_file_location('_leaktest_connector2', source)
         module = importlib.util.module_from_spec(spec)

@@ -4,9 +4,19 @@ services:
   db:
     security_opt:
       - no-new-privileges:true
-    image: mariadb:10.10
+    image: mariadb:12.3
     container_name: music-management-db-1
     restart: unless-stopped
+    # MariaDB 11.5 changed the server default to utf8mb4_uca1400_ai_ci, and the
+    # 10.10 -> 12.3 migration inherited it: the restored tables kept their own
+    # utf8mb4_general_ci, but anything created afterwards would not. A join
+    # between the two raises "Illegal mix of collations", which surfaces on the
+    # first new table rather than on the upgrade that caused it. Pinned to what
+    # the data already is; moving the whole schema to uca1400 is a separate,
+    # deliberate job because it changes uniqueness semantics.
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: ${DB_USER}

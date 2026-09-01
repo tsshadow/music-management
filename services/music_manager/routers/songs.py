@@ -6,6 +6,7 @@ and a wrong merge is silent.
 
 Design: docs/superpowers/specs/2026-08-23-song-versions-and-canonical-design.md
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -45,8 +46,10 @@ def get_song(work_id: int, _auth: dict = Depends(verify_api_key)):
     conn = _connection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT id, title, work_key, canonical_track_id, pinned_track_id '
-                           'FROM library_works WHERE id = %s', (work_id,))
+            cursor.execute(
+                'SELECT id, title, work_key, canonical_track_id, pinned_track_id FROM library_works WHERE id = %s',
+                (work_id,),
+            )
             work = cursor.fetchone()
             if not work:
                 raise HTTPException(status_code=404, detail='No such song')
@@ -86,11 +89,9 @@ def pin_version(work_id: int, pin: Pin, _auth: dict = Depends(verify_api_key)):
                 if row is None:
                     raise HTTPException(status_code=404, detail='No such track')
                 if row['work_id'] != work_id:
-                    raise HTTPException(status_code=400,
-                                        detail='That track belongs to a different song')
+                    raise HTTPException(status_code=400, detail='That track belongs to a different song')
 
-            cursor.execute('UPDATE library_works SET pinned_track_id = %s WHERE id = %s',
-                           (pin.track_id, work_id))
+            cursor.execute('UPDATE library_works SET pinned_track_id = %s WHERE id = %s', (pin.track_id, work_id))
             recompute_canonicals(cursor, {work_id})
         conn.commit()
     finally:
@@ -108,8 +109,7 @@ def split_track(track_id: int, _auth: dict = Depends(verify_api_key)):
     conn = _connection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT work_id, title, primary_artist_id FROM library_tracks '
-                           'WHERE id = %s', (track_id,))
+            cursor.execute('SELECT work_id, title, primary_artist_id FROM library_tracks WHERE id = %s', (track_id,))
             track = cursor.fetchone()
             if track is None:
                 raise HTTPException(status_code=404, detail='No such track')
@@ -118,8 +118,7 @@ def split_track(track_id: int, _auth: dict = Depends(verify_api_key)):
             # The key is suffixed with the track id so it cannot collide with the
             # group it was just taken out of, nor with a later split of another track.
             cursor.execute(
-                'INSERT INTO library_works (work_key, title, primary_artist_id) '
-                'VALUES (%s, %s, %s)',
+                'INSERT INTO library_works (work_key, title, primary_artist_id) VALUES (%s, %s, %s)',
                 (f'split:{track_id}', track['title'], track['primary_artist_id']),
             )
             new_work_id = cursor.lastrowid

@@ -14,12 +14,12 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import nl.teunschriks.mumamobile.R
+import nl.teunschriks.mumamobile.service.PlaybackService
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldContain
 import org.junit.Test
 import org.junit.runner.RunWith
-import nl.teunschriks.mumamobile.R
-import nl.teunschriks.mumamobile.service.PlaybackService
 import org.robolectric.RobolectricTestRunner
 
 /**
@@ -60,10 +60,9 @@ class MediaLibraryCommandHandlerRatingTest {
         return layout.captured
     }
 
-    private fun ratingButtonIn(layout: List<CommandButton>): CommandButton =
-        layout.single {
-            it.sessionCommand?.customAction == PlaybackService.CUSTOM_COMMAND_CYCLE_RATING
-        }
+    private fun ratingButtonIn(layout: List<CommandButton>): CommandButton = layout.single {
+        it.sessionCommand?.customAction == PlaybackService.CUSTOM_COMMAND_CYCLE_RATING
+    }
 
     @Test
     fun `each rating draws its own star icon`() {

@@ -4,26 +4,15 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.runBlocking
-import nl.teunschriks.mumamobile.BuildConfig
-import nl.teunschriks.mumamobile.R
-import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
-import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.OFFLINE_DB_ID
 import nl.teunschriks.mumamobile.data.ServerSetting
 import nl.teunschriks.mumamobile.data.ServerSettingDao
-import nl.teunschriks.mumamobile.service.RxBus
 import nl.teunschriks.mumamobile.util.Settings
 import timber.log.Timber
-import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.databind.DeserializationFeature
-import com.fasterxml.jackson.databind.ObjectMapper
 
 /**
  * ViewModel to be used in Activities which will handle Server Settings
@@ -46,13 +35,11 @@ class ServerSettingsModel(
         return liveData
     }
 
-    fun getStaticServersWithCredentials(): List<ServerSetting> {
-        return STATIC_SERVERS.map { server ->
-            server.copy(
-                userName = Settings.staticUserName,
-                password = Settings.staticPassword
-            )
-        }
+    fun getStaticServersWithCredentials(): List<ServerSetting> = STATIC_SERVERS.map { server ->
+        server.copy(
+            userName = Settings.staticUserName,
+            password = Settings.staticPassword
+        )
     }
 
     /**
@@ -131,10 +118,7 @@ class ServerSettingsModel(
      * Inserts a new Setting into the database
      * @return The id of the demo server
      */
-    fun addDemoServer(): Int {
-        return -1
-    }
-
+    fun addDemoServer(): Int = -1
 
     companion object {
         const val SERVER_NAME = "MuMa"

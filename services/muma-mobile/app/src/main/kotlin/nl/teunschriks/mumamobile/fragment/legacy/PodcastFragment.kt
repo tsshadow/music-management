@@ -19,7 +19,6 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.koin.androidx.scope.ScopeFragment
 import nl.teunschriks.mumamobile.NavigationGraphDirections
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.domain.PodcastsChannel
@@ -28,6 +27,7 @@ import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.util.RefreshableFragment
 import nl.teunschriks.mumamobile.util.Util.applyTheme
 import nl.teunschriks.mumamobile.util.toastingExceptionHandler
+import org.koin.androidx.scope.ScopeFragment
 
 /**
  * Displays the podcasts available on the server

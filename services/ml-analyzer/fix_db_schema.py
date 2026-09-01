@@ -9,7 +9,25 @@ def fix_schema():
     if analyzer.engine is None:
         print('Geen database verbinding.')
         return
-    tables_to_fix = {'library_track_audio_features': [('internal_track_id', 'INT'), ('file_path', 'TEXT'), ('artist_name', 'VARCHAR(255)'), ('label_name', 'VARCHAR(255)'), ('release_year', 'INT'), ('source_platform', 'VARCHAR(50)'), ('bpm_tag', 'FLOAT'), ('genre_tag', 'VARCHAR(100)')], 'library_track_ml_labels': [('ml_review_status', "ENUM('unreviewed', 'human_verified', 'borderline', 'do_not_train') DEFAULT 'unreviewed'"), ('approved_for_training', 'BOOLEAN DEFAULT FALSE')]}
+    tables_to_fix = {
+        'library_track_audio_features': [
+            ('internal_track_id', 'INT'),
+            ('file_path', 'TEXT'),
+            ('artist_name', 'VARCHAR(255)'),
+            ('label_name', 'VARCHAR(255)'),
+            ('release_year', 'INT'),
+            ('source_platform', 'VARCHAR(50)'),
+            ('bpm_tag', 'FLOAT'),
+            ('genre_tag', 'VARCHAR(100)'),
+        ],
+        'library_track_ml_labels': [
+            (
+                'ml_review_status',
+                "ENUM('unreviewed', 'human_verified', 'borderline', 'do_not_train') DEFAULT 'unreviewed'",
+            ),
+            ('approved_for_training', 'BOOLEAN DEFAULT FALSE'),
+        ],
+    }
     inspector = inspect(analyzer.engine)
     added_count = 0
     with analyzer.engine.begin() as conn:
@@ -33,5 +51,7 @@ def fix_schema():
         print(f'\nKlaar! {added_count} kolommen in totaal toegevoegd.')
     else:
         print('Geen wijzigingen nodig.')
+
+
 if __name__ == '__main__':
     fix_schema()

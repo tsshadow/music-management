@@ -16,7 +16,12 @@ class InferGenreFromArtistRule(TagRule):
 
     def __init__(self, helper=None):
         from services.common.Helpers.Cache import databaseHelpers
-        self.artistGenreHelper = helper or databaseHelpers.get('artistGenreHelper') or LookupTableHelper('rules_artist_genre', 'artist', 'genre')
+
+        self.artistGenreHelper = (
+            helper
+            or databaseHelpers.get('artistGenreHelper')
+            or LookupTableHelper('rules_artist_genre', 'artist', 'genre')
+        )
 
     def apply(self, song):
         current_genres = song.tag_collection.get_item_as_array(GENRE)

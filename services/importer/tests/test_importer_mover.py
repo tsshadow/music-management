@@ -9,7 +9,6 @@ from services.importer.mover import Mover, post_processing_songs
 
 
 class TestMover(unittest.TestCase):
-
     def setUp(self):
         reset_database_helpers()
         self.path_exists_patcher = patch('os.path.exists')
@@ -58,7 +57,9 @@ class TestMoverConflictHandling(unittest.TestCase):
 
     @patch('services.importer.mover.shutil.move')
     def test_shutil_error_is_treated_as_conflict_and_source_is_removed(self, mock_move):
-        mock_move.side_effect = shutil.Error("Destination path '/mnt/music/EPs/Scantraxx/SCAN123/SCAN123' already exists")
+        mock_move.side_effect = shutil.Error(
+            "Destination path '/mnt/music/EPs/Scantraxx/SCAN123/SCAN123' already exists"
+        )
         mover = self._make_mover()
         mover._move_folder('SCAN123', 'SCAN', dry_run=False)
         mover.remove.assert_called_once_with('SCAN123')

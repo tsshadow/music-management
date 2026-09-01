@@ -9,10 +9,10 @@ from services.tagger.Song.LabelSong import LabelSong
 
 
 class TestArtistRules(unittest.TestCase):
-
     def setUp(self):
         reset_database_helpers()
         from services.common.Helpers.Cache import databaseHelpers
+
         self.db_helpers = databaseHelpers
         self.path_exists_patcher = patch('os.path.exists')
         self.mock_path_exists = self.path_exists_patcher.start()
@@ -51,5 +51,7 @@ class TestArtistRules(unittest.TestCase):
         self.db_helpers['library_artists'].exists.side_effect = lambda x: x.lower() == 'd-block'
         song.parse()
         self.assertEqual(song.artist(), 'D-Block')
+
+
 if __name__ == '__main__':
     unittest.main()

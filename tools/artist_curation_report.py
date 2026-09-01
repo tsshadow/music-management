@@ -23,6 +23,7 @@ The CSV wants a header and three columns: name, tracks, sources — where
     LEFT JOIN library_media_files mf   ON mf.track_id  = ta.track_id
     GROUP BY a.id, a.name;
 """
+
 import argparse
 import csv
 import json
@@ -57,17 +58,20 @@ def load_csv(path):
     rows = []
     with open(path, newline='', encoding='utf-8') as handle:
         for row in csv.DictReader(handle):
-            rows.append({
-                'name': row['name'],
-                'tracks': int(row.get('tracks') or 0),
-                'sources': int(row.get('sources') or 0),
-            })
+            rows.append(
+                {
+                    'name': row['name'],
+                    'tracks': int(row.get('tracks') or 0),
+                    'sources': int(row.get('sources') or 0),
+                }
+            )
     return rows
 
 
 def load_db():
     """Read the same rows straight from the configured database."""
     from services.common.Helpers.DatabaseConnector import DatabaseConnector
+
     query = """
         SELECT a.name,
                COUNT(DISTINCT ta.track_id) AS tracks,
@@ -81,8 +85,7 @@ def load_db():
     try:
         with connection.cursor() as cursor:
             cursor.execute(query)
-            return [{'name': r[0], 'tracks': int(r[1] or 0), 'sources': int(r[2] or 0)}
-                    for r in cursor.fetchall()]
+            return [{'name': r[0], 'tracks': int(r[1] or 0), 'sources': int(r[2] or 0)} for r in cursor.fetchall()]
     finally:
         connection.close()
 
@@ -137,18 +140,27 @@ def print_report(results, seed_size, total_rows, out=sys.stdout):
     rewrites = by_kind.get(REWRITE, [])
     if rewrites:
         targets = Counter(r['proposal'].values[0] for r in rewrites)
-        print(f'\n{len(rewrites)} rewrites collapse onto {len(targets)} distinct artists '
-              f'- one decision each closes {len(rewrites) / len(targets):.1f} names on average.', file=out)
+        print(
+            f'\n{len(rewrites)} rewrites collapse onto {len(targets)} distinct artists '
+            f'- one decision each closes {len(rewrites) / len(targets):.1f} names on average.',
+            file=out,
+        )
 
     queue = by_kind.get(UNKNOWN, [])
     queue_tracks = sum(r['tracks'] for r in queue)
-    print(f'{len(queue)} names ({100.0 * queue_tracks / tracks_total:.1f}% of tracks) '
-          f'need a human or an external lookup.', file=out)
+    print(
+        f'{len(queue)} names ({100.0 * queue_tracks / tracks_total:.1f}% of tracks) '
+        f'need a human or an external lookup.',
+        file=out,
+    )
 
     suspect = [r for r in queue if r['proposal'].junk_score >= AnalyzerConfig().junk_score_threshold]
     if suspect:
-        print(f'{len(suspect)} of those look like sentences rather than names, and are flagged '
-              f'rather than removed - real artists score the same way.', file=out)
+        print(
+            f'{len(suspect)} of those look like sentences rather than names, and are flagged '
+            f'rather than removed - real artists score the same way.',
+            file=out,
+        )
 
     for kind in KINDS:
         group = sorted(by_kind.get(kind, []), key=lambda r: -r['tracks'])
@@ -158,8 +170,10 @@ def print_report(results, seed_size, total_rows, out=sys.stdout):
         for result in group[:15]:
             proposal = result['proposal']
             arrow = ' ; '.join(proposal.values) if proposal.values else '(removed)'
-            print(f"  {result['tracks']:>6} tracks / {result['sources']:>3} folders  "
-                  f"{result['name']!r} -> {arrow}", file=out)
+            print(
+                f"  {result['tracks']:>6} tracks / {result['sources']:>3} folders  {result['name']!r} -> {arrow}",
+                file=out,
+            )
             print(f"{'':>26}  because: {'; '.join(proposal.evidence)}", file=out)
 
 
@@ -170,14 +184,21 @@ def write_proposals(results, path):
         writer.writerow(['name', 'tracks', 'sources', 'proposal', 'values', 'confidence', 'evidence'])
         for result in results:
             proposal = result['proposal']
-            writer.writerow([result['name'], result['tracks'], result['sources'],
-                             proposal.kind, ';'.join(proposal.values),
-                             proposal.confidence, ' | '.join(proposal.evidence)])
+            writer.writerow(
+                [
+                    result['name'],
+                    result['tracks'],
+                    result['sources'],
+                    proposal.kind,
+                    ';'.join(proposal.values),
+                    proposal.confidence,
+                    ' | '.join(proposal.evidence),
+                ]
+            )
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument('--csv', help='CSV export with name, tracks, sources')
     source.add_argument('--db', action='store_true', help='read from the configured database')

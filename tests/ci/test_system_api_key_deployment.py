@@ -45,14 +45,29 @@ def test_compose_passes_both_spellings_of_the_system_key():
             )
 
 
-def run_secrets_check(env_content: str, lms_env_content: str) -> subprocess.CompletedProcess:
+# The variables that gate release jobs at the `rules:` level. The tests below
+# are about the .env-content checks, so these are filled with placeholders;
+# their own absence is covered by test_secrets_check_rejects_a_missing_gating_variable.
+GATING_VARS = {
+    "DOCKERHUB_USERNAME": "someone",
+    "DOCKERHUB_TOKEN": "a-token",
+    "APK_HOSTER_URL": "https://apk.example",
+    "SIGNING_STORE_FILE": "/tmp/keystore",
+}
+
+
+def run_secrets_check(env_content: str, lms_env_content: str, **overrides: str) -> subprocess.CompletedProcess:
+    env = {
+        "PATH": "/usr/bin:/bin",
+        "PROD_ENV_FILE": env_content,
+        "PROD_ENV_FILE_LMS": lms_env_content,
+        **GATING_VARS,
+        **overrides,
+    }
+    env = {k: v for k, v in env.items() if v is not None}
     return subprocess.run(
         ["bash", str(SECRETS_SCRIPT)],
-        env={
-            "PATH": "/usr/bin:/bin",
-            "PROD_ENV_FILE": env_content,
-            "PROD_ENV_FILE_LMS": lms_env_content,
-        },
+        env=env,
         capture_output=True,
         text=True,
         check=False,
@@ -73,7 +88,8 @@ def test_secrets_check_accepts_the_muma_api_key_spelling():
     """The production .env leaves API_KEY empty and sets MUMA_API_KEY; that is
     a valid deployment, not a missing secret."""
     result = run_secrets_check(
-        BASE_ENV + textwrap.dedent("""\
+        BASE_ENV
+        + textwrap.dedent("""\
             API_KEY=
             MUMA_API_KEY=a-real-key
         """),
@@ -85,3 +101,14 @@ def test_secrets_check_accepts_the_muma_api_key_spelling():
 def test_secrets_check_accepts_the_api_key_spelling():
     result = run_secrets_check(BASE_ENV + "API_KEY=a-real-key\n", LMS_ENV)
     assert result.returncode == 0, result.stdout
+
+
+def test_secrets_check_rejects_a_missing_gating_variable():
+    """A variable used in a job's `rules:` (e.g. `&& $DOCKERHUB_TOKEN`) does
+    not fail the pipeline when missing -- the job silently drops out, and a
+    skipped job blocks nothing. check-required-secrets.sh is the loud version
+    of that requirement, so each gating variable's absence must fail it."""
+    for name in GATING_VARS:
+        result = run_secrets_check(BASE_ENV + "API_KEY=a-real-key\n", LMS_ENV, **{name: None})
+        assert result.returncode != 0, f"missing {name} passed the check"
+        assert name in result.stdout

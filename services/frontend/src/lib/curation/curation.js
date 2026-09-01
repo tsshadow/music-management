@@ -9,7 +9,7 @@
  * exceptions -- making a connection (an MBID, an alias) and writing a rule -- so
  * everything here is about keeping those two honest, not about editing metadata.
  */
-import { normalizeGenre } from '../management/genreCuration';
+import { normalizeGenre } from "../management/genreCuration";
 
 /** MusicBrainz ids are 8-4-4-4-12 hex, printed in either case. */
 const MBID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -20,7 +20,7 @@ const MBID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
  * `musicbrainz` is deliberately absent: the MBID field owns that row and writes it on
  * save, so a second input for the same source would let the page contradict itself.
  */
-export const EXTERNAL_SOURCES = ['spotify', 'soundcloud', 'discogs', 'beatport', 'youtube'];
+export const EXTERNAL_SOURCES = ["spotify", "soundcloud", "discogs", "beatport", "youtube"];
 
 /**
  * Whether a field holds something storable as an MBID.
@@ -33,7 +33,7 @@ export const EXTERNAL_SOURCES = ['spotify', 'soundcloud', 'discogs', 'beatport',
  * @returns {boolean}
  */
 export function isMbid(value) {
-  const candidate = (value || '').trim();
+  const candidate = (value || "").trim();
   if (!candidate) return true;
   return MBID_PATTERN.test(candidate);
 }
@@ -46,7 +46,7 @@ export function isMbid(value) {
  * @returns {string|null} The URL, or null when there is no id to link to.
  */
 export function mbidUrl(kind, mbid) {
-  const candidate = (mbid || '').trim();
+  const candidate = (mbid || "").trim();
   if (!candidate) return null;
   return `https://musicbrainz.org/${kind}/${candidate}`;
 }
@@ -99,8 +99,8 @@ export function removeParent(current, parent) {
  * @returns {string}
  */
 export function affectedLabel(count) {
-  if (!count) return 'no tracks';
-  return count === 1 ? '1 track' : `${count} tracks`;
+  if (!count) return "no tracks";
+  return count === 1 ? "1 track" : `${count} tracks`;
 }
 
 /**
@@ -114,5 +114,5 @@ export function affectedLabel(count) {
  * @returns {boolean}
  */
 export function canEditGenre(genre) {
-  return (genre || {}).state === 'white';
+  return (genre || {}).state === "white";
 }

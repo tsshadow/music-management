@@ -1,12 +1,12 @@
 package nl.teunschriks.mumamobile.api.subsonic
 
+import nl.teunschriks.mumamobile.api.subsonic.response.StreamResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.SubsonicResponse
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.`should throw`
 import org.amshove.kluent.shouldBeNull
 import org.junit.After
 import org.junit.Test
-import nl.teunschriks.mumamobile.api.subsonic.response.StreamResponse
-import nl.teunschriks.mumamobile.api.subsonic.response.SubsonicResponse
 import retrofit2.Response
 
 /**

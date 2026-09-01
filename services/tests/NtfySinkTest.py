@@ -10,7 +10,6 @@ from services.common.Helpers.ntfy_sink import NtfySink
 
 
 class FakeClock:
-
     def __init__(self):
         self.now = 0.0
 
@@ -31,12 +30,10 @@ def fake_config(values=None):
 
 
 def make_event(level='INFO', title='t', push=False, source='downloader', logger=None):
-    return Event(level=level, title=title, message='bericht', source=source, push=push,
-                 logger=logger)
+    return Event(level=level, title=title, message='bericht', source=source, push=push, logger=logger)
 
 
 class NtfySinkTest(unittest.TestCase):
-
     def setUp(self):
         self.clock = FakeClock()
         self.sink = NtfySink(config=fake_config(), clock=self.clock)
@@ -107,11 +104,9 @@ class NtfySinkTest(unittest.TestCase):
         # sweep.py waarschuwt 'nog 240s afkoelen' en even later 'nog 180s'. Dat
         # is dezelfde melding met een andere titel; op de telefoon hoort dat
         # eenmaal aan te komen, niet elke sweep opnieuw.
-        self.sink.handle(make_event(level='WARNING', logger='downloader.sweep',
-                                    title='soundcloud koelt nog 240s af'))
+        self.sink.handle(make_event(level='WARNING', logger='downloader.sweep', title='soundcloud koelt nog 240s af'))
         self.clock.now = 60.0
-        self.sink.handle(make_event(level='WARNING', logger='downloader.sweep',
-                                    title='soundcloud koelt nog 180s af'))
+        self.sink.handle(make_event(level='WARNING', logger='downloader.sweep', title='soundcloud koelt nog 180s af'))
 
         self.assertEqual(mock_requests.post.call_count, 1)
 

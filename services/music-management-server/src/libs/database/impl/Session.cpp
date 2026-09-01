@@ -213,9 +213,12 @@ namespace lms::db
             auto transaction{ createWriteTransaction() };
 
             auto tryExecute = [&](std::string_view cmd) {
-                try {
-                    utils::executeCommand(_session, std::string{cmd});
-                } catch (const std::exception& e) {
+                try
+                {
+                    utils::executeCommand(_session, std::string{ cmd });
+                }
+                catch (const std::exception& e)
+                {
                     LMS_LOG(DB, WARNING, "Failed to create index '" << cmd << "': " << e.what());
                 }
             };
@@ -294,11 +297,14 @@ namespace lms::db
             tryExecute("CREATE INDEX IF NOT EXISTS release_sort_name_idx ON release(sort_name)");
             tryExecute("CREATE INDEX IF NOT EXISTS release_sort_name_nocase_idx ON release(sort_name COLLATE NOCASE)");
 
-            try {
+            try
+            {
                 tryExecute("CREATE INDEX IF NOT EXISTS release_artist_link_id_idx ON release_artist_link(id)");
                 tryExecute("CREATE INDEX IF NOT EXISTS release_artist_link_artist_idx ON release_artist_link(artist_id)");
                 tryExecute("CREATE INDEX IF NOT EXISTS release_artist_link_release_idx ON release_artist_link(release_id)");
-            } catch (const std::exception& e) {
+            }
+            catch (const std::exception& e)
+            {
                 LMS_LOG(DB, INFO, "Could not create release_artist_link indexes: " << e.what());
             }
 

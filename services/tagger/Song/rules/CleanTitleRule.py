@@ -16,7 +16,7 @@ class CleanTitleRule(TagRule):
                 still_checking = False
                 for prefix in prefixes:
                     if title.startswith(prefix):
-                        title = title[len(prefix):].strip()
+                        title = title[len(prefix) :].strip()
                         modified = True
                         still_checking = True
                         break

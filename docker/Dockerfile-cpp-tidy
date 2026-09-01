@@ -1,0 +1,52 @@
+# Toolchain image for clang-tidy over the MuMa Server sources.
+#
+# Separate from Dockerfile-build-alpine, which is a cross-compiling *build* and
+# carries ccache, xx and a coverage run with it. clang-tidy needs none of that:
+# it needs the same headers and a compilation database, and it needs to answer
+# in minutes. What it does need and that image lacks is clang-extra-tools.
+#
+# The package lists are the same ones Dockerfile-build-alpine installs. They are
+# duplicated rather than shared because that file resolves them through xx for
+# the target platform; this one only ever runs natively. Keep them in step: a
+# dependency added there and forgotten here surfaces as clang-tidy failing to
+# find a header, which reads like a code error.
+FROM alpine:3.21
+
+ARG RUNNER_UID=1000
+ARG RUNNER_GID=1000
+
+RUN apk add --no-cache \
+        clang \
+        clang-extra-tools \
+        llvm \
+        make \
+        cmake \
+        lld \
+        compiler-rt \
+        pkgconfig \
+        python3 \
+        gcc \
+        g++ \
+        alsa-lib-dev \
+        benchmark-dev \
+        boost-dev \
+        ffmpeg-dev \
+        gtest-dev \
+        libarchive-dev \
+        libconfig-dev \
+        musl-dev \
+        pugixml-dev \
+        pulseaudio-dev \
+        stb \
+        taglib-dev \
+        wt-dev \
+        xxhash-dev
+
+# Same reasoning as docker/Dockerfile-android-ci: the container writes a build
+# directory into the bind-mounted source tree, and a root-owned one breaks the
+# next job's checkout before any script in it can run.
+RUN set -eux; \
+    addgroup -g "$RUNNER_GID" ci 2>/dev/null || true; \
+    adduser -D -u "$RUNNER_UID" -G ci ci 2>/dev/null || true
+
+USER $RUNNER_UID:$RUNNER_GID

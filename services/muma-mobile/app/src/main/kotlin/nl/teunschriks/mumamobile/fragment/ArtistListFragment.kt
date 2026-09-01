@@ -15,7 +15,6 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import org.koin.android.ext.android.inject
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.adapters.ArtistRowBinder
 import nl.teunschriks.mumamobile.domain.ArtistOrIndex

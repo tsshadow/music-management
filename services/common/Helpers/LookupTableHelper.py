@@ -6,15 +6,15 @@ from services.common.Helpers.DatabaseConnector import DatabaseConnector
 
 class LookupTableHelper:
     """
-        Helper class for accessing a key-value mapping table in a database.
+    Helper class for accessing a key-value mapping table in a database.
 
-        Suitable for cases like Artist → Genre or Label → Country, where each
-        key may map to one or more values.
+    Suitable for cases like Artist → Genre or Label → Country, where each
+    key may map to one or more values.
 
-        The table is expected to contain:
-        - A key column (e.g. 'artist')
-        - A value column (e.g. 'genre')
-        """
+    The table is expected to contain:
+    - A key column (e.g. 'artist')
+    - A value column (e.g. 'genre')
+    """
 
     #: How long a preloaded map is trusted before the next `get` rebuilds it.
     #:
@@ -27,7 +27,7 @@ class LookupTableHelper:
     #: rebuild is far cheaper than the alternative of not caching at all.
     STALE_AFTER_SECONDS = 60
 
-    def __init__(self, table_name: str, key_column_name: str, value_column_name: str, preload: bool=True):
+    def __init__(self, table_name: str, key_column_name: str, value_column_name: str, preload: bool = True):
         self.table_name = table_name
         self.key_column_name = key_column_name
         self.value_column_name = value_column_name
@@ -94,7 +94,9 @@ class LookupTableHelper:
                 if existing_key.lower() == key_lower:
                     return list(values)
             return []
-        query = f'SELECT {self.value_column_name} FROM {self.table_name} WHERE LOWER({self.key_column_name}) = LOWER(%s)'
+        query = (
+            f'SELECT {self.value_column_name} FROM {self.table_name} WHERE LOWER({self.key_column_name}) = LOWER(%s)'
+        )
         try:
             connection = self.db_connector.connect()
         except Exception as e:

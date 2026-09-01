@@ -16,6 +16,7 @@ helper against a real database, which is exactly why services/tests/mock_base.py
 replaces that module wholesale. A dispatcher that takes the mapping as an argument
 can be tested on its own.
 """
+
 import logging
 
 logger = logging.getLogger(__name__)

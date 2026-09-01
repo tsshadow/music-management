@@ -1,13 +1,13 @@
 package nl.teunschriks.mumamobile.api.subsonic
 
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_1_0
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_2_0
+import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType.BY_GENRE
 import org.amshove.kluent.`should throw`
 import org.junit.Test
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.kotlin.mock
-import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_1_0
-import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_2_0
-import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType.BY_GENRE
 
 /**
  * Unit test for [ApiVersionCheckWrapper].

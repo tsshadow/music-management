@@ -1,4 +1,5 @@
 """The one-request question: what is this account's newest track?"""
+
 import unittest
 
 from services.tests.mock_base import setup_mocks
@@ -36,30 +37,34 @@ class FakeYoutubeDL:
 
 
 class NewestTrackTest(unittest.TestCase):
-
     def setUp(self):
         FakeYoutubeDL.last_opts = {}
         FakeYoutubeDL.last_url = None
         FakeYoutubeDL.error = None
         # Shaped like a real flat listing: newest first, and no timestamp.
-        FakeYoutubeDL.result = {'entries': [
-            {'id': '2379459947', 'title': 'Dokho - Better Place',
-             'url': 'https://soundcloud.com/monstercat/dokho-better-place'},
-            {'id': '2377500137', 'title': 'Oliverse - Risk It All', 'url': 'x'},
-        ]}
+        FakeYoutubeDL.result = {
+            'entries': [
+                {
+                    'id': '2379459947',
+                    'title': 'Dokho - Better Place',
+                    'url': 'https://soundcloud.com/monstercat/dokho-better-place',
+                },
+                {'id': '2377500137', 'title': 'Oliverse - Risk It All', 'url': 'x'},
+            ]
+        }
 
     def probe(self, base_opts=None):
         return newest_track('monstercat', base_opts or {}, ydl_factory=FakeYoutubeDL)
 
     def test_it_returns_the_first_entry(self):
-        self.assertEqual(self.probe(), ProbeResult(
-            '2379459947', 'Dokho - Better Place',
-            'https://soundcloud.com/monstercat/dokho-better-place'))
+        self.assertEqual(
+            self.probe(),
+            ProbeResult('2379459947', 'Dokho - Better Place', 'https://soundcloud.com/monstercat/dokho-better-place'),
+        )
 
     def test_it_asks_for_the_account_tracks_page(self):
         self.probe()
-        self.assertEqual(FakeYoutubeDL.last_url,
-                         'https://soundcloud.com/monstercat/tracks')
+        self.assertEqual(FakeYoutubeDL.last_url, 'https://soundcloud.com/monstercat/tracks')
 
     def test_it_reads_one_flat_entry_and_no_more(self):
         self.probe()
@@ -71,16 +76,16 @@ class NewestTrackTest(unittest.TestCase):
     def test_it_drops_the_options_that_would_hide_the_newest_track(self):
         # break_on_existing raises on exactly the case the probe exists to
         # detect, and download_archive would make yt-dlp skip the entry.
-        self.probe({'download_archive': '/tmp/archive.txt', 'break_on_existing': True,
-                    'match_filter': lambda info: None})
+        self.probe(
+            {'download_archive': '/tmp/archive.txt', 'break_on_existing': True, 'match_filter': lambda info: None}
+        )
         opts = FakeYoutubeDL.last_opts
         self.assertNotIn('download_archive', opts)
         self.assertNotIn('break_on_existing', opts)
         self.assertNotIn('match_filter', opts)
 
     def test_it_keeps_the_headers_and_cookies_it_was_given(self):
-        self.probe({'http_headers': {'User-Agent': 'muma/1.0'},
-                    'cookies': 'soundcloud.com_cookies.txt'})
+        self.probe({'http_headers': {'User-Agent': 'muma/1.0'}, 'cookies': 'soundcloud.com_cookies.txt'})
         opts = FakeYoutubeDL.last_opts
         self.assertEqual(opts['http_headers'], {'User-Agent': 'muma/1.0'})
         self.assertEqual(opts['cookies'], 'soundcloud.com_cookies.txt')

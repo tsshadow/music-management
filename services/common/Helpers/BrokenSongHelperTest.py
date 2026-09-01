@@ -5,7 +5,6 @@ from services.common.Helpers.BrokenSongHelper import BrokenSongHelper
 
 
 class BrokenSongHelperTest(unittest.TestCase):
-
     def setUp(self):
         patcher = patch('services.common.Helpers.BrokenSongHelper.DatabaseConnector')
         self.addCleanup(patcher.stop)

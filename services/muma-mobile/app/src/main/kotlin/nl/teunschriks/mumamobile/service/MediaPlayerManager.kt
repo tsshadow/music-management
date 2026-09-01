@@ -28,8 +28,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.OFFLINE_DB_ID
@@ -47,6 +45,8 @@ import nl.teunschriks.mumamobile.util.Util.toast
 import nl.teunschriks.mumamobile.util.launchWithToast
 import nl.teunschriks.mumamobile.util.toMediaItem
 import nl.teunschriks.mumamobile.util.toTrack
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import timber.log.Timber
 
 private const val CONTROLLER_SWITCH_DELAY = 500L

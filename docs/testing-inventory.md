@@ -74,10 +74,33 @@
 - The only remaining large uncovered block in the Python suite (~715 statements at 0%). Its dependencies (`sqlalchemy`, `pandas`, `scikit-learn`, `joblib`) are in its own `requirements.txt` but not in the repo root one, so tests for it would either need those added to the CI environment or an `importorskip` guard that makes them silently skip there
 - Compose service is commented out in `docker-compose.yml` (inactive)
 
+### music-management-server (C++)
+- Formatting: `./scripts/test/muma-server-format.sh` (`quality:cpp-format`), clang-format pinned
+  to 20.1.8 via `silkeh/clang:20` — the version matters, releases disagree about output.
+  `--fix` rewrites in place. `ColumnLimit: 0` in `.clang-format` means lines are never reflowed
+- Static analysis: `./scripts/test/muma-server-tidy.sh` (`quality:cpp-tidy`) runs clang-tidy
+  against the repo's own `.clang-tidy`. It configures cmake with
+  `CMAKE_EXPORT_COMPILE_COMMANDS=ON` and `UNITY_BUILD=OFF` (the shipped images merge
+  translation units, which would make clang-tidy report against files that do not exist),
+  then compares the result to `security/accepted-clang-tidy-findings.txt`.
+  `--write-baseline` accepts the current state. ~10 minutes at `-j16` over 307 translation
+  units, so it is `changes:`-gated on the server sources
+- Test: `./scripts/test/muma-server-unit.sh` builds and runs the CTest/GTest suite inside
+  `Dockerfile-build-alpine` and extracts coverage
+
 ### muma-mobile (Android/Kotlin)
 - Build: Gradle (`build.gradle`, `libs.versions.toml`), JVM target 21, uses `detekt` + `ktlintGradle`
 - Test: JVM unit tests present under `services/muma-mobile/app/src/test/kotlin/...` (e.g. `ArchitectureTest`, `imageloader/*Test`, `domain/*Test`)
-- No instrumentation/Android Auto tests found in this pass (to confirm in a later step)
+- Static analysis in `muma-mobile:check`: ktlint formatting
+  (`./scripts/test/muma-mobile-ktlint.sh`, no baseline — `ktlintFormat` fixes what it finds),
+  detekt (`./scripts/test/muma-mobile-detekt.sh`, per-module `detekt-baseline.xml`) and
+  Android Lint (`./scripts/test/muma-mobile-lint.sh`, `:app:lintDebug` with
+  `checkDependencies=true` so the core modules are analyzed too; pre-existing findings in
+  `app/lint-baseline.xml`)
+- Release-build smoke: `./scripts/test/muma-mobile-emulator-smoke.sh` boots the R8-minified
+  APK on a headless ATD emulator (needs `/dev/kvm`) and fails on a startup crash — the class
+  of defect (bug-report 029) every JVM-side check is structurally blind to
+- No instrumentation/Android Auto tests beyond that smoke tripwire (UI flows still uncovered)
 
 ### common
 - Shared helpers (`config_store.py`, `db_init.py`, `job_manager.py`, `step.py`, `version_helper.py`) — partly covered directly (`TableHelperTest.py`, `FilterTableHelperTest.py`, `LookupTableHelperTest.py`, `FestivalHelperTest.py`, `NotificationServiceTest.py`, `ProcessedFilesHelperTest.py`), the rest indirectly via dependent modules

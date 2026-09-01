@@ -11,6 +11,7 @@ normalize() runs NFKD, under which 'ß'.upper() is 'SS' and a single character
 can decompose into several. Both are Unicode behaving correctly, not defects,
 so the invariants are stated where they actually hold.
 """
+
 import pytest
 
 hypothesis = pytest.importorskip('hypothesis', reason='pip install -r requirements-dev.txt')
@@ -42,7 +43,6 @@ KINDS = {KEEP, REWRITE, SPLIT, REJECT, UNKNOWN}
 
 
 class NormalizePropertyTest:
-
     @given(NAMES)
     @SETTINGS
     def test_normalizing_is_idempotent(self, name):
@@ -84,7 +84,6 @@ class NormalizePropertyTest:
 
 
 class HasLettersPropertyTest:
-
     @given(NAMES)
     @SETTINGS
     def test_it_agrees_with_the_definition_in_every_script(self, name):
@@ -153,8 +152,7 @@ class ProposalPropertyTest:
         second = self.analyzer.propose(name)
         assert (first.kind, first.values, first.confidence) == (second.kind, second.values, second.confidence)
 
-    @given(st.sampled_from(['Angerfist', 'Headhunterz', 'Da Tweekaz']),
-           st.sampled_from(['', ' ', '  ']))
+    @given(st.sampled_from(['Angerfist', 'Headhunterz', 'Da Tweekaz']), st.sampled_from(['', ' ', '  ']))
     @SETTINGS
     def test_a_known_artist_with_stray_whitespace_survives(self, artist, padding):
         proposal = self.analyzer.propose(f'{padding}{artist}{padding}')
@@ -184,7 +182,6 @@ class ProposalPropertyTest:
 
 
 class GenreNormalizationPropertyTest:
-
     helper = GenreRulesHelper(preload=False, rows=[])
 
     @given(NAMES)
@@ -206,9 +203,13 @@ class GenreNormalizationPropertyTest:
         assert parts
         assert all(isinstance(part, str) for part in parts)
 
-    @given(st.lists(st.text(alphabet=st.characters(whitelist_categories=('Ll', 'Lu')),
-                            min_size=1, max_size=12),
-                    min_size=2, max_size=4))
+    @given(
+        st.lists(
+            st.text(alphabet=st.characters(whitelist_categories=('Ll', 'Lu')), min_size=1, max_size=12),
+            min_size=2,
+            max_size=4,
+        )
+    )
     @SETTINGS
     def test_a_slash_separated_genre_splits_into_its_parts(self, parts):
         assert self.helper.split_composite('/'.join(parts)) == parts

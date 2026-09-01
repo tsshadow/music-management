@@ -8,7 +8,6 @@
 package nl.teunschriks.mumamobile.fragment
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Canvas
 import android.graphics.Color.argb
@@ -18,7 +17,6 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.util.TypedValue
 import android.view.GestureDetector
 import android.view.LayoutInflater
 import android.view.Menu
@@ -39,8 +37,6 @@ import android.widget.TextView
 import android.widget.Toast
 import android.widget.ViewFlipper
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.AttrRes
-import androidx.annotation.ColorInt
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.os.BundleCompat
@@ -59,10 +55,9 @@ import androidx.recyclerview.widget.ItemTouchHelper.ACTION_STATE_DRAG
 import androidx.recyclerview.widget.ItemTouchHelper.ACTION_STATE_IDLE
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.simplecityapps.recyclerview_fastscroll.views.FastScrollRecyclerView
-import com.google.android.material.R as RM
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.progressindicator.CircularProgressIndicator
+import com.simplecityapps.recyclerview_fastscroll.views.FastScrollRecyclerView
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import java.text.DateFormat
 import java.text.SimpleDateFormat
@@ -81,9 +76,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.koin.android.ext.android.inject
-import org.koin.androidx.scope.ScopeFragment
-import org.koin.core.component.KoinScopeComponent
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.adapters.BaseAdapter
 import nl.teunschriks.mumamobile.adapters.TrackViewBinder
@@ -116,9 +108,12 @@ import nl.teunschriks.mumamobile.util.MediaDeviceExporter
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.Util.toast
-import nl.teunschriks.mumamobile.util.toTrack
 import nl.teunschriks.mumamobile.util.themeColor
+import nl.teunschriks.mumamobile.util.toTrack
 import nl.teunschriks.mumamobile.view.AutoRepeatButton
+import org.koin.android.ext.android.inject
+import org.koin.androidx.scope.ScopeFragment
+import org.koin.core.component.KoinScopeComponent
 import timber.log.Timber
 
 /**

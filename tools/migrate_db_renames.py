@@ -1,7 +1,7 @@
-import os
-
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
+
+from tools.db_url import database_url
 
 load_dotenv()
 
@@ -40,31 +40,26 @@ RENAMES = {
     "downloads_youtube_queue": "downloads_youtube_queue",
 }
 
+
 def rename_tables():
-    host = os.getenv("DB_HOST", "192.0.2.27")
-    port = os.getenv("DB_PORT", "3306")
-    user = "root"
-    password = "Paced-Splendid-Deuce-Negotiate3-Sappy-Define"
-    db_name = os.getenv("DB_DB", "music-management")
-    
-    url = f"mysql+mysqlconnector://{user}:{password}@{host}:{port}/{db_name}"
-    engine = create_engine(url)
-    
+    engine = create_engine(database_url())
+
     with engine.connect() as conn:
         print("Uitzetten van foreign key checks...")
         conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
-        
+
         for old_name, new_name in RENAMES.items():
             print(f"Hernoemen van {old_name} naar {new_name}...")
             try:
                 conn.execute(text(f"RENAME TABLE `{old_name}` TO `{new_name}`"))
             except Exception as e:
                 print(f"Fout bij hernoemen van {old_name}: {e}")
-        
+
         print("Aanzetten van foreign key checks...")
         conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
         conn.commit()
         print("Klaar!")
+
 
 if __name__ == "__main__":
     rename_tables()

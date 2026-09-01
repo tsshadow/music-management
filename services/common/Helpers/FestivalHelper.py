@@ -12,6 +12,7 @@ YEAR_PATTERN = re.compile(r'\b(19[89]\d|20[0-4]\d)\b')
 @dataclass
 class Festival:
     """One festival, the spellings it is known by, and the editions we have a date for."""
+
     name: str
     aliases: list[str] = field(default_factory=list)
     editions: dict[int, date] = field(default_factory=dict)

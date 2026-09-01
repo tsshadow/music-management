@@ -7,9 +7,6 @@
 
 package nl.teunschriks.mumamobile.fragment
 
-import org.amshove.kluent.`should be equal to`
-import org.junit.Test
-import org.junit.runner.RunWith
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.domain.Artist
 import nl.teunschriks.mumamobile.domain.Index
@@ -17,6 +14,9 @@ import nl.teunschriks.mumamobile.home.HomeCard
 import nl.teunschriks.mumamobile.home.HomeCardAction
 import nl.teunschriks.mumamobile.home.HomeCardNavigator
 import nl.teunschriks.mumamobile.home.HomeCardType
+import org.amshove.kluent.`should be equal to`
+import org.junit.Test
+import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 

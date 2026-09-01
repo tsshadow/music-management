@@ -298,8 +298,7 @@ class MediaLibraryCommandHandler {
     fun buildCustomCommands(
         session: MediaSession,
         canShuffle: Boolean
-    ): ImmutableList<CommandButton> =
-        session.buildCustomCommands(rating = currentRating, canShuffle = canShuffle)
+    ): ImmutableList<CommandButton> = session.buildCustomCommands(rating = currentRating, canShuffle = canShuffle)
 
     fun canShuffleWrapper(session: MediaSession): Boolean = session.canShuffle()
 
@@ -318,8 +317,7 @@ class MediaLibraryCommandHandler {
         /**
          * The rating a tap moves to: one higher, wrapping from the highest back to none.
          */
-        fun nextRating(current: Int): Int =
-            (current.coerceIn(0, PlaybackService.MAX_RATING) + 1) % (PlaybackService.MAX_RATING + 1)
+        fun nextRating(current: Int): Int = (current.coerceIn(0, PlaybackService.MAX_RATING) + 1) % (PlaybackService.MAX_RATING + 1)
 
         /**
          * The rating a tap on the car's button moves to.
@@ -332,8 +330,6 @@ class MediaLibraryCommandHandler {
          * drawn from, decides. The extras remain the fallback for controllers that do pass them
          * back and for taps arriving while no track is loaded.
          */
-        fun ratingAfterTap(trackRating: Int?, extrasRating: Int?): Int {
-            return nextRating(trackRating ?: extrasRating ?: 0)
-        }
+        fun ratingAfterTap(trackRating: Int?, extrasRating: Int?): Int = nextRating(trackRating ?: extrasRating ?: 0)
     }
 }

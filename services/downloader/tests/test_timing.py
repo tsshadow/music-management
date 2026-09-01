@@ -15,7 +15,6 @@ from services.downloader.timing import (
 
 
 class TimingFieldsTest(unittest.TestCase):
-
     def test_every_source_has_fields(self):
         for source in SOURCES:
             self.assertTrue(TIMING_FIELDS[source], f'no fields for {source}')
@@ -36,7 +35,6 @@ class TimingFieldsTest(unittest.TestCase):
 
 
 class LoadTimingTest(unittest.TestCase):
-
     def test_uses_default_when_no_override_stored(self):
         timing = load_timing('soundcloud', overrides={})
         self.assertEqual(timing.sweep_interval, field_map('soundcloud')['sweep_interval'].default)
@@ -55,7 +53,6 @@ class LoadTimingTest(unittest.TestCase):
 
 
 class MultiplierTest(unittest.TestCase):
-
     def test_multiplier_stretches_wait_times(self):
         timing = load_timing('soundcloud', overrides={'sweep_interval': 900}, multiplier=4)
         self.assertEqual(timing.sweep_interval, 3600)
@@ -74,7 +71,6 @@ class MultiplierTest(unittest.TestCase):
 
 
 class YdlOptsTest(unittest.TestCase):
-
     def test_ratelimit_is_converted_from_kilobytes_to_bytes(self):
         timing = load_timing('soundcloud', overrides={'ratelimit_kbps': 512})
         self.assertEqual(timing.to_ydl_opts()['ratelimit'], 512 * 1024)
@@ -91,7 +87,6 @@ class YdlOptsTest(unittest.TestCase):
 
 
 class ValidateSettingsTest(unittest.TestCase):
-
     def test_accepts_a_value_inside_the_range(self):
         self.assertEqual(validate_settings('soundcloud', {'burst_size': 3}), {'burst_size': 3})
 
@@ -104,7 +99,7 @@ class ValidateSettingsTest(unittest.TestCase):
 
     def test_rejects_a_value_above_the_maximum(self):
         with self.assertRaises(ValueError):
-            validate_settings('soundcloud', {'burst_size': 10 ** 6})
+            validate_settings('soundcloud', {'burst_size': 10**6})
 
     def test_rejects_an_unknown_key(self):
         with self.assertRaises(ValueError):
@@ -124,7 +119,6 @@ class ValidateSettingsTest(unittest.TestCase):
 
 
 class MinMaxPauseTest(unittest.TestCase):
-
     def test_max_pause_is_lifted_to_min_pause_when_stored_lower(self):
         timing = load_timing('soundcloud', overrides={'min_pause': 60, 'max_pause': 10})
         self.assertGreaterEqual(timing.max_pause, timing.min_pause)
@@ -136,7 +130,6 @@ class MinMaxPauseTest(unittest.TestCase):
 
 
 class TimingIsUsableWithoutADatabaseTest(unittest.TestCase):
-
     def test_constructing_directly_needs_no_store(self):
         timing = DownloaderTiming(source='youtube', values={'sweep_interval': 60})
         self.assertEqual(timing.sweep_interval, 60)
@@ -145,8 +138,7 @@ class TimingIsUsableWithoutADatabaseTest(unittest.TestCase):
 class TierCooldownFieldsTest(unittest.TestCase):
     """The ladder that lets a quiet account be checked less often."""
 
-    TIER_KEYS = ('recent_cooldown', 'monthly_cooldown',
-                 'occasional_cooldown', 'dormant_cooldown')
+    TIER_KEYS = ('recent_cooldown', 'monthly_cooldown', 'occasional_cooldown', 'dormant_cooldown')
 
     def test_every_source_has_the_tier_cooldowns(self):
         for source in SOURCES:

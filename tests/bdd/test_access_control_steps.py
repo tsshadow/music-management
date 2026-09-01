@@ -5,6 +5,7 @@ The feature file is the description; this is only what the steps do.
 Started by scripts/test/core-e2e.sh, which brings the stack up. Without it these
 skip.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -53,9 +54,7 @@ def _refused(context):
     # would also keep the data in, and would also be a broken stack rather than a
     # working lock.
     response = context['response']
-    assert response.status_code == 401, (
-        f'expected 401, got {response.status_code}: {response.text[:200]}'
-    )
+    assert response.status_code == 401, f'expected 401, got {response.status_code}: {response.text[:200]}'
 
 
 @then('no track data comes back')
@@ -72,8 +71,7 @@ def _no_data(context):
 def _tracks_come_back(context):
     response = context['response']
     assert response.status_code == 200, (
-        f'the key the rest of the suite authenticates with was refused: '
-        f'{response.status_code} {response.text[:200]}'
+        f'the key the rest of the suite authenticates with was refused: {response.status_code} {response.text[:200]}'
     )
     body = response.json()
     assert isinstance(body, (list, dict)), body

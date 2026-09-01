@@ -33,7 +33,6 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.koin.android.ext.android.inject
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.isOffline
@@ -44,6 +43,7 @@ import nl.teunschriks.mumamobile.service.MusicServiceFactory
 import nl.teunschriks.mumamobile.subsonic.ImageLoaderProvider
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Util
+import org.koin.android.ext.android.inject
 
 /**
  * Everything we know about a single track, as a bottom sheet.
@@ -240,7 +240,9 @@ class TrackInfoModalFragment : BottomSheetDialogFragment() {
         val online = !isOffline()
 
         binding.trackInfoActionLyrics.isVisible =
-            online && track.artist != null && track.title != null
+            online &&
+            track.artist != null &&
+            track.title != null
         binding.trackInfoActionShare.isVisible = online
         binding.trackInfoActionBookmark.isVisible = online
         binding.trackInfoActionBookmarkDelete.isVisible = online && track.bookmarkPosition > 0

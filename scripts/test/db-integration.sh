@@ -18,9 +18,25 @@ set -e
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
-CONTAINER="${DB_INTEGRATION_CONTAINER:-muma-integration-db}"
+# Per-job container name and port in CI, fixed ones locally. The fixed name
+# was a repeat offender: two pipelines on one runner each `docker rm -f` the
+# same container at start AND end of their run, so the sibling's database
+# vanished mid-test ("2013 Lost connection", then "2003 Connection refused")
+# while the log blamed whatever migration happened to be running. Every other
+# compose-based job already isolates on CI_JOB_ID; this script was the
+# straggler. Locally (no CI_JOB_ID) the old name and port 13306 stay, so
+# KEEP_DB=1 inspection workflows keep working -- but a local run on a machine
+# that is also a CI runner no longer kills a pipeline's database.
+find_free_port() {
+    python3 -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()'
+}
+CONTAINER="${DB_INTEGRATION_CONTAINER:-muma-integration-db${CI_JOB_ID:+-$CI_JOB_ID}}"
 IMAGE="mariadb:10.6"
-HOST_PORT="${DB_INTEGRATION_PORT:-13306}"
+if [ -z "${DB_INTEGRATION_PORT:-}" ] && [ -n "${CI_JOB_ID:-}" ]; then
+    HOST_PORT="$(find_free_port)"
+else
+    HOST_PORT="${DB_INTEGRATION_PORT:-13306}"
+fi
 
 export DB_HOST=127.0.0.1
 export DB_PORT="$HOST_PORT"

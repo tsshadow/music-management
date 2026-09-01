@@ -5,6 +5,12 @@ import android.view.LayoutInflater
 import android.view.View
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.viewpager2.widget.ViewPager2
+import nl.teunschriks.mumamobile.R
+import nl.teunschriks.mumamobile.wizard.PlannedStep
+import nl.teunschriks.mumamobile.wizard.WizardPagerAdapter
+import nl.teunschriks.mumamobile.wizard.WizardPreferences
+import nl.teunschriks.mumamobile.wizard.plan
+import nl.teunschriks.mumamobile.wizard.wizardCatalog
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Test
@@ -12,12 +18,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
-import nl.teunschriks.mumamobile.R
-import nl.teunschriks.mumamobile.wizard.PlannedStep
-import nl.teunschriks.mumamobile.wizard.WizardPagerAdapter
-import nl.teunschriks.mumamobile.wizard.WizardPreferences
-import nl.teunschriks.mumamobile.wizard.plan
-import nl.teunschriks.mumamobile.wizard.wizardCatalog
 
 /**
  * The layout the wizard needs, and the page count it will show. The fragment itself is not launched:

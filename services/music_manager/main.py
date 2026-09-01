@@ -1,7 +1,10 @@
 import contextlib
+import json
 import logging
 import os
 import threading
+from datetime import UTC, datetime
+from pathlib import Path
 
 import uvicorn
 from dotenv import load_dotenv
@@ -57,8 +60,10 @@ app.add_middleware(
     allow_credentials=False,
 )
 app.include_router(users.router, prefix="/api/users")
-app.include_router(events.router, prefix="/api/events") # before /api/auth/* below: its bare /{user_id} DELETE would otherwise shadow /api/events
-app.include_router(users.router, prefix="/api") # For /api/auth/*
+app.include_router(
+    events.router, prefix="/api/events"
+)  # before /api/auth/* below: its bare /{user_id} DELETE would otherwise shadow /api/events
+app.include_router(users.router, prefix="/api")  # For /api/auth/*
 app.include_router(scrobbler.router, prefix="/api/scrobble")
 app.include_router(rating.router, prefix="/api/rating")
 app.include_router(stats.router, prefix="/api/stats")
@@ -71,12 +76,13 @@ app.include_router(scanner.router, prefix="/api/scanner")
 app.include_router(jobs.router, prefix="/api/jobs")
 app.include_router(config.router, prefix="/api/config")
 app.include_router(downloaders.router, prefix="/api/downloaders")
-app.include_router(user_requests.router, prefix="/api") # /api/auth/google, /api/user-requests/*
+app.include_router(user_requests.router, prefix="/api")  # /api/auth/google, /api/user-requests/*
 app.include_router(radio.router, prefix="/api/radio")
 app.include_router(news.router, prefix="/api/news")
 app.include_router(diagnostics.router, prefix="/api/diagnostics")
 app.include_router(curation.router, prefix="/api/curation")
 app.include_router(songs.router, prefix="/api/songs")
+
 
 def background_workers_enabled() -> bool:
     """Whether startup should spin up the tagger, scanner and radio loops.
@@ -99,7 +105,7 @@ def startup_event():
     if conn:
         try:
             with conn.cursor() as cursor:
-                users.init_db(cursor) # also seeds RBAC roles/permissions, see rbac.init_db
+                users.init_db(cursor)  # also seeds RBAC roles/permissions, see rbac.init_db
                 scrobbler.init_db(cursor)
                 rating.init_db(cursor)
                 management.init_db(cursor)
@@ -128,6 +134,7 @@ def startup_event():
         start_thread('events-retention', run_events_retention)
         start_thread('scrobble-rematch', run_scrobble_rematch)
         start_thread('song-versions', run_song_version_grouping)
+
 
 @app.get('/health')
 def health(response: Response):
@@ -169,6 +176,56 @@ def health(response: Response):
         'threads': threads,
     }
 
+
+@app.get('/health/backup')
+def health_backup(response: Response):
+    """Meldt hoe oud de nieuwste databasebackup is, voor een monitor buiten deze host.
+
+    tools/db_backup.py kan zijn eigen verval melden, maar deelt dan een blinde
+    vlek met de timer die hem start: een timer die helemaal stopt produceert geen
+    fouten en dus ook geen alarm. Precies dat is hier gebeurd -- tussen 23 juli en
+    31 augustus 2026 liep er geen backup en merkte niemand het.
+
+    Dit endpoint kijkt van de andere kant: het leest het latest.json dat de job
+    naast de dumps schrijft, en geeft 503 zodra die te oud is. De Uptime
+    Kuma-monitor die er tegenaan praat draait niet op deze machine, dus hij blijft
+    het merken als hier alles stilvalt.
+
+    Bewust los van /health: een verlopen backup is een echt probleem, maar geen
+    storing van de dienst, en die twee door elkaar halen levert een piepertje op
+    het verkeerde kanaal.
+    """
+    destination = os.getenv('BACKUP_PATH')
+    if not destination:
+        response.status_code = 503
+        return {'status': 'unconfigured', 'reason': 'BACKUP_PATH is not set'}
+
+    latest = Path(destination) / 'latest.json'
+    try:
+        payload = json.loads(latest.read_text())
+        finished = datetime.fromisoformat(payload['finished_at'])
+    except FileNotFoundError:
+        response.status_code = 503
+        return {'status': 'missing', 'reason': f'{latest} does not exist'}
+    except (OSError, ValueError, KeyError) as exc:
+        response.status_code = 503
+        return {'status': 'unreadable', 'reason': f'{latest}: {exc}'}
+
+    limit_hours = int(os.getenv('BACKUP_STALE_AFTER_HOURS', '36'))
+    age_hours = (datetime.now(UTC) - finished).total_seconds() / 3600
+    stale = age_hours > limit_hours
+    if stale:
+        response.status_code = 503
+    return {
+        'status': 'stale' if stale else 'ok',
+        'file': payload.get('file'),
+        'finished_at': payload['finished_at'],
+        'age_hours': round(age_hours, 1),
+        'limit_hours': limit_hours,
+        'tables': payload.get('tables'),
+    }
+
+
 # Music Manager is API-only and must never serve a UI of its own: the single
 # unified web interface (player + management views) lives in services/frontend
 # and is built/served by music-management-server (see Dockerfile-release's
@@ -176,6 +233,7 @@ def health(response: Response):
 @app.get('/')
 def root():
     return {'service': 'music-manager', 'status': 'ok', 'message': 'API only, no UI is served here.'}
+
 
 # Dit blok draait bij het importeren van de module, ruim voordat startup_event
 # setup_logging aanroept. Logging is op dit moment dus nog niet ingericht: de

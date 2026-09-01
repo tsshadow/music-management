@@ -1,9 +1,9 @@
 package nl.teunschriks.mumamobile.domain
 
+import nl.teunschriks.mumamobile.api.subsonic.models.Label as APILabel
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.shouldBeNull
 import org.junit.Test
-import nl.teunschriks.mumamobile.api.subsonic.models.Label as APILabel
 
 class APILabelConverterTest {
 

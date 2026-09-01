@@ -17,12 +17,12 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.ActivityCompat
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.car.CarPresence
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.Settings
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import timber.log.Timber
 
 /**

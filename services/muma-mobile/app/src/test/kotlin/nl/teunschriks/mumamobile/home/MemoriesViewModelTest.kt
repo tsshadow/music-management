@@ -1,10 +1,10 @@
 package nl.teunschriks.mumamobile.home
 
-import org.amshove.kluent.`should be equal to`
-import org.junit.Test
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.domain.MemoryGroup
 import nl.teunschriks.mumamobile.domain.Track
+import org.amshove.kluent.`should be equal to`
+import org.junit.Test
 
 class MemoriesViewModelTest {
 

@@ -15,7 +15,6 @@ LEAKED_LITERAL = '00000000-0000-4000-8000-000000000000'
 
 
 class ApiKeyResolutionTest(unittest.TestCase):
-
     @patch.dict(os.environ, {}, clear=True)
     def test_no_key_configured_resolves_to_none(self):
         self.assertIsNone(resolve_system_api_key())
@@ -34,7 +33,6 @@ class ApiKeyResolutionTest(unittest.TestCase):
 
 
 class IsSystemApiKeyTest(unittest.TestCase):
-
     @patch.dict(os.environ, {}, clear=True)
     def test_nothing_is_the_system_key_when_none_is_configured(self):
         """The whole point: no configuration means no system access, not default access."""
@@ -59,14 +57,12 @@ class IsSystemApiKeyTest(unittest.TestCase):
 
 
 class NoLiteralKeyInSourceTest(unittest.TestCase):
-
     def test_the_leaked_key_is_gone_from_the_python_sources(self):
         """A grep guard: the literal must not reappear in any shipped module."""
         root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         offenders = []
         for dirpath, dirnames, filenames in os.walk(root):
-            dirnames[:] = [d for d in dirnames
-                           if d not in {'node_modules', 'build', '__pycache__', '.git', '.venv'}]
+            dirnames[:] = [d for d in dirnames if d not in {'node_modules', 'build', '__pycache__', '.git', '.venv'}]
             for filename in filenames:
                 if not filename.endswith('.py'):
                     continue

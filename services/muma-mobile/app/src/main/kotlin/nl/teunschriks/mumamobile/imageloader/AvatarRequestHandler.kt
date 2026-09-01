@@ -4,8 +4,8 @@ import com.squareup.picasso.Picasso
 import com.squareup.picasso.Request
 import com.squareup.picasso.RequestHandler
 import java.io.IOException
-import okio.source
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
+import okio.source
 
 /**
  * Loads avatars from subsonic api.

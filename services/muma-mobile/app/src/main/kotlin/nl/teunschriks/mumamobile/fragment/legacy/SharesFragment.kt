@@ -30,9 +30,6 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.koin.androidx.scope.ScopeFragment
-import org.koin.core.component.KoinScopeComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.NavigationGraphDirections
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.domain.Share
@@ -48,6 +45,9 @@ import nl.teunschriks.mumamobile.util.Util.toast
 import nl.teunschriks.mumamobile.util.launchWithToast
 import nl.teunschriks.mumamobile.util.toastingExceptionHandler
 import nl.teunschriks.mumamobile.view.ShareAdapter
+import org.koin.androidx.scope.ScopeFragment
+import org.koin.core.component.KoinScopeComponent
+import org.koin.core.component.inject
 
 /**
  * Displays the shares in the media library

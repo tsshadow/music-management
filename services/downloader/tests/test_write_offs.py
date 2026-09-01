@@ -23,7 +23,6 @@ def duration_row(seconds: int) -> WriteOff:
 
 
 class WriteOffWindowTest(unittest.TestCase):
-
     def test_a_track_seen_just_now_is_still_written_off(self):
         self.assertTrue(is_still_written_off(NOW, retry_days=30, now=NOW))
 
@@ -38,7 +37,6 @@ class WriteOffWindowTest(unittest.TestCase):
 
 
 class DurationVerdictTest(unittest.TestCase):
-
     def test_a_short_track_stays_written_off_under_the_bounds_that_judged_it(self):
         self.assertTrue(still_written_off(duration_row(30), 30, NOW, (60, 21600)))
 
@@ -65,11 +63,9 @@ class DurationVerdictTest(unittest.TestCase):
 
 
 class WriteOffsTest(unittest.TestCase):
-
     def setUp(self):
         self.store = InMemoryWriteOffStore()
-        self.offs = WriteOffs('soundcloud', store=self.store, retry_days=30,
-                              now=lambda: NOW)
+        self.offs = WriteOffs('soundcloud', store=self.store, retry_days=30, now=lambda: NOW)
 
     def test_an_unknown_track_is_not_skipped(self):
         self.assertFalse(self.offs.should_skip('dj_a', 't1'))
@@ -113,8 +109,7 @@ class WriteOffsTest(unittest.TestCase):
             def remember(self, *args):
                 raise RuntimeError('database is down')
 
-        offs = WriteOffs('soundcloud', store=BrokenStore(), retry_days=30,
-                         now=lambda: NOW)
+        offs = WriteOffs('soundcloud', store=BrokenStore(), retry_days=30, now=lambda: NOW)
         self.assertFalse(offs.should_skip('dj_a', 't1'))
         offs.remember('dj_a', 't1', reason='403')
 
@@ -123,18 +118,15 @@ class WriteOffsTest(unittest.TestCase):
             def load_many(self, *args):
                 raise RuntimeError('database is down')
 
-        offs = WriteOffs('soundcloud', store=BrokenStore(), retry_days=30,
-                         now=lambda: NOW)
+        offs = WriteOffs('soundcloud', store=BrokenStore(), retry_days=30, now=lambda: NOW)
         with self.assertRaises(RuntimeError):
             offs.load_many('dj_a', ['t1'])
 
 
 class NoteFailureTest(unittest.TestCase):
-
     def setUp(self):
         self.store = InMemoryWriteOffStore()
-        self.offs = WriteOffs('soundcloud', store=self.store, retry_days=30,
-                              now=lambda: NOW)
+        self.offs = WriteOffs('soundcloud', store=self.store, retry_days=30, now=lambda: NOW)
 
     def test_the_first_two_failures_do_not_write_the_track_off(self):
         self.assertFalse(self.offs.note_failure('dj_a', 't1'))

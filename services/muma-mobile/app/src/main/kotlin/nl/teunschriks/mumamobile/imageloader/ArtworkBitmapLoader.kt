@@ -17,9 +17,9 @@ import com.google.common.util.concurrent.ListeningExecutorService
 import com.google.common.util.concurrent.MoreExecutors
 import java.io.IOException
 import java.util.concurrent.Executors
+import nl.teunschriks.mumamobile.subsonic.ImageLoaderProvider
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import nl.teunschriks.mumamobile.subsonic.ImageLoaderProvider
 
 @SuppressLint("UnsafeOptInUsageError")
 class ArtworkBitmapLoader :

@@ -44,9 +44,19 @@ services:
   db:
     security_opt:
       - no-new-privileges:true
-    image: mariadb:10.10
+    image: mariadb:12.3
     container_name: music-management-db-1
     restart: unless-stopped
+    # MariaDB 11.5 changed the server default to utf8mb4_uca1400_ai_ci, and the
+    # 10.10 -> 12.3 migration inherited it: the restored tables kept their own
+    # utf8mb4_general_ci, but anything created afterwards would not. A join
+    # between the two raises "Illegal mix of collations", which surfaces on the
+    # first new table rather than on the upgrade that caused it. Pinned to what
+    # the data already is; moving the whole schema to uca1400 is a separate,
+    # deliberate job because it changes uniqueness semantics.
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: ${DB_USER}
@@ -114,6 +124,10 @@ services:
       # docker-compose v1, so defaults here are worth as little trust as
       # possible (see MUMA_SERVER_SUBSONIC_API_KEY above).
       NEWS_DATA_DIR: /app/data/news
+      # Alleen om /health/backup te kunnen beantwoorden. De backupjob zelf draait
+      # in de tools-stack; music-manager leest hier niets anders dan latest.json.
+      BACKUP_PATH: /backups
+      BACKUP_STALE_AFTER_HOURS: ${BACKUP_STALE_AFTER_HOURS:-36}
     volumes:
       # NOTE: these must point at the *actual* host directories used by the separate
       # "lms" stack (services/music-management-server/docker-compose.yml,
@@ -125,6 +139,16 @@ services:
       - ${LMS_DATA_PATH:-/docker/lms}/var/lms:/app/data/stable:rw
       - ${ALPHA_LMS_DATA_PATH:-/docker/alpha-lms}/var/lms:/app/data/alpha:rw
       - ${HOST_MUSIC_PATH}:/mnt/music
+      # Read-only, and only for /health/backup: the endpoint reports how old the
+      # newest dump is so a monitor outside this host notices a backup schedule
+      # that has stopped running. music-manager must never write here -- the one
+      # thing a backup directory cannot afford is another writer.
+      # Default is load-bearing: production runs docker-compose v1, and an unset
+      # variable here renders as ":/backups:ro", which is not a mount but a
+      # syntax error that stops the whole stack. If the path does not exist the
+      # endpoint answers 503 "missing", which is the failure we want -- visible,
+      # not fatal.
+      - ${HOST_BACKUP_PATH:-/mnt/backups/muma}:/backups:ro
       # News bulletins are recorded off a live stream and deliberately stay out
       # of the music library, so they get their own volume rather than a corner
       # of ${HOST_MUSIC_PATH}. See docs/news-mode.md.

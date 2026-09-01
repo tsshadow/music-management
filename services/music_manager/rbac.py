@@ -10,6 +10,7 @@ Authorization anywhere in the API must be derived from the caller's role
 and permissions (see ``require_permission``/``require_admin`` below), never
 from a hardcoded username/email or an inline ``role == 'admin'`` check.
 """
+
 from fastapi import Header, HTTPException
 
 # name -> description
@@ -22,7 +23,6 @@ PERMISSIONS = [
     ('playlist.write', 'Manage own playlists'),
     ('profile.manage', 'Manage own profile'),
     ('sessions.manage-own', "Manage one's own sessions"),
-
     ('users.read', 'View users'),
     ('users.create', 'Create users'),
     ('users.update', 'Update users'),
@@ -30,17 +30,14 @@ PERMISSIONS = [
     ('users.assign-role', 'Assign a role to a user'),
     ('users.revoke-sessions', 'Revoke sessions of any user'),
     ('users.merge', 'Merge two user accounts into one'),
-
     ('user-requests.read', 'View pending/approved/rejected access requests'),
     ('user-requests.approve', 'Approve an access request'),
     ('user-requests.reject', 'Reject an access request'),
     ('user-requests.unapprove', 'Undo an approved access request (deletes/unlinks the resulting account)'),
-
     ('rules.manage', 'Edit artists, labels and genres, and manage tagging rules'),
     ('config.manage', 'Read and change the runtime configuration'),
     ('radio.manage', 'Create and edit radio channels'),
     ('news.manage', 'Configure news recording'),
-
     ('roles.read', 'View roles'),
     ('roles.manage', 'Manage roles and their permissions'),
     ('permissions.read', 'View permissions'),
@@ -48,8 +45,14 @@ PERMISSIONS = [
 
 # Permissions granted to the initial 'user' role.
 USER_ROLE_PERMISSIONS = {
-    'music.read', 'music.play', 'rating.write', 'scrobble.write',
-    'playlist.read', 'playlist.write', 'profile.manage', 'sessions.manage-own',
+    'music.read',
+    'music.play',
+    'rating.write',
+    'scrobble.write',
+    'playlist.read',
+    'playlist.write',
+    'profile.manage',
+    'sessions.manage-own',
 }
 
 ADMIN_ROLE_NAME = 'admin'
@@ -87,12 +90,12 @@ def init_db(cursor):
     for name, description in (('admin', 'Full administrative access'), ('user', 'Standard application user')):
         cursor.execute(
             'INSERT INTO roles (name, description) VALUES (%s, %s) ON DUPLICATE KEY UPDATE description = VALUES(description)',
-            (name, description)
+            (name, description),
         )
     for name, description in PERMISSIONS:
         cursor.execute(
             'INSERT INTO permissions (name, description) VALUES (%s, %s) ON DUPLICATE KEY UPDATE description = VALUES(description)',
-            (name, description)
+            (name, description),
         )
 
     cursor.execute('SELECT id FROM roles WHERE name = %s', (ADMIN_ROLE_NAME,))
@@ -102,9 +105,14 @@ def init_db(cursor):
 
     cursor.execute('SELECT id, name FROM permissions')
     for perm in cursor.fetchall():
-        cursor.execute('INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (%s, %s)', (admin_role_id, perm['id']))
+        cursor.execute(
+            'INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (%s, %s)', (admin_role_id, perm['id'])
+        )
         if perm['name'] in USER_ROLE_PERMISSIONS:
-            cursor.execute('INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (%s, %s)', (user_role_id, perm['id']))
+            cursor.execute(
+                'INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (%s, %s)',
+                (user_role_id, perm['id']),
+            )
 
     # users.role_id: the single source of truth for a user's authorization.
     cursor.execute("SHOW COLUMNS FROM users LIKE 'role_id'")
@@ -121,7 +129,9 @@ def init_db(cursor):
         cursor.execute('ALTER TABLE users ADD COLUMN avatar_url VARCHAR(1024) AFTER display_name')
     cursor.execute("SHOW COLUMNS FROM users LIKE 'updated_at'")
     if not cursor.fetchone():
-        cursor.execute('ALTER TABLE users ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at')
+        cursor.execute(
+            'ALTER TABLE users ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at'
+        )
     cursor.execute("SHOW COLUMNS FROM users LIKE 'last_login_at'")
     if not cursor.fetchone():
         cursor.execute('ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP NULL AFTER updated_at')
@@ -163,7 +173,9 @@ def init_db(cursor):
     ''')
     cursor.execute("SHOW COLUMNS FROM user_requests LIKE 'linked_existing'")
     if not cursor.fetchone():
-        cursor.execute('ALTER TABLE user_requests ADD COLUMN linked_existing BOOLEAN DEFAULT FALSE AFTER created_user_id')
+        cursor.execute(
+            'ALTER TABLE user_requests ADD COLUMN linked_existing BOOLEAN DEFAULT FALSE AFTER created_user_id'
+        )
 
     # Internal refresh tokens issued alongside an access token (api_key) so
     # clients (Android, web) can obtain a fresh access token without
@@ -201,18 +213,21 @@ def get_permissions_for_role(cursor, role_id):
     """Return the set of permission names granted to a role."""
     if not role_id:
         return set()
-    cursor.execute('''
+    cursor.execute(
+        '''
         SELECT p.name FROM permissions p
         JOIN role_permissions rp ON rp.permission_id = p.id
         WHERE rp.role_id = %s
-    ''', (role_id,))
+    ''',
+        (role_id,),
+    )
     return {row['name'] for row in cursor.fetchall()}
 
 
 def record_audit_event(cursor, event_type, actor_user_id=None, target_user_id=None, details=None):
     cursor.execute(
         'INSERT INTO audit_events (event_type, actor_user_id, target_user_id, details) VALUES (%s, %s, %s, %s)',
-        (event_type, actor_user_id, target_user_id, details)
+        (event_type, actor_user_id, target_user_id, details),
     )
 
 
@@ -241,12 +256,15 @@ def is_admin_auth(auth: dict) -> bool:
 
 def require_permission(permission: str):
     """Reusable FastAPI dependency: RequirePermission("music.play")."""
+
     async def _dependency(x_api_key: str = Header(None)):
         from services.music_manager.routers.users import verify_api_key as _verify
+
         auth = await _verify(x_api_key)
         if not has_permission(auth, permission):
             raise HTTPException(status_code=403, detail=f"Missing permission: {permission}")
         return auth
+
     return _dependency
 
 
@@ -255,10 +273,13 @@ def require_admin():
 
     Resolves access through the role system rather than a hardcoded identity.
     """
+
     async def _dependency(x_api_key: str = Header(None)):
         from services.music_manager.routers.users import verify_api_key as _verify
+
         auth = await _verify(x_api_key)
         if not is_admin_auth(auth):
             raise HTTPException(status_code=403, detail='Admin role required')
         return auth
+
     return _dependency

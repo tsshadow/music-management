@@ -26,8 +26,6 @@ import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.koin.androidx.scope.ScopeFragment
-import org.koin.android.ext.android.inject
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.api.subsonic.models.Filter
 import nl.teunschriks.mumamobile.api.subsonic.models.Filters
@@ -51,6 +49,8 @@ import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.setUserRating
 import nl.teunschriks.mumamobile.util.themeColor
 import nl.teunschriks.mumamobile.util.toTrack
+import org.koin.android.ext.android.inject
+import org.koin.androidx.scope.ScopeFragment
 import timber.log.Timber
 
 /**

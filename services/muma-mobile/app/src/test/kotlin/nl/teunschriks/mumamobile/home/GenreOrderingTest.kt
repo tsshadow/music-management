@@ -1,13 +1,12 @@
 package nl.teunschriks.mumamobile.home
 
+import nl.teunschriks.mumamobile.domain.Genre
 import org.amshove.kluent.`should be equal to`
 import org.junit.Test
-import nl.teunschriks.mumamobile.domain.Genre
 
 class GenreOrderingTest {
 
-    private fun genre(name: String, count: Int) =
-        Genre(index = name.take(1), name = name, songCount = count)
+    private fun genre(name: String, count: Int) = Genre(index = name.take(1), name = name, songCount = count)
 
     @Test
     fun `recently selected genres come first, in selection order`() {

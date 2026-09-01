@@ -7,40 +7,38 @@
 
 package nl.teunschriks.mumamobile.fragment
 
+import android.Manifest
+import android.app.NotificationManager
+import android.bluetooth.BluetoothClass
+import android.bluetooth.BluetoothManager
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.SearchRecentSuggestions
 import android.view.View
 import androidx.annotation.StringRes
+import androidx.core.app.ActivityCompat
 import androidx.core.content.FileProvider
 import androidx.navigation.fragment.findNavController
-import android.Manifest
-import android.app.NotificationManager
-import android.bluetooth.BluetoothClass
-import android.bluetooth.BluetoothManager
-import android.content.pm.PackageManager
-import android.net.Uri
-import androidx.core.app.ActivityCompat
 import androidx.preference.CheckBoxPreference
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
-import androidx.preference.Preference
 import androidx.preference.MultiSelectListPreference
+import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import java.io.File
 import kotlin.math.ceil
+import nl.teunschriks.mumamobile.BuildConfig
+import nl.teunschriks.mumamobile.R
+import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.car.BondedDevice
 import nl.teunschriks.mumamobile.car.CarPresence
 import nl.teunschriks.mumamobile.car.preTickedCarDevices
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
-import nl.teunschriks.mumamobile.R
-import nl.teunschriks.mumamobile.BuildConfig
-import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.diagnostics.CrashReportManager
 import nl.teunschriks.mumamobile.fragment.FragmentTitle.setTitle
 import nl.teunschriks.mumamobile.log.FileLoggerTree
@@ -67,6 +65,8 @@ import nl.teunschriks.mumamobile.util.Storage
 import nl.teunschriks.mumamobile.util.TimeSpanPreference
 import nl.teunschriks.mumamobile.util.TimeSpanPreferenceDialogFragmentCompat
 import nl.teunschriks.mumamobile.util.Util.toast
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import timber.log.Timber
 
 /**
@@ -547,7 +547,6 @@ class SettingsFragment :
 
     private fun setupMumaSyncPrefs() {
     }
-
 
     private fun setDebugLogToFile(writeLog: Boolean) {
         if (writeLog) {

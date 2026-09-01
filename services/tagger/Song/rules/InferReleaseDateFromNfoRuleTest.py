@@ -6,11 +6,9 @@ from services.tagger.Song.rules.InferReleaseDateFromNfoRule import InferReleaseD
 
 
 class InferReleaseDateFromNfoRuleTest(unittest.TestCase):
-
     def setUp(self):
         self.song = MagicMock()
-        self.song.path = MagicMock(
-            return_value='/music/EPs/008 Recordings/X_-_Y-(008R017)-WEB-2026-ZzZz/01-x.mp3')
+        self.song.path = MagicMock(return_value='/music/EPs/008 Recordings/X_-_Y-(008R017)-WEB-2026-ZzZz/01-x.mp3')
         self.tags = {}
         self.song.tag_collection.get_item_as_string = MagicMock(side_effect=lambda tag: self.tags.get(tag, ''))
         self.song.tag_collection.set_item = MagicMock()
@@ -19,8 +17,7 @@ class InferReleaseDateFromNfoRuleTest(unittest.TestCase):
 
     def _apply(self, nfo_text):
         rule = InferReleaseDateFromNfoRule(format_helper=self.helper)
-        with patch('services.tagger.Song.rules.InferReleaseDateFromNfoRule.NfoDate.read_nfo',
-                   return_value=nfo_text):
+        with patch('services.tagger.Song.rules.InferReleaseDateFromNfoRule.NfoDate.read_nfo', return_value=nfo_text):
             rule.apply(self.song)
 
     def test_writes_the_street_date_at_day_precision(self):

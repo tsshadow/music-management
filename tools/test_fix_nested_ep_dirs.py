@@ -25,9 +25,9 @@ def write(path, name, content='x'):
 
 
 class ListFilesTest(unittest.TestCase):
-
     def setUp(self):
         import tempfile
+
         self.tmp = tempfile.mkdtemp()
 
     def test_lists_plain_files_sorted(self):
@@ -50,9 +50,9 @@ class ListFilesTest(unittest.TestCase):
 
 
 class ClassifyTest(unittest.TestCase):
-
     def setUp(self):
         import tempfile
+
         self.tmp = tempfile.mkdtemp()
         self.outer = os.path.join(self.tmp, 'SCAN123 EP')
         self.inner = os.path.join(self.outer, 'SCAN123 EP')
@@ -105,9 +105,9 @@ class ClassifyTest(unittest.TestCase):
 
 
 class FindCasesTest(unittest.TestCase):
-
     def setUp(self):
         import tempfile
+
         self.root = tempfile.mkdtemp()
 
     def make(self, label, ep, inner_name=None):
@@ -157,10 +157,13 @@ class FindCasesTest(unittest.TestCase):
         self.make('Sealand', 'SEA017', 'SEA017')
         seen = []
         find_cases(self.root, on_case=lambda case: seen.append((case.outer, len(seen))))
-        self.assertEqual([outer for outer, _ in seen], [
-            os.path.join(self.root, 'Scantraxx', 'SCAN123'),
-            os.path.join(self.root, 'Sealand', 'SEA017'),
-        ])
+        self.assertEqual(
+            [outer for outer, _ in seen],
+            [
+                os.path.join(self.root, 'Scantraxx', 'SCAN123'),
+                os.path.join(self.root, 'Sealand', 'SEA017'),
+            ],
+        )
 
     def test_skips_eadir_at_both_levels(self):
         os.makedirs(os.path.join(self.root, '@eaDir'))
@@ -172,9 +175,9 @@ class FindCasesTest(unittest.TestCase):
 
 
 class ExecutorTest(unittest.TestCase):
-
     def setUp(self):
         import tempfile
+
         self.tmp = tempfile.mkdtemp()
         self.outer = os.path.join(self.tmp, 'SCAN123 EP')
         self.inner = os.path.join(self.outer, 'SCAN123 EP')
@@ -262,7 +265,6 @@ class ExecutorTest(unittest.TestCase):
 
 
 class DbCleanerTest(unittest.TestCase):
-
     def setUp(self):
         patcher = patch('tools.fix_nested_ep_dirs.DatabaseConnector')
         self.addCleanup(patcher.stop)
@@ -285,6 +287,7 @@ class DbCleanerTest(unittest.TestCase):
 
     def test_media_files_deleted_by_sha256_of_path(self):
         import hashlib
+
         path = '/mnt/music/EPs/L/EP/EP/01.mp3'
         expected = hashlib.sha256(path.encode('utf-8')).hexdigest()
         self.cleaner.delete_paths([path])
@@ -307,7 +310,6 @@ class DbCleanerTest(unittest.TestCase):
 
 
 class CaseRenderTest(unittest.TestCase):
-
     def test_describe_marks_unique_inner_files(self):
         case = Case(
             outer='/EPs/L/EP',

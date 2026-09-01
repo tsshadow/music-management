@@ -5,6 +5,7 @@ The feature file is the description; this is only what the steps do.
 Started by scripts/test/core-e2e.sh, which brings the stack up. Without it these
 skip.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -33,9 +34,7 @@ def _ratings(manager: str, api_key: str, username: str) -> list[dict]:
 
 
 def _song(lms: str, subsonic_auth: dict) -> dict:
-    response = requests.get(
-        f'{lms}/rest/search3', params={'query': TRACK_TITLE, **subsonic_auth}, timeout=TIMEOUT
-    )
+    response = requests.get(f'{lms}/rest/search3', params={'query': TRACK_TITLE, **subsonic_auth}, timeout=TIMEOUT)
     assert response.status_code == 200, response.text
     body = response.json()['subsonic-response']
     assert body['status'] == 'ok', f'LMS refused the search: {body.get("error")}'
@@ -60,6 +59,7 @@ def _wait_for_rating(manager, api_key, username, stars) -> dict:
     """The webhook is LMS calling music-manager, so it is not done when setRating
     answers. In practice it lands before the first poll; the wait is here so a
     failure says the rating never arrived rather than timing out anonymously."""
+
     def arrived():
         rows = _ratings(manager, api_key, username)
         return next((row for row in rows if row.get('rating') == stars), None)
@@ -109,9 +109,7 @@ def _manager_has_it_linked(manager, api_key, subsonic_auth):
         f'the rating is not attached to any track in the library: {row!r} -- the webhook '
         f'fell back to LMS\'s own id, which stops resolving the moment LMS rescans'
     )
-    assert str(row['file_path']).endswith(TRACK_FILE), (
-        f'the rating landed on a different file: {row["file_path"]}'
-    )
+    assert str(row['file_path']).endswith(TRACK_FILE), f'the rating landed on a different file: {row["file_path"]}'
 
 
 @when('the listener changes the rating to 1 star')
@@ -154,9 +152,7 @@ def _rescan_the_file(manager, api_key):
 def _identity_survived(manager, api_key, subsonic_auth, context):
     rows = _ratings(manager, api_key, subsonic_auth['u'])
     after = next((row for row in rows if row.get('rating') == 5), None)
-    assert after is not None, (
-        f'the rating is gone after the rescan: {rows!r}'
-    )
+    assert after is not None, f'the rating is gone after the rescan: {rows!r}'
     assert after.get('entity_id') == context['before'].get('entity_id'), (
         f'the track was given a new identity by the rescan: '
         f'{context["before"].get("entity_id")} became {after.get("entity_id")} -- '
@@ -172,9 +168,7 @@ def _rating_still_resolves(context):
     # the id resolves to anything. A null path here is exactly the shape the lost
     # ratings had.
     after = context['after']
-    assert after.get('file_path'), (
-        f'the rating survived but no longer resolves to a track: {after!r}'
-    )
+    assert after.get('file_path'), f'the rating survived but no longer resolves to a track: {after!r}'
     assert str(after['file_path']).endswith(TRACK_FILE), after
 
 

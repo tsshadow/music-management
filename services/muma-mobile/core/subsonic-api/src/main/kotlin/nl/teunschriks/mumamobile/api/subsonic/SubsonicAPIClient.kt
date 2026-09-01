@@ -8,17 +8,17 @@ import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit.MILLISECONDS
 import javax.net.ssl.SSLContext
 import javax.net.ssl.X509TrustManager
-import okhttp3.Credentials
-import okhttp3.OkHttpClient
-import okhttp3.ResponseBody
-import okhttp3.logging.HttpLoggingInterceptor
+import nl.teunschriks.mumamobile.api.muma.MumaAPIClient
 import nl.teunschriks.mumamobile.api.subsonic.interceptors.PasswordHexInterceptor
 import nl.teunschriks.mumamobile.api.subsonic.interceptors.PasswordMD5Interceptor
 import nl.teunschriks.mumamobile.api.subsonic.interceptors.ProxyPasswordInterceptor
 import nl.teunschriks.mumamobile.api.subsonic.interceptors.RangeHeaderInterceptor
 import nl.teunschriks.mumamobile.api.subsonic.interceptors.VersionInterceptor
 import nl.teunschriks.mumamobile.api.subsonic.response.StreamResponse
-import nl.teunschriks.mumamobile.api.muma.MumaAPIClient
+import okhttp3.Credentials
+import okhttp3.OkHttpClient
+import okhttp3.ResponseBody
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
 import retrofit2.Retrofit
 

@@ -3,6 +3,7 @@ import shutil
 
 BASE_DIR = '/mnt/music/Youtube'
 
+
 def fix_nested_youtube_dirs():
     for uploader in os.listdir(BASE_DIR):
         uploader_path = os.path.join(BASE_DIR, uploader)
@@ -10,6 +11,7 @@ def fix_nested_youtube_dirs():
         if not os.path.isdir(uploader_path):
             continue
         _process_uploader_subdirs(uploader, uploader_path)
+
 
 def _process_uploader_subdirs(uploader, uploader_path):
     for subdir in os.listdir(uploader_path):
@@ -19,6 +21,7 @@ def _process_uploader_subdirs(uploader, uploader_path):
         deeper_uploader = os.path.join(nested_path, uploader)
         if os.path.isdir(deeper_uploader):
             _move_files_and_cleanup(deeper_uploader, uploader_path, nested_path)
+
 
 def _move_files_and_cleanup(src_dir, dst_root, dir_to_remove):
     print(f'Fixing: {src_dir}')
@@ -30,5 +33,7 @@ def _move_files_and_cleanup(src_dir, dst_root, dir_to_remove):
         else:
             print(f'Skipped existing file: {dst}')
     shutil.rmtree(dir_to_remove, ignore_errors=True)
+
+
 if __name__ == '__main__':
     fix_nested_youtube_dirs()

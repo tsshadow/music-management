@@ -9,7 +9,6 @@ from services.tagger.Song.LabelSong import LabelSong
 
 
 class TestCopyright(unittest.TestCase):
-
     def setUp(self):
         reset_database_helpers()
         self.path_exists_patcher = patch('os.path.exists')
@@ -51,5 +50,7 @@ class TestCopyright(unittest.TestCase):
         song.tag_collection.set_item(COPYRIGHT, 'Original Copyright')
         song.parse()
         self.assertEqual(song.copyright(), 'Original Copyright')
+
+
 if __name__ == '__main__':
     unittest.main()

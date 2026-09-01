@@ -22,11 +22,21 @@
 # installs on top of the tooling directory and deleted pip-audit itself part
 # way through the run.
 
-# 3.11 is the lowest Python any service image runs on (docker/Dockerfile.*), and
-# matches target-version in pyproject.toml. It also matters for the dependency
-# audit: numpy~=2.0.2 has no wheel for 3.13, so resolving the requirements there
-# tries to build it from source and fails for reasons unrelated to security.
-TOOLING_IMAGE="${PYTHON_TOOLING_IMAGE:-python:3.11-slim}"
+# Tracks the Python the service images run (docker/Dockerfile.*), which is what
+# makes a finding here a finding about production rather than about this file.
+#
+# It was pinned to 3.11 while the images were, and the pin outlived them: the
+# images moved to 3.14 and this did not. That is not cosmetic drift. pip-audit
+# resolves each requirements file in a throwaway virtualenv built from *this*
+# interpreter, so `librosa~=1.0.0` (Requires-Python >=3.12) could not be
+# resolved at all and three of the five files failed to audit -- reported as
+# "No matching distribution found for librosa", which reads like a bad pin and
+# is not. The job is allow_failure, so it stayed red without being read.
+#
+# The reason it was 3.11 originally -- numpy~=2.0.2 shipping no wheel for 3.13 --
+# went away with the same bump: requirements.txt is on numpy~=2.5.2, which
+# itself needs >=3.12. Move this with docker/Dockerfile.*, not on its own.
+TOOLING_IMAGE="${PYTHON_TOOLING_IMAGE:-python:3.14-slim}"
 
 # rerun_in_container <script-relative-path> [args...]
 # Re-executes the calling script inside the tooling container. Never returns.

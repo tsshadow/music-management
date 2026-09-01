@@ -11,6 +11,7 @@ follows the size of the gap rather than the size of the account, which is the
 whole reason this can run at all: without the break, the same answer used to cost
 one full metadata request per track on the account, on every single run.
 """
+
 from __future__ import annotations
 
 import logging
@@ -40,13 +41,21 @@ FLAT_OPTS = {
 # matter to a real download. Everything else -- the cookies, the user agent, the
 # proxy -- is kept, because a listing has to present the same client a download
 # would, or the anti-bot layer answers it differently.
-_DROPPED_OPTS = ('download_archive', 'break_on_existing', 'match_filter',
-                 'outtmpl', 'format', 'playlistend', 'postprocessors')
+_DROPPED_OPTS = (
+    'download_archive',
+    'break_on_existing',
+    'match_filter',
+    'outtmpl',
+    'format',
+    'playlistend',
+    'postprocessors',
+)
 
 
 @dataclass(frozen=True)
 class FlatTrack:
     """One entry of a flat listing: everything the API page gives us."""
+
     track_id: str
     url: str
     title: str | None = None
@@ -60,6 +69,7 @@ class DeepSweepReport:
     is either held or written off, and this says so in arithmetic rather than in
     hope.
     """
+
     listed: int
     held: int
     written_off: int
@@ -76,14 +86,21 @@ class DeepSweepReport:
         return self.downloaded >= self.wanted
 
     def summary(self) -> str:
-        return (f'{self.listed} listed, {self.held} held, '
-                f'{self.written_off} written off, {self.wanted} wanted, '
-                f'{self.downloaded} fetched')
+        return (
+            f'{self.listed} listed, {self.held} held, '
+            f'{self.written_off} written off, {self.wanted} wanted, '
+            f'{self.downloaded} fetched'
+        )
 
 
-def wanted_tracks(listing: Iterable[FlatTrack], held: set[str],
-                  write_offs: Mapping[str, WriteOff], retry_days: int,
-                  now: datetime, bounds: tuple[int, int] | None) -> list[FlatTrack]:
+def wanted_tracks(
+    listing: Iterable[FlatTrack],
+    held: set[str],
+    write_offs: Mapping[str, WriteOff],
+    retry_days: int,
+    now: datetime,
+    bounds: tuple[int, int] | None,
+) -> list[FlatTrack]:
     """The listed tracks that are neither held nor still written off.
 
     Listing order is kept, which means newest first: a pass that is cut short
@@ -101,8 +118,7 @@ def wanted_tracks(listing: Iterable[FlatTrack], held: set[str],
     return wanted
 
 
-def list_flat(url: str, base_opts: dict, limit: int | None = None,
-              ydl_factory=YoutubeDL) -> list[FlatTrack]:
+def list_flat(url: str, base_opts: dict, limit: int | None = None, ydl_factory=YoutubeDL) -> list[FlatTrack]:
     """Every track the URL lists, as ids and permalinks.
 
     Errors are raised rather than swallowed: only the caller knows whether a 403

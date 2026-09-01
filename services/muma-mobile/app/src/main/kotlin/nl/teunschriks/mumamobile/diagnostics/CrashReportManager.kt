@@ -199,23 +199,21 @@ object CrashReportManager {
             "Timestamp: ${java.util.Date()}\n\n"
     }
 
-    private fun uploadToBackend(report: PendingCrashReport): Boolean {
-        return try {
-            val context = UApp.applicationContext()
-            MusicServiceFactory.getMusicService().uploadCrashReport(
-                deviceModel = Build.MODEL,
-                osVersion = Build.VERSION.SDK_INT.toString(),
-                appVersionName = Util.getVersionName(context) ?: "",
-                appVersionCode = Util.getVersionCode(context),
-                buildType = BuildConfig.BUILD_TYPE,
-                ringBufferText = report.ringBufferText,
-                stacktraceText = report.stacktraceText
-            )
-            true
-        } catch (all: Throwable) {
-            Timber.w(all, "Failed to upload crash report; will retry on next app startup")
-            false
-        }
+    private fun uploadToBackend(report: PendingCrashReport): Boolean = try {
+        val context = UApp.applicationContext()
+        MusicServiceFactory.getMusicService().uploadCrashReport(
+            deviceModel = Build.MODEL,
+            osVersion = Build.VERSION.SDK_INT.toString(),
+            appVersionName = Util.getVersionName(context) ?: "",
+            appVersionCode = Util.getVersionCode(context),
+            buildType = BuildConfig.BUILD_TYPE,
+            ringBufferText = report.ringBufferText,
+            stacktraceText = report.stacktraceText
+        )
+        true
+    } catch (all: Throwable) {
+        Timber.w(all, "Failed to upload crash report; will retry on next app startup")
+        false
     }
 }
 

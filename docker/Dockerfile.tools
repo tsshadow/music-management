@@ -1,13 +1,27 @@
 # Gebruik een lichte Python base image
 FROM python:3.14-slim
 
-# Installeer yt-dlp afhankelijkheden
-RUN apt-get update && apt-get install -y \
+# Installeer yt-dlp afhankelijkheden. mariadb-client hoort hier ook thuis: het
+# levert mariadb-dump en mariadb voor tools/db_backup.py en
+# tools/db_restore_check.py, die als db-backup en db-restore-check uit dit image
+# draaien.
+#
+# De uitpakkers (unrar-free, p7zip-full, unar) stonden hier meegekopieerd uit
+# Dockerfile.base en hoorden er nooit: alleen services/importer/extractor.py
+# roept patoolib aan, en dat pakket wordt hieronder juist *niet* in deze image
+# gekopieerd. Niets in tools/ of in de wel gekopieerde services importeert
+# patoolib. `unar` was bovendien duur: het trekt via gnustep-base-runtime een
+# complete build-essential mee (gcc, g++, binutils, libc6-dev en dus
+# linux-libc-dev, plus graphviz), wat de enige reden was dat deze image de
+# kernel-headers bevatte waar security:dependency-audit CVE's op meldde.
+#
+# apt-get upgrade: zie de toelichting in Dockerfile.base. De vooraf
+# geinstalleerde openssl van python:3.14-slim beweegt niet mee met een rebuild
+# van deze image.
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     ffmpeg \
     curl \
-    unrar-free \
-    p7zip-full \
-    unar \
+    mariadb-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Installeer yt-dlp
@@ -22,8 +36,29 @@ WORKDIR /app
 COPY services/music_manager/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Kopieer de rest van de applicatie
-COPY services/ /app/services/
+# Kopieer de rest van de applicatie.
+#
+# Alleen de Python-pakketten die tools/ daadwerkelijk importeert. Dit was
+# `COPY services/ /app/services/`, wat de complete boom meenam: de 18 MB
+# Android-broncode van services/muma-mobile (inclusief testresources zoals
+# core/subsonic-api/src/integrationTest/resources/self-signed.pem, een
+# self-signed certificaat met private key dat een imagescan als HIGH secret
+# aanmerkt), de Svelte-bron van services/frontend en de C++-bron van
+# services/music-management-server. Niets daarvan is Python en niets daarvan
+# wordt in deze image uitgevoerd.
+#
+# De lijst hieronder is de import-closure van tools/*.py:
+#   common        - Helpers/, config_store, db_init (elk tool raakt dit)
+#   tagger        - Song/SoundcloudSong (soundcloud_fetcher)
+#   music_manager - database, routers/users, song_versions (set_password e.a.)
+#   scanner, downloader - alleen omdat services.music_manager ze importeert
+# Zie tools/test_tools_imports.py: die test bewaakt precies deze paden.
+COPY services/__init__.py /app/services/
+COPY services/common/ /app/services/common/
+COPY services/tagger/ /app/services/tagger/
+COPY services/scanner/ /app/services/scanner/
+COPY services/downloader/ /app/services/downloader/
+COPY services/music_manager/ /app/services/music_manager/
 COPY tools/ /app/tools/
 COPY VERSION RELEASE_NOTES.md /app/
 

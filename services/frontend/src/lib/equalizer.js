@@ -1,4 +1,4 @@
-import { EQ_FREQUENCIES, EQ_Q } from './equalizerPresets.js';
+import { EQ_FREQUENCIES, EQ_Q } from "./equalizerPresets.js";
 
 /**
  * The player's equalizer, as a plain module rather than a Svelte store: the
@@ -44,7 +44,7 @@ function dbToLinear(db) {
 /** True when this browser can host the equalizer at all. */
 export function isSupported() {
   if (contextFactory) return true;
-  if (typeof window === 'undefined') return false;
+  if (typeof window === "undefined") return false;
   return Boolean(window.AudioContext || window.webkitAudioContext);
 }
 
@@ -76,7 +76,7 @@ export function attach(audioElement) {
 
     filterNodes = EQ_FREQUENCIES.map((frequency) => {
       const filter = context.createBiquadFilter();
-      filter.type = 'peaking';
+      filter.type = "peaking";
       filter.frequency.value = frequency;
       filter.Q.value = EQ_Q;
       filter.gain.value = 0;
@@ -97,7 +97,7 @@ export function attach(audioElement) {
   } catch (e) {
     // A failed graph must never cost the user their audio: fall back to the
     // untouched element and stay out of the way for the rest of the session.
-    console.error('Equalizer unavailable, continuing without it', e);
+    console.error("Equalizer unavailable, continuing without it", e);
     available = false;
     context = null;
     sourceNode = null;
@@ -149,7 +149,7 @@ export function setPreamp(gainDb) {
  * a suspended context passes no sound. Called on every play.
  */
 export function resume() {
-  if (context && context.state === 'suspended') {
+  if (context && context.state === "suspended") {
     context.resume();
   }
 }

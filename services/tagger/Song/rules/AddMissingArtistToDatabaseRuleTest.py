@@ -5,7 +5,6 @@ from services.tagger.Song.rules.AddMissingArtistToDatabaseRule import AddMissing
 
 
 class AddMissingArtistToDatabaseRuleTest(unittest.TestCase):
-
     def setUp(self):
         self.song = MagicMock()
         self.song.library_artists.return_value = ['Wrong Artist']
@@ -100,5 +99,7 @@ class AddMissingArtistToDatabaseRuleTest(unittest.TestCase):
         rule.apply(self.song)
         self.artist_table.add.assert_not_called()
         self.ignored_table.add.assert_not_called()
+
+
 if __name__ == '__main__':
     unittest.main()

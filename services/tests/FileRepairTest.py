@@ -9,13 +9,14 @@ from services.other.repair import FileRepair
 
 def make_repairer():
     """A FileRepair whose two database helpers are mocks, so nothing touches MariaDB."""
-    with patch.object(repair, 'BrokenSongHelper', return_value=MagicMock()), \
-         patch.object(repair, 'BrokenSongArtistLookupHelper', return_value=MagicMock()):
+    with (
+        patch.object(repair, 'BrokenSongHelper', return_value=MagicMock()),
+        patch.object(repair, 'BrokenSongArtistLookupHelper', return_value=MagicMock()),
+    ):
         return FileRepair()
 
 
 class DeriveUrlTest(unittest.TestCase):
-
     def setUp(self):
         self.fix = make_repairer()
 
@@ -48,7 +49,6 @@ class DeriveUrlTest(unittest.TestCase):
 
 
 class RepairTest(unittest.TestCase):
-
     def setUp(self):
         self.fix = make_repairer()
         self.fix.artist_lookup.get_normalized_name.return_value = 'artist'
@@ -82,14 +82,15 @@ class RepairTest(unittest.TestCase):
         self.assertEqual(len(self.fix.failed_downloads), 1)
 
     def test_youtube_repair_stops_when_no_url_can_be_derived(self):
-        with patch.object(self.fix, 'derive_youtube_url', return_value=None), \
-             patch.object(self.fix, 'download_from_youtube') as download:
+        with (
+            patch.object(self.fix, 'derive_youtube_url', return_value=None),
+            patch.object(self.fix, 'download_from_youtube') as download,
+        ):
             self.assertFalse(self.fix.repair_youtube(2, '/mnt/music/Youtube/chan/Video.m4a'))
         download.assert_not_called()
 
 
 class RunTest(unittest.TestCase):
-
     def setUp(self):
         self.fix = make_repairer()
 
@@ -99,10 +100,12 @@ class RunTest(unittest.TestCase):
             (2, '/mnt/music/Youtube/c/Two.m4a', None),
             (3, '/mnt/music/Labels/x/Three.m4a', None),
         ]
-        with patch.object(self.fix, 'import_accounts'), \
-             patch.object(self.fix, 'repair_soundcloud', return_value=True) as sc, \
-             patch.object(self.fix, 'repair_youtube', return_value=True) as yt, \
-             patch.object(self.fix, 'try_delete_file') as delete:
+        with (
+            patch.object(self.fix, 'import_accounts'),
+            patch.object(self.fix, 'repair_soundcloud', return_value=True) as sc,
+            patch.object(self.fix, 'repair_youtube', return_value=True) as yt,
+            patch.object(self.fix, 'try_delete_file') as delete,
+        ):
             self.fix.run()
         sc.assert_called_once_with(1, '/mnt/music/Soundcloud/a/One.m4a')
         yt.assert_called_once_with(2, '/mnt/music/Youtube/c/Two.m4a')
@@ -111,9 +114,11 @@ class RunTest(unittest.TestCase):
 
     def test_run_keeps_the_row_and_the_file_when_the_repair_failed(self):
         self.fix.broken_helper.get_all.return_value = [(1, '/mnt/music/Soundcloud/a/One.m4a', None)]
-        with patch.object(self.fix, 'import_accounts'), \
-             patch.object(self.fix, 'repair_soundcloud', return_value=False), \
-             patch.object(self.fix, 'try_delete_file') as delete:
+        with (
+            patch.object(self.fix, 'import_accounts'),
+            patch.object(self.fix, 'repair_soundcloud', return_value=False),
+            patch.object(self.fix, 'try_delete_file') as delete,
+        ):
             self.fix.run()
         delete.assert_not_called()
         self.fix.broken_helper.remove.assert_not_called()
@@ -126,20 +131,17 @@ class RunTest(unittest.TestCase):
     def test_run_logs_the_permanently_failed_downloads(self):
         self.fix.broken_helper.get_all.return_value = []
         self.fix.failed_downloads = [(1, '/path.m4a', 'https://example.test/x')]
-        with patch.object(self.fix, 'import_accounts'), \
-             self.assertLogs(level='WARNING') as logs:
+        with patch.object(self.fix, 'import_accounts'), self.assertLogs(level='WARNING') as logs:
             self.fix.run()
         self.assertTrue(any('https://example.test/x' in line for line in logs.output))
 
 
 class ImportAccountsTest(unittest.TestCase):
-
     def setUp(self):
         self.fix = make_repairer()
 
     def test_a_missing_accounts_file_is_only_a_warning(self):
-        with patch.object(repair.os.path, 'exists', return_value=False), \
-             self.assertLogs(level='WARNING'):
+        with patch.object(repair.os.path, 'exists', return_value=False), self.assertLogs(level='WARNING'):
             self.fix.import_accounts()
         self.fix.artist_lookup.insert_if_missing.assert_not_called()
 
@@ -147,15 +149,16 @@ class ImportAccountsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             accounts = Path(tmp) / 'accounts.txt'
             accounts.write_text('first\n\nsecond\n', encoding='utf-8')
-            with patch.object(repair.os.path, 'exists', return_value=True), \
-                 patch.object(repair, 'open', lambda *a, **k: accounts.open('r', encoding='utf-8'), create=True), \
-                 patch.object(self.fix, 'fetch_uploader_info', side_effect=['First Raw', None]):
+            with (
+                patch.object(repair.os.path, 'exists', return_value=True),
+                patch.object(repair, 'open', lambda *a, **k: accounts.open('r', encoding='utf-8'), create=True),
+                patch.object(self.fix, 'fetch_uploader_info', side_effect=['First Raw', None]),
+            ):
                 self.fix.import_accounts()
         self.fix.artist_lookup.insert_if_missing.assert_called_once_with('First Raw', 'first')
 
 
 class DownloadTest(unittest.TestCase):
-
     def setUp(self):
         self.fix = make_repairer()
 
@@ -191,7 +194,6 @@ class DownloadTest(unittest.TestCase):
 
 
 class DeleteFileTest(unittest.TestCase):
-
     def test_the_file_is_removed(self):
         fix = make_repairer()
         with tempfile.TemporaryDirectory() as tmp:

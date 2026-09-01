@@ -15,13 +15,13 @@ import android.media.AudioManager
 import android.os.Build
 import android.view.KeyEvent
 import io.reactivex.rxjava3.disposables.CompositeDisposable
-import org.koin.core.component.KoinComponent
 import nl.teunschriks.mumamobile.app.UApp.Companion.applicationContext
 import nl.teunschriks.mumamobile.subsonic.ImageLoaderProvider
 import nl.teunschriks.mumamobile.util.CacheCleaner
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Util.ifNotNull
+import org.koin.core.component.KoinComponent
 import timber.log.Timber
 
 /**

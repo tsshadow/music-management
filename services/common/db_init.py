@@ -3,40 +3,61 @@ import logging
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 
 REQUIRED_TABLES = [
-    'downloads_soundcloud_accounts', 'downloads_soundcloud_archive', 
-    'downloads_youtube_accounts', 'downloads_youtube_archive', 
-    'library_artists', 'library_labels', 'label_external_ids',
-    'library_tracks', 'library_media_files', 'library_works',
-    'library_track_artists', 'library_track_labels',
+    'downloads_soundcloud_accounts',
+    'downloads_soundcloud_archive',
+    'downloads_youtube_accounts',
+    'downloads_youtube_archive',
+    'library_artists',
+    'library_labels',
+    'label_external_ids',
+    'library_tracks',
+    'library_media_files',
+    'library_works',
+    'library_track_artists',
+    'library_track_labels',
     # channels points at library_labels and library_artists, and library_track_channels points at
     # both channels and library_tracks, so all three have to exist first.
-    'channels', 'library_track_channels',
+    'channels',
+    'library_track_channels',
     # rules_genres must precede library_track_genres: the latter carries a foreign
     # key to it, and MariaDB rejects a CREATE naming a table that does not exist
     # yet. The failure was swallowed by the debug-level except below, so on a fresh
     # database library_track_genres was silently never created.
-    'rules_genres', 'library_track_genres',
-    'rules_artist_genres', 'rules_label_genres',
-    'rules_artist_genre', 'rules_label_genre', 'rules_catid_label', 'rules_label_proposals',
+    'rules_genres',
+    'library_track_genres',
+    'rules_artist_genres',
+    'rules_label_genres',
+    'rules_artist_genre',
+    'rules_label_genre',
+    'rules_catid_label',
+    'rules_label_proposals',
     'rules_festival_data',
     # rules_festivals must precede its two children: both carry a foreign key to it.
-    'rules_festivals', 'rules_festival_aliases', 'rules_festival_editions',
-    'rules_ignored_artists', 'rules_ignored_genres',
-    'rules_subgenre_hierarchy', 'rules_genre_backlog', 'rules_genre_expansions',
+    'rules_festivals',
+    'rules_festival_aliases',
+    'rules_festival_editions',
+    'rules_ignored_artists',
+    'rules_ignored_genres',
+    'rules_subgenre_hierarchy',
+    'rules_genre_backlog',
+    'rules_genre_expansions',
     'rules_scene_group_date_format',
     # Same ordering constraint as rules_genres above: the alias table points at
     # rules_podcasts.
-    'rules_podcasts', 'rules_podcast_aliases',
-    'library_track_audio_features', 'library_track_ml_labels'
+    'rules_podcasts',
+    'rules_podcast_aliases',
+    'library_track_audio_features',
+    'library_track_ml_labels',
 ]
+
 
 def ensure_tables_exist() -> None:
     """Ensure required database tables exist."""
     table_queries = {
-        'downloads_soundcloud_accounts': '\n            CREATE TABLE IF NOT EXISTS downloads_soundcloud_accounts (\n                name VARCHAR(255),\n                soundcloud_id VARCHAR(255),\n                PRIMARY KEY (name)\n            )\n        ', 
-        'downloads_soundcloud_archive': '\n            CREATE TABLE IF NOT EXISTS downloads_soundcloud_archive (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                account VARCHAR(255),\n                video_id VARCHAR(255),\n                filename TEXT,\n                url TEXT,\n                title TEXT,\n                added_at DATETIME DEFAULT CURRENT_TIMESTAMP,\n                INDEX(account),\n                INDEX(video_id)\n            )\n        ', 
-        'downloads_youtube_accounts': '\n            CREATE TABLE IF NOT EXISTS downloads_youtube_accounts (\n                name VARCHAR(255) PRIMARY KEY\n            )\n        ', 
-        'downloads_youtube_archive': '\n            CREATE TABLE IF NOT EXISTS downloads_youtube_archive (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                account VARCHAR(255),\n                video_id VARCHAR(255),\n                filename TEXT,\n                url TEXT,\n                title TEXT,\n                added_at DATETIME DEFAULT CURRENT_TIMESTAMP,\n                INDEX(account),\n                INDEX(video_id)\n            )\n        ', 
+        'downloads_soundcloud_accounts': '\n            CREATE TABLE IF NOT EXISTS downloads_soundcloud_accounts (\n                name VARCHAR(255),\n                soundcloud_id VARCHAR(255),\n                PRIMARY KEY (name)\n            )\n        ',
+        'downloads_soundcloud_archive': '\n            CREATE TABLE IF NOT EXISTS downloads_soundcloud_archive (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                account VARCHAR(255),\n                video_id VARCHAR(255),\n                filename TEXT,\n                url TEXT,\n                title TEXT,\n                added_at DATETIME DEFAULT CURRENT_TIMESTAMP,\n                INDEX(account),\n                INDEX(video_id)\n            )\n        ',
+        'downloads_youtube_accounts': '\n            CREATE TABLE IF NOT EXISTS downloads_youtube_accounts (\n                name VARCHAR(255) PRIMARY KEY\n            )\n        ',
+        'downloads_youtube_archive': '\n            CREATE TABLE IF NOT EXISTS downloads_youtube_archive (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                account VARCHAR(255),\n                video_id VARCHAR(255),\n                filename TEXT,\n                url TEXT,\n                title TEXT,\n                added_at DATETIME DEFAULT CURRENT_TIMESTAMP,\n                INDEX(account),\n                INDEX(video_id)\n            )\n        ',
         'library_artists': '\n            CREATE TABLE IF NOT EXISTS library_artists (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                name VARCHAR(255) NOT NULL UNIQUE,\n                normalized_name VARCHAR(191),\n                INDEX idx_artists_normalized_name (normalized_name),\n                sort_name VARCHAR(255),\n                mbid VARCHAR(36),\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n            )\n        ',
         'library_labels': '\n            CREATE TABLE IF NOT EXISTS library_labels (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                name VARCHAR(255) NOT NULL UNIQUE,\n                mbid VARCHAR(36) NULL,\n                parent_label_id INT NULL,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                FOREIGN KEY (parent_label_id) REFERENCES library_labels(id) ON DELETE SET NULL\n            )\n        ',
         # Mirrors artist_external_ids rather than sharing one polymorphic table with it:
@@ -58,7 +79,7 @@ def ensure_tables_exist() -> None:
         # runs their own imprint) and may be neither until someone decides.
         'channels': "\n            CREATE TABLE IF NOT EXISTS channels (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                platform ENUM('soundcloud', 'youtube', 'telegram') NOT NULL,\n                name VARCHAR(255) NOT NULL,\n                -- utf8mb4_bin, not the table default: utf8mb4_general_ci gives every\n                -- character outside the BMP the same weight, so two channel names made of\n                -- mathematical alphanumeric symbols compare equal whenever they are the same\n                -- length. The value is already lowercased in Python, so case folding by the\n                -- database buys nothing and binary equality is the question actually asked.\n                normalized_name VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,\n                label_id INT NULL,\n                artist_id INT NULL,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                UNIQUE KEY uq_channel (platform, normalized_name),\n                INDEX idx_channel_label (label_id),\n                INDEX idx_channel_artist (artist_id),\n                FOREIGN KEY (label_id) REFERENCES library_labels(id) ON DELETE SET NULL,\n                FOREIGN KEY (artist_id) REFERENCES library_artists(id) ON DELETE SET NULL\n            )\n        ",
         'library_track_channels': '\n            CREATE TABLE IF NOT EXISTS library_track_channels (\n                track_id INT NOT NULL,\n                channel_id INT NOT NULL,\n                PRIMARY KEY (track_id, channel_id),\n                INDEX idx_track_channel_channel (channel_id),\n                FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE CASCADE,\n                FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE\n            )\n        ',
-        'rules_artist_genre': '\n            CREATE VIEW IF NOT EXISTS rules_artist_genre AS\n            SELECT r.artist_name AS artist, g.name AS genre\n            FROM rules_artist_genres r\n            JOIN rules_genres g ON r.genre_id = g.id\n        ', 
+        'rules_artist_genre': '\n            CREATE VIEW IF NOT EXISTS rules_artist_genre AS\n            SELECT r.artist_name AS artist, g.name AS genre\n            FROM rules_artist_genres r\n            JOIN rules_genres g ON r.genre_id = g.id\n        ',
         'rules_catid_label': '\n            CREATE TABLE IF NOT EXISTS rules_catid_label (\n                catid VARCHAR(255) PRIMARY KEY,\n                label VARCHAR(255) NOT NULL\n            )\n        ',
         # Releases the mover could not place, waiting for a human. `folder` is unique so
         # a later import cycle refreshes the row instead of adding a second one, and
@@ -70,12 +91,12 @@ def ensure_tables_exist() -> None:
         'rules_festival_aliases': '\n            CREATE TABLE IF NOT EXISTS rules_festival_aliases (\n                festival_id INT NOT NULL,\n                alias VARCHAR(255) NOT NULL,\n                normalized_alias VARCHAR(191) NOT NULL,\n                PRIMARY KEY (festival_id, normalized_alias),\n                INDEX idx_normalized_alias (normalized_alias),\n                FOREIGN KEY (festival_id) REFERENCES rules_festivals(id) ON DELETE CASCADE\n            )\n        ',
         'rules_festival_editions': '\n            CREATE TABLE IF NOT EXISTS rules_festival_editions (\n                festival_id INT NOT NULL,\n                year INT NOT NULL,\n                date DATE NOT NULL,\n                PRIMARY KEY (festival_id, year),\n                FOREIGN KEY (festival_id) REFERENCES rules_festivals(id) ON DELETE CASCADE\n            )\n        ',
         'rules_genres': "\n            CREATE TABLE IF NOT EXISTS rules_genres (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                name VARCHAR(255) NOT NULL,\n                normalized_name VARCHAR(191) NOT NULL UNIQUE,\n                state ENUM('white', 'black', 'unknown') NOT NULL DEFAULT 'unknown',\n                canonical_id INT NULL,\n                occurrences INT NOT NULL DEFAULT 0,\n                corrected_genre VARCHAR(255),\n                detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                decided_at TIMESTAMP NULL,\n                decided_by VARCHAR(64),\n                INDEX(state),\n                FOREIGN KEY (canonical_id) REFERENCES rules_genres(id) ON DELETE SET NULL\n            )\n        ",
-        'rules_ignored_artists': '\n            CREATE TABLE IF NOT EXISTS rules_ignored_artists (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                name VARCHAR(255) NOT NULL,\n                corrected_name VARCHAR(255),\n                INDEX(name)\n            )\n        ', 
-        'rules_ignored_genres': '\n            CREATE TABLE IF NOT EXISTS rules_ignored_genres (\n                name VARCHAR(255) PRIMARY KEY\n            )\n        ', 
-        'rules_label_genre': '\n            CREATE VIEW IF NOT EXISTS rules_label_genre AS\n            SELECT r.label_name AS label, g.name AS genre\n            FROM rules_label_genres r\n            JOIN rules_genres g ON r.genre_id = g.id\n        ', 
-        'rules_subgenre_hierarchy': '\n            CREATE TABLE IF NOT EXISTS rules_subgenre_hierarchy (\n                subgenre VARCHAR(255) NOT NULL,\n                genre VARCHAR(255) NOT NULL,\n                PRIMARY KEY (subgenre, genre)\n            )\n        ', 
-        'rules_genre_backlog': '\n            CREATE TABLE IF NOT EXISTS rules_genre_backlog (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                genre VARCHAR(255) UNIQUE,\n                detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n            )\n        ', 
-        'rules_artist_genres': '\n            CREATE TABLE IF NOT EXISTS rules_artist_genres (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                artist_name VARCHAR(255) NOT NULL,\n                genre_id INT NOT NULL,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                created_by VARCHAR(64) NULL,\n                FOREIGN KEY (genre_id) REFERENCES rules_genres(id) ON DELETE CASCADE,\n                UNIQUE KEY (artist_name, genre_id)\n            )\n        ', 
+        'rules_ignored_artists': '\n            CREATE TABLE IF NOT EXISTS rules_ignored_artists (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                name VARCHAR(255) NOT NULL,\n                corrected_name VARCHAR(255),\n                INDEX(name)\n            )\n        ',
+        'rules_ignored_genres': '\n            CREATE TABLE IF NOT EXISTS rules_ignored_genres (\n                name VARCHAR(255) PRIMARY KEY\n            )\n        ',
+        'rules_label_genre': '\n            CREATE VIEW IF NOT EXISTS rules_label_genre AS\n            SELECT r.label_name AS label, g.name AS genre\n            FROM rules_label_genres r\n            JOIN rules_genres g ON r.genre_id = g.id\n        ',
+        'rules_subgenre_hierarchy': '\n            CREATE TABLE IF NOT EXISTS rules_subgenre_hierarchy (\n                subgenre VARCHAR(255) NOT NULL,\n                genre VARCHAR(255) NOT NULL,\n                PRIMARY KEY (subgenre, genre)\n            )\n        ',
+        'rules_genre_backlog': '\n            CREATE TABLE IF NOT EXISTS rules_genre_backlog (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                genre VARCHAR(255) UNIQUE,\n                detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n            )\n        ',
+        'rules_artist_genres': '\n            CREATE TABLE IF NOT EXISTS rules_artist_genres (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                artist_name VARCHAR(255) NOT NULL,\n                genre_id INT NOT NULL,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                created_by VARCHAR(64) NULL,\n                FOREIGN KEY (genre_id) REFERENCES rules_genres(id) ON DELETE CASCADE,\n                UNIQUE KEY (artist_name, genre_id)\n            )\n        ',
         'rules_label_genres': '\n            CREATE TABLE IF NOT EXISTS rules_label_genres (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                label_name VARCHAR(255) NOT NULL,\n                genre_id INT NOT NULL,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                created_by VARCHAR(64) NULL,\n                FOREIGN KEY (genre_id) REFERENCES rules_genres(id) ON DELETE CASCADE,\n                UNIQUE KEY (label_name, genre_id)\n            )\n        ',
         'rules_genre_expansions': '\n            CREATE TABLE IF NOT EXISTS rules_genre_expansions (\n                genre_id INT NOT NULL,\n                target_id INT NOT NULL,\n                position INT NOT NULL DEFAULT 0,\n                PRIMARY KEY (genre_id, target_id),\n                KEY idx_rules_genre_expansions_target (target_id),\n                FOREIGN KEY (genre_id) REFERENCES rules_genres(id) ON DELETE CASCADE,\n                FOREIGN KEY (target_id) REFERENCES rules_genres(id) ON DELETE CASCADE\n            )\n        ',
         # Overrides for scene groups that write M-D-Y instead of the usual D-M-Y. Empty is a valid
@@ -89,7 +110,7 @@ def ensure_tables_exist() -> None:
         'rules_podcasts': "\n            CREATE TABLE IF NOT EXISTS rules_podcasts (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                name VARCHAR(255) NOT NULL,\n                normalized_name VARCHAR(191) NOT NULL UNIQUE,\n                state ENUM('white', 'black', 'unknown') NOT NULL DEFAULT 'unknown',\n                host VARCHAR(255) NULL,\n                station VARCHAR(255) NULL,\n                occurrences INT NOT NULL DEFAULT 0,\n                detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                decided_at TIMESTAMP NULL,\n                decided_by VARCHAR(64),\n                INDEX(state)\n            )\n        ",
         'rules_podcast_aliases': '\n            CREATE TABLE IF NOT EXISTS rules_podcast_aliases (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                podcast_id INT NOT NULL,\n                alias VARCHAR(255) NOT NULL,\n                normalized_alias VARCHAR(191) NOT NULL UNIQUE,\n                occurrences INT NOT NULL DEFAULT 0,\n                INDEX(podcast_id),\n                FOREIGN KEY (podcast_id) REFERENCES rules_podcasts(id) ON DELETE CASCADE\n            )\n        ',
         'library_track_audio_features': '\n            CREATE TABLE IF NOT EXISTS library_track_audio_features (\n                track_id VARCHAR(255) PRIMARY KEY,\n                internal_track_id INT,\n                file_path TEXT,\n                tempo FLOAT,\n                duration FLOAT,\n                mean_spectral_centroid FLOAT,\n                std_spectral_centroid FLOAT,\n                mean_spectral_bandwidth FLOAT,\n                std_spectral_bandwidth FLOAT,\n                mean_spectral_rolloff FLOAT,\n                std_spectral_rolloff FLOAT,\n                mean_rms FLOAT,\n                std_rms FLOAT,\n                mean_zcr FLOAT,\n                std_zcr FLOAT,\n                mean_spectral_contrast FLOAT,\n                std_spectral_contrast FLOAT,\n                mfcc_1 FLOAT, mfcc_2 FLOAT, mfcc_3 FLOAT, mfcc_4 FLOAT, mfcc_5 FLOAT, mfcc_6 FLOAT, mfcc_7 FLOAT, mfcc_8 FLOAT, mfcc_9 FLOAT, mfcc_10 FLOAT, mfcc_11 FLOAT, mfcc_12 FLOAT, mfcc_13 FLOAT,\n                std_mfcc_1 FLOAT, std_mfcc_2 FLOAT, std_mfcc_3 FLOAT, std_mfcc_4 FLOAT, std_mfcc_5 FLOAT, std_mfcc_6 FLOAT, std_mfcc_7 FLOAT, std_mfcc_8 FLOAT, std_mfcc_9 FLOAT, std_mfcc_10 FLOAT, std_mfcc_11 FLOAT, std_mfcc_12 FLOAT, std_mfcc_13 FLOAT,\n                mean_chroma FLOAT,\n                std_chroma FLOAT,\n                artist_name VARCHAR(255),\n                label_name VARCHAR(255),\n                release_year INT,\n                release_date VARCHAR(10),\n                source_platform VARCHAR(50),\n                bpm_tag FLOAT,\n                genre_tag VARCHAR(100),\n                musical_key VARCHAR(20),\n                energy FLOAT,\n                danceability FLOAT,\n                valence FLOAT,\n                popularity INT,\n                FOREIGN KEY (internal_track_id) REFERENCES library_tracks(id) ON DELETE SET NULL\n            )\n        ',
-        'library_track_ml_labels': '\n            CREATE TABLE IF NOT EXISTS library_track_ml_labels (\n                track_id VARCHAR(255) PRIMARY KEY,\n                ml_genre VARCHAR(100),\n                ml_review_status ENUM(\'unreviewed\', \'human_verified\', \'borderline\', \'do_not_train\') DEFAULT \'unreviewed\',\n                approved_for_training BOOLEAN DEFAULT FALSE,\n                internal_track_id INT,\n                FOREIGN KEY (internal_track_id) REFERENCES library_tracks(id) ON DELETE SET NULL\n            )\n        '
+        'library_track_ml_labels': '\n            CREATE TABLE IF NOT EXISTS library_track_ml_labels (\n                track_id VARCHAR(255) PRIMARY KEY,\n                ml_genre VARCHAR(100),\n                ml_review_status ENUM(\'unreviewed\', \'human_verified\', \'borderline\', \'do_not_train\') DEFAULT \'unreviewed\',\n                approved_for_training BOOLEAN DEFAULT FALSE,\n                internal_track_id INT,\n                FOREIGN KEY (internal_track_id) REFERENCES library_tracks(id) ON DELETE SET NULL\n            )\n        ',
     }
     queries = [table_queries[table] for table in REQUIRED_TABLES]
     try:
@@ -119,8 +140,7 @@ def ensure_tables_exist() -> None:
                     # name alone stops being a key. Production already carries the
                     # composite key; this is what brings a db_init-built schema in
                     # line with it. See migrate_v6_youtube_video.sql.
-                    'ALTER TABLE downloads_youtube_accounts DROP PRIMARY KEY, '
-                    'ADD PRIMARY KEY (name, download_type)',
+                    'ALTER TABLE downloads_youtube_accounts DROP PRIMARY KEY, ADD PRIMARY KEY (name, download_type)',
                     "ALTER TABLE downloads_youtube_archive ADD COLUMN IF NOT EXISTS download_type "
                     "ENUM('audio', 'video') NOT NULL DEFAULT 'audio'",
                     'ALTER TABLE downloads_youtube_archive ADD COLUMN IF NOT EXISTS path VARCHAR(255)',
@@ -132,13 +152,11 @@ def ensure_tables_exist() -> None:
                     'DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP',
                     # The full release date, beside release_year rather than replacing it: the year
                     # filters and the analytics year histogram still read that column.
-                    'ALTER TABLE library_track_audio_features ADD COLUMN IF NOT EXISTS '
-                    'release_date VARCHAR(10)',
+                    'ALTER TABLE library_track_audio_features ADD COLUMN IF NOT EXISTS release_date VARCHAR(10)',
                     # Why a file is on the retag pile. needs_rescan stays the gate the
                     # tagger reads; this is only so the UI can say what queued the work.
                     # See migrate_v16_rescan_reason.sql.
-                    'ALTER TABLE tagger_processed_files ADD COLUMN IF NOT EXISTS '
-                    'rescan_reason VARCHAR(64) NULL',
+                    'ALTER TABLE tagger_processed_files ADD COLUMN IF NOT EXISTS rescan_reason VARCHAR(64) NULL',
                 ):
                     try:
                         cursor.execute(column_sql)

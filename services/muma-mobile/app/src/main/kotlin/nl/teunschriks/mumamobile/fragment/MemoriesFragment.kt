@@ -21,10 +21,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import org.koin.android.ext.android.inject
-import org.koin.androidx.scope.ScopeFragment
-import org.koin.androidx.viewmodel.ext.android.viewModel
-import org.koin.core.component.KoinScopeComponent
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.home.CardStyle
 import nl.teunschriks.mumamobile.home.HomeCard
@@ -34,6 +30,10 @@ import nl.teunschriks.mumamobile.home.HomeCardNavigator
 import nl.teunschriks.mumamobile.home.HomeSection
 import nl.teunschriks.mumamobile.home.MemoriesViewModel
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
+import org.koin.android.ext.android.inject
+import org.koin.androidx.scope.ScopeFragment
+import org.koin.androidx.viewmodel.ext.android.viewModel
+import org.koin.core.component.KoinScopeComponent
 
 /**
  * What was released on this day in earlier years, one section per year, newest year first.

@@ -19,13 +19,13 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
-import org.koin.androidx.viewmodel.ext.android.activityViewModel
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.fragment.FragmentTitle
 import nl.teunschriks.mumamobile.util.Util.toast
+import org.koin.androidx.viewmodel.ext.android.activityViewModel
 
 /**
  * One Beheer page: downloaders, users, or access requests.
@@ -182,8 +182,6 @@ class ManagementPageFragment : Fragment() {
     companion object {
         private const val ARG_PAGE = "managementPage"
 
-        fun argumentsFor(page: ManagementPage): Bundle =
-            Bundle().apply { putString(ARG_PAGE, page.name) }
+        fun argumentsFor(page: ManagementPage): Bundle = Bundle().apply { putString(ARG_PAGE, page.name) }
     }
 }
-

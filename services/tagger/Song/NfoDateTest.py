@@ -7,7 +7,6 @@ from services.tagger.Song import NfoDate
 
 
 class DirnameTest(unittest.TestCase):
-
     def test_takes_the_last_year_so_a_catalogue_year_does_not_win(self):
         name = 'Official_Archive_2023_Anthem - Shockwave_-_Nothing-WEB-2024-ZzZz'
         self.assertEqual(NfoDate.dirname_year(name), 2024)
@@ -27,7 +26,6 @@ class DirnameTest(unittest.TestCase):
 
 
 class TokenOrderTest(unittest.TestCase):
-
     def test_a_component_above_twelve_fixes_the_day(self):
         self.assertEqual(NfoDate.resolve_token('17.10.2025'), date(2025, 10, 17))
 
@@ -58,7 +56,6 @@ class TokenOrderTest(unittest.TestCase):
 
 
 class ResolveTest(unittest.TestCase):
-
     def test_street_date_beats_rip_date(self):
         text = 'Str.date : 16-01-2026\nRip.date : 20-01-2026\n'
         kind, resolved = NfoDate.resolve(text, 'X_-_Y-(008R017)-WEB-2026-ZzZz')
@@ -94,7 +91,6 @@ class ResolveTest(unittest.TestCase):
 
 
 class ReadNfoTest(unittest.TestCase):
-
     def test_reads_cp437_art_and_strips_nul_bytes(self):
         raw = b'\xdb\xdc art \x00\x00 Str.date\xfe\xfe: 16-01-2026\r\n'
         with tempfile.TemporaryDirectory() as directory:

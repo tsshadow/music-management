@@ -1,4 +1,5 @@
 """The decision made before any downloading: does this account have anything new?"""
+
 import unittest
 from datetime import datetime
 from unittest.mock import MagicMock, patch
@@ -14,13 +15,11 @@ from services.downloader.soundcloud.soundcloud import SoundcloudDownloader  # is
 
 
 class AccountGateTestCase(unittest.TestCase):
-
     def setUp(self):
         reset_database_helpers()
         # The constructor reads accounts and touches the filesystem while it
         # builds its config; same scaffolding test_basic_run.py needs.
-        patch('services.downloader.soundcloud.soundcloud.get_accounts_from_db',
-              return_value=['monstercat']).start()
+        patch('services.downloader.soundcloud.soundcloud.get_accounts_from_db', return_value=['monstercat']).start()
         patch('pathlib.Path.exists', return_value=True).start()
         patch('os.makedirs').start()
         self.addCleanup(patch.stopall)
@@ -32,20 +31,16 @@ class AccountGateTestCase(unittest.TestCase):
         self.downloader.download_account = MagicMock()
 
     def probe_returns(self, result):
-        return patch('services.downloader.soundcloud.soundcloud.newest_track',
-                     return_value=result)
+        return patch('services.downloader.soundcloud.soundcloud.newest_track', return_value=result)
 
     def probe_raises(self, error):
-        return patch('services.downloader.soundcloud.soundcloud.newest_track',
-                     side_effect=error)
+        return patch('services.downloader.soundcloud.soundcloud.newest_track', side_effect=error)
 
     def archive_holds(self, held):
-        return patch('services.downloader.soundcloud.soundcloud.SoundcloudArchive.track_exists',
-                     return_value=held)
+        return patch('services.downloader.soundcloud.soundcloud.SoundcloudArchive.track_exists', return_value=held)
 
 
 class CheckAccountTest(AccountGateTestCase):
-
     def test_an_account_with_nothing_new_is_not_downloaded(self):
         probe = ProbeResult('2379459947', 'Dokho - Better Place', 'https://x')
         with self.probe_returns(probe), self.archive_holds(True):
@@ -95,15 +90,15 @@ class CheckAccountTest(AccountGateTestCase):
 
 
 class LearnedUploadDateTest(AccountGateTestCase):
-
     def test_a_run_that_saw_a_timestamp_reports_it_as_a_date(self):
         report = AccountReport()
         report.note_extracted('t1', 1750000000)
 
         self.downloader._record_upload_date('monstercat', report)
 
-        self.assertEqual(self.downloader._checked_kwargs('monstercat'),
-                         {'last_upload_at': datetime.fromtimestamp(1750000000)})
+        self.assertEqual(
+            self.downloader._checked_kwargs('monstercat'), {'last_upload_at': datetime.fromtimestamp(1750000000)}
+        )
 
     def test_a_run_that_saw_no_timestamp_reports_nothing(self):
         self.downloader._record_upload_date('monstercat', AccountReport())
@@ -113,8 +108,7 @@ class LearnedUploadDateTest(AccountGateTestCase):
     def test_a_probed_track_id_is_reported_even_without_a_date(self):
         self.downloader._seen_tracks['monstercat'] = '2379459947'
 
-        self.assertEqual(self.downloader._checked_kwargs('monstercat'),
-                         {'last_seen_track_id': '2379459947'})
+        self.assertEqual(self.downloader._checked_kwargs('monstercat'), {'last_seen_track_id': '2379459947'})
 
     def test_what_was_learned_is_reported_once_and_then_forgotten(self):
         report = AccountReport()

@@ -23,7 +23,8 @@ from services.tagger.Song.BaseSong import ExtensionNotSupportedException
 router = APIRouter(tags=['scanner'])
 logger = logging.getLogger('music-manager.scanner')
 
-async def verify_api_key(x_api_key: str | None=Header(None)):
+
+async def verify_api_key(x_api_key: str | None = Header(None)):
     """Same system-or-user API key check the other routers use.
 
     Delegates rather than re-implementing it (as library.py/management.py do) so there is one
@@ -31,10 +32,11 @@ async def verify_api_key(x_api_key: str | None=Header(None)):
     itself a router module that main.py imports alongside this one.
     """
     from services.music_manager.routers.users import verify_api_key as _verify
+
     return await _verify(x_api_key)
 
-class ScannerManager:
 
+class ScannerManager:
     def __init__(self):
         self.settings = Settings()
         self.music_path = self.settings.music_folder_path
@@ -140,8 +142,8 @@ class ScannerManager:
         cursor.execute('DELETE FROM library_track_genres WHERE track_id = %s', (track_id,))
         for genre_id in genre_ids:
             cursor.execute(
-                'INSERT IGNORE INTO library_track_genres (track_id, genre_id) VALUES (%s, %s)',
-                (track_id, genre_id))
+                'INSERT IGNORE INTO library_track_genres (track_id, genre_id) VALUES (%s, %s)', (track_id, genre_id)
+            )
 
     def _resolve_channel_id(self, cursor, path):
         """The channel this file arrived through, created on first sight, or None.
@@ -160,10 +162,9 @@ class ScannerManager:
             return None
         cursor.execute(
             'INSERT IGNORE INTO channels (platform, name, normalized_name) VALUES (%s, %s, %s)',
-            (platform, name, normalized))
-        cursor.execute(
-            'SELECT id FROM channels WHERE platform = %s AND normalized_name = %s',
-            (platform, normalized))
+            (platform, name, normalized),
+        )
+        cursor.execute('SELECT id FROM channels WHERE platform = %s AND normalized_name = %s', (platform, normalized))
         row = cursor.fetchone()
         return row['id'] if row else None
 
@@ -172,7 +173,9 @@ class ScannerManager:
         mtime = os.path.getmtime(path)
         size = os.path.getsize(path)
         with conn.cursor() as cursor:
-            cursor.execute('SELECT id, file_mtime, file_size FROM library_media_files WHERE file_path_hash = %s', (path_hash,))
+            cursor.execute(
+                'SELECT id, file_mtime, file_size FROM library_media_files WHERE file_path_hash = %s', (path_hash,)
+            )
             record = cursor.fetchone()
             if not force and record and (record['file_mtime'] == mtime) and (record['file_size'] == size):
                 return False
@@ -203,39 +206,59 @@ class ScannerManager:
             duration = song.length()
             primary_artist_id = artist_ids[0] if artist_ids else None
             track_uid = hashlib.sha256(f'{title}-{duration}-{primary_artist_id}'.encode()).hexdigest()
-            cursor.execute('\n                INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id)\n                VALUES (%s, %s, %s, %s)\n                ON DUPLICATE KEY UPDATE title=%s, duration_secs=%s, primary_artist_id=%s\n            ', (track_uid, title, duration, primary_artist_id, title, duration, primary_artist_id))
+            cursor.execute(
+                '\n                INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id)\n                VALUES (%s, %s, %s, %s)\n                ON DUPLICATE KEY UPDATE title=%s, duration_secs=%s, primary_artist_id=%s\n            ',
+                (track_uid, title, duration, primary_artist_id, title, duration, primary_artist_id),
+            )
             cursor.execute('SELECT id FROM library_tracks WHERE track_uid = %s', (track_uid,))
             track_id = cursor.fetchone()['id']
             cursor.execute('DELETE FROM library_track_artists WHERE track_id = %s', (track_id,))
             for i, a_id in enumerate(artist_ids):
                 role = 'primary' if i == 0 else 'featuring'
-                cursor.execute('INSERT IGNORE INTO library_track_artists (track_id, artist_id, role, position) VALUES (%s, %s, %s, %s)', (track_id, a_id, role, i))
+                cursor.execute(
+                    'INSERT IGNORE INTO library_track_artists (track_id, artist_id, role, position) VALUES (%s, %s, %s, %s)',
+                    (track_id, a_id, role, i),
+                )
             self._write_genres(cursor, track_id, self._resolve_genre_ids(song))
             if label_id:
-                cursor.execute('INSERT IGNORE INTO library_track_labels (track_id, label_id) VALUES (%s, %s)', (track_id, label_id))
+                cursor.execute(
+                    'INSERT IGNORE INTO library_track_labels (track_id, label_id) VALUES (%s, %s)', (track_id, label_id)
+                )
             if channel_id:
-                cursor.execute('INSERT IGNORE INTO library_track_channels (track_id, channel_id) VALUES (%s, %s)', (track_id, channel_id))
-            cursor.execute('\n                INSERT INTO library_media_files (file_path, file_path_hash, file_mtime, file_size, track_id, duration_secs)\n                VALUES (%s, %s, %s, %s, %s, %s)\n                ON DUPLICATE KEY UPDATE file_mtime=%s, file_size=%s, track_id=%s, duration_secs=%s\n            ', (path, path_hash, mtime, size, track_id, duration, mtime, size, track_id, duration))
+                cursor.execute(
+                    'INSERT IGNORE INTO library_track_channels (track_id, channel_id) VALUES (%s, %s)',
+                    (track_id, channel_id),
+                )
+            cursor.execute(
+                '\n                INSERT INTO library_media_files (file_path, file_path_hash, file_mtime, file_size, track_id, duration_secs)\n                VALUES (%s, %s, %s, %s, %s, %s)\n                ON DUPLICATE KEY UPDATE file_mtime=%s, file_size=%s, track_id=%s, duration_secs=%s\n            ',
+                (path, path_hash, mtime, size, track_id, duration, mtime, size, track_id, duration),
+            )
             return True
+
+
 scanner_manager = ScannerManager()
+
 
 @router.get('/health')
 async def health():
     return {'status': 'OK', 'busy': scanner_manager._lock.locked()}
 
+
 @router.post('/scan/all')
-async def api_scan_all(background_tasks: BackgroundTasks, force: bool=False, _auth: dict=Depends(verify_api_key)):
+async def api_scan_all(background_tasks: BackgroundTasks, force: bool = False, _auth: dict = Depends(verify_api_key)):
     if scanner_manager._lock.locked():
         raise HTTPException(status_code=409, detail='A scan operation is already in progress')
     background_tasks.add_task(scanner_manager.run_full, force=force)
     return {'message': 'Full library scan started in background'}
 
+
 @router.post('/scan/file')
-async def api_scan_file(path: str=Query(...), force: bool=False, _auth: dict=Depends(verify_api_key)):
+async def api_scan_file(path: str = Query(...), force: bool = False, _auth: dict = Depends(verify_api_key)):
     scanner_manager.scan_single(path, force=force)
     return {'message': f'Scan for {path} completed'}
 
-def run_scanner_loop(sleeptime: int=3600):
+
+def run_scanner_loop(sleeptime: int = 3600):
     logger.info('Starting background scanner loop with sleeptime %d', sleeptime)
     scanner_manager.run_full()
     while True:

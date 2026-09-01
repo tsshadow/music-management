@@ -3,6 +3,7 @@
 Authentication uses the `apiKey` Subsonic parameter, which LMS resolves to a
 user through its auth-token service (see SubsonicResource.cpp:517-519).
 """
+
 import logging
 import os
 

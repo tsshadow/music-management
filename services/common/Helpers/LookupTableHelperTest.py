@@ -5,7 +5,6 @@ from services.common.Helpers.LookupTableHelper import LookupTableHelper
 
 
 class LookupTableHelperTest(unittest.TestCase):
-
     def setUp(self):
         patcher = patch('services.common.Helpers.LookupTableHelper.DatabaseConnector')
         self.addCleanup(patcher.stop)
@@ -20,7 +19,9 @@ class LookupTableHelperTest(unittest.TestCase):
         self.mock_cursor.fetchall.return_value = [('Hardcore',), ('Terror',)]
         result = self.helper.get('Evil Activities')
         self.assertEqual(result, ['Hardcore', 'Terror'])
-        self.mock_cursor.execute.assert_called_once_with('SELECT genre FROM rules_artist_genre WHERE LOWER(artist) = LOWER(%s)', ('Evil Activities',))
+        self.mock_cursor.execute.assert_called_once_with(
+            'SELECT genre FROM rules_artist_genre WHERE LOWER(artist) = LOWER(%s)', ('Evil Activities',)
+        )
 
     def test_get_empty(self):
         self.mock_cursor.fetchall.return_value = []
@@ -35,7 +36,12 @@ class LookupTableHelperTest(unittest.TestCase):
         self.mock_connection.close.assert_called_once()
 
     def test_get_substring_success(self):
-        self.mock_cursor.fetchall.return_value = [('Hardcore', 'NL'), ('Hard Bass', 'NL'), ('Speedcore', 'DE'), ('House', 'FR')]
+        self.mock_cursor.fetchall.return_value = [
+            ('Hardcore', 'NL'),
+            ('Hard Bass', 'NL'),
+            ('Speedcore', 'DE'),
+            ('House', 'FR'),
+        ]
         result = self.helper.get_substring('The rise of hardcore and speedcore music')
         expected = ['DE', 'NL']
         self.assertEqual(result, expected)
@@ -46,6 +52,8 @@ class LookupTableHelperTest(unittest.TestCase):
         result = self.helper.get_substring('any text')
         self.assertEqual(result, [])
         self.mock_connection.close.assert_called_once()
+
+
 class LookupTableHelperReloadTest(unittest.TestCase):
     """A preloaded helper has to notice rules written after it was built.
 

@@ -82,6 +82,80 @@ services:
     networks:
       - music-management_db
 
+  # Beide draaien one-shot, aangestuurd door de systemd-timers in
+  # scripts/backup/systemd/. Geen restart-policy: een backup die na een fout
+  # meteen opnieuw begint, doet dat zonder dat iemand de fout gezien heeft.
+  #
+  # NOTIFY_URL moet hier expliciet mee: het alarm is de enige reden dat deze
+  # jobs iets terugmelden, en de tools-compose gaf hem tot nu toe niet door.
+  db-backup:
+    security_opt:
+      - no-new-privileges:true
+    image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
+    container_name: muma-db-backup
+    restart: "no"
+    # Anders dan de langlopende services hierboven staat de root hier wel
+    # read-only. Deze twee schrijven maar op twee plekken: het
+    # --defaults-extra-file met de credentials in /tmp, en de dumps op de
+    # gemounte /backups. Mocht dat toch te krap blijken, dan meldt het zich:
+    # de systemd-unit faalt en /health/backup verloopt binnen 36 uur.
+    read_only: true
+    tmpfs:
+      - /tmp
+    command: ["python", "tools/db_backup.py"]
+    environment:
+      - PYTHONPATH=/app
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_DB=${DB_DB}
+      - BACKUP_DB_USER=${BACKUP_DB_USER:-}
+      - BACKUP_DB_PASS=${BACKUP_DB_PASS:-}
+      - BACKUP_PATH=/backups
+      - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-14}
+      - BACKUP_STALE_AFTER_HOURS=${BACKUP_STALE_AFTER_HOURS:-36}
+      - NOTIFY_URL=${NOTIFY_URL}
+    volumes:
+      - ${HOST_BACKUP_PATH:-/mnt/backups/muma}:/backups
+      - ${HOST_DATA_PATH}/importer:/app/data
+    networks:
+      - music-management_db
+
+  db-restore-check:
+    security_opt:
+      - no-new-privileges:true
+    image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
+    container_name: muma-db-restore-check
+    restart: "no"
+    # Anders dan de langlopende services hierboven staat de root hier wel
+    # read-only. Deze twee schrijven maar op twee plekken: het
+    # --defaults-extra-file met de credentials in /tmp, en de dumps op de
+    # gemounte /backups. Mocht dat toch te krap blijken, dan meldt het zich:
+    # de systemd-unit faalt en /health/backup verloopt binnen 36 uur.
+    read_only: true
+    tmpfs:
+      - /tmp
+    command: ["python", "tools/db_restore_check.py"]
+    environment:
+      - PYTHONPATH=/app
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_DB=${DB_DB}
+      - BACKUP_DB_USER=${BACKUP_DB_USER:-}
+      - BACKUP_DB_PASS=${BACKUP_DB_PASS:-}
+      # Alleen-lezen: de check hoeft niets aan de backups te veranderen, en een
+      # herstelproef die zijn eigen bronbestand kan overschrijven is geen proef.
+      - BACKUP_PATH=/backups
+      - NOTIFY_URL=${NOTIFY_URL}
+    volumes:
+      - ${HOST_BACKUP_PATH:-/mnt/backups/muma}:/backups:ro
+      - ${HOST_DATA_PATH}/importer:/app/data
+    networks:
+      - music-management_db
+
 networks:
   music-management_db:
     external: true

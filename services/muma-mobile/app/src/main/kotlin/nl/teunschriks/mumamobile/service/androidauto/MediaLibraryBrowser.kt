@@ -7,18 +7,11 @@
 
 package nl.teunschriks.mumamobile.service.androidauto
 
-import nl.teunschriks.mumamobile.fragment.muma.TileInfo
-import nl.teunschriks.mumamobile.fragment.muma.TileStorage
-import nl.teunschriks.mumamobile.home.FavoriteGenres
-import android.content.Context
+import android.net.Uri
 import android.os.Bundle
 import android.text.format.DateFormat
-import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
-import org.koin.java.KoinJavaComponent.inject
-import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
-import androidx.media3.common.MediaMetadata.MEDIA_TYPE_FOLDER_PLAYLISTS
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_PLAYLIST
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
@@ -36,22 +29,26 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.guava.future
 import nl.teunschriks.mumamobile.R
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType
 import nl.teunschriks.mumamobile.api.subsonic.models.Filter
 import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.fragment.muma.TileInfo
+import nl.teunschriks.mumamobile.fragment.muma.TileStorage
+import nl.teunschriks.mumamobile.home.FavoriteGenres
+import nl.teunschriks.mumamobile.provider.AlbumArtContentProvider
 import nl.teunschriks.mumamobile.service.MusicService
 import nl.teunschriks.mumamobile.service.MusicServiceFactory
 import nl.teunschriks.mumamobile.util.FileUtil
-import nl.teunschriks.mumamobile.provider.AlbumArtContentProvider
-import nl.teunschriks.mumamobile.util.LayoutType
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Settings.maxSongs
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.buildMediaItem
 import nl.teunschriks.mumamobile.util.toMediaItem
+import org.koin.java.KoinJavaComponent.inject
 import timber.log.Timber
 
 /**
@@ -521,46 +518,44 @@ class MediaLibraryBrowser(
      * than browsable: a channel has no track list a user could pick from, only
      * whatever the server's timeline says is on air right now.
      */
-    private fun getRadioChannelItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
-        serviceScope.future {
-            val mediaItems: MutableList<MediaItem> = ArrayList()
-            val channels = callWithErrorHandling {
-                subsonicAPIClient.mumaApi.api.getRadioChannels().execute().body()?.channels
-            } ?: emptyList()
+    private fun getRadioChannelItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceScope.future {
+        val mediaItems: MutableList<MediaItem> = ArrayList()
+        val channels = callWithErrorHandling {
+            subsonicAPIClient.mumaApi.api.getRadioChannels().execute().body()?.channels
+        } ?: emptyList()
 
-            for (channel in channels) {
-                mediaItems.add(
-                    title = channel.name,
-                    mediaId = listOf(MEDIA_RADIO_ITEM, channel.slug).joinToString("|"),
-                    isBrowsable = false,
-                    mediaType = MEDIA_TYPE_PLAYLIST
-                )
-            }
-            LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+        for (channel in channels) {
+            mediaItems.add(
+                title = channel.name,
+                mediaId = listOf(MEDIA_RADIO_ITEM, channel.slug).joinToString("|"),
+                isBrowsable = false,
+                mediaType = MEDIA_TYPE_PLAYLIST
+            )
         }
+        LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+    }
 
     /**
      * The bulletins the server still keeps, newest first. Each one is playable
      * rather than browsable: a bulletin is a single recording, not a track list.
      */
-    private fun getNewsBulletinItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
-        serviceScope.future {
-            val mediaItems: MutableList<MediaItem> = ArrayList()
-            val bulletins = callWithErrorHandling {
-                subsonicAPIClient.mumaApi.api.getNewsBulletins().execute().body()?.bulletins
-            } ?: emptyList()
+    private fun getNewsBulletinItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceScope.future {
+        val mediaItems: MutableList<MediaItem> = ArrayList()
+        val bulletins = callWithErrorHandling {
+            subsonicAPIClient.mumaApi.api.getNewsBulletins().execute().body()?.bulletins
+        } ?: emptyList()
 
-            val formatter = DateFormat.getTimeFormat(UApp.applicationContext())
-            for (bulletin in bulletins) {
-                mediaItems.add(
-                    title = formatter.format(Date((bulletin.startedAt * 1000).toLong())),
-                    mediaId = listOf(MEDIA_NEWS_ITEM, bulletin.id.toString()).joinToString("|"),
-                    isBrowsable = false,
-                    mediaType = MEDIA_TYPE_PLAYLIST
-                )
-            }
-            LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+        val formatter = DateFormat.getTimeFormat(UApp.applicationContext())
+        for (bulletin in bulletins) {
+            mediaItems.add(
+                title = formatter.format(Date((bulletin.startedAt * 1000).toLong())),
+                mediaId = listOf(MEDIA_NEWS_ITEM, bulletin.id.toString()).joinToString("|"),
+                isBrowsable = false,
+                mediaType = MEDIA_TYPE_PLAYLIST
+            )
         }
+        LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+    }
 
     private fun getFavoriteItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val mediaItems: MutableList<MediaItem> = ArrayList()
@@ -601,8 +596,7 @@ class MediaLibraryBrowser(
         )
     }
 
-    private fun getFavoritePlaylistItems():
-        ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+    private fun getFavoritePlaylistItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val mediaItems: MutableList<MediaItem> = favoriteTiles()
             .map { it.toMediaItem() }
             .toMutableList()

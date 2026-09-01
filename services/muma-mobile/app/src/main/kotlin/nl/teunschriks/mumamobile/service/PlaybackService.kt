@@ -34,9 +34,6 @@ import java.util.Random
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import okhttp3.OkHttpClient
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.activity.NavigationActivity
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
@@ -51,11 +48,14 @@ import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.service.androidauto.MediaLibrarySessionCallback
 import nl.teunschriks.mumamobile.service.androidauto.NewsPlaybackController
 import nl.teunschriks.mumamobile.util.Constants
-import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.SessionMarker
+import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.Util.stopForegroundRemoveNotification
 import nl.teunschriks.mumamobile.util.toTrack
+import okhttp3.OkHttpClient
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import timber.log.Timber
 
 @SuppressLint("UnsafeOptInUsageError")

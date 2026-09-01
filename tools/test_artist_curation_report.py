@@ -3,6 +3,7 @@
 The formatting is not tested; the seeding is, because it decides which names the
 whole run treats as ground truth.
 """
+
 import io
 import os
 import sys
@@ -19,7 +20,6 @@ def row(name, tracks=10, sources=5):
 
 
 class BuildSeedTest(unittest.TestCase):
-
     def setUp(self):
         self.config = AnalyzerConfig()
 
@@ -45,7 +45,6 @@ class BuildSeedTest(unittest.TestCase):
 
 
 class ReportTest(unittest.TestCase):
-
     def test_report_counts_every_input_row(self):
         rows = [row('Angerfist'), row('#1 Angerfist', tracks=2, sources=1)]
         analyzer = ArtistNameAnalyzer(build_seed(rows, AnalyzerConfig()))

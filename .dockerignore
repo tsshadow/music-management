@@ -10,6 +10,15 @@ backup.sql
 /mnt/music/
 /docker/
 node_modules/
+# De Android-app hoort in geen enkele image thuis. Alle builds hier draaien met
+# de repo-root als context (zie scripts/ci/build-and-push-images.sh), dus zonder
+# deze regel belandt 18 MB Kotlin/Gradle-bron in muma-base en music-manager --
+# inclusief testresources als
+# services/muma-mobile/core/subsonic-api/src/integrationTest/resources/self-signed.pem,
+# een self-signed certificaat met private key dat een imagescan als HIGH secret
+# aanmerkt. De android-ci image gebruikt docker/ als context en kopieert niets
+# uit de repo, dus die raakt dit niet.
+services/muma-mobile/
 services/frontend/node_modules/
 services/frontend/.svelte-kit/
 services/frontend/.vite/

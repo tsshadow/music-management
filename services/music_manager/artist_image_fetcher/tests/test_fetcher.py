@@ -17,12 +17,13 @@ def make_cursor(conn):
 
 
 class FetcherTestCase(unittest.TestCase):
-
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        env = patch.dict(os.environ, {'ARTIST_IMAGE_STORAGE_PATH': self.tmp.name,
-                                      'ARTIST_IMAGE_PUBLIC_BASE_URL': '/media/artist-images'})
+        env = patch.dict(
+            os.environ,
+            {'ARTIST_IMAGE_STORAGE_PATH': self.tmp.name, 'ARTIST_IMAGE_PUBLIC_BASE_URL': '/media/artist-images'},
+        )
         env.start()
         self.addCleanup(env.stop)
         self.conn = MagicMock()
@@ -36,8 +37,13 @@ class FetcherTestCase(unittest.TestCase):
         self.fetcher.storage.storage_path = self.tmp.name
         self.fetcher.storage.public_base_url = '/media/artist-images'
         self.fetcher.storage.save_image.return_value = {
-            'cached_path': os.path.join(self.tmp.name, 'a.jpg'), 'public_path': '/media/artist-images/1/a.jpg',
-            'width': 100, 'height': 100, 'mime_type': 'image/jpeg', 'file_size': 10}
+            'cached_path': os.path.join(self.tmp.name, 'a.jpg'),
+            'public_path': '/media/artist-images/1/a.jpg',
+            'width': 100,
+            'height': 100,
+            'mime_type': 'image/jpeg',
+            'file_size': 10,
+        }
 
     def add_provider(self, name, candidates):
         provider = MagicMock()
@@ -48,7 +54,6 @@ class FetcherTestCase(unittest.TestCase):
 
 
 class ConstructionTest(unittest.TestCase):
-
     def test_without_a_connection_one_is_opened_through_the_shared_connector(self):
         with patch.object(fetcher_module, 'DatabaseConnector') as connector:
             instance = ArtistImageFetcher()
@@ -64,7 +69,6 @@ class ConstructionTest(unittest.TestCase):
 
 
 class FetchForArtistTest(FetcherTestCase):
-
     def test_an_unknown_artist_id_is_reported_as_a_failure(self):
         self.cursor.fetchone.return_value = None
         self.assertFalse(self.fetcher.fetch_for_artist(1))
@@ -96,7 +100,10 @@ class FetchForArtistTest(FetcherTestCase):
         self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}
         self.cursor.fetchall.return_value = []
         self.fetcher.mb_provider.get_artist_metadata.return_value = {
-            'mbid': 'mb-new', 'name': 'Angerfist', 'external_ids': {'spotify': 'sp1'}}
+            'mbid': 'mb-new',
+            'name': 'Angerfist',
+            'external_ids': {'spotify': 'sp1'},
+        }
         provider = self.add_provider('spotify', [])
         self.fetcher.fetch_for_artist(1, 'Angerfist')
         self.assertEqual(provider.get_artist_images.call_args.args[1], 'mb-new')
@@ -109,7 +116,10 @@ class FetchForArtistTest(FetcherTestCase):
         self.cursor.fetchone.return_value = {'id': 1, 'mbid': 'mb1', 'primary_image_id': None}
         self.cursor.fetchall.return_value = [{'source': 'spotify', 'external_id': 'sp-existing'}]
         self.fetcher.mb_provider.get_artist_metadata.return_value = {
-            'mbid': 'mb1', 'name': 'Angerfist', 'external_ids': {'spotify': 'sp-other'}}
+            'mbid': 'mb1',
+            'name': 'Angerfist',
+            'external_ids': {'spotify': 'sp-other'},
+        }
         self.add_provider('spotify', [])
         self.fetcher.fetch_for_artist(1, 'Angerfist')
         statements = [call.args[0] for call in self.cursor.execute.call_args_list]
@@ -120,16 +130,18 @@ class FetchForArtistTest(FetcherTestCase):
         self.cursor.fetchall.return_value = []
         broken = self.add_provider('spotify', [])
         broken.get_artist_images.side_effect = RuntimeError('api down')
-        self.add_provider('lastfm', [{'source': 'lastfm', 'source_id': 'l1', 'name': 'Angerfist',
-                                      'url': 'https://img.test/a.jpg'}])
+        self.add_provider(
+            'lastfm', [{'source': 'lastfm', 'source_id': 'l1', 'name': 'Angerfist', 'url': 'https://img.test/a.jpg'}]
+        )
         self.fetcher.downloader.download.return_value = b'binary'
         self.assertTrue(self.fetcher.fetch_for_artist(1, 'Angerfist'))
 
     def test_without_a_confident_candidate_the_artist_is_marked_as_failed(self):
         self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}
         self.cursor.fetchall.return_value = []
-        self.add_provider('lastfm', [{'source': 'lastfm', 'source_id': 'l1', 'name': 'Someone Else',
-                                      'url': 'https://img.test/a.jpg'}])
+        self.add_provider(
+            'lastfm', [{'source': 'lastfm', 'source_id': 'l1', 'name': 'Someone Else', 'url': 'https://img.test/a.jpg'}]
+        )
         self.assertFalse(self.fetcher.fetch_for_artist(1, 'Angerfist'))
         statements = [call.args[0] for call in self.cursor.execute.call_args_list]
         self.assertTrue(any('image_status = %s' in s for s in statements))
@@ -137,10 +149,13 @@ class FetchForArtistTest(FetcherTestCase):
     def test_the_most_confident_candidate_wins(self):
         self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}
         self.cursor.fetchall.return_value = []
-        self.add_provider('lastfm', [
-            {'source': 'lastfm', 'source_id': 'weak', 'name': 'Angerfst', 'url': 'https://img.test/weak.jpg'},
-            {'source': 'lastfm', 'source_id': 'strong', 'name': 'Angerfist', 'url': 'https://img.test/strong.jpg'},
-        ])
+        self.add_provider(
+            'lastfm',
+            [
+                {'source': 'lastfm', 'source_id': 'weak', 'name': 'Angerfst', 'url': 'https://img.test/weak.jpg'},
+                {'source': 'lastfm', 'source_id': 'strong', 'name': 'Angerfist', 'url': 'https://img.test/strong.jpg'},
+            ],
+        )
         self.fetcher.downloader.download.return_value = b'binary'
         self.assertTrue(self.fetcher.fetch_for_artist(1, 'Angerfist'))
         self.fetcher.downloader.download.assert_called_once_with('https://img.test/strong.jpg')
@@ -148,8 +163,18 @@ class FetchForArtistTest(FetcherTestCase):
     def test_a_candidate_that_already_carries_its_bytes_is_not_downloaded_again(self):
         self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}
         self.cursor.fetchall.return_value = []
-        self.add_provider('lastfm', [{'source': 'lastfm', 'source_id': 'l1', 'name': 'Angerfist',
-                                      'url': 'https://img.test/a.jpg', 'image_data': b'inline'}])
+        self.add_provider(
+            'lastfm',
+            [
+                {
+                    'source': 'lastfm',
+                    'source_id': 'l1',
+                    'name': 'Angerfist',
+                    'url': 'https://img.test/a.jpg',
+                    'image_data': b'inline',
+                }
+            ],
+        )
         self.assertTrue(self.fetcher.fetch_for_artist(1, 'Angerfist'))
         self.fetcher.downloader.download.assert_not_called()
         self.assertEqual(self.fetcher.storage.save_image.call_args.args[2], b'inline')
@@ -157,16 +182,18 @@ class FetchForArtistTest(FetcherTestCase):
     def test_a_download_that_yields_nothing_marks_the_artist_as_failed(self):
         self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}
         self.cursor.fetchall.return_value = []
-        self.add_provider('lastfm', [{'source': 'lastfm', 'source_id': 'l1', 'name': 'Angerfist',
-                                      'url': 'https://img.test/a.jpg'}])
+        self.add_provider(
+            'lastfm', [{'source': 'lastfm', 'source_id': 'l1', 'name': 'Angerfist', 'url': 'https://img.test/a.jpg'}]
+        )
         self.fetcher.downloader.download.return_value = None
         self.assertFalse(self.fetcher.fetch_for_artist(1, 'Angerfist'))
 
     def test_a_storage_error_marks_the_artist_as_failed(self):
         self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}
         self.cursor.fetchall.return_value = []
-        self.add_provider('lastfm', [{'source': 'lastfm', 'source_id': 'l1', 'name': 'Angerfist',
-                                      'url': 'https://img.test/a.jpg'}])
+        self.add_provider(
+            'lastfm', [{'source': 'lastfm', 'source_id': 'l1', 'name': 'Angerfist', 'url': 'https://img.test/a.jpg'}]
+        )
         self.fetcher.downloader.download.return_value = b'binary'
         self.fetcher.storage.save_image.side_effect = RuntimeError('disk full')
         self.assertFalse(self.fetcher.fetch_for_artist(1, 'Angerfist'))
@@ -175,8 +202,9 @@ class FetchForArtistTest(FetcherTestCase):
         self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}
         self.cursor.fetchall.return_value = []
         self.cursor.lastrowid = 55
-        self.add_provider('lastfm', [{'source': 'lastfm', 'source_id': 'l1', 'name': 'Angerfist',
-                                      'url': 'https://img.test/a.jpg'}])
+        self.add_provider(
+            'lastfm', [{'source': 'lastfm', 'source_id': 'l1', 'name': 'Angerfist', 'url': 'https://img.test/a.jpg'}]
+        )
         self.fetcher.downloader.download.return_value = b'binary'
         self.assertTrue(self.fetcher.fetch_for_artist(1, 'Angerfist'))
         statements = [call.args[0] for call in self.cursor.execute.call_args_list]
@@ -186,12 +214,12 @@ class FetchForArtistTest(FetcherTestCase):
 
 
 class ManifestTest(FetcherTestCase):
-
     def run_one_successful_fetch(self):
         self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}
         self.cursor.fetchall.return_value = []
-        self.add_provider('lastfm', [{'source': 'lastfm', 'source_id': 'l1', 'name': 'Angerfist',
-                                      'url': 'https://img.test/a.jpg'}])
+        self.add_provider(
+            'lastfm', [{'source': 'lastfm', 'source_id': 'l1', 'name': 'Angerfist', 'url': 'https://img.test/a.jpg'}]
+        )
         self.fetcher.downloader.download.return_value = b'binary'
         return self.fetcher.fetch_for_artist(1, 'Angerfist')
 

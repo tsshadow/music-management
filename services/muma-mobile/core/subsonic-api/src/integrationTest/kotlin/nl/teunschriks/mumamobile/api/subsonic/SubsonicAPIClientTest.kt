@@ -1,8 +1,8 @@
 package nl.teunschriks.mumamobile.api.subsonic
 
+import nl.teunschriks.mumamobile.api.subsonic.rules.MockWebServerRule
 import org.junit.Before
 import org.junit.Rule
-import nl.teunschriks.mumamobile.api.subsonic.rules.MockWebServerRule
 
 /**
  * Base class for integration tests for [SubsonicAPIClient] class.

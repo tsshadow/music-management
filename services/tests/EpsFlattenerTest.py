@@ -18,8 +18,7 @@ class EpsFlattenerTestCase(unittest.TestCase):
         # that needs flattening -- the walk only queues folders with exactly one child.
         (self.eps / '_other_label').mkdir()
         (self.eps / '_second_label').mkdir()
-        patcher = patch.object(epsflattener, 'Settings',
-                               return_value=MagicMock(eps_folder_path=str(self.eps)))
+        patcher = patch.object(epsflattener, 'Settings', return_value=MagicMock(eps_folder_path=str(self.eps)))
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -35,7 +34,6 @@ class EpsFlattenerTestCase(unittest.TestCase):
 
 
 class FlattenFolderTest(EpsFlattenerTestCase):
-
     def test_files_are_moved_up_into_the_parent_folder(self):
         parent, subdir = self.make_tree('release', 'disc1', files=['a.mp3', 'b.mp3'])
         EpsFlattener().flatten_folder(str(parent), 'disc1')
@@ -75,13 +73,14 @@ class FlattenFolderTest(EpsFlattenerTestCase):
 
     def test_a_failure_halfway_through_is_logged_rather_than_raised(self):
         parent, _ = self.make_tree('release', 'disc1', files=['a.mp3'])
-        with patch.object(epsflattener.shutil, 'move', side_effect=PermissionError('read only')), \
-             self.assertLogs(level='ERROR'):
+        with (
+            patch.object(epsflattener.shutil, 'move', side_effect=PermissionError('read only')),
+            self.assertLogs(level='ERROR'),
+        ):
             EpsFlattener().flatten_folder(str(parent), 'disc1')  # must not raise
 
 
 class RunTest(EpsFlattenerTestCase):
-
     def test_a_folder_with_exactly_one_subfolder_is_flattened(self):
         parent, subdir = self.make_tree('release', 'disc1', files=['a.mp3'])
         EpsFlattener().run()

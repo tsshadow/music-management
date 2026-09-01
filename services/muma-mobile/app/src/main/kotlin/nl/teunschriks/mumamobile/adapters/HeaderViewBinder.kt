@@ -11,11 +11,11 @@ import androidx.recyclerview.widget.RecyclerView
 import com.drakeet.multitype.ItemViewBinder
 import java.lang.ref.WeakReference
 import java.util.Random
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.subsonic.ImageLoaderProvider
 import nl.teunschriks.mumamobile.util.Util
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 /**
  * This Binder can bind a list of entries into a Header

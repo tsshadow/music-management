@@ -11,7 +11,6 @@ import androidx.room.Room
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient.Companion.OFFLINE_DB_URL

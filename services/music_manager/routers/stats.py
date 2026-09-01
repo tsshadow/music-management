@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from services.music_manager.api_key import is_system_api_key
@@ -7,12 +6,14 @@ from services.music_manager.rbac import has_permission
 
 router = APIRouter(tags=['stats'])
 
-def verify_api_key(x_api_key: str | None=Header(None)):
+
+def verify_api_key(x_api_key: str | None = Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
     if is_system_api_key(x_api_key):
         return {'type': 'system'}
     from services.music_manager.routers.users import verify_token
+
     try:
         res = verify_token(x_api_key)
         if res.get('status') == 'ok':
@@ -21,17 +22,30 @@ def verify_api_key(x_api_key: str | None=Header(None)):
         pass
     raise HTTPException(status_code=401, detail='Invalid API key')
 
+
 def init_db(_cursor):
     pass
 
+
 @router.get('/')
-def get_stats(auth: dict=Depends(verify_api_key)):
+def get_stats(auth: dict = Depends(verify_api_key)):
     if auth.get('type') == 'user' and (not has_permission(auth, 'users.read')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')
-    stats = {'total_tracks': 0, 'total_artists': 0, 'total_albums': 0, 'top_artists': [], 'top_genres': [], 'total_scrobbles': 0, 'total_unmatched': 0, 'match_rate': 0, 'recently_added': [], 'avg_track_duration': 0}
+    stats = {
+        'total_tracks': 0,
+        'total_artists': 0,
+        'total_albums': 0,
+        'top_artists': [],
+        'top_genres': [],
+        'total_scrobbles': 0,
+        'total_unmatched': 0,
+        'match_rate': 0,
+        'recently_added': [],
+        'avg_track_duration': 0,
+    }
     try:
         with conn.cursor() as cursor:
             cursor.execute('SELECT COUNT(*) as count FROM library_tracks')
@@ -41,7 +55,9 @@ def get_stats(auth: dict=Depends(verify_api_key)):
             stats['total_albums'] = 0
             cursor.execute('SELECT AVG(duration_secs) as avg_dur FROM library_tracks WHERE duration_secs > 0')
             stats['avg_track_duration'] = round(cursor.fetchone()['avg_dur'] or 0, 2)
-            cursor.execute('\n                SELECT a.name, COUNT(t.id) as track_count\n                FROM library_artists a\n                JOIN library_tracks t ON a.id = t.primary_artist_id\n                GROUP BY a.id\n                ORDER BY track_count DESC\n                LIMIT 10\n            ')
+            cursor.execute(
+                '\n                SELECT a.name, COUNT(t.id) as track_count\n                FROM library_artists a\n                JOIN library_tracks t ON a.id = t.primary_artist_id\n                GROUP BY a.id\n                ORDER BY track_count DESC\n                LIMIT 10\n            '
+            )
             stats['top_artists'] = cursor.fetchall()
             # Counted from library_track_genres alone. The previous query unioned
             # this with library_track_ml_labels.ml_genre, which was harmless only
@@ -60,7 +76,9 @@ def get_stats(auth: dict=Depends(verify_api_key)):
                 LIMIT 10
             ''')
             stats['top_genres'] = cursor.fetchall()
-            cursor.execute('\n                SELECT COUNT(DISTINCT t.id) as count\n                FROM library_tracks t\n                LEFT JOIN library_track_genres tg ON t.id = tg.track_id\n                LEFT JOIN library_track_ml_labels ml ON t.track_uid = ml.track_id\n                WHERE tg.track_id IS NOT NULL OR ml.track_id IS NOT NULL\n            ')
+            cursor.execute(
+                '\n                SELECT COUNT(DISTINCT t.id) as count\n                FROM library_tracks t\n                LEFT JOIN library_track_genres tg ON t.id = tg.track_id\n                LEFT JOIN library_track_ml_labels ml ON t.track_uid = ml.track_id\n                WHERE tg.track_id IS NOT NULL OR ml.track_id IS NOT NULL\n            '
+            )
             matched_count = cursor.fetchone()['count']
             if stats['total_tracks'] > 0:
                 stats['match_rate'] = round(matched_count / stats['total_tracks'] * 100, 2)
@@ -72,7 +90,9 @@ def get_stats(auth: dict=Depends(verify_api_key)):
             if cursor.fetchone():
                 cursor.execute('SELECT COUNT(*) as count FROM scrobble_unmatched_listens')
                 stats['total_unmatched'] = cursor.fetchone()['count']
-            cursor.execute('\n                SELECT t.title, a.name as artist, CAST(t.created_at AS CHAR) as created_at\n                FROM library_tracks t\n                JOIN library_artists a ON t.primary_artist_id = a.id\n                ORDER BY t.created_at DESC\n                LIMIT 5\n            ')
+            cursor.execute(
+                '\n                SELECT t.title, a.name as artist, CAST(t.created_at AS CHAR) as created_at\n                FROM library_tracks t\n                JOIN library_artists a ON t.primary_artist_id = a.id\n                ORDER BY t.created_at DESC\n                LIMIT 5\n            '
+            )
             stats['recently_added'] = cursor.fetchall()
     except Exception as e:
         print(f'Stats Query error: {e}')

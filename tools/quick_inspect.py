@@ -3,15 +3,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 def inspect():
     host = "192.0.2.27"
     port = 3306
     user = "music-management"
     password = "Properly-Urologist9-Onlooker-Stupor-Triage-Rocket"
     db_name = "music-management"
-    
+
     print(f"Connecting to {host}:{port}/{db_name} as {user}...")
-    
+
     try:
         conn = pymysql.connect(host=host, port=port, user=user, password=password, database=db_name)
     except Exception as e:
@@ -33,7 +34,7 @@ def inspect():
                 cursor.execute(f"SELECT COUNT(*) FROM `{table}`")
                 count = cursor.fetchone()[0]
                 print(f" - {table}: {count} rows")
-                
+
             # Specifically check for rating tables
             for t in ["track_ratings", "rating_tracks"]:
                 if t in tables:
@@ -46,6 +47,7 @@ def inspect():
                     print(f"\nTable '{t}' does not exist.")
     finally:
         conn.close()
+
 
 if __name__ == "__main__":
     inspect()

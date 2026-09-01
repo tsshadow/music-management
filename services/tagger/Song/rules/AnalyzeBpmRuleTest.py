@@ -30,8 +30,8 @@ class OneElementArray:
     def item(self):
         return self._value
 
-class AnalyzeBpmRuleTest(unittest.TestCase):
 
+class AnalyzeBpmRuleTest(unittest.TestCase):
     @patch('services.tagger.Song.rules.AnalyzeBpmRule.librosa.load')
     @patch('services.tagger.Song.rules.AnalyzeBpmRule.librosa.beat.beat_track')
     def test_sets_bpm(self, mock_beat_track, mock_load):
@@ -74,7 +74,6 @@ class AnalyzeBpmRuleTest(unittest.TestCase):
         song = make_song()
         AnalyzeBpmRule().apply(song)  # must not raise
         song.tag_collection.set_item.assert_not_called()
-
 
     @patch('services.tagger.Song.rules.AnalyzeBpmRule.librosa.load')
     @patch('services.tagger.Song.rules.AnalyzeBpmRule.librosa.beat.beat_track')

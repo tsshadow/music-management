@@ -19,7 +19,6 @@ from services.music_manager.main import app
 
 
 class TestDiagnostics(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         self.api_key = resolve_system_api_key()
@@ -76,9 +75,7 @@ class TestDiagnostics(unittest.TestCase):
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
 
         payload = dict(self.payload, stacktrace_text='java.lang.NullPointerException\n  at Foo.bar')
-        response = self.client.post(
-            '/api/diagnostics/crash-reports', json=payload, headers={'x-api-key': self.api_key}
-        )
+        response = self.client.post('/api/diagnostics/crash-reports', json=payload, headers={'x-api-key': self.api_key})
 
         self.assertEqual(response.status_code, 200)
         insert_call = next(
@@ -152,9 +149,7 @@ class TestDiagnostics(unittest.TestCase):
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         mock_cursor.fetchone.return_value = {'id': 12, 'status': 'new', 'device_model': 'Pixel 7'}
 
-        response = self.client.get(
-            '/api/diagnostics/crash-reports/12', headers={'x-api-key': self.api_key}
-        )
+        response = self.client.get('/api/diagnostics/crash-reports/12', headers={'x-api-key': self.api_key})
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['id'], 12)
@@ -167,18 +162,14 @@ class TestDiagnostics(unittest.TestCase):
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         mock_cursor.fetchone.return_value = None
 
-        response = self.client.get(
-            '/api/diagnostics/crash-reports/999', headers={'x-api-key': self.api_key}
-        )
+        response = self.client.get('/api/diagnostics/crash-reports/999', headers={'x-api-key': self.api_key})
 
         self.assertEqual(response.status_code, 404)
 
     def test_get_report_403_for_user_key(self):
         with patch('services.music_manager.routers.users.verify_token') as mock_verify:
             mock_verify.return_value = {'status': 'ok', 'user': {'id': 3}}
-            response = self.client.get(
-                '/api/diagnostics/crash-reports/12', headers={'x-api-key': 'some-user-key'}
-            )
+            response = self.client.get('/api/diagnostics/crash-reports/12', headers={'x-api-key': 'some-user-key'})
 
         self.assertEqual(response.status_code, 403)
 
@@ -192,20 +183,18 @@ class TestDiagnostics(unittest.TestCase):
 
         response = self.client.patch(
             '/api/diagnostics/crash-reports/12/status',
-            json={'status': 'analyzing'}, headers={'x-api-key': self.api_key}
+            json={'status': 'analyzing'},
+            headers={'x-api-key': self.api_key},
         )
 
         self.assertEqual(response.status_code, 200)
-        update_call = next(
-            call for call in mock_cursor.execute.call_args_list if 'UPDATE crash_reports' in call[0][0]
-        )
+        update_call = next(call for call in mock_cursor.execute.call_args_list if 'UPDATE crash_reports' in call[0][0])
         self.assertEqual(update_call[0][1], ('analyzing', 12))
 
     @patch('services.music_manager.routers.diagnostics.get_db_connection')
     def test_patch_status_rejects_unknown_value(self, mock_get_db):
         response = self.client.patch(
-            '/api/diagnostics/crash-reports/12/status',
-            json={'status': 'sideways'}, headers={'x-api-key': self.api_key}
+            '/api/diagnostics/crash-reports/12/status', json={'status': 'sideways'}, headers={'x-api-key': self.api_key}
         )
 
         self.assertEqual(response.status_code, 422)

@@ -4,6 +4,7 @@ Naast de bestaande StreamHandler naar stdout hangt hier een handler die
 records doorzet naar de events-stroom. Zonder allowlist stroomt uvicorn's
 access-log de tabel in en is het logboek binnen een dag onleesbaar.
 """
+
 from __future__ import annotations
 
 import logging
@@ -24,8 +25,12 @@ DEFAULT_THRESHOLD = logging.WARNING
 LOG_FORMAT = '%(asctime)s  %(filename)s:%(lineno)s [%(levelname)s] %(message)s'
 TITLE_MAX_LENGTH = 255
 
-_LEVEL_NAMES = ((logging.CRITICAL, 'CRITICAL'), (logging.ERROR, 'ERROR'),
-                (logging.WARNING, 'WARNING'), (logging.INFO, 'INFO'))
+_LEVEL_NAMES = (
+    (logging.CRITICAL, 'CRITICAL'),
+    (logging.ERROR, 'ERROR'),
+    (logging.WARNING, 'WARNING'),
+    (logging.INFO, 'INFO'),
+)
 
 _state = threading.local()
 _sink_registered = False
@@ -46,7 +51,6 @@ def level_name(levelno: int) -> str:
 
 
 class EventLogHandler(logging.Handler):
-
     def __init__(self, source: str, service=None) -> None:
         super().__init__(level=logging.NOTSET)
         self._source = source
@@ -75,8 +79,7 @@ class EventLogHandler(logging.Handler):
             # logging mag nooit de aanroeper laten sneuvelen, maar stil falen
             # maakt van deze handler een zwart gat. stderr, niet logging: een
             # logregel hier komt via deze handler meteen weer binnen.
-            print(f'EventLogHandler: event uit {record.name} mislukt: {exc}',
-                  file=sys.stderr)
+            print(f'EventLogHandler: event uit {record.name} mislukt: {exc}', file=sys.stderr)
         finally:
             _state.active = False
 

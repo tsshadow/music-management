@@ -21,10 +21,6 @@ import androidx.recyclerview.widget.RecyclerView
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import org.koin.android.ext.android.inject
-import org.koin.androidx.scope.ScopeFragment
-import org.koin.androidx.viewmodel.ext.android.viewModel
-import org.koin.core.component.KoinScopeComponent
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.home.CardStyle
 import nl.teunschriks.mumamobile.home.FavoritesViewModel
@@ -35,6 +31,10 @@ import nl.teunschriks.mumamobile.home.HomeCardNavigator
 import nl.teunschriks.mumamobile.home.HomeSection
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.service.RxBus
+import org.koin.android.ext.android.inject
+import org.koin.androidx.scope.ScopeFragment
+import org.koin.androidx.viewmodel.ext.android.viewModel
+import org.koin.core.component.KoinScopeComponent
 
 /**
  * Starred albums and artists plus highly rated tracks, drawn by the same card component as the

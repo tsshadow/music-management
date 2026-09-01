@@ -179,6 +179,11 @@ android {
         // We manage dependencies on Gitlab with RenovateBot
         disable 'GradleDependency'
         disable 'AndroidGradlePluginVersion'
+        // Same reason, for the version catalog: AGP 9's lint reads
+        // libs.versions.toml and reports every entry it considers behind. That
+        // is Renovate's job, and baselining eleven of them would mean a stale
+        // baseline after every dependency merge request.
+        disable 'NewerVersionAvailable'
         textReport = true
         checkDependencies = true
     }

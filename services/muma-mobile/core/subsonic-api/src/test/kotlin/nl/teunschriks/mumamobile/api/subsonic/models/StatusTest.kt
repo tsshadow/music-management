@@ -1,10 +1,10 @@
 package nl.teunschriks.mumamobile.api.subsonic.models
 
+import nl.teunschriks.mumamobile.api.subsonic.response.SubsonicResponse
 import org.amshove.kluent.`should be equal to`
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import nl.teunschriks.mumamobile.api.subsonic.response.SubsonicResponse
 
 /**
  * Unit test for [SubsonicResponse.Status] class

@@ -1,8 +1,8 @@
 package nl.teunschriks.mumamobile.fragment.muma
 
-import android.os.Bundle
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.View.GONE
@@ -365,7 +365,6 @@ class FilterModalFragment : BottomSheetDialogFragment() {
         }
     }
 
-
     private fun applyStateToUI(state: FilterState) {
         binding.selectTitle.setText(state.title)
         selectedGenres.clear()
@@ -409,23 +408,21 @@ class FilterModalFragment : BottomSheetDialogFragment() {
         binding.delete.visibility = if (isEdit) VISIBLE else GONE
     }
 
-    private fun collectFilterState(): FilterState {
-        return FilterState(
-            title = binding.selectTitle.text.toString().trim(),
-            genres = selectedGenres,
-            artists = selectedArtists,
-            years = selectedYears,
-            count = selectedResultCount,
-            ratingMin = binding.selectRatingMin.selectedItem as Int,
-            ratingMax = binding.selectRatingMax.selectedItem as Int,
-            sortMethod = sortOptions[binding.selectSortMethod.selectedItemPosition].second,
-            minDuration = null,
-            maxDuration = null,
-            modalType = modalType,
-            label = selectedLabels,
-            festival = selectedFestivals,
-            festivalLineup = selectedFestivalLineup,
-            favorite = binding.favoriteButton.isSelected
-        )
-    }
+    private fun collectFilterState(): FilterState = FilterState(
+        title = binding.selectTitle.text.toString().trim(),
+        genres = selectedGenres,
+        artists = selectedArtists,
+        years = selectedYears,
+        count = selectedResultCount,
+        ratingMin = binding.selectRatingMin.selectedItem as Int,
+        ratingMax = binding.selectRatingMax.selectedItem as Int,
+        sortMethod = sortOptions[binding.selectSortMethod.selectedItemPosition].second,
+        minDuration = null,
+        maxDuration = null,
+        modalType = modalType,
+        label = selectedLabels,
+        festival = selectedFestivals,
+        festivalLineup = selectedFestivalLineup,
+        favorite = binding.favoriteButton.isSelected
+    )
 }

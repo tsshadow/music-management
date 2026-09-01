@@ -22,5 +22,7 @@ def migrate_paths():
             print('  python fix_db_schema.py\n')
         else:
             print(f'Fout tijdens migratie: {e}')
+
+
 if __name__ == '__main__':
     migrate_paths()

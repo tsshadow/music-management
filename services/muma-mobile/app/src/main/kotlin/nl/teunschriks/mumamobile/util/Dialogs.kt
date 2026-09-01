@@ -22,8 +22,7 @@ import timber.log.Timber
  * from a non-Activity context, e.g. when a background coroutine fails and the error handler only
  * has the application context. Wrapping in the app theme makes the builder constructible.
  */
-internal fun Context.withUltrasonicTheme(): Context =
-    if (this is Activity) this else ContextThemeWrapper(this, R.style.UltrasonicTheme_Spotify)
+internal fun Context.withUltrasonicTheme(): Context = if (this is Activity) this else ContextThemeWrapper(this, R.style.UltrasonicTheme_Spotify)
 
 /*
  * InfoDialog can be used to show some information to the user. Typically it cannot be cancelled,

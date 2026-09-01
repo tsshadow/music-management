@@ -193,4 +193,4 @@ namespace lms::api::subsonic::memories::tests
         EXPECT_FALSE(parseIsoDate("not a date").has_value());
         EXPECT_FALSE(parseIsoDate("").has_value());
     }
-}
+} // namespace lms::api::subsonic::memories::tests

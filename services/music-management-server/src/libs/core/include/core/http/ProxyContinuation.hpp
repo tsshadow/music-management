@@ -55,8 +55,8 @@ namespace lms::core::http
     // The answer always arrives, one way or another: the upstream's own status (whatever it is,
     // including 404), 502 if the request could not be delivered, or 504 once `deadline` passes.
     std::shared_ptr<const ProxyAnswer> proxyRequest(const Wt::Http::Request& request, Wt::Http::Response& response,
-        boost::asio::io_context& ioContext, IClient& client, ClientGETRequestParameters&& params, std::chrono::seconds deadline);
+                                                    boost::asio::io_context& ioContext, IClient& client, ClientGETRequestParameters&& params, std::chrono::seconds deadline);
 
     std::shared_ptr<const ProxyAnswer> proxyRequest(const Wt::Http::Request& request, Wt::Http::Response& response,
-        boost::asio::io_context& ioContext, IClient& client, ClientPOSTRequestParameters&& params, std::chrono::seconds deadline);
+                                                    boost::asio::io_context& ioContext, IClient& client, ClientPOSTRequestParameters&& params, std::chrono::seconds deadline);
 } // namespace lms::core::http

@@ -1,4 +1,5 @@
 """Coverage for services/tagger/tagger.py: folder walking, dispatch and auto-detection."""
+
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,7 +11,6 @@ from services.tagger.tagger import Tagger, TagSingleFile
 
 
 class TaggerTestCase(unittest.TestCase):
-
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -76,35 +76,46 @@ class ImportFolderTest(TaggerTestCase):
         """Two independent decisions, one rule. They drifted apart once already."""
         song = self.make_song(self.eps / '__TODO' / 'Some Release')
 
-        with patch.object(tagger_module.Tagger, 'parse_song') as parse_song, \
-                patch.object(tagger_module, 'settings', self.settings, create=True):
+        with (
+            patch.object(tagger_module.Tagger, 'parse_song') as parse_song,
+            patch.object(tagger_module, 'settings', self.settings, create=True),
+        ):
             tagger_module.TagSingleFile(song)
 
         self.assertEqual(SongTypeEnum.GENERIC, parse_song.call_args.args[1])
 
 
 class RunTest(TaggerTestCase):
-
     def steps(self):
-        return {name: patch.object(self.tagger, name) for name in
-                ('_parse_label_folders', '_parse_channel_folders', '_parse_generic_folders')}
+        return {
+            name: patch.object(self.tagger, name)
+            for name in ('_parse_label_folders', '_parse_channel_folders', '_parse_generic_folders')
+        }
 
     def test_a_full_run_covers_labels_all_three_platforms_and_the_generic_folders(self):
-        with patch.object(self.tagger, '_parse_label_folders') as labels, \
-             patch.object(self.tagger, '_parse_channel_folders') as channels, \
-             patch.object(self.tagger, '_parse_generic_folders') as generic:
+        with (
+            patch.object(self.tagger, '_parse_label_folders') as labels,
+            patch.object(self.tagger, '_parse_channel_folders') as channels,
+            patch.object(self.tagger, '_parse_generic_folders') as generic,
+        ):
             self.tagger.run()
         labels.assert_called_once()
         generic.assert_called_once()
-        self.assertEqual([call.args[0] for call in channels.call_args_list],
-                         ['Soundcloud', 'Youtube', 'Telegram'])
+        self.assertEqual([call.args[0] for call in channels.call_args_list], ['Soundcloud', 'Youtube', 'Telegram'])
 
     def test_each_source_can_be_switched_off(self):
-        with patch.object(self.tagger, '_parse_label_folders') as labels, \
-             patch.object(self.tagger, '_parse_channel_folders') as channels, \
-             patch.object(self.tagger, '_parse_generic_folders') as generic:
-            self.tagger.run(parse_labels=False, parse_soundcloud=False, parse_youtube=False,
-                            parse_generic=False, parse_telegram=False)
+        with (
+            patch.object(self.tagger, '_parse_label_folders') as labels,
+            patch.object(self.tagger, '_parse_channel_folders') as channels,
+            patch.object(self.tagger, '_parse_generic_folders') as generic,
+        ):
+            self.tagger.run(
+                parse_labels=False,
+                parse_soundcloud=False,
+                parse_youtube=False,
+                parse_generic=False,
+                parse_telegram=False,
+            )
         labels.assert_not_called()
         channels.assert_not_called()
         generic.assert_not_called()
@@ -113,42 +124,49 @@ class RunTest(TaggerTestCase):
         def stop_immediately():
             self.tagger.stop_requested = True
 
-        with patch.object(self.tagger, '_parse_label_folders', side_effect=stop_immediately), \
-             patch.object(self.tagger, '_parse_channel_folders') as channels, \
-             patch.object(self.tagger, '_parse_generic_folders') as generic:
+        with (
+            patch.object(self.tagger, '_parse_label_folders', side_effect=stop_immediately),
+            patch.object(self.tagger, '_parse_channel_folders') as channels,
+            patch.object(self.tagger, '_parse_generic_folders') as generic,
+        ):
             self.tagger.run()
         channels.assert_not_called()
         generic.assert_not_called()
 
     def test_a_run_clears_a_stop_request_left_over_from_the_previous_one(self):
         self.tagger.stop_requested = True
-        with patch.object(self.tagger, '_parse_label_folders') as labels, \
-             patch.object(self.tagger, '_parse_channel_folders'), \
-             patch.object(self.tagger, '_parse_generic_folders'):
+        with (
+            patch.object(self.tagger, '_parse_label_folders') as labels,
+            patch.object(self.tagger, '_parse_channel_folders'),
+            patch.object(self.tagger, '_parse_generic_folders'),
+        ):
             self.tagger.run()
         labels.assert_called_once()
 
     def test_a_run_refreshes_the_rule_caches_first(self):
         # Without this the run would tag with the rules it read at import, so a rule
         # changed today would look like it had no effect at all.
-        with patch.object(tagger_module, 'reload_rule_caches') as reload_rule_caches, \
-             patch.object(self.tagger, '_parse_label_folders'), \
-             patch.object(self.tagger, '_parse_channel_folders'), \
-             patch.object(self.tagger, '_parse_generic_folders'):
+        with (
+            patch.object(tagger_module, 'reload_rule_caches') as reload_rule_caches,
+            patch.object(self.tagger, '_parse_label_folders'),
+            patch.object(self.tagger, '_parse_channel_folders'),
+            patch.object(self.tagger, '_parse_generic_folders'),
+        ):
             self.tagger.run()
         reload_rule_caches.assert_called_once()
 
     def test_a_run_asks_lms_to_pick_up_what_changed(self):
-        with patch.object(self.tagger, '_parse_label_folders'), \
-             patch.object(self.tagger, '_parse_channel_folders'), \
-             patch.object(self.tagger, '_parse_generic_folders'), \
-             patch.object(tagger_module, 'lms_scan_trigger') as trigger:
+        with (
+            patch.object(self.tagger, '_parse_label_folders'),
+            patch.object(self.tagger, '_parse_channel_folders'),
+            patch.object(self.tagger, '_parse_generic_folders'),
+            patch.object(tagger_module, 'lms_scan_trigger') as trigger,
+        ):
             self.tagger.run()
         trigger.trigger.assert_called_once()
 
 
 class FolderWalkTest(TaggerTestCase):
-
     def test_every_label_folder_is_parsed_as_a_label(self):
         (self.eps / 'Scantraxx').mkdir()
         with patch.object(self.tagger, 'parse_folder') as parse_folder, patch('builtins.print'):
@@ -192,16 +210,18 @@ class FolderWalkTest(TaggerTestCase):
         (self.music / 'Podcasts' / 'Show').mkdir(parents=True)
         with patch.object(self.tagger, 'parse_folder') as parse_folder:
             self.tagger._parse_generic_folders()
-        self.assertEqual([call.args[0] for call in parse_folder.call_args_list],
-                         [self.music / 'Livesets', self.music / 'Podcasts'])
+        self.assertEqual(
+            [call.args[0] for call in parse_folder.call_args_list], [self.music / 'Livesets', self.music / 'Podcasts']
+        )
         self.assertEqual(parse_folder.call_args.args[1], SongTypeEnum.GENERIC)
 
     def test_a_file_loose_in_a_generic_root_is_parsed_too(self):
         self.make_song(self.music / 'Warm Up Mixes', 'Korsakoff at Pussy Lounge 2019.mp3')
         with patch.object(self.tagger, '_try_parse') as try_parse:
             self.tagger._parse_generic_folders()
-        self.assertEqual([call.args[0].name for call in try_parse.call_args_list],
-                         ['Korsakoff at Pussy Lounge 2019.mp3'])
+        self.assertEqual(
+            [call.args[0].name for call in try_parse.call_args_list], ['Korsakoff at Pussy Lounge 2019.mp3']
+        )
 
     def test_a_missing_generic_folder_is_skipped(self):
         with patch.object(self.tagger, 'parse_folder') as parse_folder:
@@ -217,7 +237,6 @@ class FolderWalkTest(TaggerTestCase):
 
 
 class ParseFolderTest(TaggerTestCase):
-
     def test_a_single_file_is_parsed_directly(self):
         song = self.make_song(self.music / 'Soundcloud' / 'artist')
         with patch.object(self.tagger, '_try_parse') as try_parse:
@@ -264,8 +283,7 @@ class ParseFolderTest(TaggerTestCase):
     def test_an_unreadable_folder_is_logged_rather_than_raised(self):
         folder = self.music / 'Soundcloud' / 'artist'
         folder.mkdir(parents=True)
-        with patch.object(Path, 'glob', side_effect=PermissionError('denied')), \
-             self.assertLogs(level='ERROR'):
+        with patch.object(Path, 'glob', side_effect=PermissionError('denied')), self.assertLogs(level='ERROR'):
             self.tagger.parse_folder(folder, SongTypeEnum.SOUNDCLOUD)
 
     def test_the_parallel_path_hands_every_file_to_a_worker(self):
@@ -279,7 +297,6 @@ class ParseFolderTest(TaggerTestCase):
 
 
 class TryParseTest(TaggerTestCase):
-
     def test_a_file_that_did_not_change_is_skipped(self):
         song = self.make_song(self.music / 'Soundcloud' / 'artist')
         self.processed.needs_processing.return_value = False
@@ -295,16 +312,14 @@ class TryParseTest(TaggerTestCase):
 
     def test_an_unreadable_file_is_recorded_as_broken(self):
         song = self.make_song(self.music / 'Soundcloud' / 'artist')
-        with patch.object(Tagger, 'parse_song', side_effect=PermissionError('denied')), \
-             self.assertLogs(level='ERROR'):
+        with patch.object(Tagger, 'parse_song', side_effect=PermissionError('denied')), self.assertLogs(level='ERROR'):
             self.tagger._try_parse(song, SongTypeEnum.SOUNDCLOUD)
         tagger_module.broken_song_helper.add.assert_called_once()
         self.processed.mark_processed.assert_not_called()
 
     def test_an_unexpected_failure_is_logged_and_the_file_left_unmarked(self):
         song = self.make_song(self.music / 'Soundcloud' / 'artist')
-        with patch.object(Tagger, 'parse_song', side_effect=RuntimeError('boom')), \
-             self.assertLogs(level='ERROR'):
+        with patch.object(Tagger, 'parse_song', side_effect=RuntimeError('boom')), self.assertLogs(level='ERROR'):
             self.tagger._try_parse(song, SongTypeEnum.SOUNDCLOUD)
         self.processed.mark_processed.assert_not_called()
 
@@ -315,7 +330,6 @@ class TryParseTest(TaggerTestCase):
 
 
 class ParseSongTest(TaggerTestCase):
-
     def dispatch(self, song_type, class_name):
         with patch.object(tagger_module, class_name) as song_class:
             Tagger.parse_song(Path('/music/a.mp3'), song_type)
@@ -351,7 +365,6 @@ class ParseSongTest(TaggerTestCase):
 
 
 class ParseWorkerTest(TaggerTestCase):
-
     def test_an_unchanged_file_is_reported_as_skipped(self):
         song = self.make_song(self.music / 'Soundcloud' / 'artist')
         self.processed.needs_processing.return_value = False
@@ -370,7 +383,6 @@ class ParseWorkerTest(TaggerTestCase):
 
 
 class TagSingleFileTest(TaggerTestCase):
-
     def setUp(self):
         super().setUp()
         patcher = patch.object(tagger_module, 'Settings', return_value=self.settings)
@@ -426,8 +438,7 @@ class TagSingleFileTest(TaggerTestCase):
         song = self.make_song(self.music / 'Soundcloud' / 'artist')
         path = str(song)
         song.unlink()
-        with patch.object(Tagger, 'parse_song'), patch('builtins.print'), \
-             self.assertLogs(level='ERROR'):
+        with patch.object(Tagger, 'parse_song'), patch('builtins.print'), self.assertLogs(level='ERROR'):
             TagSingleFile(path)
         self.processed.mark_processed.assert_not_called()
 

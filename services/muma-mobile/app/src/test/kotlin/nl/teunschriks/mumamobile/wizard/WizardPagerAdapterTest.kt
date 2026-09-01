@@ -5,6 +5,7 @@ import android.widget.FrameLayout
 import androidx.appcompat.view.ContextThemeWrapper
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
+import nl.teunschriks.mumamobile.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -14,7 +15,6 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowDialog
-import nl.teunschriks.mumamobile.R
 
 /**
  * The adapter is where a step turns into a preference write. Robolectric renders nothing here, so
@@ -28,9 +28,13 @@ class WizardPagerAdapterTest {
         val booleans = mutableMapOf<String, Boolean>()
         val strings = mutableMapOf<String, String>()
         override fun getBoolean(key: String, default: Boolean) = booleans[key] ?: default
-        override fun putBoolean(key: String, value: Boolean) { booleans[key] = value }
+        override fun putBoolean(key: String, value: Boolean) {
+            booleans[key] = value
+        }
         override fun getString(key: String, default: String) = strings[key] ?: default
-        override fun putString(key: String, value: String) { strings[key] = value }
+        override fun putString(key: String, value: String) {
+            strings[key] = value
+        }
     }
 
     // Material widgets read attributes off the theme and throw when it is absent, so the item

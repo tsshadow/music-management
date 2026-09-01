@@ -12,16 +12,29 @@ for sub in ['easyid3', 'mp3', 'easymp4', 'flac', 'mp4', 'oggopus', 'wave', 'id3'
     sub_mod = types.ModuleType(f'mutagen.{sub}')
     sys.modules[f'mutagen.{sub}'] = sub_mod
     setattr(mutagen_mod, sub, sub_mod)
-MockEasyID3 = type('EasyID3', (dict,), {'save': lambda self, *a, **k: None, 'RegisterTXXXKey': staticmethod(lambda k, d: None)})
+MockEasyID3 = type(
+    'EasyID3', (dict,), {'save': lambda self, *a, **k: None, 'RegisterTXXXKey': staticmethod(lambda k, d: None)}
+)
 MockEasyID3.__module__ = 'mutagen.easyid3'
 sys.modules['mutagen.easyid3'].EasyID3 = MockEasyID3
-MockMP3 = type('MP3', (dict,), {'__init__': lambda self, *a, **k: (super(type(self), self).__init__(), setattr(self, 'tags', MockEasyID3()), setattr(self, 'info', MagicMock(length=180)), None)[-1], 'save': lambda self, *a, **k: None})
+MockMP3 = type(
+    'MP3',
+    (dict,),
+    {
+        '__init__': lambda self, *a, **k: (
+            super(type(self), self).__init__(),
+            setattr(self, 'tags', MockEasyID3()),
+            setattr(self, 'info', MagicMock(length=180)),
+            None,
+        )[-1],
+        'save': lambda self, *a, **k: None,
+    },
+)
 MockMP3.__module__ = 'mutagen.mp3'
 sys.modules['mutagen.mp3'].MP3 = MockMP3
 MockEasyMP4Tags = type('EasyMP4Tags', (dict,), {'RegisterTextKey': staticmethod(lambda k, d: None)})
 MockEasyMP4Tags.__module__ = 'mutagen.easymp4'
 sys.modules['mutagen.easymp4'].EasyMP4Tags = MockEasyMP4Tags
-
 
 
 class MockPairIterDict(dict):
@@ -40,11 +53,13 @@ MockMP4Tags = type('MP4Tags', (dict,), {'__module__': 'mutagen.mp4'})
 
 class MockMP4FreeForm(bytes):
     """MP4FreeForm is a bytes subclass; the tagger relies on .decode()."""
+
     __module__ = 'mutagen.mp4'
 
 
 class MockTextFrame:
     """Stand-in for an ID3 text frame (TPE1, TIT2, ...): what matters is `.text`."""
+
     __module__ = 'mutagen.id3'
 
     def __init__(self, encoding=3, text=None):
@@ -63,6 +78,7 @@ class MockMP4(dict):
     assert on what the tagger actually wrote. YouTube downloads are m4a, so the
     format that carries most of the library was the one with no usable fixture.
     """
+
     __module__ = 'mutagen.mp4'
 
     def __init__(self, *_args, **_kwargs):
@@ -127,8 +143,16 @@ for _sub in ['dialects', 'dialects.mysql', 'orm', 'exc']:
     sys.modules[f'sqlalchemy.{_sub}'] = MagicMock()
 sqlalchemy_mod.dialects = sys.modules['sqlalchemy.dialects']
 sys.modules['sqlalchemy.dialects'].mysql = sys.modules['sqlalchemy.dialects.mysql']
-for mod_name in ['pandas', 'joblib', 'tqdm', 'sklearn', 'sklearn.ensemble',
-                 'sklearn.model_selection', 'sklearn.preprocessing', 'sklearn.metrics']:
+for mod_name in [
+    'pandas',
+    'joblib',
+    'tqdm',
+    'sklearn',
+    'sklearn.ensemble',
+    'sklearn.model_selection',
+    'sklearn.preprocessing',
+    'sklearn.metrics',
+]:
     sys.modules[mod_name] = MagicMock()
 # numpy is in the root requirements, but only the ml-analyzer imports it, and a
 # stub keeps these tests runnable on a machine that has not installed it. The raw
@@ -147,9 +171,9 @@ if 'yt_dlp.postprocessor' in sys.modules:
     pp_mod = sys.modules['yt_dlp.postprocessor']
 
     class MockPostProcessor:
-
         def __init__(self, *args, **kwargs):
             pass
+
     pp_mod.PostProcessor = MockPostProcessor
     pp_mod.FFmpegMetadataPP = MockPostProcessor
     pp_mod.EmbedThumbnailPP = MockPostProcessor
@@ -174,7 +198,13 @@ for mod_name in ['services.common.config_store', 'services.common.Helpers.Proces
 if 'services.common.config_store' in sys.modules:
     mock_cs = sys.modules['services.common.config_store']
     if isinstance(mock_cs, MagicMock):
-        mock_cs.ConfigStore.return_value.get_many.return_value = {'youtube_folder': '/tmp/youtube', 'youtube_archive': '/tmp/archive', 'soundcloud_folder': '/tmp/soundcloud', 'soundcloud_archive': '/tmp/archive', 'delimiter': '/'}
+        mock_cs.ConfigStore.return_value.get_many.return_value = {
+            'youtube_folder': '/tmp/youtube',
+            'youtube_archive': '/tmp/archive',
+            'soundcloud_folder': '/tmp/soundcloud',
+            'soundcloud_archive': '/tmp/archive',
+            'delimiter': '/',
+        }
         mock_cs.ConfigStore.return_value.delimiter = '/'
 if 'yt_dlp.utils' in sys.modules:
     sys.modules['yt_dlp.utils'].sanitize_filename = lambda x, **k: x
@@ -182,7 +212,18 @@ if 'dotenv' in sys.modules:
     sys.modules['dotenv'].load_dotenv = lambda *a, **k: None
 # Force mock Cache
 cache_mod = types.ModuleType('services.common.Helpers.Cache')
-cache_mod.databaseHelpers = {'library_artists': MagicMock(), 'rules_ignored_artists': MagicMock(), 'rules_genres': MagicMock(), 'rules_ignored_genres': MagicMock(), 'artistGenreHelper': MagicMock(), 'subgenreHelper': MagicMock(), 'rules_genre_backlog': MagicMock(), 'rules_label_genre': MagicMock(), 'rules_subgenre_hierarchy': MagicMock(), 'sceneGroupDateFormatHelper': MagicMock()}
+cache_mod.databaseHelpers = {
+    'library_artists': MagicMock(),
+    'rules_ignored_artists': MagicMock(),
+    'rules_genres': MagicMock(),
+    'rules_ignored_genres': MagicMock(),
+    'artistGenreHelper': MagicMock(),
+    'subgenreHelper': MagicMock(),
+    'rules_genre_backlog': MagicMock(),
+    'rules_label_genre': MagicMock(),
+    'rules_subgenre_hierarchy': MagicMock(),
+    'sceneGroupDateFormatHelper': MagicMock(),
+}
 cache_mod.databaseHelpers['labelGenreHelper'] = MagicMock()
 cache_mod.databaseHelpers['labelGenreHelper'].get.return_value = []
 # The curation endpoints call Cache.reload after every rule write so the running
@@ -191,7 +232,13 @@ cache_mod.databaseHelpers['labelGenreHelper'].get.return_value = []
 # every one of those endpoints raises AttributeError under test.
 cache_mod.reload = MagicMock(return_value=[])
 sys.modules['services.common.Helpers.Cache'] = cache_mod
-for helper_name in ['library_artists', 'rules_ignored_artists', 'rules_genres', 'rules_ignored_genres', 'rules_genre_backlog']:
+for helper_name in [
+    'library_artists',
+    'rules_ignored_artists',
+    'rules_genres',
+    'rules_ignored_genres',
+    'rules_genre_backlog',
+]:
     helper = cache_mod.databaseHelpers[helper_name]
     helper.get.side_effect = lambda x: x
     helper.get_corrected.side_effect = lambda x: x
@@ -199,7 +246,13 @@ for helper_name in ['library_artists', 'rules_ignored_artists', 'rules_genres', 
     helper.exists.return_value = False
     helper.get_all_values.return_value = []
     helper.get_all.return_value = []
-for helper_name in ['artistGenreHelper', 'subgenreHelper', 'rules_label_genre', 'rules_subgenre_hierarchy', 'sceneGroupDateFormatHelper']:
+for helper_name in [
+    'artistGenreHelper',
+    'subgenreHelper',
+    'rules_label_genre',
+    'rules_subgenre_hierarchy',
+    'sceneGroupDateFormatHelper',
+]:
     if helper_name in cache_mod.databaseHelpers:
         helper = cache_mod.databaseHelpers[helper_name]
         helper.get.return_value = []
@@ -208,8 +261,8 @@ cache_mod.databaseHelpers['rules_genres'].exists.return_value = True
 # Force mock DatabaseConnector
 db_conn_mod = types.ModuleType('services.common.Helpers.DatabaseConnector')
 
-class MockDatabaseConnector:
 
+class MockDatabaseConnector:
     def connect(self):
         return MagicMock()
 
@@ -220,6 +273,8 @@ class MockDatabaseConnector:
             yield conn
         finally:
             conn.close()
+
+
 db_conn_mod.DatabaseConnector = MockDatabaseConnector
 sys.modules['services.common.Helpers.DatabaseConnector'] = db_conn_mod
 # The genre rules helper is a real object holding in-memory rows: a MagicMock would
@@ -239,8 +294,10 @@ from services.common.Helpers.PodcastHelper import PodcastHelper
 
 cache_mod.databaseHelpers['podcastHelper'] = PodcastHelper(preload=False)
 
+
 def setup_mocks():
     pass
+
 
 def reset_database_helpers():
     helpers = sys.modules['services.common.Helpers.Cache'].databaseHelpers
@@ -250,7 +307,13 @@ def reset_database_helpers():
             h.exists.return_value = False
             h.get_all_values.return_value = []
             h.get_all.return_value = []
-            if h_name in ['library_artists', 'rules_ignored_artists', 'rules_genres', 'rules_ignored_genres', 'rules_genre_backlog']:
+            if h_name in [
+                'library_artists',
+                'rules_ignored_artists',
+                'rules_genres',
+                'rules_ignored_genres',
+                'rules_genre_backlog',
+            ]:
                 h.get.side_effect = lambda x: x
                 h.get_corrected.side_effect = lambda x: x
                 h.get_corrected_or_exists.side_effect = lambda x: x

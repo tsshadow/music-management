@@ -303,8 +303,7 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
      * because "mainstream hardstyle" carries more of the utterance than "hardstyle" does; and the
      * kind breaks a remaining tie in the order the resolver has always preferred.
      */
-    private fun scoreOf(name: String, kind: EntityKind): Int =
-        EXACT + (name.split(' ').size - 1) * WORD_BONUS + (KIND_ORDER.size - KIND_ORDER.indexOf(kind))
+    private fun scoreOf(name: String, kind: EntityKind): Int = EXACT + (name.split(' ').size - 1) * WORD_BONUS + (KIND_ORDER.size - KIND_ORDER.indexOf(kind))
 
     /**
      * Picks a reading, or decides that the question has to be put.
@@ -474,7 +473,6 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
         const val FILTER_YEAR = "YEAR"
         const val FILTER_RATING = "RATING"
         const val FILTER_LENGTH = "LENGTH"
-
 
         /** What an exact match on the library's own spelling is worth. */
         const val EXACT = 100

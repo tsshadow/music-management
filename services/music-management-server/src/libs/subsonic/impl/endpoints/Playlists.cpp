@@ -21,10 +21,10 @@
 #include "Spotify.hpp"
 
 #include "database/Session.hpp"
+#include "database/objects/Cluster.hpp"
 #include "database/objects/Track.hpp"
 #include "database/objects/TrackList.hpp"
 #include "database/objects/User.hpp"
-#include "database/objects/Cluster.hpp"
 
 #include "ParameterParsing.hpp"
 #include "SubsonicId.hpp"

@@ -20,7 +20,6 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.launch
-import org.koin.android.ext.android.inject
 import nl.teunschriks.mumamobile.NavigationGraphDirections
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.adapters.AlbumGridDelegate
@@ -44,6 +43,7 @@ import nl.teunschriks.mumamobile.util.toastingExceptionHandler
 import nl.teunschriks.mumamobile.view.FilterButtonBar
 import nl.teunschriks.mumamobile.view.SortOrder
 import nl.teunschriks.mumamobile.view.ViewCapabilities
+import org.koin.android.ext.android.inject
 
 /**
  * Displays a list of Albums from the media library

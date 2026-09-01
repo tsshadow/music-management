@@ -7,9 +7,9 @@
  * is exactly the kind of thing that drifts. So both moved here; Management still
  * passes them down, so its tabs did not have to change.
  */
-import { get } from 'svelte/store';
+import { get } from "svelte/store";
 
-import { mumaApiKey, mumaApiUrl } from './store';
+import { mumaApiKey, mumaApiUrl } from "./store";
 
 /** Base URL of the MuMa API, as configured for this deployment. */
 export function apiBase() {
@@ -29,11 +29,11 @@ export function apiBase() {
 export function getHeaders(extra = {}) {
   const headers = { ...extra };
   const key = get(mumaApiKey);
-  if (key) headers['X-API-Key'] = key;
+  if (key) headers["X-API-Key"] = key;
   return headers;
 }
 
 /** Headers for a request with a JSON body. */
 export function jsonHeaders() {
-  return getHeaders({ 'Content-Type': 'application/json' });
+  return getHeaders({ "Content-Type": "application/json" });
 }

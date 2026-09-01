@@ -20,10 +20,7 @@ def test_the_notification_glyph_fits_the_viewport():
 def test_the_generator_matches_the_design_source():
     """docs/branding/muma-icon.svg is hand-authored; the constants here mirror it."""
     svg = (render_icons.BRANDING / "muma-icon.svg").read_text(encoding="utf-8")
-    bars = [
-        (float(x), float(top))
-        for x, top in re.findall(r'd="M([\d.]+) ([\d.]+) V[\d.]+"', svg)
-    ]
+    bars = [(float(x), float(top)) for x, top in re.findall(r'd="M([\d.]+) ([\d.]+) V[\d.]+"', svg)]
     bottoms = {float(b) for b in re.findall(r'd="M[\d.]+ [\d.]+ V([\d.]+)"', svg)}
     strokes = {float(s) for s in re.findall(r'stroke-width="([\d.]+)"', svg)}
     radii = {float(r) for r in re.findall(r'r="([\d.]+)"', svg)}

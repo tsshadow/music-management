@@ -10,9 +10,9 @@ package nl.teunschriks.mumamobile.service.androidauto
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import nl.teunschriks.mumamobile.service.MusicService
 import org.amshove.kluent.`should be`
 import org.junit.Test
-import nl.teunschriks.mumamobile.service.MusicService
 
 /**
  * The Android Auto browse stack must resolve the [MusicService] on every access instead of

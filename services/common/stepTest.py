@@ -5,7 +5,6 @@ from services.common.step import Step
 
 
 class StepShouldRunTest(unittest.TestCase):
-
     def test_a_step_without_conditions_always_runs(self):
         step = Step('tagger', lambda: None)
 
@@ -35,7 +34,6 @@ class StepShouldRunTest(unittest.TestCase):
 
 
 class StepRunTest(unittest.TestCase):
-
     def setUp(self):
         patcher = patch('services.common.step.job_manager')
         self.addCleanup(patcher.stop)

@@ -13,7 +13,23 @@ def get_prediction(model, encoders, scaler, track_data):
     if not model or not encoders or (not scaler):
         return (None, 0)
     try:
-        audio_features = ['duration', 'mean_spectral_centroid', 'std_spectral_centroid', 'mean_spectral_bandwidth', 'std_spectral_bandwidth', 'mean_spectral_rolloff', 'std_spectral_rolloff', 'mean_rms', 'std_rms', 'mean_zcr', 'std_zcr', 'mean_spectral_contrast', 'std_spectral_contrast', 'mean_chroma', 'std_chroma']
+        audio_features = [
+            'duration',
+            'mean_spectral_centroid',
+            'std_spectral_centroid',
+            'mean_spectral_bandwidth',
+            'std_spectral_bandwidth',
+            'mean_spectral_rolloff',
+            'std_spectral_rolloff',
+            'mean_rms',
+            'std_rms',
+            'mean_zcr',
+            'std_zcr',
+            'mean_spectral_contrast',
+            'std_spectral_contrast',
+            'mean_chroma',
+            'std_chroma',
+        ]
         for i in range(1, 14):
             audio_features.append(f'mfcc_{i}')
             audio_features.append(f'std_mfcc_{i}')
@@ -42,12 +58,13 @@ def get_prediction(model, encoders, scaler, track_data):
     except Exception:
         return (None, 0)
 
+
 def _get_db_url():
     db_url = os.getenv('DATABASE_URL')
     if not db_url:
         host = os.getenv('DB_HOST', 'db')
         port = os.getenv('DB_PORT', '3306')
-        
+
         # Handle host:port format
         if ':' in host and not host.startswith('['):
             host, port_str = host.split(':', 1)
@@ -60,9 +77,30 @@ def _get_db_url():
             db_url = f'mysql+mysqlconnector://{user}:{password}@{host}:{port}/{db_name}'
     return db_url
 
+
 def _process_single_track(conn, track, model_data):
     model, encoders, scaler = model_data
-    track_id, file_path, artist, label, genre_tag, ml_genre, tempo, rms, _, year, centroid, _, _, _, rolloff, _, contrast, std_contrast, *mfccs_and_more = track
+    (
+        track_id,
+        file_path,
+        artist,
+        label,
+        genre_tag,
+        ml_genre,
+        tempo,
+        rms,
+        _,
+        year,
+        centroid,
+        _,
+        _,
+        _,
+        rolloff,
+        _,
+        contrast,
+        std_contrast,
+        *mfccs_and_more,
+    ) = track
     m1 = mfccs_and_more[0]
     zcr = mfccs_and_more[26]
     chroma = mfccs_and_more[28]
@@ -71,7 +109,28 @@ def _process_single_track(conn, track, model_data):
     review_status = mfccs_and_more[32]
     approved_for_training = mfccs_and_more[33]
     genre_to_approve = ml_genre or genre_tag
-    track_data = {'artist_name': artist, 'label_name': label, 'release_year': year, 'tempo': tempo, 'mean_rms': rms, 'std_rms': track[8], 'mean_spectral_centroid': centroid, 'std_spectral_centroid': track[11], 'mean_spectral_bandwidth': track[12], 'std_spectral_bandwidth': track[13], 'mean_spectral_rolloff': rolloff, 'std_spectral_rolloff': track[15], 'mean_spectral_contrast': contrast, 'std_spectral_contrast': std_contrast, 'mean_zcr': zcr, 'std_zcr': mfccs_and_more[27], 'mean_chroma': chroma, 'std_chroma': mfccs_and_more[29], 'source_platform': platform, 'duration': duration}
+    track_data = {
+        'artist_name': artist,
+        'label_name': label,
+        'release_year': year,
+        'tempo': tempo,
+        'mean_rms': rms,
+        'std_rms': track[8],
+        'mean_spectral_centroid': centroid,
+        'std_spectral_centroid': track[11],
+        'mean_spectral_bandwidth': track[12],
+        'std_spectral_bandwidth': track[13],
+        'mean_spectral_rolloff': rolloff,
+        'std_spectral_rolloff': track[15],
+        'mean_spectral_contrast': contrast,
+        'std_spectral_contrast': std_contrast,
+        'mean_zcr': zcr,
+        'std_zcr': mfccs_and_more[27],
+        'mean_chroma': chroma,
+        'std_chroma': mfccs_and_more[29],
+        'source_platform': platform,
+        'duration': duration,
+    }
     for i in range(1, 14):
         track_data[f'mfcc_{i}'] = mfccs_and_more[i - 1]
         track_data[f'std_mfcc_{i}'] = mfccs_and_more[i + 12]
@@ -93,18 +152,34 @@ def _process_single_track(conn, track, model_data):
     print(f'\nShould be genre: {genre_to_approve}')
     choice = input('Approve? (y/n/s=skip/q=quit): ').lower()
     if choice == 'y':
-        conn.execute(text("UPDATE library_track_ml_labels SET approved_for_training = 1, ml_review_status = 'human_verified' WHERE id = :id"), {'id': track_id})
+        conn.execute(
+            text(
+                "UPDATE library_track_ml_labels SET approved_for_training = 1, ml_review_status = 'human_verified' WHERE id = :id"
+            ),
+            {'id': track_id},
+        )
         conn.commit()
         print('Approved!')
     elif choice == 'n':
         new_genre = input('Enter correct genre (or leave empty to mark as do_not_train): ')
         if new_genre:
-            conn.execute(text("UPDATE library_track_ml_labels SET ml_genre = :genre, approved_for_training = 1, ml_review_status = 'human_verified' WHERE id = :id"), {'id': track_id, 'genre': new_genre})
+            conn.execute(
+                text(
+                    "UPDATE library_track_ml_labels SET ml_genre = :genre, approved_for_training = 1, ml_review_status = 'human_verified' WHERE id = :id"
+                ),
+                {'id': track_id, 'genre': new_genre},
+            )
         else:
-            conn.execute(text("UPDATE library_track_ml_labels SET approved_for_training = 0, ml_review_status = 'do_not_train' WHERE id = :id"), {'id': track_id})
+            conn.execute(
+                text(
+                    "UPDATE library_track_ml_labels SET approved_for_training = 0, ml_review_status = 'do_not_train' WHERE id = :id"
+                ),
+                {'id': track_id},
+            )
         conn.commit()
         print('Updated!')
     return choice
+
 
 def approve_tracks():
     parser = argparse.ArgumentParser(description='Interatieve tool om tracks goed te keuren voor ML training.')
@@ -120,7 +195,11 @@ def approve_tracks():
     model_data = (None, None, None)
     if all(os.path.exists(f'models/{p}.joblib') for p in ['genre_classifier', 'label_encoders', 'feature_scaler']):
         try:
-            model_data = (joblib.load('models/genre_classifier.joblib'), joblib.load('models/label_encoders.joblib'), joblib.load('models/feature_scaler.joblib'))
+            model_data = (
+                joblib.load('models/genre_classifier.joblib'),
+                joblib.load('models/label_encoders.joblib'),
+                joblib.load('models/feature_scaler.joblib'),
+            )
             print('ML Model en scalers geladen voor previews.\n')
         except Exception:
             pass
@@ -143,5 +222,7 @@ def approve_tracks():
                     break
     except Exception as e:
         print(f'Fout bij uitvoeren van approval script: {e}')
+
+
 if __name__ == '__main__':
     approve_tracks()

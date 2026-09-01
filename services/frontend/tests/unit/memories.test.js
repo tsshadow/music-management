@@ -64,14 +64,18 @@ describe("parseMemoryGroups", () => {
   });
 
   it("coerces a lone group back into a list", () => {
-    const groups = parseMemoryGroups(wrap({ year: 2018, yearsAgo: 8, exact: true, song: [{ id: "1" }] }));
+    const groups = parseMemoryGroups(
+      wrap({ year: 2018, yearsAgo: 8, exact: true, song: [{ id: "1" }] }),
+    );
 
     expect(groups).toHaveLength(1);
     expect(groups[0].year).toBe(2018);
   });
 
   it("coerces a lone song back into a list", () => {
-    const groups = parseMemoryGroups(wrap([{ year: 2018, yearsAgo: 8, exact: true, song: { id: "1" } }]));
+    const groups = parseMemoryGroups(
+      wrap([{ year: 2018, yearsAgo: 8, exact: true, song: { id: "1" } }]),
+    );
 
     expect(groups[0].songs).toEqual([{ id: "1" }]);
   });
@@ -112,7 +116,10 @@ describe("rankSongs", () => {
   });
 
   it("puts favourites ahead of everything else", () => {
-    const ranked = rankSongs([song("a", { playCount: 90 }), song("b", { userRating: 5, playCount: 2 })]);
+    const ranked = rankSongs([
+      song("a", { playCount: 90 }),
+      song("b", { userRating: 5, playCount: 2 }),
+    ]);
 
     expect(ranked.map((s) => s.id)).toEqual(["b", "a"]);
   });
@@ -173,7 +180,12 @@ describe("rankSongs", () => {
 });
 
 describe("yearTiles", () => {
-  const group = (year, songs, { yearsAgo = 1, exact = true } = {}) => ({ year, yearsAgo, exact, songs });
+  const group = (year, songs, { yearsAgo = 1, exact = true } = {}) => ({
+    year,
+    yearsAgo,
+    exact,
+    songs,
+  });
   const song = (id, playCount) => ({ id, title: `Track ${id}`, coverArt: `art-${id}`, playCount });
 
   it("carries the group's own facts through", () => {
@@ -208,7 +220,9 @@ describe("yearTiles", () => {
   });
 
   it("shows the most popular three, best first", () => {
-    const [tile] = yearTiles([group(2025, [song("a", 2), song("b", 40), song("c", 9), song("d", 30)])]);
+    const [tile] = yearTiles([
+      group(2025, [song("a", 2), song("b", 40), song("c", 9), song("d", 30)]),
+    ]);
 
     expect(tile.top.map((s) => s.id)).toEqual(["b", "d", "c"]);
   });
@@ -231,14 +245,25 @@ describe("yearTiles", () => {
 
   it("falls back to the songs' own covers when the server names none", () => {
     const [tile] = yearTiles([
-      group(2025, [{ id: "a", playCount: 5 }, song("b", 4), song("c", 3), song("d", 2), song("e", 1)]),
+      group(2025, [
+        { id: "a", playCount: 5 },
+        song("b", 4),
+        song("c", 3),
+        song("d", 2),
+        song("e", 1),
+      ]),
     ]);
 
     expect(tile.covers).toEqual(["art-b", "art-c", "art-d", "art-e"]);
   });
 
   it("never repeats a cover, because four copies of one sleeve is not a collage", () => {
-    const shared = (id, playCount) => ({ id, title: `Track ${id}`, coverArt: "art-same", playCount });
+    const shared = (id, playCount) => ({
+      id,
+      title: `Track ${id}`,
+      coverArt: "art-same",
+      playCount,
+    });
     const [tile] = yearTiles([
       group(2025, [shared("a", 9), shared("b", 8), song("c", 7), shared("d", 6)]),
     ]);

@@ -18,8 +18,8 @@ from services.tagger.Song.rules.ResolveGenreRule import ResolveGenreRule
 
 s = Settings()
 
-class SoundcloudSong(BaseSong):
 
+class SoundcloudSong(BaseSong):
     def __init__(self, path, extra_info=None):
         super().__init__(path, extra_info)
         paths = path.rsplit(s.delimiter, 2)
@@ -42,8 +42,18 @@ class SoundcloudSong(BaseSong):
             self.tag_collection.set_item(COPYRIGHT, self.calculate_copyright())
         self.tag_collection.set_item(PUBLISHER, self._publisher)
         self.rules.append(CleanTitleRule())
-        self.rules.append(InferArtistFromTitleRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists'], genre_db=databaseHelpers['rules_genres']))
-        self.rules.append(InferRemixerFromTitleRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']))
+        self.rules.append(
+            InferArtistFromTitleRule(
+                artist_db=databaseHelpers['library_artists'],
+                ignored_db=databaseHelpers['rules_ignored_artists'],
+                genre_db=databaseHelpers['rules_genres'],
+            )
+        )
+        self.rules.append(
+            InferRemixerFromTitleRule(
+                artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']
+            )
+        )
         self.rules.append(InferFeatureFromTitleRule())
         # SoundCloud is where the warm-up mixes and podcast-length sets land.
         self.rules.append(InferFestivalFromTitleRule(helper=databaseHelpers['festivalHelper']))
@@ -52,10 +62,18 @@ class SoundcloudSong(BaseSong):
         self.rules.append(InferGenreFromArtistRule(helper=databaseHelpers['artistGenreHelper']))
         self.rules.append(InferGenreFromSubgenreRule(databaseHelpers['subgenreHelper']))
         self.rules.append(CleanTagsRule())
-        self.rules.append(AddMissingArtistToDatabaseRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']))
+        self.rules.append(
+            AddMissingArtistToDatabaseRule(
+                artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']
+            )
+        )
         self.rules.append(ResolveGenreRule(databaseHelpers['genre_rules']))
         self.rules.append(CleanTagsRule())
-        self.rules.append(CheckArtistRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']))
+        self.rules.append(
+            CheckArtistRule(
+                artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']
+            )
+        )
         self.rules.append(ReplaceInvalidUnicodeRule())
         super().parse()
 

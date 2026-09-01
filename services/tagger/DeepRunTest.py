@@ -1,4 +1,5 @@
 """Coverage for services/tagger/deep_run.py: the cadence, its off switch and its bounds."""
+
 import unittest
 from unittest.mock import MagicMock
 
@@ -6,7 +7,6 @@ from services.tagger import deep_run as deep_run_module
 
 
 class DeepRunTestCase(unittest.TestCase):
-
     def setUp(self):
         self.helper = MagicMock()
         self.helper.mark_stale_for_rescan.return_value = 0
@@ -20,7 +20,6 @@ class DeepRunTestCase(unittest.TestCase):
 
 
 class CadenceTest(DeepRunTestCase):
-
     def test_the_configured_window_and_batch_reach_the_helper(self):
         self.helper.mark_stale_for_rescan.return_value = 200
         self.assertEqual(self.tick(), 200)

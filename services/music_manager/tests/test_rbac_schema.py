@@ -1,4 +1,5 @@
 """Coverage for the RBAC helpers and the schema bootstrap in services/music_manager/rbac.py."""
+
 import asyncio
 import sys
 import unittest
@@ -18,7 +19,6 @@ from services.music_manager import rbac
 
 
 class InitDbTest(unittest.TestCase):
-
     def setUp(self):
         self.cursor = MagicMock()
         # Roles resolve to ids; every SHOW COLUMNS answers "column already there".
@@ -35,23 +35,35 @@ class InitDbTest(unittest.TestCase):
     def test_every_rbac_table_is_created(self):
         rbac.init_db(self.cursor)
         statements = ' '.join(self.statements())
-        for table in ('roles', 'permissions', 'role_permissions', 'user_identities',
-                      'user_requests', 'user_refresh_tokens', 'audit_events'):
+        for table in (
+            'roles',
+            'permissions',
+            'role_permissions',
+            'user_identities',
+            'user_requests',
+            'user_refresh_tokens',
+            'audit_events',
+        ):
             self.assertIn(f'CREATE TABLE IF NOT EXISTS {table}', statements)
 
     def test_both_roles_and_every_permission_are_seeded(self):
         rbac.init_db(self.cursor)
-        seeded_roles = [call.args[1][0] for call in self.cursor.execute.call_args_list
-                        if 'INSERT INTO roles' in call.args[0]]
+        seeded_roles = [
+            call.args[1][0] for call in self.cursor.execute.call_args_list if 'INSERT INTO roles' in call.args[0]
+        ]
         self.assertEqual(seeded_roles, ['admin', 'user'])
-        seeded_permissions = [call.args[1][0] for call in self.cursor.execute.call_args_list
-                              if 'INSERT INTO permissions' in call.args[0]]
+        seeded_permissions = [
+            call.args[1][0] for call in self.cursor.execute.call_args_list if 'INSERT INTO permissions' in call.args[0]
+        ]
         self.assertEqual(len(seeded_permissions), len(rbac.PERMISSIONS))
 
     def test_the_admin_role_gets_every_permission_and_the_user_role_only_its_own(self):
         rbac.init_db(self.cursor)
-        grants = [call.args[1] for call in self.cursor.execute.call_args_list
-                  if 'INSERT IGNORE INTO role_permissions' in call.args[0]]
+        grants = [
+            call.args[1]
+            for call in self.cursor.execute.call_args_list
+            if 'INSERT IGNORE INTO role_permissions' in call.args[0]
+        ]
         # Both permissions go to admin (role 1); only 'music.read' also goes to user (role 2).
         self.assertEqual(grants, [(1, 1), (2, 1), (1, 2)])
 
@@ -59,8 +71,7 @@ class InitDbTest(unittest.TestCase):
         self.cursor.fetchone.side_effect = self.fetchone_sequence(columns_present=False)
         rbac.init_db(self.cursor)
         statements = ' '.join(self.statements())
-        for column in ('role_id', 'enabled', 'email', 'avatar_url', 'updated_at',
-                       'last_login_at', 'linked_existing'):
+        for column in ('role_id', 'enabled', 'email', 'avatar_url', 'updated_at', 'last_login_at', 'linked_existing'):
             self.assertIn(f'ADD COLUMN {column}', statements)
 
     def test_existing_columns_are_left_alone(self):
@@ -69,15 +80,15 @@ class InitDbTest(unittest.TestCase):
 
     def test_the_legacy_admin_flag_is_migrated_into_a_role(self):
         rbac.init_db(self.cursor)
-        migrations = [call.args for call in self.cursor.execute.call_args_list
-                      if 'UPDATE users SET role_id' in call.args[0]]
+        migrations = [
+            call.args for call in self.cursor.execute.call_args_list if 'UPDATE users SET role_id' in call.args[0]
+        ]
         self.assertEqual(migrations[0][1], (1,))
         self.assertIn('is_admin = TRUE', migrations[0][0])
         self.assertEqual(migrations[1][1], (2,))
 
 
 class LookupTest(unittest.TestCase):
-
     def setUp(self):
         self.cursor = MagicMock()
 
@@ -100,7 +111,6 @@ class LookupTest(unittest.TestCase):
 
 
 class PermissionCheckTest(unittest.TestCase):
-
     def test_the_system_key_always_passes(self):
         self.assertTrue(rbac.has_permission({'type': 'system'}, 'users.read'))
         self.assertTrue(rbac.is_admin_auth({'type': 'system'}))
@@ -125,7 +135,6 @@ class PermissionCheckTest(unittest.TestCase):
 
 
 class DependencyTest(unittest.TestCase):
-
     def resolve(self, dependency, auth):
         async def fake_verify(_key):
             return auth

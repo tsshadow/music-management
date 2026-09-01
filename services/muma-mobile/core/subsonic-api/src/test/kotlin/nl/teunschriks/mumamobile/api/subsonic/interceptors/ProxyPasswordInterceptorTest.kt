@@ -1,12 +1,12 @@
 package nl.teunschriks.mumamobile.api.subsonic.interceptors
 
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_12_0
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_13_0
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_16_0
 import okhttp3.Interceptor.Chain
 import org.junit.Test
 import org.mockito.Mockito.verify
 import org.mockito.kotlin.mock
-import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_12_0
-import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_13_0
-import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions.V1_16_0
 
 /**
  * Unit test for [ProxyPasswordInterceptor].

@@ -83,7 +83,7 @@ namespace lms::scrobbling
 
         if (std::optional<ScrobblingBackend> backend{ getUserBackend(listen.userId) })
             _scrobblingBackends[*backend]->listenStarted(listen);
-        
+
         if (_mumaScrobbler)
             _mumaScrobbler->listenStarted(listen);
     }

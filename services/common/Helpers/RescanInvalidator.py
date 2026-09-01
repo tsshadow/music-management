@@ -23,7 +23,7 @@ class RescanInvalidator:
 
     MIN_TERM_LENGTH = 3
 
-    def __init__(self, processed_files_helper: ProcessedFilesHelper | None=None):
+    def __init__(self, processed_files_helper: ProcessedFilesHelper | None = None):
         self.db_connector = DatabaseConnector()
         self.processed_files_helper = processed_files_helper or ProcessedFilesHelper()
 
@@ -76,11 +76,14 @@ class RescanInvalidator:
         name match catches files whose tag still says the genre but which the scanner
         has not linked, and files where the genre only shows up in a path.
         """
-        linked = self._select_paths('\n            SELECT DISTINCT mf.file_path\n            FROM library_media_files mf\n            JOIN library_track_genres tg ON tg.track_id = mf.track_id\n            WHERE tg.genre_id = %s\n        ', (genre_id,))
+        linked = self._select_paths(
+            '\n            SELECT DISTINCT mf.file_path\n            FROM library_media_files mf\n            JOIN library_track_genres tg ON tg.track_id = mf.track_id\n            WHERE tg.genre_id = %s\n        ',
+            (genre_id,),
+        )
         count = self.invalidate_paths(linked, reason)
         return count + self.invalidate_by_term(genre_name, reason)
 
-    def invalidate_all(self, reason: str='fallback') -> int:
+    def invalidate_all(self, reason: str = 'fallback') -> int:
         """Mark the whole table.
 
         Returns -1 rather than a count: the underlying UPDATE has no bounded result to

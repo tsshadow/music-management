@@ -4,9 +4,9 @@ import android.content.Context
 import androidx.preference.PreferenceGroup
 import androidx.preference.PreferenceManager
 import androidx.preference.PreferenceScreen
+import nl.teunschriks.mumamobile.R
 import org.junit.Test
 import org.junit.runner.RunWith
-import nl.teunschriks.mumamobile.R
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
@@ -47,9 +47,8 @@ class SettingsScreenInflationTest {
         if (missing.isNotEmpty()) throw AssertionError("Missing preferences: $missing")
     }
 
-    private fun flatten(group: PreferenceGroup): List<androidx.preference.Preference> =
-        (0 until group.preferenceCount).flatMap {
-            val child = group.getPreference(it)
-            if (child is PreferenceGroup) listOf(child) + flatten(child) else listOf(child)
-        }
+    private fun flatten(group: PreferenceGroup): List<androidx.preference.Preference> = (0 until group.preferenceCount).flatMap {
+        val child = group.getPreference(it)
+        if (child is PreferenceGroup) listOf(child) + flatten(child) else listOf(child)
+    }
 }

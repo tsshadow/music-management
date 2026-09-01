@@ -8,7 +8,7 @@
 
 export function emptyFilters() {
   return {
-    q: '',
+    q: "",
     genre: [],
     artist: [],
     label: [],
@@ -20,14 +20,14 @@ export function emptyFilters() {
   };
 }
 
-const LIST_KEYS = ['genre', 'artist', 'label'];
-const SCALAR_KEYS = ['q', 'bpm_min', 'bpm_max', 'year_min', 'year_max', 'analyzed'];
+const LIST_KEYS = ["genre", "artist", "label"];
+const SCALAR_KEYS = ["q", "bpm_min", "bpm_max", "year_min", "year_max", "analyzed"];
 
 export function buildQuery(filters) {
   const params = new URLSearchParams();
   for (const key of SCALAR_KEYS) {
     const value = filters[key];
-    if (value === null || value === undefined || value === '') continue;
+    if (value === null || value === undefined || value === "") continue;
     params.append(key, String(value));
   }
   for (const key of LIST_KEYS) {
@@ -44,7 +44,7 @@ export async function apiGet(API_BASE, path, filters, getHeaders, extra = {}) {
     if (value !== null && value !== undefined) params.append(key, String(value));
   }
   const query = params.toString();
-  const url = `${API_BASE}${path}${query ? `?${query}` : ''}`;
+  const url = `${API_BASE}${path}${query ? `?${query}` : ""}`;
 
   let res;
   try {
@@ -53,7 +53,7 @@ export async function apiGet(API_BASE, path, filters, getHeaders, extra = {}) {
     throw new Error(`Server niet bereikbaar (${path}).`, { cause: err });
   }
   if (!res.ok) {
-    const detail = await res.text().catch(() => '');
+    const detail = await res.text().catch(() => "");
     throw new Error(`Serverfout ${res.status} bij ${path}. ${detail.slice(0, 200)}`.trim());
   }
   return res.json();

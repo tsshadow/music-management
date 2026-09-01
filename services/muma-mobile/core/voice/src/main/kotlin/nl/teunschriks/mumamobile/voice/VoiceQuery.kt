@@ -69,7 +69,11 @@ object VoiceQuery {
     private val ARTIST_WORDS = setOf("artiest", "artiesten", "artist", "by")
     private val ALBUM_WORDS = setOf("album", "albums", "plaat", "platen")
     private val PLAYLIST_WORDS = setOf(
-        "playlist", "playlists", "afspeellijst", "afspeellijsten", "lijst"
+        "playlist",
+        "playlists",
+        "afspeellijst",
+        "afspeellijsten",
+        "lijst"
     )
 
     /**
@@ -94,7 +98,13 @@ object VoiceQuery {
     private val AND_WORDS = setOf("en", "plus")
 
     private val FAVORITE_WORDS = setOf(
-        "favoriet", "favorieten", "favoriete", "favorite", "favorites", "favourite", "favourites"
+        "favoriet",
+        "favorieten",
+        "favoriete",
+        "favorite",
+        "favorites",
+        "favourite",
+        "favourites"
     )
     private val RANDOM_WORDS = setOf("random", "willekeurig", "willekeurige", "shuffle", "shuffled")
     private val ADDED_WORDS = setOf("toegevoegd", "added")
@@ -297,12 +307,10 @@ object VoiceQuery {
     }
 
     /** Every value spoken into a slot, each with its own words joined back together. */
-    private fun Map<Slot, List<List<String>>>.values(slot: Slot): List<String> =
-        this[slot].orEmpty().mapNotNull { it.joinToString(" ").ifEmpty { null } }
+    private fun Map<Slot, List<List<String>>>.values(slot: Slot): List<String> = this[slot].orEmpty().mapNotNull { it.joinToString(" ").ifEmpty { null } }
 
     /** The one value a single-valued slot holds, or null when nothing was spoken into it. */
-    private fun Map<Slot, List<List<String>>>.value(slot: Slot): String? =
-        values(slot).joinToString(" ").ifEmpty { null }
+    private fun Map<Slot, List<List<String>>>.value(slot: Slot): String? = values(slot).joinToString(" ").ifEmpty { null }
 
     /**
      * Drops a title word that names nothing.
@@ -335,12 +343,11 @@ object VoiceQuery {
      * prophet". An article next to the word it belongs to is wrapping; anywhere else it is part of
      * a name, and a name that lost its article no longer matches the library.
      */
-    private fun dropArticlesAroundKeywords(tokens: List<String>): List<String> =
-        tokens.filterIndexed { index, token ->
-            if (token !in ARTICLE_WORDS) return@filterIndexed true
-            val neighbours = listOfNotNull(tokens.getOrNull(index - 1), tokens.getOrNull(index + 1))
-            neighbours.none { it in GENRE_WORDS || it in FAVORITE_WORDS }
-        }
+    private fun dropArticlesAroundKeywords(tokens: List<String>): List<String> = tokens.filterIndexed { index, token ->
+        if (token !in ARTICLE_WORDS) return@filterIndexed true
+        val neighbours = listOfNotNull(tokens.getOrNull(index - 1), tokens.getOrNull(index + 1))
+        neighbours.none { it in GENRE_WORDS || it in FAVORITE_WORDS }
+    }
 
     /**
      * @brief Matches a spoken term against the names the library uses.
@@ -356,8 +363,7 @@ object VoiceQuery {
      * @return the name as the library spells it, or null when nothing matches. When the library
      *         spells one name several ways this is the first of them; [matchAll] returns all.
      */
-    fun match(term: String, names: List<String>, exact: Boolean = false): String? =
-        matchAll(term, names, exact).firstOrNull()
+    fun match(term: String, names: List<String>, exact: Boolean = false): String? = matchAll(term, names, exact).firstOrNull()
 
     /**
      * @brief Every spelling the library has of one spoken name.
@@ -454,8 +460,7 @@ object VoiceQuery {
      * modifiers sit five or more edits apart, so a forgiven word has one plausible destination
      * rather than several.
      */
-    private fun threshold(heard: String, meant: String): Int =
-        ((maxOf(heard.length, meant.length) + 1) / 2).coerceIn(1, MAX_WORD_EDITS)
+    private fun threshold(heard: String, meant: String): Int = ((maxOf(heard.length, meant.length) + 1) / 2).coerceIn(1, MAX_WORD_EDITS)
 
     /** Ordinary Levenshtein, two rows wide, over two single words. */
     private fun editDistance(from: String, to: String): Int {

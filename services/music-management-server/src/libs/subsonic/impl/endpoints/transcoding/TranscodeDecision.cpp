@@ -371,7 +371,7 @@ namespace lms::api::subsonic::detail
                 return TranscodeReason::AudioChannelsNotSupported;
 
             // check potential codec profiles limitations
-            if (const CodecProfile * codecProfile{ getAudioCodecProfile(codecProfiles, source.codec) })
+            if (const CodecProfile* codecProfile{ getAudioCodecProfile(codecProfiles, source.codec) })
             {
                 for (const Limitation& limitation : codecProfile->limitations)
                 {
@@ -499,7 +499,7 @@ namespace lms::api::subsonic::detail
             if (profile.maxAudioChannels && source.channelCount > *profile.maxAudioChannels)
                 transcodedStream.audioChannels = *profile.maxAudioChannels;
 
-            if (const CodecProfile * codecProfile{ getAudioCodecProfile(codecProfiles, transcodeFormat->codec) })
+            if (const CodecProfile* codecProfile{ getAudioCodecProfile(codecProfiles, transcodeFormat->codec) })
             {
                 for (const Limitation& limitation : codecProfile->limitations)
                 {

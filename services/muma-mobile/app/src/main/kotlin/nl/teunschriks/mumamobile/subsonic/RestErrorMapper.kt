@@ -7,14 +7,14 @@ import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.Generic
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.IncompatibleClientProtocolVersion
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.IncompatibleServerProtocolVersion
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.MultipleConflictingAuthenticationMechanismsProvided
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.RequestedDataWasNotFound
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.RequiredParamMissing
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.TokenAuthNotSupportedForLDAP
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.TrialPeriodIsOver
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.Unknown
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.UserNotAuthorizedForOperation
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.WrongUsernameOrPassword
-import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.MultipleConflictingAuthenticationMechanismsProvided
-import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.Unknown
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicRESTException
 
 /**

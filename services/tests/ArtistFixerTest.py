@@ -33,7 +33,6 @@ from services.tagger.Song.rules.TagResult import TagResult, TagResultType
 
 
 class ArtistFixerTest(unittest.TestCase):
-
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory()
         os.environ['music_folder_path'] = self.tempdir.name
@@ -53,12 +52,15 @@ class ArtistFixerTest(unittest.TestCase):
             song.tag_collection.get_item.return_value = MagicMock()
             song.save_file.return_value = None
             return song
+
         self.mocks['rule_instance'] = MagicMock()
         self.mocks['rule_instance'].apply.return_value = TagResult('New Artist', TagResultType.VALID)
         importlib.reload(artistfixer)
         self.mocks['artist_db'] = artistfixer.databaseHelpers['library_artists']
         self.mocks['artist_db'].exists.return_value = False
-        patcher_settings = patch.object(artistfixer, 'Settings', return_value=types.SimpleNamespace(music_folder_path=self.tempdir.name))
+        patcher_settings = patch.object(
+            artistfixer, 'Settings', return_value=types.SimpleNamespace(music_folder_path=self.tempdir.name)
+        )
         patcher_bs = patch.object(artistfixer, 'BaseSong', side_effect=fake_base_song)
         patcher_rule = patch.object(artistfixer, 'VerifyArtistRule', return_value=self.mocks['rule_instance'])
         for p in (patcher_settings, patcher_bs, patcher_rule):
@@ -73,5 +75,7 @@ class ArtistFixerTest(unittest.TestCase):
         self.assertEqual(len(self.created_paths), 3)
         self.assertEqual(self.mocks['rule_instance'].apply.call_count, 3)
         self.assertTrue(all('library_artists table' in call.args[0] for call in mock_print.call_args_list))
+
+
 if __name__ == '__main__':
     unittest.main()

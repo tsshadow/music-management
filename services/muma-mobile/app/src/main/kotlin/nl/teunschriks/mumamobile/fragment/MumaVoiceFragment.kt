@@ -513,8 +513,7 @@ class MumaVoiceFragment : ScopeFragment() {
         else -> row.value
     }
 
-    private fun resolver() =
-        QueryResolver(MusicServiceVocabulary(MusicServiceFactory.getMusicService()))
+    private fun resolver() = QueryResolver(MusicServiceVocabulary(MusicServiceFactory.getMusicService()))
 
     private companion object {
         /** Long enough to read the diagnosis at a traffic light, short enough not to be a wall. */

@@ -42,12 +42,13 @@ SORTED_KEYS = sorted(RENAMES.keys(), key=len, reverse=True)
 EXTENSIONS = ('.py', '.sql', '.md', '.txt', '.sh', '.yml', '.yaml')
 EXCLUDE_DIRS = ('.git', '__pycache__', '.venv', 'node_modules', 'backup')
 
+
 def replace_in_file(file_path):
     with open(file_path, encoding='utf-8', errors='ignore') as f:
         content = f.read()
-    
+
     original_content = content
-    
+
     for key in SORTED_KEYS:
         # We gebruiken regex om alleen hele woorden te vervangen of woorden in quotes
         # om te voorkomen dat we per ongeluk variabelen hernoemen die toevallig zo heten
@@ -55,12 +56,13 @@ def replace_in_file(file_path):
         # We proberen een balans te vinden.
         pattern = r'\b' + re.escape(key) + r'\b'
         content = re.sub(pattern, RENAMES[key], content)
-        
+
     if content != original_content:
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(content)
         return True
     return False
+
 
 def main():
     count = 0
@@ -73,6 +75,7 @@ def main():
                     print(f"Aangepast: {path}")
                     count += 1
     print(f"Klaar! {count} bestanden aangepast.")
+
 
 if __name__ == "__main__":
     main()

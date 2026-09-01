@@ -4,31 +4,31 @@
 #include <Wt/Http/Response.h>
 #include <Wt/Json/Array.h>
 #include <Wt/Json/Object.h>
-#include <Wt/Json/Serializer.h>
 #include <Wt/Json/Parser.h>
+#include <Wt/Json/Serializer.h>
 #include <Wt/Utils.h>
-#include <boost/asio/ip/address.hpp>
 #include <algorithm>
 #include <array>
+#include <boost/asio/ip/address.hpp>
 #include <cctype>
-#include <future>
 #include <cstring>
+#include <future>
 
 #include "core/IConfig.hpp"
 #include "core/ILogger.hpp"
-#include "core/String.hpp"
 #include "core/Service.hpp"
+#include "core/String.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Artist.hpp"
 #include "database/objects/Cluster.hpp"
 #include "database/objects/MediaLibrary.hpp"
 #include "database/objects/Track.hpp"
 #include "database/objects/TrackList.hpp"
-#include "database/objects/User.hpp"
 #include "database/objects/UIState.hpp"
+#include "database/objects/User.hpp"
 #include "services/auth/IAuthTokenService.hpp"
-#include "services/auth/IUserSynchronizer.hpp"
 #include "services/auth/IPasswordService.hpp"
+#include "services/auth/IUserSynchronizer.hpp"
 #include "services/scanner/IScannerService.hpp"
 
 namespace lms::api::muma
@@ -176,7 +176,7 @@ namespace lms::api::muma
             authenticated = true;
         else if (apiKeyParam && !apiKeyParam->empty())
             authenticated = true;
-        
+
         db::User::pointer dbUser;
         if (userParam)
         {
@@ -294,9 +294,12 @@ namespace lms::api::muma
 
             std::string idStr = pathInfo.substr(21);
             db::MediaLibraryId id;
-            try {
+            try
+            {
                 id = db::MediaLibraryId{ std::stoll(idStr) };
-            } catch (...) {
+            }
+            catch (...)
+            {
                 response.setStatus(400);
                 response.out() << "Invalid library ID";
                 return;
@@ -430,147 +433,150 @@ namespace lms::api::muma
                 }
 
                 std::string artistName = pathInfo.substr(start, end - start);
-            // Decode it first as Wt might have decoded it if it was a path parameter (but Wt::WResource doesn't do that automatically for us here)
-            // Actually pathInfo is already decoded by Wt!
-            
-            if (!_httpClient)
-            {
-                response.setStatus(500);
-                response.out() << "Music Management not configured";
-                return;
-            }
+                // Decode it first as Wt might have decoded it if it was a path parameter (but Wt::WResource doesn't do that automatically for us here)
+                // Actually pathInfo is already decoded by Wt!
 
-            // Encode for MuMa path parameter (FastAPI expects %20 for spaces, not +)
-            std::string encodedName = Wt::Utils::urlEncode(artistName);
-            for (size_t i = 0; i < encodedName.length(); ++i) {
-                if (encodedName[i] == '+') {
-                    encodedName.replace(i, 1, "%20");
-                }
-            }
-            std::string relativeUrl = "/api/artists/" + encodedName + "/image";
-
-            // We use a promise/future to wait for the result in this simple implementation
-            // Note: This blocks the current thread, but since images are small and MuMa is usually local, it's acceptable here
-            struct ProxyResult {
-                int status;
-                std::string contentType;
-                std::vector<std::byte> data;
-            };
-            auto resultPromise = std::make_shared<std::promise<ProxyResult>>();
-            auto resultFuture = resultPromise->get_future();
-
-            core::http::ClientGETRequestParameters getParams;
-            getParams.relativeUrl = relativeUrl;
-            if (!_mumaApiKey.empty())
-                getParams.headers.push_back(Wt::Http::Message::Header("X-API-Key", _mumaApiKey));
-
-            // This is a raw pass-through proxy: forward MuMa's real status verbatim
-            // (e.g. 404 for a missing image) instead of collapsing it into a 502.
-            getParams.treatAnyStatusAsSuccess = true;
-            getParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
-                ProxyResult res;
-                res.status = msg.status();
-                if (const std::string* contentType = msg.getHeader("Content-Type"))
-                    res.contentType = *contentType;
-                const std::string& body = msg.body();
-                res.data.resize(body.size());
-                std::memcpy(res.data.data(), body.data(), body.size());
-                resultPromise->set_value(std::move(res));
-            };
-            getParams.onFailureFunc = [resultPromise]() {
-                ProxyResult res;
-                res.status = 502; // Bad Gateway
-                resultPromise->set_value(std::move(res));
-            };
-
-            // Refused rather than queued: waiting here means holding an HTTP server thread, and
-            // letting enough of these pile up is what used to take the whole pool and leave the
-            // server answering nothing at all. See core::ConcurrencyGate.
-            const auto mumaCallLease{ _mumaCallGate.tryAcquire() };
-            if (!mumaCallLease)
-            {
-                LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: artist image refused, " << _mumaCallGate.getInUseCount() << " of " << _mumaCallGate.getMaxConcurrent() << " calls to MuMa already in flight");
-                response.setStatus(503);
-                response.out() << "Too many requests to MuMa in flight";
-                return;
-            }
-
-            _httpClient->sendGETRequest(std::move(getParams));
-
-            if (resultFuture.wait_for(std::chrono::seconds(10)) == std::future_status::ready)
-            {
-                ProxyResult res = resultFuture.get();
-                response.setStatus(res.status);
-                if (res.status == 200)
+                if (!_httpClient)
                 {
-                    response.setMimeType(res.contentType);
-                    response.out().write(reinterpret_cast<const char*>(res.data.data()), res.data.size());
+                    response.setStatus(500);
+                    response.out() << "Music Management not configured";
+                    return;
+                }
+
+                // Encode for MuMa path parameter (FastAPI expects %20 for spaces, not +)
+                std::string encodedName = Wt::Utils::urlEncode(artistName);
+                for (size_t i = 0; i < encodedName.length(); ++i)
+                {
+                    if (encodedName[i] == '+')
+                    {
+                        encodedName.replace(i, 1, "%20");
+                    }
+                }
+                std::string relativeUrl = "/api/artists/" + encodedName + "/image";
+
+                // We use a promise/future to wait for the result in this simple implementation
+                // Note: This blocks the current thread, but since images are small and MuMa is usually local, it's acceptable here
+                struct ProxyResult
+                {
+                    int status;
+                    std::string contentType;
+                    std::vector<std::byte> data;
+                };
+                auto resultPromise = std::make_shared<std::promise<ProxyResult>>();
+                auto resultFuture = resultPromise->get_future();
+
+                core::http::ClientGETRequestParameters getParams;
+                getParams.relativeUrl = relativeUrl;
+                if (!_mumaApiKey.empty())
+                    getParams.headers.push_back(Wt::Http::Message::Header("X-API-Key", _mumaApiKey));
+
+                // This is a raw pass-through proxy: forward MuMa's real status verbatim
+                // (e.g. 404 for a missing image) instead of collapsing it into a 502.
+                getParams.treatAnyStatusAsSuccess = true;
+                getParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
+                    ProxyResult res;
+                    res.status = msg.status();
+                    if (const std::string* contentType = msg.getHeader("Content-Type"))
+                        res.contentType = *contentType;
+                    const std::string& body = msg.body();
+                    res.data.resize(body.size());
+                    std::memcpy(res.data.data(), body.data(), body.size());
+                    resultPromise->set_value(std::move(res));
+                };
+                getParams.onFailureFunc = [resultPromise]() {
+                    ProxyResult res;
+                    res.status = 502; // Bad Gateway
+                    resultPromise->set_value(std::move(res));
+                };
+
+                // Refused rather than queued: waiting here means holding an HTTP server thread, and
+                // letting enough of these pile up is what used to take the whole pool and leave the
+                // server answering nothing at all. See core::ConcurrencyGate.
+                const auto mumaCallLease{ _mumaCallGate.tryAcquire() };
+                if (!mumaCallLease)
+                {
+                    LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: artist image refused, " << _mumaCallGate.getInUseCount() << " of " << _mumaCallGate.getMaxConcurrent() << " calls to MuMa already in flight");
+                    response.setStatus(503);
+                    response.out() << "Too many requests to MuMa in flight";
+                    return;
+                }
+
+                _httpClient->sendGETRequest(std::move(getParams));
+
+                if (resultFuture.wait_for(std::chrono::seconds(10)) == std::future_status::ready)
+                {
+                    ProxyResult res = resultFuture.get();
+                    response.setStatus(res.status);
+                    if (res.status == 200)
+                    {
+                        response.setMimeType(res.contentType);
+                        response.out().write(reinterpret_cast<const char*>(res.data.data()), res.data.size());
+                    }
+                    else
+                    {
+                        LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: MuMa returned status " << res.status << " for artist '" << artistName << "'");
+                        response.out() << "MuMa returned error: " << res.status;
+                    }
                 }
                 else
                 {
-                    LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: MuMa returned status " << res.status << " for artist '" << artistName << "'");
-                    response.out() << "MuMa returned error: " << res.status;
+                    LMS_LOG(API_SUBSONIC, ERROR, "MumaResource: Timeout waiting for MuMa response for artist '" << artistName << "'");
+                    response.setStatus(504); // Gateway Timeout
+                    response.out() << "Timeout waiting for MuMa";
                 }
-            }
-            else
-            {
-                LMS_LOG(API_SUBSONIC, ERROR, "MumaResource: Timeout waiting for MuMa response for artist '" << artistName << "'");
-                response.setStatus(504); // Gateway Timeout
-                response.out() << "Timeout waiting for MuMa";
-            }
-            return;
-        }
-        else if (isPlainIdSegment)
-        {
-            std::string artistIdStr = pathInfo.substr(start);
-            if (const size_t pos{ artistIdStr.find('-') }; pos != std::string::npos)
-                artistIdStr = artistIdStr.substr(pos + 1);
-
-            db::ArtistId artistId;
-            try
-            {
-                artistId = db::ArtistId{ std::stoll(artistIdStr) };
-            }
-            catch (const std::exception&)
-            {
-                response.setStatus(400);
-                response.out() << "Invalid artist ID";
                 return;
             }
-
-            db::Artist::pointer artist = db::Artist::find(session, artistId);
-            if (!artist)
+            else if (isPlainIdSegment)
             {
-                response.setStatus(404);
-                response.out() << "Artist not found";
-                return;
-            }
+                std::string artistIdStr = pathInfo.substr(start);
+                if (const size_t pos{ artistIdStr.find('-') }; pos != std::string::npos)
+                    artistIdStr = artistIdStr.substr(pos + 1);
 
-            Wt::Json::Object result;
-            result["id"] = Wt::Json::Value(artistIdStr);
-            result["name"] = Wt::Json::Value(std::string{ artist->getName() });
-
-            Wt::Json::Array genres;
-            if (const auto genreType{ db::ClusterType::find(session, "GENRE") })
-            {
-                const std::array<db::ClusterTypeId, 1> clusterTypeIds{ genreType->getId() };
-                const std::vector<std::vector<db::Cluster::pointer>> clusterGroups{ artist->getClusterGroups(clusterTypeIds, 10) };
-                if (!clusterGroups.empty())
+                db::ArtistId artistId;
+                try
                 {
-                    for (const db::Cluster::pointer& cluster : clusterGroups.front())
+                    artistId = db::ArtistId{ std::stoll(artistIdStr) };
+                }
+                catch (const std::exception&)
+                {
+                    response.setStatus(400);
+                    response.out() << "Invalid artist ID";
+                    return;
+                }
+
+                db::Artist::pointer artist = db::Artist::find(session, artistId);
+                if (!artist)
+                {
+                    response.setStatus(404);
+                    response.out() << "Artist not found";
+                    return;
+                }
+
+                Wt::Json::Object result;
+                result["id"] = Wt::Json::Value(artistIdStr);
+                result["name"] = Wt::Json::Value(std::string{ artist->getName() });
+
+                Wt::Json::Array genres;
+                if (const auto genreType{ db::ClusterType::find(session, "GENRE") })
+                {
+                    const std::array<db::ClusterTypeId, 1> clusterTypeIds{ genreType->getId() };
+                    const std::vector<std::vector<db::Cluster::pointer>> clusterGroups{ artist->getClusterGroups(clusterTypeIds, 10) };
+                    if (!clusterGroups.empty())
                     {
-                        Wt::Json::Object genre;
-                        genre["name"] = Wt::Json::Value(std::string{ cluster->getName() });
-                        genres.push_back(std::move(genre));
+                        for (const db::Cluster::pointer& cluster : clusterGroups.front())
+                        {
+                            Wt::Json::Object genre;
+                            genre["name"] = Wt::Json::Value(std::string{ cluster->getName() });
+                            genres.push_back(std::move(genre));
+                        }
                     }
                 }
-            }
-            result["genres"] = std::move(genres);
+                result["genres"] = std::move(genres);
 
-            response.out() << Wt::Json::serialize(result);
-            return;
+                response.out() << Wt::Json::serialize(result);
+                return;
+            }
         }
-    }
 
         if (pathInfo.find("/api/tracks/") == 0 && pathInfo.ends_with("/refresh"))
         {
@@ -616,8 +622,10 @@ namespace lms::api::muma
 
             std::string absolutePath = track->getAbsoluteFilePath().string();
             std::string encodedPath = Wt::Utils::urlEncode(absolutePath);
-            for (size_t i = 0; i < encodedPath.length(); ++i) {
-                if (encodedPath[i] == '+') {
+            for (size_t i = 0; i < encodedPath.length(); ++i)
+            {
+                if (encodedPath[i] == '+')
+                {
                     encodedPath.replace(i, 1, "%20");
                 }
             }
@@ -700,7 +708,7 @@ namespace lms::api::muma
                     userIdStr = userIdStr.substr(pos + 1);
 
                 std::string appId = remaining.substr(slashPos + 10);
-                
+
                 std::optional<db::UserId> userId;
                 try
                 {
@@ -867,10 +875,10 @@ namespace lms::api::muma
                 // must be forwarded verbatim, not collapsed into a generic 502.
                 getParams.treatAnyStatusAsSuccess = true;
                 getParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
-                    resultPromise->set_value({msg.status(), msg.body()});
+                    resultPromise->set_value({ msg.status(), msg.body() });
                 };
                 getParams.onFailureFunc = [resultPromise]() {
-                    resultPromise->set_value({502, "Bad Gateway"});
+                    resultPromise->set_value({ 502, "Bad Gateway" });
                 };
                 _httpClient->sendGETRequest(std::move(getParams));
             }
@@ -900,19 +908,19 @@ namespace lms::api::muma
                 // real status/body verbatim instead of collapsing it into a 502.
                 postParams.treatAnyStatusAsSuccess = true;
                 postParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
-                    resultPromise->set_value({msg.status(), msg.body()});
+                    resultPromise->set_value({ msg.status(), msg.body() });
                 };
                 postParams.onFailureFunc = [resultPromise]() {
-                    resultPromise->set_value({502, "Bad Gateway"});
+                    resultPromise->set_value({ 502, "Bad Gateway" });
                 };
 
                 if (request.method() == "POST")
                     _httpClient->sendPOSTRequest(std::move(postParams));
                 else if (request.method() == "PUT")
                 {
-                    // Wt doesn't have a direct PUT helper in our wrapper maybe? 
+                    // Wt doesn't have a direct PUT helper in our wrapper maybe?
                     // Let's assume sendPOSTRequest handles it or we use generic sendRequest
-                    _httpClient->sendPOSTRequest(std::move(postParams)); 
+                    _httpClient->sendPOSTRequest(std::move(postParams));
                 }
                 else if (request.method() == "DELETE")
                 {
@@ -938,4 +946,4 @@ namespace lms::api::muma
             response.setStatus(404);
         }
     }
-}
+} // namespace lms::api::muma

@@ -33,8 +33,7 @@ object NewsQueueRules {
     sealed interface RestoreAction {
         object Nothing : RestoreAction
         data class Retune(val slug: String) : RestoreAction
-        data class Queue(val mediaIds: List<String>, val index: Int, val positionMs: Long) :
-            RestoreAction
+        data class Queue(val mediaIds: List<String>, val index: Int, val positionMs: Long) : RestoreAction
     }
 
     fun snapshotOf(

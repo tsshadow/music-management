@@ -14,12 +14,11 @@ import com.squareup.picasso.Picasso
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.koin.android.ext.android.inject
 import nl.teunschriks.mumamobile.R
-import nl.teunschriks.mumamobile.util.Util.toast
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.databinding.GoogleAuthFragmentBinding
-import nl.teunschriks.mumamobile.util.SecureSettings
+import nl.teunschriks.mumamobile.util.Util.toast
+import org.koin.android.ext.android.inject
 import timber.log.Timber
 
 class GoogleAuthFragment : Fragment() {

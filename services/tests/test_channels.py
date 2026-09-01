@@ -3,6 +3,7 @@
 The whole point of this module is what it refuses to call a label, so most of these tests are about
 values that used to become one.
 """
+
 import unittest
 
 from services.common.channels import (
@@ -14,7 +15,6 @@ from services.common.channels import (
 
 
 class IsLabelTest(unittest.TestCase):
-
     def test_a_platform_is_not_a_label(self):
         # These three between them held 164.372 tracks at the top of the label chart.
         for platform in ('Soundcloud', 'Youtube', 'Telegram'):
@@ -42,7 +42,6 @@ class IsLabelTest(unittest.TestCase):
 
 
 class ChannelFromPathTest(unittest.TestCase):
-
     def test_a_soundcloud_track_names_its_channel(self):
         found = channel_from_path('/mnt/music/Soundcloud/Dirty Workz/some track.mp3', '/mnt/music')
         self.assertEqual(found, ('soundcloud', 'Dirty Workz'))
@@ -56,9 +55,7 @@ class ChannelFromPathTest(unittest.TestCase):
         self.assertEqual(found, ('soundcloud', 'Angerfist'))
 
     def test_a_label_release_is_not_a_channel(self):
-        self.assertIsNone(
-            channel_from_path('/mnt/music/EPs/Dirty Workz/DWX123 Release/track.mp3', '/mnt/music')
-        )
+        self.assertIsNone(channel_from_path('/mnt/music/EPs/Dirty Workz/DWX123 Release/track.mp3', '/mnt/music'))
 
     def test_a_track_loose_in_the_platform_folder_has_no_channel(self):
         # There is no channel folder here, so there is no channel to record.
@@ -87,27 +84,22 @@ class PathCanCarryALabelTest(unittest.TestCase):
     """
 
     def test_a_label_release_carries_a_label(self):
-        self.assertTrue(
-            path_can_carry_a_label('/mnt/music/labels/Dirty Workz/DWX123/track.mp3', '/mnt/music'))
+        self.assertTrue(path_can_carry_a_label('/mnt/music/labels/Dirty Workz/DWX123/track.mp3', '/mnt/music'))
 
     def test_the_songs_pile_carries_none(self):
-        self.assertFalse(
-            path_can_carry_a_label('/mnt/music/songs/Some Release/track.mp3', '/mnt/music'))
+        self.assertFalse(path_can_carry_a_label('/mnt/music/songs/Some Release/track.mp3', '/mnt/music'))
 
     def test_the_import_folder_carries_none(self):
-        self.assertFalse(
-            path_can_carry_a_label('/mnt/music/import/Some Release/track.mp3', '/mnt/music'))
+        self.assertFalse(path_can_carry_a_label('/mnt/music/import/Some Release/track.mp3', '/mnt/music'))
 
     def test_a_platform_folder_carries_none(self):
         for platform in ('Soundcloud', 'Youtube', 'Telegram'):
             with self.subTest(platform=platform):
-                self.assertFalse(
-                    path_can_carry_a_label(f'/mnt/music/{platform}/Chan/track.mp3', '/mnt/music'))
+                self.assertFalse(path_can_carry_a_label(f'/mnt/music/{platform}/Chan/track.mp3', '/mnt/music'))
 
     def test_the_old_eps_tree_still_carries_a_label(self):
         # The restructure has not necessarily run yet, and both layouts have to work meanwhile.
-        self.assertTrue(
-            path_can_carry_a_label('/mnt/music/EPs/Dirty Workz/DWX123/track.mp3', '/mnt/music'))
+        self.assertTrue(path_can_carry_a_label('/mnt/music/EPs/Dirty Workz/DWX123/track.mp3', '/mnt/music'))
 
     def test_nothing_below_the_root_carries_a_label(self):
         self.assertFalse(path_can_carry_a_label('/mnt/music', '/mnt/music'))
@@ -115,7 +107,6 @@ class PathCanCarryALabelTest(unittest.TestCase):
 
 
 class NormalizeChannelNameTest(unittest.TestCase):
-
     def test_one_channel_cannot_become_two(self):
         self.assertEqual(
             normalize_channel_name('Dirty  Workz '),

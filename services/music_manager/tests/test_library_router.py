@@ -1,4 +1,5 @@
 """Coverage for the /api/library, /api/jobs and /api/scrobble routers."""
+
 import asyncio
 import sys
 import unittest
@@ -41,13 +42,14 @@ class RouterTestCase(unittest.TestCase):
 
 
 class LibraryAuthTest(unittest.TestCase):
-
     def test_a_request_without_a_key_is_unauthorized(self):
         self.assertEqual(TestClient(app).get('/api/library/genres').status_code, 401)
 
     def test_a_user_key_that_verifies_is_accepted(self):
-        with patch.object(users_router, 'verify_token', return_value={'status': 'ok', 'type': 'user'}), \
-             patch.object(library_router, 'get_db_connection', return_value=None):
+        with (
+            patch.object(users_router, 'verify_token', return_value={'status': 'ok', 'type': 'user'}),
+            patch.object(library_router, 'get_db_connection', return_value=None),
+        ):
             response = TestClient(app).get('/api/library/genres', headers={'x-api-key': 'user-key'})
         self.assertEqual(response.status_code, 500)
 
@@ -135,9 +137,11 @@ class RerunParseTest(RouterTestCase):
 
     def test_a_track_is_flagged_and_immediately_retagged(self):
         self.cursor.fetchone.return_value = {'file_path': '/music/a.mp3'}
-        with patch.object(library_router, 'ProcessedFilesHelper') as helper, \
-             patch('services.music_manager.routers.tagger.tagger_manager') as tagger, \
-             patch('services.music_manager.routers.scanner.scanner_manager') as scanner:
+        with (
+            patch.object(library_router, 'ProcessedFilesHelper') as helper,
+            patch('services.music_manager.routers.tagger.tagger_manager') as tagger,
+            patch('services.music_manager.routers.scanner.scanner_manager') as scanner,
+        ):
             response = self.client.post('/api/library/tracks/1/rerun-parse', headers=self.headers)
         self.assertEqual(response.json()['status'], 'ok')
         helper.return_value.mark_for_rescan.assert_called_once_with('/music/a.mp3')
@@ -152,30 +156,34 @@ class RerunParseTest(RouterTestCase):
 
     def test_a_failing_immediate_retag_still_leaves_the_track_flagged(self):
         self.cursor.fetchone.return_value = {'file_path': '/music/a.mp3'}
-        with patch.object(library_router, 'ProcessedFilesHelper') as helper, \
-             patch('services.music_manager.routers.tagger.tagger_manager') as tagger:
+        with (
+            patch.object(library_router, 'ProcessedFilesHelper') as helper,
+            patch('services.music_manager.routers.tagger.tagger_manager') as tagger,
+        ):
             tagger.tag_single.side_effect = RuntimeError('tagger busy')
             response = self.client.post('/api/library/tracks/1/rerun-parse', headers=self.headers)
         self.assertEqual(response.status_code, 200)
         helper.return_value.mark_for_rescan.assert_called_once()
 
     def test_a_file_can_also_be_flagged_by_path(self):
-        with patch.object(library_router, 'ProcessedFilesHelper') as helper, \
-             patch('services.music_manager.routers.tagger.tagger_manager') as tagger, \
-             patch('services.music_manager.routers.scanner.scanner_manager') as scanner:
-            response = self.client.post('/api/library/tracks/rerun-parse-path?path=/music/b.mp3',
-                                        headers=self.headers)
+        with (
+            patch.object(library_router, 'ProcessedFilesHelper') as helper,
+            patch('services.music_manager.routers.tagger.tagger_manager') as tagger,
+            patch('services.music_manager.routers.scanner.scanner_manager') as scanner,
+        ):
+            response = self.client.post('/api/library/tracks/rerun-parse-path?path=/music/b.mp3', headers=self.headers)
         self.assertEqual(response.json()['status'], 'ok')
         helper.return_value.mark_for_rescan.assert_called_once_with('/music/b.mp3')
         tagger.tag_single.assert_called_once_with('/music/b.mp3')
         scanner.scan_single.assert_called_once_with('/music/b.mp3')
 
     def test_a_failing_retag_by_path_is_still_reported_as_accepted(self):
-        with patch.object(library_router, 'ProcessedFilesHelper'), \
-             patch('services.music_manager.routers.tagger.tagger_manager') as tagger:
+        with (
+            patch.object(library_router, 'ProcessedFilesHelper'),
+            patch('services.music_manager.routers.tagger.tagger_manager') as tagger,
+        ):
             tagger.tag_single.side_effect = RuntimeError('tagger busy')
-            response = self.client.post('/api/library/tracks/rerun-parse-path?path=/music/b.mp3',
-                                        headers=self.headers)
+            response = self.client.post('/api/library/tracks/rerun-parse-path?path=/music/b.mp3', headers=self.headers)
         self.assertEqual(response.status_code, 200)
 
 
@@ -218,7 +226,6 @@ class RedownloadTest(RouterTestCase):
 
 
 class RedownloadTaskTest(unittest.TestCase):
-
     def test_a_soundcloud_redownload_uses_the_soundcloud_downloader(self):
         downloader_module = MagicMock()
         with patch.dict(sys.modules, {'services.downloader.soundcloud.soundcloud': downloader_module}):
@@ -293,20 +300,23 @@ class ListenBrainzImportTest(RouterTestCase):
 
     def test_an_import_is_registered_and_queued(self):
         self.cursor.lastrowid = 7
-        response = self.client.post('/api/scrobble/import/listenbrainz', headers=self.headers,
-                                    json={'username': 'user', 'lb_username': 'user-lb'})
+        response = self.client.post(
+            '/api/scrobble/import/listenbrainz',
+            headers=self.headers,
+            json={'username': 'user', 'lb_username': 'user-lb'},
+        )
         self.assertEqual(response.json()['import_id'], 7)
         self.assertEqual(response.json()['lb_username'], 'user-lb')
 
     def test_without_a_listenbrainz_name_the_local_username_is_used(self):
         self.cursor.lastrowid = 8
-        response = self.client.post('/api/scrobble/import/listenbrainz', headers=self.headers,
-                                    json={'username': 'user'})
+        response = self.client.post(
+            '/api/scrobble/import/listenbrainz', headers=self.headers, json={'username': 'user'}
+        )
         self.assertEqual(response.json()['lb_username'], 'user')
 
 
 class ProcessListensPageTest(unittest.TestCase):
-
     def setUp(self):
         self.conn = MagicMock()
         self.cursor = MagicMock()
@@ -314,46 +324,50 @@ class ProcessListensPageTest(unittest.TestCase):
         self.conn.cursor.return_value.__exit__.return_value = False
 
     def listen(self, artist='Angerfist', title='Raise Your Fist', ts=1_700_000_000):
-        return {'track_metadata': {'artist_name': artist, 'track_name': title, 'release_name': 'Album'},
-                'listened_at': ts}
+        return {
+            'track_metadata': {'artist_name': artist, 'track_name': title, 'release_name': 'Album'},
+            'listened_at': ts,
+        }
 
     def test_a_matched_listen_is_stored_against_the_track(self):
         self.cursor.fetchone.return_value = {'id': 42}
         processed, max_ts = scrobbler_router._process_listens_page([self.listen()], self.conn, 'user', 1, 1)
         self.assertEqual(processed, 1)
         self.assertEqual(max_ts, 1_700_000_000)
-        self.assertTrue(any('INSERT INTO scrobble_listens' in call.args[0]
-                            for call in self.cursor.execute.call_args_list))
+        self.assertTrue(
+            any('INSERT INTO scrobble_listens' in call.args[0] for call in self.cursor.execute.call_args_list)
+        )
 
     def test_an_unmatched_listen_is_parked(self):
         self.cursor.fetchone.return_value = None
         scrobbler_router._process_listens_page([self.listen()], self.conn, 'user', 1, 1)
-        self.assertTrue(any('scrobble_unmatched_listens' in call.args[0]
-                            for call in self.cursor.execute.call_args_list))
+        self.assertTrue(
+            any('scrobble_unmatched_listens' in call.args[0] for call in self.cursor.execute.call_args_list)
+        )
 
     def test_an_incomplete_listen_is_skipped(self):
         self.cursor.fetchone.return_value = {'id': 42}
         processed, _ = scrobbler_router._process_listens_page(
-            [self.listen(artist=None), self.listen(title=None)], self.conn, 'user', 1, 2)
+            [self.listen(artist=None), self.listen(title=None)], self.conn, 'user', 1, 2
+        )
         self.assertEqual(processed, 0)
 
     def test_the_oldest_timestamp_of_the_page_is_returned_for_paging(self):
         self.cursor.fetchone.return_value = {'id': 42}
         _, max_ts = scrobbler_router._process_listens_page(
-            [self.listen(ts=200), self.listen(ts=100)], self.conn, 'user', 1, 2)
+            [self.listen(ts=200), self.listen(ts=100)], self.conn, 'user', 1, 2
+        )
         self.assertEqual(max_ts, 100)
 
     def test_progress_is_written_back_every_ten_listens(self):
         self.cursor.fetchone.return_value = {'id': 42}
         listens = [self.listen(ts=1000 - i) for i in range(10)]
         scrobbler_router._process_listens_page(listens, self.conn, 'user', 1, 10)
-        progress_updates = [call for call in self.cursor.execute.call_args_list
-                            if 'SET processed' in call.args[0]]
+        progress_updates = [call for call in self.cursor.execute.call_args_list if 'SET processed' in call.args[0]]
         self.assertEqual(len(progress_updates), 1)
 
 
 class RunListenBrainzImportTest(unittest.TestCase):
-
     def setUp(self):
         self.conn = MagicMock()
         self.cursor = MagicMock()
@@ -369,15 +383,20 @@ class RunListenBrainzImportTest(unittest.TestCase):
             self.addCleanup(p.stop)
 
     def page(self, count):
-        return {'payload': {'listens': [{'track_metadata': {'artist_name': 'A', 'track_name': 'B'},
-                                         'listened_at': 1_700_000_000 - i} for i in range(count)]}}
+        return {
+            'payload': {
+                'listens': [
+                    {'track_metadata': {'artist_name': 'A', 'track_name': 'B'}, 'listened_at': 1_700_000_000 - i}
+                    for i in range(count)
+                ]
+            }
+        }
 
     def test_an_import_that_finds_nothing_is_still_marked_completed(self):
         with patch.object(scrobbler_router, 'requests') as http:
             http.get.return_value.json.return_value = {'payload': {'listens': []}}
             scrobbler_router.run_listenbrainz_import(1, 'user', 'user-lb')
-        self.assertTrue(any("status = 'completed'" in call.args[0]
-                            for call in self.cursor.execute.call_args_list))
+        self.assertTrue(any("status = 'completed'" in call.args[0] for call in self.cursor.execute.call_args_list))
 
     def test_a_short_page_ends_the_import(self):
         self.cursor.fetchone.return_value = {'id': 42}
@@ -403,18 +422,18 @@ class RunListenBrainzImportTest(unittest.TestCase):
         with patch.object(scrobbler_router, 'requests') as http:
             http.get.side_effect = RuntimeError('listenbrainz down')
             scrobbler_router.run_listenbrainz_import(1, 'user', 'user-lb')
-        self.assertTrue(any("status = 'failed'" in call.args[0]
-                            for call in self.cursor.execute.call_args_list))
+        self.assertTrue(any("status = 'failed'" in call.args[0] for call in self.cursor.execute.call_args_list))
 
     def test_an_import_without_a_database_connection_ends_immediately(self):
-        with patch.object(scrobbler_router, 'get_db_connection', return_value=None), \
-             patch.object(scrobbler_router, 'requests') as http:
+        with (
+            patch.object(scrobbler_router, 'get_db_connection', return_value=None),
+            patch.object(scrobbler_router, 'requests') as http,
+        ):
             scrobbler_router.run_listenbrainz_import(1, 'user', 'user-lb')
         http.get.assert_not_called()
 
 
 class JobManagerTest(unittest.TestCase):
-
     def setUp(self):
         self.manager = jobs_router.JobManager()
 
@@ -514,7 +533,6 @@ class JobManagerTest(unittest.TestCase):
 
 
 class JobEndpointTest(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         jobs_router.job_manager.jobs.clear()

@@ -6,11 +6,13 @@ from services.tagger.Song.rules.InferRemixerFromTitleRule import InferRemixerFro
 
 
 class InferRemixerFromTitleRuleTest(unittest.TestCase):
-
     def setUp(self):
         self.song = MagicMock()
         self.song.split_artists = lambda s: [a.strip() for a in s.split('&')]
-        self.song.tag_collection.get_item_as_string.side_effect = lambda key: {TITLE: self.title, ARTIST: 'Original Artist'}[key]
+        self.song.tag_collection.get_item_as_string.side_effect = lambda key: {
+            TITLE: self.title,
+            ARTIST: 'Original Artist',
+        }[key]
         self.artist_tag = MagicMock()
         self.artist_tag.to_array.return_value = []
         self.artist_tag.to_string.return_value = ''
@@ -19,7 +21,10 @@ class InferRemixerFromTitleRuleTest(unittest.TestCase):
         self.remixers_tag.to_array.return_value = []
         self.remixers_tag.to_string.return_value = ''
         self.remixers_tag.changed = False
-        self.song.tag_collection.get_item.side_effect = lambda key: {ARTIST: self.artist_tag, REMIXER: self.remixers_tag}[key]
+        self.song.tag_collection.get_item.side_effect = lambda key: {
+            ARTIST: self.artist_tag,
+            REMIXER: self.remixers_tag,
+        }[key]
         self.song.tag_collection.has_item.side_effect = lambda key: key in [ARTIST, REMIXER]
         self.artist_db = MagicMock()
         self.artist_db.get.side_effect = lambda x: x.title()
@@ -101,5 +106,7 @@ class InferRemixerFromTitleRuleTest(unittest.TestCase):
         self.rule.apply(self.song)
         self.assertArtistAdded('Karun')
         self.assertRemixerAdded('Karun')
+
+
 if __name__ == '__main__':
     unittest.main()

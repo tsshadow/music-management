@@ -57,7 +57,11 @@ class Flattener:
         logging.info('Starting Flatten Step')
         for _ in range(MAX_PASSES):
             try:
-                wrappers = [folder for folder in _sub_folders(self.settings.import_folder_path) if is_wrapper(join(self.settings.import_folder_path, folder))]
+                wrappers = [
+                    folder
+                    for folder in _sub_folders(self.settings.import_folder_path)
+                    if is_wrapper(join(self.settings.import_folder_path, folder))
+                ]
             except OSError as e:
                 logging.error(f'Failed to list folders: {e}')
                 return

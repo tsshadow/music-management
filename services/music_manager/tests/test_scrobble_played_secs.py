@@ -4,6 +4,7 @@ Two things a Wrapped cannot be built without: how long the track was actually pl
 was played. Both are optional on the wire, because a client that has not been updated has to keep
 scrobbling successfully -- so the interesting cases here are the absent ones.
 """
+
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
@@ -47,22 +48,24 @@ class ScrobbleEventTest(unittest.TestCase):
     def post(self, **overrides):
         payload = {'artist_name': 'Angerfist', 'track_title': 'Raise Your Fist', 'username': 'user'}
         payload.update(overrides)
-        return self.client.post('/api/scrobble/event', json=payload,
-                                headers={'x-api-key': self.api_key})
+        return self.client.post('/api/scrobble/event', json=payload, headers={'x-api-key': self.api_key})
 
     def run_matched(self, **overrides):
         """Post an event that resolves to track 42, and hand back the INSERT it produced."""
-        with patch('services.music_manager.routers.scrobbler.get_db_connection', return_value=self.conn), \
-             patch('services.music_manager.routers.scrobbler.find_track',
-                   return_value=(42, MatchTier.EXACT, None)):
+        with (
+            patch('services.music_manager.routers.scrobbler.get_db_connection', return_value=self.conn),
+            patch('services.music_manager.routers.scrobbler.find_track', return_value=(42, MatchTier.EXACT, None)),
+        ):
             response = self.post(**overrides)
         self.assertEqual(response.status_code, 200, response.text)
         return statement_for(self.cursor, 'INSERT INTO scrobble_listens')
 
     def run_unmatched(self, **overrides):
         """Post an event that resolves to nothing, and hand back the INSERT it produced."""
-        with patch('services.music_manager.routers.scrobbler.get_db_connection', return_value=self.conn), \
-             patch('services.music_manager.routers.scrobbler.find_track', return_value=None):
+        with (
+            patch('services.music_manager.routers.scrobbler.get_db_connection', return_value=self.conn),
+            patch('services.music_manager.routers.scrobbler.find_track', return_value=None),
+        ):
             response = self.post(**overrides)
         self.assertEqual(response.status_code, 200, response.text)
         return statement_for(self.cursor, 'INSERT INTO scrobble_unmatched_listens')

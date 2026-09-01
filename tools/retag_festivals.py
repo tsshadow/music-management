@@ -18,6 +18,7 @@ Both steps are opt-in. Without --apply the script only reports what it would do.
     python -m tools.retag_festivals --apply --strip-legacy-atom
     python -m tools.retag_festivals --apply --prefix /mnt/music/Livesets
 """
+
 import argparse
 import logging
 import os
@@ -105,10 +106,16 @@ def strip_legacy_atom(path: str) -> bool:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description='Queue files for re-tagging and clear the legacy festival atom.')
     parser.add_argument('--apply', action='store_true', help='actually write; without it nothing changes')
-    parser.add_argument('--prefix', action='append', dest='prefixes', metavar='PATH',
-                        help='limit to this path prefix (repeatable, defaults to the set folders)')
-    parser.add_argument('--strip-legacy-atom', action='store_true',
-                        help='also remove ----:com.apple.iTunes:Festival from m4a files')
+    parser.add_argument(
+        '--prefix',
+        action='append',
+        dest='prefixes',
+        metavar='PATH',
+        help='limit to this path prefix (repeatable, defaults to the set folders)',
+    )
+    parser.add_argument(
+        '--strip-legacy-atom', action='store_true', help='also remove ----:com.apple.iTunes:Festival from m4a files'
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format='%(message)s')

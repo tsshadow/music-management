@@ -2,7 +2,6 @@ package nl.teunschriks.mumamobile.adapters
 
 import java.util.HashSet
 import nl.teunschriks.mumamobile.domain.Identifiable
-import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.MusicDirectoryEntry
 import nl.teunschriks.mumamobile.util.Settings.shouldUseFolderForArtistName
 import nl.teunschriks.mumamobile.util.Util.getGrandparent

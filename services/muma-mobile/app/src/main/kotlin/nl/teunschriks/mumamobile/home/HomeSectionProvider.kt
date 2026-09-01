@@ -65,8 +65,7 @@ class ShortcutsProvider(
 
     override val cacheKey: String? = null
 
-    override fun sectionOf(cards: List<HomeCard>): HomeSection =
-        HomeSection(titleRes, CardStyle.GRID, cards)
+    override fun sectionOf(cards: List<HomeCard>): HomeSection = HomeSection(titleRes, CardStyle.GRID, cards)
 
     override suspend fun load(): HomeSection? {
         val cards = store.recent(setsMode(), count())
@@ -128,8 +127,7 @@ class RecentTracksProvider(
 
     override val cacheKey: String = "tracks:$sortMethod"
 
-    override fun sectionOf(cards: List<HomeCard>): HomeSection =
-        HomeSection(titleRes, CardStyle.LIST, cards)
+    override fun sectionOf(cards: List<HomeCard>): HomeSection = HomeSection(titleRes, CardStyle.LIST, cards)
 
     override suspend fun load(): HomeSection? {
         val requested = rows()

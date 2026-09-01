@@ -8,12 +8,12 @@ import com.squareup.picasso.Request
 import com.squareup.picasso.RequestHandler
 import java.io.File
 import java.io.IOException
-import okio.source
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.util.FileUtil
 import nl.teunschriks.mumamobile.util.FileUtil.SUFFIX_LARGE
 import nl.teunschriks.mumamobile.util.FileUtil.SUFFIX_SMALL
 import nl.teunschriks.mumamobile.util.Util
+import okio.source
 import timber.log.Timber
 
 /**

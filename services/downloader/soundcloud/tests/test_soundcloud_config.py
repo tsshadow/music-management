@@ -1,6 +1,7 @@
 """Covers the pieces of the SoundCloud downloader around the actual download:
 account lookup, the yt-dlp match filter, the options it builds and the
 configuration that decides whether it runs at all."""
+
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -19,7 +20,6 @@ from services.downloader.soundcloud.soundcloud import (  # isort:skip
 
 
 class AccountFromUrlTest(unittest.TestCase):
-
     def test_the_account_is_the_first_path_segment(self):
         self.assertEqual(account_from_url('https://soundcloud.com/angerfist/tracks'), 'angerfist')
 
@@ -31,7 +31,6 @@ class AccountFromUrlTest(unittest.TestCase):
 
 
 class GetAccountsFromDbTest(unittest.TestCase):
-
     def setUp(self):
         patcher = patch.object(soundcloud_module, 'DatabaseConnector')
         self.addCleanup(patcher.stop)
@@ -79,7 +78,6 @@ CONFIG = {
 
 
 class MatchFilterTest(unittest.TestCase):
-
     def setUp(self):
         self.downloader = downloader_with(CONFIG, unavailable=MagicMock())
         self.downloader.unavailable.should_skip.return_value = False
@@ -89,8 +87,7 @@ class MatchFilterTest(unittest.TestCase):
         self.archive.exists.return_value = False
 
     def track(self, **overrides):
-        return {'id': 'track-1', 'title': 'Raise Your Fist', 'duration': 300,
-                'channel_id': 'angerfist', **overrides}
+        return {'id': 'track-1', 'title': 'Raise Your Fist', 'duration': 300, 'channel_id': 'angerfist', **overrides}
 
     def test_a_normal_track_passes(self):
         self.assertIsNone(self.downloader._match_filter(self.track()))
@@ -144,7 +141,6 @@ class MatchFilterTest(unittest.TestCase):
 
 
 class PrepareYdlOptsTest(unittest.TestCase):
-
     def downloader(self, **config):
         base = {'ydl_opts': {'break_on_existing': True}, 'archive_file': None, 'archive_dir': '/data/archive'}
         return downloader_with(CONFIG, downloader_config={**base, **config})
@@ -188,7 +184,6 @@ class PrepareYdlOptsTest(unittest.TestCase):
 
 
 class SnapshotProfileTest(unittest.TestCase):
-
     def setUp(self):
         self.downloader = downloader_with(CONFIG)
 
@@ -208,19 +203,22 @@ class SnapshotProfileTest(unittest.TestCase):
     def test_the_previous_snapshot_is_cleaned_up_first(self):
         self.downloader._profile_snapshot = '/tmp/old'
 
-        with patch.object(soundcloud_module, 'snapshot_cookie_profile', return_value='/tmp/new'), \
-             patch.object(soundcloud_module.shutil, 'rmtree') as rmtree:
+        with (
+            patch.object(soundcloud_module, 'snapshot_cookie_profile', return_value='/tmp/new'),
+            patch.object(soundcloud_module.shutil, 'rmtree') as rmtree,
+        ):
             self.downloader._snapshot_profile('/home/firefox/default')
 
         rmtree.assert_called_once_with('/tmp/old', ignore_errors=True)
 
 
 class ApplyConfigTest(unittest.TestCase):
-
     def apply(self, config=None, isfile=False):
         downloader = downloader_with({**CONFIG, **(config or {})})
-        with patch.object(soundcloud_module.os, 'makedirs'), \
-             patch.object(soundcloud_module.os.path, 'isfile', return_value=isfile):
+        with (
+            patch.object(soundcloud_module.os, 'makedirs'),
+            patch.object(soundcloud_module.os.path, 'isfile', return_value=isfile),
+        ):
             downloader._apply_config()
         return downloader.downloader_config
 
@@ -264,9 +262,11 @@ class ApplyConfigTest(unittest.TestCase):
 
     def test_a_firefox_profile_is_snapshotted_before_use(self):
         downloader = downloader_with({**CONFIG, 'soundcloud_cookies': 'firefox:/home/firefox/default'})
-        with patch.object(soundcloud_module.os, 'makedirs'), \
-             patch.object(soundcloud_module.os.path, 'isfile', return_value=False), \
-             patch.object(soundcloud_module, 'snapshot_cookie_profile', return_value='/tmp/snap'):
+        with (
+            patch.object(soundcloud_module.os, 'makedirs'),
+            patch.object(soundcloud_module.os.path, 'isfile', return_value=False),
+            patch.object(soundcloud_module, 'snapshot_cookie_profile', return_value='/tmp/snap'),
+        ):
             downloader._apply_config()
 
         self.assertEqual(downloader.downloader_config['ydl_opts']['cookiesfrombrowser'], ('firefox', '/tmp/snap'))

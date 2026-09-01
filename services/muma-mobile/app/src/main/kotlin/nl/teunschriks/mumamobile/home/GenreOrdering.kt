@@ -20,20 +20,19 @@ fun orderGenres(
     genres: List<Genre>,
     lastSelected: List<String>,
     favorites: List<String> = emptyList()
-): List<Genre> =
-    genres.sortedWith { first, second ->
-        val firstFavorite = favorites.contains(first.name)
-        val secondFavorite = favorites.contains(second.name)
-        val firstIndex = lastSelected.indexOf(first.name)
-        val secondIndex = lastSelected.indexOf(second.name)
+): List<Genre> = genres.sortedWith { first, second ->
+    val firstFavorite = favorites.contains(first.name)
+    val secondFavorite = favorites.contains(second.name)
+    val firstIndex = lastSelected.indexOf(first.name)
+    val secondIndex = lastSelected.indexOf(second.name)
 
-        when {
-            firstFavorite && secondFavorite -> second.songCount.compareTo(first.songCount)
-            firstFavorite -> -1
-            secondFavorite -> 1
-            firstIndex != -1 && secondIndex != -1 -> firstIndex.compareTo(secondIndex)
-            firstIndex != -1 -> -1
-            secondIndex != -1 -> 1
-            else -> second.songCount.compareTo(first.songCount)
-        }
+    when {
+        firstFavorite && secondFavorite -> second.songCount.compareTo(first.songCount)
+        firstFavorite -> -1
+        secondFavorite -> 1
+        firstIndex != -1 && secondIndex != -1 -> firstIndex.compareTo(secondIndex)
+        firstIndex != -1 -> -1
+        secondIndex != -1 -> 1
+        else -> second.songCount.compareTo(first.songCount)
     }
+}

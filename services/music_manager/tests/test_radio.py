@@ -19,7 +19,6 @@ from services.music_manager.main import app
 
 
 class RadioChannelsTest(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         self.api_key = resolve_system_api_key()
@@ -32,16 +31,31 @@ class RadioChannelsTest(unittest.TestCase):
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         mock_cursor.fetchall.return_value = [
             {'slug': 'main', 'name': 'Radio', 'genre': None, 'filter_json': None, 'enabled': 1},
-            {'slug': 'qdance', 'name': 'Q-dance', 'genre': None,
-             'filter_json': '{"label": "Q-dance Records"}', 'enabled': 1},
+            {
+                'slug': 'qdance',
+                'name': 'Q-dance',
+                'genre': None,
+                'filter_json': '{"label": "Q-dance Records"}',
+                'enabled': 1,
+            },
         ]
         response = self.client.get('/api/radio/channels', headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {'channels': [
-            {'slug': 'main', 'name': 'Radio', 'genre': None, 'enabled': True, 'filter': {}},
-            {'slug': 'qdance', 'name': 'Q-dance', 'genre': None, 'enabled': True,
-             'filter': {'label': 'Q-dance Records'}},
-        ]})
+        self.assertEqual(
+            response.json(),
+            {
+                'channels': [
+                    {'slug': 'main', 'name': 'Radio', 'genre': None, 'enabled': True, 'filter': {}},
+                    {
+                        'slug': 'qdance',
+                        'name': 'Q-dance',
+                        'genre': None,
+                        'enabled': True,
+                        'filter': {'label': 'Q-dance Records'},
+                    },
+                ]
+            },
+        )
         query = mock_cursor.execute.call_args[0][0]
         self.assertIn('FROM radio_channels', query)
         self.assertIn('enabled = 1', query)
@@ -55,19 +69,21 @@ class RadioChannelsTest(unittest.TestCase):
         mock_cursor.fetchall.return_value = [
             {'slug': 'off', 'name': 'Off', 'genre': None, 'filter_json': None, 'enabled': 0},
         ]
-        response = self.client.get('/api/radio/channels?include_disabled=true',
-                                   headers={'x-api-key': self.api_key})
+        response = self.client.get('/api/radio/channels?include_disabled=true', headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.json()['channels'][0]['enabled'])
         self.assertNotIn('enabled = 1', mock_cursor.execute.call_args[0][0])
 
     def test_include_disabled_needs_the_manage_permission(self):
         with patch('services.music_manager.routers.users.verify_api_key') as mock_verify:
+
             async def _listener(_x_api_key=None):
                 return {'type': 'user', 'user': {'id': 5, 'permissions': ['music.play'], 'role_name': 'user'}}
+
             mock_verify.side_effect = _listener
-            response = self.client.get('/api/radio/channels?include_disabled=true',
-                                       headers={'x-api-key': 'listener-key'})
+            response = self.client.get(
+                '/api/radio/channels?include_disabled=true', headers={'x-api-key': 'listener-key'}
+            )
             self.assertEqual(response.status_code, 403)
 
     @patch('services.music_manager.routers.radio.get_db_connection')
@@ -82,13 +98,19 @@ class RadioChannelsTest(unittest.TestCase):
 
 
 class PlanEntriesTest(unittest.TestCase):
-
     def _candidate(self, track_id, seconds):
-        return {'track_id': track_id, 'title': 't', 'artist': 'a', 'album': 'b',
-                'cover_art': None, 'duration_ms': seconds * 1000}
+        return {
+            'track_id': track_id,
+            'title': 't',
+            'artist': 'a',
+            'album': 'b',
+            'cover_art': None,
+            'duration_ms': seconds * 1000,
+        }
 
     def test_starts_at_now_when_timeline_is_empty(self):
         from services.music_manager.routers import radio
+
         entries = radio.plan_entries(None, 1000.0, [self._candidate('tr-1', 60)], horizon=30.0)
         self.assertEqual(len(entries), 1)
         self.assertEqual(entries[0]['started_at'], 1000.0)
@@ -96,35 +118,41 @@ class PlanEntriesTest(unittest.TestCase):
 
     def test_appends_back_to_back_after_existing_end(self):
         from services.music_manager.routers import radio
-        entries = radio.plan_entries(1200.0, 1000.0, [self._candidate('tr-1', 60), self._candidate('tr-2', 30)], horizon=300.0)
+
+        entries = radio.plan_entries(
+            1200.0, 1000.0, [self._candidate('tr-1', 60), self._candidate('tr-2', 30)], horizon=300.0
+        )
         self.assertEqual([e['started_at'] for e in entries], [1200.0, 1260.0])
         self.assertEqual([e['ends_at'] for e in entries], [1260.0, 1290.0])
 
     def test_restarts_at_now_when_timeline_has_fallen_behind(self):
         from services.music_manager.routers import radio
+
         entries = radio.plan_entries(500.0, 1000.0, [self._candidate('tr-1', 60)], horizon=30.0)
         self.assertEqual(entries[0]['started_at'], 1000.0)
 
     def test_stops_once_horizon_is_covered(self):
         from services.music_manager.routers import radio
+
         candidates = [self._candidate(f'tr-{i}', 60) for i in range(10)]
         entries = radio.plan_entries(None, 0.0, candidates, horizon=100.0)
         self.assertEqual(len(entries), 2)
 
     def test_returns_nothing_when_horizon_already_covered(self):
         from services.music_manager.routers import radio
+
         entries = radio.plan_entries(2000.0, 1000.0, [self._candidate('tr-1', 60)], horizon=600.0)
         self.assertEqual(entries, [])
 
     def test_does_not_mutate_candidates(self):
         from services.music_manager.routers import radio
+
         candidate = self._candidate('tr-1', 60)
         radio.plan_entries(None, 1000.0, [candidate], horizon=30.0)
         self.assertNotIn('started_at', candidate)
 
 
 class FillChannelTest(unittest.TestCase):
-
     def _conn_with_end(self, existing_end, scheduled=()):
         conn = MagicMock()
         cursor = MagicMock()
@@ -136,6 +164,7 @@ class FillChannelTest(unittest.TestCase):
     @patch('services.music_manager.routers.radio.fetch_candidate_tracks')
     def test_inserts_planned_entries(self, mock_fetch):
         from services.music_manager.routers import radio
+
         mock_fetch.return_value = [
             {'track_id': 'tr-1', 'title': 't', 'artist': 'a', 'album': 'b', 'cover_art': None, 'duration_ms': 700000},
         ]
@@ -151,6 +180,7 @@ class FillChannelTest(unittest.TestCase):
     @patch('services.music_manager.routers.radio.fetch_candidate_tracks')
     def test_skips_fetch_when_timeline_already_full(self, mock_fetch):
         from services.music_manager.routers import radio
+
         conn, _ = self._conn_with_end(1000.0 + radio.SCHEDULE_HORIZON_SECONDS + 60)
         inserted = radio.fill_channel(conn, {'id': 3, 'slug': 'main', 'genre': None}, now=1000.0)
         self.assertEqual(inserted, 0)
@@ -159,6 +189,7 @@ class FillChannelTest(unittest.TestCase):
     @patch('services.music_manager.routers.radio.fetch_candidate_tracks')
     def test_passes_channel_genre_to_fetch(self, mock_fetch):
         from services.music_manager.routers import radio
+
         mock_fetch.return_value = []
         conn, _ = self._conn_with_end(None)
         radio.fill_channel(conn, {'id': 4, 'slug': 'hard', 'genre': 'hardstyle'}, now=1000.0)
@@ -167,12 +198,17 @@ class FillChannelTest(unittest.TestCase):
     @patch('services.music_manager.routers.radio.fetch_candidate_tracks')
     def test_passes_stored_filter_to_fetch(self, mock_fetch):
         from services.music_manager.routers import radio
+
         mock_fetch.return_value = []
         conn, _ = self._conn_with_end(None)
         radio.fill_channel(
             conn,
-            {'id': 5, 'slug': 'qdance', 'genre': None,
-             'filter_json': '{"label": "Q-dance Records", "length": "short"}'},
+            {
+                'id': 5,
+                'slug': 'qdance',
+                'genre': None,
+                'filter_json': '{"label": "Q-dance Records", "length": "short"}',
+            },
             now=1000.0,
         )
         self.assertEqual(mock_fetch.call_args[0][0], {'label': 'Q-dance Records', 'length': 'short'})
@@ -180,6 +216,7 @@ class FillChannelTest(unittest.TestCase):
     @patch('services.music_manager.routers.radio.fetch_candidate_tracks')
     def test_does_not_schedule_a_track_already_on_the_timeline(self, mock_fetch):
         from services.music_manager.routers import radio
+
         mock_fetch.return_value = [
             {'track_id': 'tr-1', 'title': 't', 'artist': 'a', 'album': 'b', 'cover_art': None, 'duration_ms': 700000},
             {'track_id': 'tr-2', 'title': 't', 'artist': 'a', 'album': 'b', 'cover_art': None, 'duration_ms': 700000},
@@ -193,13 +230,13 @@ class FillChannelTest(unittest.TestCase):
     @patch('services.music_manager.routers.radio.fetch_candidate_tracks')
     def test_lms_failure_does_not_raise(self, mock_fetch):
         from services.music_manager.routers import radio
+
         mock_fetch.side_effect = RuntimeError('LMS down')
         conn, _ = self._conn_with_end(None)
         self.assertEqual(radio.fill_channel(conn, {'id': 3, 'slug': 'main', 'genre': None}, now=1000.0), 0)
 
 
 class RadioStateTest(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         self.api_key = resolve_system_api_key()
@@ -215,9 +252,16 @@ class RadioStateTest(unittest.TestCase):
         cursor = MagicMock()
         mock_get_db.return_value = conn
         conn.cursor.return_value.__enter__.return_value = cursor
-        entry = {'track_id': 'tr-42', 'title': 'T', 'artist': 'A', 'album': 'B',
-                 'cover_art': 'al-7', 'duration_ms': 215000,
-                 'started_at': 1000.0, 'ends_at': 1215.0}
+        entry = {
+            'track_id': 'tr-42',
+            'title': 'T',
+            'artist': 'A',
+            'album': 'B',
+            'cover_art': 'al-7',
+            'duration_ms': 215000,
+            'started_at': 1000.0,
+            'ends_at': 1215.0,
+        }
         nxt = dict(entry, track_id='tr-43', started_at=1215.0, ends_at=1400.0)
         cursor.fetchone.side_effect = [
             {'id': 1, 'slug': 'main', 'name': 'Radio', 'genre': None},
@@ -260,9 +304,9 @@ class RadioStateTest(unittest.TestCase):
 
 
 class ChannelFilterTest(unittest.TestCase):
-
     def test_reads_the_stored_filter(self):
         from services.music_manager.routers import radio
+
         self.assertEqual(
             radio.channel_filter({'slug': 'q', 'genre': None, 'filter_json': '{"label": "Dirty Workz"}'}),
             {'label': 'Dirty Workz'},
@@ -270,14 +314,17 @@ class ChannelFilterTest(unittest.TestCase):
 
     def test_falls_back_to_the_legacy_genre_column(self):
         from services.music_manager.routers import radio
+
         self.assertEqual(radio.channel_filter({'slug': 'h', 'genre': 'hardstyle'}), {'genre': 'hardstyle'})
 
     def test_no_filter_and_no_genre_is_the_whole_library(self):
         from services.music_manager.routers import radio
+
         self.assertEqual(radio.channel_filter({'slug': 'main', 'genre': None, 'filter_json': None}), {})
 
     def test_stored_filter_wins_over_genre(self):
         from services.music_manager.routers import radio
+
         self.assertEqual(
             radio.channel_filter({'slug': 'q', 'genre': 'hardstyle', 'filter_json': '{"label": "Q-dance Records"}'}),
             {'label': 'Q-dance Records'},
@@ -285,37 +332,41 @@ class ChannelFilterTest(unittest.TestCase):
 
     def test_unreadable_filter_falls_back_rather_than_raising(self):
         from services.music_manager.routers import radio
-        self.assertEqual(radio.channel_filter({'slug': 'q', 'genre': 'hardstyle', 'filter_json': 'not json'}),
-                         {'genre': 'hardstyle'})
+
+        self.assertEqual(
+            radio.channel_filter({'slug': 'q', 'genre': 'hardstyle', 'filter_json': 'not json'}), {'genre': 'hardstyle'}
+        )
 
 
 class PickCandidatesTest(unittest.TestCase):
-
     def _candidate(self, track_id):
         return {'track_id': track_id, 'duration_ms': 1000}
 
     def test_keeps_the_order_lms_randomised(self):
         from services.music_manager.routers import radio
+
         candidates = [self._candidate('tr-1'), self._candidate('tr-2')]
         self.assertEqual([c['track_id'] for c in radio.pick_candidates(candidates, [])], ['tr-1', 'tr-2'])
 
     def test_drops_tracks_still_on_the_timeline(self):
         from services.music_manager.routers import radio
+
         candidates = [self._candidate('tr-1'), self._candidate('tr-2')]
         self.assertEqual([c['track_id'] for c in radio.pick_candidates(candidates, ['tr-1'])], ['tr-2'])
 
     def test_drops_a_repeat_within_the_same_batch(self):
         from services.music_manager.routers import radio
+
         candidates = [self._candidate('tr-1'), self._candidate('tr-1'), self._candidate('tr-2')]
         self.assertEqual([c['track_id'] for c in radio.pick_candidates(candidates, [])], ['tr-1', 'tr-2'])
 
     def test_copes_with_an_empty_timeline_argument(self):
         from services.music_manager.routers import radio
+
         self.assertEqual(radio.pick_candidates([self._candidate('tr-1')], None), [self._candidate('tr-1')])
 
 
 class ChannelAdminTest(unittest.TestCase):
-
     def setUp(self):
         self.client = TestClient(app)
         self.api_key = resolve_system_api_key()
@@ -366,11 +417,18 @@ class ChannelAdminTest(unittest.TestCase):
 
     @patch('services.music_manager.routers.radio.get_db_connection')
     def test_updating_the_filter_clears_the_legacy_genre(self, mock_get_db):
-        conn, cursor = self._conn([
-            {'id': 2},
-            {'slug': 'hard', 'name': 'Hard', 'genre': None,
-             'filter_json': '{"label": "Dirty Workz"}', 'enabled': 1},
-        ])
+        conn, cursor = self._conn(
+            [
+                {'id': 2},
+                {
+                    'slug': 'hard',
+                    'name': 'Hard',
+                    'genre': None,
+                    'filter_json': '{"label": "Dirty Workz"}',
+                    'enabled': 1,
+                },
+            ]
+        )
         mock_get_db.return_value = conn
         response = self.client.put(
             '/api/radio/channels/hard',
@@ -406,8 +464,7 @@ class ChannelAdminTest(unittest.TestCase):
     @patch('services.music_manager.routers.radio.fetch_candidate_tracks')
     def test_preview_reports_matches_and_a_sample(self, mock_fetch):
         mock_fetch.return_value = [
-            {'track_id': f'tr-{i}', 'title': 'T', 'artist': 'A', 'album': 'B',
-             'cover_art': None, 'duration_ms': 200000}
+            {'track_id': f'tr-{i}', 'title': 'T', 'artist': 'A', 'album': 'B', 'cover_art': None, 'duration_ms': 200000}
             for i in range(12)
         ]
         response = self.client.post(
@@ -434,24 +491,29 @@ class ChannelAdminTest(unittest.TestCase):
 
     def test_managing_channels_needs_more_than_being_logged_in(self):
         with patch('services.music_manager.routers.users.verify_api_key') as mock_verify:
+
             async def _listener(_x_api_key=None):
                 return {'type': 'user', 'user': {'id': 5, 'permissions': ['music.play'], 'role_name': 'user'}}
+
             mock_verify.side_effect = _listener
-            for method, path in (('post', '/api/radio/channels'),
-                                 ('put', '/api/radio/channels/main'),
-                                 ('delete', '/api/radio/channels/main'),
-                                 ('post', '/api/radio/channels/preview')):
+            for method, path in (
+                ('post', '/api/radio/channels'),
+                ('put', '/api/radio/channels/main'),
+                ('delete', '/api/radio/channels/main'),
+                ('post', '/api/radio/channels/preview'),
+            ):
                 response = getattr(self.client, method)(
-                    path, headers={'x-api-key': 'listener-key'},
+                    path,
+                    headers={'x-api-key': 'listener-key'},
                     **({} if method == 'delete' else {'json': {'slug': 'x', 'name': 'X'}}),
                 )
                 self.assertEqual(response.status_code, 403, f'{method} {path}')
 
 
 class RadioInitDbTest(unittest.TestCase):
-
     def test_init_db_creates_tables_and_seeds_default_channel(self):
         from services.music_manager.routers import radio
+
         cursor = MagicMock()
         radio.init_db(cursor)
         statements = [call[0][0] for call in cursor.execute.call_args_list]
@@ -461,6 +523,7 @@ class RadioInitDbTest(unittest.TestCase):
 
     def test_init_db_adds_the_filter_column_when_it_is_missing(self):
         from services.music_manager.routers import radio
+
         cursor = MagicMock()
         cursor.fetchone.return_value = None
         radio.init_db(cursor)
@@ -469,6 +532,7 @@ class RadioInitDbTest(unittest.TestCase):
 
     def test_init_db_leaves_an_existing_filter_column_alone(self):
         from services.music_manager.routers import radio
+
         cursor = MagicMock()
         cursor.fetchone.return_value = {'Field': 'filter_json'}
         radio.init_db(cursor)

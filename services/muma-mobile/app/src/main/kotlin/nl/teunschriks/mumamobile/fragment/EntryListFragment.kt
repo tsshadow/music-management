@@ -13,10 +13,8 @@ import android.view.View
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
-import kotlinx.coroutines.launch
 import io.reactivex.rxjava3.disposables.CompositeDisposable
-import org.koin.core.component.KoinScopeComponent
-import org.koin.core.component.inject
+import kotlinx.coroutines.launch
 import nl.teunschriks.mumamobile.NavigationGraphDirections
 import nl.teunschriks.mumamobile.adapters.FolderSelectorBinder
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
@@ -27,6 +25,8 @@ import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.service.RxBus
 import nl.teunschriks.mumamobile.service.plusAssign
 import nl.teunschriks.mumamobile.util.ContextMenuUtil.handleContextMenu
+import org.koin.core.component.KoinScopeComponent
+import org.koin.core.component.inject
 
 /**
  * An extension of the MultiListFragment, with a few helper functions geared

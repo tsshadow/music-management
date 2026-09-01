@@ -1,20 +1,31 @@
 #!/bin/bash
 # scripts/format.sh
-# Opt-in code formatter. Not run in CI: a repository-wide reformat would rewrite
-# almost every file at once and make every open branch conflict. Run it on the
-# directory you are working in, review the diff, and commit it separately.
+# Formats the Python tree with `ruff format`, and is the thing quality:lint
+# checks: since the one-off whole-tree reformat, formatting is enforced.
 #
-# Usage: ./scripts/format.sh [path ...]        (default: nothing, prints help)
-#        ./scripts/format.sh --check [path]    (report only, no writes)
+# It used to require an explicit path and warn that a repository-wide reformat
+# "would rewrite almost every file at once and make every open branch
+# conflict". Both were true, and it is done: 368 of 411 files, on a day with
+# zero open merge requests. Defaulting to the whole tree is now the honest
+# behaviour -- a formatter that only ever ran on the directory you remembered
+# to point it at is how the tree drifted in the first place.
+#
+# Usage: ./scripts/format.sh                    # format services/ tools/ tests/
+#        ./scripts/format.sh --check            # report only, no writes (CI)
+#        ./scripts/format.sh services/importer  # one module, still works
 
 set -e
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-if ! command -v ruff >/dev/null 2>&1; then
-    echo "ruff is not installed (pip install ruff)" >&2
-    exit 1
+# shellcheck source=scripts/lib/python-tooling.sh
+source "$ROOT_DIR/scripts/lib/python-tooling.sh"
+
+# Same container fallback as scripts/lint.sh, so this works on a host without
+# ruff -- which is every CI runner.
+if [ "${PYTHON_TOOLING_CONTAINER:-0}" != "1" ] && ! have_tool ruff; then
+    rerun_in_container ./scripts/format.sh "$@"
 fi
 
 MODE=format
@@ -24,20 +35,11 @@ if [ "$1" = "--check" ]; then
 fi
 
 if [ $# -eq 0 ]; then
-    cat <<'USAGE'
-Usage: ./scripts/format.sh [--check] <path> [path ...]
-
-Deliberately requires an explicit path. Formatting the whole tree in one go is
-a decision to take on purpose, not a default:
-
-    ./scripts/format.sh services/importer          # one module
-    ./scripts/format.sh --check services/importer  # see what would change
-USAGE
-    exit 1
+    set -- services/ tools/ tests/
 fi
 
 if [ "$MODE" = check ]; then
-    ruff format --check --diff "$@"
+    ruff format --check "$@"
 else
     ruff format "$@"
     echo "--- Re-running the linter over the formatted files ---"

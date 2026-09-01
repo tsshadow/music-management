@@ -22,7 +22,12 @@ buildscript {
 }
 
 plugins {
-    id "com.github.ben-manes.versions" version "0.54.0"
+    id "com.github.ben-manes.versions" version "0.61.0"
+    // SBOM for the dependency audit: scripts/ci/dependency-audit.sh runs
+    // `cyclonedxBom` and feeds the result to trivy. Gradle has no lockfiles in
+    // this repo, so the resolved graph in the SBOM is the only thing a CVE
+    // scanner can read.
+    id "org.cyclonedx.bom" version "3.4.1"
     alias libs.plugins.androidApplication apply false
     alias libs.plugins.androidLibrary apply false
     alias libs.plugins.kotlinAndroid apply false
@@ -64,6 +69,26 @@ allprojects {
         configureEach {
             options.compilerArgs.add("-Xlint:deprecation")
         }
+    }
+}
+
+// Only what ships: the default SBOM also walks detekt/ktlint/AGP tooling
+// classpaths, whose netty/bouncycastle findings say nothing about the APK.
+// releaseRuntimeClasspath covers the Android modules, runtimeClasspath the
+// pure-Kotlin ones.
+//
+// Plugin 3.x split the single task in two: `cyclonedxDirectBom` resolves one
+// project's configurations, `cyclonedxBom` only merges the results. That moved
+// includeConfigs off the task the audit runs and onto the per-project one, so
+// configuring it once on the root -- as 2.x did -- would silently leave every
+// module on the default, tooling-classpaths-included graph.
+//
+// Applying the plugin to the root registers cyclonedxDirectBom in the
+// subprojects too (CyclonedxPlugin.apply walks project + subprojects), so the
+// plugin stays applied here only and this block reaches all four modules.
+allprojects {
+    tasks.withType(org.cyclonedx.gradle.CyclonedxDirectTask).configureEach {
+        includeConfigs.set(["releaseRuntimeClasspath", "runtimeClasspath"])
     }
 }
 

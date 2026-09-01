@@ -10,6 +10,7 @@ Also reports how many library_tracks rows carry more than one media file, which
 answers whether a FLAC and an MP3 of one release collapse today or whether the
 duration float in track_uid splits them.
 """
+
 from __future__ import annotations
 
 import collections

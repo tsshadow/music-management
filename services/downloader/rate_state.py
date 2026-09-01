@@ -7,6 +7,7 @@ starts over. The multiplier and the cooldown therefore live in the database.
 The arithmetic is kept in plain functions so the ladders can be tested without a
 database anywhere near them.
 """
+
 from __future__ import annotations
 
 import logging
@@ -45,11 +46,10 @@ def wait_after_429(base: int, multiplier: int, jitter: float) -> int:
 def backoff_403_wait(count: int, base: int, factor: int, cap: int) -> int:
     """The 403 ladder: the base, multiplied by the factor once per repeat, capped."""
     steps = max(1, count) - 1
-    return int(min(base * factor ** steps, cap))
+    return int(min(base * factor**steps, cap))
 
 
-def decayed_403_count(count: int, last_403_at: datetime | None, decay: int,
-                      now: datetime) -> int:
+def decayed_403_count(count: int, last_403_at: datetime | None, decay: int, now: datetime) -> int:
     """How many rungs of the 403 ladder are still standing after some quiet time.
 
     Without this the count only ever falls on a sweep that touched every account
@@ -74,6 +74,7 @@ def recover(multiplier: int, clean_runs: int, recovery_runs: int) -> tuple[int, 
 @dataclass
 class RateSnapshot:
     """Everything that is remembered about how a source is currently behaving."""
+
     source: str
     multiplier: int = 1
     consecutive_403: int = 0
@@ -103,12 +104,20 @@ class InMemoryRateStateStore:
 class DatabaseRateStateStore:
     """Persists the state in ``downloads_rate_state``."""
 
-    _COLUMNS = ('multiplier', 'consecutive_403', 'consecutive_429', 'clean_runs',
-                'last_403_at', 'last_429_at', 'cooldown_until')
+    _COLUMNS = (
+        'multiplier',
+        'consecutive_403',
+        'consecutive_429',
+        'clean_runs',
+        'last_403_at',
+        'last_429_at',
+        'cooldown_until',
+    )
 
     def _connect(self):
         from services.common.Helpers.DatabaseConnector import DatabaseConnector
         from services.downloader.db_schema import ensure_once
+
         connection = DatabaseConnector().connect()
         ensure_once(connection)
         return connection
@@ -118,8 +127,8 @@ class DatabaseRateStateStore:
         try:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    f'SELECT {", ".join(self._COLUMNS)} FROM downloads_rate_state WHERE source = %s',
-                    (source,))
+                    f'SELECT {", ".join(self._COLUMNS)} FROM downloads_rate_state WHERE source = %s', (source,)
+                )
                 row = cursor.fetchone()
             if row is None:
                 return None
@@ -137,7 +146,8 @@ class DatabaseRateStateStore:
                     f'INSERT INTO downloads_rate_state (source, {", ".join(self._COLUMNS)}) '
                     f'VALUES (%s, {", ".join(["%s"] * len(self._COLUMNS))}) '
                     f'ON DUPLICATE KEY UPDATE {assignments}',
-                    (snapshot.source,) + values + values)
+                    (snapshot.source,) + values + values,
+                )
             connection.commit()
         finally:
             connection.close()
@@ -154,9 +164,14 @@ class RateState:
     database should still back off in-process rather than fall over.
     """
 
-    def __init__(self, source: str, timing: DownloaderTiming, store=None,
-                 now: Callable[[], datetime] = datetime.now,
-                 jitter: Callable[[], float] = _default_jitter) -> None:
+    def __init__(
+        self,
+        source: str,
+        timing: DownloaderTiming,
+        store=None,
+        now: Callable[[], datetime] = datetime.now,
+        jitter: Callable[[], float] = _default_jitter,
+    ) -> None:
         self.source = source
         self.timing = timing
         self._store = store if store is not None else DatabaseRateStateStore()
@@ -208,20 +223,24 @@ class RateState:
     def record_403(self) -> int:
         """Register a 403 and return how long to stay away."""
         now = self._now()
-        standing = decayed_403_count(self._snapshot.consecutive_403, self._snapshot.last_403_at,
-                                     self.timing.backoff_403_decay, now)
+        standing = decayed_403_count(
+            self._snapshot.consecutive_403, self._snapshot.last_403_at, self.timing.backoff_403_decay, now
+        )
         self._snapshot.consecutive_403 = standing + 1
         self._snapshot.last_403_at = now
-        wait = backoff_403_wait(self._snapshot.consecutive_403, self.timing.backoff_403_base,
-                                self.timing.backoff_403_factor, self.timing.backoff_403_cap)
+        wait = backoff_403_wait(
+            self._snapshot.consecutive_403,
+            self.timing.backoff_403_base,
+            self.timing.backoff_403_factor,
+            self.timing.backoff_403_cap,
+        )
         self._snapshot.cooldown_until = now + timedelta(seconds=wait)
         self._persist()
         return wait
 
     def record_success(self) -> None:
         """Register a clean run, which slowly walks the multiplier back down."""
-        multiplier, clean_runs = recover(self.multiplier, self._snapshot.clean_runs,
-                                        self.timing.recovery_runs)
+        multiplier, clean_runs = recover(self.multiplier, self._snapshot.clean_runs, self.timing.recovery_runs)
         self._snapshot.multiplier = multiplier
         self._snapshot.clean_runs = clean_runs
         self._snapshot.consecutive_403 = 0

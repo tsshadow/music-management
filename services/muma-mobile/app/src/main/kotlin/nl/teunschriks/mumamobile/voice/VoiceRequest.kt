@@ -53,6 +53,5 @@ object VoiceRequest {
         return resolution
     }
 
-    private fun resolver() =
-        QueryResolver(MusicServiceVocabulary(MusicServiceFactory.getMusicService()))
+    private fun resolver() = QueryResolver(MusicServiceVocabulary(MusicServiceFactory.getMusicService()))
 }

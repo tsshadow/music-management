@@ -14,6 +14,7 @@ Run it by hand:
 
     python -m tools.fix_nested_ep_dirs [--label "Sealand Recordings"] [--dry-run]
 """
+
 import argparse
 import hashlib
 import logging
@@ -140,9 +141,9 @@ class Case:
     def describe(self) -> str:
         unique = set(self.unique_inner_files)
         outer_lines = '\n'.join(f'    {name}' for name in self.outer_files) or '    (none)'
-        inner_lines = '\n'.join(
-            f'  {"*" if name in unique else " "} {name}' for name in self.inner_files
-        ) or '    (none)'
+        inner_lines = (
+            '\n'.join(f'  {"*" if name in unique else " "} {name}' for name in self.inner_files) or '    (none)'
+        )
         return (
             f'\n{"-" * 78}\n'
             f'{self.action}  {self.outer}\n'
@@ -348,6 +349,7 @@ def resolve_eps_root(override: str | None) -> str:
         return override
     try:
         from services.common.config_store import ConfigStore
+
         configured = ConfigStore().get('eps_folder_path')
         if configured:
             return str(configured)
@@ -382,7 +384,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         '--auto',
         action='store_true',
         help='Answer every case without asking: delete the inner folder when it holds nothing '
-             'new, otherwise move its unique files up and delete the rest',
+        'new, otherwise move its unique files up and delete the rest',
     )
     parser.add_argument('--report', default='fix_nested_ep_dirs_report.txt', help='Where to write the report')
     args = parser.parse_args(argv)
@@ -448,10 +450,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif not result.inner_removed:
             report.append(f'Inner folder could not be removed: {case.inner}')
 
-    print(
-        f"\nDone. moved: {handled['moved']}, deleted: {handled['deleted']}, "
-        f"skipped: {handled['skipped']}."
-    )
+    print(f"\nDone. moved: {handled['moved']}, deleted: {handled['deleted']}, skipped: {handled['skipped']}.")
     if report:
         write_report(args.report, report)
     if not args.dry_run and (handled['moved'] or handled['deleted']):

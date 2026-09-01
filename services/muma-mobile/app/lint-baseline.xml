@@ -1,15 +1,81 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<issues format="6" by="lint 8.9.3" type="baseline" client="gradle" dependencies="true" name="AGP (8.9.3)" variant="all" version="8.9.3">
+<issues format="6" by="lint 9.3.2" type="baseline" client="gradle" dependencies="true" name="AGP (9.3.2)" variant="all" version="9.3.2">
 
     <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                        String.format(&quot;%d:%s&quot;, timeSpanAmount, timeSpanType)"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/nl/teunschriks/mumamobile/subsonic/ShareHandler.kt"
-            line="257"
-            column="25"/>
+            file="src/main/kotlin/nl/teunschriks/mumamobile/car/CarModeNotifier.kt"
+            line="55"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="StartActivityAndCollapseDeprecated"
+        message="TileService#startActivityAndCollapse(Intent) is deprecated. Use TileService#startActivityAndCollapse(PendingIntent) instead."
+        errorLine1="            startActivityAndCollapse(intent)"
+        errorLine2="                                     ~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/voice/VoiceTileService.kt"
+            line="56"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="TrimLambda"
+        message="The lambda argument (`{ it &lt;= &apos; &apos; }`) is unnecessary"
+        errorLine1="        if (name == null || name.trim { it &lt;= &apos; &apos; }.isEmpty()) {"
+        errorLine2="                                      ~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/FileUtil.kt"
+            line="310"
+            column="39"/>
+    </issue>
+
+    <issue
+        id="TrimLambda"
+        message="The lambda argument (`{ it &lt;= &apos; &apos; }`) is unnecessary"
+        errorLine1="        if (path == null || path.trim { it &lt;= &apos; &apos; }.isEmpty()) {"
+        errorLine2="                                      ~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/FileUtil.kt"
+            line="329"
+            column="39"/>
+    </issue>
+
+    <issue
+        id="TrimLambda"
+        message="The lambda argument (`{ it &lt;= &apos; &apos; }`) is unnecessary"
+        errorLine1="    fun isNullOrWhiteSpace(string: String?): Boolean = string.isNullOrEmpty() || string.trim { it &lt;= &apos; &apos; }.isEmpty()"
+        errorLine2="                                                                                             ~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/Util.kt"
+            line="415"
+            column="94"/>
+    </issue>
+
+    <issue
+        id="InflateParams"
+        message="Avoid passing `null` as the view root (needed to resolve layout parameters on the inflated layout&apos;s root element)"
+        errorLine1="        val content = layoutInflater.inflate(R.layout.manual_screenshot_dialog, null)"
+        errorLine2="                                                                                ~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/ManualFragment.kt"
+            line="65"
+            column="81"/>
+    </issue>
+
+    <issue
+        id="PluralsCandidate"
+        message="Formatting %d followed by words (&quot;tracks&quot;): This should probably be a plural rather than a string"
+        errorLine1="    &lt;string name=&quot;track_info.artists_together_counted&quot;>Together: %1$s · %2$d tracks&lt;/string>"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="109"
+            column="5"/>
     </issue>
 
     <issue
@@ -19,7 +85,51 @@
         errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="177"
+            line="209"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="PluralsCandidate"
+        message="Formatting %d followed by words (&quot;tracks&quot;): This should probably be a plural rather than a string"
+        errorLine1="    &lt;string name=&quot;track_collection.total&quot;>%1$s · %2$d tracks&lt;/string>"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="215"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="PluralsCandidate"
+        message="Formatting %d followed by words (&quot;years&quot;): This should probably be a plural rather than a string"
+        errorLine1="    &lt;string name=&quot;memories.today&quot;>Today, %1$d years ago&lt;/string>"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="262"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="PluralsCandidate"
+        message="Formatting %d followed by words (&quot;years&quot;): This should probably be a plural rather than a string"
+        errorLine1="    &lt;string name=&quot;memories.this_week&quot;>This week, %1$d years ago&lt;/string>"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="264"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="PluralsCandidate"
+        message="Formatting %d followed by words (&quot;tracks&quot;): This should probably be a plural rather than a string"
+        errorLine1="    &lt;string name=&quot;voice_explain_result_tracks&quot;>%1$d tracks&lt;/string>"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="794"
             column="5"/>
     </issue>
 
@@ -38,63 +148,85 @@
     </issue>
 
     <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        notifyDataSetChanged()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/muma/TileAdapter.kt"
+            line="118"
+            column="9"/>
+    </issue>
+
+    <issue
         id="ObsoleteSdkInt"
         message="Unnecessary; `SDK_INT` is always >= 29"
         errorLine1="        tools:targetApi=&quot;q&quot;>"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/AndroidManifest.xml"
-            line="41"
+            line="53"
             column="9"/>
     </issue>
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 32"
+        message="Unnecessary; `SDK_INT` is always >= 33"
+        errorLine1="    private fun Intent.getBluetoothDevice(): BluetoothDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {"
+        errorLine2="                                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/receiver/BluetoothIntentReceiver.kt"
+            line="134"
+            column="69"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/nl/teunschriks/mumamobile/service/DownloadService.kt"
-            line="512"
+            line="523"
             column="21"/>
     </issue>
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 32"
+        message="Unnecessary; `SDK_INT` is always >= 33"
+        errorLine1="                val event = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/service/MediaPlayerLifecycleSupport.kt"
+            line="122"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/nl/teunschriks/mumamobile/service/PlaybackService.kt"
-            line="338"
+            line="364"
             column="13"/>
     </issue>
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 32"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="                    val immutableFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
         errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/nl/teunschriks/mumamobile/service/PlaybackService.kt"
-            line="382"
+            line="406"
             column="45"/>
     </issue>
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 32"
-        errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/PlayerFragment.kt"
-            line="261"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 32"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="        if (Settings.cacheLocationUri != &quot;&quot; &amp;&amp; Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
         errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -105,7 +237,51 @@
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 32"
+        message="Unnecessary; `SDK_INT` is always >= 33"
+        errorLine1="    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/app/UApp.kt"
+            line="136"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 33"
+        errorLine1="    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/app/UApp.kt"
+            line="139"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 33"
+        errorLine1="    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/app/UApp.kt"
+            line="142"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 33"
+        errorLine1="    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/app/UApp.kt"
+            line="145"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -116,7 +292,7 @@
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 32"
+        message="Unnecessary; `SDK_INT` is always >= 33"
         errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -127,27 +303,236 @@
 
     <issue
         id="ObsoleteSdkInt"
-        message="This folder configuration (`v26`) is unnecessary; `minSdkVersion` is 32. Merge all the resources in this folder into `mipmap-anydpi`.">
+        message="Unnecessary; `SDK_INT` is always >= 33"
+        errorLine1="            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/Util.kt"
+            line="487"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 33"
+        errorLine1="            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/Util.kt"
+            line="514"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="This folder configuration (`v26`) is unnecessary; `minSdkVersion` is 33. Merge all the resources in this folder into `mipmap-anydpi`.">
         <location
             file="src/main/res/mipmap-anydpi-v26"/>
     </issue>
 
     <issue
         id="ObsoleteSdkInt"
-        message="This folder configuration (`v31`) is unnecessary; `minSdkVersion` is 32. Merge all the resources in this folder into `values`.">
+        message="This folder configuration (`v31`) is unnecessary; `minSdkVersion` is 33. Merge all the resources in this folder into `values`.">
         <location
             file="src/main/res/values-v31"/>
     </issue>
 
     <issue
-        id="VectorPath"
-        message="Very long vector path (904 characters), which is bad for performance. Considering reducing precision, removing minor details or rasterizing vector."
-        errorLine1="      android:pathData=&quot;M19.14,12.94c0.04,-0.3 0.06,-0.61 0.06,-0.94c0,-0.32 -0.02,-0.64 -0.07,-0.94l2.03,-1.58c0.18,-0.14 0.23,-0.41 0.12,-0.61l-1.92,-3.32c-0.12,-0.22 -0.37,-0.29 -0.59,-0.22l-2.39,0.96c-0.5,-0.38 -1.03,-0.7 -1.62,-0.94L14.4,2.81c-0.04,-0.24 -0.24,-0.41 -0.48,-0.41h-3.84c-0.24,0 -0.43,0.17 -0.47,0.41L9.25,5.35C8.66,5.59 8.12,5.92 7.63,6.29L5.24,5.33c-0.22,-0.08 -0.47,0 -0.59,0.22L2.74,8.87C2.62,9.08 2.66,9.34 2.86,9.48l2.03,1.58C4.84,11.36 4.8,11.69 4.8,12s0.02,0.64 0.07,0.94l-2.03,1.58c-0.18,0.14 -0.23,0.41 -0.12,0.61l1.92,3.32c0.12,0.22 0.37,0.29 0.59,0.22l2.39,-0.96c0.5,0.38 1.03,0.7 1.62,0.94l0.36,2.54c0.05,0.24 0.24,0.41 0.48,0.41h3.84c0.24,0 0.44,-0.17 0.47,-0.41l0.36,-2.54c0.59,-0.24 1.13,-0.56 1.62,-0.94l2.39,0.96c0.22,0.08 0.47,0 0.59,-0.22l1.92,-3.32c0.12,-0.22 0.07,-0.47 -0.12,-0.61L19.14,12.94zM12,15.6c-1.98,0 -3.6,-1.62 -3.6,-3.6s1.62,-3.6 3.6,-3.6s3.6,1.62 3.6,3.6S13.98,15.6 12,15.6z&quot;/>"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        id="DisableBaselineAlignment"
+        message="Set `android:baselineAligned=&quot;false&quot;` on this element for better performance"
+        errorLine1="&lt;LinearLayout xmlns:a=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2=" ~~~~~~~~~~~~">
         <location
-            file="src/main/res/drawable/ic_menu_settings.xml"
+            file="src/main/res/layout/list_item_track_details_3lines.xml"
+            line="2"
+            column="2"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `?android:attr/colorBackground` with a theme that also paints a background (inferred theme is `@style/UltrasonicTheme.Spotify`)"
+        errorLine1="    a:background=&quot;?android:attr/colorBackground&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_car_mode.xml"
+            line="14"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `?android:attr/colorBackground` with a theme that also paints a background (inferred theme is `@style/UltrasonicTheme.Spotify`)"
+        errorLine1="    a:background=&quot;?android:attr/colorBackground&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_favorites.xml"
+            line="5"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `?android:attr/colorBackground` with a theme that also paints a background (inferred theme is `@style/UltrasonicTheme.Spotify`)"
+        errorLine1="    a:background=&quot;?android:attr/colorBackground&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_library.xml"
+            line="6"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `?android:attr/colorBackground` with a theme that also paints a background (inferred theme is `@style/UltrasonicTheme.Spotify`)"
+        errorLine1="    a:background=&quot;?android:attr/colorBackground&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_management.xml"
+            line="7"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `?android:attr/colorBackground` with a theme that also paints a background (inferred theme is `@style/UltrasonicTheme.Spotify`)"
+        errorLine1="    a:background=&quot;?android:attr/colorBackground&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_management_list.xml"
+            line="5"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `?android:attr/colorBackground` with a theme that also paints a background (inferred theme is `@style/UltrasonicTheme.Spotify`)"
+        errorLine1="    a:background=&quot;?android:attr/colorBackground&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_memories.xml"
+            line="5"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `?android:attr/colorBackground` with a theme that also paints a background (inferred theme is `@style/UltrasonicTheme.Spotify`)"
+        errorLine1="    android:background=&quot;?android:attr/colorBackground&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/google_auth_fragment.xml"
+            line="7"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `?attr/selectableItemBackground` with a theme that also paints a background (inferred theme is `@style/UltrasonicTheme.Spotify`)"
+        errorLine1="    a:background=&quot;?attr/selectableItemBackground&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/home_card_carousel.xml"
+            line="7"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `?attr/selectableItemBackground` with a theme that also paints a background (inferred theme is `@style/UltrasonicTheme.Spotify`)"
+        errorLine1="    a:background=&quot;?attr/selectableItemBackground&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/home_card_list.xml"
+            line="15"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `?android:attr/selectableItemBackground` with a theme that also paints a background (inferred theme is `@style/UltrasonicTheme.Spotify`)"
+        errorLine1="    a:background=&quot;?android:attr/selectableItemBackground&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/management_index_row.xml"
+            line="8"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `?android:attr/colorBackground` with a theme that also paints a background (inferred theme is `@style/UltrasonicTheme.Spotify`)"
+        errorLine1="    a:background=&quot;?android:attr/colorBackground&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/manual_screenshot_dialog.xml"
             line="9"
-            column="25"/>
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `?attr/colorSurface` with a theme that also paints a background (inferred theme is `@style/UltrasonicTheme.Spotify`)"
+        errorLine1="    a:background=&quot;?attr/colorSurface&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/muma_voice.xml"
+            line="12"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `?android:attr/colorBackground` with a theme that also paints a background (inferred theme is `@style/UltrasonicTheme.Spotify`)"
+        errorLine1="    a:background=&quot;?android:attr/colorBackground&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/primary.xml"
+            line="5"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `?attr/colorSurface` with a theme that also paints a background (inferred theme is `@style/UltrasonicTheme.Spotify`)"
+        errorLine1="    a:background=&quot;?attr/colorSurface&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/voice_diagnostics.xml"
+            line="5"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `?attr/selectableItemBackground` with a theme that also paints a background (inferred theme is `@style/UltrasonicTheme.Spotify`)"
+        errorLine1="    a:background=&quot;?attr/selectableItemBackground&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/voice_diagnostics_row.xml"
+            line="5"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.baseline_emoji_emotions_24` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot; android:height=&quot;24dp&quot; android:tint=&quot;#000000&quot; android:viewportHeight=&quot;24&quot; android:viewportWidth=&quot;24&quot; android:width=&quot;24dp&quot;>"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/baseline_emoji_emotions_24.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.baseline_mood_24` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot; android:height=&quot;24dp&quot; android:tint=&quot;#000000&quot; android:viewportHeight=&quot;24&quot; android:viewportWidth=&quot;24&quot; android:width=&quot;24dp&quot;>"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/baseline_mood_24.xml"
+            line="1"
+            column="1"/>
     </issue>
 
     <issue
@@ -196,11 +581,44 @@
 
     <issue
         id="UnusedResources"
+        message="The resource `R.color.chip_text_selector` appears to be unused"
+        errorLine1="&lt;selector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;>"
+        errorLine2="^">
+        <location
+            file="src/main/res/color/chip_text_selector.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.background_color_black` appears to be unused"
+        errorLine1="    &lt;color name=&quot;background_color_black&quot;>#000000&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/colors.xml"
+            line="3"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
         message="The resource `R.layout.fragment_artist_detail` appears to be unused"
         errorLine1="&lt;LinearLayout xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
         errorLine2="^">
         <location
             file="src/main/res/layout/fragment_artist_detail.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.layout.grid_item_playlist` appears to be unused"
+        errorLine1="&lt;com.google.android.material.card.MaterialCardView xmlns:a=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/layout/grid_item_playlist.xml"
             line="2"
             column="1"/>
     </issue>
@@ -218,11 +636,33 @@
 
     <issue
         id="UnusedResources"
-        message="The resource `R.drawable.ic_artist` appears to be unused"
+        message="The resource `R.drawable.ic_baseline_videos` appears to be unused"
         errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
         errorLine2="^">
         <location
-            file="src/main/res/drawable/ic_artist.xml"
+            file="src/main/res/drawable/ic_baseline_videos.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_header_bg` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_header_bg.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_menu_chat` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_menu_chat.xml"
             line="1"
             column="1"/>
     </issue>
@@ -284,12 +724,78 @@
 
     <issue
         id="UnusedResources"
+        message="The resource `R.string.main_sets` appears to be unused"
+        errorLine1="    &lt;string name=&quot;main.sets&quot;>Sets&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="12"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.main_recently_played` appears to be unused"
+        errorLine1="    &lt;string name=&quot;main_recently_played&quot;>Recently played&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="13"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.filter_recent` appears to be unused"
+        errorLine1="    &lt;string name=&quot;filter.recent&quot;>Recent&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="14"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.filter_new` appears to be unused"
+        errorLine1="    &lt;string name=&quot;filter.new&quot;>New&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="16"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.filter_genres` appears to be unused"
+        errorLine1="    &lt;string name=&quot;filter.genres&quot;>Genres&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="17"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.filter_playlists` appears to be unused"
+        errorLine1="    &lt;string name=&quot;filter.playlists&quot;>Playlists&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="18"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
         message="The resource `R.string.main_moods_title` appears to be unused"
         errorLine1="    &lt;string name=&quot;main.moods_title&quot;>Moods&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="130"
+            line="158"
             column="13"/>
     </issue>
 
@@ -300,7 +806,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="131"
+            line="159"
             column="13"/>
     </issue>
 
@@ -311,7 +817,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="132"
+            line="160"
             column="13"/>
     </issue>
 
@@ -322,7 +828,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="133"
+            line="161"
             column="13"/>
     </issue>
 
@@ -333,7 +839,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="134"
+            line="162"
             column="13"/>
     </issue>
 
@@ -344,7 +850,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="135"
+            line="163"
             column="13"/>
     </issue>
 
@@ -355,7 +861,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="136"
+            line="164"
             column="13"/>
     </issue>
 
@@ -366,7 +872,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="137"
+            line="165"
             column="13"/>
     </issue>
 
@@ -377,7 +883,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="138"
+            line="166"
             column="13"/>
     </issue>
 
@@ -388,7 +894,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="139"
+            line="167"
             column="13"/>
     </issue>
 
@@ -399,40 +905,62 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="145"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.main_songs_recent` appears to be unused"
-        errorLine1="    &lt;string name=&quot;main.songs_recent&quot;>Recent&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="146"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.main_songs_recent_added` appears to be unused"
-        errorLine1="    &lt;string name=&quot;main.songs_recent_added&quot;>Recent Added&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="147"
+            line="173"
             column="13"/>
     </issue>
 
     <issue
         id="UnusedResources"
         message="The resource `R.string.main_songs_recent_modified` appears to be unused"
-        errorLine1="    &lt;string name=&quot;main.songs_recent_modified&quot;>Recent Modified&lt;/string>"
+        errorLine1="    &lt;string name=&quot;main.songs_recent_modified&quot;>Recently modified&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="148"
+            line="177"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.main_welcome_text_demo` appears to be unused"
+        errorLine1="    &lt;string name=&quot;main.welcome_text_demo&quot;>To use MuMa with your own music you will need your &lt;b>own server&lt;/b>. \n\n➤ The LMS servers and a demo server have been pre-configured for you. \n\n➤ You can add or change servers in the &lt;b>settings&lt;/b>.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="185"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.main_welcome_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;main.welcome_title&quot;>Welcome to MuMa!&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="186"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.main_welcome_cancel` appears to be unused"
+        errorLine1="    &lt;string name=&quot;main.welcome_cancel&quot;>Take me to the settings&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="187"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.menu_common` appears to be unused"
+        errorLine1="    &lt;string name=&quot;menu.common&quot;>Common&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="189"
             column="13"/>
     </issue>
 
@@ -443,7 +971,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="181"
+            line="216"
             column="13"/>
     </issue>
 
@@ -454,7 +982,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="182"
+            line="217"
             column="13"/>
     </issue>
 
@@ -465,7 +993,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="185"
+            line="230"
             column="13"/>
     </issue>
 
@@ -476,7 +1004,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="186"
+            line="231"
             column="13"/>
     </issue>
 
@@ -487,7 +1015,128 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="187"
+            line="232"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.download_menu_unstar` appears to be unused"
+        errorLine1="    &lt;string name=&quot;download.menu_unstar&quot;>Unstar&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="529"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.server_menu_move_up` appears to be unused"
+        errorLine1="    &lt;string name=&quot;server_menu.move_up&quot;>Move up&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="586"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.server_menu_move_down` appears to be unused"
+        errorLine1="    &lt;string name=&quot;server_menu.move_down&quot;>Move down&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="587"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.server_menu_demo` appears to be unused"
+        errorLine1="    &lt;string name=&quot;server_menu.demo&quot;>Demo Server&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="591"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.server_menu_lms` appears to be unused"
+        errorLine1="    &lt;string name=&quot;server_menu.lms&quot;>LMS&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="592"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.server_menu_lmsalpha` appears to be unused"
+        errorLine1="    &lt;string name=&quot;server_menu.lmsalpha&quot;>LMS Alpha&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="593"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.server_menu_lmsstable` appears to be unused"
+        errorLine1="    &lt;string name=&quot;server_menu.lmsstable&quot;>LMS stable&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="594"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.welcome_morning` appears to be unused"
+        errorLine1="    &lt;string name=&quot;welcome_morning&quot;>Good morning&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="598"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.welcome_afternoon` appears to be unused"
+        errorLine1="    &lt;string name=&quot;welcome_afternoon&quot;>Good afternoon&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="599"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.welcome_evening` appears to be unused"
+        errorLine1="    &lt;string name=&quot;welcome_evening&quot;>Good evening&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="600"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.welcome_night` appears to be unused"
+        errorLine1="    &lt;string name=&quot;welcome_night&quot;>Good night&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="601"
             column="13"/>
     </issue>
 
@@ -498,7 +1147,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="504"
+            line="665"
             column="13"/>
     </issue>
 
@@ -509,7 +1158,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="505"
+            line="666"
             column="13"/>
     </issue>
 
@@ -520,7 +1169,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="507"
+            line="668"
             column="13"/>
     </issue>
 
@@ -531,7 +1180,7 @@
         errorLine2="            ~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="510"
+            line="671"
             column="13"/>
     </issue>
 
@@ -542,7 +1191,7 @@
         errorLine2="            ~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="511"
+            line="672"
             column="13"/>
     </issue>
 
@@ -553,7 +1202,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="516"
+            line="677"
             column="13"/>
     </issue>
 
@@ -564,7 +1213,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="527"
+            line="688"
             column="13"/>
     </issue>
 
@@ -575,7 +1224,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="531"
+            line="692"
             column="13"/>
     </issue>
 
@@ -586,7 +1235,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="532"
+            line="693"
             column="13"/>
     </issue>
 
@@ -597,7 +1246,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="540"
+            line="702"
             column="13"/>
     </issue>
 
@@ -608,7 +1257,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
-            line="541"
+            line="703"
             column="13"/>
     </issue>
 
@@ -619,19 +1268,65 @@
         errorLine2="           ~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/styles.xml"
-            line="63"
+            line="68"
             column="12"/>
     </issue>
 
     <issue
-        id="SmallSp"
-        message="Avoid using sizes smaller than `11sp`: `10sp`"
-        errorLine1="            android:textSize=&quot;10sp&quot;"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        id="UnusedResources"
+        message="The resource `R.drawable.tile_background_gradient` appears to be unused"
+        errorLine1="&lt;layer-list xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;>"
+        errorLine2="^">
         <location
-            file="src/main/res/layout/muma_tile_layout.xml"
-            line="60"
-            column="13"/>
+            file="src/main/res/drawable/tile_background_gradient.xml"
+            line="8"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="IconLauncherShape"
+        message="Launcher icons should not fill every pixel of their square region; see the design guide for details">
+        <location
+            file="src/main/res/mipmap-hdpi/ic_launcher.png"/>
+    </issue>
+
+    <issue
+        id="IconLauncherShape"
+        message="Launcher icons should not fill every pixel of their square region; see the design guide for details">
+        <location
+            file="src/main/res/mipmap-mdpi/ic_launcher.png"/>
+    </issue>
+
+    <issue
+        id="IconLauncherShape"
+        message="Launcher icons should not fill every pixel of their square region; see the design guide for details">
+        <location
+            file="src/main/res/mipmap-xhdpi/ic_launcher.png"/>
+    </issue>
+
+    <issue
+        id="IconLauncherShape"
+        message="Launcher icons should not fill every pixel of their square region; see the design guide for details">
+        <location
+            file="src/main/res/mipmap-xxhdpi/ic_launcher.png"/>
+    </issue>
+
+    <issue
+        id="IconLauncherShape"
+        message="Launcher icons should not fill every pixel of their square region; see the design guide for details">
+        <location
+            file="src/main/res/mipmap-xxxhdpi/ic_launcher.png"/>
+    </issue>
+
+    <issue
+        id="AlwaysShowAction"
+        message="Prefer &quot;`SHOW_AS_ACTION_IF_ROOM`&quot; instead of &quot;`SHOW_AS_ACTION_ALWAYS`&quot;"
+        errorLine1="        else -> MenuItem.SHOW_AS_ACTION_ALWAYS"
+        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/activity/NavigationActivity.kt"
+            line="1214"
+            column="26"/>
     </issue>
 
     <issue
@@ -696,7 +1391,106 @@
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/nl/teunschriks/mumamobile/util/ShortcutUtil.kt"
+            line="32"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            imageUri = Uri.parse(&quot;android.resource://$packageName/${R.drawable.ic_menu_playlists}&quot;),"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/service/androidauto/MediaLibraryBrowser.kt"
+            line="467"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            imageUri = Uri.parse(&quot;android.resource://$packageName/${R.drawable.ic_menu_search}&quot;),"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/service/androidauto/MediaLibraryBrowser.kt"
+            line="475"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            imageUri = Uri.parse(&quot;android.resource://$packageName/${R.drawable.ic_menu_podcasts}&quot;),"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/service/androidauto/MediaLibraryBrowser.kt"
+            line="483"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            imageUri = Uri.parse(&quot;android.resource://$packageName/${R.drawable.ic_menu_podcasts}&quot;),"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/service/androidauto/MediaLibraryBrowser.kt"
+            line="491"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            imageUri = Uri.parse(&quot;android.resource://$packageName/${R.drawable.ic_menu_podcasts}&quot;),"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/service/androidauto/MediaLibraryBrowser.kt"
+            line="499"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            imageUri = Uri.parse(&quot;android.resource://$packageName/${R.drawable.ic_star_full}&quot;),"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/service/androidauto/MediaLibraryBrowser.kt"
+            line="509"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(value) = sharedPreferences.edit().putString(&quot;muma_access_token&quot;, value).apply()"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/SecureSettings.kt"
+            line="30"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(value) = sharedPreferences.edit().putString(&quot;muma_refresh_token&quot;, value).apply()"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/SecureSettings.kt"
             line="34"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        sharedPreferences.edit().clear().apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/SecureSettings.kt"
+            line="37"
             column="9"/>
     </issue>
 
@@ -707,8 +1501,30 @@
         errorLine2="                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/SettingsFragment.kt"
-            line="197"
+            line="258"
             column="19"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="                    .setData(android.net.Uri.parse(&quot;package:${requireContext().packageName}&quot;))"
+        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/SettingsFragment.kt"
+            line="360"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="                    .setData(android.net.Uri.parse(&quot;package:${requireContext().packageName}&quot;))"
+        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/SettingsFragment.kt"
+            line="360"
+            column="30"/>
     </issue>
 
     <issue
@@ -718,7 +1534,7 @@
         errorLine2="                      ~~~~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/SettingsFragment.kt"
-            line="345"
+            line="536"
             column="23"/>
     </issue>
 
@@ -729,7 +1545,7 @@
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/nl/teunschriks/mumamobile/util/Storage.kt"
-            line="110"
+            line="104"
             column="17"/>
     </issue>
 
@@ -740,19 +1556,52 @@
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/nl/teunschriks/mumamobile/util/TimeSpanPreferenceDialogFragmentCompat.kt"
-            line="52"
+            line="54"
             column="9"/>
     </issue>
 
     <issue
         id="UseKtx"
         message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                    Uri.parse(url),"
-        errorLine2="                    ~~~~~~~~~~~~~~">
+        errorLine1="        val uri = Uri.parse(baseUrl).buildUpon()"
+        errorLine2="                  ~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/nl/teunschriks/mumamobile/subsonic/VideoPlayer.kt"
-            line="30"
-            column="21"/>
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/UpdateChecker.kt"
+            line="37"
+            column="19"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="                    val uri = Uri.parse(downloadUrl).buildUpon()"
+        errorLine2="                              ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/UpdateChecker.kt"
+            line="131"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="        &lt;ImageView"
+        errorLine2="         ~~~~~~~~~">
+        <location
+            file="src/main/res/layout/grid_item_playlist.xml"
+            line="17"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="        &lt;ImageView"
+        errorLine2="         ~~~~~~~~~">
+        <location
+            file="src/main/res/layout/muma_tile_layout.xml"
+            line="42"
+            column="10"/>
     </issue>
 
     <issue
@@ -778,6 +1627,116 @@
     </issue>
 
     <issue
+        id="SetTextI18n"
+        message="Number formatting does not take into account locale settings. Consider using `String.format` instead."
+        errorLine1="                                mumaUserIdEditText!!.editText?.setText(it.userId?.toString())"
+        errorLine2="                                                                       ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/EditServerFragment.kt"
+            line="493"
+            column="72"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="            binding.durationValueText.text = &quot;$minutes min&quot;"
+        errorLine2="                                             ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/muma/FilterModalFragment.kt"
+            line="182"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="            binding.durationValueText.text = &quot;$minutes min&quot;"
+        errorLine2="                                                      ~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/muma/FilterModalFragment.kt"
+            line="182"
+            column="55"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="            binding.durationLabel.text = &quot;Min Duration&quot;"
+        errorLine2="                                          ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/muma/FilterModalFragment.kt"
+            line="201"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="            binding.durationLabel.text = &quot;Max Duration&quot;"
+        errorLine2="                                          ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/muma/FilterModalFragment.kt"
+            line="203"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="        binding.durationValueText.text = &quot;${durationValue / 60} min&quot;"
+        errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/muma/FilterModalFragment.kt"
+            line="403"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="        binding.durationValueText.text = &quot;${durationValue / 60} min&quot;"
+        errorLine2="                                                               ~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/muma/FilterModalFragment.kt"
+            line="403"
+            column="64"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="                subtext.text = &quot;Static Playlist&quot;"
+        errorLine2="                                ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/fragment/muma/TileAdapter.kt"
+            line="55"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Sets&quot;, should use `@string` resource"
+        errorLine1="        android:text=&quot;Sets&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/menu_switch.xml"
+            line="13"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Sets&quot;, should use `@string` resource"
+        errorLine1="        a:title=&quot;Sets&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/menu/search_view_menu.xml"
+            line="52"
+            column="9"/>
+    </issue>
+
+    <issue
         id="HardcodedText"
         message="Hardcoded string &quot;Placeholder&quot;, should use `@string` resource"
         errorLine1="    android:text=&quot;Placeholder&quot;"
@@ -790,12 +1749,34 @@
 
     <issue
         id="HardcodedText"
-        message="Hardcoded string &quot;Tile&quot;, should use `@string` resource"
-        errorLine1="            android:text=&quot;Tile&quot;"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
+        message="Hardcoded string &quot;Max Duration&quot;, should use `@string` resource"
+        errorLine1="                        android:text=&quot;Max Duration&quot;"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/muma_filters.xml"
+            line="106"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;0 min&quot;, should use `@string` resource"
+        errorLine1="                        android:text=&quot;0 min&quot;"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/muma_filters.xml"
+            line="124"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Playlist&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;Playlist&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/layout/muma_tile_layout.xml"
-            line="58"
+            line="80"
             column="13"/>
     </issue>
 

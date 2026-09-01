@@ -7,6 +7,7 @@ that closes it for you. Production code should prefer the latter -- see
 in the suite has to answer to both, or a test starts failing for the shape of the
 double rather than for the behaviour it is meant to pin.
 """
+
 from unittest.mock import MagicMock
 
 

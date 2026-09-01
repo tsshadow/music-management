@@ -35,7 +35,9 @@ class LabelProposalStore:
         try:
             with self.db_connector.connection() as connection:
                 with connection.cursor() as cursor:
-                    cursor.execute(RECORD_QUERY, (folder, proposal.catid, proposal.label, proposal.source, proposal.confidence))
+                    cursor.execute(
+                        RECORD_QUERY, (folder, proposal.catid, proposal.label, proposal.source, proposal.confidence)
+                    )
                 connection.commit()
         except Exception as e:  # noqa: BLE001 - a proposal is never a reason to fail the import
             logging.error(f'Could not record a label proposal for {folder}: {e}')

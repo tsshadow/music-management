@@ -18,7 +18,7 @@
  * treat it as "leave this alone"; the page additionally never sends it back, so a
  * save does not depend on the two agreeing.
  */
-export const SECRET_SENTINEL = '•'.repeat(8);
+export const SECRET_SENTINEL = "•".repeat(8);
 
 /**
  * Fields bucketed by group, in the order the backend listed them.
@@ -56,12 +56,12 @@ export function groupFields(fields) {
  * @returns {*}
  */
 export function coerceValue(field, raw) {
-  if (field.type === 'integer' || field.type === 'number') {
-    if (raw === '' || raw === null || raw === undefined) return null;
+  if (field.type === "integer" || field.type === "number") {
+    if (raw === "" || raw === null || raw === undefined) return null;
     const parsed = Number(raw);
     return Number.isFinite(parsed) ? parsed : null;
   }
-  if (field.type === 'boolean') return Boolean(raw);
+  if (field.type === "boolean") return Boolean(raw);
   return raw;
 }
 

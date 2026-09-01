@@ -75,19 +75,18 @@ class SpeechCapture(private val context: Context) {
      * free to ignore it. That is acceptable because the near-miss step in `QueryResolver` covers
      * the same failure from the other side, and because an ignored extra costs nothing.
      */
-    internal fun recognizerIntent(biasing: List<String>): Intent =
-        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(
-                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-            )
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, LANGUAGE)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, MAX_RESULTS)
-            if (biasing.isNotEmpty()) {
-                putExtra(RecognizerIntent.EXTRA_BIASING_STRINGS, ArrayList(biasing))
-            }
+    internal fun recognizerIntent(biasing: List<String>): Intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+        putExtra(
+            RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+            RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+        )
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE, LANGUAGE)
+        putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+        putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, MAX_RESULTS)
+        if (biasing.isNotEmpty()) {
+            putExtra(RecognizerIntent.EXTRA_BIASING_STRINGS, ArrayList(biasing))
         }
+    }
 
     fun stop() {
         recognizer?.runCatching {

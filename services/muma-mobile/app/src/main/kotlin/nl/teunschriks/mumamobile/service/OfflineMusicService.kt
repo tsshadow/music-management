@@ -20,8 +20,6 @@ import java.util.LinkedList
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType
 import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
@@ -36,8 +34,8 @@ import nl.teunschriks.mumamobile.domain.Index
 import nl.teunschriks.mumamobile.domain.JukeboxStatus
 import nl.teunschriks.mumamobile.domain.Label
 import nl.teunschriks.mumamobile.domain.Lineup
-import nl.teunschriks.mumamobile.domain.MemoryGroup
 import nl.teunschriks.mumamobile.domain.Lyrics
+import nl.teunschriks.mumamobile.domain.MemoryGroup
 import nl.teunschriks.mumamobile.domain.Mood
 import nl.teunschriks.mumamobile.domain.MumaTile
 import nl.teunschriks.mumamobile.domain.MusicDirectory
@@ -59,6 +57,8 @@ import nl.teunschriks.mumamobile.util.FileUtil.getCompleteFile
 import nl.teunschriks.mumamobile.util.FileUtil.getPinnedFile
 import nl.teunschriks.mumamobile.util.Storage
 import nl.teunschriks.mumamobile.util.Util.safeClose
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import timber.log.Timber
 
 @Suppress("TooManyFunctions")
@@ -341,7 +341,6 @@ class OfflineMusicService :
     @Throws(Exception::class)
     override fun updatePlaylist(id: String, name: String?, comment: String?, pub: Boolean): Unit = throw OfflineException("Updating playlist not available in offline mode")
 
-
     @Throws(Exception::class)
     override fun getLyrics(artist: String, title: String): Lyrics? = throw OfflineException("Lyrics not available in offline mode")
 
@@ -601,8 +600,7 @@ class OfflineMusicService :
     @Throws(OfflineException::class)
     override fun getStreamUrl(id: String, maxBitRate: Int?, format: String?): String? = throw OfflineException("getStreamUrl isn't available in offline mode")
 
-    override fun getTranscodedStreamUrl(id: String, maxBitRate: Int?, format: String?, timeOffset: Int?): String? =
-        throw OfflineException("getTranscodedStreamUrl isn't available in offline mode")
+    override fun getTranscodedStreamUrl(id: String, maxBitRate: Int?, format: String?, timeOffset: Int?): String? = throw OfflineException("getTranscodedStreamUrl isn't available in offline mode")
 
     @Throws(OfflineException::class)
     override fun getChatMessages(since: Long?): List<ChatMessage?>? = throw OfflineException("getChatMessages isn't available in offline mode")
@@ -685,21 +683,15 @@ class OfflineMusicService :
         // No-op
     }
 
-    override fun getMumaTiles(): List<MumaTile> {
-        return emptyList()
-    }
+    override fun getMumaTiles(): List<MumaTile> = emptyList()
 
-    override fun saveMumaTile(tile: MumaTile): String {
-        return ""
-    }
+    override fun saveMumaTile(tile: MumaTile): String = ""
 
     override fun deleteMumaTile(id: String) {
         // No-op
     }
 
-    override fun getMumaSettings(userId: Int, appId: String): String? {
-        return null
-    }
+    override fun getMumaSettings(userId: Int, appId: String): String? = null
 
     override fun saveMumaSettings(userId: Int, appId: String, settings: String) {
         // No-op

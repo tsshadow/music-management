@@ -1,12 +1,12 @@
 package nl.teunschriks.mumamobile.home
 
 import kotlinx.coroutines.runBlocking
-import org.amshove.kluent.`should be equal to`
-import org.amshove.kluent.shouldBeNull
-import org.junit.Test
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.domain.MemoryGroup
 import nl.teunschriks.mumamobile.domain.Track
+import org.amshove.kluent.`should be equal to`
+import org.amshove.kluent.shouldBeNull
+import org.junit.Test
 
 class MemoriesProviderTest {
 
@@ -35,18 +35,17 @@ class MemoriesProviderTest {
     }
 
     @Test
-    fun `the banner summarises the nearest year, whatever order the server sent`() =
-        runBlocking<Unit> {
-            val section = provider {
-                listOf(
-                    MemoryGroup(2015, 11, false, listOf(track("c"))),
-                    MemoryGroup(2018, 8, true, listOf(track("a"), track("b")))
-                )
-            }.load()!!
+    fun `the banner summarises the nearest year, whatever order the server sent`() = runBlocking<Unit> {
+        val section = provider {
+            listOf(
+                MemoryGroup(2015, 11, false, listOf(track("c"))),
+                MemoryGroup(2018, 8, true, listOf(track("a"), track("b")))
+            )
+        }.load()!!
 
-            section.cards.single().itemId `should be equal to` "2018"
-            section.cards.single().subtitle `should be equal to` "8 years ago · 2 tracks"
-        }
+        section.cards.single().itemId `should be equal to` "2018"
+        section.cards.single().subtitle `should be equal to` "8 years ago · 2 tracks"
+    }
 
     @Test
     fun `the banner carries the first track's artwork`() = runBlocking<Unit> {

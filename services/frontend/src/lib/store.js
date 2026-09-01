@@ -39,13 +39,15 @@ function persist(key, store, options = {}) {
 }
 
 export const credentials = writable({
-  url: import.meta.env.VITE_SUBSONIC_URL || (import.meta.env.DEV ? '' : window.location.origin),
+  url: import.meta.env.VITE_SUBSONIC_URL || (import.meta.env.DEV ? "" : window.location.origin),
   username: "",
   password: "",
 });
 persist("lms_credentials", credentials);
 
-export const mumaApiUrl = writable(import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '' : '/muma'));
+export const mumaApiUrl = writable(
+  import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "" : "/muma"),
+);
 persist("muma_api_url", mumaApiUrl);
 
 export const mumaApiKey = writable("");
@@ -68,7 +70,7 @@ export const mumaUser = writable(null);
 export function hasPermission(permissionName) {
   const permissions = get(userPermissions);
   const user = get(mumaUser);
-  return permissions.includes(permissionName) || user?.is_admin || user?.role_name === 'admin';
+  return permissions.includes(permissionName) || user?.is_admin || user?.role_name === "admin";
 }
 
 export const currentTrack = writable(null);
@@ -162,7 +164,7 @@ persist("lms_active_management_tab", activeManagementTab);
 export const sidebarDrawerOpen = writable(false);
 
 export const isMobile = writable(false);
-export const syncMode = writable('off'); // 'off', 'host', 'follower-jam', 'follower-radio'
+export const syncMode = writable("off"); // 'off', 'host', 'follower-jam', 'follower-radio'
 persist("lms_sync_mode", syncMode);
 
 // Radio mode (beta): the slug of the channel this client is tuned into, or
@@ -199,9 +201,9 @@ persist("lms_memories_on_home_enabled", memoriesOnHomeEnabled);
 export const activeModal = writable(null); // { type, data }
 
 export const visibleSortOptions = writable({
-  songs: ['recent', 'added', 'mostplayed', 'recentlyplayed', 'rating', 'alpha', 'random'],
-  albums: ['newest', 'recent', 'alphabeticalByName', 'alphabeticalByArtist', 'random', 'starred'],
-  artists: ['alphabetical', 'trackCount', 'newest', 'recent', 'starred', 'random']
+  songs: ["recent", "added", "mostplayed", "recentlyplayed", "rating", "alpha", "random"],
+  albums: ["newest", "recent", "alphabeticalByName", "alphabeticalByArtist", "random", "starred"],
+  artists: ["alphabetical", "trackCount", "newest", "recent", "starred", "random"],
 });
 persist("lms_visible_sort_options", visibleSortOptions);
 
@@ -210,31 +212,31 @@ persist("lms_visible_sort_options", visibleSortOptions);
 // resolve them, which is also what makes them follow a language change.
 export const allSortOptions = {
   songs: [
-    { id: 'recent', labelKey: 'sort.recentlyReleased' },
-    { id: 'added', labelKey: 'sort.recentlyAdded' },
-    { id: 'mostplayed', labelKey: 'sort.mostPlayed' },
-    { id: 'recentlyplayed', labelKey: 'sort.recentlyListened' },
-    { id: 'rating', labelKey: 'sort.byRating' },
-    { id: 'alpha', labelKey: 'sort.alphabetical' },
-    { id: 'starred', labelKey: 'nav.starred' },
-    { id: 'random', labelKey: 'sort.random' }
+    { id: "recent", labelKey: "sort.recentlyReleased" },
+    { id: "added", labelKey: "sort.recentlyAdded" },
+    { id: "mostplayed", labelKey: "sort.mostPlayed" },
+    { id: "recentlyplayed", labelKey: "sort.recentlyListened" },
+    { id: "rating", labelKey: "sort.byRating" },
+    { id: "alpha", labelKey: "sort.alphabetical" },
+    { id: "starred", labelKey: "nav.starred" },
+    { id: "random", labelKey: "sort.random" },
   ],
   albums: [
-    { id: 'newest', labelKey: 'sort.recentlyAdded' },
-    { id: 'recent', labelKey: 'sort.recentlyPlayed' },
-    { id: 'alphabeticalByName', labelKey: 'sort.alphabeticalByTitle' },
-    { id: 'alphabeticalByArtist', labelKey: 'sort.alphabeticalByArtist' },
-    { id: 'random', labelKey: 'sort.random' },
-    { id: 'starred', labelKey: 'nav.starred' }
+    { id: "newest", labelKey: "sort.recentlyAdded" },
+    { id: "recent", labelKey: "sort.recentlyPlayed" },
+    { id: "alphabeticalByName", labelKey: "sort.alphabeticalByTitle" },
+    { id: "alphabeticalByArtist", labelKey: "sort.alphabeticalByArtist" },
+    { id: "random", labelKey: "sort.random" },
+    { id: "starred", labelKey: "nav.starred" },
   ],
   artists: [
-    { id: 'alphabetical', labelKey: 'sort.alphabetical' },
-    { id: 'trackCount', labelKey: 'sort.trackCount' },
-    { id: 'newest', labelKey: 'sort.recentlyAdded' },
-    { id: 'recent', labelKey: 'sort.recentlyUpdated' },
-    { id: 'starred', labelKey: 'nav.starred' },
-    { id: 'random', labelKey: 'sort.random' }
-  ]
+    { id: "alphabetical", labelKey: "sort.alphabetical" },
+    { id: "trackCount", labelKey: "sort.trackCount" },
+    { id: "newest", labelKey: "sort.recentlyAdded" },
+    { id: "recent", labelKey: "sort.recentlyUpdated" },
+    { id: "starred", labelKey: "nav.starred" },
+    { id: "random", labelKey: "sort.random" },
+  ],
 };
 
 /**
@@ -270,11 +272,13 @@ const subsonicIsAdmin = writable(null);
 async function checkAdminStatus(creds) {
   try {
     const params = `u=${encodeURIComponent(creds.username)}&p=${encodeURIComponent(creds.password)}&v=1.12.0&c=spotify&f=json`;
-    const resp = await fetch(`/rest/getUser?${params}&username=${encodeURIComponent(creds.username)}`);
+    const resp = await fetch(
+      `/rest/getUser?${params}&username=${encodeURIComponent(creds.username)}`,
+    );
     const data = await resp.json();
-    subsonicIsAdmin.set(data['subsonic-response']?.user?.adminRole === true);
+    subsonicIsAdmin.set(data["subsonic-response"]?.user?.adminRole === true);
   } catch (e) {
-    console.error('Kon adminstatus niet bepalen', e);
+    console.error("Kon adminstatus niet bepalen", e);
     subsonicIsAdmin.set(false);
   }
 }
@@ -306,7 +310,7 @@ export async function hydrateMumaUserFromApiKey() {
   if (!key) return;
   try {
     const res = await fetch(`${get(mumaApiUrl)}/api/auth/verify`, {
-      headers: { 'X-API-Key': key }
+      headers: { "X-API-Key": key },
     });
     if (!res.ok && (res.status === 401 || res.status === 403)) {
       // The backend does not accept this key any more -- a rotated or
@@ -316,15 +320,15 @@ export async function hydrateMumaUserFromApiKey() {
       // there is no key at all, so a user would have to clear localStorage by
       // hand. A 5xx or a thrown request is NOT evidence of a bad key and
       // deliberately leaves it alone.
-      mumaApiKey.set('');
+      mumaApiKey.set("");
       mumaUser.set(null);
       userPermissions.set([]);
     } else if (res.ok) {
       const data = await res.json();
-      if (data.type === 'user') {
+      if (data.type === "user") {
         userPermissions.set(data.user.permissions || []);
         mumaUser.set(data.user);
-      } else if (data.type === 'system') {
+      } else if (data.type === "system") {
         // See the matching comment in Management.svelte's onMount: every
         // Subsonic-authenticated admin actually authenticates with the
         // shared system key, which MuMa itself always treats as an
@@ -334,7 +338,7 @@ export async function hydrateMumaUserFromApiKey() {
       }
     }
   } catch (e) {
-    console.warn('Kon gebruikersgegevens niet verversen bij opstarten', e);
+    console.warn("Kon gebruikersgegevens niet verversen bij opstarten", e);
   } finally {
     mumaUserHydrated.set(true);
   }
@@ -347,8 +351,7 @@ hydrateMumaUserFromApiKey();
 // leaving them stuck in this browser's `localStorage`. See
 // docs/designs/favorite-genres/ and docs/designs/i18n/.
 
-const frontendSettingsUrl = (userId) =>
-  `${get(mumaApiUrl)}/api/users/${userId}/settings/frontend`;
+const frontendSettingsUrl = (userId) => `${get(mumaApiUrl)}/api/users/${userId}/settings/frontend`;
 
 /**
  * Reads `userId`'s `frontend` app-settings blob.
@@ -361,13 +364,13 @@ const frontendSettingsUrl = (userId) =>
 export async function loadFrontendSettings(userId) {
   try {
     const res = await fetch(frontendSettingsUrl(userId), {
-      headers: { 'X-API-Key': get(mumaApiKey) }
+      headers: { "X-API-Key": get(mumaApiKey) },
     });
     if (!res.ok) return null;
     const data = await res.json();
     return data.settings ? JSON.parse(data.settings) : null;
   } catch (e) {
-    console.warn('Kon accountinstellingen niet laden', e);
+    console.warn("Kon accountinstellingen niet laden", e);
     return null;
   }
 }
@@ -386,12 +389,12 @@ export async function saveFrontendSetting(userId, key, value) {
     const settings = (await loadFrontendSettings(userId)) || {};
     settings[key] = value;
     await fetch(frontendSettingsUrl(userId), {
-      method: 'POST',
-      headers: { 'X-API-Key': get(mumaApiKey), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ settings: JSON.stringify(settings) })
+      method: "POST",
+      headers: { "X-API-Key": get(mumaApiKey), "Content-Type": "application/json" },
+      body: JSON.stringify({ settings: JSON.stringify(settings) }),
     });
   } catch (e) {
-    console.warn('Kon accountinstelling niet opslaan', e);
+    console.warn("Kon accountinstelling niet opslaan", e);
   }
 }
 
@@ -407,7 +410,7 @@ let localeSaveTimer = null;
 const syncedFavoriteLists = {
   favoriteGenres,
   favoriteLabels,
-  favoritePlaylists
+  favoritePlaylists,
 };
 
 /**
@@ -434,12 +437,12 @@ async function applyAccountSettings(userId) {
     }
   }
 
-  if (settings && typeof settings.language === 'string') {
+  if (settings && typeof settings.language === "string") {
     applyingAccountSettings = true;
     setLocaleFromAccount(settings.language);
     applyingAccountSettings = false;
   } else {
-    await saveFrontendSetting(userId, 'language', currentLocale());
+    await saveFrontendSetting(userId, "language", currentLocale());
   }
 }
 
@@ -478,13 +481,16 @@ locale.subscribe(($locale) => {
   if (applyingAccountSettings || !syncedUserId) return;
   const userId = syncedUserId;
   clearTimeout(localeSaveTimer);
-  localeSaveTimer = setTimeout(() => saveFrontendSetting(userId, 'language', $locale), 400);
+  localeSaveTimer = setTimeout(() => saveFrontendSetting(userId, "language", $locale), 400);
 });
 
-export const isAdmin = derived([subsonicIsAdmin, mumaUser, mumaUserHydrated], ([$subsonicIsAdmin, $mumaUser, $mumaUserHydrated]) => {
-  if ($subsonicIsAdmin === true) return true;
-  if ($mumaUser && ($mumaUser.is_admin || $mumaUser.role_name === 'admin')) return true;
-  if ($subsonicIsAdmin === null) return null;
-  if (!$mumaUserHydrated) return null;
-  return false;
-});
+export const isAdmin = derived(
+  [subsonicIsAdmin, mumaUser, mumaUserHydrated],
+  ([$subsonicIsAdmin, $mumaUser, $mumaUserHydrated]) => {
+    if ($subsonicIsAdmin === true) return true;
+    if ($mumaUser && ($mumaUser.is_admin || $mumaUser.role_name === "admin")) return true;
+    if ($subsonicIsAdmin === null) return null;
+    if (!$mumaUserHydrated) return null;
+    return false;
+  },
+);

@@ -8,7 +8,6 @@ from PIL import Image
 
 
 class ImageStorage:
-
     def __init__(self, storage_path, public_base_url):
         self.storage_path = storage_path
         self.public_base_url = public_base_url
@@ -37,7 +36,14 @@ class ImageStorage:
             self._generate_thumbnails(img, artist_dir, base_filename)
             primary_path = os.path.join(artist_dir, 'primary.jpg')
             img.save(primary_path, 'JPEG', quality=90)
-            return {'cached_path': cached_path, 'public_path': f'{self.public_base_url}/{artist_id}/{full_filename}', 'width': img.size[0], 'height': img.size[1], 'mime_type': 'image/jpeg', 'file_size': os.path.getsize(cached_path)}
+            return {
+                'cached_path': cached_path,
+                'public_path': f'{self.public_base_url}/{artist_id}/{full_filename}',
+                'width': img.size[0],
+                'height': img.size[1],
+                'mime_type': 'image/jpeg',
+                'file_size': os.path.getsize(cached_path),
+            }
         except Exception as e:
             self.logger.error(f'Error saving image for artist {artist_id}: {e}')
             raise
@@ -67,8 +73,8 @@ class ImageStorage:
             paths[size] = thumb_path
         return paths
 
-class ImageDownloader:
 
+class ImageDownloader:
     def __init__(self, timeout=10, retries=3):
         self.timeout = timeout
         self.retries = retries

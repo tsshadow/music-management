@@ -10,6 +10,7 @@ which proxies /api on the same origin, and MuMa Mobile is not a browser and is
 not subject to CORS at all. The default below is therefore the development
 origins only, and a deployment that needs more says so.
 """
+
 from __future__ import annotations
 
 import logging

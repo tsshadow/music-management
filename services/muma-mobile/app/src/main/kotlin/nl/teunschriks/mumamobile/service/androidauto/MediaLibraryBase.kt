@@ -7,21 +7,19 @@
 
 package nl.teunschriks.mumamobile.service.androidauto
 
+import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
-import androidx.media3.common.MediaMetadata.MEDIA_TYPE_MIXED
 import androidx.media3.common.Player
 import androidx.media3.session.LibraryResult
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
-import org.koin.java.KoinJavaComponent.inject
 import nl.teunschriks.mumamobile.R
-import android.net.Uri
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
-import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.buildMediaItem
+import org.koin.java.KoinJavaComponent.inject
 import timber.log.Timber
 
 /**

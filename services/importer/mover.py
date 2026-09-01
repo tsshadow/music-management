@@ -34,6 +34,7 @@ def get_cat_id(folder: str):
         return first_part
     return None
 
+
 def post_processing_songs(folder_path):
     """
     Call LabelSong(path) for every supported audio file in the folder,
@@ -56,8 +57,8 @@ def post_processing_songs(folder_path):
                 except Exception as e:
                     logging.error(f'Failed to process {full_path} with LabelSong: {e}')
 
-class Mover:
 
+class Mover:
     def __init__(self):
         self.settings = Settings()
         self.db_connector = DatabaseConnector()
@@ -70,7 +71,9 @@ class Mover:
         """
         src = join(self.settings.import_folder_path, folder)
         import_folder_name = os.path.basename(self.settings.import_folder_path.rstrip(os.sep))
-        self.proposals.record(folder, resolve(src, import_folder_name=import_folder_name, catid_from_name=cat_id or None))
+        self.proposals.record(
+            folder, resolve(src, import_folder_name=import_folder_name, catid_from_name=cat_id or None)
+        )
 
     def get_label(self, key) -> str | None:
         query = 'SELECT `label` FROM `rules_catid_label` WHERE `catid` = %s'
@@ -100,7 +103,9 @@ class Mover:
         """Processes and moves a single folder based on its CAT ID."""
         label = self.get_label(cat_id)
         if label is None:
-            error_msg = f'CAT ID {cat_id} not found in database for folder {folder}. Please add it to rules_catid_label.'
+            error_msg = (
+                f'CAT ID {cat_id} not found in database for folder {folder}. Please add it to rules_catid_label.'
+            )
             logging.warning(error_msg)
             self._propose(folder, cat_id)
             return
@@ -142,7 +147,11 @@ class Mover:
         Move folders to categorized destinations based on their library_labels.
         """
         logging.info('Starting Move Step')
-        only_folders = [f for f in listdir(self.settings.import_folder_path) if not isfile(join(self.settings.import_folder_path, f))]
+        only_folders = [
+            f
+            for f in listdir(self.settings.import_folder_path)
+            if not isfile(join(self.settings.import_folder_path, f))
+        ]
         for folder in only_folders:
             cat_id = get_cat_id(folder)
             if cat_id:

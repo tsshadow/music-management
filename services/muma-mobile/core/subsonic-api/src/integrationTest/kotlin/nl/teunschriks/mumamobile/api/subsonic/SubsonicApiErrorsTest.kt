@@ -1,10 +1,6 @@
 package nl.teunschriks.mumamobile.api.subsonic
 
 import java.io.IOException
-import org.amshove.kluent.`should be equal to`
-import org.amshove.kluent.`should not be`
-import org.amshove.kluent.`should throw`
-import org.junit.Test
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.Generic
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.IncompatibleClientProtocolVersion
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.IncompatibleServerProtocolVersion
@@ -15,6 +11,10 @@ import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.TrialPeriodIsOver
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.UserNotAuthorizedForOperation
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.WrongUsernameOrPassword
 import nl.teunschriks.mumamobile.api.subsonic.response.SubsonicResponse
+import org.amshove.kluent.`should be equal to`
+import org.amshove.kluent.`should not be`
+import org.amshove.kluent.`should throw`
+import org.junit.Test
 import retrofit2.Response
 
 /**

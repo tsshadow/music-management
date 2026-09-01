@@ -1,8 +1,8 @@
 package nl.teunschriks.mumamobile.api.subsonic.response
 
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.RequestedDataWasNotFound
 import org.amshove.kluent.`should be equal to`
 import org.junit.Test
-import nl.teunschriks.mumamobile.api.subsonic.SubsonicError.RequestedDataWasNotFound
 
 /**
  * Unit test for [StreamResponse].

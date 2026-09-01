@@ -13,6 +13,7 @@ tables themselves are keyed by name (`rules_artist_genres.artist_name`,
 LMS and has nothing to do with `library_artists.id`, and `name` is UNIQUE on both
 `library_artists` and `library_labels`.
 """
+
 import logging
 import uuid
 from typing import Literal
@@ -120,29 +121,37 @@ def _connect():
 # SQL is the shape that turns into an injection the first time someone passes it a
 # variable, and semgrep is right to refuse it.
 
-def _store_artist_external_id(cursor, artist_id: int, source: str, external_id: str,
-                              external_url, verified: bool) -> None:
+
+def _store_artist_external_id(
+    cursor, artist_id: int, source: str, external_id: str, external_url, verified: bool
+) -> None:
     """Replace the external id an artist carries for one source."""
-    cursor.execute('DELETE FROM artist_external_ids WHERE artist_id = %s AND source = %s',
-                   (artist_id, source))
-    cursor.execute('''
+    cursor.execute('DELETE FROM artist_external_ids WHERE artist_id = %s AND source = %s', (artist_id, source))
+    cursor.execute(
+        '''
         INSERT INTO artist_external_ids (artist_id, source, external_id, external_url, verified)
         VALUES (%s, %s, %s, %s, %s)
-    ''', (artist_id, source, external_id, external_url, 1 if verified else 0))
+    ''',
+        (artist_id, source, external_id, external_url, 1 if verified else 0),
+    )
 
 
-def _store_label_external_id(cursor, label_id: int, source: str, external_id: str,
-                             external_url, verified: bool) -> None:
+def _store_label_external_id(
+    cursor, label_id: int, source: str, external_id: str, external_url, verified: bool
+) -> None:
     """Replace the external id a label carries for one source."""
-    cursor.execute('DELETE FROM label_external_ids WHERE label_id = %s AND source = %s',
-                   (label_id, source))
-    cursor.execute('''
+    cursor.execute('DELETE FROM label_external_ids WHERE label_id = %s AND source = %s', (label_id, source))
+    cursor.execute(
+        '''
         INSERT INTO label_external_ids (label_id, source, external_id, external_url, verified)
         VALUES (%s, %s, %s, %s, %s)
-    ''', (label_id, source, external_id, external_url, 1 if verified else 0))
+    ''',
+        (label_id, source, external_id, external_url, 1 if verified else 0),
+    )
 
 
 # --------------------------------------------------------------------------- artists
+
 
 @router.get('/artists/{name}')
 def get_artist(name: str, _auth: dict = READ):
@@ -160,13 +169,17 @@ def get_artist(name: str, _auth: dict = READ):
             external_ids: list = []
             aliases: list = []
             if artist_id:
-                cursor.execute('''
+                cursor.execute(
+                    '''
                     SELECT source, external_id, external_url, verified
                     FROM artist_external_ids WHERE artist_id = %s ORDER BY source
-                ''', (artist_id,))
+                ''',
+                    (artist_id,),
+                )
                 external_ids = list(cursor.fetchall())
-                cursor.execute('SELECT alias FROM library_artist_aliases WHERE artist_id = %s ORDER BY alias',
-                               (artist_id,))
+                cursor.execute(
+                    'SELECT alias FROM library_artist_aliases WHERE artist_id = %s ORDER BY alias', (artist_id,)
+                )
                 aliases = [row['alias'] for row in cursor.fetchall()]
             return {
                 'name': artist['name'] if artist else name,
@@ -204,11 +217,14 @@ def set_artist_mbid(name: str, request: MbidRequest, _auth: dict = WRITE):
             artist = _require_artist(cursor, name)
             cursor.execute('UPDATE library_artists SET mbid = %s WHERE id = %s', (mbid, artist['id']))
             if mbid:
-                _store_artist_external_id(cursor, artist['id'], rules.MUSICBRAINZ, mbid,
-                                          f'https://musicbrainz.org/artist/{mbid}', True)
+                _store_artist_external_id(
+                    cursor, artist['id'], rules.MUSICBRAINZ, mbid, f'https://musicbrainz.org/artist/{mbid}', True
+                )
             else:
-                cursor.execute('DELETE FROM artist_external_ids WHERE artist_id = %s AND source = %s',
-                               (artist['id'], rules.MUSICBRAINZ))
+                cursor.execute(
+                    'DELETE FROM artist_external_ids WHERE artist_id = %s AND source = %s',
+                    (artist['id'], rules.MUSICBRAINZ),
+                )
             conn.commit()
             return {'status': 'ok', 'mbid': mbid}
     finally:
@@ -227,8 +243,7 @@ def set_artist_external_id(name: str, request: ExternalIdRequest, _auth: dict = 
     try:
         with conn.cursor() as cursor:
             artist = _require_artist(cursor, name)
-            _store_artist_external_id(cursor, artist['id'], source, external_id,
-                                      request.external_url, request.verified)
+            _store_artist_external_id(cursor, artist['id'], source, external_id, request.external_url, request.verified)
             conn.commit()
             return {'status': 'ok'}
     finally:
@@ -241,8 +256,10 @@ def delete_artist_external_id(name: str, source: str, _auth: dict = WRITE):
     try:
         with conn.cursor() as cursor:
             artist = _require_artist(cursor, name)
-            cursor.execute('DELETE FROM artist_external_ids WHERE artist_id = %s AND source = %s',
-                           (artist['id'], source.strip().lower()))
+            cursor.execute(
+                'DELETE FROM artist_external_ids WHERE artist_id = %s AND source = %s',
+                (artist['id'], source.strip().lower()),
+            )
             conn.commit()
             return {'status': 'ok'}
     finally:
@@ -260,10 +277,13 @@ def add_artist_alias(name: str, request: AliasRequest, _auth: dict = WRITE):
     try:
         with conn.cursor() as cursor:
             artist = _require_artist(cursor, name)
-            cursor.execute('''
+            cursor.execute(
+                '''
                 INSERT INTO library_artist_aliases (artist_id, alias) VALUES (%s, %s)
                 ON DUPLICATE KEY UPDATE alias = VALUES(alias)
-            ''', (artist['id'], alias))
+            ''',
+                (artist['id'], alias),
+            )
             conn.commit()
             return {'status': 'ok'}
     finally:
@@ -276,8 +296,9 @@ def delete_artist_alias(name: str, alias: str, _auth: dict = WRITE):
     try:
         with conn.cursor() as cursor:
             artist = _require_artist(cursor, name)
-            cursor.execute('DELETE FROM library_artist_aliases WHERE artist_id = %s AND alias = %s',
-                           (artist['id'], alias))
+            cursor.execute(
+                'DELETE FROM library_artist_aliases WHERE artist_id = %s AND alias = %s', (artist['id'], alias)
+            )
             conn.commit()
             return {'status': 'ok'}
     finally:
@@ -321,6 +342,7 @@ def delete_artist_genre(name: str, genre_id: int, _auth: dict = WRITE):
 
 # ---------------------------------------------------------------------------- labels
 
+
 @router.get('/labels/{name}')
 def get_label(name: str, _auth: dict = READ):
     conn = _connect()
@@ -331,10 +353,13 @@ def get_label(name: str, _auth: dict = READ):
             external_ids: list = []
             parent_name = None
             if label_id:
-                cursor.execute('''
+                cursor.execute(
+                    '''
                     SELECT source, external_id, external_url, verified
                     FROM label_external_ids WHERE label_id = %s ORDER BY source
-                ''', (label_id,))
+                ''',
+                    (label_id,),
+                )
                 external_ids = list(cursor.fetchall())
                 if label.get('parent_label_id'):
                     cursor.execute('SELECT name FROM library_labels WHERE id = %s', (label['parent_label_id'],))
@@ -374,11 +399,14 @@ def set_label_mbid(name: str, request: MbidRequest, _auth: dict = WRITE):
             label = _require_label(cursor, name)
             cursor.execute('UPDATE library_labels SET mbid = %s WHERE id = %s', (mbid, label['id']))
             if mbid:
-                _store_label_external_id(cursor, label['id'], rules.MUSICBRAINZ, mbid,
-                                         f'https://musicbrainz.org/label/{mbid}', True)
+                _store_label_external_id(
+                    cursor, label['id'], rules.MUSICBRAINZ, mbid, f'https://musicbrainz.org/label/{mbid}', True
+                )
             else:
-                cursor.execute('DELETE FROM label_external_ids WHERE label_id = %s AND source = %s',
-                               (label['id'], rules.MUSICBRAINZ))
+                cursor.execute(
+                    'DELETE FROM label_external_ids WHERE label_id = %s AND source = %s',
+                    (label['id'], rules.MUSICBRAINZ),
+                )
             conn.commit()
             return {'status': 'ok', 'mbid': mbid}
     finally:
@@ -428,8 +456,7 @@ def set_label_external_id(name: str, request: ExternalIdRequest, _auth: dict = W
     try:
         with conn.cursor() as cursor:
             label = _require_label(cursor, name)
-            _store_label_external_id(cursor, label['id'], source, external_id,
-                                     request.external_url, request.verified)
+            _store_label_external_id(cursor, label['id'], source, external_id, request.external_url, request.verified)
             conn.commit()
             return {'status': 'ok'}
     finally:
@@ -442,8 +469,10 @@ def delete_label_external_id(name: str, source: str, _auth: dict = WRITE):
     try:
         with conn.cursor() as cursor:
             label = _require_label(cursor, name)
-            cursor.execute('DELETE FROM label_external_ids WHERE label_id = %s AND source = %s',
-                           (label['id'], source.strip().lower()))
+            cursor.execute(
+                'DELETE FROM label_external_ids WHERE label_id = %s AND source = %s',
+                (label['id'], source.strip().lower()),
+            )
             conn.commit()
             return {'status': 'ok'}
     finally:
@@ -464,10 +493,13 @@ def add_label_catid(name: str, request: CatidRequest, _auth: dict = WRITE):
     try:
         with conn.cursor() as cursor:
             label = _require_label(cursor, name)
-            cursor.execute('''
+            cursor.execute(
+                '''
                 INSERT INTO rules_catid_label (catid, label) VALUES (%s, %s)
                 ON DUPLICATE KEY UPDATE label = VALUES(label)
-            ''', (catid, label['name']))
+            ''',
+                (catid, label['name']),
+            )
             conn.commit()
             return {'status': 'ok'}
     finally:
@@ -479,8 +511,9 @@ def delete_label_catid(name: str, catid: str, _auth: dict = WRITE):
     conn = _connect()
     try:
         with conn.cursor() as cursor:
-            cursor.execute('DELETE FROM rules_catid_label WHERE catid = %s AND label = %s',
-                           (catid.strip().upper(), name))
+            cursor.execute(
+                'DELETE FROM rules_catid_label WHERE catid = %s AND label = %s', (catid.strip().upper(), name)
+            )
             conn.commit()
             return {'status': 'ok'}
     finally:
@@ -518,6 +551,7 @@ def delete_label_genre(name: str, genre_id: int, _auth: dict = WRITE):
 
 # ---------------------------------------------------------------------------- genres
 
+
 @router.get('/genres/{name}')
 def get_genre(name: str, _auth: dict = READ):
     """Where this genre sits in the hierarchy, and whether it may be edited at all.
@@ -533,11 +567,13 @@ def get_genre(name: str, _auth: dict = READ):
                 raise HTTPException(status_code=404, detail='Unknown genre')
             cursor.execute(
                 'SELECT genre FROM rules_subgenre_hierarchy WHERE LOWER(subgenre) = LOWER(%s) ORDER BY genre',
-                (genre['name'],))
+                (genre['name'],),
+            )
             parents = [row['genre'] for row in cursor.fetchall()]
             cursor.execute(
                 'SELECT subgenre FROM rules_subgenre_hierarchy WHERE LOWER(genre) = LOWER(%s) ORDER BY subgenre',
-                (genre['name'],))
+                (genre['name'],),
+            )
             children = [row['subgenre'] for row in cursor.fetchall()]
             return {
                 'name': genre['name'],
@@ -578,8 +614,8 @@ def set_genre_parents(name: str, request: ParentGenresRequest, _auth: dict = WRI
                 raise HTTPException(status_code=404, detail='Unknown genre')
             if genre['state'] != rules.WHITE:
                 raise HTTPException(
-                    status_code=403,
-                    detail='Curation has not accepted this genre, so it has no hierarchy to edit')
+                    status_code=403, detail='Curation has not accepted this genre, so it has no hierarchy to edit'
+                )
             resolved = []
             for parent in wanted:
                 parent_row = rules.find_genre_by_name(cursor, parent)
@@ -587,14 +623,15 @@ def set_genre_parents(name: str, request: ParentGenresRequest, _auth: dict = WRI
                     raise HTTPException(status_code=400, detail=f"Unknown genre '{parent}'")
                 if parent_row['state'] != rules.WHITE:
                     raise HTTPException(
-                        status_code=400,
-                        detail=f"Genre '{parent_row['name']}' has not been accepted by curation")
+                        status_code=400, detail=f"Genre '{parent_row['name']}' has not been accepted by curation"
+                    )
                 resolved.append(parent_row['name'])
-            cursor.execute('DELETE FROM rules_subgenre_hierarchy WHERE LOWER(subgenre) = LOWER(%s)',
-                           (genre['name'],))
+            cursor.execute('DELETE FROM rules_subgenre_hierarchy WHERE LOWER(subgenre) = LOWER(%s)', (genre['name'],))
             for parent_name in resolved:
-                cursor.execute('INSERT INTO rules_subgenre_hierarchy (subgenre, genre) VALUES (%s, %s)',
-                               (genre['name'], parent_name))
+                cursor.execute(
+                    'INSERT INTO rules_subgenre_hierarchy (subgenre, genre) VALUES (%s, %s)',
+                    (genre['name'], parent_name),
+                )
             conn.commit()
     finally:
         conn.close()
@@ -603,6 +640,7 @@ def set_genre_parents(name: str, request: ParentGenresRequest, _auth: dict = WRI
 
 
 # ----------------------------------------------------------------------------- apply
+
 
 def _run_retag(job_id: str, paths: list[str]) -> None:
     """Retag the files a rule matches, one at a time.
@@ -652,11 +690,10 @@ def retag(request: RetagRequest, background: BackgroundTasks, _auth: dict = WRIT
 
     if len(paths) > ceiling:
         raise HTTPException(
-            status_code=400,
-            detail=f'That matches more than {ceiling} files; start a full tagger run instead')
+            status_code=400, detail=f'That matches more than {ceiling} files; start a full tagger run instead'
+        )
 
     job_id = f'retag-{uuid.uuid4()}'
-    job_manager.jobs[job_id] = {'status': 'queued', 'progress': 0, 'total': len(paths),
-                                'current': None, 'failed': 0}
+    job_manager.jobs[job_id] = {'status': 'queued', 'progress': 0, 'total': len(paths), 'current': None, 'failed': 0}
     background.add_task(_run_retag, job_id, paths)
     return {'status': 'queued', 'job_id': job_id, 'files': len(paths)}

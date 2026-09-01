@@ -1,9 +1,9 @@
 package nl.teunschriks.mumamobile.api.subsonic.interceptors
 
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions
 import okhttp3.Interceptor
 import okhttp3.Interceptor.Chain
 import okhttp3.Response
-import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions
 
 /**
  * Proxy [Interceptor] that uses one of [hexInterceptor] or [mD5Interceptor] depends on [apiVersion].

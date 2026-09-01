@@ -41,8 +41,7 @@ class RecentActivityStore(
         preferences.edit { putString(key, gson.toJson(cards)) }
     }
 
-    fun recent(setsMode: Boolean, limit: Int = DEFAULT_LIMIT): List<HomeCard> =
-        read(keyFor(setsMode)).take(limit)
+    fun recent(setsMode: Boolean, limit: Int = DEFAULT_LIMIT): List<HomeCard> = read(keyFor(setsMode)).take(limit)
 
     /**
      * Fills in the cover art of an already stored card.

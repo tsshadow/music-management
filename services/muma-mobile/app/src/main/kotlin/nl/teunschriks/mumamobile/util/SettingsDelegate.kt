@@ -39,11 +39,9 @@ class StringSetSetting(
     private val key: String,
     private val defaultValue: Set<String> = emptySet()
 ) : SettingsDelegate<Set<String>>() {
-    override fun getValue(thisRef: Any, property: KProperty<*>): Set<String> =
-        sharedPreferences.getStringSet(key, defaultValue)?.toSet() ?: defaultValue
+    override fun getValue(thisRef: Any, property: KProperty<*>): Set<String> = sharedPreferences.getStringSet(key, defaultValue)?.toSet() ?: defaultValue
 
-    override fun setValue(thisRef: Any, property: KProperty<*>, value: Set<String>) =
-        sharedPreferences.edit { putStringSet(key, value) }
+    override fun setValue(thisRef: Any, property: KProperty<*>, value: Set<String>) = sharedPreferences.edit { putStringSet(key, value) }
 }
 
 class IntSetting(private val key: String, private val defaultValue: Int = 0) : SettingsDelegate<Int>() {

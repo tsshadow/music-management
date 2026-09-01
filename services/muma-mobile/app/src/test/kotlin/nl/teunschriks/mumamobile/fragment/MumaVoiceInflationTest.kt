@@ -30,8 +30,7 @@ import org.robolectric.annotation.Config
 @Config(application = nl.teunschriks.mumamobile.app.UApp::class)
 class MumaVoiceInflationTest {
 
-    private fun themed(): Context =
-        ContextThemeWrapper(RuntimeEnvironment.getApplication(), R.style.UltrasonicTheme_Spotify)
+    private fun themed(): Context = ContextThemeWrapper(RuntimeEnvironment.getApplication(), R.style.UltrasonicTheme_Spotify)
 
     @Test
     fun `the microphone screen inflates`() {

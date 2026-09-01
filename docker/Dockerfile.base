@@ -3,8 +3,15 @@ FROM python:3.14-slim-trixie
 
 WORKDIR /app
 
-# Common system dependencies
-RUN apt-get update && apt-get install -y \
+# Common system dependencies.
+#
+# `apt-get upgrade` and not just `install`: the openssl that ships preinstalled
+# in python:3.14-slim-trixie is whatever Docker Hub last baked in, and a
+# rebuild of this image does not touch it. That is how CVE-2026-14456 sat in
+# every worker image at libssl3t64 3.5.6-1~deb13u2 while Debian-Security had
+# 3.5.7-1~deb13u2 on the shelf. Upgrading here means each release rebuild picks
+# up the security pocket instead of inheriting a base image's build date.
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     curl \
     unrar-free \
     p7zip-full \
@@ -17,7 +24,18 @@ COPY requirements.txt /tmp/requirements.txt
 RUN grep -E "pymysql|python-dotenv|requests|fastapi|uvicorn|anyio|mutagen|markdown|pydantic|yt-dlp|telethon|patool" /tmp/requirements.txt > /tmp/base_reqs.txt && \
     pip install --no-cache-dir -r /tmp/base_reqs.txt
 
-COPY services/ /app/services/
+# Alleen de Python-services die de afgeleide images (downloader, telegram,
+# importer -- zie de FROM in Dockerfile.downloader/.telegram/.importer) nodig
+# hebben. Dit was `COPY services/`, dat ook de Svelte-bron van
+# services/frontend en de C++-bron van services/music-management-server in
+# elke worker-image legde. De Android-boom valt hier al af via .dockerignore.
+COPY services/__init__.py /app/services/
+COPY services/common/ /app/services/common/
+COPY services/tagger/ /app/services/tagger/
+COPY services/scanner/ /app/services/scanner/
+COPY services/downloader/ /app/services/downloader/
+COPY services/importer/ /app/services/importer/
+COPY services/other/ /app/services/other/
 COPY VERSION RELEASE_NOTES.md CHANGELOG.md /app/
 
 ENV PYTHONPATH=/app

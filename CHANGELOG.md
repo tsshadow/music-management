@@ -7,6 +7,287 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-09-01
+
+### Added
+- **Databasebackups die zichzelf bewijzen, in plaats van bestanden die er staan.** Het ontwerp uit
+  `docs/superpowers/specs/2026-08-02-daily-db-backups-design.md` is gebouwd: `tools/db_backup.py`
+  dumpt, verifieert, schoont op en klaagt als dat niet lukte. Drie systemd-timers in
+  `scripts/backup/systemd/` doen 's nachts de dump, 's ochtends een verval-controle en zondags de
+  herstelproef. Waarom het nodig was: het nieuwste bestand in `/muma/backups` was van 23 juli, er
+  stond een dump van 0 bytes uit 5 juli tussen, en niemand had dat gezien.
+
+  De verificatie is niet cosmetisch. `mariadb-dump | gzip > bestand` levert een geslaagde exit op
+  als alleen de eerste helft faalt -- dat is precies hoe die dump van 0 bytes ontstond -- dus het
+  comprimeren gebeurt nu in het proces zelf en er is één exitcode om te controleren. Daarnaast een
+  ondergrens op de bestandsgrootte en de `-- Dump completed`-trailer, die een halverwege afgekapte
+  dump onderscheidt van een complete.
+
+  **De herstelproef is wat "backup" van "bestand" onderscheidt.** De job schrijft naast de dumps een
+  `latest.json` met een exacte `COUNT(*)` per tabel; `tools/db_restore_check.py` zet de nieuwste
+  dump wekelijks terug in een wegwerpdatabase en vergelijkt daartegen. Een verdwenen tabel, een
+  leeggelopen tabel of een afgekapt bestand vallen daar ver buiten. De marge van 2% is rekenkunde,
+  geen speling: `--single-transaction` fotografeert bij aanvang en de tellingen worden erna gelezen,
+  dus een tabel waar constant bij geschreven wordt komt legitiem iets korter terug.
+
+  **De verval-controle bestaat twee keer, met opzet.** Het ontwerp benoemde de gat eerlijk: een cron
+  die helemaal stopt produceert geen fouten en dus geen alarm. Dat gat is precies wat vijf weken
+  lang open stond. Dus meldt de timer het zelf én rapporteert music-manager het via
+  `GET /health/backup`, dat 503 geeft zodra de nieuwste dump over de limiet is. Die tweede is de
+  enige die blijft werken als hier alles stilvalt, want de Uptime Kuma-monitor die hem pollt draait
+  ergens anders. Bewust los van `/health`: een verlopen backup is een echt probleem, maar geen
+  storing van de dienst, en dat door elkaar halen laat de verkeerde pieper afgaan.
+
+  `scripts/backup/install-systemd.sh` weigert te installeren als `HOST_BACKUP_PATH` op hetzelfde
+  device staat als de datadir. Dat is geen pietluttigheid maar de toestand waarin prod verkeerde:
+  `/muma/backups` en `/docker/music-management/mariadb` waren twee paden op één schijf, dus elke
+  ooit gemaakte dump zou zijn verdwenen samen met wat hij beschermde. De job zelf kan dat niet zien
+  -- die draait in een container zonder de datadir -- dus die check hoort op de host.
+- **Een disk-janitor voor de CI-runners, zodat een volle schijf niet langer willekeurige jobs
+  sloopt.** Drie keer deze maand liep een runner vol, en de storing wees telkens overal heen behalve
+  naar de schijf: op 31 augustus faalden drie van de vier jobs op `no matching files` bij het
+  uploaden van artifacts en noemde alleen `docker:build-images` de echte oorzaak. Het handmatige
+  opruimrecept uit die incidenten zit nu in `scripts/ci/disk-janitor.sh`: per repository blijven
+  `:latest`, `:stable` en de drie nieuwste versietags staan, van de Android-CI-images (>5GB per
+  stuk) de twee nieuwste, en achtergebleven `muma-test-*`-stacks ouder dan twee uur gaan weg. Nooit
+  met `-f`, zodat een image dat een lopende pipeline nog vasthoudt geweigerd wordt in plaats van
+  weggerukt, en de buildkit-cache blijft met opzet ongemoeid — dat is de ccache die
+  `muma-server:unit` op ~90s houdt in plaats van ~405s. De keuzelogica staat apart in
+  `disk_janitor_plan.py` en wordt door tien tests gedekt zonder dat er een Docker-daemon of een
+  volle schijf aan te pas komt. Draait geveegd tot 65% en stopt daar, zodat een runner die net
+  boven de drempel zit niet elke keer één image opoffert. Loopt via een geplande pipeline
+  (`DISK_JANITOR=true`) op de LXC — de job is expres ongetagd, want dat is precies wat hem altijd op
+  de altijd-aanstaande host laat landen; voor andere hosts liggen er systemd-units in
+  `scripts/ci/systemd/`. Faalt de job, dan is dát de bevinding: alles wat veilig weg kon is weg en
+  de ruimte zit in de buildcache of buiten Docker.
+
+### Changed
+- **De crash-triage-skill strijkt de trailing slash uit `NTFY_URL`.** De notify-stap bouwde de URL
+  als `$NTFY_URL/$NTFY_TOPIC`; eindigt `NTFY_URL` op een slash, dan antwoordt ntfy op de dubbele
+  slash met een 301 die curl niet volgt, en verdwijnt de melding geruisloos (zo miste het bericht
+  van e2e-testrapport 20). De skill gebruikt nu `${NTFY_URL%/}/$NTFY_TOPIC` en legt uit waarom.
+- **muma-mobile bouwt zijn SBOM met `org.cyclonedx.bom` 3.4.1.** De 3.x-plugin splitst de ene
+  `cyclonedxBom`-taak in tweeën: een `cyclonedxDirectBom` per project die de configuraties oplost,
+  en `cyclonedxBom` die de resultaten samenvoegt. `includeConfigs` verhuisde daarmee naar die eerste
+  taak, dus de losse `cyclonedxBom { includeConfigs = ... }` uit 2.x is vervangen door een
+  `allprojects`-blok dat elke `cyclonedxDirectBom` op `releaseRuntimeClasspath` en
+  `runtimeClasspath` zet. Dat het bij één `plugins`-regel op het rootproject blijft, is geen
+  toeval: `CyclonedxPlugin.apply` registreert de directe taak ook in de submodules. De bedoeling
+  van vroeger is daarmee overeind: het rapport telt 206 componenten en geen enkele
+  detekt-, ktlint- of AGP-afhankelijkheid, waarvan de netty- en bouncycastle-bevindingen niets
+  zeggen over de APK die daadwerkelijk verscheept wordt. Het rapport verhuisde van
+  `build/reports/bom.json` naar `build/reports/cyclonedx/bom.json`; de halffabricaten per module
+  staan in `build/reports/cyclonedx-direct/`. Renovate mag de major weer zelf oppakken.
+- **Een mislukte SBOM maakt de dependency-audit rood in plaats van hem over te slaan.**
+  `scripts/ci/dependency-audit.sh` zette bij een kapotte SBOM-stap `SKIPPED=1` en liep door, en
+  omdat lokaal en op een feature branch ook `PROD_ENV_FILE` ontbreekt, eindigt die run sowieso met
+  exit 2 -- een echte breuk in de Android-scan viel dus niet te onderscheiden van de dagelijkse ruis
+  en las als een audit die geslaagd was. Zo'n sectie gaat nu in een aparte `BROKEN`-lijst die met
+  exit 1 eindigt en bij naam vertelt wat er niet gedraaid heeft: exit 2 blijft voor een tool of
+  variabele die er niet is, exit 1 is voor een scanner die alles had en tóch niets opleverde. De
+  Gradle-uitvoer wordt bij zo'n mislukking meegeprint (de laatste 40 regels) in plaats van
+  weggegooid, want een rode job zonder uitvoer is niet te repareren. Daarbovenop faalt de sectie nu
+  ook op een SBOM die wél geschreven is maar minder dan 50 componenten bevat: precies wat een
+  verkeerde `includeConfigs` oplevert, en anders een groene scan van vrijwel niets.
+- **De mobiele dependencies gaan in één batch omhoog, en media3 vroeg er code voor terug.** Kotlin
+  2.4, KSP 2.3, media3 1.11, koin 4.2, navigation 2.10 en een reeks androidx-bumps. media3 1.11
+  sluit een deprecatiecyclus af waar de Jukebox-speler nog in stond: `Player` kent
+  `hasPrevious`/`previous`/`seekToPreviousWindow` en hun vier Next-tegenhangers niet meer, dus die
+  acht `override`s overschreven niets en compileerden niet. Niemand riep ze aan -- ze stuurden
+  alleen door naar de MediaItem-varianten die ze vervingen -- dus ze zijn weg. Andersom voor
+  `mute`/`unmute`: die staan nu wél in `Player` en hebben een `override` nodig.
+- **De crash-triage kent nu een uitkomst voor "geldig rapport, niets te fixen".** Een synthetisch
+  testrapport of een handmatig diagnoserapport zonder crash telde als mislukte fixpoging, waardoor
+  een tweede identiek rapport na twee keer als opgegeven crash werd afgedaan. De skill zet zo'n
+  rapport nu op `done` met ledger-uitkomst `no_defect`, zonder de pogingenteller te raken; de
+  serverstatussen zijn ongewijzigd.
+- **MariaDB gaat van 10.10 naar 12.3.** 10.10 is al ruim een jaar end-of-life en kreeg geen
+  securityfixes meer. De bump raakt `docker/compose.test.yml` en alle drie de
+  `docker-compose*.yml`-bestanden, dus ook prod. Let op bij het uitrollen: MariaDB ondersteunt
+  officieel één major per keer en dit slaat er ruim tien over, dus de datadir *niet* ter plekke
+  laten upgraden. De veilige volgorde is een dump maken, het `db`-volume weggooien en de dump
+  terugzetten in de verse 12.3-container; de deploy maakt zelf al een gzipped dump in
+  `/muma/backups`, en er staat een handmatige van 2026-08-31 (102 tabellen) klaar. Draai daarna
+  `mariadb-upgrade` niet meer -- een geïmporteerde dump heeft dat niet nodig.
+- **Een TypeScript-major wacht voortaan op het dependency-dashboard.** TypeScript 7 is de native
+  herschrijving en `svelte-check` accepteert die nog niet als gewone upgrade: het weigert te starten
+  tenzij TypeScript 6 er onder een npm-alias naast staat en elke aanroep `--tsgo` meekrijgt. Dat is
+  een toolchain-migratie, geen versiebump, dus Renovate opent er geen merge request meer voor tot
+  `svelte-check` TypeScript 7 op zichzelf aankan.
+
+### Fixed
+- **De databaseserver stond na de MariaDB 12-migratie op een andere collatie dan zijn eigen
+  tabellen.** MariaDB 11.5 wijzigde de standaard naar `utf8mb4_uca1400_ai_ci`, en de overstap van
+  10.10 naar 12.3 erfde die: de teruggezette tabellen hielden hun eigen `utf8mb4_general_ci`, maar
+  alles wat er daarna bij gemaakt zou worden niet. Een join tussen die twee geeft `Illegal mix of
+  collations` -- een fout die opduikt bij de eerstvolgende nieuwe tabel, ver van de upgrade die hem
+  veroorzaakte. De drie productie-composebestanden pinnen de server nu op `utf8mb4_general_ci`, en
+  `docker/compose.test.yml` doet hetzelfde, want anders draait CI op een andere collatie dan
+  productie en zou juist dit verschil daar groen blijven. De schema's naar `uca1400` tillen is een
+  aparte, bewuste klus: dat verandert wat als gelijk telt in een unique key.
+- **Alle 22 HIGH-bevindingen in de productie-images van de dependency-audit.** Ze vielen in drie
+  groepen en alleen de derde was echt onoplosbaar. Twintig ervan kwamen niet uit dit project maar
+  uit de base image: `python:3.14-slim` levert openssl 3.5.6-1~deb13u2 vooraf geinstalleerd, en
+  omdat de Dockerfiles alleen `apt-get install` deden bleef die versie staan hoeveel rebuilds er ook
+  overheen gingen — Debian-Security had 3.5.7-1~deb13u2 allang klaar (CVE-2026-14456). Hetzelfde
+  patroon bij LMS: `alpine:3.23` levert libcrypto3 en libssl3 op 3.5.7-r0 mee, en `apk add` op een
+  al geinstalleerd pakket doet niets. `docker/Dockerfile.base`, `.music-manager`, `.tools` en
+  `services/music-management-server/Dockerfile-release` upgraden nu eerst, zodat elke release-build
+  de securitypocket meepakt in plaats van de bouwdatum van een base image te erven. Dat ruimt ook
+  `linux-libc-dev` (CVE-2026-74662) en `sqlite-libs` (CVE-2026-11822, CVE-2026-11824) op, die
+  simpelweg ouder waren dan de fix.
+- **De laatste twee image-bevindingen staan opgeschreven in plaats van weggekeken.**
+  `setuptools 70.3.0` (CVE-2025-47273) en `msgpack 1.1.2` (GHSA-6v7p-g79w-8964) zitten in de
+  vendor-boom van pip zelf: pip levert `_vendor/bom.cdx.json` mee om te beschrijven wat het bundelt,
+  en trivy leest dat bestand. Een kale `python:3.14-slim` meldt ze allebei voordat er ook maar één
+  regel van onze Dockerfiles gedraaid heeft, en pip 26.2.1 is de huidige release — er is geen pip om
+  naartoe te upgraden. Ze staan nu in `security/trivyignore` met die reden en met de controle
+  waarmee je ze weer weghaalt.
+- **De Python-helft van de dependency-audit scande drie van de vijf requirements-bestanden niet.**
+  pip-audit lost elk bestand op in een wegwerp-virtualenv van de tooling-interpreter, en die stond
+  in `scripts/lib/python-tooling.sh` nog op `python:3.11-slim` terwijl de service-images al op 3.14
+  draaien. `librosa~=1.0.0` vraagt Python >= 3.12, dus `requirements.txt`,
+  `services/music_manager/requirements.txt` en `services/ml-analyzer/requirements.txt` faalden met
+  `No matching distribution found for librosa~=1.0.0` — wat leest als een verkeerde pin en het niet
+  is. De reden dat de pin ooit 3.11 was, namelijk dat numpy 2.0.x geen wheel voor 3.13 had, verviel
+  bij diezelfde stap: `requirements.txt` staat op `numpy~=2.5.2`, dat zelf >= 3.12 eist. De
+  tooling-image volgt nu `docker/Dockerfile.*`. Alle vijf bestanden auditen weer, en `ruff`,
+  `pylint` (9.66) en `mypy` draaien ongewijzigd in dezelfde image. Dat de job `allow_failure` is, is
+  precies waarom dit maanden rood kon staan zonder gelezen te worden.
+- **Twee merge requests die tegelijk hun images bouwden, sloopten elkaars build.** `docker:build-images`
+  bouwt zonder te pushen onder een wegwerpnaam, en die naam was voor iedereen dezelfde: `muma-ci`.
+  Alle gelijktijdige jobs schreven dus dezelfde tags in de ene image-store die de runner heeft. Op
+  31 augustus bouwde pipeline 2074 zijn eigen `muma-ci/muma-base:0.39.0`, gebruikte die voor de
+  downloader-image, en viel tachtig seconden later om bij de telegram-image met `pull access denied,
+  repository does not exist or may require authorization` — een zusterjob had de tag er tussenuit
+  gehaald, waarna buildkit hem op Docker Hub ging zoeken, waar `muma-ci` niet bestaat en ook nooit
+  hoort te bestaan. De melding leest als een ontbrekende inloggegeven en is dat niet. Elke job bouwt
+  nu onder `muma-ci-<job-id>`, dezelfde behandeling die `db:integration` eerder kreeg, en ruimt die
+  naamruimte bij afloop zelf op. De disk-janitor rekent zo'n naamruimte voortaan af op ouderdom in
+  plaats van op aantal, want geen enkele job hergebruikt die van een ander — op de oude telling zou
+  elke afgebroken job zijn `:latest` voor altijd houden. Wat de release-build pusht verandert niet.
+- **Een wijziging in `renovate.json` liet de SAST-scan links liggen die hem wél leest.** De
+  `changes:`-regels van `security:sast` noemden het bestand niet, dus de packageRule die in !531
+  werd toegevoegd ging ongescand naar develop -- waar semgrep hem alsnog vond, en de eerstvolgende
+  merge request rood werd op een bevinding die niets met zijn eigen diff te maken had. `renovate.json`
+  staat nu in die regels, en de zesde `renovate-missing-minimum-release-age`-hit is opgenomen in
+  `security/accepted-sast-findings.txt` -- de reden die er al stond dekt hem: de regel wil de sleutel
+  op elke entry herhaald zien, terwijl Renovate hem van de catch-all overneemt.
+
+- **De Android-build gaat in één keer naar Gradle 9, AGP 9 en compileSdk 37, omdat het los niet kan.**
+  Renovate bood deze drie als losse voorstellen aan en alle drie bleven rood, hoe vaak je ze ook
+  opnieuw draaide. De reden staat in de foutmeldingen zelf, verspreid over drie taken: androidx.core
+  1.19 weigert gebruikt te worden onder compileSdk 37, AGP 8.13 stelt 36 als maximum, en AGP 9 weigert
+  te starten onder Gradle 8.14.5. Elk stuk wacht dus op het volgende, en pas de combinatie werkt.
+
+  Dat is het patroon dat deze hele reeks kenmerkte. De androidx-bibliotheken duwden het nummer twee
+  keer omhoog: eerst weigerden activity 1.13 en vijftien broertjes onder 36, daarna core 1.19 en nog
+  drie onder 37. `checkDebugAarMetadata` meldt zo'n hele partij in één klap, wat eruitziet als een
+  kapotte build terwijl er één getal te laag staat.
+
+  `targetSdk` blijft bewust op 35. compileSdk bepaalt welke API's de code mág aanroepen; targetSdk
+  bepaalt welk gedrag Android op het toestel van de gebruiker toepast, en dat verhoog je met een test
+  op een echt apparaat.
+
+  Android Lint meldde onder AGP 9 dertig bevindingen die de oude baseline niet dekt. Twee daarvan
+  waren geen registratiewerk. `NewerVersionAvailable` leest `libs.versions.toml` en vlagt elf
+  entries als achterlopend -- dat is Renovate's werk, en elf regels baseline zouden na elke
+  dependency-MR alweer verlopen zijn; die check staat nu uit naast `GradleDependency` en
+  `AndroidGradlePluginVersion`, die er om precies dezelfde reden al stonden. En `DefaultLocale` wees
+  een echte bug aan, apart gefixt. De rest -- `UseKtx`, `TrimLambda`, `ReportShortcutUsage` -- zijn
+  nieuwe checks over ongewijzigde code en gaan de baseline in.
+
+  Twee dingen die meemoesten. Het CI-image kende android-37 niet, dus dat staat er nu bij — onder de
+  naam `platforms;android-37.0`, want API 37 is de eerste met minor-SDK-versies en het kale
+  `platforms;android-37` bestaat niet. sdkmanager meldt dat met één regel `Failed to find package`
+  tussen twee voortgangsbalken en stopt dan met een foutcode, wat leest als een netwerkstoring in
+  plaats van een verkeerde pakketnaam. De imagetag bevat een hash van het Dockerfile, dus het
+  herbouwt zichzelf één keer. En de Gradle-versie in de version catalog stond nog op 8.11.1 terwijl
+  de wrapper al op 8.14.5 zat; die waarde stuurt de
+  `wrapper`-taak, dus `./gradlew wrapper` zou de wrapper stilzwijgend hebben gedowngraded. Ze staan
+  nu allebei op 9.7.1.
+- **Een standaard-vervaltijd voor delen opslaan brak de instelling in talen met andere cijfers.**
+  `ShareHandler` schrijft `<aantal>:<eenheid>` naar de `defaultShareExpiration`-voorkeur met
+  `String.format` zonder locale, en `Settings` leest hem terug met `split[0].toLong()`. In het
+  Arabisch, Perzisch of Bengaals levert `%d` cijfers op die `toLong()` niet accepteert, dus
+  `NumberFormatException` en een kapotte instelling. Het is een wire-formaat tussen twee regels
+  eigen code, dus `Locale.ROOT`. Gevonden door de lint van AGP 9.
+- **De Android-app zat in images waar hij niets te zoeken had.** Drie Dockerfiles kopieerden de
+  complete `services/`-boom naar binnen, terwijl de containers die eruit rollen alleen Python
+  draaien: de tools-image start `soundcloud_fetcher.py` en `process_genres.py`, music-manager is
+  bewust API-only en de worker-images draaien downloader, telegram of importer. Meegereisd waren de
+  18 MB Kotlin-bron van `services/muma-mobile`, de Svelte-bron van `services/frontend` en de
+  C++-bron van `services/music-management-server`. Dat kostte niet alleen ruimte: bij de mobiele
+  testresources zit een self-signed certificaat mét private key
+  (`core/subsonic-api/src/integrationTest/resources/self-signed.pem`), dat een imagescan terecht
+  als gelekt geheim aanmerkt. Elke Dockerfile kopieert nu alleen de pakketten die zijn eigen
+  startcommando importeert, en de Android-boom is daarnaast uit elke build-context geweerd, zodat
+  een volgende image hem niet opnieuw per ongeluk meeneemt. De frontend en de LMS-bron blijven
+  bereikbaar voor de enige build die ze echt nodig heeft,
+  `services/music-management-server/Dockerfile-release`.
+- **Drie emulator-core dumps van samen 3,9 GB stonden in de repository.** Bij het debuggen van de
+  segfault in de emulator-smoketest zijn `services/muma-mobile/core.91`, `core.92` en `core.387`
+  meegecommit. Ze zitten sindsdien in elke clone en elke runner-checkout, en dat is de directe
+  oorzaak van de `No space left on device`-fouten die dependency-pipelines lieten falen. De
+  bestanden zijn verwijderd en `.gitignore` weert `core.[0-9]*` voortaan, zodat een volgende crash
+  er niet opnieuw een achterlaat. De blobs zitten nog wel in de git-historie: een clone haalt ze op
+  tot die historie herschreven wordt.
+
+### Security
+- **Het root-wachtwoord van de productiedatabase stond als platte string in zeven tools.**
+  `check_backlog.py`, `check_media.py`, `cleanup_db.py`, `describe_tables.py`,
+  `finalize_genres.py`, `integrity_check.py` en `migrate_db_renames.py` droegen alle zeven hetzelfde
+  blok: `user = "root"`, het wachtwoord als literal, en `DB_HOST` met `192.0.2.27` als default.
+  Wie zo'n script uit een checkout draaide, richtte zich dus als root op productie zonder daarom te
+  vragen -- en `migrate_db_renames.rename_tables()` zet foreign key checks uit en hernoemt tabellen.
+  De URL komt nu uit `tools/db_url.py`, dat de omgeving leest en niets invult: een ontbrekende
+  variabele geeft een foutmelding in plaats van een gok. Een test in `tools/test_tools_imports.py`
+  bewaakt dat.
+
+  Verwijderen is niet genoeg: de waarde staat in de git-historie en is daarmee gepubliceerd tot hij
+  bij de bron vervangen wordt. `security:secret-scan` sloeg er nooit op aan omdat gitleaks op
+  tokenpatronen zoekt en dit een woordenwachtwoord is.
+- **De twee backupcontainers draaien met een read-only rootfilesystem.** Ze schrijven maar op twee
+  plekken -- het credential-bestand in een tmpfs op `/tmp` en de dumps op de gemounte `/backups` --
+  dus hier kon de hardening wél aan, in plaats van de bevinding te accepteren zoals bij de
+  langlopende services. Breekt het toch, dan meldt het zich: de systemd-unit faalt en
+  `/health/backup` verloopt binnen 36 uur.
+- **De music-manager-image draagt geen C-compiler meer met zich mee.**
+  `docker/Dockerfile.music-manager` installeerde `gcc`, `libmariadb-dev` en `pkg-config` om een
+  handvol wheels te bouwen waarvoor nog geen cp314-wheel bestaat, en haalde ze daarna nooit weg:
+  `rm -rf /var/lib/apt/lists/*` gooit alleen de apt-index weg, niet de pakketten. Elke draaiende
+  container had daardoor een complete toolchain aan boord, inclusief de kernel-headers uit
+  `linux-libc-dev` waar `security:dependency-audit` CVE-2026-74662 op meldde. Het bouwen gebeurt
+  nu in een aparte builder-stage; de runtime-stage is een schone `python:3.14-slim` waar alleen de
+  virtualenv uit de builder in wordt gekopieerd, plus `libmariadb3` -- de gedeelde bibliotheek, niet
+  het `-dev`-pakket met de headers. 135 pakketten werden er 90, en de image ging van 906 MB naar
+  696 MB.
+
+  Dit is niet dezelfde reparatie als !545. Die voegde `apt-get upgrade -y` toe en lost de melding op
+  door *versie*: de gepatchte `linux-libc-dev` komt binnen bij elke rebuild. Deze lost hem op door
+  *afwezigheid*, wat het verschil is tussen "vandaag niet kwetsbaar" en "kan er niet kwetsbaar voor
+  zijn" -- en de volgende kernel-header-CVE raakt deze image niet meer. De `apt-get upgrade` blijft
+  overigens in beide stages staan, om dezelfde reden als in `Dockerfile.base`.
+
+  Wat er niet meekopieerde is even belangrijk: `pymysql` is pure Python, dus niets in
+  `services/music_manager/requirements.txt` heeft bij het *importeren* een compiler nodig. De
+  pakketten die wel uit broncode gebouwd worden -- soundfile, soxr, numba, scipy, scikit-learn --
+  laden in de runtime-image zonder headers gewoon, wat nagelopen is door ze daar allemaal te
+  importeren, en `scripts/test/core-smoke.sh` start de stack nog steeds groen op.
+- **`unar` trok een complete build-essential de tools-image in.** Dezelfde kernel-headers zaten ook
+  in `docker/Dockerfile.tools`, terwijl daar geen enkele compiler geïnstalleerd wordt. De oorzaak
+  was `unar`: dat hangt via `gnustep-base-runtime` aan `gcc`, `g++`, `binutils`, `libc6-dev` en
+  graphviz, en sleepte zo `linux-libc-dev` mee. De drie uitpakkers (`unrar-free`, `p7zip-full`,
+  `unar`) stonden daar bovendien meegekopieerd uit `Dockerfile.base` en hoorden er nooit: alleen
+  `services/importer/extractor.py` roept patoolib aan, en juist dat pakket wordt in deze image niet
+  gekopieerd. Ze zijn weg, samen met de recommends. 501 pakketten werden er 314 en de image ging van
+  1,85 GB naar 1,28 GB; ffmpeg, ffprobe, mariadb-dump, mariadb, curl en yt-dlp draaien er
+  ongewijzigd, en de vijf modules die `tools/test_tools_imports.py` bewaakt importeren er nog.
+
+  `docker/Dockerfile.base` heeft `unar` nog wel, en daarmee dezelfde build-essential in muma-base,
+  muma-downloader, muma-telegram en muma-importer. Daar is het niet zomaar weg te halen -- de
+  importer pakt er echt archieven mee uit -- dus dat is bewust een aparte vraag gebleven.
+
 ## [0.39.0] - 2026-08-31
 
 ### Added
@@ -37,6 +318,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   met de gebruikelijke kolomguard in de router voor bestaande installaties. Dit is de serverhelft
   van de crash-triage-automatisering; het ontwerp staat in
   `docs/superpowers/specs/2026-08-31-crash-triage-automation-design.md`.
+
+### Fixed
+- **Een release-APK kan niet langer geüpload worden terwijl de unit-tests op dezelfde commit rood
+  zijn.** `muma-mobile:build-release` had alleen `release:version-check` als `needs`, en `needs`
+  omzeilt de stage-volgorde; de gedeelde resource group serialiseert de Android-jobs wel maar
+  ordent ze niet. Een falende `muma-mobile:check` blokkeerde daardoor de deploy, maar niet de
+  APK-upload — en telefoons updaten automatisch vanaf de hoster. De job wacht nu expliciet op
+  `muma-mobile:check`.
+- **Een release-branch met een open MR draait de pipeline niet meer dubbel.** De bestaande
+  dedupe-regel keek naar `$CI_OPEN_MERGE_REQUESTS`, die alleen in push-pipelines bestaat, dus
+  release/hotfix-branches kregen een branch-pipeline én een MR-pipeline voor dezelfde commit — met
+  twee Android-jobs die om dezelfde Gradle-home vochten. De MR-pipeline wordt nu onderdrukt; de
+  branch-pipeline (waar `deploy:prod` in leeft) blijft.
+- **`db:integration` kan geen database van een parallelle pipeline meer slopen.**
+  `db-integration.sh` gebruikte één vaste containernaam en poort 13306 en ruimt die aan begin én
+  eind van de run met `docker rm -f` op, waardoor twee gelijktijdige pipelines elkaars MariaDB
+  midden in de testrun weghaalden (de bekende `2013 Lost connection`-flake). In CI zijn naam en
+  poort nu per job uniek (`CI_JOB_ID` plus een vrije poort); lokaal blijft het oude vaste adres
+  werken voor `KEEP_DB=1`.
+- **Ontbrekende release-secrets laten de pipeline nu vroeg falen in plaats van jobs stil te laten
+  verdwijnen.** `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN`, `APK_HOSTER_URL` en `SIGNING_STORE_FILE`
+  gaten hun jobs op `rules:`-niveau: is zo'n variabele weg (verlopen token, per ongeluk
+  verwijderd), dan valt de job geruisloos uit de pipeline — een overgeslagen job blokkeert niets,
+  dus prod zou herstarten op oude images of een release zou zonder APK schepen zonder dat iets
+  rood werd. `release:check-secrets` controleert deze vier nu expliciet, met een policy-test die
+  afdwingt dat elke rules-gatende variabele in het checkscript voorkomt.
+
+### Added
+- **Een emulator-smoketest voert voortaan de échte release-APK uit.** De 6.21.0-startupcrash
+  (bug-report 029) bestond alleen in de R8-geminificeerde build; unit-tests, detekt en lint zien
+  allemaal ongeminificeerde code, dus de eerste uitvoering van een release-build was de telefoon
+  van een gebruiker. `muma-mobile:smoke-release` bouwt de release-APK, boot een headless
+  ATD-emulator op KVM (passthrough op de runner-LXC sinds 2026-08-22), installeert, start via de
+  launcher-intent (overleeft de icon-aliases) en eist na 15 seconden een levend proces zonder
+  `FATAL EXCEPTION`. Een tripwire, geen UI-suite. De job gate't de release: `deploy:prod` wacht
+  via de stage-volgorde en `muma-mobile:build-release` heeft hem expliciet in `needs`, zodat een
+  crashende APK de hoster nooit bereikt. De CI-image kreeg emulator, platform-tools en het
+  `android-34 aosp_atd`-systeembeeld.
+
+### Changed
+- **De dependency-audit dekt nu ook Android en de productie-images.** `pip-audit` en `npm audit`
+  lazen elk een declaratiebestand, maar de Android-dependencygraf had geen CVE-dekking (Gradle
+  heeft hier geen lockfiles) en de gepubliceerde images bevatten een Debian/Alpine-userland dat
+  nergens gescand werd. De CycloneDX-plugin schrijft voortaan de opgeloste graf van muma-mobile
+  als SBOM (alleen runtime-classpaths — tooling-vondsten over detekt/AGP zeggen niets over de
+  APK), en trivy scant die plus de zeven `:latest`-images op HIGH/CRITICAL, met `--ignore-unfixed`
+  voor de images zodat onoplosbare base-image-CVE's de job niet permanent rood houden.
+  Geaccepteerde vondsten horen met reden in `security/trivyignore`; de job blijft `allow_failure`
+  en de timeout ging van 15 naar 30 minuten.
+- **Android Lint is nu een gate in `muma-mobile:check`.** Lint stond volledig geconfigureerd in
+  `app/build.gradle` (baseline, `abortOnError`, `warningsAsErrors`) maar geen enkele CI-job riep
+  hem aan — dezelfde geschiedenis als detekt destijds. Ondertussen was de baseline verouderd en
+  stond develop op 98 ongefilterde errors die nergens zichtbaar werden. De baseline is opnieuw
+  gegenereerd (152 bestaande findings, inclusief een aantal echte `MissingPermission`-kandidaten
+  die het afbranden waard zijn) en `./scripts/test/muma-mobile-lint.sh` draait voortaan als derde
+  stap in de bestaande job: groen vandaag, rood op elke nieuwe finding. Via
+  `checkDependencies=true` kijkt `:app:lintDebug` ook naar de core-modules.
+- **Kleinere pipeline-reparaties uit dezelfde doorlichting.** Playwright rapporteert nu junit naar
+  de GitLab-testtab (`frontend:browser` had als enige suite geen zichtbare testresultaten);
+  `muma-mobile:build-release` is niet langer interruptible, zodat een nieuwe push geen upload
+  halverwege afbreekt; `docker:build-images` ruimt in no-push-modus zijn versie-tags weer op zodat
+  de runner-disk niet per release volloopt; een dode subset-regel op `docker:smoke` is weg; de
+  verouderde "geen /dev/kvm"-claim bij de e2e-job klopt weer met de werkelijkheid (KVM-passthrough
+  staat er sinds 2026-08-22, wat ontbreekt is een emulator-job); en het `.release_rule`-commentaar
+  benoemt nu eerlijk welke jobs er wél en niet onder vallen.
 
 ## [0.38.1] - 2026-08-29
 

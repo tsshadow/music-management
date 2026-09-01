@@ -19,6 +19,7 @@ from services.tagger.Song.rules.ResolveGenreRule import ResolveGenreRule
 
 s = Settings()
 
+
 class YoutubeSong(BaseSong):
     """A track downloaded from a YouTube channel.
 
@@ -42,7 +43,12 @@ class YoutubeSong(BaseSong):
         self._publisher = 'Youtube'
         channel = None
         if extra_info:
-            channel = extra_info.get('uploader') or extra_info.get('channel') or extra_info.get('uploader_id') or extra_info.get('channel_id')
+            channel = (
+                extra_info.get('uploader')
+                or extra_info.get('channel')
+                or extra_info.get('uploader_id')
+                or extra_info.get('channel_id')
+            )
         self._channel_for_album = channel or self._album_artist_from_path
         self._album = f'{self._publisher} ({self._channel_for_album})'
 
@@ -59,8 +65,18 @@ class YoutubeSong(BaseSong):
         if self._catalog_number:
             self.tag_collection.set_item(CATALOG_NUMBER, self._catalog_number)
         self.rules.append(CleanTitleRule())
-        self.rules.append(InferArtistFromTitleRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists'], genre_db=databaseHelpers['rules_genres']))
-        self.rules.append(InferRemixerFromTitleRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']))
+        self.rules.append(
+            InferArtistFromTitleRule(
+                artist_db=databaseHelpers['library_artists'],
+                ignored_db=databaseHelpers['rules_ignored_artists'],
+                genre_db=databaseHelpers['rules_genres'],
+            )
+        )
+        self.rules.append(
+            InferRemixerFromTitleRule(
+                artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']
+            )
+        )
         self.rules.append(InferFeatureFromTitleRule())
         self.rules.append(InferFestivalFromTitleRule(helper=databaseHelpers['festivalHelper']))
         self.rules.append(InferPodcastFromTitleRule(helper=databaseHelpers['podcastHelper']))
@@ -69,10 +85,18 @@ class YoutubeSong(BaseSong):
         self.rules.append(InferGenreFromAlbumArtistRule())
         self.rules.append(InferGenreFromSubgenreRule(databaseHelpers['subgenreHelper']))
         self.rules.append(CleanTagsRule())
-        self.rules.append(AddMissingArtistToDatabaseRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']))
+        self.rules.append(
+            AddMissingArtistToDatabaseRule(
+                artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']
+            )
+        )
         self.rules.append(ResolveGenreRule(databaseHelpers['genre_rules']))
         self.rules.append(CleanTagsRule())
-        self.rules.append(CheckArtistRule(artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']))
+        self.rules.append(
+            CheckArtistRule(
+                artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']
+            )
+        )
         self.rules.append(ReplaceInvalidUnicodeRule())
         super().parse()
 

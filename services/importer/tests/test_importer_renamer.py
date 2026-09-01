@@ -6,7 +6,6 @@ from services.importer.renamer import Renamer, find_cat_id, has_numbers, is_pars
 
 
 class FolderNameHelpersTest(unittest.TestCase):
-
     def test_has_numbers_spots_a_digit_anywhere(self):
         self.assertTrue(has_numbers('SCAN123'))
         self.assertTrue(has_numbers('a1'))
@@ -31,7 +30,6 @@ class FolderNameHelpersTest(unittest.TestCase):
 
 
 class RenamerTest(unittest.TestCase):
-
     def setUp(self):
         settings = MagicMock(import_folder_path='/import', delimiter='/')
         patcher = patch.object(renamer, 'Settings', return_value=settings)
@@ -40,9 +38,11 @@ class RenamerTest(unittest.TestCase):
         self.renamer = Renamer()
 
     def run_with(self, entries, dry_run=False):
-        with patch.object(renamer, 'listdir', return_value=entries), \
-             patch.object(renamer, 'isfile', return_value=False), \
-             patch.object(renamer.os, 'rename') as rename:
+        with (
+            patch.object(renamer, 'listdir', return_value=entries),
+            patch.object(renamer, 'isfile', return_value=False),
+            patch.object(renamer.os, 'rename') as rename,
+        ):
             self.renamer.run(dry_run=dry_run)
         return rename
 
@@ -63,32 +63,40 @@ class RenamerTest(unittest.TestCase):
         rename.assert_not_called()
 
     def test_plain_files_are_not_considered(self):
-        with patch.object(renamer, 'listdir', return_value=['archive.zip']), \
-             patch.object(renamer, 'isfile', return_value=True), \
-             patch.object(renamer.os, 'rename') as rename:
+        with (
+            patch.object(renamer, 'listdir', return_value=['archive.zip']),
+            patch.object(renamer, 'isfile', return_value=True),
+            patch.object(renamer.os, 'rename') as rename,
+        ):
             self.renamer.run()
         rename.assert_not_called()
 
     def test_a_clashing_target_makes_the_source_folder_go_away(self):
-        with patch.object(renamer, 'listdir', return_value=['Some Release (SCAN123)']), \
-             patch.object(renamer, 'isfile', return_value=False), \
-             patch.object(renamer.os, 'rename', side_effect=FileExistsError), \
-             patch.object(renamer.shutil, 'rmtree') as rmtree:
+        with (
+            patch.object(renamer, 'listdir', return_value=['Some Release (SCAN123)']),
+            patch.object(renamer, 'isfile', return_value=False),
+            patch.object(renamer.os, 'rename', side_effect=FileExistsError),
+            patch.object(renamer.shutil, 'rmtree') as rmtree,
+        ):
             self.renamer.run()
         rmtree.assert_called_once_with('/import/Some Release (SCAN123)')
 
     def test_a_clashing_target_that_cannot_be_cleaned_up_does_not_stop_the_run(self):
-        with patch.object(renamer, 'listdir', return_value=['A (1)', 'B (2)']), \
-             patch.object(renamer, 'isfile', return_value=False), \
-             patch.object(renamer.os, 'rename', side_effect=FileExistsError), \
-             patch.object(renamer.shutil, 'rmtree', side_effect=PermissionError('read only')) as rmtree:
+        with (
+            patch.object(renamer, 'listdir', return_value=['A (1)', 'B (2)']),
+            patch.object(renamer, 'isfile', return_value=False),
+            patch.object(renamer.os, 'rename', side_effect=FileExistsError),
+            patch.object(renamer.shutil, 'rmtree', side_effect=PermissionError('read only')) as rmtree,
+        ):
             self.renamer.run()
         self.assertEqual(rmtree.call_count, 2)
 
     def test_an_unexpected_rename_failure_does_not_stop_the_run(self):
-        with patch.object(renamer, 'listdir', return_value=['A (1)', 'B (2)']), \
-             patch.object(renamer, 'isfile', return_value=False), \
-             patch.object(renamer.os, 'rename', side_effect=OSError('disk error')) as rename:
+        with (
+            patch.object(renamer, 'listdir', return_value=['A (1)', 'B (2)']),
+            patch.object(renamer, 'isfile', return_value=False),
+            patch.object(renamer.os, 'rename', side_effect=OSError('disk error')) as rename,
+        ):
             self.renamer.run()
         self.assertEqual(rename.call_count, 2)
 

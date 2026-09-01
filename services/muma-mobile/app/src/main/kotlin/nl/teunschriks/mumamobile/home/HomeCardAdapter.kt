@@ -14,11 +14,11 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.subsonic.ImageLoaderProvider
 import nl.teunschriks.mumamobile.util.FileUtil
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 /**
  * The one and only home screen card component. Adding a new section means producing a new
@@ -173,10 +173,8 @@ class HomeCardAdapter(
     ) : DiffUtil.Callback() {
         override fun getOldListSize() = old.size
         override fun getNewListSize() = new.size
-        override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int) =
-            old[oldItemPosition].key == new[newItemPosition].key
+        override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int) = old[oldItemPosition].key == new[newItemPosition].key
 
-        override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int) =
-            old[oldItemPosition] == new[newItemPosition]
+        override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int) = old[oldItemPosition] == new[newItemPosition]
     }
 }

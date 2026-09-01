@@ -5,13 +5,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 def check_db():
     host = os.getenv("DB_HOST", "192.0.2.27")
     port = int(os.getenv("DB_PORT", "3306"))
     user = os.getenv("DB_USER", "music-management")
     password = os.getenv("DB_PASS", "")
     db_name = os.getenv("DB_DB", "music-management")
-    
+
     conn = pymysql.connect(host=host, port=port, user=user, password=password, db=db_name)
     try:
         with conn.cursor() as cursor:
@@ -24,7 +25,7 @@ def check_db():
                 columns = cursor.fetchall()
                 for col in columns:
                     print(f"  {col[0]} ({col[1]})")
-                
+
                 # Toon een paar rijen als het relevant lijkt
                 if 'rule' in table.lower() or 'soundcloud' in table.lower() or 'account' in table.lower():
                     print("  Data voorbeeld:")
@@ -34,6 +35,7 @@ def check_db():
                         print(f"    {row}")
     finally:
         conn.close()
+
 
 if __name__ == "__main__":
     check_db()

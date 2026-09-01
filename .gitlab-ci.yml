@@ -43,6 +43,15 @@ workflow:
     # pipeline -- so if the duplicate-pipeline guard below applied here, the
     # release would simply never be deployed.
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
+    # ...and because they get a branch pipeline, they must NOT also get a merge
+    # request pipeline. The push-vs-MR dedupe below keys on
+    # $CI_OPEN_MERGE_REQUESTS, which is only set in *push* pipelines -- so a
+    # release branch with an open MR used to run everything twice, and the two
+    # Android jobs raced each other for the shared Gradle home (one of them
+    # died on a vanished Gradle cache during the 0.23.x releases). The branch
+    # pipeline is the one deploy:prod lives in, so it is the one that stays.
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME =~ /^(release|hotfix)\//'
+      when: never
     # Scheduled pipelines (security:dependency-audit) always run.
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
     # Prefer the merge request pipeline...
@@ -64,12 +73,20 @@ stages:
   # that the jobs in it cannot gate anything. See security:dependency-audit.
   - audit
 
-# Referenced by every job that gates a production deploy. Those jobs also have
-# `changes:` rules, which is what keeps ordinary feature pushes cheap -- but on
-# a release/hotfix branch the last commit usually touches only VERSION,
-# CHANGELOG.md and RELEASE_NOTES.md, so `changes:` alone would skip them, and a
-# skipped job does not block deploy:prod. This rule makes them unconditional
-# exactly where it matters.
+# Referenced by the quality and unit jobs, which gate a production deploy via
+# stage ordering. Those jobs also have `changes:` rules, which is what keeps
+# ordinary feature pushes cheap -- but on a release/hotfix branch the last
+# commit usually touches only VERSION, CHANGELOG.md and RELEASE_NOTES.md, so
+# `changes:` alone would skip them, and a skipped job does not block
+# deploy:prod. This rule makes them unconditional exactly where it matters.
+#
+# Deliberately NOT referenced by db:integration, contracts, docker:smoke and
+# frontend:browser: those run unconditionally on every develop push, and a
+# release branch is develop plus a VERSION/CHANGELOG commit, so re-running them
+# on the stabilize commit would re-test an already-tested tree for ~30 minutes
+# of wall clock. A release commit that changes actual code trips their
+# `changes:` rules like any other commit. The list of jobs that must reference
+# this anchor is pinned in tests/ci/test_gitlab_ci_policy.py (GATING_JOBS).
 .release_rule:
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
@@ -90,7 +107,7 @@ stages:
 # tests/ci/test_gitlab_ci_policy.py.
 .dedicated_schedule_guard:
   rules:
-    - if: '$RENOVATE == "true" || $REFRESH_DOWNLOADER == "true"'
+    - if: '$RENOVATE == "true" || $REFRESH_DOWNLOADER == "true" || $DISK_JANITOR == "true"'
       when: never
 
 # Retried only where the code under test never got a fair run. Retrying a
@@ -176,6 +193,59 @@ quality:shellcheck:
   script:
     - ./scripts/shellcheck.sh
 
+# C++ formatting for the MuMa Server. Its own job rather than a step in
+# muma-server:unit, which builds the whole server and takes up to 45 minutes:
+# a formatting mistake should be reported in under a minute, not after a
+# compile. .clang-format has been in that directory since the fork and was
+# read by nothing, which left 37 of 870 files unformatted.
+#
+# This is the server's only static analysis. clang-tidy is the obvious next
+# step and is a bigger job: it needs the compilation database, so it belongs
+# with the build rather than here.
+quality:cpp-format:
+  stage: quality
+  timeout: 10m
+  retry: !reference [.infra_retry, retry]
+  tags: !reference [.fast_runner, tags]
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.release_rule, rules]
+    - changes:
+        - services/music-management-server/src/**/*
+        - services/music-management-server/.clang-format
+        - scripts/test/muma-server-format.sh
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/test/muma-server-format.sh
+
+# clang-tidy over the same sources. Its own job rather than a step in
+# quality:cpp-format, which answers in under a minute: this one configures cmake
+# and analyses 307 translation units, and took ~10 minutes at -j16 when it was
+# wired. Keeping them apart means a misplaced brace is still reported fast.
+#
+# Findings are baselined (1540 of them on day one), so this is green today and
+# red on anything new -- the contract detekt, Android Lint and semgrep already
+# have here. The baseline names the checks worth burning down first.
+quality:cpp-tidy:
+  stage: quality
+  timeout: 30m
+  retry: !reference [.infra_retry, retry]
+  tags: !reference [.fast_runner, tags]
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.release_rule, rules]
+    - changes:
+        - services/music-management-server/src/**/*
+        - services/music-management-server/CMakeLists.txt
+        - services/music-management-server/.clang-tidy
+        - security/accepted-clang-tidy-findings.txt
+        - docker/Dockerfile-cpp-tidy
+        - scripts/test/muma-server-tidy.sh
+        - scripts/ci/clang_tidy_baseline.py
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/test/muma-server-tidy.sh
+
 # Type checking, rolled out per module. pyproject.toml holds a loose floor for
 # the whole tree plus a list of modules checked strictly; scripts/typecheck.sh
 # runs that list. The list only ever grows -- cleaning a module up means fixing
@@ -218,7 +288,13 @@ quality:typecheck:
 security:dependency-audit:
   stage: audit
   needs: []
-  timeout: 15m
+  # 30m, not the 15m the pip/npm-only version had: the trivy sections generate
+  # an Android SBOM (a Gradle run in the CI container) and pull image layers on
+  # a cold cache. No resource_group despite the Gradle run -- the weekly 6am
+  # schedule makes a collision with a muma-mobile job unlikely, and the shared
+  # Gradle home survives concurrent use (file locks); serializing would let a
+  # busy Monday pipeline delay a job that gates nothing.
+  timeout: 30m
   interruptible: false
   allow_failure: true
   retry: !reference [.infra_retry, retry]
@@ -259,6 +335,10 @@ security:sast:
         - tools/**/*
         - docker/**/*
         - security/accepted-sast-findings.txt
+        # semgrep reads renovate.json, so a change to it can add a finding --
+        # and without this entry no pipeline would run the scan that catches
+        # it, leaving develop red for the next unrelated merge request.
+        - renovate.json
         - .gitlab-ci.yml
   script:
     - ./scripts/ci/sast.sh
@@ -322,6 +402,33 @@ deps:renovate:
     - if: '$CI_PIPELINE_SOURCE == "schedule" && $RENOVATE == "true" && $RENOVATE_TOKEN'
   script:
     - ./scripts/ci/renovate.sh
+
+# Reclaims disk on the runner before a full one breaks jobs that have nothing
+# wrong with them. Three times in August the host filled up and the failures
+# pointed everywhere but at the disk -- on 2026-08-31 three of four failed on
+# "no matching files" during artifact upload. scripts/ci/disk-janitor.sh is the
+# by-hand recipe from those incidents, made repeatable.
+#
+# Untagged on purpose, and that is the whole runner-selection mechanism: the
+# always-on LXC picks up untagged jobs and the workstation is tagged-only, so
+# this always lands on the host that actually fills up. The workstation is not
+# reachable from a schedule at all (both runners share the `fast` tag, so
+# tagging would be a coin flip) and gets the systemd timer in
+# scripts/ci/systemd/ instead.
+#
+# Not allow_failure: the script exits non-zero only when it has swept
+# everything it safely can and the disk is *still* critical, which is exactly
+# the moment a human should hear about it. Everything else is a green log.
+runner:disk-janitor:
+  stage: audit
+  needs: []
+  timeout: 30m
+  interruptible: false
+  retry: !reference [.infra_retry, retry]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $DISK_JANITOR == "true"'
+  script:
+    - ./scripts/ci/disk-janitor.sh
 
 # --- Unit tests -------------------------------------------------------------
 
@@ -441,10 +548,15 @@ muma-mobile:check:
         - scripts/ci/android-image.sh
         - .gitlab-ci.yml
   script:
-    - ./scripts/test/muma-mobile-unit.sh
+    # Formatting first: cheapest of the four, and `ktlintFormat` fixes it.
     # Same job, not a second one: every Android job shares one Gradle home and
     # would queue behind the same resource group for no gain.
+    - ./scripts/test/muma-mobile-ktlint.sh
+    - ./scripts/test/muma-mobile-unit.sh
     - ./scripts/test/muma-mobile-detekt.sh
+    # Android Lint (manifest/resource/API-level checks detekt cannot see).
+    # Baselined like detekt: green on the day it was wired, red on new findings.
+    - ./scripts/test/muma-mobile-lint.sh
   coverage: '/Total.*?(\d+(?:\.\d+)?\%)/'
   artifacts:
     when: always
@@ -556,10 +668,9 @@ docker:smoke:
   needs: []
   rules:
     - !reference [.dedicated_schedule_guard, rules]
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-      changes:
-        - docker/**/*
-        - services/music-management-server/Dockerfile-release
+    # One rule, no `if`: it matches every branch, so a separate default-branch
+    # variant of the same `changes:` list was a strict subset and never decided
+    # anything.
     - changes:
         - docker/**/*
         - services/music-management-server/Dockerfile-release
@@ -613,10 +724,8 @@ docker:build-images:
 # are both gone, which was the deal: keeping two spellings of one chain means
 # keeping them in sync forever.
 #
-# What it does NOT cover: the Android app. The 6.21.0 startup crash
-# (docs/bug-reports/029) existed only in an R8-minified release build, and
-# nothing here can execute one -- the runner LXC has no /dev/kvm, so there is no
-# emulator. That step is the next phase and a resource decision, not a code one.
+# What it does NOT cover: the Android app -- that is muma-mobile:smoke-release
+# below, which executes the R8-minified build this chain never touches.
 e2e:scan-to-listen:
   stage: e2e
   timeout: 30m
@@ -627,6 +736,45 @@ e2e:scan-to-listen:
   rules:
     - !reference [.dedicated_schedule_guard, rules]
     - when: on_success
+
+# Boots the R8-minified release APK on a headless ATD emulator (KVM) and
+# verifies the app survives startup. The 6.21.0 crash (docs/bug-reports/029)
+# existed only in the minified build -- a Gson TypeToken R8 had stripped -- so
+# every other Android job was structurally blind to it and the first execution
+# was a user's phone. A tripwire, not a UI suite: install, launch, 15s grace,
+# process alive, no FATAL EXCEPTION.
+#
+# Deliberately not gated on .gitlab-ci.yml (same reasoning as
+# docker:build-images): an emulator boot is the most expensive thing in the
+# muma-mobile resource group, and a yml-only edit cannot change what it proves.
+muma-mobile:smoke-release:
+  stage: e2e
+  resource_group: muma-mobile
+  timeout: 30m
+  # Needs nothing from the host but Docker, git and /dev/kvm - and both `fast`
+  # hosts have KVM (the LXC via the 2026-08-22 passthrough, the workstation
+  # natively, where this script was developed). The emulator boot is among the
+  # heaviest jobs here, so the 32GB workstation taking it when awake is exactly
+  # what the tag is for.
+  tags: !reference [.fast_runner, tags]
+  retry: !reference [.infra_retry, retry]
+  # After the unit tests, not in parallel with them: both jobs queue on the
+  # same resource group anyway, and letting the emulator grab the slot first
+  # would delay the fast feedback for a result that matters less.
+  needs:
+    - job: muma-mobile:check
+      optional: true
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.release_rule, rules]
+    - changes:
+        - services/muma-mobile/**/*
+        - docker/Dockerfile-android-ci
+        - scripts/ci/android-image.sh
+        - scripts/test/muma-mobile-emulator-smoke.sh
+        - scripts/test/muma-mobile-emulator-smoke-inner.sh
+  script:
+    - ./scripts/test/muma-mobile-emulator-smoke.sh
 
 frontend:browser:
   stage: e2e
@@ -653,6 +801,10 @@ frontend:browser:
     expire_in: 14 days
     paths:
       - services/frontend/test-results/
+    # Without this, a Playwright failure is only visible by scrolling the raw
+    # log -- every other suite here already reports into the GitLab test tab.
+    reports:
+      junit: services/frontend/test-results/junit-browser.xml
 
 # --- Release stabilization ---------------------------------------------------
 # Branch model: feature/* -> develop (integration) -> release/x.y.z
@@ -726,9 +878,28 @@ muma-mobile:build-release:
   stage: release
   resource_group: muma-mobile
   timeout: 45m
+  # A new push to the release branch must not cancel an APK upload halfway;
+  # every other job that publishes something already carries this.
+  interruptible: false
   retry: !reference [.infra_retry, retry]
+  # version-check because a wrongly-versioned APK must never reach the hoster,
+  # and muma-mobile:check because `needs` bypasses stage ordering: without it
+  # this job built and UPLOADED a signed APK even when the unit tests on the
+  # same commit failed -- phones auto-update from the hoster, so that shipped
+  # untested code to users while deploy:prod (correctly) never ran. The
+  # resource group only serializes the two jobs, it does not order them.
+  # optional: true satisfies the DAG policy (muma-mobile:check has `changes:`
+  # rules); on a release branch .release_rule makes it always present.
   needs:
     - release:version-check
+    - job: muma-mobile:check
+      optional: true
+    # Same reasoning, one stage earlier: the smoke test executes the exact
+    # artifact class this job publishes, so a release APK that crashes on
+    # startup must never reach the hoster. On a release branch .release_rule
+    # makes it always present.
+    - job: muma-mobile:smoke-release
+      optional: true
   rules:
     - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\// && $APK_HOSTER_URL && $SIGNING_STORE_FILE'

@@ -1,12 +1,12 @@
 package nl.teunschriks.mumamobile.adapters
 
-import org.amshove.kluent.`should be equal to`
-import org.junit.Test
-import org.junit.runner.RunWith
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.domain.Artist
 import nl.teunschriks.mumamobile.domain.Index
+import org.amshove.kluent.`should be equal to`
+import org.junit.Test
+import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config

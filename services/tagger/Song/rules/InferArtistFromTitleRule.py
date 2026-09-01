@@ -11,8 +11,10 @@ from services.tagger.Song.rules.TagRule import TagRule
 YEAR_SUFFIX_PATTERN = re.compile(r'\b(19[89]\d|20[0-4]\d)\s*$')
 PIPE_CHARACTERS = ('｜', '|')
 
+
 def extract_artists_from_string(part: str) -> list[str]:
     return [a.strip() for a in re.split(ARTIST_REGEX_NON_CAPTURING, part) if a.strip()]
+
 
 def looks_like_an_event(segment: str, festival_helper=None) -> bool:
     """
@@ -33,10 +35,26 @@ def looks_like_an_event(segment: str, festival_helper=None) -> bool:
             return False
     return False
 
+
 def set_cleaned_artist(song, library_artists: str | list[str], artist_db=None) -> bool:
     if isinstance(library_artists, str):
         library_artists = [library_artists]
-    blacklist = {'live', 'dj set', 'set', 'remix', 'edit', 'extended mix', 'mix', 'version', 'remix edit', 'remix pro', 'a1 ', 'a2 ', 'b1 ', 'b2 '}
+    blacklist = {
+        'live',
+        'dj set',
+        'set',
+        'remix',
+        'edit',
+        'extended mix',
+        'mix',
+        'version',
+        'remix edit',
+        'remix pro',
+        'a1 ',
+        'a2 ',
+        'b1 ',
+        'b2 ',
+    }
     artist_db = artist_db or TableHelper('library_artists', 'name')
     all_artists = {name.lower(): name for name in artist_db.get_all_values() if name}
     cleaned = []
@@ -56,10 +74,17 @@ def set_cleaned_artist(song, library_artists: str | list[str], artist_db=None) -
     song.tag_collection.set_item(ARTIST, ';'.join(cleaned))
     return True
 
-class InferArtistFromTitleRule(TagRule):
 
-    def __init__(self, artist_db=None, ignored_db: FilterTableHelper=None, genre_db: FilterTableHelper=None, festival_helper=None):
+class InferArtistFromTitleRule(TagRule):
+    def __init__(
+        self,
+        artist_db=None,
+        ignored_db: FilterTableHelper = None,
+        genre_db: FilterTableHelper = None,
+        festival_helper=None,
+    ):
         from services.common.Helpers.Cache import databaseHelpers
+
         self.artist_db = artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
         self.festival_helper = festival_helper or databaseHelpers.get('festivalHelper')
         all_names = self.artist_db.get_all_values()
@@ -76,7 +101,17 @@ class InferArtistFromTitleRule(TagRule):
         all_genres.add('mainstage')
         ignored_helper = ignored_db or databaseHelpers.get('rules_ignored_artists')
         ignored_names = ignored_helper.get_all() if ignored_helper else []
-        self.rules = [InferArtistFromPresentsOrColonRule(self.artist_db), InferArtistFromTitleAtRule(ignored_names, self.artist_db), InferArtistFromEventPrefixRule(artist_names, self.artist_db, all_genres, self.festival_helper), InferArtistFromTitleByRule(artist_names, self.artist_db), InferArtistFromTitleDotRule(artist_names, self.artist_db), InferArtistFromTitleSingleDashRule(artist_names, self.artist_db, self.festival_helper), InferArtistFromTitleMultiDashRule(artist_names, self.artist_db, all_genres, self.festival_helper), InferArtistFromFirstSegmentFallbackRule(self.artist_db, self.festival_helper), InferArtistFromTitleFallbackRule(ignored_names)]
+        self.rules = [
+            InferArtistFromPresentsOrColonRule(self.artist_db),
+            InferArtistFromTitleAtRule(ignored_names, self.artist_db),
+            InferArtistFromEventPrefixRule(artist_names, self.artist_db, all_genres, self.festival_helper),
+            InferArtistFromTitleByRule(artist_names, self.artist_db),
+            InferArtistFromTitleDotRule(artist_names, self.artist_db),
+            InferArtistFromTitleSingleDashRule(artist_names, self.artist_db, self.festival_helper),
+            InferArtistFromTitleMultiDashRule(artist_names, self.artist_db, all_genres, self.festival_helper),
+            InferArtistFromFirstSegmentFallbackRule(self.artist_db, self.festival_helper),
+            InferArtistFromTitleFallbackRule(ignored_names),
+        ]
 
     def apply(self, song):
         if not song.tag_collection.has_item(ORIGINAL_TITLE):
@@ -85,6 +120,7 @@ class InferArtistFromTitleRule(TagRule):
             if rule.apply(song):
                 print(f"[InferArtistFromTitle] Applied rule: {rule.__class__.__name__} on '{song.path()}'")
                 return
+
 
 class InferArtistFromEventPrefixRule(TagRule):
     """
@@ -136,8 +172,8 @@ class InferArtistFromEventPrefixRule(TagRule):
         # performers, which is what lets a brand new name through the first time.
         return len(candidates) > 1
 
-class InferArtistFromTitleDotRule(TagRule):
 
+class InferArtistFromTitleDotRule(TagRule):
     def __init__(self, rules_ignored_artists, artist_db):
         self.rules_ignored_artists = {a.lower() for a in rules_ignored_artists}
         self.artist_db = artist_db
@@ -159,8 +195,8 @@ class InferArtistFromTitleDotRule(TagRule):
         song.tag_collection.set_item(TITLE, rest_of_title)
         return True
 
-class InferArtistFromTitleAtRule(TagRule):
 
+class InferArtistFromTitleAtRule(TagRule):
     def __init__(self, rules_ignored_artists, artist_db):
         self.rules_ignored_artists = {a.lower() for a in rules_ignored_artists}
         self.artist_db = artist_db
@@ -178,8 +214,8 @@ class InferArtistFromTitleAtRule(TagRule):
         print(library_artists, parts[1].strip())
         return True
 
-class InferArtistFromTitleByRule(TagRule):
 
+class InferArtistFromTitleByRule(TagRule):
     def __init__(self, artist_names, artist_db):
         self.artist_names = artist_names
         self.artist_db = artist_db
@@ -198,8 +234,8 @@ class InferArtistFromTitleByRule(TagRule):
                 return True
         return False
 
-class InferArtistFromTitleSingleDashRule(TagRule):
 
+class InferArtistFromTitleSingleDashRule(TagRule):
     def __init__(self, artist_names, artist_db, festival_helper=None):
         self.artist_names = artist_names
         self.artist_db = artist_db
@@ -219,8 +255,12 @@ class InferArtistFromTitleSingleDashRule(TagRule):
         right_is_event = looks_like_an_event(right, self.festival_helper)
         if left_is_event and right_is_event:
             return False
-        matches_left = [] if left_is_event else [a for a in extract_artists_from_string(left) if a.lower() in self.artist_names]
-        matches_right = [] if right_is_event else [a for a in extract_artists_from_string(right) if a.lower() in self.artist_names]
+        matches_left = (
+            [] if left_is_event else [a for a in extract_artists_from_string(left) if a.lower() in self.artist_names]
+        )
+        matches_right = (
+            [] if right_is_event else [a for a in extract_artists_from_string(right) if a.lower() in self.artist_names]
+        )
         if matches_left:
             set_cleaned_artist(song, extract_artists_from_string(left), self.artist_db)
             song.tag_collection.set_item(TITLE, right)
@@ -231,8 +271,16 @@ class InferArtistFromTitleSingleDashRule(TagRule):
             return True
         fuzzy_left = extract_artists_from_string(left)
         fuzzy_right = extract_artists_from_string(right)
-        fuzzy_match_left = [] if left_is_event else [a for a in fuzzy_left if get_close_matches(a.lower(), self.artist_names, n=1, cutoff=0.75)]
-        fuzzy_match_right = [] if right_is_event else [a for a in fuzzy_right if get_close_matches(a.lower(), self.artist_names, n=1, cutoff=0.75)]
+        fuzzy_match_left = (
+            []
+            if left_is_event
+            else [a for a in fuzzy_left if get_close_matches(a.lower(), self.artist_names, n=1, cutoff=0.75)]
+        )
+        fuzzy_match_right = (
+            []
+            if right_is_event
+            else [a for a in fuzzy_right if get_close_matches(a.lower(), self.artist_names, n=1, cutoff=0.75)]
+        )
         if fuzzy_match_left:
             set_cleaned_artist(song, fuzzy_match_left, self.artist_db)
             song.tag_collection.set_item(TITLE, right)
@@ -243,8 +291,8 @@ class InferArtistFromTitleSingleDashRule(TagRule):
             return True
         return False
 
-class InferArtistFromTitleMultiDashRule(TagRule):
 
+class InferArtistFromTitleMultiDashRule(TagRule):
     def __init__(self, artist_names, artist_db, genre_names, festival_helper=None):
         self.artist_names = artist_names
         self.artist_db = artist_db
@@ -304,13 +352,22 @@ class InferArtistFromTitleMultiDashRule(TagRule):
         filtered_artists = []
         for artist in library_artists:
             cleaned = re.sub('\\s*[\\(\\[\\{<][^()\\[\\]{}<>]*[\\)\\]\\}>]', '', artist).strip()
-            if not cleaned or cleaned.lower() in {'live', 'dj set', 'set', 'remix', 'edit', 'extended mix', 'mix', 'version'}:
+            if not cleaned or cleaned.lower() in {
+                'live',
+                'dj set',
+                'set',
+                'remix',
+                'edit',
+                'extended mix',
+                'mix',
+                'version',
+            }:
                 continue
             filtered_artists.append(cleaned)
         return filtered_artists
 
-class InferArtistFromFirstSegmentFallbackRule(TagRule):
 
+class InferArtistFromFirstSegmentFallbackRule(TagRule):
     def __init__(self, artist_db, festival_helper=None):
         self.artist_db = artist_db
         self.festival_helper = festival_helper
@@ -333,8 +390,8 @@ class InferArtistFromFirstSegmentFallbackRule(TagRule):
                 return True
         return False
 
-class InferArtistFromTitleFallbackRule(TagRule):
 
+class InferArtistFromTitleFallbackRule(TagRule):
     def __init__(self, rules_ignored_artists):
         self.rules_ignored_artists = {a.lower() for a in rules_ignored_artists}
 
@@ -354,8 +411,8 @@ class InferArtistFromTitleFallbackRule(TagRule):
                     return True
         return False
 
-class InferArtistFromPresentsOrColonRule(TagRule):
 
+class InferArtistFromPresentsOrColonRule(TagRule):
     def __init__(self, artist_db):
         self.artist_db = artist_db
         self.artist_names = {name.lower() for name in artist_db.get_all_values() if name}
@@ -369,7 +426,7 @@ class InferArtistFromPresentsOrColonRule(TagRule):
             candidate = match.group(1).strip()
             if get_close_matches(candidate.lower(), self.artist_names, n=1, cutoff=0.7):
                 set_cleaned_artist(song, candidate, self.artist_db)
-                new_title = title[match.end():].strip()
+                new_title = title[match.end() :].strip()
                 song.tag_collection.set_item(TITLE, new_title)
                 return True
         return False

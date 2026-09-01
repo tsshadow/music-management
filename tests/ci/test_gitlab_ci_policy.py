@@ -46,6 +46,7 @@ GATING_JOBS = [
     "muma-server:unit",
     "frontend:unit",
     "muma-mobile:check",
+    "muma-mobile:smoke-release",
 ]
 
 
@@ -56,9 +57,9 @@ def test_gating_jobs_always_run_on_a_release_branch():
     ci = load_ci()
     for name in GATING_JOBS:
         rules = ci[name]["rules"]
-        assert any(
-            rule == [".release_rule", "rules"] for rule in rules
-        ), f"{name} does not reference .release_rule, so it can be skipped on a release branch"
+        assert any(rule == [".release_rule", "rules"] for rule in rules), (
+            f"{name} does not reference .release_rule, so it can be skipped on a release branch"
+        )
 
 
 # A dedicated schedule sets exactly one of these, and exists to run exactly one
@@ -66,6 +67,7 @@ def test_gating_jobs_always_run_on_a_release_branch():
 SCHEDULE_OWNED_JOBS = {
     "deps:renovate": "$RENOVATE",
     "images:refresh-downloader": "$REFRESH_DOWNLOADER",
+    "runner:disk-janitor": "$DISK_JANITOR",
 }
 
 GUARD = [".dedicated_schedule_guard", "rules"]
@@ -79,13 +81,9 @@ def test_a_dedicated_schedule_does_not_drag_in_the_whole_pipeline():
     on pipeline 1119 for no reason anyone asked for."""
     ci = load_ci()
     offenders = [
-        name
-        for name in job_names(ci)
-        if name not in SCHEDULE_OWNED_JOBS and GUARD not in ci[name].get("rules", [])
+        name for name in job_names(ci) if name not in SCHEDULE_OWNED_JOBS and GUARD not in ci[name].get("rules", [])
     ]
-    assert offenders == [], (
-        "these jobs would run on every dedicated schedule: " f"{offenders}"
-    )
+    assert offenders == [], f"these jobs would run on every dedicated schedule: {offenders}"
 
 
 def test_the_guard_is_the_first_rule():
@@ -93,9 +91,7 @@ def test_the_guard_is_the_first_rule():
     after a `changes:` rule never gets the chance to say no."""
     ci = load_ci()
     misplaced = [
-        name
-        for name in job_names(ci)
-        if name not in SCHEDULE_OWNED_JOBS and ci[name].get("rules", [None])[0] != GUARD
+        name for name in job_names(ci) if name not in SCHEDULE_OWNED_JOBS and ci[name].get("rules", [None])[0] != GUARD
     ]
     assert misplaced == [], f"guard is not the first rule on: {misplaced}"
 
@@ -106,9 +102,7 @@ def test_the_job_a_schedule_exists_for_is_not_guarded():
     ci = load_ci()
     for name, variable in SCHEDULE_OWNED_JOBS.items():
         assert GUARD not in ci[name]["rules"], f"{name} must not step aside for its own schedule"
-        conditions = " ".join(
-            rule.get("if", "") for rule in ci[name]["rules"] if isinstance(rule, dict)
-        )
+        conditions = " ".join(rule.get("if", "") for rule in ci[name]["rules"] if isinstance(rule, dict))
         assert variable in conditions, f"{name} does not check {variable}"
 
 
@@ -120,6 +114,15 @@ def test_the_guard_covers_every_schedule_variable():
     for variable in SCHEDULE_OWNED_JOBS.values():
         assert variable in condition, f"{variable} is not in the guard"
     assert ci[".dedicated_schedule_guard"]["rules"][0]["when"] == "never"
+
+
+def test_the_disk_janitor_stays_untagged():
+    """Runner selection here is the absence of a tag. Both runners carry
+    `fast`, so tagging this would hand it to whichever polls first -- a coin
+    flip between the host that fills up and a desktop that is usually off.
+    Untagged always lands on the always-on LXC."""
+    ci = load_ci()
+    assert "tags" not in ci["runner:disk-janitor"]
 
 
 def test_release_rule_covers_release_and_hotfix():
@@ -150,11 +153,28 @@ def test_workflow_rules_prevent_duplicate_pipelines():
     ci = load_ci()
     rules = ci["workflow"]["rules"]
     duplicate_guard = [
-        rule
-        for rule in rules
-        if rule.get("when") == "never" and "$CI_OPEN_MERGE_REQUESTS" in rule.get("if", "")
+        rule for rule in rules if rule.get("when") == "never" and "$CI_OPEN_MERGE_REQUESTS" in rule.get("if", "")
     ]
     assert duplicate_guard, "no rule dropping the branch pipeline when an MR is open"
+
+
+def test_release_branches_do_not_get_a_merge_request_pipeline():
+    """The push-vs-MR dedupe keys on $CI_OPEN_MERGE_REQUESTS, which only exists
+    in push pipelines -- so a release branch with an open MR got a branch
+    pipeline AND an MR pipeline, ran everything twice, and the two Android jobs
+    raced each other for the shared Gradle home. The branch pipeline is where
+    deploy:prod lives, so the MR pipeline is the one that must never start."""
+    ci = load_ci()
+    rules = ci["workflow"]["rules"]
+    guard = [
+        rule
+        for rule in rules
+        if rule.get("when") == "never"
+        and "$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME" in rule.get("if", "")
+        and "release" in rule.get("if", "")
+        and "hotfix" in rule.get("if", "")
+    ]
+    assert guard, "no rule suppressing the MR pipeline for release/hotfix source branches"
 
 
 def test_workflow_never_suppresses_a_release_branch_pipeline():
@@ -171,8 +191,7 @@ def test_workflow_never_suppresses_a_release_branch_pipeline():
             assert rule.get("when") != "never"
             break
         assert rule.get("when") != "never", (
-            "a `when: never` rule is evaluated before release/hotfix branches "
-            "are allowed through"
+            "a `when: never` rule is evaluated before release/hotfix branches are allowed through"
         )
     else:
         raise AssertionError("no workflow rule admits release/hotfix branches")
@@ -221,7 +240,7 @@ def test_secret_scanning_runs_on_release_branches():
     assert any(rule == [".release_rule", "rules"] for rule in job["rules"])
 
 
-def test_python_and_android_units_publish_junit():
+def test_test_jobs_publish_junit():
     """Without this, a failed test is only visible by reading the raw log."""
     ci = load_ci()
     for name, path in [
@@ -229,6 +248,8 @@ def test_python_and_android_units_publish_junit():
         # Every module, not just app/: a glob pinned to one module means a new module's
         # tests report green by publishing nothing at all.
         ("muma-mobile:check", "services/muma-mobile/**/build/test-results/**/TEST-*.xml"),
+        # Kept in lockstep with playwright.config.js's junit reporter outputFile.
+        ("frontend:browser", "services/frontend/test-results/junit-browser.xml"),
     ]:
         assert ci[name]["artifacts"]["reports"]["junit"] == path
 
@@ -236,7 +257,7 @@ def test_python_and_android_units_publish_junit():
 def test_junit_artifacts_are_uploaded_even_when_the_job_fails():
     """A report that only appears on success is exactly backwards."""
     ci = load_ci()
-    for name in ["music-management:unit", "muma-mobile:check"]:
+    for name in ["music-management:unit", "muma-mobile:check", "frontend:browser"]:
         assert ci[name]["artifacts"]["when"] == "always"
 
 
@@ -262,10 +283,68 @@ def test_hotfix_branches_get_the_full_release_treatment():
     that deploys unverified straight to production."""
     ci = load_ci()
     for name in RELEASE_STAGE_JOBS:
-        conditions = " ".join(
-            rule.get("if", "") for rule in ci[name]["rules"] if isinstance(rule, dict)
-        )
+        conditions = " ".join(rule.get("if", "") for rule in ci[name]["rules"] if isinstance(rule, dict))
         assert "hotfix" in conditions, f"{name} does not run on a hotfix branch"
+
+
+def test_release_apk_waits_for_the_android_unit_tests():
+    """`needs:` bypasses stage ordering, and the muma-mobile resource group
+    only serializes jobs, it does not order them. With version-check as the
+    only need, muma-mobile:build-release built and UPLOADED a signed APK while
+    muma-mobile:check on the same commit failed -- phones auto-update from the
+    hoster, so users got untested code even though deploy:prod correctly never
+    ran."""
+    ci = load_ci()
+    targets = [n["job"] if isinstance(n, dict) else n for n in ci["muma-mobile:build-release"]["needs"]]
+    assert "muma-mobile:check" in targets
+    assert "release:version-check" in targets
+    # And the emulator smoke test: a release APK that crashes on startup must
+    # never reach the hoster (docs/bug-reports/029 shipped exactly that way).
+    assert "muma-mobile:smoke-release" in targets
+
+
+def test_publishing_jobs_are_not_interruptible():
+    """`default: interruptible: true` lets a newer push cancel a running job.
+    Fine for tests; not for anything that publishes or mutates the outside
+    world halfway through."""
+    ci = load_ci()
+    for name in [
+        "release:build-images",
+        "muma-mobile:build-release",
+        "deploy:prod",
+        "release:tag",
+    ]:
+        assert ci[name].get("interruptible") is False, f"{name} can be cancelled mid-publish"
+
+
+def test_rule_gating_variables_are_verified_by_the_secret_check():
+    """A `rules:` condition like `&& $DOCKERHUB_TOKEN` does not fail when the
+    variable is missing -- the job silently drops out of the pipeline, and a
+    skipped job blocks nothing. Every variable used that way on a release
+    branch must therefore be asserted non-empty by check-required-secrets.sh,
+    which runs unconditionally there."""
+    ci = load_ci()
+    script = (REPO_ROOT / "scripts" / "ci" / "check-required-secrets.sh").read_text(encoding="utf-8")
+    gating = set()
+    for name in ["release:build-images", "muma-mobile:build-release"]:
+        for rule in ci[name]["rules"]:
+            if not isinstance(rule, dict):
+                continue
+            for var in re.findall(r"\$([A-Z][A-Z0-9_]*)", rule.get("if", "")):
+                if not var.startswith("CI_"):
+                    gating.add(var)
+    assert gating, "no gating variables found - the extraction above broke"
+    unchecked = [var for var in sorted(gating) if var not in script]
+    assert unchecked == [], f"these variables silently skip a release job when missing: {unchecked}"
+
+
+def test_db_integration_isolates_per_ci_job():
+    """A fixed container name plus `docker rm -f` at both ends of the run
+    means two concurrent pipelines destroy each other's database mid-test.
+    The script must key its container (and port) on CI_JOB_ID like every
+    compose-based job already does."""
+    script = (REPO_ROOT / "scripts" / "test" / "db-integration.sh").read_text(encoding="utf-8")
+    assert "CI_JOB_ID" in script
 
 
 # --- `changes:` coverage ------------------------------------------------------
@@ -315,10 +394,7 @@ def test_python_unit_job_runs_for_every_directory_it_tests():
     ci = load_ci()
     globs = _changes_globs(ci, "music-management:unit")
     missing = [path for path in PYTHON_UNIT_SOURCES if not _is_covered(path, globs)]
-    assert missing == [], (
-        "music-management:unit collects these but no `changes:` glob triggers it "
-        f"for them: {missing}"
-    )
+    assert missing == [], f"music-management:unit collects these but no `changes:` glob triggers it for them: {missing}"
 
 
 # scripts/lint.sh: TARGET=${1:-services/ tools/ tests/}

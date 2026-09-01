@@ -9,7 +9,6 @@ from sqlalchemy import text
 
 
 class GenrePredictor:
-
     def __init__(self, model_path='models/genre_classifier.joblib', encoder_path='models/label_encoders.joblib'):
         self.analyzer = TrackAnalyzer()
         self.model_path = model_path
@@ -30,7 +29,19 @@ class GenrePredictor:
         results = self.analyzer.analyze_track(file_path, save=False)
         if not results:
             return None
-        audio_features = ['tempo', 'mean_spectral_centroid', 'mean_spectral_rolloff', 'mean_rms', 'mean_zcr', 'mfcc_1', 'mfcc_2', 'mfcc_3', 'mfcc_4', 'mfcc_5', 'mean_chroma']
+        audio_features = [
+            'tempo',
+            'mean_spectral_centroid',
+            'mean_spectral_rolloff',
+            'mean_rms',
+            'mean_zcr',
+            'mfcc_1',
+            'mfcc_2',
+            'mfcc_3',
+            'mfcc_4',
+            'mfcc_5',
+            'mean_chroma',
+        ]
         X_audio = pd.DataFrame([results])[audio_features].fillna(0)
         X_meta = pd.DataFrame()
         for col in ['artist_name', 'label_name', 'source_platform']:
@@ -61,6 +72,8 @@ class GenrePredictor:
             print(f'Voorspelling opgeslagen voor track_id: {track_id}')
         except Exception as e:
             print(f'Fout bij opslaan voorspelling: {e}')
+
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print('Gebruik: python predict.py <path_to_audio_file>')

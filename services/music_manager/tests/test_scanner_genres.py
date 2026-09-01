@@ -42,7 +42,6 @@ def row(id_, name, state, normalized=None):
 
 
 class ScannerGenreResolutionTest(unittest.TestCase):
-
     def setUp(self):
         self.manager = ScannerManager()
 
@@ -113,7 +112,6 @@ class ScannerGenreResolutionTest(unittest.TestCase):
 
 
 class ScannerGenreWriteTest(unittest.TestCase):
-
     def setUp(self):
         self.manager = ScannerManager()
         self.manager.genre_helper = helper_with([row(2, 'Hardstyle', 'white')])
@@ -124,16 +122,17 @@ class ScannerGenreWriteTest(unittest.TestCase):
 
         executed = [call.args[0] for call in cursor.execute.call_args_list]
         self.assertIn('DELETE FROM library_track_genres WHERE track_id = %s', executed[0])
-        self.assertEqual(executed.count(
-            'INSERT IGNORE INTO library_track_genres (track_id, genre_id) VALUES (%s, %s)'), 2)
+        self.assertEqual(
+            executed.count('INSERT IGNORE INTO library_track_genres (track_id, genre_id) VALUES (%s, %s)'), 2
+        )
         cursor.execute.assert_any_call(
-            'INSERT IGNORE INTO library_track_genres (track_id, genre_id) VALUES (%s, %s)', (42, 2))
+            'INSERT IGNORE INTO library_track_genres (track_id, genre_id) VALUES (%s, %s)', (42, 2)
+        )
 
     def test_write_with_no_genres_still_clears_stale_rows(self):
         cursor = MagicMock()
         self.manager._write_genres(cursor, track_id=42, genre_ids=[])
-        cursor.execute.assert_called_once_with(
-            'DELETE FROM library_track_genres WHERE track_id = %s', (42,))
+        cursor.execute.assert_called_once_with('DELETE FROM library_track_genres WHERE track_id = %s', (42,))
 
 
 if __name__ == '__main__':

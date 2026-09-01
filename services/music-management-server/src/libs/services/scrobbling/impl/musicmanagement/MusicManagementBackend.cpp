@@ -102,17 +102,16 @@ namespace lms::scrobbling::musicManagement
         if (playedDuration && playedDuration->count() > 0)
             payload["played_secs"] = Wt::Json::Value(static_cast<long long>(playedDuration->count()));
 
-
         Wt::WDateTime listenedAt = timePoint.isValid() ? timePoint : Wt::WDateTime::currentDateTime();
         payload["listened_at"] = Wt::Json::Value(static_cast<long long>(listenedAt.toTime_t()));
-        
+
         payload["track_title"] = Wt::Json::Value(std::string{ track->getName() });
-        
+
         if (auto release = track->getRelease())
         {
             payload["album_name"] = Wt::Json::Value(std::string{ release->getName() });
         }
-        
+
         if (auto mbid = track->getTrackMBID())
             payload["mbid_track"] = Wt::Json::Value(std::string{ mbid->getAsString() });
 

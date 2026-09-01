@@ -162,16 +162,16 @@ namespace lms::api::subsonic
     {
         const RatingParameters params{ getRatingParameters(context.getParameters()) };
 
-        if (const ArtistId * artistId{ std::get_if<ArtistId>(&params.id) })
+        if (const ArtistId* artistId{ std::get_if<ArtistId>(&params.id) })
             core::Service<feedback::IFeedbackService>::get()->setRating(context.getUser()->getId(), *artistId, params.rating);
-        else if (const DirectoryId * directoryId{ std::get_if<DirectoryId>(&params.id) })
+        else if (const DirectoryId* directoryId{ std::get_if<DirectoryId>(&params.id) })
         {
             if (const ReleaseId releaseId{ getReleaseIdFromDirectory(context.getDbSession(), *directoryId) }; releaseId.isValid())
                 core::Service<feedback::IFeedbackService>::get()->setRating(context.getUser()->getId(), releaseId, params.rating);
         }
-        else if (const ReleaseId * releaseId{ std::get_if<ReleaseId>(&params.id) })
+        else if (const ReleaseId* releaseId{ std::get_if<ReleaseId>(&params.id) })
             core::Service<feedback::IFeedbackService>::get()->setRating(context.getUser()->getId(), *releaseId, params.rating);
-        else if (const TrackId * trackId{ std::get_if<TrackId>(&params.id) })
+        else if (const TrackId* trackId{ std::get_if<TrackId>(&params.id) })
             core::Service<feedback::IFeedbackService>::get()->setRating(context.getUser()->getId(), *trackId, params.rating);
 
         return Response::createOkResponse(context.getServerProtocolVersion());
@@ -191,7 +191,7 @@ namespace lms::api::subsonic
 
         std::string source{ clientName };
         std::transform(source.begin(), source.end(), source.begin(),
-            [](unsigned char c) { return std::tolower(c); });
+                       [](unsigned char c) { return std::tolower(c); });
         return source;
     }
 

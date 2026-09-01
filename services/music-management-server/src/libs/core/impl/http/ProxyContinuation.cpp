@@ -70,7 +70,7 @@ namespace lms::core::http
 
         template<typename Params, typename SendFunc>
         std::shared_ptr<const ProxyAnswer> proxy(const Wt::Http::Request& request, Wt::Http::Response& response,
-            boost::asio::io_context& ioContext, Params&& params, std::chrono::seconds deadline, SendFunc&& send)
+                                                 boost::asio::io_context& ioContext, Params&& params, std::chrono::seconds deadline, SendFunc&& send)
         {
             if (Wt::Http::ResponseContinuation * continuation{ request.continuation() })
                 return takeAnswer(*continuation);
@@ -108,16 +108,16 @@ namespace lms::core::http
     } // namespace
 
     std::shared_ptr<const ProxyAnswer> proxyRequest(const Wt::Http::Request& request, Wt::Http::Response& response,
-        boost::asio::io_context& ioContext, IClient& client, ClientGETRequestParameters&& params, std::chrono::seconds deadline)
+                                                    boost::asio::io_context& ioContext, IClient& client, ClientGETRequestParameters&& params, std::chrono::seconds deadline)
     {
         return proxy(request, response, ioContext, std::move(params), deadline,
-            [&client](ClientGETRequestParameters&& p) { client.sendGETRequest(std::move(p)); });
+                     [&client](ClientGETRequestParameters&& p) { client.sendGETRequest(std::move(p)); });
     }
 
     std::shared_ptr<const ProxyAnswer> proxyRequest(const Wt::Http::Request& request, Wt::Http::Response& response,
-        boost::asio::io_context& ioContext, IClient& client, ClientPOSTRequestParameters&& params, std::chrono::seconds deadline)
+                                                    boost::asio::io_context& ioContext, IClient& client, ClientPOSTRequestParameters&& params, std::chrono::seconds deadline)
     {
         return proxy(request, response, ioContext, std::move(params), deadline,
-            [&client](ClientPOSTRequestParameters&& p) { client.sendPOSTRequest(std::move(p)); });
+                     [&client](ClientPOSTRequestParameters&& p) { client.sendPOSTRequest(std::move(p)); });
     }
 } // namespace lms::core::http

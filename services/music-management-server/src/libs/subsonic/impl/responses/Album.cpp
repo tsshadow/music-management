@@ -82,7 +82,7 @@ namespace lms::api::subsonic
             {
                 albumNode.setAttribute("title", directoryToReport->getName());
                 albumNode.setAttribute("id", idToString(directoryToReport->getId()));
-                if (const Directory::pointer & parentDirectory{ directoryToReport->getParentDirectory() })
+                if (const Directory::pointer& parentDirectory{ directoryToReport->getParentDirectory() })
                     albumNode.setAttribute("parent", idToString(parentDirectory->getId()));
             }
 

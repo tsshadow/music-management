@@ -32,6 +32,20 @@ paths = [
   # demo instances, shipped in the app so a new user can try it without an
   # account of their own.
   '''(^|/)ultrasonic/src/main/kotlin/org/moire/ultrasonic/(activity/NavigationActivity|fragment/ServerSettingsModel|fragment/EditServerFragment)\.kt$''',
+  # Three emulator core dumps, committed in 8d86289f4 while debugging the
+  # emulator smoke test and deleted from the tree again in 622768b2f. They
+  # stay reachable in history, and gitleaks decompresses every blob it walks,
+  # so it re-reads 3.9 GB of them on every run: security:secret-scan grew from
+  # about four minutes to fourteen, against a fifteen-minute limit, and began
+  # failing release pipelines on timeout.
+  #
+  # The reason here is not the one the other entries use. A core dump is a
+  # memory image and absolutely *can* hold a credential -- which is why these
+  # were scanned before being exempted rather than after. Gitleaks has walked
+  # them on every run for weeks and reported nothing. They are also three
+  # fixed blobs that no longer exist in the tree, so unlike a live path this
+  # entry can never quietly start covering new content.
+  '''(^|/)core\.(91|92|387)$''',
   # Installation docs. The flagged line is the documented SQL that resets a
   # fresh LMS instance's admin password to the literal `adminadmin`, so the
   # "secret" is a published default that exists to be changed immediately.

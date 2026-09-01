@@ -9,12 +9,16 @@
     "preview": "vite preview",
     "lint": "oxlint . && eslint .",
     "check": "svelte-check",
-    "format": "oxfmt --write .",
-    "format:check": "oxfmt --check .",
+    "format": "oxfmt --write src tests *.js",
+    "format:check": "oxfmt --check src tests *.js",
     "lint:fix": "oxlint --fix . && eslint --fix .",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@lucide/svelte": "^1.25.0",
+    "lucide-svelte": "^1.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -42,9 +46,5 @@
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.10",
     "vitest": "^4.1.10"
-  },
-  "dependencies": {
-    "@lucide/svelte": "^1.25.0",
-    "lucide-svelte": "^1.0.1"
   }
 }

@@ -6,15 +6,15 @@
  * @returns {string} Normalized artist key.
  */
 export function normalizeArtist(artist) {
-    if (!artist) return "";
-    // Separators: , & feat. ft. and (with optional spaces)
-    const separators = /[,&]|\s+feat\.?\s+|\s+ft\.?\s+|\s+and\s+/i;
-    return artist
-        .split(separators)
-        .map(a => a.trim().toLowerCase())
-        .filter(a => a.length > 0)
-        .sort()
-        .join("|");
+  if (!artist) return "";
+  // Separators: , & feat. ft. and (with optional spaces)
+  const separators = /[,&]|\s+feat\.?\s+|\s+ft\.?\s+|\s+and\s+/i;
+  return artist
+    .split(separators)
+    .map((a) => a.trim().toLowerCase())
+    .filter((a) => a.length > 0)
+    .sort()
+    .join("|");
 }
 
 /**
@@ -25,29 +25,29 @@ export function normalizeArtist(artist) {
  * @returns {string} Normalized title key.
  */
 export function normalizeTitle(title) {
-    if (!title) return "";
-    // Basic normalization
-    let normalized = title.trim().toLowerCase();
-    
-    // Optional: strip metadata in parentheses if they don't contain version info
-    // But the requirement says to keep version info for ranking.
-    // So we'll keep it in the key too to distinguish "Radio Edit" from "Extended Mix" 
-    // IF they are considered different versions.
-    // The requirement says: "Tracks worden als duplicate beschouwd wanneer ze inhoudelijk dezelfde release/track lijken te zijn"
-    // And: "Geef voorkeur aan Radio Edit boven Extended Mix"
-    // This implies Radio Edit and Extended Mix ARE duplicates of each other.
-    
-    // To treat them as duplicates, we should strip them from the comparison key.
-    normalized = normalized
-        .replace(/\(radio edit\)/g, "")
-        .replace(/radio edit/g, "")
-        .replace(/\(extended mix\)/g, "")
-        .replace(/extended mix/g, "")
-        .replace(/\(original mix\)/g, "")
-        .replace(/original mix/g, "")
-        .trim();
+  if (!title) return "";
+  // Basic normalization
+  let normalized = title.trim().toLowerCase();
 
-    return normalized;
+  // Optional: strip metadata in parentheses if they don't contain version info
+  // But the requirement says to keep version info for ranking.
+  // So we'll keep it in the key too to distinguish "Radio Edit" from "Extended Mix"
+  // IF they are considered different versions.
+  // The requirement says: "Tracks worden als duplicate beschouwd wanneer ze inhoudelijk dezelfde release/track lijken te zijn"
+  // And: "Geef voorkeur aan Radio Edit boven Extended Mix"
+  // This implies Radio Edit and Extended Mix ARE duplicates of each other.
+
+  // To treat them as duplicates, we should strip them from the comparison key.
+  normalized = normalized
+    .replace(/\(radio edit\)/g, "")
+    .replace(/radio edit/g, "")
+    .replace(/\(extended mix\)/g, "")
+    .replace(/extended mix/g, "")
+    .replace(/\(original mix\)/g, "")
+    .replace(/original mix/g, "")
+    .trim();
+
+  return normalized;
 }
 
 /**
@@ -58,35 +58,35 @@ export function normalizeTitle(title) {
  * @returns {number} The ranking score.
  */
 export function getTrackScore(track) {
-    let score = 0;
+  let score = 0;
 
-    // 1. Audio format/quality preference
-    const suffix = (track.suffix || "").toLowerCase();
-    const bitRate = track.bitRate || 0;
+  // 1. Audio format/quality preference
+  const suffix = (track.suffix || "").toLowerCase();
+  const bitRate = track.bitRate || 0;
 
-    if (suffix === 'flac') {
-        score += 10000;
-    } else if (suffix === 'mp3') {
-        if (bitRate >= 320) score += 5000;
-        else if (bitRate >= 192) score += 2000;
-        else if (bitRate > 0) score += 1000;
-    } else if (suffix === 'm4a' || suffix === 'aac') {
-        score += 3000; // Somewhere in between
-    }
+  if (suffix === "flac") {
+    score += 10000;
+  } else if (suffix === "mp3") {
+    if (bitRate >= 320) score += 5000;
+    else if (bitRate >= 192) score += 2000;
+    else if (bitRate > 0) score += 1000;
+  } else if (suffix === "m4a" || suffix === "aac") {
+    score += 3000; // Somewhere in between
+  }
 
-    // 2. Version preference: Radio Edit > Original Mix > Extended Mix
-    const title = (track.title || "").toLowerCase();
-    if (title.includes("radio edit")) {
-        score += 500;
-    } else if (title.includes("extended mix")) {
-        score += 100;
-    } else if (title.includes("original mix")) {
-        score += 300;
-    } else {
-        score += 200; // Default
-    }
+  // 2. Version preference: Radio Edit > Original Mix > Extended Mix
+  const title = (track.title || "").toLowerCase();
+  if (title.includes("radio edit")) {
+    score += 500;
+  } else if (title.includes("extended mix")) {
+    score += 100;
+  } else if (title.includes("original mix")) {
+    score += 300;
+  } else {
+    score += 200; // Default
+  }
 
-    return score;
+  return score;
 }
 
 /**
@@ -96,9 +96,9 @@ export function getTrackScore(track) {
  * @returns {string} The deduplication key.
  */
 export function getDeduplicateKey(track) {
-    const artistKey = normalizeArtist(track.artist);
-    const titleKey = normalizeTitle(track.title);
-    return `${artistKey}:::${titleKey}`;
+  const artistKey = normalizeArtist(track.artist);
+  const titleKey = normalizeTitle(track.title);
+  return `${artistKey}:::${titleKey}`;
 }
 
 /**
@@ -109,21 +109,21 @@ export function getDeduplicateKey(track) {
  * @returns {Object[]} Deduplicated array of tracks.
  */
 export function deduplicateTracks(tracks, seenBefore = new Map()) {
-    const currentBatchBest = new Map();
+  const currentBatchBest = new Map();
 
-    for (const track of tracks) {
-        const key = getDeduplicateKey(track);
-        
-        // If we've already shown a version of this track in a previous batch, skip it.
-        if (seenBefore.has(key)) {
-            continue;
-        }
+  for (const track of tracks) {
+    const key = getDeduplicateKey(track);
 
-        const existing = currentBatchBest.get(key);
-        if (!existing || getTrackScore(track) > getTrackScore(existing)) {
-            currentBatchBest.set(key, track);
-        }
+    // If we've already shown a version of this track in a previous batch, skip it.
+    if (seenBefore.has(key)) {
+      continue;
     }
 
-    return Array.from(currentBatchBest.values());
+    const existing = currentBatchBest.get(key);
+    if (!existing || getTrackScore(track) > getTrackScore(existing)) {
+      currentBatchBest.set(key, track);
+    }
+  }
+
+  return Array.from(currentBatchBest.values());
 }

@@ -13,19 +13,19 @@ export function snapshotOf({ trackId, positionSeconds, radioChannel }) {
   return {
     trackId: trackId ?? null,
     positionSeconds: positionSeconds ?? 0,
-    radioChannel: radioChannel ?? null
+    radioChannel: radioChannel ?? null,
   };
 }
 
 /** Decide how to resume once the bulletin has finished. */
 export function restoreTarget(snapshot) {
-  if (!snapshot) return { action: 'none' };
-  if (snapshot.radioChannel) return { action: 'retune', channel: snapshot.radioChannel };
-  if (!snapshot.trackId) return { action: 'none' };
+  if (!snapshot) return { action: "none" };
+  if (snapshot.radioChannel) return { action: "retune", channel: snapshot.radioChannel };
+  if (!snapshot.trackId) return { action: "none" };
   return {
-    action: 'track',
+    action: "track",
     trackId: snapshot.trackId,
-    positionSeconds: snapshot.positionSeconds
+    positionSeconds: snapshot.positionSeconds,
   };
 }
 

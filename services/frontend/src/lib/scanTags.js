@@ -25,7 +25,7 @@ export async function loadIndexedTags(authParams) {
     if (!response.ok) return null;
 
     const data = await response.json();
-    const settings = data['subsonic-response']?.scanStatus?.scanSettings;
+    const settings = data["subsonic-response"]?.scanStatus?.scanSettings;
     if (!settings) return null;
 
     const value = settings.extraTagsToScan?.value;
@@ -33,7 +33,7 @@ export async function loadIndexedTags(authParams) {
 
     return Array.isArray(value) ? value : [value];
   } catch (e) {
-    console.error('Failed to read the scanner settings:', e);
+    console.error("Failed to read the scanner settings:", e);
     return null;
   }
 }

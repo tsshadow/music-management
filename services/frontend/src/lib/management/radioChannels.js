@@ -13,28 +13,28 @@ export const MAX_RATING = 5;
 /** Empty form fields, as the editor binds them: strings, because inputs are strings. */
 export function emptyFilterForm() {
   return {
-    label: '',
-    genre: '',
-    artist: '',
-    length: '',
-    year: '',
-    rating_min: '',
-    rating_max: '',
-    duration_min: '',
-    duration_max: '',
-    include_unrated: false
+    label: "",
+    genre: "",
+    artist: "",
+    length: "",
+    year: "",
+    rating_min: "",
+    rating_max: "",
+    duration_min: "",
+    duration_max: "",
+    include_unrated: false,
   };
 }
 
-const NUMERIC_FIELDS = ['rating_min', 'rating_max', 'duration_min', 'duration_max'];
-const TEXT_FIELDS = ['label', 'genre', 'artist', 'length', 'year'];
+const NUMERIC_FIELDS = ["rating_min", "rating_max", "duration_min", "duration_max"];
+const TEXT_FIELDS = ["label", "genre", "artist", "length", "year"];
 
 /** Turn a stored filter back into form fields. */
 export function filterToForm(filter) {
   const form = emptyFilterForm();
   for (const [key, value] of Object.entries(filter || {})) {
-    if (key === 'include_unrated') form.include_unrated = Boolean(value);
-    else if (key in form) form[key] = value === null || value === undefined ? '' : String(value);
+    if (key === "include_unrated") form.include_unrated = Boolean(value);
+    else if (key in form) form[key] = value === null || value === undefined ? "" : String(value);
   }
   return form;
 }
@@ -49,17 +49,17 @@ export function filterToForm(filter) {
 export function formToFilter(form) {
   const filter = {};
   for (const field of TEXT_FIELDS) {
-    const value = (form?.[field] ?? '').trim();
+    const value = (form?.[field] ?? "").trim();
     if (value) filter[field] = value;
   }
   for (const field of NUMERIC_FIELDS) {
     const raw = form?.[field];
-    if (raw === '' || raw === null || raw === undefined) continue;
+    if (raw === "" || raw === null || raw === undefined) continue;
     const value = Number(raw);
     if (Number.isFinite(value)) filter[field] = value;
   }
   // Only meaningful next to a rating bound, so it never travels on its own.
-  if (form?.include_unrated && ('rating_min' in filter || 'rating_max' in filter)) {
+  if (form?.include_unrated && ("rating_min" in filter || "rating_max" in filter)) {
     filter.include_unrated = true;
   }
   return filter;
@@ -67,7 +67,7 @@ export function formToFilter(form) {
 
 function formatDuration(seconds) {
   const total = Math.max(0, Math.round(seconds));
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
 /**
@@ -79,16 +79,17 @@ function formatDuration(seconds) {
  * @param {object} filter
  * @param {string} [emptyLabel] - what to say when nothing is filtered on.
  */
-export function describeFilter(filter, emptyLabel = '') {
+export function describeFilter(filter, emptyLabel = "") {
   const parts = [];
-  for (const field of ['label', 'genre', 'artist', 'year', 'length']) {
-    const value = (filter?.[field] ?? '').toString().trim();
+  for (const field of ["label", "genre", "artist", "year", "length"]) {
+    const value = (filter?.[field] ?? "").toString().trim();
     if (value) parts.push(value);
   }
 
   const min = filter?.duration_min;
   const max = filter?.duration_max;
-  if (Number.isFinite(min) && Number.isFinite(max)) parts.push(`${formatDuration(min)}–${formatDuration(max)}`);
+  if (Number.isFinite(min) && Number.isFinite(max))
+    parts.push(`${formatDuration(min)}–${formatDuration(max)}`);
   else if (Number.isFinite(min)) parts.push(`≥ ${formatDuration(min)}`);
   else if (Number.isFinite(max)) parts.push(`≤ ${formatDuration(max)}`);
 
@@ -100,17 +101,17 @@ export function describeFilter(filter, emptyLabel = '') {
     parts.push(`≤ ${ratingMax}★`);
   }
 
-  return parts.length ? parts.join(' · ') : emptyLabel;
+  return parts.length ? parts.join(" · ") : emptyLabel;
 }
 
 /** A slug the API will accept, derived from what the user typed as a name. */
 export function slugify(name) {
-  return (name || '')
+  return (name || "")
     .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
     .slice(0, 64);
 }
 

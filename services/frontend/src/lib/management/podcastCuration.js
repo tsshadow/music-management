@@ -16,8 +16,8 @@ import {
   WHITE,
   describeDecision,
   normalizeGenre as normalizeName,
-  summarize
-} from './genreCuration.js';
+  summarize,
+} from "./genreCuration.js";
 
 export { BLACK, STATE_FILTERS, UNKNOWN, WHITE, describeDecision, normalizeName, summarize };
 
@@ -26,7 +26,7 @@ export function filterPodcasts(rows, query) {
   const key = normalizeName(query);
   if (!key) return rows;
   return rows.filter((row) =>
-    [row.name, ...(row.aliases || [])].some((name) => normalizeName(name).includes(key))
+    [row.name, ...(row.aliases || [])].some((name) => normalizeName(name).includes(key)),
   );
 }
 
@@ -37,9 +37,9 @@ export function filterPodcasts(rows, query) {
  * unlabelled, which is the state the whole library starts in.
  */
 export function describeOutcome(row) {
-  if (row.state === WHITE) return 'Wordt getagd op elke aflevering';
-  if (row.state === BLACK) return 'Wordt nooit getagd';
-  return 'Nog geen beslissing, dus niet getagd';
+  if (row.state === WHITE) return "Wordt getagd op elke aflevering";
+  if (row.state === BLACK) return "Wordt nooit getagd";
+  return "Nog geen beslissing, dus niet getagd";
 }
 
 /** The spellings other than the show's own name, which is already in the title. */
@@ -57,24 +57,30 @@ export function extraAliases(row) {
  * A merge carries a state as well, because the API takes one request: the state
  * is ignored server-side once a merge target is given, and the row is gone.
  */
-export function buildDecision({ podcastId, state, mergeIntoId = null, host = null, station = null }) {
+export function buildDecision({
+  podcastId,
+  state,
+  mergeIntoId = null,
+  host = null,
+  station = null,
+}) {
   if (state !== WHITE && state !== BLACK) {
     return { valid: false, error: `Ongeldige status, verwacht ${WHITE} of ${BLACK}.` };
   }
-  if (mergeIntoId !== null && mergeIntoId !== '' && mergeIntoId !== undefined) {
+  if (mergeIntoId !== null && mergeIntoId !== "" && mergeIntoId !== undefined) {
     if (Number(mergeIntoId) === Number(podcastId)) {
-      return { valid: false, error: 'Een show kan niet in zichzelf samengevoegd worden.' };
+      return { valid: false, error: "Een show kan niet in zichzelf samengevoegd worden." };
     }
     return {
       valid: true,
       error: null,
-      payload: { state, merge_into_podcast_id: Number(mergeIntoId) }
+      payload: { state, merge_into_podcast_id: Number(mergeIntoId) },
     };
   }
   return {
     valid: true,
     error: null,
-    payload: { state, host: host || null, station: station || null }
+    payload: { state, host: host || null, station: station || null },
   };
 }
 
@@ -99,13 +105,13 @@ export const MINIMUM_KEY_LENGTH = 4;
  * @returns {{valid: boolean, error: string|null, payload?: {name: string}}}
  */
 export function buildRename(name) {
-  const trimmed = (name || '').trim();
+  const trimmed = (name || "").trim();
   const key = normalizeName(trimmed);
-  if (!key) return { valid: false, error: 'Een shownaam mag niet leeg zijn.' };
+  if (!key) return { valid: false, error: "Een shownaam mag niet leeg zijn." };
   if (key.length < MINIMUM_KEY_LENGTH) {
     return {
       valid: false,
-      error: `Een shownaam heeft minstens ${MINIMUM_KEY_LENGTH} letters of cijfers nodig; korter matcht op losse bestanden.`
+      error: `Een shownaam heeft minstens ${MINIMUM_KEY_LENGTH} letters of cijfers nodig; korter matcht op losse bestanden.`,
     };
   }
   return { valid: true, error: null, payload: { name: trimmed } };
@@ -118,13 +124,13 @@ export function buildRename(name) {
  * @returns {{valid: boolean, error: string|null, payload?: {alias: string}}}
  */
 export function buildAlias(alias) {
-  const trimmed = (alias || '').trim();
+  const trimmed = (alias || "").trim();
   const key = normalizeName(trimmed);
-  if (!key) return { valid: false, error: 'Een schrijfwijze mag niet leeg zijn.' };
+  if (!key) return { valid: false, error: "Een schrijfwijze mag niet leeg zijn." };
   if (key.length < MINIMUM_KEY_LENGTH) {
     return {
       valid: false,
-      error: `Een schrijfwijze heeft minstens ${MINIMUM_KEY_LENGTH} letters of cijfers nodig; korter matcht op losse bestanden.`
+      error: `Een schrijfwijze heeft minstens ${MINIMUM_KEY_LENGTH} letters of cijfers nodig; korter matcht op losse bestanden.`,
     };
   }
   return { valid: true, error: null, payload: { alias: trimmed } };
@@ -139,11 +145,11 @@ export function buildAlias(alias) {
 export function mergeTargets(rows, podcastId) {
   return rows
     .filter((row) => row.state === WHITE && Number(row.id) !== Number(podcastId))
-    .sort((a, b) => a.name.localeCompare(b.name, 'nl'));
+    .sort((a, b) => a.name.localeCompare(b.name, "nl"));
 }
 
 /** Episode count line for a row, e.g. "125 afleveringen". */
 export function describeEpisodes(row) {
   const count = Number(row.occurrences) || 0;
-  return count === 1 ? '1 aflevering' : `${count} afleveringen`;
+  return count === 1 ? "1 aflevering" : `${count} afleveringen`;
 }

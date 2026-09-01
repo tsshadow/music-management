@@ -1,18 +1,24 @@
-import { vi } from 'vitest';
-import '@testing-library/jest-dom/vitest';
+import { vi } from "vitest";
+import "@testing-library/jest-dom/vitest";
 
 // Mock localStorage
 const localStorageMock = (() => {
   let store = {};
   return {
     getItem: (key) => store[key] || null,
-    setItem: (key, value) => { store[key] = value.toString(); },
-    clear: () => { store = {}; },
-    removeItem: (key) => { delete store[key]; },
+    setItem: (key, value) => {
+      store[key] = value.toString();
+    },
+    clear: () => {
+      store = {};
+    },
+    removeItem: (key) => {
+      delete store[key];
+    },
   };
 })();
 
-Object.defineProperty(window, 'localStorage', {
+Object.defineProperty(window, "localStorage", {
   value: localStorageMock,
 });
 
@@ -47,7 +53,7 @@ if (!Element.prototype.animate) {
     addEventListener: () => {},
     removeEventListener: () => {},
     finished: Promise.resolve(),
-    playState: 'finished',
+    playState: "finished",
   });
 }
 
@@ -55,5 +61,5 @@ if (!Element.prototype.animate) {
 // English here while the app they are part of is used in Dutch. Pinning the
 // locale keeps assertions on interface text in the language the screens are
 // actually read in, and keeps them from silently depending on the default.
-const { setLocaleFromAccount } = await import('../../src/lib/i18n/index.js');
-setLocaleFromAccount('nl');
+const { setLocaleFromAccount } = await import("../../src/lib/i18n/index.js");
+setLocaleFromAccount("nl");

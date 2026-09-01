@@ -1,4 +1,4 @@
-import { medianClockOffset, targetPosition, correction } from './radioSync.js';
+import { medianClockOffset, targetPosition, correction } from "./radioSync.js";
 
 /**
  * Drives an <audio> element from a server-owned radio timeline.
@@ -33,7 +33,7 @@ export function createRadioController({
   let entry = null;
   let srcOffset = 0;
 
-  const headers = { 'X-API-Key': apiKey };
+  const headers = { "X-API-Key": apiKey };
 
   function serverNowMs() {
     return now() + clockOffsetMs;
@@ -78,7 +78,9 @@ export function createRadioController({
       return;
     }
 
-    const changed = !entry || entry.track_id !== state.current.track_id ||
+    const changed =
+      !entry ||
+      entry.track_id !== state.current.track_id ||
       entry.started_at !== state.current.started_at;
     entry = state.current;
     if (changed) {
@@ -90,7 +92,7 @@ export function createRadioController({
     if (!slug || !entry) return;
     const target = targetPosition({ startedAtMs: entry.started_at * 1000 }, serverNowMs());
     const result = correction(localPosition(), target);
-    if (result.action === 'seek') {
+    if (result.action === "seek") {
       loadEntryAt(entry, target);
     } else {
       audio.playbackRate = result.rate;

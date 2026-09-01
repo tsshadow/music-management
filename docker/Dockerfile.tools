@@ -6,17 +6,22 @@ FROM python:3.14-slim
 # tools/db_restore_check.py, die als db-backup en db-restore-check uit dit image
 # draaien.
 #
+# De uitpakkers (unrar-free, p7zip-full, unar) stonden hier meegekopieerd uit
+# Dockerfile.base en hoorden er nooit: alleen services/importer/extractor.py
+# roept patoolib aan, en dat pakket wordt hieronder juist *niet* in deze image
+# gekopieerd. Niets in tools/ of in de wel gekopieerde services importeert
+# patoolib. `unar` was bovendien duur: het trekt via gnustep-base-runtime een
+# complete build-essential mee (gcc, g++, binutils, libc6-dev en dus
+# linux-libc-dev, plus graphviz), wat de enige reden was dat deze image de
+# kernel-headers bevatte waar security:dependency-audit CVE's op meldde.
+#
 # apt-get upgrade: zie de toelichting in Dockerfile.base. De vooraf
 # geinstalleerde openssl van python:3.14-slim beweegt niet mee met een rebuild
-# van deze image, en linux-libc-dev bleef om dezelfde reden op een oude versie
-# staan.
-RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+# van deze image.
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     ffmpeg \
     curl \
     mariadb-client \
-    unrar-free \
-    p7zip-full \
-    unar \
     && rm -rf /var/lib/apt/lists/*
 
 # Installeer yt-dlp

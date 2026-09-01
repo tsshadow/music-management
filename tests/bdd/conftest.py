@@ -76,6 +76,8 @@ def context() -> dict:
 
 TRACK_FILE = 'ci-test-track-001.mp3'
 TRACK_TITLE = 'CI Test Track'
+# The genre in the fixture's tag, per tests/fixtures/expected/ci-test-track-001.json.
+FIXTURE_GENRE = 'Electronic'
 
 
 def wait_for(description: str, predicate, timeout: int = 120):
@@ -153,6 +155,24 @@ def stats(manager: str, api_key: str) -> dict:
     return response.json()
 
 
+def curation_queue(manager: str, api_key: str) -> list[dict]:
+    """Genres awaiting a decision.
+
+    A different view than /api/library/genres: that one inner-joins the
+    per-track table, so a genre nothing has been attached to yet is invisible
+    there however correctly it was registered.
+    """
+    response = requests.get(
+        f'{manager}/api/rules/genres',
+        headers={'x-api-key': api_key},
+        params={'state': 'unknown'},
+        timeout=TIMEOUT,
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    return body if isinstance(body, list) else body.get('genres', [])
+
+
 @given('the test stack is running')
 def _stack_is_running(manager, api_key):
     """Shared by every feature: nothing below means anything without it.
@@ -202,3 +222,14 @@ def _manager_has_scanned(manager, api_key, context):
     and the track is already there once any feature has triggered it.
     """
     context['track'] = scan_and_wait_for_the_fixture(manager, api_key)
+
+
+@given("the fixture's genre is waiting for a decision")
+def _genre_is_queued(manager, api_key):
+    """Shared: the state the tagger step in scripts/lib/e2e-stack.sh leaves
+    behind, which one feature scans into and the next decides on."""
+    queued = [row.get('name') for row in curation_queue(manager, api_key)]
+    assert FIXTURE_GENRE in queued, (
+        f'{FIXTURE_GENRE} is not in the curation queue: {queued!r} -- the tagger step in '
+        f'scripts/lib/e2e-stack.sh is what puts it there, and nothing else does'
+    )

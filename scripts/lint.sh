@@ -38,19 +38,13 @@ TARGET=${1:-services/ tools/ tests/}
 # never lower it to make a red build green.
 FAIL_UNDER=${2:-9.5}
 
-# Formatting first: cheapest check, and its failure is fixed by one command.
-# Enforced since the whole-tree reformat; before that ruff's formatter was
-# configured in pyproject.toml and called by nothing, so the tree drifted to
-# 368 unformatted files out of 411.
-echo "--- Checking formatting (ruff format) on $TARGET ---"
-# shellcheck disable=SC2086
-if ! ruff format --check $TARGET; then
-    echo ""
-    echo "ERROR: files are not formatted. Fix with: ./scripts/format.sh"
-    exit 1
-fi
-echo "--- Formatting OK ---"
-
+# Formatting is NOT checked here. It is its own job (backend:format, running
+# ./scripts/format.sh --check), so that a red pipeline says which of the two
+# went wrong from the job name alone -- and so that "run the formatter" and
+# "fix a lint finding", which are very different amounts of work, are not
+# reported as the same failure.
+#
+# The pre-commit hook still runs both.
 echo "--- Running ruff (fast lint) on $TARGET ---"
 # shellcheck disable=SC2086
 ruff check $TARGET

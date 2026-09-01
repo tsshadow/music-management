@@ -17,7 +17,7 @@
 #   - Dangling (untagged) images, via `docker image prune`.
 #
 # What it deliberately does NOT touch:
-#   - The buildkit build cache. That is the ccache keeping muma-server:unit at
+#   - The buildkit build cache. That is the ccache keeping server:unit at
 #     ~90s instead of ~405s, and pruning it is the tempting mistake this note
 #     has now watched two people make (one of them me).
 #   - Third-party images (mariadb, phpmyadmin, trivy, gitleaks, ...). They cost
@@ -186,7 +186,7 @@ if [ "$AFTER" -ge "$CRITICAL" ]; then
     echo "-- everything this script may remove is gone." >&2
     echo "Look at the build cache size (docker system df), the runner's build" >&2
     echo "directories, and anything outside Docker. Pruning the build cache" >&2
-    echo "works but costs the muma-server:unit ccache -- decide that knowingly." >&2
+    echo "works but costs the server:unit ccache -- decide that knowingly." >&2
     exit 1
 fi
 

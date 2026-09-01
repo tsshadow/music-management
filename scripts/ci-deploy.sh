@@ -84,7 +84,7 @@ echo "--- Deploying stack: lms ---"
 #    unconditionally - `docker ps` exits 0 for a restart-looping container and
 #    for an empty stack alike, so the deploy could not fail here even when
 #    nothing was serving. The real checks now live in post-deploy-verify.sh,
-#    which exits non-zero, and which the deploy:smoke job re-runs afterwards.
+#    which exits non-zero, and which the muma:verify job re-runs afterwards.
 "$SCRIPT_DIR/ci/post-deploy-verify.sh"
 
 echo "--- CI Deployment finished successfully ---"

@@ -44,7 +44,7 @@ The same class of failure is already documented one file over: `proguard-main.pr
 about R8 full mode breaking Guava's `TypeToken` for exactly the same reason.
 
 **Why nothing caught it.** The unit suite runs unminified, so Gson always had the signature. Nothing
-in the pipeline runs the release APK; `muma-mobile:build-release` builds it and does not start it.
+in the pipeline runs the release APK; `mobile:build-release` builds it and does not start it.
 There are no on-device tests at all.
 
 # solution

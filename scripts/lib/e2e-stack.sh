@@ -26,7 +26,7 @@ E2E_STACK_COMPOSE_FILE="$E2E_STACK_ROOT/docker/compose.test.yml"
 E2E_STACK_FIXTURE="$E2E_STACK_ROOT/tests/fixtures/music/ci-test-track-001.mp3"
 
 # Picking a free port rather than a fixed one is what keeps two pipelines from
-# killing each other's run; see docs/testing-inventory.md and the db:integration
+# killing each other's run; see docs/testing-inventory.md and the backend:integration
 # collision it is modelled on.
 e2e_stack_find_free_port() {
     python3 -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()'

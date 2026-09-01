@@ -71,6 +71,6 @@ critical. It is not a janitor failure, it is the janitor's finding: the space is
 cache, in a runner build directory, or outside Docker entirely. On the workstation on 2026-08-31
 that answer was correct and worth having — Docker held ~66GB of a 207GB-full disk, and the rest was
 snap, an Android SDK and a stray 2.4GB crash dump. Pruning the build cache does free a lot and does cost the
-ccache that keeps `muma-server:unit` at ~90s instead of ~405s — a trade to make deliberately, not a
+ccache that keeps `server:unit` at ~90s instead of ~405s — a trade to make deliberately, not a
 cleanup step. The unit treats exit 1 as success so a persistent full disk does not fill the journal
 with failed activations; the message is in the log either way.

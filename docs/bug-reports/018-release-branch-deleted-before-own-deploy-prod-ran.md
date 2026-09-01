@@ -1,11 +1,11 @@
-# title: `release/x.y.z`'s own `deploy:prod` job can fail because its branch is deleted mid-pipeline by a duplicate, faster "head pipeline" merging early
+# title: `release/x.y.z`'s own `muma:deploy` job can fail because its branch is deleted mid-pipeline by a duplicate, faster "head pipeline" merging early
 
 # status: fixed (worked around by re-cutting a fresh release branch; root cause below is not yet hardened)
 
 # reported problem
 While shipping `release/0.0.41` (the artist-images-black fix), the full branch pipeline (which
-includes `release:build-images`, `ultrasonic:build-release`, and `deploy:prod`) was still running
-`release:build-images` when the merge request into `master` had *already* merged. `deploy:prod`
+includes `release:build-images`, `ultrasonic:build-release`, and `muma:deploy`) was still running
+`release:build-images` when the merge request into `master` had *already* merged. `muma:deploy`
 subsequently failed with:
 ```
 fatal: couldn't find remote ref refs/heads/release/0.0.41
@@ -17,7 +17,7 @@ never actually redeployed with it.
 # Possible reason
 Every branch push in this project's GitLab setup produces **two separate pipelines** for the same
 commit: a small one (only ran `contracts` + `lms:unit` here) and the "real", full one (everything
-else, including `release:build-images`/`ultrasonic:build-release`/`deploy:prod`). This was already
+else, including `release:build-images`/`ultrasonic:build-release`/`muma:deploy`). This was already
 observed once before, while shipping `release/0.0.40` (worked around there by explicitly identifying
 and monitoring the correct pipeline ID before merging).
 
@@ -29,7 +29,7 @@ was still running (finished only around `07:33:56`). Merging into `master` trigg
 + `release:back-merge-develop` on `master`'s own pipeline, and the latter — per its bug-016 fix —
 auto-deletes the just-merged `release/*` branch. By the time the full pipeline reached its `deploy`
 stage, `release/0.0.41` no longer existed on the remote, so the runner's `git fetch`/checkout for
-`deploy:prod` failed outright before the script itself even ran.
+`muma:deploy` failed outright before the script itself even ran.
 
 This is a different failure mode from bug 016 (a *stale, unrelated* old branch's delayed pipeline
 overwriting a newer deploy) — here it's a release branch's *own* pipeline racing its own branch
@@ -38,7 +38,7 @@ the two pipelines running for the same commit.
 
 # solution (workaround applied)
 Cut a fresh release (`release/0.0.42`, no functional code change) from `master` (which already had
-the fix and the correct `VERSION`/`CHANGELOG.md` state) to get a clean `deploy:prod` run against a
+the fix and the correct `VERSION`/`CHANGELOG.md` state) to get a clean `muma:deploy` run against a
 branch that isn't at risk of being deleted mid-flight, mirroring the same "re-deploy" pattern bug
 016 already used (`d54cd1f18`, "Re-deploy bug 015 fix after stale release/0.0.35 branch clobbered
 latest deploy").
@@ -48,5 +48,5 @@ still exists and can recur on any future release. Worth a follow-up to either (a
 eliminate the duplicate-pipeline trigger (likely both a branch pipeline and a merge-request pipeline
 running for the same push — a common GitLab misconfiguration, usually fixed by adding `workflow:
 rules` to `.gitlab-ci.yml` to prevent duplicate pipelines), or (b) make `release:back-merge-develop`
-only delete a `release/*` branch after confirming `deploy:prod` actually succeeded *for that same
+only delete a `release/*` branch after confirming `muma:deploy` actually succeeded *for that same
 commit*, not just that *a* merge into `master` happened.

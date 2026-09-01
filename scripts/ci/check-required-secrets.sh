@@ -84,24 +84,24 @@ require_var() {
 missing=0
 
 # These four gate entire jobs via `rules:` in .gitlab-ci.yml
-# (release:build-images requires DOCKERHUB_*, muma-mobile:build-release
+# (release:build-images requires DOCKERHUB_*, mobile:build-release
 # requires APK_HOSTER_URL and SIGNING_STORE_FILE). A rules-level variable check
 # does not fail when the variable is missing -- the job silently drops out of
 # the pipeline, and a skipped job blocks nothing. That failure mode is exactly
 # this script's reason to exist: an expired Docker Hub token would have meant
-# deploy:prod restarting production on stale :latest images (caught only
+# muma:deploy restarting production on stale :latest images (caught only
 # after the restart, by post-deploy-verify), and a dropped APK variable would
 # have shipped a release with no new APK and nothing red anywhere. This job
 # runs unconditionally on every release/hotfix branch, so the absence fails
 # loudly here instead.
 require_var "DOCKERHUB_USERNAME" \
-    "release:build-images vanishes and deploy:prod redeploys stale images" || missing=1
+    "release:build-images vanishes and muma:deploy redeploys stale images" || missing=1
 require_var "DOCKERHUB_TOKEN" \
-    "release:build-images vanishes and deploy:prod redeploys stale images" || missing=1
+    "release:build-images vanishes and muma:deploy redeploys stale images" || missing=1
 require_var "APK_HOSTER_URL" \
-    "muma-mobile:build-release vanishes and the release ships without an APK" || missing=1
+    "mobile:build-release vanishes and the release ships without an APK" || missing=1
 require_var "SIGNING_STORE_FILE" \
-    "muma-mobile:build-release vanishes and the release ships without an APK" || missing=1
+    "mobile:build-release vanishes and the release ships without an APK" || missing=1
 
 if [ -z "${PROD_ENV_FILE}" ]; then
     echo "Error: PROD_ENV_FILE CI/CD variable is not set. See docs/deployment.md."

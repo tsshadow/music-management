@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **De backupjob kon niet starten omdat een andere service in hetzelfde compose-bestand naar een
+  database verwees die daar niet in stond.** De timers draaien hun compose-bestand standalone, en
+  docker-compose v1 -- wat productie draait -- valideert het hele bestand voordat het één service
+  start. `run --rm db-backup` stierf daardoor op `Service 'soundcloud-fetcher' depends on service
+  'db' which is undefined`: een melding die naar de backup wijst terwijl het probleem de indeling
+  van het compose-bestand is. De twee backupservices staan nu in een eigen
+  `docker/docker-compose.backup.yml` dat op zichzelf klopt; een `depends_on` hebben ze niet nodig,
+  want ze verbinden over het externe netwerk en falen luid als de database er niet is. Vier tests
+  bewaken dat het bestand zelfstandig blijft werken en dat de units bestaande services aanroepen.
+
 ### Added
 - **Databasebackups die zichzelf bewijzen, in plaats van bestanden die er staan.** Het ontwerp uit
   `docs/superpowers/specs/2026-08-02-daily-db-backups-design.md` is gebouwd: `tools/db_backup.py`

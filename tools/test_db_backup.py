@@ -358,3 +358,39 @@ class QuoteIdentifierTest(unittest.TestCase):
         for name in ('tracks`; DROP TABLE users; --', 'a b', 'tracks)', ''):
             with self.assertRaises(db_backup.BackupError):
                 db_backup.quote_identifier(name)
+
+
+class ReadOnlyDestinationTest(unittest.TestCase):
+    """The restore check reads a directory it must not be able to write.
+
+    Both requirements are real and they collide: the backup job must refuse a
+    destination it cannot write, and the restore check mounts that same
+    directory read-only so it cannot damage its own source. The flag is where
+    they are reconciled -- this is the bug that made the first restore check
+    fail with "backup destination /backups is not writable".
+    """
+
+    def _read_only_dir(self, tmp: str) -> Path:
+        dest = Path(tmp) / 'ro'
+        dest.mkdir(mode=0o500)
+        # Restored inside the test, not via addCleanup: the TemporaryDirectory
+        # is already gone by the time cleanups run.
+        return dest
+
+    def test_a_read_only_destination_is_rejected_for_the_backup_job(self):
+        with TemporaryDirectory() as tmp:
+            dest = self._read_only_dir(tmp)
+            try:
+                with self.assertRaises(db_backup.BackupError) as caught:
+                    db_backup.resolve_destination(str(dest), None)
+                self.assertIn('not writable', str(caught.exception))
+            finally:
+                dest.chmod(0o700)
+
+    def test_a_read_only_destination_is_accepted_when_only_reading(self):
+        with TemporaryDirectory() as tmp:
+            dest = self._read_only_dir(tmp)
+            try:
+                self.assertEqual(db_backup.resolve_destination(str(dest), None, require_writable=False), dest.resolve())
+            finally:
+                dest.chmod(0o700)

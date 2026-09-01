@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **De backupjob kon niet starten omdat een andere service in hetzelfde compose-bestand naar een
+  database verwees die daar niet in stond.** De timers draaien hun compose-bestand standalone, en
+  docker-compose v1 -- wat productie draait -- valideert het hele bestand voordat het één service
+  start. `run --rm db-backup` stierf daardoor op `Service 'soundcloud-fetcher' depends on service
+  'db' which is undefined`: een melding die naar de backup wijst terwijl het probleem de indeling
+  van het compose-bestand is. De twee backupservices staan nu in een eigen
+  `docker/docker-compose.backup.yml` dat op zichzelf klopt; een `depends_on` hebben ze niet nodig,
+  want ze verbinden over het externe netwerk en falen luid als de database er niet is. Vier tests
+  bewaken dat het bestand zelfstandig blijft werken en dat de units bestaande services aanroepen.
+- **De herstelproef weigerde te starten op precies de read-only mount die hem veilig maakt.** Hij
+  hergebruikte de padvalidatie van de backupjob, en die eist schrijfrechten -- terecht voor een job
+  die dumps wegschrijft, maar de proef mount de dumpmap bewust alleen-lezen omdat een controle die
+  zijn eigen bron kan overschrijven geen controle is. Twee juiste eisen die elkaar tegenspraken; de
+  validatie kent nu `require_writable`, en de proef zet hem uit.
+- **De herstelproef had superuser-rechten nodig voor twee views, en krijgt die niet.** De dump
+  schrijft de views met een `DEFINER`-clausule, en zoiets terugzetten namens een ander account
+  vereist `SET USER` -- een recht waarmee je je als elke gebruiker kunt voordoen, veel te breed voor
+  een wekelijkse controle. De dump blijft ongewijzigd, want een echte restore draait als root en een
+  getrouwe dump is het hele punt; alleen de proef haalt de clausule uit de stroom terwijl hij hem
+  inleest. Die vervanging is bewust smal: alleen regels die met `/*!<nummer> DEFINER=` of
+  `CREATE DEFINER=` beginnen, zodat een van de miljoenen INSERT-regels die toevallig de tekst
+  bevat onaangeroerd blijft.
+
 ### Added
 - **Databasebackups die zichzelf bewijzen, in plaats van bestanden die er staan.** Het ontwerp uit
   `docs/superpowers/specs/2026-08-02-daily-db-backups-design.md` is gebouwd: `tools/db_backup.py`

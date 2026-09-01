@@ -136,3 +136,25 @@ class MainTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class StripDefinerTest(unittest.TestCase):
+    """Recreating someone else's view needs SET USER; the check has no business
+    holding that privilege, so it drops the clause on the way in."""
+
+    def test_removes_the_clause_from_a_versioned_comment(self):
+        line = b'/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */\n'
+        self.assertEqual(db_restore_check.strip_definer(line), b'/*!50013 SQL SECURITY DEFINER */\n')
+
+    def test_removes_the_clause_after_create(self):
+        line = b'CREATE DEFINER=`root`@`%` PROCEDURE `p`()\n'
+        self.assertEqual(db_restore_check.strip_definer(line), b'CREATE PROCEDURE `p`()\n')
+
+    def test_leaves_a_data_row_that_merely_contains_the_word_alone(self):
+        """The narrow match is what keeps 6 GB of INSERTs safe."""
+        line = b"INSERT INTO `events` VALUES (1,'DEFINER=`a`@`b` was logged');\n"
+        self.assertEqual(db_restore_check.strip_definer(line), line)
+
+    def test_leaves_ordinary_lines_untouched(self):
+        for line in (b'INSERT INTO `t` VALUES (1);\n', b'\n', b'CREATE TABLE `t` (`id` int);\n'):
+            self.assertEqual(db_restore_check.strip_definer(line), line)

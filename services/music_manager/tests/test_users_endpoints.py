@@ -382,16 +382,38 @@ class UserManagementTest(UsersEndpointTestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_a_user_can_be_enabled(self):
-        with patch.object(users_router.rbac, 'record_audit_event') as audit:
+        with (
+            patch.object(users_router.rbac, 'record_audit_event') as audit,
+            patch.object(users_router, 'notify_server_sync_users') as notify,
+        ):
             response = self.client.post('/api/users/4/enable', headers=self.headers)
         self.assertEqual(response.json(), {'status': 'ok'})
         self.assertIn('enabled = TRUE', self.statements()[0])
         self.assertEqual(audit.call_args.args[1], 'user.enabled')
+        notify.assert_called_once()
 
     def test_a_user_can_be_disabled(self):
-        with patch.object(users_router.rbac, 'record_audit_event'):
+        with (
+            patch.object(users_router.rbac, 'record_audit_event'),
+            patch.object(users_router, 'notify_server_sync_users') as notify,
+        ):
             self.client.post('/api/users/4/disable', headers=self.headers)
         self.assertIn('enabled = FALSE', self.statements()[0])
+        # LMS caches a granted password for five minutes; the poke is what ends that early.
+        # Without it a disabled listener keeps playing until the cache happens to lapse.
+        notify.assert_called_once()
+
+    def test_the_sync_poke_comes_after_the_commit(self):
+        # LMS answers the poke by fetching /api/users/; a poke before the commit would let it
+        # read the old row and cache the account as enabled all over again.
+        order = []
+        self.conn.commit.side_effect = lambda: order.append('commit')
+        with (
+            patch.object(users_router.rbac, 'record_audit_event'),
+            patch.object(users_router, 'notify_server_sync_users', side_effect=lambda: order.append('notify')),
+        ):
+            self.client.post('/api/users/4/disable', headers=self.headers)
+        self.assertEqual(order, ['commit', 'notify'])
 
     def test_revoking_sessions_clears_the_api_key_and_the_refresh_tokens(self):
         with patch.object(users_router.rbac, 'record_audit_event'):

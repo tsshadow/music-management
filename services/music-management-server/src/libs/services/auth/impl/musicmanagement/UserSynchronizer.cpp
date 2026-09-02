@@ -45,8 +45,30 @@ namespace lms::auth
             LMS_LOG(AUTH, INFO, "Stopped MusicManagement user synchronizer!");
         }
 
+        void UserSynchronizer::setOnUsersSynced(std::function<void()> callback)
+        {
+            const std::scoped_lock lock{ _onUsersSyncedMutex };
+            _onUsersSynced = std::move(callback);
+        }
+
+        void UserSynchronizer::notifyUsersSynced()
+        {
+            std::function<void()> callback;
+            {
+                const std::scoped_lock lock{ _onUsersSyncedMutex };
+                callback = _onUsersSynced;
+            }
+            if (callback)
+                callback();
+        }
+
         void UserSynchronizer::syncUsers()
         {
+            // Before the fetch, and regardless of whether it succeeds: the notification itself is
+            // the news that a user's standing may have changed. Anything cached about a user is
+            // stale from this point even if music-manager cannot be reached for the details.
+            notifyUsersSynced();
+
             if (!_client)
                 return;
 

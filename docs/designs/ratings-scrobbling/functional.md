@@ -32,7 +32,7 @@ The Ratings & Scrobbling feature ensures that a user's track preferences and lis
 
 ## Open Questions / Not Yet Decided
 
-- **Bidirectional Sync**: Does the Music Manager push ratings *to* LMS if they are changed directly in the Music Manager database, or is LMS always the source of rating changes?
+- ~~**Bidirectional Sync**~~: decided. Sync is one-way: LMS reports rating changes to the Music Manager, and the Music Manager never pushes back. The Music Manager is the archive, LMS the working copy; a rebuilt LMS database loses the stars in the player and keeps them centrally. See [Product Goal](../../product-goal.md), "Ownership of ratings and history".
 - **Track Deletion**: If a track is deleted from the library, do its ratings and listens remain in the database for historical statistics?
 - **Unmatched Reconciliation**: Is there an automated process to re-scan unmatched scrobbles when new tracks are added to the library?
 - **Rating Scale Mapping**: Are 1-5 star ratings from all Subsonic clients consistently mapped to the 0-100 internal scale?

@@ -50,7 +50,7 @@ enum class ManagementPage(
     val group: ManagementGroup,
     val isBuilt: Boolean = false
 ) {
-    OVERVIEW("overview", R.string.management_tab_overview, ManagementGroup.OVERVIEW),
+    OVERVIEW("overview", R.string.management_tab_overview, ManagementGroup.OVERVIEW, isBuilt = true),
     LIBRARY("library", R.string.management_tab_library, ManagementGroup.COLLECTION),
     SCANNER("scanner", R.string.management_tab_scanner, ManagementGroup.COLLECTION),
     IMAGES("images", R.string.management_tab_images, ManagementGroup.COLLECTION),
@@ -86,8 +86,8 @@ enum class ManagementPage(
         ManagementGroup.ACCESS,
         isBuilt = true
     ),
-    HEALTH("health", R.string.management_tab_health, ManagementGroup.SYSTEM),
-    EVENTS("events", R.string.management_tab_events, ManagementGroup.SYSTEM),
+    HEALTH("health", R.string.management_tab_health, ManagementGroup.SYSTEM, isBuilt = true),
+    EVENTS("events", R.string.management_tab_events, ManagementGroup.SYSTEM, isBuilt = true),
     SCROBBLE("scrobble", R.string.management_tab_scrobble, ManagementGroup.SYSTEM),
     LIBRARIES("libraries", R.string.management_tab_libraries, ManagementGroup.SETTINGS),
     CONFIG("config", R.string.management_tab_config, ManagementGroup.SETTINGS)

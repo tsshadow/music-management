@@ -22,6 +22,50 @@ from pytest_bdd import given, parsers, when
 
 TIMEOUT = 10
 
+# The order the features run in, and it matters: several assert the state an
+# earlier one leaves behind, or pin a counter at zero that a later one moves.
+# pytest would otherwise run the modules in name order, which held for as long
+# as every new feature happened to sort behind the one it depended on -- and
+# stopped holding the moment one had to run last for a reason its name could
+# not carry. The rules, in run order:
+#
+#   genre_curation   asserts no scan has happened yet, so it goes first
+#   genre_decision   needs the scan genre_curation triggered, keeps the genre
+#   playlist_unrated needs a scanned library
+#   rating_roundtrip rates the fixture as the admin
+#   scan_to_listen   pins the listen counter at zero, then moves it
+#   subsonic_scrobble moves it again
+#   unmatched_listen pins the *unmatched* counter at zero
+#   user_disabled / user_throttled act on accounts of their own
+#   genre_rejected   rewrites the fixture's bytes, so nothing may stream after it
+#
+# A module not listed here runs after all of these, in name order, which is
+# the safe default for a feature that touches nothing shared.
+FEATURE_ORDER = [
+    'test_access_control_steps',
+    'test_genre_curation_steps',
+    'test_genre_decision_steps',
+    'test_playlist_unrated_steps',
+    'test_rating_roundtrip_steps',
+    'test_scan_to_listen_steps',
+    'test_subsonic_scrobble_steps',
+    'test_unmatched_listen_steps',
+    'test_user_disabled_steps',
+    'test_user_throttled_steps',
+    'test_genre_rejected_steps',
+]
+
+
+def pytest_collection_modifyitems(items):
+    """Run the feature modules in FEATURE_ORDER, not in name order."""
+
+    def rank(item):
+        name = item.module.__name__.rsplit('.', 1)[-1]
+        position = FEATURE_ORDER.index(name) if name in FEATURE_ORDER else len(FEATURE_ORDER)
+        return (position, name)
+
+    items.sort(key=rank)
+
 
 def _base(port_var: str) -> str:
     port = os.getenv(port_var)
@@ -274,6 +318,9 @@ def provision_lms_account(manager, lms, api_key, subsonic_auth, username, passwo
 
     wait_for(f'LMS to learn about {username}', listed, timeout=60)
     context.setdefault('accounts', {})[username] = {'id': user_id, 'password': password}
+    # "The listener" in a step is the account provisioned last, so a feature can
+    # provision one per scenario without every step naming it.
+    context['listener'] = username
     return user_id
 
 

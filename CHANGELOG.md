@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.42.0] - 2026-09-02
+
+### Fixed
+- **Een genre-besluit bereikte de draaiende tagger niet.** `POST /api/rules/genres/{id}/decide`
+  markeerde de bestanden voor een retag, maar de tagger leest zijn genre-regels uit een helper die
+  bij het opstarten is geladen en niet werd ververst -- de podcast-beslissing deed dat al wel. De
+  retag die het besluit zelf in gang zette schreef het bestand dus terug met het genre nog op de
+  oude manier opgelost, tot een herstart. Het besluit ververst nu `genre_rules`, zoals de
+  curatiepagina's al deden voor hun regels.
+- **Een uitgeschakeld account bleef tot vijf minuten doorspelen op LMS.** LMS onthoudt een
+  goedgekeurd wachtwoord vijf minuten zonder music-manager opnieuw te vragen (de auth-cache uit de
+  thread-pool-fix), dus `disable` bereikte de speler pas bij het eerstvolgende *ongecachte* verzoek.
+  Uitschakelen en inschakelen porren nu de gebruikerssync van LMS, precies zoals de eerste-admin-setup
+  dat al deed, en LMS gooit bij elke sync zijn hele auth-cache weg. De e2e-feature die dit gat
+  vorige keer vastlegde bewijst nu ook het omgekeerde: een account dat LMS al binnenliet wordt bij
+  het volgende verzoek geweigerd, niet bij het verlopen van een timer.
+
+### Added
+- **Eén doc dat zegt waar MuMa voor is, in plaats van negentien die zeggen hoe het werkt.**
+  `docs/product-goal.md` legt het doel vast: elke combinatie van genre, jaar, artiest, label,
+  festival en rating wordt een speelbare lijst. Downloaden, taggen en eigen bestandsbeheer zijn
+  middelen. Wat er nergens anders stond en nu wel: de datumregel per materiaalsoort (nummers en
+  sets op releasedatum, livesets op draaidatum met releasedatum als fallback), dat de regels de
+  waarheid zijn en zowel de bestanden als de database uitvoer, dat MuMa het archief is en LMS de
+  werkkopie, en de risico-volgorde waarin onherstelbaar verlies boven storingen gaat — waarmee
+  tagger, downloader, importer en scanner een zwaardere bewijslast dragen dan de speler.
+
+  Drie docs zijn erop bijgewerkt. `docs/analyzer-jobs.md` is verwijderd: het beschreef een tweede
+  scanner met `analyzer/jobs/handlers.py` en `POST /api/v1/analyzer/library/scan`, en geen van die
+  paden bestaat in deze repo. `docs/machine-learning.md` is herlabeld als onuitgevoerd voorstel,
+  want het is een gespreksverslag over modellen die nooit gebouwd zijn. In
+  `docs/architecture/responsibilities.md` stond dat ratings terug naar LMS geduwd kunnen worden en
+  in `docs/designs/ratings-scrobbling/functional.md` stond die vraag nog open; beide zeggen nu
+  hetzelfde als de doel-doc, namelijk dat de sync één kant op loopt en dat dat de bedoeling is.
+- **Een lineup met de hand invoeren, en vooraf zien wat hij matcht.** `/music/metadata/festival-lineups`
+  is leeg sinds de map bestaat, dus de Lineups-pagina op het web en de lineup-browse op de telefoon
+  werken allebei en tonen niets. Een affiche typ je over van het festival zelf -- Partyflock, in de
+  spec als voorkeursbron genoemd, verbiedt scrapers (artikel 5) en hergebruik zonder toestemming
+  (artikel 6). Wat overtypen lastig maakt is de match: `getSpotifyTracks` filtert met
+  `LOWER(artist_display_name) IN (...)` op de *hele* weergavenaam, dus een regel die deze
+  bibliotheek anders spelt draagt stilzwijgend niets bij. `scripts/import_festival_lineup.py` leest
+  het affiche, controleert elke regel tegen de artiestnamen die LMS werkelijk heeft, en meldt wat
+  matcht, wat niet, en welke namen in de bibliotheek er het dichtst bij liggen -- voordat er iets
+  wordt weggeschreven. Uit de bibliotheek zelf afleiden is geprobeerd en verworpen: warm-up mixes,
+  livesets en podcast-afleveringen dragen dezelfde FESTIVAL-tag, dus dat "affiche" liep vol met
+  namen die nooit op de line-up stonden.
+- **e2e: een afgekeurd genre verdwijnt uit bestand, bibliotheek én speler.** `genre_rejected.feature`
+  keurt het genre van de fixture af, laat de retag draaien, wacht tot de wachtrij leeg is, ziet de
+  scanner het genre van de track halen en laat LMS herindexeren tot ook die het niet meer meldt.
+  Het is de eerste feature die de bytes van de fixture verandert, en hij vond bij de eerste run twee
+  dingen: het cache-gat hierboven, en dat de tagger een bestand los in de root van het volume nooit
+  bezoekt (hij loopt alleen labelmappen, kanaalmappen en een vaste lijst generieke mappen). De
+  fixture staat daarom voortaan onder `Top 100`, en `TAGGER_SLEEPTIME` staat in de teststack op een
+  dag zodat de achtergrondronde niet zelf tussendoor gaat herschrijven.
+- **De volgorde van de e2e-features staat nu in `conftest.py`, niet in hun bestandsnamen.**
+  `FEATURE_ORDER` plus een `pytest_collection_modifyitems`-hook; een module die er niet in staat draait
+  erna, op naam. De docstrings die op alfabetische volgorde leunden verwijzen nu naar de lijst.
+
 ## [0.41.0] - 2026-09-02
 
 ### Changed

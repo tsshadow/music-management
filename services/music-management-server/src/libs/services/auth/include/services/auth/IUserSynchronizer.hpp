@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 
 #include "core/Service.hpp"
@@ -27,6 +28,12 @@ namespace lms::auth
     public:
         virtual ~IUserSynchronizer() = default;
         virtual void syncUsers() = 0;
+
+        // Called on every sync, before anything else. A sync is music-manager saying "something
+        // about the users changed" -- an account created, disabled, re-enabled -- and anything
+        // that remembers an earlier answer about a user has to forget it now rather than when
+        // its own timer says so. One subscriber; passing an empty function unsubscribes.
+        virtual void setOnUsersSynced(std::function<void()> callback) = 0;
     };
 
     std::unique_ptr<IUserSynchronizer> createUserSynchronizer(boost::asio::io_context& ioContext, db::IDb& db);

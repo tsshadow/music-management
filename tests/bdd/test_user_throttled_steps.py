@@ -5,7 +5,7 @@ The feature file is the description; this is only what the steps do.
 Started by scripts/test/core-e2e.sh, which brings the stack up. Without it these
 skip.
 
-The module name sorts last on purpose. The account it exhausts is its own, so
+Runs late, by conftest.FEATURE_ORDER. The account it exhausts is its own, so
 nothing later would break on it -- but the limit's window is a minute, and a
 feature that ran after this against the same account would spend that minute
 waiting. Nothing should have to.

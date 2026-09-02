@@ -69,6 +69,12 @@ services:
       music_folder_path: /mnt/music
       import_folder_path: /mnt/music
       eps_folder_path: /mnt/music
+      # The background tagger round runs once at startup (before the fixture exists)
+      # and then every TAGGER_SLEEPTIME seconds. The e2e suite tags the fixture
+      # explicitly and, in one feature, marks it for a retag it then runs itself; a
+      # round firing on its own in between would rewrite the file under the streaming
+      # assertions. A day keeps it out of every run.
+      TAGGER_SLEEPTIME: "86400"
     tmpfs:
       - /app/data
     volumes:

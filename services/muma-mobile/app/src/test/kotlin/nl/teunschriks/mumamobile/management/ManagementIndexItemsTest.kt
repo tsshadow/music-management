@@ -48,13 +48,19 @@ class ManagementIndexItemsTest {
     }
 
     @Test
-    fun `only the three pages the app has built are enabled`() {
+    fun `only the pages the app has built are enabled`() {
         val built = ManagementPage.entries.filter { it.isBuilt }
 
+        // The System batch (overview, health, events) joined the first three. Everything else is
+        // still listed and disabled, which is what makes the index the honest picture of what
+        // management holds rather than of what the phone happens to do yet.
         built `should be equal to` listOf(
+            ManagementPage.OVERVIEW,
             ManagementPage.DOWNLOADERS,
             ManagementPage.USERS,
-            ManagementPage.USER_REQUESTS
+            ManagementPage.USER_REQUESTS,
+            ManagementPage.HEALTH,
+            ManagementPage.EVENTS
         )
     }
 

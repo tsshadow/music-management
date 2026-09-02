@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.27.0] - 2026-09-02
+
+### Added
+- **Beheer heeft zijn eerste drie systeempagina's: Overzicht, Gezondheid en Logboek.** De index gaf
+  ze al als rij weer, uitgegrijsd, met de melding dat ze voorlopig op het web wonen; nu openen ze.
+  Overzicht vat drie aanroepen samen tot drie regels: hoeveel containers draaien (en welke niet),
+  welke versie music-manager meldt, en welk nummer het laatst is toegevoegd. Gezondheid lijst elke
+  container met status en image, en zet de logstaart in een dialoog -- een eigen scherm voor een
+  muur tekst zonder knoppen zet alleen iets in de terugstapel dat je meteen weer weg wilt hebben.
+  Logboek toont de gebeurtenissenstroom met een filter per niveau; die niveaus zijn letterlijk de
+  vier die de server accepteert, want een zelfverzonnen niveau levert een 400 op de hele pagina in
+  plaats van een lege lijst, en een test vergelijkt de lijst met `LEVELS` in `routers/events.py`.
+  Alle drie zijn lezen en verder niets: de server blijft de grens, het scherm toont wat hij meldt.
+  Eén afwijking van het web bewust: nul containers geldt niet als "alles draait" -- dat betekent dat
+  de aanroep niets opleverde, en het web zet daar een groen vinkje bij.
+
 ## [6.26.0] - 2026-09-02
 
 ### Fixed

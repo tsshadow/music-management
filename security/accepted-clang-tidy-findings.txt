@@ -44,7 +44,7 @@ b5d0e67ae29d2b32 x1  # bugprone-easily-swappable-parameters src/libs/database/im
 f66f42c0c47297bd x1  # bugprone-easily-swappable-parameters src/libs/services/auth/impl/internal/InternalPasswordService.cpp
 eb5c43cd6c7c92bc x1  # bugprone-easily-swappable-parameters src/libs/services/auth/impl/musicmanagement/MusicManagementPasswordService.cpp
 038dc61ec049fc98 x1  # bugprone-easily-swappable-parameters src/libs/services/podcast/impl/PodcastParsing.cpp
-27246f7b9c31d9d8 x1  # bugprone-easily-swappable-parameters src/libs/services/scanner/impl/scanners/audiofile/TrackMetadataParser.cpp
+089a24943ece011c x1  # bugprone-easily-swappable-parameters src/libs/services/scanner/impl/scanners/audiofile/TrackMetadataParser.cpp
 78b26208eab91026 x1  # bugprone-easily-swappable-parameters src/libs/services/scanner/impl/steps/JobQueue.cpp
 ba998e4a7dca98ff x1  # bugprone-easily-swappable-parameters src/libs/som/impl/Network.cpp
 18b9f10a12fe9e2a x1  # bugprone-easily-swappable-parameters src/libs/subsonic/impl/AuthCache.cpp
@@ -53,13 +53,20 @@ ba998e4a7dca98ff x1  # bugprone-easily-swappable-parameters src/libs/som/impl/Ne
 d5a8e09427a84243 x1  # bugprone-easily-swappable-parameters src/lms/main.cpp
 d475d6b57e4f152a x1  # bugprone-easily-swappable-parameters src/lms/ui/State.cpp
 4f1346c9e690f22a x1  # bugprone-easily-swappable-parameters src/lms/ui/Utils.cpp
-7245694b5cbde9ea x1  # bugprone-easily-swappable-parameters src/lms/ui/admin/ScanSettingsView.cpp
-dc942771a124f4a3 x1  # bugprone-easily-swappable-parameters src/lms/ui/admin/ScanSettingsView.cpp
+c679a5f23f69f82a x1  # bugprone-easily-swappable-parameters src/lms/ui/admin/ScanSettingsView.cpp
+c18f8f75ab684f4c x1  # bugprone-easily-swappable-parameters src/lms/ui/admin/ScanSettingsView.cpp
 
 # --- bugprone-empty-catch ---
 # NOT YET AUDITED.
 7086fad10afad94b x1  # bugprone-empty-catch src/libs/core/impl/Config.cpp
 774e366af32eaaf1 x1  # bugprone-empty-catch src/libs/database/impl/Migration.cpp
+
+# --- bugprone-exception-copy-constructor-throws ---
+# Accepted wholesale on 2026-09-02 with the alpine 3.21 -> 3.24 bump of the tidy image
+# (LLVM 19.1 -> 22.1): this check did not exist in the old release, so every entry is
+# a new rule on unchanged code, not a new site. Audit the file when you next touch it;
+# a fresh finding under this check still fails the job.
+0729932b0510d47a x1  # bugprone-exception-copy-constructor-throws src/libs/database/impl/Session.cpp
 
 # --- bugprone-exception-escape ---
 # WORTH FIXING. A destructor or noexcept function that can throw ends the
@@ -114,7 +121,7 @@ f0fcecc128792d17 x4  # bugprone-narrowing-conversions src/libs/image/impl/stb/Ra
 a834a31cbf74ac26 x1  # bugprone-narrowing-conversions src/libs/muma/MumaResource.cpp
 669e7a38fa8e2112 x1  # bugprone-narrowing-conversions src/libs/services/auth/impl/AuthTokenService.cpp
 a724769c5f900aed x1  # bugprone-narrowing-conversions src/libs/services/auth/impl/LoginThrottler.cpp
-7f12538d4f7f7560 x1  # bugprone-narrowing-conversions src/libs/services/jukebox/impl/JukeboxService.cpp
+b7d8d3662946f497 x1  # bugprone-narrowing-conversions src/libs/services/jukebox/impl/JukeboxService.cpp
 33fd7b9545fb63af x1  # bugprone-narrowing-conversions src/libs/services/podcast/impl/steps/DownloadEpisodeArtworksStep.cpp
 93b02798645fd2fe x1  # bugprone-narrowing-conversions src/libs/services/podcast/impl/steps/DownloadEpisodesStep.cpp
 ec2832188cce5880 x1  # bugprone-narrowing-conversions src/libs/services/podcast/impl/steps/DownloadEpisodesStep.cpp
@@ -154,6 +161,13 @@ fab3da326efe9f58 x4  # bugprone-optional-value-conversion src/libs/subsonic/impl
 aabcbc867f754abc x2  # bugprone-optional-value-conversion src/libs/subsonic/impl/endpoints/transcoding/TranscodeDecision.cpp
 cf779e545894553b x1  # bugprone-optional-value-conversion src/lms/ui/resource/AudioTranscodingResource.cpp
 
+# --- bugprone-std-namespace-modification ---
+# Accepted wholesale on 2026-09-02 with the alpine 3.21 -> 3.24 bump of the tidy image
+# (LLVM 19.1 -> 22.1): this check did not exist in the old release, so every entry is
+# a new rule on unchanged code, not a new site. Audit the file when you next touch it;
+# a fresh finding under this check still fails the job.
+f8a626ee2c51ee93 x1  # bugprone-std-namespace-modification src/lms/ui/explore/ArtistType.cpp
+
 # --- bugprone-suspicious-missing-comma ---
 # NOT YET AUDITED.
 0b22612ca322c41d x1  # bugprone-suspicious-missing-comma src/libs/subsonic/impl/endpoints/Spotify.cpp
@@ -168,29 +182,38 @@ b7d61761f652b6f4 x1  # bugprone-suspicious-stringview-data-usage src/libs/audio/
 fe4fea9f1d10cafe x1  # bugprone-switch-missing-default-case src/lms/ui/PlayQueue.cpp
 bafe213f24b26ada x1  # bugprone-switch-missing-default-case src/lms/ui/Utils.cpp
 
+# --- bugprone-throwing-static-initialization ---
+# Accepted wholesale on 2026-09-02 with the alpine 3.21 -> 3.24 bump of the tidy image
+# (LLVM 19.1 -> 22.1): this check did not exist in the old release, so every entry is
+# a new rule on unchanged code, not a new site. Audit the file when you next touch it;
+# a fresh finding under this check still fails the job.
+e7add11f4f445300 x1  # bugprone-throwing-static-initialization src/libs/audio/impl/ffmpeg/TagReader.cpp
+d03997d9bde7635c x1  # bugprone-throwing-static-initialization src/libs/audio/impl/taglib/TagReader.cpp
+19834cb9dae6b41e x1  # bugprone-throwing-static-initialization src/libs/database/impl/objects/Types.cpp
+5c57dffb7b188519 x1  # bugprone-throwing-static-initialization src/libs/services/recommendation/impl/features/FeaturesDefs.cpp
+d4640d4d75f7b0de x1  # bugprone-throwing-static-initialization src/libs/subsonic/impl/SubsonicResource.cpp
+e8dc51811cbed947 x1  # bugprone-throwing-static-initialization src/libs/subsonic/impl/SubsonicResource.cpp
+f060df1ac78f589c x1  # bugprone-throwing-static-initialization src/libs/subsonic/impl/endpoints/Jukebox.cpp
+28970b0303c778d0 x1  # bugprone-throwing-static-initialization src/lms/ui/Auth.cpp
+026ce6889ea5c124 x1  # bugprone-throwing-static-initialization src/lms/ui/Auth.cpp
+3bedfed6e74dfb83 x1  # bugprone-throwing-static-initialization src/lms/ui/explore/ReleaseHelpers.cpp
+
 # --- bugprone-unchecked-optional-access ---
 # WORTH FIXING, and the highest-value entry in this file. Each of these
 # dereferences an optional without checking it: a crash, not a style point.
 # Baselined only because gating on zero on day one was not an option. Burn
 # these down first.
-09af4ebdcc0f3809 x1  # bugprone-unchecked-optional-access src/libs/services/auth/impl/AuthTokenService.cpp
 5c57d2e9dc969e4a x6  # bugprone-unchecked-optional-access src/libs/services/scanner/impl/scanners/audiofile/AudioFileScanOperation.cpp
-c6ae7be0e5e1a0cb x1  # bugprone-unchecked-optional-access src/libs/services/scanner/impl/scanners/audiofile/TrackMetadataParser.cpp
 8e951be8fce78483 x1  # bugprone-unchecked-optional-access src/libs/services/transcoding/impl/TranscodeService.cpp
 342e9444d8b0bd9b x1  # bugprone-unchecked-optional-access src/libs/subsonic/impl/SubsonicResource.cpp
-7d91ca8ebf9c4820 x1  # bugprone-unchecked-optional-access src/libs/subsonic/impl/endpoints/Jukebox.cpp
-29111c6f601a6d7d x4  # bugprone-unchecked-optional-access src/libs/subsonic/impl/endpoints/Transcoding.cpp
-b2fd752b58c18a37 x4  # bugprone-unchecked-optional-access src/libs/subsonic/impl/endpoints/transcoding/AudioFileInfo.cpp
+b2fd752b58c18a37 x2  # bugprone-unchecked-optional-access src/libs/subsonic/impl/endpoints/transcoding/AudioFileInfo.cpp
 51c125d9c6a1cb45 x4  # bugprone-unchecked-optional-access src/libs/subsonic/impl/endpoints/transcoding/TranscodeDecision.cpp
-49e32c4ed16e0c49 x1  # bugprone-unchecked-optional-access src/libs/subsonic/impl/responses/DiscTitle.cpp
-78af9965e8325678 x3  # bugprone-unchecked-optional-access src/libs/subsonic/impl/responses/Song.cpp
+78af9965e8325678 x1  # bugprone-unchecked-optional-access src/libs/subsonic/impl/responses/Song.cpp
 b9129bc60542df39 x5  # bugprone-unchecked-optional-access src/lms/ui/Auth.cpp
+16e535a6b7a865a5 x1  # bugprone-unchecked-optional-access src/lms/ui/LmsApplication.cpp
 5b53f7b58a32b762 x1  # bugprone-unchecked-optional-access src/lms/ui/PlayQueue.cpp
 7ab1cded61391ac1 x2  # bugprone-unchecked-optional-access src/lms/ui/SettingsView.cpp
-95fd4d4425f49682 x1  # bugprone-unchecked-optional-access src/lms/ui/explore/ReleaseHelpers.cpp
-0a1a4b06a2f1d95c x1  # bugprone-unchecked-optional-access src/lms/ui/explore/ReleaseView.cpp
-4e693880f6c5876e x3  # bugprone-unchecked-optional-access src/lms/ui/explore/TrackListHelpers.cpp
-a88f814c518de12f x2  # bugprone-unchecked-optional-access src/lms/ui/resource/AudioTranscodingResource.cpp
+a88f814c518de12f x1  # bugprone-unchecked-optional-access src/lms/ui/resource/AudioTranscodingResource.cpp
 9603c098d357242e x1  # bugprone-unchecked-optional-access src/lms/ui/resource/DownloadResource.cpp
 
 # --- bugprone-unused-local-non-trivial-variable ---
@@ -211,16 +234,17 @@ cc5ef9dea17e8cb5 x5  # concurrency-mt-unsafe src/libs/core/impl/Config.cpp
 
 # --- cppcoreguidelines-avoid-c-arrays ---
 # NOT YET AUDITED.
-9ddcf0c78fa71a2c x1  # cppcoreguidelines-avoid-c-arrays src/libs/core/impl/ChildProcess.cpp
-dff0eda78b0cb1ad x1  # cppcoreguidelines-avoid-c-arrays src/libs/core/impl/Md5.cpp
-aead00fbc94ee88b x1  # cppcoreguidelines-avoid-c-arrays src/libs/core/impl/PartialDateTime.cpp
-058f75c6f63d94b7 x7  # cppcoreguidelines-avoid-c-arrays src/libs/core/impl/String.cpp
-074d783d4daed233 x1  # cppcoreguidelines-avoid-c-arrays src/libs/database/impl/objects/Track.cpp
-9bb7ec892c07c54f x1  # cppcoreguidelines-avoid-c-arrays src/libs/services/scanner/impl/ScannerService.cpp
-d74418628130247e x1  # cppcoreguidelines-avoid-c-arrays src/libs/services/scanner/impl/scanners/audiofile/Utils.cpp
-1c8a5cc54ea12b05 x2  # cppcoreguidelines-avoid-c-arrays src/lms/main.cpp
-6873648a3ebf1791 x1  # cppcoreguidelines-avoid-c-arrays src/lms/ui/LmsApplication.cpp
-abb9a730418d5666 x1  # cppcoreguidelines-avoid-c-arrays src/tools/audioinfo/LmsAudioInfo.cpp
+e3be8681438d75cc x1  # cppcoreguidelines-avoid-c-arrays src/libs/core/impl/ChildProcess.cpp
+cdd1e6f59da929ac x1  # cppcoreguidelines-avoid-c-arrays src/libs/core/impl/Md5.cpp
+d6b7b92e491f8b8d x1  # cppcoreguidelines-avoid-c-arrays src/libs/core/impl/PartialDateTime.cpp
+fed355d6acfd9d53 x7  # cppcoreguidelines-avoid-c-arrays src/libs/core/impl/String.cpp
+d1794da18a6f467b x1  # cppcoreguidelines-avoid-c-arrays src/libs/database/impl/objects/Track.cpp
+baf2df77c5d09d5f x1  # cppcoreguidelines-avoid-c-arrays src/libs/services/scanner/impl/ScannerService.cpp
+83a78e33cc4c5f34 x1  # cppcoreguidelines-avoid-c-arrays src/libs/services/scanner/impl/scanners/audiofile/Utils.cpp
+c04c1650b3e2557e x1  # cppcoreguidelines-avoid-c-arrays src/lms/main.cpp
+8a9a1f16b936fe12 x1  # cppcoreguidelines-avoid-c-arrays src/lms/main.cpp
+57669d85fc4a2571 x1  # cppcoreguidelines-avoid-c-arrays src/lms/ui/LmsApplication.cpp
+86dd50a8a8d75661 x1  # cppcoreguidelines-avoid-c-arrays src/tools/audioinfo/LmsAudioInfo.cpp
 
 # --- cppcoreguidelines-avoid-const-or-ref-data-members ---
 # NOT YET AUDITED.
@@ -228,7 +252,7 @@ abb9a730418d5666 x1  # cppcoreguidelines-avoid-c-arrays src/tools/audioinfo/LmsA
 17be7e359c363c3a x1  # cppcoreguidelines-avoid-const-or-ref-data-members src/libs/services/scanner/impl/steps/ScanStepAssociateExternalLyrics.cpp
 a0fe09cda0e29162 x1  # cppcoreguidelines-avoid-const-or-ref-data-members src/libs/services/scanner/impl/steps/ScanStepAssociatePlayListTracks.cpp
 f518329fe7aabed3 x1  # cppcoreguidelines-avoid-const-or-ref-data-members src/libs/services/scanner/impl/steps/ScanStepAssociatePlayListTracks.cpp
-8db71142810220dd x1  # cppcoreguidelines-avoid-const-or-ref-data-members src/libs/services/scanner/impl/steps/ScanStepAssociateReleaseImages.cpp
+585a16239c5b378c x1  # cppcoreguidelines-avoid-const-or-ref-data-members src/libs/services/scanner/impl/steps/ScanStepAssociateReleaseImages.cpp
 7d9c7f9f3cce84a5 x1  # cppcoreguidelines-avoid-const-or-ref-data-members src/libs/services/scanner/impl/steps/ScanStepAssociateReleaseImages.cpp
 803dd64ae39aeb72 x1  # cppcoreguidelines-avoid-const-or-ref-data-members src/libs/services/scanner/impl/steps/ScanStepAssociateReleaseImages.cpp
 480b343836a390bc x1  # cppcoreguidelines-avoid-const-or-ref-data-members src/libs/services/scanner/impl/steps/ScanStepAssociateTrackImages.cpp
@@ -399,6 +423,57 @@ d90d27d394ac0aaf x1  # cppcoreguidelines-misleading-capture-default-by-value src
 c96d971a03ccf1d7 x1  # cppcoreguidelines-pro-bounds-array-to-pointer-decay src/libs/services/podcast/impl/PodcastService.cpp
 6b85ba2e674e0ac2 x1  # cppcoreguidelines-pro-bounds-array-to-pointer-decay src/libs/services/scanner/impl/ScannerService.cpp
 
+# --- cppcoreguidelines-pro-bounds-avoid-unchecked-container-access ---
+# Accepted wholesale on 2026-09-02 with the alpine 3.21 -> 3.24 bump of the tidy image
+# (LLVM 19.1 -> 22.1): this check did not exist in the old release, so every entry is
+# a new rule on unchanged code, not a new site. Audit the file when you next touch it;
+# a fresh finding under this check still fails the job.
+20532aa7ffa820a3 x6  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/audio/impl/alsa/AudioOutputStream.cpp
+5fcfd68a804918ba x7  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/audio/impl/ffmpeg/PcmDecoder.cpp
+3bf7810886c8ecad x1  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/audio/impl/taglib/ImageReader.cpp
+3cadcc3e97764b66 x10  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/audio/impl/taglib/TagReader.cpp
+33bd84927c8e6d10 x2  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/audio/impl/utils/PcmDecodeStreamer.cpp
+e894db82f5f557ab x1  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/core/impl/ArchiveZipper.cpp
+b17f2db030af9baa x1  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/core/impl/ChildProcess.cpp
+3f092656cbd90229 x1  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/core/impl/Config.cpp
+10d7bc566a199ce1 x4  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/core/impl/FileResourceHandler.cpp
+e106db6ae9f86cb4 x12  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/core/impl/String.cpp
+9cbf26a63ec2e526 x2  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/core/impl/TraceLogger.cpp
+1f5c3859611a7969 x2  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/muma/MumaResource.cpp
+8ec11c9a5984f978 x4  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/services/podcast/impl/PodcastParsing.cpp
+e2aeabadbd51ba29 x2  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/services/podcast/impl/PodcastService.cpp
+664efbc463e4638e x5  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/services/recommendation/impl/PlaylistGeneratorService.cpp
+cc20a54d1989eec9 x7  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/services/recommendation/impl/features/FeaturesEngine.cpp
+589a88815a7c8d37 x2  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/services/recommendation/impl/features/FeaturesEngineCache.cpp
+0083d96001eed471 x3  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/services/recommendation/impl/playlist-constraints/ConsecutiveArtists.cpp
+2611bc65dadbb6df x3  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/services/recommendation/impl/playlist-constraints/ConsecutiveReleases.cpp
+1b11e503a7446700 x1  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/services/recommendation/impl/playlist-constraints/DuplicateTracks.cpp
+5413a4750e20871a x2  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/services/scanner/impl/scanners/audiofile/AudioFileScanOperation.cpp
+120b45e183e9348e x6  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/services/scanner/impl/scanners/audiofile/TrackMetadataParser.cpp
+c9d903e4b4157c8a x3  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/services/scanner/impl/scanners/audiofile/Utils.cpp
+80e6ca80f1fca112 x8  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/services/scanner/impl/scanners/lyrics/LyricsParser.cpp
+8fa0a3cd62e6a83a x1  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/services/scanner/impl/steps/ScanStepAssociatePlayListTracks.cpp
+dcb52bfdf332c270 x15  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/som/impl/DataNormalizer.cpp
+011f41acc01957e9 x3  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/som/impl/Network.cpp
+16100772e9a9cf8e x5  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/subsonic/impl/CoverArtId.cpp
+9eefc02333375191 x3  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/subsonic/impl/ProtocolVersion.cpp
+749e7227e5b49f48 x14  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/subsonic/impl/SubsonicId.cpp
+21911655a9c51712 x2  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/subsonic/impl/endpoints/AlbumSongLists.cpp
+30f1c575f042a634 x4  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/subsonic/impl/endpoints/Browsing.cpp
+3b0032297688ef9b x2  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/subsonic/impl/endpoints/MediaAnnotation.cpp
+394af950c3ea32a8 x2  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/subsonic/impl/endpoints/MediaRetrieval.cpp
+95ff26adaf4edd74 x1  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/libs/subsonic/impl/endpoints/Spotify.cpp
+0363687d98922c88 x4  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/lms/main.cpp
+32d601e326524817 x2  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/lms/ui/Utils.cpp
+8a664fd1e8f350e3 x4  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/lms/ui/common/Template.cpp
+74a2da2307555b6b x1  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/lms/ui/explore/ArtistView.cpp
+792a7a60f62d090e x2  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/lms/ui/explore/ReleaseTypes.cpp
+5ee5d2df1fc58da9 x1  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/lms/ui/explore/ReleaseView.cpp
+9e552c9e0a394d6a x3  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/tools/audioinfo/LmsAudioInfo.cpp
+bb36ac7bf6345165 x5  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/tools/audioplay/LmsAudioPlay.cpp
+3bdd391de7709fde x8  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/tools/db-generator/LmsDbGenerator.cpp
+4548b55cacc3e87a x2  # cppcoreguidelines-pro-bounds-avoid-unchecked-container-access src/tools/recommendation/LmsRecommendation.cpp
+
 # --- cppcoreguidelines-pro-bounds-constant-array-index ---
 # NOT YET AUDITED.
 3edd20771529a385 x2  # cppcoreguidelines-pro-bounds-constant-array-index src/libs/audio/impl/ffmpeg/PcmDecoder.cpp
@@ -409,10 +484,14 @@ bf40b645e91e3a23 x2  # cppcoreguidelines-pro-bounds-constant-array-index src/lib
 
 # --- cppcoreguidelines-pro-bounds-pointer-arithmetic ---
 # NOT YET AUDITED.
+c1a63054ac5e0f55 x1  # cppcoreguidelines-pro-bounds-pointer-arithmetic src/libs/audio/impl/alsa/AudioOutputStream.cpp
 29e600cb0bb7403c x4  # cppcoreguidelines-pro-bounds-pointer-arithmetic src/libs/audio/impl/ffmpeg/AudioFile.cpp
 c87209ec44864385 x2  # cppcoreguidelines-pro-bounds-pointer-arithmetic src/libs/audio/impl/ffmpeg/PcmDecoder.cpp
-f4e58c3bc174fcf0 x2  # cppcoreguidelines-pro-bounds-pointer-arithmetic src/libs/core/impl/String.cpp
+a86129393fa00766 x1  # cppcoreguidelines-pro-bounds-pointer-arithmetic src/libs/audio/impl/pulseaudio/AudioOutputStream.cpp
+588536fbf2983e7e x1  # cppcoreguidelines-pro-bounds-pointer-arithmetic src/libs/audio/impl/utils/PcmDecodeStreamer.cpp
+f4e58c3bc174fcf0 x7  # cppcoreguidelines-pro-bounds-pointer-arithmetic src/libs/core/impl/String.cpp
 ecdbd57406417593 x2  # cppcoreguidelines-pro-bounds-pointer-arithmetic src/libs/image/impl/stb/Image.cpp
+8d8700ea85c27748 x1  # cppcoreguidelines-pro-bounds-pointer-arithmetic src/libs/services/podcast/impl/PodcastParsing.cpp
 edaa68a3226cc67b x6  # cppcoreguidelines-pro-bounds-pointer-arithmetic src/lms/main.cpp
 30f70e6db209447a x1  # cppcoreguidelines-pro-bounds-pointer-arithmetic src/tools/audioinfo/LmsAudioInfo.cpp
 
@@ -440,7 +519,7 @@ d43de18a55568413 x1  # cppcoreguidelines-pro-type-member-init src/libs/services/
 # this one decodes audio.
 01f48ed58cb3266e x1  # cppcoreguidelines-pro-type-reinterpret-cast src/libs/audio/impl/ffmpeg/AudioFile.cpp
 687646d73fcf1e9c x2  # cppcoreguidelines-pro-type-reinterpret-cast src/libs/audio/impl/ffmpeg/PcmDecoder.cpp
-c9380e00492041df x4  # cppcoreguidelines-pro-type-reinterpret-cast src/libs/audio/impl/taglib/ImageReader.cpp
+c9380e00492041df x5  # cppcoreguidelines-pro-type-reinterpret-cast src/libs/audio/impl/taglib/ImageReader.cpp
 27045978dacf627c x2  # cppcoreguidelines-pro-type-reinterpret-cast src/libs/core/impl/ArchiveZipper.cpp
 5967956b08a495b9 x1  # cppcoreguidelines-pro-type-reinterpret-cast src/libs/image/impl/EncodedImage.cpp
 78920ce7114cb9e7 x4  # cppcoreguidelines-pro-type-reinterpret-cast src/libs/image/impl/stb/Image.cpp
@@ -490,24 +569,36 @@ f9927e6665b5d5a5 x1  # cppcoreguidelines-special-member-functions src/libs/servi
 26ab243ad093b031 x1  # cppcoreguidelines-use-default-member-init src/libs/services/scanner/impl/steps/ScanStepScanFiles.cpp
 20de16c6bdb0d3dd x1  # cppcoreguidelines-use-default-member-init src/libs/services/scanner/impl/steps/ScanStepScanFiles.cpp
 
+# --- cppcoreguidelines-use-enum-class ---
+# Accepted wholesale on 2026-09-02 with the alpine 3.21 -> 3.24 bump of the tidy image
+# (LLVM 19.1 -> 22.1): this check did not exist in the old release, so every entry is
+# a new rule on unchanged code, not a new site. Audit the file when you next touch it;
+# a fresh finding under this check still fails the job.
+b7e5f4194e021ade x1  # cppcoreguidelines-use-enum-class src/lms/ui/LmsApplication.cpp
+d00af664073ec2c5 x1  # cppcoreguidelines-use-enum-class src/lms/ui/PlayQueue.cpp
+2ea2ee47cbca2302 x1  # cppcoreguidelines-use-enum-class src/lms/ui/explore/Explore.cpp
+
 # --- misc-const-correctness ---
 # The single largest group here by a wide margin. Adding const to locals: no
 # behaviour change, no defect, and touching hundreds of lines for it would
 # bury every real finding in this file under a reformat-sized diff. Left as
 # it is on purpose.
 c6f2f8b2c1d9671e x1  # misc-const-correctness src/libs/audio/impl/alsa/AudioOutputStream.cpp
+d8e09b94e4de0b29 x2  # misc-const-correctness src/libs/audio/impl/ffmpeg/AudioFile.cpp
 94db7d6a6f8b40d9 x5  # misc-const-correctness src/libs/audio/impl/ffmpeg/PcmDecoder.cpp
 f60f7df2f42ae649 x1  # misc-const-correctness src/libs/audio/impl/ffmpeg/PcmDecoder.cpp
 6ab4a11c0fff5cfd x1  # misc-const-correctness src/libs/audio/impl/ffmpeg/Transcoder.cpp
 f7e2994645e06b8f x1  # misc-const-correctness src/libs/audio/impl/ffmpeg/Utils.cpp
 7df3a09e1213ee35 x1  # misc-const-correctness src/libs/audio/impl/pulseaudio/AudioOutput.cpp
-7d9e0df3979fef99 x1  # misc-const-correctness src/libs/audio/impl/pulseaudio/AudioOutputStream.cpp
+5385b8b636e17a3e x1  # misc-const-correctness src/libs/audio/impl/pulseaudio/AudioOutputStream.cpp
 8fa422d4e478a986 x8  # misc-const-correctness src/libs/audio/impl/pulseaudio/AudioOutputStream.cpp
 4ca5ae0a5734d566 x1  # misc-const-correctness src/libs/audio/impl/pulseaudio/AudioOutputStream.cpp
+80c0fb6a45f9f8c3 x1  # misc-const-correctness src/libs/audio/impl/pulseaudio/AudioOutputStream.cpp
 bbfec01ca3e31b93 x4  # misc-const-correctness src/libs/audio/impl/taglib/ImageReader.cpp
 6a12208c53c824e3 x1  # misc-const-correctness src/libs/audio/impl/taglib/ImageReader.cpp
 bac4c9964b0a86d0 x1  # misc-const-correctness src/libs/audio/impl/taglib/ImageReader.cpp
 57d861bb2a24c822 x1  # misc-const-correctness src/libs/audio/impl/taglib/ImageReader.cpp
+5984656b0384caea x1  # misc-const-correctness src/libs/audio/impl/taglib/ImageReader.cpp
 3d718aa2b82a9e66 x1  # misc-const-correctness src/libs/audio/impl/taglib/TagReader.cpp
 badb8cfdcd4f7f92 x1  # misc-const-correctness src/libs/audio/impl/taglib/TagReader.cpp
 901d8a76da0fa938 x1  # misc-const-correctness src/libs/audio/impl/taglib/TagReader.cpp
@@ -517,25 +608,25 @@ ef3f04d26a43a817 x1  # misc-const-correctness src/libs/core/impl/ArchiveZipper.c
 635810df950ed6c2 x1  # misc-const-correctness src/libs/core/impl/Config.cpp
 7d89591188e9a32d x1  # misc-const-correctness src/libs/core/impl/FileResourceHandler.cpp
 b8b54603c4504680 x1  # misc-const-correctness src/libs/core/impl/FileResourceHandler.cpp
-c88d5960e2843f79 x5  # misc-const-correctness src/libs/core/impl/JobScheduler.cpp
-f07ef6d145c4d9b5 x1  # misc-const-correctness src/libs/core/impl/Logger.cpp
+a4c695d56e5c9619 x5  # misc-const-correctness src/libs/core/impl/JobScheduler.cpp
+5dcfe5bee390d053 x1  # misc-const-correctness src/libs/core/impl/Logger.cpp
 d443f904620b8c31 x1  # misc-const-correctness src/libs/core/impl/PartialDateTime.cpp
 ddaf023bc7965424 x1  # misc-const-correctness src/libs/core/impl/Path.cpp
-e342e570514dfee2 x4  # misc-const-correctness src/libs/core/impl/RecursiveSharedMutex.cpp
+9fa5ab150872dff8 x4  # misc-const-correctness src/libs/core/impl/RecursiveSharedMutex.cpp
 8446b2761febc84e x1  # misc-const-correctness src/libs/core/impl/String.cpp
 40517f7d38dece76 x4  # misc-const-correctness src/libs/core/impl/String.cpp
 9deabfdfd57f72ab x1  # misc-const-correctness src/libs/core/impl/String.cpp
 f8f326871a103310 x1  # misc-const-correctness src/libs/core/impl/TraceLogger.cpp
-d980e2548cfff06a x6  # misc-const-correctness src/libs/core/impl/TraceLogger.cpp
-9478604330008475 x1  # misc-const-correctness src/libs/core/impl/TraceLogger.cpp
+f658787545fc3713 x6  # misc-const-correctness src/libs/core/impl/TraceLogger.cpp
+d23b9283e458690b x1  # misc-const-correctness src/libs/core/impl/TraceLogger.cpp
 b5e58430e00d67e7 x7  # misc-const-correctness src/libs/database/impl/Db.cpp
-7adeb6817d08e02b x1  # misc-const-correctness src/libs/database/impl/Db.cpp
-013be590d0f3736c x2  # misc-const-correctness src/libs/database/impl/Migration.cpp
+8ebabb207cf8034c x1  # misc-const-correctness src/libs/database/impl/Db.cpp
+74f171713973fa80 x2  # misc-const-correctness src/libs/database/impl/Migration.cpp
 74edaa8902d97f1d x1  # misc-const-correctness src/libs/database/impl/Migration.cpp
 43ba86878d1517db x1  # misc-const-correctness src/libs/database/impl/QueryPlanRecorder.cpp
 8e571ea9c476931d x1  # misc-const-correctness src/libs/database/impl/QueryPlanRecorder.cpp
 5d4a98ceeabdc754 x1  # misc-const-correctness src/libs/database/impl/Session.cpp
-4b8470d66d2231c9 x1  # misc-const-correctness src/libs/database/impl/Session.cpp
+5c35a6d1e51f27ed x1  # misc-const-correctness src/libs/database/impl/Session.cpp
 6232e6a1e32ff557 x1  # misc-const-correctness src/libs/database/impl/Transaction.cpp
 488555613c89ee15 x2  # misc-const-correctness src/libs/database/impl/objects/Artist.cpp
 821a8f9cb23e9055 x2  # misc-const-correctness src/libs/database/impl/objects/Artist.cpp
@@ -582,10 +673,10 @@ e030e0acd35d0bf2 x1  # misc-const-correctness src/libs/muma/MumaResource.cpp
 a1d3763fe612f793 x1  # misc-const-correctness src/libs/muma/MumaResource.cpp
 618848f388d68d25 x1  # misc-const-correctness src/libs/services/artwork/impl/ArtworkService.cpp
 a1a6550621e6d8c6 x1  # misc-const-correctness src/libs/services/artwork/impl/ArtworkService.cpp
-4d2b62dc8376e670 x1  # misc-const-correctness src/libs/services/auth/impl/AuthTokenService.cpp
-5c657090c6f21ac7 x1  # misc-const-correctness src/libs/services/auth/impl/AuthTokenService.cpp
-4711800892471def x1  # misc-const-correctness src/libs/services/auth/impl/PasswordServiceBase.cpp
-87c44fe87273c977 x1  # misc-const-correctness src/libs/services/auth/impl/PasswordServiceBase.cpp
+d57cc1b5e119db8c x1  # misc-const-correctness src/libs/services/auth/impl/AuthTokenService.cpp
+2e661461a0e1afeb x1  # misc-const-correctness src/libs/services/auth/impl/AuthTokenService.cpp
+968aeac3e111a2a9 x1  # misc-const-correctness src/libs/services/auth/impl/PasswordServiceBase.cpp
+e666248693c43fd2 x1  # misc-const-correctness src/libs/services/auth/impl/PasswordServiceBase.cpp
 b1c6f0e3884dcc74 x1  # misc-const-correctness src/libs/services/auth/impl/internal/InternalPasswordService.cpp
 7907497f7dddf5b9 x1  # misc-const-correctness src/libs/services/auth/impl/musicmanagement/UserSynchronizer.cpp
 4dc1357fd1dd2093 x1  # misc-const-correctness src/libs/services/feedback/impl/listenbrainz/FeedbacksSynchronizer.cpp
@@ -597,8 +688,8 @@ cc3414c64e240b30 x1  # misc-const-correctness src/libs/services/feedback/impl/mu
 f1c4421bd8cc23e8 x1  # misc-const-correctness src/libs/services/feedback/impl/musicmanagement/MusicManagementBackend.cpp
 c2f00ab509135afe x1  # misc-const-correctness src/libs/services/feedback/impl/musicmanagement/MusicManagementBackend.cpp
 dd333cc5add94f6e x1  # misc-const-correctness src/libs/services/feedback/impl/musicmanagement/MusicManagementBackend.cpp
-95b8ee0798f228be x13  # misc-const-correctness src/libs/services/jukebox/impl/JukeboxService.cpp
-236ad0b19090dcd6 x5  # misc-const-correctness src/libs/services/jukebox/impl/JukeboxService.cpp
+df0e7fe13b9291cd x13  # misc-const-correctness src/libs/services/jukebox/impl/JukeboxService.cpp
+2a7f05292954abfb x5  # misc-const-correctness src/libs/services/jukebox/impl/JukeboxService.cpp
 5cf1fda6a964c04a x1  # misc-const-correctness src/libs/services/jukebox/impl/JukeboxService.cpp
 a4f2a9c2bcb987be x2  # misc-const-correctness src/libs/services/podcast/impl/PodcastParsing.cpp
 8ca0452a4336d56a x1  # misc-const-correctness src/libs/services/podcast/impl/PodcastParsing.cpp
@@ -616,7 +707,7 @@ dd01a4f491ed30cb x1  # misc-const-correctness src/libs/services/podcast/impl/ste
 13ab838efb03441e x1  # misc-const-correctness src/libs/services/podcast/impl/steps/RemoveEpisodesStep.cpp
 8e04fc87ad5a3828 x1  # misc-const-correctness src/libs/services/recommendation/impl/features/FeaturesEngine.cpp
 ffa8f350994c4478 x1  # misc-const-correctness src/libs/services/recommendation/impl/features/FeaturesEngine.cpp
-f661a72c2e9a393b x1  # misc-const-correctness src/libs/services/recommendation/impl/features/FeaturesEngine.cpp
+1eed4e6431d0bc3d x1  # misc-const-correctness src/libs/services/recommendation/impl/features/FeaturesEngine.cpp
 e1273bfb70d01c60 x1  # misc-const-correctness src/libs/services/recommendation/impl/features/FeaturesEngine.cpp
 996a8e5e26e458dd x1  # misc-const-correctness src/libs/services/recommendation/impl/features/FeaturesEngine.cpp
 2488a2c1772fa623 x1  # misc-const-correctness src/libs/services/recommendation/impl/features/FeaturesEngine.cpp
@@ -626,13 +717,12 @@ e1273bfb70d01c60 x1  # misc-const-correctness src/libs/services/recommendation/i
 3e60d2189f87ddd6 x1  # misc-const-correctness src/libs/services/recommendation/impl/features/FeaturesEngineCache.cpp
 ce972aac4440ff34 x1  # misc-const-correctness src/libs/services/recommendation/impl/features/FeaturesEngineCache.cpp
 6f8d5309d76a7fe1 x1  # misc-const-correctness src/libs/services/recommendation/impl/features/FeaturesEngineCache.cpp
-b28c8e641a87bce4 x3  # misc-const-correctness src/libs/services/scanner/impl/ScannerService.cpp
-2131eb32df3b5071 x1  # misc-const-correctness src/libs/services/scanner/impl/ScannerService.cpp
-1f42d54029633c7c x1  # misc-const-correctness src/libs/services/scanner/impl/ScannerService.cpp
+2e97929fc3129428 x3  # misc-const-correctness src/libs/services/scanner/impl/ScannerService.cpp
+cacc69644769ffdf x1  # misc-const-correctness src/libs/services/scanner/impl/ScannerService.cpp
+d7c6e2eb8a4de8c9 x1  # misc-const-correctness src/libs/services/scanner/impl/ScannerService.cpp
 44b985e50c9f0056 x1  # misc-const-correctness src/libs/services/scanner/impl/ScannerService.cpp
-9d6c507115b76aba x5  # misc-const-correctness src/libs/services/scanner/impl/ScannerService.cpp
-7944f3bb7c31b58f x1  # misc-const-correctness src/libs/services/scanner/impl/ScannerService.cpp
-e10dd8a18471f647 x1  # misc-const-correctness src/libs/services/scanner/impl/ScannerService.cpp
+492dd5ff18b619c1 x5  # misc-const-correctness src/libs/services/scanner/impl/ScannerService.cpp
+987408cff97529c8 x1  # misc-const-correctness src/libs/services/scanner/impl/ScannerService.cpp
 865a3f842dae2cba x1  # misc-const-correctness src/libs/services/scanner/impl/scanners/ImageFileScanner.cpp
 e195f3a0755bf6bb x1  # misc-const-correctness src/libs/services/scanner/impl/scanners/artistinfo/ArtistInfoFileScanner.cpp
 699cdbf5f1749eee x1  # misc-const-correctness src/libs/services/scanner/impl/scanners/artistinfo/ArtistInfoFileScanner.cpp
@@ -655,7 +745,7 @@ a561c703a8b83b71 x1  # misc-const-correctness src/libs/services/scanner/impl/sca
 56521196441d4393 x1  # misc-const-correctness src/libs/services/scanner/impl/scanners/audiofile/TrackMetadataParser.cpp
 53f988ad3acca8d1 x1  # misc-const-correctness src/libs/services/scanner/impl/scanners/audiofile/TrackMetadataParser.cpp
 b4d9c643fd0ac231 x1  # misc-const-correctness src/libs/services/scanner/impl/scanners/audiofile/TrackMetadataParser.cpp
-07dfa3f5d12c4687 x1  # misc-const-correctness src/libs/services/scanner/impl/scanners/audiofile/TrackMetadataParser.cpp
+a47229e355da8467 x1  # misc-const-correctness src/libs/services/scanner/impl/scanners/audiofile/TrackMetadataParser.cpp
 4971669c66400134 x1  # misc-const-correctness src/libs/services/scanner/impl/scanners/audiofile/Utils.cpp
 f9b1870a3284e0dd x1  # misc-const-correctness src/libs/services/scanner/impl/scanners/lyrics/LyricsFileScanner.cpp
 0d12d266eaa1c0e6 x1  # misc-const-correctness src/libs/services/scanner/impl/scanners/lyrics/LyricsParser.cpp
@@ -682,11 +772,12 @@ eaabb8121092bdff x1  # misc-const-correctness src/libs/services/scanner/impl/sca
 673d30be96c50fa7 x1  # misc-const-correctness src/libs/services/scanner/impl/steps/ScanStepAssociateMediumImages.cpp
 19e411afd54ec824 x1  # misc-const-correctness src/libs/services/scanner/impl/steps/ScanStepAssociatePlayListTracks.cpp
 fd19c903602aaec2 x1  # misc-const-correctness src/libs/services/scanner/impl/steps/ScanStepAssociateReleaseImages.cpp
-4ba406cc842c26fb x1  # misc-const-correctness src/libs/services/scanner/impl/steps/ScanStepCheckForRemovedFiles.cpp
+4de2d238515eaab0 x1  # misc-const-correctness src/libs/services/scanner/impl/steps/ScanStepCheckForRemovedFiles.cpp
 91b98a8e815fcd5e x1  # misc-const-correctness src/libs/services/scanner/impl/steps/ScanStepScanFiles.cpp
+fba31e4cced8b801 x1  # misc-const-correctness src/libs/services/scanner/impl/steps/ScanStepScanFiles.cpp
 9cbcbc9bf7454d15 x1  # misc-const-correctness src/libs/services/scanner/impl/steps/ScanStepUpdateLibraryFields.cpp
-a3eb33dce680319a x1  # misc-const-correctness src/libs/services/scrobbling/impl/ScrobblingService.cpp
-dd8111cf53b2b0fa x1  # misc-const-correctness src/libs/services/scrobbling/impl/ScrobblingService.cpp
+767243a99d13ed9b x1  # misc-const-correctness src/libs/services/scrobbling/impl/ScrobblingService.cpp
+298b9d99fa40d440 x1  # misc-const-correctness src/libs/services/scrobbling/impl/ScrobblingService.cpp
 37e3809db6ca86bc x1  # misc-const-correctness src/libs/services/scrobbling/impl/listenbrainz/ListensParser.cpp
 f8330f9a583493de x1  # misc-const-correctness src/libs/services/scrobbling/impl/listenbrainz/ListensSynchronizer.cpp
 7c54d88caaf2f09e x1  # misc-const-correctness src/libs/services/scrobbling/impl/listenbrainz/ListensSynchronizer.cpp
@@ -699,7 +790,7 @@ d37d119a9bbe1783 x1  # misc-const-correctness src/libs/som/impl/Network.cpp
 7d69d79d15f64722 x1  # misc-const-correctness src/libs/som/impl/Network.cpp
 e92540527db8a839 x1  # misc-const-correctness src/libs/subsonic/impl/SubsonicResource.cpp
 e309b7eaea18bbca x1  # misc-const-correctness src/libs/subsonic/impl/SubsonicResource.cpp
-20b0f03b82db6ffd x3  # misc-const-correctness src/libs/subsonic/impl/SubsonicResource.cpp
+e614d682623757a8 x3  # misc-const-correctness src/libs/subsonic/impl/SubsonicResource.cpp
 326751346dece11c x1  # misc-const-correctness src/libs/subsonic/impl/SubsonicResource.cpp
 eec8fd476e3e18a1 x1  # misc-const-correctness src/libs/subsonic/impl/SubsonicResponse.cpp
 e625150f64a60bad x1  # misc-const-correctness src/libs/subsonic/impl/SubsonicResponse.cpp
@@ -728,7 +819,7 @@ afaad01dc59cb701 x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/B
 bf4ea30c8ce2f91a x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/Browsing.cpp
 f7c22a020d689628 x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/Browsing.cpp
 7c1513a36564f900 x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/Browsing.cpp
-7a8d9691b7738b86 x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/MediaLibraryScanning.cpp
+fe38027954e74ef2 x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/MediaLibraryScanning.cpp
 6b93e65c4ade5701 x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/MediaRetrieval.cpp
 6a2e32ab5f12463e x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/MediaRetrieval.cpp
 f29719588d3f3588 x2  # misc-const-correctness src/libs/subsonic/impl/endpoints/MediaRetrieval.cpp
@@ -744,7 +835,7 @@ d65554be8223627d x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/P
 1b201ff7e4e91215 x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/Playlists.cpp
 6c71cac04609f64c x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/Podcast.cpp
 56c1052c9f4f1227 x2  # misc-const-correctness src/libs/subsonic/impl/endpoints/Spotify.cpp
-72d1cb916635f16c x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/Spotify.cpp
+89acb1879e6c723d x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/Spotify.cpp
 4e4d055506df089d x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/Spotify.cpp
 fd11d9fb34139cfb x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/Spotify.cpp
 8d690ace8897526c x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/Spotify.cpp
@@ -765,7 +856,7 @@ ac17cd32bef3f975 x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/U
 41b1abeaf2cd5a37 x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/UserManagement.cpp
 4e36edd3776eb7d9 x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/transcoding/AudioFileInfo.cpp
 3030b09cbb539bb5 x1  # misc-const-correctness src/libs/subsonic/impl/endpoints/transcoding/TranscodeDecision.cpp
-5544cc7ed287347b x2  # misc-const-correctness src/libs/subsonic/impl/endpoints/transcoding/TranscodeDecisionTracker.cpp
+b77f8eb6e9ee8419 x2  # misc-const-correctness src/libs/subsonic/impl/endpoints/transcoding/TranscodeDecisionTracker.cpp
 0da3607a9cb912f4 x1  # misc-const-correctness src/libs/subsonic/impl/payloads/ClientInfo.cpp
 095b254f51c9dfcf x1  # misc-const-correctness src/libs/subsonic/impl/responses/Album.cpp
 cf773a20d024b384 x1  # misc-const-correctness src/libs/subsonic/impl/responses/Album.cpp
@@ -787,6 +878,7 @@ b59505410bff4af9 x1  # misc-const-correctness src/lms/main.cpp
 b9e616b646eae37a x1  # misc-const-correctness src/lms/main.cpp
 59bd89f0c0cbf6a2 x1  # misc-const-correctness src/lms/main.cpp
 53e001c3db8f9170 x1  # misc-const-correctness src/lms/main.cpp
+2ae9cee64a1b5274 x1  # misc-const-correctness src/lms/main.cpp
 d1320ec870ff32e2 x1  # misc-const-correctness src/lms/main.cpp
 e563641653889964 x1  # misc-const-correctness src/lms/main.cpp
 a857fc1a85df4f40 x1  # misc-const-correctness src/lms/main.cpp
@@ -806,7 +898,7 @@ ab9b93089fc85cf5 x1  # misc-const-correctness src/lms/main.cpp
 a89e5e75e4e7cee0 x1  # misc-const-correctness src/lms/main.cpp
 691536c26f671ff7 x1  # misc-const-correctness src/lms/ui/Auth.cpp
 a16ce8ddec6f5d5c x1  # misc-const-correctness src/lms/ui/LmsApplication.cpp
-cdec9cf3e7457e36 x2  # misc-const-correctness src/lms/ui/LmsApplicationManager.cpp
+533d355946544b73 x2  # misc-const-correctness src/lms/ui/LmsApplicationManager.cpp
 59f6463983692a69 x1  # misc-const-correctness src/lms/ui/MediaPlayer.cpp
 c9a1e1aa3bf0d4bf x1  # misc-const-correctness src/lms/ui/PlayQueue.cpp
 75b9b26af19ba317 x2  # misc-const-correctness src/lms/ui/PlayQueue.cpp
@@ -829,12 +921,16 @@ b646477bb6159f46 x1  # misc-const-correctness src/lms/ui/admin/MediaLibraryModal
 8e835a7121362f33 x1  # misc-const-correctness src/lms/ui/admin/MediaLibraryModal.cpp
 c963e57c55e06168 x1  # misc-const-correctness src/lms/ui/admin/ScanSettingsView.cpp
 927b124624629607 x1  # misc-const-correctness src/lms/ui/admin/ScanSettingsView.cpp
+698c01fa9aff261e x1  # misc-const-correctness src/lms/ui/admin/ScanSettingsView.cpp
 056e381aa64e512e x1  # misc-const-correctness src/lms/ui/admin/ScanSettingsView.cpp
 3e8a1c3cd2336f5f x1  # misc-const-correctness src/lms/ui/admin/ScanSettingsView.cpp
+676c4f1e88ca3c2a x1  # misc-const-correctness src/lms/ui/admin/ScannerController.cpp
+f963a68952c0c592 x1  # misc-const-correctness src/lms/ui/admin/ScannerController.cpp
+d3096461c0b39326 x1  # misc-const-correctness src/lms/ui/admin/ScannerController.cpp
 2483efdff0322319 x1  # misc-const-correctness src/lms/ui/admin/UserView.cpp
 db1d8e93ea82be17 x1  # misc-const-correctness src/lms/ui/common/Template.cpp
-b6b0b15ee557fe8b x1  # misc-const-correctness src/lms/ui/explore/ArtistView.cpp
-694b9e80426cc2d3 x1  # misc-const-correctness src/lms/ui/explore/ArtistsView.cpp
+6e66d4b337d7739b x1  # misc-const-correctness src/lms/ui/explore/ArtistView.cpp
+297df1f71ee860d9 x1  # misc-const-correctness src/lms/ui/explore/ArtistsView.cpp
 8c446b656b2e6bd0 x1  # misc-const-correctness src/lms/ui/explore/PlayQueueController.cpp
 60968036c4643caa x1  # misc-const-correctness src/lms/ui/explore/ReleaseHelpers.cpp
 e711c62c0feecd34 x1  # misc-const-correctness src/lms/ui/explore/ReleaseHelpers.cpp
@@ -846,6 +942,7 @@ ccf74437a419ae98 x1  # misc-const-correctness src/lms/ui/explore/ReleaseView.cpp
 9f5c5f3a0f796c4a x1  # misc-const-correctness src/lms/ui/explore/ReleaseView.cpp
 595fcc18712b189d x1  # misc-const-correctness src/lms/ui/explore/ReleaseView.cpp
 601e1323bd879c8b x1  # misc-const-correctness src/lms/ui/explore/TrackListHelpers.cpp
+7f711c7970d0692a x1  # misc-const-correctness src/lms/ui/explore/TrackListHelpers.cpp
 f5e5472b3eba21c7 x1  # misc-const-correctness src/lms/ui/explore/TrackListHelpers.cpp
 99c4b4b71fca4411 x1  # misc-const-correctness src/lms/ui/explore/TrackListHelpers.cpp
 bb11e59a0389585d x1  # misc-const-correctness src/lms/ui/resource/AudioTranscodingResource.cpp
@@ -870,6 +967,58 @@ faa13a2ba9e1d070 x1  # misc-const-correctness src/tools/recommendation/LmsRecomm
 9b135e9fa5130e8a x1  # misc-const-correctness src/tools/recommendation/LmsRecommendation.cpp
 6b61051023393d7b x1  # misc-const-correctness src/tools/recommendation/LmsRecommendation.cpp
 
+# --- misc-override-with-different-visibility ---
+# Accepted wholesale on 2026-09-02 with the alpine 3.21 -> 3.24 bump of the tidy image
+# (LLVM 19.1 -> 22.1): this check did not exist in the old release, so every entry is
+# a new rule on unchanged code, not a new site. Audit the file when you next touch it;
+# a fresh finding under this check still fails the job.
+bec108034d7451d5 x1  # misc-override-with-different-visibility src/libs/database/impl/Db.cpp
+bb21450df3781452 x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/scanners/ImageFileScanner.cpp
+5af09404d55ed3b7 x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/scanners/ImageFileScanner.cpp
+3719ed7545444a54 x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/scanners/ImageFileScanner.cpp
+487492ea9c3662b5 x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/scanners/artistinfo/ArtistInfoFileScanner.cpp
+eecd44cf928f8f2f x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/scanners/artistinfo/ArtistInfoFileScanner.cpp
+36edfac6f92f21db x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/scanners/artistinfo/ArtistInfoFileScanner.cpp
+73dd57f93428543a x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/scanners/lyrics/LyricsFileScanner.cpp
+311ed0a626cca486 x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/scanners/lyrics/LyricsFileScanner.cpp
+8ef9fac18c478a75 x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/scanners/lyrics/LyricsFileScanner.cpp
+0777faa4aeaa6732 x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/scanners/playlist/PlayListFileScanner.cpp
+934b342740094e05 x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/scanners/playlist/PlayListFileScanner.cpp
+22846e34d06b1ebe x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/scanners/playlist/PlayListFileScanner.cpp
+9c215acad7b35c1f x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/steps/ScanStepAssociateArtistImages.cpp
+09a8c71bd20af9c5 x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/steps/ScanStepAssociateArtistImages.cpp
+661f411ce5a20aa6 x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/steps/ScanStepAssociateMediumImages.cpp
+4d20b07ffac987ed x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/steps/ScanStepAssociateMediumImages.cpp
+a454957f1cb6c7bd x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/steps/ScanStepAssociatePlayListTracks.cpp
+dde7898c014713f5 x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/steps/ScanStepAssociatePlayListTracks.cpp
+5a14c0a9277c7654 x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/steps/ScanStepAssociateReleaseImages.cpp
+d29887e43c716c62 x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/steps/ScanStepAssociateReleaseImages.cpp
+505c0e1dda065638 x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/steps/ScanStepAssociateTrackImages.cpp
+4744f5d8eec7c23f x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/steps/ScanStepAssociateTrackImages.cpp
+99e576fa4af0b95f x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/steps/ScanStepCheckForRemovedFiles.cpp
+9fa79ce4a842deae x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/steps/ScanStepCheckForRemovedFiles.cpp
+20d0cd1edb218eb1 x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/steps/ScanStepScanFiles.cpp
+144886257c06081b x1  # misc-override-with-different-visibility src/libs/services/scanner/impl/steps/ScanStepScanFiles.cpp
+187d2529a8193d4f x1  # misc-override-with-different-visibility src/lms/main.cpp
+9881d2b4235dad24 x1  # misc-override-with-different-visibility src/lms/main.cpp
+e55f385bb416d52f x1  # misc-override-with-different-visibility src/lms/ui/SettingsView.cpp
+963b3d7397d9e427 x1  # misc-override-with-different-visibility src/lms/ui/SettingsView.cpp
+71ff16bffbf63bdf x1  # misc-override-with-different-visibility src/lms/ui/SettingsView.cpp
+4a7f90560674c7ef x2  # misc-override-with-different-visibility src/lms/ui/admin/MediaLibraryModal.cpp
+d3978bf08958385d x1  # misc-override-with-different-visibility src/lms/ui/admin/ScanSettingsView.cpp
+9f18705b334f4ddd x1  # misc-override-with-different-visibility src/lms/ui/admin/ScanSettingsView.cpp
+6433f91c3c5cab86 x13  # misc-override-with-different-visibility src/lms/ui/admin/ScannerReportResource.cpp
+2270b7bdf05b6336 x1  # misc-override-with-different-visibility src/lms/ui/admin/UserView.cpp
+382aa1f196672cc4 x1  # misc-override-with-different-visibility src/lms/ui/admin/debug/Database.cpp
+b66fcf99f6ea258f x1  # misc-override-with-different-visibility src/lms/ui/common/DoubleValidator.cpp
+c7f313e6d45aee7b x1  # misc-override-with-different-visibility src/lms/ui/common/LoginNameValidator.cpp
+0977b46fd243da8e x1  # misc-override-with-different-visibility src/lms/ui/common/MandatoryValidator.cpp
+ea2f968ac0eeda2e x2  # misc-override-with-different-visibility src/lms/ui/common/PasswordValidator.cpp
+39229425a12bbfd6 x2  # misc-override-with-different-visibility src/lms/ui/common/PasswordValidator.cpp
+8d9d17f15673554a x1  # misc-override-with-different-visibility src/lms/ui/common/UUIDValidator.cpp
+7fedafe9596cca72 x1  # misc-override-with-different-visibility src/lms/ui/common/UppercaseValidator.cpp
+6a0adc56469cb950 x1  # misc-override-with-different-visibility src/lms/ui/common/UppercaseValidator.cpp
+
 # --- misc-use-anonymous-namespace ---
 # NOT YET AUDITED.
 1bc3b9030beb79b3 x1  # misc-use-anonymous-namespace src/libs/core/impl/ArchiveZipper.cpp
@@ -891,16 +1040,21 @@ c68e12c3038b45cc x1  # misc-use-anonymous-namespace src/libs/subsonic/impl/endpo
 # namespace. Same reasoning as misc-const-correctness: hygiene, not a
 # defect, and large.
 fa0cf49aef664bc5 x1  # misc-use-internal-linkage src/libs/audio/impl/alsa/AudioOutputStream.cpp
+e89fe4a9622887e6 x1  # misc-use-internal-linkage src/libs/audio/impl/alsa/AudioOutputStream.cpp
 f6425243a2fb1d01 x1  # misc-use-internal-linkage src/libs/audio/impl/taglib/Utils.cpp
 c245f582921535b6 x1  # misc-use-internal-linkage src/libs/audio/impl/taglib/Utils.cpp
 11282b69ba8d2a6a x1  # misc-use-internal-linkage src/libs/audio/impl/taglib/Utils.cpp
 d1ba65f1152f451a x1  # misc-use-internal-linkage src/libs/audio/impl/taglib/Utils.cpp
+311e4d62a1df0a5c x1  # misc-use-internal-linkage src/libs/core/impl/ArchiveZipper.cpp
+7af7d821db53ad7c x1  # misc-use-internal-linkage src/libs/core/impl/ArchiveZipper.cpp
+835075b214a9e591 x1  # misc-use-internal-linkage src/libs/core/impl/ArchiveZipper.cpp
 706390540574ef11 x1  # misc-use-internal-linkage src/libs/core/impl/FileResourceHandler.cpp
 ae5d2efe0edd004a x1  # misc-use-internal-linkage src/libs/core/impl/String.cpp
 c40d565d1ae06c56 x1  # misc-use-internal-linkage src/libs/core/impl/String.cpp
 d100c9ddbe69ed5b x1  # misc-use-internal-linkage src/libs/core/impl/String.cpp
 3d7bf4b7357d19e9 x1  # misc-use-internal-linkage src/libs/core/impl/String.cpp
 6cdd6a6ec6bd0332 x1  # misc-use-internal-linkage src/libs/core/impl/String.cpp
+3bda33602249c45c x1  # misc-use-internal-linkage src/libs/database/impl/Migration.cpp
 906f8bde50899f57 x1  # misc-use-internal-linkage src/libs/database/impl/Migration.cpp
 d4f23b1a2c70da58 x1  # misc-use-internal-linkage src/libs/database/impl/Migration.cpp
 e6d662638842c2b2 x1  # misc-use-internal-linkage src/libs/database/impl/Migration.cpp
@@ -985,7 +1139,15 @@ b86d22e2223bc94f x1  # misc-use-internal-linkage src/libs/subsonic/impl/endpoint
 45d564999b6e7d14 x2  # misc-use-internal-linkage src/libs/subsonic/impl/responses/Podcast.cpp
 6a7e5aee42077dae x1  # misc-use-internal-linkage src/lms/main.cpp
 ad3708f040b0ddad x1  # misc-use-internal-linkage src/lms/ui/Auth.cpp
+cc18de285f2efbc7 x1  # misc-use-internal-linkage src/lms/ui/SettingsView.cpp
 8dae55bf157f801a x1  # misc-use-internal-linkage src/lms/ui/admin/About.cpp
+daf90e2c1167e4a2 x1  # misc-use-internal-linkage src/lms/ui/admin/InitWizardView.cpp
+afe33b8c40de7ff5 x1  # misc-use-internal-linkage src/lms/ui/admin/UserView.cpp
+08a08bdc3838ac93 x1  # misc-use-internal-linkage src/lms/ui/common/DoubleValidator.cpp
+4cf35577d2a4711a x1  # misc-use-internal-linkage src/lms/ui/common/MandatoryValidator.cpp
+5ee490c2a1f17d5a x1  # misc-use-internal-linkage src/lms/ui/common/PasswordValidator.cpp
+0a7ee3c3d1fc1c59 x1  # misc-use-internal-linkage src/lms/ui/common/UUIDValidator.cpp
+c8507f66885e8e98 x1  # misc-use-internal-linkage src/lms/ui/common/UppercaseValidator.cpp
 003197101d47fc9a x1  # misc-use-internal-linkage src/lms/ui/explore/ReleaseTypes.cpp
 7d2bf280e27e85c6 x1  # misc-use-internal-linkage src/lms/ui/explore/ReleaseTypes.cpp
 4cd357c783e6cd40 x1  # misc-use-internal-linkage src/lms/ui/resource/DownloadResource.cpp
@@ -997,6 +1159,9 @@ c000ad5fac6b3ed1 x1  # misc-use-internal-linkage src/tools/audioinfo/LmsAudioInf
 370edb1e2577f606 x1  # misc-use-internal-linkage src/tools/audioinfo/LmsAudioInfo.cpp
 0deb2b6095ab7b81 x1  # misc-use-internal-linkage src/tools/audioinfo/LmsAudioInfo.cpp
 a04f5e895e061241 x1  # misc-use-internal-linkage src/tools/audioinfo/LmsAudioInfo.cpp
+94e37f220f9300a4 x1  # misc-use-internal-linkage src/tools/audioplay/LmsAudioPlay.cpp
+8e94756fedb8be24 x1  # misc-use-internal-linkage src/tools/db-generator/LmsDbGenerator.cpp
+110a3de693dc70b7 x1  # misc-use-internal-linkage src/tools/db-generator/LmsDbGenerator.cpp
 e0a5d92d85944498 x1  # misc-use-internal-linkage src/tools/db-generator/LmsDbGenerator.cpp
 cf9cb707248e4f9d x1  # misc-use-internal-linkage src/tools/db-generator/LmsDbGenerator.cpp
 8202166873a04e12 x1  # misc-use-internal-linkage src/tools/db-generator/LmsDbGenerator.cpp
@@ -1053,39 +1218,40 @@ f9aa82e0fbbdfcbf x1  # performance-move-const-arg src/lms/ui/LmsApplication.cpp
 
 # --- performance-unnecessary-copy-initialization ---
 # NOT YET AUDITED.
-f37213f792b9ba05 x1  # performance-unnecessary-copy-initialization src/libs/database/impl/objects/Track.cpp
-bc902889bdd96496 x1  # performance-unnecessary-copy-initialization src/libs/services/scanner/impl/scanners/audiofile/AudioFileScanOperation.cpp
-2bfd565841f9d031 x1  # performance-unnecessary-copy-initialization src/lms/ui/MediaPlayer.cpp
-b6a2a8a695d114d5 x1  # performance-unnecessary-copy-initialization src/lms/ui/MediaPlayer.cpp
+a9c4ba3a141413e9 x1  # performance-unnecessary-copy-initialization src/libs/database/impl/objects/Track.cpp
+2f24f963437cd1dc x1  # performance-unnecessary-copy-initialization src/libs/services/scanner/impl/scanners/audiofile/AudioFileScanOperation.cpp
+849c524e63a730c9 x1  # performance-unnecessary-copy-initialization src/lms/ui/MediaPlayer.cpp
+c18dbf85eb34d4bb x1  # performance-unnecessary-copy-initialization src/lms/ui/MediaPlayer.cpp
 
 # --- performance-unnecessary-value-param ---
 # NOT YET AUDITED.
-58b4110c01036ecf x1  # performance-unnecessary-value-param src/libs/audio/impl/ffmpeg/AudioFile.cpp
-f4c69fb0ed757ba1 x2  # performance-unnecessary-value-param src/libs/database/impl/Db.cpp
-1f135281e72f36c1 x1  # performance-unnecessary-value-param src/libs/database/impl/Db.cpp
-8a829ae7f09ed105 x1  # performance-unnecessary-value-param src/libs/database/impl/objects/Artist.cpp
-82b97ce113c481a7 x1  # performance-unnecessary-value-param src/libs/database/impl/objects/AuthToken.cpp
-3962d0eb3797a6e5 x1  # performance-unnecessary-value-param src/libs/database/impl/objects/Cluster.cpp
-a58c7a828fcad06b x1  # performance-unnecessary-value-param src/libs/database/impl/objects/Podcast.cpp
-8275807ecbe36d16 x1  # performance-unnecessary-value-param src/libs/database/impl/objects/PodcastEpisode.cpp
-cf50c3344f9767ef x1  # performance-unnecessary-value-param src/libs/database/impl/objects/RatedArtist.cpp
-c4a9de17f3cb6383 x1  # performance-unnecessary-value-param src/libs/database/impl/objects/RatedRelease.cpp
-aedf70cc12211bad x1  # performance-unnecessary-value-param src/libs/database/impl/objects/RatedTrack.cpp
-e96961c026a69c8f x1  # performance-unnecessary-value-param src/libs/database/impl/objects/Release.cpp
-2f4a29adf5029b2f x1  # performance-unnecessary-value-param src/libs/database/impl/objects/ReleaseArtistLink.cpp
-1d415634002145ad x1  # performance-unnecessary-value-param src/libs/database/impl/objects/TrackEmbeddedImageLink.cpp
-6b102b790c058c34 x1  # performance-unnecessary-value-param src/libs/database/impl/objects/Types.cpp
-7f175867feea150d x1  # performance-unnecessary-value-param src/libs/services/recommendation/impl/features/FeaturesDefs.cpp
-877f2e9a382c10bf x1  # performance-unnecessary-value-param src/libs/services/recommendation/impl/features/FeaturesEngineCache.cpp
-5c28adfcb05293c2 x1  # performance-unnecessary-value-param src/libs/services/scanner/impl/steps/ScanStepScanFiles.cpp
-1438350fdcad64b9 x1  # performance-unnecessary-value-param src/libs/som/impl/Network.cpp
-cbd99f290a7ccef3 x1  # performance-unnecessary-value-param src/libs/som/impl/Network.cpp
-2f46d388df8a7812 x1  # performance-unnecessary-value-param src/libs/subsonic/impl/CoverArtId.cpp
-18c223a705fbc389 x1  # performance-unnecessary-value-param src/libs/subsonic/impl/endpoints/AlbumSongLists.cpp
-dea5eb051b1e00c2 x1  # performance-unnecessary-value-param src/libs/subsonic/impl/endpoints/AlbumSongLists.cpp
-84bcd0984f3a9b9e x1  # performance-unnecessary-value-param src/lms/ui/LmsApplication.cpp
-28a5f8d86b3db9d2 x1  # performance-unnecessary-value-param src/lms/ui/Utils.cpp
-6012b3a3d62be0f6 x1  # performance-unnecessary-value-param src/lms/ui/admin/ScanSettingsView.cpp
+676a0d005cde7ac4 x1  # performance-unnecessary-value-param src/libs/audio/impl/ffmpeg/AudioFile.cpp
+983be38f83e991c3 x1  # performance-unnecessary-value-param src/libs/database/impl/Db.cpp
+9338b4df1712ed4d x1  # performance-unnecessary-value-param src/libs/database/impl/Db.cpp
+b9c46c608902a213 x1  # performance-unnecessary-value-param src/libs/database/impl/Db.cpp
+379865f654d99ec7 x1  # performance-unnecessary-value-param src/libs/database/impl/objects/Artist.cpp
+f7ad50ac6f5d23f5 x1  # performance-unnecessary-value-param src/libs/database/impl/objects/AuthToken.cpp
+7664b4b1464505a6 x1  # performance-unnecessary-value-param src/libs/database/impl/objects/Cluster.cpp
+6a22a1ed316f44f4 x1  # performance-unnecessary-value-param src/libs/database/impl/objects/Podcast.cpp
+39d96884607c964a x1  # performance-unnecessary-value-param src/libs/database/impl/objects/PodcastEpisode.cpp
+2f5dda687f47b8c7 x1  # performance-unnecessary-value-param src/libs/database/impl/objects/RatedArtist.cpp
+b5bc95cc59ab21df x1  # performance-unnecessary-value-param src/libs/database/impl/objects/RatedRelease.cpp
+01b23119005aa015 x1  # performance-unnecessary-value-param src/libs/database/impl/objects/RatedTrack.cpp
+33749c1d09422d88 x1  # performance-unnecessary-value-param src/libs/database/impl/objects/Release.cpp
+b597d55f3a37d5cd x1  # performance-unnecessary-value-param src/libs/database/impl/objects/ReleaseArtistLink.cpp
+0f533708aa6d8426 x1  # performance-unnecessary-value-param src/libs/database/impl/objects/TrackEmbeddedImageLink.cpp
+f15c496e233a7216 x1  # performance-unnecessary-value-param src/libs/database/impl/objects/Types.cpp
+38e3c84c50cfcebf x1  # performance-unnecessary-value-param src/libs/services/recommendation/impl/features/FeaturesDefs.cpp
+78a3fd887bcc9bce x1  # performance-unnecessary-value-param src/libs/services/recommendation/impl/features/FeaturesEngineCache.cpp
+8c025dc2df46a063 x1  # performance-unnecessary-value-param src/libs/services/scanner/impl/steps/ScanStepScanFiles.cpp
+f7edb7ef24b7e3ad x1  # performance-unnecessary-value-param src/libs/som/impl/Network.cpp
+c1bd6a27ead34189 x1  # performance-unnecessary-value-param src/libs/som/impl/Network.cpp
+f7e1c2b7dc06fd51 x1  # performance-unnecessary-value-param src/libs/subsonic/impl/CoverArtId.cpp
+13de2506016b1af6 x1  # performance-unnecessary-value-param src/libs/subsonic/impl/endpoints/AlbumSongLists.cpp
+1388ae81879edaa0 x1  # performance-unnecessary-value-param src/libs/subsonic/impl/endpoints/AlbumSongLists.cpp
+095ad9eb309c3002 x1  # performance-unnecessary-value-param src/lms/ui/LmsApplication.cpp
+7f0f9ebce8efdfbb x1  # performance-unnecessary-value-param src/lms/ui/Utils.cpp
+c1469f2901f61841 x1  # performance-unnecessary-value-param src/lms/ui/admin/ScanSettingsView.cpp
 
 # --- readability-avoid-nested-conditional-operator ---
 # NOT YET AUDITED.
@@ -1105,6 +1271,16 @@ d42a873d7f924f7b x1  # readability-avoid-return-with-void-value src/libs/databas
 # --- readability-avoid-unconditional-preprocessor-if ---
 # NOT YET AUDITED.
 d39dc4f617ce9493 x1  # readability-avoid-unconditional-preprocessor-if src/libs/audio/impl/alsa/AudioOutputStream.cpp
+
+# --- readability-container-contains ---
+# Accepted wholesale on 2026-09-02 with the alpine 3.21 -> 3.24 bump of the tidy image
+# (LLVM 19.1 -> 22.1): this check did not exist in the old release, so every entry is
+# a new rule on unchanged code, not a new site. Audit the file when you next touch it;
+# a fresh finding under this check still fails the job.
+ca6f945f4bec69f6 x2  # readability-container-contains src/tools/audioinfo/LmsAudioInfo.cpp
+f95b823ec041641c x1  # readability-container-contains src/tools/audioplay/LmsAudioPlay.cpp
+3203eba633c30cbf x1  # readability-container-contains src/tools/db-generator/LmsDbGenerator.cpp
+d023f8db207ae124 x4  # readability-container-contains src/tools/recommendation/LmsRecommendation.cpp
 
 # --- readability-container-data-pointer ---
 # NOT YET AUDITED.
@@ -1140,8 +1316,8 @@ a27cd96be7bdd706 x1  # readability-else-after-return src/lms/ui/Utils.cpp
 # Long functions. A finding here is a refactor with its own risk, so it
 # belongs in the change that touches the function anyway, not in a sweep.
 738ecfdf19d00313 x1  # readability-function-cognitive-complexity src/libs/audio/impl/ffmpeg/PcmDecoder.cpp
-f9e3434eea370abf x1  # readability-function-cognitive-complexity src/libs/audio/impl/taglib/AudioFileInfo.cpp
-423e3a64cf644ff5 x1  # readability-function-cognitive-complexity src/libs/audio/impl/taglib/TagReader.cpp
+57d4f1daa5f4d8e5 x1  # readability-function-cognitive-complexity src/libs/audio/impl/taglib/AudioFileInfo.cpp
+e4de389a65e4ab86 x1  # readability-function-cognitive-complexity src/libs/audio/impl/taglib/TagReader.cpp
 72a0c70bf012e990 x1  # readability-function-cognitive-complexity src/libs/core/impl/String.cpp
 15820dc0935a4bfd x1  # readability-function-cognitive-complexity src/libs/database/impl/objects/Artist.cpp
 41aeff7cb54ddd5b x1  # readability-function-cognitive-complexity src/libs/database/impl/objects/Release.cpp
@@ -1200,6 +1376,42 @@ ff953e0bec300896 x1  # readability-inconsistent-declaration-parameter-name src/l
 9dde68204df857a3 x1  # readability-inconsistent-declaration-parameter-name src/lms/ui/admin/MediaLibrariesView.hpp
 e636b0e0e0f0fc0e x3  # readability-inconsistent-declaration-parameter-name src/lms/ui/explore/PlayQueueController.hpp
 
+# --- readability-inconsistent-ifelse-braces ---
+# Accepted wholesale on 2026-09-02 with the alpine 3.21 -> 3.24 bump of the tidy image
+# (LLVM 19.1 -> 22.1): this check did not exist in the old release, so every entry is
+# a new rule on unchanged code, not a new site. Audit the file when you next touch it;
+# a fresh finding under this check still fails the job.
+2ad7f2951d3e38c4 x1  # readability-inconsistent-ifelse-braces src/libs/audio/impl/alsa/AudioOutputStream.cpp
+46b31e5e960cd8cb x2  # readability-inconsistent-ifelse-braces src/libs/audio/impl/ffmpeg/AudioFileInfo.cpp
+35ba07e6aae082a4 x1  # readability-inconsistent-ifelse-braces src/libs/audio/impl/ffmpeg/PcmDecoder.cpp
+5c69e61031182696 x2  # readability-inconsistent-ifelse-braces src/libs/audio/impl/taglib/AudioFileInfo.cpp
+7bdec38d36b09649 x14  # readability-inconsistent-ifelse-braces src/libs/audio/impl/taglib/Utils.cpp
+b0535d487559e020 x3  # readability-inconsistent-ifelse-braces src/libs/core/impl/FileResourceHandler.cpp
+802a2ac572898bce x2  # readability-inconsistent-ifelse-braces src/libs/core/impl/String.cpp
+5c926a5dd1e2dc47 x3  # readability-inconsistent-ifelse-braces src/libs/database/impl/objects/Track.cpp
+21e0da36fec21953 x3  # readability-inconsistent-ifelse-braces src/libs/muma/MumaResource.cpp
+baaed217f1a237eb x1  # readability-inconsistent-ifelse-braces src/libs/services/scanner/impl/scanners/audiofile/AudioFileScanOperation.cpp
+2f17181d03f2353b x1  # readability-inconsistent-ifelse-braces src/libs/services/scanner/impl/scanners/audiofile/TrackMetadataParser.cpp
+723cc5c92ac690ef x1  # readability-inconsistent-ifelse-braces src/libs/services/scanner/impl/scanners/audiofile/Utils.cpp
+055303aa29bf35c9 x1  # readability-inconsistent-ifelse-braces src/libs/services/scanner/impl/scanners/lyrics/LyricsParser.cpp
+8c3557b5ea031b0f x1  # readability-inconsistent-ifelse-braces src/libs/services/scanner/impl/steps/ScanStepAssociatePlayListTracks.cpp
+f6a2f320d398bfe7 x1  # readability-inconsistent-ifelse-braces src/libs/services/scanner/impl/steps/ScanStepScanFiles.cpp
+b0475a35116f1717 x1  # readability-inconsistent-ifelse-braces src/libs/subsonic/impl/endpoints/Browsing.cpp
+bacafe4bdd8be3e3 x3  # readability-inconsistent-ifelse-braces src/libs/subsonic/impl/endpoints/MediaAnnotation.cpp
+364ab45e68c2310d x1  # readability-inconsistent-ifelse-braces src/libs/subsonic/impl/endpoints/Podcast.cpp
+c1a3b7706b3bff06 x8  # readability-inconsistent-ifelse-braces src/libs/subsonic/impl/endpoints/Spotify.cpp
+d52c368cdb3c2dae x1  # readability-inconsistent-ifelse-braces src/lms/main.cpp
+dc79e1af302bb9a0 x1  # readability-inconsistent-ifelse-braces src/lms/ui/Auth.cpp
+26bc1b83c4bde08b x1  # readability-inconsistent-ifelse-braces src/lms/ui/Utils.cpp
+0e87af5e3dd6084d x1  # readability-inconsistent-ifelse-braces src/lms/ui/admin/InitWizardView.cpp
+cac25d1ad03ea370 x1  # readability-inconsistent-ifelse-braces src/lms/ui/admin/debug/Database.cpp
+a5d9b33475385320 x1  # readability-inconsistent-ifelse-braces src/lms/ui/admin/debug/Tracing.cpp
+22a6c1d68fb92acd x2  # readability-inconsistent-ifelse-braces src/lms/ui/explore/ArtistView.cpp
+22ade3f8c6d31a3c x2  # readability-inconsistent-ifelse-braces src/lms/ui/explore/ReleaseView.cpp
+d5c98e68a547420f x1  # readability-inconsistent-ifelse-braces src/lms/ui/explore/TrackListHelpers.cpp
+6a1286fb6aaf2a71 x2  # readability-inconsistent-ifelse-braces src/lms/ui/resource/ArtworkResource.cpp
+500b49e548b68841 x1  # readability-inconsistent-ifelse-braces src/lms/ui/resource/DownloadResource.cpp
+
 # --- readability-make-member-function-const ---
 # NOT YET AUDITED.
 dd96f5cfc8226900 x1  # readability-make-member-function-const src/libs/core/impl/ChildProcess.cpp
@@ -1207,6 +1419,7 @@ dd96f5cfc8226900 x1  # readability-make-member-function-const src/libs/core/impl
 # --- readability-math-missing-parentheses ---
 # NOT YET AUDITED.
 b446810ac7e823c5 x1  # readability-math-missing-parentheses src/libs/database/impl/objects/Track.cpp
+d18a26846133f319 x1  # readability-math-missing-parentheses src/libs/services/scanner/impl/scanners/audiofile/Utils.cpp
 62e515eaf0214e60 x2  # readability-math-missing-parentheses src/libs/som/impl/Network.cpp
 6fc40c74e48992ea x1  # readability-math-missing-parentheses src/libs/som/impl/Network.cpp
 63fb3f0e4257fd63 x2  # readability-math-missing-parentheses src/libs/som/impl/Network.cpp
@@ -1271,6 +1484,21 @@ dc95c1872b11e5b1 x1  # readability-redundant-inline-specifier src/lms/ui/admin/S
 e0611dc1389a70a2 x1  # readability-redundant-member-init src/libs/core/impl/http/ProxyContinuation.cpp
 7e0729d9da8e30fc x1  # readability-redundant-member-init src/lms/ui/admin/ScanSettingsView.cpp
 
+# --- readability-redundant-parentheses ---
+# Accepted wholesale on 2026-09-02 with the alpine 3.21 -> 3.24 bump of the tidy image
+# (LLVM 19.1 -> 22.1): this check did not exist in the old release, so every entry is
+# a new rule on unchanged code, not a new site. Audit the file when you next touch it;
+# a fresh finding under this check still fails the job.
+325922c81829658f x1  # readability-redundant-parentheses src/lms/ui/explore/TrackListHelpers.cpp
+
+# --- readability-redundant-typename ---
+# Accepted wholesale on 2026-09-02 with the alpine 3.21 -> 3.24 bump of the tidy image
+# (LLVM 19.1 -> 22.1): this check did not exist in the old release, so every entry is
+# a new rule on unchanged code, not a new site. Audit the file when you next touch it;
+# a fresh finding under this check still fails the job.
+1cccfe3ecc63ea0c x1  # readability-redundant-typename src/libs/services/scanner/impl/steps/ScanStepCheckForRemovedFiles.cpp
+37fb44ffc54401b2 x1  # readability-redundant-typename src/libs/services/scanner/impl/steps/ScanStepRemoveOrphanedDbEntries.cpp
+
 # --- readability-simplify-boolean-expr ---
 # NOT YET AUDITED.
 c4f3ebaa1f0bf7d3 x1  # readability-simplify-boolean-expr src/libs/services/scanner/impl/steps/ScanStepAssociateExternalLyrics.cpp
@@ -1292,3 +1520,10 @@ facd9d13be130abc x1  # readability-static-definition-in-anonymous-namespace src/
 # --- readability-suspicious-call-argument ---
 # NOT YET AUDITED.
 e030739f9942c691 x1  # readability-suspicious-call-argument src/lms/ui/admin/MediaLibraryModal.cpp
+
+# --- readability-use-concise-preprocessor-directives ---
+# Accepted wholesale on 2026-09-02 with the alpine 3.21 -> 3.24 bump of the tidy image
+# (LLVM 19.1 -> 22.1): this check did not exist in the old release, so every entry is
+# a new rule on unchanged code, not a new site. Audit the file when you next touch it;
+# a fresh finding under this check still fails the job.
+e061eac7c942adae x1  # readability-use-concise-preprocessor-directives src/libs/core/impl/ChildProcess.cpp

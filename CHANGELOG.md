@@ -58,6 +58,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   de features is bewust: elke nieuwe module sorteert achter de feature waarvan hij de uitgangssituatie
   verandert, en zegt dat in zijn docstring.
 
+### Fixed
+- **De beheerpagina laadde niets meer en zei "Kon gegevens niet ophalen van de Management API".**
+  Elke `/muma/api/...`-aanroep loopt via de LMS-proxy, die per aanroep een http-thread vasthoudt en
+  alles boven de helft van de pool weigert -- tien op productie -- met een 503 en de kale regel
+  `Too many requests to MuMa in flight`. De pagina vuurde er elf tegelijk af, dus de laatste kwam
+  altijd als 503 terug; `res.json()` struikelde daarover met `Unexpected token 'T', "Too many r"...`
+  en één mislukte aanroep nam het hele scherm mee. Het scherm houdt er nu vier tegelijk in de lucht
+  (`mapWithLimit`) en zit een weigering uit in plaats van hem te melden (`fetchMumaJson`), want de
+  ruimte wordt gedeeld met alles wat op dat moment nog meer met MuMa praat -- de artiestafbeeldingen
+  van de speler voorop. Een antwoord dat geen JSON is levert voortaan een foutmelding met de status
+  erin, in plaats van een parse-fout die naar de verkeerde kant van de verbinding wijst. `apiGet`
+  van de Advanced Library-tab, die zes analyses tegelijk opvraagt, zit een weigering nu net zo uit.
+
 ## [0.40.1] - 2026-09-01
 
 ### Fixed

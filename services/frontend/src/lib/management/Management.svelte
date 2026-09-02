@@ -3,7 +3,7 @@
   import { onDestroy, onMount, untrack } from 'svelte';
   import { RefreshCw } from '@lucide/svelte';
   import { activeManagementTab, credentials, isAdmin, mumaApiKey, mumaApiUrl, userPermissions, mumaUser, hasPermission } from '../store.js';
-  import { getHeaders as sharedHeaders } from '../mumaApi.js';
+  import { getHeaders as sharedHeaders, fetchMumaJson, mapWithLimit } from '../mumaApi.js';
   import { MANAGEMENT_TABS } from '../router.js';
 
   // Import Tabs
@@ -95,36 +95,41 @@
     loading = true;
     const headers = getHeaders();
     try {
-      const [configRes, notesRes, rulesRes, accountsRes, youtubeRes, allNotesRes, importsRes, usersRes, containersRes, activityRes, statsRes] = await Promise.all([
-        fetch(`${$mumaApiUrl}/api/config`, { headers }),
-        fetch(`${$mumaApiUrl}/api/notes`, { headers }),
-        fetch(`${$mumaApiUrl}/api/rules`, { headers }),
-        fetch(`${$mumaApiUrl}/api/soundcloud`, { headers }),
-        fetch(`${$mumaApiUrl}/api/youtube`, { headers }),
-        fetch(`${$mumaApiUrl}/api/all-notes`, { headers }),
-        fetch(`${$mumaApiUrl}/api/scrobble/import/latest`, { headers }),
-        fetch(`${$mumaApiUrl}/api/users`, { headers }),
-        fetch(`${$mumaApiUrl}/api/system/containers`, { headers }),
-        fetch(`${$mumaApiUrl}/api/system/activity`, { headers }),
-        fetch(`${$mumaApiUrl}/api/stats`, { headers })
-      ]);
-      
+      // Fired a few at a time rather than all eleven at once: they all reach MuMa
+      // through the LMS proxy, which refuses the eleventh with a 503 instead of
+      // queueing it. See MAX_PARALLEL_MUMA_CALLS in lib/mumaApi.js.
+      const [configBody, notesBody, rulesBody, accountsBody, youtubeBody, allNotesBody, importsBody, usersBody, containersBody, activityBody, statsBody] = await mapWithLimit(
+        [
+          '/api/config',
+          '/api/notes',
+          '/api/rules',
+          '/api/soundcloud',
+          '/api/youtube',
+          '/api/all-notes',
+          '/api/scrobble/import/latest',
+          '/api/users',
+          '/api/system/containers',
+          '/api/system/activity',
+          '/api/stats'
+        ],
+        (path) => fetchMumaJson(`${$mumaApiUrl}${path}`, { headers })
+      );
+
       // The endpoint answers {config, groups}; the tabs below want the values map.
       // Reading the envelope as if it were flat is why the ntfy fields on the events
       // tab have always rendered empty.
-      const configBody = await configRes.json();
       config = configBody?.config ?? configBody ?? {};
-      notes = await notesRes.json();
-      rules = await rulesRes.json();
-      accounts = await accountsRes.json();
-      youtubeAccounts = await youtubeRes.json();
-      allNotes = await allNotesRes.json();
-      latestImports = await importsRes.json();
-      users = await usersRes.json();
-      containers = await containersRes.json();
-      activity = await activityRes.json();
-      stats = await statsRes.json();
-      
+      notes = notesBody;
+      rules = rulesBody;
+      accounts = accountsBody;
+      youtubeAccounts = youtubeBody;
+      allNotes = allNotesBody;
+      latestImports = importsBody;
+      users = usersBody;
+      containers = containersBody;
+      activity = activityBody;
+      stats = statsBody;
+
       fetchRules();
       searchArtists();
       searchLabels();
@@ -138,12 +143,12 @@
 
   async function fetchRules() {
     try {
-      const [artistRulesRes, labelRulesRes] = await Promise.all([
-        fetch(`${$mumaApiUrl}/api/rules/artist-genres`, { headers: getHeaders() }),
-        fetch(`${$mumaApiUrl}/api/rules/label-genres`, { headers: getHeaders() })
+      const [artistRules, labelRules] = await Promise.all([
+        fetchMumaJson(`${$mumaApiUrl}/api/rules/artist-genres`, { headers: getHeaders() }),
+        fetchMumaJson(`${$mumaApiUrl}/api/rules/label-genres`, { headers: getHeaders() })
       ]);
-      artistGenreRules = await artistRulesRes.json();
-      labelGenreRules = await labelRulesRes.json();
+      artistGenreRules = artistRules;
+      labelGenreRules = labelRules;
     } catch (err) {
       console.error("Fout bij ophalen regels:", err);
     }
@@ -151,8 +156,7 @@
 
   async function searchArtists() {
     try {
-      const res = await fetch(`${$mumaApiUrl}/api/artists?q=${artistSearch}`, { headers: getHeaders() });
-      artists = await res.json();
+      artists = await fetchMumaJson(`${$mumaApiUrl}/api/artists?q=${artistSearch}`, { headers: getHeaders() });
     } catch (err) {
       console.error(err);
     }
@@ -160,8 +164,7 @@
 
   async function searchLabels() {
     try {
-      const res = await fetch(`${$mumaApiUrl}/api/labels?q=${labelSearch}`, { headers: getHeaders() });
-      labels = await res.json();
+      labels = await fetchMumaJson(`${$mumaApiUrl}/api/labels?q=${labelSearch}`, { headers: getHeaders() });
     } catch (err) {
       console.error(err);
     }
@@ -284,12 +287,12 @@
   async function refreshSystemStatus() {
     try {
       const headers = getHeaders();
-      const [contRes, actRes] = await Promise.all([
-        fetch(`${$mumaApiUrl}/api/system/containers`, { headers }),
-        fetch(`${$mumaApiUrl}/api/system/activity`, { headers })
+      const [containerList, activityBody] = await Promise.all([
+        fetchMumaJson(`${$mumaApiUrl}/api/system/containers`, { headers }),
+        fetchMumaJson(`${$mumaApiUrl}/api/system/activity`, { headers })
       ]);
-      containers = await contRes.json();
-      activity = await actRes.json();
+      containers = containerList;
+      activity = activityBody;
     } catch (err) {
       console.error(err);
     }

@@ -1,5 +1,20 @@
 ## [Unreleased]
 
+## [6.26.0] - 2026-09-02
+
+### Fixed
+- **Een rij in de jukebox-wachtrij naar beneden slepen zette hem een plek te hoog neer.** Een nummer
+  op zijn eigen plek "verplaatsen" schudde daardoor ook de rest van de volgorde door elkaar. Alleen
+  de jukebox had hier last van; lokaal afspelen ging altijd goed.
+- **Een standaard-vervaltijd voor delen opslaan brak de instelling in talen met andere cijfers.** In
+  het Arabisch, Perzisch en Bengaals werd de waarde weggeschreven met cijfers die bij het teruglezen
+  niet werden herkend. Het opslagformaat staat nu vast, los van de taal.
+
+### Added
+- **Tests voor drie plekken die wel gefixt maar nooit getest waren:** de jukebox-wachtrij, de
+  volgorde van de download-wachtrij (waar de crash-fix van 0.31 op leunt) en de wortel van de
+  Android Auto-bibliotheek.
+
 ## [6.25.3] - 2026-08-31
 
 ### Changed

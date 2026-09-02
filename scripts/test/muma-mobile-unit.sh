@@ -43,10 +43,26 @@ if [ -f "$ROOT_DIR/$REPORT_SRC" ]; then
     sed -i 's|<source>.*</source>|<source>./</source>|g' "$ROOT_DIR/$REPORT_DEST"
     
     # Print summary for GitLab coverage regex parsing
-    python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('$ROOT_DIR/$REPORT_DEST'); root = tree.getroot(); \
-        c = [cnt for cnt in root.findall('counter') if cnt.get('type') == 'LINE'][0]; \
-        cov = int(c.get('covered')); total = cov + int(c.get('missed')); \
-        print(f'Total Jacoco Line Coverage: {100*cov/total:.2f}%')"
+    # The floor is a ratchet, not a target: it sits just under the current figure
+    # so it cannot quietly erode. Raise it as coverage climbs; never lower it to
+    # make a build green. The app module only -- :core:voice runs its tests above
+    # but Jacoco is wired to :app.
+    python3 - "$ROOT_DIR/$REPORT_DEST" "${MOBILE_COVERAGE_MIN:-16}" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+root = ET.parse(sys.argv[1]).getroot()
+line = next(c for c in root.findall('counter') if c.get('type') == 'LINE')
+covered = int(line.get('covered'))
+total = covered + int(line.get('missed'))
+percent = 100.0 * covered / total if total else 0.0
+minimum = float(sys.argv[2])
+print(f'Total Jacoco Line Coverage: {percent:.2f}%')
+if percent < minimum:
+    print(f'ERROR: MuMa Mobile line coverage {percent:.2f}% is under the floor of {minimum:g}%', file=sys.stderr)
+    sys.exit(1)
+print(f'Required line coverage of {minimum:g}% reached.')
+PY
 else
     echo "❌ ERROR: Coverage report not found at $REPORT_SRC"
     # List files to help debugging if it fails

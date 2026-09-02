@@ -15,7 +15,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import nl.teunschriks.mumamobile.api.muma.MumaAccessRequest
 import nl.teunschriks.mumamobile.api.muma.MumaAuthUser
+import nl.teunschriks.mumamobile.api.muma.MumaContainer
 import nl.teunschriks.mumamobile.api.muma.MumaDownloadAccount
+import nl.teunschriks.mumamobile.api.muma.MumaEvent
 import timber.log.Timber
 
 /** Backs all three Beheer pages; they are small enough to share one model. */
@@ -33,10 +35,23 @@ class ManagementViewModel(private val repository: ManagementRepository) : ViewMo
     private val mutableYoutube = MutableStateFlow<List<MumaDownloadAccount>>(emptyList())
     val youtube: StateFlow<List<MumaDownloadAccount>> = mutableYoutube.asStateFlow()
 
+    private val mutableContainers = MutableStateFlow<List<MumaContainer>>(emptyList())
+    val containers: StateFlow<List<MumaContainer>> = mutableContainers.asStateFlow()
+
+    private val mutableOverview = MutableStateFlow<SystemOverview?>(null)
+    val overview: StateFlow<SystemOverview?> = mutableOverview.asStateFlow()
+
+    private val mutableEvents = MutableStateFlow<List<MumaEvent>>(emptyList())
+    val events: StateFlow<List<MumaEvent>> = mutableEvents.asStateFlow()
+
     private val mutableError = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = mutableError.asStateFlow()
 
     var requestStatus: String = STATUS_PENDING
+        private set
+
+    /** Which level the events page is filtered on, or null for all of them. */
+    var eventLevel: String? = null
         private set
 
     fun loadRequests(status: String = requestStatus) {
@@ -80,6 +95,22 @@ class ManagementViewModel(private val repository: ManagementRepository) : ViewMo
         repository.deleteDownloadAccount(source, name)
         loadDownloadAccountsNow()
     }
+
+    fun loadOverview() = run("overview") {
+        val containers = repository.containers()
+        mutableContainers.value = containers
+        mutableOverview.value = summarizeSystem(containers, repository.activity(), repository.versions())
+    }
+
+    fun loadContainers() = run("containers") { mutableContainers.value = repository.containers() }
+
+    /** null is every level: the server reads an empty level list as "no filter". */
+    fun loadEvents(level: String? = eventLevel) {
+        eventLevel = level
+        run("events") { mutableEvents.value = repository.events(level) }
+    }
+
+    suspend fun containerLogs(name: String): String = repository.containerLogs(name)
 
     fun clearError() {
         mutableError.value = null

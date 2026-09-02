@@ -126,6 +126,35 @@ interface MumaAPIDefinition {
         @Path("name") name: String
     ): Call<ResponseBody>
 
+    // --- System (Beheer: overzicht, health, gebeurtenissen). Read-only from the app. ---
+
+    @GET("api/system/containers")
+    fun getContainers(): Call<List<MumaContainer>>
+
+    @GET("api/system/logs/{name}")
+    fun getContainerLogs(
+        @Path("name") name: String,
+        @Query("tail") tail: Int = 200
+    ): Call<MumaContainerLogs>
+
+    @GET("api/system/activity")
+    fun getActivity(
+        @Query("limit") limit: Int = 20
+    ): Call<MumaActivity>
+
+    @GET("api/versions")
+    fun getVersions(): Call<MumaVersions>
+
+    /**
+     * An unknown level answers 400 for the whole request, so the caller may only send levels the
+     * server declares -- see [nl.teunschriks.mumamobile.management.EVENT_LEVELS].
+     */
+    @GET("api/events")
+    fun getEvents(
+        @Query("level") level: List<String>,
+        @Query("limit") limit: Int = 100
+    ): Call<MumaEventsResponse>
+
     @POST("api/diagnostics/crash-reports")
     fun uploadCrashReport(
         @Body request: CrashReportRequest

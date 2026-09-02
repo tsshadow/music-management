@@ -7,6 +7,7 @@
 
 package nl.teunschriks.mumamobile.management
 
+import android.app.AlertDialog
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -21,6 +22,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.fragment.FragmentTitle
@@ -59,6 +61,7 @@ class ManagementPageFragment : Fragment() {
         recycler.adapter = adapter
 
         if (page == ManagementPage.USER_REQUESTS) setupStatusFilter(view)
+        if (page == ManagementPage.EVENTS) setupLevelFilter(view)
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -84,6 +87,9 @@ class ManagementPageFragment : Fragment() {
         ManagementPage.DOWNLOADERS -> viewModel.loadDownloadAccounts()
         ManagementPage.USERS -> viewModel.loadUsers()
         ManagementPage.USER_REQUESTS -> viewModel.loadRequests()
+        ManagementPage.OVERVIEW -> viewModel.loadOverview()
+        ManagementPage.HEALTH -> viewModel.loadContainers()
+        ManagementPage.EVENTS -> viewModel.loadEvents()
         else -> Unit
     }
 
@@ -102,7 +108,107 @@ class ManagementPageFragment : Fragment() {
                 adapter.items = requests.map { it.toRow() }
             }
 
+        ManagementPage.OVERVIEW ->
+            viewModel.overview.filterNotNull().collectLatest { adapter.items = it.toRows() }
+
+        ManagementPage.HEALTH ->
+            viewModel.containers.collectLatest { containers ->
+                adapter.items = containers.map { it.toRow() }
+            }
+
+        ManagementPage.EVENTS ->
+            viewModel.events.collectLatest { events ->
+                adapter.items = events.map { it.toRow() }.ifEmpty {
+                    // A log with nothing in it and a filter that matched nothing look identical
+                    // otherwise: an empty list under a level chip reads as a page that failed.
+                    listOf(ManagementRow(id = "empty", title = getString(R.string.management_events_empty), subtitle = null))
+                }
+            }
+
         else -> Unit
+    }
+
+    private fun setupLevelFilter(view: View) {
+        val header: LinearLayout = view.findViewById(R.id.management_header)
+        header.visibility = View.VISIBLE
+
+        addFilterButton(header, getString(R.string.management_events_all)) { viewModel.loadEvents(null) }
+        EVENT_LEVELS.forEach { level ->
+            // The label is the server's own word for the level; translating it would hide which
+            // value the filter actually sends, and the level is what the log itself prints.
+            addFilterButton(header, level) { viewModel.loadEvents(level) }
+        }
+    }
+
+    private fun addFilterButton(header: LinearLayout, label: String, onClick: () -> Unit) {
+        val button = Button(requireContext())
+        button.text = label
+        button.setOnClickListener { onClick() }
+        header.addView(button)
+    }
+
+    /**
+     * Three lines rather than the web's cards: how much of the stack is up, which version answers,
+     * and when the library last grew. The rest of the web overview is a chart, which is not what a
+     * phone is for.
+     */
+    private fun SystemOverview.toRows(): List<ManagementRow> = listOf(
+        ManagementRow(
+            id = "containers",
+            title = getString(R.string.management_system_containers, running, total),
+            subtitle = if (allRunning) {
+                getString(R.string.management_system_all_running)
+            } else {
+                getString(R.string.management_system_offline, offline.joinToString(", "))
+            }
+        ),
+        ManagementRow(
+            id = "version",
+            title = version ?: getString(R.string.management_system_version_unknown),
+            subtitle = getString(R.string.management_system_version)
+        ),
+        ManagementRow(
+            id = "activity",
+            title = lastAdded?.let { listOfNotNull(it.artist, it.title).joinToString(" - ") }
+                ?: getString(R.string.management_system_no_activity),
+            subtitle = lastAdded?.timestamp?.let {
+                "${getString(R.string.management_system_last_added)} \u00b7 $it"
+            } ?: getString(R.string.management_system_last_added)
+        )
+    )
+
+    private fun nl.teunschriks.mumamobile.api.muma.MumaContainer.toRow() = ManagementRow(
+        id = name,
+        title = name,
+        subtitle = listOfNotNull(status, image).joinToString(" \u00b7 "),
+        primary = RowAction(getString(R.string.management_logs)) { showLogs(name) }
+    )
+
+    private fun nl.teunschriks.mumamobile.api.muma.MumaEvent.toRow() = ManagementRow(
+        id = id.toString(),
+        title = title ?: message.orEmpty().lineSequence().firstOrNull().orEmpty(),
+        subtitle = listOfNotNull(level, source, createdAt).joinToString(" \u00b7 ")
+    )
+
+    /**
+     * The log tail in a dialog rather than a page of its own: it is a wall of text with nothing to
+     * do in it, and giving it a destination would put a screen in the back stack that the reader
+     * only ever wants to dismiss.
+     */
+    private fun showLogs(name: String) {
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.management_logs_title, name))
+            .setMessage(getString(R.string.management_logs_loading))
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val logs = runCatching { viewModel.containerLogs(name) }
+                .getOrElse { getString(R.string.management_action_failed, it.message ?: name) }
+            if (dialog.isShowing) {
+                dialog.setMessage(logs.ifBlank { getString(R.string.management_logs_empty) })
+            }
+        }
     }
 
     private fun setupStatusFilter(view: View) {

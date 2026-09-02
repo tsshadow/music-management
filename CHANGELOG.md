@@ -23,6 +23,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   het volgende verzoek geweigerd, niet bij het verlopen van een timer.
 
 ### Added
+- **Een lineup met de hand invoeren, en vooraf zien wat hij matcht.** `/music/metadata/festival-lineups`
+  is leeg sinds de map bestaat, dus de Lineups-pagina op het web en de lineup-browse op de telefoon
+  werken allebei en tonen niets. Een affiche typ je over van het festival zelf -- Partyflock, in de
+  spec als voorkeursbron genoemd, verbiedt scrapers (artikel 5) en hergebruik zonder toestemming
+  (artikel 6). Wat overtypen lastig maakt is de match: `getSpotifyTracks` filtert met
+  `LOWER(artist_display_name) IN (...)` op de *hele* weergavenaam, dus een regel die deze
+  bibliotheek anders spelt draagt stilzwijgend niets bij. `scripts/import_festival_lineup.py` leest
+  het affiche, controleert elke regel tegen de artiestnamen die LMS werkelijk heeft, en meldt wat
+  matcht, wat niet, en welke namen in de bibliotheek er het dichtst bij liggen -- voordat er iets
+  wordt weggeschreven. Uit de bibliotheek zelf afleiden is geprobeerd en verworpen: warm-up mixes,
+  livesets en podcast-afleveringen dragen dezelfde FESTIVAL-tag, dus dat "affiche" liep vol met
+  namen die nooit op de line-up stonden.
 - **e2e: een afgekeurd genre verdwijnt uit bestand, bibliotheek én speler.** `genre_rejected.feature`
   keurt het genre van de fixture af, laat de retag draaien, wacht tot de wachtrij leeg is, ziet de
   scanner het genre van de track halen en laat LMS herindexeren tot ook die het niet meer meldt.

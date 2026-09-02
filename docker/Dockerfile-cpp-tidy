@@ -10,7 +10,7 @@
 # the target platform; this one only ever runs natively. Keep them in step: a
 # dependency added there and forgotten here surfaces as clang-tidy failing to
 # find a header, which reads like a code error.
-FROM alpine:3.21
+FROM alpine:3.24
 
 ARG RUNNER_UID=1000
 ARG RUNNER_GID=1000

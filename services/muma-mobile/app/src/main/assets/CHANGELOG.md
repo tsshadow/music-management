@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Een diagnostiekrapport vertelt nu wat je gedaan hebt, niet alleen wat de app aan zichzelf
+  meldde.** Rapporten bestonden vrijwel geheel uit levenscyclusruis, en de handeling die tot de
+  storing leidde stond er meestal niet in. Elke handeling die er toe doet schrijft nu één regel in
+  een vaste vorm -- `action player.play | index=3 | queue=100` -- dus een rapport is van boven naar
+  beneden te lezen en per onderdeel te doorzoeken. Wat er gelogd wordt: afspelen, pauzeren, stoppen,
+  vorige, volgende, shuffle, alle wijzigingen aan de wachtrij, sterren en waarderingen, downloads en
+  pins, elke Beheer-aanroep, en elk lijstscherm met begin, einde en duur. Dat laatste is de
+  belangrijkste: een `list.load` zonder `list.loaded` of `list.failed` erachter betekent dat de
+  aanroep nog buiten staat, en dat is precies wat een eeuwig draaiend rondje is.
+- **Het ringbufferlog houdt 600 regels vast in plaats van 200, en schrijft zichzelf minder vaak
+  weg.** Bij 200 regels paste er ongeveer één scherm in, dus een rapport over iets van drie schermen
+  geleden kwam binnen met dat deel er al uit gerold. Tegelijk startte elke logregel een eigen
+  schrijfactie van de héle buffer: honderd regels bij het openen van een scherm waren honderd keer
+  hetzelfde bestand. Schrijfacties worden nu per 250 ms samengevoegd, zodat meer loggen niet meer
+  IO betekent.
+
 ### Fixed
 - **De app bewaarde alles onder gebruiker 0, en die bestaat niet.** `POST /api/auth/login` antwoordt
   met de accountvelden genest onder `user`, maar het inloggen las dat antwoord met een eigen, plat

@@ -4,8 +4,10 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nl.teunschriks.mumamobile.util.FileUtil
 import timber.log.Timber
@@ -49,9 +51,25 @@ class RingBufferLoggerTree :
         val time = dateFormat.format(Date())
         val exceptionSuffix = if (t != null) " $t" else ""
         val line = "$time ${logLevelToString(priority)}/$tag: $message$exceptionSuffix"
-        val currentLines = buffer.append(line)
+        buffer.append(line)
+        scheduleWrite()
+    }
+
+    /**
+     * Writes the whole buffer, at most once per [WRITE_DELAY_MS].
+     *
+     * Every line used to launch its own write of the entire buffer, so a burst of a hundred lines
+     * -- one screen opening does that -- meant a hundred rewrites of the same file, each one longer
+     * than the last. Coalescing turns a burst into one write. The cost is that the final lines
+     * before a silent process kill can be up to [WRITE_DELAY_MS] old; the buffer they belong to is
+     * a few hundred lines deep, so that is a line or two, not the story.
+     */
+    private fun scheduleWrite() {
+        if (!writeScheduled.compareAndSet(false, true)) return
         launch {
-            writeToDisk(currentLines)
+            delay(WRITE_DELAY_MS)
+            writeScheduled.set(false)
+            writeToDisk(buffer.snapshot())
         }
     }
 
@@ -73,9 +91,22 @@ class RingBufferLoggerTree :
         else -> "U"
     }
 
+    private val writeScheduled = AtomicBoolean(false)
+
     companion object {
         const val FILENAME = "ringbuffer.log"
-        const val MAX_LINES = 200
+
+        /**
+         * At 200 this held roughly one screen opening. A report about something the user did three
+         * screens ago arrived with that part already trimmed away, which is the whole point of the
+         * file. 600 lines is about 40 kB of text -- small next to a crash report, and the buffer is
+         * written at most a few times a second.
+         */
+        const val MAX_LINES = 600
+
+        /** How long a burst of lines is allowed to collect before one write covers all of them. */
+        internal const val WRITE_DELAY_MS = 250L
+
         internal val buffer = RingBuffer(MAX_LINES)
 
         fun plantToTimberForest() {

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.27.0] - 2026-09-02
+
 ### Added
 - **Beheer heeft zijn eerste drie systeempagina's: Overzicht, Gezondheid en Logboek.** De index gaf
   ze al als rij weer, uitgegrijsd, met de melding dat ze voorlopig op het web wonen; nu openen ze.

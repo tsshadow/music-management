@@ -47,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `FEATURE_ORDER` plus een `pytest_collection_modifyitems`-hook; een module die er niet in staat draait
   erna, op naam. De docstrings die op alfabetische volgorde leunden verwijzen nu naar de lijst.
 
+## [0.41.0] - 2026-09-02
+
 ### Changed
 - **De clang-tidy-image draait op alpine 3.24, en daarmee op LLVM 22 in plaats van 19.** Drie
   versies verder betekent nieuwe checks over ongewijzigde code: `server:lint` viel om op 259

@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- **Een rij in de jukebox-wachtrij naar beneden slepen zette hem één plek te hoog neer.** De
-  jukebox-speler houdt zijn eigen wachtrij bij en voegde een verplaatst nummer bij een sleep
-  omlaag in op `nieuwe index - 1`, terwijl het `Player`-contract de eindpositie bedoelt. Een
-  nummer op zijn eigen plek "verplaatsen" schudde daardoor ook de volgorde door elkaar. De lokale
-  speler liet dit aan ExoPlayer over en had er geen last van, dus geen enkele test zag het.
-
 ### Added
 - **Beheer heeft zijn eerste drie systeempagina's: Overzicht, Gezondheid en Logboek.** De index gaf
   ze al als rij weer, uitgegrijsd, met de melding dat ze voorlopig op het web wonen; nu openen ze.
@@ -27,6 +20,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Alle drie zijn lezen en verder niets: de server blijft de grens, het scherm toont wat hij meldt.
   Eén afwijking van het web bewust: nul containers geldt niet als "alles draait" -- dat betekent dat
   de aanroep niets opleverde, en het web zet daar een groen vinkje bij.
+
+## [6.26.0] - 2026-09-02
+
+### Fixed
+- **Een rij in de jukebox-wachtrij naar beneden slepen zette hem één plek te hoog neer.** De
+  jukebox-speler houdt zijn eigen wachtrij bij en voegde een verplaatst nummer bij een sleep
+  omlaag in op `nieuwe index - 1`, terwijl het `Player`-contract de eindpositie bedoelt. Een
+  nummer op zijn eigen plek "verplaatsen" schudde daardoor ook de volgorde door elkaar. De lokale
+  speler liet dit aan ExoPlayer over en had er geen last van, dus geen enkele test zag het.
+
+### Added
 - **Unit-tests voor drie plekken die wel gefixt maar nooit getest waren.** De jukebox-wachtrij
   (verplaatsen, verwijderen, invoegen, leegmaken, tegen het `Player`-contract), de volgorde van de
   download-wachtrij (een voorgrond-verzoek gaat vóór eerder aangevraagde achtergrond-pins, en

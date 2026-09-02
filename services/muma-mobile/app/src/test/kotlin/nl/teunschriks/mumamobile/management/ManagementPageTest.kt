@@ -104,11 +104,14 @@ class ManagementPageTest {
             .substringAfter("export const MANAGEMENT_GROUPS = [")
             .substringBefore("\n];")
 
-        return Regex("""id:\s*'([^']+)'[^\[]*pages:\s*\[([^\]]*)]""", RegexOption.DOT_MATCHES_ALL)
+        // Either quote style. The frontend is formatted by oxfmt, which writes double quotes;
+        // this used to accept only single ones and read the whole constant as empty the day the
+        // formatter was applied -- a failure that looked like the two lists having drifted.
+        return Regex("""id:\s*["']([^"']+)["'][^\[]*pages:\s*\[([^\]]*)]""", RegexOption.DOT_MATCHES_ALL)
             .findAll(constant)
             .flatMap { match ->
                 val groupId = match.groupValues[1]
-                Regex("'([^']+)'").findAll(match.groupValues[2]).map { it.groupValues[1] to groupId }
+                Regex("""["']([^"']+)["']""").findAll(match.groupValues[2]).map { it.groupValues[1] to groupId }
             }
             .toList()
     }

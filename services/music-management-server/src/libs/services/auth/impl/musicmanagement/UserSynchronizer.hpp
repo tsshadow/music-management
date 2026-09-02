@@ -6,7 +6,9 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include <boost/asio/io_context.hpp>
@@ -32,13 +34,18 @@ namespace lms::auth::musicManagement
         ~UserSynchronizer();
 
         void syncUsers() override;
+        void setOnUsersSynced(std::function<void()> callback) override;
 
     private:
+        void notifyUsersSynced();
+
         boost::asio::io_context& _ioContext;
         db::IDb& _db;
         std::string _apiUrl;
         std::string _apiKey;
         std::unique_ptr<core::http::IClient> _client;
+        std::mutex _onUsersSyncedMutex;
+        std::function<void()> _onUsersSynced;
     };
 
     std::unique_ptr<IUserSynchronizer> createUserSynchronizer(boost::asio::io_context& ioContext, db::IDb& db);

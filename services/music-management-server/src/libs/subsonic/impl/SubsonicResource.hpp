@@ -48,6 +48,7 @@ namespace lms::api::subsonic
     {
     public:
         SubsonicResource(boost::asio::io_context& ioContext, db::IDb& db);
+        ~SubsonicResource() override;
 
     private:
         void handleRequest(const Wt::Http::Request& request, Wt::Http::Response& response) override;

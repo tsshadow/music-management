@@ -741,6 +741,9 @@ def enable_user(user_id: int, auth: dict = Depends(require_permission('users.dis
             actor_id = (auth.get('user') or {}).get('id')
             rbac.record_audit_event(cursor, 'user.enabled', actor_user_id=actor_id, target_user_id=user_id)
             conn.commit()
+            # LMS trusts a password it has accepted for five minutes without asking again. The
+            # sync poke is what makes it forget that now rather than when its timer says so.
+            notify_server_sync_users()
             return {'status': 'ok'}
     finally:
         conn.close()
@@ -757,6 +760,9 @@ def disable_user(user_id: int, auth: dict = Depends(require_permission('users.di
             actor_id = (auth.get('user') or {}).get('id')
             rbac.record_audit_event(cursor, 'user.disabled', actor_user_id=actor_id, target_user_id=user_id)
             conn.commit()
+            # LMS trusts a password it has accepted for five minutes without asking again. The
+            # sync poke is what makes it forget that now rather than when its timer says so.
+            notify_server_sync_users()
             return {'status': 'ok'}
     finally:
         conn.close()

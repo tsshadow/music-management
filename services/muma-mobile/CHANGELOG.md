@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.26.0] - 2026-09-02
+
 ### Fixed
 - **Een rij in de jukebox-wachtrij naar beneden slepen zette hem één plek te hoog neer.** De
   jukebox-speler houdt zijn eigen wachtrij bij en voegde een verplaatst nummer bij een sleep

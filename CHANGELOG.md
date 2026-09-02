@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.42.1] - 2026-09-03
+
 ### Fixed
 - **Instellingen opslaan voor een onbekende gebruiker gaf 500 in plaats van 404.**
   `POST /api/users/{id}/settings/{app}` liet de insert op de foreign key stuklopen, en dat leest als

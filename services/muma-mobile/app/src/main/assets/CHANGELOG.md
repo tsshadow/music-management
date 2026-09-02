@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.28.0] - 2026-09-03
+
 ### Added
 - **Een diagnostiekrapport vertelt nu wat je gedaan hebt, niet alleen wat de app aan zichzelf
   meldde.** Rapporten bestonden vrijwel geheel uit levenscyclusruis, en de handeling die tot de

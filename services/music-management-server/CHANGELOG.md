@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **A user sync from music-manager now empties the Subsonic auth cache.** A granted password is
+  trusted for five minutes (`authGrantedCacheDuration`), so an account disabled on music-manager
+  kept being served until its grant lapsed. `IUserSynchronizer` gained an on-sync hook;
+  `SubsonicResource` subscribes and clears `AuthCache` on every sync, before the fetch and whether
+  or not it succeeds. music-manager pokes the sync on enable/disable, so the refusal now lands on
+  the next request.
+
 ### Added
 - **`getSpotifyTracks` filters on a festival and on a festival lineup.** `festival` resolves
   through the `FESTIVAL` cluster type, exactly like the `genre`, `year` and `podcast` parameters

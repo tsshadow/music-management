@@ -318,6 +318,9 @@ def provision_lms_account(manager, lms, api_key, subsonic_auth, username, passwo
 
     wait_for(f'LMS to learn about {username}', listed, timeout=60)
     context.setdefault('accounts', {})[username] = {'id': user_id, 'password': password}
+    # "The listener" in a step is the account provisioned last, so a feature can
+    # provision one per scenario without every step naming it.
+    context['listener'] = username
     return user_id
 
 

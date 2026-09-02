@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   retag die het besluit zelf in gang zette schreef het bestand dus terug met het genre nog op de
   oude manier opgelost, tot een herstart. Het besluit ververst nu `genre_rules`, zoals de
   curatiepagina's al deden voor hun regels.
+- **Een uitgeschakeld account bleef tot vijf minuten doorspelen op LMS.** LMS onthoudt een
+  goedgekeurd wachtwoord vijf minuten zonder music-manager opnieuw te vragen (de auth-cache uit de
+  thread-pool-fix), dus `disable` bereikte de speler pas bij het eerstvolgende *ongecachte* verzoek.
+  Uitschakelen en inschakelen porren nu de gebruikerssync van LMS, precies zoals de eerste-admin-setup
+  dat al deed, en LMS gooit bij elke sync zijn hele auth-cache weg. De e2e-feature die dit gat
+  vorige keer vastlegde bewijst nu ook het omgekeerde: een account dat LMS al binnenliet wordt bij
+  het volgende verzoek geweigerd, niet bij het verlopen van een timer.
 
 ### Added
 - **e2e: een afgekeurd genre verdwijnt uit bestand, bibliotheek én speler.** `genre_rejected.feature`

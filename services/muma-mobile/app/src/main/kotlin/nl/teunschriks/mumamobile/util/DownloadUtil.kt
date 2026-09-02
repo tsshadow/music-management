@@ -15,6 +15,7 @@ import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.log.logAction
 import nl.teunschriks.mumamobile.service.DownloadService
 import nl.teunschriks.mumamobile.service.MusicServiceFactory
 
@@ -34,10 +35,12 @@ object DownloadUtil {
         isArtist: Boolean = false,
         tracks: List<Track>? = null
     ) {
+        logAction("download.request", "action" to action, "id" to id, "name" to name)
         // Launch the Job
         fragment.launchWithToast {
             val tracksToDownload: List<Track> = tracks
                 ?: getTracksFromServerAsync(isArtist, id!!, isDirectory, name, isShare)
+            logAction("download.tracks", "action" to action, "tracks" to tracksToDownload.size)
 
             // If we are just downloading tracks we don't need to add them to the controller
             when (action) {

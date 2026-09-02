@@ -43,6 +43,11 @@ namespace lms::api::subsonic
         void storeGranted(const std::string& key, db::UserId userId, std::chrono::steady_clock::time_point now);
         void storeDenied(const std::string& key, std::chrono::steady_clock::time_point now);
 
+        // Forget everything. For the moment music-manager says the users changed: a grant that
+        // is still inside its window may belong to an account that has just been disabled, and
+        // the next request has to ask again rather than ride out the timer.
+        void clear() { _entries.clear(); }
+
         std::size_t getEntryCount() const { return _entries.size(); }
 
     private:

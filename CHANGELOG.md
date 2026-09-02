@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Een uitgeschakeld account bleef tot vijf minuten doorspelen op LMS.** LMS onthoudt een
+  goedgekeurd wachtwoord vijf minuten zonder music-manager opnieuw te vragen (de auth-cache uit de
+  thread-pool-fix), dus `disable` bereikte de speler pas bij het eerstvolgende *ongecachte* verzoek.
+  Uitschakelen en inschakelen porren nu de gebruikerssync van LMS, precies zoals de eerste-admin-setup
+  dat al deed, en LMS gooit bij elke sync zijn hele auth-cache weg. De e2e-feature die dit gat
+  vorige keer vastlegde bewijst nu ook het omgekeerde: een account dat LMS al binnenliet wordt bij
+  het volgende verzoek geweigerd, niet bij het verlopen van een timer.
+
 ### Changed
 - **De clang-tidy-image draait op alpine 3.24, en daarmee op LLVM 22 in plaats van 19.** Drie
   versies verder betekent nieuwe checks over ongewijzigde code: `server:lint` viel om op 259

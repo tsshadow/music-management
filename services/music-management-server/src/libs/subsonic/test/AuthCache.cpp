@@ -130,4 +130,18 @@ namespace lms::api::subsonic::tests
         ASSERT_TRUE(entry.has_value());
         EXPECT_EQ(entry->userId, db::UserId{ 1 });
     }
+    // Clearing is what a user sync triggers: an account disabled on music-manager must not be
+    // served from a grant that is still inside its window.
+    TEST(AuthCache, clearForgetsGrantsAndDenialsAlike)
+    {
+        AuthCache cache{ grantedDuration, deniedDuration, 100 };
+        cache.storeGranted("granted", db::UserId{ 1 }, epoch());
+        cache.storeDenied("denied", epoch());
+
+        cache.clear();
+
+        EXPECT_EQ(cache.getEntryCount(), 0);
+        EXPECT_FALSE(cache.lookup("granted", epoch() + 1s).has_value());
+        EXPECT_FALSE(cache.lookup("denied", epoch() + 1s).has_value());
+    }
 } // namespace lms::api::subsonic::tests

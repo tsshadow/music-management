@@ -41,6 +41,7 @@
 #include "database/objects/User.hpp"
 #include "services/auth/IAuthTokenService.hpp"
 #include "services/auth/IPasswordService.hpp"
+#include "services/auth/IUserSynchronizer.hpp"
 
 #include "ParameterParsing.hpp"
 #include "RequestContext.hpp"
@@ -326,6 +327,28 @@ namespace lms::api::subsonic
         , _ioContext{ ioContext }
         , _authCache{ authGrantedCacheDuration, authDeniedCacheDuration, maxAuthCacheEntryCount }
     {
+        // A granted password is trusted for five minutes without asking music-manager again (see
+        // authGrantedCacheDuration). Disabling an account there used to take that long to reach
+        // the player: the account was refused on the next *uncached* request only. music-manager
+        // pokes the user synchronizer whenever an account changes, so that is the moment to drop
+        // everything remembered here. The service is optional so the resource still constructs
+        // in a test that wires no synchronizer.
+        if (auto* userSynchronizer{ core::Service<auth::IUserSynchronizer>::get() })
+        {
+            userSynchronizer->setOnUsersSynced([this] {
+                const std::lock_guard lock{ _authCacheMutex };
+                LMS_LOG(API_SUBSONIC, DEBUG, "Users changed on MusicManagement: forgetting " << _authCache.getEntryCount() << " cached authentications");
+                _authCache.clear();
+            });
+        }
+    }
+
+    SubsonicResource::~SubsonicResource()
+    {
+        // The synchronizer outlives this resource (main.cpp scopes the services around the
+        // resources), so the callback capturing `this` must not.
+        if (auto* userSynchronizer{ core::Service<auth::IUserSynchronizer>::get() })
+            userSynchronizer->setOnUsersSynced({});
     }
 
     void SubsonicResource::handleRequest(const Wt::Http::Request& request, Wt::Http::Response& response)

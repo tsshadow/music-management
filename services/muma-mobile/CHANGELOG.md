@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   geheugenkopie van de lopende sessie. Een handmatig rapport bevat nu allebei de sessies, oudste
   eerst, met een kopregel ertussen. Is er geen vorige sessie, dan verandert er niets aan het
   rapport.
+- **Een scherm dat niet laadde liet geen enkel spoor na.** Tien schermen geven een mislukte
+  laadactie door aan dezelfde afhandelaar, en die toonde alleen een toast. Een toast is na een paar
+  seconden weg en komt in geen enkel rapport terecht, dus juist de storing die een gebruiker kán
+  melden was het enige wat het log niet bevatte. De fout wordt nu weggeschreven, met de naam van
+  het scherm erbij, voordat de toast verschijnt.
+- **De afspeellijstenpagina zei helemaal niets.** Geen enkele logregel, dus een rapport erover kon
+  onmogelijk aanwijzen waar het ophield -- laden of geladen was niet uit elkaar te houden. Hij
+  meldt nu het begin van de laadactie en hoeveel lijsten er terugkwamen.
 
 ## [6.27.0] - 2026-09-02
 

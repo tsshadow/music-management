@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.42.0] - 2026-09-02
+
 ### Fixed
 - **Een genre-besluit bereikte de draaiende tagger niet.** `POST /api/rules/genres/{id}/decide`
   markeerde de bestanden voor een retag, maar de tagger leest zijn genre-regels uit een helper die

@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [6.27.0] - 2026-09-02
+
+### Added
+- **Beheer heeft zijn eerste drie systeempagina's: Overzicht, Gezondheid en Logboek.** Ze stonden
+  er al als rij in, uitgegrijsd, met de melding dat ze voorlopig op het web woonden. Overzicht vat
+  samen hoeveel containers draaien (en welke niet), welke versie de server meldt en welk nummer het
+  laatst is toegevoegd. Gezondheid lijst elke container met status en image, met de logstaart in
+  een dialoog. Logboek toont de gebeurtenissenstroom met een filter per niveau. Alle drie zijn
+  lezen en verder niets.
+
 ## [6.26.0] - 2026-09-02
 
 ### Fixed

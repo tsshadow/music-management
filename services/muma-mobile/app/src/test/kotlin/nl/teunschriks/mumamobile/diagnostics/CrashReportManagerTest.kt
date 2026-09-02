@@ -76,7 +76,7 @@ class CrashReportManagerTest {
 
     @Test
     fun `a manual report is marked as manual and carries the current ring buffer`() {
-        val report = buildManualReport(ringBufferText = "what happened just now")
+        val report = buildManualReport(currentSessionText = "what happened just now")
 
         report.stacktraceText shouldBeEqualTo CrashReportManager.MANUAL_REPORT_MARKER
         report.ringBufferText shouldBeEqualTo "what happened just now"
@@ -84,7 +84,7 @@ class CrashReportManagerTest {
 
     @Test
     fun `a manual report is produced even with an empty ring buffer`() {
-        val report = buildManualReport(ringBufferText = "")
+        val report = buildManualReport(currentSessionText = "")
 
         report.stacktraceText shouldBeEqualTo CrashReportManager.MANUAL_REPORT_MARKER
         report.ringBufferText shouldBeEqualTo ""
@@ -92,9 +92,36 @@ class CrashReportManagerTest {
 
     @Test
     fun `the text of a manual report contains both the marker and the log`() {
-        val text = buildManualReport(ringBufferText = "log line").toReportText()
+        val text = buildManualReport(currentSessionText = "log line").toReportText()
 
         text shouldContain CrashReportManager.MANUAL_REPORT_MARKER
         text shouldContain "log line"
+    }
+
+    @Test
+    fun `a manual report carries the previous session's log before the current one`() {
+        val report = buildManualReport(
+            currentSessionText = "line from after the restart",
+            previousSessionText = "line from the screen that hung"
+        )
+
+        report.ringBufferText shouldContain CrashReportManager.PREVIOUS_SESSION_HEADER
+        report.ringBufferText shouldContain "line from the screen that hung"
+        report.ringBufferText shouldContain CrashReportManager.CURRENT_SESSION_HEADER
+        report.ringBufferText shouldContain "line from after the restart"
+
+        val previousAt = report.ringBufferText.indexOf("line from the screen that hung")
+        val currentAt = report.ringBufferText.indexOf("line from after the restart")
+        (previousAt < currentAt) shouldBeEqualTo true
+    }
+
+    @Test
+    fun `a blank previous session leaves the manual report exactly as it was`() {
+        val report = buildManualReport(
+            currentSessionText = "only this session",
+            previousSessionText = "   "
+        )
+
+        report.ringBufferText shouldBeEqualTo "only this session"
     }
 }

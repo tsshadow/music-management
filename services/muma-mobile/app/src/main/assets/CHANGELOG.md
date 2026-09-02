@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Een diagnostiekrapport over een vastgelopen scherm beschreef altijd de verkeerde sessie.** Om
+  bij Instellingen te komen moet je het scherm dat blijft laden eerst verlaten, en dat betekent de
+  app afsluiten -- waarna het rapport begint bij die herstart en van de storing niets bevat. Twee
+  rapporten op rij liepen hier stuk. Het ringbufferlog stond al op schijf, precies met dit doel,
+  maar alleen het automatische pad na een crash las het; het handmatige pad stuurde de
+  geheugenkopie van de lopende sessie. Een handmatig rapport bevat nu allebei de sessies, oudste
+  eerst, met een kopregel ertussen. Is er geen vorige sessie, dan verandert er niets aan het
+  rapport.
+
 ### Added
 - **Beheer heeft zijn eerste drie systeempagina's: Overzicht, Gezondheid en Logboek.** De index gaf
   ze al als rij weer, uitgegrijsd, met de melding dat ze voorlopig op het web wonen; nu openen ze.

@@ -4,8 +4,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from mutagen import MutagenError
-from mutagen.easyid3 import EasyID3
-from mutagen.easymp4 import EasyMP4Tags
 
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.BrokenSongHelper import BrokenSongHelper
@@ -19,16 +17,9 @@ from services.tagger.Song.LabelSong import LabelSong
 from services.tagger.Song.SoundcloudSong import SoundcloudSong
 from services.tagger.Song.TelegramSong import TelegramSong
 from services.tagger.Song.YoutubeSong import YoutubeSong
+from services.tagger.tag_registration import register_custom_tag_keys
 
-EasyID3.RegisterTXXXKey('publisher', 'publisher')
-EasyID3.RegisterTXXXKey('parsed', 'parsed')
-EasyID3.RegisterTXXXKey('festival', 'festival')
-EasyID3.RegisterTXXXKey('remixer', 'remixer')
-EasyID3.RegisterTXXXKey('original_title', 'original_title')
-EasyMP4Tags.RegisterTextKey('publisher', 'publisher')
-EasyMP4Tags.RegisterTextKey('parsed', 'parsed')
-EasyMP4Tags.RegisterTextKey('festival', 'festival')
-EasyMP4Tags.RegisterTextKey('original_title', 'original_title')
+register_custom_tag_keys()
 s = Settings()
 parse_mp3 = True
 parse_flac = True
@@ -241,6 +232,10 @@ class Tagger:
             processed_files_helper.mark_processed(file, mtime)
             return (file, 'OK')
         except Exception as e:
+            # `parse_folder` throws this return value away, and the parallel path is the one
+            # production runs -- so without the log line a file that failed every single round
+            # is indistinguishable from one that was tagged successfully.
+            logging.error(f'Parse_song failed: {e} -> {file}', exc_info=True)
             return (file, f'{type(e).__name__}: {e}')
 
 

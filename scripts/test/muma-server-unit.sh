@@ -37,6 +37,32 @@ if [ -f "$ROOT_DIR/coverage-muma-server.xml" ]; then
     echo "--- Fixing paths in coverage-muma-server.xml ---"
     sed -i 's|filename="|filename="services/music-management-server/|g' "$ROOT_DIR/coverage-muma-server.xml"
     sed -i 's|<source>.*</source>|<source>./</source>|g' "$ROOT_DIR/coverage-muma-server.xml"
+
+    # gcovr's own text summary is printed inside the docker build, and buildkit
+    # folds that away -- on a cached layer it is not printed at all -- so the
+    # `coverage:` regex in .gitlab-ci.yml (TOTAL <valid> <covered> <pct>%) never
+    # saw a line and GitLab showed no figure for this job. The total is re-read
+    # from the XML here, on the job's own stdout, in exactly that shape.
+    #
+    # The floor is a ratchet, not a target: it sits just under the current figure
+    # so it cannot quietly erode. Raise it as coverage climbs; never lower it to
+    # make a build green. The number is line coverage of the non-unity build,
+    # which is the only build gcov can attribute to real source files.
+    python3 - "$ROOT_DIR/coverage-muma-server.xml" "${SERVER_COVERAGE_MIN:-39}" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+root = ET.parse(sys.argv[1]).getroot()
+valid = int(root.get('lines-valid', 0))
+covered = int(root.get('lines-covered', 0))
+percent = 100.0 * covered / valid if valid else 0.0
+minimum = float(sys.argv[2])
+print(f'TOTAL {valid} {covered} {percent:.0f}%')
+if percent < minimum:
+    print(f'ERROR: MuMa Server line coverage {percent:.2f}% is under the floor of {minimum:g}%', file=sys.stderr)
+    sys.exit(1)
+print(f'Required line coverage of {minimum:g}% reached. Total coverage: {percent:.2f}%')
+PY
 fi
 
 echo "--- MuMa Server unit tests passed and coverage extracted ---"

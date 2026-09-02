@@ -11,6 +11,31 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.41.0 (2026-09-02)
+
+- **De beheerpagina laadde niets meer.** In plaats van het scherm verscheen "Kon gegevens niet
+  ophalen van de Management API". De pagina vroeg elf dingen tegelijk op aan de muziekserver, en
+  die weigert boven de tien gelijktijdige aanvragen -- de elfde kwam dus altijd als foutmelding
+  terug, en die ene mislukte aanvraag nam de hele pagina mee. De pagina houdt er nu vier tegelijk
+  in de lucht en wacht een weigering af in plaats van hem te melden. Dezelfde behandeling voor de
+  uitgebreide bibliotheek-tab, die zes analyses tegelijk opvroeg en bij een weigering al zijn
+  grafieken leeggooide.
+- **De podcast-tag bereikte nooit een bestand, dus de podcast-browse bleef leeg.** Erger nog: de
+  poging om hem te schrijven brak de hele opslag van dat bestand af, dus alle andere tags die net
+  voor dat nummer waren bepaald gingen mee -- 651 keer in 24 uur, zonder ook maar één fout in het
+  log. De tag is nu geregistreerd, een tag die het bestandsformaat weigert laat de rest staan, en
+  de fout wordt voortaan gelogd. De bestanden zelf zijn nog niet getagd: de tagger pakt ze de
+  volgende ronde opnieuw op. Let op dat LMS een podcast pas toont als `PODCAST` bij *extra tags to
+  scan* staat.
+- **De app: slepen in de jukebox-wachtrij zette een nummer één plek te hoog neer**, en een
+  standaard-vervaltijd voor delen opslaan liep stuk in talen met andere cijfers (Arabisch, Perzisch,
+  Bengaals). Beide verholpen.
+- **Onderhoud, niet zichtbaar in gebruik.** Elke component heeft nu een coverage-vloer die net onder
+  het huidige cijfer staat, zodat testdekking niet stilletjes kan eroderen. De end-to-end keten dekt
+  vier gaten meer: een scrobble via LMS (de echte route van telefoon en auto), een
+  genre-goedkeuring, de standaard-afspeellijst voor een luisteraar zonder ratings, en een account
+  dat wordt uitgeschakeld. En de drie minst geteste modules van music-manager hebben nu unit-tests.
+
 ## Global Version 0.40.1 (2026-09-01)
 
 Een correctie op 0.40.0. Aan de app verandert niets.

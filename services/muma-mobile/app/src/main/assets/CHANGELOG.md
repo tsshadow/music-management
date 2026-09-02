@@ -7,7 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.26.0] - 2026-09-02
+
 ### Fixed
+- **Een rij in de jukebox-wachtrij naar beneden slepen zette hem één plek te hoog neer.** De
+  jukebox-speler houdt zijn eigen wachtrij bij en voegde een verplaatst nummer bij een sleep
+  omlaag in op `nieuwe index - 1`, terwijl het `Player`-contract de eindpositie bedoelt. Een
+  nummer op zijn eigen plek "verplaatsen" schudde daardoor ook de volgorde door elkaar. De lokale
+  speler liet dit aan ExoPlayer over en had er geen last van, dus geen enkele test zag het.
+
+### Added
+- **Unit-tests voor drie plekken die wel gefixt maar nooit getest waren.** De jukebox-wachtrij
+  (verplaatsen, verwijderen, invoegen, leegmaken, tegen het `Player`-contract), de volgorde van de
+  download-wachtrij (een voorgrond-verzoek gaat vóór eerder aangevraagde achtergrond-pins, en
+  `RETRYING` telt als afgerond, waar de crash-fix van 0.31 op leunt), en de wortel van de
+  Android Auto-bibliotheek (precies één Favorieten-map, altijd aanwezig, met de favoriete nummers
+  als eerste kind).
 - **Een standaard-vervaltijd voor delen opslaan brak de instelling in talen met andere cijfers.** De
   waarde wordt weggeschreven als `<aantal>:<eenheid>` en teruggelezen met een gewone
   getalconversie, maar het wegschrijven gebruikte de taalinstelling van het toestel. In het

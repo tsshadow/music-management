@@ -18,7 +18,7 @@ import time
 
 import pytest
 import requests
-from pytest_bdd import given, when
+from pytest_bdd import given, parsers, when
 
 TIMEOUT = 10
 
@@ -76,6 +76,8 @@ def context() -> dict:
 
 TRACK_FILE = 'ci-test-track-001.mp3'
 TRACK_TITLE = 'CI Test Track'
+# The genre in the fixture's tag, per tests/fixtures/expected/ci-test-track-001.json.
+FIXTURE_GENRE = 'Electronic'
 
 
 def wait_for(description: str, predicate, timeout: int = 120):
@@ -153,6 +155,24 @@ def stats(manager: str, api_key: str) -> dict:
     return response.json()
 
 
+def curation_queue(manager: str, api_key: str) -> list[dict]:
+    """Genres awaiting a decision.
+
+    A different view than /api/library/genres: that one inner-joins the
+    per-track table, so a genre nothing has been attached to yet is invisible
+    there however correctly it was registered.
+    """
+    response = requests.get(
+        f'{manager}/api/rules/genres',
+        headers={'x-api-key': api_key},
+        params={'state': 'unknown'},
+        timeout=TIMEOUT,
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    return body if isinstance(body, list) else body.get('genres', [])
+
+
 @given('the test stack is running')
 def _stack_is_running(manager, api_key):
     """Shared by every feature: nothing below means anything without it.
@@ -202,3 +222,62 @@ def _manager_has_scanned(manager, api_key, context):
     and the track is already there once any feature has triggered it.
     """
     context['track'] = scan_and_wait_for_the_fixture(manager, api_key)
+
+
+@given("the fixture's genre is waiting for a decision")
+def _genre_is_queued(manager, api_key):
+    """Shared: the state the tagger step in scripts/lib/e2e-stack.sh leaves
+    behind, which one feature scans into and the next decides on."""
+    queued = [row.get('name') for row in curation_queue(manager, api_key)]
+    assert FIXTURE_GENRE in queued, (
+        f'{FIXTURE_GENRE} is not in the curation queue: {queued!r} -- the tagger step in '
+        f'scripts/lib/e2e-stack.sh is what puts it there, and nothing else does'
+    )
+
+
+def provision_lms_account(manager, lms, api_key, subsonic_auth, username, password, context) -> int:
+    """An account music-manager owns and LMS has been told about, without ever
+    logging in as it.
+
+    Creating a user does not tell LMS; only the first-admin setup does. So the
+    account is pushed across with the same call music-manager makes then, and
+    "LMS knows it" is read from the admin's user listing rather than by
+    authenticating as the new account -- LMS remembers a granted password for
+    five minutes, and the features that use this need the first password they
+    present to be the first one LMS has to ask music-manager about.
+    """
+    users = requests.get(f'{manager}/api/users/', headers={'x-api-key': api_key}, timeout=TIMEOUT)
+    assert users.status_code == 200, users.text
+    existing = next((u for u in users.json() if u.get('username') == username), None)
+    if existing is None:
+        created = requests.post(
+            f'{manager}/api/users/',
+            headers={'x-api-key': api_key},
+            json={'username': username, 'display_name': username, 'password': password},
+            timeout=TIMEOUT,
+        )
+        assert created.status_code == 200, created.text
+        user_id = created.json()['id']
+    else:
+        user_id = existing['id']
+
+    synced = requests.post(f'{lms}/muma/users/sync', headers={'X-API-Key': api_key}, timeout=TIMEOUT)
+    assert synced.status_code == 200, synced.text
+
+    def listed():
+        response = requests.get(f'{lms}/rest/getUsers', params=subsonic_auth, timeout=TIMEOUT)
+        assert response.status_code == 200, response.text
+        body = response.json()['subsonic-response']
+        assert body['status'] == 'ok', f'LMS refused the admin: {body.get("error")}'
+        names = [u.get('username') for u in body.get('users', {}).get('user', [])]
+        return username in names or None
+
+    wait_for(f'LMS to learn about {username}', listed, timeout=60)
+    context.setdefault('accounts', {})[username] = {'id': user_id, 'password': password}
+    return user_id
+
+
+@given(parsers.parse('a listener "{username}" LMS knows but has never let in'))
+def _known_but_never_in(manager, lms, api_key, subsonic_auth, context, username):
+    """Shared by the features that test what LMS does with an account's standing."""
+    provision_lms_account(manager, lms, api_key, subsonic_auth, username, f'{username}-password', context)

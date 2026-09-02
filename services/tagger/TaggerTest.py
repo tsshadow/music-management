@@ -381,6 +381,28 @@ class ParseWorkerTest(TaggerTestCase):
         with patch.object(Tagger, 'parse_song', side_effect=RuntimeError('boom')):
             self.assertIn('RuntimeError', Tagger._parse_worker(str(song), 'SOUNDCLOUD')[1])
 
+    def test_a_failure_is_logged_and_not_only_returned(self):
+        """The parallel path is the one production runs, and `parse_folder` throws the
+        worker's return value away. Without this line a file that failed every round is
+        indistinguishable from one that was tagged: the podcast tag went missing for
+        weeks with not one error in the log."""
+        song = self.make_song(self.music / 'Soundcloud' / 'artist')
+        with (
+            patch.object(Tagger, 'parse_song', side_effect=RuntimeError('boom')),
+            self.assertLogs(level='ERROR') as logs,
+        ):
+            Tagger._parse_worker(str(song), 'SOUNDCLOUD')
+        self.assertIn('boom', '\n'.join(logs.output))
+        self.assertIn(str(song), '\n'.join(logs.output))
+
+    def test_a_file_that_failed_is_not_marked_as_processed(self):
+        """So the next round reads it again rather than trusting a round that wrote
+        nothing."""
+        song = self.make_song(self.music / 'Soundcloud' / 'artist')
+        with patch.object(Tagger, 'parse_song', side_effect=RuntimeError('boom')), self.assertLogs(level='ERROR'):
+            Tagger._parse_worker(str(song), 'SOUNDCLOUD')
+        self.processed.mark_processed.assert_not_called()
+
 
 class TagSingleFileTest(TaggerTestCase):
     def setUp(self):

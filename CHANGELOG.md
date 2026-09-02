@@ -7,6 +7,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.41.0] - 2026-09-02
+
+### Changed
+- **De clang-tidy-image draait op alpine 3.24, en daarmee op LLVM 22 in plaats van 19.** Drie
+  versies verder betekent nieuwe checks over ongewijzigde code: `server:lint` viel om op 259
+  bevindingen, waarvan het grootste deel uit checks die in LLVM 19 niet bestonden
+  (`misc-override-with-different-visibility`, `cppcoreguidelines-pro-bounds-avoid-unchecked-container-access`,
+  `readability-inconsistent-ifelse-braces`, `misc-use-internal-linkage`,
+  `bugprone-throwing-static-initialization`) en de rest uit herschreven meldingsteksten van
+  bestaande checks, die de baseline op inhoud sleutelt. De baseline is opnieuw gegenereerd; de
+  nieuwe secties dragen een noot dat ze bij de upgrade in één keer zijn geaccepteerd en bij de
+  volgende aanraking van het bestand alsnog een audit verdienen. Een nieuwe vindplaats onder zo'n
+  check laat de job nog steeds falen.
+- **Elke component heeft nu een coverage-vloer, en die staat net onder het huidige cijfer.** Python
+  ging van 92 naar 93 (CI meet 94,0), de frontend-drempels van 81/61/79/80 naar 82/65/79/81 (CI meet
+  82,4/66,8/80,0/81,9). Mobile en server hadden geen vloer: `mobile:unit` houdt nu 16 vast (meet
+  16,9) en `server:unit` 39 (meet 40,0). Het zijn ratels, geen doelen: omhoog zodra het cijfer
+  klimt, nooit omlaag om een build groen te krijgen. `MOBILE_COVERAGE_MIN` en `SERVER_COVERAGE_MIN`
+  overrulen ze lokaal, zoals `COVERAGE_MIN` dat al deed voor Python.
+- **`server:unit` rapporteerde helemaal geen coverage-cijfer.** De `coverage:`-regex leest een
+  `TOTAL`-regel die gcovr binnen de docker-build print, en buildkit vouwt die weg -- op een gecachte
+  laag komt hij zelfs niet voorbij. Het script leest het totaal nu zelf uit de XML en print het op
+  zijn eigen stdout in de vorm die de regex verwacht, dus GitLab laat het cijfer voortaan zien.
+
+### Added
+- **Unit-tests voor de drie minst gedekte modules van music-manager.** `routers/songs.py` (26%),
+  `song_version_worker.py` (22%) en `scrobble_rematch.py` (52%) hadden hun regels wel gepind in pure
+  functies, maar niet wat eromheen zit: dat een track met twee bestanden op zijn beste wordt gescoord
+  en niet op zijn laatste, dat een pin de score verslaat en de ranking dan niet eens meer draait, dat
+  een split oud én nieuw werk herberekent, dat de match-ladder stopt bij de eerste treffer en een
+  uitgeschakelde trap nooit draait, dat fuzzy nooit buiten de kandidaten van een exacte sleutel komt,
+  en dat elke listen apart wordt gecommit zodat een halve pass houdt wat hij koppelde.
+- **e2e: tien foute wachtwoorden sluiten het account, niet de installatie.** `account_throttled.feature`
+  gokt tien keer fout via de Subsonic API en laat zien dat LMS het account daarna als throttled meldt,
+  ook met het juiste wachtwoord, en dat de admin gewoon doorwerkt. Onderweg bleek de emmer niet het
+  account alleen te zijn maar adres-plus-account: een rechtstreekse aanroep vanaf de host valt in een
+  andere emmer dan LMS's container. De feature zegt dat en leest de 429 daarom via LMS. Dat laatste is het incident van augustus: de limiet zat op client-adres, en voor
+  LMS is elk verzoek hetzelfde adres. De account-features delen nu één stap in `conftest.py` die een
+  account aanmaakt, naar LMS synct en wacht tot de admin hem in `getUsers` ziet.
+- **De end-to-end keten dekt vier gaten meer.** `muma:e2e` liep tot nu toe de scan, de Subsonic-zoekopdracht,
+  de stream, de rating-hop en één rechtstreekse scrobble na. Vier nieuwe Gherkin-features onder `tests/bdd/`
+  lopen wat daar omheen zat en in productie al eens stuk is geweest: een play die via LMS's `/rest/scrobble`
+  binnenkomt en als match landt in plaats van als unmatched (de echte route van telefoon en auto, die tot
+  nu toe geen enkele test aanraakte); een genre-goedkeuring die de wachtrij verlaat, als besluit wordt
+  vastgelegd en het bestand voor een retag markeert; de standaard-afspeellijst die een ongewaardeerd nummer
+  aanbiedt aan een luisteraar die nog nooit een ster gaf; en een account dat in music-manager wordt
+  uitgeschakeld en door LMS wordt geweigerd, zonder herstart of hersync. Die laatste legde onderweg vast wat
+  niemand had opgeschreven: LMS onthoudt een goedgekeurd wachtwoord vijf minuten (de auth-cache uit de
+  thread-pool-fix), dus een account dat al in gebruik was blijft op LMS zolang werken. De feature zegt dat
+  hardop en test daarom met een account dat LMS wel kent maar nog nooit heeft binnengelaten. De volgorde van
+  de features is bewust: elke nieuwe module sorteert achter de feature waarvan hij de uitgangssituatie
+  verandert, en zegt dat in zijn docstring.
+
+### Fixed
+- **De podcast-tag bereikte nooit een bestand, dus de podcast-browse bleef leeg.** `podcast` en
+  `podcast_episode` stonden in elke tag-map, maar in geen van de twee registratieblokken die mutagen
+  de eigen tagnamen leren -- die lijst stond twee keer in de boom (`tagger.py` en `Song/BaseSong.py`)
+  en is uit elkaar gegroeid. Op een MP3 gooide de schrijfactie daardoor `EasyID3KeyError: 'podcast'
+  is not a valid key`, en dat gebeurde midden in `save_file`: het bestand werd niet opgeslagen, dus
+  *alle* andere tags die de regels net voor dat bestand hadden bepaald gingen mee. Zichtbaar was daar
+  niets van, want de parallelle worker gaf de fout terug in plaats van hem te loggen en `parse_folder`
+  gooit die teruggave weg -- op productie 651 regels "Set tag podcast" in 24 uur, nul tags op schijf en
+  nul fouten in het log. Drie dingen zijn recht: de registratie staat nog maar op één plek
+  (`services/tagger/tag_registration.py`) en dekt beide podcast-tags, een tag die het formaat weigert
+  laat de rest van het bestand voortaan staan in plaats van de hele opslag mee te nemen, en de
+  parallelle worker logt zijn fout. Let op: de bestanden zelf zijn hiermee nog niet getagd -- de
+  tagger leest ze de volgende ronde opnieuw (ze zijn nooit als verwerkt weggeschreven), en LMS toont
+  een podcast pas als `PODCAST` in *extra tags to scan* staat.
+- **De beheerpagina laadde niets meer en zei "Kon gegevens niet ophalen van de Management API".**
+  Elke `/muma/api/...`-aanroep loopt via de LMS-proxy, die per aanroep een http-thread vasthoudt en
+  alles boven de helft van de pool weigert -- tien op productie -- met een 503 en de kale regel
+  `Too many requests to MuMa in flight`. De pagina vuurde er elf tegelijk af, dus de laatste kwam
+  altijd als 503 terug; `res.json()` struikelde daarover met `Unexpected token 'T', "Too many r"...`
+  en één mislukte aanroep nam het hele scherm mee. Het scherm houdt er nu vier tegelijk in de lucht
+  (`mapWithLimit`) en zit een weigering uit in plaats van hem te melden (`fetchMumaJson`), want de
+  ruimte wordt gedeeld met alles wat op dat moment nog meer met MuMa praat -- de artiestafbeeldingen
+  van de speler voorop. Een antwoord dat geen JSON is levert voortaan een foutmelding met de status
+  erin, in plaats van een parse-fout die naar de verkeerde kant van de verbinding wijst. `apiGet`
+  van de Advanced Library-tab, die zes analyses tegelijk opvraagt, zit een weigering nu net zo uit.
+
 ## [0.40.1] - 2026-09-01
 
 ### Fixed

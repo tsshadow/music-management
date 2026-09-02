@@ -64,6 +64,28 @@ describe("apiGet", () => {
     ).rejects.toThrow(/500/);
   });
 
+  it("waits out the LMS proxy refusing a call and returns the retry", async () => {
+    // The tab asks six analytics endpoints at once, all of them through the LMS
+    // proxy, whose concurrency gate is shared with everything else talking to
+    // MuMa. A refusal there says "full right now", not "broken": reporting it
+    // emptied every chart on the tab over a condition that was gone by the time
+    // the message rendered.
+    const spy = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        text: async () => "Too many requests to MuMa in flight",
+      })
+      .mockResolvedValue({ ok: true, status: 200, json: async () => ({ total: 7 }) });
+    global.fetch = spy;
+
+    await expect(
+      apiGet("http://x", "/api/analytics/summary", emptyFilters(), headers),
+    ).resolves.toEqual({ total: 7 });
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
   it("throws a readable message on a network failure", async () => {
     global.fetch = vi.fn().mockRejectedValue(new TypeError("failed to fetch"));
     await expect(

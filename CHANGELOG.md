@@ -23,6 +23,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   het volgende verzoek geweigerd, niet bij het verlopen van een timer.
 
 ### Added
+- **Eén doc dat zegt waar MuMa voor is, in plaats van negentien die zeggen hoe het werkt.**
+  `docs/product-goal.md` legt het doel vast: elke combinatie van genre, jaar, artiest, label,
+  festival en rating wordt een speelbare lijst. Downloaden, taggen en eigen bestandsbeheer zijn
+  middelen. Wat er nergens anders stond en nu wel: de datumregel per materiaalsoort (nummers en
+  sets op releasedatum, livesets op draaidatum met releasedatum als fallback), dat de regels de
+  waarheid zijn en zowel de bestanden als de database uitvoer, dat MuMa het archief is en LMS de
+  werkkopie, en de risico-volgorde waarin onherstelbaar verlies boven storingen gaat — waarmee
+  tagger, downloader, importer en scanner een zwaardere bewijslast dragen dan de speler.
+
+  Drie docs zijn erop bijgewerkt. `docs/analyzer-jobs.md` is verwijderd: het beschreef een tweede
+  scanner met `analyzer/jobs/handlers.py` en `POST /api/v1/analyzer/library/scan`, en geen van die
+  paden bestaat in deze repo. `docs/machine-learning.md` is herlabeld als onuitgevoerd voorstel,
+  want het is een gespreksverslag over modellen die nooit gebouwd zijn. In
+  `docs/architecture/responsibilities.md` stond dat ratings terug naar LMS geduwd kunnen worden en
+  in `docs/designs/ratings-scrobbling/functional.md` stond die vraag nog open; beide zeggen nu
+  hetzelfde als de doel-doc, namelijk dat de sync één kant op loopt en dat dat de bedoeling is.
 - **Een lineup met de hand invoeren, en vooraf zien wat hij matcht.** `/music/metadata/festival-lineups`
   is leeg sinds de map bestaat, dus de Lineups-pagina op het web en de lineup-browse op de telefoon
   werken allebei en tonen niets. Een affiche typ je over van het festival zelf -- Partyflock, in de

@@ -11,6 +11,37 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.42.0 (2026-09-02)
+
+- **Een genre afkeuren of goedkeuren bereikte de draaiende tagger niet.** De beslissing werd
+  opgeslagen en de betrokken bestanden werden voor een retag gemarkeerd, maar de tagger las zijn
+  genre-regels uit een lijst die alleen bij het opstarten werd geladen. De retag die de beslissing
+  zelf in gang zette schreef het bestand dus terug met het genre nog op de oude manier -- tot de
+  volgende herstart. De podcast-beslissing deed dit al goed; nu doen ze het allebei.
+- **Een uitgeschakeld account bleef tot vijf minuten doorspelen.** LMS onthoudt een goedgekeurd
+  wachtwoord vijf minuten voordat het opnieuw navraag doet, dus uitschakelen bereikte de speler pas
+  daarna. Uit- en inschakelen porren nu meteen de gebruikerssync van LMS, die daarbij zijn hele
+  auth-cache weggooit. Een account dat zojuist nog binnenkwam wordt bij het volgende verzoek
+  geweigerd in plaats van bij het aflopen van een timer.
+- **Een festival-lineup kun je nu met de hand invoeren, en vooraf zien wat hij matcht.** De
+  Lineups-pagina op het web en de lineup-browse in de app werkten allebei al, maar er stond nooit
+  iets in. Een affiche typ je over van het festival zelf; het nieuwe importscript controleert elke
+  regel tegen de artiestnamen die de bibliotheek werkelijk heeft en meldt wat matcht, wat niet, en
+  welke namen er het dichtst bij liggen -- voordat er iets wordt weggeschreven. Een naam die deze
+  bibliotheek anders spelt draagt namelijk stilzwijgend niets bij aan de lijst.
+- **De app: Beheer heeft zijn eerste drie systeempagina's.** Overzicht, Gezondheid en Logboek
+  stonden er al uitgegrijsd in met de melding dat ze voorlopig op het web woonden; ze openen nu.
+  Alle drie zijn lezen en verder niets.
+- **Eén document dat zegt waar MuMa voor is.** `docs/product-goal.md` legt het doel vast -- elke
+  combinatie van genre, jaar, artiest, label, festival en rating wordt een speelbare lijst -- plus
+  vier dingen die nergens stonden: de datumregel per materiaalsoort, dat de regels de waarheid zijn
+  en bestanden en database daar uitvoer van, dat MuMa het archief is en LMS de werkkopie, en dat
+  onherstelbaar verlies zwaarder weegt dan een storing. Drie docs zijn erop bijgewerkt, één
+  verwijderd omdat het een scanner beschreef die niet bestaat.
+- **Onderhoud.** De end-to-end keten dekt een gat meer: een afgekeurd genre verdwijnt aantoonbaar
+  uit het bestand, de bibliotheek én de speler. Die feature vond bij de eerste run allebei de
+  fouten hierboven.
+
 ## Global Version 0.41.0 (2026-09-02)
 
 - **De beheerpagina laadde niets meer.** In plaats van het scherm verscheen "Kon gegevens niet

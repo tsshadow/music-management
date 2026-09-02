@@ -1,38 +1,39 @@
-"""Turns the library's festival tags into one lineup per edition.
+"""Helpers for writing a festival lineup by hand, and for seeing what it will actually match.
 
 `FestivalLineupRepository` (music-management-server) reads
 `/music/metadata/festival-lineups/<name>.txt`, one artist per line, and `getSpotifyTracks` filters
-on it with `LOWER(artist_display_name) IN (...)`. The directory has been empty since it was
-created, so the Lineups page ships working and blank.
+on it with `LOWER(artist_display_name) IN (...)`. That match is the whole point and the whole trap:
+it compares the *entire* display name, lowercased, so `Angerfist` matches a track by `Angerfist`
+and never one by `Angerfist & Outsiders`, and a spelling the library stores differently
+(`D-Block & S-te-Fan` vs `D-Block and S-te-fan`) matches nothing at all.
 
-This fills it from what the library already knows: every track that carries a FESTIVAL tag also
-carries a year and an artist, so the artists of `FESTIVAL=Defqon` in 2025 are the bill of Defqon
-2025 *as far as this collection goes*. That is deliberately not the same thing as the real bill --
-an artist you have no set of is not in the file -- and it is the honest half that needs no third
-party. Partyflock, named in the design as the preferred source, forbids scrapers in its terms of
-use (article 5), so filling the rest needs their permission rather than a crawler.
+A lineup is therefore typed out by hand from the festival's own bill, and the only question worth
+answering before writing the file is which of those lines this library can actually match. That is
+what [match_lineup] reports: the lines that match as they are, the ones that do not, and for each
+of those the closest display names the library does have -- so the correction is a copy rather than
+a search.
 
-The names come from the same `artist_display_name` the filter matches on, so an entry written here
-always matches its own tracks. That is the one thing an external source cannot promise: it would
-have to spell every artist exactly the way this library does.
+Deriving the bill from the library's own FESTIVAL tags was tried and rejected: warm-up mixes,
+livesets and podcast episodes all carry the tag, so the "lineup" filled up with names that were
+never on the bill.
 """
 
+import difflib
 import re
 
-DEFAULT_MIN_ARTISTS = 3
-
-# A four-digit year is what the query hands over; anything else is a date the scanner could not read.
-YEAR = re.compile(r'^\d{4}$')
-
-# The artist field collects debris: a stray date, a track number, a whole tracklist. None of those
-# are a name, and each one becomes a line nobody can match against.
+# The artist field collects debris: a stray date, a track number, a whole tracklist. A hand-typed
+# lineup should not carry any of it either, so the same filter guards the import.
 DATE_IN_NAME = re.compile(r'\d{4}-\d{2}-\d{2}')
 DIGITS_ONLY = re.compile(r'^[\d\s.:-]+$')
 MAX_NAME_LENGTH = 120
 
+# How many alternatives to offer for a line that matches nothing, and how close they have to be.
+SUGGESTION_COUNT = 3
+SUGGESTION_CUTOFF = 0.72
+
 
 def looks_like_an_artist(name) -> bool:
-    """Whether a display name is worth writing as a lineup line."""
+    """Whether a line is worth writing as a lineup entry."""
     if not name or not name.strip():
         return False
 
@@ -44,28 +45,53 @@ def looks_like_an_artist(name) -> bool:
     )
 
 
-def build_editions(rows, min_artists: int = DEFAULT_MIN_ARTISTS) -> dict[tuple[str, str], list[str]]:
-    """Groups `(festival, year, artist)` rows into `{(festival, year): [artist, ...]}`.
+def parse_lineup(text: str) -> list[str]:
+    """The names out of a pasted bill: one per line, blanks and debris dropped, order kept.
 
-    Editions holding fewer than `min_artists` names are left out: two names is a coincidence rather
-    than a lineup, and a page with one line on it reads as broken.
+    Order is kept rather than sorted because a pasted bill is read back against its source, and
+    duplicates are dropped because the file is a set as far as the filter is concerned.
     """
-    editions: dict[tuple[str, str], set[str]] = {}
+    seen: set[str] = set()
+    names = []
 
-    for festival, year, artist in rows:
-        if not festival or not year or not YEAR.match(str(year)):
+    for line in text.splitlines():
+        name = line.strip()
+        if not looks_like_an_artist(name) or name.lower() in seen:
             continue
-        if not looks_like_an_artist(artist):
+        seen.add(name.lower())
+        names.append(name)
+
+    return names
+
+
+def match_lineup(names, known_artists) -> dict:
+    """Which of `names` the library can match, and what the others were probably meant to be.
+
+    `known_artists` are display names exactly as the library stores them -- the same field the
+    filter compares against, so a name reported as matched here will match there.
+    """
+    by_lower = {artist.lower(): artist for artist in known_artists if artist}
+
+    matched, unmatched, suggestions = [], [], {}
+    for name in names:
+        if name.lower() in by_lower:
+            # The library's own spelling, not the typed one: the filter is case-insensitive, but
+            # writing what the library holds keeps the file readable next to the browse page.
+            matched.append(by_lower[name.lower()])
             continue
-        editions.setdefault((festival.strip(), str(year)), set()).add(artist.strip())
 
-    return {key: sorted(names) for key, names in editions.items() if len(names) >= min_artists}
+        unmatched.append(name)
+        close = difflib.get_close_matches(name.lower(), by_lower.keys(), n=SUGGESTION_COUNT, cutoff=SUGGESTION_CUTOFF)
+        if close:
+            suggestions[name] = [by_lower[key] for key in close]
+
+    return {'matched': matched, 'unmatched': unmatched, 'suggestions': suggestions}
 
 
-def lineup_filename(festival: str, year: str) -> str:
-    """The file name for one edition. The stem is what `getLineups` reports and the app shows."""
+def lineup_filename(festival: str, year=None) -> str:
+    """The file for one edition. The stem is what `getLineups` reports and the app shows."""
     safe = festival.strip().replace('/', '-').replace('\\', '-')
-    return f'{safe} {year}.txt'
+    return f'{safe} {year}.txt' if year else f'{safe}.txt'
 
 
 def render_lineup(artists) -> str:

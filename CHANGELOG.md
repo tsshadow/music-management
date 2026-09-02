@@ -23,19 +23,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   het volgende verzoek geweigerd, niet bij het verlopen van een timer.
 
 ### Added
-- **De Lineups-pagina heeft eindelijk lineups.** `/music/metadata/festival-lineups` was leeg sinds
-  hij bestaat, dus de pagina werkte en toonde niets. `scripts/build_festival_lineups.py` leest de
-  FESTIVAL-tags die de bibliotheek al draagt -- elk zo'n nummer heeft ook een jaar en een artiest --
-  en schrijft per editie een bestand: de artiesten van `FESTIVAL=Defqon` uit 2025 zijn Defqon 2025,
-  voor zover deze collectie reikt. Dat is nadrukkelijk niet het echte affiche: een artiest waarvan
-  je geen set hebt staat er niet in. De spec noemde Partyflock als voorkeursbron voor dat echte
-  affiche, maar hun voorwaarden verbieden scrapers (artikel 5) en hergebruik zonder toestemming
-  (artikel 6), dus die helft vraagt om toestemming en niet om een crawler. Deze bron heeft één
-  voordeel dat een externe nooit kan hebben: de namen komen uit precies het veld waarop het filter
-  matcht (`LOWER(artist_display_name)`), dus elke regel matcht zijn eigen nummers. Een editie met
-  minder dan drie artiesten krijgt geen bestand, rommel in het artiestveld (een losse datum, een
-  tracknummer, een heel tracklistje) wordt eruit gefilterd, en bestaande bestanden blijven staan
-  tenzij je `--overwrite` meegeeft -- dezelfde map is waar een handgemaakte lineup zou wonen.
+- **Een lineup met de hand invoeren, en vooraf zien wat hij matcht.** `/music/metadata/festival-lineups`
+  is leeg sinds de map bestaat, dus de Lineups-pagina op het web en de lineup-browse op de telefoon
+  werken allebei en tonen niets. Een affiche typ je over van het festival zelf -- Partyflock, in de
+  spec als voorkeursbron genoemd, verbiedt scrapers (artikel 5) en hergebruik zonder toestemming
+  (artikel 6). Wat overtypen lastig maakt is de match: `getSpotifyTracks` filtert met
+  `LOWER(artist_display_name) IN (...)` op de *hele* weergavenaam, dus een regel die deze
+  bibliotheek anders spelt draagt stilzwijgend niets bij. `scripts/import_festival_lineup.py` leest
+  het affiche, controleert elke regel tegen de artiestnamen die LMS werkelijk heeft, en meldt wat
+  matcht, wat niet, en welke namen in de bibliotheek er het dichtst bij liggen -- voordat er iets
+  wordt weggeschreven. Uit de bibliotheek zelf afleiden is geprobeerd en verworpen: warm-up mixes,
+  livesets en podcast-afleveringen dragen dezelfde FESTIVAL-tag, dus dat "affiche" liep vol met
+  namen die nooit op de line-up stonden.
 - **e2e: een afgekeurd genre verdwijnt uit bestand, bibliotheek én speler.** `genre_rejected.feature`
   keurt het genre van de fixture af, laat de retag draaien, wacht tot de wachtrij leeg is, ziet de
   scanner het genre van de track halen en laat LMS herindexeren tot ook die het niet meer meldt.

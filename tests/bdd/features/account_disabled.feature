@@ -21,7 +21,7 @@ Feature: Disabling an account closes the player too
 
   Background:
     Given the test stack is running
-    And a listener LMS knows but has never let in
+    And a listener "e2e-locked" LMS knows but has never let in
 
   Scenario: An account disabled in music-manager is refused by LMS
     When the administrator disables the listener's account

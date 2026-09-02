@@ -337,9 +337,13 @@ class JukeboxMediaPlayer :
         if (currentIndex < 0 || currentIndex >= playlist.size) return
         if (newIndex < 0 || newIndex >= playlist.size) return
 
-        val insertIndex = if (newIndex < currentIndex) newIndex else (newIndex - 1).coerceAtLeast(0)
+        // Player.moveMediaItem: newIndex is the item's index in the *resulting* list. After the
+        // removal every later item has already shifted down by one, so inserting at newIndex
+        // lands there in both directions. This used to insert at newIndex - 1 when moving down,
+        // which left a dragged row one short of where it was dropped and made a move onto its
+        // own index reorder the queue.
         val item = playlist.removeAt(currentIndex)
-        playlist.add(insertIndex, item)
+        playlist.add(newIndex, item)
         updatePlaylist()
     }
 

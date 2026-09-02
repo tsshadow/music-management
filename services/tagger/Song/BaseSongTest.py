@@ -125,6 +125,41 @@ class BaseSongTest(unittest.TestCase):
         announced = [c for c in mock_logging.info.call_args_list if 'File saved' in str(c)]
         self.assertEqual([], announced)
 
+    @patch('services.tagger.Song.BaseSong.logging')
+    def test_a_tag_mutagen_refuses_does_not_take_the_other_tags_down(self, mock_logging):
+        """A key the format does not accept used to abort the whole save.
+
+        That is how the podcast tag was lost: mutagen raised on `podcast`, the exception
+        left `save_file` before `music_file.save()`, and every other tag the rules had
+        just produced for that file went with it -- silently, because the parallel worker
+        returned the error instead of logging it.
+        """
+        good = Tag(tag=ARTIST, value='Original Artist')
+        good.set('Angerfist')
+        bad = Tag(tag='podcast', value='')
+        bad.set("Twisted's Darkside Podcast")
+        song = BaseSong.__new__(BaseSong)
+        song.music_file = MagicMock()
+        song.path = MagicMock(return_value='/music/a.mp3')
+        written = []
+
+        def set_tag(tag):
+            if tag.tag == 'podcast':
+                raise KeyError("'podcast' is not a valid key")
+            written.append(tag.tag)
+
+        song.set_tag = set_tag
+        tag_collection = MagicMock()
+        tag_collection.get.return_value = {'podcast': bad, ARTIST: good}
+        song.tag_collection = tag_collection
+
+        song.save_file()
+
+        self.assertEqual([ARTIST], written)
+        song.music_file.save.assert_called_once()
+        refused = [c for c in mock_logging.error.call_args_list if 'podcast' in str(c)]
+        self.assertEqual(1, len(refused))
+
     def test_apply_extra_info_sets_artist(self):
         song = BaseSong.__new__(BaseSong)
         tag_collection = MagicMock()

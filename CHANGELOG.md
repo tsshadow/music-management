@@ -59,6 +59,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verandert, en zegt dat in zijn docstring.
 
 ### Fixed
+- **De podcast-tag bereikte nooit een bestand, dus de podcast-browse bleef leeg.** `podcast` en
+  `podcast_episode` stonden in elke tag-map, maar in geen van de twee registratieblokken die mutagen
+  de eigen tagnamen leren -- die lijst stond twee keer in de boom (`tagger.py` en `Song/BaseSong.py`)
+  en is uit elkaar gegroeid. Op een MP3 gooide de schrijfactie daardoor `EasyID3KeyError: 'podcast'
+  is not a valid key`, en dat gebeurde midden in `save_file`: het bestand werd niet opgeslagen, dus
+  *alle* andere tags die de regels net voor dat bestand hadden bepaald gingen mee. Zichtbaar was daar
+  niets van, want de parallelle worker gaf de fout terug in plaats van hem te loggen en `parse_folder`
+  gooit die teruggave weg -- op productie 651 regels "Set tag podcast" in 24 uur, nul tags op schijf en
+  nul fouten in het log. Drie dingen zijn recht: de registratie staat nog maar op één plek
+  (`services/tagger/tag_registration.py`) en dekt beide podcast-tags, een tag die het formaat weigert
+  laat de rest van het bestand voortaan staan in plaats van de hele opslag mee te nemen, en de
+  parallelle worker logt zijn fout. Let op: de bestanden zelf zijn hiermee nog niet getagd -- de
+  tagger leest ze de volgende ronde opnieuw (ze zijn nooit als verwerkt weggeschreven), en LMS toont
+  een podcast pas als `PODCAST` in *extra tags to scan* staat.
 - **De beheerpagina laadde niets meer en zei "Kon gegevens niet ophalen van de Management API".**
   Elke `/muma/api/...`-aanroep loopt via de LMS-proxy, die per aanroep een http-thread vasthoudt en
   alles boven de helft van de pool weigert -- tien op productie -- met een 503 en de kale regel

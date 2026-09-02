@@ -38,11 +38,7 @@ def looks_like_an_artist(name) -> bool:
         return False
 
     stripped = name.strip()
-    return (
-        len(stripped) <= MAX_NAME_LENGTH
-        and not DATE_IN_NAME.search(stripped)
-        and not DIGITS_ONLY.match(stripped)
-    )
+    return len(stripped) <= MAX_NAME_LENGTH and not DATE_IN_NAME.search(stripped) and not DIGITS_ONLY.match(stripped)
 
 
 def parse_lineup(text: str) -> list[str]:

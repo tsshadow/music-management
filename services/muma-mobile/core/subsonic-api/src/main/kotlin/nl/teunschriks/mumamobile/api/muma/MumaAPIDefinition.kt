@@ -11,10 +11,13 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface MumaAPIDefinition {
+    // Answers with the same envelope as /api/auth/google, /api/auth/refresh and /api/auth/verify:
+    // status, a nested user, and the tokens. It used to be read with a flat model of its own, which
+    // is how the account id went missing -- see [MumaAuthResponse].
     @POST("api/auth/login")
     fun login(
         @Body request: LoginRequest
-    ): Call<LoginResponse>
+    ): Call<MumaAuthResponse>
 
     @POST("api/auth/google")
     fun googleAuth(
@@ -224,14 +227,6 @@ data class CrashReportRequest(
 data class LoginRequest(
     val username: String,
     val password: String
-)
-
-data class LoginResponse(
-    val id: Int,
-    val username: String,
-    val display_name: String,
-    val is_admin: Boolean,
-    val api_key: String
 )
 
 data class GoogleAuthRequest(

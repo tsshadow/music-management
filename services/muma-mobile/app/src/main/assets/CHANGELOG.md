@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **De app bewaarde alles onder gebruiker 0, en die bestaat niet.** `POST /api/auth/login` antwoordt
+  met de accountvelden genest onder `user`, maar het inloggen las dat antwoord met een eigen, plat
+  model. `api_key` staat toevallig wél bovenaan, dus inloggen "slaagde"; `id` staat er niet, en Gson
+  laat een niet-nullable `Int` dan op 0 staan. Die 0 is niet de -1 waar elke bewaking op
+  controleerde, dus hij glipte overal doorheen en bleef staan. Gevolg: elke aanroep per gebruiker
+  ging naar `/api/users/0/…` -- ophalen gaf 200 met niets, opslaan gaf 500 op een
+  foreign-keyschending. Favoriete genres, tegels en app-instellingen werden dus nooit bewaard. Het
+  login-antwoord wordt nu met hetzelfde model gelezen als google, refresh en verify, en een id dat
+  geen rij kan aanwijzen wordt geweigerd in plaats van opgeslagen. Toestellen die de 0 al hebben
+  staan worden bij de volgende login hersteld.
+- **Een diagnostiekrapport over een vastgelopen scherm beschreef altijd de verkeerde sessie.** Om
+  bij Instellingen te komen moet je het scherm dat blijft laden eerst verlaten, en dat betekent de
+  app afsluiten -- waarna het rapport begint bij die herstart en van de storing niets bevat. Twee
+  rapporten op rij liepen hier stuk. Het ringbufferlog stond al op schijf, precies met dit doel,
+  maar alleen het automatische pad na een crash las het; het handmatige pad stuurde de
+  geheugenkopie van de lopende sessie. Een handmatig rapport bevat nu allebei de sessies, oudste
+  eerst, met een kopregel ertussen. Is er geen vorige sessie, dan verandert er niets aan het
+  rapport.
+- **Een scherm dat niet laadde liet geen enkel spoor na.** Tien schermen geven een mislukte
+  laadactie door aan dezelfde afhandelaar, en die toonde alleen een toast. Een toast is na een paar
+  seconden weg en komt in geen enkel rapport terecht, dus juist de storing die een gebruiker kán
+  melden was het enige wat het log niet bevatte. De fout wordt nu weggeschreven, met de naam van
+  het scherm erbij, voordat de toast verschijnt.
+- **De afspeellijstenpagina zei helemaal niets.** Geen enkele logregel, dus een rapport erover kon
+  onmogelijk aanwijzen waar het ophield -- laden of geladen was niet uit elkaar te houden. Hij
+  meldt nu het begin van de laadactie en hoeveel lijsten er terugkwamen.
+
 ## [6.27.0] - 2026-09-02
 
 ### Added

@@ -31,10 +31,26 @@ object CoroutinePatterns {
     }
 }
 
+/**
+ * Records a failed screen load in the ring buffer.
+ *
+ * [toastingExceptionHandler] used to only toast. A toast is gone in seconds and reaches no
+ * diagnostics report, so the one failure a user is in a position to report -- a screen that did
+ * not load -- was the one thing the log did not contain. Ten fragments hand their errors to that
+ * handler.
+ */
+internal fun logCoroutineFailure(prefix: String, ownerName: String?, exception: Throwable) {
+    val where = ownerName ?: "an unnamed fragment"
+    val what = if (prefix.isBlank()) "" else ": ${prefix.trim()}"
+    Timber.w(exception, "Coroutine in %s failed%s", where, what)
+}
+
 fun Fragment.toastingExceptionHandler(prefix: String = ""): CoroutineExceptionHandler = CoroutineExceptionHandler {
         _,
         exception
     ->
+    logCoroutineFailure(prefix, this::class.simpleName, exception)
+
     // Stop the spinner if applicable
     if (this is RefreshableFragment) {
         this.swipeRefresh?.isRefreshing = false

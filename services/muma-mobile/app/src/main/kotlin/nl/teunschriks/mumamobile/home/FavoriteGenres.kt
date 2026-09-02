@@ -12,6 +12,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
+import nl.teunschriks.mumamobile.data.isUsableMumaUserId
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.util.Settings
 import org.koin.core.component.KoinComponent
@@ -95,7 +96,7 @@ object FavoriteGenres : KoinComponent {
         if (ActiveServerProvider.isOffline()) return null
 
         val userId = activeServerProvider.getActiveServer().mumaUserId ?: Settings.mumaUserId
-        return userId.takeIf { it != -1 }
+        return userId.takeIf { isUsableMumaUserId(it) }
     }
 }
 

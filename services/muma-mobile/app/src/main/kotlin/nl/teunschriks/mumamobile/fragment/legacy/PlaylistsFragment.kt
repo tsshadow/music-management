@@ -50,6 +50,7 @@ import nl.teunschriks.mumamobile.util.toastingExceptionHandler
 import org.koin.androidx.scope.ScopeFragment
 import org.koin.core.component.KoinScopeComponent
 import org.koin.core.component.inject
+import timber.log.Timber
 
 /**
  * Displays the playlists stored on the server
@@ -114,6 +115,8 @@ class PlaylistsFragment :
 
     private fun load(refresh: Boolean) {
         val cacheCleaner: CacheCleaner by inject()
+        // This screen used to log nothing at all, so a report about it never said where it stopped.
+        Timber.d("Loading playlists, refresh=%s", refresh)
         viewLifecycleOwner.lifecycleScope.launch(
             toastingExceptionHandler()
         ) {
@@ -122,6 +125,7 @@ class PlaylistsFragment :
                 val playlists = musicService.getPlaylists(refresh)
                 playlists
             }
+            Timber.d("Loaded %d playlists", result.size)
             swipeRefresh?.isRefreshing = false
             withContext(Dispatchers.Main) {
                 playlistAdapter =

@@ -24,6 +24,7 @@ import nl.teunschriks.mumamobile.api.subsonic.SubsonicRESTException
 import nl.teunschriks.mumamobile.api.subsonic.response.SubsonicResponse
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.ServerSetting
+import nl.teunschriks.mumamobile.data.isUsableMumaUserId
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.SecureSettings
 import org.koin.core.component.KoinComponent
@@ -100,7 +101,8 @@ class EditServerModel(val app: Application) :
                     if (response.isSuccessful) {
                         val body = response.body()
                         if (body != null) {
-                            FeatureSupport(type, true, body.api_key, body.id)
+                            // The account id is nested under "user"; it is not a top-level field.
+                            FeatureSupport(type, true, body.api_key ?: body.access_token, body.user?.id)
                         } else {
                             FeatureSupport(type, false)
                         }
@@ -159,8 +161,12 @@ class EditServerModel(val app: Application) :
                 throw IOException("MuMa login failed")
             }
             val body = response.body()!!
-            serverSetting.apiKey = body.api_key
-            serverSetting.mumaUserId = body.id
+            serverSetting.apiKey = body.api_key ?: body.access_token
+            // Only store an id that could name a row. Reading it from a flat field left it at 0,
+            // which then addressed a user that does not exist on every later call.
+            body.user?.id?.takeIf { isUsableMumaUserId(it) }?.let {
+                serverSetting.mumaUserId = it
+            }
         }
 
         // Execute a ping to retrieve the API version.

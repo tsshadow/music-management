@@ -5,10 +5,9 @@ The feature file is the description; this is only what the steps do.
 Started by scripts/test/core-e2e.sh, which brings the stack up and tags the
 fixture. Without it these skip.
 
-The module name sorts after test_genre_curation_steps.py on purpose: that
-feature asserts the genre has no tracks behind it yet, and the scan this one
-needs in its Background would make that false. pytest runs modules in name
-order, which is the only thing keeping the two apart.
+Runs after genre_curation, by conftest.FEATURE_ORDER: that feature asserts
+the genre has no tracks behind it yet, and the scan this one needs in its
+Background would make that false.
 """
 
 from __future__ import annotations

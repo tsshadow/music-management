@@ -291,6 +291,18 @@ class DecideGenreTest(ManagementTestCase):
         self.assertEqual(response.json(), {'status': 'ok'})
         self.assertTrue(any('UPDATE rules_genres' in s for s in self.statements()))
 
+    def test_a_decision_refreshes_the_tagger_cache(self):
+        """The decision marks files for a retag; the retag has to see the decision.
+
+        The tagger's ResolveGenreRule reads a GenreRulesHelper preloaded at import.
+        Without the refresh the retag this decision queued would rewrite every file
+        with the genre still resolving the old way, and nothing would say so.
+        """
+        Cache.reload.reset_mock()
+        self.cursor.fetchone.return_value = {'id': 1, 'name': 'Electronic'}
+        self.decide({'state': management_router.BLACK})
+        Cache.reload.assert_called_once_with('genre_rules')
+
     def test_an_invalid_state_is_rejected(self):
         self.assertEqual(self.decide({'state': 'purple'}).status_code, 400)
 

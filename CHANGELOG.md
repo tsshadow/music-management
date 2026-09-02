@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Een genre-besluit bereikte de draaiende tagger niet.** `POST /api/rules/genres/{id}/decide`
+  markeerde de bestanden voor een retag, maar de tagger leest zijn genre-regels uit een helper die
+  bij het opstarten is geladen en niet werd ververst -- de podcast-beslissing deed dat al wel. De
+  retag die het besluit zelf in gang zette schreef het bestand dus terug met het genre nog op de
+  oude manier opgelost, tot een herstart. Het besluit ververst nu `genre_rules`, zoals de
+  curatiepagina's al deden voor hun regels.
+
+### Added
+- **e2e: een afgekeurd genre verdwijnt uit bestand, bibliotheek én speler.** `genre_rejected.feature`
+  keurt het genre van de fixture af, laat de retag draaien, wacht tot de wachtrij leeg is, ziet de
+  scanner het genre van de track halen en laat LMS herindexeren tot ook die het niet meer meldt.
+  Het is de eerste feature die de bytes van de fixture verandert, en hij vond bij de eerste run twee
+  dingen: het cache-gat hierboven, en dat de tagger een bestand los in de root van het volume nooit
+  bezoekt (hij loopt alleen labelmappen, kanaalmappen en een vaste lijst generieke mappen). De
+  fixture staat daarom voortaan onder `Top 100`, en `TAGGER_SLEEPTIME` staat in de teststack op een
+  dag zodat de achtergrondronde niet zelf tussendoor gaat herschrijven.
+- **De volgorde van de e2e-features staat nu in `conftest.py`, niet in hun bestandsnamen.**
+  `FEATURE_ORDER` plus een `pytest_collection_modifyitems`-hook; een module die er niet in staat draait
+  erna, op naam. De docstrings die op alfabetische volgorde leunden verwijzen nu naar de lijst.
+
 ### Changed
 - **De clang-tidy-image draait op alpine 3.24, en daarmee op LLVM 22 in plaats van 19.** Drie
   versies verder betekent nieuwe checks over ongewijzigde code: `server:lint` viel om op 259

@@ -8,6 +8,8 @@ skip.
 
 from __future__ import annotations
 
+import os
+
 import pytest
 import requests
 from pytest_bdd import given, scenarios, then, when
@@ -18,8 +20,10 @@ pytestmark = pytest.mark.e2e
 
 scenarios('features/rating_roundtrip.feature')
 
-# Where music-manager sees the file; LMS reports the same one under /music.
-FIXTURE_PATH = '/mnt/music/ci-test-track-001.mp3'
+# Where music-manager sees the file; LMS reports the same one under /music. The
+# folder is the stack script's choice (scripts/lib/e2e-stack.sh says why), and is
+# read from the environment so the two cannot drift.
+FIXTURE_PATH = f'{os.getenv("MUMA_TEST_FIXTURE_DIR", "/mnt/music/Top 100")}/ci-test-track-001.mp3'
 TIMEOUT = 10
 
 

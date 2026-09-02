@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **De clang-tidy-image draait op alpine 3.24, en daarmee op LLVM 22 in plaats van 19.** Drie
+  versies verder betekent nieuwe checks over ongewijzigde code: `server:lint` viel om op 259
+  bevindingen, waarvan het grootste deel uit checks die in LLVM 19 niet bestonden
+  (`misc-override-with-different-visibility`, `cppcoreguidelines-pro-bounds-avoid-unchecked-container-access`,
+  `readability-inconsistent-ifelse-braces`, `misc-use-internal-linkage`,
+  `bugprone-throwing-static-initialization`) en de rest uit herschreven meldingsteksten van
+  bestaande checks, die de baseline op inhoud sleutelt. De baseline is opnieuw gegenereerd; de
+  nieuwe secties dragen een noot dat ze bij de upgrade in één keer zijn geaccepteerd en bij de
+  volgende aanraking van het bestand alsnog een audit verdienen. Een nieuwe vindplaats onder zo'n
+  check laat de job nog steeds falen.
+
 ### Added
 - **De end-to-end keten dekt vier gaten meer.** `muma:e2e` liep tot nu toe de scan, de Subsonic-zoekopdracht,
   de stream, de rating-hop en één rechtstreekse scrobble na. Vier nieuwe Gherkin-features onder `tests/bdd/`

@@ -2,7 +2,6 @@ import logging
 import os
 
 from mutagen.easyid3 import EasyID3
-from mutagen.easymp4 import EasyMP4Tags
 from mutagen.flac import FLAC
 from mutagen.id3 import TXXX, TextFrame
 from mutagen.mp3 import MP3
@@ -40,20 +39,11 @@ from services.tagger.Song.rules.NormalizeFlacTagsRule import NormalizeFlacTagsRu
 from services.tagger.Song.rules.TagRule import TagRule
 from services.tagger.Song.Tag import Tag
 from services.tagger.Song.TagCollection import TagCollection
+from services.tagger.tag_registration import register_custom_tag_keys
 
 LOG_FILE = 'broken-files.log'
 s = Settings()
-EasyID3.RegisterTXXXKey('publisher', 'publisher')
-EasyID3.RegisterTXXXKey('rating', 'RATING')
-EasyID3.RegisterTXXXKey('parsed', 'parsed')
-EasyID3.RegisterTXXXKey('festival', 'festival')
-EasyID3.RegisterTXXXKey('remixer', 'remixer')
-EasyID3.RegisterTXXXKey('original_title', 'original_title')
-EasyMP4Tags.RegisterTextKey('publisher', 'publisher')
-EasyMP4Tags.RegisterTextKey('rating', 'rating')
-EasyMP4Tags.RegisterTextKey('parsed', 'parsed')
-EasyMP4Tags.RegisterTextKey('festival', 'festival')
-EasyMP4Tags.RegisterTextKey('original_title', 'original_title')
+register_custom_tag_keys()
 
 
 class ExtensionNotSupportedException(Exception):
@@ -176,7 +166,16 @@ class BaseSong:
         changes = self.normalize_custom_atoms()
         for tag in list(self.tag_collection.get().values()):
             if isinstance(tag, Tag) and tag.has_changes():
-                self.set_tag(tag)
+                try:
+                    self.set_tag(tag)
+                except (KeyError, ValueError) as e:
+                    # A name the format will not take -- an unregistered ID3 key raises here.
+                    # One such tag used to end the whole save, so every other change the rules
+                    # had just made to this file was dropped with it. Losing the one tag is bad
+                    # enough; losing the file's other tags without a word is what made the
+                    # podcast rule look like it was never running.
+                    logging.error(f'Could not write tag {tag.tag} on {self.path()}: {e}')
+                    continue
                 tag.clear_changes()
                 changes = True
         if changes:

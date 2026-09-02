@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Elke component heeft nu een coverage-vloer, en die staat net onder het huidige cijfer.** Python
+  ging van 92 naar 93 (CI meet 94,0), de frontend-drempels van 81/61/79/80 naar 82/65/79/81 (CI meet
+  82,4/66,8/80,0/81,9). Mobile en server hadden geen vloer: `mobile:unit` houdt nu 16 vast (meet
+  16,9) en `server:unit` 39 (meet 40,0). Het zijn ratels, geen doelen: omhoog zodra het cijfer
+  klimt, nooit omlaag om een build groen te krijgen. `MOBILE_COVERAGE_MIN` en `SERVER_COVERAGE_MIN`
+  overrulen ze lokaal, zoals `COVERAGE_MIN` dat al deed voor Python.
+- **`server:unit` rapporteerde helemaal geen coverage-cijfer.** De `coverage:`-regex leest een
+  `TOTAL`-regel die gcovr binnen de docker-build print, en buildkit vouwt die weg -- op een gecachte
+  laag komt hij zelfs niet voorbij. Het script leest het totaal nu zelf uit de XML en print het op
+  zijn eigen stdout in de vorm die de regex verwacht, dus GitLab laat het cijfer voortaan zien.
+
 ### Added
 - **Unit-tests voor de drie minst gedekte modules van music-manager.** `routers/songs.py` (26%),
   `song_version_worker.py` (22%) en `scrobble_rematch.py` (52%) hadden hun regels wel gepind in pure

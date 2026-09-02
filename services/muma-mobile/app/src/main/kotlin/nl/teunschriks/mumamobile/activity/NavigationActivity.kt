@@ -79,6 +79,7 @@ import nl.teunschriks.mumamobile.car.CarModeNotifier
 import nl.teunschriks.mumamobile.car.CarModeSession
 import nl.teunschriks.mumamobile.car.CarPresence
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
+import nl.teunschriks.mumamobile.data.isUsableMumaUserId
 import nl.teunschriks.mumamobile.diagnostics.CrashReportManager
 import nl.teunschriks.mumamobile.fragment.SetupWizardFragment
 import nl.teunschriks.mumamobile.management.ManagementRepository
@@ -1183,7 +1184,7 @@ class NavigationActivity : ScopeActivity() {
         val activeServer = activeServerProvider.getActiveServer()
         if (!ActiveServerProvider.isOffline() &&
             activeServer.apiKey.isNullOrEmpty() &&
-            (activeServer.mumaUserId == null || activeServer.mumaUserId == -1)
+            !isUsableMumaUserId(activeServer.mumaUserId)
         ) {
             lifecycleScope.launch(Dispatchers.IO) {
                 try {

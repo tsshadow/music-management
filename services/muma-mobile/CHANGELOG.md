@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **De app bewaarde alles onder gebruiker 0, en die bestaat niet.** `POST /api/auth/login` antwoordt
+  met de accountvelden genest onder `user`, maar het inloggen las dat antwoord met een eigen, plat
+  model. `api_key` staat toevallig wél bovenaan, dus inloggen "slaagde"; `id` staat er niet, en Gson
+  laat een niet-nullable `Int` dan op 0 staan. Die 0 is niet de -1 waar elke bewaking op
+  controleerde, dus hij glipte overal doorheen en bleef staan. Gevolg: elke aanroep per gebruiker
+  ging naar `/api/users/0/…` -- ophalen gaf 200 met niets, opslaan gaf 500 op een
+  foreign-keyschending. Favoriete genres, tegels en app-instellingen werden dus nooit bewaard. Het
+  login-antwoord wordt nu met hetzelfde model gelezen als google, refresh en verify, en een id dat
+  geen rij kan aanwijzen wordt geweigerd in plaats van opgeslagen. Toestellen die de 0 al hebben
+  staan worden bij de volgende login hersteld.
 - **Een diagnostiekrapport over een vastgelopen scherm beschreef altijd de verkeerde sessie.** Om
   bij Instellingen te komen moet je het scherm dat blijft laden eerst verlaten, en dat betekent de
   app afsluiten -- waarna het rapport begint bij die herstart en van de storing niets bevat. Twee

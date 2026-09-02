@@ -170,12 +170,15 @@ class ActiveServerProvider(private val repository: ServerSettingDao) : Coroutine
         cachedServer?.minimumApiVersion = apiVersion
     }
 
-    fun setMumaSettings(apiKey: String, userId: Int) {
+    fun setMumaSettings(apiKey: String, userId: Int?) {
         // Sync globally
         Settings.mumaApiKey = apiKey
-        // Only update MuMa ID if it's not set yet
-        if (Settings.mumaUserId == -1) {
-            Settings.mumaUserId = userId
+        // Only update MuMa ID if the stored one cannot be real, and only with one that can. A 0 --
+        // Gson's default for an id the response did not carry -- is not the -1 "unknown" sentinel,
+        // so it passed every guard and every per-user call went to a user that is not there. Any
+        // device that already stored a 0 is repaired by the next login for the same reason.
+        if (!isUsableMumaUserId(Settings.mumaUserId) && isUsableMumaUserId(userId)) {
+            Settings.mumaUserId = userId!!
         }
     }
 

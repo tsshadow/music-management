@@ -19,6 +19,7 @@ import nl.teunschriks.mumamobile.api.subsonic.throwOnFailure
 import nl.teunschriks.mumamobile.api.subsonic.toStreamResponse
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.shouldUseId3Tags
+import nl.teunschriks.mumamobile.data.isUsableMumaUserId
 import nl.teunschriks.mumamobile.domain.Album
 import nl.teunschriks.mumamobile.domain.Artist
 import nl.teunschriks.mumamobile.domain.Bookmark
@@ -839,8 +840,7 @@ open class RESTMusicService(
         val activeServer = activeServerProvider.getActiveServer()
         if (!force &&
             !activeServer.apiKey.isNullOrEmpty() &&
-            activeServer.mumaUserId != null &&
-            activeServer.mumaUserId != -1
+            isUsableMumaUserId(activeServer.mumaUserId)
         ) {
             subsonicAPIClient.mumaApi.setApiKey(activeServer.apiKey!!)
             return
@@ -857,8 +857,17 @@ open class RESTMusicService(
         if (response.isSuccessful) {
             val body = response.body()
             if (body != null) {
-                activeServerProvider.setMumaSettings(body.api_key, body.id)
-                subsonicAPIClient.mumaApi.setApiKey(body.api_key)
+                val apiKey = body.api_key ?: body.access_token
+                    ?: throw IOException("MuMa login returned no API key")
+                // The account id is nested under "user". Reading it flat left it at Gson's default
+                // of 0, which is not the "unknown" sentinel, so every per-user call afterwards went
+                // to /api/users/0/... -- settings saves answered 500 on a foreign key violation.
+                val userId = body.user?.id
+                if (userId == null) {
+                    Timber.w("MuMa login returned no account id; leaving the stored id untouched")
+                }
+                activeServerProvider.setMumaSettings(apiKey, userId)
+                subsonicAPIClient.mumaApi.setApiKey(apiKey)
                 Timber.i("MuMa login successful")
             }
         } else {
@@ -872,7 +881,7 @@ open class RESTMusicService(
         ensureMumaLogin()
         val activeServer = activeServerProvider.getActiveServer()
         val userId = activeServer.mumaUserId ?: Settings.mumaUserId
-        if (userId == -1) throw IOException("User ID not set")
+        if (!isUsableMumaUserId(userId)) throw IOException("User ID not set")
 
         val response = subsonicAPIClient.mumaApi.api.getTiles(userId).execute()
         if (!response.isSuccessful) throw IOException("Failed to get MuMa tiles: ${response.code()}")
@@ -884,7 +893,7 @@ open class RESTMusicService(
         ensureMumaLogin()
         val activeServer = activeServerProvider.getActiveServer()
         val userId = activeServer.mumaUserId ?: Settings.mumaUserId
-        if (userId == -1) throw IOException("User ID not set")
+        if (!isUsableMumaUserId(userId)) throw IOException("User ID not set")
 
         val apiTile = MumaApiTile(tile.id?.toIntOrNull(), tile.name, tile.smartParams)
         val response = subsonicAPIClient.mumaApi.api.saveTile(userId, apiTile).execute()
@@ -897,7 +906,7 @@ open class RESTMusicService(
         ensureMumaLogin()
         val activeServer = activeServerProvider.getActiveServer()
         val userId = activeServer.mumaUserId ?: Settings.mumaUserId
-        if (userId == -1) throw IOException("User ID not set")
+        if (!isUsableMumaUserId(userId)) throw IOException("User ID not set")
 
         val playlistId = id.toIntOrNull() ?: throw IOException("Invalid tile ID: $id")
         val response = subsonicAPIClient.mumaApi.api.deleteTile(userId, playlistId).execute()

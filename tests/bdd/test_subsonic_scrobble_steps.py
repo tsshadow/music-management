@@ -5,11 +5,8 @@ The feature file is the description; this is only what the steps do.
 Started by scripts/test/core-e2e.sh, which brings the stack up. Without it these
 skip.
 
-The module name sorts after test_scan_to_listen_steps.py on purpose. That
-feature pins music-manager's listen counter at zero in its Background, and this
-one moves it. pytest runs the modules in name order, so this is what keeps the
-two from disagreeing; rename either and the earlier one starts failing on a
-stack that is behaving.
+Runs after scan_to_listen, by conftest.FEATURE_ORDER: that feature pins
+music-manager's listen counter at zero in its Background, and this one moves it.
 """
 
 from __future__ import annotations

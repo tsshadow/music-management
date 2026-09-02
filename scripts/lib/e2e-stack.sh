@@ -24,6 +24,12 @@
 E2E_STACK_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 E2E_STACK_COMPOSE_FILE="$E2E_STACK_ROOT/docker/compose.test.yml"
 E2E_STACK_FIXTURE="$E2E_STACK_ROOT/tests/fixtures/music/ci-test-track-001.mp3"
+# Where the fixture sits inside the LMS container (/music) and, through the shared
+# volume, under music-manager's /mnt/music. See the copy step below for why it is
+# a subfolder. tests/bdd reads the same location as MUMA_TEST_FIXTURE_DIR.
+E2E_STACK_FIXTURE_DIR="/music/Top 100"
+MUMA_TEST_FIXTURE_DIR="/mnt/music/Top 100"
+export MUMA_TEST_FIXTURE_DIR
 
 # Picking a free port rather than a fixed one is what keeps two pipelines from
 # killing each other's run; see docs/testing-inventory.md and the backend:integration
@@ -93,10 +99,19 @@ e2e_stack_up() {
 
     # The fixture lands on the shared volume, which music-manager's scanner walks
     # on demand (/api/scanner/scan/all, which the suite calls).
+    #
+    # Under "Top 100" rather than loose in the root. The scanner walks the whole
+    # volume, but the tagger's full run does not: it visits the label folders,
+    # the download channels and a fixed list of generic folders (Livesets,
+    # Podcasts, Top 100, Warm Up Mixes), which is what the library actually
+    # looks like. A file in the root is therefore scanned but never retagged,
+    # and the retag feature waited on a queue that could not drain. Top 100 is
+    # the generic folder whose name implies the least about the file.
     echo "--- Copying the fixture track into the LMS music volume ---"
     local lms_cid
     lms_cid=$($E2E_STACK_COMPOSE ps -q music-management-server)
-    docker cp "$E2E_STACK_FIXTURE" "$lms_cid":/music/ci-test-track-001.mp3
+    docker exec -u 0 "$lms_cid" mkdir -p "$E2E_STACK_FIXTURE_DIR"
+    docker cp "$E2E_STACK_FIXTURE" "$lms_cid":"$E2E_STACK_FIXTURE_DIR/ci-test-track-001.mp3"
 
     e2e_stack_tag_fixture
     e2e_stack_scan_lms
@@ -115,8 +130,11 @@ e2e_stack_up() {
 e2e_stack_tag_fixture() {
     echo "--- Tagging the fixture, before either index is built ---"
     local key="${API_KEY:-test-api-key}"
+    # The folder name carries a space; the only character in the path that needs
+    # encoding, so it is done by hand rather than pulling in a URL library.
+    local fixture_path="$MUMA_TEST_FIXTURE_DIR/ci-test-track-001.mp3"
     curl -sf -X POST -H "x-api-key: $key" \
-        "http://127.0.0.1:$MUMA_TEST_PORT_MANAGER/api/tagger/tag/file?path=/mnt/music/ci-test-track-001.mp3" \
+        "http://127.0.0.1:$MUMA_TEST_PORT_MANAGER/api/tagger/tag/file?path=${fixture_path// /%20}" \
         >/dev/null
 }
 

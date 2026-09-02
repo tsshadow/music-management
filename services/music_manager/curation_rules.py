@@ -23,6 +23,8 @@ ARTIST_GENRE_HELPER = 'artistGenreHelper'
 LABEL_GENRE_HELPER = 'labelGenreHelper'
 SUBGENRE_HELPER = 'subgenreHelper'
 PODCAST_HELPER = 'podcastHelper'
+# The tagger's ResolveGenreRule reads its decisions from this one.
+GENRE_RULES_HELPER = 'genre_rules'
 ARTIST_REDIRECT_HELPER = 'rules_ignored_artists'
 
 MBID_PATTERN = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)

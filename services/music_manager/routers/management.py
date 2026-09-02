@@ -592,9 +592,15 @@ def decide_genre(genre_id: int, decision: GenreDecisionRequest, auth: dict = Dep
                 rescan_invalidator.invalidate_by_genre_id(genre_id, genre_row.get('name') or '', 'genre_decision')
             except Exception as e:
                 logging.warning('Genre decision saved but marking files for retag failed: %s', e)
-            return {'status': 'ok'}
     finally:
         conn.close()
+    # Outside the connection: the decision has to reach the running tagger, which holds a
+    # preloaded GenreRulesHelper and would otherwise keep resolving the genre the old way
+    # until a restart. The files were just marked for a retag *because* of this decision;
+    # without the refresh that retag would rewrite them with the decision it was meant to
+    # apply still missing.
+    curation_rules.refresh(curation_rules.GENRE_RULES_HELPER)
+    return {'status': 'ok'}
 
 
 #: Shortest normalised show name or spelling that may be stored.

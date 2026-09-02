@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Unit-tests voor de drie minst gedekte modules van music-manager.** `routers/songs.py` (26%),
+  `song_version_worker.py` (22%) en `scrobble_rematch.py` (52%) hadden hun regels wel gepind in pure
+  functies, maar niet wat eromheen zit: dat een track met twee bestanden op zijn beste wordt gescoord
+  en niet op zijn laatste, dat een pin de score verslaat en de ranking dan niet eens meer draait, dat
+  een split oud én nieuw werk herberekent, dat de match-ladder stopt bij de eerste treffer en een
+  uitgeschakelde trap nooit draait, dat fuzzy nooit buiten de kandidaten van een exacte sleutel komt,
+  en dat elke listen apart wordt gecommit zodat een halve pass houdt wat hij koppelde.
+- **e2e: tien foute wachtwoorden sluiten het account, niet de installatie.** `account_throttled.feature`
+  gokt tien keer fout via de Subsonic API en laat zien dat LMS het account daarna als throttled meldt,
+  ook met het juiste wachtwoord, en dat de admin gewoon doorwerkt. Onderweg bleek de emmer niet het
+  account alleen te zijn maar adres-plus-account: een rechtstreekse aanroep vanaf de host valt in een
+  andere emmer dan LMS's container. De feature zegt dat en leest de 429 daarom via LMS. Dat laatste is het incident van augustus: de limiet zat op client-adres, en voor
+  LMS is elk verzoek hetzelfde adres. De account-features delen nu één stap in `conftest.py` die een
+  account aanmaakt, naar LMS synct en wacht tot de admin hem in `getUsers` ziet.
 - **De end-to-end keten dekt vier gaten meer.** `muma:e2e` liep tot nu toe de scan, de Subsonic-zoekopdracht,
   de stream, de rating-hop en één rechtstreekse scrobble na. Vier nieuwe Gherkin-features onder `tests/bdd/`
   lopen wat daar omheen zat en in productie al eens stuk is geweest: een play die via LMS's `/rest/scrobble`

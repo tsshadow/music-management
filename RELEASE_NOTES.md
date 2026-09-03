@@ -11,6 +11,18 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.44.2 (2026-09-03)
+
+- **Beheer en Instellingen hebben een knop terug.** Sinds de speler/beheer-schakelaar verdween was
+  de vorige-knop van de browser de enige weg terug, en niets in beeld zei dat. De knop loopt
+  diezelfde geschiedenis terug, en gaat naar de startpagina als je rechtstreeks op een beheer-URL
+  binnenkwam.
+- **De bibliotheek toont alleen de ingangen die de gekozen modus kan beantwoorden.** Podcasts en
+  festivals zijn opnames en verschijnen alleen bij Sets -- de tagger schrijft geen van beide tags
+  onder de tien minuten, dezelfde grens waar de nummers-modus onder zoekt. Labels en lineups gaan
+  over releases en geboekte artiesten en staan alleen bij Nummers. Artiesten, albums, genres en
+  jaren staan in allebei.
+
 ## Global Version 0.44.1 (2026-09-03)
 
 - **De back-merge naar develop viel bij elke release om, zonder dat er iets mis was.** De job

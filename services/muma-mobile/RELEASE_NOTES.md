@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [6.28.3] - 2026-09-03
+
+### Changed
+- **De lineup-pagina bladert per niveau: festival, editie, podium.** Alle lineups stonden als
+  één lijst door elkaar, inclusief het festival, elke editie en elk podium apart. Een niveau
+  met iets eronder gaat een stap dieper, de terugknop loopt weer omhoog, en bovenaan een
+  editie staat "Alles van ..." om die editie in zijn geheel af te spelen.
+
 ## [6.28.2] - 2026-09-03
 
 ### Fixed

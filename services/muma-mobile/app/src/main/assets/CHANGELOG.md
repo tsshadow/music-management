@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.28.3] - 2026-09-03
+
 ### Changed
 - **De lineup-pagina bladert nu per niveau: festival, editie, podium.** Alle 393 lineups stonden als
   één lijst door elkaar, inclusief het festival, elke editie en elk podium apart. Een niveau met

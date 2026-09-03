@@ -26,7 +26,7 @@
   import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
   import { defaultCollectionState, durationParts, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
   import { loadIndexedTags } from './scanTags.js';
-  import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, hasPermission } from './store.js';
+  import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, hasPermission } from './store.js';
 
   // Navigation that has to survive a refresh goes through onnavigate, which App turns into a URL.
   // The local assignment stays the fallback for the many places that only switch the screen.
@@ -61,7 +61,7 @@
   let albumsHasMore = $state(true);
   let artistsOffset = $state(0);
   let artistsHasMore = $state(true);
-  const pageSize = 50;
+  const pageSize = $derived($trackPageSize);
   let currentGenre = $state('');
   let currentSort = $state('recent');
   let currentYear = $state('');

@@ -1,7 +1,7 @@
 <script>
   import { t } from '../../i18n/index.js';
   import { onMount } from 'svelte';
-  import { RefreshCw, Check, X } from '@lucide/svelte';
+  import { RefreshCw, Check, X, Tags } from '@lucide/svelte';
   import { groupByLabel } from '../labelProposals.js';
 
   let { API_BASE, getHeaders, onMessage, onError } = $props();
@@ -101,95 +101,122 @@
   onMount(load);
 </script>
 
-<div class="tab-panel">
-  <header class="panel-header">
-    <p class="hint">{$t('management.labelProposals.description')}</p>
-    <button class="btn" onclick={load} disabled={loading}>
-      <RefreshCw size={16} /> {$t('common.refresh')}
+<section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+  <header class="flex justify-between items-end flex-wrap gap-4">
+    <div>
+      <h2 class="text-4xl font-extrabold mb-2 flex items-center gap-3">
+        <Tags class="text-brand" size={32} /> {$t('management.tabs.labelProposals')}
+      </h2>
+      <p class="text-muma-spotify-text max-w-3xl">
+        {$t('management.labelProposals.description')}
+      </p>
+    </div>
+
+    <button
+      onclick={load}
+      disabled={loading}
+      aria-label={$t('common.refresh')}
+      class="text-muma-spotify-text hover:text-white transition-colors disabled:opacity-50"
+    >
+      <RefreshCw size={18} class={loading ? 'animate-spin' : ''} />
     </button>
   </header>
 
-  {#if loading}
-    <p class="hint">{$t('common.loading')}</p>
+  {#if loading && proposals.length === 0}
+    <div class="flex items-center justify-center p-20">
+      <RefreshCw class="animate-spin text-brand" size={32} />
+    </div>
   {:else if groups.length === 0}
-    <p class="hint">{$t('management.labelProposals.empty')}</p>
+    <div class="flex flex-col items-center justify-center p-20 text-muma-spotify-text">
+      <Tags size={48} class="mb-4 opacity-20" />
+      <p>{$t('management.labelProposals.empty')}</p>
+    </div>
   {:else}
-    {#each groups as group (keyOf(group))}
-      <section class="group">
-        <div class="group-header">
-          <h3>{group.label ?? $t('management.labelProposals.noLabel')}</h3>
-          <span class="count">{group.proposals.length}</span>
-          <input
-            type="text"
-            list="label-proposal-options"
-            placeholder={$t('management.labelProposals.label')}
-            value={labelFor(group)}
-            oninput={(e) => {
-              chosen[keyOf(group)] = e.currentTarget.value;
-              searchLabels(e.currentTarget.value);
-            }} />
-          <button class="btn" onclick={() => confirmGroup(group)} disabled={busy || !labelFor(group)}>
-            <Check size={16} /> {$t('management.labelProposals.confirmGroup')}
-          </button>
-        </div>
-        <ul class="releases">
-          {#each group.proposals as proposal (proposal.id)}
-            <li>
-              <span class="folder">{proposal.folder}</span>
-              <span class="catid">{proposal.catid ?? $t('management.labelProposals.noCatId')}</span>
-              <span class="source">{proposal.source} ({proposal.confidence})</span>
-              <button class="btn ghost" onclick={() => reject(proposal)} disabled={busy}>
-                <X size={16} /> {$t('management.labelProposals.reject')}
+    <div class="space-y-6">
+      {#each groups as group (keyOf(group))}
+        <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 overflow-hidden">
+          <div class="p-6 bg-black/20 flex justify-between items-center gap-4 flex-wrap">
+            <h3 class="text-xl font-bold flex items-center gap-2">
+              {#if group.label}
+                {group.label}
+              {:else}
+                <span class="text-muma-spotify-text italic font-normal">
+                  {$t('management.labelProposals.noLabel')}
+                </span>
+              {/if}
+              <span class="text-muma-spotify-text text-sm font-normal tabular-nums">({group.proposals.length})</span>
+            </h3>
+
+            <div class="flex items-center gap-3">
+              <input
+                type="text"
+                list="label-proposal-options"
+                placeholder={$t('management.labelProposals.label')}
+                aria-label={$t('management.labelProposals.label')}
+                value={labelFor(group)}
+                oninput={(e) => {
+                  chosen[keyOf(group)] = e.currentTarget.value;
+                  searchLabels(e.currentTarget.value);
+                }}
+                class="w-56 bg-muma-spotify-dark border border-muma-spotify-panel rounded-full px-4 py-2 text-sm focus:outline-none focus:border-brand transition-colors"
+              />
+              <button
+                onclick={() => confirmGroup(group)}
+                disabled={busy || !labelFor(group)}
+                class="bg-brand text-black px-4 py-2 rounded-full font-bold text-xs transition-transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-1 shrink-0"
+              >
+                <Check size={14} /> {$t('management.labelProposals.confirmGroup')}
               </button>
-            </li>
-          {/each}
-        </ul>
-      </section>
-    {/each}
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead>
+                <tr class="bg-white/5 text-muma-spotify-text text-[10px] uppercase tracking-wider">
+                  <th class="p-4">{$t('management.labelProposals.release')}</th>
+                  <th class="p-4">{$t('management.labelProposals.catId')}</th>
+                  <th class="p-4">{$t('management.labelProposals.source')}</th>
+                  <th class="p-4 text-right">{$t('management.labelProposals.actions')}</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-muma-spotify-panel/30">
+                {#each group.proposals as proposal (proposal.id)}
+                  <tr class="hover:bg-white/5 transition-colors">
+                    <td class="p-4 font-medium break-all">{proposal.folder}</td>
+                    <td class="p-4 text-muma-spotify-text text-xs">
+                      {#if proposal.catid}
+                        <span class="font-mono">{proposal.catid}</span>
+                      {:else}
+                        <span class="italic opacity-70">{$t('management.labelProposals.noCatId')}</span>
+                      {/if}
+                    </td>
+                    <td class="p-4 text-muma-spotify-text text-xs whitespace-nowrap">
+                      {proposal.source}
+                      <span class="tabular-nums opacity-70">({proposal.confidence})</span>
+                    </td>
+                    <td class="p-4 text-right">
+                      <button
+                        onclick={() => reject(proposal)}
+                        disabled={busy}
+                        class="bg-red-500/10 text-red-500 border border-red-500/20 px-3 py-1.5 rounded-full font-bold text-xs transition-transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 inline-flex items-center gap-1"
+                      >
+                        <X size={14} /> {$t('management.labelProposals.reject')}
+                      </button>
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {/each}
+    </div>
+
     <datalist id="label-proposal-options">
       {#each labelOptions as option (option.id)}
         <option value={option.name}></option>
       {/each}
     </datalist>
   {/if}
-</div>
-
-<style>
-  .group {
-    margin-bottom: 1.5rem;
-  }
-  .group-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-  }
-  .group-header h3 {
-    margin: 0;
-  }
-  .count {
-    opacity: 0.7;
-    font-variant-numeric: tabular-nums;
-  }
-  .releases {
-    list-style: none;
-    margin: 0.5rem 0 0;
-    padding: 0;
-  }
-  .releases li {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.25rem 0;
-    flex-wrap: wrap;
-  }
-  .folder {
-    flex: 1 1 20rem;
-    word-break: break-word;
-  }
-  .catid,
-  .source {
-    opacity: 0.7;
-    font-size: 0.85em;
-  }
-</style>
+</section>

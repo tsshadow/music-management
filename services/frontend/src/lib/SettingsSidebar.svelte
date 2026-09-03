@@ -35,7 +35,7 @@
 </script>
 
 <nav class="flex flex-col gap-6 h-full bg-black">
-  <SidebarHeader onnavigate={onnavigate} />
+  <SidebarHeader />
 
   <div class="flex flex-col gap-1 px-3">
     {#each tabs as tab (tab.id)}

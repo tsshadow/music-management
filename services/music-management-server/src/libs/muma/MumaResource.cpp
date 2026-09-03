@@ -35,6 +35,11 @@ namespace lms::api::muma
 {
     namespace
     {
+        // A news bulletin is a ten-minute recording, around 15 MB. Nothing else behind this
+        // proxy answers with a file, so the wider buffer is asked for by path rather than
+        // raised for every call.
+        constexpr std::size_t newsBulletinBufferSize{ std::size_t{ 64 } * 1024 * 1024 };
+
         // At most half the HTTP thread pool may be waiting on MuMa, so the other half is always
         // there to serve everything else. Mirrors getThreadCount() in main.cpp, which is what sets
         // the pool size Wt actually runs with.
@@ -848,8 +853,17 @@ namespace lms::api::muma
                 return;
             }
 
-            // Generic proxy for all other /api/ calls
-            auto resultPromise = std::make_shared<std::promise<std::pair<int, std::string>>>();
+            // Generic proxy for all other /api/ calls. The content type travels with the
+            // status and body because not every endpoint here answers JSON: a news
+            // bulletin is an MP3, and a blob built from a response typed text/html is
+            // one the browser's audio element refuses to play.
+            struct GenericResult
+            {
+                int status;
+                std::string contentType;
+                std::string body;
+            };
+            auto resultPromise = std::make_shared<std::promise<GenericResult>>();
             auto resultFuture = resultPromise->get_future();
 
             if (request.method() == "GET")
@@ -859,6 +873,12 @@ namespace lms::api::muma
                 std::string query = request.queryString();
                 if (!query.empty())
                     getParams.relativeUrl += "?" + query;
+
+                // The default buffer stops at 10 MB, so a bulletin transferred for a while and
+                // then aborted -- and the aborted call arrived at the browser as a 502 that the
+                // player reported as "no bulletin recorded yet".
+                if (pathInfo.find("/api/news/bulletins/") == 0)
+                    getParams.responseBufferSize = newsBulletinBufferSize;
 
                 // Forward the CALLER's own key first (Subsonic-shared LMS key or a
                 // per-user MuMa key from Google Sign-In) so MuMa sees the real caller
@@ -875,10 +895,11 @@ namespace lms::api::muma
                 // must be forwarded verbatim, not collapsed into a generic 502.
                 getParams.treatAnyStatusAsSuccess = true;
                 getParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
-                    resultPromise->set_value({ msg.status(), msg.body() });
+                    const std::string* contentType{ msg.getHeader("Content-Type") };
+                    resultPromise->set_value({ msg.status(), contentType ? *contentType : std::string{}, msg.body() });
                 };
                 getParams.onFailureFunc = [resultPromise]() {
-                    resultPromise->set_value({ 502, "Bad Gateway" });
+                    resultPromise->set_value({ 502, std::string{}, "Bad Gateway" });
                 };
                 _httpClient->sendGETRequest(std::move(getParams));
             }
@@ -908,10 +929,11 @@ namespace lms::api::muma
                 // real status/body verbatim instead of collapsing it into a 502.
                 postParams.treatAnyStatusAsSuccess = true;
                 postParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
-                    resultPromise->set_value({ msg.status(), msg.body() });
+                    const std::string* responseType{ msg.getHeader("Content-Type") };
+                    resultPromise->set_value({ msg.status(), responseType ? *responseType : std::string{}, msg.body() });
                 };
                 postParams.onFailureFunc = [resultPromise]() {
-                    resultPromise->set_value({ 502, "Bad Gateway" });
+                    resultPromise->set_value({ 502, std::string{}, "Bad Gateway" });
                 };
 
                 if (request.method() == "POST")
@@ -931,8 +953,10 @@ namespace lms::api::muma
             if (resultFuture.wait_for(std::chrono::seconds(30)) == std::future_status::ready)
             {
                 auto res = resultFuture.get();
-                response.setStatus(res.first);
-                response.out() << res.second;
+                response.setStatus(res.status);
+                if (!res.contentType.empty())
+                    response.setMimeType(res.contentType);
+                response.out() << res.body;
             }
             else
             {

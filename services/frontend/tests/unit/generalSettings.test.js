@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import GeneralSettings from "../../src/lib/settings/GeneralSettings.svelte";
-import { credentials } from "../../src/lib/store.js";
+import { get } from "svelte/store";
+import { credentials, DEFAULT_TRACK_PAGE_SIZE, trackPageSize } from "../../src/lib/store.js";
 
 function mockUser(user = {}) {
   return vi.fn(async () => ({
@@ -42,6 +43,16 @@ describe("GeneralSettings", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    trackPageSize.set(DEFAULT_TRACK_PAGE_SIZE);
+  });
+
+  it("the number of tracks a list fetches is the listener's to change", async () => {
+    render(GeneralSettings);
+    await waitFor(() => expect(screen.getByLabelText("Nummers per keer")).toBeTruthy());
+
+    await fireEvent.change(screen.getByLabelText("Nummers per keer"), { target: { value: "200" } });
+
+    expect(get(trackPageSize)).toBe(200);
   });
 
   it("no longer shows the audio settings the server never read", async () => {

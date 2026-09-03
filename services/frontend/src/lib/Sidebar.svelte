@@ -108,7 +108,7 @@
 </script>
 
 <nav class="flex flex-col gap-6 h-full">
-  <SidebarHeader onnavigate={onnavigate} />
+  <SidebarHeader />
 
   <div class="px-3 py-4">
     <div class="flex items-center gap-3">

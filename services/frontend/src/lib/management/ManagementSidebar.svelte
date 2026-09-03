@@ -122,7 +122,7 @@
 </script>
 
 <nav class="flex flex-col gap-6 h-full bg-black">
-  <SidebarHeader onnavigate={onnavigate} />
+  <SidebarHeader />
 
   <div class="flex flex-col gap-1 overflow-y-auto scrollbar-thin px-3">
     {#each groups as group (group.id)}

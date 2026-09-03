@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.44.1] - 2026-09-03
+
+### Fixed
+- **De back-merge naar develop viel bij elke release om, zonder dat er iets mis was.**
+  `release:back-merge-develop` opent de MR en wachtte dan dertig seconden tot GitLab hem
+  "mergeable" zou noemen. Maar een MR van een seconde oud draait zijn eigen pipeline, en het project
+  eist dat die groen is -- dus die status is minutenlang `ci_still_running`, niet `mergeable`. Het
+  script wachtte zijn budget op, merge-de alsnog, kreeg een kale `405 Method Not Allowed` terug en
+  meldde dat als een conflict. Vier releases op rij is die job daardoor rood geworden terwijl er
+  niets aan de hand was. Hij zet nu GitLab's auto-merge aan en stopt: de merge gebeurt zodra de
+  pipeline groen is, zonder dat er een runner op staat te wachten. Alleen wanneer er echt een mens
+  nodig is -- een conflict, een geblokkeerde MR -- stopt hij rood, mét de status waarop hij afsloeg
+  in plaats van de foutmelding van een merge die tóch geweigerd zou worden.
+
 ## [0.44.0] - 2026-09-03
 
 ### Added

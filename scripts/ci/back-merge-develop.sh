@@ -57,17 +57,65 @@ echo "Waiting for GitLab to finish computing mergeability of !${MR_IID}..."
 # (or a source branch changes); a merge attempted immediately can fail with
 # "Branch cannot be merged" purely because that computation hasn't finished
 # yet, not because of a real conflict. Poll briefly before giving up.
-MERGE_STATUS="checking"
+#
+# Only the states below mean "GitLab has not finished thinking"; they clear in
+# seconds. Every other value is an answer, and polling past an answer burns the
+# budget the transient states actually need.
+is_transient_merge_status() {
+    case "$1" in
+        preparing | checking | unchecked | "") return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+MERGE_STATUS=""
 for _ in 1 2 3 4 5 6 7 8 9 10; do
     MERGE_STATUS=$(curl -sf --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
         "${API}/merge_requests/${MR_IID}" \
         | python3 -c "import json,sys; print(json.load(sys.stdin).get('detailed_merge_status', ''))")
-    if [ "$MERGE_STATUS" = "mergeable" ]; then
+    if ! is_transient_merge_status "$MERGE_STATUS"; then
         break
     fi
     echo "  merge status: ${MERGE_STATUS:-unknown}, retrying in 3s..."
     sleep 3
 done
+
+# The MR was opened seconds ago and runs its own pipeline, which the project
+# requires to pass before a merge is allowed. Waiting that out here would hold a
+# runner for the length of a full pipeline, and the 30 second budget above never
+# came close: it timed out, merged anyway, and got back a bare
+# `405 Method Not Allowed` that reads like a conflict and is not one. Hand it to
+# GitLab instead -- it merges the moment the pipeline goes green, with nothing
+# holding a runner in the meantime.
+if [ "$MERGE_STATUS" = "ci_still_running" ] || [ "$MERGE_STATUS" = "ci_must_pass" ]; then
+    echo "!${MR_IID} is waiting on its own pipeline; enabling auto-merge."
+    AUTO_RESPONSE=$(curl -s --request PUT --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
+        --data-urlencode "merge_commit_message=Merge branch 'master' into 'develop'" \
+        --data-urlencode "should_remove_source_branch=false" \
+        --data-urlencode "merge_when_pipeline_succeeds=true" \
+        "${API}/merge_requests/${MR_IID}/merge")
+    AUTO_ENABLED=$(echo "$AUTO_RESPONSE" \
+        | python3 -c "import json,sys; print('yes' if json.load(sys.stdin).get('merge_when_pipeline_succeeds') else 'no')" 2>/dev/null \
+        || echo "no")
+    if [ "$AUTO_ENABLED" = "yes" ]; then
+        echo "Auto-merge is on for !${MR_IID}; GitLab merges it when the pipeline passes."
+        echo "${CI_PROJECT_URL}/-/merge_requests/${MR_IID}"
+        exit 0
+    fi
+    echo "Could not enable auto-merge on !${MR_IID}."
+    echo "$AUTO_RESPONSE"
+    echo "Leaving the MR open: ${CI_PROJECT_URL}/-/merge_requests/${MR_IID}"
+    exit 1
+fi
+
+# Neither mergeable nor waiting on CI means a person is needed: a real conflict,
+# a blocked MR, an unresolved discussion. Name the state, rather than attempting
+# a merge that will be refused and then reporting the refusal.
+if [ "$MERGE_STATUS" != "mergeable" ]; then
+    echo "!${MR_IID} cannot be merged automatically (merge status: ${MERGE_STATUS:-unknown})."
+    echo "Leaving the MR open for manual resolution: ${CI_PROJECT_URL}/-/merge_requests/${MR_IID}"
+    exit 1
+fi
 
 echo "Merging..."
 

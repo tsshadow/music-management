@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.28.1] - 2026-09-03
+
 ### Changed
 - **De wachtrij meldt nu of het toevoegen überhaupt is aangekomen.** Een rapport liet zien dat
   honderd nummers aan de wachtrij werden toegevoegd en dat die één milliseconde later nog steeds

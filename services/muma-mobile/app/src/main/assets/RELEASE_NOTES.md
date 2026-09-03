@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [6.28.1] - 2026-09-03
+
+### Changed
+- **De wachtrij meldt nu of het toevoegen is aangekomen.** Honderd nummers toevoegen en een
+  milliseconde later een lege wachtrij zien, zonder ook maar één foutmelding -- dat is wat een
+  rapport liet zien. De verbinding met de speler en de betrokken rechten worden nu meegelogd, plus
+  de lengte van de wachtrij direct na het toevoegen.
+
 ## [6.28.0] - 2026-09-03
 
 ### Fixed

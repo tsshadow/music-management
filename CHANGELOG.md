@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.42.2] - 2026-09-03
+
 ### Changed
 - **De app meldt nu of het vullen van de wachtrij is aangekomen.** Een diagnostiekrapport liet zien
   dat honderd nummers werden toegevoegd en dat de wachtrij een milliseconde later nog leeg was,

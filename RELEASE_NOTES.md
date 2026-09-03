@@ -11,6 +11,17 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.44.1 (2026-09-03)
+
+- **De back-merge naar develop viel bij elke release om, zonder dat er iets mis was.** De job
+  opende de MR en wachtte dertig seconden tot GitLab hem "mergeable" zou noemen, maar een MR
+  van een seconde oud draait zijn eigen pipeline en die moet groen zijn -- dus die status is
+  minutenlang `ci_still_running`. Hij zet nu GitLab's auto-merge aan en stopt: de merge gebeurt
+  zodra de pipeline groen is, en alleen een echt conflict laat de job nog rood worden.
+- **Waar festival-lineups vandaan komen staat nu opgeschreven** in `docs/festival-lineups.md`,
+  inclusief de prompt die een line-uppagina in JSON omzet en waarom Partyflock en de eigen
+  festivaltags allebei afvielen.
+
 ## Global Version 0.44.0 (2026-09-03)
 
 - **De vorige-knop van de browser sloeg een pagina over.** Alles wat je binnen de app aanklikte --

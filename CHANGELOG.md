@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.44.1] - 2026-09-03
+
 ### Fixed
 - **De back-merge naar develop viel bij elke release om, zonder dat er iets mis was.**
   `release:back-merge-develop` opent de MR en wachtte dan dertig seconden tot GitLab hem

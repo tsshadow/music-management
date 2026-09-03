@@ -20,6 +20,7 @@ import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionCommands
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionResult.RESULT_SUCCESS
@@ -652,53 +653,51 @@ class MediaLibrarySessionCallback :
         session: MediaSession,
         controller: MediaSession.ControllerInfo
     ): MediaSession.ConnectionResult {
-        Timber.i("onConnect")
-
-        val connectionResult = super.onConnect(session, controller)
-        val availableSessionCommands = connectionResult.availableSessionCommands.buildUpon()
-
-        for (commandButton in commandHandler.allCustomCommands) {
-            // Add custom command to available session commands.
-            commandButton.sessionCommand?.let { availableSessionCommands.add(it) }
-        }
-
         commandHandler.configureRepeatMode(session.player)
 
+        val playerCommands = radioAwarePlayerCommands()
+        Timber.i("onConnect: canChangeMediaItems=%b", playerCommands.contains(Player.COMMAND_CHANGE_MEDIA_ITEMS))
+
         return MediaSession.ConnectionResult.accept(
-            availableSessionCommands.build(),
-            radioAwarePlayerCommands(connectionResult.availablePlayerCommands)
+            sessionCommandsWithCustomButtons(),
+            playerCommands
         )
     }
 
     /**
-     * Skipping and seeking are meaningless on a radio channel -- the server owns
-     * the timeline -- so they are removed from the player commands while radio
-     * plays. The car then greys the buttons out instead of letting a tap do
-     * nothing, or worse, fight the sync loop.
+     * Media3's default library commands plus this app's custom buttons.
+     *
+     * Built from [MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS] rather than
+     * from `super.onConnect()`: since media3 1.11 that returns an empty set carrying a "callback
+     * not implemented" flag, and reading its fields out drops the flag and grants nothing.
      */
-    private fun radioAwarePlayerCommands(commands: Player.Commands): Player.Commands = if (radioPlaybackController.isActive) {
-        commands.buildUpon()
-            .remove(Player.COMMAND_SEEK_TO_NEXT)
-            .remove(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
-            .remove(Player.COMMAND_SEEK_TO_PREVIOUS)
-            .remove(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
-            .remove(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
-            .build()
-    } else {
-        commands
+    private fun sessionCommandsWithCustomButtons(): SessionCommands {
+        val builder = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
+        for (commandButton in commandHandler.allCustomCommands) {
+            commandButton.sessionCommand?.let { builder.add(it) }
+        }
+        return builder.build()
     }
+
+    /**
+     * The player commands a controller is granted: media3's full default set, minus the ones radio
+     * takes back. Media3 intersects this with the underlying player's own available commands, so
+     * the player still has the last word. See [playerCommandsFor].
+     */
+    private fun radioAwarePlayerCommands(): Player.Commands = playerCommandsFor(radioPlaybackController.isActive)
 
     /**
      * onConnect only runs once per controller, so switching radio on or off has
      * to push the new command set to every connected controller by hand.
      */
     private fun updateAvailableCommands(session: MediaSession) {
+        // Same defaults as onConnect, and for the same reason: super.onConnect() hands back an
+        // empty set, so pushing that would take every command away from a connected controller.
         for (controller in session.connectedControllers) {
-            val connectionResult = super.onConnect(session, controller)
             session.setAvailableCommands(
                 controller,
-                connectionResult.availableSessionCommands,
-                radioAwarePlayerCommands(connectionResult.availablePlayerCommands)
+                sessionCommandsWithCustomButtons(),
+                radioAwarePlayerCommands()
             )
         }
     }

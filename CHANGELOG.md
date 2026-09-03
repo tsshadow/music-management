@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **De app: de speler laadde geen enkele afspeellijst meer in.** Nummers aan de wachtrij toevoegen
+  deed niets, zonder foutmelding. De speler-sessie kende de app sinds de media3-versiesprong geen
+  enkel commando meer toe, en media3 laat een niet-toegekend commando stilzwijgend vallen.
+
 ### Changed
 - **De app meldt nu of het vullen van de wachtrij is aangekomen.** Een diagnostiekrapport liet zien
   dat honderd nummers werden toegevoegd en dat de wachtrij een milliseconde later nog leeg was,

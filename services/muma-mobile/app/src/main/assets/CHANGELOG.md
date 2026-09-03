@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **De speler laadde geen enkele afspeellijst meer in: toevoegen aan de wachtrij deed niets.** Honderd
+  nummers erin, wachtrij bleef nul, geen foutmelding, geen spoor. De sessie kende de app namelijk
+  geen enkel commando toe. `onConnect` bouwde die commandoset uit wat `super.onConnect()` teruggaf,
+  en dat is sinds media3 1.11 een leeg resultaat met een vlaggetje "callback niet geïmplementeerd" --
+  media3 vult daar alsnog echte standaardwaarden in, maar alleen als je dat object ongewijzigd
+  teruggeeft. Wij lazen de velden eruit, waarmee het vlaggetje verdween en de lege set bleef staan.
+  In media3 1.4.1 gaf dezelfde standaard nog de volledige commandoset terug, dus dit was
+  jarenlang onschadelijk en kantelde bij de versiesprong ineens naar niets. Wat het onvindbaar
+  maakte: `MediaController` beantwoordt een commando dat het niet gekregen heeft door terug te
+  keren -- geen fout, geen resultaat, geen aanroep naar de sessie. De commando's komen nu uit
+  media3's eigen standaardsets, die media3 alsnog snijdt met wat de speler werkelijk kan. Dezelfde
+  fout zat in het bijwerken van de commando's bij het aan- of uitzetten van radio; die zou een
+  verbonden speler opnieuw hebben leeggemaakt.
+
 ## [6.28.1] - 2026-09-03
 
 ### Changed

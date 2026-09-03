@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **De lineupnaam uit een verzoek werd rechtstreeks een bestandspad.** `festivalLineup=../../...`
   wees daarmee buiten de lineupmap. De naam wordt nu tegen die map opgelost en geweigerd zodra hij
   eruit stapt.
+- **De app: de speler laadde geen enkele afspeellijst meer in.** Nummers aan de wachtrij toevoegen
+  deed niets, zonder foutmelding. De speler-sessie kende de app sinds de media3-versiesprong geen
+  enkel commando meer toe, en media3 laat een niet-toegekend commando stilzwijgend vallen.
 
 ## [0.42.2] - 2026-09-03
 

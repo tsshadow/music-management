@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [6.28.2] - 2026-09-03
+
+### Fixed
+- **De speler laadde geen enkele afspeellijst meer in.** Nummers aan de wachtrij toevoegen deed
+  niets: honderd nummers erin, wachtrij bleef nul, geen foutmelding. De speler-sessie kende de app
+  sinds media3 1.11 geen enkel commando meer toe, en een niet-toegekend commando wordt stilzwijgend
+  weggegooid. Onder de vorige media3-versie kreeg de app die set nog vanzelf.
+
 ## [6.28.1] - 2026-09-03
 
 ### Changed

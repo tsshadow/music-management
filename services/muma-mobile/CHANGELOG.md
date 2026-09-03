@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.28.2] - 2026-09-03
+
 ### Fixed
 - **De speler laadde geen enkele afspeellijst meer in: toevoegen aan de wachtrij deed niets.** Honderd
   nummers erin, wachtrij bleef nul, geen foutmelding, geen spoor. De sessie kende de app namelijk

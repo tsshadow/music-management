@@ -281,15 +281,19 @@
       "subtitle": "Keur genres goed, af of corrigeer ze. Beslissingen gelden vanaf de volgende tagger-run."
     },
     "labelProposals": {
+      "actions": "Acties",
+      "catId": "Catalogusnummer",
+      "confirmGroup": "Bevestig alle",
+      "confirmed": "{count} releases naar {label}. {stale} stonden er al niet meer.",
       "description": "Releases die de importer niet kon wegzetten. Bevestig je een voorstel met catalogusnummer, dan wordt die regel geleerd en lopen alle volgende releases van dat label vanzelf door.",
       "empty": "Niets te beoordelen.",
-      "noLabel": "Geen label gevonden",
       "label": "Label",
-      "confirmGroup": "Bevestig alle",
-      "reject": "Afwijzen",
       "noCatId": "geen catalogusnummer",
-      "confirmed": "{count} releases naar {label}. {stale} stonden er al niet meer.",
-      "rejected": "Voorstel afgewezen."
+      "noLabel": "Geen label gevonden",
+      "reject": "Afwijzen",
+      "rejected": "Voorstel afgewezen.",
+      "release": "Release",
+      "source": "Bron"
     },
     "groups": {
       "access": "Toegang",
@@ -785,7 +789,6 @@
     "memories": "Memories",
     "menu": "Menu",
     "openMenu": "Menu openen",
-    "player": "Player",
     "playlists": "Afspeellijsten",
     "podcasts": "Podcasts",
     "releaseRadar": "Release Radar",
@@ -910,6 +913,8 @@
       "listenBrainzToken": "ListenBrainz User Token",
       "memoriesOnHome": "Memories tonen op de startpagina",
       "memoriesOnHomeHelp": "Een korte rij met \"vandaag, X jaar geleden\" releases boven de andere secties.",
+      "pageSize": "Nummers per keer",
+      "pageSizeHelp": "Hoeveel nummers een lijst per keer ophaalt. Minder is sneller op het scherm, meer scrolt langer door voordat er opnieuw geladen wordt.",
       "releaseArtists": "Release Artiesten",
       "sortByName": "Naam",
       "sortOriginalYearAsc": "Origineel Jaar (Oudste eerst)",
@@ -938,7 +943,6 @@
     }
   },
   "sidebar": {
-    "backToPlayer": "Terug naar Player",
     "favoriteGenres": "FAVORIETE GENRES",
     "library": "Bibliotheek",
     "popularGenres": "POPULAIRE GENRES",

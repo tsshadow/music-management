@@ -198,6 +198,16 @@ persist("lms_deduplicate_enabled", deduplicateEnabled);
 export const memoriesOnHomeEnabled = writable(true);
 persist("lms_memories_on_home_enabled", memoriesOnHomeEnabled);
 
+// How many tracks a list asks for per request. Bigger means fewer round trips and
+// a longer wait for the first screenful; smaller means the list appears sooner and
+// scrolls into more requests. Which of those is the better trade depends on the
+// connection, so it is the listener's call rather than a constant.
+export const TRACK_PAGE_SIZES = [25, 50, 100, 200];
+export const DEFAULT_TRACK_PAGE_SIZE = 50;
+
+export const trackPageSize = writable(DEFAULT_TRACK_PAGE_SIZE);
+persist("lms_track_page_size", trackPageSize);
+
 export const activeModal = writable(null); // { type, data }
 
 export const visibleSortOptions = writable({
@@ -444,6 +454,14 @@ async function applyAccountSettings(userId) {
   } else {
     await saveFrontendSetting(userId, "language", currentLocale());
   }
+
+  // Only read, never seeded: an account without a page size has not chosen one, and
+  // writing the default back would make every login look like a deliberate choice.
+  if (settings && TRACK_PAGE_SIZES.includes(settings.trackPageSize)) {
+    applyingAccountSettings = true;
+    trackPageSize.set(settings.trackPageSize);
+    applyingAccountSettings = false;
+  }
 }
 
 mumaUser.subscribe(($user) => {
@@ -482,6 +500,14 @@ locale.subscribe(($locale) => {
   const userId = syncedUserId;
   clearTimeout(localeSaveTimer);
   localeSaveTimer = setTimeout(() => saveFrontendSetting(userId, "language", $locale), 400);
+});
+
+let pageSizeSaveTimer = null;
+trackPageSize.subscribe(($size) => {
+  if (applyingAccountSettings || !syncedUserId) return;
+  const userId = syncedUserId;
+  clearTimeout(pageSizeSaveTimer);
+  pageSizeSaveTimer = setTimeout(() => saveFrontendSetting(userId, "trackPageSize", $size), 400);
 });
 
 export const isAdmin = derived(

@@ -199,7 +199,10 @@
   <div class="bg-linear-to-b from-[#121212] to-[#121212] row-start-1 row-end-2 col-start-1 md:col-start-2 col-end-2 md:col-end-3 overflow-y-auto p-4 md:p-8 relative min-h-0 min-w-0">
     <TopBar greeting={greeting} />
     <div class="content-area">
-      <Dashboard activeView={$activeView} onnavigate={handleNavigate} />
+      <!-- Bound, not passed: Dashboard writes the view itself when a card, a track or
+           an edit page navigates, and an unbound copy left those moves out of the store
+           and so out of the URL -- which is what put the back button a page behind. -->
+      <Dashboard bind:activeView={$activeView} onnavigate={handleNavigate} />
     </div>
   </div>
 

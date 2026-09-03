@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Het aantal nummers dat een lijst per keer ophaalt is nu instelbaar.** Dat stond vast op 50, wat
+  op een trage verbinding lang wachten is en op een snelle onnodig veel verzoeken. De keuze staat
+  bij Instellingen > Interface, geldt voor de nummerlijst en de geschiedenis, en reist met je
+  account mee naar je andere apparaten.
 - **Een lineup mag nu per podium en per editie worden vastgelegd.** De lineupmap las alleen losse
   bestanden, dus "Defqon.1", "Defqon.1 2014" en de RED-stage van die editie waren drie bestanden die
   dezelfde namen herhaalden. Een lineup is voortaan het pad naar zijn bestand
@@ -17,11 +21,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   importscript kreeg er `--stage` voor, en zet het bestand meteen op de goede plek.
 
 ### Fixed
+- **De vorige-knop van de browser sloeg een pagina over.** Alles waar je binnen de app op klikte --
+  een label, een genre, een artiest, een album, een zoekresultaat -- veranderde wel het scherm maar
+  niet de URL, omdat het Dashboard zijn eigen kopie van de weergave bijhield. Van Labels naar Art of
+  Creation en dan terug kwam je daardoor op de startpagina uit. Die kopie is nu dezelfde als die van
+  de app, dus elk scherm heeft weer zijn eigen adres.
+- **Vorige in willekeurige modus koos opnieuw willekeurig.** Ging je van A naar F, dan bracht vorige
+  je op een derde nummer in plaats van terug naar A. Willekeurig afspelen onthoudt nu welk spoor het
+  aflegde: vorige loopt dat terug en volgende loopt het weer vooruit voordat er iets nieuws wordt
+  getrokken.
+- **"Nieuws van het uur" meldde dat er geen bulletin was terwijl er een klaarstond.** Een bulletin
+  van tien minuten is ongeveer 15 MB en de proxy naar MuMa bufferde tot 10 MB, dus de overdracht liep
+  een tijdje en brak dan af. De proxy heeft nu ruimte voor een opname, geeft het inhoudstype door
+  zodat de speler het bestand aanneemt, en de melding maakt voortaan onderscheid tussen "niets
+  opgenomen" en "het kwam niet aan".
 - **De lineupnaam uit een verzoek werd rechtstreeks een bestandspad.** `festivalLineup=../../...`
   wees daarmee buiten de lineupmap. De naam wordt nu tegen die map opgelost en geweigerd zodra hij
   eruit stapt.
 
 ### Changed
+- **Beheer staat nu onder je gebruikersnaam in plaats van in een schakelaar links.** De schakelaar
+  hield het beheer en de speler uit elkaar als twee standen, terwijl het gewone pagina's met een
+  eigen adres zijn: je gaat er nu heen via het menu onder je naam en met de vorige-knop weer terug.
+- **De pagina Labelvoorstellen ziet eruit als de rest van het beheer.** Ze gebruikte klassenamen die
+  nergens gedefinieerd waren, dus ze werd als kale tekst getoond. Elk voorgesteld label is nu een
+  paneel met een tabel eronder, zoals bij genre- en podcastcuratie.
 - **De app meldt nu of het vullen van de wachtrij is aangekomen.** Een diagnostiekrapport liet zien
   dat honderd nummers werden toegevoegd en dat de wachtrij een milliseconde later nog leeg was,
   zonder dat de speler-sessie het verzoek ooit zag. Media3 laat zo'n verzoek stilzwijgend vallen als

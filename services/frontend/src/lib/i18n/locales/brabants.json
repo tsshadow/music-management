@@ -122,7 +122,6 @@
     "library": "Bieb",
     "management": "Beheer",
     "memories": "Herinneringe",
-    "player": "Speuler",
     "playlists": "Lijstjes",
     "releaseRadar": "Nieuw binne",
     "sets": "Sets",
@@ -182,7 +181,6 @@
     }
   },
   "sidebar": {
-    "backToPlayer": "Trug naor de speuler",
     "favoriteGenres": "OEW SOORTE",
     "library": "De bieb",
     "popularGenres": "VEUL GEDRAAID",

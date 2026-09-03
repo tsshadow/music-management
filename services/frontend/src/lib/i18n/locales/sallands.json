@@ -122,7 +122,6 @@
     "library": "Bieb",
     "management": "Beheer",
     "memories": "Herinneringen",
-    "player": "Speuler",
     "playlists": "Lieskes",
     "releaseRadar": "Nieuw binnen",
     "sets": "Sets",
@@ -182,7 +181,6 @@
     }
   },
   "sidebar": {
-    "backToPlayer": "Weerum naor de speuler",
     "favoriteGenres": "OEW SOORTN",
     "library": "De bieb",
     "popularGenres": "VEUL EDRAAID",

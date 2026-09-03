@@ -37,6 +37,7 @@ import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.isOffline
 import nl.teunschriks.mumamobile.domain.Playlist
 import nl.teunschriks.mumamobile.fragment.FragmentTitle.setTitle
+import nl.teunschriks.mumamobile.log.logAction
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.util.CacheCleaner
 import nl.teunschriks.mumamobile.util.ConfirmationDialog
@@ -114,6 +115,8 @@ class PlaylistsFragment :
 
     private fun load(refresh: Boolean) {
         val cacheCleaner: CacheCleaner by inject()
+        // This screen used to log nothing at all, so a report about it never said where it stopped.
+        logAction("list.load", "screen" to "Playlists", "refresh" to refresh)
         viewLifecycleOwner.lifecycleScope.launch(
             toastingExceptionHandler()
         ) {
@@ -122,6 +125,7 @@ class PlaylistsFragment :
                 val playlists = musicService.getPlaylists(refresh)
                 playlists
             }
+            logAction("list.loaded", "screen" to "Playlists", "playlists" to result.size)
             swipeRefresh?.isRefreshing = false
             withContext(Dispatchers.Main) {
                 playlistAdapter =

@@ -35,6 +35,7 @@ import nl.teunschriks.mumamobile.data.RatingUpdate
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.home.PlayHistoryRecorder
 import nl.teunschriks.mumamobile.home.PlaybackSourceHolder
+import nl.teunschriks.mumamobile.log.logAction
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.util.DownloadUtil
 import nl.teunschriks.mumamobile.util.MAX_STARS
@@ -396,6 +397,7 @@ class MediaPlayerManager(
 
     @Synchronized
     fun play(index: Int) {
+        logAction("player.play", "index" to index, "queue" to mediaItemCount)
         controller?.seekTo(index, 0L)
         controller?.prepare()
         controller?.play()
@@ -403,6 +405,7 @@ class MediaPlayerManager(
 
     @Synchronized
     fun play() {
+        logAction("player.play", "queue" to mediaItemCount)
         controller?.prepare()
         controller?.play()
     }
@@ -419,6 +422,7 @@ class MediaPlayerManager(
 
     @Synchronized
     fun togglePlayPause() {
+        logAction("player.togglePlayPause", "wasPlaying" to (controller?.isPlaying == true))
         if (playbackState == Player.STATE_IDLE) autoPlayStart = true
         if (controller?.isPlaying == true) {
             controller?.pause()
@@ -457,11 +461,13 @@ class MediaPlayerManager(
 
     @Synchronized
     fun pause() {
+        logAction("player.pause")
         controller?.pause()
     }
 
     @Synchronized
     fun stop() {
+        logAction("player.stop")
         controller?.stop()
     }
 
@@ -499,7 +505,7 @@ class MediaPlayerManager(
             result
         }
 
-        Timber.w("Adding ${mediaItems.size} media items")
+        logAction("queue.add", "items" to mediaItems.size, "at" to insertAt, "autoPlay" to autoPlay)
         controller?.addMediaItems(insertAt, mediaItems)
 
         // There is a bug in media3 ( https://github.com/androidx/media/issues/480 ),
@@ -623,6 +629,7 @@ class MediaPlayerManager(
     @Synchronized
     fun toggleShuffle(): Boolean {
         isShufflePlayEnabled = !isShufflePlayEnabled
+        logAction("player.toggleShuffle", "enabled" to isShufflePlayEnabled)
         return isShufflePlayEnabled
     }
 
@@ -636,6 +643,7 @@ class MediaPlayerManager(
 
     @Synchronized
     fun moveItemInPlaylist(oldPos: Int, newPos: Int) {
+        logAction("queue.move", "from" to oldPos, "to" to newPos)
         // TODO: This currently does not care about shuffle position.
         controller?.moveMediaItem(oldPos, newPos)
     }
@@ -650,6 +658,7 @@ class MediaPlayerManager(
     @Synchronized
     @JvmOverloads
     fun clear(serialize: Boolean = true) {
+        logAction("queue.clear", "had" to mediaItemCount, "persist" to serialize)
         controller?.clearMediaItems()
 
         if (controller != null && serialize) {
@@ -680,13 +689,19 @@ class MediaPlayerManager(
 
     @Synchronized
     fun removeFromPlaylist(position: Int) {
+        logAction("queue.remove", "position" to position, "queue" to mediaItemCount)
         controller?.removeMediaItem(position)
     }
 
     @Synchronized
     private fun serializeCurrentSession() {
         // Don't serialize invalid sessions
-        if (currentMediaItemIndex == -1) return
+        if (currentMediaItemIndex == -1) {
+            // Worth a line: this is the branch that leaves the stored queue as whatever it was,
+            // which is how a queue that plays fine comes back empty after a restart.
+            logAction("queue.persistSkipped", "reason" to "no current item", "queue" to mediaItemCount)
+            return
+        }
 
         playbackStateSerializer.serializeAsync(
             songs = playlist.map { it.toTrack() },
@@ -699,6 +714,7 @@ class MediaPlayerManager(
 
     @Synchronized
     fun seekToPrevious() {
+        logAction("player.previous", "index" to currentMediaItemIndex)
         controller?.seekToPrevious()
     }
 
@@ -707,6 +723,7 @@ class MediaPlayerManager(
 
     @Synchronized
     fun seekToNext() {
+        logAction("player.next", "index" to currentMediaItemIndex)
         controller?.seekToNext()
     }
 
@@ -812,6 +829,7 @@ class MediaPlayerManager(
         val track = currentMediaItem!!.toTrack()
         val newRating = if ((track.userRating ?: 0) >= MAX_STARS) 0 else MAX_STARS
         track.userRating = newRating
+        logAction("rating.toggleStar", "track" to track.id, "stars" to newRating)
         val rating = StarRating(MAX_STARS, newRating.toFloat())
 
         RxBus.ratingSubmitter.onNext(
@@ -830,6 +848,7 @@ class MediaPlayerManager(
         if (currentMediaItem == null) return
         val track = currentMediaItem!!.toTrack()
         track.userRating = num
+        logAction("rating.set", "track" to track.id, "stars" to num)
         val rating = StarRating(5, num.toFloat())
 
         RxBus.ratingSubmitter.onNext(

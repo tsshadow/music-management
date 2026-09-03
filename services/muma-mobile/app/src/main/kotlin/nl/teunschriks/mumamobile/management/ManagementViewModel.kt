@@ -18,6 +18,7 @@ import nl.teunschriks.mumamobile.api.muma.MumaAuthUser
 import nl.teunschriks.mumamobile.api.muma.MumaContainer
 import nl.teunschriks.mumamobile.api.muma.MumaDownloadAccount
 import nl.teunschriks.mumamobile.api.muma.MumaEvent
+import nl.teunschriks.mumamobile.log.logAction
 import timber.log.Timber
 
 /** Backs all three Beheer pages; they are small enough to share one model. */
@@ -123,9 +124,14 @@ class ManagementViewModel(private val repository: ManagementRepository) : ViewMo
 
     private fun run(what: String, block: suspend () -> Unit) {
         viewModelScope.launch {
+            // Every Beheer call goes through here, so bracketing it covers the whole section at
+            // once: a start without a matching end is a call that never came back.
+            logAction("management.start", "what" to what)
             try {
                 block()
+                logAction("management.done", "what" to what)
             } catch (e: Exception) {
+                logAction("management.failed", "what" to what)
                 Timber.w(e, "Management action '%s' failed", what)
                 mutableError.value = e.message ?: what
             }

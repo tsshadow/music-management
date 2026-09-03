@@ -470,6 +470,16 @@ class AppSettingsTest(UsersEndpointTestCase):
         self.assertEqual(response.json(), {'status': 'ok'})
         self.assertEqual(self.cursor.execute.call_args.args[1], (4, 'ultrasonic', '{"theme":"dark"}'))
 
+    def test_storing_settings_for_an_unknown_user_is_a_not_found(self):
+        # Without the existence check the insert fails on the foreign key and answers 500, which
+        # reads like a broken server instead of a caller naming a user that is not there.
+        self.cursor.fetchone.return_value = None
+        response = self.client.post(
+            '/api/users/0/settings/ultrasonic', headers=self.headers, json={'settings': '{"theme":"dark"}'}
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn('INSERT', self.cursor.execute.call_args.args[0])
+
 
 class DeleteUserTest(UsersEndpointTestCase):
     def test_a_user_and_all_its_dependent_rows_are_removed(self):

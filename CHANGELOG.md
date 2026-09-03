@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.42.1] - 2026-09-03
+
+### Fixed
+- **Instellingen opslaan voor een onbekende gebruiker gaf 500 in plaats van 404.**
+  `POST /api/users/{id}/settings/{app}` liet de insert op de foreign key stuklopen, en dat leest als
+  een kapotte server in plaats van als een aanroeper die een gebruiker noemt die er niet is. De app
+  deed precies dat een dag lang, met `user_id=0`. Het bestaan van de gebruiker wordt nu eerst
+  gecontroleerd.
+
 ## [0.42.0] - 2026-09-02
 
 ### Fixed

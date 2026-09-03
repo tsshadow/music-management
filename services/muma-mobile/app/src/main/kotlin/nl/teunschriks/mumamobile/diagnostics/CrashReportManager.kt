@@ -42,6 +42,15 @@ object CrashReportManager {
      */
     const val MANUAL_REPORT_MARKER = "Manual diagnostics report requested by user (no crash)"
 
+    /**
+     * Headers that keep the two sessions of a manual report apart. A screen that hangs has to be
+     * escaped before Settings is reachable, and escaping it starts a new process, so by the time
+     * the user can ask for a report the log holding the failure is the *previous* session's.
+     * The ring buffer is already on disk for that reason; this is what gets it sent.
+     */
+    const val PREVIOUS_SESSION_HEADER = "--- Previous session (before the app was restarted) ---"
+    const val CURRENT_SESSION_HEADER = "--- Current session ---"
+
     internal data class PendingCrashReport(
         val stacktraceText: String?,
         val ringBufferText: String
@@ -67,6 +76,14 @@ object CrashReportManager {
     private var pendingEvidence: PendingEvidence? = null
 
     /**
+     * The previous process's ring buffer, kept for the whole session. [pendingEvidence] is consumed
+     * by the first [maybeHandlePendingReport], and a hang is not an unclean shutdown the user
+     * always confirms, so a manual report cannot borrow it from there.
+     */
+    @Volatile
+    private var previousSessionRingBuffer: String = ""
+
+    /**
      * Call once, early in [nl.teunschriks.mumamobile.app.UApp.onCreate].
      *
      * This only collects the evidence, which has to happen before the new session overwrites the
@@ -84,11 +101,13 @@ object CrashReportManager {
             ""
         }
 
+        previousSessionRingBuffer = RingBufferLoggerTree.readPersistedLog()
+
         pendingEvidence = PendingEvidence(
             hasExplicitCrashFile = hasExplicitCrashFile,
             explicitCrashText = explicitCrashText,
             hadUnexpectedShutdown = hadUnexpectedShutdown,
-            ringBufferText = RingBufferLoggerTree.readPersistedLog()
+            ringBufferText = previousSessionRingBuffer
         )
 
         SessionMarker.markSessionStarted()
@@ -122,14 +141,20 @@ object CrashReportManager {
     }
 
     /**
-     * Sends the current session's log on demand, for the failures that never crash the app: a call
-     * that returned an error, a screen that stayed empty. Unlike the pending-report path this is an
-     * explicit user action, so it ignores [Settings.crashDetectionEnabled] — that setting governs
-     * automatic detection — and reports its outcome back through a toast.
+     * Sends the log on demand, for the failures that never crash the app: a call that returned an
+     * error, a screen that stayed empty, a screen that never stopped loading. Unlike the
+     * pending-report path this is an explicit user action, so it ignores
+     * [Settings.crashDetectionEnabled] — that setting governs automatic detection — and reports
+     * its outcome back through a toast.
+     *
+     * It sends the previous session's log as well as this one. Reaching Settings from a screen
+     * that will not finish loading means force-closing the app first, and the session that holds
+     * the failure ends there; a report of only the current session then starts at the restart and
+     * describes nothing.
      */
     fun sendManualReport(context: Context) {
         sendReport(
-            buildManualReport(RingBufferLoggerTree.currentText()),
+            buildManualReport(RingBufferLoggerTree.currentText(), previousSessionRingBuffer),
             deleteCrashFileOnSuccess = false
         ) { exported, uploaded ->
             val message = when {
@@ -242,8 +267,27 @@ internal fun buildPendingReport(
 /**
  * The manual counterpart of [buildPendingReport]. It takes no decision: the user asked for the
  * report, so there is always one, even if the ring buffer happens to be empty.
+ *
+ * Both sessions go in, oldest first, so the report reads in chronological order. With nothing left
+ * by a previous process the result is exactly the current session, unheaded — the common case is a
+ * report about something happening right now, and a lone header would only be noise.
  */
-internal fun buildManualReport(ringBufferText: String) = CrashReportManager.PendingCrashReport(
+internal fun buildManualReport(
+    currentSessionText: String,
+    previousSessionText: String = ""
+) = CrashReportManager.PendingCrashReport(
     stacktraceText = CrashReportManager.MANUAL_REPORT_MARKER,
-    ringBufferText = ringBufferText
+    ringBufferText = if (previousSessionText.isBlank()) {
+        currentSessionText
+    } else {
+        buildString {
+            append(CrashReportManager.PREVIOUS_SESSION_HEADER)
+            append("\n\n")
+            append(previousSessionText)
+            append("\n\n")
+            append(CrashReportManager.CURRENT_SESSION_HEADER)
+            append("\n\n")
+            append(currentSessionText)
+        }
+    }
 )

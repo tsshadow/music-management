@@ -21,6 +21,7 @@ import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.ServerSetting
 import nl.teunschriks.mumamobile.domain.MusicFolder
+import nl.teunschriks.mumamobile.log.logAction
 import nl.teunschriks.mumamobile.service.MusicService
 import nl.teunschriks.mumamobile.service.MusicServiceFactory
 import nl.teunschriks.mumamobile.util.CommunicationError
@@ -81,9 +82,17 @@ open class GenericListModel(application: Application) :
             val isOffline = ActiveServerProvider.isOffline()
             val useId3Tags = ActiveServerProvider.shouldUseId3Tags()
 
+            // Every list screen comes through here. Bracketing the load is what makes a spinner
+            // that never stops legible in a report: a start with no finish and no failure after it
+            // says the call is still out, which no amount of lifecycle logging can tell you.
+            val screen = this@GenericListModel::class.simpleName
+            logAction("list.load", "screen" to screen, "refresh" to refresh, "offline" to isOffline)
+            val startedAt = System.currentTimeMillis()
             try {
                 load(isOffline, useId3Tags, musicService, refresh)
+                logAction("list.loaded", "screen" to screen, "ms" to (System.currentTimeMillis() - startedAt))
             } catch (all: Exception) {
+                logAction("list.failed", "screen" to screen, "ms" to (System.currentTimeMillis() - startedAt))
                 handleException(all, swipe.context)
             }
         }

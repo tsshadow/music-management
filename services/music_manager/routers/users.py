@@ -1119,6 +1119,12 @@ def update_user_app_settings(user_id: int, app_id: str, req: AppSettingsUpdate, 
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
+            # Without this the insert fails on the foreign key and answers 500, which reads like the
+            # server broke rather than like the caller naming a user that is not there. A client
+            # that had lost track of its own account id spent a day producing exactly that.
+            cursor.execute('SELECT id FROM users WHERE id = %s', (user_id,))
+            if not cursor.fetchone():
+                raise HTTPException(status_code=404, detail='User not found')
             cursor.execute(
                 '\n                INSERT INTO user_app_settings (user_id, app_id, settings_json)\n                VALUES (%s, %s, %s)\n                ON DUPLICATE KEY UPDATE settings_json = VALUES(settings_json)\n            ',
                 (user_id, app_id, req.settings),

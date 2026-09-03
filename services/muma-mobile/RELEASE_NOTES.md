@@ -1,5 +1,22 @@
 ## [Unreleased]
 
+## [6.28.0] - 2026-09-03
+
+### Fixed
+- **De app bewaarde alles onder gebruiker 0, en die bestaat niet.** Het account-id werd bij het
+  inloggen op de verkeerde plek in het serverantwoord gezocht, stond er dus niet in, en werd
+  stilzwijgend 0. Favoriete genres, tegels en app-instellingen werden daardoor nooit bewaard. Bij de
+  volgende keer inloggen herstelt dit zichzelf.
+- **Een diagnostiekrapport beschreef altijd de verkeerde sessie**, omdat je de app moet afsluiten om
+  bij Instellingen te komen. Een rapport bevat nu ook de sessie daarvoor.
+- **Een scherm dat niet laadde liet geen spoor na.** De fout kwam alleen als toast voorbij en stond
+  in geen enkel rapport.
+
+### Added
+- **Een rapport vertelt nu wat je gedaan hebt**, niet alleen wat de app aan zichzelf meldde:
+  afspelen, pauzeren, vorige, volgende, shuffle, de wachtrij, sterren, downloads, Beheer en elk
+  lijstscherm met begin, einde en duur. Het meegestuurde log houdt driemaal zoveel regels vast.
+
 ## [6.27.0] - 2026-09-02
 
 ### Added

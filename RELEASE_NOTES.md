@@ -11,6 +11,33 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.42.1 (2026-09-03)
+
+Een correctie op 0.42.0. Aan de server verandert bijna niets; het werk zit in de app.
+
+- **De app bewaarde alles onder gebruiker 0, en die bestaat niet.** Het inloggen las het antwoord
+  van de server met een model waarin het account-id op de verkeerde plek werd gezocht. Het stond er
+  dus niet in, en werd stilzwijgend 0 -- een nummer dat langs elke controle glipt omdat "onbekend"
+  als -1 werd geschreven. Elk verzoek dat bij jouw account hoort ging daarna naar een gebruiker die
+  niet bestaat: ophalen leverde niets op, opslaan mislukte. Favoriete genres, tegels op het
+  beginscherm en app-instellingen werden daardoor nooit bewaard. Toestellen die het foute nummer al
+  hebben opgeslagen worden bij de volgende keer inloggen vanzelf hersteld.
+- **Een diagnostiekrapport beschreef altijd de verkeerde sessie.** Om bij Instellingen te komen moet
+  je een scherm dat blijft laden eerst verlaten, en dat betekent de app afsluiten -- waarna het
+  rapport begint bij die herstart en van de storing niets bevat. Vier rapporten op rij kwamen zo
+  leeg binnen. Een rapport bevat nu ook de sessie ervoor.
+- **Een scherm dat niet laadde liet geen enkel spoor na.** Tien schermen geven een mislukte
+  laadactie door aan dezelfde afhandelaar, en die liet alleen een toast zien. Een toast is na een
+  paar seconden weg en haalt geen rapport. De fout wordt nu weggeschreven.
+- **Een rapport vertelt nu wat je gedaan hebt.** Afspelen, pauzeren, vorige, volgende, shuffle, elke
+  wijziging aan de wachtrij, sterren en waarderingen, downloads, elke Beheer-aanroep en elk
+  lijstscherm met begin, einde en duur. Een lijst die begint te laden en nooit meldt dat hij klaar
+  is, is precies wat een eeuwig draaiend rondje is -- en dat was tot nu toe onzichtbaar. Het log dat
+  meegaat houdt driemaal zoveel regels vast als eerst.
+- **Instellingen opslaan voor een onbekende gebruiker gaf 500 in plaats van 404.** Dat leest als een
+  kapotte server terwijl de aanroeper een gebruiker noemt die er niet is -- precies wat de app een
+  dag lang deed.
+
 ## Global Version 0.42.0 (2026-09-02)
 
 - **Een genre afkeuren of goedkeuren bereikte de draaiende tagger niet.** De beslissing werd

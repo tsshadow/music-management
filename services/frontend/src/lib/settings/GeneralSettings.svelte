@@ -2,7 +2,7 @@
   import { t } from '../i18n/index.js';
   import { onMount } from 'svelte';
   import { SvelteURLSearchParams } from 'svelte/reactivity';
-  import { deduplicateEnabled, memoriesOnHomeEnabled, authParams, credentials } from '../store.js';
+  import { deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, TRACK_PAGE_SIZES, authParams, credentials } from '../store.js';
   import LanguageSetting from './LanguageSetting.svelte';
 
   // Server default for uiArtistReleaseSortMethod (ReleaseSortMethod::OriginalDateDesc).
@@ -192,6 +192,23 @@
             <input type="checkbox" class="sr-only peer" checked={$memoriesOnHomeEnabled} onchange={toggleMemoriesOnHome}>
             <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
           </label>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-1">
+            <h3 class="text-lg font-bold">{$t('settings.general.pageSize')}</h3>
+            <p class="text-sm text-[#b3b3b3]">{$t('settings.general.pageSizeHelp')}</p>
+          </div>
+          <select
+            class="bg-[#333] border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
+            aria-label={$t('settings.general.pageSize')}
+            value={$trackPageSize}
+            onchange={(e) => trackPageSize.set(Number(e.currentTarget.value))}
+          >
+            {#each TRACK_PAGE_SIZES as size (size)}
+              <option value={size}>{size}</option>
+            {/each}
+          </select>
         </div>
 
         <div class="flex items-center justify-between">

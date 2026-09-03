@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/svelte";
+import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import App from "../../src/App.svelte";
 import {
@@ -35,6 +35,14 @@ function subsonic() {
       return {
         ok: true,
         json: async () => ({ "subsonic-response": { tracks: { track: [], moreResults: false } } }),
+      };
+    }
+    if (url.includes("/rest/getRecordLabels")) {
+      return {
+        ok: true,
+        json: async () => ({
+          "subsonic-response": { recordLabels: { recordLabel: [{ value: "Art of Creation" }] } },
+        }),
       };
     }
     if (url.includes("/release-notes.json")) return { ok: true, json: async () => [] };
@@ -150,6 +158,22 @@ describe("App", () => {
     window.history.replaceState({}, "", window.location.pathname);
     window.dispatchEvent(new PopStateEvent("popstate"));
     await waitFor(() => expect(get(activeView)).toBe("label:Drum & Bass / UK"));
+  });
+
+  // Every earlier routing test moves the store by hand, which is not how the app
+  // navigates: the collection grids write to Dashboard's own copy of the view.
+  // Clicking a card is what catches the copy failing to reach the store, and with
+  // it the URL -- which left the browser's back button one page behind.
+  it("clicking through to a label lands in the URL", async () => {
+    render(App);
+    await waitFor(() => expect(screen.getAllByText("Afspeellijsten").length).toBeGreaterThan(0));
+
+    activeView.set("labels");
+    const card = await screen.findByText("Art of Creation");
+    await fireEvent.click(card);
+
+    await waitFor(() => expect(window.location.pathname).toBe("/label/Art%20of%20Creation"));
+    expect(get(activeView)).toBe("label:Art of Creation");
   });
 
   it("a sidebar page that used to have no route now lands in the URL", async () => {

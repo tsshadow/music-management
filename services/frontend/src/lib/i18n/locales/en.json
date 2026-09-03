@@ -281,15 +281,19 @@
       "subtitle": "Approve, reject or correct genres. Decisions apply from the next tagger run."
     },
     "labelProposals": {
+      "actions": "Actions",
+      "catId": "Catalogue number",
+      "confirmGroup": "Confirm all",
+      "confirmed": "{count} releases assigned to {label}. {stale} were already gone.",
       "description": "Releases the importer could not place. Confirming a proposal that carries a catalogue number teaches the rule, so every later release on that label goes through on its own.",
       "empty": "Nothing to review.",
-      "noLabel": "No label found",
       "label": "Label",
-      "confirmGroup": "Confirm all",
-      "reject": "Reject",
       "noCatId": "no catalogue number",
-      "confirmed": "{count} releases assigned to {label}. {stale} were already gone.",
-      "rejected": "Proposal rejected."
+      "noLabel": "No label found",
+      "reject": "Reject",
+      "rejected": "Proposal rejected.",
+      "release": "Release",
+      "source": "Source"
     },
     "groups": {
       "access": "Access",
@@ -785,7 +789,6 @@
     "memories": "Memories",
     "menu": "Menu",
     "openMenu": "Open menu",
-    "player": "Player",
     "playlists": "Playlists",
     "podcasts": "Podcasts",
     "releaseRadar": "Release Radar",
@@ -910,6 +913,8 @@
       "listenBrainzToken": "ListenBrainz user token",
       "memoriesOnHome": "Show memories on the home screen",
       "memoriesOnHomeHelp": "A short row of \"today, X years ago\" releases above the other sections.",
+      "pageSize": "Tracks per request",
+      "pageSizeHelp": "How many tracks a list fetches at a time. Fewer appears sooner, more scrolls further before asking again.",
       "releaseArtists": "Release artists",
       "sortByName": "Name",
       "sortOriginalYearAsc": "Original year (oldest first)",
@@ -938,7 +943,6 @@
     }
   },
   "sidebar": {
-    "backToPlayer": "Back to Player",
     "favoriteGenres": "FAVOURITE GENRES",
     "library": "Library",
     "popularGenres": "POPULAR GENRES",

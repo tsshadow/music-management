@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.43.0] - 2026-09-03
+
 ### Added
 - **Een lineup mag nu per podium en per editie worden vastgelegd.** De lineupmap las alleen losse
   bestanden, dus "Defqon.1", "Defqon.1 2014" en de RED-stage van die editie waren drie bestanden die

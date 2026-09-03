@@ -943,6 +943,7 @@
     }
   },
   "sidebar": {
+    "back": "Terug",
     "favoriteGenres": "FAVORIETE GENRES",
     "library": "Bibliotheek",
     "popularGenres": "POPULAIRE GENRES",

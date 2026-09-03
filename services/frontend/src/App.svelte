@@ -13,7 +13,7 @@
   import SearchMoreModal from './lib/SearchMoreModal.svelte';
   import Toaster from './lib/Toaster.svelte';
   import { notify } from './lib/notifications.js';
-  import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive, sidebarDrawerOpen } from './lib/store.js';
+  import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive, pushedHistoryEntries, sidebarDrawerOpen } from './lib/store.js';
   import { get } from 'svelte/store';
   import { pathToState, viewToPath } from './lib/router.js';
   import { t } from './lib/i18n/index.js';
@@ -125,6 +125,7 @@
 
     window.addEventListener('popstate', () => {
         applyState(pathToState(window.location.pathname));
+        pushedHistoryEntries.update((n) => Math.max(0, n - 1));
     });
   });
 
@@ -139,6 +140,7 @@
         });
         if (path && path !== window.location.pathname) {
             window.history.pushState({}, '', path);
+            pushedHistoryEntries.update((n) => n + 1);
         }
     }
   });

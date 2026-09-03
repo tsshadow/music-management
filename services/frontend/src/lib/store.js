@@ -208,6 +208,12 @@ export const DEFAULT_TRACK_PAGE_SIZE = 50;
 export const trackPageSize = writable(DEFAULT_TRACK_PAGE_SIZE);
 persist("lms_track_page_size", trackPageSize);
 
+// How many history entries this session pushed itself. A back control can only
+// honestly go back when there is somewhere of ours to return to: arriving straight
+// on /management/config from a bookmark leaves nothing behind, and history.back()
+// would then walk out of the app entirely.
+export const pushedHistoryEntries = writable(0);
+
 export const activeModal = writable(null); // { type, data }
 
 export const visibleSortOptions = writable({

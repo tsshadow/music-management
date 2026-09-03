@@ -206,6 +206,43 @@ export const COLLECTION_SORTS = {
  * How each collection identifies an item. Genres and labels are addressed by
  * their name everywhere (they have no stable id), playlists by their id.
  */
+/**
+ * Which browse views belong to which mode.
+ *
+ * A "set" is a recording of ten minutes or more -- that is the threshold the songs /
+ * sets switch queries on, and the same one the tagger uses to decide whether a file
+ * gets a FESTIVAL or PODCAST tag at all. Some browse views only make sense on one
+ * side of it:
+ *
+ * - Labels and lineups describe releases and the artists booked for an event, which
+ *   is what you browse for tracks.
+ * - Podcasts and festivals hold recordings. The tagger agrees: it writes neither tag
+ *   below ten minutes (`MINIMUM_EPISODE_LENGTH`, `MIN_SET_SECONDS`), so in song mode
+ *   both lists are empty by construction.
+ *
+ * Artists, albums, genres and years are not named here and show in both modes.
+ */
+export const COLLECTION_MODES = {
+  labels: ["songs"],
+  lineups: ["songs"],
+  podcasts: ["sets"],
+  festivals: ["sets"],
+};
+
+/**
+ * Drops the browse views that hold nothing in this mode.
+ *
+ * @param {Array<{id: string}>} items - The sidebar entries.
+ * @param {string} mode - 'songs' or 'sets'.
+ * @returns {Array<{id: string}>} The entries worth showing.
+ */
+export function itemsForMode(items, mode) {
+  return items.filter((item) => {
+    const modes = COLLECTION_MODES[item.id];
+    return !modes || modes.includes(mode);
+  });
+}
+
 export const COLLECTION_KEYS = {
   genres: { nameOf: (g) => g.value, keyOf: (g) => g.value },
   labels: { nameOf: (l) => l.value, keyOf: (l) => l.value },

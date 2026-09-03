@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.44.2] - 2026-09-03
+
+### Changed
+- **Beheer en Instellingen hebben een knop terug.** De vorige-knop van de browser deed dit al, maar
+  niets in beeld zei dat. De knop loopt de geschiedenis terug zoals je gekomen bent, en valt terug
+  op de startpagina als je rechtstreeks op een beheer-URL binnenkwam en er dus niets van ons achter
+  je ligt.
+- **De bibliotheek toont alleen nog de ingangen die de gekozen modus kan beantwoorden.** Podcasts en
+  festivals zijn opnames: de tagger schrijft geen van beide tags onder de tien minuten, dezelfde
+  grens waar nummers-modus onder zoekt, dus die lijsten konden daar per definitie niets bevatten.
+  Labels en lineups gaan over releases en geboekte artiesten en verdwijnen omgekeerd uit sets-modus.
+  Artiesten, albums, genres en jaren staan in allebei.
+
 ## [0.44.1] - 2026-09-03
 
 ### Fixed
@@ -20,17 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pipeline groen is, zonder dat er een runner op staat te wachten. Alleen wanneer er echt een mens
   nodig is -- een conflict, een geblokkeerde MR -- stopt hij rood, mét de status waarop hij afsloeg
   in plaats van de foutmelding van een merge die tóch geweigerd zou worden.
-
-### Changed
-- **Beheer en Instellingen hebben een knop terug.** De vorige-knop van de browser deed dit al, maar
-  niets in beeld zei dat. De knop loopt de geschiedenis terug zoals je gekomen bent, en valt terug
-  op de startpagina als je rechtstreeks op een beheer-URL binnenkwam en er dus niets van ons achter
-  je ligt.
-- **De bibliotheek toont alleen nog de ingangen die de gekozen modus kan beantwoorden.** Podcasts en
-  festivals zijn opnames: de tagger schrijft geen van beide tags onder de tien minuten, dezelfde
-  grens waar nummers-modus onder zoekt, dus die lijsten konden daar per definitie niets bevatten.
-  Labels en lineups gaan over releases en geboekte artiesten en verdwijnen omgekeerd uit sets-modus.
-  Artiesten, albums, genres en jaren staan in allebei.
 
 ## [0.44.0] - 2026-09-03
 

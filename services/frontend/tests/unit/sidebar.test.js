@@ -173,16 +173,33 @@ describe("Sidebar", () => {
     expect(screen.getByText("Hardcore")).toBeTruthy();
   });
 
-  it("offers the three tag-driven browse pages in the library group", async () => {
+  it("offers the tag-driven browse pages that song mode can answer", async () => {
     await renderLoaded();
     await openLibrary();
 
-    expect(screen.getByText("Festivals")).toBeTruthy();
     expect(screen.getByText("Jaren")).toBeTruthy();
     expect(screen.getByText("Lineups")).toBeTruthy();
   });
 
+  // The tagger writes a FESTIVAL or PODCAST tag only above ten minutes, the same
+  // threshold song mode queries under, so these two lists cannot answer there.
+  it.each(["Festivals", "Podcasts"])("leaves %s out of song mode", async (label) => {
+    await renderLoaded();
+    await openLibrary();
+
+    expect(screen.queryByText(label)).toBeNull();
+  });
+
+  it.each(["Labels", "Lineups"])("leaves %s out of set mode", async (label) => {
+    viewMode.set("sets");
+    await renderLoaded();
+    await openLibrary();
+
+    expect(screen.queryByText(label)).toBeNull();
+  });
+
   it("navigates to the festivals page when it is picked", async () => {
+    viewMode.set("sets");
     const onnavigate = vi.fn();
     await renderLoaded({ onnavigate });
     await openLibrary();

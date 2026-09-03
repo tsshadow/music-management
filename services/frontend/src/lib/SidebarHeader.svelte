@@ -1,10 +1,25 @@
 <script>
+  import { activeView, pushedHistoryEntries } from './store.js';
+  import { t } from './i18n/index.js';
+  import { ArrowLeft } from '@lucide/svelte';
   import MumaMark from './MumaMark.svelte';
 
-  // The player/management toggle used to live here. Management is now an entry in
-  // the profile menu, so switching to it is a normal navigation with its own URL
-  // and the browser's back button is the way out -- which is what a toggle that
-  // sat in three different sidebars could never be.
+  // The player/management toggle used to live here. Management is a normal page with
+  // its own URL now, so what it needs is a way back rather than a second mode to sit
+  // in -- and the browser's own back button does the same thing.
+  const canLeave = $derived($activeView === 'management' || $activeView === 'settings');
+
+  /**
+   * Goes back the way the listener came.
+   *
+   * Falls through to the home screen when this session pushed nothing: arriving
+   * straight on `/management/config` from a bookmark leaves no entry of ours behind,
+   * and `history.back()` would walk out of the app.
+   */
+  function goBack() {
+    if ($pushedHistoryEntries > 0) window.history.back();
+    else activeView.set('home');
+  }
 </script>
 
 <div class="px-4 pt-5 pb-2 flex flex-col gap-5">
@@ -14,4 +29,14 @@
     </div>
     <span>MuMa</span>
   </div>
+
+  {#if canLeave}
+    <button
+      class="flex items-center gap-2 py-2 px-3 rounded-md text-[13px] font-bold bg-[#121212] border border-white/5 text-[#b3b3b3] hover:text-white transition-all mx-1"
+      onclick={goBack}
+    >
+      <ArrowLeft size={14} strokeWidth={2.5} />
+      {$t('sidebar.back')}
+    </button>
+  {/if}
 </div>

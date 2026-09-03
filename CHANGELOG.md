@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.43.0] - 2026-09-03
+
+### Added
+- **Een lineup mag nu per podium en per editie worden vastgelegd.** De lineupmap las alleen losse
+  bestanden, dus "Defqon.1", "Defqon.1 2014" en de RED-stage van die editie waren drie bestanden die
+  dezelfde namen herhaalden. Een lineup is voortaan het pad naar zijn bestand
+  (`Defqon.1/2014/RED`), en elke map op dat pad is zelf ook een lineup: die van de editie over al
+  haar podia, en die van het festival over al zijn edities. Geen enkele artiestennaam staat daardoor
+  twee keer opgeschreven. Bestaande platte bestanden blijven werken zoals ze werkten. Het
+  importscript kreeg er `--stage` voor, en zet het bestand meteen op de goede plek.
+
+### Fixed
+- **De lineupnaam uit een verzoek werd rechtstreeks een bestandspad.** `festivalLineup=../../...`
+  wees daarmee buiten de lineupmap. De naam wordt nu tegen die map opgelost en geweigerd zodra hij
+  eruit stapt.
+- **De app: de speler laadde geen enkele afspeellijst meer in.** Nummers aan de wachtrij toevoegen
+  deed niets, zonder foutmelding. De speler-sessie kende de app sinds de media3-versiesprong geen
+  enkel commando meer toe, en media3 laat een niet-toegekend commando stilzwijgend vallen.
+
 ## [0.42.2] - 2026-09-03
 
 ### Changed

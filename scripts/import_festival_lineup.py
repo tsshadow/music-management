@@ -11,8 +11,14 @@ this library spells differently silently contributes nothing. This reads the bil
 line against the artist names LMS actually holds, and reports which lines match, which do not, and
 what the closest names in the library are -- before writing anything.
 
-    python3 scripts/import_festival_lineup.py --festival "Defqon" --year 2025 --file defqon-2025.txt
-    python3 scripts/import_festival_lineup.py --festival "Defqon" --year 2025 --file ... --write
+    python3 scripts/import_festival_lineup.py --festival "Defqon.1" --year 2025 --file defqon-2025.txt
+    python3 scripts/import_festival_lineup.py --festival "Defqon.1" --year 2025 --file ... --write
+    python3 scripts/import_festival_lineup.py --festival "Defqon.1" --year 2014 --stage RED --file ... --write
+
+A stage goes in its own file under the edition, and the reader treats a directory as the union of
+everything below it, so the last line above also fills the lineups `Defqon.1/2014` and `Defqon.1`.
+Split by stage for a festival whose stages differ in genre; for a single-genre festival, leave
+`--stage` out and let the edition be one file.
 
 Read `--file -` to take the bill on stdin. Nothing is written without `--write`.
 """
@@ -71,6 +77,10 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--festival', required=True, help='Festival name, as it should appear in the app.')
     parser.add_argument('--year', help='Edition year. Left out, the lineup is the festival itself.')
+    parser.add_argument(
+        '--stage',
+        help='Stage name. Needs a year, and is only worth splitting on when the stages differ in genre.',
+    )
     parser.add_argument('--file', required=True, help="The bill, one artist per line. '-' reads stdin.")
     parser.add_argument('--db', default=DEFAULT_DB, help='Path to lms.db (read-only).')
     parser.add_argument('--out', default=DEFAULT_OUT, help='Lineup directory to write into.')
@@ -87,7 +97,7 @@ def main(argv=None):
     report(result)
 
     artists = result['matched'] + (result['unmatched'] if args.keep_unmatched else [])
-    path = os.path.join(args.out, lineup_filename(args.festival, args.year))
+    path = os.path.join(args.out, lineup_filename(args.festival, args.year, args.stage))
 
     if not args.write:
         print(f'Dry run. Add --write to create {path} with {len(artists)} names.')
@@ -97,7 +107,7 @@ def main(argv=None):
         print('Nothing to write: not one name matched.')
         return 1
 
-    os.makedirs(args.out, exist_ok=True)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w', encoding='utf-8') as handle:
         handle.write(render_lineup(artists))
     print(f'wrote {path} with {len(artists)} names')

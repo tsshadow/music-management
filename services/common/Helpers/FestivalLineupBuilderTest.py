@@ -91,17 +91,26 @@ class MatchLineupTest(unittest.TestCase):
 class LineupFilenameTest(unittest.TestCase):
     """The file's stem is the name the app shows, so it is also the name a reader reads."""
 
-    def test_the_stem_is_the_festival_and_the_year(self):
-        self.assertEqual('Defqon 2025.txt', lineup_filename('Defqon', '2025'))
+    def test_an_edition_sits_under_the_festival(self):
+        self.assertEqual('Defqon/2025.txt', lineup_filename('Defqon', '2025'))
 
     def test_without_a_year_the_festival_stands_alone(self):
         self.assertEqual('Defqon.txt', lineup_filename('Defqon'))
 
-    def test_a_separator_in_the_name_does_not_become_a_directory(self):
-        self.assertEqual('AC-DC 2025.txt', lineup_filename('AC/DC', '2025'))
+    def test_a_stage_sits_under_the_edition(self):
+        self.assertEqual('Defqon.1/2014/RED.txt', lineup_filename('Defqon.1', '2014', 'RED'))
+
+    def test_a_stage_without_a_year_is_refused(self):
+        # There is nowhere to put it: the directory between the two is the edition.
+        with self.assertRaises(ValueError):
+            lineup_filename('Defqon.1', stage='RED')
+
+    def test_a_separator_in_a_name_does_not_become_a_directory(self):
+        self.assertEqual('AC-DC/2025.txt', lineup_filename('AC/DC', '2025'))
+        self.assertEqual('Defqon/2014/RED-BLUE.txt', lineup_filename('Defqon', '2014', 'RED/BLUE'))
 
     def test_surrounding_whitespace_goes(self):
-        self.assertEqual('Intents 2024.txt', lineup_filename('  Intents  ', '2024'))
+        self.assertEqual('Intents/2024.txt', lineup_filename('  Intents  ', '2024'))
 
 
 class RenderLineupTest(unittest.TestCase):

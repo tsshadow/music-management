@@ -7,7 +7,9 @@
 
 package nl.teunschriks.mumamobile.service.androidauto
 
+import androidx.annotation.OptIn
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSession
 
 /**
@@ -52,6 +54,7 @@ private val RADIO_WITHDRAWN_COMMANDS = intArrayOf(
     Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM
 )
 
+@OptIn(UnstableApi::class)
 internal fun playerCommandsFor(radioActive: Boolean): Player.Commands {
     val builder = MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS.buildUpon()
     if (radioActive) {

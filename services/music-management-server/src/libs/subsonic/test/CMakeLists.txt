@@ -3,6 +3,7 @@ include(GoogleTest)
 add_executable(test-subsonic
 	AuthCache.cpp
 	ClientInfo.cpp
+	FestivalLineup.cpp
 	Memories.cpp
 	Subsonic.cpp
 	SubsonicResponse.cpp

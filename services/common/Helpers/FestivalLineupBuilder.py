@@ -84,10 +84,32 @@ def match_lineup(names, known_artists) -> dict:
     return {'matched': matched, 'unmatched': unmatched, 'suggestions': suggestions}
 
 
-def lineup_filename(festival: str, year=None) -> str:
-    """The file for one edition. The stem is what `getLineups` reports and the app shows."""
-    safe = festival.strip().replace('/', '-').replace('\\', '-')
-    return f'{safe} {year}.txt' if year else f'{safe}.txt'
+def lineup_segment(name) -> str:
+    """One path segment: a separator in a festival or stage name must not become a directory."""
+    return str(name).strip().replace('/', '-').replace('\\', '-')
+
+
+def lineup_filename(festival: str, year=None, stage=None) -> str:
+    """The file for one edition, relative to the lineup directory.
+
+    An edition goes in a directory named after the festival, and a stage in a directory named
+    after the edition, because `FestivalLineupRepository` reads a directory as the union of
+    everything below it. Writing `Defqon.1/2014/RED.txt` therefore also creates the lineup
+    `Defqon.1/2014` (the edition across its stages) and `Defqon.1` (the festival across its
+    editions), without one artist name being written down twice.
+
+    Per stage is only worth it for a festival whose stages differ in genre. For a single-genre
+    festival, leave the stage out: one file for the edition says the same thing.
+    """
+    parts = [lineup_segment(festival)]
+    if year:
+        parts.append(lineup_segment(year))
+    if stage:
+        if not year:
+            raise ValueError('a stage belongs to an edition: pass a year as well')
+        parts.append(lineup_segment(stage))
+
+    return '/'.join(parts) + '.txt'
 
 
 def render_lineup(artists) -> str:

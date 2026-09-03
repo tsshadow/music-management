@@ -1,6 +1,7 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
+  import { Settings2 } from '@lucide/svelte';
   import { credentials, isAdmin, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser } from './store.js';
 
   const { onNavigate } = $props();
@@ -90,6 +91,15 @@
 
   {#if isOpen}
     <div class="absolute right-0 mt-2 w-48 bg-[#282828] rounded shadow-lg py-1 z-50">
+      {#if $isAdmin}
+        <button
+          class="w-full text-left px-4 py-3 text-sm hover:bg-[#3e3e3e] transition-colors border-none bg-transparent text-white cursor-pointer flex justify-between items-center"
+          onclick={() => { isOpen = false; onNavigate('management'); }}
+        >
+          {$t('nav.management')}
+          <Settings2 size={16} />
+        </button>
+      {/if}
       <button
         class="w-full text-left px-4 py-3 text-sm hover:bg-[#3e3e3e] transition-colors border-none bg-transparent text-white cursor-pointer flex justify-between items-center"
         onclick={() => { isOpen = false; onNavigate('settings'); }}

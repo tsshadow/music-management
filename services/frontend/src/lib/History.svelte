@@ -1,7 +1,7 @@
 <script>
   import { t } from './i18n/index.js';
   import { untrack } from 'svelte';
-  import { authParams } from './store.js';
+  import { authParams, trackPageSize } from './store.js';
   import TrackList from './TrackList.svelte';
 
   const { onnavigate } = $props();
@@ -9,7 +9,7 @@
   let history = $state([]);
   let isLoading = $state(false);
   let offset = $state(0);
-  const pageSize = 50;
+  const pageSize = $derived($trackPageSize);
   let hasMore = $state(true);
 
   /**

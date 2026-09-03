@@ -9,8 +9,10 @@
   import { resolveDuration, progressPercent } from './playerProgress.js';
   import { describeFilter } from './management/radioChannels.js';
   import { snapshotOf, restoreTarget, bulletinStreamUrl } from './newsQueue.js';
+  import { startTrail, stepBack, stepForward } from './shuffleHistory.js';
   import ArtistList from './ArtistList.svelte';
   import { getArtistImageUrl, subsonicError } from './utils.js';
+  import { getHeaders } from './mumaApi.js';
   import { notify } from './notifications.js';
 
   const { onnavigate, ontoggleQueue } = $props();
@@ -177,16 +179,21 @@
       return;
     }
     try {
-      const headers = { 'X-API-Key': $mumaApiKey };
+      const headers = getHeaders();
       const response = await fetch(`${$mumaApiUrl}/api/news/bulletins/latest`, { headers });
+      // Only a 404 means what the message says. Every other status is the hop
+      // failing -- an expired key, the proxy's concurrency gate, a bulletin too
+      // large for it -- and calling that "nothing recorded yet" sent every reader
+      // looking at the recorder, which was working the whole time.
       if (!response.ok) {
-        notify.error($t('news.none'));
+        if (response.status === 404) notify.error($t('news.none'));
+        else notify.error($t('news.couldNotPlay'), { detail: `HTTP ${response.status}` });
         return;
       }
       const bulletin = await response.json();
       const audioResponse = await fetch(bulletinStreamUrl($mumaApiUrl, bulletin.id), { headers });
       if (!audioResponse.ok) {
-        notify.error($t('news.none'));
+        notify.error($t('news.couldNotPlay'), { detail: `HTTP ${audioResponse.status}` });
         return;
       }
       const blob = await audioResponse.blob();
@@ -389,6 +396,29 @@
     }
   }
 
+  // Where shuffle play has been. It is not in `playerState` because nothing outside
+  // this component reads it and it must not survive a reload as a list of ids that
+  // the restored queue may no longer contain.
+  let shuffleTrail = $state(startTrail(null));
+
+  /**
+   * The trail to step through, restarted when it has lost touch with the queue.
+   *
+   * A queue swap or a track picked straight out of the list leaves the trail pointing
+   * at something else entirely; carrying on from there would send "previous" to a
+   * track the listener never played.
+   *
+   * @param {Array} queue - The tracks in the queue.
+   * @param {string|null} playingId - Id of the track playing now.
+   * @returns {{ids: string[], position: number}} The trail to use.
+   */
+  function trailFor(queue, playingId) {
+      const known = new Set(queue.map(track => String(track.id)));
+      const onTrack = shuffleTrail.ids[shuffleTrail.position] === playingId;
+      const intact = shuffleTrail.ids.every(id => known.has(id));
+      return onTrack && intact ? shuffleTrail : startTrail(playingId);
+  }
+
   /**
    * Plays the next track in the playlist.
    * Handles shuffle and repeat logic.
@@ -401,14 +431,12 @@
 
       let nextIndex;
       if ($playerState.shuffle) {
-          if (p.length > 1) {
-              // Pick a random track that is not the current one
-              do {
-                  nextIndex = Math.floor(Math.random() * p.length);
-              } while (nextIndex === currentIndex);
-          } else {
-              nextIndex = 0;
-          }
+          // Walk the trail rather than drawing blind, so a previous followed by a
+          // next lands back on the track it came from instead of a third one.
+          const stepped = stepForward(trailFor(p, currentTrackId), p.map(t => String(t.id)));
+          shuffleTrail = stepped.trail;
+          nextIndex = p.findIndex(t => String(t.id) === stepped.id);
+          if (nextIndex < 0) return;
       } else {
           nextIndex = currentIndex + 1;
           if (nextIndex >= p.length) {
@@ -460,14 +488,10 @@
 
       let prevIndex;
       if ($playerState.shuffle) {
-          if (p.length > 1) {
-              // In shuffle mode without history, pick another random track
-              do {
-                  prevIndex = Math.floor(Math.random() * p.length);
-              } while (prevIndex === currentIndex);
-          } else {
-              prevIndex = 0;
-          }
+          const stepped = stepBack(trailFor(p, currentTrackId));
+          shuffleTrail = stepped.trail;
+          prevIndex = p.findIndex(t => String(t.id) === stepped.id);
+          if (prevIndex < 0) return;
       } else {
           prevIndex = currentIndex - 1;
           if (prevIndex < 0) {
@@ -753,6 +777,9 @@
    */
   function toggleShuffleMode() {
       playerState.update(s => ({ ...s, shuffle: !s.shuffle }));
+      // A fresh run of shuffle starts its trail here, so the first "previous"
+      // after switching it on goes back to the track that was playing.
+      shuffleTrail = startTrail($currentTrack?.id);
   }
 
   /**

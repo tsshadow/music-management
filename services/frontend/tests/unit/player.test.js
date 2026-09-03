@@ -147,6 +147,39 @@ describe("Player", () => {
     expect(get(currentTrack)).toEqual(SECOND);
   });
 
+  // A queue of six makes the point the two-track queue cannot: with only FIRST and
+  // SECOND to draw from, a player that re-rolls on previous lands on the right track
+  // by accident.
+  it("previous comes back to the track shuffle came from", async () => {
+    const queue = ["a", "b", "c", "d", "e", "f"].map((id) => ({ ...FIRST, id, title: id }));
+    playlist.set(queue);
+    currentTrack.set(queue[0]);
+    playerState.update((s) => ({ ...s, shuffle: true }));
+    renderPlayer();
+
+    await fireEvent.click(screen.getAllByLabelText("Volgende")[0]);
+    const landedOn = get(currentTrack);
+    await fireEvent.click(screen.getByLabelText("Vorige"));
+
+    expect(get(currentTrack).id).toBe("a");
+    expect(landedOn.id).not.toBe("a");
+  });
+
+  it("next after previous returns to the track shuffle had already picked", async () => {
+    const queue = ["a", "b", "c", "d", "e", "f"].map((id) => ({ ...FIRST, id, title: id }));
+    playlist.set(queue);
+    currentTrack.set(queue[0]);
+    playerState.update((s) => ({ ...s, shuffle: true }));
+    renderPlayer();
+
+    await fireEvent.click(screen.getAllByLabelText("Volgende")[0]);
+    const landedOn = get(currentTrack).id;
+    await fireEvent.click(screen.getByLabelText("Vorige"));
+    await fireEvent.click(screen.getAllByLabelText("Volgende")[0]);
+
+    expect(get(currentTrack).id).toBe(landedOn);
+  });
+
   it("previous moves back a track", async () => {
     currentTrack.set(SECOND);
     renderPlayer();
@@ -154,6 +187,54 @@ describe("Player", () => {
     await fireEvent.click(screen.getByLabelText("Vorige"));
 
     expect(get(currentTrack)).toEqual(FIRST);
+  });
+
+  describe("news of the hour", () => {
+    /** Answers the two news calls with the statuses a test wants to see. */
+    function newsApi({ latest = 200, stream = 200 } = {}) {
+      return vi.fn(async (url) => {
+        if (url.includes("/api/news/bulletins/latest")) {
+          return { ok: latest === 200, status: latest, json: async () => ({ id: 7 }) };
+        }
+        if (url.includes("/api/news/bulletins/7/stream")) {
+          return {
+            ok: stream === 200,
+            status: stream,
+            blob: async () => new Blob(["mp3"], { type: "audio/mpeg" }),
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ "subsonic-response": { status: "ok" } }),
+        };
+      });
+    }
+
+    it("says nothing is recorded when the server says exactly that", async () => {
+      const spy = vi.spyOn(notify, "error");
+      globalThis.fetch = newsApi({ latest: 404 });
+      renderPlayer();
+
+      await fireEvent.click(screen.getAllByLabelText("Nieuws van het uur")[0]);
+
+      await waitFor(() => expect(spy).toHaveBeenCalledWith("Nog geen bulletin opgenomen"));
+    });
+
+    // The bulletin outgrew the proxy's buffer, so the audio never arrived and the
+    // player blamed the recorder -- which had a fresh bulletin waiting the whole time.
+    it("a bulletin that will not come through is not reported as a missing bulletin", async () => {
+      const spy = vi.spyOn(notify, "error");
+      globalThis.fetch = newsApi({ stream: 502 });
+      renderPlayer();
+
+      await fireEvent.click(screen.getAllByLabelText("Nieuws van het uur")[0]);
+
+      await waitFor(() =>
+        expect(spy).toHaveBeenCalledWith("Kon het nieuws niet afspelen", { detail: "HTTP 502" }),
+      );
+      expect(spy).not.toHaveBeenCalledWith("Nog geen bulletin opgenomen");
+    });
   });
 
   it("the repeat button cycles through its modes", async () => {

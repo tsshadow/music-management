@@ -11,6 +11,42 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.44.0 (2026-09-03)
+
+- **De vorige-knop van de browser sloeg een pagina over.** Alles wat je binnen de app aanklikte --
+  een label, een genre, een artiest, een album, een zoekresultaat -- veranderde wel het scherm maar
+  niet de URL, dus van Labels naar een label en dan terug kwam je op de startpagina uit. Elk scherm
+  heeft weer zijn eigen adres.
+- **Vorige in willekeurige modus koos opnieuw willekeurig**, dus A naar F en dan vorige bracht je op
+  een derde nummer. Willekeurig afspelen onthoudt nu welk spoor het aflegde.
+- **"Nieuws van het uur" meldde dat er geen bulletin was terwijl er een klaarstond.** Een opname van
+  tien minuten is ongeveer 15 MB en de proxy naar MuMa bufferde tot 10 MB, dus de overdracht brak af
+  en kwam als een fout aan. De proxy heeft nu ruimte voor een opname.
+- **Het aantal nummers dat een lijst per keer ophaalt is instelbaar** bij Instellingen > Interface,
+  en volgt je account naar je andere apparaten.
+- **Beheer staat onder je gebruikersnaam** in plaats van in een schakelaar links, en je verlaat het
+  met de vorige-knop.
+- **De pagina Labelvoorstellen ziet eruit als de rest van het beheer**; ze werd als kale tekst
+  getoond omdat haar opmaak nergens gedefinieerd was.
+
+## Global Version 0.43.0 (2026-09-03)
+
+- **De app laadde geen enkele afspeellijst meer in.** Nummers aan de wachtrij toevoegen deed niets:
+  honderd nummers erin, wachtrij bleef leeg, geen foutmelding, geen spoor in het log. De
+  speler-sessie kende de app sinds de sprong naar media3 1.11 geen enkel commando meer toe, en
+  media3 laat een commando dat niet is toegekend stilzwijgend vallen -- geen fout, geen antwoord,
+  het verzoek verdampt. Onder media3 1.4.1 kreeg de app nog vanzelf de volledige set, waardoor
+  dezelfde regel code jarenlang goed ging en bij de versiesprong ineens naar niets kantelde.
+  Dezelfde fout zat in het bijwerken van de commando's bij het aan- of uitzetten van radio.
+- **Een lineup mag nu per podium en per editie worden vastgelegd.** "Defqon.1", "Defqon.1 2014" en
+  de RED-stage van die editie waren drie losse bestanden die dezelfde namen herhaalden. Een lineup
+  is voortaan het pad naar zijn bestand, en elke map op dat pad is zelf ook een lineup: die van de
+  editie over al haar podia, en die van het festival over al zijn edities. Geen artiestennaam staat
+  nog twee keer opgeschreven, en bestaande platte bestanden blijven werken.
+- **Een lineupnaam uit een verzoek werd rechtstreeks een bestandspad**, dus met `../..` kon je
+  buiten de lineupmap wijzen. De naam wordt nu tegen die map opgelost en geweigerd zodra hij eruit
+  stapt.
+
 ## Global Version 0.42.2 (2026-09-03)
 
 Alleen de app, en alleen om één storing te kunnen aanwijzen.

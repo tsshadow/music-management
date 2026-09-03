@@ -11,6 +11,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.44.3 (2026-09-03)
+
+- **Lineups bladeren nu per niveau: festival, editie, podium.** Elke map op een lineuppad is
+  zelf ook een lineup, dus de lijst toonde het festival, elke editie en elk podium naast
+  elkaar -- 393 kaarten die grotendeels hetzelfde zeggen. Web en app tonen nu één niveau
+  tegelijk, met "Alles van ..." bovenaan om een festival of editie in zijn geheel af te
+  spelen. Zoeken doorzoekt alle lineups tegelijk en zet er het pad bij.
+
 ## Global Version 0.44.2 (2026-09-03)
 
 - **Beheer en Instellingen hebben een knop terug.** Sinds de speler/beheer-schakelaar verdween was

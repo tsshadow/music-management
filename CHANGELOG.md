@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.44.3] - 2026-09-03
+
 ### Changed
 - **Lineups zijn een boom geworden in plaats van een lijst van 393 regels.** De server meldt een
   podium, zijn editie en zijn festival als drie losse lineups, en die stonden allemaal naast elkaar

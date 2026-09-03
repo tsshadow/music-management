@@ -233,5 +233,5 @@ goal makes them load-bearing, not because they are new.
   good as this coverage.
 - **Festival coverage is partial.** The performance-date fallback and every festival filter depend
   on sets carrying a festival tag, and a large share of them do not. Lineups are hand-maintained by
-  decision (`docs/designs/` and the festival rules tables), so coverage grows by hand.
+  decision (`docs/festival-lineups.md` and the festival rules tables), so coverage grows by hand.
 - **Dynamic playlists do not reach the phone or the car.** See "Where it must work" above.

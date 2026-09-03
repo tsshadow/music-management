@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **De wachtrij meldt nu of het toevoegen überhaupt is aangekomen.** Een rapport liet zien dat
+  honderd nummers aan de wachtrij werden toegevoegd en dat die één milliseconde later nog steeds
+  leeg was, terwijl de sessie het verzoek nooit ontving. `MediaController.addMediaItems` doet in
+  media3 niets en meldt niets als de controller niet verbonden is of als het commando om de
+  wachtrij te wijzigen niet aan hem is toegekend -- geen fout, geen retour, het verzoek verdampt.
+  Dat is waarom dit onzichtbaar bleef. Bij het toevoegen worden nu de verbinding en de twee
+  betrokken commando's meegelogd, en de lengte van de wachtrij direct erna.
+
 ## [6.28.0] - 2026-09-03
 
 ### Added

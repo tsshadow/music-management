@@ -397,7 +397,12 @@ class MediaPlayerManager(
 
     @Synchronized
     fun play(index: Int) {
-        logAction("player.play", "index" to index, "queue" to mediaItemCount)
+        logAction(
+            "player.play",
+            "index" to index,
+            "queue" to mediaItemCount,
+            "canSeekToItem" to controller?.isCommandAvailable(Player.COMMAND_SEEK_TO_MEDIA_ITEM)
+        )
         controller?.seekTo(index, 0L)
         controller?.prepare()
         controller?.play()
@@ -505,8 +510,23 @@ class MediaPlayerManager(
             result
         }
 
-        logAction("queue.add", "items" to mediaItems.size, "at" to insertAt, "autoPlay" to autoPlay)
+        // A report showed `queue.add | items=100` followed one millisecond later by `queue=0`, with
+        // the session's onAddMediaItems never reached. MediaController.addMediaItems returns
+        // without doing anything -- no local masking, no call to the session -- when the controller
+        // is disconnected or when COMMAND_CHANGE_MEDIA_ITEMS is not among its available commands,
+        // and neither of those says a word. These fields tell those cases apart.
+        val mediaController = controller as? MediaController
+        logAction(
+            "queue.add",
+            "items" to mediaItems.size,
+            "at" to insertAt,
+            "autoPlay" to autoPlay,
+            "connected" to mediaController?.isConnected,
+            "canChangeItems" to controller?.isCommandAvailable(Player.COMMAND_CHANGE_MEDIA_ITEMS),
+            "canSetItem" to controller?.isCommandAvailable(Player.COMMAND_SET_MEDIA_ITEM)
+        )
         controller?.addMediaItems(insertAt, mediaItems)
+        logAction("queue.added", "queue" to mediaItemCount)
 
         // There is a bug in media3 ( https://github.com/androidx/media/issues/480 ),
         // so we must first add the tracks, and then enable shuffle

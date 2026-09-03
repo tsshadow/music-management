@@ -19,10 +19,17 @@ class BrowseCacheSlotTest {
     }
 
     @Test
+    fun `lineups show one level of a tree, so their cards are not cached`() {
+        browseCacheSlot(BrowseCategory.LINEUPS).`should be null`()
+    }
+
+    @Test
     fun `every category is accounted for`() {
+        val uncached = setOf(BrowseCategory.RATINGS, BrowseCategory.LINEUPS)
+
         BrowseCategory.entries.forEach { category ->
             val slot = browseCacheSlot(category)
-            if (category != BrowseCategory.RATINGS) {
+            if (category !in uncached) {
                 slot `should be equal to` "browse:${category.name}"
             }
         }

@@ -114,7 +114,18 @@
             <path d={card.icon}></path>
           </svg>
         </div>
-        <span class="font-bold text-center break-words w-full">{item.value}</span>
+        <span class="font-bold text-center break-words w-full">
+          {#if item.isAll}
+            {$t('collection.allOfLineup', { name: item.label })}
+          {:else}
+            {item.label ?? item.value}
+          {/if}
+        </span>
+        {#if item.path}
+          <!-- Only a search hit carries a path: it says which edition or stage it came
+               from, which the label alone ('RED') does not. -->
+          <span class="text-xs text-[#b3b3b3] text-center break-words w-full">{item.path}</span>
+        {/if}
         {#if card.count === 'episodes'}
           <span class="text-xs text-[#b3b3b3] text-center">
             {$t('collection.episodeCount', { count: Number(item.songCount) || 0 })}

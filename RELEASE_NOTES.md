@@ -11,6 +11,18 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.42.2 (2026-09-03)
+
+Alleen de app, en alleen om één storing te kunnen aanwijzen.
+
+- **De app meldt nu of het vullen van de wachtrij werkelijk is aangekomen.** Een diagnostiekrapport
+  liet zien dat honderd nummers aan de wachtrij werden toegevoegd en dat die een milliseconde later
+  nog steeds leeg was, terwijl de speler-sessie het verzoek nooit ontving. Zo'n verzoek wordt
+  stilzwijgend weggegooid als de speler-verbinding weg is of als de app het recht mist om zijn eigen
+  wachtrij te wijzigen, en geen van beide levert een foutmelding op. Daarom bleef dit onzichtbaar.
+  Bij het toevoegen worden nu de verbinding, de betrokken rechten en de lengte van de wachtrij
+  direct erna vastgelegd, zodat een volgend rapport aanwijst welke van de twee het is.
+
 ## Global Version 0.42.1 (2026-09-03)
 
 Een correctie op 0.42.0. Aan de server verandert bijna niets; het werk zit in de app.

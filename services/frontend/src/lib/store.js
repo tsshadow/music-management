@@ -202,7 +202,7 @@ persist("lms_memories_on_home_enabled", memoriesOnHomeEnabled);
 // a longer wait for the first screenful; smaller means the list appears sooner and
 // scrolls into more requests. Which of those is the better trade depends on the
 // connection, so it is the listener's call rather than a constant.
-export const TRACK_PAGE_SIZES = [25, 50, 100, 200];
+export const TRACK_PAGE_SIZES = [25, 50, 100, 200, 500];
 export const DEFAULT_TRACK_PAGE_SIZE = 50;
 
 export const trackPageSize = writable(DEFAULT_TRACK_PAGE_SIZE);

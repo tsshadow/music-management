@@ -391,3 +391,86 @@ export function durationParts(seconds) {
     minutes: Math.round((total % 3600) / 60),
   };
 }
+
+/**
+ * One level of the lineup tree, out of the flat list `getLineups` answers with.
+ *
+ * A lineup's name is the path to its file -- "Defqon.1/2014/RED" -- and every
+ * directory on that path is itself a lineup holding everything below it. The
+ * server therefore reports the stage, the edition and the festival as three
+ * separate entries, which as one flat grid is a few hundred cards deep and
+ * unreadable. This returns the direct children of `path` instead, plus the
+ * crumbs to walk back up.
+ *
+ * Inside a level, the level itself comes first as an "all" entry, because
+ * "Defqon.1/2014" is a lineup in its own right and would otherwise be
+ * unreachable once its stages are listed. At the root that entry is left out:
+ * there is no lineup above the festivals.
+ *
+ * A non-empty `search` ignores the level and looks at every lineup there is,
+ * because a name is easier to type than to navigate to. Hits carry the path
+ * they live under so the grid can show where they came from.
+ *
+ * @param {Array<{value: string}>} items - Lineups as the server reported them.
+ * @param {string} path - The level to open; "" is the root.
+ * @param {string} [search] - Free text; when set, `path` is ignored.
+ * @returns {{entries: Array<Object>, crumbs: Array<{label: string, value: string}>}}
+ */
+export function lineupLevel(items, path = "", search = "") {
+  const names = (items ?? []).map((item) => item.value).filter(Boolean);
+
+  if (normalizeText(search)) {
+    const entries = names
+      .filter((name) => matchesSearch(name, search))
+      .sort(text)
+      .map((name) => ({
+        value: name,
+        label: name.slice(name.lastIndexOf("/") + 1),
+        path: name.slice(0, Math.max(0, name.lastIndexOf("/"))),
+        hasChildren: false,
+        isAll: false,
+      }));
+    return { entries, crumbs: crumbsFor(path) };
+  }
+
+  const prefix = path ? `${path}/` : "";
+  const children = new Map();
+  for (const name of names) {
+    if (prefix && !name.startsWith(prefix)) continue;
+    const rest = name.slice(prefix.length);
+    if (!rest) continue;
+    const [label] = rest.split("/");
+    const value = `${prefix}${label}`;
+    // A child that is only ever seen with something behind it is a directory.
+    children.set(value, (children.get(value) ?? false) || rest.includes("/"));
+  }
+
+  const entries = [...children.entries()]
+    .sort(([a], [b]) => text(a, b))
+    .map(([value, hasChildren]) => ({
+      value,
+      label: value.slice(prefix.length),
+      path,
+      hasChildren,
+      isAll: false,
+    }));
+
+  if (path && names.includes(path)) {
+    entries.unshift({
+      value: path,
+      label: path.slice(path.lastIndexOf("/") + 1),
+      path,
+      hasChildren: false,
+      isAll: true,
+    });
+  }
+
+  return { entries, crumbs: crumbsFor(path) };
+}
+
+/** Every step of `path`, so the header can offer the way back up. */
+function crumbsFor(path) {
+  if (!path) return [];
+  const steps = path.split("/");
+  return steps.map((label, index) => ({ label, value: steps.slice(0, index + 1).join("/") }));
+}

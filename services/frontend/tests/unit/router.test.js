@@ -78,6 +78,18 @@ describe("viewToPath", () => {
     expect(viewToPath(state("memories"))).toBe("/memories");
   });
 
+  it("gives a lineup browse level its own path", () => {
+    expect(viewToPath(state("lineups:Defqon.1/2014"))).toBe("/lineups/Defqon.1%2F2014");
+  });
+
+  it("keeps the lineup overview on its own path", () => {
+    expect(viewToPath(state("lineups"))).toBe("/lineups");
+  });
+
+  it("keeps browsing a lineup apart from playing it", () => {
+    expect(viewToPath(state("lineup:Defqon.1/2014"))).toBe("/lineup/Defqon.1%2F2014");
+  });
+
   it("puts the artist id in the path", () => {
     expect(viewToPath(state("artist:ar-123"))).toBe("/artist/ar-123");
   });
@@ -178,6 +190,18 @@ describe("pathToState", () => {
 
   it("still reads the bare memories path as the overview", () => {
     expect(pathToState("/memories")).toEqual({ view: "memories" });
+  });
+
+  it("reads a lineup browse level back", () => {
+    expect(pathToState("/lineups/Defqon.1%2F2014")).toEqual({ view: "lineups:Defqon.1/2014" });
+  });
+
+  it("still reads the bare lineups path as the overview", () => {
+    expect(pathToState("/lineups")).toEqual({ view: "lineups" });
+  });
+
+  it("does not confuse browsing a lineup with playing one", () => {
+    expect(pathToState("/lineup/Defqon.1%2F2014")).toEqual({ view: "lineup:Defqon.1/2014" });
   });
 
   it("reads the playlist id off the path", () => {

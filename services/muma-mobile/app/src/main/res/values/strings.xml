@@ -279,6 +279,7 @@
     <string name="library.tab_memories">Memories</string>
     <string name="library.rating_and_up">%1$d+ stars</string>
     <string name="browse.track_limit">Tracks per genre</string>
+    <string name="browse.lineup_all">Everything from %1$s</string>
     <string name="management.label">Management</string>
     <string name="management.tab_downloaders">Downloaders</string>
     <string name="management.tab_users">Users</string>

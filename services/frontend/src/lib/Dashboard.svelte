@@ -24,7 +24,7 @@
   import { getArtistImageUrl, viewArgument } from './utils.js';
   import { localDateString, memoryCount, memoryHeading, parseMemoryGroups } from './memories.js';
   import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
-  import { defaultCollectionState, durationParts, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
+  import { defaultCollectionState, durationParts, lineupLevel, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
   import { loadIndexedTags } from './scanTags.js';
   import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, hasPermission } from './store.js';
 
@@ -79,6 +79,23 @@
   let festivalView = $state(defaultCollectionState('festivals'));
   let yearView = $state(defaultCollectionState('years'));
   let lineupView = $state(defaultCollectionState('lineups'));
+  /**
+   * The Lineups page walks a tree rather than listing every path at once: the server
+   * reports the stage, its edition and its festival as three separate lineups, which
+   * flattened is a few hundred cards of mostly repetition.
+   *
+   * The level is part of the view identifier, so every step has its own URL and the
+   * back button walks back up.
+   */
+  const lineupPath = $derived(activeView.startsWith('lineups:') ? viewArgument(activeView) : '');
+  const lineupTree = $derived(lineupLevel(allLineups, lineupPath, lineupView.search));
+  const lineupEntries = $derived(lineupTree.entries);
+  const lineupCrumbs = $derived(lineupTree.crumbs);
+
+  /** A level opens deeper; a stage, a flat file or the level itself opens its tracks. */
+  function openLineupEntry(entry) {
+    activeView = entry.hasChildren ? `lineups:${entry.value}` : `lineup:${entry.value}`;
+  }
   let playlistView = $state(defaultCollectionState('playlists'));
 
   const visibleGenres = $derived(queryCollection(allGenres, 'genres', genreView, { favorites: $favoriteGenres }));
@@ -633,7 +650,7 @@
             loadTagCollection('FESTIVAL').then((list) => (allFestivals = list));
         } else if (view === 'years') {
             loadTagCollection('YEAR').then((list) => (allYears = list));
-        } else if (view === 'lineups') {
+        } else if (view === 'lineups' || view.startsWith('lineups:')) {
             loadAllLineups();
         } else if (view === 'artists') {
             loadArtists();
@@ -907,16 +924,33 @@
       emptyHint={tagHint('YEAR')}
       onselect={(item) => (activeView = `year:${item.value}`)}
     />
-  {:else if activeView === 'lineups'}
+  {:else if activeView === 'lineups' || activeView.startsWith('lineups:')}
+    {#if lineupCrumbs.length > 0}
+      <nav class="flex flex-wrap items-center gap-2 text-sm text-[#b3b3b3] mb-4" aria-label={$t('nav.lineups')}>
+        <button class="bg-transparent border-0 p-0 text-inherit cursor-pointer hover:text-white hover:underline" onclick={() => (activeView = 'lineups')}>
+          {$t('nav.lineups')}
+        </button>
+        {#each lineupCrumbs as crumb, index (crumb.value)}
+          <span aria-hidden="true">/</span>
+          {#if index === lineupCrumbs.length - 1}
+            <span class="text-white">{crumb.label}</span>
+          {:else}
+            <button class="bg-transparent border-0 p-0 text-inherit cursor-pointer hover:text-white hover:underline" onclick={() => (activeView = `lineups:${crumb.value}`)}>
+              {crumb.label}
+            </button>
+          {/if}
+        {/each}
+      </nav>
+    {/if}
     <CollectionGrid
       type="lineups"
-      title={$t('nav.lineups')}
-      items={allLineups}
+      title={lineupCrumbs.length > 0 ? lineupCrumbs[lineupCrumbs.length - 1].label : $t('nav.lineups')}
+      items={lineupEntries}
       bind:state={lineupView}
       loading={isLoading}
       emptyText={$t('collection.noLineups')}
       emptyHint={$t('collection.noLineupsHelp')}
-      onselect={(item) => (activeView = `lineup:${item.value}`)}
+      onselect={openLineupEntry}
     />
   {:else if activeView === 'artists'}
     <div class="flex flex-col gap-4 mb-6">

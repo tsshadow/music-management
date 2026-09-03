@@ -26,6 +26,7 @@
       "one": "{count} album",
       "other": "{count} albums"
     },
+    "allOfLineup": "Alles van {name}",
     "clearFilters": "Filters wissen",
     "episodeCount": {
       "one": "{count} aflevering",

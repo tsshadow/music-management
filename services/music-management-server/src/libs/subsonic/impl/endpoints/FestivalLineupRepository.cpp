@@ -9,7 +9,9 @@ namespace fs = std::filesystem;
 
 namespace
 {
-    const fs::path lineupRoot{ "/music/metadata/festival-lineups" };
+    // A `const fs::path` here would be a static that constructs -- and can throw -- before main;
+    // the path is built where it is used instead.
+    constexpr const char* lineupRoot{ "/music/metadata/festival-lineups" };
 
     // The lineup id arrives as a client parameter (`festivalLineup=`, `lineup=`) and is turned
     // into a path, so it is resolved and then checked to still sit under the root: "../../../etc"
@@ -28,7 +30,7 @@ namespace
             return std::nullopt;
         }
 
-        const fs::path candidate{ fs::weakly_canonical(canonicalRoot / lineup, ec) };
+        fs::path candidate{ fs::weakly_canonical(canonicalRoot / lineup, ec) };
         if (ec)
         {
             return std::nullopt;

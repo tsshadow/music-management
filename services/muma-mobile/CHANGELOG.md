@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **De lineup-pagina bladert nu per niveau: festival, editie, podium.** Alle 393 lineups stonden als
+  één lijst door elkaar, inclusief het festival, elke editie en elk podium apart. Een niveau met
+  iets eronder gaat een stap dieper, de terugknop loopt weer omhoog, en bovenaan een editie staat
+  "Alles van ..." om die editie in zijn geheel af te spelen. Zoeken doorzoekt alle lineups, ongeacht
+  waar je staat, en zet onder een treffer welk pad hij hoort.
+
 ## [6.28.2] - 2026-09-03
 
 ### Fixed

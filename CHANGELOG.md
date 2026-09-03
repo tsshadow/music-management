@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Lineups zijn een boom geworden in plaats van een lijst van 393 regels.** De server meldt een
+  podium, zijn editie en zijn festival als drie losse lineups, en die stonden allemaal naast elkaar
+  op één pagina. Web en app tonen nu één niveau tegelijk: eerst de festivals, dan de edities, dan de
+  podia. Binnen een niveau staat "Alles van ..." vooraan, want een editie is zelf ook een lineup en
+  zou anders onbereikbaar worden. Zoeken kijkt langs het niveau heen naar alle lineups tegelijk en
+  zet er bij waar een treffer vandaan komt, want "defqon 2014" typen is sneller dan er heen klikken.
+  Op het web heeft elk niveau zijn eigen adres, in de app loopt de terugknop de boom weer omhoog.
+
 ## [0.44.2] - 2026-09-03
 
 ### Changed

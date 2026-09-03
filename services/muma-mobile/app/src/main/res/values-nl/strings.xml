@@ -602,6 +602,7 @@
     <string name="library.tab_ratings">Ratings</string>
     <string name="library.rating_and_up">%1$d+ sterren</string>
     <string name="browse.track_limit">Nummers per genre</string>
+    <string name="browse.lineup_all">Alles van %1$s</string>
     <string name="management.label">Beheer</string>
     <string name="management.tab_downloaders">Downloaders</string>
     <string name="management.tab_users">Gebruikers</string>

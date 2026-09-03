@@ -7,6 +7,7 @@ import {
   sortOption,
   thresholdMin,
   durationParts,
+  lineupLevel,
   COLLECTION_SORTS,
 } from "../../src/lib/collections";
 
@@ -297,5 +298,83 @@ describe("durationParts", () => {
   it("treats a missing or negative duration as zero", () => {
     expect(durationParts(undefined)).toEqual({ hours: 0, minutes: 0 });
     expect(durationParts(-60)).toEqual({ hours: 0, minutes: 0 });
+  });
+});
+
+describe("lineupLevel", () => {
+  // What getLineups answers with: one entry per file, and one per directory above it.
+  const lineups = [
+    { value: "Defqon.1" },
+    { value: "Defqon.1/2014" },
+    { value: "Defqon.1/2014/RED" },
+    { value: "Defqon.1/2014/BLUE" },
+    { value: "Defqon.1/2025" },
+    { value: "Defqon.1/2025/RED" },
+    { value: "Decibel Outdoor" },
+    { value: "Decibel Outdoor/2025" },
+    { value: "Intents 2016" },
+  ];
+
+  it("shows only the festivals at the root", () => {
+    const level = lineupLevel(lineups, "");
+
+    expect(level.entries.map((e) => e.value)).toEqual([
+      "Decibel Outdoor",
+      "Defqon.1",
+      "Intents 2016",
+    ]);
+    expect(level.crumbs).toEqual([]);
+  });
+
+  it("marks which entries go deeper and which open tracks", () => {
+    const level = lineupLevel(lineups, "");
+    const byName = Object.fromEntries(level.entries.map((e) => [e.label, e]));
+
+    expect(byName["Defqon.1"].hasChildren).toBe(true);
+    // A flat file from before the hierarchy has nothing below it and opens its tracks.
+    expect(byName["Intents 2016"].hasChildren).toBe(false);
+  });
+
+  it("descends to the editions of one festival", () => {
+    const level = lineupLevel(lineups, "Defqon.1");
+
+    expect(level.entries.filter((e) => !e.isAll).map((e) => e.label)).toEqual(["2014", "2025"]);
+  });
+
+  it("offers the level itself as the first entry once you are inside one", () => {
+    const level = lineupLevel(lineups, "Defqon.1/2014");
+
+    expect(level.entries[0].isAll).toBe(true);
+    expect(level.entries[0].value).toBe("Defqon.1/2014");
+    expect(level.entries.slice(1).map((e) => e.label)).toEqual(["BLUE", "RED"]);
+  });
+
+  it("has no 'all' entry at the root, where it would mean the whole library", () => {
+    expect(lineupLevel(lineups, "").entries.some((e) => e.isAll)).toBe(false);
+  });
+
+  it("names every step of the way back up", () => {
+    expect(lineupLevel(lineups, "Defqon.1/2014").crumbs).toEqual([
+      { label: "Defqon.1", value: "Defqon.1" },
+      { label: "2014", value: "Defqon.1/2014" },
+    ]);
+  });
+
+  it("searching looks past the level, and says where a hit lives", () => {
+    const level = lineupLevel(lineups, "", "red");
+
+    expect(level.entries.map((e) => e.value)).toEqual(["Defqon.1/2014/RED", "Defqon.1/2025/RED"]);
+    expect(level.entries[0].path).toBe("Defqon.1/2014");
+    expect(level.entries[0].hasChildren).toBe(false);
+  });
+
+  it("a search matches the whole path, not just the last step", () => {
+    const level = lineupLevel(lineups, "", "defqon 2014");
+
+    expect(level.entries.map((e) => e.value)).toContain("Defqon.1/2014");
+  });
+
+  it("an unknown path lands on an empty level rather than throwing", () => {
+    expect(lineupLevel(lineups, "Nope/2099").entries).toEqual([]);
   });
 });

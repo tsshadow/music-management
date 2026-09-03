@@ -51,6 +51,11 @@ const ARGUMENT_VIEWS = [
   // which is free text -- an entry like '2024 (reissue)' would otherwise break the route.
   { kind: "year", segment: "year", encode: true },
   { kind: "lineup", segment: "lineup", encode: true },
+  // Browsing the lineup tree and playing one lineup are two different views, so they get
+  // two segments: '/lineups/Defqon.1' lists that festival's editions, '/lineup/Defqon.1'
+  // plays everything on it. Like 'memories', 'lineups' is also a plain view; the plain
+  // lookup runs first in both directions, so the bare '/lineups' stays the overview.
+  { kind: "lineups", segment: "lineups", encode: true },
   { kind: "search", segment: "search", encode: true },
   { kind: "memories", segment: "memories", encode: false },
   { kind: "artist", segment: "artist", encode: false },

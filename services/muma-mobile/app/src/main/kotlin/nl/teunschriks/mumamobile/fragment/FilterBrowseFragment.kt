@@ -15,6 +15,7 @@ import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Spinner
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -40,11 +41,14 @@ import nl.teunschriks.mumamobile.home.HomeCardAction
 import nl.teunschriks.mumamobile.home.HomeCardAdapter
 import nl.teunschriks.mumamobile.home.HomeCardNavigator
 import nl.teunschriks.mumamobile.home.HomeCardType
+import nl.teunschriks.mumamobile.home.LineupEntry
 import nl.teunschriks.mumamobile.home.browseCacheSlot
 import nl.teunschriks.mumamobile.home.browseSortOrdersFor
 import nl.teunschriks.mumamobile.home.browseSupportsSearch
 import nl.teunschriks.mumamobile.home.filterAndSortCards
+import nl.teunschriks.mumamobile.home.lineupLevel
 import nl.teunschriks.mumamobile.home.orderGenres
+import nl.teunschriks.mumamobile.home.parentLineup
 import nl.teunschriks.mumamobile.home.toHomeCard
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.util.Settings
@@ -71,6 +75,14 @@ class FilterBrowseFragment : Fragment() {
     private var allCards: List<HomeCard> = emptyList()
     private var query: String? = null
     private var order: SortOrder = SortOrder.BY_NAME
+
+    // Lineups are a tree, not a list: the server reports a stage, its edition and its festival as
+    // three separate lineups, so this page shows one level of that path at a time. The names are
+    // kept whole because every level is derived from them, including a search across all of them.
+    private var lineupNames: List<String> = emptyList()
+    private var lineupPath: String = ""
+    private var lineupEntries: List<LineupEntry> = emptyList()
+    private var backCallback: OnBackPressedCallback? = null
 
     private val category: BrowseCategory
         get() = BrowseCategory.valueOf(
@@ -115,18 +127,90 @@ class FilterBrowseFragment : Fragment() {
         }
 
         setupTrackLimit(view)
+        setupBackToLevelAbove()
 
         load(refresh = false)
+    }
+
+    /**
+     * Inside the lineup tree, back means "one level up" before it means "leave this screen".
+     *
+     * Every browse page in the pager registers this, so it stays disabled unless this page is the
+     * lineup one, is the visible tab, and is actually somewhere below the root.
+     */
+    private fun setupBackToLevelAbove() {
+        val callback = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                if (!leaveLineupLevel()) isEnabled = false
+                updateBackCallback()
+            }
+        }
+        backCallback = callback
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, callback)
+    }
+
+    private fun updateBackCallback() {
+        backCallback?.isEnabled =
+            isResumed &&
+            category == BrowseCategory.LINEUPS &&
+            lineupPath.isNotEmpty()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateBackCallback()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        updateBackCallback()
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
         swipeRefresh = null
         progress = null
+        backCallback = null
     }
 
     private fun applyFilter() {
+        if (category == BrowseCategory.LINEUPS) {
+            adapter.items = lineupCards()
+            return
+        }
+
         adapter.items = filterAndSortCards(allCards, query, order)
+    }
+
+    /**
+     * The cards for the level the user is on, or -- while a search is typed -- every lineup that
+     * matches it, wherever it sits. Searching past the level is deliberate: with a few hundred
+     * stages, typing "defqon 2014" beats walking there.
+     */
+    private fun lineupCards(): List<HomeCard> {
+        lineupEntries = lineupLevel(lineupNames, lineupPath, query.orEmpty())
+
+        return lineupEntries.map { entry ->
+            HomeCard(
+                type = HomeCardType.LINEUP,
+                itemId = entry.value,
+                title = if (entry.isAll) {
+                    getString(R.string.browse_lineup_all, entry.label)
+                } else {
+                    entry.label
+                },
+                subtitle = entry.parent.takeIf { it.isNotEmpty() }
+            )
+        }.also { updateBackCallback() }
+    }
+
+    /** Walks one level up, and reports whether there was one. */
+    private fun leaveLineupLevel(): Boolean {
+        if (lineupPath.isEmpty()) return false
+
+        lineupPath = parentLineup(lineupPath)
+        applyFilter()
+        return true
     }
 
     /**
@@ -236,8 +320,12 @@ class FilterBrowseFragment : Fragment() {
                 service.getTags(refresh, TAG_PODCAST, null, null)
                     .map { it.toHomeCard(HomeCardType.PODCAST) }
 
-            BrowseCategory.LINEUPS ->
-                service.getLineups(refresh).map { it.toHomeCard() }
+            BrowseCategory.LINEUPS -> {
+                lineupNames = service.getLineups(refresh).map { it.name }
+                // The cards themselves are built on the main thread, from the level the user is
+                // on; this branch only has to bring the names home.
+                emptyList()
+            }
 
             BrowseCategory.RATINGS ->
                 BrowseCategory.RATING_VALUES.map { stars ->
@@ -288,6 +376,15 @@ class FilterBrowseFragment : Fragment() {
 
     private fun onCardClicked(card: HomeCard) {
         if (card.type == HomeCardType.GENRE) rememberGenre(card.itemId)
+
+        if (category == BrowseCategory.LINEUPS) {
+            val entry = lineupEntries.firstOrNull { it.value == card.itemId }
+            if (entry != null && entry.hasChildren) {
+                lineupPath = entry.value
+                applyFilter()
+                return
+            }
+        }
 
         val action = HomeCardNavigator.actionFor(card)
         if (action is HomeCardAction.Navigate) findNavController().navigate(action.directions)

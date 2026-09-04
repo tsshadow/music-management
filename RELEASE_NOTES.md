@@ -11,6 +11,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.44.4 (2026-09-04)
+
+- **Een artiest met een spatie in zijn naam gaf 400 op zijn eigen bewerkpagina.** De proxy in
+  de server kreeg het pad al gedecodeerd terug van Wt en stuurde het zo door, met een echte
+  spatie erin -- daar kan de API alleen 400 Bad Request op antwoorden, nog voor hij weet welke
+  route je bedoelde. Het pad wordt nu opnieuw gecodeerd. Dit gold voor elke naam met een
+  spatie, een `&` of een letter met een accent, dus ook voor labels en genres.
+
 ## Global Version 0.44.3 (2026-09-03)
 
 - **Lineups bladeren nu per niveau: festival, editie, podium.** Elke map op een lineuppad is

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.45.0] - 2026-09-04
+
 ### Fixed
 - **Een archief met één rare bestandsnaam liet de helft van zijn releases nooit binnen.** patool
   koos in dit image zelf `unrar-free`, en die breekt de héle extractie af bij de eerste naam die hij

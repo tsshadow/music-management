@@ -47,6 +47,30 @@ def plan_release_dates(root, format_helper):
     return planned
 
 
+def unwritable(planned):
+    """`[(path, error)]` for every planned audio file this process cannot write.
+
+    Opening `'r+b'` asks the filesystem the same question `mutagen`'s `save()` will ask and
+    writes not one byte, so this is a read-only probe of a write permission. `os.access` is
+    not a substitute: it answers from the mode bits, which an NFS export or a Synology ACL
+    can contradict. That is how the previous attempt at this backfill went wrong -- the
+    tagger reported far more saves than files it had actually written, because the denial
+    only surfaced inside mutagen.
+    """
+    blocked = []
+    for directory, _iso_date in planned:
+        for name in sorted(os.listdir(directory)):
+            if not name.lower().endswith(AUDIO_EXTENSIONS):
+                continue
+            path = os.path.join(directory, name)
+            try:
+                with open(path, 'r+b'):
+                    pass
+            except OSError as exc:
+                blocked.append((path, exc))
+    return blocked
+
+
 def apply_plan(planned):
     """Writes ORIGINAL_DATE onto every audio file of each planned release."""
     from services.tagger.Song.LabelSong import LabelSong
@@ -76,12 +100,27 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', default=DEFAULT_ROOT)
     parser.add_argument('--apply', action='store_true', help='write the tags; default is a dry run')
+    parser.add_argument(
+        '--check',
+        action='store_true',
+        help='report which planned files cannot be written and stop; implies a dry run',
+    )
     args = parser.parse_args(argv)
 
     from services.common.Helpers.Cache import databaseHelpers
 
     planned = plan_release_dates(args.root, databaseHelpers['sceneGroupDateFormatHelper'])
     print(f'{len(planned)} releases resolve to a release date')
+    if args.check:
+        blocked = unwritable(planned)
+        print(f'{len(blocked)} planned files cannot be opened for writing')
+        for path, exc in blocked[:20]:
+            print(f'  {exc.strerror or exc}: {path}')
+        for label, count in Counter(
+            os.path.relpath(path, args.root).split(os.sep)[0] for path, _exc in blocked
+        ).most_common():
+            print(f'  {count:6d}  {label}')
+        return 0
     if not args.apply:
         for directory, iso_date in planned[:20]:
             print(f'  {iso_date}  {os.path.basename(directory)}')

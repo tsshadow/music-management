@@ -27,6 +27,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   waarom. Vergelijken gebeurt op namen en groottes, niet op hashes -- een release hashen is minuten
   NAS-verkeer per map, elke cyclus opnieuw.
 
+### Added
+- **De releasedatum-backfill kan nu op productie draaien, en zegt vooraf wat hij niet kan
+  schrijven.** Het script stond alleen in de repository en geen enkele productie-image bevat
+  `scripts/`, dus er was geen manier om het daar te starten zonder een checkout. Het draait nu als
+  eenmalige container uit de tools-image (`release-date-backfill`), met de dry run als
+  standaardcommando. Nieuw is `--check`: dat opent elk gepland bestand op `'r+b'` — precies de
+  vraag die mutagen straks stelt — zonder één byte te schrijven, en meldt hoeveel bestanden
+  geweigerd worden, welke dat zijn en per labelmap hoeveel. `os.access` is daar geen vervanging
+  voor: die antwoordt uit de mode-bits, en juist een NFS-export of een Synology-ACL spreekt die
+  tegen. Dat is hoe de vorige poging misging, met een tagger die meer opgeslagen bestanden meldde
+  dan hij werkelijk geschreven had.
+
 ## [0.44.4] - 2026-09-04
 
 ### Fixed

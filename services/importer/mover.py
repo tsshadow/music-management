@@ -10,6 +10,7 @@ from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.Helpers.NotificationService import notification_service
 from services.importer.label_proposal_store import LabelProposalStore
 from services.importer.label_resolver import resolve
+from services.importer.release_compare import is_same_release
 from services.tagger.Song.LabelSong import LabelSong
 
 
@@ -99,6 +100,26 @@ class Mover:
         except Exception as e:
             logging.error(f'Error removing {src}: {e}')
 
+    def _resolve_conflict(self, folder, src, dst, dry_run):
+        """Decides what to do when the label folder already holds this release.
+
+        Same rule as the renamer: identical file names and sizes mean the release was
+        imported before and this is a duplicate download, so the source goes. Anything
+        else may be a different release that resolved to the same folder name, and gets
+        left alone rather than merged into the one already there.
+        """
+        if not is_same_release(src, dst):
+            logging.warning(
+                'Conflict: %s already exists but its contents differ from %s. '
+                'Leaving both in place for manual intervention',
+                dst,
+                src,
+            )
+            return
+        logging.warning('Conflict: %s already exists and holds the same files. Removing %s', dst, src)
+        if not dry_run:
+            self.remove(folder)
+
     def _move_folder(self, folder, cat_id, dry_run):
         """Processes and moves a single folder based on its CAT ID."""
         label = self.get_label(cat_id)
@@ -111,6 +132,14 @@ class Mover:
             return
         src = join(self.settings.import_folder_path, folder)
         dst = join(self.settings.eps_folder_path, label, folder)
+        # Checked before the move, not after it, because shutil.move does not fail on an
+        # existing destination directory -- it moves *into* it, so a second copy of a
+        # release ends up at dst/<same name>/, one level deeper, and stays there. The
+        # exception branch below only fires on the third copy, once that nested folder
+        # exists too. 429 release folders on production contained themselves this way.
+        if os.path.exists(dst):
+            self._resolve_conflict(folder, src, dst, dry_run)
+            return
         try:
             if not dry_run:
                 shutil.move(src, dst)

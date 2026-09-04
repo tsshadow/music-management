@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Een archief met één rare bestandsnaam liet de helft van zijn releases nooit binnen.** patool
+  koos in dit image zelf `unrar-free`, en die breekt de héle extractie af bij de eerste naam die hij
+  niet naar de locale van de container kan omzetten: `Pathname cannot be converted from UTF-16BE to
+  current locale`. In `HC-2026-WEEK-34-MP3.rar` was één release met zero-width spaces in de
+  bestandsnamen genoeg -- 13 van de 44 releases stonden op schijf, de andere 31 nooit. En omdat de
+  fout vóór het opruimen van het archief viel, bleef hetzelfde archief elke cyclus opnieuw
+  uitpakken en opnieuw falen. De importer probeert nu `unar` en daarna `7z` zodra patools eigen
+  keuze faalt; beide lezen die namen wel. Een andere locale in de container helpt niet, dat is
+  gemeten. Faalt élke backend, dan blijft het archief liggen met één ERROR-regel waarin alle drie
+  de redenen staan.
+- **Een release die je twee keer downloadde liep eeuwig vast bij het hernoemen.** `os.rename` naar
+  een bestaande, niet-lege map geeft `ENOTEMPTY (39)`, en dat is in Python geen `FileExistsError`.
+  De opruimtak werd dus overgeslagen, de melding kwam op INFO binnen tussen het gewone verkeer, en
+  de map werd elke ronde opnieuw geprobeerd. Beide botsingen worden nu op dezelfde plek afgehandeld:
+  komen de twee mappen op elke bestandsnaam en elke bestandsgrootte overeen, dan is het een dubbele
+  download en verdwijnt de bron; verschillen ze, dan blijft alles staan met een WARNING die zegt
+  waarom. Vergelijken gebeurt op namen en groottes, niet op hashes -- een release hashen is minuten
+  NAS-verkeer per map, elke cyclus opnieuw.
+
 ## [0.44.4] - 2026-09-04
 
 ### Fixed

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Een artiest met een spatie in zijn naam gaf 400 Bad Request op zijn eigen bewerkpagina.**
+  `GET /muma/api/curation/artists/Silky%20Noize` kwam nooit bij een route aan. Wt levert het pad
+  al gedecodeerd af, en de algemene proxy in `MumaResource` stuurde dat letterlijk door -- met een
+  echte spatie in de request-regel, waar MuMa alleen 400 op kan antwoorden. Het pad wordt nu
+  opnieuw gecodeerd voordat het de deur uit gaat, waarbij `/` scheidingsteken blijft en de
+  querystring onaangeroerd blijft. Dit gold voor elke naam met een spatie, een `&` of een
+  niet-ASCII-teken, dus ook labels en genres, en voor de PUT/POST/DELETE-kant net zo goed.
+
 ## [0.44.3] - 2026-09-03
 
 ### Changed

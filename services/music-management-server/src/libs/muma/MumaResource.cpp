@@ -1,5 +1,7 @@
 #include "api/muma/MumaResource.hpp"
 
+#include "api/muma/PathEncoding.hpp"
+
 #include <Wt/Http/Request.h>
 #include <Wt/Http/Response.h>
 #include <Wt/Json/Array.h>
@@ -869,7 +871,11 @@ namespace lms::api::muma
             if (request.method() == "GET")
             {
                 core::http::ClientGETRequestParameters getParams;
-                getParams.relativeUrl = pathInfo;
+                // pathInfo comes back from Wt already decoded, so a name like "Silky Noize"
+                // holds a real space. Put the encoding back before it goes on the wire, or
+                // MuMa rejects the request line with a 400 without ever seeing the route.
+                // The query string is still encoded and is appended untouched.
+                getParams.relativeUrl = encodeProxyPath(pathInfo);
                 std::string query = request.queryString();
                 if (!query.empty())
                     getParams.relativeUrl += "?" + query;
@@ -906,7 +912,8 @@ namespace lms::api::muma
             else if (request.method() == "POST" || request.method() == "PUT" || request.method() == "DELETE")
             {
                 core::http::ClientPOSTRequestParameters postParams;
-                postParams.relativeUrl = pathInfo;
+                // See the matching comment in the GET branch above: pathInfo is decoded.
+                postParams.relativeUrl = encodeProxyPath(pathInfo);
                 std::string query = request.queryString();
                 if (!query.empty())
                     postParams.relativeUrl += "?" + query;

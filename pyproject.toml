@@ -107,6 +107,14 @@ module = [
     "services.tagger.constants",
     "services.tagger.Song.rules.TagResult",
     "services.tagger.Song.rules.TagRule",
+    # New code, so it starts here rather than being cleaned up later. __main__ is
+    # deliberately absent: it is the only module that imports the MCP SDK, whose
+    # decorators mypy cannot follow without the package installed.
+    "tools.muma_mcp.api",
+    "tools.muma_mcp.config",
+    "tools.muma_mcp.db",
+    "tools.muma_mcp.guard",
+    "tools.muma_mcp.redact",
 ]
 disallow_untyped_defs = false
 check_untyped_defs = true

@@ -134,18 +134,39 @@ def test_row_values_are_made_json_safe(value, expected):
     assert db._jsonable(value) == expected
 
 
-def test_describe_rejects_a_name_that_is_not_an_identifier():
-    """DESCRIBE takes no placeholder, so the name is validated before interpolation."""
-    with pytest.raises(QueryRejected, match='geldige tabelnaam'):
-        db.describe(CONFIG, 'library_tracks`; DROP TABLE x; --')
+def test_describe_binds_the_table_name_instead_of_interpolating_it():
+    """DESCRIBE takes no placeholder, so information_schema is asked instead.
+
+    The name travels as a bound parameter -- data, never syntax -- which is why
+    `describe` needs no validation of it and cannot forget any.
+    """
+    connection, cursor = fake_connection([('id', 'int(11)', 'NO', 'PRI', None, '')])
+    with patch('tools.muma_mcp.db.connect', return_value=connection):
+        db.describe(CONFIG, 'library_tracks')
+
+    statement, params = cursor.execute.call_args.args
+    assert 'information_schema' in statement.lower()
+    assert 'library_tracks' not in statement
+    assert params == ('music-management', 'library_tracks')
 
 
-def test_describe_rejects_a_table_that_does_not_exist():
+def test_describe_reports_a_table_that_does_not_exist():
+    """An unknown name matches nothing rather than producing a syntax error."""
+    connection, _ = fake_connection([])
     with (
-        patch('tools.muma_mcp.db.list_tables', return_value=['library_tracks']),
+        patch('tools.muma_mcp.db.connect', return_value=connection),
         pytest.raises(QueryRejected, match='bestaat niet'),
     ):
         db.describe(CONFIG, 'nope')
+
+
+def test_describe_treats_injected_sql_as_a_missing_table():
+    connection, _ = fake_connection([])
+    with (
+        patch('tools.muma_mcp.db.connect', return_value=connection),
+        pytest.raises(QueryRejected, match='bestaat niet'),
+    ):
+        db.describe(CONFIG, 'library_tracks`; DROP TABLE x; --')
 
 
 def test_list_tables_is_sorted():

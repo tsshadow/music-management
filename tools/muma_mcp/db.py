@@ -22,7 +22,6 @@ import argparse
 import datetime
 import decimal
 import json
-import re
 import sys
 from typing import Any
 
@@ -41,11 +40,6 @@ STATEMENT_TIMEOUT_SECONDS = 10
 MAX_RESULT_BYTES = 100_000
 
 CONNECT_TIMEOUT_SECONDS = 5
-
-# Table and column names are interpolated into SHOW/DESCRIBE, which take no
-# placeholders. Nothing outside this alphabet is accepted, and the name is then
-# backtick-quoted.
-_IDENTIFIER = re.compile(r'^[A-Za-z0-9_$]+$')
 
 
 class WriteProbeSucceeded(RuntimeError):
@@ -150,24 +144,31 @@ def list_tables(config: Config) -> list[str]:
 def describe(config: Config, table: str) -> list[dict[str, Any]]:
     """Columns of one table.
 
-    The name is checked against the identifier alphabet *and* against the actual
-    table list before it is interpolated, because DESCRIBE takes no placeholder.
+    Asked of ``information_schema`` rather than with ``DESCRIBE``, because
+    DESCRIBE takes no placeholder and would mean interpolating the table name
+    into the statement. Here the name is a bound parameter -- data, never syntax
+    -- so no validation of it is needed and none can be forgotten. An unknown
+    name simply matches nothing.
     """
-    if not _IDENTIFIER.match(table):
-        raise QueryRejected(f'{table!r} is geen geldige tabelnaam')
-    if table not in list_tables(config):
-        raise QueryRejected(f'tabel {table!r} bestaat niet; gebruik prod_tables voor de lijst')
-
     connection = connect(config)
     try:
         with connection.cursor() as cursor:
             cursor.execute('START TRANSACTION READ ONLY')
-            cursor.execute(f'DESCRIBE `{table}`')
+            cursor.execute(
+                'SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT, EXTRA '
+                'FROM information_schema.COLUMNS '
+                'WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s '
+                'ORDER BY ORDINAL_POSITION',
+                (config.db_name, table),
+            )
             columns = [column[0] for column in cursor.description or []]
             rows = [{c: _jsonable(v) for c, v in zip(columns, row, strict=False)} for row in cursor.fetchall()]
         connection.rollback()
     finally:
         connection.close()
+
+    if not rows:
+        raise QueryRejected(f'tabel {table!r} bestaat niet; gebruik prod_tables voor de lijst')
     return rows
 
 

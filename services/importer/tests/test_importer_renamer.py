@@ -1,4 +1,7 @@
+import errno
+import os
 import unittest
+from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
 from services.importer import renamer
@@ -71,26 +74,6 @@ class RenamerTest(unittest.TestCase):
             self.renamer.run()
         rename.assert_not_called()
 
-    def test_a_clashing_target_makes_the_source_folder_go_away(self):
-        with (
-            patch.object(renamer, 'listdir', return_value=['Some Release (SCAN123)']),
-            patch.object(renamer, 'isfile', return_value=False),
-            patch.object(renamer.os, 'rename', side_effect=FileExistsError),
-            patch.object(renamer.shutil, 'rmtree') as rmtree,
-        ):
-            self.renamer.run()
-        rmtree.assert_called_once_with('/import/Some Release (SCAN123)')
-
-    def test_a_clashing_target_that_cannot_be_cleaned_up_does_not_stop_the_run(self):
-        with (
-            patch.object(renamer, 'listdir', return_value=['A (1)', 'B (2)']),
-            patch.object(renamer, 'isfile', return_value=False),
-            patch.object(renamer.os, 'rename', side_effect=FileExistsError),
-            patch.object(renamer.shutil, 'rmtree', side_effect=PermissionError('read only')) as rmtree,
-        ):
-            self.renamer.run()
-        self.assertEqual(rmtree.call_count, 2)
-
     def test_an_unexpected_rename_failure_does_not_stop_the_run(self):
         with (
             patch.object(renamer, 'listdir', return_value=['A (1)', 'B (2)']),
@@ -99,6 +82,105 @@ class RenamerTest(unittest.TestCase):
         ):
             self.renamer.run()
         self.assertEqual(rename.call_count, 2)
+
+
+class RenamerCollisionTest(unittest.TestCase):
+    """A rename onto an existing folder, against a real filesystem.
+
+    Mocking `os.rename` cannot express "the target holds the same files", which is the
+    whole question here, so these build the two directories for real -- and they are the
+    only way to reproduce ENOTEMPTY, which is what a non-empty target actually raises.
+    """
+
+    UNPARSED = 'Some Release (SCAN123)'
+    RENAMED = 'SCAN123 - Some Release (SCAN123)'
+
+    def setUp(self):
+        self.tmp = self.enterContext(TemporaryDirectory())
+        settings = MagicMock(import_folder_path=self.tmp, delimiter='/')
+        patcher = patch.object(renamer, 'Settings', return_value=settings)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.renamer = Renamer()
+
+    def make_release(self, folder, files):
+        path = os.path.join(self.tmp, folder)
+        os.makedirs(path, exist_ok=True)
+        for name, content in files.items():
+            full = os.path.join(path, name)
+            os.makedirs(os.path.dirname(full), exist_ok=True)
+            with open(full, 'w') as handle:
+                handle.write(content)
+        return path
+
+    def exists(self, folder):
+        return os.path.isdir(os.path.join(self.tmp, folder))
+
+    def test_a_second_download_of_a_release_that_is_already_renamed_is_removed(self):
+        self.make_release(self.UNPARSED, {'01-track.mp3': 'aaa', '00-release.nfo': 'bb'})
+        self.make_release(self.RENAMED, {'01-track.mp3': 'aaa', '00-release.nfo': 'bb'})
+        self.renamer.run()
+        self.assertFalse(self.exists(self.UNPARSED))
+        self.assertTrue(self.exists(self.RENAMED))
+
+    def test_a_duplicate_removal_is_logged_as_a_warning_not_as_info(self):
+        self.make_release(self.UNPARSED, {'01-track.mp3': 'aaa'})
+        self.make_release(self.RENAMED, {'01-track.mp3': 'aaa'})
+        with self.assertLogs(level='WARNING') as logs:
+            self.renamer.run()
+        self.assertIn('Conflict:', '\n'.join(logs.output))
+
+    def test_a_colliding_folder_whose_contents_differ_is_left_alone(self):
+        self.make_release(self.UNPARSED, {'01-track.mp3': 'a longer rip'})
+        self.make_release(self.RENAMED, {'01-track.mp3': 'aaa'})
+        self.renamer.run()
+        self.assertTrue(self.exists(self.UNPARSED))
+        self.assertTrue(self.exists(self.RENAMED))
+
+    def test_a_colliding_folder_with_an_extra_file_is_left_alone(self):
+        self.make_release(self.UNPARSED, {'01-track.mp3': 'aaa', '02-bonus.mp3': 'bbb'})
+        self.make_release(self.RENAMED, {'01-track.mp3': 'aaa'})
+        self.renamer.run()
+        self.assertTrue(self.exists(self.UNPARSED))
+
+    def test_a_collision_says_in_the_log_why_it_left_both_folders(self):
+        self.make_release(self.UNPARSED, {'01-track.mp3': 'a longer rip'})
+        self.make_release(self.RENAMED, {'01-track.mp3': 'aaa'})
+        with self.assertLogs(level='WARNING') as logs:
+            self.renamer.run()
+        message = '\n'.join(logs.output)
+        self.assertIn('differ', message)
+        self.assertIn('manual intervention', message)
+
+    def test_a_collision_reported_as_file_exists_is_handled_the_same_way(self):
+        self.make_release(self.UNPARSED, {'01-track.mp3': 'aaa'})
+        self.make_release(self.RENAMED, {'01-track.mp3': 'aaa'})
+        with patch.object(renamer.os, 'rename', side_effect=FileExistsError(errno.EEXIST, 'File exists')):
+            self.renamer.run()
+        self.assertFalse(self.exists(self.UNPARSED))
+
+    def test_synology_thumbnail_folders_do_not_make_two_copies_look_different(self):
+        self.make_release(self.UNPARSED, {'01-track.mp3': 'aaa'})
+        self.make_release(self.RENAMED, {'01-track.mp3': 'aaa', os.path.join('@eaDir', 'thumb.jpg'): 'junk'})
+        self.renamer.run()
+        self.assertFalse(self.exists(self.UNPARSED))
+
+    def test_a_rename_failure_that_is_not_a_collision_is_logged_and_the_run_continues(self):
+        self.make_release('A (1)', {'01-track.mp3': 'aaa'})
+        self.make_release('B (2)', {'01-track.mp3': 'aaa'})
+        with patch.object(renamer.os, 'rename', side_effect=OSError(errno.EACCES, 'denied')) as rename:
+            self.renamer.run()
+        self.assertEqual(rename.call_count, 2)
+        self.assertTrue(self.exists('A (1)'))
+        self.assertTrue(self.exists('B (2)'))
+
+    def test_an_unreadable_colliding_folder_is_left_alone(self):
+        self.make_release(self.UNPARSED, {'01-track.mp3': 'aaa'})
+        self.make_release(self.RENAMED, {'01-track.mp3': 'aaa'})
+        with patch.object(renamer.os, 'walk', side_effect=PermissionError('denied')):
+            self.renamer.run()
+        self.assertTrue(self.exists(self.UNPARSED))
+        self.assertTrue(self.exists(self.RENAMED))
 
 
 if __name__ == '__main__':

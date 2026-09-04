@@ -11,6 +11,22 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.45.0 (2026-09-04)
+
+- **Een archief met een enkele rare bestandsnaam liet de helft van zijn releases nooit binnen.**
+  De uitpakker die de importer koos stopt bij de eerste naam die hij niet naar de taalinstelling
+  van de container kan omzetten, en gooit daarmee de rest van het archief weg. In het weekpakket
+  van week 34 waren dat 31 van de 44 releases. De importer probeert nu een andere uitpakker zodra
+  de eerste faalt, en die leest zulke namen wel.
+- **Een release die je twee keer downloadde bleef in de importmap hangen.** De tweede kopie kon
+  niet hernoemd worden omdat de eerste er al stond, en dat werd elke ronde opnieuw geprobeerd.
+  Zijn de twee mappen identiek, dan verdwijnt de dubbele nu vanzelf; verschillen ze, dan blijven
+  ze allebei staan met een duidelijke melding.
+- **De releasedatum-backfill kan nu op productie draaien.** Het script zat in geen enkele image,
+  dus er was geen manier om het daar te starten. Het draait nu als eenmalige taak, en meldt
+  vooraf welke bestanden de opslag weigert te laten schrijven -- precies waar de vorige poging
+  op stukliep.
+
 ## Global Version 0.44.4 (2026-09-04)
 
 - **Een artiest met een spatie in zijn naam gaf 400 op zijn eigen bewerkpagina.** De proxy in

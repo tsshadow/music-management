@@ -6,6 +6,10 @@ namespace lms::api::muma
 {
     namespace
     {
+        constexpr unsigned char decimalDigitCount{ 10 };
+        constexpr unsigned char lowNibbleMask{ 0x0F };
+        constexpr unsigned int nibbleBitCount{ 4 };
+
         bool isUnreserved(unsigned char c)
         {
             // RFC 3986 unreserved, plus '/' because the separators of the path being rebuilt
@@ -13,12 +17,15 @@ namespace lms::api::muma
             // already decoded, so a percent in it belongs to the name.
             return std::isalnum(c) || c == '-' || c == '.' || c == '_' || c == '~' || c == '/';
         }
+
+        char toHexDigit(unsigned char nibble)
+        {
+            return static_cast<char>(nibble < decimalDigitCount ? '0' + nibble : 'A' + (nibble - decimalDigitCount));
+        }
     } // namespace
 
     std::string encodeProxyPath(std::string_view decodedPath)
     {
-        static constexpr char hexDigits[]{ "0123456789ABCDEF" };
-
         std::string encoded;
         encoded.reserve(decodedPath.size());
 
@@ -32,8 +39,8 @@ namespace lms::api::muma
             else
             {
                 encoded += '%';
-                encoded += hexDigits[c >> 4];
-                encoded += hexDigits[c & 0x0F];
+                encoded += toHexDigit(c >> nibbleBitCount);
+                encoded += toHexDigit(c & lowNibbleMask);
             }
         }
 

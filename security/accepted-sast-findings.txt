@@ -210,8 +210,11 @@ e1aa004efd8e6a7b x1  # use-of-md5 services/muma-mobile/core/subsonic-api/src/int
 # writes a temp file falls over in a way that only shows up on deploy, and
 # prod cannot be tested from here. no-new-privileges, which cannot break
 # anything, was applied instead.
+#
+# tools went from x3 to x4 with release-date-backfill, a one-off run that
+# writes only to the mounted music share and follows the same rule.
 5aade493e884ca34 x2  # writable-filesystem-service docker/docker-compose.core.yml
 0eae9038f27ed843 x13  # writable-filesystem-service docker/docker-compose.full.yml
-acedf220b679b6b2 x3  # writable-filesystem-service docker/docker-compose.tools.yml
+acedf220b679b6b2 x4  # writable-filesystem-service docker/docker-compose.tools.yml
 4a78e339f31863ad x5  # writable-filesystem-service docker/docker-compose.workers.yml
 25d2c6c464a0aee4 x11  # writable-filesystem-service docker/docker-compose.yml

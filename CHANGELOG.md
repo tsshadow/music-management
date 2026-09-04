@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.44.4] - 2026-09-04
+
 ### Fixed
 - **Een artiest met een spatie in zijn naam gaf 400 Bad Request op zijn eigen bewerkpagina.**
   `GET /muma/api/curation/artists/Silky%20Noize` kwam nooit bij een route aan. Wt levert het pad

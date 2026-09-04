@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import datetime
 import decimal
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-import pymysql
 import pytest
 
 from tools.muma_mcp import db
@@ -175,10 +175,25 @@ def test_list_tables_is_sorted():
         assert db.list_tables(CONFIG) == ['alpha', 'zebra']
 
 
+class FakeDatabaseError(Exception):
+    """Stands in for pymysql.MySQLError.
+
+    services/tests/mock_base.py replaces the whole `pymysql` module with a
+    MagicMock for the full-tree run, which leaves `pymysql.MySQLError` a mock
+    rather than a class -- and `except <mock>` raises TypeError. Running
+    `pytest tools/` on its own does not load that stub, so this only shows up in
+    CI. Patching the module reference makes the test say what it means either
+    way: a database error from the probe means the write was refused.
+    """
+
+
 def test_check_write_is_refused_passes_when_the_database_refuses():
     connection, cursor = fake_connection([])
-    cursor.execute.side_effect = pymysql.err.OperationalError(1142, 'CREATE command denied')
-    with patch('tools.muma_mcp.db.connect', return_value=connection):
+    cursor.execute.side_effect = FakeDatabaseError('CREATE command denied')
+    with (
+        patch('tools.muma_mcp.db.pymysql', SimpleNamespace(MySQLError=FakeDatabaseError)),
+        patch('tools.muma_mcp.db.connect', return_value=connection),
+    ):
         assert db.check_write_is_refused(CONFIG) == 0
 
 

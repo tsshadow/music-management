@@ -1,6 +1,7 @@
 
 add_library(lmsmuma STATIC
     MumaResource.cpp
+    PathEncoding.cpp
 )
 
 target_include_directories(lmsmuma INTERFACE
@@ -18,3 +19,7 @@ target_link_libraries(lmsmuma PRIVATE
     lmsscanner
     Wt::Wt
 )
+
+if(BUILD_TESTING)
+    add_subdirectory(test)
+endif()

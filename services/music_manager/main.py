@@ -27,6 +27,7 @@ from services.music_manager.routers import (
     diagnostics,
     downloaders,
     events,
+    feeds,
     jobs,
     library,
     management,
@@ -82,6 +83,7 @@ app.include_router(news.router, prefix="/api/news")
 app.include_router(diagnostics.router, prefix="/api/diagnostics")
 app.include_router(curation.router, prefix="/api/curation")
 app.include_router(songs.router, prefix="/api/songs")
+app.include_router(feeds.router, prefix="/api/feeds")
 
 
 def background_workers_enabled() -> bool:
@@ -116,6 +118,7 @@ def startup_event():
                 downloaders.init_db(cursor)
                 diagnostics.init_db(cursor)
                 events.init_db(cursor)
+                feeds.init_db(cursor)
             conn.commit()
             print('Music Manager: Database initialized')
         finally:

@@ -74,14 +74,6 @@ def verify_api_key(x_api_key: str | None = Header(None)):
     raise HTTPException(status_code=401, detail='Invalid API key')
 
 
-def _auth_dependency(x_api_key: str | None = Header(None)) -> dict:
-    """Indirection so `Depends` re-reads `verify_api_key` from this module's
-    namespace on every request, the same way `verify_api_key` itself re-reads
-    `verify_token` -- tests patch the module attribute, not the object FastAPI
-    would otherwise have captured once at route-registration time."""
-    return verify_api_key(x_api_key)
-
-
 def _resolve_username(auth: dict, username: str | None) -> str:
     """A user key is always about its own account -- a `username` it passes is
     ignored, never honoured. Only the system key may ask for someone else's."""
@@ -177,7 +169,7 @@ def _affinities(values: dict[str, float]) -> list[dict]:
 
 @router.get('')
 @router.get('/')
-def list_feeds(_auth: dict = Depends(_auth_dependency)):
+def list_feeds(_auth: dict = Depends(verify_api_key)):
     return {
         'feeds': [
             {'slug': policy.slug, 'size': policy.size, 'window_days': policy.release_window_days}
@@ -187,7 +179,7 @@ def list_feeds(_auth: dict = Depends(_auth_dependency)):
 
 
 @router.get('/profile')
-def get_profile(username: str | None = None, auth: dict = Depends(_auth_dependency)):
+def get_profile(username: str | None = None, auth: dict = Depends(verify_api_key)):
     resolved = _resolve_username(auth, username)
     conn = get_db_connection()
     if not conn:
@@ -214,7 +206,7 @@ class ExclusionUpdate(BaseModel):
 
 
 @router.put('/profile/exclusions')
-def update_exclusion(payload: ExclusionUpdate, username: str | None = None, auth: dict = Depends(_auth_dependency)):
+def update_exclusion(payload: ExclusionUpdate, username: str | None = None, auth: dict = Depends(verify_api_key)):
     resolved = _resolve_username(auth, username)
     conn = get_db_connection()
     if not conn:
@@ -245,7 +237,7 @@ def get_feed(
     slug: str,
     limit: int | None = Query(None, ge=1, le=100),
     username: str | None = None,
-    auth: dict = Depends(_auth_dependency),
+    auth: dict = Depends(verify_api_key),
 ):
     policy = POLICIES.get(slug)
     if policy is None:
@@ -255,16 +247,20 @@ def get_feed(
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')
 
-    if limit is not None and limit != policy.size:
-        policy = replace(policy, size=limit)
+    try:
+        if limit is not None and limit != policy.size:
+            policy = replace(policy, size=limit)
 
-    kwargs = {}
-    starting_genres = _starting_genres()
-    if starting_genres:
-        kwargs['starting_genres'] = starting_genres
+        kwargs = {}
+        starting_genres = _starting_genres()
+        if starting_genres:
+            kwargs['starting_genres'] = starting_genres
 
-    now = datetime.now()
-    feed = build_feed(conn, resolved, policy, now, **kwargs)
+        now = datetime.now()
+        feed = build_feed(conn, resolved, policy, now, **kwargs)
+    finally:
+        conn.close()
+
     return {
         'slug': feed.slug,
         'state': feed.state,

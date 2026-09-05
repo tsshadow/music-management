@@ -173,6 +173,14 @@ def build_feed(conn, username: str, policy: FeedPolicy, now: datetime) -> Feed
    carries the bucket it competed in and the reason it was placed there (`genre`, `label:<name>`,
    `artist:<name>`, `tail`). `funnel` records the row count after every stage above.
 
+The "configured starting genres" in step 2 come from a runtime setting, `feeds_starting_genres`
+(`services/common/config_store.py`, group `Feeds`) — a comma-separated list of genre names, e.g.
+`uptempo,raw hardcore`. It is read once per request (`routers/feeds.py:_starting_genres()`) and
+passed to `build_feed` as `starting_genres`. Unset (the default, `''`) means no configured
+fallback at all: when neither the listener nor the server has any listening history, the feed
+reports `state = 'not_enough_data'` rather than falling back to anything, and `GET
+/api/feeds/profile` reports `scope = 'empty'`.
+
 ## API Contract
 
 All endpoints require the existing `X-API-Key` header (`routers/library.py:verify_api_key`

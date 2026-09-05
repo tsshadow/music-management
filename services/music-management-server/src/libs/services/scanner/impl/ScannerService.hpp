@@ -25,6 +25,7 @@
 #include <shared_mutex>
 #include <vector>
 
+#include <boost/asio/steady_timer.hpp>
 #include <boost/asio/system_timer.hpp>
 
 #include <Wt/WDateTime.h>
@@ -36,6 +37,8 @@
 #include "services/scanner/IScannerService.hpp"
 
 #include "FileScanners.hpp"
+#include "ScanContext.hpp"
+#include "ScanRequestCollector.hpp"
 #include "ScannerSettings.hpp"
 #include "steps/IScanStep.hpp"
 
@@ -60,8 +63,26 @@ namespace lms::scanner
         ScannerService& operator=(const ScannerService&) = delete;
 
     private:
+        // Why a scan unwound. The steps only ever see the bool; this is what tells the service
+        // whether to throw the run away or to keep it and come back to it.
+        enum class InterruptReason
+        {
+            None,
+            Abort,
+            Pause,
+        };
+
+        // A periodic run that a scoped one interrupted, waiting to be resumed. The context
+        // carries the stats of every step that already finished.
+        struct PausedScan
+        {
+            ScanContext context;
+            std::size_t stepIndex{};
+        };
+
         void requestReload() override;
         void requestImmediateScan(const ScanOptions& scanOptions) override;
+        void requestScopedScan(const std::vector<std::filesystem::path>& directories) override;
 
         Status getStatus() const override;
         Events& getEvents() override { return _events; }
@@ -75,9 +96,15 @@ namespace lms::scanner
 
         void abortScan();
 
+        // Scoped request handling (all of this runs on the io thread)
+        void armScanRequestTimer();
+        void onScanRequestDue();
+        void runPendingScopedScan();
+
         // Update database (scheduled callback)
         void scan(const ScanOptions& scanOptions);
-        void processScanSteps(ScanContext& context);
+        // Returns the index the run stopped at; see runScanSteps().
+        std::size_t processScanSteps(ScanContext& context, std::size_t startIndex);
 
         void scanMediaDirectory(const std::filesystem::path& mediaDirectory, bool forceScan, ScanStats& stats);
 
@@ -97,8 +124,15 @@ namespace lms::scanner
 
         std::mutex _controlMutex;
         bool _abortScan{};
+        InterruptReason _interruptReason{ InterruptReason::None };
+        std::optional<PausedScan> _pausedScan;
         Wt::WIOService _ioService;
         boost::asio::system_timer _scheduleTimer{ _ioService };
+        // Five seconds of quiet, and sixty seconds at the outside: a tagger round that touches
+        // a folder every second would otherwise keep resetting the quiet period and its first
+        // path would never be read.
+        ScanRequestCollector _scanRequests{ std::chrono::seconds{ 5 }, std::chrono::seconds{ 60 } };
+        boost::asio::steady_timer _scanRequestTimer{ _ioService };
         bool _firstSchedule{ true };
         Events _events;
         std::chrono::steady_clock::time_point _lastScanInProgressEmit;

@@ -7,6 +7,9 @@ add_executable(test-scanner
 	PlayList.cpp
 	Scanner.cpp
 	ScanOptions.cpp
+	ScanRequestCollector.cpp
+	ScanSchedule.cpp
+	ScanStepSequence.cpp
 	TrackMetadataParser.cpp
 	)
 

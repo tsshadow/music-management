@@ -19,6 +19,9 @@
 
 #include "ScannerService.hpp"
 
+#include "ScanSchedule.hpp"
+#include "ScanStepSequence.hpp"
+
 #include <ctime>
 
 #include <Wt/WDate.h>
@@ -65,24 +68,28 @@ namespace lms::scanner
         constexpr std::string_view currentSettingsName{};
         constexpr std::string_view lastScanSettingsName{ "last_scan" };
 
-        Wt::WDate getNextMonday(Wt::WDate current)
+        ScanPeriod toScanPeriod(db::ScanSettings::UpdatePeriod period)
         {
-            do
+            switch (period)
             {
-                current = current.addDays(1);
-            } while (current.dayOfWeek() != 1);
+            case db::ScanSettings::UpdatePeriod::Never:
+                break;
+            case db::ScanSettings::UpdatePeriod::Daily:
+                return ScanPeriod::Daily;
+            case db::ScanSettings::UpdatePeriod::Weekly:
+                return ScanPeriod::Weekly;
+            case db::ScanSettings::UpdatePeriod::Monthly:
+                return ScanPeriod::Monthly;
+            case db::ScanSettings::UpdatePeriod::Hourly:
+                return ScanPeriod::Hourly;
+            }
 
-            return current;
+            return ScanPeriod::Never;
         }
 
-        Wt::WDate getNextFirstOfMonth(Wt::WDate current)
+        ScanPeriod toScanPeriod(db::ScanSettings::FullScanPeriod period)
         {
-            do
-            {
-                current = current.addDays(1);
-            } while (current.day() != 1);
-
-            return current;
+            return period == db::ScanSettings::FullScanPeriod::Weekly ? ScanPeriod::Weekly : ScanPeriod::Never;
         }
 
         std::optional<ScannerSettings> readScannerSettings(db::Session& session, std::string_view name)
@@ -231,12 +238,15 @@ namespace lms::scanner
 
         LMS_LOG(DBUPDATER, DEBUG, "Waiting for the scan to abort...");
 
+        _interruptReason = InterruptReason::Abort;
         _abortScan = true;
         _scheduleTimer.cancel();
         _ioService.stop();
         LMS_LOG(DBUPDATER, DEBUG, "Scan abort done!");
 
         _abortScan = false;
+        _interruptReason = InterruptReason::None;
+        _pausedScan.reset(); // an aborted run is thrown away, paused or not
         _ioService.start();
 
         if (isRunning)
@@ -252,6 +262,60 @@ namespace lms::scanner
 
             scheduleScan(scanOptions);
         });
+    }
+
+    void ScannerService::requestScopedScan(const std::vector<std::filesystem::path>& directories)
+    {
+        // Called from a Wt web thread; everything below runs on the io thread.
+        _ioService.post([this, directories] {
+            _scanRequests.add(directories, ScanRequestCollector::Clock::now());
+            armScanRequestTimer();
+        });
+    }
+
+    void ScannerService::armScanRequestTimer()
+    {
+        const std::optional<ScanRequestCollector::Clock::time_point> deadline{ _scanRequests.deadline() };
+        if (!deadline)
+            return;
+
+        _scanRequestTimer.expires_at(*deadline);
+        _scanRequestTimer.async_wait([this](boost::system::error_code ec) {
+            if (ec) // cancelled: a newer path moved the deadline and re-armed the timer
+                return;
+
+            onScanRequestDue();
+        });
+    }
+
+    void ScannerService::onScanRequestDue()
+    {
+        bool scanRunning{};
+        {
+            std::shared_lock lock{ _statusMutex };
+            scanRunning = _curState == State::InProgress;
+        }
+
+        if (scanRunning)
+        {
+            // Ask the running scan to unwind at its next batch boundary. The steps see the
+            // same bool they always did; only the reason tells scan() what to do next.
+            _interruptReason = InterruptReason::Pause;
+            _abortScan = true;
+            return; // scan() picks the request up when it comes back
+        }
+
+        runPendingScopedScan();
+    }
+
+    void ScannerService::runPendingScopedScan()
+    {
+        ScanOptions options;
+        options.scanDirectories = _scanRequests.take();
+        if (options.scanDirectories.empty())
+            return;
+
+        scan(options);
     }
 
     void ScannerService::requestReload()
@@ -285,60 +349,38 @@ namespace lms::scanner
 
         refreshScanSettings();
 
-        const Wt::WDateTime now{ Wt::WDateTime::currentDateTime() };
-
-        Wt::WDateTime nextScanDateTime;
-        switch (_settings.updatePeriod)
+        // Read straight from the settings row rather than through ScannerSettings: these two
+        // say when to scan, not how to read a file, and ScannerSettings is compared field by
+        // field to decide whether files need re-reading.
+        db::ScanSettings::FullScanPeriod fullScanPeriod{ db::ScanSettings::FullScanPeriod::Never };
+        int fullScanDayOfWeek{ 7 };
         {
-        case ScanSettings::UpdatePeriod::Daily:
-            if (now.time() < _settings.startTime)
-                nextScanDateTime = { now.date(), _settings.startTime };
-            else
-                nextScanDateTime = { now.date().addDays(1), _settings.startTime };
-            break;
-
-        case ScanSettings::UpdatePeriod::Weekly:
-            if (now.time() < _settings.startTime && now.date().dayOfWeek() == 1)
-                nextScanDateTime = { now.date(), _settings.startTime };
-            else
-                nextScanDateTime = { getNextMonday(now.date()), _settings.startTime };
-            break;
-
-        case ScanSettings::UpdatePeriod::Monthly:
-            if (now.time() < _settings.startTime && now.date().day() == 1)
-                nextScanDateTime = { now.date(), _settings.startTime };
-            else
-                nextScanDateTime = { getNextFirstOfMonth(now.date()), _settings.startTime };
-            break;
-
-        case ScanSettings::UpdatePeriod::Hourly:
-            if (_firstSchedule)
+            auto transaction{ _db.getTLSSession().createReadTransaction() };
+            if (const ScanSettings::pointer scanSettings{ ScanSettings::find(_db.getTLSSession(), currentSettingsName) })
             {
-                nextScanDateTime = now;
-                _firstSchedule = false;
+                fullScanPeriod = scanSettings->getFullScanPeriod();
+                fullScanDayOfWeek = scanSettings->getFullScanDayOfWeek();
             }
-            else
-            {
-                Wt::WTime nextTime = now.time().addSecs(3600);
-                if (nextTime < now.time())
-                    nextScanDateTime = { now.date().addDays(1), nextTime };
-                else
-                    nextScanDateTime = { now.date(), nextTime };
-            }
-            break;
-
-        case ScanSettings::UpdatePeriod::Never:
-            LMS_LOG(DBUPDATER, INFO, "Auto scan disabled!");
-            break;
         }
 
-        if (nextScanDateTime.isValid())
-            scheduleScan(ScanOptions{}, nextScanDateTime);
+        const ScheduledScan next{ computeNextScan(toScanPeriod(_settings.updatePeriod), toScanPeriod(fullScanPeriod), fullScanDayOfWeek, _settings.startTime, Wt::WDateTime::currentDateTime(), _firstSchedule) };
+
+        if (_settings.updatePeriod == ScanSettings::UpdatePeriod::Hourly)
+            _firstSchedule = false;
+        if (!next.dateTime.isValid())
+            LMS_LOG(DBUPDATER, INFO, "Auto scan disabled!");
+
+        if (next.dateTime.isValid())
+        {
+            ScanOptions scanOptions;
+            scanOptions.fullScan = next.fullScan;
+            scheduleScan(scanOptions, next.dateTime);
+        }
 
         {
             std::unique_lock lock{ _statusMutex };
-            _curState = nextScanDateTime.isValid() ? State::Scheduled : State::NotScheduled;
-            _nextScheduledScan = nextScanDateTime;
+            _curState = next.dateTime.isValid() ? State::Scheduled : State::NotScheduled;
+            _nextScheduledScan = next.dateTime;
         }
 
         _events.scanScheduled.emit(_nextScheduledScan);
@@ -387,11 +429,24 @@ namespace lms::scanner
         refreshScanSettings();
 
         ScanContext scanContext;
-        scanContext.scanOptions = scanOptions;
+        std::size_t startIndex{};
+        if (!scanOptions.isScoped() && _pausedScan)
+        {
+            // Resuming the periodic scan that a scoped one interrupted: same context, same
+            // stats, and the interrupted step runs again from its own beginning.
+            scanContext = std::move(_pausedScan->context);
+            startIndex = _pausedScan->stepIndex;
+            _pausedScan.reset();
+            LMS_LOG(DBUPDATER, INFO, "Resuming the paused scan at step " << startIndex);
+        }
+        else
+        {
+            scanContext.scanOptions = scanOptions;
+            scanContext.stats.startTime = Wt::WDateTime::currentDateTime();
+        }
         ScanStats& stats{ scanContext.stats };
-        stats.startTime = Wt::WDateTime::currentDateTime();
 
-        processScanSteps(scanContext);
+        const std::size_t stoppedAt{ processScanSteps(scanContext, startIndex) };
 
         {
             std::unique_lock lock{ _statusMutex };
@@ -407,6 +462,24 @@ namespace lms::scanner
             auto transaction{ _db.getTLSSession().createReadTransaction() };
             const db::FileStats stats{ _db.getTLSSession().getFileStats() };
             LMS_LOG(DBUPDATER, INFO, stats.getTotalFileCount() << " total files: " << stats.artistInfoCount << " artist info, " << stats.imageCount << " images, " << stats.playListCount << " playlists, " << stats.trackCount << " tracks, " << stats.trackLyricsCount << " lyrics");
+        }
+
+        if (_interruptReason == InterruptReason::Pause)
+        {
+            _interruptReason = InterruptReason::None;
+            _abortScan = false;
+
+            // Only a periodic run is worth coming back to: a scoped one is seconds of work and
+            // its paths are still in the collector if they were not all read.
+            if (!scanOptions.isScoped())
+                _pausedScan = PausedScan{ std::move(scanContext), stoppedAt };
+
+            runPendingScopedScan();
+
+            if (_pausedScan)
+                scheduleScan(ScanOptions{}); // resume now, not at the next scheduled moment
+
+            return;
         }
 
         if (!_abortScan)
@@ -427,8 +500,14 @@ namespace lms::scanner
             writeScannerSettings(_db.getTLSSession(), lastScanSettingsName, _settings);
             _lastScanSettings = _settings;
 
-            LMS_LOG(DBUPDATER, DEBUG, "Scan not aborted, scheduling next scan!");
-            scheduleNextScan();
+            // A scoped scan is not allowed to move the periodic one: recomputing the moment
+            // here is what used to push an hourly scan out by an hour on every request, so
+            // the library-wide scan never came round again.
+            if (!scanOptions.isScoped())
+            {
+                LMS_LOG(DBUPDATER, DEBUG, "Scan not aborted, scheduling next scan!");
+                scheduleNextScan();
+            }
 
             _events.scanComplete.emit(stats);
         }
@@ -438,39 +517,11 @@ namespace lms::scanner
         }
     }
 
-    void ScannerService::processScanSteps(ScanContext& context)
+    std::size_t ScannerService::processScanSteps(ScanContext& context, std::size_t startIndex)
     {
-        std::size_t stepIndex{};
-        for (auto& scanStep : _scanSteps)
-        {
-            context.currentStepStats = ScanStepStats{
-                .startTime = Wt::WDateTime::currentDateTime(),
-                .stepCount = _scanSteps.size(),
-                .stepIndex = stepIndex++,
-                .currentStep = scanStep->getStep(),
-                .totalElems = 0,
-                .processedElems = 0
-            };
-
-            if (_abortScan)
-                break;
-
-            if (!scanStep->needProcess(context))
-            {
-                LMS_LOG(DBUPDATER, DEBUG, "Skipping scan step '" << scanStep->getStepName() << "'");
-                continue;
-            }
-
-            {
-                LMS_SCOPED_TRACE_OVERVIEW("Scanner", scanStep->getStepName());
-
-                LMS_LOG(DBUPDATER, DEBUG, "Starting scan step '" << scanStep->getStepName() << "'");
-                notifyInProgress(context.currentStepStats);
-                scanStep->process(context);
-                notifyInProgress(context.currentStepStats);
-                LMS_LOG(DBUPDATER, DEBUG, "Completed scan step '" << scanStep->getStepName() << "'");
-            }
-        }
+        return runScanSteps(_scanSteps, context, startIndex, _abortScan, [this](const ScanStepStats& stats) {
+            notifyInProgress(stats);
+        });
     }
 
     void ScannerService::refreshScanSettings()

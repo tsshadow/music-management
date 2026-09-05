@@ -21,6 +21,7 @@
 
 #include <filesystem>
 #include <optional>
+#include <vector>
 
 #include "ScannerEvents.hpp"
 #include "ScannerOptions.hpp"
@@ -41,6 +42,11 @@ namespace lms::scanner
         // Async requests
         virtual void requestReload() = 0; // will stop/reschedule scan
         virtual void requestImmediateScan(const ScanOptions& options = {}) = 0;
+
+        // Asks for one or more subtrees to be re-read. Unlike requestImmediateScan this does
+        // not abort a running scan: the requests are merged and debounced, and a periodic scan
+        // in progress is paused for them and resumed afterwards.
+        virtual void requestScopedScan(const std::vector<std::filesystem::path>& directories) = 0;
 
         enum class State
         {

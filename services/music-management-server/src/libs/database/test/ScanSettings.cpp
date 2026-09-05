@@ -49,4 +49,31 @@ namespace lms::db::tests
             ASSERT_EQ(artists.size(), 2);
         }
     }
+
+    TEST_F(DatabaseFixture, ScanSettings_fullScanIsOffByDefault)
+    {
+        ScopedScanSettings settings{ session, "test" };
+
+        auto transaction{ session.createReadTransaction() };
+
+        EXPECT_EQ(settings.get()->getFullScanPeriod(), ScanSettings::FullScanPeriod::Never);
+        EXPECT_EQ(settings.get()->getFullScanDayOfWeek(), 7);
+    }
+
+    TEST_F(DatabaseFixture, ScanSettings_fullScanSettingsSurviveAWrite)
+    {
+        ScopedScanSettings settings{ session, "test" };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            settings.get().modify()->setFullScanPeriod(ScanSettings::FullScanPeriod::Weekly);
+            settings.get().modify()->setFullScanDayOfWeek(3);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(settings.get()->getFullScanPeriod(), ScanSettings::FullScanPeriod::Weekly);
+            EXPECT_EQ(settings.get()->getFullScanDayOfWeek(), 3);
+        }
+    }
 } // namespace lms::db::tests

@@ -15,13 +15,47 @@ CLIENT_NAME = 'muma-radio'
 API_VERSION = '1.16.1'
 
 
+class LmsNotConfigured(RuntimeError):
+    """No LMS address is configured, so there is nothing safe to call."""
+
+
 def lms_base_url() -> str:
-    url = os.getenv('LMS_URL') or (os.getenv('LMS_HOSTS') or '').split(',')[0].strip()
-    if not url:
-        url = 'http://lms:5082'
-    if not url.startswith('http'):
-        url = 'http://' + url
-    return url.rstrip('/')
+    """Where to reach LMS, from the environment. Never guessed.
+
+    This used to fall back to a hardcoded ``http://lms:5082``. On the deployment
+    that is right -- ``lms`` is the container_name of the separately deployed LMS
+    stack, on the shared ``music-management_db`` network -- and that is exactly
+    what made it dangerous everywhere else: a bare hostname is resolved by
+    whatever DNS the host has. On the office LAN ``lms`` resolves to
+    192.0.2.27, so a container started without LMS configuration called
+    *production* every five seconds, and neither end said so. Production's LMS
+    logs the rejection without a client address, so it reads as a fault in
+    production's own radio thread; it took reading the reverse proxy's access log
+    to see the requests were coming from a developer workstation.
+
+    ``MUMA_SERVER_HOSTS`` is read as well, because that is the variable compose
+    actually sets for this service (``docker/docker-compose.yml``, with a comment
+    explaining the ``lms:5082`` value). The old code did not read it, so the
+    deployment was working by coincidence: the hardcoded default happened to
+    equal the configured value.
+
+    Raises ``LmsNotConfigured`` when nothing is set. The only caller reaches this
+    through ``radio.py``, which already logs and skips the round, so an
+    unconfigured environment now produces one clear message per attempt instead
+    of silent traffic to someone else's server.
+    """
+    for name in ('LMS_URL', 'LMS_HOSTS', 'MUMA_SERVER_HOSTS'):
+        url = (os.getenv(name) or '').split(',')[0].strip()
+        if url:
+            if not url.startswith('http'):
+                url = 'http://' + url
+            return url.rstrip('/')
+
+    raise LmsNotConfigured(
+        'No LMS address configured: set LMS_URL, LMS_HOSTS or MUMA_SERVER_HOSTS. '
+        'There is deliberately no default -- a bare hostname like "lms" resolves '
+        'through the host DNS and has reached production from a developer machine.'
+    )
 
 
 def _auth_params() -> dict:

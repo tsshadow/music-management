@@ -236,8 +236,8 @@ namespace lms::db::tests
 
     TEST_F(DatabaseFixture, ArtistInfo_findAbsoluteFilePathInDirectory_returnsOnlyFilesUnderTheDirectory)
     {
-        ScopedArtistInfo inside{ session, "/music/A/inside" };
-        ScopedArtistInfo elsewhere{ session, "/music/B/elsewhere" };
+        ScopedArtistInfo inside{ session };
+        ScopedArtistInfo elsewhere{ session };
         {
             auto transaction{ session.createWriteTransaction() };
             inside.get().modify()->setAbsoluteFilePath("/music/A/inside");
@@ -258,8 +258,8 @@ namespace lms::db::tests
 
     TEST_F(DatabaseFixture, ArtistInfo_findAbsoluteFilePathInDirectory_doesNotMatchASiblingWithTheSameNamePrefix)
     {
-        ScopedArtistInfo inside{ session, "/music/A/inside" };
-        ScopedArtistInfo sibling{ session, "/music/AB/sibling" };
+        ScopedArtistInfo inside{ session };
+        ScopedArtistInfo sibling{ session };
         {
             auto transaction{ session.createWriteTransaction() };
             inside.get().modify()->setAbsoluteFilePath("/music/A/inside");

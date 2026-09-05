@@ -94,3 +94,22 @@ class RescanInvalidator:
 
 
 rescan_invalidator = RescanInvalidator()
+
+
+def invalidate_quietly(term: str, reason: str) -> int:
+    """Mark the files a changed rule touches, without letting that fail the edit.
+
+    The rule is already committed by the time this runs. A rule that saved but did not
+    schedule a retag is a much smaller problem than a rule that refused to save, and the
+    fallback rescan repairs it either way.
+
+    Lives here rather than in one router because both routers that write curation rules
+    need it, and they used to disagree: the management endpoints marked their files while
+    the curation page -- the one with the buttons -- only refreshed the helper, so a rule
+    added there sat unapplied behind whatever the tagger happened to walk into next.
+    """
+    try:
+        return rescan_invalidator.invalidate_by_term(term, reason)
+    except Exception as e:
+        logging.warning('Rule saved but marking files for retag failed (%s): %s', reason, e)
+        return 0

@@ -135,6 +135,34 @@ class ArtistGenreRuleTest(CurationTestCase):
         deletes = self.statements('DELETE FROM rules_artist_genres')
         self.assertEqual(deletes[0][1], ('Angerfist', 12))
 
+    def test_adding_a_rule_marks_its_files_for_a_retag(self):
+        """Refreshing the helper is not enough: without this the tagger has no reason to
+        walk back to those files, and the rule sits unapplied behind the whole queue."""
+        with patch('services.music_manager.routers.curation.invalidate_quietly', return_value=143) as invalidate:
+            response = self.client.post(
+                '/api/curation/artists/Angerfist/genres', json={'genre_id': 12}, headers=self.headers
+            )
+        invalidate.assert_called_once_with('Angerfist', 'artist_genre_rule')
+        self.assertEqual(response.json()['marked_for_retag'], 143)
+
+    def test_removing_a_rule_marks_its_files_for_a_retag(self):
+        with patch('services.music_manager.routers.curation.invalidate_quietly', return_value=7) as invalidate:
+            response = self.client.delete('/api/curation/artists/Angerfist/genres/12', headers=self.headers)
+        invalidate.assert_called_once_with('Angerfist', 'artist_genre_rule')
+        self.assertEqual(response.json()['marked_for_retag'], 7)
+
+    def test_a_rule_still_saves_when_marking_the_files_fails(self):
+        """The rule is already committed by then; refusing to answer would lose it."""
+        with patch(
+            'services.common.Helpers.RescanInvalidator.rescan_invalidator.invalidate_by_term',
+            side_effect=RuntimeError('database gone'),
+        ):
+            response = self.client.post(
+                '/api/curation/artists/Angerfist/genres', json={'genre_id': 12}, headers=self.headers
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['marked_for_retag'], 0)
+
 
 class RejectedGenreTargetTest(CurationTestCase):
     rules = (('FROM rules_genres WHERE id', None, BLACK_GENRE),)

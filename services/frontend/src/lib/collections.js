@@ -221,6 +221,9 @@ export const COLLECTION_SORTS = {
  *   both lists are empty by construction.
  *
  * Artists, albums, genres and years are not named here and show in both modes.
+ *
+ * muma-mobile mirrors this list in `BrowseCategory.modes` to hide the same Library
+ * tabs; a change here belongs there too.
  */
 export const COLLECTION_MODES = {
   labels: ["songs"],

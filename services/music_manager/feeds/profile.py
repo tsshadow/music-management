@@ -4,7 +4,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 
-from services.music_manager.feeds.hierarchy import ancestors, deepest
+from services.music_manager.feeds.hierarchy import deepest, nearest_ancestor
 
 CONFIDENCE = {'exact': 1.0, 'normalized': 1.0, 'base_title': 0.5, 'fuzzy': 0.25}
 FULL_PLAY_SECONDS = 120
@@ -154,7 +154,7 @@ def genre_shares(profile: TasteProfile, parents: dict[str, set[str]], min_share:
         if name in big:
             shares[name] += share
             continue
-        target = next((a for a in ancestors(name, parents) if a in big), None)
+        target = nearest_ancestor(name, parents, big)
         if target:
             shares[target] += share
         else:

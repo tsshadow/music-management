@@ -28,6 +28,14 @@ class SharesTest(unittest.TestCase):
         shares = genre_shares(TasteProfile(), PARENTS)
         self.assertEqual(shares, {TAIL: 1.0})
 
+    def test_a_small_genre_rolls_into_its_nearest_eligible_ancestor_not_a_further_one(self):
+        parents = {**PARENTS, 'upterror': {'uptempo', 'terror'}}
+        profile = TasteProfile(genres={'uptempo': 1.0, 'hardcore': 0.5, 'upterror': 0.02}, distinct_tracks=40)
+        shares = genre_shares(profile, parents)
+        self.assertNotIn('upterror', shares)
+        self.assertAlmostEqual(shares['uptempo'], (1.0 + 0.02) / 1.52)
+        self.assertAlmostEqual(shares['hardcore'], 0.5 / 1.52)
+
 
 class BlendTest(unittest.TestCase):
     def test_a_listener_with_no_history_gets_the_server_profile(self):

@@ -1,6 +1,6 @@
 import unittest
 
-from services.music_manager.feeds.hierarchy import ancestors, deepest
+from services.music_manager.feeds.hierarchy import ancestors, deepest, nearest_ancestor
 
 PARENTS = {'uptempo': {'hardcore'}, 'upterror': {'uptempo', 'terror'}, 'terror': {'hardcore'}}
 
@@ -24,3 +24,12 @@ class HierarchyTest(unittest.TestCase):
     def test_a_cycle_terminates(self):
         cyclic = {'a': {'b'}, 'b': {'a'}}
         self.assertEqual(ancestors('a', cyclic), {'a', 'b'})
+
+    def test_nearest_ancestor_prefers_the_parent_over_the_grandparent(self):
+        self.assertEqual(nearest_ancestor('upterror', PARENTS, {'uptempo', 'hardcore'}), 'uptempo')
+
+    def test_nearest_ancestor_breaks_a_same_level_tie_alphabetically(self):
+        self.assertEqual(nearest_ancestor('upterror', PARENTS, {'uptempo', 'terror'}), 'terror')
+
+    def test_nearest_ancestor_is_none_without_an_eligible_ancestor(self):
+        self.assertIsNone(nearest_ancestor('uptempo', PARENTS, {'gabber'}))

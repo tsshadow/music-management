@@ -28,3 +28,24 @@ def deepest(genres: set[str], parents: dict[str, set[str]]) -> set[str]:
     for genre in genres:
         covered |= ancestors(genre, parents)
     return {g for g in genres if g not in covered}
+
+
+def nearest_ancestor(genre: str, parents: dict[str, set[str]], candidates: set[str], max_depth: int = 8) -> str | None:
+    """The closest of `candidates` above `genre`, or None if none qualify.
+
+    Upterror means a genre can have two parents at different distances from a
+    given candidate, so "nearest" has to be resolved level by level rather than
+    by picking anything out of the flat set `ancestors()` returns. Ties within a
+    level break alphabetically so the result is deterministic.
+    """
+    seen: set[str] = set()
+    frontier = {genre}
+    for _ in range(max_depth):
+        frontier = {p for child in frontier for p in parents.get(child, set())} - seen
+        if not frontier:
+            break
+        seen |= frontier
+        found = frontier & candidates
+        if found:
+            return min(found)
+    return None

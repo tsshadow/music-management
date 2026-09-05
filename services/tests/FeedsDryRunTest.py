@@ -47,3 +47,21 @@ def test_the_funnel_is_printed_in_order(capsys):
     out = capsys.readouterr().out
     assert out.index('candidates') < out.index('emitted')
     assert 'uptempo' in out
+
+
+def test_a_smaller_limit_truncates_the_tracks():
+    tracks = [{'id': 1}, {'id': 2}, {'id': 3}]
+    assert dryrun._limited(tracks, 2) == [{'id': 1}, {'id': 2}]
+
+
+def test_no_limit_returns_every_track():
+    tracks = [{'id': 1}, {'id': 2}, {'id': 3}]
+    assert dryrun._limited(tracks, None) == tracks
+
+
+def test_a_limit_of_zero_returns_nothing():
+    """The bug this guards: `0 if limit else tracks` reads a limit of zero as falsy and returns
+    every track -- the opposite of what `--limit 0` says. Only `is not None` tells "not given"
+    apart from "given as zero"."""
+    tracks = [{'id': 1}, {'id': 2}, {'id': 3}]
+    assert dryrun._limited(tracks, 0) == []

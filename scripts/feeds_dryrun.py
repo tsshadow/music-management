@@ -119,6 +119,16 @@ def shares_for(conn, username: str, policy: FeedPolicy, now: datetime) -> dict[s
     return genre_shares(profile, parents)
 
 
+def _limited(tracks: list[dict], limit: int | None) -> list[dict]:
+    """The first `limit` tracks, or all of them when `limit` is None.
+
+    `0 if limit else tracks` would read `--limit 0` (show nothing) the same as no `--limit` at all
+    (show everything), because `0` is falsy -- an `is not None` check is required to tell "not
+    given" apart from "given as zero".
+    """
+    return tracks if limit is None else tracks[:limit]
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--username', required=True, help='listener to build the feed for')
@@ -148,8 +158,7 @@ def main(argv=None) -> int:
         conn.close()
 
     print(f'{feed.slug}  username={args.username}  state={feed.state}  scope={feed.scope}')
-    tracks = feed.tracks[: args.limit] if args.limit else feed.tracks
-    print_report(shares, feed.funnel, tracks)
+    print_report(shares, feed.funnel, _limited(feed.tracks, args.limit))
     return 0
 
 

@@ -13,6 +13,7 @@ from services.tagger.constants import (
     DATE,
     FESTIVAL,
     GENRE,
+    ORIGINAL_ARTIST,
     ORIGINAL_DATE,
     TITLE,
     TRACK_NUMBER,
@@ -642,6 +643,34 @@ class OriginalDateTagTest(unittest.TestCase):
         song.tag_collection.get_item_as_string = MagicMock(return_value='2026-01-16')
         self.assertEqual(BaseSong.original_date(song), '2026-01-16')
         song.tag_collection.get_item_as_string.assert_called_once_with(ORIGINAL_DATE)
+
+
+class OriginalArtistTagTest(unittest.TestCase):
+    """The pre-split artist credit needs a mapping in every format the tagger writes,
+    mirroring OriginalDateTagTest above."""
+
+    def test_original_artist_is_mapped_for_every_text_format(self):
+        self.assertEqual(MP3Tags[ORIGINAL_ARTIST], 'original_artist')
+        self.assertEqual(FLACTags[ORIGINAL_ARTIST], 'ORIGINAL_ARTIST')
+        self.assertEqual(OPUSTags[ORIGINAL_ARTIST], 'ORIGINAL_ARTIST')
+        self.assertEqual(WAVTags[ORIGINAL_ARTIST], 'TXXX:ORIGINAL_ARTIST')
+
+    def test_m4a_is_left_unmapped_so_the_freeform_fallback_applies(self):
+        """_set_m4a_tag builds ----:com.apple.iTunes:ORIGINAL_ARTIST itself; a direct MP4Tags
+        mapping to a bare atom name would collide with ORIGINAL_TITLE, which mutagen truncates
+        to the same 4-byte atom."""
+        self.assertNotIn(ORIGINAL_ARTIST, MP4Tags)
+
+    def test_original_artist_accessor_reads_the_tag(self):
+        song = MagicMock()
+        song.tag_collection.get_item_as_string = MagicMock(return_value='Henk feat Kees')
+        self.assertEqual(BaseSong.original_artist(song), 'Henk feat Kees')
+        song.tag_collection.get_item_as_string.assert_called_once_with(ORIGINAL_ARTIST)
+
+    def test_original_artist_accessor_returns_none_when_unset(self):
+        song = MagicMock()
+        song.tag_collection.get_item_as_string = MagicMock(return_value='')
+        self.assertIsNone(BaseSong.original_artist(song))
 
 
 if __name__ == '__main__':

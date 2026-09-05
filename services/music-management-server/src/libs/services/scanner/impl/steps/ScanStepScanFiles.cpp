@@ -181,7 +181,7 @@ namespace lms::scanner
                 // is queued on a timer and refreshScanSettings() re-reads the libraries before
                 // this runs, so an id captured earlier could already be stale.
                 const auto itLibrary{ std::find_if(std::cbegin(_settings.mediaLibraries), std::cend(_settings.mediaLibraries),
-                    [&](const MediaLibraryInfo& mediaLibrary) { return core::pathUtils::isPathInRootPath(scanDirectory, mediaLibrary.rootDirectory); }) };
+                                                   [&](const MediaLibraryInfo& mediaLibrary) { return core::pathUtils::isPathInRootPath(scanDirectory, mediaLibrary.rootDirectory); }) };
                 if (itLibrary == std::cend(_settings.mediaLibraries))
                 {
                     LMS_LOG(DBUPDATER, WARNING, "Skipping scan scope " << scanDirectory << ": no media library contains it");

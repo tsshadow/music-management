@@ -23,8 +23,8 @@
 #include <filesystem>
 
 #include "core/ILogger.hpp"
-#include "core/Service.hpp"
 #include "core/Path.hpp"
+#include "core/Service.hpp"
 #include "core/String.hpp"
 #include "services/recommendation/IRecommendationService.hpp"
 #include "services/scanner/IScannerService.hpp"
@@ -182,7 +182,7 @@ namespace lms::api::subsonic::Scan
                 path = path.lexically_normal();
 
                 const bool inSomeRoot{ std::any_of(std::cbegin(roots), std::cend(roots),
-                    [&](const std::filesystem::path& root) { return core::pathUtils::isPathInRootPath(path, root); }) };
+                                                   [&](const std::filesystem::path& root) { return core::pathUtils::isPathInRootPath(path, root); }) };
                 if (!inSomeRoot)
                     throw BadParameterGenericError{ "path", "not inside a media library" };
 

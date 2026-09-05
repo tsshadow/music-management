@@ -99,7 +99,7 @@
                   <span class="font-bold text-white truncate group-hover:text-brand transition-colors">{track.title}</span>
                 </div>
               </td>
-              <td class="px-4 py-3 text-[#b3b3b3] truncate">{track.artist || '-'}</td>
+              <td class="px-4 py-3 text-[#b3b3b3] truncate">{track.display_artist || track.artist || '-'}</td>
               <td class="px-4 py-3 text-[#b3b3b3] truncate font-mono text-[11px]">{track.label || '-'}</td>
               <td class="px-4 py-3">
                 <div class="flex flex-wrap gap-1">

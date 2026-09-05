@@ -64,6 +64,9 @@ their reasoning attached, so a human decides only what genuinely needs deciding.
   independent sources agreeing — is not settled and no external lookups are performed yet.
 - Whether the scanner should start placing new artists in an undecided state instead of approving them on
   sight. That is the actual bug fix, but it makes the queue start at its full size.
-- Preserving the original name in `TXXX:ORIGINAL_ARTIST` during a tag pass the file needs anyway is agreed
-  in principle, with the database as the source of truth. Not built.
+- Preserving the original name in `TXXX:ORIGINAL_ARTIST` during a tag pass the file needs anyway: built.
+  `CleanTagsRule` captures the artist string before its regex split discards the "feat"/"vs"/"&" wording,
+  written to disk as `TXXX:ORIGINAL_ARTIST` and mirrored into `library_tracks.display_artist` by the
+  scanner. Display only — never re-parsed, never matched against this analyzer's dictionary. No backfill:
+  a file only gains it the next time it goes through a tag-write pass for some other reason.
 - Splitting composite artist strings that already contain separators is deliberately out of scope here.

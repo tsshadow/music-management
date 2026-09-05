@@ -205,10 +205,21 @@ class ScannerManager:
             title = song.title()
             duration = song.length()
             primary_artist_id = artist_ids[0] if artist_ids else None
+            display_artist = song.original_artist()
             track_uid = hashlib.sha256(f'{title}-{duration}-{primary_artist_id}'.encode()).hexdigest()
             cursor.execute(
-                '\n                INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id)\n                VALUES (%s, %s, %s, %s)\n                ON DUPLICATE KEY UPDATE title=%s, duration_secs=%s, primary_artist_id=%s\n            ',
-                (track_uid, title, duration, primary_artist_id, title, duration, primary_artist_id),
+                '\n                INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id, display_artist)\n                VALUES (%s, %s, %s, %s, %s)\n                ON DUPLICATE KEY UPDATE title=%s, duration_secs=%s, primary_artist_id=%s,\n                    display_artist=COALESCE(%s, display_artist)\n            ',
+                (
+                    track_uid,
+                    title,
+                    duration,
+                    primary_artist_id,
+                    display_artist,
+                    title,
+                    duration,
+                    primary_artist_id,
+                    display_artist,
+                ),
             )
             cursor.execute('SELECT id FROM library_tracks WHERE track_uid = %s', (track_uid,))
             track_id = cursor.fetchone()['id']

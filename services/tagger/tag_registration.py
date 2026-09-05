@@ -18,6 +18,7 @@ from mutagen.easymp4 import EasyMP4Tags
 
 from services.tagger.constants import (
     FESTIVAL,
+    ORIGINAL_ARTIST,
     ORIGINAL_TITLE,
     PARSED,
     PODCAST,
@@ -29,12 +30,23 @@ from services.tagger.constants import (
 
 # Every tag name the tagger writes that no format knows on its own. The name is also the
 # key `BaseSong.set_tag` writes on the MP3 path, so it has to match `MP3Tags`.
-CUSTOM_TAG_KEYS = (PUBLISHER, RATING, PARSED, FESTIVAL, REMIXER, ORIGINAL_TITLE, PODCAST, PODCAST_EPISODE)
+CUSTOM_TAG_KEYS = (
+    PUBLISHER,
+    RATING,
+    PARSED,
+    FESTIVAL,
+    REMIXER,
+    ORIGINAL_TITLE,
+    ORIGINAL_ARTIST,
+    PODCAST,
+    PODCAST_EPISODE,
+)
 
 # The rating frame that already exists in the library is `TXXX:RATING`. Registering the
 # name against a lower-case description would write a second frame beside it instead of
-# updating it, so this one keeps its own spelling.
-ID3_DESCRIPTIONS = {RATING: 'RATING'}
+# updating it, so this one keeps its own spelling. ORIGINAL_ARTIST gets the same treatment
+# so its MP3 description matches WAVTags' `TXXX:ORIGINAL_ARTIST` casing.
+ID3_DESCRIPTIONS = {RATING: 'RATING', ORIGINAL_ARTIST: 'ORIGINAL_ARTIST'}
 
 
 def register_custom_tag_keys():

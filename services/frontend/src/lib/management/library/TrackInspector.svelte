@@ -23,7 +23,7 @@
 
       <div class="flex flex-col gap-1">
         <h2 class="text-lg font-black text-white leading-tight">{track.title}</h2>
-        {#if track.artist}<p class="text-brand font-bold text-sm">{track.artist}</p>{/if}
+        {#if track.artist}<p class="text-brand font-bold text-sm">{track.display_artist || track.artist}</p>{/if}
         {#if track.label}<p class="text-[#b3b3b3] text-xs">{track.label}</p>{/if}
       </div>
 

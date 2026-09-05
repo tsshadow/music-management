@@ -22,6 +22,10 @@ PARSED: Final = 'parsed'
 PUBLISHER: Final = 'publisher'
 TITLE: Final = 'title'
 ORIGINAL_TITLE: Final = 'original_title'
+# The artist tag as read off the file, before CleanTagsRule's regex splits "feat"/"vs"/"&" into
+# separate values and discards the joiner word. Only ever set when that split actually changes
+# something -- see CleanTagsRule -- so a plain single-artist file never grows this tag at all.
+ORIGINAL_ARTIST: Final = 'original_artist'
 # The original release date, as opposed to DATE which is this edition's. LMS prefers the original
 # everywhere it sorts and for the Memories anniversary match, so this is where a resolved release
 # date belongs. The value doubles as the EasyID3 key, which writes a real TDOR frame.
@@ -46,6 +50,7 @@ MP3Tags = {
     REMIXER: 'remixer',
     TITLE: 'title',
     ORIGINAL_TITLE: 'original_title',
+    ORIGINAL_ARTIST: 'original_artist',
     RATING: 'rating',
     TRACK_NUMBER: 'tracknumber',
 }
@@ -68,6 +73,7 @@ FLACTags = {
     REMIXER: 'REMIXER',
     TITLE: 'TITLE',
     ORIGINAL_TITLE: 'ORIGINAL_TITLE',
+    ORIGINAL_ARTIST: 'ORIGINAL_ARTIST',
     RATING: 'RATING',
 }
 reversed_FLACTags = {v: k for k, v in FLACTags.items()}
@@ -89,6 +95,7 @@ OPUSTags = {
     REMIXER: 'REMIXER',
     TITLE: 'TITLE',
     ORIGINAL_TITLE: 'ORIGINAL_TITLE',
+    ORIGINAL_ARTIST: 'ORIGINAL_ARTIST',
     RATING: 'RATING',
 }
 reversed_OPUSTags = {v: k for k, v in OPUSTags.items()}
@@ -121,6 +128,12 @@ MP4Tags = {
     PUBLISHER: 'PUBL',
     REMIXER: 'REMIXER',
     ORIGINAL_TITLE: 'ORIGINAL_TITLE',
+    # ORIGINAL_ARTIST is deliberately unmapped here: an M4A atom name outside the
+    # `----:` freeform namespace gets truncated to 4 bytes by mutagen, so mapping
+    # it to a bare 'ORIGINAL_ARTIST' the way ORIGINAL_TITLE is mapped above would
+    # collide onto the same 'ORIG' atom as ORIGINAL_TITLE. Leaving it unmapped
+    # routes it through _set_m4a_tag's freeform-atom fallback instead
+    # (`----:com.apple.iTunes:ORIGINAL_ARTIST`), which doesn't have that limit.
 }
 reversed_MP4Tags = {v: k for k, v in MP4Tags.items()}
 WAVTags = {
@@ -139,6 +152,7 @@ WAVTags = {
     PODCAST_EPISODE: 'TXXX:PODCAST_EPISODE',
     REMIXER: 'TXXX:REMIXER',
     ORIGINAL_TITLE: 'TXXX:ORIGINAL_TITLE',
+    ORIGINAL_ARTIST: 'TXXX:ORIGINAL_ARTIST',
     RATING: 'TXXX:RATING',
 }
 reversed_WAVTags = {v: k for k, v in WAVTags.items()}

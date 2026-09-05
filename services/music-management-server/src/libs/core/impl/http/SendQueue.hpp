@@ -77,6 +77,9 @@ namespace lms::core::http
         };
         void setState(State state);
         std::atomic<bool> _abortAllRequests;
+        // Read by Wt's client thread on every read completion, so it cannot be strand-protected
+        // like the rest. Set before the request goes out and only ever read while it is in flight.
+        std::atomic<bool> _forwardBodyChunks{ false };
         std::size_t _consecutiveErrorCount{}; // strand-protected, like _state and _sendQueue
         State _state;
         Wt::Http::Client _client;

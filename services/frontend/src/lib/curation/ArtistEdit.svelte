@@ -19,6 +19,7 @@
     addArtistGenre,
     loadArtist,
     loadWhiteGenres,
+    marked,
     removeArtistAlias,
     removeArtistExternalId,
     removeArtistGenre,
@@ -203,8 +204,10 @@
       {whiteGenres}
       affected={artist.track_count}
       {busy}
-      onadd={(genreId) => act(() => addArtistGenre(name, genreId), 'Regel opgeslagen.')}
-      onremove={(genreId) => act(() => removeArtistGenre(name, genreId), 'Regel verwijderd.')}
+      onadd={(genreId) =>
+        act(() => addArtistGenre(name, genreId), (result) => marked(result, 'Regel opgeslagen.'))}
+      onremove={(genreId) =>
+        act(() => removeArtistGenre(name, genreId), (result) => marked(result, 'Regel verwijderd.'))}
       onretag={() =>
         act(() => retag('artist', name), (result) => `${result.files} bestanden staan in de wachtrij om opnieuw getagd te worden.`)}
     />

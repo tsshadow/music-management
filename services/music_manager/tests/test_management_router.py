@@ -8,6 +8,7 @@ for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen
     sys.modules.setdefault(_mod_name, MagicMock())
 
 
+import services.common.Helpers.RescanInvalidator as rescan_invalidator_module
 import services.music_manager.routers.users as users_router
 from services.music_manager.api_key import resolve_system_api_key
 
@@ -836,7 +837,7 @@ class RuleChangeInvalidationTest(ManagementTestCase):
     """
 
     def test_adding_an_artist_genre_rule_marks_that_artists_files(self):
-        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+        with patch.object(rescan_invalidator_module, 'rescan_invalidator') as invalidator:
             response = self.client.post(
                 '/api/rules/artist-genres', json={'artist_name': 'Ran-D', 'genre_id': 3}, headers=self.headers
             )
@@ -845,20 +846,20 @@ class RuleChangeInvalidationTest(ManagementTestCase):
 
     def test_deleting_an_artist_genre_rule_uses_the_name_from_before_the_delete(self):
         self.cursor.fetchone.return_value = {'artist_name': 'Ran-D'}
-        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+        with patch.object(rescan_invalidator_module, 'rescan_invalidator') as invalidator:
             response = self.client.delete('/api/rules/artist-genres/9', headers=self.headers)
         self.assertEqual(response.status_code, 200)
         invalidator.invalidate_by_term.assert_called_once_with('Ran-D', 'artist_genre_rule')
 
     def test_deleting_a_rule_that_no_longer_exists_marks_nothing(self):
         self.cursor.fetchone.return_value = None
-        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+        with patch.object(rescan_invalidator_module, 'rescan_invalidator') as invalidator:
             response = self.client.delete('/api/rules/artist-genres/9', headers=self.headers)
         self.assertEqual(response.status_code, 200)
         invalidator.invalidate_by_term.assert_not_called()
 
     def test_adding_a_label_genre_rule_marks_that_labels_files(self):
-        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+        with patch.object(rescan_invalidator_module, 'rescan_invalidator') as invalidator:
             response = self.client.post(
                 '/api/rules/label-genres', json={'label_name': 'Minus Is More', 'genre_id': 3}, headers=self.headers
             )
@@ -867,7 +868,7 @@ class RuleChangeInvalidationTest(ManagementTestCase):
 
     def test_deleting_a_label_genre_rule_uses_the_name_from_before_the_delete(self):
         self.cursor.fetchone.return_value = {'label_name': 'Minus Is More'}
-        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+        with patch.object(rescan_invalidator_module, 'rescan_invalidator') as invalidator:
             response = self.client.delete('/api/rules/label-genres/9', headers=self.headers)
         self.assertEqual(response.status_code, 200)
         invalidator.invalidate_by_term.assert_called_once_with('Minus Is More', 'label_genre_rule')
@@ -882,7 +883,7 @@ class RuleChangeInvalidationTest(ManagementTestCase):
         invalidator.invalidate_by_genre_id.assert_called_once_with(1, 'Uptempo', 'genre_decision')
 
     def test_a_failing_invalidation_does_not_fail_the_rule_change(self):
-        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+        with patch.object(rescan_invalidator_module, 'rescan_invalidator') as invalidator:
             invalidator.invalidate_by_term.side_effect = RuntimeError('database gone')
             response = self.client.post(
                 '/api/rules/artist-genres', json={'artist_name': 'Ran-D', 'genre_id': 3}, headers=self.headers
@@ -909,7 +910,7 @@ class ArtistRedirectTest(ManagementTestCase):
         self.assertEqual(response.json()[0]['corrected_name'], 'Ran-D')
 
     def test_saving_a_redirect_marks_the_old_name_for_retag(self):
-        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+        with patch.object(rescan_invalidator_module, 'rescan_invalidator') as invalidator:
             response = self.client.post(
                 '/api/rules/artist-redirects', json={'name': 'Ran D', 'corrected_name': 'Ran-D'}, headers=self.headers
             )
@@ -945,14 +946,14 @@ class ArtistRedirectTest(ManagementTestCase):
 
     def test_deleting_a_redirect_uses_the_name_from_before_the_delete(self):
         self.cursor.fetchone.return_value = {'name': 'Ran D'}
-        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+        with patch.object(rescan_invalidator_module, 'rescan_invalidator') as invalidator:
             response = self.client.delete('/api/rules/artist-redirects/4', headers=self.headers)
         self.assertEqual(response.status_code, 200)
         invalidator.invalidate_by_term.assert_called_once_with('Ran D', 'artist_redirect')
 
     def test_deleting_a_redirect_that_no_longer_exists_marks_nothing(self):
         self.cursor.fetchone.return_value = None
-        with patch.object(management_router, 'rescan_invalidator') as invalidator:
+        with patch.object(rescan_invalidator_module, 'rescan_invalidator') as invalidator:
             response = self.client.delete('/api/rules/artist-redirects/4', headers=self.headers)
         self.assertEqual(response.status_code, 200)
         invalidator.invalidate_by_term.assert_not_called()

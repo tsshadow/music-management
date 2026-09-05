@@ -13,7 +13,7 @@ from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.GenreRulesHelper import BLACK, VALID_STATES, WHITE
 from services.common.Helpers.PodcastHelper import normalize as normalize_show_name
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
-from services.common.Helpers.RescanInvalidator import rescan_invalidator
+from services.common.Helpers.RescanInvalidator import invalidate_quietly, rescan_invalidator
 from services.common.version_helper import get_changelog, get_release_notes, get_version
 from services.music_manager import curation_rules
 from services.music_manager.api_key import is_system_api_key
@@ -531,19 +531,6 @@ def get_genre_curation_queue(state: str | None = None, limit: int = 200, _auth: 
         conn.close()
 
 
-def _invalidate_quietly(term: str, reason: str) -> None:
-    """Mark the files a changed rule touches, without letting that fail the edit.
-
-    The rule is already committed by the time this runs. A rule that saved but did not
-    schedule a retag is a much smaller problem than a rule that refused to save, and
-    the fallback rescan repairs it either way.
-    """
-    try:
-        rescan_invalidator.invalidate_by_term(term, reason)
-    except Exception as e:
-        logging.warning('Rule saved but marking files for retag failed (%s): %s', reason, e)
-
-
 @router.post('/rules/genres/{genre_id}/decide')
 def decide_genre(genre_id: int, decision: GenreDecisionRequest, auth: dict = Depends(verify_api_key)):
     """Move a genre to white or black, optionally rewriting it to other genres.
@@ -879,7 +866,7 @@ def add_artist_genre_rule(rule: ArtistGenreRule, _auth: dict = Depends(verify_ap
     finally:
         conn.close()
     curation_rules.refresh(curation_rules.ARTIST_GENRE_HELPER)
-    _invalidate_quietly(rule.artist_name, 'artist_genre_rule')
+    invalidate_quietly(rule.artist_name, 'artist_genre_rule')
     return {'status': 'ok'}
 
 
@@ -900,7 +887,7 @@ def delete_artist_genre_rule(rule_id: int, _auth: dict = Depends(verify_api_key)
         conn.close()
     curation_rules.refresh(curation_rules.ARTIST_GENRE_HELPER)
     if row:
-        _invalidate_quietly(row['artist_name'], 'artist_genre_rule')
+        invalidate_quietly(row['artist_name'], 'artist_genre_rule')
     return {'status': 'ok'}
 
 
@@ -933,7 +920,7 @@ def add_label_genre_rule(rule: LabelGenreRule, _auth: dict = Depends(verify_api_
     finally:
         conn.close()
     curation_rules.refresh(curation_rules.LABEL_GENRE_HELPER)
-    _invalidate_quietly(rule.label_name, 'label_genre_rule')
+    invalidate_quietly(rule.label_name, 'label_genre_rule')
     return {'status': 'ok'}
 
 
@@ -952,7 +939,7 @@ def delete_label_genre_rule(rule_id: int, _auth: dict = Depends(verify_api_key))
         conn.close()
     curation_rules.refresh(curation_rules.LABEL_GENRE_HELPER)
     if row:
-        _invalidate_quietly(row['label_name'], 'label_genre_rule')
+        invalidate_quietly(row['label_name'], 'label_genre_rule')
     return {'status': 'ok'}
 
 
@@ -998,7 +985,7 @@ def save_artist_redirect(redirect: ArtistRedirect, _auth: dict = Depends(verify_
     curation_rules.refresh(curation_rules.ARTIST_REDIRECT_HELPER)
     # The old spelling is what sits in the files today, so that is the term to search
     # for -- not the corrected name, which nothing carries yet.
-    _invalidate_quietly(name, 'artist_redirect')
+    invalidate_quietly(name, 'artist_redirect')
     return {'status': 'ok'}
 
 
@@ -1017,7 +1004,7 @@ def delete_artist_redirect(rule_id: int, _auth: dict = Depends(verify_api_key)):
         conn.close()
     curation_rules.refresh(curation_rules.ARTIST_REDIRECT_HELPER)
     if row:
-        _invalidate_quietly(row['name'], 'artist_redirect')
+        invalidate_quietly(row['name'], 'artist_redirect')
     return {'status': 'ok'}
 
 

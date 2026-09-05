@@ -27,9 +27,15 @@ from services.music_manager.song_versions import (
 BATCH_SIZE = int(os.getenv('SONG_VERSION_BATCH', '500'))
 INTERVAL_SECONDS = int(os.getenv('SONG_VERSION_INTERVAL', '3600'))
 
-# One row per track that still needs a work, carrying everything the ranking asks
-# for. The label join decides provenance together with the two download archives:
-# an official release has a label and was not downloaded from anywhere.
+# One row per file of the tracks that still need a work, carrying everything the
+# ranking asks for. The label join decides provenance together with the two download
+# archives: an official release has a label and was not downloaded from anywhere.
+#
+# The batch is picked in a derived table, before the media-file join, because LIMIT
+# counts joined rows. Limiting the joined result cut the last track of a batch off
+# from its remaining files, and since that track came out of the pass with a work it
+# never returned -- so a track was scored on whichever of its files happened to fall
+# inside the limit, and its FLAC could lose to its own MP3.
 _UNGROUPED = '''
     SELECT
         t.id,
@@ -47,12 +53,16 @@ _UNGROUPED = '''
             SELECT 1 FROM downloads_youtube_archive yt
             WHERE yt.filename = SUBSTRING_INDEX(mf.file_path, '/', -1)
         ) AS from_youtube
-    FROM library_tracks t
+    FROM (
+        SELECT id FROM library_tracks
+        WHERE work_id IS NULL AND work_locked = 0
+        ORDER BY id
+        LIMIT %s
+    ) AS batch
+    JOIN library_tracks t ON t.id = batch.id
     LEFT JOIN library_artists a ON a.id = t.primary_artist_id
     LEFT JOIN library_media_files mf ON mf.track_id = t.id
-    WHERE t.work_id IS NULL AND t.work_locked = 0
     ORDER BY t.id
-    LIMIT %s
 '''
 
 # Highest score wins; the two tie-breaks keep the choice stable between passes so
@@ -98,8 +108,8 @@ def assign_works(cursor, limit: int = BATCH_SIZE) -> tuple[set[int], int]:
     """Give every ungrouped track a work, a kind and a score.
 
     Returns the work ids that were touched and how many tracks were assigned. The
-    limit counts joined rows rather than tracks, so a batch can cover slightly
-    fewer tracks than asked; the next pass picks up the remainder.
+    limit counts tracks: the batch is chosen before the media-file join, so every
+    file of every track in it is present and the ranking sees all of them.
     """
     cursor.execute(_UNGROUPED, (limit,))
     rows = cursor.fetchall()
@@ -108,7 +118,7 @@ def assign_works(cursor, limit: int = BATCH_SIZE) -> tuple[set[int], int]:
     candidates = _best_per_track(rows)
     for track_id, candidate in candidates.items():
         row = candidate['row']
-        key = work_key(row['artist'], row['title'])
+        key = work_key(row['artist'], row['title'], track_id)
         cursor.execute(
             'INSERT INTO library_works (work_key, title, primary_artist_id) '
             'VALUES (%s, %s, (SELECT primary_artist_id FROM library_tracks WHERE id = %s)) '
@@ -136,6 +146,22 @@ def recompute_canonicals(cursor, work_ids: set[int]) -> int:
             continue
 
         canonical = row['pinned_track_id']
+        if canonical is not None:
+            # A pin only decides while the track it names is still a member. Splitting
+            # a pinned track moves it to a work of its own and leaves the pin behind,
+            # and following it would make this work canonical-point at a track that
+            # now belongs to another song.
+            cursor.execute(
+                'SELECT id FROM library_tracks WHERE id = %s AND work_id = %s',
+                (canonical, work_id),
+            )
+            if cursor.fetchone() is None:
+                cursor.execute(
+                    'UPDATE library_works SET pinned_track_id = NULL WHERE id = %s',
+                    (work_id,),
+                )
+                canonical = None
+
         if canonical is None:
             cursor.execute(_BEST_TRACK, (work_id,))
             best = cursor.fetchone()

@@ -100,6 +100,28 @@ def test_a_label_can_be_identified_and_filed_under_a_parent(database):
     assert {'mbid', 'parent_label_id'} <= columns
 
 
+def test_the_song_key_compares_byte_for_byte(database):
+    """migrate_v18: utf8mb4_general_ci gives every character outside the BMP the same
+    weight, so two work keys of equal length built from such characters compare equal
+    and the UNIQUE index merges two unrelated songs into one work."""
+    with database.cursor() as cursor:
+        cursor.execute(
+            'SELECT collation_name FROM information_schema.columns '
+            'WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s',
+            ('library_works', 'work_key'),
+        )
+        assert cursor.fetchone()['collation_name'] == 'utf8mb4_bin'
+
+        # The comparison the collation decides, rather than its name.
+        cursor.execute('DELETE FROM library_works')
+        cursor.execute('INSERT INTO library_works (work_key, title) VALUES (%s, %s)', ('𝙁𝙍𝘼𝙉𝙏𝙄𝘾:::a', 'one'))
+        cursor.execute('INSERT INTO library_works (work_key, title) VALUES (%s, %s)', ('𝗕𝗔𝗗𝗞𝗜𝗖𝗞:::a', 'two'))
+        cursor.execute('SELECT COUNT(*) AS n FROM library_works')
+        assert cursor.fetchone()['n'] == 2
+        cursor.execute('DELETE FROM library_works')
+    database.commit()
+
+
 def test_a_rule_records_who_wrote_it(database):
     """Without created_by a hand-made rule and a generated one are indistinguishable."""
     with database.cursor() as cursor:

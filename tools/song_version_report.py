@@ -43,7 +43,7 @@ def summarize(rows: list[dict]) -> dict:
     kinds: collections.Counter = collections.Counter()
 
     for row in rows:
-        groups[work_key(row['artist'], row['title'])].append(row)
+        groups[work_key(row['artist'], row['title'], row['id'])].append(row)
         kinds[version_kind(row['title'])] += 1
 
     ordered = sorted(groups.items(), key=lambda item: len(item[1]), reverse=True)

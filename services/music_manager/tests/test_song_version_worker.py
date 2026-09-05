@@ -91,7 +91,7 @@ class AssignWorksTest(unittest.TestCase):
         ]
         cursor = ScriptedCursor(
             [
-                ('WHERE t.work_id IS NULL', None, rows),
+                ('AS batch', None, rows),
                 ('SELECT id FROM library_works WHERE work_key', None, {'id': 40}),
             ]
         )
@@ -115,7 +115,7 @@ class AssignWorksTest(unittest.TestCase):
         rows = [_row(1, 'Raise Your Fist', files=MP3), _row(1, 'Raise Your Fist', files=FLAC)]
         cursor = ScriptedCursor(
             [
-                ('WHERE t.work_id IS NULL', None, rows),
+                ('AS batch', None, rows),
                 ('SELECT id FROM library_works WHERE work_key', None, {'id': 40}),
             ]
         )
@@ -127,18 +127,45 @@ class AssignWorksTest(unittest.TestCase):
         self.assertEqual(updates[0][1][2], worker._rank_row(rows[1])[1])
 
     def test_the_limit_is_passed_through(self):
-        cursor = ScriptedCursor([('WHERE t.work_id IS NULL', None, [])])
+        cursor = ScriptedCursor([('AS batch', None, [])])
         touched, assigned = worker.assign_works(cursor, limit=7)
         self.assertEqual((touched, assigned), (set(), 0))
-        self.assertEqual(cursor.statements_matching('WHERE t.work_id IS NULL')[0][1], (7,))
+        self.assertEqual(cursor.statements_matching('AS batch')[0][1], (7,))
 
     def test_the_query_excludes_locked_tracks(self):
         # A split track is locked so the next pass cannot put it back; the
         # ungrouped query has to honour that or the split silently undoes itself.
-        cursor = ScriptedCursor([('WHERE t.work_id IS NULL', None, [])])
+        cursor = ScriptedCursor([('AS batch', None, [])])
         worker.assign_works(cursor)
-        sql = cursor.statements_matching('WHERE t.work_id IS NULL')[0][0]
-        self.assertIn('t.work_locked = 0', sql)
+        sql = cursor.statements_matching('AS batch')[0][0]
+        self.assertIn('work_id IS NULL AND work_locked = 0', sql)
+
+    def test_the_batch_is_limited_before_the_files_are_joined(self):
+        # LIMIT counts joined rows. Limiting the joined result cut the last track of
+        # a batch off from its remaining files, and it left the pass with a work, so
+        # it never came back: a track could be scored on its MP3 while its FLAC sat
+        # one row beyond the limit.
+        cursor = ScriptedCursor([('AS batch', None, [])])
+        worker.assign_works(cursor)
+        sql = cursor.statements_matching('AS batch')[0][0]
+        self.assertLess(sql.index('LIMIT %s'), sql.index('library_media_files'))
+
+    def test_two_title_less_tracks_do_not_become_one_song(self):
+        # The defect this replaces: every title that normalizes away produced the
+        # key ':::', and production collected 117 unrelated recordings that way.
+        rows = [_row(1, '', artist=None), _row(2, '🕊', artist=None)]
+        cursor = ScriptedCursor(
+            [
+                ('AS batch', None, rows),
+                ('SELECT id FROM library_works WHERE work_key', None, {'id': 40}),
+            ]
+        )
+        _touched, assigned = worker.assign_works(cursor, limit=10)
+
+        self.assertEqual(assigned, 2)
+        inserts = cursor.statements_matching('INSERT INTO library_works')
+        keys = [params[0] for _sql, params in inserts]
+        self.assertEqual(len(set(keys)), 2, keys)
 
 
 class RecomputeCanonicalsTest(unittest.TestCase):
@@ -146,6 +173,7 @@ class RecomputeCanonicalsTest(unittest.TestCase):
         cursor = ScriptedCursor(
             [
                 ('SELECT pinned_track_id FROM library_works', (40,), {'pinned_track_id': 2}),
+                ('WHERE id = %s AND work_id = %s', (2, 40), {'id': 2}),
                 ('ORDER BY t.version_score DESC', (40,), {'id': 1}),
             ]
         )
@@ -175,6 +203,24 @@ class RecomputeCanonicalsTest(unittest.TestCase):
         updates = cursor.statements_matching('UPDATE library_works SET canonical_track_id')
         self.assertEqual([params for _sql, params in updates], [(None, 40)])
 
+    def test_a_pin_on_a_track_that_left_is_cleared(self):
+        # Splitting a pinned track moves it to a work of its own and leaves the pin
+        # behind. Following it made the old work canonical-point at a track that now
+        # belongs to another song.
+        cursor = ScriptedCursor(
+            [
+                ('SELECT pinned_track_id FROM library_works', (40,), {'pinned_track_id': 2}),
+                ('WHERE id = %s AND work_id = %s', (2, 40), None),
+                ('ORDER BY t.version_score DESC', (40,), {'id': 1}),
+            ]
+        )
+        worker.recompute_canonicals(cursor, {40})
+
+        cleared = cursor.statements_matching('UPDATE library_works SET pinned_track_id = NULL')
+        self.assertEqual([params for _sql, params in cleared], [(40,)])
+        updates = cursor.statements_matching('UPDATE library_works SET canonical_track_id')
+        self.assertEqual([params for _sql, params in updates], [(1, 40)])
+
     def test_a_work_that_no_longer_exists_is_skipped(self):
         cursor = ScriptedCursor([])
         self.assertEqual(worker.recompute_canonicals(cursor, {999}), 1)
@@ -199,9 +245,10 @@ class GroupOnceTest(unittest.TestCase):
     def test_a_moved_pin_is_recomputed_even_when_nothing_was_assigned(self):
         cursor = ScriptedCursor(
             [
-                ('WHERE t.work_id IS NULL AND t.work_locked = 0 ORDER BY', None, []),
+                ('AS batch', None, []),
                 ('pinned_track_id <> COALESCE(canonical_track_id, 0)', None, [{'id': 41}]),
                 ('SELECT pinned_track_id FROM library_works', (41,), {'pinned_track_id': 9}),
+                ('WHERE id = %s AND work_id = %s', (9, 41), {'id': 9}),
                 ('SELECT COUNT(*) AS n FROM library_tracks', None, {'n': 0}),
             ]
         )
@@ -215,7 +262,7 @@ class GroupOnceTest(unittest.TestCase):
     def test_a_quiet_pass_writes_nothing_and_reports_the_backlog(self):
         cursor = ScriptedCursor(
             [
-                ('WHERE t.work_id IS NULL AND t.work_locked = 0 ORDER BY', None, []),
+                ('AS batch', None, []),
                 ('pinned_track_id <> COALESCE(canonical_track_id, 0)', None, []),
                 ('SELECT COUNT(*) AS n FROM library_tracks', None, {'n': 0}),
             ]
@@ -227,7 +274,7 @@ class GroupOnceTest(unittest.TestCase):
     def test_remaining_counts_what_the_batch_did_not_reach(self):
         cursor = ScriptedCursor(
             [
-                ('WHERE t.work_id IS NULL AND t.work_locked = 0 ORDER BY', None, [_row(1, 'One')]),
+                ('AS batch', None, [_row(1, 'One')]),
                 ('SELECT id FROM library_works WHERE work_key', None, {'id': 40}),
                 ('pinned_track_id <> COALESCE(canonical_track_id, 0)', None, []),
                 ('SELECT pinned_track_id FROM library_works', (40,), {'pinned_track_id': None}),

@@ -197,7 +197,7 @@ OUTPUTS = {
     RES / "drawable/media3_notification_small_icon.xml": render_notification_glyph,
     BRANDING / "muma-icon-blue.svg": lambda: render_disc_svg(INDIGO),
     BRANDING / "muma-icon-round-blue.svg": lambda: render_round_svg(INDIGO),
-    **{path: render_placeholder_svg for path in PLACEHOLDER_COPIES},
+    **dict.fromkeys(PLACEHOLDER_COPIES, render_placeholder_svg),
 }
 
 

@@ -577,11 +577,42 @@ class BaseSongMiscTest(unittest.TestCase):
         song.album = lambda: ''
         song.genre = lambda: 'Hardcore'
         song.publisher = lambda: ''
+        song.date = lambda: ''
+        song.original_date = lambda: ''
 
         self.assertEqual(
             str(song),
             'Title=Raise Your Fist\nArtists=Angerfist\nGenre=Hardcore\nPath=/music/test.mp3',
         )
+
+    def test_the_string_form_carries_the_release_date(self):
+        """The download push notification is this string, and it was leaving the date out."""
+        song = BaseSong.__new__(BaseSong)
+        song.tag_collection = MagicMock()
+        song._path = '/music/test.mp3'
+        song.title = lambda: 'Raise Your Fist'
+        song.artist = lambda: ''
+        song.album = lambda: ''
+        song.genre = lambda: ''
+        song.publisher = lambda: ''
+        song.date = lambda: '20260903'
+        song.original_date = lambda: ''
+
+        self.assertIn('Released=03-09-2026', str(song))
+
+    def test_the_string_form_prefers_the_original_release_date(self):
+        song = BaseSong.__new__(BaseSong)
+        song.tag_collection = MagicMock()
+        song._path = '/music/test.mp3'
+        song.title = lambda: 'Raise Your Fist'
+        song.artist = lambda: ''
+        song.album = lambda: ''
+        song.genre = lambda: ''
+        song.publisher = lambda: ''
+        song.date = lambda: '2026'
+        song.original_date = lambda: '2026-09-03'
+
+        self.assertIn('Released=03-09-2026', str(song))
 
 
 class OriginalDateTagTest(unittest.TestCase):

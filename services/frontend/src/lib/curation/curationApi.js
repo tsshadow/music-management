@@ -80,3 +80,18 @@ export async function loadWhiteGenres() {
   if (!response.ok) throw new Error("Could not load the accepted genres");
   return response.json();
 }
+
+/**
+ * Confirmation text for a rule edit, naming how many files it queued for a retag.
+ *
+ * The count is the point. A rule that saved but queued nothing looks exactly like one
+ * that saved and will apply on the next pass, and that difference was invisible until
+ * the endpoints started reporting it -- which is how a genre rule could sit unapplied
+ * for days while the page said "Regel opgeslagen."
+ */
+export function marked(result, base) {
+  const count = result?.marked_for_retag ?? 0;
+  if (!count) return `${base} Geen bestanden gevonden om opnieuw te taggen.`;
+  const files = count === 1 ? "1 bestand staat" : `${count} bestanden staan`;
+  return `${base} ${files} in de wachtrij om opnieuw getagd te worden.`;
+}

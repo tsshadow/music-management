@@ -22,6 +22,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 
 from services.common.config_store import ConfigStore as Settings
+from services.common.Helpers.RescanInvalidator import invalidate_quietly
 from services.music_manager import curation_rules as rules
 from services.music_manager.database import get_db_connection
 from services.music_manager.rbac import require_permission
@@ -309,9 +310,12 @@ def delete_artist_alias(name: str, alias: str, _auth: dict = WRITE):
 def add_artist_genre(name: str, request: GenreRuleRequest, _auth: dict = WRITE):
     """File every track by this artist under a genre, from the next tagger pass on.
 
-    The reply carries how many files the rule matches so the page can offer to retag
-    them, and the helper is refreshed so this process stops answering from the map it
-    preloaded at startup.
+    Three things have to happen for that to be true, and for a long time only the second
+    did. The rule is written; the helper is refreshed so this process stops answering
+    from the map it preloaded at startup; and the files the rule touches are marked for
+    rescan, or the tagger has no reason to look at them again and the rule sits unapplied
+    behind whatever else the walk happens to reach. The reply carries both counts: how
+    many tracks the rule matches, and how many files were actually queued.
     """
     conn = _connect()
     try:
@@ -323,7 +327,8 @@ def add_artist_genre(name: str, request: GenreRuleRequest, _auth: dict = WRITE):
     finally:
         conn.close()
     rules.refresh(rules.ARTIST_GENRE_HELPER)
-    return {'status': 'ok', 'affected_tracks': affected}
+    marked = invalidate_quietly(name, 'artist_genre_rule')
+    return {'status': 'ok', 'affected_tracks': affected, 'marked_for_retag': marked}
 
 
 @router.delete('/artists/{name}/genres/{genre_id}')
@@ -337,7 +342,8 @@ def delete_artist_genre(name: str, genre_id: int, _auth: dict = WRITE):
     finally:
         conn.close()
     rules.refresh(rules.ARTIST_GENRE_HELPER)
-    return {'status': 'ok', 'affected_tracks': affected}
+    marked = invalidate_quietly(name, 'artist_genre_rule')
+    return {'status': 'ok', 'affected_tracks': affected, 'marked_for_retag': marked}
 
 
 # ---------------------------------------------------------------------------- labels
@@ -532,7 +538,8 @@ def add_label_genre(name: str, request: GenreRuleRequest, _auth: dict = WRITE):
     finally:
         conn.close()
     rules.refresh(rules.LABEL_GENRE_HELPER)
-    return {'status': 'ok', 'affected_tracks': affected}
+    marked = invalidate_quietly(name, 'label_genre_rule')
+    return {'status': 'ok', 'affected_tracks': affected, 'marked_for_retag': marked}
 
 
 @router.delete('/labels/{name}/genres/{genre_id}')
@@ -546,7 +553,8 @@ def delete_label_genre(name: str, genre_id: int, _auth: dict = WRITE):
     finally:
         conn.close()
     rules.refresh(rules.LABEL_GENRE_HELPER)
-    return {'status': 'ok', 'affected_tracks': affected}
+    marked = invalidate_quietly(name, 'label_genre_rule')
+    return {'status': 'ok', 'affected_tracks': affected, 'marked_for_retag': marked}
 
 
 # ---------------------------------------------------------------------------- genres

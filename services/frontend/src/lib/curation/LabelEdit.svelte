@@ -17,6 +17,7 @@
     addLabelGenre,
     loadLabel,
     loadWhiteGenres,
+    marked,
     removeLabelCatid,
     removeLabelGenre,
     retag,
@@ -151,8 +152,10 @@
       {whiteGenres}
       affected={label.track_count}
       {busy}
-      onadd={(genreId) => act(() => addLabelGenre(name, genreId), 'Regel opgeslagen.')}
-      onremove={(genreId) => act(() => removeLabelGenre(name, genreId), 'Regel verwijderd.')}
+      onadd={(genreId) =>
+        act(() => addLabelGenre(name, genreId), (result) => marked(result, 'Regel opgeslagen.'))}
+      onremove={(genreId) =>
+        act(() => removeLabelGenre(name, genreId), (result) => marked(result, 'Regel verwijderd.'))}
       onretag={() =>
         act(() => retag('label', name), (result) => `${result.files} bestanden staan in de wachtrij om opnieuw getagd te worden.`)}
     />

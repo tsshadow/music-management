@@ -4,39 +4,14 @@ import os
 import re
 import shutil
 from os import listdir
-from os.path import isdir, isfile, join, relpath
+from os.path import isdir, isfile, join
 
 from services.common.config_store import ConfigStore as Settings
+from services.importer.release_compare import is_same_release
 
 
 def has_numbers(input_string):
     return any(char.isdigit() for char in input_string)
-
-
-def folder_entries(path):
-    """Every file under `path` as relative name -> size, Synology thumbnails aside."""
-    entries = {}
-    for root, dirs, files in os.walk(path):
-        dirs[:] = [d for d in dirs if d != '@eaDir']
-        for name in files:
-            full = join(root, name)
-            entries[relpath(full, path)] = os.path.getsize(full)
-    return entries
-
-
-def is_same_release(src, dst):
-    """Whether two release folders hold the same files.
-
-    Names and sizes only. Hashing a release is minutes of NAS I/O per folder on every
-    import cycle, and two scene rips that agree on every file name and every byte count
-    are the same release for this purpose. Being wrong in the lenient direction costs a
-    duplicate the mover already knows how to remove; being slow costs the import.
-    """
-    try:
-        return folder_entries(src) == folder_entries(dst)
-    except OSError as e:
-        logging.warning('Could not compare %s with %s (%s); treating them as different', src, dst, e)
-        return False
 
 
 def is_parsed(folder):

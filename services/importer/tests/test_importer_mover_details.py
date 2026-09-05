@@ -1,4 +1,6 @@
+import os
 import unittest
+from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
 from services.tests.connector_fakes import fake_connector
@@ -233,3 +235,91 @@ class RunTest(MoverTestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class MoveConflictTest(unittest.TestCase):
+    """A label folder that already holds this release, against a real filesystem.
+
+    shutil.move does not fail on an existing destination directory, it moves *into* it --
+    so the bug this guards against leaves a release folder containing a folder of the same
+    name, and no exception is raised anywhere. Only a real filesystem shows that.
+    """
+
+    FOLDER = 'EVAU020E - Rava_-_Vamos-(EVAU020E)-SINGLE-WEB-2026-SRG'
+
+    def setUp(self):
+        reset_database_helpers()
+        self.tmp = self.enterContext(TemporaryDirectory())
+        self.imports = os.path.join(self.tmp, 'import')
+        self.eps = os.path.join(self.tmp, 'EPs')
+        os.makedirs(os.path.join(self.eps, 'Evolve AU'))
+        settings = MagicMock(import_folder_path=self.imports, eps_folder_path=self.eps, delimiter='/')
+        patcher = patch.object(mover_module, 'Settings', return_value=settings)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        double, connection = fake_connector()
+        connection.cursor.return_value.__enter__.return_value.fetchone.return_value = ('Evolve AU',)
+        connector = patch.object(mover_module, 'DatabaseConnector', return_value=double)
+        connector.start()
+        self.addCleanup(connector.stop)
+        self.mover = Mover()
+
+    def make(self, base, files):
+        os.makedirs(base, exist_ok=True)
+        for name, content in files.items():
+            with open(os.path.join(base, name), 'w') as handle:
+                handle.write(content)
+        return base
+
+    def src(self):
+        return os.path.join(self.imports, self.FOLDER)
+
+    def dst(self):
+        return os.path.join(self.eps, 'Evolve AU', self.FOLDER)
+
+    def test_a_release_the_label_folder_already_holds_is_never_nested_inside_it(self):
+        self.make(self.src(), {'01-track.mp3': 'aaa'})
+        self.make(self.dst(), {'01-track.mp3': 'aaa'})
+        with patch.object(mover_module, 'post_processing_songs'):
+            self.mover._move_folder(self.FOLDER, 'EVAU', dry_run=False)
+        self.assertFalse(os.path.exists(os.path.join(self.dst(), self.FOLDER)))
+
+    def test_the_duplicate_source_is_removed_when_both_hold_the_same_files(self):
+        self.make(self.src(), {'01-track.mp3': 'aaa', '00-release.nfo': 'bb'})
+        self.make(self.dst(), {'01-track.mp3': 'aaa', '00-release.nfo': 'bb'})
+        with patch.object(mover_module, 'post_processing_songs'):
+            self.mover._move_folder(self.FOLDER, 'EVAU', dry_run=False)
+        self.assertFalse(os.path.exists(self.src()))
+        self.assertTrue(os.path.exists(os.path.join(self.dst(), '01-track.mp3')))
+
+    def test_a_different_release_under_the_same_name_is_left_alone(self):
+        self.make(self.src(), {'01-track.mp3': 'a different rip'})
+        self.make(self.dst(), {'01-track.mp3': 'aaa'})
+        with patch.object(mover_module, 'post_processing_songs'):
+            self.mover._move_folder(self.FOLDER, 'EVAU', dry_run=False)
+        self.assertTrue(os.path.exists(self.src()))
+        self.assertFalse(os.path.exists(os.path.join(self.dst(), self.FOLDER)))
+
+    def test_a_conflict_is_logged_as_a_warning_saying_which_way_it_went(self):
+        self.make(self.src(), {'01-track.mp3': 'a different rip'})
+        self.make(self.dst(), {'01-track.mp3': 'aaa'})
+        with patch.object(mover_module, 'post_processing_songs'), self.assertLogs(level='WARNING') as logs:
+            self.mover._move_folder(self.FOLDER, 'EVAU', dry_run=False)
+        message = '\n'.join(logs.output)
+        self.assertIn('differ', message)
+        self.assertIn('manual intervention', message)
+
+    def test_a_dry_run_removes_nothing_on_a_conflict(self):
+        self.make(self.src(), {'01-track.mp3': 'aaa'})
+        self.make(self.dst(), {'01-track.mp3': 'aaa'})
+        with patch.object(mover_module, 'post_processing_songs'):
+            self.mover._move_folder(self.FOLDER, 'EVAU', dry_run=True)
+        self.assertTrue(os.path.exists(self.src()))
+
+    def test_a_release_the_label_folder_does_not_have_is_moved_as_before(self):
+        self.make(self.src(), {'01-track.mp3': 'aaa'})
+        with patch.object(mover_module, 'post_processing_songs') as post:
+            self.mover._move_folder(self.FOLDER, 'EVAU', dry_run=False)
+        self.assertFalse(os.path.exists(self.src()))
+        self.assertTrue(os.path.exists(os.path.join(self.dst(), '01-track.mp3')))
+        post.assert_called_once_with(self.dst())

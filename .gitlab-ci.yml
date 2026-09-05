@@ -247,6 +247,21 @@ muma:shellcheck:
   script:
     - ./scripts/shellcheck.sh
 
+# Every merge request brings a changelog fragment, or says why not with a
+# `no-changelog` label. The fragments exist because editing the shared
+# `[Unreleased]` block merges cleanly *and wrongly* -- see changelog.d/README.md
+# -- and they only pay for themselves if they are actually written.
+muma:changelog:
+  stage: quality
+  timeout: 10m
+  retry: !reference [.infra_retry, retry]
+  tags: !reference [.fast_runner, tags]
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  script:
+    - ./scripts/ci/changelog-fragment-check.sh
+
 # C++ formatting for the MuMa Server. Its own job rather than a step in
 # server:unit, which builds the whole server and takes up to 45 minutes:
 # a formatting mistake should be reported in under a minute, not after a

@@ -33,6 +33,7 @@ from services.tagger.constants import (
     OPUSTags,
     WAVTags,
 )
+from services.tagger.Song.ReleaseDate import format_release_date, preferred_release_date
 from services.tagger.Song.rules.AnalyzeBpmRule import AnalyzeBpmRule
 from services.tagger.Song.rules.CleanTitleRule import CleanTitleRule
 from services.tagger.Song.rules.NormalizeFlacTagsRule import NormalizeFlacTagsRule
@@ -288,6 +289,10 @@ class BaseSong:
         """The original release date, which is the one worth sorting and dating by."""
         return self.tag_collection.get_item_as_string(ORIGINAL_DATE)
 
+    def release_date(self):
+        """The single date worth showing: see services/tagger/Song/ReleaseDate.py."""
+        return preferred_release_date(self.date(), self.original_date())
+
     def festival(self):
         return self.tag_collection.get_item_as_string(FESTIVAL)
 
@@ -336,6 +341,7 @@ class BaseSong:
             ('Title', self.title()),
             ('Artists', self.artist()),
             ('Album', self.album()),
+            ('Released', format_release_date(self.release_date())),
             ('Genre', self.genre()),
             ('Publisher', self.publisher()),
             ('Path', self.path()),

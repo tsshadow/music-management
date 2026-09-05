@@ -11,6 +11,43 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.46.0 (2026-09-05)
+
+- **Wijzigingen worden voortaan per stuk vastgelegd en pas bij een release samengevoegd.** Dat
+  voorkomt dat een regel onder de verkeerde versie belandt, wat eerder gebeurde zonder dat iets
+  het merkte.
+
+- **Een genreregel op een artiest of label werd opgeslagen maar niet toegepast.** De betrokken
+  nummers worden nu vanzelf opnieuw getagd, en je ziet meteen om hoeveel bestanden het gaat.
+
+- **Een melding dat er iets gedownload is, vermeldt nu de releasedatum.**
+
+- **Een release die twee keer geïmporteerd werd, kwam in zichzelf terecht** en verscheen daardoor
+  dubbel in de bibliotheek. Dubbele downloads worden nu herkend en opgeruimd; bij twijfel blijft
+  alles staan met een melding.
+
+- **De lege hoes in de webinterface toonde nog het Spotify-logo.** Dat is nu het MuMa-teken.
+
+- **Nieuws afspelen in de webinterface mislukte, en blokkeerde daarbij tijdelijk de rest van de
+  app.** Het bulletin komt nu meteen door.
+
+- **Claude kan productie nu veilig uitlezen** — logs, containerstatus en de database — via een
+  account dat op databaseniveau alleen mag lezen, in plaats van via een root-shell.
+
+- **Het script dat het read-only databaseaccount aanmaakt kon niet draaien, en gaf soms stilletjes een
+  leeg wachtwoord.** Twee onafhankelijke fouten, allebei zichtbaar geworden toen musicserver op
+  2026-09-05 herstartte. Het root-wachtwoord werd gelezen uit `/tmp/.env.music-management`, en `/tmp`
+  overleeft een reboot niet — de database was de hele tijd op en gezond, maar het bestand was weg. Er
+  wordt nu eerst in de draaiende container gekeken (`docker inspect`), wat net zo goed "wat de stack
+  echt gebruikt" is en wél een herstart doorstaat; het bestand blijft de terugval. En de
+  wachtwoordgeneratie gebruikte `tr -dc ... | head -c 32`, wat onder `set -o pipefail` een val is:
+  `head` sluit de pipe na 32 bytes, `tr` krijgt SIGPIPE en de pipeline eindigt op 141 — maar alleen
+  soms, afhankelijk van of `tr` nog een keer schrijft voordat hij het merkt. De eerste run haalde het
+  net wel, daarna niet meer, en het script stopte zonder één regel uitvoer. De invoer wordt nu vooraf
+  begrensd en met `cut` afgeknipt, en een wachtwoord dat geen 32 tekens is laat het script hard falen.
+
+- **Nummers tonen weer hun echte releasedatum in de web-speler en de tracklijst**, in plaats van
+  alleen het jaar. De app deed dit al goed.
 ## Global Version 0.45.0 (2026-09-04)
 
 - **Een archief met een enkele rare bestandsnaam liet de helft van zijn releases nooit binnen.**

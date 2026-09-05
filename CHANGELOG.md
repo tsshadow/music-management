@@ -7,6 +7,113 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.46.0] - 2026-09-05
+
+### Added
+- **De changelog wordt niet meer op een feature branch bewerkt.** Elke wijziging legt een eigen
+  bestandje neer in `changelog.d/`, en de release voegt ze samen onder de nieuwe versiekop. Dat is
+  geen cosmetiek: het gedeelde `[Unreleased]`-blok merget niet alleen luidruchtig (een conflict
+  tussen twee branches van dezelfde dag), maar vooral stil. Ships er een release terwijl jouw
+  branch openstaat, dan ziet git "wij voegden regels toe" en "zij voegden een versiekop van twee
+  regels in", past allebei toe, en jouw regels staan onder een versie die zonder ze naar productie
+  ging. Vier branches in één sessie, en niets ving het: geen test leest de changelog, en
+  `release-version-check.sh` controleert alleen dát er een gedateerde regel voor `VERSION` staat,
+  niet wat erin staat. Een fragment is een nieuw bestand met een naam die niemand anders gebruikt,
+  dus er valt niets te mergen. `muma:changelog` faalt een MR die er geen meebrengt, tenzij het
+  label `no-changelog` erop zit.
+
+- **Een agent kon productie alleen lezen door er als root op te SSH'en.** "Read-only" was een
+  instructie in een skill-tekst, dus precies zo betrouwbaar als het model dat hem las, en elke
+  databasevraag ging via het applicatie-account dat óók mag schrijven. Er is nu een MCP-server
+  (`tools/muma_mcp`, draait lokaal, praat naar prod via de bestaande `/health`- en
+  `/api/system/*`-endpoints plus een eigen databaseaccount) met zes tools: `prod_health`,
+  `prod_containers`, `prod_logs`, `prod_tables`, `prod_describe` en `prod_query`. De grens ligt in
+  de database: `muma-readonly` heeft `SELECT, SHOW VIEW` op één database, geen `FILE` — dus ook
+  geen `SELECT ... INTO OUTFILE` — en `MAX_QUERIES_PER_HOUR 2000` plus `MAX_USER_CONNECTIONS 3`
+  zodat een agent in een lus door MariaDB zelf wordt afgekapt. Daarbovenop weigert een guard alles
+  wat niet met `SELECT`/`WITH`/`SHOW`/`DESCRIBE`/`EXPLAIN` begint, strípt hij commentaar vóór hij
+  het sleutelwoord leest (`/*!…*/` wordt door MariaDB uitgevoerd, dus een validator die naar de
+  originele tekst kijkt leest eroverheen) en gaat elke query in `START TRANSACTION READ ONLY` met
+  `max_statement_time=10`. Logoutput gaat langs een maskeerfilter, want containerlogs bevatten
+  echt credentials. `scripts/prod/create-readonly-db-user.sh` maakt het account aan;
+  `scripts/prod/install-muma-mcp.sh` registreert de server en beweert niet dat hij read-only is
+  maar probeert een `CREATE TABLE` en faalt als die slaagt.
+
+### Changed
+- **De lege hoes in de webinterface was nog altijd het Spotify-logo.** Het stond in zes bestanden
+  (`spotify-fallback.svg` en `unknown-cover.svg`, elk in `services/frontend/public/images/`, in de
+  LMS-`docroot` en in de `approot` waar de artwork service zijn standaardhoes vandaan haalt), en
+  het was met de hand getekend, los van het merk. De placeholder is nu het MuMa-equalizerteken,
+  afgeleid uit dezelfde `BARS`-constanten als het app-icoon en de notificatieglyph in
+  `tools/render_branding_icons.py`, dus hij kan niet meer los gaan lopen van het icoon. De kleuren
+  blijven de paneelgrijzen (`#282828` op `#181818`), want een ontbrekende hoes hoort dof te zijn en
+  geen merkstempel.
+
+### Fixed
+- **Een genreregel op een artiest- of labelpagina bleef ongebruikt liggen.** De pagina sloeg de
+  regel op en ververste de draaiende tagger, maar markeerde de bestanden niet voor een nieuwe ronde
+   -- en zonder die markering heeft de tagger geen reden om er ooit nog langs te lopen. De regel
+  wachtte dus achter een wachtrij van 165.394 bestanden, terwijl de pagina "Regel opgeslagen."
+  meldde. De management-endpoints voor precies dezelfde regels deden dit al wél; die twee zijn nu
+  één gedeelde `invalidate_quietly` in `RescanInvalidator`, zodat ze niet opnieuw uit elkaar kunnen
+  lopen. De bevestiging noemt voortaan hoeveel bestanden er in de wachtrij zijn gezet, want "geen"
+  en "duizend" zagen er tot nu toe hetzelfde uit.
+
+- **De ntfy-melding van een download noemde de releasedatum niet.** De pushtekst is letterlijk
+  `str(song)`, en die lijst somde titel, artiest, album, genre, publisher en pad op -- de datum zat
+  er nooit in, terwijl dat juist het veld is waarop je een download beoordeelt. `BaseSong.__str__`
+  zet er nu een regel `Released=` bij, wat in één klap ook de SoundCloud- en de import-melding
+  vult, want alle drie sturen dezelfde string. De keuze tussen `DATE` en `ORIGINALDATE` volgt
+  dezelfde regel als de web-UI en de app: neem de originele datum alleen als hij minstens zo
+  precies is. Nieuw is dat de Python-kant ook de ongescheiden `20260903` aankan die yt-dlp als
+  `upload_date` in `DATE` schrijft, en dat een scene-tag `2026-00-00` als `2026` uitkomt in plaats
+  van als `00-00-2026`. Een videodownload wordt niet getagd en heeft dus geen Song; die melding
+  leest de datum nu rechtstreeks uit het info-dict van yt-dlp.
+
+- **Een release die je twee keer importeerde belandde in zichzelf.** `shutil.move` ziet een
+  bestaande doelmap niet als botsing maar als "hier moet je in", dus de tweede kopie kwam één
+  niveau dieper te staan: `Label/Release/Release/`. Er werd geen fout gegooid en niets gelogd. De
+  opruimtak die de bron verwijdert sloeg pas aan bij de dérde kopie, als die geneste map óók al
+  bestond -- dan pas gaf `shutil.move` een `shutil.Error`. Op productie hebben **429** releasemappen
+  zichzelf op die manier ingeslikt, met als zichtbaar gevolg dat dezelfde track twee keer in de
+  bibliotheek staat. De mover kijkt nu vóór de verhuizing of het doel bestaat en gebruikt daarna
+  dezelfde regel als de renamer: gelijke bestandsnamen en -groottes betekent een dubbele download
+  en de bron verdwijnt; verschilt de inhoud, dan blijven beide staan met een WARNING. De
+  vergelijking zelf verhuisde naar `services/importer/release_compare.py`, want beide stappen
+  hebben hem nodig.
+
+- **Het nieuws afspelen in de webinterface gaf "kon niet afspelen" en legde en passant de hele
+  MuMa-proxy plat.** De browser haalt een bulletin als blob op omdat een `<audio>`-element geen
+  `X-API-Key` kan meesturen, en die 15 MB gaat door `MumaResource`. Gemeten op productie: MuMa
+  schrijft het bestand in 0,9 seconde weg, maar de proxy gaf na 30 seconden 504 en de wachtrij
+  bleef daarna nog 158 seconden bezet -- die stuurt één verzoek tegelijk, dus elk artiestplaatje
+  erachter liep ook in een timeout ("Timeout waiting for MuMa response for artist ..."). De oorzaak
+  zat niet in de recorder en niet in het netwerk: `SendQueue` hing een callback aan Wt's
+  `bodyDataReceived`, ongeacht of het verzoek streamde. Wt leest in kleine stappen, dus een
+  bulletin kwam binnen in tienduizenden read-completions, en elk daarvan werd gekopieerd en naar de
+  strand gepost voor een handler die vervolgens niets deed. Die kopie gebeurt nu alleen nog voor een
+  verzoek dat de brokken echt gebruikt -- dat is uitsluitend het downloaden van podcastafleveringen.
+
+- **Het script dat het read-only databaseaccount aanmaakt kon niet draaien, en gaf soms stilletjes een
+  leeg wachtwoord.** Twee onafhankelijke fouten, allebei zichtbaar geworden toen musicserver op
+  2026-09-05 herstartte. Het root-wachtwoord werd gelezen uit `/tmp/.env.music-management`, en `/tmp`
+  overleeft een reboot niet — de database was de hele tijd op en gezond, maar het bestand was weg. Er
+  wordt nu eerst in de draaiende container gekeken (`docker inspect`), wat net zo goed "wat de stack
+  echt gebruikt" is en wél een herstart doorstaat; het bestand blijft de terugval. En de
+  wachtwoordgeneratie gebruikte `tr -dc ... | head -c 32`, wat onder `set -o pipefail` een val is:
+  `head` sluit de pipe na 32 bytes, `tr` krijgt SIGPIPE en de pipeline eindigt op 141 — maar alleen
+  soms, afhankelijk van of `tr` nog een keer schrijft voordat hij het merkt. De eerste run haalde het
+  net wel, daarna niet meer, en het script stopte zonder één regel uitvoer. De invoer wordt nu vooraf
+  begrensd en met `cut` afgeknipt, en een wachtwoord dat geen 32 tekens is laat het script hard falen.
+
+- **De web-UI toonde het jaar waar de app de hele datum liet zien.** LMS stuurt twee datums: `date`
+  is de datum van deze editie, `originalDate` de oorspronkelijke release. MuMa schrijft de datum die
+  hij uit de NFO haalt in ORIGINALDATE, dus juist die tweede is de interessante -- een scene-tag als
+  `2026-00-00` komt aan als een kaal jaar, terwijl `originalDate` `2026-09-03` bevat. De web-UI las
+  alleen `date` en toonde dus "2026", terwijl "Recent uitgebracht" wél op de originele datum
+  sorteerde: dezelfde track beweerde twee dingen op één scherm. De keuze volgt nu dezelfde regel als
+  de Android-app al gebruikte -- neem de originele datum alleen als hij minstens zo precies is -- en
+  staat in één gedeelde `trackDate.js` in plaats van twee kopieën van dezelfde datumfunctie.
 ## [0.45.0] - 2026-09-04
 
 ### Fixed

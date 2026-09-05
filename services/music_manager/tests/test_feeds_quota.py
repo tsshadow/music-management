@@ -1,13 +1,19 @@
 import unittest
 
+from services.music_manager.feeds.profile import TAIL
 from services.music_manager.feeds.quota import allocate, redistribute
 
-SHARES = {'uptempo': 0.50, 'raw': 0.25, 'hardtechno': 0.10, '__tail__': 0.15}
+SHARES = {'uptempo': 0.50, 'raw': 0.25, 'hardtechno': 0.10, TAIL: 0.15}
 
 
 class AllocateTest(unittest.TestCase):
     def test_the_places_are_divided_by_share(self):
-        self.assertEqual(allocate(SHARES, 30), {'uptempo': 15, 'raw': 8, 'hardtechno': 3, '__tail__': 4})
+        """raw takes 8 and the tail 4, not 7 and 5: their remainders tie at 0.5,
+
+        and a tie goes to the larger share (see quota.allocate's sort key, and
+        technical.md acceptance criterion 5).
+        """
+        self.assertEqual(allocate(SHARES, 30), {'uptempo': 15, 'raw': 8, 'hardtechno': 3, TAIL: 4})
 
     def test_every_place_is_handed_out(self):
         self.assertEqual(sum(allocate(SHARES, 30).values()), 30)
@@ -24,8 +30,8 @@ class AllocateTest(unittest.TestCase):
 
 class RedistributeTest(unittest.TestCase):
     def test_a_share_nobody_released_gives_its_places_away(self):
-        allocation = {'uptempo': 15, 'raw': 8, 'hardtechno': 3, '__tail__': 4}
-        available = {'uptempo': 40, 'raw': 0, 'hardtechno': 9, '__tail__': 20}
+        allocation = {'uptempo': 15, 'raw': 8, 'hardtechno': 3, TAIL: 4}
+        available = {'uptempo': 40, 'raw': 0, 'hardtechno': 9, TAIL: 20}
         result = redistribute(allocation, available)
         self.assertEqual(result['raw'], 0)
         self.assertEqual(sum(result.values()), 30)

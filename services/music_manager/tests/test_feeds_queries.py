@@ -25,6 +25,17 @@ class ListensQueryTest(unittest.TestCase):
         sql, _ = listens_query('user', 90, NOW)
         self.assertIn("rg.state <> 'black'", sql)
 
+    def test_the_grouped_names_come_back_in_a_defined_order(self):
+        """candidates_query orders its GROUP_CONCAT; this one has to agree, or
+
+        the same track is described one way to the profile and another way to
+        the ranker, and the difference shows up as an unreproducible profile
+        rather than as an error.
+        """
+        sql = ' '.join(listens_query('user', 90, NOW)[0].split())
+        self.assertIn('GROUP_CONCAT(l.name ORDER BY l.name SEPARATOR', sql)
+        self.assertIn('GROUP_CONCAT(rg.name ORDER BY rg.name SEPARATOR', sql)
+
     def test_the_window_cutoff_is_computed_in_python_not_sql(self):
         sql, params = listens_query('user', 90, NOW)
         self.assertNotIn('NOW()', sql)
@@ -101,6 +112,16 @@ class CandidatesQueryTest(unittest.TestCase):
         sql, params = candidates_query('user', POLICIES['release-radar'], NOW)
         self.assertIn('t.duration_secs < %s', sql)
         self.assertIn(600, params)
+
+    def test_a_multi_label_track_always_reports_the_same_label(self):
+        """The picked label decides both the bucket a genre-less candidate
+
+        competes in and the `label:<name>` reason shown for it. `LIMIT 1` with
+        no `ORDER BY` leaves that to the storage engine, so the same track can
+        be explained two different ways on two runs.
+        """
+        sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
+        self.assertIn('WHERE tl.track_id = t.id ORDER BY l.name LIMIT 1) AS label', ' '.join(sql.split()))
 
     def test_a_candidate_must_have_a_file(self):
         sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)

@@ -15,16 +15,23 @@ from unittest.mock import MagicMock
 from services.music_manager.feeds.build import build_feed, resolve_profile
 from services.music_manager.feeds.policy import POLICIES
 from services.music_manager.feeds.profile import TAIL
+from services.music_manager.feeds.queries import listens_query
 from services.music_manager.tests.scripted_cursor import ScriptedCursor
 
 NOW = datetime(2026, 9, 5, 12, 0, 0)
 
-# listens_query is called twice per build_feed run: once for this listener (2
-# params -- username, then the window cutoff) and once for the server profile
-# (1 param -- username is None, so its WHERE clause and placeholder drop out).
-# Both calls share the same SQL text, so the fake cursor tells them apart by
-# how many parameters they carry rather than by the statement itself.
+# listens_query is called twice per build_feed run: once for this listener and
+# once for the server profile. The two are told apart by the WHERE clause that
+# actually differs between them -- the server variant has no username filter at
+# all -- and never by how many parameters they carry. A parameter count is not
+# a property of the question being asked: adding one parameter to listens_query
+# would silently reroute the user's query to the server fixture, and every test
+# here would stay green while testing the wrong thing. These fragments cannot
+# drift that way; if the query's shape changes, no rule matches, the fixtures
+# come back empty and the tests fail loudly.
 _LISTENS_FRAGMENT = 'JOIN library_tracks t ON t.id = s.track_id'
+_USER_LISTENS_FRAGMENT = 'WHERE s.username = %s AND s.listened_at >= %s'
+_SERVER_LISTENS_FRAGMENT = 'WHERE s.listened_at >= %s'
 # Both candidates_query and the dominant-genre queries start `FROM
 # library_tracks t`, so the candidates fragment has to name something only
 # the candidate query selects.
@@ -33,25 +40,6 @@ _HIERARCHY_FRAGMENT = 'FROM rules_subgenre_hierarchy'
 _EXCLUSIONS_FRAGMENT = 'FROM feeds_profile_exclusions'
 _LABEL_DOMINANT_FRAGMENT = 'GROUP BY l.name, rg.name'
 _ARTIST_DOMINANT_FRAGMENT = 'GROUP BY a.name, rg.name'
-
-
-class _ParamCount:
-    """Matches any params list of a fixed length, without pinning the values.
-
-    build_feed's own username is not known to the fixtures below (they are
-    built once and reused across tests for 'user' and 'newcomer' alike), so
-    the two listens_query calls are distinguished by shape -- 2 params for a
-    named listener, 1 for the server -- rather than by exact value.
-    """
-
-    def __init__(self, length):
-        self.length = length
-
-    def __eq__(self, other):
-        return isinstance(other, list) and len(other) == self.length
-
-    def __repr__(self):
-        return f'_ParamCount({self.length})'
 
 
 def scripted(
@@ -65,8 +53,8 @@ def scripted(
 ):
     """A connection whose cursor answers build_feed's queries from fixed rows."""
     rules = (
-        (_LISTENS_FRAGMENT, _ParamCount(2), list(listens)),
-        (_LISTENS_FRAGMENT, _ParamCount(1), list(server_listens)),
+        (_USER_LISTENS_FRAGMENT, None, list(listens)),
+        (_SERVER_LISTENS_FRAGMENT, None, list(server_listens)),
         (_CANDIDATES_FRAGMENT, None, list(candidates)),
         (_HIERARCHY_FRAGMENT, None, list(hierarchy)),
         (_EXCLUSIONS_FRAGMENT, None, list(exclusions)),
@@ -226,6 +214,21 @@ class BuildFeedTest(unittest.TestCase):
             scripted(listens=MANY_LISTENS, candidates=MIXED_CANDIDATES), 'user', POLICIES['daily-mix'], NOW
         )
         self.assertEqual([t['id'] for t in first.tracks], [t['id'] for t in second.tracks])
+
+    def test_the_two_listens_fixtures_cannot_answer_each_other_s_query(self):
+        """The fixtures route on the WHERE clause that genuinely differs between
+
+        the two calls, not on a parameter count. Neither fragment appears in the
+        other's statement, so neither rule can ever swallow the other's query --
+        which a count-based rule silently would the day listens_query gains a
+        parameter.
+        """
+        user_sql = ' '.join(listens_query('user', 90, NOW)[0].split())
+        server_sql = ' '.join(listens_query(None, 90, NOW)[0].split())
+        self.assertIn(_USER_LISTENS_FRAGMENT, user_sql)
+        self.assertNotIn(_SERVER_LISTENS_FRAGMENT, user_sql)
+        self.assertIn(_SERVER_LISTENS_FRAGMENT, server_sql)
+        self.assertNotIn(_USER_LISTENS_FRAGMENT, server_sql)
 
     def test_a_full_profile_never_queries_the_server(self):
         """MANY_LISTENS alone is already above the blend ramp, so blend() would

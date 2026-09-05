@@ -25,6 +25,14 @@ from services.music_manager.feeds.policy import FeedPolicy
 
 # One row per track: a disagreeing release_date across several files sharing a
 # track counts as unknown rather than picking one of them arbitrarily.
+#
+# That agreement rule is the release date's alone. `MIN(tempo)`, `MIN(bpm_tag)`
+# and `MIN(release_year)` do *not* follow it: they pick the smallest value of
+# however many rows the track has, disagreement and all. That is deliberate --
+# `bpm` is displayed and never filtered or ranked on, and `release_year` is
+# carried but read by nothing, so an arbitrary-but-stable pick cannot change
+# which tracks a feed contains or in what order. Anything that starts selecting
+# on either of them has to revisit this.
 _AUDIO_FEATURES_SUBQUERY = """
     LEFT JOIN (
         SELECT internal_track_id,
@@ -52,6 +60,11 @@ def listens_query(username: str | None, window_days: int, now: datetime) -> tupl
     way `candidates_query` computes its release cutoff -- never `NOW()` in SQL,
     which cannot be frozen by a test and would let this query's window and the
     candidate query's window disagree at a clock boundary.
+
+    Both `GROUP_CONCAT`s are ordered, as `candidates_query`'s is: an unordered
+    one is stable in practice and guaranteed nowhere, and the two queries
+    describing the same track differently is the kind of difference that shows
+    up as an unreproducible profile rather than as an error.
     """
     params: list = []
     where = []
@@ -69,11 +82,11 @@ def listens_query(username: str | None, window_days: int, now: datetime) -> tupl
             s.match_method,
             s.played_secs,
             a.name AS artist,
-            (SELECT GROUP_CONCAT(l.name SEPARATOR ',')
+            (SELECT GROUP_CONCAT(l.name ORDER BY l.name SEPARATOR ',')
              FROM library_track_labels tl
              JOIN library_labels l ON l.id = tl.label_id
              WHERE tl.track_id = t.id) AS labels,
-            (SELECT GROUP_CONCAT(rg.name SEPARATOR ',')
+            (SELECT GROUP_CONCAT(rg.name ORDER BY rg.name SEPARATOR ',')
              FROM library_track_genres tg
              JOIN rules_genres rg ON rg.id = tg.genre_id
              WHERE tg.track_id = t.id AND rg.state <> 'black') AS genres
@@ -120,6 +133,13 @@ def candidates_query(username: str, policy: FeedPolicy, now: datetime) -> tuple[
     of the grouped audio-features subquery. Rating is never a WHERE-clause
     filter on its own -- only `_pool_clause` turns it into one, and only for
     `loved`.
+
+    `label` is a single label and a track can carry several. Which one comes
+    back decides the bucket a genre-less candidate competes in *and* the
+    `label:<name>` reason the listener is shown for it, so `LIMIT 1` without an
+    `ORDER BY` would leave both to the storage engine's mood. Alphabetical is
+    not "the right label" -- for a multi-label track there is no such thing --
+    but it is the same one on every run, which is what an explanation has to be.
     """
     # Positional order follows the %s tokens left to right in the SQL text, not
     # the order they are appended here: `heard`'s EXISTS lives in the SELECT
@@ -159,7 +179,7 @@ def candidates_query(username: str, policy: FeedPolicy, now: datetime) -> tuple[
                     WHERE sl.track_id = t.id AND sl.username = %s) AS heard,
             (SELECT l.name FROM library_labels l
              JOIN library_track_labels tl ON l.id = tl.label_id
-             WHERE tl.track_id = t.id LIMIT 1) AS label,
+             WHERE tl.track_id = t.id ORDER BY l.name LIMIT 1) AS label,
             EXISTS (SELECT 1 FROM library_track_labels tl2 WHERE tl2.track_id = t.id) AS has_label,
             (SELECT GROUP_CONCAT(rg.name ORDER BY rg.name SEPARATOR ',')
              FROM rules_genres rg

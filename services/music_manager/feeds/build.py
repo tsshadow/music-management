@@ -311,11 +311,27 @@ def build_feed(
             continue
         ordered = sorted(by_bucket.get(bucket, []), key=order_key)
         selected.extend(ordered[:count])
+    # Sorted twice on purpose. The per-bucket sort decides *which* tracks win
+    # their share's places; this one decides what the listener reads first, over
+    # the whole list -- newest release first for the radar, the daily draw for
+    # the mix. Without it the feed comes out grouped by bucket, in the arbitrary
+    # order the allocation dict happens to have.
     selected.sort(key=order_key)
 
-    # Step 8: cap per artist, then the global size.
+    # Step 8: cap per artist, then the global size. The cap *removes* tracks
+    # after their share was already allocated and filled, and the freed places
+    # are not handed back to anyone -- so a feed can legitimately come out
+    # shorter than policy.size. That is the honest outcome and the funnel says
+    # so: `capped` below `allocated` is exactly this, and nothing is
+    # backfilled with an unrelated track to hide it.
     capped = _cap_per_artist(selected, policy.max_per_artist)
     funnel['capped'] = len(capped)
+    # A guard, not a working limit: `allocate` hands out at most policy.size
+    # places, `redistribute` never raises that total, the per-bucket take is
+    # bounded by it and the artist cap only shrinks the list, so `capped` is
+    # already no longer than policy.size. Kept because it is the one line that
+    # makes "the API never returns more than it asked for" independent of the
+    # quota's arithmetic staying correct.
     emitted = capped[: policy.size]
     funnel['emitted'] = len(emitted)
 

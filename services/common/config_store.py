@@ -383,6 +383,15 @@ def _config_fields() -> list[ConfigField]:
             group='Notifications',
             description='URL that receives a POST with the report id after a mobile crash report is stored. Empty switches the hook off.',
         ),
+        ConfigField(
+            key='feeds_starting_genres',
+            type='string',
+            default='',
+            env='FEEDS_STARTING_GENRES',
+            group='Feeds',
+            description='Comma-separated genres a feed falls back to when nobody on the server has any '
+            'listening history yet. Empty means no configured fallback -- the feed reports not_enough_data.',
+        ),
     ]
 
 

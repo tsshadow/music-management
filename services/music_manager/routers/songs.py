@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from services.music_manager.database import get_db_connection
 from services.music_manager.routers.rating import verify_api_key
 from services.music_manager.song_version_worker import recompute_canonicals
+from services.music_manager.song_versions import SPLIT_PREFIX
 
 router = APIRouter(tags=['songs'])
 
@@ -119,7 +120,7 @@ def split_track(track_id: int, _auth: dict = Depends(verify_api_key)):
             # group it was just taken out of, nor with a later split of another track.
             cursor.execute(
                 'INSERT INTO library_works (work_key, title, primary_artist_id) VALUES (%s, %s, %s)',
-                (f'split:{track_id}', track['title'], track['primary_artist_id']),
+                (f'{SPLIT_PREFIX}{track_id}', track['title'], track['primary_artist_id']),
             )
             new_work_id = cursor.lastrowid
 
@@ -130,6 +131,13 @@ def split_track(track_id: int, _auth: dict = Depends(verify_api_key)):
 
             to_recompute = {new_work_id}
             if old_work_id:
+                # The track it names has just left, so the pin no longer decides
+                # anything here. Left in place it would keep the old work's canonical
+                # pointing at a track that is now a song of its own.
+                cursor.execute(
+                    'UPDATE library_works SET pinned_track_id = NULL WHERE id = %s AND pinned_track_id = %s',
+                    (old_work_id, track_id),
+                )
                 to_recompute.add(old_work_id)
             recompute_canonicals(cursor, to_recompute)
         conn.commit()

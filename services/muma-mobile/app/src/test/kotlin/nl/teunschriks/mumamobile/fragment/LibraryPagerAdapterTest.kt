@@ -1,5 +1,6 @@
 package nl.teunschriks.mumamobile.fragment
 
+import nl.teunschriks.mumamobile.home.LibraryMode
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.shouldBeNull
 import org.junit.Test
@@ -14,16 +15,72 @@ class LibraryPagerAdapterTest {
 
     @Test
     fun `has one page per library category`() {
-        LibraryPagerAdapter.PAGE_COUNT `should be equal to` 12
+        LibraryPagerAdapter.ALL_PAGES.size `should be equal to` 12
     }
 
     @Test
     fun `every page has a distinct title`() {
-        val titles = (0 until LibraryPagerAdapter.PAGE_COUNT).map {
-            LibraryPagerAdapter.titleResFor(it)
-        }
+        val titles = LibraryPagerAdapter.ALL_PAGES.map { LibraryPagerAdapter.titleResFor(it) }
 
-        titles.distinct().size `should be equal to` LibraryPagerAdapter.PAGE_COUNT
+        titles.distinct().size `should be equal to` LibraryPagerAdapter.ALL_PAGES.size
+    }
+
+    @Test
+    fun `song mode drops the pages that only hold recordings`() {
+        // Mirrors COLLECTION_MODES in the web UI: the tagger writes no FESTIVAL or PODCAST tag
+        // below ten minutes, so both grids are empty by construction in song mode.
+        val pages = LibraryPagerAdapter.pagesFor(LibraryMode.SONGS)
+
+        pages.contains(LibraryPagerAdapter.PAGE_FESTIVALS) `should be equal to` false
+        pages.contains(LibraryPagerAdapter.PAGE_PODCASTS) `should be equal to` false
+        pages.contains(LibraryPagerAdapter.PAGE_LABELS) `should be equal to` true
+        pages.contains(LibraryPagerAdapter.PAGE_LINEUPS) `should be equal to` true
+    }
+
+    @Test
+    fun `sets mode drops the pages that describe releases`() {
+        val pages = LibraryPagerAdapter.pagesFor(LibraryMode.SETS)
+
+        pages.contains(LibraryPagerAdapter.PAGE_LABELS) `should be equal to` false
+        pages.contains(LibraryPagerAdapter.PAGE_LINEUPS) `should be equal to` false
+        pages.contains(LibraryPagerAdapter.PAGE_FESTIVALS) `should be equal to` true
+        pages.contains(LibraryPagerAdapter.PAGE_PODCASTS) `should be equal to` true
+    }
+
+    @Test
+    fun `a page that is not a browse category shows in both modes`() {
+        // Artists, albums, playlists and memories have no mode of their own; dropping one of them
+        // by accident would take a whole screen off the tab strip.
+        val both = LibraryPagerAdapter.pagesFor(LibraryMode.SONGS)
+            .intersect(LibraryPagerAdapter.pagesFor(LibraryMode.SETS).toSet())
+
+        both `should be equal to` setOf(
+            LibraryPagerAdapter.PAGE_DYNAMIC_PLAYLISTS,
+            LibraryPagerAdapter.PAGE_GENRES,
+            LibraryPagerAdapter.PAGE_ARTISTS,
+            LibraryPagerAdapter.PAGE_ALBUMS,
+            LibraryPagerAdapter.PAGE_YEARS,
+            LibraryPagerAdapter.PAGE_RATINGS,
+            LibraryPagerAdapter.PAGE_STATIC_PLAYLISTS,
+            LibraryPagerAdapter.PAGE_MEMORIES
+        )
+    }
+
+    @Test
+    fun `every page shows in at least one mode`() {
+        val shown = LibraryPagerAdapter.pagesFor(LibraryMode.SONGS) +
+            LibraryPagerAdapter.pagesFor(LibraryMode.SETS)
+
+        shown.toSet() `should be equal to` LibraryPagerAdapter.ALL_PAGES.toSet()
+    }
+
+    @Test
+    fun `both modes keep the pages in tab order`() {
+        LibraryMode.entries.forEach { mode ->
+            val pages = LibraryPagerAdapter.pagesFor(mode)
+
+            pages `should be equal to` LibraryPagerAdapter.ALL_PAGES.filter { it in pages }
+        }
     }
 
     @Test

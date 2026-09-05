@@ -213,13 +213,14 @@ class ProcessFileTest(unittest.TestCase):
             p.start()
             self.addCleanup(p.stop)
 
-    def song(self, artists=('Angerfist',), publisher='Masters of Hardcore'):
+    def song(self, artists=('Angerfist',), publisher='Masters of Hardcore', display_artist=None):
         song = MagicMock(spec_set=BaseSong)
         song.library_artists.return_value = list(artists)
         song.publisher.return_value = publisher
         song.title.return_value = 'Raise Your Fist'
         song.length.return_value = 300
         song.rules_genres.return_value = []
+        song.original_artist.return_value = display_artist
         return song
 
     def statements(self):
@@ -260,6 +261,50 @@ class ProcessFileTest(unittest.TestCase):
         self.assertTrue(any('INSERT INTO library_tracks' in s for s in statements))
         self.assertTrue(any('INSERT IGNORE INTO library_track_labels' in s for s in statements))
         self.assertTrue(any('INSERT INTO library_media_files' in s for s in statements))
+
+    def test_a_captured_display_artist_is_written_to_the_track_row(self):
+        self.cursor.fetchone.side_effect = [None, {'id': 3}, {'id': 4}, {'id': 5}]
+        with (
+            patch.object(scanner_router, 'ReadonlySong', return_value=self.song(display_artist='Henk feat Kees')),
+            patch.object(self.manager, '_resolve_genre_ids', return_value=[]),
+        ):
+            self.manager.process_file(self.conn, '/music/a.mp3')
+        sql, params = next(
+            (call.args[0], call.args[1])
+            for call in self.cursor.execute.call_args_list
+            if 'INSERT INTO library_tracks' in call.args[0]
+        )
+        self.assertIn('display_artist', sql)
+        self.assertIn('Henk feat Kees', params)
+
+    def test_a_file_with_nothing_captured_writes_no_display_artist(self):
+        self.cursor.fetchone.side_effect = [None, {'id': 3}, {'id': 4}, {'id': 5}]
+        with (
+            patch.object(scanner_router, 'ReadonlySong', return_value=self.song()),
+            patch.object(self.manager, '_resolve_genre_ids', return_value=[]),
+        ):
+            self.manager.process_file(self.conn, '/music/a.mp3')
+        _sql, params = next(
+            (call.args[0], call.args[1])
+            for call in self.cursor.execute.call_args_list
+            if 'INSERT INTO library_tracks' in call.args[0]
+        )
+        self.assertIsNone(params[4])
+
+    def test_a_null_display_artist_never_overwrites_one_a_sibling_copy_already_captured(self):
+        """Two media files can resolve to the same track_uid. Scanning the copy that has not
+        been retagged yet must not erase a display_artist a previously-scanned sibling copy
+        already wrote -- COALESCE in the UPDATE clause, not a bare overwrite."""
+        self.cursor.fetchone.side_effect = [None, {'id': 3}, {'id': 4}, {'id': 5}]
+        with (
+            patch.object(scanner_router, 'ReadonlySong', return_value=self.song()),
+            patch.object(self.manager, '_resolve_genre_ids', return_value=[]),
+        ):
+            self.manager.process_file(self.conn, '/music/a.mp3')
+        sql = next(
+            call.args[0] for call in self.cursor.execute.call_args_list if 'INSERT INTO library_tracks' in call.args[0]
+        )
+        self.assertIn('COALESCE', sql)
 
     def test_the_first_artist_becomes_the_primary_and_the_rest_featuring(self):
         self.cursor.fetchone.side_effect = [None, {'id': 3}, {'id': 4}, {'id': 5}, {'id': 6}]

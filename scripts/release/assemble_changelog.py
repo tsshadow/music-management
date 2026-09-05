@@ -22,11 +22,17 @@ SECTIONS = ('added', 'changed', 'deprecated', 'removed', 'fixed', 'security')
 # CHANGELOG.md the person who will have to work on it -- the same change, different detail.
 RELEASE_NOTES_MARKER = '<!-- release notes -->'
 
+# `release_notes_anchor` is per scope because the two files disagree: the root
+# RELEASE_NOTES.md heads its pending block with `## Unreleased`, muma-mobile's with
+# `## [Unreleased]`. Hardcoding the root spelling meant the mobile scope could never
+# write its release notes at all -- and, with the truncating write this script used to
+# do, emptied them instead.
 SCOPES = {
     'root': {
         'fragments': 'changelog.d',
         'changelog': 'CHANGELOG.md',
         'release_notes': ['RELEASE_NOTES.md'],
+        'release_notes_anchor': '## Unreleased',
     },
     'mobile': {
         'fragments': os.path.join('changelog.d', 'mobile'),
@@ -37,6 +43,7 @@ SCOPES = {
             os.path.join('services', 'muma-mobile', 'RELEASE_NOTES.md'),
             os.path.join('services', 'muma-mobile', 'app', 'src', 'main', 'assets', 'RELEASE_NOTES.md'),
         ],
+        'release_notes_anchor': '## [Unreleased]',
     },
 }
 
@@ -103,6 +110,11 @@ def render_release_notes_section(notes, version, date):
     return f'## Global Version {version} ({date})\n\n{body}'
 
 
+def read_text(path):
+    with open(path, encoding='utf-8') as handle:
+        return handle.read()
+
+
 def insert_after(text, anchor, block, path):
     """Inserts `block` directly below `anchor`, keeping one blank line either side."""
     if anchor not in text:
@@ -127,20 +139,32 @@ def assemble(scope, version, date, apply_changes, root='.'):
     if not apply_changes:
         return used
 
-    changelog_path = os.path.join(root, config['changelog'])
-    with open(changelog_path, encoding='utf-8') as handle:
-        text = handle.read()
-    with open(changelog_path, 'w', encoding='utf-8') as handle:
-        handle.write(insert_after(text, '## [Unreleased]', changelog_block, changelog_path))
-
+    # Every insertion is computed before anything is written. `open(path, 'w')`
+    # truncates the moment it is called, so calling insert_after() inside the with
+    # block left the file empty when the anchor was missing -- which is exactly what
+    # happened to services/muma-mobile/RELEASE_NOTES.md, 762 lines, on the release
+    # this comment was written during. A missing anchor now changes nothing at all.
+    notes_anchor = config['release_notes_anchor']
+    pending = [
+        (
+            os.path.join(root, config['changelog']),
+            insert_after(
+                read_text(os.path.join(root, config['changelog'])),
+                '## [Unreleased]',
+                changelog_block,
+                config['changelog'],
+            ),
+        )
+    ]
     for relative in config['release_notes']:
         notes_path = os.path.join(root, relative)
         if not os.path.exists(notes_path):
             continue
-        with open(notes_path, encoding='utf-8') as handle:
-            text = handle.read()
-        with open(notes_path, 'w', encoding='utf-8') as handle:
-            handle.write(insert_after(text, '## Unreleased', notes_block, notes_path))
+        pending.append((notes_path, insert_after(read_text(notes_path), notes_anchor, notes_block, relative)))
+
+    for path, text in pending:
+        with open(path, 'w', encoding='utf-8') as handle:
+            handle.write(text)
 
     for path in used:
         os.remove(path)

@@ -213,8 +213,16 @@ e1aa004efd8e6a7b x1  # use-of-md5 services/muma-mobile/core/subsonic-api/src/int
 #
 # tools went from x3 to x4 with release-date-backfill, a one-off run that
 # writes only to the mounted music share and follows the same rule.
+#
+# x4 to x5 with song-work-repair, 2026-09-05. Same shape again: a one-off
+# container that runs one script against the database, no mounts, gone when it
+# exits. read_only would be a better answer than an accepted finding, but it
+# cannot be tried on anything but production -- the whole file carries that
+# caveat -- so it follows its four neighbours rather than being the one service
+# that is hardened untested. The finding semgrep prints names 'firefox': it
+# reports the surplus occurrence, not the one that was added.
 5aade493e884ca34 x2  # writable-filesystem-service docker/docker-compose.core.yml
 0eae9038f27ed843 x13  # writable-filesystem-service docker/docker-compose.full.yml
-acedf220b679b6b2 x4  # writable-filesystem-service docker/docker-compose.tools.yml
+acedf220b679b6b2 x5  # writable-filesystem-service docker/docker-compose.tools.yml
 4a78e339f31863ad x5  # writable-filesystem-service docker/docker-compose.workers.yml
 25d2c6c464a0aee4 x11  # writable-filesystem-service docker/docker-compose.yml

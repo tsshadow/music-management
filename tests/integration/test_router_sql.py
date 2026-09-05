@@ -10,6 +10,8 @@ The list below is deliberately exhaustive for GET endpoints: adding a new read
 endpoint without adding it here is the only way to reintroduce that gap.
 """
 
+from datetime import date, timedelta
+
 import pytest
 
 pytestmark = pytest.mark.integration
@@ -64,6 +66,21 @@ READ_ENDPOINTS = [
     ('/api/curation/artists/Angerfist', 200),
     ('/api/curation/labels/Scantraxx', 200),
     ('/api/curation/genres/Hardcore', 404),
+    # The feeds surface. `headers` authenticates as the system key, which
+    # `_resolve_username` in routers/feeds.py refuses without an explicit
+    # `username` -- so the bare paths are a deliberate 400, not a miss. With a
+    # username, `GET /api/feeds/{slug}` still answers 200 against an empty
+    # schema: build_feed's cold-start gate reports `not_enough_data` before it
+    # ever runs the candidate query, so this alone proves only that the
+    # profile queries parse. FeedsPipelineTest below is what exercises the
+    # candidate query, the dominant-genre queries and the rating join.
+    ('/api/feeds', 200),
+    ('/api/feeds/profile', 400),
+    ('/api/feeds/profile?username=root', 200),
+    ('/api/feeds/release-radar', 400),
+    ('/api/feeds/release-radar?username=root', 200),
+    ('/api/feeds/daily-mix', 400),
+    ('/api/feeds/daily-mix?username=root', 200),
 ]
 
 
@@ -418,6 +435,24 @@ class LibraryReadsTest:
         assert body['tracks'][0]['title'] == 'Raise Your Fist'
         assert body['tracks'][0]['artist'] == 'Angerfist'
 
+    def test_the_display_artist_is_null_when_never_captured(self, api, headers, a_track):
+        body = api.get('/api/library/tracks', headers=headers).json()
+        assert body['tracks'][0]['display_artist'] is None
+
+    def test_the_display_artist_is_returned_when_captured(self, api, headers, db):
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_artists (name) VALUES ('Henk')")
+            artist_id = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id, display_artist)'
+                " VALUES ('uid-2', 'Big Room Anthem', 320, %s, 'Henk feat Kees')",
+                (artist_id,),
+            )
+        tracks = api.get('/api/library/tracks', headers=headers).json()['tracks']
+        advanced = api.get('/api/library/advanced', headers=headers).json()['tracks']
+        assert next(t for t in tracks if t['title'] == 'Big Room Anthem')['display_artist'] == 'Henk feat Kees'
+        assert next(t for t in advanced if t['title'] == 'Big Room Anthem')['display_artist'] == 'Henk feat Kees'
+
     def test_the_search_term_filters_the_track_list(self, api, headers, a_track):
         assert api.get('/api/library/tracks?q=anger', headers=headers).json()['total'] == 1
         assert api.get('/api/library/tracks?q=nothing', headers=headers).json()['total'] == 0
@@ -514,3 +549,137 @@ class ArtistImagesTest:
         body = api.get('/api/artists/manage/search?only=without', headers=headers).json()
         assert body['total'] == 1
         assert body['items'][0]['has_image'] is False
+
+
+class FeedsPipelineTest:
+    """The candidate query, its grouped audio-features subquery, the two
+    bounded dominant-genre queries and the rating join -- the heavy SQL in
+    feeds/build.py that READ_ENDPOINTS above never reaches.
+
+    Against an empty schema `build_feed` reports `state='not_enough_data'`
+    before it runs any of that: `resolve_profile`'s cold-start gate sees no
+    listening history at all, so the candidate query, the bucketing queries
+    and the ranking never execute. A 200 there proves only that the profile
+    queries -- the hierarchy, the exclusions, the listens query -- parse.
+
+    These tests seed just enough to clear every gate `build_feed` applies, in
+    the order it applies them: one listen so `resolve_profile`'s profile scope
+    is not `'empty'`, then a candidate carrying a media file, a positive
+    duration under the policy's song ceiling, and a day-precision
+    `release_date` inside the release window -- exactly what `candidates_query`
+    filters on. A 500 here is what invalid SQL produces against a real
+    MariaDB; a `state` other than `'ok'` with candidates surviving in the
+    funnel is the naive, worthless version of this test.
+    """
+
+    def _track(self, db, title, artist='Angerfist', release_date=None, duration=320):
+        with db.cursor() as cursor:
+            # IGNORE: two tracks by the same artist in one test share the row
+            # rather than colliding on library_artists' UNIQUE name.
+            cursor.execute('INSERT IGNORE INTO library_artists (name) VALUES (%s)', (artist,))
+            cursor.execute('SELECT id FROM library_artists WHERE name = %s', (artist,))
+            artist_id = cursor.fetchone()['id']
+            cursor.execute(
+                'INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id)'
+                ' VALUES (%s, %s, %s, %s)',
+                (f'uid-{title}', title, duration, artist_id),
+            )
+            track_id = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO library_media_files (file_path, file_path_hash, track_id, file_mtime, file_size)'
+                ' VALUES (%s, %s, %s, 1.0, 10)',
+                (f'/mnt/music/{title}.mp3', f'hash-{title}', track_id),
+            )
+            if release_date:
+                cursor.execute(
+                    'INSERT INTO library_track_audio_features (track_id, internal_track_id, release_date)'
+                    ' VALUES (%s, %s, %s)',
+                    (f'af-{track_id}', track_id, release_date),
+                )
+        return track_id
+
+    def _listen(self, db, track_id, username='root'):
+        with db.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO scrobble_listens (track_id, listened_at, username, match_method)"
+                " VALUES (%s, NOW(), %s, 'exact')",
+                (track_id, username),
+            )
+
+    def test_release_radar_runs_its_candidate_query_against_a_real_schema(self, api, headers, db):
+        today = date.today().isoformat()
+        track_id = self._track(db, 'New Single', release_date=today)
+        # Clears resolve_profile's cold-start gate: without at least one listen
+        # in the profile window, profile.scope stays 'empty' and build_feed
+        # returns before candidates_query is ever run.
+        self._listen(db, track_id)
+
+        response = api.get('/api/feeds/release-radar?username=root', headers=headers)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body['state'] == 'ok', body
+        assert body['funnel']['candidates'] >= 1, body['funnel']
+        assert body['funnel']['emitted'] >= 1, body['funnel']
+        assert [track['title'] for track in body['tracks']] == ['New Single']
+
+    def test_release_radar_window_is_a_sql_filter_not_a_python_one(self, api, headers, db):
+        """Proves the release_date bounds in candidates_query's WHERE clause
+        actually run, rather than merely parsing: a release well outside the
+        7-day window must not come back, and only a real database can reject
+        it -- the unit suite's mocked cursor returns whatever it is told to."""
+        in_window = self._track(db, 'New Single', release_date=date.today().isoformat())
+        self._listen(db, in_window)
+        out_of_window = self._track(db, 'Old Single', release_date=(date.today() - timedelta(days=30)).isoformat())
+
+        body = api.get('/api/feeds/release-radar?username=root', headers=headers).json()
+        assert body['state'] == 'ok', body
+        assert [track['title'] for track in body['tracks']] == ['New Single']
+        assert out_of_window not in [track['id'] for track in body['tracks']]
+
+    def test_daily_mix_runs_its_unheard_pool_clause_against_a_real_schema(self, api, headers, db):
+        """daily-mix's policy differs from release-radar's in exactly the ways
+        that matter for SQL coverage: a 90-day window, the 'unheard' pool's
+        NOT EXISTS clause in candidates_query, and the daily_sample order --
+        so this exercises the query text release-radar's tests never reach."""
+        heard_id = self._track(db, 'Old Favourite', release_date=date.today().isoformat())
+        self._listen(db, heard_id)
+        self._track(db, 'Unheard Gem', release_date=date.today().isoformat())
+
+        response = api.get('/api/feeds/daily-mix?username=root', headers=headers)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body['state'] == 'ok', body
+        assert body['funnel']['candidates'] >= 1, body['funnel']
+        assert body['funnel']['emitted'] >= 1, body['funnel']
+        # 'Old Favourite' fails both halves of the 'unheard'-or-'loved' pool: it
+        # has been listened to, and nothing here carries a rating_tracks row --
+        # so only the never-heard candidate should come back.
+        assert [track['title'] for track in body['tracks']] == ['Unheard Gem']
+
+
+class FeedsProfileAndExclusionsTest:
+    """`GET /api/feeds/profile` and `PUT /api/feeds/profile/exclusions`
+    against the real `feeds_profile_exclusions` table -- created by
+    `feeds.init_db`, which only runs as part of the app's own startup event,
+    not `tests/integration/conftest.py`'s `_apply_schema` (see that module's
+    `_apply_schema` docstring). If that table were ever missing from a real
+    deploy, this is where it would show up as a 500."""
+
+    def test_an_exclusion_is_written_read_back_and_removed(self, api, headers, db):
+        excluded = api.put(
+            '/api/feeds/profile/exclusions?username=root',
+            headers=headers,
+            json={'entity_type': 'artist', 'entity_name': 'Angerfist', 'excluded': True},
+        )
+        assert excluded.status_code == 200, excluded.text
+
+        profile = api.get('/api/feeds/profile?username=root', headers=headers).json()
+        assert profile['excluded'] == [{'entity_type': 'artist', 'entity_name': 'angerfist'}]
+
+        removed = api.put(
+            '/api/feeds/profile/exclusions?username=root',
+            headers=headers,
+            json={'entity_type': 'artist', 'entity_name': 'Angerfist', 'excluded': False},
+        )
+        assert removed.status_code == 200, removed.text
+        assert api.get('/api/feeds/profile?username=root', headers=headers).json()['excluded'] == []

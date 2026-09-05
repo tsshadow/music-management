@@ -177,6 +177,17 @@ class SplitTrackTest(SongsTestCase):
         self.recompute.assert_called_once_with(self.cursor, {5, 80})
         self.conn.commit.assert_called_once()
 
+    def test_the_old_pin_is_cleared_when_it_named_the_track_that_left(self):
+        # A pin is a statement about one group. Left behind, it keeps deciding for a
+        # work the track no longer belongs to, and the recompute follows it.
+        self.client.post('/api/songs/tracks/22/split', headers=self.headers)
+
+        cleared = self.cursor.statements_matching('SET pinned_track_id = NULL')
+        self.assertEqual(len(cleared), 1)
+        # Conditional on the pin naming this track, so another version's pin stays.
+        self.assertIn('WHERE id = %s AND pinned_track_id = %s', cleared[0][0])
+        self.assertEqual(cleared[0][1], (5, 22))
+
     def test_unknown_track_is_a_404_and_writes_nothing(self):
         response = self.client.post('/api/songs/tracks/404/split', headers=self.headers)
         self.assertEqual(response.status_code, 404)

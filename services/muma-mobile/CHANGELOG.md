@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.28.4] - 2026-09-06
+
+### Changed
+- **De Bibliotheek toont nog maar de tabbladen die in de huidige modus iets bevatten.** Podcasts en
+  festivals bestaan alleen boven de tien minuten -- de tagger schrijft die tags eronder niet -- dus
+  in nummers-modus waren die twee grids leeg per definitie; labels en line-ups zijn andersom een
+  nummersding. De web-UI verbergt ze al zo (`COLLECTION_MODES` in `collections.js`); de app volgt
+  nu dezelfde lijst. De nummers/sets-schakelaar staat daarom ook op de Bibliotheek in de
+  werkbalk: zonder die knop was de podcast-tab alleen te bereiken door eerst terug te lopen naar
+  Home.
+
 ## [6.28.3] - 2026-09-03
 
 ### Changed

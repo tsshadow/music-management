@@ -38,8 +38,8 @@
 SET @ddl := (
     SELECT IF(
         COUNT(*) = 0,
-        'SELECT "channels.normalized_name is already utf8mb4_bin"',
-        'ALTER TABLE channels MODIFY normalized_name VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL'
+        'ALTER TABLE channels MODIFY normalized_name VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL',
+        'SELECT "channels.normalized_name is already utf8mb4_bin"'
     )
     FROM information_schema.columns
     WHERE table_schema = DATABASE()

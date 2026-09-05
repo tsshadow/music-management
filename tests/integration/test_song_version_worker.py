@@ -150,6 +150,53 @@ def test_a_pin_beats_the_computed_canonical_and_survives_a_pass(database, librar
     assert _canonical_of_work(database, work_id) == library['extended']
 
 
+def test_title_less_tracks_do_not_become_one_song(database, library):
+    # The defect that shipped: every title that normalizes away produced the key
+    # ':::', and one production work collected 117 unrelated recordings that way.
+    with database.cursor() as cursor:
+        blank = _add_track(cursor, 'uid-blank', '', None, '/mnt/music/soundcloud/blank.mp3')
+        dove = _add_track(cursor, 'uid-dove', '🕊', None, '/mnt/music/soundcloud/dove.mp3')
+        marks = _add_track(cursor, 'uid-marks', '᳄᳄᳄᳄᳆᳇᳇', None, '/mnt/music/soundcloud/marks.mp3')
+    database.commit()
+
+    song_version_worker.group_once(database)
+
+    works = [_work_of(database, track_id) for track_id in (blank, dove, marks)]
+    assert None not in works
+    assert len(set(works)) == 3
+    # Each is its own canonical: a work of one version has nothing to choose between.
+    for track_id, work_id in zip((blank, dove, marks), works, strict=True):
+        assert _canonical_of_work(database, work_id) == track_id
+
+
+def test_a_track_is_scored_on_all_of_its_files_even_at_the_batch_edge(database, library):
+    # LIMIT counts joined rows, so limiting after the media-file join cut the last
+    # track of a batch off from its remaining files -- and it left the pass with a
+    # work, so it never came back for them. Two files, batch of one.
+    with database.cursor() as cursor:
+        cursor.execute('UPDATE library_tracks SET work_id = NULL, version_kind = NULL, version_score = NULL')
+        path = '/mnt/music/MOH/Angerfist - Raise Your Fist (Radio Edit).flac'
+        cursor.execute(
+            'INSERT INTO library_media_files (file_path, file_path_hash, track_id, file_size, duration_secs) '
+            'VALUES (%s, SHA2(%s, 256), %s, %s, %s)',
+            (path, path, library['official'], 60_000_000, 300.0),
+        )
+    database.commit()
+
+    with database.cursor() as cursor:
+        _touched, assigned = song_version_worker.assign_works(cursor, limit=1)
+    database.commit()
+
+    assert assigned == 1
+    with database.cursor() as cursor:
+        cursor.execute('SELECT version_score FROM library_tracks WHERE id = %s', (library['official'],))
+        scored = cursor.fetchone()['version_score']
+        cursor.execute('SELECT version_score FROM library_tracks WHERE id = %s', (library['extended'],))
+        assert cursor.fetchone()['version_score'] is None, 'the batch of one took a second track'
+    # The FLAC is the best file of that track, and it has to be the one that scored.
+    assert scored == song_version_worker.version_score(True, 'radio', '.flac', 1600)
+
+
 def test_a_locked_track_is_left_out_of_the_group(database, library):
     song_version_worker.group_once(database)
     with database.cursor() as cursor:

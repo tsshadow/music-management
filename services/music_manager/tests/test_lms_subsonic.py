@@ -91,6 +91,19 @@ class BuildFilterParamsTest(unittest.TestCase):
 
 
 class FetchCandidateTracksTest(unittest.TestCase):
+    def setUp(self):
+        # lms_base_url() no longer invents a host, so these tests have to say
+        # where LMS is. Before, they leaned on the removed `http://lms:5082`
+        # default -- the same default that sent an unconfigured container to
+        # production.
+        env = patch.dict(
+            'os.environ',
+            {'LMS_URL': 'http://lms-under-test:5082', 'LMS_HOSTS': '', 'MUMA_SERVER_HOSTS': ''},
+            clear=False,
+        )
+        env.start()
+        self.addCleanup(env.stop)
+
     def _response(self, payload):
         response = MagicMock()
         response.json.return_value = payload
@@ -126,8 +139,12 @@ class FetchCandidateTracksTest(unittest.TestCase):
         mock_get.return_value = self._response(
             {'subsonic-response': {'status': 'failed', 'error': {'code': 40, 'message': 'Wrong username or password'}}}
         )
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(RuntimeError) as ctx:
             lms_subsonic.fetch_candidate_tracks({})
+
+        self.assertNotIsInstance(ctx.exception, lms_subsonic.LmsNotConfigured)
+        self.assertIn('Wrong username or password', str(ctx.exception))
+        mock_get.assert_called_once()
 
     @patch('services.music_manager.lms_subsonic.requests.get')
     def test_handles_single_song_object_instead_of_list(self, mock_get):
@@ -143,3 +160,65 @@ class FetchCandidateTracksTest(unittest.TestCase):
         )
         tracks = lms_subsonic.fetch_candidate_tracks({})
         self.assertEqual([t['track_id'] for t in tracks], ['tr-9'])
+
+
+class LmsBaseUrlTest(unittest.TestCase):
+    """Where the radio sends its requests, which is not a thing to guess.
+
+    The removed default was `http://lms:5082`. That is correct on the deployment,
+    where `lms` is a container on the shared network -- and that is what made it
+    dangerous elsewhere: on the office LAN the same bare name resolves to
+    production, so an unconfigured container called prod every five seconds.
+    """
+
+    def _env(self, **values):
+        """Clear all three variables, then set only the ones given."""
+        cleared = dict.fromkeys(('LMS_URL', 'LMS_HOSTS', 'MUMA_SERVER_HOSTS'), '')
+        return patch.dict('os.environ', {**cleared, **values}, clear=False)
+
+    def test_lms_url_wins(self):
+        with self._env(LMS_URL='http://a:1', LMS_HOSTS='b:2', MUMA_SERVER_HOSTS='c:3'):
+            self.assertEqual(lms_subsonic.lms_base_url(), 'http://a:1')
+
+    def test_lms_hosts_is_used_when_lms_url_is_absent(self):
+        with self._env(LMS_HOSTS='b:2', MUMA_SERVER_HOSTS='c:3'):
+            self.assertEqual(lms_subsonic.lms_base_url(), 'http://b:2')
+
+    def test_muma_server_hosts_is_read(self):
+        """The variable compose actually sets for this service.
+
+        The old code did not read it, so the deployment worked by coincidence:
+        the hardcoded default happened to equal the configured value.
+        """
+        with self._env(MUMA_SERVER_HOSTS='lms:5082'):
+            self.assertEqual(lms_subsonic.lms_base_url(), 'http://lms:5082')
+
+    def test_only_the_first_host_of_a_list_is_used(self):
+        with self._env(LMS_HOSTS='first:1,second:2'):
+            self.assertEqual(lms_subsonic.lms_base_url(), 'http://first:1')
+
+    def test_scheme_is_added_when_missing_and_kept_when_present(self):
+        with self._env(LMS_HOSTS='plain:5082'):
+            self.assertEqual(lms_subsonic.lms_base_url(), 'http://plain:5082')
+        with self._env(LMS_HOSTS='https://secure:443'):
+            self.assertEqual(lms_subsonic.lms_base_url(), 'https://secure:443')
+
+    def test_trailing_slash_is_stripped(self):
+        with self._env(LMS_URL='http://a:1/'):
+            self.assertEqual(lms_subsonic.lms_base_url(), 'http://a:1')
+
+    def test_blank_and_whitespace_values_do_not_count_as_configured(self):
+        with self._env(LMS_URL='   ', LMS_HOSTS=' , '):
+            with self.assertRaises(lms_subsonic.LmsNotConfigured):
+                lms_subsonic.lms_base_url()
+
+    def test_nothing_configured_raises_instead_of_guessing_a_host(self):
+        """The regression this change exists for: no silent fallback, ever."""
+        with self._env():
+            with self.assertRaises(lms_subsonic.LmsNotConfigured) as ctx:
+                lms_subsonic.lms_base_url()
+
+        message = str(ctx.exception)
+        self.assertIn('MUMA_SERVER_HOSTS', message)
+        # The old default must not come back as a suggestion either.
+        self.assertNotIn('http://lms:5082', message)

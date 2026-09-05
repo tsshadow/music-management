@@ -11,12 +11,17 @@ from services.music_manager.feeds.profile import TAIL
 
 
 def dominant_genre(counts: dict[str, int], min_share: float = 0.6) -> str | None:
-    """The one genre a label or artist is, or None when it is several things."""
+    """The one genre a label or artist is, or None when it is several things.
+
+    When counts tie, alphabetically first wins.
+    """
     total = sum(counts.values())
     if not total:
         return None
-    name, count = max(counts.items(), key=lambda item: (item[1], item[0]))
-    return name if count / total >= min_share else None
+    max_count = max(counts.values())
+    if max_count / total < min_share:
+        return None
+    return min(name for name, count in counts.items() if count == max_count)
 
 
 def bucket_of(

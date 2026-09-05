@@ -19,6 +19,12 @@ class DominantGenreTest(unittest.TestCase):
     def test_no_tagged_tracks_at_all_has_none(self):
         self.assertIsNone(dominant_genre({}))
 
+    def test_when_counts_tie_alphabetically_first_wins(self):
+        self.assertEqual(dominant_genre({'raw': 50, 'uptempo': 50}, min_share=0.5), 'raw')
+
+    def test_a_majority_below_min_share_has_none(self):
+        self.assertIsNone(dominant_genre({'uptempo': 50, 'raw': 50}, min_share=0.6))
+
 
 class BucketOfTest(unittest.TestCase):
     def test_its_own_genre_wins(self):
@@ -48,3 +54,12 @@ class BucketOfTest(unittest.TestCase):
     def test_the_deepest_of_its_own_genres_is_the_one_that_counts(self):
         candidate = {'genres': ['Uptempo', 'Hardcore'], 'label': None, 'artist': None}
         self.assertEqual(bucket_of(candidate, SHARES, LABEL_GENRE, ARTIST_GENRE, PARENTS), ('uptempo', 'genre'))
+
+    def test_two_unrelated_deepest_genres_both_with_shares_picks_alphabetically_first(self):
+        unrelated_parents = {'raw': set(), 'uptempo': set()}
+        candidate = {'genres': ['Raw', 'Uptempo'], 'label': None, 'artist': None}
+        self.assertEqual(bucket_of(candidate, SHARES, LABEL_GENRE, ARTIST_GENRE, unrelated_parents), ('raw', 'genre'))
+
+    def test_a_fully_bare_candidate_with_no_metadata_lands_in_tail(self):
+        candidate = {'genres': [], 'label': None, 'artist': None}
+        self.assertEqual(bucket_of(candidate, SHARES, LABEL_GENRE, ARTIST_GENRE, PARENTS), (TAIL, 'tail'))

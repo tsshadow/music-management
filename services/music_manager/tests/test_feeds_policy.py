@@ -1,3 +1,4 @@
+import dataclasses
 import unittest
 
 from services.music_manager.feeds.policy import POLICIES
@@ -25,5 +26,5 @@ class PolicyTest(unittest.TestCase):
             self.assertEqual(policy.max_per_artist, 3)
 
     def test_a_policy_cannot_be_mutated_at_runtime(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(dataclasses.FrozenInstanceError):
             POLICIES['release-radar'].size = 5

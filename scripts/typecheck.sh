@@ -42,6 +42,7 @@ STRICT_MODULES=(
     services/importer/extractor.py
     services/importer/renamer.py
     services/music_manager/rbac.py
+    services/music_manager/feeds/
     services/music_manager/artist_image_fetcher/matcher.py
     services/music_manager/artist_image_fetcher/normalizer.py
     services/music_manager/artist_image_fetcher/storage.py

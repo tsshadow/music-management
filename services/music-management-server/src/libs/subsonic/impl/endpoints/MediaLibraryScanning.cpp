@@ -30,6 +30,7 @@
 #include "services/scanner/IScannerService.hpp"
 
 #include "ParameterParsing.hpp"
+#include "ScanScope.hpp"
 #include "database/Session.hpp"
 #include "database/objects/MediaLibrary.hpp"
 #include "database/objects/ScanSettings.hpp"
@@ -137,16 +138,9 @@ namespace lms::api::subsonic::Scan
             return statusResponse;
         }
 
-        // Resolves the caller-supplied scan scopes against the configured media libraries.
-        //
-        // Paths are library-relative by default and that is not a convenience: MuMa mounts the
-        // library at /mnt/music while LMS sees it at /music, so an absolute path from the client
-        // would name a directory this server does not have. An absolute path is still accepted,
-        // for an operator poking the endpoint from the LMS host itself.
-        //
-        // Anything outside every media library root is refused rather than widened to a full
-        // scan: a client that asked for one folder and silently got the whole library back would
-        // start an hour of work every time it tried.
+        // Reads the repeatable "path" parameter and resolves each entry against the configured
+        // media libraries. The resolution itself lives in ScanScope.cpp, where it is testable
+        // without a database session.
         std::vector<std::filesystem::path> parseScanDirectories(RequestContext& context)
         {
             const std::vector<std::string> rawPaths{ getMultiParametersAs<std::string>(context.getParameters(), "path") };
@@ -165,29 +159,7 @@ namespace lms::api::subsonic::Scan
 
             std::vector<std::filesystem::path> res;
             for (const std::string& rawPath : rawPaths)
-            {
-                std::filesystem::path path{ rawPath };
-
-                if (!path.is_absolute())
-                {
-                    if (roots.size() != 1)
-                        throw BadParameterGenericError{ "path", "relative path is ambiguous with several media libraries" };
-                    path = roots.front() / path;
-                }
-
-                // lexically_normal, never canonical: canonical throws for a path that no longer
-                // exists, and a vanished directory is the case this endpoint exists to serve.
-                // It also collapses "..", so traversal is closed here rather than by a string
-                // test, and it matches how the library roots themselves are normalised.
-                path = path.lexically_normal();
-
-                const bool inSomeRoot{ std::any_of(std::cbegin(roots), std::cend(roots),
-                                                   [&](const std::filesystem::path& root) { return core::pathUtils::isPathInRootPath(path, root); }) };
-                if (!inSomeRoot)
-                    throw BadParameterGenericError{ "path", "not inside a media library" };
-
-                res.push_back(std::move(path));
-            }
+                res.push_back(resolveScanScope(rawPath, roots));
 
             return res;
         }
@@ -217,7 +189,12 @@ namespace lms::api::subsonic::Scan
                 scanOptions.compact = (*compact == "true");
             scanOptions.scanDirectories = parseScanDirectories(context);
 
-            core::Service<IScannerService>::get()->requestImmediateScan(scanOptions);
+            // A scoped request goes through its own lane: merged with whatever else arrives,
+            // and it pauses a running periodic scan instead of aborting it.
+            if (scanOptions.isScoped())
+                core::Service<IScannerService>::get()->requestScopedScan(scanOptions.scanDirectories);
+            else
+                core::Service<IScannerService>::get()->requestImmediateScan(scanOptions);
         }
 
         Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };

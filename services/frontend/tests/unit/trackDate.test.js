@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { formatShortDate, preferredReleaseDate, releaseDateLabel } from "../../src/lib/trackDate.js";
+import {
+  formatShortDate,
+  preferredReleaseDate,
+  releaseDateLabel,
+} from "../../src/lib/trackDate.js";
 
 /**
  * The case that prompted this: a scene tag of `2026-00-00` reaches LMS as `date = "2026"`,
@@ -44,7 +48,9 @@ describe("formatShortDate", () => {
 
 describe("releaseDateLabel", () => {
   it("shows the original date of a track whose edition date is only a year", () => {
-    expect(releaseDateLabel({ date: "2026", originalDate: "2026-09-03", year: 2026 })).toBe("03-09-2026");
+    expect(releaseDateLabel({ date: "2026", originalDate: "2026-09-03", year: 2026 })).toBe(
+      "03-09-2026",
+    );
   });
 
   it("falls back to the year when neither date is precise", () => {

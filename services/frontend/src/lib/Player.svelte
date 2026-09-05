@@ -10,6 +10,7 @@
   import { describeFilter } from './management/radioChannels.js';
   import { snapshotOf, restoreTarget, bulletinStreamUrl } from './newsQueue.js';
   import { startTrail, stepBack, stepForward } from './shuffleHistory.js';
+  import { releaseDateLabel } from './trackDate.js';
   import ArtistList from './ArtistList.svelte';
   import { getArtistImageUrl, subsonicError } from './utils.js';
   import { getHeaders } from './mumaApi.js';
@@ -707,21 +708,6 @@
       muted = (vol === 0);
   }
 
-  /**
-   * Formats an ISO date string (YYYY-MM-DD) into DD-MM-YYYY.
-   *
-   * @param {string} dateStr - The date string from the backend.
-   * @returns {string|null} Formatted date or null if invalid.
-   */
-  function formatShortDate(dateStr) {
-    if (!dateStr) return null;
-    const parts = dateStr.split('T')[0].split('-');
-    if (parts.length === 3) {
-      // YYYY-MM-DD -> DD-MM-YYYY
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
-    }
-    return null;
-  }
 
   /**
    * Formats seconds into a "M:SS" string.
@@ -885,7 +871,7 @@
   const newsColor = $derived(newsSnapshot ? '#b266ff' : '#b3b3b3');
   // Radio listeners cannot steer the stream, exactly like a follower-radio client.
   const transportLocked = $derived($syncMode === 'follower-radio' || isRadioActive);
-  const releaseDate = $derived(track ? (formatShortDate(track.date) || track.year || '') : '');
+  const releaseDate = $derived(track ? releaseDateLabel(track) : '');
   const coverUrl = $derived(track?.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}` : '/images/spotify-fallback.svg');
   const streamUrl = $derived(track?.id ? `/rest/stream?id=${track.id}&${$authParams}` : '');
 

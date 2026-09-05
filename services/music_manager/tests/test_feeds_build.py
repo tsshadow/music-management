@@ -149,6 +149,18 @@ HEARD_AND_UNHEARD = [
     _candidate('unheard1', 'Angerfist', 'Uptempo', heard=False),
 ]
 
+# More than max_per_artist (3) tracks with no artist at all -- a mix of None
+# and '', since both reach the same "no name" branch in _cap_per_artist. None
+# of these share a real artist with any other, so the cap must never treat
+# them as one bucket the way it would a flood from a single named artist.
+NO_ARTIST_FLOOD = [
+    _candidate('noartist0', None, 'Uptempo'),
+    _candidate('noartist1', None, 'Uptempo'),
+    _candidate('noartist2', '', 'Uptempo'),
+    _candidate('noartist3', '', 'Uptempo'),
+    _candidate('noartist4', None, 'Uptempo'),
+]
+
 
 class BuildFeedTest(unittest.TestCase):
     """Drives build_feed with a scripted cursor: see scripted_cursor.py for the shape."""
@@ -181,6 +193,18 @@ class BuildFeedTest(unittest.TestCase):
         feed = build_feed(conn, 'user', POLICIES['release-radar'], NOW)
         artists = [track['artist'] for track in feed.tracks]
         self.assertLessEqual(max(artists.count(a) for a in set(artists)), 3)
+
+    def test_untagged_artists_are_not_capped_as_one_shared_bucket(self):
+        """The cap partitions each artist-less track on its own id (technical.md,
+
+        step 8) -- a `key = artist or '__untagged__'` regression would collapse
+        every one of these into a single shared key and silently cap the whole
+        group at max_per_artist, which `test_no_artist_takes_more_than_three_places`
+        cannot catch because it only ever floods one *named* artist.
+        """
+        conn = scripted(listens=MANY_LISTENS, candidates=NO_ARTIST_FLOOD)
+        feed = build_feed(conn, 'user', POLICIES['release-radar'], NOW)
+        self.assertEqual(len(feed.tracks), len(NO_ARTIST_FLOOD))
 
     def test_the_funnel_never_grows(self):
         conn = scripted(listens=MANY_LISTENS, candidates=MIXED_CANDIDATES)

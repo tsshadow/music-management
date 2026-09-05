@@ -5,6 +5,7 @@
   import Modal from './Modal.svelte';
   import { subsonicError } from './utils.js';
   import { notify } from './notifications.js';
+  import { releaseDateLabel } from './trackDate.js';
 
   const { tracks = [], isQueue = false, playlistId = null, onremove = null, onnavigate, showDate = false } = $props();
 
@@ -244,21 +245,6 @@
     return minutes + ":" + (seconds < 10 ? '0' : '') + seconds;
   }
 
-  /**
-   * Formats an ISO date string (YYYY-MM-DD) into DD-MM-YYYY.
-   *
-   * @param {string} dateStr - The date string from the backend.
-   * @returns {string|null} Formatted date or null if invalid.
-   */
-  function formatShortDate(dateStr) {
-    if (!dateStr) return null;
-    const parts = dateStr.split('T')[0].split('-');
-    if (parts.length === 3) {
-      // YYYY-MM-DD -> DD-MM-YYYY
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
-    }
-    return null;
-  }
 
   $effect(() => {
     if ($highlightedTrackId) {
@@ -362,7 +348,7 @@
             {#if showDate}
               {formatDate(track.listenedAt)}
             {:else}
-              {formatShortDate(track.date) || track.year || ''}
+              {releaseDateLabel(track)}
             {/if}
           </td>
           <td class="p-2 px-4 hidden lg:table-cell text-center text-xs opacity-70">

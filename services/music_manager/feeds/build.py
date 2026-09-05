@@ -14,7 +14,7 @@ from datetime import datetime
 
 from services.music_manager.feeds.buckets import bucket_of, dominant_genre
 from services.music_manager.feeds.policy import FeedPolicy
-from services.music_manager.feeds.profile import blend, build_profile, genre_shares
+from services.music_manager.feeds.profile import TasteProfile, blend, build_profile, genre_shares
 from services.music_manager.feeds.queries import (
     candidates_query,
     dominant_genre_query,
@@ -26,6 +26,11 @@ from services.music_manager.feeds.quota import allocate, redistribute
 from services.music_manager.feeds.scoring import daily_sample_key, score
 
 EMPTY_FUNNEL = {'candidates': 0, 'bucketed': 0, 'allocated': 0, 'capped': 0, 'emitted': 0}
+
+# Mirrors blend()'s own default. Kept as one constant and passed explicitly to
+# blend() below so the pre-check that decides whether to bother querying the
+# server at all can never drift from the value blend() actually uses.
+RAMP_TRACKS = 30
 
 
 @dataclass
@@ -156,20 +161,38 @@ def _cap_per_artist(tracks: list[dict], max_per_artist: int) -> list[dict]:
     return capped
 
 
-def build_feed(conn, username: str, policy: FeedPolicy, now: datetime) -> Feed:
+def build_feed(
+    conn, username: str, policy: FeedPolicy, now: datetime, starting_genres: list[str] | None = None
+) -> Feed:
     parents = _load_hierarchy(conn)
     exclusions = _load_exclusions(conn, username)
 
     # Step 1 + 2: this listener's profile, the server's, and the scope that
-    # decides which one (or blend) the feed actually runs on.
+    # decides which one (or blend) the feed actually runs on. The server
+    # profile only matters when blend() would actually consult it -- below
+    # the ramp -- so a listener with a full profile of their own costs one
+    # history query, not two.
     user_rows = _load_listens(conn, username, policy.profile_window_days, now)
-    server_rows = _load_listens(conn, None, policy.profile_window_days, now)
     user_profile = build_profile(user_rows, parents, exclusions, now)
-    server_profile = build_profile(server_rows, parents, exclusions, now)
-    profile = blend(user_profile, server_profile)
+    if user_profile.distinct_tracks < RAMP_TRACKS:
+        server_rows = _load_listens(conn, None, policy.profile_window_days, now)
+        server_profile = build_profile(server_rows, parents, exclusions, now)
+    else:
+        server_profile = TasteProfile()
+    profile = blend(user_profile, server_profile, ramp_tracks=RAMP_TRACKS)
 
     if profile.scope == 'empty':
-        return Feed(slug=policy.slug, state='not_enough_data', scope='empty', tracks=[], funnel=dict(EMPTY_FUNNEL))
+        if not starting_genres:
+            return Feed(slug=policy.slug, state='not_enough_data', scope='empty', tracks=[], funnel=dict(EMPTY_FUNNEL))
+        # Nobody on the server has ever listened to anything either: fall back
+        # to a configured taste rather than declaring not_enough_data, same
+        # weight for every configured genre.
+        profile = TasteProfile(
+            genres=dict.fromkeys((genre.lower() for genre in starting_genres), 1.0),
+            distinct_tracks=0,
+            total_weight=0.0,
+            scope='configured',
+        )
 
     # Step 3: the shares this feed's places are divided over.
     shares = genre_shares(profile, parents)

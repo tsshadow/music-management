@@ -201,3 +201,24 @@ class BuildFeedTest(unittest.TestCase):
             scripted(listens=MANY_LISTENS, candidates=MIXED_CANDIDATES), 'user', POLICIES['daily-mix'], NOW
         )
         self.assertEqual([t['id'] for t in first.tracks], [t['id'] for t in second.tracks])
+
+    def test_a_full_profile_never_queries_the_server(self):
+        """MANY_LISTENS alone is already above the blend ramp, so blend() would
+
+        discard a server profile unread -- build_feed should not even ask for
+        one. The scripted cursor's own executed-statement log is the proof.
+        """
+        conn = scripted(listens=MANY_LISTENS, candidates=MIXED_CANDIDATES)
+        build_feed(conn, 'user', POLICIES['release-radar'], NOW)
+        cursor = conn.cursor.return_value
+        self.assertEqual(len(cursor.statements_matching(_LISTENS_FRAGMENT)), 1)
+
+    def test_a_server_with_no_history_falls_back_to_configured_genres(self):
+        conn = scripted(listens=[], server_listens=[], candidates=MIXED_CANDIDATES)
+        feed = build_feed(conn, 'newcomer', POLICIES['release-radar'], NOW, starting_genres=['Uptempo', 'Raw'])
+        self.assertEqual(feed.scope, 'configured')
+
+    def test_without_starting_genres_the_fallback_is_still_not_enough_data(self):
+        conn = scripted(listens=[], server_listens=[], candidates=MIXED_CANDIDATES)
+        feed = build_feed(conn, 'newcomer', POLICIES['release-radar'], NOW)
+        self.assertEqual(feed.state, 'not_enough_data')

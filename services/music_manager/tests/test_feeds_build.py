@@ -237,6 +237,33 @@ class BuildFeedTest(unittest.TestCase):
         cursor = conn.cursor.return_value
         self.assertEqual(len(cursor.statements_matching(_LISTENS_FRAGMENT)), 1)
 
+    def test_the_dominant_genre_queries_only_ask_about_the_names_in_play(self):
+        """Unbounded, these are two full-library group-bys on every request.
+
+        The parameters are the distinct labels and artists the candidates
+        themselves carry -- nothing wider.
+        """
+        candidates = [
+            _candidate('a', 'Angerfist', 'Uptempo', label='Masters of Hardcore'),
+            _candidate('b', 'Angerfist', 'Uptempo', label='Masters of Hardcore'),
+            _candidate('c', 'Radical Redemption', 'Uptempo', label='Minus Is More'),
+        ]
+        conn = scripted(listens=MANY_LISTENS, candidates=candidates)
+        build_feed(conn, 'user', POLICIES['release-radar'], NOW)
+        cursor = conn.cursor.return_value
+        _, label_params = cursor.statements_matching(_LABEL_DOMINANT_FRAGMENT)[0]
+        _, artist_params = cursor.statements_matching(_ARTIST_DOMINANT_FRAGMENT)[0]
+        self.assertEqual(label_params, ['Masters of Hardcore', 'Minus Is More'])
+        self.assertEqual(artist_params, ['Angerfist', 'Radical Redemption'])
+
+    def test_candidates_without_a_label_ask_no_label_question_at_all(self):
+        """An empty name set must skip the query, not send `IN ()`."""
+        conn = scripted(listens=MANY_LISTENS, candidates=NO_ARTIST_FLOOD)
+        build_feed(conn, 'user', POLICIES['release-radar'], NOW)
+        cursor = conn.cursor.return_value
+        self.assertEqual(cursor.statements_matching(_LABEL_DOMINANT_FRAGMENT), [])
+        self.assertEqual(cursor.statements_matching(_ARTIST_DOMINANT_FRAGMENT), [])
+
     def test_a_server_with_no_history_falls_back_to_configured_genres(self):
         conn = scripted(listens=[], server_listens=[], candidates=MIXED_CANDIDATES)
         feed = build_feed(conn, 'newcomer', POLICIES['release-radar'], NOW, starting_genres=['Uptempo', 'Raw'])

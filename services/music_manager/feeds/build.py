@@ -91,14 +91,32 @@ def _load_candidates(conn, username: str, policy: FeedPolicy, now: datetime) -> 
     return candidates
 
 
-def _dominant_genre_map(conn, dimension: str) -> dict[str, str]:
+def _distinct(candidates: list[dict], field: str) -> list[str]:
+    """The distinct non-empty values of `field`, sorted so the SQL is stable.
+
+    Sorted because the same feed run twice should produce the same statement
+    text and the same parameter list -- an unordered set would defeat any
+    statement cache and make a slow-query log unreadable.
+    """
+    return sorted({value for row in candidates if (value := (row.get(field) or '').strip())})
+
+
+def _dominant_genre_map(conn, dimension: str, names: list[str]) -> dict[str, str]:
     """Per-entity dominant genre, from the raw per-(name, genre) counts.
 
     `dominant_genre_query` groups by `(name, genre)` already; this collapses
     that into one genre per name, or drops the name when it has none.
+
+    `names` bounds the aggregation to the entities this feed's candidates
+    actually carry -- unbounded it is a full-library group-by, run twice, on
+    every request. No names means nothing to ask about, and the query is
+    skipped entirely rather than sent with an empty `IN ()`.
     """
+    if not names:
+        return {}
     counts: dict[str, Counter] = defaultdict(Counter)
-    for row in _rows(conn, dominant_genre_query(dimension)):
+    sql, params = dominant_genre_query(dimension, names)
+    for row in _rows(conn, sql, params):
         counts[row['name'].lower()][row['genre'].lower()] += row['count']
     dominant = {}
     for name, genre_counts in counts.items():
@@ -202,9 +220,12 @@ def build_feed(
     candidates = _load_candidates(conn, username, policy, now)
     funnel = {'candidates': len(candidates)}
 
-    # Step 5: which share each candidate competes in.
-    label_genre = _dominant_genre_map(conn, 'label')
-    artist_genre = _dominant_genre_map(conn, 'artist')
+    # Step 5: which share each candidate competes in. The two dominant-genre
+    # aggregations are asked only about the labels and artists these candidates
+    # carry; over the whole library they are two unbounded group-bys per
+    # request, for an answer about a few hundred names at most.
+    label_genre = _dominant_genre_map(conn, 'label', _distinct(candidates, 'label'))
+    artist_genre = _dominant_genre_map(conn, 'artist', _distinct(candidates, 'artist'))
     bucketed = [
         {**candidate, 'bucket': bucket, 'reason': reason}
         for candidate in candidates

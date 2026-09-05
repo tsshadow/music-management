@@ -131,8 +131,32 @@ class CandidatesQueryTest(unittest.TestCase):
 
 class DominantGenreQueryTest(unittest.TestCase):
     def test_the_label_variant_groups_by_label(self):
-        self.assertIn('library_track_labels', dominant_genre_query('label'))
+        sql, _ = dominant_genre_query('label', ['Peacock Records'])
+        self.assertIn('library_track_labels', sql)
 
     def test_an_unknown_dimension_is_refused_rather_than_interpolated(self):
         with self.assertRaises(ValueError):
-            dominant_genre_query('; DROP TABLE library_tracks')
+            dominant_genre_query('; DROP TABLE library_tracks', ['Peacock Records'])
+
+    def test_the_aggregation_is_bounded_to_the_names_it_is_asked_about(self):
+        """Unbounded, this groups over every (label, genre) pair in the library
+
+        on every feed request. The names are what the candidates carry.
+        """
+        sql, params = dominant_genre_query('label', ['Peacock Records', 'Masters of Hardcore'])
+        self.assertIn('l.name IN (%s, %s)', ' '.join(sql.split()))
+        self.assertEqual(params, ['Peacock Records', 'Masters of Hardcore'])
+
+    def test_a_name_is_never_written_into_the_statement(self):
+        sql, params = dominant_genre_query('artist', ["Angerfist'; DROP TABLE library_tracks--"])
+        self.assertNotIn('Angerfist', sql)
+        self.assertNotIn('DROP TABLE', sql)
+        self.assertEqual(params, ["Angerfist'; DROP TABLE library_tracks--"])
+
+    def test_no_names_is_refused_rather_than_rendered_as_an_empty_in(self):
+        """`IN ()` is a syntax error, so the caller has to skip the query -- and
+
+        this refusal is what makes forgetting that impossible to miss.
+        """
+        with self.assertRaises(ValueError):
+            dominant_genre_query('label', [])

@@ -166,6 +166,12 @@ def build_feed(conn, username: str, policy: FeedPolicy, now: datetime) -> Feed
    OR-ed when both are present.
 5. **Buckets.** `bucket_of()` assigns each candidate to a share: its own deepest genre if that genre
    has a share, else the dominant genre of its label, else of its primary artist, else `__tail__`.
+   The two dominant-genre aggregations are **bounded to the distinct labels and artists the
+   candidates carry**, passed as `IN (%s, ...)` parameters. Unbounded they group over every
+   `(label, genre)` and every `(artist, genre)` pair in a 300k-track library — two full-library
+   aggregations on every feed request, to answer a question about a few hundred names. An empty
+   name set skips the query rather than emitting `IN ()`. The audio-features subquery in the
+   candidate query is deliberately *not* bounded this way; it needs a different shape.
 6. **Quota.** `allocate()` splits `size` places over the shares by largest remainder;
    `redistribute()` hands unfillable places to the next largest share until nothing is left to give.
 7. **Order.** Within a share: for `order='release'`, unheard before heard when

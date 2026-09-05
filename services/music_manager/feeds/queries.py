@@ -4,8 +4,10 @@ The only module in `feeds/` that writes SQL -- `build.py` (Task 10) is the only
 one that touches a connection, and everything else here works on plain rows and
 dicts so it can be unit-tested without a database. Every user-supplied value
 travels as a query parameter; nothing is ever interpolated into these strings
-from a value (see `dominant_genre_query`, which picks between two fixed queries
-rather than building one from its argument).
+from a value. `dominant_genre_query` is where that is easiest to get wrong: its
+`dimension` picks between two fixed queries rather than building one, and the
+only thing formatted into either is a run of bare `%s` placeholders (the shape
+`routers/analytics_filters.py` uses, and the one `security:sast` accepts).
 
 The two join traps this module exists to close (see
 docs/designs/feeds/technical.md, Invariants):
@@ -190,7 +192,7 @@ _DOMINANT_GENRE_QUERIES = {
         JOIN library_labels l ON l.id = tl.label_id
         JOIN library_track_genres tg ON tg.track_id = t.id
         JOIN rules_genres rg ON rg.id = tg.genre_id
-        WHERE rg.state <> 'black'
+        WHERE rg.state <> 'black' AND l.name IN ({placeholders})
         GROUP BY l.name, rg.name
     """,
     'artist': """
@@ -199,22 +201,37 @@ _DOMINANT_GENRE_QUERIES = {
         JOIN library_artists a ON a.id = t.primary_artist_id
         JOIN library_track_genres tg ON tg.track_id = t.id
         JOIN rules_genres rg ON rg.id = tg.genre_id
-        WHERE rg.state <> 'black'
+        WHERE rg.state <> 'black' AND a.name IN ({placeholders})
         GROUP BY a.name, rg.name
     """,
 }
 
 
-def dominant_genre_query(dimension: str) -> str:
+def dominant_genre_query(dimension: str, names: list[str]) -> tuple[str, list]:
     """Per-label or per-artist genre counts, feeding `buckets.dominant_genre`.
 
+    Bounded to `names` on purpose. Unbounded, each of these groups over every
+    `(label, genre)` and every `(artist, genre)` pair in a 300k-track library --
+    two full-library aggregations on every single feed request, to answer a
+    question about the handful of labels and artists the candidates of this one
+    feed actually carry.
+
     `dimension` selects one of two fixed queries; it is never interpolated into
-    either of them. Anything else is refused rather than guessed at.
+    either of them, and anything else is refused rather than guessed at. Only
+    the `%s` placeholder list is formatted in (the shape
+    `routers/analytics_filters.py` already uses, which `security:sast` accepts);
+    every name travels as a parameter. An empty `names` is refused rather than
+    rendered as `IN ()`, which is a syntax error -- the caller must skip the
+    query instead.
     """
     try:
-        return _DOMINANT_GENRE_QUERIES[dimension]
+        template = _DOMINANT_GENRE_QUERIES[dimension]
     except KeyError:
         raise ValueError(f'unknown dominant_genre dimension: {dimension!r}') from None
+    if not names:
+        raise ValueError('dominant_genre_query needs at least one name; skip the query instead')
+    placeholders = ', '.join(['%s'] * len(names))
+    return template.format(placeholders=placeholders), list(names)
 
 
 def hierarchy_query() -> str:

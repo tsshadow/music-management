@@ -11,12 +11,26 @@ from services.common.Helpers.NotificationService import notification_service
 from services.downloader.youtube.YoutubeAccount import AUDIO, VIDEO
 from services.downloader.youtube.YoutubeArchive import YoutubeArchive
 from services.tagger.constants import SongTypeEnum
+from services.tagger.Song.ReleaseDate import format_release_date
 from services.tagger.tagger import Tagger
 
 # Anything below this came out of a progressive-only fallback or a channel that
 # genuinely offers nothing better. Worth saying out loud either way, because the
 # whole point of the video pass is not ending up with another 640x360 library.
 MIN_EXPECTED_VIDEO_HEIGHT = 720
+
+
+def _video_message(info: dict, title) -> str:
+    """The push body for a video download, in the same `Label=value` shape BaseSong uses.
+
+    A video is never tagged, so there is no Song to ask -- the date has to come off the
+    info dict here. `release_date` is what YouTube states for a premiere or a music video;
+    `upload_date` is the fallback and the only one most channels set.
+    """
+    released = format_release_date(info.get('release_date') or info.get('upload_date'))
+    if not released:
+        return str(title)
+    return f'{title}\nReleased={released}'
 
 
 class YoutubeSongProcessor(PostProcessor):
@@ -55,7 +69,9 @@ class YoutubeSongProcessor(PostProcessor):
             )
         if self.download_type == VIDEO:
             self._report_resolution(info, title_for_archive)
-            notification_service.notify(str(title_for_archive), title='YouTube Video Download Complete')
+            notification_service.notify(
+                _video_message(info, title_for_archive), title='YouTube Video Download Complete'
+            )
             return ([], info)
         song = Tagger.parse_song(Path(path), SongTypeEnum.YOUTUBE, extra_info=info)
         if song:

@@ -50,6 +50,29 @@ Created from `feeds.init_db(cursor)`, called from `main.py`'s startup block alon
   it is an explicit, documented membership rule.
 - **`created_at` is never used as a release date**, in any fallback, anywhere.
 
+### Known Limitations
+
+**An uncurated genre splits the profile, and V1 does not fix it.** Every genre selection here takes
+`rules_genres.name` where `state <> 'black'`, which is white *and* unknown. The scanner indexes a
+white genre under its curated name and an unknown one under its raw name, so `'Uptempo Hardcore'`
+and an undecided `'uptempo'` are two rows, two entities in the profile, and two shares. The
+listener's weight for one style is split across both, and the raw variant has no
+`rules_subgenre_hierarchy` row, so it cannot roll up into a parent either and falls to `__tail__`.
+
+This is not fixed in V1, deliberately. The correct fix goes through the curation model's own rewrite
+table, `rules_genre_expansions` — mapping a raw name onto the curated genre it means — and not
+through `canonical_id`, which is a legacy column the tagger no longer reads (see
+`migrate_v4_genre_expansions.sql`). A wrong guess in that mapping silently merges two genres that
+are not the same thing and corrupts every profile built afterwards, with nothing in the output
+saying so. Getting it right is curation work, not feed work.
+
+**How it presents:** as a thin profile, never as an error. The shares look plausible, the smaller
+half of a split genre falls below `min_share` and rolls into the tail, and the feed simply gives
+that style fewer places than the listener's actual listening earns. `GET /api/feeds/profile` is
+where it is visible: the same style appearing twice under two spellings is this, and the dry run's
+share table shows it directly. That is the intended way to measure how much it costs before
+deciding to fix it.
+
 ## Module Layout
 
 New package `services/music_manager/feeds/`. Every module below is pure Python over plain rows
@@ -112,6 +135,7 @@ def genre_shares(profile: TasteProfile, parents: dict[str, set[str]],
                  min_share: float = 0.03) -> dict[str, float]
 
 # quota.py
+# Largest remainder; a remainder tie goes to the larger share, then alphabetically.
 def allocate(shares: dict[str, float], places: int) -> dict[str, int]
 def redistribute(allocation: dict[str, int], available: dict[str, int]) -> dict[str, int]
 
@@ -186,16 +210,31 @@ A profile view that does not resolve exactly what the feed resolves stops explai
    aggregations on every feed request, to answer a question about a few hundred names. An empty
    name set skips the query rather than emitting `IN ()`. The audio-features subquery in the
    candidate query is deliberately *not* bounded this way; it needs a different shape.
-6. **Quota.** `allocate()` splits `size` places over the shares by largest remainder;
-   `redistribute()` hands unfillable places to the next largest share until nothing is left to give.
+6. **Quota.** `allocate()` splits `size` places over the shares by largest remainder — and when two
+   remainders tie, the larger share takes the place (then alphabetically, so the result is
+   deterministic); `redistribute()` hands unfillable places to the next largest share until nothing
+   is left to give.
 7. **Order.** Within a share: for `order='release'`, unheard before heard when
    `heard_rank_penalty`, then `release_date` descending, then score descending. For
    `order='daily_sample'`, ascending `daily_sample_key`, which is `-ln(U) / B` with `U` derived from
-   `md5(username|feed_date|track_uid)` — stable for a whole day, different the next.
+   `md5(username|feed_date|track_uid)` — stable for a whole day, different the next. The same key is
+   then applied a **second time, globally**, over the tracks all the shares together produced. That
+   is deliberate: the per-share sort decides *which* tracks win their share's places, the global one
+   decides what the listener reads first. Without it the feed comes out grouped by bucket, in
+   whatever order the allocation happens to be iterated in.
 8. **Cap and emit.** At most `max_per_artist` per primary artist (unknown artists are not one
    bucket; each such track partitions on its own id), then the global `size`. Every emitted track
    carries the bucket it competed in and the reason it was placed there (`genre`, `label:<name>`,
    `artist:<name>`, `tail`). `funnel` records the row count after every stage above.
+
+   **The artist cap can leave the feed short.** It removes tracks after their share was allocated
+   and filled, and the freed places are not handed back to another share. A radar asked for 30 can
+   therefore return 24, with `state = 'ok'`. That is intentional and it is the one failure mode this
+   feature promises to make legible rather than paper over: `funnel.capped` below `funnel.allocated`
+   is exactly this, and nothing is backfilled with an unrelated track to hide it. The `[: size]`
+   slice after the cap is a guard, not a working limit — `allocate` never hands out more than `size`
+   and every later stage only shrinks the list — kept so that "never more than asked for" does not
+   depend on the quota's arithmetic staying correct.
 
 The "configured starting genres" in step 2 come from a runtime setting, `feeds_starting_genres`
 (`services/common/config_store.py`, group `Feeds`) — a comma-separated list of genre names, e.g.
@@ -254,7 +293,9 @@ second implementation. This is the tool that answers whether the seven-day windo
    remaining entity in each dimension to exactly `1.0`.
 4. An excluded label contributes nothing to the profile, and its exclusion changes the shares.
 5. `allocate({'uptempo': 0.5, 'raw': 0.25, 'hardtechno': 0.10, '__tail__': 0.15}, 30)` returns
-   `{'uptempo': 15, 'raw': 7, 'hardtechno': 3, '__tail__': 5}` and the values sum to exactly 30.
+   `{'uptempo': 15, 'raw': 8, 'hardtechno': 3, '__tail__': 4}` and the values sum to exactly 30.
+   `raw` and `__tail__` tie on a remainder of exactly 0.5, and **a remainder tie goes to the larger
+   share** — so the last place goes to `raw` (25%) rather than to the tail (15%).
 6. `redistribute` moves the places of a share with zero available candidates to the next largest
    share, and never returns an allocation larger than `available` for any share.
 7. `bucket_of` places a candidate with no genre tag on a label whose catalogue is 100% uptempo into

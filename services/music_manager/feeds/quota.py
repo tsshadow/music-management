@@ -8,6 +8,15 @@ up at all.
 
 
 def allocate(shares: dict[str, float], places: int) -> dict[str, int]:
+    """Largest remainder. A remainder tie goes to the larger share.
+
+    With 30 places over 50/25/10/15, `raw` and the tail both come out at a
+    remainder of exactly 0.5, and the single place left over has to go to one of
+    them. It goes to `raw`: a tie is the one case where the remainder says
+    nothing, so the share itself decides, and giving it to the 25% genre rather
+    than to the catch-all is the reading that keeps the profile visible. Name
+    order is the last resort, so the answer never depends on dict ordering.
+    """
     if not shares or places <= 0:
         return dict.fromkeys(shares, 0)
     exact = {name: share * places for name, share in shares.items()}

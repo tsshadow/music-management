@@ -279,6 +279,20 @@ Nothing below blocks agreement on behavior, but all of it blocks the technical d
 - **The seven-day window may not be viable.** If day-precision release dates are rare, the radar is
   empty by construction. In that case the decision to reopen is the window (14 or 30 days), not a
   fallback to `created_at`, which was explicitly rejected.
+- **An uncurated genre splits the profile, and V1 ships with it.** The feeds count every genre that
+  is not blacklisted, which means curated genres *and* ones nobody has ruled on yet. A curated
+  "Uptempo Hardcore" and an undecided raw "uptempo" are two different genres to this feature: the
+  listener's weight for one style is divided between them, and the raw one — having no place in the
+  subgenre hierarchy — cannot roll up into its parent and drops into the leftovers.
+
+  It presents as a **thin profile, never as an error**: the shares look reasonable and the style
+  simply gets fewer places than the listening earns. Where it is visible is the profile view and the
+  dry run's share table, as the same style appearing twice under two spellings. Fixing it means
+  teaching the curation model that the raw name means the curated one, and a wrong entry there
+  silently merges two genres that are not the same thing, in every profile built afterwards. That is
+  curation work with its own review, so it is deliberately out of scope here; the measurement of how
+  much it actually costs comes first.
+
 - **Playback identity is unproven.** Both clients play through LMS, which does not know a MuMa
   `track_uid`; the existing bridge between the two is the file path, and that path prefix has broken
   this integration before. This must be demonstrated on a sample before any UI work starts.

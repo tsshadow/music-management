@@ -233,7 +233,7 @@ class NavigationActivity : ScopeActivity() {
         refreshManagementVisibility()
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
-            setsToggleItem?.isVisible = destination.id == R.id.mainFragment
+            setsToggleItem?.isVisible = showsSetsToggle(destination.id)
             voiceMenuItem?.setShowAsAction(voiceMenuSlot(destination.id))
             val dest: String = try {
                 resources.getResourceName(destination.id)
@@ -330,7 +330,7 @@ class NavigationActivity : ScopeActivity() {
             setupSearchField(menu)
             menu.findItem(R.id.downloadsFragment)?.isVisible = !ActiveServerProvider.isOffline()
             setsToggleItem = menu.findItem(R.id.action_sets_toggle)
-            setsToggleItem?.isVisible = currentFragmentId == R.id.mainFragment
+            setsToggleItem?.isVisible = showsSetsToggle(currentFragmentId)
             voiceMenuItem = menu.findItem(R.id.mumaVoiceFragment)
             voiceMenuItem?.setShowAsAction(voiceMenuSlot(currentFragmentId))
             setsToggle = setsToggleItem?.actionView?.findViewById(R.id.switch_sets)
@@ -1213,4 +1213,16 @@ class NavigationActivity : ScopeActivity() {
 internal fun voiceMenuSlot(destinationId: Int): Int = when (destinationId) {
     R.id.trackCollectionFragment, R.id.logViewerFragment -> MenuItem.SHOW_AS_ACTION_NEVER
     else -> MenuItem.SHOW_AS_ACTION_ALWAYS
+}
+
+/**
+ * Where the songs / sets switch belongs.
+ *
+ * @details Home has always had it. The Library screen needs it too now that the switch decides
+ * which of its tabs exist: without it the only way to reach the podcasts tab would be to walk back
+ * to Home, flip the switch and return.
+ */
+internal fun showsSetsToggle(destinationId: Int): Boolean = when (destinationId) {
+    R.id.mainFragment, R.id.libraryFragment -> true
+    else -> false
 }

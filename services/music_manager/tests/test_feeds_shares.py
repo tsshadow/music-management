@@ -15,7 +15,8 @@ class SharesTest(unittest.TestCase):
         profile = TasteProfile(genres={'hardcore': 1.0, 'frenchcore': 0.02, 'terror': 0.02}, distinct_tracks=40)
         shares = genre_shares(profile, PARENTS)
         self.assertNotIn('frenchcore', shares)
-        self.assertGreater(shares['hardcore'], 0.9)
+        self.assertEqual(shares[TAIL], 0.0)
+        self.assertAlmostEqual(shares['hardcore'], 1.0)
 
     def test_a_small_genre_with_no_eligible_parent_lands_in_the_tail(self):
         profile = TasteProfile(genres={'uptempo': 1.0, 'gabber': 0.01}, distinct_tracks=40)
@@ -48,3 +49,13 @@ class BlendTest(unittest.TestCase):
         blended = blend(user, server)
         self.assertEqual(blended.scope, 'user')
         self.assertNotIn('hardstyle', blended.genres)
+
+    def test_a_thin_profile_is_unchanged_when_the_server_has_nothing_to_lend(self):
+        user = TasteProfile(genres={'uptempo': 1.0}, distinct_tracks=6, scope='user')
+        blended = blend(user, TasteProfile())
+        self.assertEqual(blended.genres, {'uptempo': 1.0})
+        self.assertEqual(blended.scope, 'user')
+
+    def test_two_empty_profiles_blend_to_empty(self):
+        blended = blend(TasteProfile(), TasteProfile())
+        self.assertEqual(blended.scope, 'empty')

@@ -1,10 +1,10 @@
 """What the listener's taste is, derived from what they played."""
 
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 
-from services.music_manager.feeds.hierarchy import deepest
+from services.music_manager.feeds.hierarchy import ancestors, deepest
 
 CONFIDENCE = {'exact': 1.0, 'normalized': 1.0, 'base_title': 0.5, 'fuzzy': 0.25}
 FULL_PLAY_SECONDS = 120
@@ -91,3 +91,73 @@ def build_profile(
         scope='user' if per_track else 'empty',
     )
     return profile
+
+
+TAIL = '__tail__'
+COLD_START_TRACKS = 5
+
+
+def _mix(a: dict[str, float], b: dict[str, float], weight: float) -> dict[str, float]:
+    names = set(a) | set(b)
+    mixed = {n: weight * a.get(n, 0.0) + (1 - weight) * b.get(n, 0.0) for n in names}
+    return {n: v for n, v in mixed.items() if v > 0}
+
+
+def blend(user: TasteProfile, server: TasteProfile, ramp_tracks: int = 30) -> TasteProfile:
+    """Lean on the server's taste until the listener has one of their own.
+
+    A hard switch would flip somebody's feed overnight; the ramp makes their own
+    listening take over gradually. Below COLD_START_TRACKS the profile is the
+    server's outright, and that is what the client labels differently.
+    """
+    if user.distinct_tracks >= ramp_tracks:
+        return user
+    if server.distinct_tracks == 0:
+        has_affinities = bool(user.artists or user.labels or user.genres)
+        return replace(user, scope='user' if has_affinities else 'empty')
+    if user.distinct_tracks < COLD_START_TRACKS:
+        return TasteProfile(
+            artists=dict(server.artists),
+            labels=dict(server.labels),
+            genres=dict(server.genres),
+            distinct_tracks=user.distinct_tracks,
+            total_weight=user.total_weight,
+            scope='server',
+        )
+    weight = user.distinct_tracks / ramp_tracks
+    return TasteProfile(
+        artists=_mix(user.artists, server.artists, weight),
+        labels=_mix(user.labels, server.labels, weight),
+        genres=_mix(user.genres, server.genres, weight),
+        distinct_tracks=user.distinct_tracks,
+        total_weight=user.total_weight,
+        scope='blended',
+    )
+
+
+def genre_shares(profile: TasteProfile, parents: dict[str, set[str]], min_share: float = 0.03) -> dict[str, float]:
+    """How the places are divided. Always sums to 1, always has a tail.
+
+    A genre too small for a place of its own rolls up into the nearest ancestor
+    that is big enough, so three 2% subgenres of hardcore become one 6% hardcore
+    share instead of vanishing into a catch-all -- and without uptempo, which is
+    also under hardcore, absorbing them.
+    """
+    total = sum(profile.genres.values())
+    if total <= 0:
+        return {TAIL: 1.0}
+    raw = {name: value / total for name, value in profile.genres.items()}
+    big = {name for name, share in raw.items() if share >= min_share}
+    shares: dict[str, float] = dict.fromkeys(big, 0.0)
+    tail = 0.0
+    for name, share in raw.items():
+        if name in big:
+            shares[name] += share
+            continue
+        target = next((a for a in ancestors(name, parents) if a in big), None)
+        if target:
+            shares[target] += share
+        else:
+            tail += share
+    shares[TAIL] = tail
+    return shares

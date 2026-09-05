@@ -28,8 +28,14 @@
 
 namespace lms::scanner
 {
-    bool ScanStepCheckForDuplicatedFiles::needProcess([[maybe_unused]] const ScanContext& context) const
+    bool ScanStepCheckForDuplicatedFiles::needProcess(const ScanContext& context) const
     {
+        // A report over the whole library, not a mutation -- and a scoped scan does not publish
+        // its stats, so the result would be computed and thrown away. The report keeps showing
+        // what the last full scan found.
+        if (context.scanOptions.isScoped())
+            return false;
+
         // Always check for everything
         return true;
     }

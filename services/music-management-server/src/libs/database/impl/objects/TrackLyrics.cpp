@@ -144,6 +144,34 @@ namespace lms::db
         });
     }
 
+    // Same keyset walk as findAbsoluteFilePath, restricted to the files under one directory.
+    //
+    // The bound is a half-open byte range rather than a LIKE pattern, for two reasons that
+    // both bite silently. SQLite's LIKE is case-insensitive for ASCII unless
+    // case_sensitive_like is set, so '/music/eps/...' would match a genuinely different
+    // directory on a case-sensitive filesystem. And a prefix match on the bare directory
+    // name matches its siblings: '/music/A' would pull in everything under '/music/AB'.
+    // '/' is 0x2F and '0' is 0x30, so [dir + '/', dir + '0') is exactly "under dir/".
+    //
+    // The ORDER BY stays on the id, so this is still an index walk over the whole table with
+    // the range applied as a filter. What collapses is the work per returned row: the caller
+    // stat()s every path it gets back, and that is where the minutes go.
+    void TrackLyrics::findAbsoluteFilePathInDirectory(Session& session, TrackLyricsId& lastRetrievedId, std::size_t count, const std::filesystem::path& directory, const std::function<void(TrackLyricsId trackLyricsId, const std::filesystem::path& absoluteFilePath)>& func)
+    {
+        session.checkReadTransaction();
+
+        const std::string lowerBound{ (directory / "").string() }; // trailing separator, idempotent
+        std::string upperBound{ lowerBound };
+        upperBound.back() = static_cast<char>(upperBound.back() + 1);
+
+        auto query{ session.getDboSession()->query<std::tuple<TrackLyricsId, std::filesystem::path>>("SELECT t_lrc.id,t_lrc.absolute_file_path from track_lyrics t_lrc").orderBy("t_lrc.id").where("t_lrc.id > ?").bind(lastRetrievedId).where("t_lrc.absolute_file_path >= ?").bind(lowerBound).where("t_lrc.absolute_file_path < ?").bind(upperBound).limit(static_cast<int>(count)) };
+
+        utils::forEachQueryResult(query, [&](const auto& res) {
+            func(std::get<0>(res), std::get<1>(res));
+            lastRetrievedId = std::get<0>(res);
+        });
+    }
+
     TrackLyrics::SynchronizedLines TrackLyrics::getSynchronizedLines() const
     {
         SynchronizedLines synchronizedLines;

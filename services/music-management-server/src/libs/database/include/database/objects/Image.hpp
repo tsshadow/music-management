@@ -77,6 +77,9 @@ namespace lms::db
         static void find(Session& session, const FindParameters& parameters, const std::function<void(const Image::pointer&)>& func);
         static void find(Session& session, ImageId& lastRetrievedId, std::size_t count, const std::function<void(const Image::pointer&)>& func);
         static void findAbsoluteFilePath(Session& session, ImageId& lastRetrievedId, std::size_t count, const std::function<void(ImageId imageId, const std::filesystem::path& absoluteFilePath)>& func);
+        // Same, restricted to the files under `directory`. The directory must be absolute and
+        // lexically normal; it does not have to exist on disk.
+        static void findAbsoluteFilePathInDirectory(Session& session, ImageId& lastRetrievedId, std::size_t count, const std::filesystem::path& directory, const std::function<void(ImageId imageId, const std::filesystem::path& absoluteFilePath)>& func);
 
         // getters
         const std::filesystem::path& getAbsoluteFilePath() const { return _fileAbsolutePath; }

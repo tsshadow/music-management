@@ -52,6 +52,50 @@ namespace lms::db::tests
         }
     }
 
+    TEST_F(DatabaseFixture, TrackLyrics_findAbsoluteFilePathInDirectory_returnsOnlyFilesUnderTheDirectory)
+    {
+        ScopedTrackLyrics inside{ session };
+        ScopedTrackLyrics elsewhere{ session };
+        {
+            auto transaction{ session.createWriteTransaction() };
+            inside.get().modify()->setAbsoluteFilePath("/music/A/inside.lrc");
+            elsewhere.get().modify()->setAbsoluteFilePath("/music/B/elsewhere.lrc");
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            std::vector<std::filesystem::path> found;
+            TrackLyricsId lastRetrievedId;
+            TrackLyrics::findAbsoluteFilePathInDirectory(session, lastRetrievedId, 10, "/music/A", [&](TrackLyricsId, const std::filesystem::path& path) {
+                found.push_back(path);
+            });
+
+            EXPECT_EQ(found, (std::vector<std::filesystem::path>{ "/music/A/inside.lrc" }));
+        }
+    }
+
+    TEST_F(DatabaseFixture, TrackLyrics_findAbsoluteFilePathInDirectory_doesNotMatchASiblingWithTheSameNamePrefix)
+    {
+        ScopedTrackLyrics inside{ session };
+        ScopedTrackLyrics sibling{ session };
+        {
+            auto transaction{ session.createWriteTransaction() };
+            inside.get().modify()->setAbsoluteFilePath("/music/A/inside.lrc");
+            sibling.get().modify()->setAbsoluteFilePath("/music/AB/sibling.lrc");
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            std::vector<std::filesystem::path> found;
+            TrackLyricsId lastRetrievedId;
+            TrackLyrics::findAbsoluteFilePathInDirectory(session, lastRetrievedId, 10, "/music/A", [&](TrackLyricsId, const std::filesystem::path& path) {
+                found.push_back(path);
+            });
+
+            EXPECT_EQ(found, (std::vector<std::filesystem::path>{ "/music/A/inside.lrc" }));
+        }
+    }
+
     TEST_F(DatabaseFixture, TrackLyrics_synchronized)
     {
         using namespace std::chrono_literals;

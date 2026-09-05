@@ -32,6 +32,11 @@ namespace lms::scanner
         if (context.scanOptions.forceOptimize)
             return true;
 
+        // ANALYZE over the whole database after touching one folder is pure waste, and the
+        // periodic scan runs it anyway.
+        if (context.scanOptions.isScoped())
+            return false;
+
         // Don't optimize if there are too few files: it may lead to some indexes not being used
         // and will drastically slow down the scan process when adding more files later
         if (context.stats.getChangesCount() > (context.stats.getTotalFileCount() / 5)

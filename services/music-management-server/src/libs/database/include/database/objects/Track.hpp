@@ -256,6 +256,9 @@ namespace lms::db
         static void find(Session& session, const IdRange<TrackId>& idRange, const std::function<void(const Track::pointer&)>& func);
         static IdRange<TrackId> findNextIdRange(Session& session, TrackId lastRetrievedId, std::size_t count);
         static void findAbsoluteFilePath(Session& session, TrackId& lastRetrievedId, std::size_t count, const std::function<void(TrackId trackId, const std::filesystem::path& absoluteFilePath)>& func);
+        // Same, restricted to the files under `directory`. The directory must be absolute and
+        // lexically normal; it does not have to exist on disk.
+        static void findAbsoluteFilePathInDirectory(Session& session, TrackId& lastRetrievedId, std::size_t count, const std::filesystem::path& directory, const std::function<void(TrackId trackId, const std::filesystem::path& absoluteFilePath)>& func);
 
         static bool exists(Session& session, TrackId id);
         static std::vector<pointer> findByRecordingMBID(Session& session, const core::UUID& MBID);

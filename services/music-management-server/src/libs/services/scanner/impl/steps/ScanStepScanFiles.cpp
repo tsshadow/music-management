@@ -19,13 +19,16 @@
 
 #include "ScanStepScanFiles.hpp"
 
+#include <algorithm>
 #include <deque>
+#include <filesystem>
 
 #include "ScannerSettings.hpp"
 #include "core/IJob.hpp"
 #include "core/IJobScheduler.hpp"
 #include "core/ILogger.hpp"
 #include "core/ITraceLogger.hpp"
+#include "core/Path.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "scanners/FileToScan.hpp"
@@ -170,13 +173,41 @@ namespace lms::scanner
 
     void ScanStepScanFiles::process(ScanContext& context)
     {
-        for (const MediaLibraryInfo& mediaLibrary : _settings.mediaLibraries)
-            process(context, mediaLibrary);
+        if (context.scanOptions.isScoped())
+        {
+            for (const std::filesystem::path& scanDirectory : context.scanOptions.scanDirectories)
+            {
+                // The owning library is resolved here rather than at request time: the request
+                // is queued on a timer and refreshScanSettings() re-reads the libraries before
+                // this runs, so an id captured earlier could already be stale.
+                const auto itLibrary{ std::find_if(std::cbegin(_settings.mediaLibraries), std::cend(_settings.mediaLibraries),
+                    [&](const MediaLibraryInfo& mediaLibrary) { return core::pathUtils::isPathInRootPath(scanDirectory, mediaLibrary.rootDirectory); }) };
+                if (itLibrary == std::cend(_settings.mediaLibraries))
+                {
+                    LMS_LOG(DBUPDATER, WARNING, "Skipping scan scope " << scanDirectory << ": no media library contains it");
+                    continue;
+                }
 
+                // A scope that is no longer on disk is not an error: that is the "this path is
+                // gone" case, and ScanStepCheckForRemovedFiles is what serves it. The walk below
+                // reports the failed directory_iterator as an IOScanError and carries on.
+                process(context, *itLibrary, scanDirectory);
+            }
+        }
+        else
+        {
+            for (const MediaLibraryInfo& mediaLibrary : _settings.mediaLibraries)
+                process(context, mediaLibrary, mediaLibrary.rootDirectory);
+        }
+
+        // In a scoped scan this counts the files under the requested subtrees, not the library.
+        // Nothing user-facing reads it in that case: ScannerService does not publish
+        // _lastCompleteScanStats for a scoped scan, so the admin page and <lastScan> keep
+        // describing the last full one.
         context.stats.totalFileCount = context.currentStepStats.processedElems;
     }
 
-    void ScanStepScanFiles::process(ScanContext& context, const MediaLibraryInfo& mediaLibrary)
+    void ScanStepScanFiles::process(ScanContext& context, const MediaLibraryInfo& mediaLibrary, const std::filesystem::path& root)
     {
         constexpr std::size_t filesPerScanJob{ 10 };
         constexpr std::size_t scanQueueMaxSize{ 50 };
@@ -208,7 +239,7 @@ namespace lms::scanner
             std::vector<std::filesystem::directory_entry> filesToScan;
 
             exploreFilesRecursive(
-                mediaLibrary.rootDirectory, [&](std::error_code ec, const std::filesystem::path& path, const std::filesystem::directory_entry* fileEntry) {
+                root, [&](std::error_code ec, const std::filesystem::path& path, const std::filesystem::directory_entry* fileEntry) {
                     LMS_SCOPED_TRACE_DETAILED("Scanner", "OnExploreFile");
 
                     assert((ec && !fileEntry) || (!ec && fileEntry));

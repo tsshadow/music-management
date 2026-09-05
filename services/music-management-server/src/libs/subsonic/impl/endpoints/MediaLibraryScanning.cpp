@@ -19,14 +19,19 @@
 
 #include "MediaLibraryScanning.hpp"
 
+#include <algorithm>
+#include <filesystem>
+
 #include "core/ILogger.hpp"
 #include "core/Service.hpp"
+#include "core/Path.hpp"
 #include "core/String.hpp"
 #include "services/recommendation/IRecommendationService.hpp"
 #include "services/scanner/IScannerService.hpp"
 
 #include "ParameterParsing.hpp"
 #include "database/Session.hpp"
+#include "database/objects/MediaLibrary.hpp"
 #include "database/objects/ScanSettings.hpp"
 #include "database/objects/User.hpp"
 
@@ -131,6 +136,61 @@ namespace lms::api::subsonic::Scan
 
             return statusResponse;
         }
+
+        // Resolves the caller-supplied scan scopes against the configured media libraries.
+        //
+        // Paths are library-relative by default and that is not a convenience: MuMa mounts the
+        // library at /mnt/music while LMS sees it at /music, so an absolute path from the client
+        // would name a directory this server does not have. An absolute path is still accepted,
+        // for an operator poking the endpoint from the LMS host itself.
+        //
+        // Anything outside every media library root is refused rather than widened to a full
+        // scan: a client that asked for one folder and silently got the whole library back would
+        // start an hour of work every time it tried.
+        std::vector<std::filesystem::path> parseScanDirectories(RequestContext& context)
+        {
+            const std::vector<std::string> rawPaths{ getMultiParametersAs<std::string>(context.getParameters(), "path") };
+            if (rawPaths.empty())
+                return {};
+
+            std::vector<std::filesystem::path> roots;
+            {
+                auto transaction{ context.getDbSession().createReadTransaction() };
+                db::MediaLibrary::find(context.getDbSession(), [&](const db::MediaLibrary::pointer& library) {
+                    roots.push_back(library->getPath().lexically_normal());
+                });
+            }
+            if (roots.empty())
+                throw RequestedDataNotFoundError{};
+
+            std::vector<std::filesystem::path> res;
+            for (const std::string& rawPath : rawPaths)
+            {
+                std::filesystem::path path{ rawPath };
+
+                if (!path.is_absolute())
+                {
+                    if (roots.size() != 1)
+                        throw BadParameterGenericError{ "path", "relative path is ambiguous with several media libraries" };
+                    path = roots.front() / path;
+                }
+
+                // lexically_normal, never canonical: canonical throws for a path that no longer
+                // exists, and a vanished directory is the case this endpoint exists to serve.
+                // It also collapses "..", so traversal is closed here rather than by a string
+                // test, and it matches how the library roots themselves are normalised.
+                path = path.lexically_normal();
+
+                const bool inSomeRoot{ std::any_of(std::cbegin(roots), std::cend(roots),
+                    [&](const std::filesystem::path& root) { return core::pathUtils::isPathInRootPath(path, root); }) };
+                if (!inSomeRoot)
+                    throw BadParameterGenericError{ "path", "not inside a media library" };
+
+                res.push_back(std::move(path));
+            }
+
+            return res;
+        }
     } // namespace
 
     Response handleGetScanStatus(RequestContext& context)
@@ -144,21 +204,35 @@ namespace lms::api::subsonic::Scan
     Response handleStartScan(RequestContext& context)
     {
         LMS_LOG(UI, INFO, "User '" << context.getUser()->getLoginName() << "' requested a scan (admin=" << context.getUser()->isAdmin() << ")");
+        // Declared out here so the response can echo the accepted scope below; a non-admin
+        // never fills it, and then the echo is absent exactly as it is for an unscoped scan.
+        scanner::ScanOptions scanOptions;
         if (context.getUser()->isAdmin())
         {
-            scanner::ScanOptions scanOptions;
             if (auto fullScan = getParameterAs<std::string>(context.getParameters(), "fullScan"))
                 scanOptions.fullScan = (*fullScan == "true");
             if (auto forceOptimize = getParameterAs<std::string>(context.getParameters(), "forceOptimize"))
                 scanOptions.forceOptimize = (*forceOptimize == "true");
             if (auto compact = getParameterAs<std::string>(context.getParameters(), "compact"))
                 scanOptions.compact = (*compact == "true");
+            scanOptions.scanDirectories = parseScanDirectories(context);
 
             core::Service<IScannerService>::get()->requestImmediateScan(scanOptions);
         }
 
         Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
-        response.addNode("scanStatus", createStatusResponseNode(context));
+        Response::Node statusNode{ createStatusResponseNode(context) };
+        if (!scanOptions.scanDirectories.empty())
+        {
+            // The scan is queued, so "scanning" is usually still false by the time we answer.
+            // This echo is the only synchronous proof the server understood the scope: a server
+            // without this feature ignores the unknown parameter and quietly full-scans, and the
+            // client needs to be able to tell those two apart.
+            Response::Node& scopeNode{ statusNode.createChild("scanScope") };
+            for (const std::filesystem::path& directory : scanOptions.scanDirectories)
+                scopeNode.addArrayValue("path", directory.string());
+        }
+        response.addNode("scanStatus", std::move(statusNode));
 
         return response;
     }

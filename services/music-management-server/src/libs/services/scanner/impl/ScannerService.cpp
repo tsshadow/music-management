@@ -413,6 +413,11 @@ namespace lms::scanner
         {
             stats.stopTime = Wt::WDateTime::currentDateTime();
 
+            // A scoped scan looked at a handful of files, so its numbers say nothing about the
+            // library. Publishing them would replace "218431 files, 12 minutes ago" with "3
+            // files" on the admin page and in <lastScan>, and the periodic full scan is what
+            // that line is meant to describe.
+            if (!scanOptions.isScoped())
             {
                 std::unique_lock lock{ _statusMutex };
                 _lastCompleteScanStats = stats;

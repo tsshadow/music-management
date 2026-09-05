@@ -20,7 +20,10 @@
 #include "Common.hpp"
 
 #include <algorithm>
+#include <filesystem>
 #include <iostream>
+#include <set>
+#include <vector>
 
 #include "database/objects/Artwork.hpp"
 #include "database/objects/Image.hpp"
@@ -504,6 +507,101 @@ namespace lms::db::tests
             auto transaction{ session.createReadTransaction() };
             EXPECT_EQ(track->getAbsoluteFilePath(), "/root/foo/file.path");
         }
+    }
+
+    namespace
+    {
+        // Every scoped-scan test needs the same thing: a track at a known absolute path.
+        ScopedTrack trackAt(db::Session& session, const std::filesystem::path& path)
+        {
+            ScopedTrack track{ session };
+            auto transaction{ session.createWriteTransaction() };
+            track.get().modify()->setAbsoluteFilePath(path);
+            return track;
+        }
+
+        std::vector<std::filesystem::path> pathsUnder(db::Session& session, const std::filesystem::path& directory, std::size_t batchSize = 10)
+        {
+            auto transaction{ session.createReadTransaction() };
+            std::vector<std::filesystem::path> found;
+            TrackId lastRetrievedId;
+            while (true)
+            {
+                const TrackId previous{ lastRetrievedId };
+                Track::findAbsoluteFilePathInDirectory(session, lastRetrievedId, batchSize, directory, [&](TrackId, const std::filesystem::path& path) {
+                    found.push_back(path);
+                });
+                if (previous == lastRetrievedId)
+                    break;
+            }
+            return found;
+        }
+    } // namespace
+
+    TEST_F(DatabaseFixture, Track_findAbsoluteFilePathInDirectory_returnsOnlyFilesUnderTheDirectory)
+    {
+        ScopedTrack inside{ trackAt(session, "/music/A/1.mp3") };
+        ScopedTrack deeper{ trackAt(session, "/music/A/sub/2.mp3") };
+        ScopedTrack elsewhere{ trackAt(session, "/music/B/3.mp3") };
+
+        EXPECT_EQ(pathsUnder(session, "/music/A"), (std::vector<std::filesystem::path>{ "/music/A/1.mp3", "/music/A/sub/2.mp3" }));
+    }
+
+    TEST_F(DatabaseFixture, Track_findAbsoluteFilePathInDirectory_doesNotMatchASiblingWithTheSameNamePrefix)
+    {
+        // The reason the bound is a range and not LIKE '/music/A%': that pattern pulls in
+        // every release of a differently named label that happens to start the same way.
+        ScopedTrack inside{ trackAt(session, "/music/A/1.mp3") };
+        ScopedTrack sibling{ trackAt(session, "/music/AB/2.mp3") };
+
+        EXPECT_EQ(pathsUnder(session, "/music/A"), (std::vector<std::filesystem::path>{ "/music/A/1.mp3" }));
+    }
+
+    TEST_F(DatabaseFixture, Track_findAbsoluteFilePathInDirectory_isCaseSensitive)
+    {
+        // SQLite's LIKE is case-insensitive for ASCII unless case_sensitive_like is set, so a
+        // LIKE-based filter would return both of these on a case-sensitive filesystem.
+        ScopedTrack upper{ trackAt(session, "/music/A/1.mp3") };
+        ScopedTrack lower{ trackAt(session, "/music/a/2.mp3") };
+
+        EXPECT_EQ(pathsUnder(session, "/music/A"), (std::vector<std::filesystem::path>{ "/music/A/1.mp3" }));
+    }
+
+    TEST_F(DatabaseFixture, Track_findAbsoluteFilePathInDirectory_toleratesATrailingSeparator)
+    {
+        ScopedTrack inside{ trackAt(session, "/music/A/1.mp3") };
+
+        EXPECT_EQ(pathsUnder(session, "/music/A/"), (std::vector<std::filesystem::path>{ "/music/A/1.mp3" }));
+    }
+
+    TEST_F(DatabaseFixture, Track_findAbsoluteFilePathInDirectory_paginatesWithoutRepeatingOrSkipping)
+    {
+        ScopedTrack one{ trackAt(session, "/music/A/1.mp3") };
+        ScopedTrack two{ trackAt(session, "/music/A/2.mp3") };
+        ScopedTrack three{ trackAt(session, "/music/A/3.mp3") };
+        ScopedTrack four{ trackAt(session, "/music/A/4.mp3") };
+        ScopedTrack five{ trackAt(session, "/music/A/5.mp3") };
+
+        const std::vector<std::filesystem::path> found{ pathsUnder(session, "/music/A", 2) };
+
+        EXPECT_EQ(found.size(), 5);
+        EXPECT_EQ(std::set<std::filesystem::path>(std::cbegin(found), std::cend(found)).size(), 5);
+    }
+
+    TEST_F(DatabaseFixture, Track_findAbsoluteFilePathInDirectory_stillReturnsRowsForADirectoryThatIsGone)
+    {
+        // The contract the whole scoped scan rests on: the query must not consult the
+        // filesystem, or a folder that was moved away could never have its rows removed.
+        ScopedTrack track{ trackAt(session, "/music/vanished-4f1c/1.mp3") };
+
+        EXPECT_EQ(pathsUnder(session, "/music/vanished-4f1c").size(), 1);
+    }
+
+    TEST_F(DatabaseFixture, Track_findAbsoluteFilePathInDirectory_returnsNothingForADirectoryWithNoFiles)
+    {
+        ScopedTrack elsewhere{ trackAt(session, "/music/B/1.mp3") };
+
+        EXPECT_TRUE(pathsUnder(session, "/music/A").empty());
     }
 
     TEST_F(DatabaseFixture, Track_audioProperties)

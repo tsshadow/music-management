@@ -56,7 +56,7 @@ services:
   # Eenmalige run, geen daemon: `docker-compose -f ... run --rm song-work-repair`.
   # Het standaardcommando is de dry run, want dit maakt de groepering van tracks
   # los die de worker daarna opnieuw indeelt. Draai hem pas als de code die de
-  # sleutel repareert draait en migrate_v18 langs de database is geweest: tegen de
+  # sleutel repareert draait en migrate_v19 langs de database is geweest: tegen de
   # oude code levert hij exact dezelfde foute groepering weer op. Schrijven doet
   # `... run --rm song-work-repair python scripts/repair_song_works.py`.
   song-work-repair:

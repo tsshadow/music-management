@@ -101,7 +101,7 @@ def test_a_label_can_be_identified_and_filed_under_a_parent(database):
 
 
 def test_the_song_key_compares_byte_for_byte(database):
-    """migrate_v18: utf8mb4_general_ci gives every character outside the BMP the same
+    """migrate_v19: utf8mb4_general_ci gives every character outside the BMP the same
     weight, so two work keys of equal length built from such characters compare equal
     and the UNIQUE index merges two unrelated songs into one work."""
     with database.cursor() as cursor:

@@ -418,6 +418,24 @@ class LibraryReadsTest:
         assert body['tracks'][0]['title'] == 'Raise Your Fist'
         assert body['tracks'][0]['artist'] == 'Angerfist'
 
+    def test_the_display_artist_is_null_when_never_captured(self, api, headers, a_track):
+        body = api.get('/api/library/tracks', headers=headers).json()
+        assert body['tracks'][0]['display_artist'] is None
+
+    def test_the_display_artist_is_returned_when_captured(self, api, headers, db):
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_artists (name) VALUES ('Henk')")
+            artist_id = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id, display_artist)'
+                " VALUES ('uid-2', 'Big Room Anthem', 320, %s, 'Henk feat Kees')",
+                (artist_id,),
+            )
+        tracks = api.get('/api/library/tracks', headers=headers).json()['tracks']
+        advanced = api.get('/api/library/advanced', headers=headers).json()['tracks']
+        assert next(t for t in tracks if t['title'] == 'Big Room Anthem')['display_artist'] == 'Henk feat Kees'
+        assert next(t for t in advanced if t['title'] == 'Big Room Anthem')['display_artist'] == 'Henk feat Kees'
+
     def test_the_search_term_filters_the_track_list(self, api, headers, a_track):
         assert api.get('/api/library/tracks?q=anger', headers=headers).json()['total'] == 1
         assert api.get('/api/library/tracks?q=nothing', headers=headers).json()['total'] == 0

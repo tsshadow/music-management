@@ -1,9 +1,27 @@
 import unittest
 from unittest.mock import MagicMock
 
-from services.tagger.constants import ALBUM_ARTIST, ARTIST, GENRE, REMIXER
+from services.tagger.constants import ALBUM_ARTIST, ARTIST, GENRE, ORIGINAL_ARTIST, REMIXER
 from services.tagger.Song.rules.CleanTagsRule import CleanTagsRule
 from services.tagger.Song.Tag import Tag
+
+
+class _FakeTagCollection:
+    """A minimal has_item/get_item/set_item stand-in, real enough that Tag.regex()'s
+    in-place mutation and Tag.to_string() comparisons behave like the genuine
+    TagCollection would, without pulling in its file-format parsing."""
+
+    def __init__(self, tags):
+        self.tags = tags
+
+    def has_item(self, name):
+        return name in self.tags
+
+    def get_item(self, name):
+        return self.tags[name]
+
+    def set_item(self, name, value):
+        self.tags[name] = Tag(name, value)
 
 
 class CleanTagsRuleTest(unittest.TestCase):
@@ -104,6 +122,50 @@ class CleanTagsRuleTest(unittest.TestCase):
         tag = Tag(ARTIST, ['Anime: The new world'])
         tag.regex()
         self.assertEqual(sorted(tag.value), sorted(['Anime', 'The new world']))
+
+    def test_captures_original_artist_when_the_split_changes_something(self):
+        tag_collection = _FakeTagCollection({ARTIST: Tag(ARTIST, ['Henk feat Kees'])})
+        song = MagicMock()
+        song.tag_collection = tag_collection
+        self.rule.apply(song)
+        self.assertEqual(tag_collection.get_item(ARTIST).value, ['Henk', 'Kees'])
+        self.assertEqual(tag_collection.get_item(ORIGINAL_ARTIST).to_string(), 'Henk feat Kees')
+
+    def test_does_not_capture_original_artist_when_nothing_changes(self):
+        tag_collection = _FakeTagCollection({ARTIST: Tag(ARTIST, ['Solo Artist'])})
+        song = MagicMock()
+        song.tag_collection = tag_collection
+        self.rule.apply(song)
+        self.assertFalse(tag_collection.has_item(ORIGINAL_ARTIST))
+
+    def test_does_not_overwrite_an_original_artist_captured_on_an_earlier_tag_pass(self):
+        tag_collection = _FakeTagCollection(
+            {
+                ARTIST: Tag(ARTIST, ['Henk feat Kees']),
+                ORIGINAL_ARTIST: Tag(ORIGINAL_ARTIST, ['Captured Earlier']),
+            }
+        )
+        song = MagicMock()
+        song.tag_collection = tag_collection
+        self.rule.apply(song)
+        self.assertEqual(tag_collection.get_item(ORIGINAL_ARTIST).to_string(), 'Captured Earlier')
+
+    def test_second_pass_in_the_same_run_is_idempotent(self):
+        """CleanTagsRule runs twice per GenericSong.parse(); the second pass must not stomp on
+        what the first pass just captured."""
+        tag_collection = _FakeTagCollection({ARTIST: Tag(ARTIST, ['Henk feat Kees'])})
+        song = MagicMock()
+        song.tag_collection = tag_collection
+        self.rule.apply(song)
+        self.rule.apply(song)
+        self.assertEqual(tag_collection.get_item(ORIGINAL_ARTIST).to_string(), 'Henk feat Kees')
+
+    def test_does_not_touch_original_artist_for_album_artist_field(self):
+        tag_collection = _FakeTagCollection({ALBUM_ARTIST: Tag(ALBUM_ARTIST, ['Various feat Artists'])})
+        song = MagicMock()
+        song.tag_collection = tag_collection
+        self.rule.apply(song)
+        self.assertFalse(tag_collection.has_item(ORIGINAL_ARTIST))
 
 
 if __name__ == '__main__':

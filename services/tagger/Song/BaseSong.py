@@ -20,6 +20,7 @@ from services.tagger.constants import (
     DATE,
     FESTIVAL,
     GENRE,
+    ORIGINAL_ARTIST,
     ORIGINAL_DATE,
     PARSED,
     PUBLISHER,
@@ -272,6 +273,10 @@ class BaseSong:
 
     def library_artists(self):
         return self.tag_collection.get_item_as_array(ARTIST)
+
+    def original_artist(self):
+        """The artist string as it read on disk before CleanTagsRule split it, or None."""
+        return self.tag_collection.get_item_as_string(ORIGINAL_ARTIST) or None
 
     def bpm(self):
         return self.tag_collection.get_item_as_string(BPM)

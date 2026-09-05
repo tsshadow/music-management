@@ -13,7 +13,7 @@
   elk teken buiten de BMP hetzelfde collatiegewicht heeft: twee sleutels van gelijke lengte uit
   zulke tekens zijn dan gelijk, en de UNIQUE-index voegde hun works samen zonder een fout te geven.
   Exact de val die `migrate_v13` voor `channels.normalized_name` opruimde.
-  `migrate_v18_work_key_binary.sql` zet de kolom op `utf8mb4_bin`; het repairscript haalt de rijen
+  `migrate_v19_work_key_binary.sql` zet de kolom op `utf8mb4_bin`; het repairscript haalt de rijen
   uit elkaar die al waren samengevoegd, doordat het van elke track de sleutel hérberekent in plaats
   van naar één symptoom te zoeken.
 - **`migrate_v13` deed zelf nooit iets.** De guard telde de kolommen die al `utf8mb4_bin` zijn en

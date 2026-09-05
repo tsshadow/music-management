@@ -11,6 +11,7 @@ from unittest.mock import patch
 from services.tagger import tag_registration
 from services.tagger.constants import (
     FESTIVAL,
+    ORIGINAL_ARTIST,
     ORIGINAL_TITLE,
     PARSED,
     PODCAST,
@@ -32,7 +33,7 @@ class CustomTagKeysTest(unittest.TestCase):
         was lost, so the list is asserted whole rather than key by key.
         """
         self.assertEqual(
-            {PUBLISHER, RATING, PARSED, FESTIVAL, REMIXER, ORIGINAL_TITLE, PODCAST, PODCAST_EPISODE},
+            {PUBLISHER, RATING, PARSED, FESTIVAL, REMIXER, ORIGINAL_TITLE, ORIGINAL_ARTIST, PODCAST, PODCAST_EPISODE},
             set(tag_registration.CUSTOM_TAG_KEYS),
         )
 
@@ -81,6 +82,18 @@ class RegisterCustomTagKeysTest(unittest.TestCase):
         descriptions = {call.args[0]: call.args[1] for call in id3.call_args_list}
         self.assertEqual('RATING', descriptions[RATING])
         self.assertEqual(PODCAST, descriptions[PODCAST])
+
+    def test_the_original_artist_frame_matches_the_wav_mapping_case(self):
+        """WAVTags writes `TXXX:ORIGINAL_ARTIST` directly; a lower-case MP3 registration
+        would leave the two formats disagreeing on the same field's frame description."""
+        with (
+            patch.object(tag_registration.EasyID3, 'RegisterTXXXKey') as id3,
+            patch.object(tag_registration.EasyMP4Tags, 'RegisterTextKey'),
+        ):
+            tag_registration.register_custom_tag_keys()
+
+        descriptions = {call.args[0]: call.args[1] for call in id3.call_args_list}
+        self.assertEqual('ORIGINAL_ARTIST', descriptions[ORIGINAL_ARTIST])
 
 
 if __name__ == '__main__':

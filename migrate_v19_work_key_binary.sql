@@ -1,4 +1,4 @@
--- migrate_v18_work_key_binary.sql
+-- migrate_v19_work_key_binary.sql
 --
 -- Makes `library_works.work_key` compare byte for byte.
 --
@@ -22,7 +22,7 @@
 -- Idempotent: re-running is a no-op.
 --
 -- Usage:
---   mysql -h <host> -u <user> -p <database> < migrate_v18_work_key_binary.sql
+--   mysql -h <host> -u <user> -p <database> < migrate_v19_work_key_binary.sql
 
 SET @ddl := (
     SELECT IF(

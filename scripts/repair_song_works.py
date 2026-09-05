@@ -15,7 +15,7 @@ ships this script -- but neither fix moves a row that is already wrong:
   * `library_works.work_key` was `utf8mb4_general_ci`, in which every character
     outside the BMP has the same collation weight, so two keys of equal length built
     from such characters compared equal and the UNIQUE key merged their works.
-    migrate_v18 fixes the column; the rows it already merged stay merged.
+    migrate_v19 fixes the column; the rows it already merged stay merged.
 
 Rather than test for either fault, this recomputes the key of every unlocked track and
 detaches the ones that do not match the work they sit in. That covers both, plus any
@@ -37,7 +37,7 @@ while it works. Each statement therefore states its own precondition -- the upda
 touches unlocked tracks, the delete only removes a work that is empty at the moment it
 runs -- instead of trusting what was read a moment earlier.
 
-Run it after migrate_v18_work_key_binary.sql and after the new code is deployed;
+Run it after migrate_v19_work_key_binary.sql and after the new code is deployed;
 running it against the old code would only reproduce the same grouping.
 
 Idempotent: a second run finds nothing to do.

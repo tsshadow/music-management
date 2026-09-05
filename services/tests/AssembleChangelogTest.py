@@ -35,6 +35,12 @@ RELEASE_NOTES = """# Release Notes
 - **Iets ouds.**
 """
 
+# muma-mobile's release notes head their pending block differently from the root file:
+# `## [Unreleased]`, with the brackets. This fixture used to hand the mobile scope the
+# root spelling, which is why the mobile path passed here while failing on the real
+# repository -- and failing destructively, since the write truncated first.
+MOBILE_RELEASE_NOTES = RELEASE_NOTES.replace('## Unreleased', '## [Unreleased]')
+
 
 def _repo(tmp_path, fragments, mobile_fragments=None):
     (tmp_path / 'CHANGELOG.md').write_text(CHANGELOG)
@@ -48,8 +54,8 @@ def _repo(tmp_path, fragments, mobile_fragments=None):
         mobile = tmp_path / 'services' / 'muma-mobile'
         (mobile / 'app' / 'src' / 'main' / 'assets').mkdir(parents=True)
         (mobile / 'CHANGELOG.md').write_text(CHANGELOG)
-        (mobile / 'RELEASE_NOTES.md').write_text(RELEASE_NOTES)
-        (mobile / 'app' / 'src' / 'main' / 'assets' / 'RELEASE_NOTES.md').write_text(RELEASE_NOTES)
+        (mobile / 'RELEASE_NOTES.md').write_text(MOBILE_RELEASE_NOTES)
+        (mobile / 'app' / 'src' / 'main' / 'assets' / 'RELEASE_NOTES.md').write_text(MOBILE_RELEASE_NOTES)
         (directory / 'mobile').mkdir()
         for name, body in mobile_fragments.items():
             (directory / 'mobile' / name).write_text(body)
@@ -173,3 +179,24 @@ def test_a_changelog_without_an_unreleased_heading_is_refused(tmp_path):
     (tmp_path / 'CHANGELOG.md').write_text('# Changelog\n\n## [0.44.4] - 2026-09-04\n')
     with pytest.raises(ValueError, match='Unreleased'):
         assemble_changelog.assemble('root', '0.45.0', '2026-09-05', apply_changes=True, root=str(tmp_path))
+
+
+def test_a_refused_release_notes_file_is_left_exactly_as_it_was(tmp_path):
+    """The refusal used to destroy the file it refused.
+
+    `open(path, 'w')` truncates when it is called, and the anchor was checked inside
+    that block, so a release notes file without the heading came out empty -- 762 lines
+    of muma-mobile history, on the release that found this.
+    """
+    _repo(tmp_path, {'619.fixed.md': '- **Een fix.**'})
+    before = '# Release Notes\n\n## Global Version 0.44.4 (2026-09-04)\n\n- **Iets ouds.**\n'
+    (tmp_path / 'RELEASE_NOTES.md').write_text(before)
+
+    with pytest.raises(ValueError, match='Unreleased'):
+        assemble_changelog.assemble('root', '0.45.0', '2026-09-05', apply_changes=True, root=str(tmp_path))
+
+    assert (tmp_path / 'RELEASE_NOTES.md').read_text() == before
+    # And the changelog it would have written first stays untouched too, so the release
+    # can simply be re-run once the file is fixed.
+    assert '0.45.0' not in (tmp_path / 'CHANGELOG.md').read_text()
+    assert (tmp_path / 'changelog.d' / '619.fixed.md').exists()

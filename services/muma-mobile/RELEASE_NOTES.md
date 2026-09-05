@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## Global Version 6.28.4 (2026-09-06)
+
+- **De Bibliotheek laat geen lege tabbladen meer zien.** Podcasts en festivals verschijnen in
+  sets-modus, labels en line-ups in nummers-modus. De schakelaar tussen nummers en sets staat nu
+  ook op dit scherm.
 ## [6.28.3] - 2026-09-03
 
 ### Changed

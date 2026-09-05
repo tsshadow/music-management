@@ -15,6 +15,8 @@
 #include <cctype>
 #include <cstring>
 #include <future>
+#include <span>
+#include <string_view>
 
 #include "core/IConfig.hpp"
 #include "core/ILogger.hpp"
@@ -38,9 +40,15 @@ namespace lms::api::muma
     namespace
     {
         // A news bulletin is a ten-minute recording, around 15 MB. Nothing else behind this
-        // proxy answers with a file, so the wider buffer is asked for by path rather than
-        // raised for every call.
-        constexpr std::size_t newsBulletinBufferSize{ std::size_t{ 64 } * 1024 * 1024 };
+        // proxy answers with a file, so it is the only response collected in chunks rather
+        // than left to Wt's own buffer. Reserved up front so the appends do not keep
+        // reallocating a buffer that ends up this size anyway.
+        constexpr std::size_t newsBulletinBufferSize{ std::size_t{ 24 } * 1024 * 1024 };
+
+        bool isNewsBulletin(std::string_view pathInfo)
+        {
+            return pathInfo.starts_with("/api/news/bulletins/");
+        }
 
         // At most half the HTTP thread pool may be waiting on MuMa, so the other half is always
         // there to serve everything else. Mirrors getThreadCount() in main.cpp, which is what sets
@@ -867,6 +875,8 @@ namespace lms::api::muma
             };
             auto resultPromise = std::make_shared<std::promise<GenericResult>>();
             auto resultFuture = resultPromise->get_future();
+            // Only filled for a streamed response; every other call still reads msg.body().
+            auto streamedBody = std::make_shared<std::string>();
 
             if (request.method() == "GET")
             {
@@ -880,11 +890,23 @@ namespace lms::api::muma
                 if (!query.empty())
                     getParams.relativeUrl += "?" + query;
 
-                // The default buffer stops at 10 MB, so a bulletin transferred for a while and
-                // then aborted -- and the aborted call arrived at the browser as a 502 that the
-                // player reported as "no bulletin recorded yet".
-                if (pathInfo.find("/api/news/bulletins/") == 0)
-                    getParams.responseBufferSize = newsBulletinBufferSize;
+                // Collect a bulletin ourselves instead of letting Wt buffer it. Wt appends every
+                // read into the response message, and the cost of that grows with what is already
+                // there: measured against prod, the transfer starts at 1 MB/s and decays to
+                // ~100 KB/s, so 15 MB took about 150 seconds. The send queue sends one request at
+                // a time, so for all of those seconds every other call to MuMa -- artist images,
+                // settings -- timed out behind it, and the browser had long since been answered
+                // with a 504. Setting onChunkReceived makes Wt skip its own accumulation entirely
+                // (it only appends while a maximum response size is set, and streaming clears it)
+                // and hand the chunks here, where appending to a reserved string is linear.
+                if (isNewsBulletin(pathInfo))
+                {
+                    streamedBody->reserve(newsBulletinBufferSize);
+                    getParams.onChunkReceived = [streamedBody](std::span<const std::byte> chunk) {
+                        streamedBody->append(reinterpret_cast<const char*>(chunk.data()), chunk.size());
+                        return core::http::ClientRequestParameters::ChunckReceivedResult::Continue;
+                    };
+                }
 
                 // Forward the CALLER's own key first (Subsonic-shared LMS key or a
                 // per-user MuMa key from Google Sign-In) so MuMa sees the real caller
@@ -900,9 +922,12 @@ namespace lms::api::muma
                 // 403, 404, ...) and body are meaningful to the original caller and
                 // must be forwarded verbatim, not collapsed into a generic 502.
                 getParams.treatAnyStatusAsSuccess = true;
-                getParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
+                getParams.onSuccessFunc = [resultPromise, streamedBody](const Wt::Http::Message& msg) {
                     const std::string* contentType{ msg.getHeader("Content-Type") };
-                    resultPromise->set_value({ msg.status(), contentType ? *contentType : std::string{}, msg.body() });
+                    // A streamed response leaves msg.body() empty by design, so the chunks
+                    // collected above are the body.
+                    resultPromise->set_value({ msg.status(), contentType ? *contentType : std::string{},
+                        streamedBody->empty() ? msg.body() : std::move(*streamedBody) });
                 };
                 getParams.onFailureFunc = [resultPromise]() {
                     resultPromise->set_value({ 502, std::string{}, "Bad Gateway" });

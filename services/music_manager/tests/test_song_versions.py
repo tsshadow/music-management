@@ -8,6 +8,8 @@ import unittest
 
 from services.music_manager.song_versions import (
     KIND_ORDER,
+    SPLIT_PREFIX,
+    UNGROUPABLE_PREFIX,
     derived_bitrate,
     format_tier,
     version_free_title,
@@ -107,20 +109,71 @@ class VersionKindTest(unittest.TestCase):
 
 class WorkKeyTest(unittest.TestCase):
     def test_the_same_song_by_the_same_artist_shares_a_key(self):
+        # Two different tracks, so the ids differ and must not reach the key.
         self.assertEqual(
-            work_key('Angerfist', 'Raise Your Fist (Radio Edit)'),
-            work_key('angerfist', 'Raise Your Fist (Extended Mix)'),
+            work_key('Angerfist', 'Raise Your Fist (Radio Edit)', 1),
+            work_key('angerfist', 'Raise Your Fist (Extended Mix)', 2),
         )
 
     def test_a_different_artist_is_a_different_work(self):
         self.assertNotEqual(
-            work_key('Angerfist', 'Raise Your Fist'),
-            work_key('Radical Redemption', 'Raise Your Fist'),
+            work_key('Angerfist', 'Raise Your Fist', 1),
+            work_key('Radical Redemption', 'Raise Your Fist', 2),
+        )
+
+    def test_no_artist_still_groups_by_title(self):
+        # Half this library has no primary_artist_id and carries the artist in the
+        # title instead. Those versions still have to meet.
+        self.assertEqual(
+            work_key(None, 'The Elite - Royals (Radio Edit)', 1),
+            work_key(None, 'The Elite - Royals (Extended)', 2),
         )
 
     def test_the_key_fits_the_column(self):
-        key = work_key('A' * 300, 'B' * 300)
+        key = work_key('A' * 300, 'B' * 300, 1)
         self.assertLessEqual(len(key), 191)
+
+
+class UnusableTitleTest(unittest.TestCase):
+    """A title that normalizes away identifies nothing, so it groups nothing.
+
+    Production had 117 unrelated recordings in one work because every one of these
+    titles produced the key ':::'.
+    """
+
+    UNUSABLE = ('', None, '   ', '🕊', '？', '᳄᳄᳄᳄᳆᳇᳇', '(Radio Edit)', '[Free Download]')
+
+    def test_each_unusable_title_gets_a_key_of_its_own(self):
+        for index, title in enumerate(self.UNUSABLE):
+            with self.subTest(title=title):
+                self.assertEqual(version_free_title(title), '')
+                self.assertNotEqual(
+                    work_key(None, title, index),
+                    work_key(None, title, index + 100),
+                )
+
+    def test_two_unusable_titles_never_meet(self):
+        keys = {work_key(None, title, index) for index, title in enumerate(self.UNUSABLE)}
+        self.assertEqual(len(keys), len(self.UNUSABLE))
+
+    def test_the_same_track_keeps_the_same_key(self):
+        # The worker reads the key twice per pass and the repair script recomputes it
+        # later; a key that moved would create a second work for one track.
+        self.assertEqual(work_key(None, '', 77), work_key(None, None, 77))
+
+    def test_an_unusable_title_is_marked_as_such(self):
+        # Phase two has to be able to say why a song has one version: because nobody
+        # else matched, or because the title was unusable. The namespace carries that.
+        self.assertTrue(work_key('Angerfist', '', 77).startswith(UNGROUPABLE_PREFIX))
+        self.assertFalse(work_key('Angerfist', 'Raise Your Fist', 77).startswith(UNGROUPABLE_PREFIX))
+
+    def test_the_reserved_namespaces_cannot_collide_with_a_real_key(self):
+        # Both mean "one track, and not because the song has one version". A real key
+        # always carries the separator; neither prefix does.
+        self.assertNotIn(':::', UNGROUPABLE_PREFIX)
+        self.assertNotIn(':::', SPLIT_PREFIX)
+        self.assertNotEqual(UNGROUPABLE_PREFIX, SPLIT_PREFIX)
+        self.assertIn(':::', work_key('Angerfist', 'Raise Your Fist', 1))
 
 
 class DerivedBitrateTest(unittest.TestCase):

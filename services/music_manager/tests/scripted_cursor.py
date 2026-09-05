@@ -19,9 +19,13 @@ class ScriptedCursor:
     router should treat as "there is no such row".
     """
 
-    def __init__(self, rules=(), lastrowid=None):
+    def __init__(self, rules=(), lastrowid=None, rowcount=1):
         self.rules = list(rules)
         self.lastrowid = lastrowid
+        # What a statement reports having affected. One by default, because that is
+        # what a write against a matching row does; set it to 0 to play a write whose
+        # WHERE clause found nothing.
+        self.rowcount = rowcount
         self.executed = []
         self._result = None
 

@@ -81,6 +81,13 @@ _KIND_MARKERS = (
 
 WORK_KEY_MAX = 191
 
+# Reserved key namespaces. Both mean "this work holds exactly one track, and not
+# because the song has one version": `split:` is written by the split endpoint in
+# routers/songs.py, `track:` by work_key() below. Neither can collide with a real
+# key, which always carries the ':::' separator.
+UNGROUPABLE_PREFIX = 'track:'
+SPLIT_PREFIX = 'split:'
+
 
 def _tokens(text: str) -> list[str]:
     return [token for token in _TOKEN_SPLIT.split(text.lower()) if token]
@@ -125,9 +132,26 @@ def version_kind(title: str | None) -> str:
     return 'none'
 
 
-def work_key(artist: str | None, title: str | None) -> str:
-    """The grouping key: one song by one artist, however its versions are spelled."""
-    return f'{normalize(artist)}:::{version_free_title(title)}'[:WORK_KEY_MAX]
+def work_key(artist: str | None, title: str | None, track_id: int) -> str:
+    """The grouping key: one song by one artist, however its versions are spelled.
+
+    A title that normalizes away to nothing identifies no song, so the track gets a
+    key of its own rather than sharing the empty one with every other such track.
+    Production grouped 117 unrelated recordings that way -- blank titles, a lone
+    dove emoji, strings of combining marks -- all under the key ':::'.
+
+    An empty *artist* is not the same case and still groups by title alone. Tracks
+    without a primary_artist_id are common in this library and carry the artist in
+    the title, where "The Elite - Royals (Radio Edit)" and "The Elite - Royals
+    (Extended)" are two versions of one song and have to meet.
+
+    The track id is required rather than optional: every caller has it, and a default
+    would leave the old behaviour reachable from a caller that forgot.
+    """
+    versionless = version_free_title(title)
+    if not versionless:
+        return f'{UNGROUPABLE_PREFIX}{track_id}'
+    return f'{normalize(artist)}:::{versionless}'[:WORK_KEY_MAX]
 
 
 # Each tier weighted above the maximum of every tier below it, so adding them is

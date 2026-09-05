@@ -61,12 +61,13 @@ COPY services/downloader/ /app/services/downloader/
 COPY services/music_manager/ /app/services/music_manager/
 COPY tools/ /app/tools/
 
-# De twee scripts die als eenmalige container uit deze image draaien
-# (release-date-backfill in docker-compose.tools.yml). scripts/ gaat bewust niet
-# in zijn geheel mee: de rest is deploy- en CI-shell die op de runner hoort en
-# niet in een productie-image. Hun import-closure (services/common,
-# services/tagger) staat hierboven al.
-COPY scripts/backfill_release_dates.py scripts/seed_scene_group_date_formats.py /app/scripts/
+# De scripts die als eenmalige container uit deze image draaien
+# (release-date-backfill en song-work-repair in docker-compose.tools.yml).
+# scripts/ gaat bewust niet in zijn geheel mee: de rest is deploy- en CI-shell
+# die op de runner hoort en niet in een productie-image. Hun import-closure
+# (services/common, services/tagger, services/music_manager) staat hierboven al.
+COPY scripts/backfill_release_dates.py scripts/seed_scene_group_date_formats.py \
+     scripts/repair_song_works.py /app/scripts/
 COPY VERSION RELEASE_NOTES.md /app/
 
 # Set PYTHONPATH zodat de tool de services kan vinden

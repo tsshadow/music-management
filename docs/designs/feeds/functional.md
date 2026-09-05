@@ -64,6 +64,7 @@ nothing.
 | A track released this week was already played by the listener | It may still be offered, but ranks below an equally matching track they have not heard |
 | A release is longer than ten minutes (a DJ set) | It is not offered; these feeds are songs only |
 | A release has only a year, or only a year and a month, as its release date | It cannot be placed inside a seven-day window and does not appear. It is never rounded to the first of the month, and the date the file was added to the library is never used in its place |
+| A release is tagged with a date in the future | It is not offered. A release date comes from a file tag and nobody validates it; without a closed window a track mistagged 2027 would sit at the top of the radar every week, and the funnel would count it as "released this week" |
 | Nothing with a known release date arrived in the window | The radar says no recent release matches this listener. It does not widen the window and does not fall back to older music |
 
 ### Daily Mix

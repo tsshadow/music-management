@@ -157,9 +157,13 @@ def build_feed(conn, username: str, policy: FeedPolicy, now: datetime) -> Feed
    unattached becomes the `__tail__` share.
 4. **Candidates.** One query, filtered on: has a media file, `0 < duration_secs < max_track_seconds`,
    and — when `release_window_days` is set — a release date of day precision (`LENGTH(release_date)
-   = 10`) inside the window. Pools are applied as SQL: `unheard` excludes tracks in this user's
-   listens, `loved` requires `rating >= loved_min_rating`, and the two are OR-ed when both are
-   present.
+   = 10`) inside the window. The window is **closed at both ends**: `>= now - release_window_days`
+   *and* `<= now`. `release_date` is read out of a file tag and is not validated anywhere, so a
+   track mistagged `2027-01-01` otherwise passes both the precision check and the lower bound, and
+   step 7's release-descending order then pins it to the top of every radar for as long as the tag
+   survives. Both feeds use the same bounded window. Pools are applied as SQL: `unheard` excludes
+   tracks in this user's listens, `loved` requires `rating >= loved_min_rating`, and the two are
+   OR-ed when both are present.
 5. **Buckets.** `bucket_of()` assigns each candidate to a share: its own deepest genre if that genre
    has a share, else the dominant genre of its label, else of its primary artist, else `__tail__`.
 6. **Quota.** `allocate()` splits `size` places over the shares by largest remainder;
@@ -237,7 +241,8 @@ data without editing code. This is the tool that answers whether the seven-day w
    tracks.
 9. The candidate SQL contains `LENGTH(af.release_date) = 10` when a release window is set, never
    contains `created_at`, joins audio features on `internal_track_id`, and joins `rating_tracks` on
-   all three key columns.
+   all three key columns. It bounds the window at both ends, so a track tagged with a release date
+   in the future is outside the window and never appears, in either feed.
 10. The candidate SQL for `pools={'unheard', 'loved'}` produces one `OR` group, not two `AND`ed
     conditions.
 11. `daily_sample_key` returns the same value for the same `(username, date, track_uid)` and a

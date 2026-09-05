@@ -36,6 +36,42 @@ class CandidatesQueryTest(unittest.TestCase):
         sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
         self.assertIn('LENGTH(af.release_date) = 10', sql)
 
+    def test_a_release_dated_in_the_future_is_outside_the_window(self):
+        """`release_date` comes out of a file tag, so a track tagged 2027-01-01
+
+        satisfies day precision and the lower bound, and step 7's
+        release-descending order then pins it to the top of every radar for as
+        long as it exists. The window is closed at `now` for exactly that.
+        """
+        sql, params = candidates_query('user', POLICIES['release-radar'], NOW)
+        self.assertIn('af.release_date <= %s', sql)
+        self.assertIn(NOW.date().isoformat(), params)
+        lower = params.index((NOW.date() - timedelta(days=7)).isoformat())
+        upper = params.index(NOW.date().isoformat())
+        self.assertLess(lower, upper)
+
+    def test_the_daily_mix_window_is_bounded_at_both_ends_too(self):
+        sql, params = candidates_query('user', POLICIES['daily-mix'], NOW)
+        self.assertIn('af.release_date >= %s', sql)
+        self.assertIn('af.release_date <= %s', sql)
+        self.assertIn((NOW.date() - timedelta(days=90)).isoformat(), params)
+        self.assertIn(NOW.date().isoformat(), params)
+
+    def test_the_bounds_admit_this_week_and_refuse_last_year_and_next_year(self):
+        """The two bound parameters, applied the way MySQL applies them to a
+
+        `DATE`-shaped string: lexical comparison on `YYYY-MM-DD` is the same
+        ordering as chronological comparison, which is why a string bound is
+        sound here at all.
+        """
+        _, params = candidates_query('user', POLICIES['release-radar'], NOW)
+        lower = (NOW.date() - timedelta(days=7)).isoformat()
+        upper = NOW.date().isoformat()
+        self.assertEqual([lower, upper], [p for p in params if p in (lower, upper)])
+        self.assertTrue(lower <= '2026-09-05' <= upper)  # released today
+        self.assertFalse(lower <= '2027-01-01' <= upper)  # mistagged, in the future
+        self.assertFalse(lower <= '2025-09-05' <= upper)  # a year old
+
     def test_the_added_date_is_never_a_release_date(self):
         sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
         self.assertNotIn('created_at', sql)

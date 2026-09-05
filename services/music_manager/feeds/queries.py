@@ -133,10 +133,18 @@ def candidates_query(username: str, policy: FeedPolicy, now: datetime) -> tuple[
     params.append(policy.max_track_seconds)
 
     if policy.release_window_days is not None:
+        # The window is closed at both ends. `release_date` is read out of a file
+        # tag, so a mistagged 2027 release passes the day-precision check and the
+        # lower bound, and then sorts to the top of every radar forever, because
+        # step 7 orders by release date descending. A feed that counts a
+        # mistagged future release as "released this week" is the measurement
+        # this whole V1 exists to take, taken wrong.
         cutoff = (now.date() - timedelta(days=policy.release_window_days)).isoformat()
         where.append('LENGTH(af.release_date) = 10')
         where.append('af.release_date >= %s')
         params.append(cutoff)
+        where.append('af.release_date <= %s')
+        params.append(now.date().isoformat())
 
     pool_clause = _pool_clause(username, policy, params)
     if pool_clause:

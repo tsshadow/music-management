@@ -30,7 +30,9 @@ def score(candidate: dict, profile: TasteProfile, policy: FeedPolicy) -> float:
     if candidate.get('is_soundcloud'):
         value -= policy.soundcloud_penalty
     # An out-of-range rating is somebody else's writer, not a signal to rescale.
-    value += RATING_ADJUSTMENT.get(candidate.get('rating'), 0.0)
+    rating = candidate.get('rating')
+    if rating is not None:
+        value += RATING_ADJUSTMENT.get(rating, 0.0)
     return max(MIN_SCORE, value)
 
 

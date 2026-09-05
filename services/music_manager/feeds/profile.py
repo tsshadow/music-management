@@ -19,7 +19,7 @@ def listen_weight(age_days: float, match_method: str, played_secs: int | None, h
     and every older listen carry. Reading it as a skip would drop most of the
     history the profile exists to read.
     """
-    recency = 0.5 ** (max(age_days, 0.0) / half_life_days)
+    recency: float = 0.5 ** (max(age_days, 0.0) / half_life_days)
     confidence = CONFIDENCE.get(match_method, 0.25)
     engagement = 1.0 if played_secs is None else min(1.0, max(0, played_secs) / FULL_PLAY_SECONDS)
     return recency * confidence * engagement
@@ -60,8 +60,16 @@ def build_profile(
         per_track[uid] += listen_weight(age_days, row.get('match_method') or '', row.get('played_secs'))
         meta.setdefault(uid, row)
 
-    weights = {'artist': defaultdict(float), 'label': defaultdict(float), 'genre': defaultdict(float)}
-    support = {'artist': defaultdict(set), 'label': defaultdict(set), 'genre': defaultdict(set)}
+    weights: dict[str, defaultdict[str, float]] = {
+        'artist': defaultdict(float),
+        'label': defaultdict(float),
+        'genre': defaultdict(float),
+    }
+    support: dict[str, defaultdict[str, set[str]]] = {
+        'artist': defaultdict(set),
+        'label': defaultdict(set),
+        'genre': defaultdict(set),
+    }
     total = 0.0
     for uid, raw in per_track.items():
         weight = min(raw, MAX_WEIGHT_PER_TRACK)

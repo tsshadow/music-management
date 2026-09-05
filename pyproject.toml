@@ -100,6 +100,8 @@ module = [
     "services.importer.extractor",
     "services.importer.renamer",
     "services.music_manager.rbac",
+    # New code, so it starts here (see tools.muma_mcp below for the same rule).
+    "services.music_manager.feeds.*",
     "services.music_manager.artist_image_fetcher.matcher",
     "services.music_manager.artist_image_fetcher.normalizer",
     "services.music_manager.artist_image_fetcher.storage",

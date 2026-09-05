@@ -38,8 +38,8 @@ class Feed:
     slug: str
     state: str  # 'ok' | 'no_matches' | 'not_enough_data'
     scope: str
-    tracks: list
-    funnel: dict
+    tracks: list[dict]
+    funnel: dict[str, int]
 
 
 @dataclass(frozen=True)
@@ -167,17 +167,17 @@ def _order_key_fn(policy: FeedPolicy, profile, username: str, feed_date):
     stable for 'daily_sample'."""
     if policy.order == 'daily_sample':
 
-        def key(candidate):
+        def sample_key(candidate):
             weight = score(candidate, profile, policy)
             return daily_sample_key(username, feed_date, candidate['track_uid'], weight)
 
-        return key
+        return sample_key
 
-    def key(candidate):
+    def release_key(candidate):
         heard_rank = int(candidate.get('heard', False)) if policy.heard_rank_penalty else 0
         return (heard_rank, _release_sort_key(candidate), -score(candidate, profile, policy))
 
-    return key
+    return release_key
 
 
 def _cap_per_artist(tracks: list[dict], max_per_artist: int) -> list[dict]:

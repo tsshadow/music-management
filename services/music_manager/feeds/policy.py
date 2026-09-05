@@ -18,7 +18,7 @@ class FeedPolicy:
     release_window_days: int | None = 7
     max_track_seconds: int = 600
     # A subset of {'any', 'unheard', 'loved'}; several pools are OR-ed.
-    pools: frozenset = frozenset({'any'})
+    pools: frozenset[str] = frozenset({'any'})
     loved_min_rating: int = 4
     heard_rank_penalty: bool = True
     order: str = 'release'  # 'release' | 'daily_sample'

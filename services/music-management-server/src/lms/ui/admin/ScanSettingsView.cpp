@@ -21,6 +21,7 @@
 
 #include <Wt/WCheckBox.h>
 #include <Wt/WComboBox.h>
+#include <Wt/WDate.h>
 #include <Wt/WFormModel.h>
 #include <Wt/WLineEdit.h>
 #include <Wt/WPushButton.h>
@@ -67,6 +68,8 @@ namespace lms::ui
         public:
             static inline constexpr Field UpdatePeriodField{ "update-period" };
             static inline constexpr Field UpdateStartTimeField{ "update-start-time" };
+            static inline constexpr Field FullScanPeriodField{ "full-scan-period" };
+            static inline constexpr Field FullScanDayOfWeekField{ "full-scan-day-of-week" };
             static inline constexpr Field SimilarityEngineTypeField{ "similarity-engine-type" };
             static inline constexpr Field SkipSingleReleasePlayListsField{ "skip-single-release-playlists" };
             static inline constexpr Field AllowMBIDArtistMergeField{ "allow-mbid-artist-merge" };
@@ -74,6 +77,7 @@ namespace lms::ui
             static inline constexpr Field ArtistsToNotSplitField{ "artists-to-not-split" };
 
             using UpdatePeriodModel = ValueStringModel<db::ScanSettings::UpdatePeriod>;
+            using FullScanPeriodModel = ValueStringModel<db::ScanSettings::FullScanPeriod>;
 
             DatabaseSettingsModel()
             {
@@ -81,6 +85,8 @@ namespace lms::ui
 
                 addField(UpdatePeriodField);
                 addField(UpdateStartTimeField);
+                addField(FullScanPeriodField);
+                addField(FullScanDayOfWeekField);
                 addField(SimilarityEngineTypeField);
                 addField(SkipSingleReleasePlayListsField);
                 addField(AllowMBIDArtistMergeField);
@@ -89,6 +95,8 @@ namespace lms::ui
 
                 setValidator(UpdatePeriodField, createMandatoryValidator());
                 setValidator(UpdateStartTimeField, createMandatoryValidator());
+                setValidator(FullScanPeriodField, createMandatoryValidator());
+                setValidator(FullScanDayOfWeekField, createMandatoryValidator());
                 setValidator(SimilarityEngineTypeField, createMandatoryValidator());
                 setValidator(SkipSingleReleasePlayListsField, createMandatoryValidator());
                 setValidator(AllowMBIDArtistMergeField, createMandatoryValidator());
@@ -97,6 +105,8 @@ namespace lms::ui
 
             std::shared_ptr<UpdatePeriodModel> updatePeriodModel() { return _updatePeriodModel; }
             std::shared_ptr<Wt::WAbstractItemModel> updateStartTimeModel() { return _updateStartTimeModel; }
+            std::shared_ptr<FullScanPeriodModel> fullScanPeriodModel() { return _fullScanPeriodModel; }
+            std::shared_ptr<Wt::WAbstractItemModel> fullScanDayOfWeekModel() { return _fullScanDayOfWeekModel; }
             std::shared_ptr<Wt::WAbstractItemModel> similarityEngineTypeModel() { return _similarityEngineTypeModel; }
 
             void loadData(std::vector<std::string>& extraTagsToScan, std::vector<std::string>& artistDelimiters, std::vector<std::string>& defaultDelimiters)
@@ -118,6 +128,18 @@ namespace lms::ui
                 {
                     setReadOnly(UpdateStartTimeField, true);
                 }
+
+                auto fullScanPeriodRow{ _fullScanPeriodModel->getRowFromValue(scanSettings->getFullScanPeriod()) };
+                if (fullScanPeriodRow)
+                    setValue(FullScanPeriodField, _fullScanPeriodModel->getString(*fullScanPeriodRow));
+
+                auto fullScanDayRow{ _fullScanDayOfWeekModel->getRowFromValue(scanSettings->getFullScanDayOfWeek()) };
+                if (fullScanDayRow)
+                    setValue(FullScanDayOfWeekField, _fullScanDayOfWeekModel->getString(*fullScanDayRow));
+
+                // The day only means something once the full re-read is on.
+                if (scanSettings->getFullScanPeriod() == db::ScanSettings::FullScanPeriod::Never)
+                    setReadOnly(FullScanDayOfWeekField, true);
 
                 setValue(SkipSingleReleasePlayListsField, scanSettings->getSkipSingleReleasePlayLists());
                 setValue(AllowMBIDArtistMergeField, scanSettings->getAllowMBIDArtistMerge());
@@ -157,6 +179,18 @@ namespace lms::ui
                     const auto startTimeRow{ _updateStartTimeModel->getRowFromString(valueText(UpdateStartTimeField)) };
                     if (startTimeRow)
                         scanSettings.modify()->setUpdateStartTime(_updateStartTimeModel->getValue(*startTimeRow));
+                }
+
+                {
+                    const auto fullScanPeriodRow{ _fullScanPeriodModel->getRowFromString(valueText(FullScanPeriodField)) };
+                    if (fullScanPeriodRow)
+                        scanSettings.modify()->setFullScanPeriod(_fullScanPeriodModel->getValue(*fullScanPeriodRow));
+                }
+
+                {
+                    const auto fullScanDayRow{ _fullScanDayOfWeekModel->getRowFromString(valueText(FullScanDayOfWeekField)) };
+                    if (fullScanDayRow)
+                        scanSettings.modify()->setFullScanDayOfWeek(_fullScanDayOfWeekModel->getValue(*fullScanDayRow));
                 }
 
                 {
@@ -202,6 +236,15 @@ namespace lms::ui
                 _updatePeriodModel->add(Wt::WString::tr("Lms.Admin.Database.weekly"), db::ScanSettings::UpdatePeriod::Weekly);
                 _updatePeriodModel->add(Wt::WString::tr("Lms.Admin.Database.monthly"), db::ScanSettings::UpdatePeriod::Monthly);
 
+                _fullScanPeriodModel = std::make_shared<ValueStringModel<db::ScanSettings::FullScanPeriod>>();
+                _fullScanPeriodModel->add(Wt::WString::tr("Lms.Admin.Database.never"), db::ScanSettings::FullScanPeriod::Never);
+                _fullScanPeriodModel->add(Wt::WString::tr("Lms.Admin.Database.weekly"), db::ScanSettings::FullScanPeriod::Weekly);
+
+                // 1..7 with Monday first, the same convention as Wt::WDate::dayOfWeek().
+                _fullScanDayOfWeekModel = std::make_shared<ValueStringModel<int>>();
+                for (int day{ 1 }; day <= 7; ++day)
+                    _fullScanDayOfWeekModel->add(Wt::WDate::longDayName(day), day);
+
                 _updateStartTimeModel = std::make_shared<ValueStringModel<Wt::WTime>>();
                 for (std::size_t i = 0; i < 24; ++i)
                 {
@@ -216,6 +259,8 @@ namespace lms::ui
 
             std::shared_ptr<UpdatePeriodModel> _updatePeriodModel;
             std::shared_ptr<ValueStringModel<Wt::WTime>> _updateStartTimeModel;
+            std::shared_ptr<FullScanPeriodModel> _fullScanPeriodModel;
+            std::shared_ptr<ValueStringModel<int>> _fullScanDayOfWeekModel;
             std::shared_ptr<ValueStringModel<db::ScanSettings::SimilarityEngineType>> _similarityEngineTypeModel;
         };
 
@@ -371,6 +416,21 @@ namespace lms::ui
         auto updateStartTime{ std::make_unique<Wt::WComboBox>() };
         updateStartTime->setModel(model->updateStartTimeModel());
         t->setFormWidget(DatabaseSettingsModel::UpdateStartTimeField, std::move(updateStartTime));
+
+        // Weekly full re-read, and the day it runs on
+        auto fullScanPeriod{ std::make_unique<Wt::WComboBox>() };
+        fullScanPeriod->setModel(model->fullScanPeriodModel());
+        fullScanPeriod->activated().connect([=](int row) {
+            const db::ScanSettings::FullScanPeriod period{ model->fullScanPeriodModel()->getValue(row) };
+            model->setReadOnly(DatabaseSettingsModel::FullScanDayOfWeekField, period == db::ScanSettings::FullScanPeriod::Never);
+            t->updateModel(model.get());
+            t->updateView(model.get());
+        });
+        t->setFormWidget(DatabaseSettingsModel::FullScanPeriodField, std::move(fullScanPeriod));
+
+        auto fullScanDayOfWeek{ std::make_unique<Wt::WComboBox>() };
+        fullScanDayOfWeek->setModel(model->fullScanDayOfWeekModel());
+        t->setFormWidget(DatabaseSettingsModel::FullScanDayOfWeekField, std::move(fullScanDayOfWeek));
 
         // Skip playlists
         t->setFormWidget(DatabaseSettingsModel::SkipSingleReleasePlayListsField, std::make_unique<Wt::WCheckBox>());

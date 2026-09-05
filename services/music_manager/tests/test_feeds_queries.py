@@ -70,6 +70,28 @@ class CandidatesQueryTest(unittest.TestCase):
         sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
         self.assertIn('library_media_files', sql)
 
+    def test_heard_is_an_exists_against_this_listener_s_history(self):
+        sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
+        self.assertIn(
+            'EXISTS (SELECT 1 FROM scrobble_listens sl WHERE sl.track_id = t.id AND sl.username = %s) AS heard',
+            ' '.join(sql.split()),
+        )
+
+    def test_heard_s_parameter_sits_ahead_of_the_rating_join_and_every_where_param(self):
+        """The heard EXISTS lives in the SELECT list, textually before the rating
+
+        join and the WHERE clause, so its %s must bind first -- a param list
+        built in any other order feeds the wrong username into the wrong slot.
+        """
+        sql, params = candidates_query('user', POLICIES['release-radar'], NOW)
+        normalized = ' '.join(sql.split())
+        heard_pos = normalized.index('AS heard')
+        rating_pos = normalized.index("r.username = %s")
+        self.assertLess(heard_pos, rating_pos)
+        self.assertEqual(params[0], 'user')
+        self.assertEqual(params[1], 'user')
+        self.assertEqual(params[2], POLICIES['release-radar'].max_track_seconds)
+
 
 class DominantGenreQueryTest(unittest.TestCase):
     def test_the_label_variant_groups_by_label(self):

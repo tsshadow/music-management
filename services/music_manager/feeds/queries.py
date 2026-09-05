@@ -112,12 +112,18 @@ def candidates_query(username: str, policy: FeedPolicy, now: datetime) -> tuple[
     Mirrors the `/api/library/advanced` track shape, plus the fields specific to
     a feed: `track_uid` (what a rating and a listen are keyed on), `has_label`,
     `is_soundcloud` (the label bonus and the SoundCloud penalty), `rating` (a
-    score adjustment, and the `loved` pool's membership rule), and the agreed
-    release date out of the grouped audio-features subquery. Rating is never a
-    WHERE-clause filter on its own -- only `_pool_clause` turns it into one, and
-    only for `loved`.
+    score adjustment, and the `loved` pool's membership rule), `heard` (whether
+    this listener has ever played the track, the only signal
+    `policy.heard_rank_penalty` has to rank on), and the agreed release date out
+    of the grouped audio-features subquery. Rating is never a WHERE-clause
+    filter on its own -- only `_pool_clause` turns it into one, and only for
+    `loved`.
     """
-    params: list = [username]  # the rating join's username, joined before any WHERE param
+    # Positional order follows the %s tokens left to right in the SQL text, not
+    # the order they are appended here: `heard`'s EXISTS lives in the SELECT
+    # list, textually ahead of the rating join, which is itself ahead of every
+    # WHERE param.
+    params: list = [username, username]
 
     where = [
         'EXISTS (SELECT 1 FROM library_media_files mf WHERE mf.track_id = t.id)',
@@ -139,6 +145,8 @@ def candidates_query(username: str, policy: FeedPolicy, now: datetime) -> tuple[
     sql = f"""
         SELECT
             t.id, t.title, t.track_uid, a.name AS artist, t.duration_secs,
+            EXISTS (SELECT 1 FROM scrobble_listens sl
+                    WHERE sl.track_id = t.id AND sl.username = %s) AS heard,
             (SELECT l.name FROM library_labels l
              JOIN library_track_labels tl ON l.id = tl.label_id
              WHERE tl.track_id = t.id LIMIT 1) AS label,

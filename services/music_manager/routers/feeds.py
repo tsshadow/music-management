@@ -17,10 +17,9 @@ from pydantic import BaseModel
 from services.common.config_store import ConfigStore as Settings
 from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
-from services.music_manager.feeds.build import RAMP_TRACKS, build_feed
-from services.music_manager.feeds.policy import POLICIES
-from services.music_manager.feeds.profile import TasteProfile, blend, build_profile
-from services.music_manager.feeds.queries import exclusions_query, hierarchy_query, listens_query
+from services.music_manager.feeds.build import build_feed, resolve_profile
+from services.music_manager.feeds.policy import POLICIES, STARTING_GENRES_SETTING, parse_starting_genres
+from services.music_manager.feeds.queries import exclusions_query
 
 router = APIRouter(tags=['feeds'])
 settings = Settings()
@@ -86,9 +85,7 @@ def _resolve_username(auth: dict, username: str | None) -> str:
 
 def _starting_genres() -> list[str] | None:
     """The configured fallback genres, or None when nothing is configured."""
-    raw = settings.get('feeds_starting_genres') or ''
-    genres = [genre.strip() for genre in raw.split(',') if genre.strip()]
-    return genres or None
+    return parse_starting_genres(settings.get(STARTING_GENRES_SETTING))
 
 
 def _track_view(track: dict) -> dict:
@@ -98,66 +95,15 @@ def _track_view(track: dict) -> dict:
     return view
 
 
-def _split(csv: str | None) -> list[str]:
-    return [part for part in (csv or '').split(',') if part]
-
-
 def _rows(conn, sql: str, params=None) -> list[dict]:
     with conn.cursor() as cursor:
         cursor.execute(sql, params)
         return list(cursor.fetchall())
 
 
-def _hierarchy(conn) -> dict[str, set[str]]:
-    parents: dict[str, set[str]] = {}
-    for row in _rows(conn, hierarchy_query()):
-        parents.setdefault(row['subgenre'].lower(), set()).add(row['genre'].lower())
-    return parents
-
-
 def _exclusion_rows(conn, username: str) -> list[dict]:
     sql, params = exclusions_query(username)
     return _rows(conn, sql, params)
-
-
-def _exclusions(conn, username: str) -> dict[str, set[str]]:
-    exclusions: dict[str, set[str]] = {'artist': set(), 'label': set(), 'genre': set()}
-    for row in _exclusion_rows(conn, username):
-        exclusions.setdefault(row['entity_type'], set()).add(row['entity_name'].lower())
-    return exclusions
-
-
-def _listens(conn, username: str | None, window_days: int, now: datetime) -> list[dict]:
-    sql, params = listens_query(username, window_days, now)
-    return [
-        {**row, 'labels': _split(row.get('labels')), 'genres': _split(row.get('genres'))}
-        for row in _rows(conn, sql, params)
-    ]
-
-
-def _taste_profile(conn, username: str, now: datetime, starting_genres: list[str] | None) -> TasteProfile:
-    """The listener's blended taste, resolved the same way build_feed resolves
-    it (docs/designs/feeds/technical.md, Algorithm steps 1-2) so that what
-    /api/feeds/profile reports always explains the feed the listener actually
-    sees."""
-    parents = _hierarchy(conn)
-    exclusions = _exclusions(conn, username)
-    user_rows = _listens(conn, username, PROFILE_WINDOW_DAYS, now)
-    user_profile = build_profile(user_rows, parents, exclusions, now)
-    if user_profile.distinct_tracks < RAMP_TRACKS:
-        server_rows = _listens(conn, None, PROFILE_WINDOW_DAYS, now)
-        server_profile = build_profile(server_rows, parents, exclusions, now)
-    else:
-        server_profile = TasteProfile()
-    profile = blend(user_profile, server_profile, ramp_tracks=RAMP_TRACKS)
-    if profile.scope == 'empty' and starting_genres:
-        profile = TasteProfile(
-            genres=dict.fromkeys((genre.lower() for genre in starting_genres), 1.0),
-            distinct_tracks=0,
-            total_weight=0.0,
-            scope='configured',
-        )
-    return profile
 
 
 def _affinities(values: dict[str, float]) -> list[dict]:
@@ -186,7 +132,9 @@ def get_profile(username: str | None = None, auth: dict = Depends(verify_api_key
         raise HTTPException(status_code=500, detail='Database connection failed')
     try:
         excluded = _exclusion_rows(conn, resolved)
-        profile = _taste_profile(conn, resolved, datetime.now(), _starting_genres())
+        # The same resolution build_feed runs, so what this reports always
+        # explains the feed the listener actually gets.
+        profile = resolve_profile(conn, resolved, PROFILE_WINDOW_DAYS, datetime.now(), _starting_genres()).profile
     finally:
         conn.close()
     return {

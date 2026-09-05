@@ -12,8 +12,9 @@ import unittest
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
-from services.music_manager.feeds.build import build_feed
+from services.music_manager.feeds.build import build_feed, resolve_profile
 from services.music_manager.feeds.policy import POLICIES
+from services.music_manager.feeds.profile import TAIL
 from services.music_manager.tests.scripted_cursor import ScriptedCursor
 
 NOW = datetime(2026, 9, 5, 12, 0, 0)
@@ -273,3 +274,71 @@ class BuildFeedTest(unittest.TestCase):
         conn = scripted(listens=[], server_listens=[], candidates=MIXED_CANDIDATES)
         feed = build_feed(conn, 'newcomer', POLICIES['release-radar'], NOW)
         self.assertEqual(feed.state, 'not_enough_data')
+
+
+WINDOW = POLICIES['release-radar'].profile_window_days
+
+
+class ResolveProfileTest(unittest.TestCase):
+    """Steps 1-3 on their own -- the one copy build_feed, the router and the dry run share.
+
+    They each carried their own before, and the copies had already drifted: the dry run's
+    never applied `starting_genres`, so the configured-fallback path was invisible to the
+    tool built to measure it. These tests exercise the function directly, so a fourth caller
+    inherits behaviour that is pinned rather than re-derived.
+    """
+
+    def test_a_listener_with_a_profile_of_their_own_owns_the_shares(self):
+        resolution = resolve_profile(scripted(listens=UPTEMPO_HEAVY_LISTENS), 'user', WINDOW, NOW)
+        self.assertEqual(resolution.scope, 'user')
+        self.assertEqual(resolution.profile.scope, 'user')
+        self.assertGreater(resolution.shares['uptempo'], resolution.shares['raw'])
+        self.assertAlmostEqual(sum(resolution.shares.values()), 1.0)
+
+    def test_a_newcomer_borrows_the_server(self):
+        resolution = resolve_profile(scripted(listens=[], server_listens=MANY_LISTENS), 'newcomer', WINDOW, NOW)
+        self.assertEqual(resolution.scope, 'server')
+
+    def test_nothing_anywhere_and_no_configured_fallback_is_empty(self):
+        """`empty` is what build_feed turns into `not_enough_data`; resolve_profile
+
+        reports the scope and leaves the verdict to its caller, because
+        /api/feeds/profile renders the same state as `scope: empty` rather than
+        as an error.
+        """
+        resolution = resolve_profile(scripted(listens=[], server_listens=[]), 'newcomer', WINDOW, NOW)
+        self.assertEqual(resolution.scope, 'empty')
+        self.assertEqual(resolution.shares, {TAIL: 1.0})
+
+    def test_the_configured_fallback_is_applied_here_and_becomes_the_shares(self):
+        """The step the dry run's own copy of this logic never had."""
+        resolution = resolve_profile(
+            scripted(listens=[], server_listens=[]), 'newcomer', WINDOW, NOW, starting_genres=['Uptempo', 'Raw']
+        )
+        self.assertEqual(resolution.scope, 'configured')
+        self.assertEqual(resolution.profile.genres, {'uptempo': 1.0, 'raw': 1.0})
+        self.assertAlmostEqual(resolution.shares['uptempo'], 0.5)
+        self.assertAlmostEqual(resolution.shares['raw'], 0.5)
+
+    def test_a_configured_fallback_never_overrules_a_real_profile(self):
+        resolution = resolve_profile(
+            scripted(listens=MANY_LISTENS), 'user', WINDOW, NOW, starting_genres=['Hardtechno']
+        )
+        self.assertEqual(resolution.scope, 'user')
+        self.assertNotIn('hardtechno', resolution.shares)
+
+    def test_an_exclusion_is_applied_before_the_shares_are_taken(self):
+        conn = scripted(listens=UPTEMPO_HEAVY_LISTENS, exclusions=[{'entity_type': 'genre', 'entity_name': 'uptempo'}])
+        resolution = resolve_profile(conn, 'user', WINDOW, NOW)
+        self.assertNotIn('uptempo', resolution.profile.genres)
+        self.assertNotIn('uptempo', resolution.shares)
+
+    def test_the_subgenre_graph_comes_back_with_the_shares(self):
+        """build_feed buckets candidates against exactly the graph the shares were
+
+        rolled up with; handing back one and re-reading the other is how those two
+        drift apart.
+        """
+        conn = scripted(listens=MANY_LISTENS, hierarchy=[{'subgenre': 'Uptempo', 'genre': 'Hardcore'}])
+        resolution = resolve_profile(conn, 'user', WINDOW, NOW)
+        self.assertEqual(resolution.parents, {'uptempo': {'hardcore'}})

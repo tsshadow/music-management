@@ -228,10 +228,12 @@ class FeedsProfileRouterTest(_FeedsAuthTestCase):
         self._auth({'type': 'user', 'user': {'username': 'user'}})
         canned = MagicMock(scope='user', distinct_tracks=3, artists={'x': 1.0}, labels={}, genres={'uptempo': 1.0})
         self.cursor.fetchall.return_value = []
-        with patch('services.music_manager.routers.feeds._taste_profile', return_value=canned) as taste:
+        with patch(
+            'services.music_manager.routers.feeds.resolve_profile', return_value=MagicMock(profile=canned)
+        ) as resolve:
             response = client.get('/api/feeds/profile?username=someone-else', headers={'X-API-Key': 'k'})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(taste.call_args.args[1], 'user')
+        self.assertEqual(resolve.call_args.args[1], 'user')
         body = response.json()
         self.assertEqual(body['scope'], 'user')
         self.assertEqual(body['artists'], [{'name': 'x', 'affinity': 1.0}])

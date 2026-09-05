@@ -1,7 +1,7 @@
 import dataclasses
 import unittest
 
-from services.music_manager.feeds.policy import POLICIES
+from services.music_manager.feeds.policy import POLICIES, parse_starting_genres
 
 
 class PolicyTest(unittest.TestCase):
@@ -28,3 +28,19 @@ class PolicyTest(unittest.TestCase):
     def test_a_policy_cannot_be_mutated_at_runtime(self):
         with self.assertRaises(dataclasses.FrozenInstanceError):
             POLICIES['release-radar'].size = 5
+
+
+class StartingGenresTest(unittest.TestCase):
+    """The router and the dry run read the same setting, so they parse it in one place."""
+
+    def test_a_comma_separated_list_is_split_and_trimmed(self):
+        self.assertEqual(parse_starting_genres(' uptempo , raw hardcore '), ['uptempo', 'raw hardcore'])
+
+    def test_nothing_configured_means_no_fallback_at_all(self):
+        """Not "an empty fallback": a server with no history reports
+
+        not_enough_data rather than inventing a taste out of an empty setting.
+        """
+        self.assertIsNone(parse_starting_genres(''))
+        self.assertIsNone(parse_starting_genres(None))
+        self.assertIsNone(parse_starting_genres(' , , '))

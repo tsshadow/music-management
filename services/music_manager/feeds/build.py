@@ -42,6 +42,26 @@ class Feed:
     funnel: dict
 
 
+@dataclass(frozen=True)
+class ProfileResolution:
+    """Everything steps 1-3 produce, for whoever asked for them.
+
+    `build_feed` needs all three: the profile to score with, the shares to
+    divide the places over, and the subgenre graph to bucket candidates
+    against. `GET /api/feeds/profile` needs only the profile, and the dry run
+    needs the shares -- but all three must come out of one computation, or the
+    profile the listener is shown stops explaining the feed they get.
+    """
+
+    profile: TasteProfile
+    shares: dict[str, float]
+    parents: dict[str, set[str]]
+
+    @property
+    def scope(self) -> str:
+        return self.profile.scope
+
+
 def _split(csv: str | None) -> list[str]:
     return [part for part in (csv or '').split(',') if part]
 
@@ -179,9 +199,26 @@ def _cap_per_artist(tracks: list[dict], max_per_artist: int) -> list[dict]:
     return capped
 
 
-def build_feed(
-    conn, username: str, policy: FeedPolicy, now: datetime, starting_genres: list[str] | None = None
-) -> Feed:
+def resolve_profile(
+    conn,
+    username: str,
+    window_days: int,
+    now: datetime,
+    starting_genres: list[str] | None = None,
+) -> ProfileResolution:
+    """Steps 1-3 of docs/designs/feeds/technical.md, for every caller of them.
+
+    `build_feed`, `GET /api/feeds/profile` and `scripts/feeds_dryrun.py` all
+    need this, and each used to carry its own copy. Three copies of a
+    computation whose whole job is to explain a feed is three chances for the
+    explanation and the feed to disagree, and they already had: the dry run's
+    copy never applied `starting_genres`, so the one path the measurement tool
+    existed to measure was the one it could not see.
+
+    The returned profile's `scope` is authoritative: `'empty'` means neither
+    this listener, nor the server, nor a configured fallback produced anything,
+    and the caller decides what that means (for a feed, `not_enough_data`).
+    """
     parents = _load_hierarchy(conn)
     exclusions = _load_exclusions(conn, username)
 
@@ -190,18 +227,16 @@ def build_feed(
     # profile only matters when blend() would actually consult it -- below
     # the ramp -- so a listener with a full profile of their own costs one
     # history query, not two.
-    user_rows = _load_listens(conn, username, policy.profile_window_days, now)
+    user_rows = _load_listens(conn, username, window_days, now)
     user_profile = build_profile(user_rows, parents, exclusions, now)
     if user_profile.distinct_tracks < RAMP_TRACKS:
-        server_rows = _load_listens(conn, None, policy.profile_window_days, now)
+        server_rows = _load_listens(conn, None, window_days, now)
         server_profile = build_profile(server_rows, parents, exclusions, now)
     else:
         server_profile = TasteProfile()
     profile = blend(user_profile, server_profile, ramp_tracks=RAMP_TRACKS)
 
-    if profile.scope == 'empty':
-        if not starting_genres:
-            return Feed(slug=policy.slug, state='not_enough_data', scope='empty', tracks=[], funnel=dict(EMPTY_FUNNEL))
+    if profile.scope == 'empty' and starting_genres:
         # Nobody on the server has ever listened to anything either: fall back
         # to a configured taste rather than declaring not_enough_data, same
         # weight for every configured genre.
@@ -213,7 +248,29 @@ def build_feed(
         )
 
     # Step 3: the shares this feed's places are divided over.
-    shares = genre_shares(profile, parents)
+    return ProfileResolution(profile=profile, shares=genre_shares(profile, parents), parents=parents)
+
+
+def build_feed(
+    conn, username: str, policy: FeedPolicy, now: datetime, starting_genres: list[str] | None = None
+) -> Feed:
+    """The eight steps of technical.md's algorithm, in order.
+
+    On exclusions: an exclusion removes an entity from the *profile* only. An
+    excluded artist stops contributing weight, stops earning a share and stops
+    scoring, but their tracks are not filtered out of the candidate set -- one
+    can still be emitted, bucketed by its genre or by its label. That is the
+    reading of functional criterion 10 ("removes its influence") this
+    implements: the exclusion is about what the feed is built *from*, not a
+    blocklist of what may appear in it. Both readings satisfy the criterion as
+    written; if a listener ever needs the other one, it is a candidate-query
+    filter and a second, differently-named control.
+    """
+    resolution = resolve_profile(conn, username, policy.profile_window_days, now, starting_genres)
+    profile, shares, parents = resolution.profile, resolution.shares, resolution.parents
+
+    if profile.scope == 'empty':
+        return Feed(slug=policy.slug, state='not_enough_data', scope='empty', tracks=[], funnel=dict(EMPTY_FUNNEL))
 
     # Step 4: candidates, filtered entirely in SQL -- no window is ever
     # widened here, and an empty result is never backfilled.

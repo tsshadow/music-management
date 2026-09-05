@@ -134,8 +134,22 @@ class Feed:
     scope: str
     tracks: list[dict]
     funnel: dict[str, int]
-def build_feed(conn, username: str, policy: FeedPolicy, now: datetime) -> Feed
+@dataclass(frozen=True)
+class ProfileResolution:
+    profile: TasteProfile
+    shares: dict[str, float]
+    parents: dict[str, set[str]]
+def resolve_profile(conn, username: str, window_days: int, now: datetime,
+                    starting_genres: list[str] | None = None) -> ProfileResolution
+def build_feed(conn, username: str, policy: FeedPolicy, now: datetime,
+               starting_genres: list[str] | None = None) -> Feed
 ```
+
+`resolve_profile` is steps 1–3 below, and it is the **only** implementation of them.
+`build_feed`, `GET /api/feeds/profile` and `scripts/feeds_dryrun.py` all call it. They each used
+to carry their own copy, and the copies had already drifted — the dry run's never applied
+`starting_genres`, so the configured-fallback path was invisible to the tool built to measure it.
+A profile view that does not resolve exactly what the feed resolves stops explaining the feed.
 
 ### Algorithm, in the order `build_feed` runs it
 
@@ -224,7 +238,10 @@ bridge is demonstrated.
 the funnel per stage (candidates after the window, after the pool, after bucketing, after quota,
 after the artist cap), the computed shares, and the resulting tracks with their bucket and reason.
 It takes `--window`, `--size` and `--max-seconds` overrides so a policy can be tuned against real
-data without editing code. This is the tool that answers whether the seven-day window is viable.
+data without editing code, and `--starting-genres` to try a configured fallback without writing it
+to the runtime setting first (unset, it reads `feeds_starting_genres` exactly as the API does). The
+shares it prints come out of the same `resolve_profile` call the feed itself runs, not out of a
+second implementation. This is the tool that answers whether the seven-day window is viable.
 
 ## Technical Acceptance Criteria
 
@@ -260,6 +277,10 @@ data without editing code. This is the tool that answers whether the seven-day w
     `scope='blended'`.
 15. `scripts/feeds_dryrun.py` runs against the integration database and prints a funnel whose stages
     are monotonically non-increasing.
+16. `resolve_profile` is the only implementation of steps 1–3: with no listens anywhere and
+    `starting_genres` set it returns `scope='configured'` and shares over exactly those genres;
+    with `starting_genres` unset it returns `scope='empty'`; and a listener with a profile of
+    their own is never overruled by a configured fallback.
 
 ## Deliberately Not In V1
 

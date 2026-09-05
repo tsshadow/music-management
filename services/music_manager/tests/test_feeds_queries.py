@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from services.music_manager.feeds.policy import POLICIES
 from services.music_manager.feeds.queries import (
@@ -13,17 +13,22 @@ NOW = datetime(2026, 9, 5, 12, 0, 0)
 
 class ListensQueryTest(unittest.TestCase):
     def test_a_user_query_filters_on_the_username(self):
-        sql, params = listens_query('user', 90)
+        sql, params = listens_query('user', 90, NOW)
         self.assertIn('s.username = %s', sql)
         self.assertEqual(params[0], 'user')
 
     def test_the_server_profile_reads_everyone(self):
-        sql, _ = listens_query(None, 90)
+        sql, _ = listens_query(None, 90, NOW)
         self.assertNotIn('s.username = %s', sql)
 
     def test_black_genres_never_enter_the_profile(self):
-        sql, _ = listens_query('user', 90)
+        sql, _ = listens_query('user', 90, NOW)
         self.assertIn("rg.state <> 'black'", sql)
+
+    def test_the_window_cutoff_is_computed_in_python_not_sql(self):
+        sql, params = listens_query('user', 90, NOW)
+        self.assertNotIn('NOW()', sql)
+        self.assertIn(NOW - timedelta(days=90), params)
 
 
 class CandidatesQueryTest(unittest.TestCase):

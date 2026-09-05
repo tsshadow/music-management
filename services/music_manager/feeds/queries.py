@@ -38,21 +38,27 @@ _AUDIO_FEATURES_SUBQUERY = """
 """
 
 
-def listens_query(username: str | None, window_days: int) -> tuple[str, list]:
+def listens_query(username: str | None, window_days: int, now: datetime) -> tuple[str, list]:
     """A user's (or everyone's) listening history for the profile.
 
     `username is None` is the server profile: every listen, from every
     account, is read the same way a single user's would be. Labels and genres
     come back as comma-joined strings -- the caller splits them, the same way
     `/api/library/advanced` already does for genres.
+
+    The window's cutoff is computed in Python from the injected `now`, the same
+    way `candidates_query` computes its release cutoff -- never `NOW()` in SQL,
+    which cannot be frozen by a test and would let this query's window and the
+    candidate query's window disagree at a clock boundary.
     """
     params: list = []
     where = []
     if username is not None:
         where.append('s.username = %s')
         params.append(username)
-    where.append('s.listened_at >= DATE_SUB(NOW(), INTERVAL %s DAY)')
-    params.append(window_days)
+    cutoff = now - timedelta(days=window_days)
+    where.append('s.listened_at >= %s')
+    params.append(cutoff)
 
     sql = f"""
         SELECT

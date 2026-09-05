@@ -16,6 +16,8 @@ from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
+import services.music_manager.routers.users as users_router
+from services.music_manager.api_key import resolve_system_api_key
 from services.music_manager.feeds.build import Feed
 from services.music_manager.main import app
 from services.music_manager.routers import feeds as feeds_router
@@ -45,6 +47,37 @@ class _FeedsAuthTestCase(unittest.TestCase):
 
     def _auth(self, auth: dict) -> None:
         app.dependency_overrides[feeds_router.verify_api_key] = lambda: auth
+
+
+class FeedsRealAuthTest(unittest.TestCase):
+    """Exercises the real `verify_api_key` body, not a dependency override.
+
+    Every other test class here replaces the dependency wholesale, which never
+    runs feeds.py's own system-key detection, its deferred `verify_token` call,
+    or its `except Exception` rejection path -- a regression in any of those
+    would leave the rest of this file green. Same pattern as
+    test_library_router.py's LibraryAuthTest: a real system key, a patched
+    `verify_token` for the user-key path, and a `side_effect` exception for the
+    rejection path, all one level below `verify_api_key` itself.
+    """
+
+    def test_the_real_system_key_is_accepted(self):
+        response = client.get('/api/feeds', headers={'X-API-Key': resolve_system_api_key()})
+        self.assertEqual(response.status_code, 200)
+
+    def test_a_user_key_that_verifies_is_accepted(self):
+        with patch.object(
+            users_router,
+            'verify_token',
+            return_value={'status': 'ok', 'type': 'user', 'user': {'username': 'user'}},
+        ):
+            response = client.get('/api/feeds', headers={'X-API-Key': 'user-key'})
+        self.assertEqual(response.status_code, 200)
+
+    def test_a_key_that_does_not_verify_is_rejected(self):
+        with patch.object(users_router, 'verify_token', side_effect=Exception('nope')):
+            response = client.get('/api/feeds', headers={'X-API-Key': 'bad'})
+        self.assertEqual(response.status_code, 401)
 
 
 class FeedsRouterTest(_FeedsAuthTestCase):

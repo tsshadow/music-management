@@ -4,6 +4,7 @@ import shutil
 from os.path import isdir, isfile, join
 
 from services.common.config_store import ConfigStore as Settings
+from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 
 AUDIO_EXTENSIONS = ('.mp3', '.flac', '.m4a', '.aac', '.wav')
 SYNOLOGY_FOLDER = '@eaDir'
@@ -92,6 +93,7 @@ class Flattener:
                 shutil.move(src, dst)
                 logging.info(f'Lifted release out of multipack: {src} -> {dst}')
                 moved = True
+                lms_scan_trigger.notify([src, dst])
             except (OSError, shutil.Error) as e:
                 logging.error(f'Failed to move {src} to {dst}: {e}')
         if not dry_run and moved:

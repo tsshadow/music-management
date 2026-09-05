@@ -83,3 +83,51 @@ class TestMoverConflictHandling(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestMoverScanNotification(unittest.TestCase):
+    """A move must tell LMS about both ends of it, and only when it actually happened."""
+
+    def setUp(self):
+        reset_database_helpers()
+        self.mover = Mover()
+        self.mover.settings = MagicMock(import_folder_path='/mnt/music/EPs/__TODO', eps_folder_path='/mnt/music/EPs')
+        self.mover.get_label = MagicMock(return_value='Evolve AU')
+
+    def tearDown(self):
+        patch.stopall()
+
+    def test_a_move_notifies_lms_of_both_the_old_and_the_new_folder(self):
+        # The old path is not optional: it is how the rows under the folder that was moved
+        # away get removed. Without it a moved release stays in the index twice.
+        with (
+            patch('services.importer.mover.lms_scan_trigger') as trigger,
+            patch('services.importer.mover.shutil.move'),
+            patch('services.importer.mover.post_processing_songs'),
+            patch('os.path.exists', return_value=False),
+        ):
+            self.mover._move_folder('EVAU021E', 'EVAU', dry_run=False)
+
+        notified = trigger.notify.call_args.args[0]
+        self.assertIn('/mnt/music/EPs/__TODO/EVAU021E', notified)
+        self.assertIn('/mnt/music/EPs/Evolve AU/EVAU021E', notified)
+
+    def test_a_dry_run_notifies_nothing(self):
+        with (
+            patch('services.importer.mover.lms_scan_trigger') as trigger,
+            patch('services.importer.mover.post_processing_songs'),
+            patch('os.path.exists', return_value=False),
+        ):
+            self.mover._move_folder('EVAU021E', 'EVAU', dry_run=True)
+
+        trigger.notify.assert_not_called()
+
+    def test_a_failed_move_notifies_nothing(self):
+        with (
+            patch('services.importer.mover.lms_scan_trigger') as trigger,
+            patch('services.importer.mover.shutil.move', side_effect=PermissionError),
+            patch('os.path.exists', return_value=False),
+        ):
+            self.mover._move_folder('EVAU021E', 'EVAU', dry_run=False)
+
+        trigger.notify.assert_not_called()

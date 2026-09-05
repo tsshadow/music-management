@@ -18,6 +18,7 @@ from services.common.version_helper import get_changelog, get_release_notes, get
 from services.music_manager import curation_rules
 from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
+from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 
 router = APIRouter(tags=['management'])
 
@@ -238,7 +239,11 @@ def confirm_label_proposal(
                     )
                     conn.commit()
                     return {'status': 'stale', 'folder': folder}
-                shutil.move(src, os.path.join(settings.eps_folder_path, decision.label, folder))
+                dst = os.path.join(settings.eps_folder_path, decision.label, folder)
+                shutil.move(src, dst)
+                # Both paths: the new one so LMS reads the files, the old one so the rows
+                # underneath a folder that is now gone get removed.
+                lms_scan_trigger.notify([src, dst])
             cursor.execute(
                 "UPDATE rules_label_proposals SET status = 'confirmed', decided_label = %s, decided_at = NOW() WHERE id = %s",
                 (decision.label, proposal_id),

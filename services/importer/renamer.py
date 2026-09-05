@@ -7,6 +7,7 @@ from os import listdir
 from os.path import isdir, isfile, join
 
 from services.common.config_store import ConfigStore as Settings
+from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.importer.release_compare import is_same_release
 
 
@@ -53,13 +54,13 @@ class Renamer:
                     logging.info('Dry run - would rename: %s -> %s', folder, new_name)
                     continue
                 try:
-                    os.rename(
-                        self.settings.import_folder_path + self.settings.delimiter + folder,
-                        self.settings.import_folder_path + self.settings.delimiter + new_name,
-                    )
-                except OSError as e:
                     src = self.settings.import_folder_path + self.settings.delimiter + folder
                     dst = self.settings.import_folder_path + self.settings.delimiter + new_name
+                    os.rename(src, dst)
+                    # The import folder lives inside the library (/mnt/music/EPs/__TODO), so
+                    # LMS has both of these in its index and needs to hear about the rename.
+                    lms_scan_trigger.notify([src, dst])
+                except OSError as e:
                     # ENOTEMPTY is the one that kept a duplicate download in the import folder
                     # forever: os.rename onto an existing *non-empty* directory raises a plain
                     # OSError(39), which is not a FileExistsError, so this used to fall through to

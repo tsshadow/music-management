@@ -7,6 +7,7 @@ from os.path import isfile, join
 
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.NotificationService import notification_service
 from services.importer.label_proposal_store import LabelProposalStore
 from services.importer.label_resolver import resolve
@@ -144,6 +145,9 @@ class Mover:
             if not dry_run:
                 shutil.move(src, dst)
                 logging.info(f'Successfully moved: {src} -> {dst}')
+                # Both paths: the new one so LMS reads the files, the old one so the rows
+                # underneath a folder that is now gone get removed.
+                lms_scan_trigger.notify([src, dst])
             else:
                 logging.info(f'Dry run - would move: {src} -> {dst}')
             try:

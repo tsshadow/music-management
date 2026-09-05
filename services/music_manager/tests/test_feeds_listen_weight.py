@@ -22,6 +22,7 @@ class ListenWeightTest(unittest.TestCase):
         # Imported history has no played_secs at all; treating it as zero would
         # silently delete most of the listening history from the profile.
         self.assertAlmostEqual(listen_weight(0, 'exact', None), 1.0)
+        self.assertAlmostEqual(listen_weight(0, 'exact', 0), 0.0)
 
     def test_a_skip_counts_for_a_fraction(self):
         self.assertAlmostEqual(listen_weight(0, 'exact', 30), 0.25)

@@ -76,9 +76,16 @@ namespace lms::core::http
         _client.setFollowRedirect(true);
         _client.setTimeout(std::chrono::seconds{ 5 });
 
-        // not very efficient (response bodies are copied for each callback), but Wt's code already makes copies anyway
-
+        // not very efficient (response bodies are copied for each callback), but Wt's code already makes copies anyway.
+        // Only for a request that actually streams, though: Wt reads into an asio streambuf that grows in small
+        // steps, so a 15 MB news bulletin arrives in tens of thousands of read completions. Copying each one and
+        // hopping it across to the strand for a handler that then does nothing cost about 150 seconds per bulletin,
+        // during which the queue -- which sends one request at a time -- served nobody else, so every artist image
+        // and settings call behind it timed out too.
         _client.bodyDataReceived().connect([this](const std::string& data) {
+            if (!_forwardBodyChunks.load(std::memory_order_relaxed))
+                return;
+
             boost::asio::post(boost::asio::bind_executor(_strand, [this, data] {
                 onClientBodyDataReceived(data);
             }));
@@ -193,6 +200,7 @@ namespace lms::core::http
         LOG(DEBUG, "Sending " << (request.getType() == ClientRequest::Type::GET ? "GET" : "POST") << " request to url '" << url << "'");
 
         _client.setMaximumResponseSize(request.getParameters().onChunkReceived ? 0 : request.getParameters().responseBufferSize);
+        _forwardBodyChunks.store(static_cast<bool>(request.getParameters().onChunkReceived), std::memory_order_relaxed);
 
         bool res{};
         switch (request.getType())

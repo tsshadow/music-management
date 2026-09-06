@@ -11,6 +11,11 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.49.2 (2026-09-06)
+
+- Een track opnieuw laten inlezen raakt zijn genres niet meer kwijt.
+- De scanner laat muziekbestanden nu met rust: hij leest ze alleen nog, en verwijdert of
+  herschrijft er geen meer.
 ## Global Version 0.49.1 (2026-09-06)
 
 - **Elke afgeronde map werd een eigen scanverzoek aan LMS.** Zodra de melding in 0.49.0

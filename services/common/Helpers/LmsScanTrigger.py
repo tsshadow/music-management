@@ -7,6 +7,7 @@ from collections.abc import Iterable
 import requests
 
 from services.common.config_store import ConfigStore
+from services.common.Helpers.LmsEndpoint import LmsNotConfigured, lms_api_key, lms_base_url, normalise_host
 
 
 class LmsScanTrigger:
@@ -35,29 +36,59 @@ class LmsScanTrigger:
         self._queue: queue.Queue = queue.Queue(maxsize=queue_size)
         self._worker: threading.Thread | None = None
         self._worker_lock = threading.Lock()
+        self._warned_unconfigured = False
+
+    def _endpoint(self) -> tuple[list[str], str]:
+        """The hosts to notify and the key to do it with, or nothing.
+
+        The setting wins, because that is the settings page doing its job. The
+        environment is the fallback -- and on this deployment it is the only source
+        there is: `docker/docker-compose.yml` never sets `LMS_HOSTS`, so the setting
+        is empty unless somebody typed a host into the page, and for as long as this
+        class existed nobody had. It returned here without a word, so a library that
+        never picked up a moved folder looked like a fault in LMS.
+        """
+        configured = self._config.get('lms_hosts')
+        hosts = [host.strip() for host in str(configured or '').split(',') if host.strip()]
+        if not hosts:
+            try:
+                hosts = [lms_base_url()]
+            except LmsNotConfigured:
+                hosts = []
+
+        api_key = str(self._config.get('lms_subsonic_api_key') or '') or lms_api_key()
+
+        if not hosts or not api_key:
+            if not self._warned_unconfigured:
+                self._warned_unconfigured = True
+                missing = ' and '.join(
+                    part
+                    for part in (
+                        'no host (lms_hosts, LMS_URL, LMS_HOSTS or MUMA_SERVER_HOSTS)' if not hosts else '',
+                        'no API key (lms_subsonic_api_key, MUMA_SERVER_SUBSONIC_API_KEY or LMS_SUBSONIC_API_KEY)'
+                        if not api_key
+                        else '',
+                    )
+                    if part
+                )
+                logging.warning(
+                    'LmsScanTrigger: not configured, LMS will not be told about changes -- %s. '
+                    'Scans fall back to whatever schedule LMS runs on its own.',
+                    missing,
+                )
+            return [], ''
+
+        self._warned_unconfigured = False
+        return hosts, api_key
 
     def trigger(self, full_scan: bool = False) -> None:
-        hosts = self._config.get('lms_hosts')
-        api_key = self._config.get('lms_subsonic_api_key')
-        if not hosts or not api_key:
-            logging.debug('LmsScanTrigger: lms_hosts or lms_subsonic_api_key not configured, skipping scan trigger.')
-            return
-        for host in hosts.split(','):
-            host = host.strip()
-            if not host:
-                continue
+        hosts, api_key = self._endpoint()
+        for host in hosts:
             self._trigger_host(host, api_key, full_scan)
 
     @staticmethod
     def _scan_url(host: str) -> str:
-        """A configured host may bring its own scheme; a bare one is plain HTTP.
-
-        LMS sits on the container network next to muma, so the default is unencrypted on
-        purpose -- but `lms_hosts` is a free-text setting and somebody putting an https URL
-        in it means it, and used to get `http://https://...` for their trouble.
-        """
-        base = host if host.startswith(('http://', 'https://')) else f'http://{host}'
-        return f'{base.rstrip("/")}/rest/startScan.view'
+        return f'{normalise_host(host)}/rest/startScan.view'
 
     def _trigger_host(self, host: str, api_key: str, full_scan: bool) -> None:
         url = self._scan_url(host)
@@ -132,14 +163,8 @@ class LmsScanTrigger:
             self._send(self._queue.get_nowait())
 
     def _send(self, paths: list) -> None:
-        hosts = self._config.get('lms_hosts')
-        api_key = self._config.get('lms_subsonic_api_key')
-        if not hosts or not api_key:
-            return
-        for host in hosts.split(','):
-            host = host.strip()
-            if not host:
-                continue
+        hosts, api_key = self._endpoint()
+        for host in hosts:
             params = {'apiKey': api_key, 'v': '1.16.1', 'c': 'music-manager', 'f': 'json', 'path': paths}
             try:
                 response = requests.get(self._scan_url(host), params=params, timeout=10)

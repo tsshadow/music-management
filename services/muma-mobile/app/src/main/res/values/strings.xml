@@ -333,6 +333,32 @@
     <string name="management.logs_loading">Loading logs\u2026</string>
     <string name="management.events_all">All</string>
     <string name="management.events_empty">No events</string>
+    <string name="management.queue_empty">Nothing to decide</string>
+    <string name="management.tagger_busy">Tagging in progress</string>
+    <string name="management.tagger_idle">Tagger idle</string>
+    <string name="management.tagger_run">Run now</string>
+    <plurals name="management.tagger_pending_total">
+        <item quantity="one">%1$d file waiting for a retag</item>
+        <item quantity="other">%1$d files waiting for a retag</item>
+    </plurals>
+    <plurals name="management.tagger_pending_reason">
+        <item quantity="one">%1$d file</item>
+        <item quantity="other">%1$d files</item>
+    </plurals>
+    <plurals name="management.curation_occurrences">
+        <item quantity="one">%1$d track</item>
+        <item quantity="other">%1$d tracks</item>
+    </plurals>
+    <plurals name="management.curation_aliases">
+        <item quantity="one">%1$d spelling</item>
+        <item quantity="other">%1$d spellings</item>
+    </plurals>
+    <string name="management.curation_keep">Keep</string>
+    <string name="management.curation_drop">Drop</string>
+    <string name="management.proposal_confirm">Confirm</string>
+    <string name="management.proposal_reject">Reject</string>
+    <string name="management.proposal_no_label">No label found</string>
+    <string name="management.proposal_label_required">A label is required</string>
     <string name="favorites.starred_albums">Favorite albums</string>
     <string name="favorites.starred_artists">Favorite artists</string>
     <string name="favorites.highly_rated">Highly rated</string>

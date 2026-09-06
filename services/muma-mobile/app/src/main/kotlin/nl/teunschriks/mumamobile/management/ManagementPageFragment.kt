@@ -13,6 +13,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
@@ -41,6 +42,14 @@ class ManagementPageFragment : Fragment() {
 
     private val viewModel: ManagementViewModel by activityViewModel()
     private val adapter = ManagementRowAdapter()
+
+    /**
+     * Held so it can be dismissed with the view rather than with the window.
+     *
+     * The dialog captures its EditText and this fragment; leaving it to window teardown means it
+     * outlives the view that opened it, and a rotation would leak both.
+     */
+    private var labelDialog: AlertDialog? = null
 
     private val page: ManagementPage
         get() = ManagementPage.valueOf(
@@ -90,6 +99,10 @@ class ManagementPageFragment : Fragment() {
         ManagementPage.OVERVIEW -> viewModel.loadOverview()
         ManagementPage.HEALTH -> viewModel.loadContainers()
         ManagementPage.EVENTS -> viewModel.loadEvents()
+        ManagementPage.TAGGER -> viewModel.loadTagger()
+        ManagementPage.GENRE_CURATION -> viewModel.loadGenreQueue()
+        ManagementPage.PODCAST_CURATION -> viewModel.loadPodcastQueue()
+        ManagementPage.LABEL_PROPOSALS -> viewModel.loadLabelProposals()
         else -> Unit
     }
 
@@ -125,7 +138,160 @@ class ManagementPageFragment : Fragment() {
                 }
             }
 
+        ManagementPage.TAGGER ->
+            viewModel.tagger.filterNotNull().collectLatest { adapter.items = it.toRows() }
+
+        ManagementPage.GENRE_CURATION ->
+            viewModel.genres.collectLatest { genres ->
+                adapter.items = genres.map { it.toRow() }.orEmptyQueue()
+            }
+
+        ManagementPage.PODCAST_CURATION ->
+            viewModel.podcasts.collectLatest { podcasts ->
+                adapter.items = podcasts.map { it.toRow() }.orEmptyQueue()
+            }
+
+        ManagementPage.LABEL_PROPOSALS ->
+            viewModel.proposals.collectLatest { proposals ->
+                adapter.items = proposals.map { it.toRow() }.orEmptyQueue()
+            }
+
         else -> Unit
+    }
+
+    /** A count and its noun agree, which a formatted string cannot do across languages. */
+    private fun quantity(plural: Int, count: Int): String = resources.getQuantityString(plural, count, count)
+
+    /**
+     * An empty curation queue is the good outcome, and an empty list does not say so -- it reads
+     * the same as a page that failed to load. The same reasoning as the events page.
+     */
+    private fun List<ManagementRow>.orEmptyQueue(): List<ManagementRow> = ifEmpty {
+        listOf(
+            ManagementRow(
+                id = "empty",
+                title = getString(R.string.management_queue_empty),
+                subtitle = null
+            )
+        )
+    }
+
+    /**
+     * Whether the tagger is busy, then one line per reason files are queued.
+     *
+     * The action sits on the status row rather than on each reason: a retag is not per-reason, it
+     * walks everything that is marked.
+     */
+    private fun ManagementViewModel.TaggerStatus.toRows(): List<ManagementRow> {
+        val status = ManagementRow(
+            id = "status",
+            title = getString(
+                if (health.busy) R.string.management_tagger_busy else R.string.management_tagger_idle
+            ),
+            subtitle = quantity(R.plurals.management_tagger_pending_total, pending.total),
+            primary = RowAction(getString(R.string.management_tagger_run)) { viewModel.startRetag() }
+        )
+        return listOf(status) + pending.byReason.map { reason ->
+            ManagementRow(
+                id = "reason:${reason.reason}",
+                title = reason.reason,
+                subtitle = quantity(R.plurals.management_tagger_pending_reason, reason.count)
+            )
+        }
+    }
+
+    private fun nl.teunschriks.mumamobile.api.muma.MumaGenreRule.toRow(): ManagementRow {
+        // A genre that already rewrites onto others says so: deciding it black without seeing that
+        // would look like discarding the tracks rather than moving them.
+        val targets = canonicalTargets.joinToString(", ") { it.name }
+        return ManagementRow(
+            id = id.toString(),
+            title = name,
+            subtitle = listOfNotNull(
+                quantity(R.plurals.management_curation_occurrences, occurrences),
+                targets.takeIf { it.isNotBlank() }
+            ).joinToString(" \u00b7 "),
+            // The targets travel with the decision: the server replaces the whole expansion list
+            // from the request, so deciding without them would clear the very correction this row
+            // just showed.
+            primary = RowAction(getString(R.string.management_curation_keep)) {
+                viewModel.decideGenre(id, ManagementRepository.CURATION_WHITE, canonicalTargets.map { it.id })
+            },
+            secondary = RowAction(getString(R.string.management_curation_drop)) {
+                viewModel.decideGenre(id, ManagementRepository.CURATION_BLACK, canonicalTargets.map { it.id })
+            }
+        )
+    }
+
+    private fun nl.teunschriks.mumamobile.api.muma.MumaPodcastRule.toRow() = ManagementRow(
+        id = id.toString(),
+        title = name,
+        subtitle = listOfNotNull(
+            quantity(R.plurals.management_curation_occurrences, occurrences),
+            station,
+            host,
+            aliases.takeIf { it.isNotEmpty() }
+                ?.let { quantity(R.plurals.management_curation_aliases, it.size) }
+        ).joinToString(" \u00b7 "),
+        primary = RowAction(getString(R.string.management_curation_keep)) {
+            viewModel.decidePodcast(id, ManagementRepository.CURATION_WHITE)
+        },
+        secondary = RowAction(getString(R.string.management_curation_drop)) {
+            viewModel.decidePodcast(id, ManagementRepository.CURATION_BLACK)
+        }
+    )
+
+    private fun nl.teunschriks.mumamobile.api.muma.MumaLabelProposal.toRow() = ManagementRow(
+        id = id.toString(),
+        // The folder is a full path and the last element is the release, which is the part that
+        // identifies it; the rest is the same import directory on every row.
+        title = folder.substringAfterLast('/').ifBlank { folder },
+        subtitle = listOfNotNull(
+            proposedLabel ?: getString(R.string.management_proposal_no_label),
+            catid,
+            source
+        ).joinToString(" \u00b7 "),
+        primary = RowAction(getString(R.string.management_proposal_confirm)) {
+            askForLabel(this)
+        },
+        secondary = RowAction(getString(R.string.management_proposal_reject)) {
+            viewModel.rejectProposal(id)
+        }
+    )
+
+    /**
+     * Confirming asks for the label even when the proposal already carries one.
+     *
+     * The server takes the label from the body rather than from the row, and the proposals worth
+     * looking at on a phone are exactly the ones where it guessed nothing -- so a one-tap confirm
+     * would either send an empty label or quietly file a release under a guess.
+     */
+    private fun askForLabel(proposal: nl.teunschriks.mumamobile.api.muma.MumaLabelProposal) {
+        val input = EditText(requireContext()).apply {
+            setText(proposal.proposedLabel.orEmpty())
+            setSelection(text.length)
+        }
+        labelDialog?.dismiss()
+        labelDialog = AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.management_proposal_confirm))
+            .setMessage(proposal.folder)
+            .setView(input)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val label = input.text.toString().trim()
+                if (label.isEmpty()) {
+                    toast(getString(R.string.management_proposal_label_required))
+                } else {
+                    viewModel.confirmProposal(proposal.id, label)
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    override fun onDestroyView() {
+        labelDialog?.dismiss()
+        labelDialog = null
+        super.onDestroyView()
     }
 
     private fun setupLevelFilter(view: View) {

@@ -16,6 +16,14 @@ import nl.teunschriks.mumamobile.api.muma.MumaContainer
 import nl.teunschriks.mumamobile.api.muma.MumaDownloadAccount
 import nl.teunschriks.mumamobile.api.muma.MumaDownloadAccountRequest
 import nl.teunschriks.mumamobile.api.muma.MumaEvent
+import nl.teunschriks.mumamobile.api.muma.MumaGenreDecisionRequest
+import nl.teunschriks.mumamobile.api.muma.MumaGenreRule
+import nl.teunschriks.mumamobile.api.muma.MumaLabelDecisionRequest
+import nl.teunschriks.mumamobile.api.muma.MumaLabelProposal
+import nl.teunschriks.mumamobile.api.muma.MumaPodcastDecisionRequest
+import nl.teunschriks.mumamobile.api.muma.MumaPodcastRule
+import nl.teunschriks.mumamobile.api.muma.MumaRetagPending
+import nl.teunschriks.mumamobile.api.muma.MumaTaggerHealth
 import nl.teunschriks.mumamobile.api.muma.MumaVersions
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 
@@ -118,8 +126,93 @@ class ManagementRepository(private val client: SubsonicAPIClient) {
         api.getEvents(listOfNotNull(level), limit).execute().body()?.events.orEmpty()
     }
 
+    // --- Curation queues. Reading is a list; deciding is one POST per row. ---
+
+    suspend fun genreRules(state: String? = CURATION_QUEUE): List<MumaGenreRule> = withContext(Dispatchers.IO) {
+        api.getGenreRules(state).execute().require()
+    }
+
+    /**
+     * [targets] is what the row already rewrites onto, sent back unchanged. The server replaces the
+     * whole expansion list from the request, so leaving it out clears the correction.
+     */
+    suspend fun decideGenre(id: Int, state: String, targets: List<Int> = emptyList()) = withContext(Dispatchers.IO) {
+        api.decideGenre(id, MumaGenreDecisionRequest(state, targets)).execute().throwOnFailure()
+    }
+
+    suspend fun podcastRules(state: String? = CURATION_QUEUE): List<MumaPodcastRule> = withContext(Dispatchers.IO) {
+        api.getPodcastRules(state).execute().require()
+    }
+
+    suspend fun decidePodcast(id: Int, state: String) = withContext(Dispatchers.IO) {
+        api.decidePodcast(id, MumaPodcastDecisionRequest(state)).execute().throwOnFailure()
+    }
+
+    suspend fun labelProposals(status: String = PROPOSAL_NEW): List<MumaLabelProposal> = withContext(Dispatchers.IO) {
+        api.getLabelProposals(status).execute().require()
+    }
+
+    /**
+     * Answers what the server actually did, which is not always a confirmation: a folder that has
+     * moved away since the proposal was written comes back `stale`, and a destination that already
+     * holds a release comes back with the collision -- both with HTTP 200, and both leaving the
+     * release where it was.
+     */
+    suspend fun confirmLabelProposal(id: Int, label: String): String = withContext(Dispatchers.IO) {
+        api.confirmLabelProposal(id, MumaLabelDecisionRequest(label)).execute()
+            .require().status.orEmpty()
+    }
+
+    suspend fun rejectLabelProposal(id: Int) = withContext(Dispatchers.IO) {
+        api.rejectLabelProposal(id).execute().throwOnFailure()
+    }
+
+    suspend fun taggerHealth(): MumaTaggerHealth = withContext(Dispatchers.IO) {
+        api.getTaggerHealth().execute().require()
+    }
+
+    suspend fun retagPending(): MumaRetagPending = withContext(Dispatchers.IO) {
+        api.getRetagPending().execute().require()
+    }
+
+    suspend fun runRetag() = withContext(Dispatchers.IO) {
+        api.runRetag().execute().throwOnFailure()
+    }
+
+    /**
+     * A decision that the server refused has to reach the person who made it.
+     *
+     * The account pages above ignore the response because their next act is to reload the list,
+     * which shows the row unchanged. A curation row disappears from its queue when the decision
+     * lands, so a silently dropped 409 or 400 looks exactly like success -- the row is gone from
+     * the reloaded queue either way, because the queue only holds undecided rows.
+     */
+    private fun <T> retrofit2.Response<T>.throwOnFailure() {
+        if (!isSuccessful) {
+            error("HTTP ${code()}: ${errorBody()?.string().orEmpty().take(ERROR_BODY_CHARS)}")
+        }
+    }
+
+    /**
+     * The body of a call that has to have succeeded.
+     *
+     * The account pages read `body().orEmpty()`, which turns a refused or unreachable server into
+     * an empty list. On a curation queue that reads as "nothing to decide" -- the good outcome --
+     * and a failed reload after a decision would wipe the visible queue while reporting nothing.
+     */
+    private fun <T> retrofit2.Response<T>.require(): T {
+        throwOnFailure()
+        return body() ?: error("HTTP ${code()} answered no body")
+    }
+
     companion object {
+        const val CURATION_QUEUE = "unknown"
+        const val CURATION_WHITE = "white"
+        const val CURATION_BLACK = "black"
+        const val PROPOSAL_NEW = "new"
+
         private const val ADMIN_ROLE = "admin"
+        private const val ERROR_BODY_CHARS = 200
         private const val SYSTEM_TYPE = "system"
         private const val LOG_TAIL = 200
         private const val EVENT_LIMIT = 100

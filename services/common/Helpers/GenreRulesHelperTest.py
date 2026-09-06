@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import MagicMock, patch
 
 from services.common.Helpers.GenreRulesHelper import BLACK, UNKNOWN, WHITE, GenreRow, GenreRulesHelper
 
@@ -156,6 +157,44 @@ class GenreRulesHelperSplitTest(unittest.TestCase):
 
     def test_slash_only_input_is_left_alone(self):
         self.assertEqual(self.helper.split_composite('///'), ['///'])
+
+
+class GenreRulesHelperIsLoadedTest(unittest.TestCase):
+    """The scanner writes what it resolves against this helper, so "no rules" and "no
+    database" must not look the same: the first is a real answer, the second is silence."""
+
+    def test_a_helper_that_never_queried_is_not_loaded(self):
+        self.assertFalse(GenreRulesHelper(preload=False).is_loaded())
+
+    def test_rules_handed_in_directly_count_as_loaded(self):
+        self.assertTrue(helper_with([GenreRow(1, 'Hardstyle', 'hardstyle', WHITE, None)]).is_loaded())
+
+    def test_a_successful_preload_marks_the_helper_loaded(self):
+        helper = GenreRulesHelper(preload=False)
+        cursor = MagicMock()
+        cursor.fetchall.side_effect = [[(1, 'Hardstyle', 'hardstyle', WHITE, None)], []]
+        connection = MagicMock()
+        connection.cursor.return_value.__enter__.return_value = cursor
+        with patch.object(helper.db_connector, 'connect', return_value=connection):
+            helper.reload()
+
+        self.assertTrue(helper.is_loaded())
+        self.assertIsNotNone(helper.get_row('Hardstyle'))
+
+    def test_a_failed_preload_leaves_the_helper_unloaded(self):
+        helper = GenreRulesHelper(preload=False)
+        with patch.object(helper.db_connector, 'connect', side_effect=OSError('database down')):
+            helper.reload()
+
+        self.assertFalse(helper.is_loaded())
+
+    def test_a_reload_that_fails_after_a_good_one_keeps_the_rules_it_had(self):
+        helper = helper_with([GenreRow(1, 'Hardstyle', 'hardstyle', WHITE, None)])
+        with patch.object(helper.db_connector, 'connect', side_effect=OSError('database down')):
+            helper.reload()
+
+        self.assertTrue(helper.is_loaded())
+        self.assertIsNotNone(helper.get_row('Hardstyle'))
 
 
 if __name__ == '__main__':

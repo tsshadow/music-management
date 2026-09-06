@@ -50,6 +50,16 @@ class ScannerManager:
         return hashlib.sha256(path.encode('utf-8')).hexdigest()
 
     def scan_single(self, path: str | Path, force=False):
+        # Without this the curation rules are still empty on a process that has never run a
+        # full scan, and process_file writes that emptiness: _write_genres deletes the
+        # track's rows before inserting the nothing it resolved. Rescanning one track from
+        # the UI or from LMS therefore used to strip its genres.
+        #
+        # A full reload rather than a load-once: curation decisions refresh the helpers in
+        # the Cache registry (see curation_rules.refresh), never this instance, so a cached
+        # map here would stay stale for the process lifetime. One query per user-triggered
+        # single scan is the cheaper mistake.
+        self.genre_helper.reload()
         with self._lock:
             logger.info('Processing single file scan request: %s', path)
             conn = get_db_connection()
@@ -138,7 +148,17 @@ class ScannerManager:
         return genre_ids
 
     def _write_genres(self, cursor, track_id, genre_ids):
-        """Replace the track's genre rows, mirroring how library_track_artists is written."""
+        """Replace the track's genre rows, mirroring how library_track_artists is written.
+
+        Unless the rules never loaded. `GenreRulesHelper._preload` logs a failed query and
+        leaves an empty map behind, which resolves every genre to nothing -- and this
+        method deletes first, so one unreachable database would strip the genre links of
+        every file the scan touches. With no rules there is nothing this could correctly
+        write, so it leaves the existing rows alone.
+        """
+        if not self.genre_helper.is_loaded():
+            logger.warning('Curation rules unavailable, leaving the genres of track %s untouched', track_id)
+            return
         cursor.execute('DELETE FROM library_track_genres WHERE track_id = %s', (track_id,))
         for genre_id in genre_ids:
             cursor.execute(

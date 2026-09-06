@@ -11,6 +11,7 @@ from pydantic import BaseModel
 import docker
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.GenreRulesHelper import BLACK, VALID_STATES, WHITE
+from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.PodcastHelper import normalize as normalize_show_name
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 from services.common.Helpers.RescanInvalidator import invalidate_quietly, rescan_invalidator
@@ -18,7 +19,6 @@ from services.common.version_helper import get_changelog, get_release_notes, get
 from services.music_manager import curation_rules
 from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
-from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 
 router = APIRouter(tags=['management'])
 

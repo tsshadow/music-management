@@ -129,15 +129,19 @@ class ManagementRepository(private val client: SubsonicAPIClient) {
     // --- Curation queues. Reading is a list; deciding is one POST per row. ---
 
     suspend fun genreRules(state: String? = CURATION_QUEUE): List<MumaGenreRule> = withContext(Dispatchers.IO) {
-        api.getGenreRules(state).execute().body().orEmpty()
+        api.getGenreRules(state).execute().require()
     }
 
-    suspend fun decideGenre(id: Int, state: String) = withContext(Dispatchers.IO) {
-        api.decideGenre(id, MumaGenreDecisionRequest(state)).execute().throwOnFailure()
+    /**
+     * [targets] is what the row already rewrites onto, sent back unchanged. The server replaces the
+     * whole expansion list from the request, so leaving it out clears the correction.
+     */
+    suspend fun decideGenre(id: Int, state: String, targets: List<Int> = emptyList()) = withContext(Dispatchers.IO) {
+        api.decideGenre(id, MumaGenreDecisionRequest(state, targets)).execute().throwOnFailure()
     }
 
     suspend fun podcastRules(state: String? = CURATION_QUEUE): List<MumaPodcastRule> = withContext(Dispatchers.IO) {
-        api.getPodcastRules(state).execute().body().orEmpty()
+        api.getPodcastRules(state).execute().require()
     }
 
     suspend fun decidePodcast(id: Int, state: String) = withContext(Dispatchers.IO) {
@@ -145,11 +149,18 @@ class ManagementRepository(private val client: SubsonicAPIClient) {
     }
 
     suspend fun labelProposals(status: String = PROPOSAL_NEW): List<MumaLabelProposal> = withContext(Dispatchers.IO) {
-        api.getLabelProposals(status).execute().body().orEmpty()
+        api.getLabelProposals(status).execute().require()
     }
 
-    suspend fun confirmLabelProposal(id: Int, label: String) = withContext(Dispatchers.IO) {
-        api.confirmLabelProposal(id, MumaLabelDecisionRequest(label)).execute().throwOnFailure()
+    /**
+     * Answers what the server actually did, which is not always a confirmation: a folder that has
+     * moved away since the proposal was written comes back `stale`, and a destination that already
+     * holds a release comes back with the collision -- both with HTTP 200, and both leaving the
+     * release where it was.
+     */
+    suspend fun confirmLabelProposal(id: Int, label: String): String = withContext(Dispatchers.IO) {
+        api.confirmLabelProposal(id, MumaLabelDecisionRequest(label)).execute()
+            .require().status.orEmpty()
     }
 
     suspend fun rejectLabelProposal(id: Int) = withContext(Dispatchers.IO) {
@@ -157,11 +168,11 @@ class ManagementRepository(private val client: SubsonicAPIClient) {
     }
 
     suspend fun taggerHealth(): MumaTaggerHealth = withContext(Dispatchers.IO) {
-        api.getTaggerHealth().execute().body() ?: MumaTaggerHealth()
+        api.getTaggerHealth().execute().require()
     }
 
     suspend fun retagPending(): MumaRetagPending = withContext(Dispatchers.IO) {
-        api.getRetagPending().execute().body() ?: MumaRetagPending()
+        api.getRetagPending().execute().require()
     }
 
     suspend fun runRetag() = withContext(Dispatchers.IO) {
@@ -177,9 +188,21 @@ class ManagementRepository(private val client: SubsonicAPIClient) {
      * the reloaded queue either way, because the queue only holds undecided rows.
      */
     private fun <T> retrofit2.Response<T>.throwOnFailure() {
-        check(isSuccessful) {
-            "HTTP ${code()}: ${errorBody()?.string().orEmpty().take(ERROR_BODY_CHARS)}"
+        if (!isSuccessful) {
+            error("HTTP ${code()}: ${errorBody()?.string().orEmpty().take(ERROR_BODY_CHARS)}")
         }
+    }
+
+    /**
+     * The body of a call that has to have succeeded.
+     *
+     * The account pages read `body().orEmpty()`, which turns a refused or unreachable server into
+     * an empty list. On a curation queue that reads as "nothing to decide" -- the good outcome --
+     * and a failed reload after a decision would wipe the visible queue while reporting nothing.
+     */
+    private fun <T> retrofit2.Response<T>.require(): T {
+        throwOnFailure()
+        return body() ?: error("HTTP ${code()} answered no body")
     }
 
     companion object {

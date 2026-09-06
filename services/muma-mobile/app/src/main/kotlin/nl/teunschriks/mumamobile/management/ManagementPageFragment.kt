@@ -43,6 +43,14 @@ class ManagementPageFragment : Fragment() {
     private val viewModel: ManagementViewModel by activityViewModel()
     private val adapter = ManagementRowAdapter()
 
+    /**
+     * Held so it can be dismissed with the view rather than with the window.
+     *
+     * The dialog captures its EditText and this fragment; leaving it to window teardown means it
+     * outlives the view that opened it, and a rotation would leak both.
+     */
+    private var labelDialog: AlertDialog? = null
+
     private val page: ManagementPage
         get() = ManagementPage.valueOf(
             arguments?.getString(ARG_PAGE) ?: ManagementPage.DOWNLOADERS.name
@@ -203,11 +211,14 @@ class ManagementPageFragment : Fragment() {
                 quantity(R.plurals.management_curation_occurrences, occurrences),
                 targets.takeIf { it.isNotBlank() }
             ).joinToString(" \u00b7 "),
+            // The targets travel with the decision: the server replaces the whole expansion list
+            // from the request, so deciding without them would clear the very correction this row
+            // just showed.
             primary = RowAction(getString(R.string.management_curation_keep)) {
-                viewModel.decideGenre(id, ManagementRepository.CURATION_WHITE)
+                viewModel.decideGenre(id, ManagementRepository.CURATION_WHITE, canonicalTargets.map { it.id })
             },
             secondary = RowAction(getString(R.string.management_curation_drop)) {
-                viewModel.decideGenre(id, ManagementRepository.CURATION_BLACK)
+                viewModel.decideGenre(id, ManagementRepository.CURATION_BLACK, canonicalTargets.map { it.id })
             }
         )
     }
@@ -260,7 +271,8 @@ class ManagementPageFragment : Fragment() {
             setText(proposal.proposedLabel.orEmpty())
             setSelection(text.length)
         }
-        AlertDialog.Builder(requireContext())
+        labelDialog?.dismiss()
+        labelDialog = AlertDialog.Builder(requireContext())
             .setTitle(getString(R.string.management_proposal_confirm))
             .setMessage(proposal.folder)
             .setView(input)
@@ -274,6 +286,12 @@ class ManagementPageFragment : Fragment() {
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+
+    override fun onDestroyView() {
+        labelDialog?.dismiss()
+        labelDialog = null
+        super.onDestroyView()
     }
 
     private fun setupLevelFilter(view: View) {

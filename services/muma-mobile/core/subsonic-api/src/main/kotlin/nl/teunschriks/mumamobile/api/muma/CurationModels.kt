@@ -35,12 +35,17 @@ data class MumaGenreTarget(
 )
 
 /**
- * A decision on a genre. `canonical_ids` is left out entirely by the app: rewriting one genre onto
- * others needs a picker over the whole genre table, which is a web-sized job, and sending an empty
- * list would read as "no rewrite" rather than as "not asked".
+ * A decision on a genre, always carrying the rewrite targets the row already has.
+ *
+ * The server replaces rather than merges: it deletes every row in `rules_genre_expansions` for
+ * this genre and inserts what the request carries, so leaving the field out is not "unchanged", it
+ * is "no rewrite". A phone that only decides the state would therefore silently destroy the
+ * correction the row displays. Choosing *new* targets needs a picker over the whole genre table
+ * and stays on the web.
  */
 data class MumaGenreDecisionRequest(
-    val state: String
+    val state: String,
+    @SerializedName("canonical_ids") val canonicalIds: List<Int> = emptyList()
 )
 
 /** One row of `/api/rules/podcasts`: a radio show or podcast series awaiting a decision. */
@@ -73,6 +78,19 @@ data class MumaLabelProposal(
 /** Confirming a proposal takes the label to file it under; the server needs it even to agree. */
 data class MumaLabelDecisionRequest(
     val label: String
+)
+
+/**
+ * What confirming actually did.
+ *
+ * Not every 200 is a confirmation: the folder may have been moved away since the proposal was
+ * written (`stale`), or the destination may already hold a release, in which case the release stays
+ * in import and the proposal stays open. Both answer 200, so only this body distinguishes them.
+ */
+data class MumaLabelConfirmResponse(
+    val status: String? = null,
+    val folder: String? = null,
+    val destination: String? = null
 )
 
 /** `/api/tagger/retag/pending`: how many files a rule change queued up, and which change did it. */

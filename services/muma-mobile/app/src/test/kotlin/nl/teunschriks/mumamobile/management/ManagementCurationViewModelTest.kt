@@ -59,22 +59,36 @@ class ManagementCurationViewModelTest {
 
     @Test
     fun `deciding a genre sends the state and reloads the queue`() = runTest(dispatcher) {
-        coEvery { repository.decideGenre(any(), any()) } returns Unit
+        coEvery { repository.decideGenre(any(), any(), any()) } returns Unit
         coEvery { repository.genreRules(any()) } returns emptyList()
         val model = viewModel()
 
         model.decideGenre(3, ManagementRepository.CURATION_BLACK)
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { repository.decideGenre(3, "black") }
+        coVerify(exactly = 1) { repository.decideGenre(3, "black", emptyList()) }
         // Reloaded rather than edited in place: one decision can take several rows out of the
         // queue, and only the server knows which.
         coVerify(exactly = 1) { repository.genreRules(any()) }
     }
 
     @Test
+    fun `a decision carries the rewrite targets the row already had`() = runTest(dispatcher) {
+        // The server replaces the whole expansion list from the request, so a decision that leaves
+        // the targets out deletes them -- silently, on a row that displays them.
+        coEvery { repository.decideGenre(any(), any(), any()) } returns Unit
+        coEvery { repository.genreRules(any()) } returns emptyList()
+        val model = viewModel()
+
+        model.decideGenre(3, ManagementRepository.CURATION_WHITE, listOf(7, 9))
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { repository.decideGenre(3, "white", listOf(7, 9)) }
+    }
+
+    @Test
     fun `a refused decision reaches the error flow`() = runTest(dispatcher) {
-        coEvery { repository.decideGenre(any(), any()) } throws IllegalStateException("HTTP 400")
+        coEvery { repository.decideGenre(any(), any(), any()) } throws IllegalStateException("HTTP 400")
         val model = viewModel()
 
         model.decideGenre(3, ManagementRepository.CURATION_WHITE)
@@ -103,7 +117,7 @@ class ManagementCurationViewModelTest {
 
     @Test
     fun `confirming a proposal sends the label the person typed`() = runTest(dispatcher) {
-        coEvery { repository.confirmLabelProposal(any(), any()) } returns Unit
+        coEvery { repository.confirmLabelProposal(any(), any()) } returns "confirmed"
         coEvery { repository.labelProposals(any()) } returns emptyList()
         val model = viewModel()
 
@@ -111,6 +125,76 @@ class ManagementCurationViewModelTest {
         advanceUntilIdle()
 
         coVerify(exactly = 1) { repository.confirmLabelProposal(11, "Rotterdam Records") }
+        model.error.value.`should be null`()
+    }
+
+    @Test
+    fun `a proposal the server did not actually file says so`() = runTest(dispatcher) {
+        // 200 with status 'stale': the folder moved away since the proposal was written, so the
+        // row leaves the queue without anything having been filed. Reporting that as a
+        // confirmation is a lie the reloaded list cannot correct.
+        coEvery { repository.confirmLabelProposal(any(), any()) } returns "stale"
+        coEvery { repository.labelProposals(any()) } returns emptyList()
+        val model = viewModel()
+
+        model.confirmProposal(11, "Rotterdam Records")
+        advanceUntilIdle()
+
+        model.error.value `should be equal to` "stale"
+    }
+
+    @Test
+    fun `rejecting a proposal reloads the queue`() = runTest(dispatcher) {
+        coEvery { repository.rejectLabelProposal(any()) } returns Unit
+        coEvery { repository.labelProposals(any()) } returns emptyList()
+        val model = viewModel()
+
+        model.rejectProposal(11)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { repository.rejectLabelProposal(11) }
+        coVerify(exactly = 1) { repository.labelProposals(any()) }
+    }
+
+    @Test
+    fun `a queue that could not be read is an error, not an empty queue`() = runTest(dispatcher) {
+        // An empty list would render as "nothing to decide", which is the good outcome. A server
+        // that refused has to look different from one with nothing to say.
+        coEvery { repository.genreRules(any()) } throws IllegalStateException("HTTP 500")
+        val model = viewModel()
+
+        model.loadGenreQueue()
+        advanceUntilIdle()
+
+        model.error.value `should be equal to` "HTTP 500"
+        model.genres.value.size `should be equal to` 0
+    }
+
+    @Test
+    fun `the podcast queue loads on its own`() = runTest(dispatcher) {
+        coEvery { repository.podcastRules(any()) } returns listOf(
+            MumaPodcastRule(id = 4, name = "Gabber Radio", occurrences = 3, station = "Q-dance")
+        )
+        val model = viewModel()
+
+        model.loadPodcastQueue()
+        advanceUntilIdle()
+
+        model.podcasts.value.single().station `should be equal to` "Q-dance"
+    }
+
+    @Test
+    fun `a started retag refreshes what the page shows`() = runTest(dispatcher) {
+        coEvery { repository.runRetag() } returns Unit
+        coEvery { repository.taggerHealth() } returns MumaTaggerHealth(status = "OK", busy = true)
+        coEvery { repository.retagPending() } returns MumaRetagPending(total = 0)
+        val model = viewModel()
+
+        model.startRetag()
+        advanceUntilIdle()
+
+        model.tagger.value!!.health.busy `should be equal to` true
+        model.error.value.`should be null`()
     }
 
     @Test

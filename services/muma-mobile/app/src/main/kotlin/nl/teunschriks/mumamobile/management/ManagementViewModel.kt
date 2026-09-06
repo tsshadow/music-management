@@ -141,8 +141,8 @@ class ManagementViewModel(private val repository: ManagementRepository) : ViewMo
      * place: the server decides what is still undecided, and a merge or an expansion can take more
      * than the one row away.
      */
-    fun decideGenre(id: Int, state: String) = run("genre decide") {
-        repository.decideGenre(id, state)
+    fun decideGenre(id: Int, state: String, targets: List<Int> = emptyList()) = run("genre decide") {
+        repository.decideGenre(id, state, targets)
         mutableGenres.value = repository.genreRules()
     }
 
@@ -159,9 +159,18 @@ class ManagementViewModel(private val repository: ManagementRepository) : ViewMo
         mutableProposals.value = repository.labelProposals()
     }
 
+    /**
+     * A confirmation the server declined answers 200 all the same, saying `stale` for a folder that
+     * has moved away or naming the release already sitting at the destination. Both leave the
+     * release where it is, so reporting either as a confirmation would be a lie the list cannot
+     * correct: a stale proposal does leave the queue, it just was not filed anywhere.
+     */
     fun confirmProposal(id: Int, label: String) = run("proposal confirm") {
-        repository.confirmLabelProposal(id, label)
+        val outcome = repository.confirmLabelProposal(id, label)
         mutableProposals.value = repository.labelProposals()
+        if (outcome != PROPOSAL_CONFIRMED) {
+            mutableError.value = outcome.ifBlank { PROPOSAL_UNKNOWN_OUTCOME }
+        }
     }
 
     fun rejectProposal(id: Int) = run("proposal reject") {
@@ -212,6 +221,8 @@ class ManagementViewModel(private val repository: ManagementRepository) : ViewMo
     data class TaggerStatus(val health: MumaTaggerHealth, val pending: MumaRetagPending)
 
     companion object {
+        const val PROPOSAL_CONFIRMED = "confirmed"
+        const val PROPOSAL_UNKNOWN_OUTCOME = "unknown outcome"
         const val STATUS_PENDING = "pending"
         const val STATUS_APPROVED = "approved"
         const val STATUS_REJECTED = "rejected"

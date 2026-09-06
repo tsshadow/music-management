@@ -201,7 +201,7 @@ interface MumaAPIDefinition {
     fun confirmLabelProposal(
         @Path("proposal_id") proposalId: Int,
         @Body request: MumaLabelDecisionRequest
-    ): Call<ResponseBody>
+    ): Call<MumaLabelConfirmResponse>
 
     @POST("api/label-proposals/{proposal_id}/reject")
     fun rejectLabelProposal(

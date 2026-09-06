@@ -17,6 +17,17 @@ class LmsScanTriggerTest(unittest.TestCase):
         self.worker_patcher = patch.object(LmsScanTrigger, '_ensure_worker')
         self.addCleanup(self.worker_patcher.stop)
         self.worker_patcher.start()
+        # The environment is a real fallback now, so a test that means "nothing is
+        # configured" has to clear it -- otherwise the developer's own .env decides.
+        env = patch.dict(
+            'os.environ',
+            dict.fromkeys(
+                ('LMS_URL', 'LMS_HOSTS', 'MUMA_SERVER_HOSTS', 'MUMA_SERVER_SUBSONIC_API_KEY', 'LMS_SUBSONIC_API_KEY'),
+                '',
+            ),
+        )
+        self.addCleanup(env.stop)
+        env.start()
         self.trigger = LmsScanTrigger()
 
     def _configure(self, hosts, api_key, music_folder='/mnt/music'):
@@ -48,6 +59,55 @@ class LmsScanTriggerTest(unittest.TestCase):
         self.assertEqual(first_call.args[0], 'http://lms:5082/rest/startScan.view')
         self.assertEqual(first_call.kwargs['params']['apiKey'], 'my-api-key')
         self.assertNotIn('fullScan', first_call.kwargs['params'])
+
+    @patch('services.common.Helpers.LmsScanTrigger.requests.get')
+    def test_falls_back_to_the_environment_when_the_setting_is_empty(self, mock_get):
+        """Nothing sets LMS_HOSTS in compose, so the setting is empty on a fresh deployment.
+
+        It was empty on production for as long as the trigger existed, and because the
+        send path returned early without logging, a library that never picked up a moved
+        folder read as an LMS fault. The radio scheduler meanwhile worked fine off
+        MUMA_SERVER_HOSTS -- the same server, a different variable.
+        """
+        self._configure('', '')
+        mock_get.return_value = MagicMock(raise_for_status=MagicMock())
+        with patch.dict(
+            'os.environ',
+            {
+                'LMS_URL': '',
+                'LMS_HOSTS': '',
+                'MUMA_SERVER_HOSTS': 'lms:5082',
+                'MUMA_SERVER_SUBSONIC_API_KEY': 'env-key',
+            },
+        ):
+            self.trigger.trigger()
+        self.assertEqual(mock_get.call_args.args[0], 'http://lms:5082/rest/startScan.view')
+        self.assertEqual(mock_get.call_args.kwargs['params']['apiKey'], 'env-key')
+
+    @patch('services.common.Helpers.LmsScanTrigger.requests.get')
+    def test_the_setting_still_wins_over_the_environment(self, mock_get):
+        self._configure('configured:5082', 'configured-key')
+        mock_get.return_value = MagicMock(raise_for_status=MagicMock())
+        with patch.dict(
+            'os.environ', {'MUMA_SERVER_HOSTS': 'from-env:5082', 'MUMA_SERVER_SUBSONIC_API_KEY': 'env-key'}
+        ):
+            self.trigger.trigger()
+        self.assertEqual(mock_get.call_args.args[0], 'http://configured:5082/rest/startScan.view')
+        self.assertEqual(mock_get.call_args.kwargs['params']['apiKey'], 'configured-key')
+
+    @patch('services.common.Helpers.LmsScanTrigger.requests.get')
+    def test_says_so_once_when_there_is_nowhere_to_send(self, mock_get):
+        """The failure that hid for months was that this path said nothing at all."""
+        self._configure('', '')
+        cleared = dict.fromkeys(
+            ('LMS_URL', 'LMS_HOSTS', 'MUMA_SERVER_HOSTS', 'MUMA_SERVER_SUBSONIC_API_KEY', 'LMS_SUBSONIC_API_KEY'), ''
+        )
+        with patch.dict('os.environ', cleared), self.assertLogs(level='WARNING') as logs:
+            self.trigger.notify(['/mnt/music/EPs/Label/Release'])
+            self.trigger.flush_for_test()
+            self.trigger.trigger()
+        mock_get.assert_not_called()
+        self.assertEqual(len([line for line in logs.output if 'not configured' in line]), 1)
 
     @patch('services.common.Helpers.LmsScanTrigger.requests.get')
     def test_a_host_with_its_own_scheme_is_used_as_given(self, mock_get):

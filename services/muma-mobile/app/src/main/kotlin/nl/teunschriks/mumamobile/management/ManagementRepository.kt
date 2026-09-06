@@ -16,6 +16,14 @@ import nl.teunschriks.mumamobile.api.muma.MumaContainer
 import nl.teunschriks.mumamobile.api.muma.MumaDownloadAccount
 import nl.teunschriks.mumamobile.api.muma.MumaDownloadAccountRequest
 import nl.teunschriks.mumamobile.api.muma.MumaEvent
+import nl.teunschriks.mumamobile.api.muma.MumaGenreDecisionRequest
+import nl.teunschriks.mumamobile.api.muma.MumaGenreRule
+import nl.teunschriks.mumamobile.api.muma.MumaLabelDecisionRequest
+import nl.teunschriks.mumamobile.api.muma.MumaLabelProposal
+import nl.teunschriks.mumamobile.api.muma.MumaPodcastDecisionRequest
+import nl.teunschriks.mumamobile.api.muma.MumaPodcastRule
+import nl.teunschriks.mumamobile.api.muma.MumaRetagPending
+import nl.teunschriks.mumamobile.api.muma.MumaTaggerHealth
 import nl.teunschriks.mumamobile.api.muma.MumaVersions
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 
@@ -118,8 +126,70 @@ class ManagementRepository(private val client: SubsonicAPIClient) {
         api.getEvents(listOfNotNull(level), limit).execute().body()?.events.orEmpty()
     }
 
+    // --- Curation queues. Reading is a list; deciding is one POST per row. ---
+
+    suspend fun genreRules(state: String? = CURATION_QUEUE): List<MumaGenreRule> = withContext(Dispatchers.IO) {
+        api.getGenreRules(state).execute().body().orEmpty()
+    }
+
+    suspend fun decideGenre(id: Int, state: String) = withContext(Dispatchers.IO) {
+        api.decideGenre(id, MumaGenreDecisionRequest(state)).execute().throwOnFailure()
+    }
+
+    suspend fun podcastRules(state: String? = CURATION_QUEUE): List<MumaPodcastRule> = withContext(Dispatchers.IO) {
+        api.getPodcastRules(state).execute().body().orEmpty()
+    }
+
+    suspend fun decidePodcast(id: Int, state: String) = withContext(Dispatchers.IO) {
+        api.decidePodcast(id, MumaPodcastDecisionRequest(state)).execute().throwOnFailure()
+    }
+
+    suspend fun labelProposals(status: String = PROPOSAL_NEW): List<MumaLabelProposal> = withContext(Dispatchers.IO) {
+        api.getLabelProposals(status).execute().body().orEmpty()
+    }
+
+    suspend fun confirmLabelProposal(id: Int, label: String) = withContext(Dispatchers.IO) {
+        api.confirmLabelProposal(id, MumaLabelDecisionRequest(label)).execute().throwOnFailure()
+    }
+
+    suspend fun rejectLabelProposal(id: Int) = withContext(Dispatchers.IO) {
+        api.rejectLabelProposal(id).execute().throwOnFailure()
+    }
+
+    suspend fun taggerHealth(): MumaTaggerHealth = withContext(Dispatchers.IO) {
+        api.getTaggerHealth().execute().body() ?: MumaTaggerHealth()
+    }
+
+    suspend fun retagPending(): MumaRetagPending = withContext(Dispatchers.IO) {
+        api.getRetagPending().execute().body() ?: MumaRetagPending()
+    }
+
+    suspend fun runRetag() = withContext(Dispatchers.IO) {
+        api.runRetag().execute().throwOnFailure()
+    }
+
+    /**
+     * A decision that the server refused has to reach the person who made it.
+     *
+     * The account pages above ignore the response because their next act is to reload the list,
+     * which shows the row unchanged. A curation row disappears from its queue when the decision
+     * lands, so a silently dropped 409 or 400 looks exactly like success -- the row is gone from
+     * the reloaded queue either way, because the queue only holds undecided rows.
+     */
+    private fun <T> retrofit2.Response<T>.throwOnFailure() {
+        check(isSuccessful) {
+            "HTTP ${code()}: ${errorBody()?.string().orEmpty().take(ERROR_BODY_CHARS)}"
+        }
+    }
+
     companion object {
+        const val CURATION_QUEUE = "unknown"
+        const val CURATION_WHITE = "white"
+        const val CURATION_BLACK = "black"
+        const val PROPOSAL_NEW = "new"
+
         private const val ADMIN_ROLE = "admin"
+        private const val ERROR_BODY_CHARS = 200
         private const val SYSTEM_TYPE = "system"
         private const val LOG_TAIL = 200
         private const val EVENT_LIMIT = 100

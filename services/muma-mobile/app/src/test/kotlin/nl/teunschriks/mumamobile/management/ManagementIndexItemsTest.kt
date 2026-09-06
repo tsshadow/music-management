@@ -51,11 +51,15 @@ class ManagementIndexItemsTest {
     fun `only the pages the app has built are enabled`() {
         val built = ManagementPage.entries.filter { it.isBuilt }
 
-        // The System batch (overview, health, events) joined the first three. Everything else is
-        // still listed and disabled, which is what makes the index the honest picture of what
-        // management holds rather than of what the phone happens to do yet.
+        // The Tagger batch (the four curation queues) joined System and the first three.
+        // Everything else is still listed and disabled, which is what makes the index the honest
+        // picture of what management holds rather than of what the phone happens to do yet.
         built `should be equal to` listOf(
             ManagementPage.OVERVIEW,
+            ManagementPage.TAGGER,
+            ManagementPage.GENRE_CURATION,
+            ManagementPage.LABEL_PROPOSALS,
+            ManagementPage.PODCAST_CURATION,
             ManagementPage.DOWNLOADERS,
             ManagementPage.USERS,
             ManagementPage.USER_REQUESTS,
@@ -67,8 +71,8 @@ class ManagementIndexItemsTest {
     @Test
     fun `a page the app has not built is still listed`() {
         items `should be equal to` managementIndexItems(ManagementPage.entries)
-        ManagementPage.TAGGER.isBuilt.`should be false`()
-        (items.contains(ManagementIndexItem.Row(ManagementPage.TAGGER))).`should be true`()
+        ManagementPage.SCANNER.isBuilt.`should be false`()
+        (items.contains(ManagementIndexItem.Row(ManagementPage.SCANNER))).`should be true`()
     }
 
     @Test

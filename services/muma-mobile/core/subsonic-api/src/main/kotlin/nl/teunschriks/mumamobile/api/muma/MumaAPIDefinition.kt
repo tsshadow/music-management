@@ -158,6 +158,66 @@ interface MumaAPIDefinition {
         @Query("limit") limit: Int = 100
     ): Call<MumaEventsResponse>
 
+    // --- Curation queues (Beheer: tagger, genres, labelvoorstellen, podcasts). ---
+
+    /**
+     * The queue is `state=unknown`; the server rejects any state it does not know with a 400 for
+     * the whole request, so the app only ever sends the three it declares.
+     */
+    @GET("api/rules/genres")
+    fun getGenreRules(
+        @Query("state") state: String? = null,
+        @Query("limit") limit: Int = 200
+    ): Call<List<MumaGenreRule>>
+
+    @POST("api/rules/genres/{genre_id}/decide")
+    fun decideGenre(
+        @Path("genre_id") genreId: Int,
+        @Body request: MumaGenreDecisionRequest
+    ): Call<ResponseBody>
+
+    @GET("api/rules/podcasts")
+    fun getPodcastRules(
+        @Query("state") state: String? = null,
+        @Query("limit") limit: Int = 200
+    ): Call<List<MumaPodcastRule>>
+
+    @POST("api/rules/podcasts/{podcast_id}/decide")
+    fun decidePodcast(
+        @Path("podcast_id") podcastId: Int,
+        @Body request: MumaPodcastDecisionRequest
+    ): Call<ResponseBody>
+
+    @GET("api/label-proposals")
+    fun getLabelProposals(
+        @Query("status") status: String = "new"
+    ): Call<List<MumaLabelProposal>>
+
+    /**
+     * Confirming needs the label even when the proposal already names one: the server takes the
+     * decision from the body, not from the row, so agreeing is still an explicit answer.
+     */
+    @POST("api/label-proposals/{proposal_id}/confirm")
+    fun confirmLabelProposal(
+        @Path("proposal_id") proposalId: Int,
+        @Body request: MumaLabelDecisionRequest
+    ): Call<ResponseBody>
+
+    @POST("api/label-proposals/{proposal_id}/reject")
+    fun rejectLabelProposal(
+        @Path("proposal_id") proposalId: Int
+    ): Call<ResponseBody>
+
+    @GET("api/tagger/health")
+    fun getTaggerHealth(): Call<MumaTaggerHealth>
+
+    @GET("api/tagger/retag/pending")
+    fun getRetagPending(): Call<MumaRetagPending>
+
+    /** Answers 409 while a run holds the lock, which is a refusal, not a failure. */
+    @POST("api/tagger/retag/run")
+    fun runRetag(): Call<ResponseBody>
+
     @POST("api/diagnostics/crash-reports")
     fun uploadCrashReport(
         @Body request: CrashReportRequest

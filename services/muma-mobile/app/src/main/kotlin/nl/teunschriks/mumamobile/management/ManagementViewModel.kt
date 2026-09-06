@@ -18,6 +18,11 @@ import nl.teunschriks.mumamobile.api.muma.MumaAuthUser
 import nl.teunschriks.mumamobile.api.muma.MumaContainer
 import nl.teunschriks.mumamobile.api.muma.MumaDownloadAccount
 import nl.teunschriks.mumamobile.api.muma.MumaEvent
+import nl.teunschriks.mumamobile.api.muma.MumaGenreRule
+import nl.teunschriks.mumamobile.api.muma.MumaLabelProposal
+import nl.teunschriks.mumamobile.api.muma.MumaPodcastRule
+import nl.teunschriks.mumamobile.api.muma.MumaRetagPending
+import nl.teunschriks.mumamobile.api.muma.MumaTaggerHealth
 import nl.teunschriks.mumamobile.log.logAction
 import timber.log.Timber
 
@@ -44,6 +49,18 @@ class ManagementViewModel(private val repository: ManagementRepository) : ViewMo
 
     private val mutableEvents = MutableStateFlow<List<MumaEvent>>(emptyList())
     val events: StateFlow<List<MumaEvent>> = mutableEvents.asStateFlow()
+
+    private val mutableGenres = MutableStateFlow<List<MumaGenreRule>>(emptyList())
+    val genres: StateFlow<List<MumaGenreRule>> = mutableGenres.asStateFlow()
+
+    private val mutablePodcasts = MutableStateFlow<List<MumaPodcastRule>>(emptyList())
+    val podcasts: StateFlow<List<MumaPodcastRule>> = mutablePodcasts.asStateFlow()
+
+    private val mutableProposals = MutableStateFlow<List<MumaLabelProposal>>(emptyList())
+    val proposals: StateFlow<List<MumaLabelProposal>> = mutableProposals.asStateFlow()
+
+    private val mutableTagger = MutableStateFlow<TaggerStatus?>(null)
+    val tagger: StateFlow<TaggerStatus?> = mutableTagger.asStateFlow()
 
     private val mutableError = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = mutableError.asStateFlow()
@@ -113,6 +130,59 @@ class ManagementViewModel(private val repository: ManagementRepository) : ViewMo
 
     suspend fun containerLogs(name: String): String = repository.containerLogs(name)
 
+    // --- Curation queues ---
+
+    fun loadGenreQueue() = run("genre queue") {
+        mutableGenres.value = repository.genreRules()
+    }
+
+    /**
+     * A decision removes the row from the queue, so the list is reloaded rather than edited in
+     * place: the server decides what is still undecided, and a merge or an expansion can take more
+     * than the one row away.
+     */
+    fun decideGenre(id: Int, state: String) = run("genre decide") {
+        repository.decideGenre(id, state)
+        mutableGenres.value = repository.genreRules()
+    }
+
+    fun loadPodcastQueue() = run("podcast queue") {
+        mutablePodcasts.value = repository.podcastRules()
+    }
+
+    fun decidePodcast(id: Int, state: String) = run("podcast decide") {
+        repository.decidePodcast(id, state)
+        mutablePodcasts.value = repository.podcastRules()
+    }
+
+    fun loadLabelProposals() = run("label proposals") {
+        mutableProposals.value = repository.labelProposals()
+    }
+
+    fun confirmProposal(id: Int, label: String) = run("proposal confirm") {
+        repository.confirmLabelProposal(id, label)
+        mutableProposals.value = repository.labelProposals()
+    }
+
+    fun rejectProposal(id: Int) = run("proposal reject") {
+        repository.rejectLabelProposal(id)
+        mutableProposals.value = repository.labelProposals()
+    }
+
+    fun loadTagger() = run("tagger") {
+        mutableTagger.value = TaggerStatus(repository.taggerHealth(), repository.retagPending())
+    }
+
+    /**
+     * Starting a run answers 409 while one is already going. That is the server refusing, and the
+     * refusal is worth surfacing -- so it travels the normal error path rather than being read as
+     * "started".
+     */
+    fun startRetag() = run("retag run") {
+        repository.runRetag()
+        mutableTagger.value = TaggerStatus(repository.taggerHealth(), repository.retagPending())
+    }
+
     fun clearError() {
         mutableError.value = null
     }
@@ -137,6 +207,9 @@ class ManagementViewModel(private val repository: ManagementRepository) : ViewMo
             }
         }
     }
+
+    /** What the tagger page shows: whether a run is going, and what is waiting for one. */
+    data class TaggerStatus(val health: MumaTaggerHealth, val pending: MumaRetagPending)
 
     companion object {
         const val STATUS_PENDING = "pending"

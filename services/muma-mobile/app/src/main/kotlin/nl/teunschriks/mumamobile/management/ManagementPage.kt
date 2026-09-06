@@ -55,21 +55,24 @@ enum class ManagementPage(
     SCANNER("scanner", R.string.management_tab_scanner, ManagementGroup.COLLECTION),
     IMAGES("images", R.string.management_tab_images, ManagementGroup.COLLECTION),
     PLAYLISTS("playlists", R.string.management_tab_playlists, ManagementGroup.COLLECTION),
-    TAGGER("tagger", R.string.management_tab_tagger, ManagementGroup.CURATION),
+    TAGGER("tagger", R.string.management_tab_tagger, ManagementGroup.CURATION, isBuilt = true),
     GENRE_CURATION(
         "genre-curation",
         R.string.management_tab_genre_curation,
-        ManagementGroup.CURATION
+        ManagementGroup.CURATION,
+        isBuilt = true
     ),
     LABEL_PROPOSALS(
         "label-proposals",
         R.string.management_tab_label_proposals,
-        ManagementGroup.CURATION
+        ManagementGroup.CURATION,
+        isBuilt = true
     ),
     PODCAST_CURATION(
         "podcast-curation",
         R.string.management_tab_podcast_curation,
-        ManagementGroup.CURATION
+        ManagementGroup.CURATION,
+        isBuilt = true
     ),
     DOWNLOADERS(
         "downloaders",

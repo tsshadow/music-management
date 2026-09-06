@@ -173,3 +173,41 @@ def test_a_changelog_without_an_unreleased_heading_is_refused(tmp_path):
     (tmp_path / 'CHANGELOG.md').write_text('# Changelog\n\n## [0.44.4] - 2026-09-04\n')
     with pytest.raises(ValueError, match='Unreleased'):
         assemble_changelog.assemble('root', '0.45.0', '2026-09-05', apply_changes=True, root=str(tmp_path))
+
+
+def test_release_notes_may_bracket_the_unreleased_heading(tmp_path):
+    """muma-mobile's RELEASE_NOTES.md brackets it; the root one does not."""
+    _repo(tmp_path, {}, mobile_fragments={'2.changed.md': '- **App.**'})
+    mobile = tmp_path / 'services' / 'muma-mobile'
+    (mobile / 'RELEASE_NOTES.md').write_text(RELEASE_NOTES.replace('## Unreleased', '## [Unreleased]'))
+    assemble_changelog.assemble('mobile', '6.28.4', '2026-09-06', apply_changes=True, root=str(tmp_path))
+    assert '- **App.**' in (mobile / 'RELEASE_NOTES.md').read_text()
+
+
+def test_a_scope_that_cannot_be_assembled_leaves_every_file_alone(tmp_path):
+    """It used to open each file for writing before knowing it could write it, so the first
+    unusable heading truncated a 47 KB file to nothing on the release branch."""
+    _repo(tmp_path, {}, mobile_fragments={'2.changed.md': '- **App.**'})
+    mobile = tmp_path / 'services' / 'muma-mobile'
+    (mobile / 'RELEASE_NOTES.md').write_text('# Release Notes\n\nno heading here\n')
+    with pytest.raises(ValueError, match='Unreleased'):
+        assemble_changelog.assemble('mobile', '6.28.4', '2026-09-06', apply_changes=True, root=str(tmp_path))
+    assert (mobile / 'RELEASE_NOTES.md').read_text() == '# Release Notes\n\nno heading here\n'
+    assert (mobile / 'CHANGELOG.md').read_text() == CHANGELOG
+    assert (tmp_path / 'changelog.d' / 'mobile' / '2.changed.md').exists()
+
+
+def test_the_mobile_scope_needs_its_own_version(tmp_path, monkeypatch):
+    """The app's versionName runs a minor ahead of the root VERSION, so sharing one is wrong."""
+    _repo(tmp_path, {'1.fixed.md': '- **Server.**'}, mobile_fragments={'2.changed.md': '- **App.**'})
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit):
+        assemble_changelog.main(['--version', '0.46.1', '--apply'])
+    assert (tmp_path / 'changelog.d' / 'mobile' / '2.changed.md').exists()
+
+
+def test_a_root_only_release_does_not_ask_for_a_mobile_version(tmp_path, monkeypatch):
+    _repo(tmp_path, {'1.fixed.md': '- **Server.**'}, mobile_fragments={})
+    monkeypatch.chdir(tmp_path)
+    assert assemble_changelog.main(['--version', '0.46.1', '--apply']) == 0
+    assert '- **Server.**' in (tmp_path / 'CHANGELOG.md').read_text()

@@ -22,6 +22,12 @@ SECTIONS = ('added', 'changed', 'deprecated', 'removed', 'fixed', 'security')
 # CHANGELOG.md the person who will have to work on it -- the same change, different detail.
 RELEASE_NOTES_MARKER = '<!-- release notes -->'
 
+# CHANGELOG.md brackets the heading, the root RELEASE_NOTES.md does not, and muma-mobile's copies
+# bracket it in both files. Accepting either is what the anchor is for; insisting on one spelling
+# emptied services/muma-mobile/RELEASE_NOTES.md on the first release that carried a mobile
+# fragment, because the file was already open for writing when the lookup failed.
+UNRELEASED_ANCHORS = ('## [Unreleased]', '## Unreleased')
+
 SCOPES = {
     'root': {
         'fragments': 'changelog.d',
@@ -103,10 +109,11 @@ def render_release_notes_section(notes, version, date):
     return f'## Global Version {version} ({date})\n\n{body}'
 
 
-def insert_after(text, anchor, block, path):
-    """Inserts `block` directly below `anchor`, keeping one blank line either side."""
-    if anchor not in text:
-        raise ValueError(f'{path}: no "{anchor}" heading to insert below')
+def insert_after(text, block, path):
+    """Inserts `block` directly below the Unreleased heading, keeping one blank line either side."""
+    anchor = next((candidate for candidate in UNRELEASED_ANCHORS if candidate in text), None)
+    if anchor is None:
+        raise ValueError(f'{path}: no "{UNRELEASED_ANCHORS[0]}" heading to insert below')
     head, _marker, tail = text.partition(anchor)
     return f'{head}{anchor}\n\n{block.rstrip(chr(10))}\n{tail.lstrip(chr(10))}'
 
@@ -127,20 +134,22 @@ def assemble(scope, version, date, apply_changes, root='.'):
     if not apply_changes:
         return used
 
-    changelog_path = os.path.join(root, config['changelog'])
-    with open(changelog_path, encoding='utf-8') as handle:
-        text = handle.read()
-    with open(changelog_path, 'w', encoding='utf-8') as handle:
-        handle.write(insert_after(text, '## [Unreleased]', changelog_block, changelog_path))
+    # Every file is rendered before any of them is opened for writing. A scope that fails halfway
+    # used to leave one file assembled and the next one truncated to nothing, on a release branch
+    # where the damage looks like a merge artefact rather than a script that gave up.
+    targets = [(os.path.join(root, config['changelog']), changelog_block)]
+    targets.extend((os.path.join(root, relative), notes_block) for relative in config['release_notes'])
 
-    for relative in config['release_notes']:
-        notes_path = os.path.join(root, relative)
-        if not os.path.exists(notes_path):
+    pending = []
+    for path, block in targets:
+        if not os.path.exists(path):
             continue
-        with open(notes_path, encoding='utf-8') as handle:
-            text = handle.read()
-        with open(notes_path, 'w', encoding='utf-8') as handle:
-            handle.write(insert_after(text, '## Unreleased', notes_block, notes_path))
+        with open(path, encoding='utf-8') as handle:
+            pending.append((path, insert_after(handle.read(), block, path)))
+
+    for path, assembled in pending:
+        with open(path, 'w', encoding='utf-8') as handle:
+            handle.write(assembled)
 
     for path in used:
         os.remove(path)
@@ -150,6 +159,10 @@ def assemble(scope, version, date, apply_changes, root='.'):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--version', required=True, help='the version being released, e.g. 0.45.0')
+    # muma-mobile's versionName deliberately does not track the root VERSION -- it has drifted a
+    # minor ahead -- so a mobile fragment filed under the root version would be filed under a
+    # version the app never had. Read the next one from services/muma-mobile/app/build.gradle.
+    parser.add_argument('--mobile-version', help='version for the muma-mobile scope, e.g. 6.28.4')
     parser.add_argument('--date', default=datetime.date.today().isoformat())
     parser.add_argument('--scope', choices=sorted(SCOPES), action='append', help='default: every scope')
     parser.add_argument('--apply', action='store_true', help='write the files; default is a dry run')
@@ -157,7 +170,10 @@ def main(argv=None):
 
     consumed = []
     for scope in args.scope or sorted(SCOPES):
-        consumed.extend(assemble(scope, args.version, args.date, args.apply))
+        version = args.mobile_version if scope == 'mobile' else args.version
+        if version is None and fragment_files(SCOPES[scope]['fragments']):
+            parser.error('--mobile-version is required: there are fragments in changelog.d/mobile')
+        consumed.extend(assemble(scope, version, args.date, args.apply))
     if not args.apply:
         print('dry run, nothing written; pass --apply to write the changelog')
     elif consumed:

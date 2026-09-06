@@ -88,7 +88,7 @@ namespace lms::scanner::tests
         ScanContext context;
         bool interrupted{};
 
-        const std::size_t stoppedAt{ runScanSteps(steps, context, 0, interrupted, ignoreProgress) };
+        const std::size_t stoppedAt{ runScanSteps(steps, context, interrupted, ignoreProgress) };
 
         EXPECT_EQ(stoppedAt, 3);
         for (IScanStep* step : raw)
@@ -103,7 +103,7 @@ namespace lms::scanner::tests
         ScanContext context;
         bool interrupted{};
 
-        EXPECT_EQ(runScanSteps(steps, context, 0, interrupted, ignoreProgress), 3);
+        EXPECT_EQ(runScanSteps(steps, context, interrupted, ignoreProgress), 3);
         EXPECT_EQ(static_cast<FakeStep*>(raw[1])->runCount, 0);
         EXPECT_EQ(static_cast<FakeStep*>(raw[2])->runCount, 1);
     }
@@ -117,7 +117,7 @@ namespace lms::scanner::tests
 
         // The second step raises the flag while running, the way a real step does when it
         // sees the abort bool on a batch boundary.
-        const std::size_t stoppedAt{ runScanSteps(steps, context, 0, interrupted, ignoreProgress) };
+        const std::size_t stoppedAt{ runScanSteps(steps, context, interrupted, ignoreProgress) };
 
         EXPECT_EQ(stoppedAt, 1);
         EXPECT_EQ(static_cast<FakeStep*>(raw[2])->runCount, 0);
@@ -130,7 +130,7 @@ namespace lms::scanner::tests
         auto steps{ makeSteps(raw, &interrupted) };
         ScanContext context;
 
-        const std::size_t stoppedAt{ runScanSteps(steps, context, 0, interrupted, ignoreProgress) };
+        const std::size_t stoppedAt{ runScanSteps(steps, context, interrupted, ignoreProgress) };
         ASSERT_EQ(stoppedAt, 1);
         const std::size_t statsAfterPause{ context.stats.scans };
 
@@ -140,7 +140,7 @@ namespace lms::scanner::tests
         second.stopInterrupting();
         second.runCount = 0;
 
-        EXPECT_EQ(runScanSteps(steps, context, stoppedAt, interrupted, ignoreProgress), 3);
+        EXPECT_EQ(runScanSteps(steps, context, interrupted, ignoreProgress, stoppedAt), 3);
         EXPECT_EQ(static_cast<FakeStep*>(raw[0])->runCount, 1); // not run a second time
         EXPECT_EQ(second.runCount, 1);                          // the interrupted step ran again
         EXPECT_GT(context.stats.scans, statsAfterPause);        // earlier work is still counted

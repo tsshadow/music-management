@@ -40,7 +40,7 @@ namespace lms::scanner
     // and the caller decides what an interruption means.
     std::size_t runScanSteps(std::vector<std::unique_ptr<IScanStep>>& steps,
                              ScanContext& context,
-                             std::size_t startIndex,
                              const bool& interrupted,
-                             const std::function<void(const ScanStepStats&)>& notifyProgress);
+                             const std::function<void(const ScanStepStats&)>& notifyProgress,
+                             std::size_t startIndex = 0);
 } // namespace lms::scanner

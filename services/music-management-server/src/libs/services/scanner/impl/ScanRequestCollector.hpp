@@ -41,7 +41,16 @@ namespace lms::scanner
     public:
         using Clock = std::chrono::steady_clock;
 
-        ScanRequestCollector(Clock::duration quietPeriod, Clock::duration maxDelay);
+        // Both are durations, and swapping them turns a five-second debounce with a
+        // one-minute cap into the reverse without the compiler noticing. Naming them at
+        // the call site is the only thing that catches that.
+        struct Timing
+        {
+            Clock::duration quietPeriod;
+            Clock::duration maxDelay;
+        };
+
+        explicit ScanRequestCollector(Timing timing);
 
         void add(const std::vector<std::filesystem::path>& paths, Clock::time_point now);
         bool empty() const { return _paths.empty(); }

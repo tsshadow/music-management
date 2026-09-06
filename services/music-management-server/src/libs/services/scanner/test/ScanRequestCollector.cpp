@@ -28,11 +28,12 @@ namespace lms::scanner::tests
         using Clock = ScanRequestCollector::Clock;
         constexpr std::chrono::seconds quietPeriod{ 5 };
         constexpr std::chrono::seconds maxDelay{ 60 };
+        constexpr ScanRequestCollector::Timing timing{ .quietPeriod = quietPeriod, .maxDelay = maxDelay };
     } // namespace
 
     TEST(ScanRequestCollector, isEmptyAndHasNoDeadlineUntilSomethingArrives)
     {
-        const ScanRequestCollector collector{ quietPeriod, maxDelay };
+        const ScanRequestCollector collector{ timing };
 
         EXPECT_TRUE(collector.empty());
         EXPECT_FALSE(collector.deadline().has_value());
@@ -40,7 +41,7 @@ namespace lms::scanner::tests
 
     TEST(ScanRequestCollector, mergesDuplicatePathsIntoOneRequest)
     {
-        ScanRequestCollector collector{ quietPeriod, maxDelay };
+        ScanRequestCollector collector{ timing };
         const Clock::time_point start{};
 
         collector.add({ "/music/A", "/music/B" }, start);
@@ -53,7 +54,7 @@ namespace lms::scanner::tests
 
     TEST(ScanRequestCollector, waitsForTheQuietPeriodAndEveryNewPathResetsIt)
     {
-        ScanRequestCollector collector{ quietPeriod, maxDelay };
+        ScanRequestCollector collector{ timing };
         const Clock::time_point start{};
 
         collector.add({ "/music/A" }, start);
@@ -69,7 +70,7 @@ namespace lms::scanner::tests
     {
         // A tagger round touching a folder every second would otherwise reset the quiet
         // period forever and the first path would never be scanned.
-        ScanRequestCollector collector{ quietPeriod, maxDelay };
+        ScanRequestCollector collector{ timing };
         const Clock::time_point start{};
 
         for (int second{}; second < 70; ++second)
@@ -85,7 +86,7 @@ namespace lms::scanner::tests
 
     TEST(ScanRequestCollector, takeClearsTheStateSoTheNextBurstStartsItsOwnCycle)
     {
-        ScanRequestCollector collector{ quietPeriod, maxDelay };
+        ScanRequestCollector collector{ timing };
         const Clock::time_point start{};
 
         collector.add({ "/music/A" }, start);
@@ -100,7 +101,7 @@ namespace lms::scanner::tests
 
     TEST(ScanRequestCollector, deadlineIsTheEarlierOfTheQuietPeriodAndTheCap)
     {
-        ScanRequestCollector collector{ quietPeriod, maxDelay };
+        ScanRequestCollector collector{ timing };
         const Clock::time_point start{};
 
         collector.add({ "/music/A" }, start);

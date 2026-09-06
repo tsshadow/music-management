@@ -25,22 +25,23 @@ namespace lms::scanner
 {
     namespace
     {
+        constexpr int firstDayOfMonth{ 1 };
+        constexpr int secondsPerHour{ 3600 };
+
         Wt::WDate getNextDayOfWeek(Wt::WDate current, int dayOfWeek)
         {
-            do
-            {
+            current = current.addDays(1);
+            while (current.dayOfWeek() != dayOfWeek)
                 current = current.addDays(1);
-            } while (current.dayOfWeek() != dayOfWeek);
 
             return current;
         }
 
         Wt::WDate getNextFirstOfMonth(Wt::WDate current)
         {
-            do
-            {
+            current = current.addDays(1);
+            while (current.day() != firstDayOfMonth)
                 current = current.addDays(1);
-            } while (current.day() != 1);
 
             return current;
         }
@@ -63,7 +64,7 @@ namespace lms::scanner
                 return { getNextDayOfWeek(now.date(), dayOfWeek), startTime };
 
             case ScanPeriod::Monthly:
-                if (now.time() < startTime && now.date().day() == 1)
+                if (now.time() < startTime && now.date().day() == firstDayOfMonth)
                     return { now.date(), startTime };
                 return { getNextFirstOfMonth(now.date()), startTime };
 
@@ -73,7 +74,7 @@ namespace lms::scanner
                 // addSecs on the whole date/time, not on the WTime: adding an hour to 23:30
                 // used to wrap the time around and keep the date, scheduling the next scan
                 // in the past.
-                return now.addSecs(3600);
+                return now.addSecs(secondsPerHour);
             }
 
             return {};

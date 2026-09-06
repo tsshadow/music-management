@@ -292,7 +292,7 @@ namespace lms::scanner
     {
         bool scanRunning{};
         {
-            std::shared_lock lock{ _statusMutex };
+            const std::shared_lock lock{ _statusMutex };
             scanRunning = _curState == State::InProgress;
         }
 
@@ -519,9 +519,8 @@ namespace lms::scanner
 
     std::size_t ScannerService::processScanSteps(ScanContext& context, std::size_t startIndex)
     {
-        return runScanSteps(_scanSteps, context, startIndex, _abortScan, [this](const ScanStepStats& stats) {
-            notifyInProgress(stats);
-        });
+        return runScanSteps(
+            _scanSteps, context, _abortScan, [this](const ScanStepStats& stats) { notifyInProgress(stats); }, startIndex);
     }
 
     void ScannerService::refreshScanSettings()

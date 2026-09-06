@@ -156,8 +156,12 @@ namespace lms::scanner
         }
 
         // `directory` empty means the whole table, which is what a normal scan asks for.
+        //
+        // `cachepath` and `directory` are both paths and were adjacent, so the call that means
+        // "skip the cache, look under this scope" compiled just as happily with the two the
+        // other way round -- and would then have skipped the scope and scanned the cache.
         template<typename Object>
-        bool fetchNextFilesToCheck(db::Session& session, typename Object::IdType& lastCheckedId, const std::filesystem::path& cachepath, const std::filesystem::path& directory, std::vector<FileToCheck<typename Object::IdType>>& filesToCheck)
+        bool fetchNextFilesToCheck(db::Session& session, const std::filesystem::path& cachepath, typename Object::IdType& lastCheckedId, const std::filesystem::path& directory, std::vector<FileToCheck<typename Object::IdType>>& filesToCheck)
         {
             constexpr std::size_t batchSize{ 200 };
 
@@ -278,7 +282,7 @@ namespace lms::scanner
             for (const std::filesystem::path& scope : scopes)
             {
                 ObjectIdType lastCheckedId;
-                while (fetchNextFilesToCheck<Object>(session, lastCheckedId, getCachePath(), scope, filesToCheck))
+                while (fetchNextFilesToCheck<Object>(session, getCachePath(), lastCheckedId, scope, filesToCheck))
                     queue.push(std::make_unique<CheckForRemovedFilesJob<ObjectIdType>>(_settings, getFileScanners(), filesToCheck));
             }
         }

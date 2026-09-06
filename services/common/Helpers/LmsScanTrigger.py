@@ -48,8 +48,19 @@ class LmsScanTrigger:
                 continue
             self._trigger_host(host, api_key, full_scan)
 
+    @staticmethod
+    def _scan_url(host: str) -> str:
+        """A configured host may bring its own scheme; a bare one is plain HTTP.
+
+        LMS sits on the container network next to muma, so the default is unencrypted on
+        purpose -- but `lms_hosts` is a free-text setting and somebody putting an https URL
+        in it means it, and used to get `http://https://...` for their trouble.
+        """
+        base = host if host.startswith(('http://', 'https://')) else f'http://{host}'
+        return f'{base.rstrip("/")}/rest/startScan.view'
+
     def _trigger_host(self, host: str, api_key: str, full_scan: bool) -> None:
-        url = f'http://{host}/rest/startScan.view'
+        url = self._scan_url(host)
         params = {'apiKey': api_key, 'v': '1.16.1', 'c': 'music-manager', 'f': 'json'}
         if full_scan:
             params['fullScan'] = 'true'
@@ -131,7 +142,7 @@ class LmsScanTrigger:
                 continue
             params = {'apiKey': api_key, 'v': '1.16.1', 'c': 'music-manager', 'f': 'json', 'path': paths}
             try:
-                response = requests.get(f'http://{host}/rest/startScan.view', params=params, timeout=10)
+                response = requests.get(self._scan_url(host), params=params, timeout=10)
                 response.raise_for_status()
                 logging.info('Notified LMS on %s of %d path(s)', host, len(paths))
             except Exception as e:

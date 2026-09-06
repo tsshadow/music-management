@@ -131,7 +131,7 @@ namespace lms::scanner
         // Five seconds of quiet, and sixty seconds at the outside: a tagger round that touches
         // a folder every second would otherwise keep resetting the quiet period and its first
         // path would never be read.
-        ScanRequestCollector _scanRequests{ std::chrono::seconds{ 5 }, std::chrono::seconds{ 60 } };
+        ScanRequestCollector _scanRequests{ ScanRequestCollector::Timing{ .quietPeriod = std::chrono::seconds{ 5 }, .maxDelay = std::chrono::seconds{ 60 } } };
         boost::asio::steady_timer _scanRequestTimer{ _ioService };
         bool _firstSchedule{ true };
         Events _events;

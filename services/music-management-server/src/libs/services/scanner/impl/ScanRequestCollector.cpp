@@ -23,9 +23,9 @@
 
 namespace lms::scanner
 {
-    ScanRequestCollector::ScanRequestCollector(Clock::duration quietPeriod, Clock::duration maxDelay)
-        : _quietPeriod{ quietPeriod }
-        , _maxDelay{ maxDelay }
+    ScanRequestCollector::ScanRequestCollector(Timing timing)
+        : _quietPeriod{ timing.quietPeriod }
+        , _maxDelay{ timing.maxDelay }
     {
     }
 

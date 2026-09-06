@@ -1039,6 +1039,13 @@ c68e12c3038b45cc x1  # misc-use-anonymous-namespace src/libs/subsonic/impl/endpo
 # Wants file-local functions marked static or moved into an anonymous
 # namespace. Same reasoning as misc-const-correctness: hygiene, not a
 # defect, and large.
+#
+# Migration.cpp is a numbered series of identical-looking migrateFromVnnn
+# functions, every one of them listed here. A new migration is accepted with
+# them rather than made static on its own: marking one of a series differently
+# from the twenty-six above it reads as significance it does not have, and
+# clang-tidy answers `static` with misc-use-anonymous-namespace anyway -- the
+# anonymous namespace in this file ends a thousand lines before the migrations.
 fa0cf49aef664bc5 x1  # misc-use-internal-linkage src/libs/audio/impl/alsa/AudioOutputStream.cpp
 e89fe4a9622887e6 x1  # misc-use-internal-linkage src/libs/audio/impl/alsa/AudioOutputStream.cpp
 f6425243a2fb1d01 x1  # misc-use-internal-linkage src/libs/audio/impl/taglib/Utils.cpp
@@ -1110,6 +1117,7 @@ f05f47aa572798f8 x1  # misc-use-internal-linkage src/libs/database/impl/Migratio
 9980e123ebea01b4 x1  # misc-use-internal-linkage src/libs/database/impl/Migration.cpp
 d33ecd4eb47cc713 x1  # misc-use-internal-linkage src/libs/database/impl/Migration.cpp
 2dc0861ca41cf80f x1  # misc-use-internal-linkage src/libs/database/impl/Migration.cpp
+6da7d253eaaf9169 x1  # misc-use-internal-linkage src/libs/database/impl/Migration.cpp
 a13fbd0ee9dfc360 x2  # misc-use-internal-linkage src/libs/image/impl/EncodedImage.cpp
 b72375e151a0c8a8 x1  # misc-use-internal-linkage src/libs/services/feedback/impl/internal/InternalBackend.cpp
 d3075cc36089a8e2 x1  # misc-use-internal-linkage src/libs/services/feedback/impl/internal/InternalBackend.cpp

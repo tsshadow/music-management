@@ -158,6 +158,7 @@ namespace lms::api::subsonic::Scan
                 throw RequestedDataNotFoundError{};
 
             std::vector<std::filesystem::path> res;
+            res.reserve(rawPaths.size());
             for (const std::string& rawPath : rawPaths)
                 res.push_back(resolveScanScope(rawPath, roots));
 

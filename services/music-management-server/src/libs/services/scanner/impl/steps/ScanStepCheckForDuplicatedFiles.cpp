@@ -32,12 +32,8 @@ namespace lms::scanner
     {
         // A report over the whole library, not a mutation -- and a scoped scan does not publish
         // its stats, so the result would be computed and thrown away. The report keeps showing
-        // what the last full scan found.
-        if (context.scanOptions.isScoped())
-            return false;
-
-        // Always check for everything
-        return true;
+        // what the last full scan found. Every other scan checks everything.
+        return !context.scanOptions.isScoped();
     }
 
     void ScanStepCheckForDuplicatedFiles::process(ScanContext& context)

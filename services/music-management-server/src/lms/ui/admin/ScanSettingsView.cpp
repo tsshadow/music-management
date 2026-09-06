@@ -68,8 +68,10 @@ namespace lms::ui
         public:
             static inline constexpr Field UpdatePeriodField{ "update-period" };
             static inline constexpr Field UpdateStartTimeField{ "update-start-time" };
-            static inline constexpr Field FullScanPeriodField{ "full-scan-period" };
-            static inline constexpr Field FullScanDayOfWeekField{ "full-scan-day-of-week" };
+            // No `inline`, unlike the fields around them: a static constexpr member is
+            // implicitly inline, and clang-tidy is right that repeating it says nothing.
+            static constexpr Field FullScanPeriodField{ "full-scan-period" };
+            static constexpr Field FullScanDayOfWeekField{ "full-scan-day-of-week" };
             static inline constexpr Field SimilarityEngineTypeField{ "similarity-engine-type" };
             static inline constexpr Field SkipSingleReleasePlayListsField{ "skip-single-release-playlists" };
             static inline constexpr Field AllowMBIDArtistMergeField{ "allow-mbid-artist-merge" };
@@ -241,8 +243,9 @@ namespace lms::ui
                 _fullScanPeriodModel->add(Wt::WString::tr("Lms.Admin.Database.weekly"), db::ScanSettings::FullScanPeriod::Weekly);
 
                 // 1..7 with Monday first, the same convention as Wt::WDate::dayOfWeek().
+                constexpr int daysInWeek{ 7 };
                 _fullScanDayOfWeekModel = std::make_shared<ValueStringModel<int>>();
-                for (int day{ 1 }; day <= 7; ++day)
+                for (int day{ 1 }; day <= daysInWeek; ++day)
                     _fullScanDayOfWeekModel->add(Wt::WDate::longDayName(day), day);
 
                 _updateStartTimeModel = std::make_shared<ValueStringModel<Wt::WTime>>();

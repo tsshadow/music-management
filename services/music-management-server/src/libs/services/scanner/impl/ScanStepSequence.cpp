@@ -31,13 +31,13 @@ namespace lms::scanner
 {
     std::size_t runScanSteps(std::vector<std::unique_ptr<IScanStep>>& steps,
                              ScanContext& context,
-                             std::size_t startIndex,
                              const bool& interrupted,
-                             const std::function<void(const ScanStepStats&)>& notifyProgress)
+                             const std::function<void(const ScanStepStats&)>& notifyProgress,
+                             std::size_t startIndex)
     {
         for (std::size_t stepIndex{ startIndex }; stepIndex < steps.size(); ++stepIndex)
         {
-            auto& scanStep{ steps[stepIndex] };
+            auto& scanStep{ steps.at(stepIndex) };
 
             context.currentStepStats = ScanStepStats{
                 .startTime = Wt::WDateTime::currentDateTime(),

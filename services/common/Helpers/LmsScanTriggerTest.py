@@ -50,6 +50,26 @@ class LmsScanTriggerTest(unittest.TestCase):
         self.assertNotIn('fullScan', first_call.kwargs['params'])
 
     @patch('services.common.Helpers.LmsScanTrigger.requests.get')
+    def test_a_host_with_its_own_scheme_is_used_as_given(self, mock_get):
+        """lms_hosts is free text, and an https URL in it used to become http://https://..."""
+        self._configure('https://lms.example.org/, http://plain:5082', 'my-api-key')
+        mock_get.return_value = MagicMock(raise_for_status=MagicMock())
+        self.trigger.trigger()
+        urls = [call.args[0] for call in mock_get.call_args_list]
+        self.assertEqual(
+            urls,
+            ['https://lms.example.org/rest/startScan.view', 'http://plain:5082/rest/startScan.view'],
+        )
+
+    @patch('services.common.Helpers.LmsScanTrigger.requests.get')
+    def test_notify_uses_the_same_url_as_trigger(self, mock_get):
+        self._configure('https://lms.example.org', 'my-api-key')
+        mock_get.return_value = MagicMock(raise_for_status=MagicMock())
+        self.trigger.notify(['/mnt/music/EPs/Label/Release'])
+        self.trigger.flush_for_test()
+        self.assertEqual(mock_get.call_args.args[0], 'https://lms.example.org/rest/startScan.view')
+
+    @patch('services.common.Helpers.LmsScanTrigger.requests.get')
     def test_full_scan_param_passed_through(self, mock_get):
         self._configure('lms:5082', 'my-api-key')
         mock_get.return_value = MagicMock(raise_for_status=MagicMock())

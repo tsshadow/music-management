@@ -59,6 +59,7 @@
     busy = true;
     let confirmed = 0;
     let stale = 0;
+    let conflict = 0;
     try {
       for (const proposal of group.proposals) {
         const res = await fetch(`${API_BASE}/api/label-proposals/${proposal.id}/confirm`, {
@@ -69,9 +70,13 @@
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const body = await res.json();
         if (body.status === 'stale') stale += 1;
+        // The destination folder already holds a release, so nothing moved and the
+        // proposal is still open. Counting it as confirmed would report a move that
+        // did not happen.
+        else if (body.status === 'conflict' || body.status === 'duplicate') conflict += 1;
         else confirmed += 1;
       }
-      onMessage($t('management.labelProposals.confirmed', { count: confirmed, label, stale }));
+      onMessage($t('management.labelProposals.confirmed', { count: confirmed, label, stale, conflict }));
       await load();
     } catch (e) {
       onError(e.message);

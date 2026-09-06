@@ -11,6 +11,27 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.47.0 (2026-09-06)
+
+- **Bibliotheekbeheer toont voortaan "Henk feat Kees" in plaats van "Henk, Kees" waar dat bekend
+  is.** Geldt voor nieuw getagde bestanden; bestaande bestanden krijgen het bij hun volgende
+  tagronde.
+
+- **Release Radar en Daily Mix, eerste versie.** De ranker leidt een smaakprofiel af uit je
+  luistergeschiedenis, telt een luisterbeurt één keer op zijn diepste genre, en verdeelt de plekken
+  over je genres in plaats van ze op score te sorteren -- anders vult het genre dat je het meeste
+  speelt alle dertig plekken en zie je de rest nooit. Nog geen scherm: `GET /api/feeds/release-radar`
+  en `scripts/feeds_dryrun.py` zijn wat er is, zodat de vensters op echte cijfers gekozen kunnen
+  worden voordat er UI omheen komt.
+
+- **Een verkeerd geconfigureerde muma-container kon ongemerkt de productieserver bevragen.** Dat kan
+  niet meer: zonder expliciete LMS-instelling stopt de radio met een duidelijke melding in plaats van
+  een adres te gokken.
+
+- **117 niet-verwante nummers stonden als één song in de bibliotheek.** Nummers zonder bruikbare
+  titel — leeg, of alleen een emoji — werden allemaal op één hoop gegooid. Ze krijgen nu elk hun
+  eigen plek. Er is nog niets van te zien in de app: het versiemodel wordt achter de schermen
+  opgebouwd.
 ## Global Version 0.46.0 (2026-09-05)
 
 - **Wijzigingen worden voortaan per stuk vastgelegd en pas bij een release samengevoegd.** Dat

@@ -22,17 +22,17 @@ SECTIONS = ('added', 'changed', 'deprecated', 'removed', 'fixed', 'security')
 # CHANGELOG.md the person who will have to work on it -- the same change, different detail.
 RELEASE_NOTES_MARKER = '<!-- release notes -->'
 
-# CHANGELOG.md brackets the heading, the root RELEASE_NOTES.md does not, and muma-mobile's copies
-# bracket it in both files. Accepting either is what the anchor is for; insisting on one spelling
-# emptied services/muma-mobile/RELEASE_NOTES.md on the first release that carried a mobile
-# fragment, because the file was already open for writing when the lookup failed.
-UNRELEASED_ANCHORS = ('## [Unreleased]', '## Unreleased')
-
+# `release_notes_anchor` is per scope because the two files disagree: the root
+# RELEASE_NOTES.md heads its pending block with `## Unreleased`, muma-mobile's with
+# `## [Unreleased]`. Hardcoding the root spelling meant the mobile scope could never
+# write its release notes at all -- and, with the truncating write this script used to
+# do, emptied them instead.
 SCOPES = {
     'root': {
         'fragments': 'changelog.d',
         'changelog': 'CHANGELOG.md',
         'release_notes': ['RELEASE_NOTES.md'],
+        'release_notes_anchor': '## Unreleased',
     },
     'mobile': {
         'fragments': os.path.join('changelog.d', 'mobile'),
@@ -43,6 +43,7 @@ SCOPES = {
             os.path.join('services', 'muma-mobile', 'RELEASE_NOTES.md'),
             os.path.join('services', 'muma-mobile', 'app', 'src', 'main', 'assets', 'RELEASE_NOTES.md'),
         ],
+        'release_notes_anchor': '## [Unreleased]',
     },
 }
 
@@ -109,11 +110,15 @@ def render_release_notes_section(notes, version, date):
     return f'## Global Version {version} ({date})\n\n{body}'
 
 
-def insert_after(text, block, path):
-    """Inserts `block` directly below the Unreleased heading, keeping one blank line either side."""
-    anchor = next((candidate for candidate in UNRELEASED_ANCHORS if candidate in text), None)
-    if anchor is None:
-        raise ValueError(f'{path}: no "{UNRELEASED_ANCHORS[0]}" heading to insert below')
+def read_text(path):
+    with open(path, encoding='utf-8') as handle:
+        return handle.read()
+
+
+def insert_after(text, anchor, block, path):
+    """Inserts `block` directly below `anchor`, keeping one blank line either side."""
+    if anchor not in text:
+        raise ValueError(f'{path}: no "{anchor}" heading to insert below')
     head, _marker, tail = text.partition(anchor)
     return f'{head}{anchor}\n\n{block.rstrip(chr(10))}\n{tail.lstrip(chr(10))}'
 
@@ -134,22 +139,32 @@ def assemble(scope, version, date, apply_changes, root='.'):
     if not apply_changes:
         return used
 
-    # Every file is rendered before any of them is opened for writing. A scope that fails halfway
-    # used to leave one file assembled and the next one truncated to nothing, on a release branch
-    # where the damage looks like a merge artefact rather than a script that gave up.
-    targets = [(os.path.join(root, config['changelog']), changelog_block)]
-    targets.extend((os.path.join(root, relative), notes_block) for relative in config['release_notes'])
-
-    pending = []
-    for path, block in targets:
-        if not os.path.exists(path):
+    # Every insertion is computed before anything is written. `open(path, 'w')`
+    # truncates the moment it is called, so calling insert_after() inside the with
+    # block left the file empty when the anchor was missing -- which is exactly what
+    # happened to services/muma-mobile/RELEASE_NOTES.md, 762 lines, on the release
+    # this comment was written during. A missing anchor now changes nothing at all.
+    notes_anchor = config['release_notes_anchor']
+    pending = [
+        (
+            os.path.join(root, config['changelog']),
+            insert_after(
+                read_text(os.path.join(root, config['changelog'])),
+                '## [Unreleased]',
+                changelog_block,
+                config['changelog'],
+            ),
+        )
+    ]
+    for relative in config['release_notes']:
+        notes_path = os.path.join(root, relative)
+        if not os.path.exists(notes_path):
             continue
-        with open(path, encoding='utf-8') as handle:
-            pending.append((path, insert_after(handle.read(), block, path)))
+        pending.append((notes_path, insert_after(read_text(notes_path), notes_anchor, notes_block, relative)))
 
-    for path, assembled in pending:
+    for path, text in pending:
         with open(path, 'w', encoding='utf-8') as handle:
-            handle.write(assembled)
+            handle.write(text)
 
     for path in used:
         os.remove(path)

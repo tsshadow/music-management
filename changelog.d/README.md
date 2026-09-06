@@ -52,5 +52,10 @@ text is used for both.
 That runs as part of the stabilize commit on `release/x.y.z`, so `CHANGELOG.md` only ever changes
 on a release branch — which is exactly what makes the misfiling above impossible.
 
+Fragments under `changelog.d/mobile/` are filed under the app's own version, which runs a minor
+ahead of the root `VERSION`. Pass `--mobile-version a.b.c` (read `versionName` from
+`services/muma-mobile/app/build.gradle`) alongside `--version`; the script refuses to run without
+it as soon as a mobile fragment exists.
+
 `muma:changelog` fails a merge request that adds no fragment. If a change genuinely does not
 deserve a line — a typo fix, a baseline bump — put the `no-changelog` label on the merge request.

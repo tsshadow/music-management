@@ -5,6 +5,9 @@ that decide whether a merge request is asked for a fragment at all, and they are
 environment checks. The failing path fetches and diffs against the target branch, which
 needs a real remote, so it stays out of this file.
 
+Renovate's own merge requests are exempt for a different reason: it opens and merges
+them itself, so the gate has nobody to remind and only parks the automerge queue.
+
 The back-merge case is the reason this file exists. `muma:changelog` failed on every
 master->develop merge request, and that failure is not cosmetic: the back-merge stays
 open, an open back-merge suppresses master's branch pipeline, and the release after it
@@ -45,6 +48,24 @@ def test_a_hotfix_branch_is_not_asked_for_a_fragment():
     result = run(CI_MERGE_REQUEST_SOURCE_BRANCH_NAME='hotfix/0.47.1', CI_MERGE_REQUEST_TARGET_BRANCH_NAME='master')
     assert result.returncode == 0
     assert 'release branch' in result.stdout
+
+
+def test_a_renovate_branch_is_not_asked_for_a_fragment():
+    result = run(
+        CI_MERGE_REQUEST_SOURCE_BRANCH_NAME='renovate/python-(minorpatch)',
+        CI_MERGE_REQUEST_TARGET_BRANCH_NAME='develop',
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'renovate branch' in result.stdout
+
+
+def test_a_branch_merely_mentioning_renovate_is_an_ordinary_branch():
+    """The exemption is the branch prefix Renovate actually uses, not the word."""
+    result = run(
+        CI_MERGE_REQUEST_SOURCE_BRANCH_NAME='fix/renovate-changelog-gate',
+        CI_MERGE_REQUEST_TARGET_BRANCH_NAME='develop',
+    )
+    assert 'skipping' not in result.stdout
 
 
 def test_the_label_still_excuses_a_feature_branch():

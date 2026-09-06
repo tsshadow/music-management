@@ -45,6 +45,17 @@ if [ "$SOURCE" = "master" ] && [ "$TARGET" = "develop" ]; then
     exit 0
 fi
 
+# Renovate opens its own merge requests and merges most of them itself. There is
+# nobody on the other side to write a fragment, so the gate does not remind
+# anyone of anything -- it just parks the automerge queue until a human labels
+# each one by hand. A dependency bump that genuinely deserves a line in the
+# changelog is one somebody read, and that person can add the fragment to the
+# merge request like on any other branch.
+if [[ "$SOURCE" =~ ^renovate/ ]]; then
+    echo "--- renovate branch, skipping ---"
+    exit 0
+fi
+
 if [ -z "$TARGET" ]; then
     echo "--- not a merge request pipeline, skipping ---"
     exit 0

@@ -1,6 +1,5 @@
 import logging
 import os
-import shutil
 from typing import Any
 
 import markdown
@@ -14,6 +13,7 @@ from services.common.Helpers.GenreRulesHelper import BLACK, VALID_STATES, WHITE
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.PodcastHelper import normalize as normalize_show_name
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
+from services.common.Helpers.ReleaseFolder import MOVED, move_release_folder
 from services.common.Helpers.RescanInvalidator import invalidate_quietly, rescan_invalidator
 from services.common.version_helper import get_changelog, get_release_notes, get_version
 from services.music_manager import curation_rules
@@ -240,7 +240,16 @@ def confirm_label_proposal(
                     conn.commit()
                     return {'status': 'stale', 'folder': folder}
                 dst = os.path.join(settings.eps_folder_path, decision.label, folder)
-                shutil.move(src, dst)
+                # Never a bare shutil.move: it does not fail on an existing destination
+                # directory, it moves into it, and the release ends up one level inside the
+                # folder it collided with. The proposal stays open when that happens --
+                # marking it confirmed while nothing moved would leave the folder sitting in
+                # import with nothing left pointing at it.
+                outcome = move_release_folder(src, dst)
+                if outcome != MOVED:
+                    logging.warning('Not moving %s: %s already holds a release (%s)', src, dst, outcome)
+                    conn.commit()
+                    return {'status': outcome, 'folder': folder, 'destination': dst}
                 # Both paths: the new one so LMS reads the files, the old one so the rows
                 # underneath a folder that is now gone get removed.
                 lms_scan_trigger.notify([src, dst])

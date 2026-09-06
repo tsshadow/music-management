@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.49.0] - 2026-09-06
+
+### Added
+- **De originele artiestschrijfwijze bleek niet vanzelf terug te komen, en is nu terug te halen uit
+  de NFO.** Sinds 0.47 bewaart `CleanTagsRule` "Eternate & Prosphere" in `TXXX:ORIGINAL_ARTIST`
+  vlak voor hij het in twee waarden splitst. De aanname daarbij was dat bestaande bestanden dat
+  vanzelf zouden oppikken bij hun volgende tagronde. Dat klopt niet: een bestand dat al gesplitst
+  is heeft niets meer te splitsen, dus de capture vuurt nooit meer. Gemeten over 400 bestanden
+  onder de EPs-root draagt 120 een gesplitste artiest en **geen enkele** nog de originele
+  schrijfwijze — voor de bestaande bibliotheek was het veld dus permanent leeg, niet tijdelijk.
+  De NFO die met de release meekomt is geschreven vóór dat splitsen en zegt het nog wel.
+  `scripts/backfill_original_artist_from_nfo.py` leest die tracklist, koppelt op tracknummer aan
+  het bestand ernaast, en schrijft de schrijfwijze terug. De klep die dat veilig maakt: een regel
+  wordt alleen gebruikt als die, gesplitst met de eigen regel van de tagger, exact dezelfde
+  artiesten oplevert als er al in de tag staan — een write kan dus alleen de schrijfwijze
+  herstellen en nooit een artiest toevoegen, weglaten of hernoemen. Dry run standaard.
+  Alleen de EPs-boom heeft NFO's; Soundcloud, Youtube en artists hebben er nul, dus die vallen
+  hier buiten.
+
+### Fixed
+- **Het bevestigen van een labelvoorstel kon een release in zichzelf stoppen.** `shutil.move`
+  faalt niet als de bestemming al een map is: hij verplaatst de bron er *in*. De release komt
+  dan één niveau dieper te staan, de scan indexeert hem twee keer, en niets meldt dat er iets
+  misging. De mover van de importer leerde dat op 4 september; dit endpoint doet dezelfde
+  aanroep en had die controle nooit. Op productie is het hier nog niet misgegaan — de 552
+  mappen die zichzelf bevatten komen allemaal van de mover, van vóór die datum — maar de
+  aanroep is identiek en de schade zou dat ook zijn. De regel staat nu op één plek,
+  `services/common/Helpers/ReleaseFolder.py`, waar zowel de importer als music-manager bij kan:
+  music-manager bevat `services/importer` niet, en dat is precies waarom de controle daar
+  ontbrak. Botst de bestemming, dan verplaatst er niets, blijft het voorstel openstaan en telt
+  de beheerpagina het apart in plaats van het als bevestigd op te tellen.
+
+- **muma heeft LMS nooit verteld dat er iets veranderd was.** Er waren twee antwoorden op de
+  vraag "waar staat LMS": de radioplanner las `LMS_URL` / `LMS_HOSTS` / `MUMA_SERVER_HOSTS` uit
+  de omgeving en werkte, `LmsScanTrigger` las de instelling `lms_hosts` uit de configuratie —
+  en `docker-compose.yml` vult die nergens, de regel staat uitgecommentarieerd. Wie nooit met de
+  hand een host op de beheerpagina heeft ingevuld, had dus een scan-trigger die niets deed. Stil,
+  want het verzendpad keerde zonder één logregel terug: een bibliotheek die een verplaatste map
+  pas uren later oppikte, las als een probleem van LMS. Hetzelfde gold voor de API-sleutel, die
+  onder twee namen door compose komt en waarvan de trigger er maar één kende. Beide antwoorden
+  komen nu uit één plek, `services/common/Helpers/LmsEndpoint.py`: de instelling wint, de
+  omgeving is de terugval, en als geen van beide iets oplevert zegt het log één keer precies wat
+  er ontbreekt in plaats van niets.
 ## [0.48.0] - 2026-09-06
 
 ### Added

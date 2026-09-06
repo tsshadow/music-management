@@ -147,20 +147,40 @@ class LmsScanTrigger:
             self._worker = threading.Thread(target=self._drain, name='lms-scan-notify', daemon=True)
             self._worker.start()
 
+    # A tagger round finishes a folder every fifth of a second, and each one used to be its
+    # own HTTP request: LMS logged five scan requests per second for hours after 0.49.0 made
+    # the notification arrive at all. It survives that -- its own collector merges the paths
+    # anyway -- but every request occupies a Wt thread, and a starved Wt thread pool is how
+    # this server has produced site-wide 504s before. Merging here costs nothing and the scan
+    # is identical. Only what is already queued is taken; nothing waits for more, because the
+    # point of the queue is that a move never blocks on a music server.
     def _drain(self) -> None:
         while True:
             paths = self._queue.get()
+            taken = 1
             try:
-                self._send(paths)
+                merged = dict.fromkeys(paths)
+                while True:
+                    try:
+                        more = self._queue.get_nowait()
+                    except queue.Empty:
+                        break
+                    merged.update(dict.fromkeys(more))
+                    taken += 1
+                self._send(list(merged))
             except Exception as e:  # never let a music server break an import
                 logging.warning('LmsScanTrigger: failed to notify LMS: %s', e)
             finally:
-                self._queue.task_done()
+                for _ in range(taken):
+                    self._queue.task_done()
 
     def flush_for_test(self) -> None:
         """Drains the queue synchronously. Only for tests -- production never waits."""
         while not self._queue.empty():
-            self._send(self._queue.get_nowait())
+            merged = dict.fromkeys(self._queue.get_nowait())
+            while not self._queue.empty():
+                merged.update(dict.fromkeys(self._queue.get_nowait()))
+            self._send(list(merged))
 
     def _send(self, paths: list) -> None:
         hosts, api_key = self._endpoint()

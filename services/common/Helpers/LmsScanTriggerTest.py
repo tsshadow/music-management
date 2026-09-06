@@ -61,6 +61,38 @@ class LmsScanTriggerTest(unittest.TestCase):
         self.assertNotIn('fullScan', first_call.kwargs['params'])
 
     @patch('services.common.Helpers.LmsScanTrigger.requests.get')
+    def test_everything_already_queued_leaves_in_one_request(self, mock_get):
+        """A tagger round notified per folder; LMS logged five scan requests a second.
+
+        Its own collector merges them, so sending them separately bought nothing and cost a
+        Wt thread each -- and a starved Wt pool is how this server has 504'd before.
+        """
+        self._configure('lms:5082', 'my-api-key')
+        mock_get.return_value = MagicMock(raise_for_status=MagicMock())
+
+        self.trigger.notify(['/mnt/music/EPs/Label/One'])
+        self.trigger.notify(['/mnt/music/EPs/Label/Two'])
+        self.trigger.notify(['/mnt/music/EPs/Label/Three'])
+        self.trigger.flush_for_test()
+
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(
+            mock_get.call_args.kwargs['params']['path'],
+            ['EPs/Label/One', 'EPs/Label/Two', 'EPs/Label/Three'],
+        )
+
+    @patch('services.common.Helpers.LmsScanTrigger.requests.get')
+    def test_the_same_folder_twice_is_one_path(self, mock_get):
+        self._configure('lms:5082', 'my-api-key')
+        mock_get.return_value = MagicMock(raise_for_status=MagicMock())
+
+        self.trigger.notify(['/mnt/music/EPs/Label/One'])
+        self.trigger.notify(['/mnt/music/EPs/Label/One'])
+        self.trigger.flush_for_test()
+
+        self.assertEqual(mock_get.call_args.kwargs['params']['path'], ['EPs/Label/One'])
+
+    @patch('services.common.Helpers.LmsScanTrigger.requests.get')
     def test_falls_back_to_the_environment_when_the_setting_is_empty(self, mock_get):
         """Nothing sets LMS_HOSTS in compose, so the setting is empty on a fresh deployment.
 

@@ -155,8 +155,13 @@ namespace lms::scanner
             return removedObjectCount;
         }
 
+        // `directory` empty means the whole table, which is what a normal scan asks for.
+        //
+        // `cachepath` and `directory` are both paths and were adjacent, so the call that means
+        // "skip the cache, look under this scope" compiled just as happily with the two the
+        // other way round -- and would then have skipped the scope and scanned the cache.
         template<typename Object>
-        bool fetchNextFilesToCheck(db::Session& session, typename Object::IdType& lastCheckedId, const std::filesystem::path& cachepath, std::vector<FileToCheck<typename Object::IdType>>& filesToCheck)
+        bool fetchNextFilesToCheck(db::Session& session, const std::filesystem::path& cachepath, typename Object::IdType& lastCheckedId, const std::filesystem::path& directory, std::vector<FileToCheck<typename Object::IdType>>& filesToCheck)
         {
             constexpr std::size_t batchSize{ 200 };
 
@@ -168,7 +173,7 @@ namespace lms::scanner
             while (filesToCheck.size() < batchSize)
             {
                 const typename Object::IdType previousLastCheckedId{ lastCheckedId };
-                Object::findAbsoluteFilePath(session, lastCheckedId, batchSize, [&](Object::IdType objectId, const std::filesystem::path& filePath) {
+                auto onFile{ [&](Object::IdType objectId, const std::filesystem::path& filePath) {
                     // Do not consider files in the cache directory as they are not managed by the scanner itself
                     if (core::pathUtils::isPathInRootPath(filePath, cachepath))
                         return;
@@ -181,7 +186,12 @@ namespace lms::scanner
                     }
 
                     filesToCheck.emplace_back(objectId, filePath);
-                });
+                } };
+
+                if (directory.empty())
+                    Object::findAbsoluteFilePath(session, lastCheckedId, batchSize, onFile);
+                else
+                    Object::findAbsoluteFilePathInDirectory(session, lastCheckedId, batchSize, directory, onFile);
 
                 if (previousLastCheckedId == lastCheckedId)
                     break;
@@ -201,11 +211,22 @@ namespace lms::scanner
     {
         db::Session& session{ _db.getTLSSession() };
 
+        if (context.scanOptions.isScoped())
         {
-            auto transaction{ session.createReadTransaction() };
-            context.currentStepStats.totalElems = session.getFileStats().getTotalFileCount();
+            // Not known up front: the count would mean "every file in the library" while this
+            // run only looks under the requested subtrees, and the progress bar would sit at
+            // 0%. ScanStepStats::progress() already guards against a zero total.
+            context.currentStepStats.totalElems = 0;
+            LMS_LOG(DBUPDATER, DEBUG, "Checking for removed files under " << context.scanOptions.scanDirectories.size() << " scan scope(s)...");
         }
-        LMS_LOG(DBUPDATER, DEBUG, context.currentStepStats.totalElems << " files to be checked...");
+        else
+        {
+            {
+                auto transaction{ session.createReadTransaction() };
+                context.currentStepStats.totalElems = session.getFileStats().getTotalFileCount();
+            }
+            LMS_LOG(DBUPDATER, DEBUG, context.currentStepStats.totalElems << " files to be checked...");
+        }
 
         checkForRemovedFiles<db::Track>(context);
         checkForRemovedFiles<db::Image>(context);
@@ -249,10 +270,21 @@ namespace lms::scanner
         {
             JobQueue queue{ getJobScheduler(), 50, processJobsDone, 1, 0.85F };
 
-            ObjectIdType lastCheckedId;
             std::vector<FileToCheck<ObjectIdType>> filesToCheck;
-            while (fetchNextFilesToCheck<Object>(session, lastCheckedId, getCachePath(), filesToCheck))
-                queue.push(std::make_unique<CheckForRemovedFilesJob<ObjectIdType>>(_settings, getFileScanners(), filesToCheck));
+
+            // One keyset walk per scope rather than a dynamic multi-prefix OR: a scoped scan
+            // carries two paths per moved release, and hand-built SQL in five call sites would
+            // buy nothing measurable at this size.
+            std::vector<std::filesystem::path> scopes{ context.scanOptions.scanDirectories };
+            if (scopes.empty())
+                scopes.emplace_back(); // the whole table
+
+            for (const std::filesystem::path& scope : scopes)
+            {
+                ObjectIdType lastCheckedId;
+                while (fetchNextFilesToCheck<Object>(session, getCachePath(), lastCheckedId, scope, filesToCheck))
+                    queue.push(std::make_unique<CheckForRemovedFilesJob<ObjectIdType>>(_settings, getFileScanners(), filesToCheck));
+            }
         }
 
         // process all remaining objects

@@ -105,6 +105,8 @@
 <message id="Lms.Admin.Database.skip-single-release-playlists">Skip playlists that contain tracks from the same album</message>
 <message id="Lms.Admin.Database.tag-delimiter-must-not-contain-only-spaces">The tag delimiter must not consist solely of spaces</message>
 <message id="Lms.Admin.Database.tag-parsing">Tag parsing</message>
+<message id="Lms.Admin.Database.full-scan-period">Full re-read</message>
+<message id="Lms.Admin.Database.full-scan-day-of-week">Full re-read day</message>
 <message id="Lms.Admin.Database.update-period">Update period</message>
 <message id="Lms.Admin.Database.update-start-time">Update start time</message>
 <message id="Lms.Admin.Database.weekly">Weekly</message>

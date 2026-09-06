@@ -34,6 +34,28 @@ if [[ "$SOURCE" =~ ^(release|hotfix)/ ]]; then
     exit 0
 fi
 
+# The back-merge carries master back into develop and adds nothing of its own:
+# the fragments it would be asked for were consumed by the release it is
+# carrying. Without this it failed on every release, and a back-merge that
+# cannot merge is not a cosmetic failure -- it stays open, suppresses master's
+# branch pipeline, and the next release loses its tag and its own back-merge.
+# Release 0.47.0 is where this was noticed.
+if [ "$SOURCE" = "master" ] && [ "$TARGET" = "develop" ]; then
+    echo "--- back-merge of master into develop, skipping ---"
+    exit 0
+fi
+
+# Renovate opens its own merge requests and merges most of them itself. There is
+# nobody on the other side to write a fragment, so the gate does not remind
+# anyone of anything -- it just parks the automerge queue until a human labels
+# each one by hand. A dependency bump that genuinely deserves a line in the
+# changelog is one somebody read, and that person can add the fragment to the
+# merge request like on any other branch.
+if [[ "$SOURCE" =~ ^renovate/ ]]; then
+    echo "--- renovate branch, skipping ---"
+    exit 0
+fi
+
 if [ -z "$TARGET" ]; then
     echo "--- not a merge request pipeline, skipping ---"
     exit 0

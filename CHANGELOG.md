@@ -7,6 +7,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.48.0] - 2026-09-06
+
+### Added
+- **LMS kan voortaan één map scannen in plaats van de hele bibliotheek.** `startScan` accepteert een
+  herhaalbare `path`-parameter, bibliotheek-relatief, en doet daar seconden over waar een volledige
+  incrementele scan hier bijna een uur kost -- en pas een uur ná de vorige begint, dus een
+  wijziging wachtte tot twee uur voordat je hem zag, met het oude pad al die tijd nog in de index.
+  Een pad dat niet meer bestaat is expres geldig: dat is hoe de rijen onder een verplaatste map
+  worden opgeruimd. De verwijderstap kreeg daarvoor een query met een half-open bytebereik in
+  plaats van `LIKE`, want die is in SQLite hoofdletterongevoelig en matcht bovendien een buurmap
+  waarvan de naam toevallig hetzelfde begint. Samen met `fullScan` betekent het "lees alles onder
+  dit pad opnieuw". Overgeslagen worden alleen `Optimize` en het duplicatenrapport; het opruimen
+  van wezen en het herberekenen van de clustertellingen blijven staan -- dat laatste overslaan is
+  ooit de reden geweest dat elke genretelling op 0 stond. En een scoped scan schrijft zijn cijfers
+  niet weg als `lastScan`, zodat de beheerpagina de laatste volledige scan blijft beschrijven.
+
+- **Een direct scanverzoek pauzeert de periodieke scan en die gaat daarna verder waar hij was.**
+  Voorheen brak zo'n verzoek de lopende scan af en verschoof het bovendien het volgende
+  scanmoment naar "over een uur" -- bij een uurschema en een scan die bijna een uur duurt,
+  betekende dat: altijd bezig, altijd afgebroken, en de klok altijd teruggezet, dus de
+  bibliotheek-brede scan kwam nooit meer door zijn eigen stappen heen. De pauze hergebruikt de
+  vlag die elke scanstap al op elke batchgrens controleert; de scanner onthoudt daarnaast
+  alleen nog *waarom* die vlag omhoog ging. Bij hervatten begint de onderbroken stap opnieuw,
+  de stappen ervoor niet, en hun cijfers blijven staan. Binnenkomende paden worden vijf
+  seconden lang verzameld en samengevoegd, en vertrekken hoe dan ook binnen een minuut: een
+  taggerronde die honderden mappen aanraakt kost de scan zo één stap-herstart per minuut in
+  plaats van honderden.
+
+- **Naast het incrementele schema staat nu een wekelijkse volledige herlezing.** Dezelfde
+  bibliotheek-brede scan met `fullScan` aan, op een instelbare weekdag, standaard uit. Vallen
+  beide momenten samen, dan wint de volledige: die doet alles wat de incrementele doet.
+  music-manager stuurt sinds deze versie bij elke verplaatsing de betrokken mappen mee -- oude
+  én nieuwe, want het oude pad is hoe de rijen onder een verdwenen map worden opgeruimd -- en
+  doet dat vanaf een eigen thread, zodat een trage muziekserver een import nooit ophoudt.
+
+### Fixed
+- **De back-merge naar develop faalde bij elke release op `muma:changelog`.** Dat script eist een
+  fragment van elke merge request, met een uitzondering voor `release/*` en `hotfix/*` — maar niet
+  voor de merge request die master terugbrengt naar develop. Die voegt per definitie niets toe: de
+  fragmenten die hij zou moeten dragen zijn net door de release opgegeten. Het gevolg is groter dan
+  een rood vinkje, want een back-merge die niet kan mergen blijft openstaan, en een openstaande
+  back-merge onderdrukt de branch-pipeline van master — waarmee de eerstvolgende release zijn tag
+  én zijn eigen back-merge verliest. `master` → `develop` is nu net zo'n uitzondering als een
+  release-branch, met tests voor alle vrijstellingen erbij; een branch die alleen "master" in zijn
+  naam heeft, valt er niet onder.
+
+- **De app-versie werd stilzwijgend gelijkgesteld aan de serverversie.** `versionName` van
+  muma-mobile loopt bewust een minor voor op de root-`VERSION`, dus een fragment in
+  `changelog.d/mobile/` belandde onder een versie die de app nooit gehad heeft. Daar is nu
+  `--mobile-version` voor, en zonder die vlag weigert het script te draaien zodra er mobiele
+  fragmenten liggen -- liever een release die stilstaat dan een changelog die liegt.
+
+- **Het nieuws afspelen in de webinterface bleef na 0.46.0 hangen op "kon niet afspelen HTTP 504".**
+  De vorige poging haalde een overbodige kopie per read weg, maar dat was niet waar de tijd zat.
+  Gemeten aan de ontvangstkant op productie: de overdracht begint op 1044 KB/s en zakt naar 92 KB/s
+  naarmate de body groeit -- kwadratisch, want Wt's HTTP-client plakt elke read aan de al
+  opgebouwde response. 15 MB kostte zo ongeveer 150 seconden, terwijl MuMa het bestand in een halve
+  seconde wegschrijft. De proxy stuurt één verzoek tegelijk, dus al die tijd liep ook elke
+  artiestafbeelding erachter in een timeout. Een bulletin wordt nu in brokken opgehaald: dat zet
+  Wt's eigen buffering uit -- die slaat alleen op zolang er een maximum staat -- en het aan elkaar
+  plakken gebeurt in een string die vooraf gereserveerd is, wat wél lineair schaalt.
+
+- **Elke merge request van Renovate bleef rood op `muma:changelog`.** Het script eist een
+  changelog-fragment van iedere merge request, en Renovate schrijft die niet — er is aan die kant
+  niemand om aan iets te herinneren. Het gevolg was niet alleen een rood vinkje: de meeste van die
+  merge requests horen zichzelf te mergen, en een gate die nooit groen wordt zet die automerge
+  gewoon stil, zodat de bumps blijven liggen tot iemand ze met de hand `no-changelog` geeft.
+  `renovate/*` is nu een vrijstelling zoals `release/*` en de back-merge dat al waren. Een
+  dependency-bump die wél een regel verdient, is er een die iemand gelezen heeft, en die kan het
+  fragment toevoegen zoals op elke andere branch.
 ## [0.47.0] - 2026-09-06
 
 ### Added

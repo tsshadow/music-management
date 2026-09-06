@@ -146,9 +146,12 @@ fae11ff959a398dc x1  # github-actions-mutable-action-tag services/music-manageme
 b6758acb30b1330e x6  # renovate-missing-minimum-release-age renovate.json
 
 # --- request-with-http ---
-# Plain HTTP to services on this LAN that speak no TLS -- the LMS server and
-# apk-hoster. Both are reachable only inside the tailnet.
-58ff29afa1f59bea x1  # request-with-http services/common/Helpers/LmsScanTrigger.py
+# Plain HTTP to a service on this LAN that speaks no TLS, reachable only inside
+# the tailnet.
+#
+# LmsScanTrigger used to be listed here too. It now builds its URL through one
+# helper that keeps an explicit scheme when the configured host carries one, so
+# there is no literal http:// left in the request and the rule no longer fires.
 511526ec8d8fb2c5 x1  # request-with-http services/music_manager/routers/users.py
 
 # --- sqlalchemy-execute-raw-query ---

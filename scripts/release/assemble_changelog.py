@@ -174,6 +174,10 @@ def assemble(scope, version, date, apply_changes, root='.'):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--version', required=True, help='the version being released, e.g. 0.45.0')
+    # muma-mobile's versionName deliberately does not track the root VERSION -- it has drifted a
+    # minor ahead -- so a mobile fragment filed under the root version would be filed under a
+    # version the app never had. Read the next one from services/muma-mobile/app/build.gradle.
+    parser.add_argument('--mobile-version', help='version for the muma-mobile scope, e.g. 6.28.4')
     parser.add_argument('--date', default=datetime.date.today().isoformat())
     parser.add_argument('--scope', choices=sorted(SCOPES), action='append', help='default: every scope')
     parser.add_argument('--apply', action='store_true', help='write the files; default is a dry run')
@@ -181,7 +185,10 @@ def main(argv=None):
 
     consumed = []
     for scope in args.scope or sorted(SCOPES):
-        consumed.extend(assemble(scope, args.version, args.date, args.apply))
+        version = args.mobile_version if scope == 'mobile' else args.version
+        if version is None and fragment_files(SCOPES[scope]['fragments']):
+            parser.error('--mobile-version is required: there are fragments in changelog.d/mobile')
+        consumed.extend(assemble(scope, version, args.date, args.apply))
     if not args.apply:
         print('dry run, nothing written; pass --apply to write the changelog')
     elif consumed:

@@ -122,6 +122,50 @@ namespace lms::db::tests
         }
     }
 
+    TEST_F(DatabaseFixture, Image_findAbsoluteFilePathInDirectory_returnsOnlyFilesUnderTheDirectory)
+    {
+        ScopedImage inside{ session, "/music/A/inside" };
+        ScopedImage elsewhere{ session, "/music/B/elsewhere" };
+        {
+            auto transaction{ session.createWriteTransaction() };
+            inside.get().modify()->setAbsoluteFilePath("/music/A/inside");
+            elsewhere.get().modify()->setAbsoluteFilePath("/music/B/elsewhere");
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            std::vector<std::filesystem::path> found;
+            ImageId lastRetrievedId;
+            Image::findAbsoluteFilePathInDirectory(session, lastRetrievedId, 10, "/music/A", [&](ImageId, const std::filesystem::path& path) {
+                found.push_back(path);
+            });
+
+            EXPECT_EQ(found, (std::vector<std::filesystem::path>{ "/music/A/inside" }));
+        }
+    }
+
+    TEST_F(DatabaseFixture, Image_findAbsoluteFilePathInDirectory_doesNotMatchASiblingWithTheSameNamePrefix)
+    {
+        ScopedImage inside{ session, "/music/A/inside" };
+        ScopedImage sibling{ session, "/music/AB/sibling" };
+        {
+            auto transaction{ session.createWriteTransaction() };
+            inside.get().modify()->setAbsoluteFilePath("/music/A/inside");
+            sibling.get().modify()->setAbsoluteFilePath("/music/AB/sibling");
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            std::vector<std::filesystem::path> found;
+            ImageId lastRetrievedId;
+            Image::findAbsoluteFilePathInDirectory(session, lastRetrievedId, 10, "/music/A", [&](ImageId, const std::filesystem::path& path) {
+                found.push_back(path);
+            });
+
+            EXPECT_EQ(found, (std::vector<std::filesystem::path>{ "/music/A/inside" }));
+        }
+    }
+
     TEST_F(DatabaseFixture, Image_findByFileStem)
     {
         ScopedDirectory directory{ session, "/path/to" };

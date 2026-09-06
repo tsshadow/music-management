@@ -19,14 +19,20 @@
 
 #include "MediaLibraryScanning.hpp"
 
+#include <algorithm>
+#include <filesystem>
+
 #include "core/ILogger.hpp"
+#include "core/Path.hpp"
 #include "core/Service.hpp"
 #include "core/String.hpp"
 #include "services/recommendation/IRecommendationService.hpp"
 #include "services/scanner/IScannerService.hpp"
 
 #include "ParameterParsing.hpp"
+#include "ScanScope.hpp"
 #include "database/Session.hpp"
+#include "database/objects/MediaLibrary.hpp"
 #include "database/objects/ScanSettings.hpp"
 #include "database/objects/User.hpp"
 
@@ -131,6 +137,33 @@ namespace lms::api::subsonic::Scan
 
             return statusResponse;
         }
+
+        // Reads the repeatable "path" parameter and resolves each entry against the configured
+        // media libraries. The resolution itself lives in ScanScope.cpp, where it is testable
+        // without a database session.
+        std::vector<std::filesystem::path> parseScanDirectories(RequestContext& context)
+        {
+            const std::vector<std::string> rawPaths{ getMultiParametersAs<std::string>(context.getParameters(), "path") };
+            if (rawPaths.empty())
+                return {};
+
+            std::vector<std::filesystem::path> roots;
+            {
+                auto transaction{ context.getDbSession().createReadTransaction() };
+                db::MediaLibrary::find(context.getDbSession(), [&](const db::MediaLibrary::pointer& library) {
+                    roots.push_back(library->getPath().lexically_normal());
+                });
+            }
+            if (roots.empty())
+                throw RequestedDataNotFoundError{};
+
+            std::vector<std::filesystem::path> res;
+            res.reserve(rawPaths.size());
+            for (const std::string& rawPath : rawPaths)
+                res.push_back(resolveScanScope(rawPath, roots));
+
+            return res;
+        }
     } // namespace
 
     Response handleGetScanStatus(RequestContext& context)
@@ -144,21 +177,40 @@ namespace lms::api::subsonic::Scan
     Response handleStartScan(RequestContext& context)
     {
         LMS_LOG(UI, INFO, "User '" << context.getUser()->getLoginName() << "' requested a scan (admin=" << context.getUser()->isAdmin() << ")");
+        // Declared out here so the response can echo the accepted scope below; a non-admin
+        // never fills it, and then the echo is absent exactly as it is for an unscoped scan.
+        scanner::ScanOptions scanOptions;
         if (context.getUser()->isAdmin())
         {
-            scanner::ScanOptions scanOptions;
             if (auto fullScan = getParameterAs<std::string>(context.getParameters(), "fullScan"))
                 scanOptions.fullScan = (*fullScan == "true");
             if (auto forceOptimize = getParameterAs<std::string>(context.getParameters(), "forceOptimize"))
                 scanOptions.forceOptimize = (*forceOptimize == "true");
             if (auto compact = getParameterAs<std::string>(context.getParameters(), "compact"))
                 scanOptions.compact = (*compact == "true");
+            scanOptions.scanDirectories = parseScanDirectories(context);
 
-            core::Service<IScannerService>::get()->requestImmediateScan(scanOptions);
+            // A scoped request goes through its own lane: merged with whatever else arrives,
+            // and it pauses a running periodic scan instead of aborting it.
+            if (scanOptions.isScoped())
+                core::Service<IScannerService>::get()->requestScopedScan(scanOptions.scanDirectories);
+            else
+                core::Service<IScannerService>::get()->requestImmediateScan(scanOptions);
         }
 
         Response response{ Response::createOkResponse(context.getServerProtocolVersion()) };
-        response.addNode("scanStatus", createStatusResponseNode(context));
+        Response::Node statusNode{ createStatusResponseNode(context) };
+        if (!scanOptions.scanDirectories.empty())
+        {
+            // The scan is queued, so "scanning" is usually still false by the time we answer.
+            // This echo is the only synchronous proof the server understood the scope: a server
+            // without this feature ignores the unknown parameter and quietly full-scans, and the
+            // client needs to be able to tell those two apart.
+            Response::Node& scopeNode{ statusNode.createChild("scanScope") };
+            for (const std::filesystem::path& directory : scanOptions.scanDirectories)
+                scopeNode.addArrayValue("path", directory.string());
+        }
+        response.addNode("scanStatus", std::move(statusNode));
 
         return response;
     }

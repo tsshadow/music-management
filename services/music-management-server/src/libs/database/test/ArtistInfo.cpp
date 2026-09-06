@@ -233,4 +233,48 @@ namespace lms::db::tests
             EXPECT_EQ(retrievedFilePath, absoluteFilePath);
         }
     }
+
+    TEST_F(DatabaseFixture, ArtistInfo_findAbsoluteFilePathInDirectory_returnsOnlyFilesUnderTheDirectory)
+    {
+        ScopedArtistInfo inside{ session };
+        ScopedArtistInfo elsewhere{ session };
+        {
+            auto transaction{ session.createWriteTransaction() };
+            inside.get().modify()->setAbsoluteFilePath("/music/A/inside");
+            elsewhere.get().modify()->setAbsoluteFilePath("/music/B/elsewhere");
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            std::vector<std::filesystem::path> found;
+            ArtistInfoId lastRetrievedId;
+            ArtistInfo::findAbsoluteFilePathInDirectory(session, lastRetrievedId, 10, "/music/A", [&](ArtistInfoId, const std::filesystem::path& path) {
+                found.push_back(path);
+            });
+
+            EXPECT_EQ(found, (std::vector<std::filesystem::path>{ "/music/A/inside" }));
+        }
+    }
+
+    TEST_F(DatabaseFixture, ArtistInfo_findAbsoluteFilePathInDirectory_doesNotMatchASiblingWithTheSameNamePrefix)
+    {
+        ScopedArtistInfo inside{ session };
+        ScopedArtistInfo sibling{ session };
+        {
+            auto transaction{ session.createWriteTransaction() };
+            inside.get().modify()->setAbsoluteFilePath("/music/A/inside");
+            sibling.get().modify()->setAbsoluteFilePath("/music/AB/sibling");
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            std::vector<std::filesystem::path> found;
+            ArtistInfoId lastRetrievedId;
+            ArtistInfo::findAbsoluteFilePathInDirectory(session, lastRetrievedId, 10, "/music/A", [&](ArtistInfoId, const std::filesystem::path& path) {
+                found.push_back(path);
+            });
+
+            EXPECT_EQ(found, (std::vector<std::filesystem::path>{ "/music/A/inside" }));
+        }
+    }
 } // namespace lms::db::tests

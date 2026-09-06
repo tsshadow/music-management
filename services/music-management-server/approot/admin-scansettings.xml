@@ -24,6 +24,24 @@
 				${update-start-time-info}
 			</div>
 		</div>
+		<div class="col-sm-6">
+			<label class="form-label" for="${id:full-scan-period}">
+				${tr:Lms.Admin.Database.full-scan-period}
+			</label>
+			${full-scan-period class="form-control"}
+			<div class="invalid-feedback">
+				${full-scan-period-info}
+			</div>
+		</div>
+		<div class="col-sm-6">
+			<label class="form-label" for="${id:full-scan-day-of-week}">
+				${tr:Lms.Admin.Database.full-scan-day-of-week}
+			</label>
+			${full-scan-day-of-week class="form-control"}
+			<div class="invalid-feedback">
+				${full-scan-day-of-week-info}
+			</div>
+		</div>
 		<legend>${tr:Lms.Admin.Database.tag-parsing}</legend>
 		<div class="col-12">
 			<label class="form-label" for="${id:extra-tags-to-scan}">

@@ -11,6 +11,35 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.48.0 (2026-09-06)
+
+- **De back-merge naar develop faalde bij elke release op `muma:changelog`.** Dat script eist een
+  fragment van elke merge request, met een uitzondering voor `release/*` en `hotfix/*` — maar niet
+  voor de merge request die master terugbrengt naar develop. Die voegt per definitie niets toe: de
+  fragmenten die hij zou moeten dragen zijn net door de release opgegeten. Het gevolg is groter dan
+  een rood vinkje, want een back-merge die niet kan mergen blijft openstaan, en een openstaande
+  back-merge onderdrukt de branch-pipeline van master — waarmee de eerstvolgende release zijn tag
+  én zijn eigen back-merge verliest. `master` → `develop` is nu net zo'n uitzondering als een
+  release-branch, met tests voor alle vrijstellingen erbij; een branch die alleen "master" in zijn
+  naam heeft, valt er niet onder.
+
+- **De release notes van de app worden niet langer onder de serverversie gezet.**
+
+- **De muziekserver kan nu één map opnieuw inlezen in plaats van de hele bibliotheek.** Een
+  verplaatste of hertagde map is binnen seconden zichtbaar in plaats van na uren, en de grote
+  scan die daarvoor liep wordt gepauzeerd in plaats van afgebroken.
+
+- **Nieuws afspelen in de webinterface mislukte nog steeds.** Het bulletin komt nu in seconden
+  binnen in plaats van minuten.
+
+- **Elke merge request van Renovate bleef rood op `muma:changelog`.** Het script eist een
+  changelog-fragment van iedere merge request, en Renovate schrijft die niet — er is aan die kant
+  niemand om aan iets te herinneren. Het gevolg was niet alleen een rood vinkje: de meeste van die
+  merge requests horen zichzelf te mergen, en een gate die nooit groen wordt zet die automerge
+  gewoon stil, zodat de bumps blijven liggen tot iemand ze met de hand `no-changelog` geeft.
+  `renovate/*` is nu een vrijstelling zoals `release/*` en de back-merge dat al waren. Een
+  dependency-bump die wél een regel verdient, is er een die iemand gelezen heeft, en die kan het
+  fragment toevoegen zoals op elke andere branch.
 ## Global Version 0.47.0 (2026-09-06)
 
 - **Bibliotheekbeheer toont voortaan "Henk feat Kees" in plaats van "Henk, Kees" waar dat bekend

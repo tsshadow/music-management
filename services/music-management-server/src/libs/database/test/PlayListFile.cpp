@@ -103,6 +103,50 @@ namespace lms::db::tests
         }
     }
 
+    TEST_F(DatabaseFixture, PlayListFile_findAbsoluteFilePathInDirectory_returnsOnlyFilesUnderTheDirectory)
+    {
+        ScopedPlayListFile inside{ session, "/music/A/inside" };
+        ScopedPlayListFile elsewhere{ session, "/music/B/elsewhere" };
+        {
+            auto transaction{ session.createWriteTransaction() };
+            inside.get().modify()->setAbsoluteFilePath("/music/A/inside");
+            elsewhere.get().modify()->setAbsoluteFilePath("/music/B/elsewhere");
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            std::vector<std::filesystem::path> found;
+            PlayListFileId lastRetrievedId;
+            PlayListFile::findAbsoluteFilePathInDirectory(session, lastRetrievedId, 10, "/music/A", [&](PlayListFileId, const std::filesystem::path& path) {
+                found.push_back(path);
+            });
+
+            EXPECT_EQ(found, (std::vector<std::filesystem::path>{ "/music/A/inside" }));
+        }
+    }
+
+    TEST_F(DatabaseFixture, PlayListFile_findAbsoluteFilePathInDirectory_doesNotMatchASiblingWithTheSameNamePrefix)
+    {
+        ScopedPlayListFile inside{ session, "/music/A/inside" };
+        ScopedPlayListFile sibling{ session, "/music/AB/sibling" };
+        {
+            auto transaction{ session.createWriteTransaction() };
+            inside.get().modify()->setAbsoluteFilePath("/music/A/inside");
+            sibling.get().modify()->setAbsoluteFilePath("/music/AB/sibling");
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            std::vector<std::filesystem::path> found;
+            PlayListFileId lastRetrievedId;
+            PlayListFile::findAbsoluteFilePathInDirectory(session, lastRetrievedId, 10, "/music/A", [&](PlayListFileId, const std::filesystem::path& path) {
+                found.push_back(path);
+            });
+
+            EXPECT_EQ(found, (std::vector<std::filesystem::path>{ "/music/A/inside" }));
+        }
+    }
+
     TEST_F(DatabaseFixture, PlayListFile_deleteTrackList)
     {
         {

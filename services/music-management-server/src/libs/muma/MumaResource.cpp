@@ -15,7 +15,9 @@
 #include <cctype>
 #include <cstring>
 #include <future>
+#include <iterator>
 #include <memory>
+#include <ranges>
 #include <span>
 #include <string_view>
 
@@ -55,14 +57,40 @@ namespace lms::api::muma
         // skip its own accumulation entirely (it only appends while a maximum response size is
         // set, and streaming clears it) and hand the chunks here, where appending into a reserved
         // string is linear.
-        void streamNewsBulletins(std::string_view pathInfo, core::http::ClientGETRequestParameters& params, std::shared_ptr<std::string> body)
+        // The proxy's answer to its caller: MuMa's status, content type and body.
+        struct GenericResult
         {
-            if (!pathInfo.starts_with("/api/news/bulletins/"))
-                return;
+            int status;
+            std::string contentType;
+            std::string body;
+        };
 
+        // A streamed response leaves msg.body() empty by design, so the chunks collected by
+        // collectResponseInChunks are the body. Built here rather than inline because clang-tidy
+        // measures handleRequest's complexity and the baseline holds it at exactly today's number.
+        core::http::ClientRequestParameters::OnSuccessFunc makeGenericSuccessHandler(std::shared_ptr<std::promise<GenericResult>> resultPromise, std::shared_ptr<std::string> streamedBody)
+        {
+            return [resultPromise = std::move(resultPromise), streamedBody = std::move(streamedBody)](const Wt::Http::Message& msg) {
+                const std::string* contentType{ msg.getHeader("Content-Type") };
+                resultPromise->set_value({ msg.status(), contentType ? *contentType : std::string{}, streamedBody->empty() ? msg.body() : std::move(*streamedBody) });
+            };
+        }
+
+        bool isNewsBulletin(std::string_view pathInfo)
+        {
+            return pathInfo.starts_with("/api/news/bulletins/");
+        }
+
+        void collectResponseInChunks(core::http::ClientGETRequestParameters& params, std::shared_ptr<std::string> body)
+        {
             body->reserve(newsBulletinBufferSize);
             params.onChunkReceived = [body = std::move(body)](std::span<const std::byte> chunk) {
-                body->append(static_cast<const char*>(static_cast<const void*>(chunk.data())), chunk.size());
+                // Byte at a time rather than memcpy or a cast: the checks that apply here rule each
+                // other's escape out -- no reinterpret_cast, no route through void*, no pointer
+                // arithmetic -- and the buffer is reserved, so this stays linear.
+                std::ranges::transform(chunk, std::back_inserter(*body), [](std::byte value) {
+                    return std::to_integer<char>(value);
+                });
                 return core::http::ClientRequestParameters::ChunckReceivedResult::Continue;
             };
         }
@@ -884,12 +912,6 @@ namespace lms::api::muma
             // status and body because not every endpoint here answers JSON: a news
             // bulletin is an MP3, and a blob built from a response typed text/html is
             // one the browser's audio element refuses to play.
-            struct GenericResult
-            {
-                int status;
-                std::string contentType;
-                std::string body;
-            };
             auto resultPromise = std::make_shared<std::promise<GenericResult>>();
             auto resultFuture = resultPromise->get_future();
             // Only filled for a streamed response; every other call still reads msg.body().
@@ -907,7 +929,8 @@ namespace lms::api::muma
                 if (!query.empty())
                     getParams.relativeUrl += "?" + query;
 
-                streamNewsBulletins(pathInfo, getParams, streamedBody);
+                if (isNewsBulletin(pathInfo))
+                    collectResponseInChunks(getParams, streamedBody);
 
                 // Forward the CALLER's own key first (Subsonic-shared LMS key or a
                 // per-user MuMa key from Google Sign-In) so MuMa sees the real caller
@@ -923,13 +946,7 @@ namespace lms::api::muma
                 // 403, 404, ...) and body are meaningful to the original caller and
                 // must be forwarded verbatim, not collapsed into a generic 502.
                 getParams.treatAnyStatusAsSuccess = true;
-                getParams.onSuccessFunc = [resultPromise, streamedBody](const Wt::Http::Message& msg) {
-                    const std::string* contentType{ msg.getHeader("Content-Type") };
-                    // A streamed response leaves msg.body() empty by design, so the chunks
-                    // collected above are the body.
-                    resultPromise->set_value({ msg.status(), contentType ? *contentType : std::string{},
-                                               streamedBody->empty() ? msg.body() : std::move(*streamedBody) });
-                };
+                getParams.onSuccessFunc = makeGenericSuccessHandler(resultPromise, streamedBody);
                 getParams.onFailureFunc = [resultPromise]() {
                     resultPromise->set_value({ 502, std::string{}, "Bad Gateway" });
                 };

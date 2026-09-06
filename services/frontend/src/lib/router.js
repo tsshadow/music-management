@@ -26,6 +26,7 @@ const PLAIN_VIEWS = [
   "playlists",
   "memories",
   "history",
+  "listening",
   "starred",
 ];
 

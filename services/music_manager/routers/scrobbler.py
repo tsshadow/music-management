@@ -70,6 +70,16 @@ def init_db(cursor):
     if not cursor.fetchone():
         cursor.execute('ALTER TABLE scrobble_unmatched_listens ADD COLUMN played_secs INT UNSIGNED NULL')
 
+    # The unique keys above lead on `username`, which answers "my listens between
+    # two dates" and nothing else. /api/listening also asks for everybody's, where
+    # there is no username to seek on. Mirrors migrate_v20_listening_indexes.sql,
+    # which is what production runs.
+    cursor.execute('ALTER TABLE scrobble_listens ADD INDEX IF NOT EXISTS idx_listens_listened_at (listened_at)')
+    cursor.execute(
+        'ALTER TABLE scrobble_unmatched_listens '
+        'ADD INDEX IF NOT EXISTS idx_unmatched_listened_at (listened_at)'
+    )
+
 
 @router.post('/event')
 def handle_scrobble_event(event: ScrobbleEvent, _auth: dict = Depends(verify_api_key)):

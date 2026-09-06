@@ -11,6 +11,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.50.0 (2026-09-07)
+
+- **Nieuwe pagina "Luisteren".** Wat je gedraaid hebt, wanneer en hoe vaak — totalen, een tijdlijn,
+  je luisteruren per dag en per weekdag, en je meest gedraaide tracks, artiesten en labels, over 30
+  dagen, 12 maanden of je hele geschiedenis.
+- De pagina is eerlijk over wat MuMa niet weet: 62% van de opgeslagen luisterbeurten is nooit aan
+  een track gekoppeld en telt daarom wel in de totalen mee maar niet in de ranglijsten, en de
+  luistertijd is een schatting. Allebei staan ze boven de grafieken in plaats van in een voetnoot.
 ## Global Version 0.49.2 (2026-09-06)
 
 - Een track opnieuw laten inlezen raakt zijn genres niet meer kwijt.

@@ -67,6 +67,13 @@ their reasoning attached, so a human decides only what genuinely needs deciding.
 - Preserving the original name in `TXXX:ORIGINAL_ARTIST` during a tag pass the file needs anyway: built.
   `CleanTagsRule` captures the artist string before its regex split discards the "feat"/"vs"/"&" wording,
   written to disk as `TXXX:ORIGINAL_ARTIST` and mirrored into `library_tracks.display_artist` by the
-  scanner. Display only — never re-parsed, never matched against this analyzer's dictionary. No backfill:
-  a file only gains it the next time it goes through a tag-write pass for some other reason.
+  scanner. Display only — never re-parsed, never matched against this analyzer's dictionary.
+- **Correction to the line above, measured 2026-09-06.** "A file gains it at its next tag pass" is wrong.
+  The capture only fires at the moment the split happens, so a file that is *already* split has nothing
+  left to capture and never fills in — permanently, not temporarily. Of 400 files sampled under the EPs
+  root, 120 carry a split artist and none still carry the original wording. The surviving source is the
+  NFO that shipped with the release, which is written before any tagging;
+  `scripts/backfill_original_artist_from_nfo.py` reads it back, guarded so a write can only restore
+  wording and never change which artists a track names. Soundcloud, Youtube and artists have no NFOs at
+  all, so nothing outside the EPs tree can be recovered this way.
 - Splitting composite artist strings that already contain separators is deliberately out of scope here.

@@ -7,6 +7,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.47.0] - 2026-09-06
+
+### Added
+- **"Henk feat Kees" werd in de bibliotheek altijd "Henk, Kees" — het woordje dat de twee namen
+  verbond, was onherstelbaar weg.** `CleanTagsRule` splitst het artiestentag op "feat"/"vs"/"b2b"/"&"
+  in losse `library_track_artists`-rijen, en die stap gooide de scheidende tekst zelf weg: alleen
+  de namen bleven over. Het tagbestand zelf raakte de tekst ook kwijt zodra het een tagronde kreeg,
+  dus er was daarna geen plek meer waar "feat" nog stond. De tagger schrijft de originele
+  artiestregel nu, vóór die split, weg als een `TXXX:ORIGINAL_ARTIST`-frame — alleen wanneer de
+  split ook echt iets veranderde, dus een los-artiest-bestand krijgt er niets bij. De scanner leest
+  dat frame terug in een nieuwe kolom `library_tracks.display_artist`, en Bibliotheekbeheer toont
+  die tekst nu in plaats van de kale kommalijst zodra hij er is.
+  Geen backfill: een bestand krijgt dit pas bij de eerstvolgende tagronde om een andere reden, want
+  de rauwe tekst bestaat alleen nog kort tijdens het schrijven zelf. Beperkt tot Bibliotheekbeheer —
+  LMS en de mobiele app hebben hun eigen, losstaande artiestenmodel en blijven de kommalijst tonen.
+
+- **Release Radar en Daily Mix, eerste versie.** De ranker leidt een smaakprofiel af uit je
+  luistergeschiedenis, telt een luisterbeurt één keer op zijn diepste genre, en verdeelt de plekken
+  over je genres in plaats van ze op score te sorteren -- anders vult het genre dat je het meeste
+  speelt alle dertig plekken en zie je de rest nooit. Nog geen scherm: `GET /api/feeds/release-radar`
+  en `scripts/feeds_dryrun.py` zijn wat er is, zodat de vensters op echte cijfers gekozen kunnen
+  worden voordat er UI omheen komt.
+
+### Fixed
+- **Een muma-container zonder LMS-configuratie belde productie, en niets zei dat.** `lms_base_url()`
+  viel bij ontbrekende configuratie terug op een hardgecodeerde `http://lms:5082`. Op de deployment
+  klopt dat — `lms` is de container_name van de apart uitgerolde LMS-stack op hetzelfde netwerk — en
+  juist dát maakte het gevaarlijk: een kale hostnaam wordt opgelost door de DNS die de host toevallig
+  heeft, en op het kantoor-LAN wijst `lms` naar 192.0.2.27. De verouderde lokale stack op een
+  werkstation belde daardoor **productie** elke vijf seconden met een sleutel die productie niet kent.
+  Aan geen van beide kanten was dat te zien: LMS logt de weigering (`code = 44, msg = 'Invalid API
+  key.'`) zónder client-adres, dus het leest als een storing in prods eigen radio-thread. Alleen het
+  access-log van de reverse proxy verried dat de requests van een ontwikkelmachine kwamen. Er is nu
+  geen default meer: ontbreekt alles, dan volgt een `LmsNotConfigured` met een leesbare melding, en
+  `radio.py` degradeert dat tot één logregel per poging in plaats van stil verkeer naar andermans
+  server. Meegenomen: `MUMA_SERVER_HOSTS` wordt nu ook gelezen. Dat is de variabele die
+  `docker/docker-compose.yml` voor deze service daadwerkelijk zet, mét een commentaarblok waarom —
+  de oude code las hem niet, dus de deployment werkte per toeval doordat de hardgecodeerde default
+  toevallig gelijk was aan de ingestelde waarde.
+
+- **117 losse nummers stonden als één song in de database.** De groeperingssleutel van de
+  song-versies is `artiest:::titel`, met de versiemarkering uit de titel gestript. Een titel die na
+  dat strippen niets overhoudt — leeg, één duif-emoji, een reeks combining marks, of alleen
+  `(Radio Edit)` — leverde de sleutel `:::` op, en de UNIQUE-index op `work_key` maakte daar één
+  work van. Op productie zat werk 89834 daardoor op 117 niet-verwante opnames, met nog 543
+  titelloze tracks in de wachtrij om zich erbij te voegen. Zo'n titel identificeert niets, dus
+  krijgt de track nu een sleutel voor zichzelf (`track:<id>`, naast de bestaande `split:<id>`); een
+  lege *artiest* groepeert nog wel gewoon op titel, want de helft van deze bibliotheek heeft geen
+  `primary_artist_id` en zet de artiest in de titel. `scripts/repair_song_works.py --dry-run`
+  rapporteert wat er verkeerd staat, zonder vlag maakt het de groepering los zodat de worker
+  opnieuw indeelt.
+- **`library_works.work_key` vergeleek niet op bytes.** De kolom erfde `utf8mb4_general_ci`, waarin
+  elk teken buiten de BMP hetzelfde collatiegewicht heeft: twee sleutels van gelijke lengte uit
+  zulke tekens zijn dan gelijk, en de UNIQUE-index voegde hun works samen zonder een fout te geven.
+  Exact de val die `migrate_v13` voor `channels.normalized_name` opruimde.
+  `migrate_v19_work_key_binary.sql` zet de kolom op `utf8mb4_bin`; het repairscript haalt de rijen
+  uit elkaar die al waren samengevoegd, doordat het van elke track de sleutel hérberekent in plaats
+  van naar één symptoom te zoeken.
+- **`migrate_v13` deed zelf nooit iets.** De guard telde de kolommen die al `utf8mb4_bin` zijn en
+  koos bij `COUNT(*) = 0` de tak "is already utf8mb4_bin" — dus op een database die de migratie
+  nodig had, sloeg hij hem stil over, en alleen op een al gemigreerde voerde hij de ALTER uit. Prod
+  staat goed omdat `db_init.py` de tabel meteen binair aanmaakt, maar het bestand deed niet wat het
+  claimt. De voorwaarde is omgedraaid.
+- **Een track kon gescoord worden op de helft van zijn bestanden.** De batchquery van de worker
+  limiteerde ná de join op `library_media_files`, en `LIMIT` telt gejoinde rijen. De laatste track
+  van een batch werd zo afgesneden van zijn resterende bestanden, kwam mét work uit de ronde en
+  keerde dus nooit terug: zijn FLAC kon één rij voorbij de limiet liggen terwijl zijn MP3 de
+  canonieke versie werd. De batch wordt nu vóór de join gekozen.
+- **Een gesplitste track bleef de oude groep besturen.** `split_track()` verplaatst de track maar
+  liet de pin van de oude work naar hem wijzen, en `recompute_canonicals()` volgde die pin blind —
+  waarmee de oude song een canonieke versie kreeg die inmiddels een andere song is. De pin wordt
+  bij het splitsen gewist, en een pin die geen lid meer is telt niet meer mee.
 ## [0.46.0] - 2026-09-05
 
 ### Added

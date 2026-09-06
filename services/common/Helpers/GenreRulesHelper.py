@@ -60,6 +60,7 @@ class GenreRulesHelper:
         self._rows: dict[str, GenreRow] = {}
         self._by_id: dict[int, GenreRow] = {}
         self._expansions: dict[int, list[int]] = {}
+        self._loaded = False
         if rows is not None:
             self._index(rows, expansions)
         elif preload:
@@ -76,6 +77,7 @@ class GenreRulesHelper:
         self._rows = {row.normalized_name: row for row in rows}
         self._by_id = {row.id: row for row in rows}
         self._expansions = dict(expansions or {})
+        self._loaded = True
 
     def set_rows(self, rows: list[GenreRow], expansions: dict[int, list[int]] | None = None) -> None:
         """Replace the cached rules, e.g. after a curation decision."""
@@ -83,6 +85,16 @@ class GenreRulesHelper:
 
     def reload(self) -> None:
         self._preload()
+
+    def is_loaded(self) -> bool:
+        """True once a query for the rules has actually succeeded.
+
+        A caller that *writes* what it resolved needs this: `_preload` logs its failures
+        and returns, so an unreachable database is indistinguishable from a collection
+        with no curated genres, and resolving against that empty map deletes genre links
+        rather than leaving them alone.
+        """
+        return self._loaded
 
     def _preload(self) -> None:
         query = f'SELECT id, name, normalized_name, state, canonical_id FROM {self.table_name}'

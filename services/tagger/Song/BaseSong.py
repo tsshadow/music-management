@@ -65,6 +65,12 @@ class BaseSong:
     Provides methods to read, clean, update, and save tags.
     """
 
+    # Loading a file is not passive by default: an unparseable m4a is deleted and a FLAC
+    # with lower-case tag keys is rewritten, both from __init__. Subclasses that only read
+    # -- the scanner's ReadonlySong -- set this, and then merely opening a file changes
+    # nothing on disk.
+    readonly = False
+
     def __init__(self, path, extra_info=None):
         """
         Initializes the BaseSong object by loading the file and its tags.
@@ -90,6 +96,11 @@ class BaseSong:
             raise ExtensionNotSupportedException(f'{self._extension} is not supported') from exc
         except MP4StreamInfoError:
             print('MP4StreamInfoError' + path)
+            if self.readonly:
+                # A reader reports the broken file and leaves it alone; deciding to delete
+                # it belongs to the tagger, which is the component that owns writing.
+                log_broken_file(path)
+                return
             try:
                 os.remove(path)
                 print('deleted broken file: ' + path)
@@ -105,7 +116,9 @@ class BaseSong:
         self.tag_collection = TagCollection(self.music_file.tags if self.type != MusicFileType.AAC else self.music_file)
         if extra_info:
             self._apply_extra_info(extra_info)
-        if self.type == MusicFileType.FLAC:
+        if self.type == MusicFileType.FLAC and not self.readonly:
+            # The rule saves the file when it changes a key's case. TagCollection._parse_flac
+            # upper-cases on read anyway, so a reader loses nothing by skipping it.
             NormalizeFlacTagsRule().apply(self)
         self.rules.append(CleanTitleRule())
         if s.analyze_bpm:

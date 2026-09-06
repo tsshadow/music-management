@@ -44,13 +44,29 @@ const BODIES = {
   "top-tracks": {
     unmatched: 33461,
     tracks: [
-      { track_id: 1, title: "Raise Your Fist", artist: "Angerfist", listens: 42, estimated_secs: 9000, last_listen: "2026-09-05T20:00:00" },
-      { track_id: 2, title: "Nameless", artist: null, listens: 12, estimated_secs: 2400, last_listen: null },
+      {
+        track_id: 1,
+        title: "Raise Your Fist",
+        artist: "Angerfist",
+        listens: 42,
+        estimated_secs: 9000,
+        last_listen: "2026-09-05T20:00:00",
+      },
+      {
+        track_id: 2,
+        title: "Nameless",
+        artist: null,
+        listens: 12,
+        estimated_secs: 2400,
+        last_listen: null,
+      },
     ],
   },
   "top-artists": {
     unmatched: 33461,
-    artists: [{ artist_id: 7, artist: "Nosferatu", listens: 130, tracks: 21, estimated_secs: 30000 }],
+    artists: [
+      { artist_id: 7, artist: "Nosferatu", listens: 130, tracks: 21, estimated_secs: 30000 },
+    ],
   },
   "top-labels": {
     unmatched: 33461,
@@ -130,7 +146,9 @@ describe("ListeningStatsView", () => {
     await fireEvent.click(screen.getByText("30 dagen"));
 
     await waitFor(() =>
-      expect(globalThis.fetch.mock.calls.some(([url]) => String(url).includes("bucket=day"))).toBe(true),
+      expect(globalThis.fetch.mock.calls.some(([url]) => String(url).includes("bucket=day"))).toBe(
+        true,
+      ),
     );
   });
 

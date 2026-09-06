@@ -141,9 +141,7 @@ class ListeningTest(unittest.TestCase):
         # 22:30 UTC on the 5th is 00:30 on the 6th in Amsterdam in summer. In UTC
         # this would be filed under the 5th, which is the bug the zone fixes.
         cursor.fetchall.return_value = [{'slot': '2026-09-05 22', 'matched': 4, 'unmatched': 1}]
-        body = self.client.get(
-            '/api/listening/timeline?bucket=day&tz=Europe/Amsterdam', headers=self.headers
-        ).json()
+        body = self.client.get('/api/listening/timeline?bucket=day&tz=Europe/Amsterdam', headers=self.headers).json()
 
         self.assertEqual(body['timezone'], 'Europe/Amsterdam')
         self.assertEqual(body['buckets'][0]['bucket'], '2026-09-06')

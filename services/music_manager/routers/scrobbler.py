@@ -76,8 +76,7 @@ def init_db(cursor):
     # which is what production runs.
     cursor.execute('ALTER TABLE scrobble_listens ADD INDEX IF NOT EXISTS idx_listens_listened_at (listened_at)')
     cursor.execute(
-        'ALTER TABLE scrobble_unmatched_listens '
-        'ADD INDEX IF NOT EXISTS idx_unmatched_listened_at (listened_at)'
+        'ALTER TABLE scrobble_unmatched_listens ADD INDEX IF NOT EXISTS idx_unmatched_listened_at (listened_at)'
     )
 
 

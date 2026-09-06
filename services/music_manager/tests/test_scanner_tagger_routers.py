@@ -113,6 +113,14 @@ class ScannerManagerTest(unittest.TestCase):
             self.manager.run_full()
         scan.assert_not_called()
 
+    def test_a_single_file_scan_loads_the_curation_rules_first(self):
+        with (
+            patch.object(self.manager.genre_helper, 'reload') as reload_rules,
+            patch.object(scanner_router, 'get_db_connection', return_value=None),
+        ):
+            self.manager.scan_single('/music/EPs/a.flac')
+        reload_rules.assert_called_once()
+
     def test_a_full_run_reloads_the_curation_rules_first(self):
         with (
             patch.object(scanner_router.os.path, 'exists', return_value=True),

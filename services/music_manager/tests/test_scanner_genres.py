@@ -134,6 +134,15 @@ class ScannerGenreWriteTest(unittest.TestCase):
         self.manager._write_genres(cursor, track_id=42, genre_ids=[])
         cursor.execute.assert_called_once_with('DELETE FROM library_track_genres WHERE track_id = %s', (42,))
 
+    def test_nothing_is_written_when_the_rules_never_loaded(self):
+        """A failed rules query leaves an empty map that resolves every genre to nothing.
+        Deleting on that reading would strip the genre links of every file a scan touches,
+        which is the same damage the empty cache used to do on a single scan."""
+        self.manager.genre_helper = GenreRulesHelper(preload=False)
+        cursor = MagicMock()
+        self.manager._write_genres(cursor, track_id=42, genre_ids=[])
+        cursor.execute.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`startScan` accepts a `path` parameter and scans only that subtree.** MuMa moves and retags
+  files continuously and had no way to say so: the library-wide incremental scan takes the better
+  part of an hour here, and it starts an hour after the previous one finished, so a change waited
+  up to two hours to become visible -- with the file's old path still in the index in the meantime.
+  `path` is repeatable and library-relative (MuMa mounts the tree at `/mnt/music` and this server at
+  `/music`, so an absolute path from a client would name a directory that does not exist here); an
+  absolute path inside a media library root is accepted too. A path outside every root is refused
+  rather than widened to a full scan. **A directory that no longer exists is valid and is the more
+  important half:** it is how the rows under a folder that was moved away get removed, so the
+  removed-file pass grew a query bounded by a half-open byte range on the path -- not `LIKE`, which
+  is case-insensitive for ASCII in SQLite and would also match a sibling directory whose name
+  merely starts the same way. Combines with `fullScan` to mean "re-read everything under this path".
+  The response echoes `scanStatus.scanScope`, which is the only synchronous way a client can tell
+  an accepted scope from an older server that ignored the parameter and started a full scan.
+  A scoped scan skips only `Optimize` and the duplicate-file report, and deliberately still runs
+  orphan removal and the cluster statistics -- skipping the latter is what once left every genre
+  count at zero. It also does not publish its numbers as `lastScan`, so the admin page keeps
+  describing the last full scan instead of "3 files".
+
+- **A scoped scan pauses the periodic one instead of aborting it, and it resumes where it was.**
+  `requestImmediateScan` aborted the running scan and then recomputed the next scheduled
+  moment as "an hour from now"; with an hourly period and a scan that takes the better part of
+  an hour, that meant always running, always aborted, and always pushed back, so the
+  library-wide scan never got through its own steps -- including the orphan removal and the
+  cluster statistics. The pause reuses the flag every scan step already checks on each batch
+  boundary; what is new is that the service remembers *why* the flag went up. On resume the
+  interrupted step starts again from its own beginning, the steps before it do not, and their
+  contribution to the stats survives. Incoming paths are merged into a set and debounced --
+  five seconds of quiet, sixty seconds at the outside -- so a tagger round touching hundreds of
+  folders costs one step restart per minute rather than hundreds.
+
+- **A weekly full re-read can be scheduled next to the incremental period.** The same
+  library-wide scan with `fullScan` on, on a configurable day of the week, off by default
+  (`scan_settings.full_scan_period`, database version 117). When both moments coincide the full
+  one wins: it does everything the incremental one does. music-manager now sends the folders it
+  touched with every move -- both the old and the new path, because the old one is how the rows
+  under a folder that is gone get removed -- from its own thread, so a slow music server can
+  never hold up an import.
+
 ### Fixed
 - **A user sync from music-manager now empties the Subsonic auth cache.** A granted password is
   trusted for five minutes (`authGrantedCacheDuration`), so an account disabled on music-manager

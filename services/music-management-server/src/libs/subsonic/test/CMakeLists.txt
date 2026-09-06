@@ -5,6 +5,7 @@ add_executable(test-subsonic
 	ClientInfo.cpp
 	FestivalLineup.cpp
 	Memories.cpp
+	ScanScope.cpp
 	Subsonic.cpp
 	SubsonicResponse.cpp
 	TranscodeDecision.cpp

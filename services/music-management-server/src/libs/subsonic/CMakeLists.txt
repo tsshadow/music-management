@@ -14,6 +14,7 @@ add_library(lmssubsonic STATIC
 	impl/endpoints/Memories.cpp
 	impl/endpoints/Playlists.cpp
 	impl/endpoints/Podcast.cpp
+	impl/endpoints/ScanScope.cpp
 	impl/endpoints/Searching.cpp
 	impl/endpoints/Spotify.cpp
 	impl/endpoints/System.cpp

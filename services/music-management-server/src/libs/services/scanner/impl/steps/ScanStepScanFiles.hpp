@@ -20,6 +20,7 @@
 #pragma once
 
 #include <deque>
+#include <filesystem>
 
 #include "ScanStepBase.hpp"
 
@@ -44,7 +45,10 @@ namespace lms::scanner
         bool needProcess(const ScanContext& context) const override;
         void process(ScanContext& context) override;
 
-        void process(ScanContext& context, const MediaLibraryInfo& mediaLibrary);
+        // `root` is what gets walked: the library root for a normal scan, one of the
+        // requested subtrees for a scoped one. `mediaLibrary` stays the owning library either
+        // way, because every scanned file is stamped with it.
+        void process(ScanContext& context, const MediaLibraryInfo& mediaLibrary, const std::filesystem::path& root);
         std::size_t processFileScanOperations(ScanContext& context, std::deque<std::unique_ptr<IFileScanOperation>>& scanOperations, bool forceBatch);
         void processFileScanOperation(ScanContext& context, IFileScanOperation& operation);
     };

@@ -53,6 +53,9 @@ namespace lms::db
         static pointer find(Session& session, const std::filesystem::path& path);
         static void find(Session& session, PlayListFileId& lastRetrievedId, std::size_t count, const std::function<void(const pointer&)>& func);
         static void findAbsoluteFilePath(Session& session, PlayListFileId& lastRetrievedId, std::size_t count, const std::function<void(PlayListFileId playListFileId, const std::filesystem::path& absoluteFilePath)>& func);
+        // Same, restricted to the files under `directory`. The directory must be absolute and
+        // lexically normal; it does not have to exist on disk.
+        static void findAbsoluteFilePathInDirectory(Session& session, PlayListFileId& lastRetrievedId, std::size_t count, const std::filesystem::path& directory, const std::function<void(PlayListFileId playListFileId, const std::filesystem::path& absoluteFilePath)>& func);
         static void find(Session& session, const IdRange<PlayListFileId>& idRange, const std::function<void(const PlayListFile::pointer&)>& func);
         static IdRange<PlayListFileId> findNextIdRange(Session& session, PlayListFileId lastRetrievedId, std::size_t count);
 

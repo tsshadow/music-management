@@ -167,6 +167,10 @@ class Tagger:
                     if self.stop_requested:
                         break
                     self._try_parse(file, song_type, extra_info)
+            if files:
+                # One notify per folder, not per file: everything in here just had its tags
+                # rewritten, and LMS reads a directory at a time anyway.
+                lms_scan_trigger.notify([str(folder)])
             if self.stop_requested:
                 return
             for subfolder in [f for f in folder.iterdir() if f.is_dir() and (not f.name.startswith('_'))]:

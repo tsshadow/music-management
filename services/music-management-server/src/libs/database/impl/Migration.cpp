@@ -35,7 +35,7 @@ namespace lms::db
 {
     namespace
     {
-        static constexpr Version LMS_DATABASE_VERSION{ 116 };
+        static constexpr Version LMS_DATABASE_VERSION{ 117 };
     }
 
     VersionInfo::VersionInfo()
@@ -1881,6 +1881,16 @@ FROM track)");
         utils::executeCommand(*session.getDboSession(), "CREATE TABLE main.auth_token (id INTEGER PRIMARY KEY AUTOINCREMENT, version INTEGER NOT NULL DEFAULT 0, domain TEXT NOT NULL DEFAULT '', value TEXT NOT NULL DEFAULT '', expiry DATETIME, use_count INTEGER NOT NULL DEFAULT 0, last_used TEXT, max_use_count INTEGER, user_id INTEGER)");
     }
 
+    void migrateFromV116(Session& session)
+    {
+        // A second cadence next to update_period: a weekly full re-read, off by default so an
+        // existing installation behaves exactly as it did. scan_version is deliberately not
+        // bumped -- these columns change nothing about how a file is read, and forcing a
+        // library-wide rescan is the very thing the scan lanes exist to avoid.
+        utils::executeCommand(*session.getDboSession(), "ALTER TABLE scan_settings ADD COLUMN full_scan_period INTEGER NOT NULL DEFAULT 0");
+        utils::executeCommand(*session.getDboSession(), "ALTER TABLE scan_settings ADD COLUMN full_scan_day_of_week INTEGER NOT NULL DEFAULT 7");
+    }
+
     bool doDbMigration(Session& session)
     {
         constexpr std::string_view outdatedMsg{ "Outdated database, please rebuild it (delete the .db file and restart)" };
@@ -1973,6 +1983,7 @@ FROM track)");
             { 113, migrateFromV113 },
             { 114, migrateFromV114 },
             { 115, migrateFromV115 },
+            { 116, migrateFromV116 },
         };
 
         bool migrationPerformed{};

@@ -11,6 +11,7 @@ from pydantic import BaseModel
 import docker
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.GenreRulesHelper import BLACK, VALID_STATES, WHITE
+from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.PodcastHelper import normalize as normalize_show_name
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 from services.common.Helpers.RescanInvalidator import invalidate_quietly, rescan_invalidator
@@ -238,7 +239,11 @@ def confirm_label_proposal(
                     )
                     conn.commit()
                     return {'status': 'stale', 'folder': folder}
-                shutil.move(src, os.path.join(settings.eps_folder_path, decision.label, folder))
+                dst = os.path.join(settings.eps_folder_path, decision.label, folder)
+                shutil.move(src, dst)
+                # Both paths: the new one so LMS reads the files, the old one so the rows
+                # underneath a folder that is now gone get removed.
+                lms_scan_trigger.notify([src, dst])
             cursor.execute(
                 "UPDATE rules_label_proposals SET status = 'confirmed', decided_label = %s, decided_at = NOW() WHERE id = %s",
                 (decision.label, proposal_id),

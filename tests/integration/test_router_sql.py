@@ -59,6 +59,16 @@ READ_ENDPOINTS = [
     ('/api/analytics/top-artists', 200),
     ('/api/analytics/top-labels', 200),
     ('/api/analytics/artist-search?q=anger', 200),
+    ('/api/listening/summary', 200),
+    ('/api/listening/summary?from=2024-01-01&to=2026-12-31&tz=Europe/Amsterdam', 200),
+    ('/api/listening/timeline?bucket=day', 200),
+    ('/api/listening/timeline?bucket=week', 200),
+    ('/api/listening/timeline?bucket=month', 200),
+    ('/api/listening/clock', 200),
+    ('/api/listening/sources', 200),
+    ('/api/listening/top-tracks', 200),
+    ('/api/listening/top-artists', 200),
+    ('/api/listening/top-labels', 200),
     ('/api/user-requests', 200),
     # The curation edit pages. An artist or label the library has never seen reads
     # back as a row of nulls rather than a 404: the rule tables are free text, so a

@@ -199,6 +199,54 @@
     "topArtists": "Top artiesten",
     "topLabels": "Top labels"
   },
+  "listening": {
+    "title": "Luisteren",
+    "subtitle": "Wat je hebt gedraaid, wanneer, en hoe vaak.",
+    "loading": "Je luistergeschiedenis wordt geladen…",
+    "unavailable": "Luisterstatistieken zijn nu niet beschikbaar.",
+    "empty": "Niets geluisterd in deze periode.",
+    "period": {
+      "30d": "30 dagen",
+      "12m": "12 maanden",
+      "all": "Alles"
+    },
+    "tile": {
+      "listens": "Luisterbeurten",
+      "matchedOf": "{matched} gekoppeld aan een track",
+      "tracks": "Tracks",
+      "artists": "Artiesten",
+      "time": "Luistertijd",
+      "matchedOnly": "Alleen gekoppelde luisterbeurten",
+      "estimated": "Schatting, zie hieronder"
+    },
+    "hoursShort": "u",
+    "minutesShort": "m",
+    "caveat": {
+      "unmatched": "{percent}% van deze luisterbeurten ({count}) is nooit aan een track in de bibliotheek gekoppeld. Ze tellen mee in de totalen en de tijdlijn, maar kunnen in geen enkele ranglijst voorkomen.",
+      "measured": "Maar {percent}% ({count}) heeft vastgelegd hoe lang er echt gespeeld is. De rest gaat ervan uit dat de track is uitgespeeld, dus de luistertijd is een schatting — en een lage."
+    },
+    "timeline": "In de tijd",
+    "timelineLegend": "Vol is gekoppeld aan een track, vaag is ongekoppeld.",
+    "clock": "Uur van de dag",
+    "weekdays": "Dag van de week",
+    "weekday": {
+      "0": "ma",
+      "1": "di",
+      "2": "wo",
+      "3": "do",
+      "4": "vr",
+      "5": "za",
+      "6": "zo"
+    },
+    "topTracks": "Meest gedraaide tracks",
+    "topArtists": "Meest gedraaide artiesten",
+    "topLabels": "Meest gedraaide labels",
+    "matchedOnlyNote": "Alleen gekoppelde luisterbeurten.",
+    "labelsNote": "Een track met twee labels telt voor allebei.",
+    "sources": "Waar je luisterde",
+    "sourcesNote": "Waar een luisterbeurt vandaan komt; bij een import is dat de import, niet een apparaat.",
+    "unknownArtist": "Onbekende artiest"
+  },
   "login": {
     "avatar": "Avatar",
     "backToLogin": "Terug naar inloggen",
@@ -786,6 +834,7 @@
     "labels": "Labels",
     "library": "Bieb",
     "lineups": "Lineups",
+    "listening": "Luisteren",
     "management": "Beheer",
     "memories": "Memories",
     "menu": "Menu",

@@ -12,6 +12,7 @@
   import ArtistList from './ArtistList.svelte';
   import Settings from './Settings.svelte';
   import History from './History.svelte';
+  import ListeningStatsView from './ListeningStatsView.svelte';
   import StarredView from './StarredView.svelte';
   import MemoriesView from './MemoriesView.svelte';
   import MemoriesYearView from './MemoriesYearView.svelte';
@@ -1130,6 +1131,8 @@
     <Management />
   {:else if activeView === 'history'}
     <History onnavigate={(v) => activeView = v} />
+  {:else if activeView === 'listening'}
+    <ListeningStatsView onnavigate={(v) => onnavigate(v)} />
   {:else if activeView === 'starred'}
     <StarredView onnavigate={(v) => activeView = v} />
   {:else if activeView === 'memories'}

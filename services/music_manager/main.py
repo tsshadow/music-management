@@ -30,6 +30,7 @@ from services.music_manager.routers import (
     feeds,
     jobs,
     library,
+    listening,
     management,
     news,
     radio,
@@ -72,6 +73,7 @@ app.include_router(management.router, prefix="/api")
 app.include_router(artist_images.router, prefix="/api/artists")
 app.include_router(library.router, prefix="/api/library")
 app.include_router(analytics.router, prefix="/api/analytics")
+app.include_router(listening.router, prefix="/api/listening")
 app.include_router(tagger.router, prefix="/api/tagger")
 app.include_router(scanner.router, prefix="/api/scanner")
 app.include_router(jobs.router, prefix="/api/jobs")

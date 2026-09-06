@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## Global Version 6.29.0 (2026-09-07)
+
+- Beheer heeft er vier werkende pagina's bij: tagger, genrecuratie, labelvoorstellen en
+  podcastcuratie. Goedkeuren of afwijzen kan nu vanaf je telefoon.
 ## Global Version 6.28.4 (2026-09-06)
 
 - **De Bibliotheek laat geen lege tabbladen meer zien.** Podcasts en festivals verschijnen in

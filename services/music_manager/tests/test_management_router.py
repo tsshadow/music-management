@@ -17,6 +17,7 @@ users_router.run_lms_db_sync = lambda: None
 from fastapi.testclient import TestClient
 
 from services.common.Helpers import Cache
+from services.common.Helpers.ReleaseFolder import CONFLICT, MOVED
 from services.music_manager.main import app
 from services.music_manager.routers import management as management_router
 
@@ -786,22 +787,45 @@ class LabelProposalsTest(ManagementTestCase):
             'proposed_label': 'Brutal Kuts',
         }
 
-        with patch.object(management_router, 'shutil') as shutil_module:
+        with patch.object(management_router, 'move_release_folder') as move:
             self.confirm(1, 'Brutal Kuts')
 
-        shutil_module.move.assert_not_called()
+        move.assert_not_called()
 
     def test_confirming_a_proposal_without_a_cat_id_moves_the_folder(self):
         self.cursor.fetchone.return_value = {'id': 2, 'folder': ' - Dewstate', 'catid': None, 'proposed_label': None}
 
         with (
-            patch.object(management_router, 'shutil') as shutil_module,
+            patch.object(management_router, 'move_release_folder', return_value=MOVED) as move,
             patch.object(management_router, 'folder_exists', return_value=True),
         ):
             response = self.confirm(2, 'Different Solution Records')
 
         self.assertEqual(response.status_code, 200)
-        shutil_module.move.assert_called_once_with('/import/ - Dewstate', '/eps/Different Solution Records/ - Dewstate')
+        move.assert_called_once_with('/import/ - Dewstate', '/eps/Different Solution Records/ - Dewstate')
+
+    def test_a_proposal_whose_destination_is_taken_moves_nothing(self):
+        """shutil.move into an existing directory nests instead of failing.
+
+        The importer's mover learned that on 2026-09-04; this endpoint makes the same call
+        and never did. It has not bitten here yet -- only one nested folder on production
+        ever appeared in this table, and it is still open -- but the call is identical and
+        so is the damage: the release ends up inside the folder it collided with.
+        """
+        self.cursor.fetchone.return_value = {'id': 5, 'folder': 'REL001', 'catid': None, 'proposed_label': None}
+
+        with (
+            patch.object(management_router, 'folder_exists', return_value=True),
+            patch.object(management_router, 'move_release_folder', return_value=CONFLICT) as move,
+        ):
+            response = self.confirm(5, 'Some Label')
+
+        move.assert_called_once_with('/import/REL001', '/eps/Some Label/REL001')
+        self.assertEqual(response.json()['status'], 'conflict')
+        # The proposal stays open: once the collision is resolved by hand it can be
+        # confirmed again, and a proposal marked confirmed while nothing moved would
+        # leave the folder in import with nothing pointing at it.
+        self.assertFalse(any("status = 'confirmed'" in s for s in self.statements()))
 
     def test_a_proposal_whose_folder_vanished_is_reported_as_stale(self):
         self.cursor.fetchone.return_value = {'id': 3, 'folder': 'gone', 'catid': None, 'proposed_label': None}

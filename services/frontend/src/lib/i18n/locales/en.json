@@ -285,7 +285,7 @@
       "actions": "Actions",
       "catId": "Catalogue number",
       "confirmGroup": "Confirm all",
-      "confirmed": "{count} releases assigned to {label}. {stale} were already gone.",
+      "confirmed": "{count} releases assigned to {label}. {stale} were already gone, {conflict} left alone because that folder is taken.",
       "description": "Releases the importer could not place. Confirming a proposal that carries a catalogue number teaches the rule, so every later release on that label goes through on its own.",
       "empty": "Nothing to review.",
       "label": "Label",

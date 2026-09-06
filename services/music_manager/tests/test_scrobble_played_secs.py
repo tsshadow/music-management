@@ -108,18 +108,32 @@ class ScrobbleEventTest(unittest.TestCase):
 class InitDbTest(unittest.TestCase):
     """The column has to appear on a database that predates it, not only on a fresh one."""
 
+    @staticmethod
+    def _column_alters(cursor):
+        """Only the played_secs ALTERs. The index ALTERs beside them are
+        unconditional -- `ADD INDEX IF NOT EXISTS` needs no guard -- so counting
+        every ALTER would make this test fail whenever an index is added."""
+        return [sql for sql, _params in cursor.executed if 'ALTER TABLE' in sql and 'played_secs' in sql]
+
     def test_the_column_is_added_when_it_is_missing(self):
         cursor = ScriptedCursor()  # every SHOW COLUMNS reads as "no such column"
         init_db(cursor)
-        altered = [sql for sql, _params in cursor.executed if 'ALTER TABLE' in sql]
+        altered = self._column_alters(cursor)
         self.assertEqual(len(altered), 2, altered)
-        self.assertTrue(all('played_secs' in sql for sql in altered), altered)
 
     def test_it_is_a_no_op_when_the_column_is_already_there(self):
         cursor = ScriptedCursor(rules=[("SHOW COLUMNS", None, {'Field': 'played_secs'})])
         init_db(cursor)
-        altered = [sql for sql, _params in cursor.executed if 'ALTER TABLE' in sql]
-        self.assertEqual(altered, [])
+        self.assertEqual(self._column_alters(cursor), [])
+
+    def test_the_listened_at_indexes_are_created_on_an_existing_database(self):
+        """Reading history back scans on listened_at with no username to seek on;
+        the unique keys lead on username and cannot serve that."""
+        cursor = ScriptedCursor(rules=[("SHOW COLUMNS", None, {'Field': 'played_secs'})])
+        init_db(cursor)
+        indexed = [sql for sql, _params in cursor.executed if 'ADD INDEX' in sql]
+        self.assertEqual(len(indexed), 2, indexed)
+        self.assertTrue(all('listened_at' in sql for sql in indexed), indexed)
 
 
 if __name__ == '__main__':

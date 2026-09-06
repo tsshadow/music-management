@@ -180,6 +180,7 @@ def api(db, monkeypatch):
         'services.music_manager.routers.stats',
         'services.music_manager.routers.rating',
         'services.music_manager.routers.analytics',
+        'services.music_manager.routers.listening',
         'services.music_manager.routers.radio',
         'services.music_manager.routers.user_requests',
         'services.music_manager.routers.diagnostics',

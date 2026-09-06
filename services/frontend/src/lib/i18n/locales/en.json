@@ -199,6 +199,54 @@
     "topArtists": "Top artists",
     "topLabels": "Top labels"
   },
+  "listening": {
+    "title": "Listening",
+    "subtitle": "What you played, when, and how often.",
+    "loading": "Loading your listening history…",
+    "unavailable": "Listening statistics are unavailable right now.",
+    "empty": "Nothing listened to in this period.",
+    "period": {
+      "30d": "30 days",
+      "12m": "12 months",
+      "all": "All time"
+    },
+    "tile": {
+      "listens": "Listens",
+      "matchedOf": "{matched} linked to a track",
+      "tracks": "Tracks",
+      "artists": "Artists",
+      "time": "Listening time",
+      "matchedOnly": "Linked listens only",
+      "estimated": "Estimated, see below"
+    },
+    "hoursShort": "h",
+    "minutesShort": "m",
+    "caveat": {
+      "unmatched": "{percent}% of these listens ({count}) never matched a track in the library, so they count towards the totals and the timeline but cannot appear in any ranking.",
+      "measured": "Only {percent}% ({count}) recorded how long they actually played. The rest assume the track ran to the end, so the listening time is an estimate and a low one."
+    },
+    "timeline": "Over time",
+    "timelineLegend": "Solid is linked to a track, faint is unmatched.",
+    "clock": "Hour of the day",
+    "weekdays": "Day of the week",
+    "weekday": {
+      "0": "Mon",
+      "1": "Tue",
+      "2": "Wed",
+      "3": "Thu",
+      "4": "Fri",
+      "5": "Sat",
+      "6": "Sun"
+    },
+    "topTracks": "Most played tracks",
+    "topArtists": "Most played artists",
+    "topLabels": "Most played labels",
+    "matchedOnlyNote": "Linked listens only.",
+    "labelsNote": "A track with two labels counts for both.",
+    "sources": "Where you listened",
+    "sourcesNote": "Where a listen came from, which for imports is the import rather than a device.",
+    "unknownArtist": "Unknown artist"
+  },
   "login": {
     "avatar": "Avatar",
     "backToLogin": "Back to login",
@@ -786,6 +834,7 @@
     "labels": "Labels",
     "library": "Library",
     "lineups": "Lineups",
+    "listening": "Listening",
     "management": "Management",
     "memories": "Memories",
     "menu": "Menu",

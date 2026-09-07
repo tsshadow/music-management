@@ -18,8 +18,8 @@ class DummyYoutubeArchive:
         return False
 
     @staticmethod
-    def insert(account, video_id, path, url, title, download_type='audio'):
-        DummyYoutubeArchive.inserted.append((account, video_id, path, url, title, download_type))
+    def insert(account, video_id, path, url, title, download_type='audio', raw_info=None):
+        DummyYoutubeArchive.inserted.append((account, video_id, path, url, title, download_type, raw_info))
 
 
 # Import via the fully-qualified "services." path (matching every other test in
@@ -112,9 +112,13 @@ class YoutubeSongProcessorTest(unittest.TestCase):
         self.assertEqual(os.path.normpath(info['requested_downloads'][0]['filepath']), os.path.normpath(expected_path))
         self.assertEqual(os.path.normpath(info['requested_downloads'][0]['_filename']), os.path.normpath(expected_path))
         self.assertEqual(
-            DummyYoutubeArchive.inserted[-1],
+            DummyYoutubeArchive.inserted[-1][:6],
             ('qdance', '5mKayZadF4g', info['filepath'], info['webpage_url'], 'Noiseflow | Defqon.1 2025', 'audio'),
         )
+        # And the dict itself, so what yt-dlp knew can be stored beside the row. It is
+        # handed over *after* the title correction, so the archive keeps the corrected
+        # title rather than the placeholder the download arrived with.
+        self.assertEqual(DummyYoutubeArchive.inserted[-1][6]['title'], 'Noiseflow | Defqon.1 2025')
 
 
 if __name__ == '__main__':

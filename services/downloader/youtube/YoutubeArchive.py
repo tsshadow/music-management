@@ -2,6 +2,7 @@ import logging
 import os
 
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+from services.downloader import info_json
 from services.downloader.youtube.YoutubeAccount import AUDIO
 
 
@@ -59,8 +60,22 @@ class YoutubeArchive:
         return found
 
     @staticmethod
-    def insert(account: str, video_id: str, path: str, url: str, title: str, download_type: str = AUDIO):
-        """Insert a newly downloaded track into the downloads_youtube_archive table."""
+    def insert(
+        account: str,
+        video_id: str,
+        path: str,
+        url: str,
+        title: str,
+        download_type: str = AUDIO,
+        raw_info: dict | None = None,
+    ):
+        """Insert a newly downloaded track into the downloads_youtube_archive table.
+
+        `raw_info` is yt-dlp's own dict, stored as JSON. It fills a NULL on a row that is
+        already there rather than being ignored with the rest of the insert: this table
+        *is* keyed on (video_id, download_type), so a re-download conflicts, and a row
+        archived before this column existed is exactly the row worth filling in.
+        """
         if not all([account, video_id, url]):
             logging.warning(f'Missing fields for archive insert: account={account}, video_id={video_id}, url={url}')
             return
@@ -70,12 +85,14 @@ class YoutubeArchive:
                     'INSERT IGNORE INTO downloads_youtube_accounts (name, download_type) VALUES (%s, %s)',
                     (account, download_type),
                 )
+                blob = info_json.to_json(raw_info)
                 cursor.execute(
-                    '\n                    INSERT IGNORE INTO downloads_youtube_archive '
-                    '(account, video_id, filename, path, url, title, download_type)\n'
-                    '                    VALUES (%s, %s, %s, %s, %s, %s, %s)\n'
+                    '\n                    INSERT INTO downloads_youtube_archive '
+                    '(account, video_id, filename, path, url, title, download_type, info_json)\n'
+                    '                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)\n'
+                    '                    ON DUPLICATE KEY UPDATE info_json = COALESCE(info_json, %s)\n'
                     '                    ',
-                    (account, video_id, os.path.basename(path), path, url, title, download_type),
+                    (account, video_id, os.path.basename(path), path, url, title, download_type, blob, blob),
                 )
                 conn.commit()
                 logging.debug(f'Added to downloads_youtube_archive: {account}/{video_id} ({download_type})')

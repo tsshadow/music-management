@@ -11,6 +11,32 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.51.0 (2026-09-07)
+
+- **Pipelines belasten de server minder.** Zware bouw- en testjobs verhuizen naar het werkstation
+  zodra dat aan staat, in plaats van naast GitLab te draaien.
+
+- **Nummers van SoundCloud en YouTube tonen weer de artiestenregel zoals die geschreven stond.**
+  "Lil Texas & Albino" werd overal uit elkaar getrokken tot twee losse namen en de oorspronkelijke
+  schrijfwijze was nergens meer te zien.
+
+- **Downloads bewaren nu wat SoundCloud en YouTube erover vertelden.** Genre, tags, omschrijving en
+  de artiestcredits gingen tot nu toe verloren zodra het bestand binnen was.
+
+- `GET /api/library/genres` geeft per genre een `tint` mee: de kleur waarin dat genre getekend
+  wordt. De web UI en de mobiele app tonen een genre allebei als gekleurde tegel, en met een tabel
+  aan beide kanten was Hardstyle vroeg of laat oranje op de ene plek en magenta op de andere — een
+  verschil dat niemand ziet tot beide naast elkaar openstaan, en dat van geen van beide kanten te
+  testen is. De kleur wordt afgeleid van de naam en niet opgeslagen. Additief veld; bestaande
+  consumers merken niets.
+- De genre-tegels in de web UI dragen die kleur nu. Een genre dat MuMa niet kent houdt de
+  brand-kleur die de tegel altijd al had.
+
+- Beveiligingsupdates voor de telegram- en importer-containers landen nu elke nacht in plaats van
+  pas bij de volgende release.
+
+- **Een release op een label met één stijl kreeg geen genre meer mee.** De regel die het genre van
+  het label overneemt stond wel klaar, maar werd voor labelreleases nooit gedraaid. Dat is hersteld.
 ## Global Version 0.50.0 (2026-09-07)
 
 - **Nieuwe pagina "Luisteren".** Wat je gedraaid hebt, wanneer en hoe vaak — totalen, een tijdlijn,

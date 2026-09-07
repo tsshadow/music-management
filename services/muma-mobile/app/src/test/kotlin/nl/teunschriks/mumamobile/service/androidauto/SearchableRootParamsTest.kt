@@ -48,6 +48,17 @@ class SearchableRootParamsTest {
     }
 
     @Test
+    fun `the root sets a list as the default layout for both kinds of child`() {
+        // The per-level params decide the layout wherever MuMa builds the level itself. This is
+        // the fallback for anything the car asks for that never reaches those -- notably the
+        // root's own children, which are category entries without cover art.
+        val params = searchableRootParams(null)
+
+        params.extras.getInt(CONTENT_STYLE_BROWSABLE_HINT) `should be equal to` CONTENT_STYLE_LIST_ITEM
+        params.extras.getInt(CONTENT_STYLE_PLAYABLE_HINT) `should be equal to` CONTENT_STYLE_LIST_ITEM
+    }
+
+    @Test
     fun `the flags the caller set are carried through`() {
         val incoming = MediaLibraryService.LibraryParams.Builder()
             .setRecent(true)

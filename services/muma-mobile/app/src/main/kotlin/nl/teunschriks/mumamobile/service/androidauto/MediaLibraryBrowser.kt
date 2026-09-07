@@ -72,6 +72,8 @@ internal fun searchableRootParams(
 ): MediaLibraryService.LibraryParams {
     val extras = Bundle(params?.extras ?: Bundle.EMPTY)
     extras.putBoolean(BROWSER_SEARCH_SUPPORTED, true)
+    // The fallback for anything the car draws without asking a level of its own for params.
+    extras.withContentStyle(browsable = CONTENT_STYLE_LIST_ITEM)
 
     return MediaLibraryService.LibraryParams.Builder()
         .setExtras(extras)
@@ -199,7 +201,7 @@ class MediaLibraryBrowser(
                     )
                 }
             }
-            return@future LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            return@future itemListResult(mediaItems)
         }
     }
 
@@ -228,7 +230,7 @@ class MediaLibraryBrowser(
                     )
                 }
             }
-            return@future LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            return@future itemListResult(mediaItems)
         }
     }
 
@@ -509,7 +511,7 @@ class MediaLibraryBrowser(
         )
 
         return Futures.immediateFuture(
-            LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            itemListResult(mediaItems)
         )
     }
 
@@ -532,7 +534,7 @@ class MediaLibraryBrowser(
                 mediaType = MEDIA_TYPE_PLAYLIST
             )
         }
-        LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+        itemListResult(mediaItems)
     }
 
     /**
@@ -554,7 +556,7 @@ class MediaLibraryBrowser(
                 mediaType = MEDIA_TYPE_PLAYLIST
             )
         }
-        LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+        itemListResult(mediaItems)
     }
 
     private fun getFavoriteItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
@@ -571,7 +573,7 @@ class MediaLibraryBrowser(
         }
 
         return Futures.immediateFuture(
-            LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            itemListResult(mediaItems)
         )
     }
 
@@ -592,7 +594,7 @@ class MediaLibraryBrowser(
         }
 
         return Futures.immediateFuture(
-            LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            itemListResult(mediaItems)
         )
     }
 
@@ -602,7 +604,7 @@ class MediaLibraryBrowser(
             .toMutableList()
 
         return Futures.immediateFuture(
-            LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            itemListResult(mediaItems)
         )
     }
 
@@ -623,7 +625,7 @@ class MediaLibraryBrowser(
         mediaItems.add(R.string.playlist_label, MEDIA_PLAYLIST_ID)
         mediaItems.add(R.string.main_artists_title, MEDIA_ARTIST_ID)
         mediaItems.add(R.string.main_albums_title, MEDIA_ALBUM_ID)
-        return Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null))
+        return Futures.immediateFuture(itemListResult(mediaItems))
     }
 
     private fun getSongsTabItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
@@ -632,7 +634,7 @@ class MediaLibraryBrowser(
         mediaItems.add(R.string.main_songs_recent_added, "$MEDIA_SONG_RECENT|short|AddedDesc")
         mediaItems.add(R.string.main_albums_released, "$MEDIA_SONG_RECENT|short|DateDescAndRelease")
         mediaItems.add(R.string.main_last_played_genres, MEDIA_LAST_PLAYED_GENRES_SONGS)
-        return Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null))
+        return Futures.immediateFuture(itemListResult(mediaItems))
     }
 
     private fun getLiveSetsTabItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
@@ -641,7 +643,7 @@ class MediaLibraryBrowser(
         mediaItems.add(R.string.main_songs_recent_added, "$MEDIA_SONG_RECENT|long|AddedDesc")
         mediaItems.add(R.string.main_albums_released, "$MEDIA_SONG_RECENT|long|DateDescAndRelease")
         mediaItems.add(R.string.main_last_played_genres, MEDIA_LAST_PLAYED_GENRES_LIVESETS)
-        return Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null))
+        return Futures.immediateFuture(itemListResult(mediaItems))
     }
 
     private fun getLastPlayedGenres(length: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
@@ -662,7 +664,7 @@ class MediaLibraryBrowser(
                     mediaType = MEDIA_TYPE_PLAYLIST
                 )
             }
-        return Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null))
+        return Futures.immediateFuture(itemListResult(mediaItems))
     }
 
     private fun getArtists(
@@ -721,7 +723,7 @@ class MediaLibraryBrowser(
                     }
                 }
             }
-            return@future LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            return@future itemListResult(mediaItems)
         }
     }
 
@@ -754,7 +756,7 @@ class MediaLibraryBrowser(
                     )
                 )
             }
-            return@future LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            return@future itemListResult(mediaItems)
         }
     }
 
@@ -810,7 +812,7 @@ class MediaLibraryBrowser(
                 }
             }
 
-            return@future LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            return@future itemListResult(mediaItems)
         }
     }
 
@@ -866,7 +868,7 @@ class MediaLibraryBrowser(
                 )
             }
 
-            return@future LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            return@future itemListResult(mediaItems)
         }
     }
 
@@ -899,7 +901,7 @@ class MediaLibraryBrowser(
                     mediaType = MEDIA_TYPE_PLAYLIST
                 )
             }
-            return@future LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            return@future itemListResult(mediaItems)
         }
     }
 
@@ -937,7 +939,7 @@ class MediaLibraryBrowser(
                     )
                 }
             }
-            return@future LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            return@future itemListResult(mediaItems)
         }
     }
 
@@ -985,7 +987,7 @@ class MediaLibraryBrowser(
                     )
                 }
             }
-            return@future LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            return@future itemListResult(mediaItems)
         }
     }
 
@@ -1013,7 +1015,7 @@ class MediaLibraryBrowser(
                     mediaType = MEDIA_TYPE_PLAYLIST
                 )
             }
-            return@future LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            return@future itemListResult(mediaItems)
         }
     }
 
@@ -1055,7 +1057,7 @@ class MediaLibraryBrowser(
                     mediaType = MEDIA_TYPE_PLAYLIST
                 )
             }
-            return@future LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            return@future itemListResult(mediaItems)
         }
     }
 
@@ -1085,7 +1087,7 @@ class MediaLibraryBrowser(
                 )
             }
 
-            return@future LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            return@future itemListResult(mediaItems)
         }
     }
 
@@ -1153,7 +1155,7 @@ class MediaLibraryBrowser(
                 }
             }
 
-            return@future LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            return@future itemListResult(mediaItems)
         }
     }
 
@@ -1181,7 +1183,7 @@ class MediaLibraryBrowser(
                     )
                 }
             }
-            return@future LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            return@future itemListResult(mediaItems)
         }
     }
 
@@ -1209,7 +1211,7 @@ class MediaLibraryBrowser(
                     )
                 }
             }
-            return@future LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            return@future itemListResult(mediaItems)
         }
     }
 
@@ -1229,7 +1231,7 @@ class MediaLibraryBrowser(
                     mediaType = MEDIA_TYPE_FOLDER_MIXED
                 )
             }
-            return@future LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            return@future itemListResult(mediaItems)
         }
     }
 
@@ -1256,7 +1258,7 @@ class MediaLibraryBrowser(
                     mediaType = MEDIA_TYPE_FOLDER_MIXED
                 )
             }
-            return@future LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null)
+            return@future itemListResult(mediaItems)
         }
     }
 

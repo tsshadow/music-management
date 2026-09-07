@@ -11,6 +11,7 @@ import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
@@ -44,14 +45,25 @@ abstract class MediaLibraryBase protected constructor() {
     )
     protected val musicFolderId get() = activeServerProvider.getActiveServer().musicFolderId
 
+    @UnstableApi
     protected fun emptyResult(
         reason: String
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         Timber.w("loadChildren(): %s", reason)
-        return Futures.immediateFuture(
-            LibraryResult.ofItemList(ImmutableList.of<MediaItem>(), null)
-        )
+        return Futures.immediateFuture(itemListResult(emptyList()))
     }
+
+    /**
+     * A browse level, together with the layout Android Auto should draw it in.
+     *
+     * Every level used to answer with `null` params, which leaves the car on its own default of a
+     * text list -- including for the levels whose items carry cover art. Going through here means
+     * a level cannot forget to say.
+     */
+    @UnstableApi
+    protected fun itemListResult(
+        items: List<MediaItem>
+    ): LibraryResult<ImmutableList<MediaItem>> = LibraryResult.ofItemList(ImmutableList.copyOf(items), contentStyleParams(items))
 
     companion object {
         fun <T> callWithErrorHandling(function: () -> T): T? {

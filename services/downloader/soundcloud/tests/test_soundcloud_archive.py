@@ -1,3 +1,4 @@
+import json
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -98,8 +99,32 @@ class InsertTest(SoundcloudArchiveTestCase):
 
         statements = ' '.join(args[0][0] for args in self.cursor.execute.call_args_list)
         self.assertIn('INSERT IGNORE INTO downloads_soundcloud_accounts', statements)
-        self.assertEqual(self.archive_insert(), ('12345', 'track-1', TRACK['path'], TRACK['url'], TRACK['title']))
+        # The trailing None is info_json: this call passed no raw info, and a row with
+        # nothing to record must still be written rather than skipped.
+        self.assertEqual(self.archive_insert(), ('12345', 'track-1', TRACK['path'], TRACK['url'], TRACK['title'], None))
         self.connection.commit.assert_called_once()
+
+    def test_the_downloads_own_metadata_is_stored_beside_the_row(self):
+        """What yt-dlp knew, which nothing kept before.
+
+        The genre and the tags never reach a tag at all, and getting them back later
+        would mean asking SoundCloud again -- which answers a burst with 403.
+        """
+        self.cursor.fetchone.return_value = None
+
+        SoundcloudArchive.insert(TRACK, raw_info={'id': 'track-1', 'genre': 'Hardcore', 'tags': ['uptempo']})
+
+        stored = json.loads(self.archive_insert()[-1])
+        self.assertEqual('Hardcore', stored['genre'])
+        self.assertEqual(['uptempo'], stored['tags'])
+
+    def test_the_formats_list_is_not_stored(self):
+        """Nearly all of an info dict is expiring transport detail; see info_json.py."""
+        self.cursor.fetchone.return_value = None
+
+        SoundcloudArchive.insert(TRACK, raw_info={'id': 'track-1', 'genre': 'Hardcore', 'formats': [{'url': 'x'}]})
+
+        self.assertNotIn('formats', json.loads(self.archive_insert()[-1]))
 
     def test_a_known_account_missing_its_id_is_backfilled(self):
         self.cursor.fetchone.return_value = (None,)

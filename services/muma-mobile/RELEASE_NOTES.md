@@ -1,5 +1,20 @@
 ## [Unreleased]
 
+## Global Version 6.30.0 (2026-09-07)
+
+- Android Auto tekent bladerniveaus met cover art nu als raster in plaats van als tekstlijst.
+  Elk niveau gaf `null` mee als indeling, waardoor de auto terugviel op zijn eigen standaard en de
+  albumhoezen die de items al droegen simpelweg negeerde. Niveaus zonder cover art blijven een
+  lijst — de A–Z-index van artiesten, het hoofdmenu, en alle tracklijsten — omdat een raster van
+  lege tegels of van veertig tracks de bestuurder meer blikken kost dan de lijst die het vervangt.
+
+- Genres en artiesten zonder portret krijgen in Android Auto een cover die de app zelf tekent, in
+  de kleur die MuMa voor dat genre stuurt. Die niveaus waren tekstlijsten met een generiek icoon:
+  de auto tekent alleen een raster als de items iets te tonen hebben, dus zonder beeld hielp de
+  raster-hint uit de vorige release daar niets. Een artiest met een portret houdt het portret.
+- De kleuren komen van `GET /api/library/genres` en worden een uur vastgehouden. Is MuMa
+  onbereikbaar, dan blijven de kleuren staan die er al waren — de auto is precies de plek waar dat
+  het vaakst gebeurt, en een leeg raster is erger dan een oud.
 ## Global Version 6.29.0 (2026-09-07)
 
 - Beheer heeft er vier werkende pagina's bij: tagger, genrecuratie, labelvoorstellen en

@@ -34,7 +34,7 @@ class MediaLibraryRootFavoritesTest {
 
     private val musicService: MusicService = mockk(relaxed = true)
     private val scope = CoroutineScope(Dispatchers.Unconfined)
-    private val browser = MediaLibraryBrowser(mainScope = scope, serviceScope = scope) { musicService }
+    private val browser = MediaLibraryBrowser(mainScope = scope, serviceScope = scope, musicServiceProvider = { musicService })
 
     private val session: MediaLibraryService.MediaLibrarySession = mockk(relaxed = true)
     private val controller: MediaSession.ControllerInfo = mockk(relaxed = true)

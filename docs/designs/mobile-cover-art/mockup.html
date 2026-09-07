@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MuMa — cover art voor playlists (app + Android Auto)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700&family=Archivo+Black&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Tokens uit services/frontend/src/app.css — exact dezelfde waarden als de web UI */
+  --black:#191414;
+  --dark:#121212;
+  --panel:#181818;
+  --light:#282828;
+  --muted:#b3b3b3;
+  --songs:#1db954;
+  --sets:#2d5afc;
+
+  --display:"Archivo Black","Arial Black",system-ui,sans-serif;
+  --condensed:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --ui:"Archivo",Roboto,system-ui,sans-serif;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--black);color:#fff;font-family:var(--ui);
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit}
+
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px 96px}
+
+/* ---------- kop ---------- */
+header{padding:72px 0 40px;max-width:62ch}
+header h1{
+  font-family:var(--display);font-size:clamp(34px,5vw,58px);line-height:.98;
+  margin:0 0 18px;letter-spacing:-.02em;
+}
+header p{color:var(--muted);font-size:17px;line-height:1.6;margin:0 0 10px}
+header .tokens{display:flex;gap:8px;margin-top:22px;flex-wrap:wrap}
+.swatch{
+  display:flex;align-items:center;gap:8px;background:var(--panel);
+  border-radius:999px;padding:6px 14px 6px 6px;font-size:12px;color:var(--muted);
+}
+.swatch i{width:18px;height:18px;border-radius:999px;display:block}
+
+section{padding-top:64px}
+h2{
+  font-family:var(--display);font-size:26px;margin:0 0 6px;letter-spacing:-.01em;
+}
+h2 + p{color:var(--muted);max-width:70ch;line-height:1.6;margin:0 0 28px}
+h3{font-size:15px;margin:34px 0 14px;font-weight:600}
+h3 small{color:var(--muted);font-weight:400;margin-left:8px}
+
+/* ---------- cover art motor ---------- */
+.cover{
+  position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;
+  background:var(--tint-dark);isolation:isolate;
+}
+/* laag 1: de foto, duotone geknepen naar de genre-kleuren */
+.cover .photo{
+  position:absolute;inset:0;
+  background-image:var(--photo);
+  background-size:cover;background-position:center;
+  filter:grayscale(1) contrast(1.35) brightness(.72);
+}
+.cover .duotone{
+  position:absolute;inset:0;mix-blend-mode:screen;
+  background:linear-gradient(155deg,var(--tint) 0%,transparent 62%);
+}
+.cover .floor{
+  position:absolute;inset:0;
+  background:linear-gradient(0deg,rgba(0,0,0,.85) 0%,rgba(0,0,0,.15) 55%,transparent 100%);
+}
+/* laag 2: de kleurbaan die het genre draagt */
+.cover .band{
+  position:absolute;left:0;right:0;bottom:0;height:38%;
+  background:var(--tint);
+  clip-path:polygon(0 32%,100% 0,100% 100%,0 100%);
+}
+.cover .band.flat{clip-path:none;height:26%}
+.cover figcaption{
+  position:absolute;left:0;right:0;bottom:0;padding:14px 14px 12px;
+}
+
+/* familie A — genre */
+.cover.genre figcaption strong{
+  display:block;font-family:var(--condensed);font-weight:800;
+  font-size:38px;line-height:.86;letter-spacing:-.01em;
+  text-transform:uppercase;color:#0d0d0d;
+}
+.cover.genre figcaption span{
+  display:block;margin-top:4px;font-size:11px;color:rgba(0,0,0,.62);font-weight:600;
+}
+
+/* familie B — festival / stage */
+.cover.stage .lockup{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  justify-content:flex-end;padding:16px;
+}
+.cover.stage .lockup .fest{
+  font-family:var(--display);font-size:27px;line-height:.92;letter-spacing:-.02em;
+}
+.cover.stage .lockup .meta{
+  margin-top:7px;font-family:var(--condensed);font-weight:700;font-size:15px;
+  letter-spacing:.04em;color:var(--tint);text-transform:uppercase;
+}
+.cover.stage .rule{
+  position:absolute;left:16px;top:16px;width:34px;height:5px;background:var(--tint);
+}
+
+/* familie C — DJ */
+.cover.dj .photo{filter:grayscale(.2) contrast(1.1) brightness(.85)}
+.cover.dj .floor{background:linear-gradient(0deg,rgba(0,0,0,.9) 6%,transparent 62%)}
+.cover.dj figcaption strong{
+  display:block;font-family:var(--display);font-size:20px;line-height:1;
+}
+.cover.dj figcaption span{
+  display:block;margin-top:6px;font-size:12px;color:var(--muted);
+}
+.cover.dj .stripe{
+  position:absolute;left:0;bottom:0;width:6px;height:46%;background:var(--tint);
+}
+
+/* ---------- rij met covers, web-UI stijl ---------- */
+.rail{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:18px}
+.rail .card{background:transparent}
+.rail .card .cover{box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.rail .card .label{margin-top:10px;font-size:14px;font-weight:600}
+.rail .card .sub{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* ---------- telefoon ---------- */
+.devices{display:grid;grid-template-columns:288px 1fr;gap:44px;align-items:start}
+@media (max-width:900px){.devices{grid-template-columns:1fr}}
+
+.phone{
+  width:288px;border-radius:30px;background:var(--dark);
+  border:9px solid #000;box-shadow:0 30px 70px rgba(0,0,0,.65);overflow:hidden;
+}
+.phone .status{
+  display:flex;justify-content:space-between;font-size:10px;color:var(--muted);
+  padding:8px 16px 2px;
+}
+.phone .head{padding:12px 16px 4px}
+.phone .head h4{font-family:var(--display);font-size:20px;margin:0}
+.phone .chips{display:flex;gap:7px;padding:10px 16px 4px}
+.phone .chips b{
+  font-size:11px;font-weight:600;background:var(--light);border-radius:999px;
+  padding:5px 11px;
+}
+.phone .chips b.on{background:var(--songs);color:#08210f}
+.phone .rowlabel{
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:16px 16px 8px;font-size:14px;font-weight:700;
+}
+.phone .rowlabel em{font-style:normal;font-size:11px;color:var(--muted);font-weight:500}
+.phone .strip{display:flex;gap:10px;padding:0 16px 6px;overflow:hidden}
+.phone .strip .card{width:104px;flex:0 0 104px}
+.phone .strip .label{font-size:11px;margin-top:7px;font-weight:600;line-height:1.25}
+.phone .strip .sub{font-size:10px;color:var(--muted)}
+.phone .tabbar{
+  display:flex;justify-content:space-around;padding:11px 0 15px;margin-top:12px;
+  background:linear-gradient(0deg,#000,var(--dark));font-size:9px;color:var(--muted);
+}
+.phone .tabbar span.on{color:#fff}
+.phone .np{
+  display:flex;align-items:center;gap:10px;margin:0 8px;padding:8px;
+  background:var(--light);border-radius:6px;
+}
+.phone .np .art{width:34px;height:34px;border-radius:3px;background:var(--tint,#ff4d00)}
+.phone .np div{font-size:11px;font-weight:600;line-height:1.3}
+.phone .np div em{display:block;font-style:normal;font-size:10px;color:var(--muted);font-weight:400}
+
+/* ---------- auto ---------- */
+.car{
+  border-radius:14px;background:var(--dark);border:1px solid #2a2a2a;overflow:hidden;
+  box-shadow:0 30px 70px rgba(0,0,0,.6);
+}
+.car .bar{
+  display:flex;align-items:center;gap:14px;padding:14px 20px;background:var(--panel);
+  border-bottom:1px solid #262626;
+}
+.car .bar .title{font-weight:700;font-size:18px}
+.car .bar .tabs{margin-left:auto;display:flex;gap:22px;font-size:14px;color:var(--muted)}
+.car .bar .tabs b{color:#fff;font-weight:600;border-bottom:2px solid var(--songs);padding-bottom:3px}
+.car .grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:20px;padding:24px 20px 28px;
+}
+.car .grid .card .label{
+  margin-top:11px;font-size:16px;font-weight:600;text-align:center;
+}
+.car .grid .card .sub{
+  font-size:13px;color:var(--muted);text-align:center;margin-top:2px;
+}
+.car .listmode{
+  display:grid;grid-template-columns:1fr;gap:0;padding:6px 0 10px;
+}
+.car .listmode .row{
+  display:flex;align-items:center;gap:16px;padding:12px 20px;
+}
+.car .listmode .row .cover{width:64px;height:64px;flex:0 0 64px;border-radius:4px}
+.car .listmode .row .txt strong{display:block;font-size:16px}
+.car .listmode .row .txt span{font-size:13px;color:var(--muted)}
+.car .caption{
+  padding:10px 20px 18px;color:var(--muted);font-size:13px;border-top:1px solid #222;
+}
+
+/* ---------- code + tabel ---------- */
+pre{
+  background:var(--panel);border:1px solid #232323;border-radius:8px;
+  padding:16px 18px;overflow:auto;font-size:12.5px;line-height:1.6;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#dcdcdc;
+}
+pre .k{color:#ff8a5c}pre .s{color:#8ee08e}pre .c{color:#6f6f6f}
+table{border-collapse:collapse;width:100%;font-size:14px;margin-top:8px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid #242424;vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:12px}
+td code{background:var(--light);padding:2px 6px;border-radius:4px;font-size:12px}
+
+.split{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+@media (max-width:820px){.split{grid-template-columns:1fr}}
+.note{
+  border-left:3px solid var(--sets);padding:2px 0 2px 16px;color:var(--muted);
+  font-size:14px;line-height:1.65;max-width:72ch;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Playlists met een gezicht</h1>
+  <p>De web UI heeft de Spotify-tokens al. De Android app en Android Auto tonen dezelfde
+     playlists als tekstregels met een generiek icoon. Dit voorstel geeft elke playlist
+     een cover die de app zelf maakt — uit het genre, het festival of de DJ — zodat één
+     beeldsysteem web, telefoon en auto bedient.</p>
+  <div class="tokens">
+    <span class="swatch"><i style="background:#191414"></i>#191414 achtergrond</span>
+    <span class="swatch"><i style="background:#121212"></i>#121212 vlak</span>
+    <span class="swatch"><i style="background:#282828"></i>#282828 verhoogd</span>
+    <span class="swatch"><i style="background:#1db954"></i>#1db954 songs</span>
+    <span class="swatch"><i style="background:#2d5afc"></i>#2d5afc sets</span>
+  </div>
+</header>
+
+<!-- ================= 1. het beeldsysteem ================= -->
+<section id="system">
+  <h2>Eén motor, drie families</h2>
+  <p>De cover wordt lokaal gerenderd op een 320×320dp canvas: een duotone-foto, een
+     kleurvlak dat het genre draagt, en een woordmerk. De kleur is niet gekozen maar
+     afgeleid — dezelfde genre-naam geeft altijd dezelfde kleur, op elk apparaat.</p>
+
+  <h3>A — Genre <small>hardstyle krijgt hardstyle-oranje, niet grijs</small></h3>
+  <div class="rail">
+    <div class="card">
+      <figure class="cover genre" style="--tint:#ff4d00;--tint-dark:#1a0700;--photo:radial-gradient(120% 90% at 30% 10%,#8a8a8a,#101010)">
+        <div class="photo"></div><div class="duotone"></div><div class="floor"></div>
+        <div class="band"></div>
+        <figcaption><strong>Hard<br>style</strong><span>412 sets · 6.140 tracks</span></figcaption>
+      </figure>
+      <div class="label">Hardstyle</div><div class="sub">Genre</div>
+    </div>
+    <div class="card">
+      <figure class="cover genre" style="--tint:#e5002b;--tint-dark:#180004;--photo:radial-gradient(120% 90% at 70% 20%,#7d7d7d,#0c0c0c)">
+        <div class="photo"></div><div class="duotone"></div><div class="floor"></div>
+        <div class="band"></div>
+        <figcaption><strong>Hard<br>core</strong><span>188 sets · 2.903 tracks</span></figcaption>
+      </figure>
+      <div class="label">Hardcore</div><div class="sub">Genre</div>
+    </div>
+    <div class="card">
+      <figure class="cover genre" style="--tint:#00e0c7;--tint-dark:#00120f;--photo:radial-gradient(120% 90% at 40% 80%,#6e6e6e,#0a0a0a)">
+        <div class="photo"></div><div class="duotone"></div><div class="floor"></div>
+        <div class="band"></div>
+        <figcaption><strong>Techno</strong><span>301 sets · 4.512 tracks</span></figcaption>
+      </figure>
+      <div class="label">Techno</div><div class="sub">Genre</div>
+    </div>
+    <div class="card">
+      <figure class="cover genre" style="--tint:#7b2dff;--tint-dark:#0b0018;--photo:radial-gradient(120% 90% at 60% 15%,#8b8b8b,#0d0d0d)">
+        <div class="photo"></div><div class="duotone"></div><div class="floor"></div>
+        <div class="band"></div>
+        <figcaption><strong>Trance</strong><span>96 sets · 1.877 tracks</span></figcaption>
+      </figure>
+      <div class="label">Trance</div><div class="sub">Genre</div>
+    </div>
+  </div>
+
+  <h3>B — Festival en stage <small>het label dat de collectie echt draagt</small></h3>
+  <div class="rail">
+    <div class="card">
+      <figure class="cover stage" style="--tint:#ff4d00;--tint-dark:#12060a;--photo:linear-gradient(200deg,#9b9b9b 0%,#3a3a3a 45%,#0a0a0a 100%)">
+        <div class="photo"></div><div class="duotone"></div><div class="floor"></div>
+        <div class="rule"></div>
+        <div class="lockup">
+          <div class="fest">Defqon.1</div>
+          <div class="meta">Red · 2025</div>
+        </div>
+      </figure>
+      <div class="label">Defqon.1 — Red</div><div class="sub">Festival · 34 sets</div>
+    </div>
+    <div class="card">
+      <figure class="cover stage" style="--tint:#ffb400;--tint-dark:#140d00;--photo:linear-gradient(170deg,#a0a0a0,#2b2b2b 55%,#080808)">
+        <div class="photo"></div><div class="duotone"></div><div class="floor"></div>
+        <div class="rule"></div>
+        <div class="lockup">
+          <div class="fest">Defqon.1</div>
+          <div class="meta">Blue · 2025</div>
+        </div>
+      </figure>
+      <div class="label">Defqon.1 — Blue</div><div class="sub">Festival · 28 sets</div>
+    </div>
+    <div class="card">
+      <figure class="cover stage" style="--tint:#00b3ff;--tint-dark:#001018;--photo:linear-gradient(210deg,#8d8d8d,#242424 60%,#060606)">
+        <div class="photo"></div><div class="duotone"></div><div class="floor"></div>
+        <div class="rule"></div>
+        <div class="lockup">
+          <div class="fest">Qlimax</div>
+          <div class="meta">Mainstage · 2024</div>
+        </div>
+      </figure>
+      <div class="label">Qlimax 2024</div><div class="sub">Festival · 12 sets</div>
+    </div>
+    <div class="card">
+      <figure class="cover stage" style="--tint:#b6ff3d;--tint-dark:#0c1400;--photo:linear-gradient(190deg,#949494,#2e2e2e 50%,#070707)">
+        <div class="photo"></div><div class="duotone"></div><div class="floor"></div>
+        <div class="rule"></div>
+        <div class="lockup">
+          <div class="fest">Decibel</div>
+          <div class="meta">Outdoor · 2025</div>
+        </div>
+      </figure>
+      <div class="label">Decibel Outdoor</div><div class="sub">Festival · 41 sets</div>
+    </div>
+  </div>
+
+  <h3>C — DJ <small>portret uit de artiestafbeelding, kleur van diens hoofdgenre</small></h3>
+  <div class="rail">
+    <div class="card">
+      <figure class="cover dj" style="--tint:#ff4d00;--tint-dark:#140700;--photo:radial-gradient(75% 65% at 50% 32%,#c9c9c9,#4a4a4a 45%,#0b0b0b)">
+        <div class="photo"></div><div class="floor"></div><div class="stripe"></div>
+        <figcaption><strong>Headhunterz</strong><span>Hardstyle · 22 sets</span></figcaption>
+      </figure>
+      <div class="label">Headhunterz</div><div class="sub">Artiest</div>
+    </div>
+    <div class="card">
+      <figure class="cover dj" style="--tint:#ff4d00;--tint-dark:#140700;--photo:radial-gradient(75% 65% at 48% 30%,#bdbdbd,#414141 48%,#090909)">
+        <div class="photo"></div><div class="floor"></div><div class="stripe"></div>
+        <figcaption><strong>Wildstylez</strong><span>Hardstyle · 17 sets</span></figcaption>
+      </figure>
+      <div class="label">Wildstylez</div><div class="sub">Artiest</div>
+    </div>
+    <div class="card">
+      <figure class="cover dj" style="--tint:#e5002b;--tint-dark:#150003;--photo:radial-gradient(75% 65% at 52% 34%,#c4c4c4,#3c3c3c 46%,#080808)">
+        <div class="photo"></div><div class="floor"></div><div class="stripe"></div>
+        <figcaption><strong>Angerfist</strong><span>Hardcore · 14 sets</span></figcaption>
+      </figure>
+      <div class="label">Angerfist</div><div class="sub">Artiest</div>
+    </div>
+    <div class="card">
+      <figure class="cover dj" style="--tint:#00e0c7;--tint-dark:#001513;--photo:radial-gradient(75% 65% at 46% 31%,#c0c0c0,#3f3f3f 47%,#070707)">
+        <div class="photo"></div><div class="floor"></div><div class="stripe"></div>
+        <figcaption><strong>Charlotte de Witte</strong><span>Techno · 19 sets</span></figcaption>
+      </figure>
+      <div class="label">Charlotte de Witte</div><div class="sub">Artiest</div>
+    </div>
+  </div>
+
+  <p class="note" style="margin-top:30px">
+    Geen artiestfoto? Dan valt familie C terug op familie A met de initialen als woordmerk.
+    De cover is nooit leeg en nooit een grijs notenbalk-icoon.
+  </p>
+</section>
+
+<!-- ================= 2. de telefoon ================= -->
+<section id="phone">
+  <h2>Op de telefoon</h2>
+  <p>Dezelfde rijen als de web UI: een horizontale strip per bron, cover boven, twee
+     regels tekst eronder. Nu draagt de cover de betekenis, dus de tweede tekstregel
+     mag korter.</p>
+
+  <div class="devices">
+    <div class="phone">
+      <div class="status"><span>09:41</span><span>▮▮▮ 5G</span></div>
+      <div class="head"><h4>Goedemorgen</h4></div>
+      <div class="chips"><b class="on">Sets</b><b>Nummers</b><b>Podcasts</b></div>
+
+      <div class="rowlabel">Op genre <em>Alles</em></div>
+      <div class="strip">
+        <div class="card">
+          <figure class="cover genre" style="--tint:#ff4d00;--tint-dark:#1a0700;--photo:radial-gradient(120% 90% at 30% 10%,#8a8a8a,#101010)">
+            <div class="photo"></div><div class="duotone"></div><div class="floor"></div><div class="band"></div>
+            <figcaption><strong style="font-size:23px">Hard<br>style</strong></figcaption>
+          </figure>
+          <div class="label">Hardstyle</div><div class="sub">412 sets</div>
+        </div>
+        <div class="card">
+          <figure class="cover genre" style="--tint:#e5002b;--tint-dark:#180004;--photo:radial-gradient(120% 90% at 70% 20%,#7d7d7d,#0c0c0c)">
+            <div class="photo"></div><div class="duotone"></div><div class="floor"></div><div class="band"></div>
+            <figcaption><strong style="font-size:23px">Hard<br>core</strong></figcaption>
+          </figure>
+          <div class="label">Hardcore</div><div class="sub">188 sets</div>
+        </div>
+        <div class="card">
+          <figure class="cover genre" style="--tint:#00e0c7;--tint-dark:#00120f;--photo:radial-gradient(120% 90% at 40% 80%,#6e6e6e,#0a0a0a)">
+            <div class="photo"></div><div class="duotone"></div><div class="floor"></div><div class="band"></div>
+            <figcaption><strong style="font-size:23px">Techno</strong></figcaption>
+          </figure>
+          <div class="label">Techno</div><div class="sub">301 sets</div>
+        </div>
+      </div>
+
+      <div class="rowlabel">Festivals <em>2025</em></div>
+      <div class="strip">
+        <div class="card">
+          <figure class="cover stage" style="--tint:#ff4d00;--tint-dark:#12060a;--photo:linear-gradient(200deg,#9b9b9b,#3a3a3a 45%,#0a0a0a)">
+            <div class="photo"></div><div class="duotone"></div><div class="floor"></div><div class="rule" style="width:22px;height:4px;left:11px;top:11px"></div>
+            <div class="lockup" style="padding:10px"><div class="fest" style="font-size:16px">Defqon.1</div><div class="meta" style="font-size:11px;margin-top:4px">Red · 2025</div></div>
+          </figure>
+          <div class="label">Defqon.1 Red</div><div class="sub">34 sets</div>
+        </div>
+        <div class="card">
+          <figure class="cover stage" style="--tint:#ffb400;--tint-dark:#140d00;--photo:linear-gradient(170deg,#a0a0a0,#2b2b2b 55%,#080808)">
+            <div class="photo"></div><div class="duotone"></div><div class="floor"></div><div class="rule" style="width:22px;height:4px;left:11px;top:11px"></div>
+            <div class="lockup" style="padding:10px"><div class="fest" style="font-size:16px">Defqon.1</div><div class="meta" style="font-size:11px;margin-top:4px">Blue · 2025</div></div>
+          </figure>
+          <div class="label">Defqon.1 Blue</div><div class="sub">28 sets</div>
+        </div>
+        <div class="card">
+          <figure class="cover stage" style="--tint:#b6ff3d;--tint-dark:#0c1400;--photo:linear-gradient(190deg,#949494,#2e2e2e 50%,#070707)">
+            <div class="photo"></div><div class="duotone"></div><div class="floor"></div><div class="rule" style="width:22px;height:4px;left:11px;top:11px"></div>
+            <div class="lockup" style="padding:10px"><div class="fest" style="font-size:16px">Decibel</div><div class="meta" style="font-size:11px;margin-top:4px">Outdoor · 2025</div></div>
+          </figure>
+          <div class="label">Decibel</div><div class="sub">41 sets</div>
+        </div>
+      </div>
+
+      <div class="rowlabel">DJ's die je draait <em>90 dagen</em></div>
+      <div class="strip">
+        <div class="card">
+          <figure class="cover dj" style="--tint:#ff4d00;--tint-dark:#140700;--photo:radial-gradient(75% 65% at 50% 32%,#c9c9c9,#4a4a4a 45%,#0b0b0b)">
+            <div class="photo"></div><div class="floor"></div><div class="stripe" style="width:4px"></div>
+            <figcaption style="padding:9px"><strong style="font-size:13px">Headhunterz</strong></figcaption>
+          </figure>
+          <div class="label">Headhunterz</div><div class="sub">22 sets</div>
+        </div>
+        <div class="card">
+          <figure class="cover dj" style="--tint:#ff4d00;--tint-dark:#140700;--photo:radial-gradient(75% 65% at 48% 30%,#bdbdbd,#414141 48%,#090909)">
+            <div class="photo"></div><div class="floor"></div><div class="stripe" style="width:4px"></div>
+            <figcaption style="padding:9px"><strong style="font-size:13px">Wildstylez</strong></figcaption>
+          </figure>
+          <div class="label">Wildstylez</div><div class="sub">17 sets</div>
+        </div>
+        <div class="card">
+          <figure class="cover dj" style="--tint:#e5002b;--tint-dark:#150003;--photo:radial-gradient(75% 65% at 52% 34%,#c4c4c4,#3c3c3c 46%,#080808)">
+            <div class="photo"></div><div class="floor"></div><div class="stripe" style="width:4px"></div>
+            <figcaption style="padding:9px"><strong style="font-size:13px">Angerfist</strong></figcaption>
+          </figure>
+          <div class="label">Angerfist</div><div class="sub">14 sets</div>
+        </div>
+      </div>
+
+      <div class="np" style="--tint:#ff4d00;margin-top:16px">
+        <div class="art"></div>
+        <div>Defqon.1 2025 — Red<em>Sub Zero Project</em></div>
+      </div>
+      <div class="tabbar">
+        <span class="on">Start</span><span>Zoeken</span><span>Bibliotheek</span><span>Instellingen</span>
+      </div>
+    </div>
+
+    <div>
+      <h3>Wat er verandert ten opzichte van nu</h3>
+      <table>
+        <tr><th style="width:34%">Nu</th><th>Voorstel</th></tr>
+        <tr><td>Genre is een tekstregel in een lijst</td><td>Genre is een tegel met eigen kleur en woordmerk — herkenbaar op afstand</td></tr>
+        <tr><td>Playlist zonder cover krijgt het notenbalk-icoon</td><td><code>PlaylistArt</code> rendert altijd iets, uit naam + type</td></tr>
+        <tr><td>Rijen zijn tekstlijsten onder elkaar</td><td>Horizontale strips zoals de web UI, cover-first</td></tr>
+        <tr><td>Elke lijst dezelfde grijstint</td><td>Kleur komt uit het genre, deterministisch, dus stabiel over apparaten</td></tr>
+      </table>
+
+      <h3>De kleur is afgeleid, niet gekozen</h3>
+      <pre><span class="c">// Vaste tabel voor de genres die de collectie dragen, hash voor de rest.</span>
+<span class="k">object</span> GenrePalette {
+    <span class="k">private val</span> known = mapOf(
+        <span class="s">"hardstyle"</span> to 0xFFFF4D00,
+        <span class="s">"hardcore"</span>  to 0xFFE5002B,
+        <span class="s">"techno"</span>    to 0xFF00E0C7,
+        <span class="s">"trance"</span>    to 0xFF7B2DFF,
+        <span class="s">"house"</span>     to 0xFFFFB400,
+    )
+
+    <span class="k">fun</span> tintFor(name: String): Int {
+        <span class="k">val</span> key = name.lowercase().trim()
+        known[key]?.let { <span class="k">return</span> it.toInt() }
+        <span class="c">// Zelfde naam, zelfde kleur -- op telefoon en in de auto.</span>
+        <span class="k">val</span> hue = (key.hashCode().absoluteValue % 360).toFloat()
+        <span class="k">return</span> Color.HSVToColor(floatArrayOf(hue, 0.82f, 0.95f))
+    }
+}</pre>
+      <p class="note">
+        Dezelfde tabel hoort in de web UI te staan, anders is Hardstyle daar oranje en
+        hier magenta. Zet hem in de server-response naast de genre-naam, dan hoeft geen
+        van beide clients hem te kennen.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 3. android auto ================= -->
+<section id="auto">
+  <h2>In de auto</h2>
+  <p>Android Auto rendert wat de app aanlevert. Nu levert MuMa geen content-style hint
+     en geen artwork voor browsable items, dus het hoofd wordt een tekstlijst met
+     standaardicoontjes. Met een grid-hint en een artwork-URI wordt het ditzelfde beeld —
+     zonder dat er een schermontwerp voor de auto bestaat.</p>
+
+  <div class="car">
+    <div class="bar">
+      <div class="title">MuMa</div>
+      <div class="tabs"><b>Bladeren</b><span>Zoeken</span><span>Radio</span><span>Nieuws</span></div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <figure class="cover genre" style="--tint:#ff4d00;--tint-dark:#1a0700;--photo:radial-gradient(120% 90% at 30% 10%,#8a8a8a,#101010)">
+          <div class="photo"></div><div class="duotone"></div><div class="floor"></div><div class="band"></div>
+          <figcaption><strong style="font-size:44px">Hard<br>style</strong></figcaption>
+        </figure>
+        <div class="label">Hardstyle</div><div class="sub">412 sets</div>
+      </div>
+      <div class="card">
+        <figure class="cover stage" style="--tint:#ff4d00;--tint-dark:#12060a;--photo:linear-gradient(200deg,#9b9b9b,#3a3a3a 45%,#0a0a0a)">
+          <div class="photo"></div><div class="duotone"></div><div class="floor"></div><div class="rule"></div>
+          <div class="lockup"><div class="fest" style="font-size:30px">Defqon.1</div><div class="meta">Red · 2025</div></div>
+        </figure>
+        <div class="label">Defqon.1 Red</div><div class="sub">34 sets</div>
+      </div>
+      <div class="card">
+        <figure class="cover dj" style="--tint:#ff4d00;--tint-dark:#140700;--photo:radial-gradient(75% 65% at 50% 32%,#c9c9c9,#4a4a4a 45%,#0b0b0b)">
+          <div class="photo"></div><div class="floor"></div><div class="stripe"></div>
+          <figcaption><strong style="font-size:22px">Headhunterz</strong></figcaption>
+        </figure>
+        <div class="label">Headhunterz</div><div class="sub">22 sets</div>
+      </div>
+      <div class="card">
+        <figure class="cover genre" style="--tint:#00e0c7;--tint-dark:#00120f;--photo:radial-gradient(120% 90% at 40% 80%,#6e6e6e,#0a0a0a)">
+          <div class="photo"></div><div class="duotone"></div><div class="floor"></div><div class="band"></div>
+          <figcaption><strong style="font-size:44px">Techno</strong></figcaption>
+        </figure>
+        <div class="label">Techno</div><div class="sub">301 sets</div>
+      </div>
+    </div>
+    <div class="caption">
+      Vier tegels per rij is het maximum dat Android Auto rendert. Bij méér items scrollt
+      de bestuurder — daarom staat op het hoofdscherm alleen wat vandaag gedraaid wordt.
+    </div>
+  </div>
+
+  <h3 style="margin-top:44px">Tracks blijven een lijst</h3>
+  <div class="car">
+    <div class="bar"><div class="title">Defqon.1 2025 — Red</div></div>
+    <div class="listmode">
+      <div class="row">
+        <figure class="cover stage" style="--tint:#ff4d00;--tint-dark:#12060a;--photo:linear-gradient(200deg,#9b9b9b,#3a3a3a 45%,#0a0a0a)">
+          <div class="photo"></div><div class="duotone"></div><div class="floor"></div>
+        </figure>
+        <div class="txt"><strong>Sub Zero Project</strong><span>Endshow · 1:04:12</span></div>
+      </div>
+      <div class="row">
+        <figure class="cover stage" style="--tint:#ff4d00;--tint-dark:#12060a;--photo:linear-gradient(200deg,#9b9b9b,#3a3a3a 45%,#0a0a0a)">
+          <div class="photo"></div><div class="duotone"></div><div class="floor"></div>
+        </figure>
+        <div class="txt"><strong>D-Block &amp; S-te-Fan</strong><span>Mainstage · 58:40</span></div>
+      </div>
+      <div class="row">
+        <figure class="cover stage" style="--tint:#ff4d00;--tint-dark:#12060a;--photo:linear-gradient(200deg,#9b9b9b,#3a3a3a 45%,#0a0a0a)">
+          <div class="photo"></div><div class="duotone"></div><div class="floor"></div>
+        </figure>
+        <div class="txt"><strong>Rejecta</strong><span>Mainstage · 47:03</span></div>
+      </div>
+    </div>
+    <div class="caption">
+      Grid voor kiezen, lijst voor afspelen: een grid van 40 tracks kost de bestuurder
+      meer blikken dan een lijst met dezelfde 40 regels.
+    </div>
+  </div>
+
+  <h3>De twee regels code die dit aanzetten</h3>
+  <div class="split">
+    <div>
+      <pre><span class="c">// MediaItemConverter.kt -- deze constanten staan er nog niet in.</span>
+<span class="k">private const val</span> CONTENT_STYLE_BROWSABLE =
+    <span class="s">"android.media.browse.CONTENT_STYLE_BROWSABLE_HINT"</span>
+<span class="k">private const val</span> CONTENT_STYLE_PLAYABLE =
+    <span class="s">"android.media.browse.CONTENT_STYLE_PLAYABLE_HINT"</span>
+<span class="k">private const val</span> GRID_ITEM = 2
+<span class="k">private const val</span> LIST_ITEM = 1
+
+extras.putInt(CONTENT_STYLE_BROWSABLE, GRID_ITEM)  <span class="c">// genres, festivals, DJ's</span>
+extras.putInt(CONTENT_STYLE_PLAYABLE,  LIST_ITEM)  <span class="c">// tracks en sets</span></pre>
+    </div>
+    <div>
+      <pre><span class="c">// De cover komt van dezelfde content provider als album art,</span>
+<span class="c">// zodat Auto hem zonder netwerkrechten mag laden.</span>
+<span class="k">val</span> art = AlbumArtContentProvider.mapPlaylistArtUri(
+    kind = PlaylistArtKind.GENRE,
+    key  = genre.name,
+)
+
+buildMediaItem(
+    title       = genre.name,
+    mediaId     = <span class="s">"genre|"</span> + genre.name,
+    isBrowsable = <span class="k">true</span>,
+    isPlayable  = <span class="k">false</span>,
+    imageUri    = art,
+)</pre>
+    </div>
+  </div>
+
+  <p class="note">
+    Zonder <code>CONTENT_STYLE_BROWSABLE_HINT</code> negeert Auto de artwork-URI voor
+    browsable items grotendeels: het valt terug op een lijst met een klein icoon.
+    De cover renderen zonder de hint te zetten levert dus geen zichtbaar verschil op.
+  </p>
+</section>
+
+<!-- ================= 4. volgorde ================= -->
+<section id="plan">
+  <h2>Volgorde van bouwen</h2>
+  <p>Elke stap is los waardevol en los te releasen.</p>
+  <table>
+    <tr><th style="width:8%">Stap</th><th style="width:46%">Wat</th><th>Waarom eerst</th></tr>
+    <tr>
+      <td>1</td>
+      <td><code>GenrePalette</code> + <code>PlaylistArtRenderer</code> in de app, en de tint
+          meesturen vanuit de server naast de genre-naam</td>
+      <td>Zonder gedeelde kleurbron gaan web en app uit elkaar lopen</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Content-style hints in <code>MediaItemConverter</code></td>
+      <td>Twee regels; maakt Auto meteen een grid, ook met de huidige artwork</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Artwork-URI voor browsable items in <code>MediaLibraryBrowser</code></td>
+      <td>Vult het grid dat stap 2 opent</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>Home-strips op de telefoon omzetten naar cover-first</td>
+      <td>Meeste werk, en profiteert van 1 t/m 3</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>Familie B koppelen aan echte festivalbeelden waar die er zijn</td>
+      <td>Optioneel; de gegenereerde cover is al compleet</td>
+    </tr>
+  </table>
+</section>
+
+</div>
+</body>
+</html>

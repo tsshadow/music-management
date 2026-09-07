@@ -1,3 +1,4 @@
+import json
 import unittest
 from contextlib import contextmanager
 from unittest.mock import patch
@@ -94,14 +95,45 @@ class YoutubeArchiveTest(unittest.TestCase):
                 download_type='video',
             )
         query, params = connection.fake_cursor.queries[-1]
-        self.assertIn('INSERT IGNORE INTO downloads_youtube_archive', query)
-        self.assertEqual(params[-1], 'video')
+        self.assertIn('INSERT INTO downloads_youtube_archive', query)
+        # The three trailing values are download_type and info_json twice -- once for the
+        # insert, once for the ON DUPLICATE KEY branch.
+        self.assertEqual(params[-3], 'video')
 
     def test_insert_skips_incomplete_rows(self):
         connection = FakeConnection(row=None)
         with self._with_connection(connection):
             YoutubeArchive.insert('', 'vid', '/tmp/x.m4a', 'https://youtu.be/vid', 'Set')
         self.assertEqual(connection.fake_cursor.queries, [])
+
+    def test_what_youtube_knew_is_stored_beside_the_row(self):
+        """The music-credit panel, which the title split can only guess at."""
+        connection = FakeConnection(row=None)
+        with self._with_connection(connection):
+            YoutubeArchive.insert(
+                '@qdance',
+                'vid',
+                '/tmp/x.m4a',
+                'https://youtu.be/vid',
+                'Set',
+                raw_info={'id': 'vid', 'artists': ['Angerfist'], 'track': 'Raise Your Fist'},
+            )
+        stored = json.loads(connection.fake_cursor.queries[-1][1][-1])
+        self.assertEqual(['Angerfist'], stored['artists'])
+        self.assertEqual('Raise Your Fist', stored['track'])
+
+    def test_a_row_archived_before_the_column_existed_is_filled_in(self):
+        """This table is keyed on (video_id, download_type), so a re-download conflicts.
+
+        Ignoring the conflict would leave 53295 rows without their metadata forever, even
+        for the videos that are fetched again. COALESCE is what keeps the *first* answer
+        rather than the newest -- a re-download says nothing better about a video.
+        """
+        connection = FakeConnection(row=None)
+        with self._with_connection(connection):
+            YoutubeArchive.insert('@qdance', 'vid', '/tmp/x.m4a', 'https://youtu.be/vid', 'Set', raw_info={'id': 'vid'})
+        query, _ = connection.fake_cursor.queries[-1]
+        self.assertIn('ON DUPLICATE KEY UPDATE info_json = COALESCE(info_json, %s)', query)
 
 
 if __name__ == '__main__':

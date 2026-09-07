@@ -203,6 +203,36 @@ def test_the_disk_janitor_stays_untagged():
     assert "tags" not in ci["runner:disk-janitor"]
 
 
+def test_credentialed_jobs_never_carry_the_fast_tag():
+    """Both runners answer to `fast`, and one of them is a desktop. A job that
+    holds the production SSH key, pushes a tag or signs and uploads the APK
+    must be pinned to the always-on LXC, which is what being untagged means."""
+    ci = load_ci()
+    credentialed = [
+        "muma:deploy",
+        "muma:verify",
+        "mobile:build-release",
+        "release:tag",
+        "release:build-images",
+        "release:verify-deployed",
+        "release:cleanup-branch",
+        "release:back-merge-develop",
+    ]
+    offenders = [name for name in credentialed if "tags" in ci.get(name, {})]
+    assert offenders == [], f"credentialed jobs must stay LXC-only: {offenders}"
+
+
+def test_host_pytest_jobs_are_not_handed_to_the_second_runner():
+    """These two start their dependencies in Docker but run the tests from the
+    host, and only the LXC has pytest installed. Tagging them on the strength of
+    the `docker` line in their script failed both jobs in five seconds with
+    `No module named pytest` (pipeline 2618). muma:e2e may carry the tag because
+    core-e2e.sh falls back to its own image when pytest-bdd is missing."""
+    ci = load_ci()
+    for name in ("backend:integration", "muma:contracts"):
+        assert "tags" not in ci[name], f"{name} runs pytest on the host, keep it LXC-only"
+
+
 def test_release_rule_covers_release_and_hotfix():
     ci = load_ci()
     condition = ci[".release_rule"]["rules"][0]["if"]

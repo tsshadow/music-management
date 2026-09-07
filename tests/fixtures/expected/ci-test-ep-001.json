@@ -1,0 +1,24 @@
+{
+  "$comment": "Expected metadata for tests/fixtures/music/ci-test-ep-001.mp3, the label-release fixture. Deliberately carries no genre and no publisher: everything the label chain is supposed to add has to come from the folders it is placed in and from the curation rules, so a field appearing here proves a rule ran rather than a tag being copied.",
+  "file": "tests/fixtures/music/ci-test-ep-001.mp3",
+  "title": "Gabber Cowboy",
+  "artist": "Lil Texas & Albino",
+  "album": "Gabber Cowboy",
+  "year": 2026,
+  "genre": null,
+  "publisher": null,
+  "duration_seconds_min": 4,
+  "duration_seconds_max": 6,
+  "format": "mp3",
+  "sample_rate": 44100,
+  "channels": 2,
+  "expected_after_tagging": {
+    "$comment": "What the label chain should make of it once it sits at <eps root>/Texcore/TEX001 - .../ with the NFO below it, given the curation rules tests/bdd/features/label_import.feature writes.",
+    "publisher": "Texcore",
+    "catalog_number": "TEX001",
+    "artists": ["Lil Texas", "Albino"],
+    "display_artist": "Lil Texas & Albino",
+    "genres": ["Hardcore", "Uptempo Hardcore"],
+    "original_date": "2026-09-10"
+  }
+}

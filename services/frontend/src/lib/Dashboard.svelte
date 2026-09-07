@@ -1,5 +1,6 @@
 <script>
   import { t } from './i18n/index.js';
+  import { fetchGenreTints, withTints } from './genreTints.js';
   import { Pencil } from '@lucide/svelte';
   import { untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
@@ -364,7 +365,11 @@
       const result = data['subsonic-response']?.genres?.genre || [];
       // Kept unfiltered and unsorted: the CollectionBar owns both now, so the
       // "minimaal" chips can reach the long tail instead of it being dropped here.
-      allGenres = Array.isArray(result) ? result : [result];
+      const genres = Array.isArray(result) ? result : [result];
+      // getGenres carries no colour. MuMa derives one per genre so this list and the
+      // mobile app draw Hardstyle in the same orange; a genre MuMa does not know keeps
+      // the brand accent.
+      allGenres = withTints(genres, await fetchGenreTints());
       console.log(`Loaded ${allGenres.length} genres`);
     } catch (e) {
       console.error("Failed to load genres:", e);

@@ -61,7 +61,18 @@ class YoutubeSongProcessor(PostProcessor):
         account = info.get('uploader_id') or info.get('channel_id') or info.get('uploader') or info.get('channel')
         video_id = info.get('id')
         if not YoutubeArchive.exists(account, video_id, self.download_type):
-            YoutubeArchive.insert(account, video_id, path, url, title_for_archive, download_type=self.download_type)
+            # The whole info dict goes with it. The tagger reads four fields out of it
+            # and drops the rest, so the music-credit artists/track/album, the
+            # categories and a long set's chapter list were never written down.
+            YoutubeArchive.insert(
+                account,
+                video_id,
+                path,
+                url,
+                title_for_archive,
+                download_type=self.download_type,
+                raw_info=info,
+            )
         else:
             logging.info(
                 f'Track already in downloads_youtube_archive: {account}/{video_id} '

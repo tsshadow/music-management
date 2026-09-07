@@ -162,6 +162,14 @@ def ensure_tables_exist() -> None:
                     # against library_artists. NULL until a file goes through a tag-write pass that
                     # captures it. See migrate_v19_display_artist.sql.
                     'ALTER TABLE library_tracks ADD COLUMN IF NOT EXISTS display_artist VARCHAR(512) NULL',
+                    # What yt-dlp knew about a download, pruned of transport detail. The
+                    # tagger copies four fields out of the info dict and the rest used to be
+                    # discarded when the process moved on, so SoundCloud's genre/tags and
+                    # YouTube's music-credit artists were never written down anywhere. NULL
+                    # for every row that predates this. See migrate_v21_download_info_json.sql
+                    # and services/downloader/info_json.py.
+                    'ALTER TABLE downloads_soundcloud_archive ADD COLUMN IF NOT EXISTS info_json LONGTEXT NULL',
+                    'ALTER TABLE downloads_youtube_archive ADD COLUMN IF NOT EXISTS info_json LONGTEXT NULL',
                 ):
                     try:
                         cursor.execute(column_sql)

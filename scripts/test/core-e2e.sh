@@ -75,6 +75,7 @@ else
         -e MUMA_TEST_LMS_USER="$MUMA_TEST_LMS_USER" \
         -e MUMA_TEST_LMS_PASSWORD="$MUMA_TEST_LMS_PASSWORD" \
         -e MUMA_TEST_FIXTURE_DIR="$MUMA_TEST_FIXTURE_DIR" \
+        -e MUMA_TEST_EP_PATH="$MUMA_TEST_EP_PATH" \
         -e API_KEY="${API_KEY:-}" \
         "$BDD_IMAGE" \
         bash -c "pip install --user --quiet --disable-pip-version-check -r tests/bdd/requirements.txt && python -m pytest -p no:warnings tests/bdd/ -v"

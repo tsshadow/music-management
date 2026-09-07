@@ -7,6 +7,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.51.0] - 2026-09-07
+
+### Added
+- **Wat yt-dlp over een download wist wordt nu bewaard.** De postprocessor kreeg de volledige
+  info-dict, de tagger pikte er vier velden uit (`BaseSong._apply_extra_info`) en de rest verdween
+  zodra het proces verderging. SoundClouds `genre`, `tags` en `description`, YouTubes
+  `artists`/`track`/`album`/`release_year` uit het muziek-credits-paneel, en de hoofdstukindeling
+  van een set van twee uur stonden nergens opgeschreven — over 53.295 YouTube- en 157.387
+  SoundCloud-rijen. Nieuwe kolom `info_json` op `downloads_soundcloud_archive` en
+  `downloads_youtube_archive` (`migrate_v21_download_info_json.sql`).
+- De blob wordt eerst gesnoeid (`services/downloader/info_json.py`). `formats`, `thumbnails` en
+  `automatic_captions` zijn transportdetails die binnen een paar uur verlopen en vormen bijna het
+  hele gewicht van de 100-800 KB die een ruwe YouTube-dict weegt; wat overblijft is 5-15 KB, met een
+  harde bovengrens. Een `description` die daar in z'n eentje overheen gaat wordt weggelaten; blijft
+  het dan nog te groot, dan slaat de rij niets op in plaats van een halve JSON.
+- Vooruit-werkend, met opzet. Bestaande rijen blijven `NULL`: voor SoundCloud terughalen zou één
+  `yt-dlp --dump-single-json` per track kosten en die kant beantwoordt een burst met 403. Op de
+  YouTube-kant vult een herdownload wél een lege kolom aan, want die tabel is echt op
+  (video_id, download_type) gesleuteld.
+- Er wordt niets mee gedaan bij het taggen. Dit legt alleen vast wat de downloader te horen kreeg.
+
+- `GET /api/library/genres` geeft per genre een `tint` mee: de kleur waarin dat genre getekend
+  wordt. De web UI en de mobiele app tonen een genre allebei als gekleurde tegel, en met een tabel
+  aan beide kanten was Hardstyle vroeg of laat oranje op de ene plek en magenta op de andere — een
+  verschil dat niemand ziet tot beide naast elkaar openstaan, en dat van geen van beide kanten te
+  testen is. De kleur wordt afgeleid van de naam en niet opgeslagen. Additief veld; bestaande
+  consumers merken niets.
+- De genre-tegels in de web UI dragen die kleur nu. Een genre dat MuMa niet kent houdt de
+  brand-kleur die de tegel altijd al had.
+
+### Changed
+- **De helft van de pipeline draaide op de container die naast GitLab zelf staat.** De CI-LXC deelt
+  node `server` met gitlab (cap 15G) en lms (cap 11,9G, en die zit eraan); de caps van alle CT's
+  samen zijn 58G op 30G fysiek geheugen. Alle jobs die hun omgeving in een Docker-image meedragen
+  (`mobile:format`, `mobile:lint`, `mobile:unit`, `mobile:build-debug`, `muma:smoke`, `muma:images`,
+  `muma:e2e`) dragen nu de `fast`-tag, zodat het werkstation ze overneemt zodra het aan staat.
+- **Jobs die hun toolchain van de host lenen blijven bewust ongetagd.** De twee runners draaien niet
+  dezelfde versies (LXC: Python 3.11, node 24; werkstation: Python 3.13, node 20), dus
+  `backend:unit`, `frontend:*` en `frontend:e2e` zouden een andere uitslag geven afhankelijk van
+  welke runner het eerst polt. Een nieuwe policy-test houdt daarnaast de jobs met productie-
+  credentials — deploy, tag, APK-upload — permanent op de LXC. `backend:integration` en
+  `muma:contracts` horen ook in die groep: die starten hun database wél in Docker maar draaien
+  `python3 -m pytest` vanaf de host, en faalden op het werkstation in vijf seconden met `No module
+  named pytest`.
+
+### Fixed
+- **Een download hield "Lil Texas & Albino" nergens vast.** `CleanTagsRule` bewaart de
+  artiestenregel zoals hij op het bestand stond, maar alleen als hij hem zelf nog moest splitsen.
+  Bij een SoundCloud- of YouTube-download komen de artiesten uit de titel:
+  `InferArtistFromTitleRule` draait ervóór en levert de ARTIST-tag al gesplitst aan, dus de
+  "is er iets veranderd"-test van `CleanTagsRule` sloeg nooit aan en de weergavenaam ging verloren.
+  8 van de 344.757 tracks op productie hadden er een.
+- De credit wordt nu in twee stappen vastgelegd, en dat is het lastige deel. `InferArtistFromTitleRule`
+  *onthoudt* alleen het ruwe segment, en alleen als dat segment precies uiteenvalt in de namen die
+  eruit gekomen zijn — de tekst waar een naam uit gelezen is, is namelijk niet vanzelf een credit:
+  `set_cleaned_artist` gooit "(live)" en losse achtervoegsels weg, en de fuzzy-takken houden alleen de
+  kandidaten over die op een bekende artiest matchten. `Angerfist (live)` of een naam die de
+  bibliotheek juist wegliet als credit wegschrijven is erger dan geen credit, want de webspeler toont
+  `display_artist` in plaats van de artiestenlijst. De nieuwe `CaptureDisplayArtistRule` draait als
+  laatste van de artiestenregels en schrijft de credit alleen weg als die de artiesten nog benoemt
+  waar het bestand uiteindelijk mee eindigt — zo levert
+  `Angerfist & Miss K8 - Track (feat. Albino)` géén credit op in plaats van eentje die twee van de
+  drie artiesten noemt. Een waarde die al op het bestand stond wordt nooit overschreven.
+
+- **Het genre dat bij een label hoort werd nooit op een labelrelease gezet.**
+  `InferGenreFromLabelRule` bestond, had een eigen test en stond in de regellijst van geen enkel
+  songtype. `rules_label_genre` werd daardoor alleen gelezen via `InferGenreFromAlbumArtistRule`, dat
+  dezelfde tabel raadpleegt op de naam van een YouTube-kanaal — nooit op de publisher. Een echte
+  release in de EPs-boom kwam er dus zonder genre uit zodra de artiesten zelf geen genreregel hadden,
+  en dat las als een niet-gecureerde release in plaats van als een regel die nergens draait. De regel
+  zit nu in `LabelSong`, vóór de subgenreregel zodat een labelgenre ook nog verbreed wordt.
+- **De ketentest liep om de labelmap heen.** In `docker/compose.test.yml` stonden
+  `eps_folder_path` en `import_folder_path` allebei op `/mnt/music`, dus elk bestand op het volume
+  zag eruit als een labelrelease en de drielaagse mappenstructuur waar de tagger publisher en
+  catalogusnummer uit leest werd nooit doorlopen. Nieuw:
+  `tests/bdd/features/label_import.feature` loopt een scene-release door label, artiesten,
+  weergavenaam en beide genres heen, en `services/tagger/Song/LabelSongTest.py` doet hetzelfde per
+  veld inclusief de releasedatum uit de NFO.
+- De tagger slaat een ontbrekende EPs-map nu over in plaats van eruit te vliegen. Die uitzondering
+  nam de achtergrondlus mee, en `/health` meldde de hele dienst degraded om een map die een minuut
+  later weer terug was.
+
+### Security
+- **De nachtelijke image-refresh liet twee productie-images achter op de base waar ze op gebouwd
+  zijn.** Die taak herbouwt `muma-base` met `--no-cache` en pusht hem, dus die pakt de
+  Debian-security-pakketten van die dag mee — maar `muma-telegram` en `muma-importer` bleven staan
+  op wat hún laatste build erfde, en dat is de release. Zo dook `CVE-2026-33164` (libde265, HIGH,
+  upstream al gefixt) op in beide images terwijl de base waar ze op gebouwd zijn al schoon was. Er
+  was geen pin om te bumpen: de images waren simpelweg ouder dan hun base. De refresh herbouwt nu de
+  hele familie die FROM `muma-base` komt; een test leidt die lijst af uit de Dockerfiles, dus een
+  nieuwe worker-image kan hem niet stilletjes missen.
+- Ontwikkelketen: `postcss-selector-parser` naar 7.1.6 (GHSA-w9m9-85wc-3x92, denial of service via
+  ongecontroleerde AST-recursie). Dev-dependency van de eslint-keten, komt niet in een image terecht.
 ## [0.50.0] - 2026-09-07
 
 ### Added

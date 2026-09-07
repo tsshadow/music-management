@@ -7,6 +7,7 @@ from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
+from services.music_manager.genre_tint import genre_tint
 from services.music_manager.routers.analytics_filters import (
     FROM_CLAUSE,
     LibraryFilter,
@@ -144,6 +145,10 @@ def get_library_genres(_auth: dict = Depends(verify_api_key)):
     library_track_genres, which had no rows until the scanner started writing it.
     Unknown genres are included so the sidebar can group them as awaiting
     curation rather than hide tracks that do have a genre in their tag.
+
+    Each row carries the colour its tile is drawn in. Both the web UI and the
+    mobile app render a genre as a coloured tile, and deriving that colour here
+    is what keeps them from each owning a table that drifts.
     """
     conn = get_db_connection()
     if not conn:
@@ -158,7 +163,10 @@ def get_library_genres(_auth: dict = Depends(verify_api_key)):
                 GROUP BY g.id
                 ORDER BY count DESC, g.name
             """)
-            return cursor.fetchall()
+            rows = cursor.fetchall()
+            for row in rows:
+                row['tint'] = genre_tint(row.get('genre'))
+            return rows
     finally:
         conn.close()
 

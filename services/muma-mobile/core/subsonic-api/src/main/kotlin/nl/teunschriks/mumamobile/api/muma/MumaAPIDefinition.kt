@@ -158,6 +158,15 @@ interface MumaAPIDefinition {
         @Query("limit") limit: Int = 100
     ): Call<MumaEventsResponse>
 
+    /**
+     * The genres MuMa knows, read for one field: the colour their tile is drawn in.
+     *
+     * The names themselves come from Subsonic. This list exists so the colour is decided in one
+     * place -- a table in the app would drift from the web UI's.
+     */
+    @GET("api/library/genres")
+    fun getLibraryGenres(): Call<List<MumaLibraryGenre>>
+
     // --- Curation queues (Beheer: tagger, genres, labelvoorstellen, podcasts). ---
 
     /**

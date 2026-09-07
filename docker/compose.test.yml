@@ -67,8 +67,14 @@ services:
       # (music-manager's own scanner keeps a separate library_tracks table
       # used for scrobble matching, see routers/scrobbler.py).
       music_folder_path: /mnt/music
-      import_folder_path: /mnt/music
-      eps_folder_path: /mnt/music
+      # The same three-level shape production runs: label releases live under
+      # <music>/EPs/<label>/<cat id - release>/, and the import queue is a folder
+      # inside that tree. Both used to be /mnt/music flat, which made every file on
+      # the volume look like a label release to the tagger -- including the generic
+      # fixture under "Top 100" -- and left the folder layout the label chain reads
+      # its publisher and catalogue number out of untested end to end.
+      import_folder_path: /mnt/music/EPs/__TODO
+      eps_folder_path: /mnt/music/EPs
       # The background tagger round runs once at startup (before the fixture exists)
       # and then every TAGGER_SLEEPTIME seconds. The e2e suite tags the fixture
       # explicitly and, in one feature, marks it for a retag it then runs itself; a

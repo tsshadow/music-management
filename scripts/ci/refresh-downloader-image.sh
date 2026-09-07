@@ -18,8 +18,17 @@
 #     to keep meaning the artifact that release shipped. Only ":latest" (what
 #     docker-compose.yml pulls) and a dated tag are pushed, so there is still a
 #     record of which refresh produced which image.
-#   - It only touches muma-base and muma-downloader. Nothing else in the stack
-#     depends on a dependency that moves this fast.
+#   - It only touches the muma-base family: the base itself and every image built
+#     FROM it (downloader, telegram, importer). music-manager, lms and tools have
+#     their own FROM and are only ever built by a release.
+#
+# Why the whole family and not just the downloader: the base is rebuilt here with
+# --no-cache, so it picks up that day's Debian-Security packages. An image built
+# FROM it keeps whatever its own last build inherited, which is the release build.
+# Rebuilding only the base therefore *creates* the gap -- on 2026-09-07 the audit
+# found CVE-2026-33164 (libde265) in muma-telegram and muma-importer while the base
+# they are built on had been clean since that night's refresh. The two derived
+# images are a handful of COPY layers, so rebuilding them costs seconds.
 #
 # See docs/bug-reports/016-stale-release-branch-clobbered-latest-deploy.md for why
 # "which commit is :latest built from" is treated carefully here: this script is
@@ -58,6 +67,8 @@ set -a; source "$PROJECT_ROOT/.env"; set +a
 DOCKER_USER="${DOCKER_USER:-$DOCKERHUB_USERNAME}"
 IMAGE_BASE="${IMAGE_BASE:-muma-base}"
 IMAGE_DOWNLOADER="${IMAGE_DOWNLOADER:-muma-downloader}"
+IMAGE_TELEGRAM="${IMAGE_TELEGRAM:-muma-telegram}"
+IMAGE_IMPORTER="${IMAGE_IMPORTER:-muma-importer}"
 
 REFRESH_TAG="refresh-$(date -u +%Y%m%d)"
 echo "--- Refreshing from $(git rev-parse --short HEAD) on ${CI_COMMIT_BRANCH:-unknown}, tagging ${REFRESH_TAG} ---"
@@ -83,6 +94,31 @@ docker build --no-cache \
 
 docker push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest"
 docker push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${REFRESH_TAG}"
+
+# The two remaining images built FROM muma-base. They add a pip install and some
+# COPY layers, so what they are really here for is the base's OS packages -- see
+# the header. VERSION=latest points their FROM at the base built a few lines up.
+echo "--- Building ${DOCKER_USER}/${IMAGE_TELEGRAM} ---"
+docker build --no-cache \
+    --build-arg DOCKER_USER="${DOCKER_USER}" \
+    --build-arg VERSION="latest" \
+    -t "${DOCKER_USER}/${IMAGE_TELEGRAM}:latest" \
+    -t "${DOCKER_USER}/${IMAGE_TELEGRAM}:${REFRESH_TAG}" \
+    -f docker/Dockerfile.telegram .
+
+docker push "${DOCKER_USER}/${IMAGE_TELEGRAM}:latest"
+docker push "${DOCKER_USER}/${IMAGE_TELEGRAM}:${REFRESH_TAG}"
+
+echo "--- Building ${DOCKER_USER}/${IMAGE_IMPORTER} ---"
+docker build --no-cache \
+    --build-arg DOCKER_USER="${DOCKER_USER}" \
+    --build-arg VERSION="latest" \
+    -t "${DOCKER_USER}/${IMAGE_IMPORTER}:latest" \
+    -t "${DOCKER_USER}/${IMAGE_IMPORTER}:${REFRESH_TAG}" \
+    -f docker/Dockerfile.importer .
+
+docker push "${DOCKER_USER}/${IMAGE_IMPORTER}:latest"
+docker push "${DOCKER_USER}/${IMAGE_IMPORTER}:${REFRESH_TAG}"
 
 echo "--- Installed yt-dlp ---"
 docker run --rm "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${REFRESH_TAG}" yt-dlp --version

@@ -71,6 +71,29 @@ class PutTest(QuarantineTestCase):
         with open(first, encoding='utf-8') as handle:
             self.assertEqual('first', handle.read())
 
+    def test_the_root_is_marked_so_lms_stays_out_of_it(self):
+        """The whole idea leaks without this.
+
+        The fallback root is `.quarantine` beside the music root, LMS's library points at
+        that same tree, and its scanner has no rule for hidden directories -- it recurses
+        everything and stops only at `.lmsignore`
+        (ScanStepScanFiles.cpp::exploreFilesRecursive). A parked duplicate release would
+        otherwise come back as LMS tracks, which is the decision the importer just made
+        against.
+        """
+        Quarantine.put(self.make_file(), Quarantine.UNREADABLE_FILE)
+
+        self.assertTrue(os.path.exists(os.path.join(self.root, Quarantine.LMSIGNORE)))
+
+    def test_a_marker_that_cannot_be_written_does_not_stop_the_quarantine(self):
+        """A read-only root is worth a warning, not a file left in the library."""
+        path = self.make_file()
+        with patch.object(Quarantine, 'open', side_effect=OSError('read-only'), create=True):
+            target = Quarantine.put(path, Quarantine.UNREADABLE_FILE)
+
+        self.assertIsNotNone(target)
+        self.assertFalse(os.path.exists(path))
+
     def test_a_path_that_is_not_there_is_not_an_error(self):
         self.assertIsNone(Quarantine.put(os.path.join(self.music, 'gone.mp3'), Quarantine.UNREADABLE_FILE))
 

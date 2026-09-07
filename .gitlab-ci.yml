@@ -985,10 +985,16 @@ release:build-images:
   script:
     - ./scripts/ci/build-and-push-images.sh
 
-# Rebuilds the downloader image from master between releases so production picks
+# Rebuilds the muma-base family from master between releases so production picks
 # up a newer yt-dlp. yt-dlp ships fixes for SoundCloud/YouTube changes within
 # days, while our images are otherwise only ever built on a release/* branch --
 # which is how downloads stop working without anything here having changed.
+#
+# The name is narrower than the job: it rebuilds the base and everything built
+# FROM it (downloader, telegram, importer), because the base is what carries the
+# Debian security packages and rebuilding it alone leaves the others behind. The
+# job name and REFRESH_DOWNLOADER are unchanged on purpose -- the GitLab schedule
+# sets that variable, and renaming it stops the schedule silently.
 #
 # Runs only from a GitLab schedule with REFRESH_DOWNLOADER set, and only on
 # master, so the image published as :latest is built from the commit production

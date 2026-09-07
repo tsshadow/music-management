@@ -14,7 +14,13 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.R
+import nl.teunschriks.mumamobile.coverart.AppGenreTints
+import nl.teunschriks.mumamobile.coverart.PlaylistArtKind
 import nl.teunschriks.mumamobile.subsonic.ImageLoaderProvider
 import nl.teunschriks.mumamobile.util.FileUtil
 import org.koin.core.component.KoinComponent
@@ -30,7 +36,8 @@ class HomeCardAdapter(
     /** Only the screens that offer a context menu pass this; the view it gets is the card. */
     private val onLongClick: ((View, HomeCard) -> Boolean)? = null
 ) : RecyclerView.Adapter<HomeCardAdapter.ViewHolder>(),
-    KoinComponent {
+    KoinComponent,
+    CoroutineScope by CoroutineScope(Dispatchers.IO) {
 
     private val imageLoaderProvider: ImageLoaderProvider by inject()
 
@@ -93,6 +100,13 @@ class HomeCardAdapter(
             holder.itemView.setOnLongClickListener { view -> longClick(view, card) }
         }
 
+        val drawn = HomeCardArt.kindFor(card)
+        if (drawn != null) {
+            bindDrawnCover(holder, card, drawn)
+            return
+        }
+
+        holder.image.tag = null
         imageLoaderProvider.executeOn {
             it.loadImage(
                 holder.image,
@@ -102,6 +116,32 @@ class HomeCardAdapter(
                 0,
                 defaultResourceFor(card.type)
             )
+        }
+    }
+
+    /**
+     * A cover the app draws itself, for the families that have no picture to load.
+     *
+     * The tint lookup can reach MuMa on its first call, so this cannot run on the main thread --
+     * and the view is recycled while it does, which is what the tag guards: by the time a tile is
+     * ready its holder may be showing a different card, and setting it then would put the wrong
+     * cover on screen.
+     */
+    private fun bindDrawnCover(holder: ViewHolder, card: HomeCard, kind: PlaylistArtKind) {
+        holder.image.setImageResource(defaultResourceFor(card.type))
+
+        // Stamped here, synchronously, and not once the tile is ready: by then this holder may
+        // already have been rebound, and a tag written then would mark the new card as owning the
+        // old card's cover.
+        val bound = card.key
+        holder.image.tag = bound
+
+        launch {
+            val tint = AppGenreTints.cache.tintFor(HomeCardArt.tintNameFor(card))
+            val art = HomeCardArt.tile(kind, card.title, tint)
+            withContext(Dispatchers.Main) {
+                if (holder.image.tag == bound) holder.image.setImageBitmap(art)
+            }
         }
     }
 

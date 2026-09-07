@@ -4,6 +4,7 @@ import unittest
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
+from services.common.Helpers import Quarantine as quarantine_module
 from services.importer import renamer
 from services.importer.renamer import Renamer, find_cat_id, has_numbers, is_parsed
 
@@ -97,11 +98,25 @@ class RenamerCollisionTest(unittest.TestCase):
 
     def setUp(self):
         self.tmp = self.enterContext(TemporaryDirectory())
-        settings = MagicMock(import_folder_path=self.tmp, delimiter='/')
-        patcher = patch.object(renamer, 'Settings', return_value=settings)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        # A real quarantine root, because a collision no longer deletes the duplicate --
+        # it moves it. Without somewhere to move it to, the renamer leaves the folder
+        # where it is, which is the safe failure and not what these assert.
+        self.quarantine = self.enterContext(TemporaryDirectory())
+        settings = MagicMock(
+            import_folder_path=self.tmp,
+            delimiter='/',
+            quarantine_folder_path=self.quarantine,
+            quarantine_retention_days=30,
+        )
+        for module in (renamer, quarantine_module):
+            patcher = patch.object(module, 'Settings', return_value=settings)
+            patcher.start()
+            self.addCleanup(patcher.stop)
         self.renamer = Renamer()
+
+    def parked(self, folder):
+        """Whether the folder ended up in quarantine rather than being deleted."""
+        return any(folder in dirs for _, dirs, _files in os.walk(self.quarantine))
 
     def make_release(self, folder, files):
         path = os.path.join(self.tmp, folder)
@@ -116,11 +131,12 @@ class RenamerCollisionTest(unittest.TestCase):
     def exists(self, folder):
         return os.path.isdir(os.path.join(self.tmp, folder))
 
-    def test_a_second_download_of_a_release_that_is_already_renamed_is_removed(self):
+    def test_a_second_download_of_a_release_that_is_already_renamed_is_parked(self):
         self.make_release(self.UNPARSED, {'01-track.mp3': 'aaa', '00-release.nfo': 'bb'})
         self.make_release(self.RENAMED, {'01-track.mp3': 'aaa', '00-release.nfo': 'bb'})
         self.renamer.run()
         self.assertFalse(self.exists(self.UNPARSED))
+        self.assertTrue(self.parked(self.UNPARSED))
         self.assertTrue(self.exists(self.RENAMED))
 
     def test_a_duplicate_removal_is_logged_as_a_warning_not_as_info(self):
@@ -158,12 +174,15 @@ class RenamerCollisionTest(unittest.TestCase):
         with patch.object(renamer.os, 'rename', side_effect=FileExistsError(errno.EEXIST, 'File exists')):
             self.renamer.run()
         self.assertFalse(self.exists(self.UNPARSED))
+        self.assertTrue(self.parked(self.UNPARSED))
+        self.assertTrue(self.parked(self.UNPARSED))
 
     def test_synology_thumbnail_folders_do_not_make_two_copies_look_different(self):
         self.make_release(self.UNPARSED, {'01-track.mp3': 'aaa'})
         self.make_release(self.RENAMED, {'01-track.mp3': 'aaa', os.path.join('@eaDir', 'thumb.jpg'): 'junk'})
         self.renamer.run()
         self.assertFalse(self.exists(self.UNPARSED))
+        self.assertTrue(self.parked(self.UNPARSED))
 
     def test_a_rename_failure_that_is_not_a_collision_is_logged_and_the_run_continues(self):
         self.make_release('A (1)', {'01-track.mp3': 'aaa'})

@@ -8,6 +8,7 @@ from services.tests.mock_base import reset_database_helpers, setup_mocks
 
 setup_mocks()
 
+from services.common.Helpers import Quarantine as quarantine_module
 from services.importer import mover as mover_module
 from services.importer.mover import Mover, get_cat_id, post_processing_songs
 
@@ -106,14 +107,30 @@ class GetLabelTest(MoverTestCase):
 
 
 class RemoveTest(MoverTestCase):
-    def test_the_folder_is_removed_from_the_import_directory(self):
-        with patch.object(mover_module.shutil, 'rmtree') as rmtree:
-            self.mover.remove('SCAN123 - Release')
-        rmtree.assert_called_once_with('/import/SCAN123 - Release')
+    """`remove` parks the folder now; it used to rmtree it.
 
-    def test_a_removal_failure_is_only_logged(self):
-        with patch.object(mover_module.shutil, 'rmtree', side_effect=PermissionError('read only')):
+    The decision behind the call is `is_same_release`, which compares relative names and
+    sizes rather than contents. That can be wrong about two different releases, and it
+    used to be wrong irreversibly.
+    """
+
+    def test_the_folder_is_moved_out_of_the_import_directory_rather_than_deleted(self):
+        with (
+            patch.object(mover_module.Quarantine, 'put', return_value='/quarantine/x') as put,
+            patch.object(mover_module.shutil, 'rmtree') as rmtree,
+        ):
+            self.mover.remove('SCAN123 - Release')
+        put.assert_called_once_with('/import/SCAN123 - Release', mover_module.Quarantine.DUPLICATE_RELEASE)
+        rmtree.assert_not_called()
+
+    def test_a_folder_that_cannot_be_parked_stays_where_it_is(self):
+        """The safe failure. Retrying a conflict next cycle is noisy; deleting is final."""
+        with (
+            patch.object(mover_module.Quarantine, 'put', return_value=None),
+            patch.object(mover_module.shutil, 'rmtree') as rmtree,
+        ):
             self.mover.remove('SCAN123 - Release')  # must not raise
+        rmtree.assert_not_called()
 
 
 class MoveFolderTest(MoverTestCase):
@@ -253,10 +270,21 @@ class MoveConflictTest(unittest.TestCase):
         self.imports = os.path.join(self.tmp, 'import')
         self.eps = os.path.join(self.tmp, 'EPs')
         os.makedirs(os.path.join(self.eps, 'Evolve AU'))
-        settings = MagicMock(import_folder_path=self.imports, eps_folder_path=self.eps, delimiter='/')
-        patcher = patch.object(mover_module, 'Settings', return_value=settings)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        # A real quarantine root: a duplicate is moved aside now rather than deleted, so
+        # without one the mover leaves the folder in the import queue -- the safe failure,
+        # and not what these assert.
+        self.quarantine = os.path.join(self.tmp, 'quarantine')
+        settings = MagicMock(
+            import_folder_path=self.imports,
+            eps_folder_path=self.eps,
+            delimiter='/',
+            quarantine_folder_path=self.quarantine,
+            quarantine_retention_days=30,
+        )
+        for module in (mover_module, quarantine_module):
+            patcher = patch.object(module, 'Settings', return_value=settings)
+            patcher.start()
+            self.addCleanup(patcher.stop)
         double, connection = fake_connector()
         connection.cursor.return_value.__enter__.return_value.fetchone.return_value = ('Evolve AU',)
         connector = patch.object(mover_module, 'DatabaseConnector', return_value=double)
@@ -284,7 +312,7 @@ class MoveConflictTest(unittest.TestCase):
             self.mover._move_folder(self.FOLDER, 'EVAU', dry_run=False)
         self.assertFalse(os.path.exists(os.path.join(self.dst(), self.FOLDER)))
 
-    def test_the_duplicate_source_is_removed_when_both_hold_the_same_files(self):
+    def test_the_duplicate_source_is_parked_when_both_hold_the_same_files(self):
         self.make(self.src(), {'01-track.mp3': 'aaa', '00-release.nfo': 'bb'})
         self.make(self.dst(), {'01-track.mp3': 'aaa', '00-release.nfo': 'bb'})
         with patch.object(mover_module, 'post_processing_songs'):

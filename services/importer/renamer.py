@@ -2,11 +2,11 @@ import errno
 import logging
 import os
 import re
-import shutil
 from os import listdir
 from os.path import isdir, isfile, join
 
 from services.common.config_store import ConfigStore as Settings
+from services.common.Helpers import Quarantine
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.importer.release_compare import is_same_release
 
@@ -77,18 +77,18 @@ class Renamer:
         """Handle a rename onto a target that already exists.
 
         Same reasoning as `Mover._move_folder`: a target that is already there means this
-        release was imported before, so the source is a duplicate download. The mover can
-        remove its source on sight because `shutil.move` only conflicts on a completed
-        import; here the target may be a *different* release that merely resolved to the
-        same catalogue number, so the two are compared first and anything unequal is left
-        for a human instead of deleted.
+        release was imported before, so the source is a duplicate download. The target may
+        be a *different* release that merely resolved to the same catalogue number, so the
+        two are compared first and anything unequal is left for a human.
+
+        Even when they compare equal the source is parked rather than deleted:
+        `is_same_release` reads relative names and sizes, not contents, so "the same
+        release" is a strong guess and not a fact.
         """
         if is_same_release(src, dst):
-            logging.warning('Conflict: %s already exists and holds the same files. Removing %s', dst, src)
-            try:
-                shutil.rmtree(src)
-            except OSError as e:
-                logging.warning("Thrown exception '%s' while deleting for '%s'", e, folder)
+            logging.warning('Conflict: %s already exists and holds the same files. Parking %s', dst, src)
+            if not Quarantine.put(src, Quarantine.DUPLICATE_RELEASE):
+                logging.warning("Could not quarantine '%s'; leaving it in the import folder", folder)
             return
         logging.warning(
             'Conflict: %s already exists but its contents differ from %s. Leaving both in place for '

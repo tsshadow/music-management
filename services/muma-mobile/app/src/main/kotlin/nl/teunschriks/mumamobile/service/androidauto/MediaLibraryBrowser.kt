@@ -34,6 +34,7 @@ import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType
 import nl.teunschriks.mumamobile.api.subsonic.models.Filter
 import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.coverart.AppGenreTints
 import nl.teunschriks.mumamobile.coverart.BrowseArtwork
 import nl.teunschriks.mumamobile.coverart.GenreTintCache
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
@@ -52,7 +53,6 @@ import nl.teunschriks.mumamobile.util.Settings.maxSongs
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.buildMediaItem
 import nl.teunschriks.mumamobile.util.toMediaItem
-import org.koin.java.KoinJavaComponent
 import org.koin.java.KoinJavaComponent.inject
 import timber.log.Timber
 
@@ -114,10 +114,7 @@ class MediaLibraryBrowser(
      * The colours the genre covers are drawn in. Injectable so a test can walk a browse level
      * without a server; the default only reaches MuMa on the first lookup, not at construction.
      */
-    private val genreTints: GenreTintCache = GenreTintCache {
-        KoinJavaComponent.get<SubsonicAPIClient>(SubsonicAPIClient::class.java)
-            .mumaApi.api.getLibraryGenres().execute().body()
-    }
+    private val genreTints: GenreTintCache = AppGenreTints.cache
 ) : MediaLibraryBase() {
     val musicService: MusicService get() = musicServiceProvider()
     lateinit var dataProvider: MediaLibraryDataProvider

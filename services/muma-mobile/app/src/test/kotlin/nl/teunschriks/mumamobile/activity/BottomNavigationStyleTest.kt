@@ -41,8 +41,7 @@ class BottomNavigationStyleTest {
     private val white = 0xFFFFFFFF.toInt()
     private val grey = 0xFFB3B3B3.toInt()
 
-    private fun themed(style: Int): ContextThemeWrapper =
-        ContextThemeWrapper(RuntimeEnvironment.getApplication(), style)
+    private fun themed(style: Int): ContextThemeWrapper = ContextThemeWrapper(RuntimeEnvironment.getApplication(), style)
 
     private fun colorOf(style: Int, attr: Int): Int {
         val out = TypedValue()

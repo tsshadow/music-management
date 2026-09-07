@@ -137,7 +137,7 @@ class ContentStyleTest {
         // that can be walked here.
         val musicService: MusicService = mockk(relaxed = true)
         val scope = CoroutineScope(Dispatchers.Unconfined)
-        val browser = MediaLibraryBrowser(mainScope = scope, serviceScope = scope) { musicService }
+        val browser = MediaLibraryBrowser(mainScope = scope, serviceScope = scope, musicServiceProvider = { musicService })
         val session: MediaLibraryService.MediaLibrarySession = mockk(relaxed = true)
         val controller: MediaSession.ControllerInfo = mockk(relaxed = true)
 

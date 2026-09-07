@@ -104,10 +104,14 @@ class MediaLibrarySessionCallback :
         MediaLibraryDataProvider(serviceScope = serviceScope) { musicService }
     private var playbackController: MediaLibraryPlaybackController =
         MediaLibraryPlaybackController(serviceScope = serviceScope) { musicService }
+
+    // Named rather than a trailing lambda: the browser takes a genre-tint cache after the service
+    // provider now, and a trailing lambda would silently bind to that instead.
     private var mediaLibrarBrowser: MediaLibraryBrowser = MediaLibraryBrowser(
         mainScope = mainScope,
-        serviceScope = serviceScope
-    ) { musicService }
+        serviceScope = serviceScope,
+        musicServiceProvider = { musicService }
+    )
 
     private val subsonicAPIClient: SubsonicAPIClient by inject()
 

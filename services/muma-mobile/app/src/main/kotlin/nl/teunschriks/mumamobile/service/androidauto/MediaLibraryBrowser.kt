@@ -34,7 +34,11 @@ import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType
 import nl.teunschriks.mumamobile.api.subsonic.models.Filter
 import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.coverart.BrowseArtwork
+import nl.teunschriks.mumamobile.coverart.GenreTintCache
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
+import nl.teunschriks.mumamobile.domain.Artist
+import nl.teunschriks.mumamobile.domain.ArtistOrIndex
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.fragment.muma.TileInfo
 import nl.teunschriks.mumamobile.fragment.muma.TileStorage
@@ -48,6 +52,7 @@ import nl.teunschriks.mumamobile.util.Settings.maxSongs
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.buildMediaItem
 import nl.teunschriks.mumamobile.util.toMediaItem
+import org.koin.java.KoinJavaComponent
 import org.koin.java.KoinJavaComponent.inject
 import timber.log.Timber
 
@@ -104,7 +109,15 @@ internal fun searchableRootParams(
 class MediaLibraryBrowser(
     val mainScope: CoroutineScope,
     val serviceScope: CoroutineScope,
-    private val musicServiceProvider: () -> MusicService = MusicServiceFactory::getMusicService
+    private val musicServiceProvider: () -> MusicService = MusicServiceFactory::getMusicService,
+    /**
+     * The colours the genre covers are drawn in. Injectable so a test can walk a browse level
+     * without a server; the default only reaches MuMa on the first lookup, not at construction.
+     */
+    private val genreTints: GenreTintCache = GenreTintCache {
+        KoinJavaComponent.get<SubsonicAPIClient>(SubsonicAPIClient::class.java)
+            .mumaApi.api.getLibraryGenres().execute().body()
+    }
 ) : MediaLibraryBase() {
     val musicService: MusicService get() = musicServiceProvider()
     lateinit var dataProvider: MediaLibraryDataProvider
@@ -112,6 +125,28 @@ class MediaLibraryBrowser(
     // Radio talks to the MuMa backend rather than the Subsonic API, so it needs
     // the client that owns the /muma base URL and the API-key interceptor.
     private val subsonicAPIClient: SubsonicAPIClient by inject(SubsonicAPIClient::class.java)
+
+    /**
+     * The cover the app draws for a genre, or null when there is nothing to draw.
+     *
+     * A genre carries no artwork of its own, so without this the car keeps the level a text list
+     * however the content style is set.
+     */
+    private fun genreArt(name: String): Uri? = BrowseArtwork.forGenre(name, genreTints.tintFor(name))
+
+    /**
+     * The artist's portrait, or initials on the colour of the genre they are filed under.
+     *
+     * An artist without a portrait used to have no picture at all, which kept the whole artist
+     * level a text list however many of the others did have one.
+     */
+    private fun artistArt(artist: ArtistOrIndex): Uri? = BrowseArtwork.forArtist(
+        coverArt = artist.coverArt,
+        name = artist.name,
+        // An index entry is a folder rather than a person and carries no genre; it falls back to
+        // the neutral tint, which is what a folder should look like anyway.
+        tint = genreTints.tintFor((artist as? Artist)?.genre)
+    )
 
     /**
      * Called when a {@link MediaBrowser} requests the root {@link MediaItem} by {@link
@@ -589,7 +624,8 @@ class MediaLibraryBrowser(
                 genre,
                 "$MEDIA_GET_SONGS_BY_GENRE|short|$genre||AddedDesc",
                 isBrowsable = true,
-                mediaType = MEDIA_TYPE_PLAYLIST
+                mediaType = MEDIA_TYPE_PLAYLIST,
+                imageUri = genreArt(genre)
             )
         }
 
@@ -661,7 +697,8 @@ class MediaLibraryBrowser(
                     genre,
                     "$MEDIA_GET_SONGS_BY_GENRE|$length|$genre||AddedDesc",
                     isBrowsable = true,
-                    mediaType = MEDIA_TYPE_PLAYLIST
+                    mediaType = MEDIA_TYPE_PLAYLIST,
+                    imageUri = genreArt(genre)
                 )
             }
         return Futures.immediateFuture(itemListResult(mediaItems))
@@ -715,10 +752,7 @@ class MediaLibraryBrowser(
                         mediaItems.add(
                             title = artist.name ?: "",
                             mediaId = listOf(childMediaId, artist.id, artist.name).joinToString("|"),
-                            imageUri = AlbumArtContentProvider.mapArtworkToContentProviderUri(
-                                artist.coverArt,
-                                FileUtil.getArtistArtKey(artist.name, true)
-                            )
+                            imageUri = artistArt(artist)
                         )
                     }
                 }
@@ -1012,7 +1046,8 @@ class MediaLibraryBrowser(
                     "$MEDIA_GET_YEARS|$length|${it.name}",
                     R.string.main_genres_title,
                     isBrowsable = true,
-                    mediaType = MEDIA_TYPE_PLAYLIST
+                    mediaType = MEDIA_TYPE_PLAYLIST,
+                    imageUri = genreArt(it.name)
                 )
             }
             return@future itemListResult(mediaItems)

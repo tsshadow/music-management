@@ -101,4 +101,24 @@ describe("CollectionGrid", () => {
     expect(screen.getByText("Defqon.1 2025")).toBeTruthy();
     expect(screen.queryByText(/nummers/)).toBeNull();
   });
+
+  it("draws a card in the colour the server gave it", () => {
+    // The mark is what makes Hardstyle recognisable before the name is read. Its colour comes
+    // from MuMa, so the web UI and the app cannot disagree about it.
+    renderGrid({ items: [{ value: "Hardstyle", songCount: 6140, tint: "#ff4d00" }] });
+
+    expect(markOf("Hardstyle").style.backgroundColor).toBe("rgb(255, 77, 0)");
+  });
+
+  it("falls back to the brand accent when an item has no colour", () => {
+    renderGrid({ items: [{ value: "Frenchcore", songCount: 12 }] });
+
+    expect(markOf("Frenchcore").style.backgroundColor).toBe("");
+    expect(markOf("Frenchcore").className).toContain("bg-brand");
+  });
 });
+
+/** The round mark on a card: the element wrapping the collection's icon. */
+function markOf(label) {
+  return screen.getByText(label).closest('[role="button"]').querySelector("svg").parentElement;
+}

@@ -179,7 +179,12 @@ class LibraryGenresTest(unittest.TestCase):
         )
         res = self.client.get('/api/library/genres', headers=self.headers)
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()[0], {'genre': 'Hardcore', 'state': 'white', 'count': 9001})
+        # The tint travels with the row: both clients draw a genre as a coloured tile and neither
+        # of them owns the colour.
+        self.assertEqual(
+            res.json()[0],
+            {'genre': 'Hardcore', 'state': 'white', 'count': 9001, 'tint': '#e5002b'},
+        )
 
     @patch('services.music_manager.routers.library.get_db_connection')
     def test_black_genres_are_excluded_by_the_query(self, mock_get_db):

@@ -203,6 +203,25 @@ def test_the_disk_janitor_stays_untagged():
     assert "tags" not in ci["runner:disk-janitor"]
 
 
+def test_credentialed_jobs_never_carry_the_fast_tag():
+    """Both runners answer to `fast`, and one of them is a desktop. A job that
+    holds the production SSH key, pushes a tag or signs and uploads the APK
+    must be pinned to the always-on LXC, which is what being untagged means."""
+    ci = load_ci()
+    credentialed = [
+        "muma:deploy",
+        "muma:verify",
+        "mobile:build-release",
+        "release:tag",
+        "release:build-images",
+        "release:verify-deployed",
+        "release:cleanup-branch",
+        "release:back-merge-develop",
+    ]
+    offenders = [name for name in credentialed if "tags" in ci.get(name, {})]
+    assert offenders == [], f"credentialed jobs must stay LXC-only: {offenders}"
+
+
 def test_release_rule_covers_release_and_hotfix():
     ci = load_ci()
     condition = ci[".release_rule"]["rules"][0]["if"]

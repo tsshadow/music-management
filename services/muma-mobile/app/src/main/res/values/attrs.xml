@@ -19,6 +19,11 @@
 
     <attr name="colorWarn" format="color" />
 
+    <!-- The bar the navigation sits on. Deeper than android:colorBackground on purpose: the web
+         shell puts black under the navigation and #121212 under the content, and taking
+         colorSurface here made the bar and the list it floats over the same colour. -->
+    <attr name="colorNavSurface" format="color" />
+
     <attr name="radiusRow" format="dimension" />
     <attr name="radiusSurface" format="dimension" />
     <attr name="radiusBanner" format="dimension" />

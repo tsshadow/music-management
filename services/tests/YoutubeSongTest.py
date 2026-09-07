@@ -3,7 +3,7 @@ import unittest
 from services.tests.mock_base import reset_database_helpers, setup_mocks
 
 setup_mocks()
-from services.tagger.constants import ARTIST, PUBLISHER, TITLE
+from services.tagger.constants import ARTIST, ORIGINAL_ARTIST, PUBLISHER, TITLE
 from services.tagger.Song.YoutubeSong import YoutubeSong
 
 # What a YouTube download looks like by the time the tagger sees it: yt-dlp's
@@ -85,6 +85,50 @@ class YoutubeSongTest(unittest.TestCase):
         song.parse()
         self.assertEqual(song.artist(), 'Angerfist')
         self.assertEqual(song.title(), 'Defqon.1 2025')
+
+    def test_the_artist_line_as_the_title_wrote_it_is_kept_as_the_display_artist(self):
+        """The half of the display artist that a download never reached.
+
+        CleanTagsRule captures this when a file's own artist tag still needs splitting.
+        A download's artists come out of the title instead, and arrive at that rule
+        already split, so its "did the split change anything" test never fired and every
+        SoundCloud and YouTube track lost its "Deadly Guns & The Dark Horror". 8 of
+        344757 tracks on production carried a display artist.
+        """
+        song = self._downloaded()
+        song.parse()
+        self.assertEqual(song.original_artist(), 'Deadly Guns & The Dark Horror')
+
+    def test_a_single_artist_is_not_given_a_second_copy_of_its_own_name(self):
+        """Nothing was lost in the split, so there is nothing worth showing instead."""
+        song = self._downloaded(channel='Angerfist', title='Angerfist - Raise Your Fist')
+        song.parse()
+        self.assertIsNone(song.original_artist())
+
+    def test_a_featured_artist_lifted_out_of_the_title_leaves_no_partial_credit(self):
+        """The whole chain, because the two halves of this sit in different rules.
+
+        InferArtistFromTitleRule offers "Deadly Guns & The Dark Horror" as the credit and
+        InferFeatureFromTitleRule then adds Miss K8 to the artist tag. A credit naming two
+        of the three would be shown *instead of* the artist list by the web player, so no
+        credit at all is the right outcome here.
+        """
+        song = self._downloaded(title='Deadly Guns & The Dark Horror - In The Pit (feat. Miss K8)')
+        song.parse()
+        self.assertEqual(song.artist(), 'Deadly Guns;The Dark Horror;Miss K8')
+        self.assertIsNone(song.original_artist())
+
+    def test_a_display_artist_the_file_already_carries_survives_a_retag(self):
+        """A later round re-derives the artists from the same title.
+
+        Letting it rewrite the value would replace what the file arrived with by
+        whatever the current rules make of it, and the first pass is the one that saw
+        the file as it was published.
+        """
+        song = self._downloaded()
+        song.tag_collection.set_item(ORIGINAL_ARTIST, 'Deadly Guns vs The Dark Horror')
+        song.parse()
+        self.assertEqual(song.original_artist(), 'Deadly Guns vs The Dark Horror')
 
 
 if __name__ == '__main__':

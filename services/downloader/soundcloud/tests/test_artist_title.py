@@ -3,7 +3,7 @@ import unittest
 from services.tests.mock_base import reset_database_helpers, setup_mocks
 
 setup_mocks()
-from services.tagger.constants import REMIXER, TITLE
+from services.tagger.constants import DATE, PUBLISHER, REMIXER, TITLE
 from services.tagger.Song.SoundcloudSong import SoundcloudSong
 
 
@@ -250,6 +250,35 @@ class TestSoundcloudArtistTitle(unittest.TestCase):
         song.parse()
         self.assertEqual(song.artist(), 'Albino;Qriminal')
         self.assertEqual(song.title(), 'RIJE MOAT')
+
+    def test_the_artists_as_the_title_wrote_them_are_kept_as_the_display_artist(self):
+        """Every assertion above is about the split; this is about what it threw away.
+
+        The names are what the library indexes on, but "Albino & Qriminal" is what the
+        track is called. CleanTagsRule preserves that for a file whose own artist tag
+        needed splitting -- a download's does not, because the artists were read out of
+        the title and handed over already split, so nothing was left for it to notice.
+        """
+        extra_info = {'uploader': 'Albino', 'title': 'Albino & Qriminal - RIJE MOAT'}
+        song = SoundcloudSong('/tmp/soundcloud/Albino/track.mp3', extra_info)
+        song.tag_collection.set_item(TITLE, extra_info['title'])
+        song.parse()
+        self.assertEqual(song.artist(), 'Albino;Qriminal')
+        self.assertEqual(song.original_artist(), 'Albino & Qriminal')
+
+    def test_the_platform_is_the_publisher_and_the_upload_date_is_the_date(self):
+        """The two fields a SoundCloud track gets from the download rather than a tag.
+
+        There is no NFO here and no sidecar on disk: yt-dlp's info dict is read once, in
+        the postprocessor, and what it says has to end up in the file there and then.
+        `upload_date` arrives undelimited, which is the shape ReleaseDate.py expects.
+        """
+        extra_info = {'uploader': 'Albino', 'title': 'Albino - RIJE MOAT', 'upload_date': '20260910'}
+        song = SoundcloudSong('/tmp/soundcloud/Albino/track.mp3', extra_info)
+        song.parse()
+        self.assertEqual(song.tag_collection.get_item_as_string(PUBLISHER), 'Soundcloud')
+        self.assertEqual(song.tag_collection.get_item_as_string(DATE), '20260910')
+        self.assertEqual(song.release_date(), '20260910')
 
 
 if __name__ == '__main__':

@@ -37,6 +37,8 @@ TIMEOUT = 10
 #   subsonic_scrobble moves it again
 #   unmatched_listen pins the *unmatched* counter at zero
 #   user_disabled / user_throttled act on accounts of their own
+#   label_import     scans and retags, so it goes after everything that reads the
+#                    library in a state an earlier feature left behind
 #   genre_rejected   rewrites the fixture's bytes, so nothing may stream after it
 #
 # A module not listed here runs after all of these, in name order, which is
@@ -52,6 +54,7 @@ FEATURE_ORDER = [
     'test_unmatched_listen_steps',
     'test_user_disabled_steps',
     'test_user_throttled_steps',
+    'test_label_import_steps',
     'test_genre_rejected_steps',
 ]
 

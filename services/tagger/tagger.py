@@ -83,6 +83,14 @@ class Tagger:
         Parses the EPS folder which contains label/ep/song hierarchies.
         """
         eps_root = Path(s.eps_folder_path)
+        if not eps_root.is_dir():
+            # Same treatment _parse_channel_folders already gives a missing platform
+            # folder. Without it a share that has not mounted yet raises out of
+            # Tagger.run, which kills the background tagger loop for the lifetime of
+            # the process -- and /health then reports the whole service degraded over
+            # a directory that will be back in a minute.
+            logging.warning("EPs folder '%s' does not exist, skipping label folders.", eps_root)
+            return
         label_folders = sorted([f for f in eps_root.iterdir() if f.is_dir()])
         for label in label_folders:
             if self.stop_requested:

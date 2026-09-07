@@ -1,6 +1,7 @@
 import logging
 
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+from services.downloader import info_json
 
 
 class SoundcloudArchive:
@@ -85,7 +86,14 @@ class SoundcloudArchive:
         return self_info.get('channel_id') or self_info.get('uploader_id') or None
 
     @staticmethod
-    def insert(info: dict):
+    def insert(info: dict, raw_info: dict | None = None):
+        """Record the download. `raw_info` is yt-dlp's own dict, kept as JSON.
+
+        Deliberately still an INSERT IGNORE and not an upsert: this table has no unique
+        key on video_id (its primary key is a surrogate `id`), so a duplicate never
+        conflicts and the real guard against one is the `exists` check the postprocessor
+        makes before calling this.
+        """
         account_name = info.get('account_name')
         account_id = info.get('account_id')
         video_id = info.get('video_id')
@@ -117,8 +125,10 @@ class SoundcloudArchive:
                         (account_id, account_name),
                     )
                 cursor.execute(
-                    '\n                    INSERT IGNORE INTO downloads_soundcloud_archive (account, video_id, filename, url, title)\n                    VALUES (%s, %s, %s, %s, %s)\n                ',
-                    (account_id, video_id, path, url, title),
+                    '\n                    INSERT IGNORE INTO downloads_soundcloud_archive '
+                    '(account, video_id, filename, url, title, info_json)\n'
+                    '                    VALUES (%s, %s, %s, %s, %s, %s)\n                ',
+                    (account_id, video_id, path, url, title, info_json.to_json(raw_info)),
                 )
                 conn.commit()
                 logging.debug(f'Added to downloads_soundcloud_archive: {account_id}/{video_id}')

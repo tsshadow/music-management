@@ -36,7 +36,52 @@ def looks_like_an_event(segment: str, festival_helper=None) -> bool:
     return False
 
 
-def set_cleaned_artist(song, library_artists: str | list[str], artist_db=None) -> bool:
+def names_in(text: str | None) -> list[str]:
+    """The artist names a written credit contains, lowercased for comparison."""
+    return [name.strip().lower() for name in extract_artists_from_string(text or '') if name.strip()]
+
+
+def remember_display_artist(song, source: str | None, cleaned: list[str]) -> None:
+    """Offer the credit as written as this file's display artist, if it is one.
+
+    CleanTagsRule captures the artist line as written for a file whose own ARTIST tag
+    still needed splitting. A download's artists do not arrive that way: they come out
+    of the title, and the rules below hand the ARTIST tag over already split, so by the
+    time CleanTagsRule sees it there is nothing left to preserve and its
+    `original != split` test never fires. Every SoundCloud and YouTube track therefore
+    lost its "Lil Texas & Albino" -- 8 of 344757 tracks on production carried a display
+    artist.
+
+    Only a credit that *is* the artist list, spelled differently, is offered. The text a
+    name was read out of is not automatically a credit worth showing: `set_cleaned_artist`
+    below strips bracketed annotations and trailing words like "live", and the fuzzy
+    branches of the single-dash rule keep only the candidates that matched a known
+    artist. Recording the raw segment in those cases would put "Angerfist (live)" or a
+    name the library deliberately rejected on the track as its credit -- and consumers
+    prefer the display artist over the artist list, so that credit is what a reader sees.
+
+    So this only remembers, and only when the segment splits to exactly the names that
+    came out of it. `CaptureDisplayArtistRule` decides afterwards whether to write it,
+    because the rules that follow this one can still add artists the credit does not
+    name.
+    """
+    if not source:
+        return
+    source = source.strip()
+    if not source or source == ';'.join(cleaned):
+        return
+    if names_in(source) != [name.lower() for name in cleaned]:
+        return
+    song.display_artist_candidate = source
+
+
+def set_cleaned_artist(song, library_artists: str | list[str], artist_db=None, source: str | None = None) -> bool:
+    """Write the ARTIST tag from names read out of a title.
+
+    `source` is the raw text those names were read from -- the segment as the title
+    spelled it, separators and all. It is what becomes the display artist; see
+    capture_display_artist.
+    """
     if isinstance(library_artists, str):
         library_artists = [library_artists]
     blacklist = {
@@ -72,6 +117,7 @@ def set_cleaned_artist(song, library_artists: str | list[str], artist_db=None) -
     if not cleaned:
         return False
     song.tag_collection.set_item(ARTIST, ';'.join(cleaned))
+    remember_display_artist(song, source, cleaned)
     return True
 
 
@@ -157,7 +203,7 @@ class InferArtistFromEventPrefixRule(TagRule):
         candidates = extract_artists_from_string(performers)
         if not candidates or not self._looks_like_artists(candidates):
             return False
-        set_cleaned_artist(song, candidates, self.artist_db)
+        set_cleaned_artist(song, candidates, self.artist_db, source=performers)
         song.tag_collection.set_item(TITLE, event)
         return True
 
@@ -191,7 +237,7 @@ class InferArtistFromTitleDotRule(TagRule):
         if not artist_str:
             return False
         library_artists = extract_artists_from_string(artist_str)
-        set_cleaned_artist(song, library_artists, self.artist_db)
+        set_cleaned_artist(song, library_artists, self.artist_db, source=artist_str)
         song.tag_collection.set_item(TITLE, rest_of_title)
         return True
 
@@ -209,7 +255,7 @@ class InferArtistFromTitleAtRule(TagRule):
             return False
         parts = title.split(' @ ', 1)
         library_artists = extract_artists_from_string(parts[0])
-        set_cleaned_artist(song, library_artists, self.artist_db)
+        set_cleaned_artist(song, library_artists, self.artist_db, source=parts[0])
         song.tag_collection.set_item(TITLE, parts[1].strip())
         print(library_artists, parts[1].strip())
         return True
@@ -229,7 +275,7 @@ class InferArtistFromTitleByRule(TagRule):
             track, artist_guess = (parts[0].strip(), parts[1].strip())
             library_artists = extract_artists_from_string(artist_guess)
             if any(a.lower() in self.artist_names for a in library_artists):
-                set_cleaned_artist(song, library_artists, self.artist_db)
+                set_cleaned_artist(song, library_artists, self.artist_db, source=artist_guess)
                 song.tag_collection.set_item(TITLE, track)
                 return True
         return False
@@ -262,11 +308,11 @@ class InferArtistFromTitleSingleDashRule(TagRule):
             [] if right_is_event else [a for a in extract_artists_from_string(right) if a.lower() in self.artist_names]
         )
         if matches_left:
-            set_cleaned_artist(song, extract_artists_from_string(left), self.artist_db)
+            set_cleaned_artist(song, extract_artists_from_string(left), self.artist_db, source=left)
             song.tag_collection.set_item(TITLE, right)
             return True
         if matches_right:
-            set_cleaned_artist(song, extract_artists_from_string(right), self.artist_db)
+            set_cleaned_artist(song, extract_artists_from_string(right), self.artist_db, source=right)
             song.tag_collection.set_item(TITLE, left)
             return True
         fuzzy_left = extract_artists_from_string(left)
@@ -282,11 +328,11 @@ class InferArtistFromTitleSingleDashRule(TagRule):
             else [a for a in fuzzy_right if get_close_matches(a.lower(), self.artist_names, n=1, cutoff=0.75)]
         )
         if fuzzy_match_left:
-            set_cleaned_artist(song, fuzzy_match_left, self.artist_db)
+            set_cleaned_artist(song, fuzzy_match_left, self.artist_db, source=left)
             song.tag_collection.set_item(TITLE, right)
             return True
         if fuzzy_match_right:
-            set_cleaned_artist(song, fuzzy_match_right, self.artist_db)
+            set_cleaned_artist(song, fuzzy_match_right, self.artist_db, source=right)
             song.tag_collection.set_item(TITLE, left)
             return True
         return False
@@ -310,7 +356,7 @@ class InferArtistFromTitleMultiDashRule(TagRule):
         best_match_index, best_artists = self._find_best_match(segments)
         if best_match_index == -1:
             return False
-        set_cleaned_artist(song, best_artists, self.artist_db)
+        set_cleaned_artist(song, best_artists, self.artist_db, source=segments[best_match_index])
         remaining_segments = [seg for i, seg in enumerate(segments) if i != best_match_index]
         title = ' - '.join(remaining_segments)
         song.tag_collection.set_item(TITLE, title)
@@ -385,7 +431,7 @@ class InferArtistFromFirstSegmentFallbackRule(TagRule):
             if looks_like_an_event(artist_candidate, self.festival_helper):
                 return False
             if artist_candidate:
-                set_cleaned_artist(song, artist_candidate, self.artist_db)
+                set_cleaned_artist(song, artist_candidate, self.artist_db, source=artist_candidate)
                 song.tag_collection.set_item(TITLE, title_part)
                 return True
         return False
@@ -425,7 +471,7 @@ class InferArtistFromPresentsOrColonRule(TagRule):
         if match:
             candidate = match.group(1).strip()
             if get_close_matches(candidate.lower(), self.artist_names, n=1, cutoff=0.7):
-                set_cleaned_artist(song, candidate, self.artist_db)
+                set_cleaned_artist(song, candidate, self.artist_db, source=candidate)
                 new_title = title[match.end() :].strip()
                 song.tag_collection.set_item(TITLE, new_title)
                 return True

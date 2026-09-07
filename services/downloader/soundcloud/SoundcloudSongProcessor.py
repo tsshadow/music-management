@@ -55,7 +55,12 @@ class SoundcloudSongProcessor(PostProcessor):
                     'path': path,
                     'url': enriched_info.get('original_url'),
                     'title': enriched_info.get('title'),
-                }
+                },
+                # The enriched dict, not the download-time one: `--dump-single-json`
+                # is what carries the genre, the tags and the description, and none
+                # of those reach a tag. Kept so a later question can be answered
+                # without a second request to a service that answers a burst with 403.
+                raw_info=enriched_info,
             )
         song = Tagger.parse_song(Path(path), SongTypeEnum.SOUNDCLOUD, extra_info=enriched_info)
         if song:

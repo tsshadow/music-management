@@ -3,6 +3,7 @@ from services.common.Helpers.Cache import databaseHelpers
 from services.tagger.constants import ALBUM, ALBUM_ARTIST, ARTIST, COPYRIGHT, PUBLISHER
 from services.tagger.Song.BaseSong import BaseSong
 from services.tagger.Song.rules.AddMissingArtistToDatabaseRule import AddMissingArtistToDatabaseRule
+from services.tagger.Song.rules.CaptureDisplayArtistRule import CaptureDisplayArtistRule
 from services.tagger.Song.rules.CheckArtistRule import CheckArtistRule
 from services.tagger.Song.rules.CleanTagsRule import CleanTagsRule
 from services.tagger.Song.rules.CleanTitleRule import CleanTitleRule
@@ -74,6 +75,9 @@ class SoundcloudSong(BaseSong):
                 artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']
             )
         )
+        # Last of the artist rules on purpose: it writes the credit the title stated
+        # only if that credit still names the artists the file ended up with.
+        self.rules.append(CaptureDisplayArtistRule())
         self.rules.append(ReplaceInvalidUnicodeRule())
         super().parse()
 

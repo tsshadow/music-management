@@ -40,12 +40,14 @@ class LabelSong(BaseSong):
         self.rules.append(CleanTagsRule())
         self.rules.append(InferGenreFromArtistRule(helper=databaseHelpers['artistGenreHelper']))
         # The publisher this class just wrote from the path, read back as a genre signal.
-        # This rule ran nowhere at all before: `rules_label_genre` held 49 curated rows
-        # that no song type consulted, so a release on a single-genre label came out with
-        # no genre whatsoever whenever its artists carried no rule of their own.
-        # After the artist rule rather than before it: the artist is the more specific of
-        # the two signals, and merge_and_sort keeps whatever is already there either way,
-        # so the order decides which of them a reader sees first and nothing else.
+        # This rule was in no song type's list before, so `rules_label_genre` was only ever
+        # consulted through InferGenreFromAlbumArtistRule -- which reads the same table
+        # keyed on a YouTube channel. Nothing read it keyed on a publisher, so an actual
+        # label release came out with no genre at all whenever its artists carried no rule
+        # of their own, and its 49 curated rows did nothing for the EPs tree.
+        # Placed before the subgenre rule so a label's genre is broadened too. Its position
+        # relative to the artist rule decides nothing: merge_and_sort_genres returns
+        # sorted(set(...)), so neither signal takes precedence over the other.
         self.rules.append(InferGenreFromLabelRule(helper=databaseHelpers['labelGenreHelper']))
         self.rules.append(InferGenreFromSubgenreRule(databaseHelpers['subgenreHelper']))
         self.rules.append(CleanTagsRule())

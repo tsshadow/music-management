@@ -105,6 +105,19 @@ class YoutubeSongTest(unittest.TestCase):
         song.parse()
         self.assertIsNone(song.original_artist())
 
+    def test_a_featured_artist_lifted_out_of_the_title_leaves_no_partial_credit(self):
+        """The whole chain, because the two halves of this sit in different rules.
+
+        InferArtistFromTitleRule offers "Deadly Guns & The Dark Horror" as the credit and
+        InferFeatureFromTitleRule then adds Miss K8 to the artist tag. A credit naming two
+        of the three would be shown *instead of* the artist list by the web player, so no
+        credit at all is the right outcome here.
+        """
+        song = self._downloaded(title='Deadly Guns & The Dark Horror - In The Pit (feat. Miss K8)')
+        song.parse()
+        self.assertEqual(song.artist(), 'Deadly Guns;The Dark Horror;Miss K8')
+        self.assertIsNone(song.original_artist())
+
     def test_a_display_artist_the_file_already_carries_survives_a_retag(self):
         """A later round re-derives the artists from the same title.
 

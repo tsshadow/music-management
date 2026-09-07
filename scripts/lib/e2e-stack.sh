@@ -132,10 +132,11 @@ e2e_stack_up() {
 
 # The label release, and the import queue folder beside it.
 #
-# `__TODO` is created empty on purpose: it is `import_folder_path`, it sits inside the
-# EPs tree, and the tagger's underscore guard is what keeps a release still waiting
-# there from having `__TODO` written into it as its publisher. An empty folder is
-# enough for that guard to be exercised rather than skipped.
+# `__TODO` is created empty because `import_folder_path` points at it and the tagger
+# walks the EPs root it sits in. Empty proves nothing about the underscore guard that
+# keeps a release still waiting there from having `__TODO` written in as its publisher
+# -- that claim belongs to services/tagger/TaggerTest.py::ImportFolderTest, which
+# asserts the dispatch directly. This only keeps the folder from being absent.
 #
 # The NFO is what carries the exact release date. The file has a bare year in its tag,
 # which is all a scene rip ever states, and `Street Date` in the NFO next to it is the

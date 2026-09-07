@@ -4,13 +4,7 @@ from difflib import SequenceMatcher, get_close_matches
 
 from services.common.Helpers.FilterTableHelper import FilterTableHelper
 from services.common.Helpers.TableHelper import TableHelper
-from services.tagger.constants import (
-    ARTIST,
-    ARTIST_REGEX_NON_CAPTURING,
-    ORIGINAL_ARTIST,
-    ORIGINAL_TITLE,
-    TITLE,
-)
+from services.tagger.constants import ARTIST, ARTIST_REGEX_NON_CAPTURING, ORIGINAL_TITLE, TITLE
 from services.tagger.Song.rules.TagRule import TagRule
 
 # "Thunderdome 2025", "Emporium 2025", "Snakepit 2024": an edition, never an artist.
@@ -42,30 +36,43 @@ def looks_like_an_event(segment: str, festival_helper=None) -> bool:
     return False
 
 
-def capture_display_artist(song, source: str | None, cleaned: list[str]) -> None:
-    """Keep the artist line as the title wrote it, before it was split into names.
+def names_in(text: str | None) -> list[str]:
+    """The artist names a written credit contains, lowercased for comparison."""
+    return [name.strip().lower() for name in extract_artists_from_string(text or '') if name.strip()]
 
-    CleanTagsRule captures this for a file whose own ARTIST tag still needed splitting.
-    A download's artists do not arrive that way: they come out of the title, and the
-    rules below hand the ARTIST tag over already split, so by the time CleanTagsRule
-    sees it there is nothing left to preserve and its `original != split` test never
-    fires. Every SoundCloud and YouTube track therefore lost its "Lil Texas & Albino"
-    and was left with the two names only -- 8 of 344757 tracks on production carried a
-    display artist.
 
-    Nothing is recorded when the split changed nothing, so a single-artist track does
-    not get a second copy of its own name, and an existing value is never overwritten:
-    a later retag re-derives the artists from the same title, and the first pass is the
-    one that saw the file as it arrived.
+def remember_display_artist(song, source: str | None, cleaned: list[str]) -> None:
+    """Offer the credit as written as this file's display artist, if it is one.
+
+    CleanTagsRule captures the artist line as written for a file whose own ARTIST tag
+    still needed splitting. A download's artists do not arrive that way: they come out
+    of the title, and the rules below hand the ARTIST tag over already split, so by the
+    time CleanTagsRule sees it there is nothing left to preserve and its
+    `original != split` test never fires. Every SoundCloud and YouTube track therefore
+    lost its "Lil Texas & Albino" -- 8 of 344757 tracks on production carried a display
+    artist.
+
+    Only a credit that *is* the artist list, spelled differently, is offered. The text a
+    name was read out of is not automatically a credit worth showing: `set_cleaned_artist`
+    below strips bracketed annotations and trailing words like "live", and the fuzzy
+    branches of the single-dash rule keep only the candidates that matched a known
+    artist. Recording the raw segment in those cases would put "Angerfist (live)" or a
+    name the library deliberately rejected on the track as its credit -- and consumers
+    prefer the display artist over the artist list, so that credit is what a reader sees.
+
+    So this only remembers, and only when the segment splits to exactly the names that
+    came out of it. `CaptureDisplayArtistRule` decides afterwards whether to write it,
+    because the rules that follow this one can still add artists the credit does not
+    name.
     """
     if not source:
         return
     source = source.strip()
     if not source or source == ';'.join(cleaned):
         return
-    if song.tag_collection.has_item(ORIGINAL_ARTIST):
+    if names_in(source) != [name.lower() for name in cleaned]:
         return
-    song.tag_collection.set_item(ORIGINAL_ARTIST, source)
+    song.display_artist_candidate = source
 
 
 def set_cleaned_artist(song, library_artists: str | list[str], artist_db=None, source: str | None = None) -> bool:
@@ -110,7 +117,7 @@ def set_cleaned_artist(song, library_artists: str | list[str], artist_db=None, s
     if not cleaned:
         return False
     song.tag_collection.set_item(ARTIST, ';'.join(cleaned))
-    capture_display_artist(song, source, cleaned)
+    remember_display_artist(song, source, cleaned)
     return True
 
 

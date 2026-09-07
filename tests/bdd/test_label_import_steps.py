@@ -178,6 +178,9 @@ def _label_is_on_the_track(manager, api_key, context):
 
 @then('both artists are in the library as names of their own')
 def _artists_are_split(manager, api_key, context):
+    # The first artist is also the track's primary one, which is the only per-track
+    # artist any endpoint serves -- /api/library/tracks joins primary_artist_id alone.
+    assert context['track'].get('artist') == 'Lil Texas', context['track']
     for name in ('Lil Texas', 'Albino'):
         response = requests.get(
             f'{manager}/api/curation/artists/{name}', headers={'x-api-key': api_key}, timeout=TIMEOUT
@@ -185,7 +188,16 @@ def _artists_are_split(manager, api_key, context):
         assert response.status_code == 200, response.text
         body = response.json()
         assert body.get('in_library'), f'{name!r} never became an artist of its own: {body!r}'
-        assert body.get('track_count', 0) >= 1, f'{name!r} exists but nothing is attached to it: {body!r}'
+        # Exactly one, not "at least one": this database holds two tracks and only the
+        # release carries either name, so an exact count is what ties the artist to
+        # *this* file rather than to anything that happens to be in the library.
+        assert body.get('track_count') == 1, f'{name!r} is not attached to the release alone: {body!r}'
+    # The name the tag held before it was split must not survive as an artist of its own.
+    unsplit = requests.get(
+        f'{manager}/api/curation/artists/Lil Texas %26 Albino', headers={'x-api-key': api_key}, timeout=TIMEOUT
+    )
+    assert unsplit.status_code == 200, unsplit.text
+    assert unsplit.json().get('track_count', 0) == 0, unsplit.json()
 
 
 @then('the artist line as the file wrote it is kept as the display artist')

@@ -1,10 +1,10 @@
 import unittest
 from unittest.mock import MagicMock
 
-from services.tagger.constants import ARTIST, ORIGINAL_ARTIST, ORIGINAL_TITLE, TITLE
+from services.tagger.constants import ARTIST, ORIGINAL_TITLE, TITLE
 from services.tagger.Song.rules.InferArtistFromTitleRule import (
     InferArtistFromTitleRule,
-    capture_display_artist,
+    set_cleaned_artist,
 )
 
 
@@ -326,42 +326,69 @@ class InferArtistFromEventPrefixRuleTest(unittest.TestCase):
         self.song.tag_collection.set_item.assert_any_call(TITLE, 'Emporium 2025')
 
 
-class DisplayArtistCaptureTest(unittest.TestCase):
-    """What the split throws away, and when keeping it is worth a tag.
+class DisplayArtistCandidateTest(unittest.TestCase):
+    """Which written credit is worth keeping, and which is only the text a name came from.
 
-    The rules above hand the ARTIST tag over already split, so CleanTagsRule -- which
-    is what records a display artist for a file whose own tag still needed splitting --
-    finds nothing to preserve on a download. These tests pin the one place a download's
-    display artist can still be captured: the raw segment the names were read out of.
+    Everything here goes through `set_cleaned_artist`, not through the helper it calls:
+    the helper on its own cannot show that the rules actually offer it anything, nor that
+    they offer it the right segment.
+
+    The candidate is only remembered here. Whether it is written to the file is
+    CaptureDisplayArtistRuleTest's subject -- the rules that run after these can still
+    add an artist the credit does not name.
     """
 
     def setUp(self):
         self.song = MagicMock()
-        self.song.tag_collection.has_item.return_value = False
+        self.song.display_artist_candidate = None
+        self.artist_db = MagicMock()
+        self.artist_db.get_all_values.return_value = ['Angerfist', 'Miss K8']
 
-    def _captured(self):
-        calls = [
-            call.args[1]
-            for call in self.song.tag_collection.set_item.call_args_list
-            if call.args and call.args[0] == ORIGINAL_ARTIST
-        ]
-        return calls[0] if calls else None
+    def remembered(self, names, source):
+        set_cleaned_artist(self.song, names, self.artist_db, source=source)
+        return self.song.display_artist_candidate
 
-    def test_the_segment_the_names_came_from_is_recorded(self):
-        capture_display_artist(self.song, 'Lil Texas & Albino', ['Lil Texas', 'Albino'])
-        self.assertEqual('Lil Texas & Albino', self._captured())
+    def test_a_credit_that_is_the_artist_list_spelled_differently_is_remembered(self):
+        self.assertEqual(
+            'Angerfist & Miss K8',
+            self.remembered(['Angerfist', 'Miss K8'], 'Angerfist & Miss K8'),
+        )
 
-    def test_a_segment_the_split_left_alone_is_not_recorded(self):
-        """One artist, so the tag already says everything the display artist would."""
-        capture_display_artist(self.song, 'Lil Texas', ['Lil Texas'])
-        self.assertIsNone(self._captured())
+    def test_a_single_artist_is_not_given_a_second_copy_of_its_own_name(self):
+        self.assertIsNone(self.remembered(['Angerfist'], 'Angerfist'))
 
-    def test_a_value_already_on_the_file_is_not_overwritten(self):
-        """A retag re-derives the artists; the first pass saw the file as it arrived."""
-        self.song.tag_collection.has_item.return_value = True
-        capture_display_artist(self.song, 'Lil Texas & Albino', ['Lil Texas', 'Albino'])
-        self.assertIsNone(self._captured())
+    def test_a_rule_that_knows_no_raw_segment_remembers_nothing(self):
+        self.assertIsNone(self.remembered(['Angerfist', 'Miss K8'], None))
 
-    def test_a_rule_that_knows_no_raw_segment_records_nothing(self):
-        capture_display_artist(self.song, None, ['Lil Texas', 'Albino'])
-        self.assertIsNone(self._captured())
+    def test_a_name_the_library_rejected_is_not_kept_as_a_credit(self):
+        """The fuzzy branches keep only the candidates that matched a known artist.
+
+        `Angerfist & Nobody` yields one artist, so writing the whole segment would put a
+        credit on the track for someone the library deliberately refused -- and the web
+        player shows the display artist in preference to the artist list.
+        """
+        self.assertIsNone(self.remembered(['Angerfist'], 'Angerfist & Nobody'))
+
+    def test_an_annotation_stripped_off_a_name_does_not_come_back_as_the_credit(self):
+        """`set_cleaned_artist` drops bracketed text and trailing words like "live"."""
+        self.assertIsNone(self.remembered(['Angerfist'], 'Angerfist (live)'))
+        self.assertIsNone(self.remembered(['Angerfist'], 'Angerfist live'))
+
+    def test_the_segment_the_multi_dash_rule_picked_is_the_one_offered(self):
+        """End to end through the rule, so a swapped argument would show up here."""
+        song = MagicMock()
+        song.display_artist_candidate = None
+        song.path = lambda: '/tmp/youtube/Q-dance/track.mp3'
+        song.tag_collection.has_item.return_value = False
+        title = 'Defqon.1 2025 - Angerfist & Miss K8 - Raise Your Fist'
+        song.tag_collection.get_item_as_string.side_effect = lambda key: {
+            ARTIST: '',
+            TITLE: title,
+            ORIGINAL_TITLE: title,
+        }[key]
+        genres = MagicMock()
+        genres.get_all.return_value = []
+        ignored = MagicMock()
+        ignored.get_all.return_value = []
+        InferArtistFromTitleRule(artist_db=self.artist_db, genre_db=genres, ignored_db=ignored).apply(song)
+        self.assertEqual('Angerfist & Miss K8', song.display_artist_candidate)

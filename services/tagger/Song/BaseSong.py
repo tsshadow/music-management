@@ -79,6 +79,10 @@ class BaseSong:
             path (str): Path to the audio file.
         """
         self.rules: list[TagRule] = []
+        #: The artist credit as a download's title stated it, offered by
+        #: InferArtistFromTitleRule and written -- or discarded -- by
+        #: CaptureDisplayArtistRule once the artist list has settled.
+        self.display_artist_candidate: str | None = None
         paths = path.rsplit(s.delimiter, 2)
         self._path: str = path
         self._filename = str(paths[-1])

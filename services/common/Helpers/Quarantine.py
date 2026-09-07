@@ -85,6 +85,35 @@ def retention_days() -> int:
     return days if days > 0 else 30
 
 
+#: The marker LMS honours to stop exploring a directory, from its own scanner:
+#: `ScannerSettings.hpp` names it and `ScanStepScanFiles.cpp::exploreFilesRecursive`
+#: returns the moment it finds one.
+LMSIGNORE = '.lmsignore'
+
+
+def _mark_root(base: str) -> None:
+    """Tell LMS to stay out of the quarantine.
+
+    Without this the whole idea leaks: the fallback root is `.quarantine` beside the
+    music root, LMS's library points at that same tree, and its scanner has no rule for
+    hidden directories -- it recurses everything and only stops at this marker. A parked
+    duplicate release would therefore come straight back as LMS tracks, which is exactly
+    the decision the importer had just made against. muma's own scanner prunes dot
+    directories instead; the two indexers need different answers because they read the
+    tree differently.
+    """
+    marker = os.path.join(base, LMSIGNORE)
+    if os.path.exists(marker):
+        return
+    try:
+        with open(marker, 'w', encoding='utf-8') as handle:
+            handle.write(
+                "# Parked by MuMa's importer, not library content. See services/common/Helpers/Quarantine.py\n"
+            )
+    except OSError as e:
+        logging.warning('Could not write %s; LMS may index the quarantine: %s', marker, e)
+
+
 def _destination(category: str, name: str) -> str | None:
     base = root()
     if not base:
@@ -92,6 +121,7 @@ def _destination(category: str, name: str) -> str | None:
         return None
     folder = os.path.join(base, date.today().strftime(_DAY_FORMAT), category)
     os.makedirs(folder, exist_ok=True)
+    _mark_root(base)
     target = os.path.join(folder, name)
     if not os.path.exists(target):
         return target

@@ -7,6 +7,7 @@ from services.tagger.Song.rules.AddMissingArtistToDatabaseRule import AddMissing
 from services.tagger.Song.rules.CheckArtistRule import CheckArtistRule
 from services.tagger.Song.rules.CleanTagsRule import CleanTagsRule
 from services.tagger.Song.rules.InferGenreFromArtistRule import InferGenreFromArtistRule
+from services.tagger.Song.rules.InferGenreFromLabelRule import InferGenreFromLabelRule
 from services.tagger.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
 from services.tagger.Song.rules.InferReleaseDateFromNfoRule import InferReleaseDateFromNfoRule
 from services.tagger.Song.rules.InferRemixerFromTitleRule import InferRemixerFromTitleRule
@@ -38,6 +39,14 @@ class LabelSong(BaseSong):
         )
         self.rules.append(CleanTagsRule())
         self.rules.append(InferGenreFromArtistRule(helper=databaseHelpers['artistGenreHelper']))
+        # The publisher this class just wrote from the path, read back as a genre signal.
+        # This rule ran nowhere at all before: `rules_label_genre` held 49 curated rows
+        # that no song type consulted, so a release on a single-genre label came out with
+        # no genre whatsoever whenever its artists carried no rule of their own.
+        # After the artist rule rather than before it: the artist is the more specific of
+        # the two signals, and merge_and_sort keeps whatever is already there either way,
+        # so the order decides which of them a reader sees first and nothing else.
+        self.rules.append(InferGenreFromLabelRule(helper=databaseHelpers['labelGenreHelper']))
         self.rules.append(InferGenreFromSubgenreRule(databaseHelpers['subgenreHelper']))
         self.rules.append(CleanTagsRule())
         self.rules.append(

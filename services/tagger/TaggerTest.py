@@ -72,6 +72,21 @@ class ImportFolderTest(TaggerTestCase):
         types = [call.args[1] for call in parse_folder.call_args_list]
         self.assertEqual([SongTypeEnum.LABEL], types)
 
+    def test_a_missing_eps_root_is_skipped_rather_than_thrown(self):
+        """A share that has not mounted yet must not take the tagger loop with it.
+
+        `iterdir` on a path that is not there raises, and nothing between here and
+        `run_tagger_loop` catches it -- so one unmounted volume ended the background
+        round for the lifetime of the process, and /health reported the whole service
+        degraded because of it.
+        """
+        self.settings.eps_folder_path = str(self.root / 'not-mounted')
+
+        with patch.object(self.tagger, 'parse_folder') as parse_folder:
+            self.tagger._parse_label_folders()
+
+        parse_folder.assert_not_called()
+
     def test_the_single_file_path_agrees_with_the_folder_scan(self):
         """Two independent decisions, one rule. They drifted apart once already."""
         song = self.make_song(self.eps / '__TODO' / 'Some Release')

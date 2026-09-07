@@ -18,6 +18,20 @@ end-to-end tests (see `docs/testing-inventory.md` and the test plan, Task 4 / Ph
   contract and e2e tests should assert against these fields individually so an
   unrelated extra property in a response never breaks the test (see plan 4.2).
 
+## `music/ci-test-ep-001.mp3`
+
+- The same generated tone, retagged as a label release: title `Gabber Cowboy`, one
+  artist tag holding two names (`Lil Texas & Albino`), album and year, and
+  deliberately **no genre and no publisher**.
+- What it is for: `tests/bdd/features/label_import.feature` places it at
+  `<eps root>/Texcore/TEX001 - Lil_Texas_and_Albino_-_Gabber_Cowboy-WEB-2026-SRG/`
+  with a scene NFO beside it. Everything the label chain should add — the label, the
+  catalogue number, the split artists, the display artist, the genres — is therefore
+  absent from the file itself, so a field turning up in the library proves a rule ran
+  rather than a tag being copied across.
+- Expected values in `expected/ci-test-ep-001.json`, including what the chain should
+  make of it after tagging.
+
 ## Regenerating or adding fixtures
 
 Use the same approach for any additional fixture: short (a few seconds),

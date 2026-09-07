@@ -1,8 +1,11 @@
 import unittest
 from unittest.mock import MagicMock
 
-from services.tagger.constants import ARTIST, ORIGINAL_TITLE, TITLE
-from services.tagger.Song.rules.InferArtistFromTitleRule import InferArtistFromTitleRule
+from services.tagger.constants import ARTIST, ORIGINAL_ARTIST, ORIGINAL_TITLE, TITLE
+from services.tagger.Song.rules.InferArtistFromTitleRule import (
+    InferArtistFromTitleRule,
+    capture_display_artist,
+)
 
 
 class InferArtistFromTitleRuleTest(unittest.TestCase):
@@ -321,3 +324,44 @@ class InferArtistFromEventPrefixRuleTest(unittest.TestCase):
         self._apply_rule('D-Fence - Emporium 2025')
         self.song.tag_collection.set_item.assert_any_call(ARTIST, 'D-Fence')
         self.song.tag_collection.set_item.assert_any_call(TITLE, 'Emporium 2025')
+
+
+class DisplayArtistCaptureTest(unittest.TestCase):
+    """What the split throws away, and when keeping it is worth a tag.
+
+    The rules above hand the ARTIST tag over already split, so CleanTagsRule -- which
+    is what records a display artist for a file whose own tag still needed splitting --
+    finds nothing to preserve on a download. These tests pin the one place a download's
+    display artist can still be captured: the raw segment the names were read out of.
+    """
+
+    def setUp(self):
+        self.song = MagicMock()
+        self.song.tag_collection.has_item.return_value = False
+
+    def _captured(self):
+        calls = [
+            call.args[1]
+            for call in self.song.tag_collection.set_item.call_args_list
+            if call.args and call.args[0] == ORIGINAL_ARTIST
+        ]
+        return calls[0] if calls else None
+
+    def test_the_segment_the_names_came_from_is_recorded(self):
+        capture_display_artist(self.song, 'Lil Texas & Albino', ['Lil Texas', 'Albino'])
+        self.assertEqual('Lil Texas & Albino', self._captured())
+
+    def test_a_segment_the_split_left_alone_is_not_recorded(self):
+        """One artist, so the tag already says everything the display artist would."""
+        capture_display_artist(self.song, 'Lil Texas', ['Lil Texas'])
+        self.assertIsNone(self._captured())
+
+    def test_a_value_already_on_the_file_is_not_overwritten(self):
+        """A retag re-derives the artists; the first pass saw the file as it arrived."""
+        self.song.tag_collection.has_item.return_value = True
+        capture_display_artist(self.song, 'Lil Texas & Albino', ['Lil Texas', 'Albino'])
+        self.assertIsNone(self._captured())
+
+    def test_a_rule_that_knows_no_raw_segment_records_nothing(self):
+        capture_display_artist(self.song, None, ['Lil Texas', 'Albino'])
+        self.assertIsNone(self._captured())

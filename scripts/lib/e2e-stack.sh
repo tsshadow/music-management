@@ -31,6 +31,17 @@ E2E_STACK_FIXTURE_DIR="/music/Top 100"
 MUMA_TEST_FIXTURE_DIR="/mnt/music/Top 100"
 export MUMA_TEST_FIXTURE_DIR
 
+# The second fixture: a label release, in the three-level shape the label chain reads
+# its publisher and catalogue number out of -- <eps root>/<label>/<cat id - release>/.
+# It carries no genre and no publisher of its own, so everything the library ends up
+# knowing about it came from a rule rather than from a tag. See tests/fixtures/README.md
+# and tests/bdd/features/label_import.feature.
+E2E_STACK_EP_FIXTURE="$E2E_STACK_ROOT/tests/fixtures/music/ci-test-ep-001.mp3"
+E2E_STACK_EP_RELEASE="TEX001 - Lil_Texas_and_Albino_-_Gabber_Cowboy-WEB-2026-SRG"
+E2E_STACK_EP_DIR="/music/EPs/Texcore/$E2E_STACK_EP_RELEASE"
+MUMA_TEST_EP_PATH="/mnt/music/EPs/Texcore/$E2E_STACK_EP_RELEASE/01-gabber_cowboy.mp3"
+export MUMA_TEST_EP_PATH
+
 # Picking a free port rather than a fixed one is what keeps two pipelines from
 # killing each other's run; see docs/testing-inventory.md and the backend:integration
 # collision it is modelled on.
@@ -113,8 +124,48 @@ e2e_stack_up() {
     docker exec -u 0 "$lms_cid" mkdir -p "$E2E_STACK_FIXTURE_DIR"
     docker cp "$E2E_STACK_FIXTURE" "$lms_cid":"$E2E_STACK_FIXTURE_DIR/ci-test-track-001.mp3"
 
+    e2e_stack_place_release "$lms_cid"
+    e2e_stack_seed_curation
     e2e_stack_tag_fixture
     e2e_stack_scan_lms
+}
+
+# The label release, and the import queue folder beside it.
+#
+# `__TODO` is created empty on purpose: it is `import_folder_path`, it sits inside the
+# EPs tree, and the tagger's underscore guard is what keeps a release still waiting
+# there from having `__TODO` written into it as its publisher. An empty folder is
+# enough for that guard to be exercised rather than skipped.
+#
+# The NFO is what carries the exact release date. The file has a bare year in its tag,
+# which is all a scene rip ever states, and `Street Date` in the NFO next to it is the
+# only place the day is written down.
+e2e_stack_place_release() {
+    local lms_cid="$1"
+    echo "--- Placing the label release fixture under the EPs tree ---"
+    docker exec -u 0 "$lms_cid" mkdir -p "$E2E_STACK_EP_DIR" /music/EPs/__TODO
+    docker cp "$E2E_STACK_EP_FIXTURE" "$lms_cid":"$E2E_STACK_EP_DIR/01-gabber_cowboy.mp3"
+    docker exec -u 0 "$lms_cid" sh -c \
+        "printf '%s\n' '  Street Date ......: 10-09-2026' '  Rip Date .........: 08-09-2026' > '$E2E_STACK_EP_DIR/00-release.nfo'"
+}
+
+# Two decided genres, so the scenario has something to point its rules at.
+#
+# Written in SQL rather than over the API because there is no way to create a genre
+# over the API at all: a row only enters `rules_genres` when the tagger meets the name
+# in a file and files it as unknown (ResolveGenreRule.record_unknown), and the release
+# fixture deliberately carries no genre tag -- that is the whole point of it. The
+# decision itself is what the scenario would otherwise have to fake; everything the
+# feature actually asserts is written and read over HTTP.
+e2e_stack_seed_curation() {
+    echo "--- Seeding two decided genres for the label-import feature ---"
+    local db_cid
+    db_cid=$($E2E_STACK_COMPOSE ps -q test-db)
+    docker exec -i "$db_cid" mariadb -uroot -ptest-root-password muma_test <<'SQL'
+INSERT IGNORE INTO rules_genres (name, normalized_name, state, decided_by, decided_at)
+VALUES ('Uptempo Hardcore', 'uptempo hardcore', 'white', 'e2e-seed', NOW()),
+       ('Hardcore', 'hardcore', 'white', 'e2e-seed', NOW());
+SQL
 }
 
 # The tagger, before anything indexes the file, because it rewrites it.

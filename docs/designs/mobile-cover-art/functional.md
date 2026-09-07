@@ -11,8 +11,8 @@ Deze feature geeft elke bladerbare ingang een cover. Waar geen bestaande afbeeld
 een festival, een stage — genereert de app er zelf een uit de naam. Zo bedient één beeldsysteem web,
 telefoon en auto, en is de kleur van Hardstyle overal dezelfde.
 
-De feature valt uiteen in vijf stappen die los uitgeleverd worden. Stap 2 is in 0.51.0 geleverd; de
-rest is nog niet gebouwd.
+De feature valt uiteen in vijf stappen die los uitgeleverd worden. Stap 1, 2 en 3 zijn geleverd;
+stap 4 (de telefoon-strips) en stap 5 (echte festivalbeelden) staan nog open.
 
 ## User Stories
 
@@ -36,8 +36,11 @@ rest is nog niet gebouwd.
 | Gebruiker opent in de auto het hoofdmenu | Blijft een lijst: die ingangen dragen een menu-icoon, geen cover art |
 | Gebruiker opent een tracklijst of een set | Blijft een lijst, ook als elke track een cover heeft |
 | Een albumpagina bevat een "Meer"-ingang zonder eigen beeld | De pagina blijft een raster; die ene ingang trekt hem niet terug naar een lijst |
-| Gebruiker opent een genre zonder afbeelding (stap 1, nog niet gebouwd) | De app tekent zelf een cover uit genrenaam en -kleur |
-| Een artiest heeft geen portret (stap 1, nog niet gebouwd) | De cover valt terug op het genre-ontwerp met de initialen als woordmerk |
+| Gebruiker opent een genre-niveau in de auto | Elk genre draagt een cover die de app zelf tekent uit naam en kleur; het niveau wordt daardoor een raster |
+| Een artiest heeft geen portret | De cover valt terug op initialen op de kleur van diens genre; de artiestenlijst blijft daardoor een raster |
+| Een artiest heeft wél een portret | Het portret wint; er wordt niets overheen getekend |
+| MuMa is onbereikbaar terwijl de auto bladert | De covers houden de kleuren die het laatst opgehaald zijn; is er nog niets opgehaald, dan de neutrale kleur |
+| Een genre dat MuMa niet kent (nieuw in een tag) | Neutrale kleur, geen lege tegel |
 
 ## Acceptance Criteria
 
@@ -48,15 +51,17 @@ rest is nog niet gebouwd.
 5. Tracks en sets blijven een lijst, ongeacht hun cover.
 6. Geen enkel niveau in de auto laat de indeling over aan de standaard van de auto; elk niveau zegt
    zelf wat het wil zijn.
-7. Dezelfde genrenaam levert op web en in de app dezelfde kleur op (stap 1, nog niet gebouwd).
+7. Dezelfde genrenaam levert op web en in de app dezelfde kleur op.
+8. Een genre in de web UI draagt de kleur die MuMa stuurt; een genre dat MuMa niet kent houdt de
+   brand-kleur die de kaart altijd al had.
 
 ## Open Questions / Not Yet Decided
 
-- Waar komt de gedeelde genre-kleur vandaan: meegestuurd door de server naast de genrenaam, of in
-  beide clients gedupliceerd? Voorstel is de server, zodat de clients hem niet hoeven te kennen.
-  Nog niet besloten.
 - Voor welke festivals bestaat werkelijk bruikbaar beeldmateriaal, en mag dat gebruikt worden? Zolang
   dat niet vaststaat is de gegenereerde cover het eindproduct, niet een tussenstap.
+- Krijgen playlists en tegels ook een getekende cover? Op dit moment niet: er is geen
+  cover-familie voor "een playlist" en er een verzinnen zou het raster vullen met tegels die niets
+  zeggen. Hun niveau blijft een lijst.
 - Of het hoofdmenu in de auto een categorie-raster met eigen iconen moet worden. Dat vereist iconen
   die als tegel leesbaar zijn; de huidige monochrome vectoren zijn dat niet.
 

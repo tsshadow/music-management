@@ -195,6 +195,16 @@
             android:exported="true"
             tools:ignore="ExportedContentProvider" />
 
+        <!-- The covers the app draws itself, for genres, festivals and artists that have none.
+             Exported for the same reason as the album art above: Android Auto reads artwork from
+             its own process. It serves nothing but rendered PNGs, and refuses any URI it did not
+             build. -->
+        <provider
+            android:name=".provider.GeneratedArtContentProvider"
+            android:authorities="${applicationId}.provider.GeneratedArtContentProvider"
+            android:exported="true"
+            tools:ignore="ExportedContentProvider" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

@@ -4,20 +4,38 @@ Implementeert [`functional.md`](functional.md).
 
 ## Data Model
 
-Geen schemawijziging voor stap 2. Stap 1 voegt een kleur toe naast de genrenaam in het
-API-antwoord; die is afgeleid en wordt niet opgeslagen.
+Geen schemawijziging. De tint is afgeleid van de genrenaam en wordt niet opgeslagen: hem bewaren
+zou een tweede waarheid opleveren die kan verlopen ten opzichte van de afleiding.
 
 ## API Contract
 
-Stap 2 raakt geen enkele endpoint: het verkeer loopt tussen de app en Android Auto, over de
-media3-sessie.
-
 | Endpoint | Request | Response | Error cases |
 |---|---|---|---|
-| n.v.t. voor stap 2 | | | |
+| `GET /api/library/genres` | geen | rijen `{genre, state, count, tint}` | 401 zonder API-key; 500 als de database onbereikbaar is |
 
-Voor stap 1 (nog niet gebouwd) is het voorstel om de tint mee te sturen op de bestaande
-genre-endpoints, als extra veld naast de naam. Dat is additief en dus niet breaking.
+`tint` is nieuw en additief: een `#rrggbb`-string naast de bestaande velden. Bestaande consumers
+negeren het veld; geen breaking change.
+
+De kleur komt uit `services/music_manager/genre_tint.py`. De genres die deze collectie dragen staan
+in een korte tabel — Hardstyle verdient het oranje van de festivals waar het vandaan komt, en dat is
+geen hash-uitkomst. Alles daarbuiten wordt uit de naam afgeleid met blake2b (níet `hash()`: CPython
+zout string-hashing per proces, dus dezelfde genre zou na elke herstart een andere kleur krijgen).
+Verzadiging en helderheid liggen vast, zodat de genrenaam in bijna-zwart over de tint leesbaar
+blijft, welke tint er ook uitkomt.
+
+### Wie leest hem
+
+- **Web UI** — `src/lib/genreTints.js` haalt de lijst één keer op en plakt de tint op de
+  genre-items die van Subsonic's `getGenres` komen. `getGenres` kent geen kleur; deze join is de
+  reden dat de web UI de kleur niet zelf hoeft te kennen.
+- **App** — `MumaAPIDefinition.getLibraryGenres()`, gecachet door `GenreTintCache` (een uur). De
+  media browser antwoordt op de deadline van de beller, dus een netwerkcall per bladerniveau zou
+  een lijst laten wachten waar iemand naar kijkt. Een mislukte fetch behoudt wat er al was: de auto
+  is precies de plek waar MuMa het minst bereikbaar is, en een leeg raster is erger dan een oud.
+
+Geen van beide clients heeft een eigen tabel. Dat is het hele punt: Hardstyle oranje in het ene en
+magenta in het andere is onzichtbaar tot beide naast elkaar openstaan, en van geen van beide kanten
+te testen.
 
 ## Hoe Android Auto een niveau tekent
 
@@ -93,13 +111,19 @@ Gedekt door `ContentStyleTest` en `SearchableRootParamsTest` in
 
 ## Nog te bouwen
 
-| Stap | Wat | Waarom in deze volgorde |
+| Stap | Wat | Status |
 |---|---|---|
-| 1 | `GenrePalette` + een renderer die een cover tekent uit naam, type en tint; tint vanuit de server | Zonder gedeelde kleurbron lopen web en app uit elkaar |
-| 2 | Content-style hints (**geleverd, 0.51.0**) | Zonder de hint is de gerenderde cover in de auto onzichtbaar |
-| 3 | Artwork-URI meegeven bij bladerbare items in `MediaLibraryBrowser` | Vult het raster dat stap 2 opent |
-| 4 | Home-strips op de telefoon cover-first maken, zoals de web UI | Meeste werk, profiteert van 1 t/m 3 |
-| 5 | Echte festivalbeelden koppelen waar die er zijn en gebruikt mogen worden | Optioneel; de gegenereerde cover is al af |
+| 1 | Tint per genre vanaf de server; renderer die een cover tekent uit naam, soort en tint | **Geleverd** |
+| 2 | Content-style hints | **Geleverd** |
+| 3 | Artwork-URI bij bladerbare items in `MediaLibraryBrowser` | **Geleverd** voor genres en artiesten |
+| 4 | Home-strips op de telefoon cover-first maken, zoals de web UI | Open |
+| 5 | Echte festivalbeelden koppelen waar die er zijn en gebruikt mogen worden | Open |
+
+Wat stap 3 bewust niet raakt: **playlists en tegels**. Die zijn bladerbaar en hebben geen beeld, dus
+hun niveau blijft een lijst. Een vierde cover-familie voor "een playlist" bestaat niet in het
+ontwerp, en er een verzinnen om het raster te vullen zou de lijst vervangen door tegels zonder
+betekenis. De festival-familie is wél gebouwd en getest, maar er is nog geen bladerniveau in de auto
+dat festivals toont — die komt met stap 5.
 
 ## Related Docs
 

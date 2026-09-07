@@ -131,6 +131,18 @@ class LibraryGenresTest(RouterTestCase):
         self.assertEqual(response.json()[0]['genre'], 'Hardcore')
         self.assertIn("state <> 'black'", self.statements()[0])
 
+    def test_every_genre_carries_the_colour_its_tile_is_drawn_in(self):
+        # The web UI and the app both draw a genre as a coloured tile. The colour comes from here
+        # so neither of them owns a table that can drift away from the other.
+        self.cursor.fetchall.return_value = [{'genre': 'Hardstyle', 'state': 'white', 'count': 3}]
+        response = self.client.get('/api/library/genres', headers=self.headers)
+        self.assertEqual(response.json()[0]['tint'], '#ff4d00')
+
+    def test_a_genre_row_without_a_name_still_gets_a_colour(self):
+        self.cursor.fetchall.return_value = [{'genre': None, 'state': 'white', 'count': 1}]
+        response = self.client.get('/api/library/genres', headers=self.headers)
+        self.assertRegex(response.json()[0]['tint'], r'^#[0-9a-f]{6}$')
+
 
 class RerunParseTest(RouterTestCase):
     module = library_router

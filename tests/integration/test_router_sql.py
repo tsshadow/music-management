@@ -474,7 +474,7 @@ class LibraryReadsTest:
 
     def test_the_genre_sidebar_counts_tracks(self, api, headers, a_track):
         genres = api.get('/api/library/genres', headers=headers).json()
-        assert genres == [{'genre': 'Hardcore', 'state': 'white', 'count': 1}]
+        assert genres == [{'genre': 'Hardcore', 'state': 'white', 'count': 1, 'tint': '#e5002b'}]
 
     def test_rerunning_a_parse_for_an_unknown_track_is_a_not_found(self, api, headers, db):
         assert api.post('/api/library/tracks/999/rerun-parse', headers=headers).status_code == 404

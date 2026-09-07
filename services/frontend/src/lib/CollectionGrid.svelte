@@ -109,7 +109,14 @@
             </svg>
           </button>
         {/if}
-        <div class="w-16 h-16 rounded-full bg-brand flex items-center justify-center text-black mb-2 shadow-lg">
+        <!-- The colour is MuMa's, sent alongside the genre so the app draws the same one.
+             Without it the mark keeps the brand accent it always had. An inline style rather
+             than a class: the value is a hex from the server, and Tailwind can only compile
+             classes it can see. -->
+        <div
+          class="w-16 h-16 rounded-full flex items-center justify-center text-black mb-2 shadow-lg {item.tint ? '' : 'bg-brand'}"
+          style={item.tint ? `background-color: ${item.tint}` : undefined}
+        >
           <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
             <path d={card.icon}></path>
           </svg>

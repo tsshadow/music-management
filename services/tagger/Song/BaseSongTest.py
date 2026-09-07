@@ -257,22 +257,31 @@ class BaseSongLoadingTest(unittest.TestCase):
 
         self.assertEqual(song.title(), 'Raise Your Fist')
 
-    def test_an_unreadable_m4a_is_deleted_and_logged(self):
+    def test_an_unreadable_m4a_is_quarantined_and_logged(self):
+        """It used to be deleted outright.
+
+        "mutagen cannot read this" is not "there is no audio in here": a truncated
+        download and a container mutagen has no parser for look identical from here, and
+        only one of the two is worth throwing away.
+        """
         with (
             patch('services.tagger.Song.BaseSong.MP4', side_effect=MP4StreamInfoError('broken')),
+            patch.object(BaseSong_module.Quarantine, 'put', return_value='/q/test.m4a') as put,
             patch('services.tagger.Song.BaseSong.os.remove') as remove,
             patch('services.tagger.Song.BaseSong.log_broken_file') as log_broken,
         ):
             song = BaseSong('some/path/test.m4a')
 
-        remove.assert_called_once_with('some/path/test.m4a')
+        put.assert_called_once_with('some/path/test.m4a', BaseSong_module.Quarantine.UNREADABLE_FILE)
+        remove.assert_not_called()
         log_broken.assert_called_once_with('some/path/test.m4a')
         self.assertFalse(hasattr(song, 'tag_collection'))
 
-    def test_an_unreadable_m4a_that_cannot_be_deleted_does_not_break_the_load(self):
+    def test_an_unreadable_m4a_that_cannot_be_quarantined_does_not_break_the_load(self):
+        """A read-only volume: the file stays, unreadable, and the load still returns."""
         with (
             patch('services.tagger.Song.BaseSong.MP4', side_effect=MP4StreamInfoError('broken')),
-            patch('services.tagger.Song.BaseSong.os.remove', side_effect=OSError('read-only')),
+            patch.object(BaseSong_module.Quarantine, 'put', return_value=None),
         ):
             song = BaseSong('some/path/test.m4a')
 

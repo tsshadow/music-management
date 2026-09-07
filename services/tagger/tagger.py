@@ -10,6 +10,7 @@ from services.common.Helpers.BrokenSongHelper import BrokenSongHelper
 from services.common.Helpers.Cache import reload as reload_rule_caches
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
+from services.tagger import ingestion
 from services.tagger.constants import SongTypeEnum
 from services.tagger.Song.BaseSong import ExtensionNotSupportedException
 from services.tagger.Song.GenericSong import GenericSong
@@ -225,6 +226,10 @@ class Tagger:
         elif song_type == SongTypeEnum.GENERIC:
             song = GenericSong(str(path))
         if song:
+            # Before parse(), which is where the rules run and the tags stop being what the
+            # file arrived with. INSERT IGNORE inside, so this is a no-op on every pass
+            # after the first and never overwrites an earlier, truer answer.
+            ingestion.record(song, song_type.name)
             song.parse()
             if manual_tags:
                 for tag, value in manual_tags.items():

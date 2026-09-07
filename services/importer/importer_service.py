@@ -5,6 +5,7 @@ import signal
 from time import sleep
 
 from services.common.config_store import ConfigStore as Settings
+from services.common.Helpers import Quarantine
 from services.common.Helpers.logging_setup import setup_logging
 from services.common.step import Step
 from services.importer.extractor import Extractor
@@ -77,6 +78,14 @@ class ImporterService:
         for step in self.steps:
             logging.info('Running step: %s', step.name)
             step.run(self.steps, dry_run=self.dry_run)
+        # The steps above no longer delete what they discard, they park it. Something has
+        # to take it away again or the quarantine becomes the thing that fills the disk,
+        # which is the failure it exists to prevent. Here rather than on a timer of its
+        # own, so it runs on the same schedule as the thing that fills it.
+        if not self.dry_run:
+            swept = Quarantine.sweep()
+            if swept:
+                logging.info('Swept %d expired quarantine folder(s)', swept)
         logging.info('Importer pipeline completed.')
 
 

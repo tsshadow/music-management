@@ -18,11 +18,18 @@ class ExtractorTest(unittest.TestCase):
         self.extractor = Extractor()
 
     def run_with(self, entries, dry_run=False, extract_side_effect=None, remove_side_effect=None):
+        """`remove` is the quarantine call: a successful extract parks the archive.
+
+        It used to be `os.remove`. The archive is the only pristine copy of a label
+        release there will ever be, and extraction succeeding says nothing about the
+        release surviving the renamer and the mover -- so it is moved aside for the
+        retention window instead of deleted on the spot.
+        """
         with (
             patch.object(extractor, 'listdir', return_value=entries),
             patch.object(extractor, 'isfile', return_value=True),
             patch.object(extractor, 'patoolib') as patool,
-            patch.object(extractor.os, 'remove', side_effect=remove_side_effect) as remove,
+            patch.object(extractor.Quarantine, 'put', side_effect=remove_side_effect) as remove,
         ):
             patool.util.PatoolError = PATOOL_ERROR
             if extract_side_effect is not None:
@@ -30,13 +37,13 @@ class ExtractorTest(unittest.TestCase):
             self.extractor.run(dry_run=dry_run)
             return patool, remove
 
-    def test_every_archive_is_extracted_and_then_deleted(self):
+    def test_every_archive_is_extracted_and_then_quarantined(self):
         patool, remove = self.run_with(['a.zip', 'b.rar'])
         self.assertEqual(patool.extract_archive.call_count, 2)
         self.assertEqual(remove.call_count, 2)
         self.assertEqual(patool.extract_archive.call_args.kwargs, {'outdir': '/import', 'interactive': False})
 
-    def test_a_dry_run_neither_extracts_nor_deletes(self):
+    def test_a_dry_run_neither_extracts_nor_quarantines(self):
         patool, remove = self.run_with(['a.zip'], dry_run=True)
         patool.extract_archive.assert_not_called()
         remove.assert_not_called()
@@ -75,10 +82,10 @@ class ExtractorTest(unittest.TestCase):
         self.assertEqual(patool.extract_archive.call_count, 2)
         self.assertEqual(patool.extract_archive.call_args.kwargs['program'], 'unar')
 
-    def test_the_archive_is_deleted_when_a_fallback_backend_succeeds(self):
+    def test_the_archive_is_quarantined_when_a_fallback_backend_succeeds(self):
         error = PATOOL_ERROR('bad archive')
         _, remove = self.run_with(['pack.rar'], extract_side_effect=[error, None])
-        remove.assert_called_once_with('/import/pack.rar')
+        remove.assert_called_once_with('/import/pack.rar', 'extracted-archive')
 
     def test_the_chain_stops_at_the_first_backend_that_works(self):
         error = PATOOL_ERROR('bad archive')
@@ -109,7 +116,7 @@ class ExtractorTest(unittest.TestCase):
         self.assertEqual(patool.extract_archive.call_count, 1)
         remove.assert_not_called()
 
-    def test_a_file_that_cannot_be_deleted_does_not_stop_the_run(self):
+    def test_a_file_that_cannot_be_quarantined_does_not_stop_the_run(self):
         patool, remove = self.run_with(['a.zip', 'b.zip'], remove_side_effect=OSError('read only'))
         self.assertEqual(remove.call_count, 2)
 

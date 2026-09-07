@@ -90,6 +90,25 @@ def _config_fields() -> list[ConfigField]:
             description='Destination library for processed tracks.',
         ),
         ConfigField(
+            key='quarantine_folder_path',
+            type='string',
+            default='',
+            env='quarantine_folder_path',
+            group='Paths',
+            description=(
+                'Where files the pipeline would otherwise delete are parked, under a folder per '
+                'day. Empty falls back to a .quarantine folder beside the music root.'
+            ),
+        ),
+        ConfigField(
+            key='quarantine_retention_days',
+            type='integer',
+            default=30,
+            env='quarantine_retention_days',
+            group='Paths',
+            description='How long a quarantined file is kept before the importer sweeps it.',
+        ),
+        ConfigField(
             key='delimiter',
             type='string',
             default=os.sep,

@@ -6,6 +6,7 @@ from os import listdir
 from os.path import isfile, join
 
 from services.common.config_store import ConfigStore as Settings
+from services.common.Helpers import Quarantine
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.NotificationService import notification_service
@@ -91,15 +92,20 @@ class Mover:
             return None
 
     def remove(self, folder):
-        """
-        Remove a folder.
+        """Park a source folder this step decided not to keep.
+
+        Named `remove` because that is what it meant, and it is called from the two places
+        that judge a folder to be a duplicate download. The judgement rests on
+        `is_same_release`, which compares relative names and sizes rather than contents, so
+        it can be wrong -- and it used to be wrong irreversibly. Quarantine.sweep does the
+        actual deleting, once the retention window has closed.
         """
         src = join(self.settings.import_folder_path, folder)
-        logging.info(f'Removing folder: {src}')
-        try:
-            shutil.rmtree(src)
-        except Exception as e:
-            logging.error(f'Error removing {src}: {e}')
+        if Quarantine.put(src, Quarantine.DUPLICATE_RELEASE):
+            return
+        # Nowhere to park it. Leaving the folder in the import queue means this cycle logs
+        # the conflict again next time, which is noisy and recoverable; deleting it is not.
+        logging.warning('Could not quarantine %s; leaving it in the import folder', src)
 
     def _resolve_conflict(self, folder, src, dst, dry_run):
         """Decides what to do when the label folder already holds this release.
@@ -161,13 +167,23 @@ class Mover:
             # exists too, shutil.move raises shutil.Error (a subclass of OSError on modern
             # Python, so it used to be silently swallowed by the generic "except OSError"
             # branch below as a bogus "check disk space/filesystem" error) instead of
-            # FileExistsError. Either way this means the release was already imported
-            # previously, so the conflicting leftover source folder is a genuine duplicate:
-            # treat both exceptions identically and remove the source so it stops being
-            # retried (and logged as an error) on every single import cycle forever.
-            logging.warning(f'Conflict: {dst} already exists ({e}). Removing {src}')
-            if not dry_run:
-                self.remove(folder)
+            # FileExistsError. Either way the release was already imported previously, so
+            # the conflicting leftover source folder has to stop being retried (and
+            # re-logged as an error) on every single import cycle forever.
+            #
+            # Routed through the same comparison `_resolve_conflict` makes rather than
+            # acting on the exception alone. Both branches answer the same question --
+            # "is what is already at dst this release?" -- and only one of them used to
+            # ask it: this one removed the source on the exception alone, so a genuinely
+            # different release that raced into the same destination was discarded without
+            # anything ever looking at it.
+            #
+            # Since the `os.path.exists(dst)` check above, that race is the only way to
+            # get here: dst was not there when it was checked and is there now, which
+            # means another cycle placed it in between. So dst holds a complete release
+            # and comparing src against it is exactly the right question.
+            logging.warning('Conflict: %s already exists (%s)', dst, e)
+            self._resolve_conflict(folder, src, dst, dry_run)
         except PermissionError as e:
             logging.error(f'Permission denied when moving {src} to {dst}: {e}')
         except OSError as e:

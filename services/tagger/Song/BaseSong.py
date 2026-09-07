@@ -10,6 +10,7 @@ from mutagen.oggopus import OggOpus
 from mutagen.wave import WAVE
 
 from services.common.config_store import ConfigStore as Settings
+from services.common.Helpers import Quarantine
 from services.tagger.constants import (
     ALBUM,
     ALBUM_ARTIST,
@@ -105,15 +106,17 @@ class BaseSong:
                 # it belongs to the tagger, which is the component that owns writing.
                 log_broken_file(path)
                 return
-            try:
-                os.remove(path)
-                print('deleted broken file: ' + path)
-                log_broken_file(path)
-            except Exception as e:
-                # A read-only volume or a permission error: the file stays, but it is
-                # still unreadable. Returning here is what keeps the rest of __init__
-                # from reading self.type, which the failed load never got to set.
-                print('Kon bestand niet verwijderen:', e)
+            # Parked, not deleted. "mutagen cannot read this" is not the same claim as
+            # "there is no audio in here": a truncated download and a container mutagen
+            # has no parser for look identical from here, and only one of them is worth
+            # throwing away. Quarantine.sweep removes it once the retention window closes.
+            log_broken_file(path)
+            if not Quarantine.put(path, Quarantine.UNREADABLE_FILE):
+                # Nowhere to park it, or a read-only volume. The file stays where it is
+                # and stays unreadable, which the broken-song log already records.
+                print('Kon bestand niet in quarantaine zetten: ' + path)
+            # Returning here is what keeps the rest of __init__ from reading self.type,
+            # which the failed load never got to set.
             return
         if self.type == MusicFileType.WAV and self.music_file.tags is None:
             self.music_file.add_tags()

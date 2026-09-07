@@ -1,5 +1,4 @@
 import logging
-import os
 from os import listdir
 from os.path import isfile, join
 from typing import Final
@@ -7,6 +6,7 @@ from typing import Final
 import patoolib
 
 from services.common.config_store import ConfigStore as Settings
+from services.common.Helpers import Quarantine
 
 # Backends to try when patool's own choice cannot read an archive. patool picks
 # `unrar-free` for RAR in this image, and unrar-free aborts the *whole* archive on the
@@ -14,7 +14,7 @@ from services.common.config_store import ConfigStore as Settings
 # `Pathname cannot be converted from UTF-16BE to current locale`. One release with
 # zero-width spaces in its filenames is enough -- 13 of the 44 releases in
 # HC-2026-WEEK-34-MP3.rar landed, the other 31 never did, and because the raise skips
-# the `os.remove` below the archive was retried and failed again every cycle, forever.
+# the quarantine step below the archive was retried and failed again every cycle, forever.
 # Setting LANG/LC_ALL in the container does not fix unrar-free; another backend does.
 # `unar` reads those names. 7z is the backstop rather than the first choice because
 # patool's extract_7z passes `-aou`, so it renames on collision instead of stopping on a
@@ -74,13 +74,18 @@ class Extractor:
                 logging.info(f'[{idx}/{len(only_files)}] Extracting: {file_with_path}')
                 if self._extract(file_with_path, file) is None:
                     continue
-                logging.info(f'[{idx}/{len(only_files)}] Removing: {file_with_path}')
-                os.remove(file_with_path)
+                # Parked, not removed. Extraction succeeding says nothing about the
+                # release surviving the rest of the pipeline -- the renamer and mover
+                # both still have to place it -- and for a label rip this archive is the
+                # only pristine copy of the release there will ever be. Quarantine.sweep
+                # takes it away once the retention window closes.
+                logging.info(f'[{idx}/{len(only_files)}] Quarantining: {file_with_path}')
+                Quarantine.put(file_with_path, Quarantine.EXTRACTED_ARCHIVE)
             except patoolib.util.PatoolError as e:
                 error_msg = f'Extraction failed for {file}: {e}'
                 logging.error(error_msg)
             except OSError as e:
-                error_msg = f'Failed to delete {file}: {e}'
+                error_msg = f'Failed to move {file} out of the import folder: {e}'
                 logging.error(error_msg)
             except Exception as e:
                 error_msg = f'Unexpected error with {file}: {e}'

@@ -174,12 +174,32 @@ stages:
 # is not -- the LXC still carries the same tag, so nothing ever queues waiting
 # for a machine that is asleep.
 #
-# Only add a job here when it needs nothing from the host but Docker and git.
-# The workstation has no project Python environment, so anything invoking
-# `python3 -m pytest` (backend:unit) or `npm` (frontend:unit) directly
-# stays untagged and LXC-only until those dependencies are provisioned there.
+# Only add a job here when its whole environment travels with it -- a Docker
+# image, or a compose file this repo owns. The two hosts do not run the same
+# toolchain (LXC: Python 3.11, node 24; workstation: Python 3.13, node 20), so
+# a job that calls `python3 -m pytest` or `npm` against the host would report a
+# different result depending on which runner happened to poll first. That is a
+# coin flip dressed as a gate, and it is why backend:unit, frontend:* and
+# frontend:e2e (`npx playwright` on the host) stay untagged and LXC-only.
+# Starting containers is not the test: backend:integration and muma:contracts
+# start a database and a compose stack in Docker and then run `python3 -m
+# pytest` against them from the host, so they belong to that group too. Both
+# were tagged on the strength of a `docker` line in their script and failed in
+# 5 seconds on the workstation with `No module named pytest` (pipeline 2618).
+# muma:e2e looks identical and is not: core-e2e.sh falls back to running the
+# feature inside its own image when pytest-bdd is missing.
+# The workstation also has an unrelated Qt binary at /usr/bin/vite, which has
+# already eaten a quarter of an hour of a frontend build once.
+#
+# Tagging the Docker-based jobs is mostly about memory, not speed. The LXC
+# shares node `server` with gitlab (15G cap) and lms (11.9G cap, sitting at
+# it), and the CT memory caps there add up to 58G on 30G of RAM. Every mobile:*
+# and muma:* job handed to the workstation is a Gradle or compose stack that
+# does not run next to GitLab itself.
+#
 # Deploy and release jobs must never carry this tag: they hold the production
-# SSH key and push tags, and neither belongs on a desktop.
+# SSH key and push tags, and neither belongs on a desktop. mobile:build-release
+# is out for the same reason -- it signs and uploads the APK.
 .fast_runner:
   tags:
     - fast
@@ -669,6 +689,7 @@ mobile:format:
   resource_group: muma-mobile
   timeout: 20m
   retry: !reference [.infra_retry, retry]
+  tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
     - !reference [.release_rule, rules]
@@ -683,6 +704,7 @@ mobile:lint:
   resource_group: muma-mobile
   timeout: 20m
   retry: !reference [.infra_retry, retry]
+  tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
     - !reference [.release_rule, rules]
@@ -703,6 +725,7 @@ mobile:unit:
   # does not count against this.
   timeout: 20m
   retry: !reference [.infra_retry, retry]
+  tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
     - !reference [.release_rule, rules]
@@ -817,6 +840,7 @@ muma:smoke:
   stage: integration
   timeout: 30m
   retry: !reference [.infra_retry, retry]
+  tags: !reference [.fast_runner, tags]
   needs: []
   rules:
     - !reference [.dedicated_schedule_guard, rules]
@@ -834,6 +858,7 @@ muma:images:
   stage: integration
   timeout: 60m
   retry: !reference [.infra_retry, retry]
+  tags: !reference [.fast_runner, tags]
   needs: []
   # PUSH_IMAGES=false is what makes this safe to run on a merge request: it
   # builds every image release:build-images builds and pushes none of them, so
@@ -882,6 +907,7 @@ muma:e2e:
   stage: e2e
   timeout: 30m
   retry: !reference [.infra_retry, retry]
+  tags: !reference [.fast_runner, tags]
   needs: []
   script:
     - ./scripts/test/core-e2e.sh
@@ -1014,6 +1040,7 @@ mobile:build-debug:
   resource_group: muma-mobile
   timeout: 45m
   retry: !reference [.infra_retry, retry]
+  tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $APK_HOSTER_URL'

@@ -222,6 +222,17 @@ def test_credentialed_jobs_never_carry_the_fast_tag():
     assert offenders == [], f"credentialed jobs must stay LXC-only: {offenders}"
 
 
+def test_host_pytest_jobs_are_not_handed_to_the_second_runner():
+    """These two start their dependencies in Docker but run the tests from the
+    host, and only the LXC has pytest installed. Tagging them on the strength of
+    the `docker` line in their script failed both jobs in five seconds with
+    `No module named pytest` (pipeline 2618). muma:e2e may carry the tag because
+    core-e2e.sh falls back to its own image when pytest-bdd is missing."""
+    ci = load_ci()
+    for name in ("backend:integration", "muma:contracts"):
+        assert "tags" not in ci[name], f"{name} runs pytest on the host, keep it LXC-only"
+
+
 def test_release_rule_covers_release_and_hotfix():
     ci = load_ci()
     condition = ci[".release_rule"]["rules"][0]["if"]

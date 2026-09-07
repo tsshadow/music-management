@@ -181,6 +181,13 @@ stages:
 # different result depending on which runner happened to poll first. That is a
 # coin flip dressed as a gate, and it is why backend:unit, frontend:* and
 # frontend:e2e (`npx playwright` on the host) stay untagged and LXC-only.
+# Starting containers is not the test: backend:integration and muma:contracts
+# start a database and a compose stack in Docker and then run `python3 -m
+# pytest` against them from the host, so they belong to that group too. Both
+# were tagged on the strength of a `docker` line in their script and failed in
+# 5 seconds on the workstation with `No module named pytest` (pipeline 2618).
+# muma:e2e looks identical and is not: core-e2e.sh falls back to running the
+# feature inside its own image when pytest-bdd is missing.
 # The workstation also has an unrelated Qt binary at /usr/bin/vite, which has
 # already eaten a quarter of an hour of a frontend build once.
 #
@@ -769,7 +776,6 @@ backend:integration:
   stage: integration
   timeout: 30m
   retry: !reference [.infra_retry, retry]
-  tags: !reference [.fast_runner, tags]
   needs:
     - job: backend:unit
       optional: true
@@ -798,7 +804,6 @@ muma:contracts:
   stage: integration
   timeout: 30m
   retry: !reference [.infra_retry, retry]
-  tags: !reference [.fast_runner, tags]
   needs:
     - job: backend:unit
       optional: true

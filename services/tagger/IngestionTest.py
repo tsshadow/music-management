@@ -6,6 +6,7 @@ already rewritten -- replace an earlier, truer answer.
 """
 
 import json
+import re
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -111,9 +112,11 @@ class RecordTest(IngestionTestCase):
 
 
 class FingerprintTest(IngestionTestCase):
+    COUNTS = (12, 3, 477, 49, 88, 7, 640)
+
     def test_the_rule_tables_are_counted_once_per_process(self):
         """One query per tagging round, not one per file."""
-        self.cursor.fetchone.return_value = (7,)
+        self.cursor.fetchone.return_value = self.COUNTS
 
         first = ingestion.rules_fingerprint()
         calls_after_first = self.cursor.execute.call_count
@@ -123,24 +126,53 @@ class FingerprintTest(IngestionTestCase):
         self.assertEqual(calls_after_first, self.cursor.execute.call_count)
 
     def test_a_different_ruleset_gets_a_different_fingerprint(self):
-        self.cursor.fetchone.return_value = (7,)
+        self.cursor.fetchone.return_value = self.COUNTS
         first = ingestion.rules_fingerprint()
-        self.cursor.fetchone.return_value = (8,)
+        self.cursor.fetchone.return_value = (13, *self.COUNTS[1:])
         second = ingestion.rules_fingerprint(refresh=True)
 
         self.assertNotEqual(first, second)
+
+    def test_a_change_in_any_table_moves_the_fingerprint(self):
+        """A digest that only reacted to the first column would be worse than none."""
+        self.cursor.fetchone.return_value = self.COUNTS
+        base = ingestion.rules_fingerprint()
+        for index in range(len(self.COUNTS)):
+            changed = list(self.COUNTS)
+            changed[index] += 1
+            self.cursor.fetchone.return_value = tuple(changed)
+            self.assertNotEqual(base, ingestion.rules_fingerprint(refresh=True), ingestion.RULE_TABLES[index])
 
     def test_an_unreachable_database_is_a_fingerprint_of_its_own(self):
         self.connection.cursor.side_effect = RuntimeError('database gone')
         self.assertEqual('unknown', ingestion.rules_fingerprint())
 
-    def test_a_table_this_deployment_does_not_have_does_not_lose_the_fingerprint(self):
-        """A missing rule table is a fact about the ruleset too, and a better one than
-        refusing to describe it at all."""
-        self.cursor.execute.side_effect = [RuntimeError('no such table')] + [None] * len(ingestion.RULE_TABLES)
-        self.cursor.fetchone.return_value = (1,)
+    def test_a_query_that_comes_back_empty_is_not_fingerprinted(self):
+        """Better than a digest built on nothing, which would compare equal to itself
+        across two different rulesets."""
+        self.cursor.fetchone.return_value = None
+        self.assertEqual('unknown', ingestion.rules_fingerprint())
 
-        self.assertNotEqual('unknown', ingestion.rules_fingerprint())
+
+class RulesFingerprintQueryTest(unittest.TestCase):
+    """The query is written out rather than built from RULE_TABLES.
+
+    That is deliberate -- a formatted SQL string is a shape `security:sast` flags on
+    sight, and accepting it into the baseline would leave a permanent entry for a query
+    that needs no interpolation. The cost is that the two can drift, and the fingerprint
+    would then label its counts with the wrong table names. This is what stops that.
+    """
+
+    def test_every_rule_table_is_counted_by_the_query(self):
+        for table in ingestion.RULE_TABLES:
+            self.assertIn(f'FROM {table})', ingestion.RULE_COUNT_QUERY)
+
+    def test_the_query_counts_nothing_the_table_list_does_not_name(self):
+        counted = re.findall(r'FROM (\w+)\)', ingestion.RULE_COUNT_QUERY)
+        self.assertEqual(list(ingestion.RULE_TABLES), counted)
+
+    def test_the_query_carries_no_interpolation(self):
+        self.assertNotIn('{', ingestion.RULE_COUNT_QUERY)
 
 
 if __name__ == '__main__':

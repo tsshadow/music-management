@@ -40,6 +40,23 @@ RULE_TABLES = (
     'rules_catid_label',
 )
 
+#: Written out rather than built from RULE_TABLES with an f-string. The names are a fixed
+#: tuple in this file and nothing untrusted reaches them, but a formatted SQL string is a
+#: shape `security:sast` flags on sight, and "audit and accept" would put a permanent
+#: entry in the baseline for a query that can just as easily carry no interpolation at
+#: all. One statement instead of seven, which is also one round trip instead of seven.
+#: RulesFingerprintQueryTest keeps the two in step.
+RULE_COUNT_QUERY = """
+    SELECT
+        (SELECT COUNT(*) FROM rules_genres),
+        (SELECT COUNT(*) FROM rules_genre_expansions),
+        (SELECT COUNT(*) FROM rules_artist_genres),
+        (SELECT COUNT(*) FROM rules_label_genres),
+        (SELECT COUNT(*) FROM rules_subgenre_hierarchy),
+        (SELECT COUNT(*) FROM rules_ignored_artists),
+        (SELECT COUNT(*) FROM rules_catid_label)
+"""
+
 _rules_fingerprint: str | None = None
 
 
@@ -66,29 +83,27 @@ def rules_fingerprint(refresh: bool = False) -> str:
     round is what refreshes the helpers anyway; a decision made mid-round belongs to the
     next one.
 
-    Row counts and the newest decision timestamp rather than the rows themselves -- enough
-    to tell two rulesets apart and to look up what changed, without copying a curated
-    table into every track's row.
+    Row counts rather than the rows themselves -- enough to tell two rulesets apart and to
+    go looking for what changed, without copying a curated table into every track's row.
+
+    Anything that goes wrong answers 'unknown' rather than a fingerprint built on partial
+    counts: a digest that silently means "six of the seven tables" would compare unequal
+    to itself and make two identical rulesets look different.
     """
     global _rules_fingerprint  # noqa: PLW0603 - one cache for the process, by design
     if _rules_fingerprint is not None and not refresh:
         return _rules_fingerprint
-    parts: list[str] = []
     try:
         with DatabaseConnector().connection() as conn, conn.cursor() as cursor:
-            for table in RULE_TABLES:
-                try:
-                    cursor.execute(f'SELECT COUNT(*) FROM {table}')  # noqa: S608 - fixed list above
-                    row = cursor.fetchone()
-                    parts.append(f'{table}={row[0] if row else 0}')
-                except Exception as e:
-                    # A table this deployment does not have yet is a fact about the
-                    # ruleset too, and a better one than refusing the whole fingerprint.
-                    logging.debug('Rule table %s unreadable for the fingerprint: %s', table, e)
-                    parts.append(f'{table}=?')
+            cursor.execute(RULE_COUNT_QUERY)
+            row = cursor.fetchone()
     except Exception as e:
         logging.warning('Could not fingerprint the rules: %s', e)
         return 'unknown'
+    if not row:
+        logging.warning('The rule count query came back empty; not fingerprinting the rules')
+        return 'unknown'
+    parts = [f'{table}={count}' for table, count in zip(RULE_TABLES, row, strict=False)]
     _rules_fingerprint = hashlib.sha256('|'.join(parts).encode('utf-8')).hexdigest()[:16]
     return _rules_fingerprint
 

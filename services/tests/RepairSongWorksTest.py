@@ -23,8 +23,15 @@ repair = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(repair)
 
 
-def _row(track_id, title, work_key, artist='Angerfist', work_id=40):
-    return {'id': track_id, 'title': title, 'work_key': work_key, 'artist': artist, 'work_id': work_id}
+def _row(track_id, title, work_key, artist='Angerfist', work_id=40, duration_secs=214.0):
+    return {
+        'id': track_id,
+        'title': title,
+        'work_key': work_key,
+        'artist': artist,
+        'work_id': work_id,
+        'duration_secs': duration_secs,
+    }
 
 
 def test_a_correctly_grouped_track_is_left_alone():
@@ -192,3 +199,31 @@ def test_a_work_that_no_longer_exists_is_skipped():
     stats = repair.settle_works(cursor, {40})
     assert stats['works_deleted'] == 0
     assert cursor.statements_matching('DELETE') == []
+
+
+def test_a_set_leaves_the_work_it_shared_with_another_episode():
+    # Sixteen hour-long episodes of one show sat in one work on production. The key
+    # rule changed under them, so the repair is what moves them out.
+    rows = [
+        _row(1, 'Andromedha Guest Mix', ':::andromedha guest mix', artist=None, duration_secs=3560.2),
+        _row(2, 'Andromedha Guest Mix', ':::andromedha guest mix', artist=None, duration_secs=3629.4),
+    ]
+    wrong = repair.misfiled(rows)
+    assert [row['reason'] for row in wrong] == ['long-form', 'long-form']
+    assert len({row['expected_key'] for row in wrong}) == 2
+
+
+def test_a_long_track_that_already_sits_alone_is_not_moved_again():
+    # Idempotence: after the first repair the key is the sentinel, and a second run
+    # must find nothing to do.
+    rows = [_row(1, 'Andromedha Guest Mix', 'track:1', artist=None, duration_secs=3560.2)]
+    assert repair.misfiled(rows) == []
+
+
+def test_the_rescore_query_matches_a_download_on_its_whole_path():
+    # The provenance test it repairs compared a basename against a column that only
+    # ever holds absolute paths, so it matched nothing.
+    sql = repair._MISSCORED_DOWNLOADS
+    assert 'sc.filename = mf.file_path' in sql
+    assert 'yt.path = mf.file_path' in sql
+    assert 'work_locked = 0' in sql

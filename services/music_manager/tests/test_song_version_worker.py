@@ -140,6 +140,36 @@ class AssignWorksTest(unittest.TestCase):
         sql = cursor.statements_matching('AS batch')[0][0]
         self.assertIn('work_id IS NULL AND work_locked = 0', sql)
 
+    def test_the_download_archives_are_matched_on_the_whole_path(self):
+        # Both archives store an absolute path -- SoundCloud in `filename`, YouTube in
+        # `path`. Comparing a basename against SoundCloud's column matched none of its
+        # 157.393 rows, so every rip read as "not from SoundCloud" and the 1.162 that
+        # carry a label collected the bonus meant for an official release.
+        cursor = ScriptedCursor([('AS batch', None, [])])
+        worker.assign_works(cursor)
+        sql = cursor.statements_matching('AS batch')[0][0]
+        self.assertIn('sc.filename = mf.file_path', sql)
+        self.assertIn('yt.path = mf.file_path', sql)
+        self.assertNotIn('SUBSTRING_INDEX', sql)
+
+    def test_a_set_is_not_grouped_with_another_set_of_the_same_name(self):
+        # Two hour-long episodes of one show carry one title. Grouped, a canonical
+        # filter would show one of them and hide the rest.
+        long_file = {'file_path': '/mnt/music/Soundcloud/a.mp3', 'file_size': 80_000_000, 'duration_secs': 3600}
+        rows = [
+            _row(1, 'Andromedha Guest Mix', artist=None, files=long_file),
+            _row(2, 'Andromedha Guest Mix', artist=None, files=long_file),
+        ]
+        cursor = ScriptedCursor(
+            [
+                ('AS batch', None, rows),
+                ('SELECT id FROM library_works WHERE work_key', None, {'id': 41}),
+            ]
+        )
+        worker.assign_works(cursor, limit=10)
+        keys = {params[0] for _sql, params in cursor.statements_matching('INSERT INTO library_works')}
+        self.assertEqual(len(keys), 2, keys)
+
     def test_the_batch_is_limited_before_the_files_are_joined(self):
         # LIMIT counts joined rows. Limiting the joined result cut the last track of
         # a batch off from its remaining files, and it left the pass with a work, so

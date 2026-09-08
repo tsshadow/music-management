@@ -7,6 +7,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.52.0] - 2026-09-08
+
+### Added
+- **Wat een bestand zei vóórdat de tagger het aanraakte, wordt nu vastgelegd.** De tagger
+  herschrijft tags ter plekke en bewaarde geen kopie. `ORIGINAL_TITLE` en `ORIGINAL_ARTIST` zijn de
+  twee velden waarvan iemand merkte dat ze verdwenen en waar toen met de hand een redding voor is
+  gebouwd, elk in een eigen regel; van de rest was er geen antwoord op "waar kwam dit bestand mee
+  binnen". En ook niet op "welke regel besliste dat", want de regels staan in de database en
+  veranderen. Nieuwe tabel `library_ingestion_records` (`migrate_v22_ingestion_records.sql`) met per
+  bestand de volledige tagset zoals gelezen, de versie van de code, en een vingerafdruk van de
+  regeltabellen op dat moment.
+- Eén rij per bestand, geschreven de eerste keer dat de tagger het opent en daarna nooit meer
+  bijgewerkt: een latere ronde ziet een bestand dat deze tagger al herschreven heeft, dus zijn idee
+  van "binnenkomst" is minder waard dan dat van de eerste. De vingerafdruk is één query per
+  tagronde, niet per bestand.
+- Bewust geen kopie van het bestand. De tagger verandert de audiostream niet, dus 5,3 TB audio
+  dupliceren beantwoordt een vraag die niemand stelt; wat er op het spel staat is de metadata, en
+  dat is een paar honderd bytes per track.
+
+### Changed
+- **De importketen verwijdert niets meer definitief; wat hij weggooit gaat in quarantaine.** Vier
+  plekken deden een onherroepelijke `os.remove` of `rmtree` op een beoordeling die fout kan zijn.
+  `Extractor.run` gooide het bronarchief weg zodra uitpakken lukte — dus vóórdat de renamer en de
+  mover de release geplaatst hadden, en voor een labelrip is dat archief de enige pristine kopie die
+  er ooit van bestaat. `Mover.remove` en `Renamer._resolve_collision` verwijderden een bronmap die
+  ze als duplicaat beoordeelden, en die beoordeling (`is_same_release`) vergelijkt relatieve
+  bestandsnamen en groottes, niet inhoud. En `BaseSong.__init__` verwijderde een `.m4a` die mutagen
+  niet kon lezen, terwijl "mutagen kan dit niet lezen" iets anders is dan "hier zit geen audio in".
+  Alles gaat nu naar `<quarantine>/<datum>/<categorie>/`, en `Quarantine.sweep()` ruimt het op na
+  `quarantine_retention_days` (standaard 30). Twee nieuwe instellingen onder Paden.
+- **De ene mover-tak vergeleek wel, de andere niet.** `_resolve_conflict` draait `is_same_release`
+  voordat hij iets weggooit; de `FileExistsError`/`shutil.Error`-tak deed dat niet en verwijderde de
+  bron op de uitzondering alleen. Een release die toevallig tegelijk in dezelfde bestemming landde
+  werd zo weggegooid zonder dat er ooit iemand naar gekeken had. Beide takken stellen nu dezelfde
+  vraag.
+- De scanner loopt verborgen mappen niet meer in. Zonder ingestelde quarantainemap landt die naast
+  de muziekroot als `.quarantine`, en het indexeren daarvan zou precies de bestanden terugbrengen
+  die de importer net besloot niet te houden. `@eaDir` van Synology gaat om dezelfde reden mee.
+
+### Fixed
+- **De NFO-backfill controleerde zijn eigen voorwaarde niet meer op het moment dat hij schreef.**
+  `plan_release` weigert een bestand dat al een `ORIGINAL_ARTIST` heeft en weigert een regel die
+  andere artiesten noemt dan het bestand bevat — maar dat oordeel staat in een plan dat uren oud is
+  tegen de tijd dat het geschreven wordt. De volledige planfase over 48.958 releasemappen duurde
+  zes uur, en de tagger schrijft ondertussen naar diezelfde bestanden: sinds 0.51.0 legt
+  `CaptureDisplayArtistRule` bij elke download een credit vast. `apply_plan` stelt de vraag nu per
+  bestand opnieuw en slaat over wat inmiddels een eigen credit heeft (`skipped_gained_original`) of
+  wat de wording niet meer beschrijft (`skipped_artists_changed`), in plaats van een verse waarde
+  te overschrijven met een verlopen.
+- Het `.failed`-bestand bevatte alleen paden, terwijl `--from-plan` `wording<TAB>pad` leest. Het
+  bestand dat je overhield om geweigerde schrijfacties later opnieuw te draaien, was dus precies
+  het formaat dat niet teruggelezen kon worden — de wording stond nergens anders. Het wordt nu in
+  het planformaat weggeschreven.
+
+- **9.188 tracks stonden op naam van een artiest die niet bestaat.** SoundCloud zet een marker vóór
+  de echte credit — `PREMIERE ｜ TARS - Rumble [NNVA03]`, `FREE DOWNLOAD - Exilles - Crude
+  Definition`. De artiestenregels knippen de titel in segmenten en kiezen het segment dat het beste
+  matcht met een naam in `library_artists`. Zodra een marker die wedstrijd één keer wint, staat hij
+  *in* `library_artists`, matcht daarna perfect met zichzelf en wint elke volgende titel: 9.188
+  tracks onder "Premiere", 329 onder "FREE DOWNLOAD", 43 onder "PREVIEW". Bij 3.874 daarvan staat de
+  echte artiest nog gewoon in de titel, waar de regel hem heeft laten liggen.
+- De ignore-lijst kende deze namen niet, en zou ze ook niet hebben tegengehouden: beide regels die
+  hem lezen (`CheckArtistRule`, `AddMissingArtistToDatabaseRule`) kijken pas naar de ignore-lijst
+  *nadat* ze `library_artists` hebben geraadpleegd, en al deze namen staan in `library_artists`.
+  `InferArtistFromTitleRule` trekt de ignore-lijst zonder correctie nu af van de namen waartegen hij
+  mag matchen, dus een marker kan niet meer uit een titel gekozen worden en het segment met de echte
+  artiest komt aan de beurt. Een naam mét correctie blijft wél kiesbaar — dat is precies hoe
+  `CheckArtistRule` de kans krijgt de juiste spelling erin te zetten.
+- `migrate_v22_promo_marker_artists.sql` zet elf markers op de ignore-lijst. Er wordt niets
+  verwijderd: de artiestenrijen blijven staan en hun tracks houden wat ze hebben tot de deep run het
+  bestand opnieuw leest. Een artiestenrij weggooien zou `library_tracks.primary_artist_id` en
+  `library_works.primary_artist_id` verweesd achterlaten, waar geen foreign key op staat.
+- **De brede pijp `｜` werd op drie plekken niet herkend.** SoundCloud gebruikt hem omdat `|` niet in
+  een bestandsnaam mag, dus de twee betekenen hetzelfde — maar `InferArtistFromTitleSingleDashRule`
+  en de laatste-redmiddelregel vervingen alleen de ASCII-versie. `PREMIERE ｜ TARS - Rumble` viel
+  daardoor uiteen in twee segmenten waarvan het eerste `PREMIERE ｜ TARS` was: een artiestennaam die
+  nooit heeft bestaan. Eén `normalise_pipes()` voor alle regels.
+
+- **LMS zou de quarantaine gewoon geïndexeerd hebben.** De muma-scanner slaat verborgen mappen
+  sinds de vorige wijziging over, maar LMS is een tweede indexer met een eigen regel — en die heeft
+  er geen: `exploreFilesRecursive` daalt elke map in en stopt alleen bij een `.lmsignore`
+  (`ScanStepScanFiles.cpp`, naam uit `ScannerSettings.hpp`). Zonder ingestelde quarantainemap landt
+  die als `.quarantine` naast de muziekroot, precies de boom waar de LMS-bibliotheek op wijst, dus
+  een geparkeerde dubbele release was als LMS-tracks teruggekomen — het besluit dat de importer net
+  had genomen, ongedaan gemaakt door de indexer. De quarantaineroot krijgt nu bij aanmaken een
+  `.lmsignore`. Dat gebruikt LMS' eigen mechanisme in plaats van zijn scanner aan te passen.
 ## [0.51.0] - 2026-09-07
 
 ### Added

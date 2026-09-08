@@ -55,7 +55,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.music_manager.database import get_db_connection  # noqa: E402
 from services.music_manager.song_version_worker import recompute_canonicals  # noqa: E402
-from services.music_manager.song_versions import UNGROUPABLE_PREFIX, work_key  # noqa: E402
+from services.music_manager.song_versions import LONG_FORM_SECONDS, UNGROUPABLE_PREFIX, work_key  # noqa: E402
 
 SAMPLE_SIZE = 10
 UPDATE_CHUNK = 500
@@ -63,11 +63,33 @@ UPDATE_CHUNK = 500
 # Every grouped track that the worker is still allowed to move, with the key of the
 # work it currently sits in. work_locked = 1 is a hand-made split and stays put.
 _GROUPED = '''
-    SELECT t.id, t.title, t.work_id, w.work_key, a.name AS artist
+    SELECT t.id, t.title, t.work_id, t.duration_secs, w.work_key, a.name AS artist
     FROM library_tracks t
     JOIN library_works w ON w.id = t.work_id
     LEFT JOIN library_artists a ON a.id = t.primary_artist_id
     WHERE t.work_locked = 0
+    ORDER BY t.id
+'''
+
+
+# Tracks whose stored version_score was decided by the broken provenance test: a
+# download that also carries a label, sitting in a work where a score can change which
+# version plays. The comparison the worker used could never match SoundCloud's column,
+# so these collected the "official release" bonus. Detaching them is the rescore --
+# the worker gives a detached track a fresh key and a fresh score on its next pass, and
+# the key is unchanged here, so they come back to the same work with the right one.
+_MISSCORED_DOWNLOADS = '''
+    SELECT DISTINCT t.id, t.work_id
+    FROM library_tracks t
+    JOIN library_media_files mf ON mf.track_id = t.id
+    JOIN library_track_labels tl ON tl.track_id = t.id
+    JOIN library_works w ON w.id = t.work_id
+    WHERE t.work_locked = 0
+      AND (
+        EXISTS (SELECT 1 FROM downloads_soundcloud_archive sc WHERE sc.filename = mf.file_path)
+        OR EXISTS (SELECT 1 FROM downloads_youtube_archive yt WHERE yt.path = mf.file_path)
+      )
+      AND (SELECT COUNT(*) FROM library_tracks m WHERE m.work_id = t.work_id) > 1
     ORDER BY t.id
 '''
 
@@ -79,7 +101,21 @@ def parse_args():
         action='store_true',
         help='Report what would be detached and write nothing.',
     )
+    parser.add_argument(
+        '--rescore-downloads',
+        action='store_true',
+        help=(
+            'Also detach downloads that carry a label and share a work, so the worker '
+            'scores them again with the corrected provenance test. Run once after that '
+            'fix is deployed; a second run only costs the same tracks another pass.'
+        ),
+    )
     return parser.parse_args()
+
+
+def _is_long_form(row) -> bool:
+    duration = row.get('duration_secs')
+    return bool(duration) and duration > LONG_FORM_SECONDS
 
 
 def misfiled(rows) -> list[dict]:
@@ -97,10 +133,15 @@ def misfiled(rows) -> list[dict]:
     """
     wrong = []
     for row in rows:
-        expected = work_key(row['artist'], row['title'], row['id'])
+        expected = work_key(row['artist'], row['title'], row['id'], row['duration_secs'])
         if expected == row['work_key']:
             continue
-        if expected.startswith(UNGROUPABLE_PREFIX):
+        if expected.startswith(UNGROUPABLE_PREFIX) and _is_long_form(row):
+            # A set or a radio episode, which stopped grouping by title when
+            # LONG_FORM_SECONDS arrived. Counted apart from a title that says nothing:
+            # these tracks have a perfectly good title and are moving for their length.
+            reason = 'long-form'
+        elif expected.startswith(UNGROUPABLE_PREFIX):
             reason = 'unusable-title'
         elif row['work_key'].startswith(UNGROUPABLE_PREFIX):
             reason = 'title-became-usable'
@@ -212,16 +253,23 @@ def main() -> int:
         if len(wrong) > SAMPLE_SIZE:
             print(f'  ... and {len(wrong) - SAMPLE_SIZE} more')
 
-        if not wrong:
+        misscored = []
+        if args.rescore_downloads:
+            with conn.cursor() as cursor:
+                cursor.execute(_MISSCORED_DOWNLOADS)
+                misscored = cursor.fetchall()
+            print(f'repair-song-works: {len(misscored)} labelled downloads to score again')
+
+        # A track can be in both lists; detaching it once is enough for either reason.
+        track_ids = sorted({row['id'] for row in wrong} | {row['id'] for row in misscored})
+        work_ids = {row['work_id'] for row in wrong} | {row['work_id'] for row in misscored}
+
+        if not track_ids:
             return 0
 
         if args.dry_run:
-            works = {row['work_id'] for row in wrong}
-            print(f'repair-song-works: dry run, {len(works)} works would be revisited')
+            print(f'repair-song-works: dry run, {len(work_ids)} works would be revisited')
             return 0
-
-        track_ids = [row['id'] for row in wrong]
-        work_ids = {row['work_id'] for row in wrong}
         with conn.cursor() as cursor:
             detach(cursor, track_ids)
             stats = settle_works(cursor, work_ids)

@@ -38,6 +38,51 @@ def get_cat_id(folder: str):
     return None
 
 
+#: What the rest of the library carries. Everything that was in place on 2026-09-05 sits
+#: at 0777/0666 after the ACL repair of that day, and every writer since -- the tagger, the
+#: backfills, LMS -- assumes it can open a file for writing.
+DIR_MODE = 0o777
+FILE_MODE = 0o666
+
+
+def make_library_writable(folder_path) -> int:
+    """Give a freshly imported release the permissions the rest of the library has.
+
+    The importer runs as root with the default umask, so what it unpacks and moves lands
+    as root:root 0755/0644. Root itself never notices -- it may write anything -- so the
+    import, the tagging pass and the scan all succeed, and the release looks perfectly
+    healthy. Everyone else is locked out: over SMB the share's user gets `other::r--` and
+    every later write fails with [Errno 13].
+
+    Measured 2026-09-08: of the EPs directories touched since 2026-09-01, 631 were 0777
+    and 19 were 0755 -- exactly the ones created after the last manual repair swept the
+    tree. The release-date backfill hit 9 of their files and skipped them. A sweep fixes
+    what exists at that moment and says nothing about tomorrow's import, which is why this
+    belongs here rather than in a script.
+
+    Best effort, and it says so when it fails: a mode that will not stick is worth a log
+    line, not a failed import. The release is already in place by the time this runs, and
+    refusing it afterwards would leave the library in a worse state than a readable file.
+
+    Returns the number of paths it could not change.
+    """
+    failures = 0
+    for root, dirs, files in os.walk(folder_path):
+        for name, mode in [(directory, DIR_MODE) for directory in dirs] + [(file, FILE_MODE) for file in files]:
+            path = os.path.join(root, name)
+            try:
+                os.chmod(path, mode)
+            except OSError as e:
+                failures += 1
+                logging.warning(f'Could not set permissions on {path}: {e}')
+    try:
+        os.chmod(folder_path, DIR_MODE)
+    except OSError as e:
+        failures += 1
+        logging.warning(f'Could not set permissions on {folder_path}: {e}')
+    return failures
+
+
 def post_processing_songs(folder_path):
     """
     Call LabelSong(path) for every supported audio file in the folder,
@@ -151,6 +196,10 @@ class Mover:
             if not dry_run:
                 shutil.move(src, dst)
                 logging.info(f'Successfully moved: {src} -> {dst}')
+                # Before the tagging pass below, which is the first thing that writes to
+                # these files. It runs as root and would succeed either way; everything
+                # after it, and everyone reaching the share over SMB, would not.
+                make_library_writable(dst)
                 # Both paths: the new one so LMS reads the files, the old one so the rows
                 # underneath a folder that is now gone get removed.
                 lms_scan_trigger.notify([src, dst])

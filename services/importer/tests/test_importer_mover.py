@@ -1,11 +1,14 @@
+import os
 import shutil
+import stat
+import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
 from services.tests.mock_base import reset_database_helpers, setup_mocks
 
 setup_mocks()
-from services.importer.mover import Mover, post_processing_songs
+from services.importer.mover import Mover, make_library_writable, post_processing_songs
 
 
 class TestMover(unittest.TestCase):
@@ -131,3 +134,67 @@ class TestMoverScanNotification(unittest.TestCase):
             self.mover._move_folder('EVAU021E', 'EVAU', dry_run=False)
 
         trigger.notify.assert_not_called()
+
+
+class TestImportedReleaseIsWritable(unittest.TestCase):
+    """What the importer drops into the library has to be writable by everyone else.
+
+    It runs as root with the default umask, so an unpacked release lands 0755/0644 and
+    root -- which may write anything -- never notices. Over SMB every later write fails.
+    Measured 2026-09-08: 19 of the EPs directories created since the last manual repair
+    sat at 0755, and the release-date backfill skipped 9 of their files.
+    """
+
+    def setUp(self):
+        reset_database_helpers()
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.release = os.path.join(self.tmp.name, 'SCAN123 - Release')
+        os.makedirs(os.path.join(self.release, 'CD1'), mode=0o755)
+        self.track = os.path.join(self.release, 'CD1', '01-song.mp3')
+        with open(self.track, 'w', encoding='utf-8') as handle:
+            handle.write('audio')
+        os.chmod(self.track, 0o644)
+        os.chmod(self.release, 0o755)
+
+    def test_every_file_and_folder_gains_the_librarys_permissions(self):
+        failures = make_library_writable(self.release)
+        self.assertEqual(failures, 0)
+        self.assertEqual(stat.S_IMODE(os.stat(self.release).st_mode), 0o777)
+        self.assertEqual(stat.S_IMODE(os.stat(os.path.join(self.release, 'CD1')).st_mode), 0o777)
+        self.assertEqual(stat.S_IMODE(os.stat(self.track).st_mode), 0o666)
+
+    def test_a_mode_that_will_not_stick_is_counted_and_logged_not_raised(self):
+        # Some shares refuse a chmod outright. The release is already in place by then;
+        # failing the import afterwards would be the worse outcome.
+        with patch('os.chmod', side_effect=OSError('read-only')):
+            failures = make_library_writable(self.release)
+        self.assertEqual(failures, 3)
+
+    def test_a_move_makes_the_destination_writable_before_it_is_tagged(self):
+        mover = Mover()
+        mover.settings = MagicMock(import_folder_path='/tmp/import', eps_folder_path='/tmp/eps')
+        mover.get_label = MagicMock(return_value='Scantraxx')
+        order = []
+        with (
+            patch('os.path.exists', return_value=False),
+            patch('shutil.move'),
+            patch('services.importer.mover.make_library_writable', side_effect=lambda path: order.append('chmod')),
+            patch('services.importer.mover.post_processing_songs', side_effect=lambda path: order.append('tag')),
+            patch('services.common.Helpers.LmsScanTrigger.lms_scan_trigger.notify'),
+        ):
+            mover._move_folder('SCAN123 - Release', 'SCAN123', dry_run=False)
+        self.assertEqual(order, ['chmod', 'tag'])
+
+    def test_a_dry_run_changes_no_permissions(self):
+        mover = Mover()
+        mover.settings = MagicMock(import_folder_path='/tmp/import', eps_folder_path='/tmp/eps')
+        mover.get_label = MagicMock(return_value='Scantraxx')
+        with (
+            patch('os.path.exists', return_value=False),
+            patch('shutil.move'),
+            patch('services.importer.mover.make_library_writable') as writable,
+            patch('services.importer.mover.post_processing_songs'),
+        ):
+            mover._move_folder('SCAN123 - Release', 'SCAN123', dry_run=True)
+        writable.assert_not_called()

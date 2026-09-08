@@ -235,6 +235,66 @@ class InferArtistFromTitleRuleTest(unittest.TestCase):
         )
 
 
+class PromoMarkerIsNotAnArtistTest(unittest.TestCase):
+    """A marker on the ignore list may not be picked out of a title, even from library_artists.
+
+    "PREMIERE ｜ TARS - Rumble" put 9.188 production tracks under a non-existent artist called
+    Premiere, because the marker had entered library_artists on an earlier pass and from then on
+    matched itself better than any real name in the title could.
+    """
+
+    def setUp(self):
+        self.song = MagicMock()
+        self.song.path = lambda: '/home/user/Music/Kerbela/track.mp3'
+        self.artist_db = MagicMock()
+        self.artist_db.get_all_values.return_value = ['Premiere', 'TARS', 'Angerfist', 'Bootleg Boy']
+        self.genres_db = MagicMock()
+        self.genres_db.get_all.return_value = ['Hardstyle']
+        self.ignored_db = MagicMock()
+        self.ignored_db.get_all.return_value = []
+        self.ignored_db.get_corrected.return_value = ''
+
+    def _apply(self, title):
+        self.song.tag_collection.has_item.return_value = False
+        self.song.tag_collection.get_item_as_string.side_effect = lambda key: {
+            ARTIST: '',
+            TITLE: title,
+            ORIGINAL_TITLE: title,
+        }[key]
+        self.song.tag_collection.get_item = MagicMock(return_value=title)
+        rule = InferArtistFromTitleRule(artist_db=self.artist_db, genre_db=self.genres_db, ignored_db=self.ignored_db)
+        rule.apply(self.song)
+
+    def test_the_marker_wins_while_it_is_not_on_the_ignore_list(self):
+        self._apply('PREMIERE ｜ TARS - Rumble [NNVA03]')
+        self.song.tag_collection.set_item.assert_any_call(ARTIST, 'Premiere')
+
+    def test_the_real_artist_wins_once_the_marker_is_ignored(self):
+        self.ignored_db.get_all.return_value = ['Premiere']
+        self._apply('PREMIERE ｜ TARS - Rumble [NNVA03]')
+        self.song.tag_collection.set_item.assert_any_call(ARTIST, 'TARS')
+        self.song.tag_collection.set_item.assert_any_call(TITLE, 'PREMIERE - Rumble [NNVA03]')
+
+    def test_an_ignored_marker_is_not_guessed_by_the_last_resort_rule(self):
+        self.ignored_db.get_all.return_value = ['Premiere']
+        self._apply('PREMIERE ｜ Someone Unknown - Rumble')
+        written = [c for c in self.song.tag_collection.set_item.call_args_list if c.args[0] == ARTIST]
+        assert written == [], written
+
+    def test_a_fullwidth_pipe_never_ends_up_inside_an_artist_name(self):
+        self.ignored_db.get_all.return_value = []
+        self._apply('Nobody Known ｜ Someone Unknown - Rumble')
+        for call in self.song.tag_collection.set_item.call_args_list:
+            if call.args[0] == ARTIST:
+                assert '｜' not in call.args[1], call.args[1]
+
+    def test_an_ignored_name_with_a_correction_stays_selectable(self):
+        self.ignored_db.get_all.return_value = ['Bootleg Boy']
+        self.ignored_db.get_corrected.side_effect = lambda name: 'Bootleg Boy Official'
+        self._apply('Bootleg Boy - Rumble')
+        self.song.tag_collection.set_item.assert_any_call(ARTIST, 'Bootleg Boy')
+
+
 class InferArtistFromEventPrefixRuleTest(unittest.TestCase):
     """A title that opens with the event names the artists on the other side."""
 

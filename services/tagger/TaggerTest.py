@@ -24,6 +24,10 @@ class TaggerTestCase(unittest.TestCase):
             patch.object(tagger_module, 's', self.settings),
             patch.object(tagger_module, 'processed_files_helper', MagicMock()),
             patch.object(tagger_module, 'broken_song_helper', MagicMock()),
+            # parse_song asks the archive what the download knew. Stubbed for the whole
+            # suite so no dispatch test reaches a database, and set per test where the
+            # lookup itself is what is under test.
+            patch.object(tagger_module, 'download_info', MagicMock(**{'stored_info.return_value': None})),
         ]
         for p in patches:
             p.start()
@@ -377,6 +381,21 @@ class ParseSongTest(TaggerTestCase):
         with patch.object(tagger_module, 'LabelSong') as song_class:
             Tagger.parse_song(Path('/music/a.mp3'), SongTypeEnum.LABEL)
         song_class.return_value.save_file.assert_not_called()
+
+    def test_a_retag_is_handed_what_the_download_knew(self):
+        # The whole point: a walk of the tree carries no info dict, so without this the
+        # second pass over a SoundCloud file is blind to everything the first one saw.
+        tagger_module.download_info.stored_info.return_value = {'genre': 'Uptempo Hardcore'}
+        with patch.object(tagger_module, 'SoundcloudSong') as song_class:
+            Tagger.parse_song(Path('/music/a.mp3'), SongTypeEnum.SOUNDCLOUD)
+        assert song_class.call_args.args[1] == {'genre': 'Uptempo Hardcore'}
+
+    def test_the_downloaders_own_info_is_not_replaced_by_the_stored_copy(self):
+        tagger_module.download_info.stored_info.return_value = {'genre': 'stale'}
+        with patch.object(tagger_module, 'SoundcloudSong') as song_class:
+            Tagger.parse_song(Path('/music/a.mp3'), SongTypeEnum.SOUNDCLOUD, extra_info={'genre': 'fresh'})
+        assert song_class.call_args.args[1] == {'genre': 'fresh'}
+        tagger_module.download_info.stored_info.assert_not_called()
 
 
 class ParseWorkerTest(TaggerTestCase):

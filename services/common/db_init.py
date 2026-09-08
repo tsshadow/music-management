@@ -191,6 +191,13 @@ def ensure_tables_exist() -> None:
                     'ALTER TABLE library_track_genres ADD INDEX idx_genre_id (genre_id)',
                     'ALTER TABLE library_track_labels ADD INDEX idx_label_id (label_id)',
                     'ALTER TABLE library_tracks ADD INDEX idx_created_at (created_at)',
+                    # The tagger looks a download's info dict up by the absolute path it is
+                    # holding -- it never learns a video id. The two archive tables keep that
+                    # path in differently named columns; without these it is a full scan per
+                    # file. See migrate_v23_download_archive_path_index.sql and
+                    # services/tagger/download_info.py.
+                    'ALTER TABLE downloads_soundcloud_archive ADD INDEX idx_filename (filename(255))',
+                    'ALTER TABLE downloads_youtube_archive ADD INDEX idx_path (path)',
                 ):
                     try:
                         cursor.execute(index_sql)

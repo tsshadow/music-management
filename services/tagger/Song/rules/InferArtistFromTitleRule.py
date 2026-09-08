@@ -16,6 +16,20 @@ def extract_artists_from_string(part: str) -> list[str]:
     return [a.strip() for a in re.split(ARTIST_REGEX_NON_CAPTURING, part) if a.strip()]
 
 
+def normalise_pipes(title: str) -> str:
+    """Both pipe characters, as one separator.
+
+    SoundCloud's promo titles use the fullwidth `｜` because the plain `|` is not allowed in a
+    filename, so the two spellings mean the same thing and every rule below has to see the same
+    string. Three of them only replaced the ASCII one, which left "PREMIERE ｜ TARS - Rumble" as a
+    two-segment title whose first segment is "PREMIERE ｜ TARS" -- an artist name that never
+    existed.
+    """
+    for pipe in PIPE_CHARACTERS:
+        title = title.replace(pipe, '-')
+    return title
+
+
 def looks_like_an_event(segment: str, festival_helper=None) -> bool:
     """
     True for a segment that names an event rather than a performer.
@@ -147,6 +161,20 @@ class InferArtistFromTitleRule(TagRule):
         all_genres.add('mainstage')
         ignored_helper = ignored_db or databaseHelpers.get('rules_ignored_artists')
         ignored_names = ignored_helper.get_all() if ignored_helper else []
+        # A name on the ignore list with no correction has been judged not to be an artist at all.
+        # Every rule below picks its segment by matching against `artist_names`, so leaving such a
+        # name in that set is what lets a promo marker win a title: "PREMIERE ｜ TARS - Rumble"
+        # scored "Premiere" 1.05 against itself and "TARS" not at all, took the marker as the
+        # artist and left the real one inside the title. That put 9.188 tracks under one
+        # non-existent artist on production, and it feeds itself -- the name is in library_artists
+        # *because* an earlier pass read it out of a title.
+        #
+        # A name that carries a correction stays selectable on purpose: picking it is how
+        # CheckArtistRule gets the chance to swap in the spelling the correction names.
+        self.ignored_without_correction = {
+            name.lower() for name in ignored_names if not ignored_helper.get_corrected(name)
+        }
+        artist_names -= self.ignored_without_correction
         self.rules = [
             InferArtistFromPresentsOrColonRule(self.artist_db),
             InferArtistFromTitleAtRule(ignored_names, self.artist_db),
@@ -155,7 +183,9 @@ class InferArtistFromTitleRule(TagRule):
             InferArtistFromTitleDotRule(artist_names, self.artist_db),
             InferArtistFromTitleSingleDashRule(artist_names, self.artist_db, self.festival_helper),
             InferArtistFromTitleMultiDashRule(artist_names, self.artist_db, all_genres, self.festival_helper),
-            InferArtistFromFirstSegmentFallbackRule(self.artist_db, self.festival_helper),
+            InferArtistFromFirstSegmentFallbackRule(
+                self.artist_db, self.festival_helper, self.ignored_without_correction
+            ),
             InferArtistFromTitleFallbackRule(ignored_names),
         ]
 
@@ -190,8 +220,7 @@ class InferArtistFromEventPrefixRule(TagRule):
         title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
         if not title:
             return False
-        for pipe in PIPE_CHARACTERS:
-            title = title.replace(pipe, '-')
+        title = normalise_pipes(title)
         segments = [s.strip() for s in title.split(' - ') if s.strip()]
         if len(segments) != 2:
             return False
@@ -289,7 +318,7 @@ class InferArtistFromTitleSingleDashRule(TagRule):
 
     def apply(self, song):
         title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
-        title = title.replace('|', '-')
+        title = normalise_pipes(title)
         if not title or title.count(' - ') != 1:
             return False
         left, right = [s.strip() for s in title.split(' - ', 1)]
@@ -365,8 +394,7 @@ class InferArtistFromTitleMultiDashRule(TagRule):
     def _clean_raw_title(self, title):
         if not title:
             return ''
-        title = title.replace('|', '-')
-        title = title.replace('｜', '-')
+        title = normalise_pipes(title)
         title = title.replace(' I ', ' - ')
         title = title.replace(' warmup mix ', ' warmup mix - ')
         title = title.replace(' warm-up mix ', ' warm-up mix - ')
@@ -414,13 +442,14 @@ class InferArtistFromTitleMultiDashRule(TagRule):
 
 
 class InferArtistFromFirstSegmentFallbackRule(TagRule):
-    def __init__(self, artist_db, festival_helper=None):
+    def __init__(self, artist_db, festival_helper=None, ignored_names=None):
         self.artist_db = artist_db
         self.festival_helper = festival_helper
+        self.ignored_names = ignored_names or set()
 
     def apply(self, song):
         title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
-        title = title.replace('|', '-')
+        title = normalise_pipes(title)
         if not title or ' - ' not in title:
             return False
         parts = [s.strip() for s in title.split(' - ', 1)]
@@ -429,6 +458,10 @@ class InferArtistFromFirstSegmentFallbackRule(TagRule):
             # This is the last guess before giving up, so it must not guess an
             # event: that is how "Thunderdome 2025" became an artist.
             if looks_like_an_event(artist_candidate, self.festival_helper):
+                return False
+            # Nor a name the curation has already rejected. This rule matches nothing, so it is
+            # the one place a promo marker can still be taken for an artist on its own.
+            if any(name.lower() in self.ignored_names for name in extract_artists_from_string(artist_candidate)):
                 return False
             if artist_candidate:
                 set_cleaned_artist(song, artist_candidate, self.artist_db, source=artist_candidate)

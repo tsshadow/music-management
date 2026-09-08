@@ -131,3 +131,76 @@ class AudioFilesTest:
         (tmp_path / 'cover.jpg').write_bytes(b'')
         (tmp_path / 'sleeve.mp3').write_bytes(b'')
         assert backfill.audio_files(str(tmp_path)) == {}
+
+
+def _apply(rows, artist_state, failed_path=None, writes=None):
+    """Apply a plan without touching a filesystem, recording what it would write."""
+    written = writes if writes is not None else []
+
+    with (
+        patch.object(backfill, 'read_artist_state', side_effect=lambda path: artist_state[path]),
+        patch.object(backfill, 'with_retries', side_effect=lambda work, path: work()),
+        patch.object(
+            backfill,
+            'write_original_artist',
+            side_effect=lambda path, value: written.append((path, value)),
+        ),
+    ):
+        return backfill.apply_plan(rows, failed_path)
+
+
+class ApplyPlanTest:
+    """The plan is hours old by the time it is written, so the guard is asked again per file."""
+
+    def test_writes_a_row_whose_guard_still_holds(self):
+        writes = []
+        counts, failed = _apply(
+            [('/a/01.mp3', 'Eternate & Prosphere')],
+            {'/a/01.mp3': (['Eternate', 'Prosphere'], None)},
+            writes=writes,
+        )
+        assert writes == [('/a/01.mp3', 'Eternate & Prosphere')]
+        assert counts['written'] == 1
+        assert failed == []
+
+    def test_leaves_a_credit_the_file_gained_since_the_plan(self):
+        writes = []
+        counts, _failed = _apply(
+            [('/a/01.mp3', 'Eternate & Prosphere')],
+            {'/a/01.mp3': (['Eternate', 'Prosphere'], 'Eternate feat. Prosphere')},
+            writes=writes,
+        )
+        assert writes == []
+        assert counts['skipped_gained_original'] == 1
+        assert counts['written'] == 0
+
+    def test_refuses_a_wording_the_artists_no_longer_match(self):
+        writes = []
+        counts, _failed = _apply(
+            [('/a/01.mp3', 'Eternate & Prosphere')],
+            {'/a/01.mp3': (['Oxya'], None)},
+            writes=writes,
+        )
+        assert writes == []
+        assert counts['skipped_artists_changed'] == 1
+
+    def test_a_refused_file_is_recorded_so_it_can_be_replayed(self, tmp_path):
+        failed_file = tmp_path / 'plan.txt.failed'
+
+        def refuse(path, value):
+            raise PermissionError(13, 'Permission denied')
+
+        with (
+            patch.object(
+                backfill,
+                'read_artist_state',
+                side_effect=lambda path: (['Eternate', 'Prosphere'], None),
+            ),
+            patch.object(backfill, 'with_retries', side_effect=lambda work, path: work()),
+            patch.object(backfill, 'write_original_artist', side_effect=refuse),
+        ):
+            counts, failed = backfill.apply_plan([('/a/01.mp3', 'Eternate & Prosphere')], str(failed_file))
+
+        assert counts['refused'] == 1
+        assert failed == [('/a/01.mp3', 'Eternate & Prosphere')]
+        assert backfill.load_plan(str(failed_file)) == [('/a/01.mp3', 'Eternate & Prosphere')]

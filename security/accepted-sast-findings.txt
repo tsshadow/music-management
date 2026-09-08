@@ -229,3 +229,15 @@ e1aa004efd8e6a7b x1  # use-of-md5 services/muma-mobile/core/subsonic-api/src/int
 acedf220b679b6b2 x5  # writable-filesystem-service docker/docker-compose.tools.yml
 4a78e339f31863ad x5  # writable-filesystem-service docker/docker-compose.workers.yml
 25d2c6c464a0aee4 x11  # writable-filesystem-service docker/docker-compose.yml
+
+# --- insecure-file-permissions ---
+# The importer setting 0777/0666 on a release it just moved into the library.
+# That is what the whole tree carries after the 2026-09-05 permission repair,
+# and it has to: the muma containers write as root, LMS writes as its own user,
+# and the SMB share maps everyone else to a third. A release left at the default
+# 0755/0644 is readable by all of them and writable by none -- 19 directories
+# arrived that way in the first week of September and the release-date backfill
+# skipped nine of their files. Narrowing this to a shared group is the better
+# answer, and it is a change to how every writer is deployed rather than to this
+# line. Audited 2026-09-08.
+71418121d6e17a96 x1  # insecure-file-permissions services/importer/mover.py

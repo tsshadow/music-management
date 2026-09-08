@@ -56,6 +56,17 @@ REASONS = {
         'removes all of these; that is a separate change.'
     ),
     'dependabot-missing-cooldown': 'Same dead Ultrasonic directory.',
+    'insecure-file-permissions': (
+        'The importer setting 0777/0666 on a release it just moved into the '
+        'library. That is what the whole tree carries after the 2026-09-05 '
+        'permission repair, and it has to: the muma containers write as root, '
+        'LMS writes as its own user, and the SMB share maps everyone else to a '
+        'third. A release left at the default 0755/0644 is readable by them and '
+        'writable by none of them -- 19 directories arrived that way in the '
+        'first week of September and the release-date backfill skipped their '
+        'files. Narrowing this to a shared group is the better answer and is a '
+        'change to how every writer is deployed, not to this line.'
+    ),
     'writable-filesystem-service': (
         'Container hardening that is not safe to switch on blind: a service that '
         'writes a temp file falls over in a way that only shows up on deploy, '

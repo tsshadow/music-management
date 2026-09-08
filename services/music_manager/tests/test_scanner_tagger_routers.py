@@ -148,6 +148,21 @@ class ScannerManagerTest(unittest.TestCase):
             self.assertEqual(self.manager._scan_recursive(self.conn, False), 1)
         process.assert_called_once_with(self.conn, '/music/a.mp3', False)
 
+    def test_the_quarantine_is_not_walked_into(self):
+        """What the pipeline parked is exactly what must not come back as library tracks.
+
+        With no quarantine folder configured it lands beside the music root as
+        `.quarantine`, and the importer moves duplicate releases and unreadable files
+        there. Indexing them would undo the decision that put them there.
+        """
+        dirs = ['.quarantine', '@eaDir', 'EPs']
+        with (
+            patch.object(scanner_router.os, 'walk', return_value=[('/music', dirs, [])]),
+            patch.object(self.manager, '_process_file_safe', return_value=True),
+        ):
+            self.manager._scan_recursive(self.conn, False)
+        self.assertEqual(['EPs'], dirs)
+
     def test_an_unsupported_extension_is_skipped_quietly(self):
         with patch.object(
             self.manager, 'process_file', side_effect=scanner_router.ExtensionNotSupportedException('.txt')

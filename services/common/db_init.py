@@ -48,6 +48,7 @@ REQUIRED_TABLES = [
     'rules_podcast_aliases',
     'library_track_audio_features',
     'library_track_ml_labels',
+    'library_ingestion_records',
 ]
 
 
@@ -111,6 +112,14 @@ def ensure_tables_exist() -> None:
         'rules_podcast_aliases': '\n            CREATE TABLE IF NOT EXISTS rules_podcast_aliases (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                podcast_id INT NOT NULL,\n                alias VARCHAR(255) NOT NULL,\n                normalized_alias VARCHAR(191) NOT NULL UNIQUE,\n                occurrences INT NOT NULL DEFAULT 0,\n                INDEX(podcast_id),\n                FOREIGN KEY (podcast_id) REFERENCES rules_podcasts(id) ON DELETE CASCADE\n            )\n        ',
         'library_track_audio_features': '\n            CREATE TABLE IF NOT EXISTS library_track_audio_features (\n                track_id VARCHAR(255) PRIMARY KEY,\n                internal_track_id INT,\n                file_path TEXT,\n                tempo FLOAT,\n                duration FLOAT,\n                mean_spectral_centroid FLOAT,\n                std_spectral_centroid FLOAT,\n                mean_spectral_bandwidth FLOAT,\n                std_spectral_bandwidth FLOAT,\n                mean_spectral_rolloff FLOAT,\n                std_spectral_rolloff FLOAT,\n                mean_rms FLOAT,\n                std_rms FLOAT,\n                mean_zcr FLOAT,\n                std_zcr FLOAT,\n                mean_spectral_contrast FLOAT,\n                std_spectral_contrast FLOAT,\n                mfcc_1 FLOAT, mfcc_2 FLOAT, mfcc_3 FLOAT, mfcc_4 FLOAT, mfcc_5 FLOAT, mfcc_6 FLOAT, mfcc_7 FLOAT, mfcc_8 FLOAT, mfcc_9 FLOAT, mfcc_10 FLOAT, mfcc_11 FLOAT, mfcc_12 FLOAT, mfcc_13 FLOAT,\n                std_mfcc_1 FLOAT, std_mfcc_2 FLOAT, std_mfcc_3 FLOAT, std_mfcc_4 FLOAT, std_mfcc_5 FLOAT, std_mfcc_6 FLOAT, std_mfcc_7 FLOAT, std_mfcc_8 FLOAT, std_mfcc_9 FLOAT, std_mfcc_10 FLOAT, std_mfcc_11 FLOAT, std_mfcc_12 FLOAT, std_mfcc_13 FLOAT,\n                mean_chroma FLOAT,\n                std_chroma FLOAT,\n                artist_name VARCHAR(255),\n                label_name VARCHAR(255),\n                release_year INT,\n                release_date VARCHAR(10),\n                source_platform VARCHAR(50),\n                bpm_tag FLOAT,\n                genre_tag VARCHAR(100),\n                musical_key VARCHAR(20),\n                energy FLOAT,\n                danceability FLOAT,\n                valence FLOAT,\n                popularity INT,\n                FOREIGN KEY (internal_track_id) REFERENCES library_tracks(id) ON DELETE SET NULL\n            )\n        ',
         'library_track_ml_labels': '\n            CREATE TABLE IF NOT EXISTS library_track_ml_labels (\n                track_id VARCHAR(255) PRIMARY KEY,\n                ml_genre VARCHAR(100),\n                ml_review_status ENUM(\'unreviewed\', \'human_verified\', \'borderline\', \'do_not_train\') DEFAULT \'unreviewed\',\n                approved_for_training BOOLEAN DEFAULT FALSE,\n                internal_track_id INT,\n                FOREIGN KEY (internal_track_id) REFERENCES library_tracks(id) ON DELETE SET NULL\n            )\n        ',
+        # What a file said before the tagger first touched it, plus the version of the
+        # code and a fingerprint of the rules in force at that moment. The tagger rewrites
+        # tags in place and kept no copy: ORIGINAL_TITLE and ORIGINAL_ARTIST are the two
+        # fields somebody noticed losing and hand-rolled a rescue for, one rule each.
+        # Written once per file and never updated -- a later pass sees a file this tagger
+        # already rewrote, so its idea of "arrival" is worth less than the first one's.
+        # See services/tagger/ingestion.py and migrate_v22_ingestion_records.sql.
+        'library_ingestion_records': '\n            CREATE TABLE IF NOT EXISTS library_ingestion_records (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                file_path TEXT NOT NULL,\n                file_path_hash VARCHAR(64) NOT NULL UNIQUE,\n                file_size BIGINT NULL,\n                source VARCHAR(32) NOT NULL,\n                tags_json LONGTEXT NOT NULL,\n                code_version VARCHAR(32) NULL,\n                rules_fingerprint VARCHAR(32) NULL,\n                recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                INDEX idx_ingestion_recorded_at (recorded_at)\n            )\n        ',
     }
     queries = [table_queries[table] for table in REQUIRED_TABLES]
     try:

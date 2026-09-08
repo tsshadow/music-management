@@ -104,7 +104,15 @@ class ScannerManager:
 
     def _scan_recursive(self, conn, force):
         count = 0
-        for root, _, files in os.walk(self.music_path):
+        for root, dirs, files in os.walk(self.music_path):
+            # Hidden directories are not library content. The one that matters is
+            # `.quarantine`: when no quarantine folder is configured it lands beside the
+            # music root, and the pipeline parks duplicates and unreadable files there.
+            # Walking it would index exactly the files the importer decided not to keep,
+            # so a duplicate release would come straight back as library tracks. Synology
+            # writes `@eaDir` thumbnail folders through the same tree; the tagger already
+            # prunes those and this walk had no reason to read them either.
+            dirs[:] = [d for d in dirs if not d.startswith('.') and d != '@eaDir']
             for file in files:
                 if file.startswith('.'):
                     continue

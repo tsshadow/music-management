@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## Global Version 6.30.1 (2026-09-08)
+
+- Wat speelt en wat je hebt geselecteerd zijn nu twee verschillende dingen om naar te kijken, en de
+  navigatiebalk laat zien waar je bent.
+- Genres, festivals en artiesten zonder foto krijgen op Home dezelfde gekleurde cover als in de auto.
 ## Global Version 6.30.0 (2026-09-07)
 
 - Android Auto tekent bladerniveaus met cover art nu als raster in plaats van als tekstlijst.

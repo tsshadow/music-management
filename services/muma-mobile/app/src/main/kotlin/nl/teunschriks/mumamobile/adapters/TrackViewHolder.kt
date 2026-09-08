@@ -1,5 +1,6 @@
 package nl.teunschriks.mumamobile.adapters
 
+import android.util.TypedValue
 import android.view.View
 import android.widget.Checkable
 import android.widget.ImageView
@@ -26,6 +27,7 @@ import nl.teunschriks.mumamobile.service.plusAssign
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.TrackDateFormatter
 import nl.teunschriks.mumamobile.util.Util
+import nl.teunschriks.mumamobile.util.themeColor
 import org.koin.core.component.KoinComponent
 
 const val INDICATOR_THICKNESS_INDEFINITE = 5
@@ -41,7 +43,9 @@ class TrackViewHolder(val view: View) :
     CoroutineScope by CoroutineScope(Dispatchers.IO) {
 
     companion object {
-        val COLOR_HIGHLIGHT = com.google.android.material.R.attr.colorSecondaryContainer
+        /** `bg-brand/20` in the web UI: the brand colour at 20% alpha over the row. */
+        private const val SELECTION_TINT_ALPHA = 0x33000000
+        private const val SELECTION_TINT_MASK = 0x00FFFFFF
     }
 
     var entry: Track? = null
@@ -169,8 +173,11 @@ class TrackViewHolder(val view: View) :
         ContextCompat.getDrawable(view.context, R.drawable.ic_stat_play)!!
     }
 
+    /** The row's title. Exposed so a test can read the mark a playing row carries. */
+    internal val titleView: TextView get() = title
+
     @Suppress("MagicNumber")
-    private fun setPlayIcon(isPlaying: Boolean) {
+    internal fun setPlayIcon(isPlaying: Boolean) {
         if (isPlaying && !isPlayingCached) {
             isPlayingCached = true
             title.setCompoundDrawablesWithIntrinsicBounds(
@@ -179,7 +186,7 @@ class TrackViewHolder(val view: View) :
                 null,
                 null
             )
-            updateBackground()
+            title.setTextColor(brandColor())
         } else if (!isPlaying && isPlayingCached) {
             isPlayingCached = false
             title.setCompoundDrawablesWithIntrinsicBounds(
@@ -188,7 +195,7 @@ class TrackViewHolder(val view: View) :
                 0,
                 0
             )
-            updateBackground()
+            title.setTextColor(view.context.themeColor(android.R.attr.textColorPrimary))
         }
     }
 
@@ -278,13 +285,32 @@ class TrackViewHolder(val view: View) :
         progressIndicator.trackThickness = INDICATOR_THICKNESS_DEFINITE
     }
 
+    /**
+     * The brand colour the rest of the app marks the current mode with: green for songs, blue for
+     * sets. Read per call rather than cached, because a holder outlives a mode switch.
+     */
+    private fun brandColor(): Int = if (Settings.isSetsMode) {
+        view.context.themeColor(R.attr.brandColorSets)
+    } else {
+        view.context.themeColor(androidx.appcompat.R.attr.colorPrimary)
+    }
+
+    /**
+     * Selection tints the row; playing marks the title (see [setPlayIcon]). They used to be the
+     * same card, so a row could not say it was both -- and the card was named by resource id,
+     * which overrode the background the active style had put on the row in the layout.
+     */
     private fun updateBackground() {
-        if (isPlayingCached || isCheckedInternal) {
-            songLayout.setBackgroundResource(R.drawable.song_card_background_selected)
-            songLayout.elevation = 3F
+        if (isCheckedInternal) {
+            songLayout.setBackgroundColor(brandColor() and SELECTION_TINT_MASK or SELECTION_TINT_ALPHA)
         } else {
-            songLayout.setBackgroundResource(R.drawable.song_card_background)
-            songLayout.elevation = 2F
+            val background = TypedValue()
+            view.context.theme.resolveAttribute(R.attr.listRowBackground, background, true)
+            if (background.resourceId == 0) {
+                songLayout.background = null
+            } else {
+                songLayout.setBackgroundResource(background.resourceId)
+            }
         }
     }
 

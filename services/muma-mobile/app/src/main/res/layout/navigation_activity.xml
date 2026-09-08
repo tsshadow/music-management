@@ -52,8 +52,8 @@
         a:layout_width="match_parent"
         a:layout_height="wrap_content"
         a:layout_alignParentBottom="true"
-        a:background="?attr/colorSurface"
-        app:itemIconTint="?attr/colorPrimary"
-        app:itemTextColor="?android:attr/textColorPrimary"
+        a:background="?attr/colorNavSurface"
+        app:itemIconTint="@color/bottom_navigation_item"
+        app:itemTextColor="@color/bottom_navigation_item"
         app:menu="@menu/bottom_navigation" />
 </RelativeLayout>

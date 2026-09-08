@@ -76,6 +76,12 @@ worden vanzelf een raster zonder dat er een lijst met media-ids onderhouden hoef
 
 ## Waar het is aangesloten
 
+Stap 4 zit in `HomeCardAdapter`: `HomeCardArt.kindFor(card)` beslist of een kaart een getekende
+cover krijgt, en dezelfde drie families gelden als in de auto. Een kaart waar de server wél een
+plaat voor heeft houdt die plaat, en een soort zonder cover-familie (label, jaar, playlist) houdt
+zijn icoon. De kleur komt uit `AppGenreTints.cache`, één cache voor de hele app: twee caches
+zouden een venster geven waarin de auto en de telefoon het oneens zijn over Hardstyle.
+
 - `MediaLibraryBase.itemListResult(items)` bouwt het antwoord mét params. Alle 27 plekken in
   `MediaLibraryBrowser` die `LibraryResult.ofItemList(..., null)` teruggaven, gaan er nu doorheen,
   net als `emptyResult`. Een niveau kan het dus niet meer vergeten.
@@ -116,7 +122,7 @@ Gedekt door `ContentStyleTest` en `SearchableRootParamsTest` in
 | 1 | Tint per genre vanaf de server; renderer die een cover tekent uit naam, soort en tint | **Geleverd** |
 | 2 | Content-style hints | **Geleverd** |
 | 3 | Artwork-URI bij bladerbare items in `MediaLibraryBrowser` | **Geleverd** voor genres en artiesten |
-| 4 | Home-strips op de telefoon cover-first maken, zoals de web UI | Open |
+| 4 | Home-strips op de telefoon cover-first maken, zoals de web UI | **Geleverd** voor genres, festivals en artiesten |
 | 5 | Echte festivalbeelden koppelen waar die er zijn en gebruikt mogen worden | Open |
 
 Wat stap 3 bewust niet raakt: **playlists en tegels**. Die zijn bladerbaar en hebben geen beeld, dus

@@ -11,6 +11,26 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.52.0 (2026-09-08)
+
+- **MuMa onthoudt nu wat een nummer zei toen het binnenkwam.** Tot nu toe overschreef de tagger de
+  tags zonder iets te bewaren, dus een verkeerde regel was niet meer terug te zien.
+
+- De backfill die artiestennamen uit NFO-bestanden herstelt, controleert vlak voor het schrijven
+  opnieuw of het bestand nog steeds die naam mist, in plaats van te vertrouwen op een plan van uren
+  eerder.
+
+- **"Premiere" is geen artiest.** Een SoundCloud-titel begint vaak met een marker als PREMIERE of
+  FREE DOWNLOAD, en die belandde als artiestennaam op de track — 9.188 keer, terwijl de echte
+  artiest in de titel bleef staan. Elf van die markers staan nu op de negeerlijst en worden niet
+  meer als artiest gekozen; bestaande bestanden worden bijgewerkt zodra de tagger ze opnieuw leest.
+
+- **De importer gooit niets meer meteen weg.** Uitgepakte archieven, dubbele releases en
+  onleesbare bestanden gaan een maand in quarantaine, zodat een verkeerde beoordeling terug te
+  draaien is.
+
+- **Wat in quarantaine gaat blijft nu ook uit de speler.** Gequarantainede dubbele releases konden
+  via LMS alsnog in de bibliotheek opduiken.
 ## Global Version 0.51.0 (2026-09-07)
 
 - **Pipelines belasten de server minder.** Zware bouw- en testjobs verhuizen naar het werkstation

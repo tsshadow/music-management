@@ -250,19 +250,44 @@ def load_plan(plan_path):
     return rows
 
 
+def still_restorable(path, wording):
+    """Whether the guard that planned this row still holds for the file as it is right now.
+
+    The plan is a snapshot. Walking the whole tree takes hours and the plan is then applied later
+    still, while the tagger keeps writing to the same files -- so by the time a row is written its
+    file may have gained an ORIGINAL_ARTIST of its own, or a different artist list that this wording
+    no longer describes. Writing it anyway would clobber a fresher credit or state a wrong one, the
+    two things `plan_release` exists to prevent. `restorable_wording` is idempotent on a wording it
+    produced, so re-asking it is the same question the plan asked, put again to today's file.
+    """
+    values, existing = read_artist_state(path)
+    if existing:
+        return 'skipped_gained_original'
+    if restorable_wording(wording, values) != wording:
+        return 'skipped_artists_changed'
+    return None
+
+
 def apply_plan(planned, failed_path=None):
     counts, failed = Counter(), []
     for path, wording in planned:
         try:
+            skipped = with_retries(lambda p=path, w=wording: still_restorable(p, w), path)
+            if skipped:
+                counts[skipped] += 1
+                continue
             with_retries(lambda p=path, w=wording: write_original_artist(p, w), path)
             counts['written'] += 1
         except Exception as exc:  # noqa: BLE001 - a refused file must not stop the run
             counts['refused' if is_refusal(exc) else 'failed'] += 1
-            failed.append(path)
+            failed.append((path, wording))
             logger.warning('Could not write %s: %s', path, exc)
     if failed_path and failed:
+        # Written in the plan's own format, so the file it leaves behind is one `--from-plan` can
+        # replay once the refusal is lifted. A bare list of paths cannot be replayed: the wording
+        # to write lives nowhere else.
         with open(failed_path, 'a', encoding='utf-8') as handle:
-            handle.write('\n'.join(failed) + '\n')
+            handle.write(''.join(f'{wording}\t{path}\n' for path, wording in failed))
     return (counts, failed)
 
 

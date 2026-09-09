@@ -1034,6 +1034,11 @@
     "plays": "Plays",
     "releaseDate": "Releasedatum",
     "reload": "Verversen",
-    "title": "Titel"
+    "title": "Titel",
+    "versions": "Versies",
+    "versionsOf": "Versies van {title}",
+    "bestVersion": "beste versie",
+    "onlyVersion": "Dit is de enige versie van dit nummer.",
+    "versionsFailed": "De versies van dit nummer konden niet worden geladen"
   }
 }

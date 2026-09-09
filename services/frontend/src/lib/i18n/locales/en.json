@@ -1034,6 +1034,11 @@
     "plays": "Plays",
     "releaseDate": "Release date",
     "reload": "Reload",
-    "title": "Title"
+    "title": "Title",
+    "versions": "Versions",
+    "versionsOf": "Versions of {title}",
+    "bestVersion": "best version",
+    "onlyVersion": "This is the only version of this song.",
+    "versionsFailed": "Could not load the versions of this song"
   }
 }

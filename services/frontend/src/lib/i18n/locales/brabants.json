@@ -205,6 +205,11 @@
     "plays": "Keer gedraaid",
     "releaseDate": "Uitkomdatum",
     "reload": "Opnieuw haole",
-    "title": "Titel"
+    "title": "Titel",
+    "versions": "Versies",
+    "versionsOf": "Versies van {title}",
+    "bestVersion": "beste versie",
+    "onlyVersion": "Dit is d'n eenigste versie van dit nummerke.",
+    "versionsFailed": "De versies van dit nummerke konne nie gelaje worre"
   }
 }

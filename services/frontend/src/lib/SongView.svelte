@@ -18,6 +18,21 @@
   let isLoading = $state(true);
   let failed = $state(false);
 
+  //: Which load is the current one. Navigating between two songs -- the back button does
+  //: this -- leaves the first request in flight, and a slow answer would otherwise land
+  //: under the next song's title. Every load claims a number and only writes if it still
+  //: holds the latest.
+  let loadToken = 0;
+
+  //: One page of versions. A work holding more than this is not something this library
+  //: has (the largest is 16), but a silent truncation is invisible afterwards, so the
+  //: loader follows the server's moreResults instead of assuming one page is all of it.
+  const PAGE_SIZE = 100;
+
+  //: Where following those pages stops regardless. A work this large is a grouping fault,
+  //: not a song, and fetching forever would hang the page rather than show the fault.
+  const MAX_VERSIONS = 500;
+
   const canonical = $derived(
     versions.find((version) => version.isCanonical === true || version.isCanonical === 'true') ||
       versions[0] ||
@@ -34,25 +49,39 @@
    * @param {string|number} id - The work id.
    */
   async function loadVersions(id) {
+    const token = ++loadToken;
     isLoading = true;
     failed = false;
+    const collected = [];
+    let offset = 0;
     try {
-      const response = await fetch(`/rest/getSpotifyTracks?workId=${id}&count=100&${$authParams}`);
-      const data = await response.json();
-      // Subsonic answers its own failures with HTTP 200 and an error in the body, so the
-      // status in the body is the only thing that says this worked.
-      const payload = data?.['subsonic-response'];
-      if (!response.ok || payload?.status !== 'ok') {
-        throw new Error(payload?.error?.message || response.statusText || 'failed');
+      while (collected.length < MAX_VERSIONS) {
+        const response = await fetch(
+          `/rest/getSpotifyTracks?workId=${id}&count=${PAGE_SIZE}&offset=${offset}&${$authParams}`,
+        );
+        const data = await response.json();
+        // Subsonic answers its own failures with HTTP 200 and an error in the body, so the
+        // status in the body is the only thing that says this worked.
+        const payload = data?.['subsonic-response'];
+        if (!response.ok || payload?.status !== 'ok') {
+          throw new Error(payload?.error?.message || response.statusText || 'failed');
+        }
+        const result = payload.tracks?.track || [];
+        collected.push(...(Array.isArray(result) ? result : [result]));
+
+        const more = payload.tracks?.moreResults;
+        if (!(more === true || more === 'true') || result.length === 0) break;
+        offset = Number(payload.tracks?.nextOffset ?? offset + PAGE_SIZE);
       }
-      const result = payload.tracks?.track || [];
-      versions = Array.isArray(result) ? result : [result];
+      if (token !== loadToken) return;
+      versions = collected;
     } catch (e) {
+      if (token !== loadToken) return;
       console.error('Failed to load song versions:', e);
       failed = true;
       versions = [];
     } finally {
-      isLoading = false;
+      if (token === loadToken) isLoading = false;
     }
   }
 </script>

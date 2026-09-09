@@ -90,6 +90,49 @@ describe("SongView", () => {
   });
 });
 
+describe("SongView paging and staleness", () => {
+  it("follows the server's pages instead of stopping at the first", async () => {
+    // A version list that is silently cut short is invisible afterwards: the page looks
+    // complete and simply misses files.
+    const page = (tracks, more, nextOffset) =>
+      Promise.resolve({
+        ok: true,
+        json: async () => ({
+          "subsonic-response": {
+            status: "ok",
+            tracks: { track: tracks, moreResults: more, nextOffset },
+          },
+        }),
+      });
+    globalThis.fetch = vi
+      .fn()
+      .mockImplementationOnce(() => page([version(1, { isCanonical: true })], true, 100))
+      .mockImplementationOnce(() => page([version(2, { title: "Second page" })], false));
+
+    render(SongView, { workId: "42", onnavigate: vi.fn() });
+
+    await vi.waitFor(() => expect(screen.getByText("Second page")).toBeTruthy());
+    expect(globalThis.fetch.mock.calls[1][0]).toContain("offset=100");
+  });
+
+  it("stops paging when the server says there is no more", async () => {
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        "subsonic-response": {
+          status: "ok",
+          tracks: { track: [version(1, { isCanonical: true })], moreResults: false },
+        },
+      }),
+    }));
+
+    render(SongView, { workId: "42", onnavigate: vi.fn() });
+
+    await vi.waitFor(() => expect(screen.getByRole("heading", { level: 2 })).toBeTruthy());
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("the song route", () => {
   it("survives the trip to a path and back", () => {
     expect(viewToPath({ view: "song:42" })).toBe("/song/42");

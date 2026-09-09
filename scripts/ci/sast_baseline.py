@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 from collections import Counter, defaultdict
 
@@ -35,13 +36,29 @@ HEADER = """\
 #
 # Reasons are per rule, in the section headers below. A rule with no reason has
 # not been audited yet and is the next thing to look at.
+#
+# This whole file is generated, reasons included. Write a reason in REASONS in
+# scripts/ci/sast_baseline.py, not here: text typed straight into this file used
+# to be destroyed by the next regeneration, twice. The [r:...] beside each
+# section stamps what the generator wrote, so an edit made here is now detected
+# and the regeneration refuses instead of overwriting it.
 """
 
 REASONS = {
     'sqlalchemy-execute-raw-query': (
         'Table and column names cannot be bound as parameters, and every site '
         'interpolates an internal constant rather than request data. Revisit '
-        'any new site that interpolates something reaching it from outside.'
+        'any new site that interpolates something reaching it from outside. '
+        'SoundcloudArchive.py and the third events.py hit arrived with the '
+        'whole-tree ruff format, and are worth explaining because they look like '
+        'the reformat introduced them. It did not: both sites are older than the '
+        'reformat, which only joined their implicitly-concatenated SQL onto one '
+        'line and so made the pattern visible to semgrep. Audited both, '
+        '2026-09-01: SoundcloudArchive.py builds a join of %s placeholders and '
+        'passes tuple(chunk) as parameters, so only the placeholder *count* is '
+        'interpolated; events.py takes its WHERE from _build_filters(), where '
+        'every clause is a literal and every value goes into params as %s. '
+        'Neither puts request data into the SQL string.'
     ),
     'avoid-sqlalchemy-text': 'Same as sqlalchemy-execute-raw-query.',
     'formatted-sql-query': (
@@ -61,17 +78,27 @@ REASONS = {
         'library. That is what the whole tree carries after the 2026-09-05 '
         'permission repair, and it has to: the muma containers write as root, '
         'LMS writes as its own user, and the SMB share maps everyone else to a '
-        'third. A release left at the default 0755/0644 is readable by them and '
-        'writable by none of them -- 19 directories arrived that way in the '
-        'first week of September and the release-date backfill skipped their '
-        'files. Narrowing this to a shared group is the better answer and is a '
-        'change to how every writer is deployed, not to this line.'
+        'third. A release left at the default 0755/0644 is readable by all of '
+        'them and writable by none -- 19 directories arrived that way in the '
+        'first week of September and the release-date backfill skipped nine of '
+        'their files. Narrowing this to a shared group is the better answer, and '
+        'it is a change to how every writer is deployed rather than to this '
+        'line. Audited 2026-09-08.'
     ),
     'writable-filesystem-service': (
         'Container hardening that is not safe to switch on blind: a service that '
         'writes a temp file falls over in a way that only shows up on deploy, '
         'and prod cannot be tested from here. no-new-privileges, which cannot '
-        'break anything, was applied instead.'
+        'break anything, was applied instead. tools went from x3 to x4 with '
+        'release-date-backfill, a one-off run that writes only to the mounted '
+        'music share and follows the same rule. x4 to x5 with song-work-repair, '
+        '2026-09-05: same shape again, a one-off container that runs one script '
+        'against the database, no mounts, gone when it exits. read_only would be '
+        'a better answer than an accepted finding, but it cannot be tried on '
+        'anything but production -- the whole file carries that caveat -- so it '
+        'follows its four neighbours rather than being the one service that is '
+        'hardened untested. The finding semgrep prints names firefox: it reports '
+        'the surplus occurrence, not the one that was added.'
     ),
     'exposing-docker-socket-volume': (
         'The socket is mounted where a container genuinely drives Docker. Each '
@@ -131,8 +158,19 @@ REASONS = {
         'remaining hits are the rule being stricter than the tool.'
     ),
     'request-with-http': (
-        'Plain HTTP to services on this LAN that speak no TLS -- the LMS server '
-        'and apk-hoster. Both are reachable only inside the tailnet.'
+        'Plain HTTP to a service on this LAN that speaks no TLS, reachable only '
+        'inside the tailnet. LmsScanTrigger used to be listed here too. It now '
+        'builds its URL through one helper that keeps an explicit scheme when the '
+        'configured host carries one, so there is no literal http:// left in the '
+        'request and the rule no longer fires.'
+    ),
+    'dynamic-urllib-use-detected': (
+        'The ntfy notify call in the crash-triage listener builds its URL from '
+        'NTFY_URL, an operator-set value in a root-owned env file, and the code '
+        'pins the scheme to http(s) before opening it -- a mangled value cannot '
+        'become a file:// read. Audited 2026-08-31. This reason was once restored '
+        'by hand after a regeneration replaced it with the placeholder; that is '
+        'what unwritable_rationale() below now prevents.'
     ),
     'unsafe-formatstring': (
         'Format strings built from internal constants in one-off tools, not '
@@ -178,7 +216,113 @@ def load_baseline(path: str) -> dict[str, int]:
     return counts
 
 
-def write_baseline(report_path: str, baseline_path: str) -> None:
+#: What a section says before anybody has audited it. Written by this generator,
+#: so it is the one comment block that may be replaced without asking.
+PLACEHOLDER = 'NOT YET AUDITED.'
+
+
+def _normalized(lines: list[str]) -> str:
+    """Comment text with its wrapping removed, so two rewraps of one paragraph match."""
+    return ' '.join(' '.join(line.lstrip('#') for line in lines).split()).strip()
+
+
+def reason_stamp(text: str) -> str:
+    """A short digest of the reason this generator wrote for a section.
+
+    Recorded in the section header, which is what makes "somebody typed here"
+    decidable rather than a guess. Comparing the file against REASONS instead
+    cannot work: updating a reason is a normal edit, and it would be
+    indistinguishable from the accident this guards against.
+    """
+    return hashlib.sha256(_normalized([text]).encode()).hexdigest()[:8]
+
+
+def rationale_in_file(baseline_path: str) -> dict[str, tuple[str, str]]:
+    """Each section's reason text and the stamp recorded beside it.
+
+    Keyed by rule, with the header under the empty key. Everything between a
+    `# --- rule --- [r:stamp]` marker and that section's first key line is the
+    reason. A section written before stamps existed has an empty stamp.
+    """
+    found: dict[str, list[str]] = {'': []}
+    stamps: dict[str, str] = {'': ''}
+    rule = ''
+    try:
+        with open(baseline_path) as handle:
+            for raw in handle:
+                line = raw.rstrip('\n')
+                if line.startswith('# --- '):
+                    name, _, stamp = line[6:].partition(' --- [r:')
+                    rule = name.removesuffix(' ---').strip()
+                    stamps[rule] = stamp.rstrip(']').strip()
+                    found[rule] = []
+                elif line.startswith('#'):
+                    found[rule].append(line)
+    except FileNotFoundError:
+        return {}
+    return {name: (_normalized(lines), stamps.get(name, '')) for name, lines in found.items()}
+
+
+def rationale_to_write(rule: str) -> str:
+    return _normalized(_wrap(REASONS[rule])) if REASONS.get(rule) else PLACEHOLDER
+
+
+def unwritable_rationale(baseline_path: str) -> dict[str, str]:
+    """Reason text in the file that regenerating would not put back.
+
+    The whole file is generated from REASONS, so anything typed straight into it
+    is lost the next time somebody accepts a finding. That has happened twice:
+    36 lines of audit rationale in one go, and once before that -- the file still
+    carried a note about the first incident, written by the person who restored
+    it by hand. A comment block nobody can reproduce is the one thing this
+    generator must not quietly drop.
+
+    The stamp beside each section is what decides it. A section still carrying
+    the stamp of the text it holds was written by this generator, so replacing it
+    with a newer reason from REASONS loses nothing -- updating a reason has to
+    stay an ordinary edit. A section whose text no longer matches its stamp was
+    typed by a person, and that is what this refuses to overwrite.
+
+    Returns rule -> the text that would be lost. The header is under ''.
+    """
+    lost = {}
+    for rule, (existing, stamp) in rationale_in_file(baseline_path).items():
+        if not existing or existing == PLACEHOLDER:
+            # The placeholder is this generator's own text; replacing it is the
+            # normal path for a rule whose reason was just written into REASONS.
+            continue
+        if rule == '':
+            if existing != _normalized(HEADER.splitlines()):
+                lost[rule] = existing
+            continue
+        if stamp:
+            if stamp != reason_stamp(existing):
+                lost[rule] = existing
+            continue
+        # No stamp: written before this guard existed, so REASONS is the only
+        # thing to compare against. One regeneration gives every section a stamp
+        # and this branch stops being reachable.
+        if existing != rationale_to_write(rule):
+            lost[rule] = existing
+    return lost
+
+
+def write_baseline(report_path: str, baseline_path: str) -> int:
+    """Regenerate the baseline. Returns an exit status; refuses to lose rationale."""
+    lost = unwritable_rationale(baseline_path)
+    if lost and os.environ.get('SAST_BASELINE_FORCE') != '1':
+        print(f'--- refusing to write {baseline_path}: {len(lost)} section(s) hold '
+              f'rationale that is not in REASONS ---')
+        for rule, text in sorted(lost.items()):
+            print(f'\n{rule or "(header)"}:\n  {text[:400]}')
+        print(
+            '\nRegenerating rebuilds every comment block from REASONS in '
+            'scripts/ci/sast_baseline.py, so the text above would be gone. Move it '
+            'into REASONS (that is where a reason belongs -- the file is generated), '
+            'then run this again. SAST_BASELINE_FORCE=1 overrides, and throws it away.'
+        )
+        return 1
+
     results = load_report(report_path)
     counts: Counter[str] = Counter(key_for(r) for r in results)
     by_rule: dict[str, list[dict]] = defaultdict(list)
@@ -188,13 +332,13 @@ def write_baseline(report_path: str, baseline_path: str) -> None:
     with open(baseline_path, 'w') as handle:
         handle.write(HEADER)
         for rule in sorted(by_rule):
-            handle.write(f'\n# --- {rule} ---\n')
             reason = REASONS.get(rule)
-            if reason:
-                for chunk in _wrap(reason):
-                    handle.write(f'# {chunk}\n')
-            else:
-                handle.write('# NOT YET AUDITED.\n')
+            written_text = _wrap(reason) if reason else [PLACEHOLDER]
+            # The stamp records what this generator wrote, so a later edit by hand
+            # is detectable. See unwritable_rationale().
+            handle.write(f'\n# --- {rule} --- [r:{reason_stamp(" ".join(written_text))}]\n')
+            for chunk in written_text:
+                handle.write(f'# {chunk}\n')
             written: set[str] = set()
             for result in sorted(by_rule[rule], key=lambda r: (r['path'], r['start']['line'])):
                 key = key_for(result)
@@ -204,6 +348,7 @@ def write_baseline(report_path: str, baseline_path: str) -> None:
                 handle.write(
                     f"{key} x{counts[key]}  # {rule} {result['path']}\n"
                 )
+    return 0
 
 
 def _wrap(text: str, width: int = 74) -> list[str]:
@@ -265,8 +410,7 @@ def main() -> int:
         return 2
     mode, report_path, baseline_path = sys.argv[1:4]
     if mode == 'write':
-        write_baseline(report_path, baseline_path)
-        return 0
+        return write_baseline(report_path, baseline_path)
     if mode == 'check':
         return check(report_path, baseline_path)
     print(f'unknown mode: {mode}')

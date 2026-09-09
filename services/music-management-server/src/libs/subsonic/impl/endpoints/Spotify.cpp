@@ -425,6 +425,15 @@ namespace lms::api::subsonic
             params.ratingUser = ctx.getUser()->getId();
         }
 
+        int offset = getParameterAs<int>(ctx.getParameters(), "offset").value_or(0);
+        int count = getParameterAs<int>(ctx.getParameters(), "count").value_or(50);
+        params.range = db::Range{ static_cast<std::size_t>(offset), static_cast<std::size_t>(count) };
+
+        Response response{ Response::createOkResponse(ctx.getServerProtocolVersion()) };
+        auto& tracksNode = response.createNode("tracks");
+
+        bool deduplicate = getParameterAs<bool>(ctx.getParameters(), "deduplicate").value_or(false);
+
         // Every version of one song, for the list behind a row. Deduplicating that would
         // collapse it back to the one version the caller is trying to look past, so the two
         // are mutually exclusive by construction rather than by the caller remembering.
@@ -434,14 +443,6 @@ namespace lms::api::subsonic
             deduplicate = false;
         }
 
-        int offset = getParameterAs<int>(ctx.getParameters(), "offset").value_or(0);
-        int count = getParameterAs<int>(ctx.getParameters(), "count").value_or(50);
-        params.range = db::Range{ static_cast<std::size_t>(offset), static_cast<std::size_t>(count) };
-
-        Response response{ Response::createOkResponse(ctx.getServerProtocolVersion()) };
-        auto& tracksNode = response.createNode("tracks");
-
-        bool deduplicate = getParameterAs<bool>(ctx.getParameters(), "deduplicate").value_or(false);
         bool moreResults = false;
         int nextOffset = 0;
 

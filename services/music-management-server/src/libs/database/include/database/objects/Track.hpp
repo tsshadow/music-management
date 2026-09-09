@@ -107,6 +107,10 @@ namespace lms::db
             std::optional<std::chrono::milliseconds> minDuration;
             std::optional<std::chrono::milliseconds> maxDuration;
             std::optional<int> randomSeed;
+            //: Every version of one song, as muma grouped them (migration 118). What the
+            //: version list behind a row asks for, and the only way to get playable ids for
+            //: the alternatives -- muma's own /api/songs/{id} knows paths, not LMS ids.
+            std::optional<int> workId;
             std::set<std::string> allowedArtists;
 
             void setAllowedArtists(const std::set<std::string>& artists)

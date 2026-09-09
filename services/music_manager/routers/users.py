@@ -1214,6 +1214,12 @@ def sync_single_server_db(muma_conn, db_path, source):
         from services.music_manager.routers.artist_images import sync_artist_images_to_server
 
         sync_artist_images_to_server(muma_conn, sqlite_conn)
+        # After the images, and equally best-effort: what muma decided about song versions.
+        # A server that has not migrated to 118 yet is skipped rather than failed, and a
+        # locked database costs this pass and nothing more.
+        from services.music_manager.song_version_sync import sync_song_versions_to_server
+
+        sync_song_versions_to_server(muma_conn, sqlite_conn)
         sqlite_conn.close()
     except Exception as e:
         print(f'Sync failed for {db_path}: {e}')

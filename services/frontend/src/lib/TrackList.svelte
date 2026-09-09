@@ -9,65 +9,9 @@
 
   const { tracks = [], isQueue = false, playlistId = null, onremove = null, onnavigate, showDate = false } = $props();
 
-  let versionsTrack = $state(null);
-  let versions = $state([]);
-  let isLoadingVersions = $state(false);
-
   let selectedLyricsTrack = $state(null);
   let lyricsLines = $state([]);
   let isLoadingLyrics = $state(false);
-
-  /**
-   * Shows every version of the song this track belongs to.
-   *
-   * The list is fetched rather than derived from what is on screen: the row here is the
-   * one version the server chose, and the others were collapsed away before the browser
-   * saw them. Asking by workId is also what makes them playable -- muma's own version API
-   * answers with paths and muma ids, which this player cannot use.
-   *
-   * @param {Event} e - The click event.
-   * @param {Object} track - The track object.
-   */
-  async function showVersions(e, track) {
-      e.stopPropagation();
-      versionsTrack = track;
-      versions = [];
-      isLoadingVersions = true;
-      try {
-          const response = await fetch(`/rest/getSpotifyTracks?workId=${track.workId}&count=50&${$authParams}`);
-          const data = await response.json();
-          // Subsonic answers its own failures with HTTP 200 and an error in the body, so
-          // the status in the body is the only thing that says this worked. The body is
-          // read here rather than through subsonicError() because that helper consumes the
-          // response, and the versions are in that same body.
-          const payload = data?.['subsonic-response'];
-          if (!response.ok || payload?.status !== 'ok') {
-              throw new Error(payload?.error?.message || response.statusText || 'failed');
-          }
-          const result = payload.tracks?.track || [];
-          versions = Array.isArray(result) ? result : [result];
-      } catch (e) {
-          console.error('Failed to load versions:', e);
-          notify.error($t('track.versionsFailed'), { detail: e.message });
-          versionsTrack = null;
-      } finally {
-          isLoadingVersions = false;
-      }
-  }
-
-  /**
-   * The line under a version: what kind it is, and what file it is.
-   *
-   * @param {Object} version - A track from the version list.
-   * @returns {string} A short description.
-   */
-  function versionLabel(version) {
-      const parts = [];
-      if (version.versionKind && version.versionKind !== 'none') parts.push(version.versionKind);
-      if (version.suffix) parts.push(version.suffix.toUpperCase());
-      if (version.bitRate) parts.push(`${version.bitRate} kbps`);
-      return parts.join(' · ');
-  }
 
   /**
    * Fetches and shows lyrics for a track.
@@ -506,7 +450,7 @@
                   aria-label={$t('track.versions')}
                   title={$t('track.versions')}
                   class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
-                  onclick={(e) => showVersions(e, track)}
+                  onclick={(e) => { e.stopPropagation(); onnavigate && onnavigate(`song:${track.workId}`); }}
                 >
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                         <path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h10v2H4v-2z"></path>
@@ -543,42 +487,6 @@
     {/each}
   </tbody>
 </table>
-
-{#if versionsTrack}
-  <Modal
-    title={$t('track.versionsOf', { title: versionsTrack.title })}
-    onclose={() => (versionsTrack = null)}
-  >
-    <div class="py-4">
-      {#if isLoadingVersions}
-        <div class="flex items-center justify-center gap-2 text-[#b3b3b3] py-8">
-          {$t('common.loading')}
-        </div>
-      {:else if versions.length > 1}
-        <ul class="flex flex-col gap-1">
-          {#each versions as version (version.id)}
-            <li>
-              <button
-                class="w-full flex items-center gap-3 text-left px-3 py-2 rounded hover:bg-[#333]"
-                onclick={() => { playTrack(version); versionsTrack = null; }}
-              >
-                <span class="flex-1 min-w-0">
-                  <span class="block truncate text-white">{version.title}</span>
-                  <span class="block truncate text-xs text-[#b3b3b3]">{versionLabel(version)}</span>
-                </span>
-                {#if version.isCanonical === true || version.isCanonical === 'true'}
-                  <span class="text-xs text-[#1db954] whitespace-nowrap">{$t('track.bestVersion')}</span>
-                {/if}
-              </button>
-            </li>
-          {/each}
-        </ul>
-      {:else}
-        <p class="text-[#b3b3b3] text-center py-8">{$t('track.onlyVersion')}</p>
-      {/if}
-    </div>
-  </Modal>
-{/if}
 
 {#if selectedLyricsTrack}
   <Modal 

@@ -10,6 +10,7 @@
   import PlaylistView from './PlaylistView.svelte';
   import ArtistView from './ArtistView.svelte';
   import AlbumView from './AlbumView.svelte';
+  import SongView from './SongView.svelte';
   import ArtistList from './ArtistList.svelte';
   import Settings from './Settings.svelte';
   import History from './History.svelte';
@@ -1055,6 +1056,8 @@
     <ArtistView artistId={viewArgument(activeView)} onnavigate={(v) => activeView = v} />
   {:else if activeView.startsWith('album:')}
     <AlbumView albumId={viewArgument(activeView)} onnavigate={(v) => activeView = v} />
+  {:else if activeView.startsWith('song:')}
+    <SongView workId={viewArgument(activeView)} onnavigate={(v) => activeView = v} />
   {:else if activeView.startsWith('search:')}
     <div class="flex flex-col gap-8">
       <h2 class="text-2xl font-bold m-0">{$viewMode === 'sets' ? $t('dashboard.searchResultsSets', { query: viewArgument(activeView) }) : $t('dashboard.searchResultsTracks', { query: viewArgument(activeView) })}</h2>

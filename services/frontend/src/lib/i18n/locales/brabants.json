@@ -211,5 +211,10 @@
     "bestVersion": "beste versie",
     "onlyVersion": "Dit is d'n eenigste versie van dit nummerke.",
     "versionsFailed": "De versies van dit nummerke konne nie gelaje worre"
+  },
+  "song": {
+    "heading": "Nummerke",
+    "versionCount": "{count} versies",
+    "notFound": "Dit nummerke heget gin versies om te laote zien."
   }
 }

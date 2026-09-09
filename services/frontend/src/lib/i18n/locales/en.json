@@ -1040,5 +1040,10 @@
     "bestVersion": "best version",
     "onlyVersion": "This is the only version of this song.",
     "versionsFailed": "Could not load the versions of this song"
+  },
+  "song": {
+    "heading": "Song",
+    "versionCount": "{count} versions",
+    "notFound": "This song has no versions to show."
   }
 }

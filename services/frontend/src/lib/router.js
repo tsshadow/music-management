@@ -61,6 +61,9 @@ const ARGUMENT_VIEWS = [
   { kind: "memories", segment: "memories", encode: false },
   { kind: "artist", segment: "artist", encode: false },
   { kind: "album", segment: "album", encode: false },
+  // One song and every file of it. The argument is muma's work id, an opaque number, so
+  // it travels unencoded like the other id-based routes.
+  { kind: "song", segment: "song", encode: false },
   // The admin edit pages hang off the thing they edit: /artist/123/edit. `suffix` is
   // what keeps them apart from the plain view, and it is why pathToState checks the
   // suffixed entries first -- '/genre/Hardcore/edit' has to read as the edit page of

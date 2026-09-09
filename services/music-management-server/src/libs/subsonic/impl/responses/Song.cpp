@@ -55,6 +55,28 @@ namespace lms::api::subsonic
 {
     namespace
     {
+        // What muma decided about this song's versions. Kept out of createSongNode because
+        // that function is already past clang-tidy's cognitive-complexity threshold, and
+        // three more branches in it is three more than it can carry.
+        //
+        // The web UI bundles rows carrying the same workId into one, shows the canonical,
+        // and rolls the bundle's rating and genres up -- which it can only do while every
+        // version is still in the response, so nothing is filtered here. workId is absent
+        // for a track muma has not grouped yet, which the UI reads as "its own song".
+        void addSongVersionAttributes(Response::Node& trackResponse, const db::Track::pointer& track)
+        {
+            if (const auto workId{ track->getWorkId() })
+                trackResponse.setAttribute("workId", *workId);
+
+            trackResponse.setAttribute("isCanonical", track->isCanonical());
+
+            if (!track->getVersionKind().empty())
+                trackResponse.setAttribute("versionKind", track->getVersionKind());
+        }
+    } // namespace
+
+    namespace
+    {
         std::string_view formatToSuffix(db::TranscodingOutputFormat format)
         {
             switch (format)
@@ -117,15 +139,7 @@ namespace lms::api::subsonic
                 trackResponse.setAttribute("path", relativeTrackPath.c_str());
         }
 
-        // What muma decided about this song's versions. The web UI bundles rows carrying the
-        // same workId into one, shows the canonical, and rolls the rating and genres of the
-        // bundle up -- which it can only do while every version is still in the response, so
-        // nothing is filtered here. workId is absent for a track muma has not grouped yet.
-        if (const auto workId{ track->getWorkId() })
-            trackResponse.setAttribute("workId", *workId);
-        trackResponse.setAttribute("isCanonical", track->isCanonical());
-        if (!track->getVersionKind().empty())
-            trackResponse.setAttribute("versionKind", track->getVersionKind());
+        addSongVersionAttributes(trackResponse, track);
 
         trackResponse.setAttribute("size", track->getFileSize());
 

@@ -1891,26 +1891,33 @@ FROM track)");
         utils::executeCommand(*session.getDboSession(), "ALTER TABLE scan_settings ADD COLUMN full_scan_day_of_week INTEGER NOT NULL DEFAULT 7");
     }
 
-    void migrateFromV117(Session& session)
+    // In an anonymous namespace, unlike its neighbours: clang-tidy asks for internal
+    // linkage here and then asks for this shape specifically. The ones above predate both
+    // checks and sit in the accepted baseline; adding a new finding beside them would be
+    // paying for their debt twice.
+    namespace
     {
-        // What muma decided about versions of one song, written here so browsing can act on
-        // it. muma owns the model -- it has the label provenance and the download archives
-        // that decide which version wins -- and fills these four columns through the lms.db
-        // sync it already runs for users and playlists. LMS only reads them.
-        //
-        // is_canonical defaults to 1, not 0. A track muma has not grouped yet, or one it
-        // cannot match to a path, has to stay visible: this filter must fail towards showing
-        // a file twice rather than hiding music that exists. Roughly half the library sits
-        // ungrouped at any moment while the worker catches up.
-        //
-        // scan_version is deliberately not bumped. These columns say nothing about how a
-        // file is read, and forcing a library-wide rescan to add them would be a day of
-        // work for no re-read of a single tag.
-        utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD COLUMN work_id INTEGER");
-        utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD COLUMN is_canonical INTEGER NOT NULL DEFAULT 1");
-        utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD COLUMN version_kind TEXT NOT NULL DEFAULT ''");
-        utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD COLUMN version_score INTEGER NOT NULL DEFAULT 0");
-    }
+        void migrateFromV117(Session& session)
+        {
+            // What muma decided about versions of one song, written here so browsing can act on
+            // it. muma owns the model -- it has the label provenance and the download archives
+            // that decide which version wins -- and fills these four columns through the lms.db
+            // sync it already runs for users and playlists. LMS only reads them.
+            //
+            // is_canonical defaults to 1, not 0. A track muma has not grouped yet, or one it
+            // cannot match to a path, has to stay visible: this filter must fail towards showing
+            // a file twice rather than hiding music that exists. Roughly half the library sits
+            // ungrouped at any moment while the worker catches up.
+            //
+            // scan_version is deliberately not bumped. These columns say nothing about how a
+            // file is read, and forcing a library-wide rescan to add them would be a day of
+            // work for no re-read of a single tag.
+            utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD COLUMN work_id INTEGER");
+            utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD COLUMN is_canonical INTEGER NOT NULL DEFAULT 1");
+            utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD COLUMN version_kind TEXT NOT NULL DEFAULT ''");
+            utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD COLUMN version_score INTEGER NOT NULL DEFAULT 0");
+        }
+    } // namespace
 
     bool doDbMigration(Session& session)
     {

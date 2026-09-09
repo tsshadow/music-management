@@ -55,6 +55,34 @@ namespace lms::api::subsonic
 {
     namespace
     {
+        // What muma decided about this song's versions. Kept out of createSongNode because
+        // that function is already past clang-tidy's cognitive-complexity threshold, and
+        // three more branches in it is three more than it can carry.
+        //
+        // The web UI bundles rows carrying the same workId into one, shows the canonical,
+        // and rolls the bundle's rating and genres up -- which it can only do while every
+        // version is still in the response, so nothing is filtered here. workId is absent
+        // for a track muma has not grouped yet, which the UI reads as "its own song".
+        void addSongVersionAttributes(Response::Node& trackResponse, const db::Track::pointer& track)
+        {
+            if (const auto workId{ track->getWorkId() })
+                trackResponse.setAttribute("workId", *workId);
+
+            trackResponse.setAttribute("isCanonical", track->isCanonical());
+
+            if (!track->getVersionKind().empty())
+                trackResponse.setAttribute("versionKind", track->getVersionKind());
+
+            // The browser needs this too, not just the flag: when a work is being regrouped
+            // its canonical is briefly unset, and the score is the only thing that then says
+            // which version to show. Without it every candidate reads as zero and the first
+            // one wins by accident.
+            trackResponse.setAttribute("versionScore", track->getVersionScore());
+        }
+    } // namespace
+
+    namespace
+    {
         std::string_view formatToSuffix(db::TranscodingOutputFormat format)
         {
             switch (format)
@@ -116,6 +144,8 @@ namespace lms::api::subsonic
             if (!ec && !relativeTrackPath.empty())
                 trackResponse.setAttribute("path", relativeTrackPath.c_str());
         }
+
+        addSongVersionAttributes(trackResponse, track);
 
         trackResponse.setAttribute("size", track->getFileSize());
 

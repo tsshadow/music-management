@@ -229,6 +229,34 @@ def test_song_carries_an_original_date_attribute(admin_credentials):
         assert song["originalDate"].startswith(str(song["year"]))
 
 
+def test_song_carries_the_version_fields_the_web_ui_reads(admin_credentials):
+    """The browser collapses versions of one song on these, so they have to be on the wire.
+
+    All four travel together on purpose. `isCanonical` says which version to show, and
+    `versionScore` is what decides it while a work is being regrouped and its canonical is
+    briefly unset -- without the score every candidate reads as zero and the first one wins by
+    accident. That gap shipped once and cost nothing visible, which is exactly why it needs a
+    test rather than a reader.
+
+    `workId` is absent for a track muma has not grouped yet, which the browser reads as "its own
+    song"; the fixture library has no muma behind it, so absence is the expected state here.
+    """
+    username, password = admin_credentials
+    song_id = getattr(pytest, "song_id", None)
+    assert song_id, "test_fixture_track_is_findable_with_correct_metadata must run first"
+
+    resp = _subsonic_get("getSong.view", username, password, id=song_id)
+    assert resp.status_code == 200, resp.text[:500]
+    song = resp.json()["subsonic-response"]["song"]
+
+    assert "isCanonical" in song, "the browser hides a track without this"
+    assert "versionScore" in song, "the tie-break reads this and silently scores zero without it"
+    # Nothing grouped this fixture, so it must read as a song of its own rather than as a
+    # version of something else.
+    assert song.get("workId") in (None, 0, "0"), song.get("workId")
+    assert song["isCanonical"] in (True, "true", 1, "1"), song["isCanonical"]
+
+
 def test_stream_returns_audio_bytes(admin_credentials):
     username, password = admin_credentials
     song_id = getattr(pytest, "song_id", None)

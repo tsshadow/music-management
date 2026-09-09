@@ -846,6 +846,13 @@ namespace lms::db
             }
 
             baseQuery += " WHERE 1=1";
+
+            if (params.workId.has_value())
+            {
+                const int workId = params.workId.value();
+                baseQuery += " AND t.work_id = ?";
+                bindFuncs.emplace_back([workId](auto& q) { q.bind(workId); });
+            }
             if (!params.allowedArtists.empty())
             {
                 baseQuery += " AND LOWER(t.artist_display_name) IN (" + utils::createPlaceholders(params.allowedArtists.size()) + ")";

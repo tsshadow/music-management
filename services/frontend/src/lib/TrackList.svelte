@@ -445,6 +445,19 @@
                   </button>
               {/if}
 
+              {#if track.workId}
+                <button
+                  aria-label={$t('track.versions')}
+                  title={$t('track.versions')}
+                  class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                  onclick={(e) => { e.stopPropagation(); onnavigate?.(`song:${track.workId}`); }}
+                >
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                        <path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h10v2H4v-2z"></path>
+                    </svg>
+                </button>
+              {/if}
+
               <button
                 aria-label={$t('track.lyrics')}
                 title={$t('track.lyrics')}

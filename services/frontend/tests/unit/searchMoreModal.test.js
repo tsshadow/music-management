@@ -16,8 +16,13 @@ const SONG = {
   artist: "Angerfist",
   artistId: "artist-1",
   suffix: "flac",
+  // Two files of one song, as the server groups them. The browser no longer decides that
+  // from the title -- it applies what muma worked out and sent along.
+  workId: 42,
+  isCanonical: true,
 };
-const DUPLICATE = { ...SONG, id: "song-2", suffix: "mp3", bitRate: 192 };
+const DUPLICATE = { ...SONG, id: "song-2", suffix: "mp3", bitRate: 192, isCanonical: false };
+const UNGROUPED = { ...SONG, id: "song-3", workId: undefined, isCanonical: undefined };
 const ARTIST = { id: "artist-1", name: "Angerfist" };
 const ALBUM = { id: "album-1", name: "Close Combat", artist: "Angerfist" };
 
@@ -79,13 +84,24 @@ describe("SearchMoreModal", () => {
     expect(globalThis.fetch.mock.calls[0][0]).toContain("minDuration=10");
   });
 
-  it("collapses duplicates when that is switched on", async () => {
+  it("collapses the versions of one song when that is switched on", async () => {
     deduplicateEnabled.set(true);
     globalThis.fetch = subsonic({ song: [SONG, DUPLICATE] });
 
     render(SearchMoreModal, { query: "angerfist", category: "tracks" });
 
     await waitFor(() => expect(screen.getAllByText("Raise Your Fist")).toHaveLength(1));
+  });
+
+  it("keeps two tracks the server has not grouped, however alike they look", async () => {
+    // The browser used to fold these together on their title, which is how an official
+    // release lost to a rip of it. What is not grouped yet stays visible.
+    deduplicateEnabled.set(true);
+    globalThis.fetch = subsonic({ song: [UNGROUPED, { ...UNGROUPED, id: "song-4" }] });
+
+    render(SearchMoreModal, { query: "angerfist", category: "tracks" });
+
+    await waitFor(() => expect(screen.getAllByText("Raise Your Fist")).toHaveLength(2));
   });
 
   it("keeps duplicates when that is switched off", async () => {

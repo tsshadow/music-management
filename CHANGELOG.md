@@ -7,6 +7,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.54.0] - 2026-09-09
+
+### Added
+- **LMS weet nu welke bestanden hetzelfde nummer zijn.** muma bepaalde dat al — het heeft de
+  label-provenance en de downloadarchieven die beslissen welke versie wint, en LMS heeft geen van
+  beide — maar het bleef in muma's eigen database staan. De server krijgt vier kolommen op `track`
+  (`work_id`, `is_canonical`, `version_kind`, `version_score`, migratie naar databaseversie 118) en
+  muma vult ze in dezelfde lms.db-ronde die al gebruikers, playlists en artiestafbeeldingen
+  synchroniseert. Geen endpoint, geen API-sleutel, geen HTTP in het bladerpad.
+- Het Subsonic-antwoord voor een nummer draagt `workId`, `isCanonical` en `versionKind` mee. Er wordt
+  **niets gefilterd**: de web-UI heeft juist alle versies nodig om ze tot één regel te bundelen en de
+  rating en genres van die bundel op te tellen. Additieve velden; bestaande clients merken niets.
+- **De brug is het bestandspad**, want een LMS-track-id en een muma-track-id hebben niets met elkaar
+  te maken. `library_paths.candidate_paths()` kent elke schrijfwijze die het proberen waard is en
+  wordt hier hergebruikt in plaats van een tweede matcher — twee kopieën van die regel die uit elkaar
+  lopen is precies hoe gespiegelde ratings ooit op een dood id belandden.
+- **Alles wat onbekend is blijft zichtbaar.** Een track die muma nog niet heeft gegroepeerd — op elk
+  moment ongeveer de helft van de bibliotheek, terwijl de worker zijn achterstand wegwerkt — houdt
+  `is_canonical` op 1 en krijgt een lege `work_id`. Hetzelfde voor een pad dat niet matcht. Een
+  filter hierop moet falen richting een bestand twee keer tonen, nooit richting muziek verbergen die
+  bestaat.
+- Een rij die eerder een antwoord kreeg wordt actief gecorrigeerd in plaats van met rust gelaten:
+  zonder dat blijft een track die na een split zijn werk verliet voorgoed verborgen.
+- De sync slaat een server die de migratie nog niet heeft gedraaid over in plaats van te falen — dat
+  gat bestaat tussen het uitrollen van de images en de eerste start van de server — en een vergrendelde
+  database kost deze ronde en niets meer.
+
+- **Een nummer heeft nu een eigen pagina met al zijn versies.** Route `/song/<id>`, in dezelfde vorm
+  als de album- en artiestpagina: de canonical bovenaan, daaronder elke versie, allemaal direct
+  afspeelbaar. De knop ernaartoe staat naast de songtekst-knop en verschijnt alleen bij een nummer
+  dat de server heeft gegroepeerd — een knop naar een lege pagina is erger dan geen knop, en terwijl
+  de worker zijn achterstand wegwerkt draagt ongeveer de helft van de bibliotheek nog geen werk.
+- De pagina haalt de versies zelf op en leidt ze niet af uit de lijst waar je vandaan kwam. Dat moet
+  ook: de regel die je aanklikte ís de versie die de server koos, en de andere waren samengeklapt
+  voordat de browser ze zag. `getSpotifyTracks?workId=<id>` levert ze mét afspeelbare id's, wat
+  muma's eigen versie-API niet kan — die kent paden en muma-id's, en daar heeft de speler niets aan.
+- Een nummer met maar één versie zegt dat, en een mislukte oproep zegt dát het mislukte in plaats van
+  een lege pagina te tonen. Subsonic meldt zijn eigen fouten met HTTP 200 en een fout in de body, dus
+  de status in die body is het enige dat vertelt of het werkte.
+
+### Changed
+- **"Eén regel per nummer" gebruikt nu het oordeel van de server in plaats van twee gokken.** De
+  schakelaar in de web-UI deed twee dingen tegelijk: LMS kreeg `deduplicate=true` en klapte rijen
+  samen op een genormaliseerde artiest plus titel, en de browser deed daarna hetzelfde nog een keer.
+  Beide telden hun score op, en dat is precies de omkering die het versiemodel moest wegnemen — een
+  320kbps SoundCloud-rip (+5200) versloeg een officiële 192kbps radio-edit (+2500).
+- Allebei groeperen ze nu op `work_id` en houden ze de versie die muma als canonical aanwees. De
+  score dient alleen nog als tie-break voor een werk waarvan de winnaar nog niet herberekend is, en
+  die score is die van de server, niet een tweede berekening.
+- **Wat de server niet heeft gegroepeerd blijft staan.** Een track zonder `workId` krijgt een sleutel
+  van zichzelf en verdwijnt dus niet. Dat is geen randgeval: terwijl de worker zijn achterstand
+  wegwerkt draagt ongeveer de helft van de bibliotheek geen werk, en die verbergen zou de lijst legen
+  van muziek die er gewoon is. Hetzelfde geldt voor een antwoord van een server die migratie 118 nog
+  niet heeft gedraaid: een ontbrekende `isCanonical` betekent "wel tonen".
+- 106 regels heuristiek uit `Spotify.cpp` en de volledige inhoud van `deduplicate.js` zijn vervangen
+  door het toepassen van wat er al besloten was.
+- Nieuw: `getSpotifyTracks?workId=<id>` geeft alle versies van één nummer, met afspeelbare id's — dat
+  is wat de versielijst achter een regel straks nodig heeft. muma's eigen `/api/songs/{id}` kent
+  paden en muma-id's, en daar kan de speler niets mee. Een `workId` zet dedupliceren uit, want anders
+  klapt het antwoord terug naar de ene versie waar je juist langs wilde kijken.
+
+### Fixed
+- **De SAST-baseline gooide de onderbouwing weg die iemand er met de hand in had gezet.** Het hele
+  bestand wordt bij elke `SAST_WRITE_BASELINE=1` opnieuw opgebouwd uit `REASONS`, maar de redenen
+  staan óók in dat bestand — en dat is waar je ze leest, dus daar werden ze bewerkt. Dat is twee keer
+  misgegaan: één keer zo hard dat degene die het herstelde een waarschuwing voor de volgende lezer in
+  het bestand achterliet, en op 2026-09-08 opnieuw, goed voor 36 regels audit-werk. Er stond geen
+  enkele test op dit script, en dat is precies hoe hetzelfde ongeluk zich kon herhalen.
+- Elke sectiekop draagt nu een stempel (`# --- <regel> --- [r:abc12345]`) van de tekst die de
+  generator er zelf neerzette. Klopt de tekst nog bij dat stempel, dan mag hij vervangen worden — een
+  reden bijwerken blijft dus een gewone bewerking. Klopt hij niet meer, dan heeft een mens er getypt
+  en **weigert de generator te schrijven**: hij toont wat er verloren zou gaan en zegt dat het in
+  `REASONS` thuishoort. `SAST_BASELINE_FORCE=1` overrulet dat en gooit het alsnog weg.
+- Vergelijken met `REASONS` in plaats van met een stempel kan niet: dan is "iemand heeft hier getypt"
+  niet te onderscheiden van "de reden is bijgewerkt", en zou elke normale bewerking de generator
+  blokkeren.
+- De vijf secties die alleen in het bestand stonden zijn naar `REASONS` verhuisd — de ntfy-URL, de
+  LmsScanTrigger-noot, de audit van `SoundcloudArchive.py` en `events.py`, de geschiedenis van de
+  tools-container van x3 naar x5, en de rechtenreden van de importer. Woord voor woord nagelopen: er
+  is niets inhoudelijks verdwenen.
+- `tests/ci/test_sast_baseline_rationale.py` pint het vast, inclusief een test die de baseline van
+  déze repository leest en faalt zodra er weer een alinea in staat die een regeneratie niet kan
+  reproduceren.
 ## [0.53.0] - 2026-09-09
 
 ### Added

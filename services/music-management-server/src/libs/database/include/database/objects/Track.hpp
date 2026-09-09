@@ -107,6 +107,10 @@ namespace lms::db
             std::optional<std::chrono::milliseconds> minDuration;
             std::optional<std::chrono::milliseconds> maxDuration;
             std::optional<int> randomSeed;
+            //: Every version of one song, as muma grouped them (migration 118). What the
+            //: version list behind a row asks for, and the only way to get playable ids for
+            //: the alternatives -- muma's own /api/songs/{id} knows paths, not LMS ids.
+            std::optional<int> workId;
             std::set<std::string> allowedArtists;
 
             void setAllowedArtists(const std::set<std::string>& artists)
@@ -327,6 +331,12 @@ namespace lms::db
         void setCopyrightURL(std::string_view copyrightURL);
         void setAdvisory(Advisory advisory) { _advisory = advisory; }
         void setArtistDisplayName(std::string_view name) { _artistDisplayName = name; }
+        // Filled by muma's lms.db sync, never by the scanner: the model that decides these
+        // lives there, with the label provenance and download archives the scanner cannot see.
+        void setWorkId(std::optional<int> workId) { _workId = workId ? *workId : 0; }
+        void setIsCanonical(bool isCanonical) { _isCanonical = isCanonical; }
+        void setVersionKind(std::string_view kind) { _versionKind = kind; }
+        void setVersionScore(int score) { _versionScore = score; }
         void setComment(std::string_view comment) { _comment = comment; }
         void clearArtistLinks();
         void addArtistLink(const ObjectPtr<TrackArtistLink>& artistLink);
@@ -381,6 +391,12 @@ namespace lms::db
         std::string_view getCopyright() const;
         std::string_view getCopyrightURL() const;
         std::string_view getArtistDisplayName() const { return _artistDisplayName; }
+        // 0 means "muma has not grouped this track", which is not the same as "it is alone":
+        // half the library sits ungrouped whenever the worker is catching up.
+        std::optional<int> getWorkId() const { return _workId ? std::make_optional(_workId) : std::nullopt; }
+        bool isCanonical() const { return _isCanonical; }
+        std::string_view getVersionKind() const { return _versionKind; }
+        int getVersionScore() const { return _versionScore; }
         std::string_view getComment() const { return _comment; }
         Advisory getAdvisory() const { return _advisory; }
 
@@ -439,6 +455,10 @@ namespace lms::db
             Wt::Dbo::field(a, _copyright, "copyright");
             Wt::Dbo::field(a, _copyrightURL, "copyright_url");
             Wt::Dbo::field(a, _artistDisplayName, "artist_display_name");
+            Wt::Dbo::field(a, _workId, "work_id");
+            Wt::Dbo::field(a, _isCanonical, "is_canonical");
+            Wt::Dbo::field(a, _versionKind, "version_kind");
+            Wt::Dbo::field(a, _versionScore, "version_score");
             Wt::Dbo::field(a, _comment, "comment"); // TODO: move in a dedicated table?
             Wt::Dbo::field(a, _advisory, "advisory");
 
@@ -493,6 +513,11 @@ namespace lms::db
         std::string _copyright;
         std::string _copyrightURL;
         std::string _artistDisplayName;
+        int _workId{};
+        //: A track LMS knows about but muma has not reached stays visible, so this starts true.
+        bool _isCanonical{ true };
+        std::string _versionKind;
+        int _versionScore{};
         std::string _comment;
         Advisory _advisory{ Advisory::UnSet };
 

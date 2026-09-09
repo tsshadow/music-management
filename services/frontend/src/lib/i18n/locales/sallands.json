@@ -205,6 +205,16 @@
     "plays": "Keern edraaid",
     "releaseDate": "Uutkomdatum",
     "reload": "Opni'j hoaln",
-    "title": "Titel"
+    "title": "Titel",
+    "versions": "Versies",
+    "versionsOf": "Versies van {title}",
+    "bestVersion": "beste versie",
+    "onlyVersion": "Dit is de eanige versie van dit nummer.",
+    "versionsFailed": "De versies van dit nummer konnen niet elaojen worden"
+  },
+  "song": {
+    "heading": "Nummer",
+    "versionCount": "{count} versies",
+    "notFound": "Dit nummer hef gin versies um te laoten zien."
   }
 }

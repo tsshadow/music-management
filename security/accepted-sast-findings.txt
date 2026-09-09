@@ -18,8 +18,14 @@
 #
 # Reasons are per rule, in the section headers below. A rule with no reason has
 # not been audited yet and is the next thing to look at.
+#
+# This whole file is generated, reasons included. Write a reason in REASONS in
+# scripts/ci/sast_baseline.py, not here: text typed straight into this file used
+# to be destroyed by the next regeneration, twice. The [r:...] beside each
+# section stamps what the generator wrote, so an edit made here is now detected
+# and the regeneration refuses instead of overwriting it.
 
-# --- avoid-sqlalchemy-text ---
+# --- avoid-sqlalchemy-text --- [r:0977e4f1]
 # Same as sqlalchemy-execute-raw-query.
 ceeac979257c2046 x1  # avoid-sqlalchemy-text services/ml-analyzer/analyzer.py
 e996461e5ed5e4c3 x1  # avoid-sqlalchemy-text services/ml-analyzer/approve.py
@@ -30,26 +36,26 @@ e996461e5ed5e4c3 x1  # avoid-sqlalchemy-text services/ml-analyzer/approve.py
 1ecbcf5910aa8330 x1  # avoid-sqlalchemy-text tools/inspect_table_content.py
 607ed9c79b00a7ca x1  # avoid-sqlalchemy-text tools/migrate_db_renames.py
 
-# --- detected-bcrypt-hash ---
+# --- detected-bcrypt-hash --- [r:5de201b9]
 # An example hash in installation documentation.
 ed3ee9bd87cb9371 x1  # detected-bcrypt-hash services/music-management-server/INSTALL.md
 
-# --- detected-generic-api-key ---
+# --- detected-generic-api-key --- [r:ea036f56]
 # .gitleaksignore lists commit:path:rule:line references to past findings,
 # not the secrets themselves.
 1b9dd647529494d4 x1  # detected-generic-api-key .gitleaksignore
 
-# --- detected-jwt-token ---
+# --- detected-jwt-token --- [r:4d5d2ef3]
 # Test fixtures for the Subsonic API client.
 e1a304326c0bdd3e x1  # detected-jwt-token services/muma-mobile/core/subsonic-api/src/integrationTest/kotlin/nl/teunschriks/mumamobile/api/subsonic/SubsonicApiCreateShareTest.kt
 44e56c439663d26c x1  # detected-jwt-token services/muma-mobile/core/subsonic-api/src/integrationTest/resources/get_shares_ok.json
 
-# --- detected-private-key ---
+# --- detected-private-key --- [r:6b14a72d]
 # A self-signed certificate fixture under core/subsonic-api integration
 # tests. It exists to be a key; it protects nothing.
 b75c3d49465f1c12 x1  # detected-private-key services/muma-mobile/core/subsonic-api/src/integrationTest/resources/self-signed.pem
 
-# --- detected-ssh-password ---
+# --- detected-ssh-password --- [r:14b5059d]
 # sshpass reading a shell variable, not a committed credential. The branch
 # above each one prefers key auth and only falls back to this. The real
 # weakness is that a password in argv is visible to a local process listing,
@@ -59,28 +65,26 @@ dd45bf5b5d0df701 x1  # detected-ssh-password scripts/deploy.sh
 3b0566b82aa1e739 x2  # detected-ssh-password services/muma-mobile/scripts/deploy.sh
 80650e10e4eea55c x1  # detected-ssh-password services/music-management-server/scripts/deploy-stack.sh
 
-# --- dynamic-proxy-host ---
+# --- dynamic-proxy-host --- [r:5b197157]
 # The proxy target is the configured LMS or Subsonic server, read from this
 # deployment's own settings rather than from a request.
 215b7d436a195271 x3  # dynamic-proxy-host services/music-management-server/nginx/reverse-proxy.conf
 
-# --- dynamic-urllib-use-detected ---
+# --- dynamic-urllib-use-detected --- [r:db4c939d]
 # The ntfy notify call in the crash-triage listener builds its URL from
-# NTFY_URL, an operator-set value in a root-owned env file, and the code pins
-# the scheme to http(s) before opening it - a mangled value cannot become a
-# file:// read. Audited 2026-08-31.
-#
-# (Restored by hand after SAST_WRITE_BASELINE=1 replaced it with "NOT YET
-# AUDITED": the writer regenerates the per-rule comment blocks and drops any
-# rationale someone typed. Check the diff of this file after regenerating.)
+# NTFY_URL, an operator-set value in a root-owned env file, and the code
+# pins the scheme to http(s) before opening it -- a mangled value cannot
+# become a file:// read. Audited 2026-08-31. This reason was once restored
+# by hand after a regeneration replaced it with the placeholder; that is
+# what unwritable_rationale() below now prevents.
 1ad6abb9c22c9ef5 x1  # dynamic-urllib-use-detected scripts/crash-triage/crash_triage_listener.py
 
-# --- exported_activity ---
+# --- exported_activity --- [r:2d33265c]
 # Android activities that are launched by the system or by another app on
 # purpose -- the launcher alias and the media button receiver.
 ebf37587c4b240da x3  # exported_activity services/muma-mobile/app/src/main/AndroidManifest.xml
 
-# --- exposing-docker-socket-volume ---
+# --- exposing-docker-socket-volume --- [r:8dd0d286]
 # The socket is mounted where a container genuinely drives Docker. Each new
 # mount needs its own justification, which is why this is listed per site
 # rather than per rule.
@@ -88,7 +92,7 @@ ebf37587c4b240da x3  # exported_activity services/muma-mobile/app/src/main/Andro
 00428366b60fdabb x1  # exposing-docker-socket-volume docker/docker-compose.full.yml
 28524682ead0b0c2 x1  # exposing-docker-socket-volume docker/docker-compose.yml
 
-# --- formatted-sql-query ---
+# --- formatted-sql-query --- [r:5f8b0e6a]
 # Table-name interpolation in the helper layer and in one-off scripts under
 # tools/ and scripts/, which take their arguments from the person running
 # them. Values still go through placeholders.
@@ -106,7 +110,7 @@ c92e262fad922f2d x2  # formatted-sql-query services/common/Helpers/TableHelper.p
 0ef994afd2808dff x1  # formatted-sql-query tools/describe_tables_pymysql.py
 8225184b90648e9b x2  # formatted-sql-query tools/quick_inspect.py
 
-# --- github-actions-mutable-action-tag ---
+# --- github-actions-mutable-action-tag --- [r:c9a318ff]
 # services/muma-mobile/.github/ is dead weight inherited from Ultrasonic at
 # the rename commit 054b115df. This is a GitLab repository with no GitHub
 # remote, so nothing runs these workflows. Deleting the directory removes
@@ -119,25 +123,38 @@ fae11ff959a398dc x1  # github-actions-mutable-action-tag services/music-manageme
 853ee5818712edd1 x4  # github-actions-mutable-action-tag services/music-management-server/.github/workflows/codeql.yml
 7ff42c6033f62fab x3  # github-actions-mutable-action-tag services/music-management-server/.github/workflows/lint.yml
 
-# --- missing-internal ---
+# --- insecure-file-permissions --- [r:115750c8]
+# The importer setting 0777/0666 on a release it just moved into the
+# library. That is what the whole tree carries after the 2026-09-05
+# permission repair, and it has to: the muma containers write as root, LMS
+# writes as its own user, and the SMB share maps everyone else to a third. A
+# release left at the default 0755/0644 is readable by all of them and
+# writable by none -- 19 directories arrived that way in the first week of
+# September and the release-date backfill skipped nine of their files.
+# Narrowing this to a shared group is the better answer, and it is a change
+# to how every writer is deployed rather than to this line. Audited
+# 2026-09-08.
+71418121d6e17a96 x1  # insecure-file-permissions services/importer/mover.py
+
+# --- missing-internal --- [r:fa952df5]
 # Android exported components again -- the same set as exported_activity.
 1fd8fafb6bb958f7 x3  # missing-internal services/music-management-server/nginx/reverse-proxy.conf
 
-# --- missing-user ---
+# --- missing-user --- [r:d27d6a3e]
 # Images that still run as root. Changing that means getting volume
 # ownership right on a live deployment, so it needs its own change with
 # someone watching the stack come up.
 221c5f48e170d375 x1  # missing-user services/ml-analyzer/Dockerfile
 9e1b201c43dca7f7 x1  # missing-user services/music_manager/artist_image_fetcher/Dockerfile
 
-# --- python-logger-credential-disclosure ---
+# --- python-logger-credential-disclosure --- [r:40e4dc8a]
 # Both sites are logger.error(..., e) in the except branch of a Spotify
 # token fetch. What is logged is the exception, not the token that the try
 # branch assigns; semgrep flags the token being in scope.
 6892487afb32b135 x1  # python-logger-credential-disclosure services/music_manager/artist_image_fetcher/providers/spotify.py
 4a61046f34382324 x1  # python-logger-credential-disclosure services/tagger/Song/rules/ExternalArtistLookup.py
 
-# --- renovate-missing-minimum-release-age ---
+# --- renovate-missing-minimum-release-age --- [r:8afaff96]
 # A three-day cooldown is set on a catch-all packageRules entry, with yt-dlp
 # exempted because being behind on it is what breaks downloading. The rule
 # wants the key repeated on every entry; Renovate does not need that -- a
@@ -145,30 +162,28 @@ fae11ff959a398dc x1  # github-actions-mutable-action-tag services/music-manageme
 # are the rule being stricter than the tool.
 b6758acb30b1330e x6  # renovate-missing-minimum-release-age renovate.json
 
-# --- request-with-http ---
-# Plain HTTP to a service on this LAN that speaks no TLS, reachable only inside
-# the tailnet.
-#
-# LmsScanTrigger used to be listed here too. It now builds its URL through one
-# helper that keeps an explicit scheme when the configured host carries one, so
-# there is no literal http:// left in the request and the rule no longer fires.
+# --- request-with-http --- [r:8a821446]
+# Plain HTTP to a service on this LAN that speaks no TLS, reachable only
+# inside the tailnet. LmsScanTrigger used to be listed here too. It now
+# builds its URL through one helper that keeps an explicit scheme when the
+# configured host carries one, so there is no literal http:// left in the
+# request and the rule no longer fires.
 511526ec8d8fb2c5 x1  # request-with-http services/music_manager/routers/users.py
 
-# --- sqlalchemy-execute-raw-query ---
+# --- sqlalchemy-execute-raw-query --- [r:6bad1fe5]
 # Table and column names cannot be bound as parameters, and every site
 # interpolates an internal constant rather than request data. Revisit any
 # new site that interpolates something reaching it from outside.
-#
-# SoundcloudArchive.py and the third events.py hit arrived with the whole-tree
-# ruff format, and are worth explaining because they look like the reformat
-# introduced them. It did not: both sites are older than the reformat, which
-# only joined their implicitly-concatenated SQL onto one line and so made the
-# pattern visible to semgrep. Audited both, 2026-09-01:
-#   - SoundcloudArchive.py builds `', '.join(['%s'] * len(chunk))` and passes
-#     tuple(chunk) as parameters. Only the placeholder *count* is interpolated.
-#   - events.py takes its WHERE from _build_filters(), where every clause is a
-#     literal and every value goes into params as %s. Same idiom.
-# Neither puts request data into the SQL string.
+# SoundcloudArchive.py and the third events.py hit arrived with the
+# whole-tree ruff format, and are worth explaining because they look like
+# the reformat introduced them. It did not: both sites are older than the
+# reformat, which only joined their implicitly-concatenated SQL onto one
+# line and so made the pattern visible to semgrep. Audited both, 2026-09-01:
+# SoundcloudArchive.py builds a join of %s placeholders and passes
+# tuple(chunk) as parameters, so only the placeholder *count* is
+# interpolated; events.py takes its WHERE from _build_filters(), where every
+# clause is a literal and every value goes into params as %s. Neither puts
+# request data into the SQL string.
 3e91e9d22410d255 x1  # sqlalchemy-execute-raw-query scripts/cleanup_redundant_indices.py
 c9e52706e5417943 x4  # sqlalchemy-execute-raw-query scripts/migrate_stars_to_ratings.py
 4228ef42ed793ded x3  # sqlalchemy-execute-raw-query services/common/Helpers/BrokenSongArtistLookupHelper.py
@@ -195,49 +210,35 @@ c79553c62628547a x1  # sqlalchemy-execute-raw-query tools/db_backup.py
 14159bf1eeaa1ec5 x1  # sqlalchemy-execute-raw-query tools/describe_tables_pymysql.py
 55c4d816bb7bb039 x2  # sqlalchemy-execute-raw-query tools/quick_inspect.py
 
-# --- unsafe-formatstring ---
+# --- unsafe-formatstring --- [r:54a5b3d3]
 # Format strings built from internal constants in one-off tools, not from
 # anything a request supplies.
 5af5655cad4b33be x1  # unsafe-formatstring services/frontend/src/lib/store.js
 83cb57328830a7fa x1  # unsafe-formatstring services/music-management-server/src/lms/ui/spotify-ui/src/lib/store.js
 
-# --- use-of-md5 ---
+# --- use-of-md5 --- [r:c174e7d9]
 # Content and path hashing for cache keys and duplicate detection, never for
 # authentication or signatures.
 65a59f2d9966fb93 x1  # use-of-md5 services/muma-mobile/app/src/main/kotlin/nl/teunschriks/mumamobile/util/Util.kt
 e1aa004efd8e6a7b x1  # use-of-md5 services/muma-mobile/core/subsonic-api/src/integrationTest/kotlin/nl/teunschriks/mumamobile/api/subsonic/interceptors/PasswordMD5InterceptorTest.kt
 9de9ab833e989d02 x1  # use-of-md5 services/muma-mobile/core/subsonic-api/src/main/kotlin/nl/teunschriks/mumamobile/api/subsonic/interceptors/PasswordMD5Interceptor.kt
 
-# --- writable-filesystem-service ---
+# --- writable-filesystem-service --- [r:6850f7c8]
 # Container hardening that is not safe to switch on blind: a service that
 # writes a temp file falls over in a way that only shows up on deploy, and
 # prod cannot be tested from here. no-new-privileges, which cannot break
-# anything, was applied instead.
-#
-# tools went from x3 to x4 with release-date-backfill, a one-off run that
-# writes only to the mounted music share and follows the same rule.
-#
-# x4 to x5 with song-work-repair, 2026-09-05. Same shape again: a one-off
-# container that runs one script against the database, no mounts, gone when it
-# exits. read_only would be a better answer than an accepted finding, but it
-# cannot be tried on anything but production -- the whole file carries that
-# caveat -- so it follows its four neighbours rather than being the one service
-# that is hardened untested. The finding semgrep prints names 'firefox': it
-# reports the surplus occurrence, not the one that was added.
+# anything, was applied instead. tools went from x3 to x4 with
+# release-date-backfill, a one-off run that writes only to the mounted music
+# share and follows the same rule. x4 to x5 with song-work-repair,
+# 2026-09-05: same shape again, a one-off container that runs one script
+# against the database, no mounts, gone when it exits. read_only would be a
+# better answer than an accepted finding, but it cannot be tried on anything
+# but production -- the whole file carries that caveat -- so it follows its
+# four neighbours rather than being the one service that is hardened
+# untested. The finding semgrep prints names firefox: it reports the surplus
+# occurrence, not the one that was added.
 5aade493e884ca34 x2  # writable-filesystem-service docker/docker-compose.core.yml
 0eae9038f27ed843 x13  # writable-filesystem-service docker/docker-compose.full.yml
 acedf220b679b6b2 x5  # writable-filesystem-service docker/docker-compose.tools.yml
 4a78e339f31863ad x5  # writable-filesystem-service docker/docker-compose.workers.yml
 25d2c6c464a0aee4 x11  # writable-filesystem-service docker/docker-compose.yml
-
-# --- insecure-file-permissions ---
-# The importer setting 0777/0666 on a release it just moved into the library.
-# That is what the whole tree carries after the 2026-09-05 permission repair,
-# and it has to: the muma containers write as root, LMS writes as its own user,
-# and the SMB share maps everyone else to a third. A release left at the default
-# 0755/0644 is readable by all of them and writable by none -- 19 directories
-# arrived that way in the first week of September and the release-date backfill
-# skipped nine of their files. Narrowing this to a shared group is the better
-# answer, and it is a change to how every writer is deployed rather than to this
-# line. Audited 2026-09-08.
-71418121d6e17a96 x1  # insecure-file-permissions services/importer/mover.py

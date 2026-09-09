@@ -92,15 +92,11 @@ namespace lms::api::subsonic
                             orderedKeys.push_back(key);
                             uniqueCount++;
                         }
-                        else if (track->isCanonical() && !it->second->isCanonical())
-                        {
-                            // muma named a winner; nothing here re-decides that. The score is
-                            // only a tie-break for the case where neither is canonical --
-                            // which happens while a work is being regrouped and its canonical
-                            // has not been recomputed yet.
-                            bestTracks[key] = track;
-                        }
-                        else if (!it->second->isCanonical() && track->getVersionScore() > it->second->getVersionScore())
+                        // muma named a winner; nothing here re-decides that. The score only
+                        // settles it when neither is canonical, which happens while a work is
+                        // being regrouped and its canonical has not been recomputed yet.
+                        else if (!it->second->isCanonical()
+                            && (track->isCanonical() || track->getVersionScore() > it->second->getVersionScore()))
                         {
                             bestTracks[key] = track;
                         }
@@ -439,7 +435,7 @@ namespace lms::api::subsonic
         // are mutually exclusive by construction rather than by the caller remembering.
         if (auto workId = getParameterAs<int>(ctx.getParameters(), "workId"))
         {
-            params.workId = *workId;
+            params.workId = workId;
             deduplicate = false;
         }
 

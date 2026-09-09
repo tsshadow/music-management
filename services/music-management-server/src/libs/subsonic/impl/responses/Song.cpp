@@ -72,6 +72,12 @@ namespace lms::api::subsonic
 
             if (!track->getVersionKind().empty())
                 trackResponse.setAttribute("versionKind", track->getVersionKind());
+
+            // The browser needs this too, not just the flag: when a work is being regrouped
+            // its canonical is briefly unset, and the score is the only thing that then says
+            // which version to show. Without it every candidate reads as zero and the first
+            // one wins by accident.
+            trackResponse.setAttribute("versionScore", track->getVersionScore());
         }
     } // namespace
 

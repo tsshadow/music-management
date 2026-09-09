@@ -41,109 +41,18 @@ namespace lms::api::subsonic
 {
     namespace
     {
-        std::string normalizeArtist(std::string_view artist)
-        {
-            std::string lower{ core::stringUtils::stringToLower(artist) };
-
-            // Basic splitting by common separators
-            std::vector<std::string_view> separators = { ",", "&", " feat.", " ft.", " and " };
-            std::vector<std::string_view> parts_view = core::stringUtils::splitString(lower, std::span{ separators });
-
-            std::vector<std::string> parts;
-            for (auto p : parts_view)
-            {
-                auto trimmed = core::stringUtils::stringTrim(p);
-                if (!trimmed.empty())
-                    parts.push_back(std::string(trimmed));
-            }
-
-            std::sort(parts.begin(), parts.end());
-
-            return core::stringUtils::joinStrings(parts, "|");
-        }
-
-        std::string normalizeTitle(std::string_view title)
-        {
-            std::string lower{ core::stringUtils::stringToLower(title) };
-            std::string normalized{ core::stringUtils::stringTrim(lower) };
-
-            // Strip version info from key to treat them as duplicates
-            auto strip = [&](std::string_view search) {
-                auto pos = normalized.find(search);
-                if (pos != std::string::npos)
-                    normalized.erase(pos, search.length());
-            };
-
-            strip("(radio edit)");
-            strip("radio edit");
-            strip("(extended mix)");
-            strip("extended mix");
-            strip("(original mix)");
-            strip("original mix");
-            strip("(edit)");
-            strip("edit");
-            strip("(official videoclip)");
-            strip("official videoclip");
-            strip("(official video clip)");
-            strip("official video clip");
-            strip("(official video)");
-            strip("official video");
-            strip("(official hardstyle visualizer)");
-            strip("official hardstyle visualizer");
-            strip("(hardstyle videoclip)");
-            strip("hardstyle videoclip");
-
-            return std::string(core::stringUtils::stringTrim(normalized));
-        }
-
-        int getTrackScore(const db::Track::pointer& track)
-        {
-            int score = 0;
-
-            // Quality
-            std::string suffix = core::stringUtils::stringToLower(track->getAbsoluteFilePath().extension().string());
-            if (!suffix.empty() && suffix[0] == '.')
-                suffix = suffix.substr(1);
-
-            int bitRate = static_cast<int>(track->getBitrate() / 1000);
-
-            if (suffix == "flac")
-                score += 10000;
-            else if (suffix == "mp3")
-            {
-                if (bitRate >= 320)
-                    score += 5000;
-                else if (bitRate >= 192)
-                    score += 2000;
-                else if (bitRate > 0)
-                    score += 1000;
-            }
-
-            // Version
-            std::string name = core::stringUtils::stringToLower(track->getName());
-            bool isVideo = name.find("videoclip") != std::string::npos || name.find("official video") != std::string::npos || name.find("video clip") != std::string::npos;
-            bool isVisualizer = name.find("visualizer") != std::string::npos;
-
-            if (name.find("radio edit") != std::string::npos)
-                score += 500;
-            else if (name.find("extended mix") != std::string::npos)
-                score += 100;
-            else if (name.find("original mix") != std::string::npos)
-                score += 300;
-            else
-                score += 200;
-
-            if (isVideo)
-                score -= 50;
-            else if (isVisualizer)
-                score -= 40;
-
-            return score;
-        }
-
+        // One key per song, decided by muma and synced into work_id (migration 118). What
+        // this replaces guessed at it from a normalised artist and title, and summed its
+        // score, so a 320kbps SoundCloud rip beat an official 192kbps radio edit -- the exact
+        // inversion the version model exists to remove. A track muma has not grouped gets a
+        // key of its own so it stays visible; hiding it would empty the browser of whatever
+        // the worker has not reached yet.
         std::string getDedupeKey(const db::Track::pointer& track)
         {
-            return normalizeArtist(track->getArtistDisplayName()) + ":::" + normalizeTitle(track->getName());
+            if (const auto workId{ track->getWorkId() })
+                return "work:" + std::to_string(*workId);
+
+            return "track:" + std::to_string(track->getId().getValue());
         }
 
         void findTracks(db::Session& session, db::Track::FindParameters& params, const std::map<std::string, std::set<db::ClusterId>>& clusterGroups, bool deduplicate, int& nextOffset, bool& moreResults, std::function<void(const db::Track::pointer&)> callback)
@@ -183,12 +92,13 @@ namespace lms::api::subsonic
                             orderedKeys.push_back(key);
                             uniqueCount++;
                         }
-                        else
+                        // muma named a winner; nothing here re-decides that. The score only
+                        // settles it when neither is canonical, which happens while a work is
+                        // being regrouped and its canonical has not been recomputed yet.
+                        else if (!it->second->isCanonical()
+                                 && (track->isCanonical() || track->getVersionScore() > it->second->getVersionScore()))
                         {
-                            if (getTrackScore(track) > getTrackScore(it->second))
-                            {
-                                bestTracks[key] = track;
-                            }
+                            bestTracks[key] = track;
                         }
                     });
 
@@ -519,6 +429,16 @@ namespace lms::api::subsonic
         auto& tracksNode = response.createNode("tracks");
 
         bool deduplicate = getParameterAs<bool>(ctx.getParameters(), "deduplicate").value_or(false);
+
+        // Every version of one song, for the list behind a row. Deduplicating that would
+        // collapse it back to the one version the caller is trying to look past, so the two
+        // are mutually exclusive by construction rather than by the caller remembering.
+        if (auto workId = getParameterAs<int>(ctx.getParameters(), "workId"))
+        {
+            params.workId = workId;
+            deduplicate = false;
+        }
+
         bool moreResults = false;
         int nextOffset = 0;
 

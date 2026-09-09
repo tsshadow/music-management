@@ -7,6 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.53.0] - 2026-09-09
+
+### Added
+- **Een hertag van een download was blind voor alles wat de downloader wist.** yt-dlp overhandigt
+  zijn info-dict één keer, aan de postprocessor; elke keer daarna loopt de tagger over de
+  bestandsboom en roept `parse_folder(channel, song_type)` aan zonder `extra_info`. Wat de eerste
+  ronde niet in de tag schreef, was daarna onbereikbaar. Sinds 0.51.0 bewaart de archiefrij een
+  gesnoeide kopie van die dict, en die werd door niets gelezen — de kolom lag er, de hertag ging er
+  langs.
+- `services/tagger/download_info.py` leest hem terug en `Tagger.parse_song` geeft hem door aan
+  dezelfde `BaseSong._apply_extra_info` die de downloadkant gebruikt. Die vult een tag alleen als
+  hij leeg is; het genre is de uitzondering en gaat daarna langs `ResolveGenreRule`, precies zoals
+  elk ander afgeleid genre — een geblokkeerd genre komt er dus niet via deze weg alsnog in.
+- Gematcht op het absolute pad dat het archief opschreef, en op niets anders. De tagger loopt over
+  de schijf en leert nooit een video-id, dus het pad is de enige sleutel die beide kanten hebben.
+  Een bestand dat sinds zijn download is verplaatst of hernoemd vindt niets en wordt getagd zoals
+  het vandaag is. Bewust geen terugval op de bestandsnaam: twee kanalen met hetzelfde bestand
+  zouden dan stilletjes elkaars metadata krijgen.
+- `migrate_v23_download_archive_path_index.sql` indexeert de kolom waarin elk van de twee tabellen
+  dat pad houdt — SoundCloud in `filename`, YouTube in `path`. Zonder index is dit een volledige
+  scan over 157.393 respectievelijk 53.366 rijen per bestand.
+- Vooruit-werkend, net als de kolom zelf: 77 rijen dragen vandaag een info-dict, elke nieuwe
+  download komt erbij. Er wordt niets teruggehaald bij SoundCloud, want die kant beantwoordt een
+  burst met 403.
+
+### Fixed
+- **Elke geïmporteerde release landde onschrijfbaar voor iedereen behalve root.** De importer draait
+  als root met de standaard umask, dus wat hij uitpakt en verplaatst komt binnen als `root:root`,
+  mappen `0755` en bestanden `0644`. Root merkt daar niets van — het verplaatsen, het taggen en de
+  scan slagen allemaal — maar over SMB krijgt de share-gebruiker `other::r--` en faalt elke latere
+  schrijfactie met `[Errno 13] Permission denied`.
+- Gemeten op 2026-09-08 over de EPs-mappen die sinds 2026-09-01 zijn aangeraakt: **631 op `0777`,
+  19 op `0755`** — precies de mappen die zijn aangemaakt nadat de handmatige rechtenreparatie van
+  2026-09-05 langs de boom was gegaan. De release-date backfill liep op 9 bestanden daaruit vast.
+  Een sweep repareert wat er op dat moment staat en zegt niets over de import van morgen, en dat is
+  de reden dat dit in de importer thuishoort en niet in een script.
+- `make_library_writable()` zet na de verplaatsing mappen op `0777` en bestanden op `0666` — wat de
+  rest van de bibliotheek draagt sinds de reparatie van 5 september. Het draait vóór de tagronde,
+  want die is de eerste die naar deze bestanden schrijft; als root zou die het toch wel redden, maar
+  alles daarna niet.
+- Best effort, en het zegt het als het misgaat: een `chmod` die niet plakt levert een WARNING per
+  pad en een telling op, geen mislukte import. De release staat op dat moment al op zijn plek, en
+  hem dan alsnog laten falen zou de bibliotheek in een slechtere staat achterlaten dan een bestand
+  dat alleen leesbaar is.
+
+- **Zestien afleveringen van één radioshow stonden als zestien versies van één nummer.** De
+  groepering kijkt naar artiest en titel, en een set of aflevering draagt elke week dezelfde titel:
+  16 keer "Andromedha Guest Mix" van een uur, 14 keer "The Boom Room", 11 keer "Forerunners Guest
+  Mix". Gemeten op productie: 214 works met in totaal 560 lange opnames, waarvan er **346 zouden
+  verdwijnen** zodra het canonical-filter uit fase 2 aangaat — een jaar wekelijkse show
+  teruggebracht tot één aflevering. Een opname langer dan 15 minuten krijgt nu een eigen work en
+  groepeert niet meer op titel.
+- De grens is niet gevoelig gekozen: van de tracks in works met meer dan één versie lopen er 576
+  langer dan 10 minuten en 566 langer dan 20. Alles wat lang is in deze bibliotheek is dus héél
+  lang, en elke waarde in die lege band scheidt dezelfde twee populaties. Een lange track groepeert
+  daarmee ook niet meer met een korte versie van dezelfde naam; dat kost een extended mix zijn plek
+  naast de radio-edit, en dat is de veilige kant: iets twee keer tonen is beter dan het verbergen.
+- **Elke SoundCloud-rip telde als officiële release.** De worker vroeg of een bestand in het
+  downloadarchief stond door de bestandsnaam te vergelijken met `downloads_soundcloud_archive.filename`
+  — maar alle 157.393 rijen daarin bevatten een absoluut pad, dus die vergelijking kon nooit waar
+  zijn. Gevolg: de 1.162 SoundCloud-tracks die óók een label dragen kregen de provenance-bonus die
+  voor een officiële release bedoeld is, en konden dus de release verslaan waar ze een rip van zijn.
+  Precies de omkering die deze scoring moest wegnemen. Beide archieven worden nu op het volledige
+  pad gematcht (SoundCloud in `filename`, YouTube in `path`), geïndexeerd door `migrate_v23`.
+- `scripts/repair_song_works.py` verplaatst de al gegroepeerde afleveringen zelf: het herberekent
+  elke sleutel en meldt deze apart als `long-form`. Voor de scores is er een nieuwe vlag,
+  `--rescore-downloads`, die de gelabelde downloads uit hun work haalt zodat de worker ze met de
+  gerepareerde test opnieuw beoordeelt. Beide zijn dry-run-baar; draai eerst `--dry-run`.
 ## [0.52.0] - 2026-09-08
 
 ### Added

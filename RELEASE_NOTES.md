@@ -11,6 +11,17 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.53.0 (2026-09-09)
+
+- Nieuwe imports komen binnen met dezelfde rechten als de rest van de bibliotheek, zodat het taggen
+  en de backfills er daarna nog bij kunnen.
+
+- Wat de downloader over een nummer te horen kreeg, wordt nu ook gebruikt als MuMa datzelfde
+  bestand later opnieuw tagt.
+
+- Afleveringen van een radioshow met dezelfde naam worden niet langer als versies van één nummer
+  behandeld.
+- Een SoundCloud-rip kan de officiële release waar hij vandaan komt niet meer verslaan.
 ## Global Version 0.52.0 (2026-09-08)
 
 - **MuMa onthoudt nu wat een nummer zei toen het binnenkwam.** Tot nu toe overschreef de tagger de

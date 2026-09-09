@@ -10,7 +10,7 @@ from services.common.Helpers.BrokenSongHelper import BrokenSongHelper
 from services.common.Helpers.Cache import reload as reload_rule_caches
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
-from services.tagger import ingestion
+from services.tagger import download_info, ingestion
 from services.tagger.constants import SongTypeEnum
 from services.tagger.Song.BaseSong import ExtensionNotSupportedException
 from services.tagger.Song.GenericSong import GenericSong
@@ -215,6 +215,12 @@ class Tagger:
         @param extra_info:
         """
         song = None
+        if extra_info is None:
+            # Only the downloader ever holds yt-dlp's answer, and every pass after it walks
+            # the filesystem with nothing in hand. The archive row keeps a pruned copy of
+            # that dict, so a retag can see what the download saw instead of guessing again
+            # from the filename. Nothing for a label or generic file, without a query.
+            extra_info = download_info.stored_info(path, song_type)
         if song_type == SongTypeEnum.LABEL:
             song = LabelSong(str(path))
         elif song_type == SongTypeEnum.YOUTUBE:

@@ -88,6 +88,18 @@ WORK_KEY_MAX = 191
 UNGROUPABLE_PREFIX = 'track:'
 SPLIT_PREFIX = 'split:'
 
+# Past this, a recording is a set or a radio episode rather than a song, and two of
+# them sharing a title are two broadcasts rather than two versions. Measured on
+# production: 16 hour-long episodes of "Andromedha Guest Mix" sat in one work, 14 of
+# "The Boom Room", 11 of "Forerunners Guest Mix" -- 214 works holding 560 long
+# recordings, of which 346 would disappear the moment a canonical filter shipped.
+#
+# The exact number barely matters, which is the useful part: of the tracks in
+# multi-version works only 576 run past 10 minutes and 566 past 20, so everything
+# long in this library is *very* long and any threshold in that range separates the
+# same two populations. 15 minutes is the middle of that empty band.
+LONG_FORM_SECONDS = 900
+
 
 def _tokens(text: str) -> list[str]:
     return [token for token in _TOKEN_SPLIT.split(text.lower()) if token]
@@ -132,7 +144,7 @@ def version_kind(title: str | None) -> str:
     return 'none'
 
 
-def work_key(artist: str | None, title: str | None, track_id: int) -> str:
+def work_key(artist: str | None, title: str | None, track_id: int, duration_secs: float | None) -> str:
     """The grouping key: one song by one artist, however its versions are spelled.
 
     A title that normalizes away to nothing identifies no song, so the track gets a
@@ -145,11 +157,22 @@ def work_key(artist: str | None, title: str | None, track_id: int) -> str:
     the title, where "The Elite - Royals (Radio Edit)" and "The Elite - Royals
     (Extended)" are two versions of one song and have to meet.
 
-    The track id is required rather than optional: every caller has it, and a default
-    would leave the old behaviour reachable from a caller that forgot.
+    A recording longer than LONG_FORM_SECONDS also gets a key of its own. Two
+    hour-long files called "Andromedha Guest Mix" are two episodes of a show, not two
+    versions of a song, and grouping them would hide every episode but one behind a
+    canonical filter. A long track therefore never groups -- not with another episode
+    and not with a short version of the same name, which costs an extended mix its
+    place beside its radio edit. That is the safe direction: the failure is showing a
+    file twice, not hiding it.
+
+    The track id and the duration are required rather than optional: every caller has
+    both, and a default would leave the old behaviour reachable from a caller that
+    forgot.
     """
     versionless = version_free_title(title)
     if not versionless:
+        return f'{UNGROUPABLE_PREFIX}{track_id}'
+    if duration_secs and duration_secs > LONG_FORM_SECONDS:
         return f'{UNGROUPABLE_PREFIX}{track_id}'
     return f'{normalize(artist)}:::{versionless}'[:WORK_KEY_MAX]
 

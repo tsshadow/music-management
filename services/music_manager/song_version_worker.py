@@ -45,13 +45,20 @@ _UNGROUPED = '''
         mf.file_size,
         COALESCE(mf.duration_secs, t.duration_secs) AS duration_secs,
         EXISTS (SELECT 1 FROM library_track_labels tl WHERE tl.track_id = t.id) AS has_label,
+        -- Matched on the absolute path, which is what both archives store: SoundCloud
+        -- writes it into `filename` and YouTube into `path`. Comparing a basename
+        -- against SoundCloud's column could never be true -- all 157.393 rows hold a
+        -- path beginning with a slash -- so every SoundCloud rip read as "not from
+        -- SoundCloud" and the 1.162 of them carrying a label collected the provenance
+        -- bonus meant for an official release. That is the exact inversion this
+        -- scoring exists to remove. Indexed by migrate_v23.
         EXISTS (
             SELECT 1 FROM downloads_soundcloud_archive sc
-            WHERE sc.filename = SUBSTRING_INDEX(mf.file_path, '/', -1)
+            WHERE sc.filename = mf.file_path
         ) AS from_soundcloud,
         EXISTS (
             SELECT 1 FROM downloads_youtube_archive yt
-            WHERE yt.filename = SUBSTRING_INDEX(mf.file_path, '/', -1)
+            WHERE yt.path = mf.file_path
         ) AS from_youtube
     FROM (
         SELECT id FROM library_tracks
@@ -118,7 +125,7 @@ def assign_works(cursor, limit: int = BATCH_SIZE) -> tuple[set[int], int]:
     candidates = _best_per_track(rows)
     for track_id, candidate in candidates.items():
         row = candidate['row']
-        key = work_key(row['artist'], row['title'], track_id)
+        key = work_key(row['artist'], row['title'], track_id, row['duration_secs'])
         cursor.execute(
             'INSERT INTO library_works (work_key, title, primary_artist_id) '
             'VALUES (%s, %s, (SELECT primary_artist_id FROM library_tracks WHERE id = %s)) '

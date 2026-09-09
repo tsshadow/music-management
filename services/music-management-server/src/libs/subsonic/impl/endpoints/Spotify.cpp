@@ -96,7 +96,7 @@ namespace lms::api::subsonic
                         // settles it when neither is canonical, which happens while a work is
                         // being regrouped and its canonical has not been recomputed yet.
                         else if (!it->second->isCanonical()
-                            && (track->isCanonical() || track->getVersionScore() > it->second->getVersionScore()))
+                                 && (track->isCanonical() || track->getVersionScore() > it->second->getVersionScore()))
                         {
                             bestTracks[key] = track;
                         }

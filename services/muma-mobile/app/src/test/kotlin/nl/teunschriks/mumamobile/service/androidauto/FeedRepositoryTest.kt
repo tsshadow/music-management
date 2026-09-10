@@ -38,8 +38,9 @@ class FeedRepositoryTest {
     private val api: MumaAPIDefinition = mockk()
     private val musicService: MusicService = mockk()
     private var day = "2026-09-10"
+    private var server = 1
 
-    private val repository = FeedRepository({ api }, { musicService }, { day })
+    private val repository = FeedRepository({ api }, { musicService }, { day }, { server })
 
     private fun feedOf(vararg paths: String, state: String = "ok") = MumaFeed(
         slug = "release-radar",
@@ -87,6 +88,33 @@ class FeedRepositoryTest {
         resolving(Track(id = "1"), Track(id = "2"))
 
         repository.tracksFor("release-radar").size `should be equal to` 2
+    }
+
+    @Test
+    fun `a short answer is handed over but not remembered`() {
+        // The server is usually mid-scan and will have the rest in a minute. Cached, the folder
+        // would stay short until tomorrow for a reason that lasted seconds.
+        answering(feedOf("a.mp3", "b.mp3"))
+        resolving(Track(id = "1"))
+        repository.tracksFor("release-radar").size `should be equal to` 1
+
+        resolving(Track(id = "1"), Track(id = "2"))
+        repository.tracksFor("release-radar").size `should be equal to` 2
+    }
+
+    @Test
+    fun `a complete feed for another server is fetched again`() {
+        // Switching accounts or servers while the playback service stays alive would otherwise
+        // show the previous listener's recommendations, carrying the previous server's ids --
+        // which resolve to different music, or to nothing.
+        answering(feedOf("a.mp3"))
+        resolving(Track(id = "1"))
+        repository.tracksFor("release-radar")
+
+        server = 2
+        repository.tracksFor("release-radar")
+
+        verify(exactly = 2) { api.getFeed(any(), any()) }
     }
 
     @Test

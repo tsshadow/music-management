@@ -58,8 +58,14 @@ namespace lms::api::subsonic
          * spelling must never be answered with a re-rooted guess.
          *
          * With several media libraries a relative path is tried under each, in configuration
-         * order, rather than refused: unlike a scan scope, resolving to the wrong root here
-         * simply finds no track.
+         * order, rather than refused the way a scan scope is. The first root holding a matching
+         * path wins, and that is a real ambiguity rather than a harmless one: if two libraries
+         * both hold `Album/01.mp3` and they are different recordings, the caller gets whichever
+         * library is configured first, with nothing in the answer to say so. It is accepted
+         * because a deployment with overlapping relative paths does not exist here -- there is
+         * one media library -- and refusing an ambiguous path outright would turn a second
+         * library into a feed that silently stops resolving. Anything that adds a second
+         * library has to revisit this.
          */
         std::vector<std::filesystem::path> candidateSpellings(
             const std::filesystem::path& path,

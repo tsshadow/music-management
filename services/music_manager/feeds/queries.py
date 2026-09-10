@@ -47,13 +47,18 @@ _AUDIO_FEATURES_SUBQUERY = """
     ) af ON af.internal_track_id = t.id
 """
 
-#: The release date a feed filters and sorts on. `library_tracks.release_date` is the
-#: server's own reading of the file tag, copied over hourly by release_date_sync, and it is
-#: preferred because it covers the whole library; the audio-features column behind it covers
-#: only the tracks the ml-analyzer processed and on production was never filled at all.
-#: Both sides already apply the same "two files that disagree count as unknown" rule, so
-#: falling through from one to the other cannot produce a date nobody agreed on.
-_RELEASE_DATE = "COALESCE(NULLIF(t.release_date, ''), af.release_date)"
+#: The release date a feed filters and sorts on. `library_tracks.release_date` is the servers'
+#: own reading of the file tag, settled hourly by release_date_sync, and it is preferred
+#: because it covers the whole library; the audio-features column behind it covers only the
+#: tracks the ml-analyzer processed and on production was never filled at all.
+#:
+#: A CASE and not a COALESCE, because the two empty values do not mean the same thing. NULL is
+#: "no server holds this file", a gap, and the analyzer's value is better than nothing. The
+#: empty string is "a server holds it and no date could be agreed on" -- a decision the sync
+#: made after weighing every file on every server, and falling through it would resurrect
+#: exactly the date that was just rejected. COALESCE cannot tell those apart and would treat
+#: both as a gap.
+_RELEASE_DATE = "CASE WHEN t.release_date IS NULL THEN af.release_date ELSE NULLIF(t.release_date, '') END"
 
 
 def listens_query(username: str | None, window_days: int, now: datetime) -> tuple[str, list]:

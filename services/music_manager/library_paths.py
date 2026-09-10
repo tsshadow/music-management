@@ -26,6 +26,25 @@ def candidate_paths(path: str) -> list[str]:
     return [c for c in candidates if not (c in seen or seen.add(c))]
 
 
+def server_candidate_paths(path: str) -> list[str]:
+    """The same spellings as `candidate_paths`, but the server's own one first.
+
+    Every spelling costs an indexed lookup, and a pass that reads a fact *out of* the servers
+    does one per media file per server -- 352.977 files against two databases on production.
+    Trying muma's own mount first, as `candidate_paths` does, misses every single time and
+    doubles that. This is the same list, reordered; nothing is added or dropped, so a path that
+    resolves under one order resolves under the other.
+    """
+    candidates = candidate_paths(path)
+    relative = path
+    for root in (MUMA_MUSIC_ROOT, LMS_MUSIC_ROOT):
+        if path.startswith(root + '/'):
+            relative = path[len(root) + 1 :]
+            break
+    server_first = f'{LMS_MUSIC_ROOT}/{relative}'
+    return [server_first] + [c for c in candidates if c != server_first]
+
+
 def relative_path(path: str | None) -> str | None:
     """`path` with whichever library root it carries stripped off.
 

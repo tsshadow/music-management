@@ -54,9 +54,6 @@ class MediaLibraryDataProvider(
 
     val feeds: FeedRepository by lazy(feedRepositoryProvider)
 
-    /** The tracks of each feed the car has been shown, keyed by slug. */
-    val feedCache = mutableMapOf<String, List<Track>>()
-
     lateinit var playbackController: MediaLibraryPlaybackController
     var playlistCache: List<Track>? = null
     var starredSongsCache: List<Track>? = null

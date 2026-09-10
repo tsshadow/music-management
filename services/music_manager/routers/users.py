@@ -1227,11 +1227,6 @@ def sync_single_server_db(muma_conn, db_path, source):
         from services.music_manager.song_version_sync import sync_song_versions_to_server
 
         versions = sync_song_versions_to_server(muma_conn, sqlite_conn, source)
-        # And the other direction: the release date the server read off the file. muma's own
-        # copy of it covers a quarter of the library, which is why the feeds were empty.
-        from services.music_manager.release_date_sync import sync_release_dates_from_server
-
-        sync_release_dates_from_server(muma_conn, sqlite_conn, source)
         if versions.get('skipped_no_columns'):
             # The server is still migrating. Remembered so the caller can come back rather
             # than leaving the columns empty until the next restart.
@@ -1329,6 +1324,32 @@ def run_lms_db_sync():
     try:
         for db_path, source in targets:
             total_synced += sync_single_server_db(conn, db_path, source)
+        # And once, afterwards, the other direction: the release date the servers read off the
+        # files. Deliberately not inside the loop above. That loop writes muma's own model into
+        # each server, where every server is a destination and the order does not matter. This
+        # reads a fact back out, and production runs two servers whose libraries differ -- run
+        # per server, the last one would decide and the stale one would clear tens of thousands
+        # of dates every hour. See release_date_sync's module docstring.
+        _sync_release_dates(conn, targets)
     finally:
         conn.close()
     return total_synced
+
+
+def _sync_release_dates(muma_conn, targets):
+    """Open every server database read-only and settle the release dates against all of them."""
+    from services.music_manager.release_date_sync import sync_release_dates
+
+    connections = []
+    try:
+        for db_path, source in targets:
+            try:
+                connections.append((sqlite3.connect(db_path), source))
+            except Exception as e:
+                logging.warning('release-date sync: could not open %s (%s): %s', db_path, source, e)
+        if connections:
+            sync_release_dates(muma_conn, connections)
+    finally:
+        for server_conn, _ in connections:
+            with contextlib.suppress(Exception):
+                server_conn.close()

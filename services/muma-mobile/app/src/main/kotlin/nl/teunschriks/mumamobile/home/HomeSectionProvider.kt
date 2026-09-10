@@ -144,3 +144,39 @@ class RecentTracksProvider(
         return HomeSection(titleRes, CardStyle.LIST, cards)
     }
 }
+
+/**
+ * One personalized feed as a home section: the release radar or the daily mix.
+ *
+ * A list, like the two track sections above it, and for the same reason -- these are individual
+ * songs to start, not collections to browse into.
+ *
+ * The whole feed is asked for and then cut down to the rows that fit. MuMa decides the order and
+ * the size, and taking the head of its ranking is the one truncation that keeps meaning something:
+ * the quota per genre is filled from the top, so the first rows are the strongest picks in the
+ * largest share of the listener's taste rather than a slice through the middle of it.
+ *
+ * An empty feed returns null and the section stays off the screen. That is not the same as a
+ * failure, which throws and leaves whatever was cached in place: "nothing was released this week"
+ * is a real answer that should not leave yesterday's radar sitting there.
+ */
+class FeedProvider(
+    @StringRes private val titleRes: Int,
+    /** The feed's slug, as MuMa's API spells it: `release-radar` or `daily-mix`. */
+    private val slug: String,
+    /** Rows to show. A function for the same reason as [ShortcutsProvider.count]. */
+    private val rows: () -> Int,
+    private val loadFeed: suspend (slug: String) -> List<Track>
+) : HomeSectionProvider {
+
+    override val cacheKey: String = "feed:$slug"
+
+    override fun sectionOf(cards: List<HomeCard>): HomeSection = HomeSection(titleRes, CardStyle.LIST, cards)
+
+    override suspend fun load(): HomeSection? {
+        val cards = loadFeed(slug).take(rows()).map { it.toHomeCard() }
+        if (cards.isEmpty()) return null
+
+        return HomeSection(titleRes, CardStyle.LIST, cards)
+    }
+}

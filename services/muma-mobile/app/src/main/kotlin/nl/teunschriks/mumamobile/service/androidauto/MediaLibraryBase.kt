@@ -19,6 +19,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
+import nl.teunschriks.mumamobile.service.FeedRepository
 import nl.teunschriks.mumamobile.util.buildMediaItem
 import org.koin.java.KoinJavaComponent.inject
 import timber.log.Timber
@@ -159,9 +160,10 @@ abstract class MediaLibraryBase protected constructor() {
         internal const val MEDIA_FEED_ID = "MEDIA_FEED_ID"
         internal const val MEDIA_FEED_ITEM = "MEDIA_FEED_ITEM"
 
-        // The two feeds MuMa serves. Slugs, not display names -- they are part of the API path.
-        internal const val FEED_RELEASE_RADAR = "release-radar"
-        internal const val FEED_DAILY_MIX = "daily-mix"
+        // The two feeds MuMa serves. Aliased from the repository rather than spelled again: the
+        // phone's home screen names the same two, and a second copy of an API path drifts.
+        internal const val FEED_RELEASE_RADAR = FeedRepository.RELEASE_RADAR
+        internal const val FEED_DAILY_MIX = FeedRepository.DAILY_MIX
 
         // Genres -> songs
         internal const val MEDIA_GET_GENRES = "MEDIA_GET_GENRES"

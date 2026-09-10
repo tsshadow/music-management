@@ -17,6 +17,7 @@
   import ListeningStatsView from './ListeningStatsView.svelte';
   import StarredView from './StarredView.svelte';
   import MemoriesView from './MemoriesView.svelte';
+  import FeedView from './FeedView.svelte';
   import MemoriesYearView from './MemoriesYearView.svelte';
   import ArtistEdit from './curation/ArtistEdit.svelte';
   import LabelEdit from './curation/LabelEdit.svelte';
@@ -29,17 +30,27 @@
   import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
   import { defaultCollectionState, durationParts, lineupLevel, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
   import { loadIndexedTags } from './scanTags.js';
+  import { loadFeed, DAILY_MIX, RELEASE_RADAR } from './feeds.js';
   import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, hasPermission } from './store.js';
 
   // Navigation that has to survive a refresh goes through onnavigate, which App turns into a URL.
   // The local assignment stays the fallback for the many places that only switch the screen.
   let { activeView = $bindable('home'), onnavigate = (view) => (activeView = view) } = $props();
 
+  // The first two are MuMa's personalized feeds; the rest are LMS's own curated lists.
+  //
+  // The row that used to sit at the top was `spotify:release_radar`, which is the whole library
+  // under ten minutes sorted by release date -- the same list for every listener, personalized in
+  // name only. The real radar knows what this account plays, so it takes the name and the place.
   let sections = $state([
-    { titleKey: 'nav.releaseRadar', id: 'spotify:release_radar', tracks: [] },
+    { titleKey: 'nav.dailyMix', id: `feed:${DAILY_MIX}`, tracks: [] },
+    { titleKey: 'nav.releaseRadar', id: `feed:${RELEASE_RADAR}`, tracks: [] },
     { titleKey: 'nav.songs', id: 'spotify:songs', tracks: [] },
     { titleKey: 'nav.sets', id: 'spotify:sets', tracks: [] }
   ]);
+
+  /** How much of a feed a home row shows. The whole thing lives on the feed's own page. */
+  const HOME_FEED_ROWS = 10;
 
   let memoryGroups = $state([]);
 
@@ -134,6 +145,12 @@
    */
   async function fetchTracks(id) {
     if (!$authParams) return [];
+
+    // A personalized feed is two calls against two services, not one Subsonic playlist.
+    if (id.startsWith('feed:')) {
+      return loadFeed(id.slice('feed:'.length), $authParams, HOME_FEED_ROWS);
+    }
+
     console.log(`Fetching tracks for curated playlist: ${id}`);
     try {
         const response = await fetch(`/rest/getSpotifyPlaylist?id=${encodeURIComponent(id)}&seed=${currentSeed}&${$authParams}`);
@@ -740,15 +757,15 @@
         </div>
       </section>
     {/if}
-    {#each sections as section (section.id)}
+    {#each sections.filter((s) => !s.id.startsWith('feed:') || s.tracks.length > 0) as section (section.id)}
       <section class="flex flex-col gap-4">
         <div class="flex justify-between items-end mb-4">
           <h2 class="text-2xl font-bold m-0">{$t(section.titleKey)}</h2>
           <button
             class="bg-transparent border-none text-[#b3b3b3] text-[12px] font-bold cursor-pointer uppercase tracking-[0.1em] hover:underline"
             onclick={() => {
-              if (section.id === 'spotify:release_radar') {
-                activeView = 'radar';
+              if (section.id.startsWith('feed:')) {
+                onnavigate(section.id.slice('feed:'.length));
               } else if (section.id === 'spotify:songs') {
                 viewMode.set('songs');
                 activeView = 'songs';
@@ -1143,6 +1160,10 @@
     <ListeningStatsView onnavigate={(v) => onnavigate(v)} />
   {:else if activeView === 'starred'}
     <StarredView onnavigate={(v) => activeView = v} />
+  {:else if activeView === 'release-radar'}
+    <FeedView slug={RELEASE_RADAR} onnavigate={(v) => onnavigate(v)} />
+  {:else if activeView === 'daily-mix'}
+    <FeedView slug={DAILY_MIX} onnavigate={(v) => onnavigate(v)} />
   {:else if activeView === 'memories'}
     <MemoriesView onnavigate={(v) => onnavigate(v)} />
   {:else if activeView.startsWith('memories:')}

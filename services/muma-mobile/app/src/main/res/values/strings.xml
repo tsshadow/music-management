@@ -260,6 +260,8 @@
     <string name="settings.home_list_count_summary">How many rows "Recently released" and "Recently added" show before "Show more"</string>
     <string name="home.shortcuts">Recently played</string>
     <string name="home.recently_released">Recently released</string>
+    <string name="home.daily_mix">Daily mix</string>
+    <string name="home.release_radar">Release radar</string>
     <string name="home.recently_added">Recently added</string>
     <string name="home.memories">Memories</string>
     <string name="home.show_more">Show more</string>

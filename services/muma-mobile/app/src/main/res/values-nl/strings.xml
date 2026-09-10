@@ -582,6 +582,8 @@
     <string name="settings.home_list_count_summary">Hoeveel rijen "Recent uitgebracht" en "Recent toegevoegd" laten zien voor "Meer"</string>
     <string name="home.shortcuts">Recent gespeeld</string>
     <string name="home.recently_released">Recent uitgebracht</string>
+    <string name="home.daily_mix">Dagelijkse mix</string>
+    <string name="home.release_radar">Release radar</string>
     <string name="home.recently_added">Recent toegevoegd</string>
     <string name="home.show_more">Meer</string>
     <plurals name="home.memories_track_count">

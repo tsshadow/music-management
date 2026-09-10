@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## Global Version 6.32.0 (2026-09-10)
+
+- Je ziet nu één regel per nummer in plaats van dezelfde track drie keer. Uit te zetten in de
+  instellingen; de andere versies blijven bereikbaar via Versies in de track-info.
 ## Global Version 6.31.0 (2026-09-10)
 
 - Bij een nummer kun je nu zien welke andere versies ervan in je bibliotheek staan.

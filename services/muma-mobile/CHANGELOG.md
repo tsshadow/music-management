@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.32.0] - 2026-09-10
+
+### Added
+- **De app toont nu één regel per nummer in plaats van één per bestand.** Staat een nummer er als
+  FLAC, als MP3 en als SoundCloud-rip, dan zie je de versie die MuMa als beste aanwees. Aan te zetten
+  en uit te zetten onder Instellingen, standaard aan — net als in de webspeler.
+- Dat mag standaard aan omdat de weg naar de rest bestaat: wat wegvalt staat onder **Versies** in de
+  track-info, en die lijst kwam er in de vorige release.
+- Wat MuMa nog niet heeft gegroepeerd blijft gewoon staan. Terwijl de worker zijn achterstand
+  wegwerkt draagt een groot deel van de bibliotheek geen groepering, en die verbergen zou de app
+  legen van muziek die er wel degelijk is.
 ## [6.31.0] - 2026-09-10
 
 ### Added

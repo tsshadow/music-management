@@ -179,6 +179,12 @@ def ensure_tables_exist() -> None:
                     # and services/downloader/info_json.py.
                     'ALTER TABLE downloads_soundcloud_archive ADD COLUMN IF NOT EXISTS info_json LONGTEXT NULL',
                     'ALTER TABLE downloads_youtube_archive ADD COLUMN IF NOT EXISTS info_json LONGTEXT NULL',
+                    # The release date the server read off the file, copied over by
+                    # release_date_sync. Beside library_track_audio_features.release_date and not
+                    # instead of it: that column only ever covered the tracks the ml-analyzer
+                    # processed, which is why the feeds filtered on it and always came back empty.
+                    # See migrate_v24_track_release_date.sql.
+                    'ALTER TABLE library_tracks ADD COLUMN IF NOT EXISTS release_date VARCHAR(10) NULL',
                 ):
                     try:
                         cursor.execute(column_sql)

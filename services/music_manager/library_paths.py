@@ -24,3 +24,22 @@ def candidate_paths(path: str) -> list[str]:
     candidates = [path, f'{MUMA_MUSIC_ROOT}/{relative}', f'{LMS_MUSIC_ROOT}/{relative}', relative]
     seen = set()
     return [c for c in candidates if not (c in seen or seen.add(c))]
+
+
+def relative_path(path: str | None) -> str | None:
+    """`path` with whichever library root it carries stripped off.
+
+    What a client is given when it has to name a file to LMS -- the feeds hand a path to
+    `getSongsByPath`, which resolves it against its own media library roots. Sending muma's
+    absolute path instead would name a file LMS does not have, and sending LMS's spelling
+    would bake this deployment's mount into the client.
+
+    A path under neither root is returned unchanged: it is still the best name anyone has
+    for that file, and the server answers by finding nothing rather than by failing.
+    """
+    if not path:
+        return path
+    for root in (MUMA_MUSIC_ROOT, LMS_MUSIC_ROOT):
+        if path.startswith(root + '/'):
+            return path[len(root) + 1 :]
+    return path

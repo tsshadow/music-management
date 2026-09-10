@@ -1227,6 +1227,11 @@ def sync_single_server_db(muma_conn, db_path, source):
         from services.music_manager.song_version_sync import sync_song_versions_to_server
 
         versions = sync_song_versions_to_server(muma_conn, sqlite_conn, source)
+        # And the other direction: the release date the server read off the file. muma's own
+        # copy of it covers a quarter of the library, which is why the feeds were empty.
+        from services.music_manager.release_date_sync import sync_release_dates_from_server
+
+        sync_release_dates_from_server(muma_conn, sqlite_conn, source)
         if versions.get('skipped_no_columns'):
             # The server is still migrating. Remembered so the caller can come back rather
             # than leaving the columns empty until the next restart.

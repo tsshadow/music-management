@@ -258,7 +258,45 @@ interface MumaAPIDefinition {
     fun getLatestNewsBulletin(
         @Query("source") source: String = "nos"
     ): Call<NewsBulletin>
+
+    // --- Personalized feeds. The ranking is the server's; the client only plays it. ---
+
+    /**
+     * One feed for the calling user: `release-radar` or `daily-mix`.
+     *
+     * The username is never sent. A user key resolves its own account server-side and a
+     * `username` parameter from a user key is ignored rather than honoured, so asking for
+     * someone else's feed is not a thing this client can do by accident.
+     */
+    @GET("api/feeds/{slug}")
+    fun getFeed(
+        @Path("slug") slug: String,
+        @Query("limit") limit: Int? = null
+    ): Call<MumaFeed>
 }
+
+/**
+ * A feed as the server hands it over.
+ *
+ * `state` is the honest part: `not_enough_data` means the server could not build a taste
+ * profile at all, and it is a different thing from an `ok` feed that happens to be empty
+ * because nothing was released this week. A client that shows the same message for both
+ * teaches its user to distrust the feature.
+ */
+data class MumaFeed(
+    @SerializedName("slug") val slug: String = "",
+    @SerializedName("state") val state: String = "",
+    @SerializedName("tracks") val tracks: List<MumaFeedTrack> = emptyList()
+)
+
+data class MumaFeedTrack(
+    @SerializedName("title") val title: String? = null,
+    @SerializedName("artist") val artist: String? = null,
+    // The library-relative path, which is what getSongsByPath resolves. The absolute
+    // `file_path` beside it in the response is music-manager's own mount and names a file
+    // the streaming server does not have.
+    @SerializedName("library_path") val libraryPath: String? = null
+)
 
 data class MumaTile(
     @SerializedName("id") val id: Int? = null,

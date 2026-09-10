@@ -179,6 +179,17 @@ interface MusicService {
     @Throws(Exception::class)
     fun getRandomSongs(size: Int): MusicDirectory
 
+    /**
+     * The songs behind a list of library-relative paths, in the order they were asked for.
+     *
+     * What turns a personalized feed into something playable: music-manager ranks the tracks
+     * and knows them by path, the streaming server knows them by id. A path the server does
+     * not have is missing from the result rather than null in it, so the answer can be shorter
+     * than the request.
+     */
+    @Throws(Exception::class)
+    fun getSongsByPath(paths: List<String>): MusicDirectory
+
     @Throws(Exception::class)
     fun getSongsByGenre(
         genre: String,

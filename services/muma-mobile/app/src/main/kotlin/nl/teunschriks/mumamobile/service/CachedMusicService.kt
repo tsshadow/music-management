@@ -585,6 +585,11 @@ class CachedMusicService(private val musicService: MusicService) :
         return sorted
     }
 
+    // Not cached: a feed is rebuilt server-side every day, and a cache under it would hand
+    // back yesterday's radar while the screen above it says today's.
+    @Throws(Exception::class)
+    override fun getSongsByPath(paths: List<String>): MusicDirectory = musicService.getSongsByPath(paths)
+
     @Throws(Exception::class)
     override fun getSongsByGenre(
         genre: String,

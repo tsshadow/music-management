@@ -99,6 +99,30 @@ class MediaLibraryPlaybackController(
         return null
     }
 
+    /**
+     * The whole feed, in MuMa's order.
+     *
+     * Refetched when the cache is empty, which is what happens when Android Auto kept the
+     * browse items across a restart of this service: the car still shows yesterday's list and
+     * a tap has to resolve to something. The repository answers with today's feed then, not
+     * with what was on screen -- a feed is a day's ranking, and playing a stale one silently
+     * would be worse than playing a slightly different order.
+     */
+    fun playFeed(slug: String): List<Track>? {
+        val cached = dataProvider.feedCache[slug]
+        if (!cached.isNullOrEmpty()) return cached
+
+        val tracks = dataProvider.feeds.tracksFor(slug)
+        dataProvider.feedCache[slug] = tracks
+        return tracks.ifEmpty { null }
+    }
+
+    fun playFeedSong(slug: String, songId: String): List<Track>? {
+        val song = playFeed(slug)?.firstOrNull { it.id == songId }
+        if (song != null) return listOf(song)
+        return null
+    }
+
     fun playSearch(id: String): List<Track>? {
         // If there is no cache, we can't play the selected song.
         if (dataProvider.searchSongsCache != null) {
@@ -192,6 +216,8 @@ class MediaLibraryPlaybackController(
             )
 
             MEDIA_SEARCH_SONG_ITEM -> playSearch(mediaIdParts[INDEX_ID])
+            MEDIA_FEED_ID -> playFeed(mediaIdParts[INDEX_ID])
+            MEDIA_FEED_ITEM -> playFeedSong(mediaIdParts[INDEX_ID], mediaIdParts[INDEX_NAME])
             else -> null
         }
 

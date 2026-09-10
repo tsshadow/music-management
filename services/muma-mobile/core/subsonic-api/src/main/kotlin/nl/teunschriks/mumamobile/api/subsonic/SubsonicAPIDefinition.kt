@@ -28,6 +28,7 @@ import nl.teunschriks.mumamobile.api.subsonic.response.GetPodcastsResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.GetRandomSongsResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.GetSongsByGenreResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.GetSongsByMoodResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.GetSongsByPathResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.GetSongsByYearResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.GetSongsResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.GetStarredResponse
@@ -50,8 +51,11 @@ import nl.teunschriks.mumamobile.api.subsonic.response.VideosResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.YearsResponse
 import okhttp3.ResponseBody
 import retrofit2.Call
+import retrofit2.http.Field
+import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.POST
 import retrofit2.http.Query
 import retrofit2.http.Streaming
 
@@ -373,6 +377,22 @@ interface SubsonicAPIDefinition {
 
     @GET("getYears.view")
     fun getYears(): Call<YearsResponse>
+
+    /**
+     * The songs behind a list of library-relative paths, in the order they were sent.
+     *
+     * How a personalized feed becomes playable: music-manager ranks the tracks and knows them
+     * by path, the server knows them by id, and this is the only call that joins the two.
+     *
+     * A POST rather than a GET, and that is not a style choice: thirty paths run to several
+     * kilobytes, which is around where a request line starts meeting proxy buffer limits.
+     * The server reads its parameters out of the query string and the form body alike.
+     */
+    @FormUrlEncoded
+    @POST("getSongsByPath.view")
+    fun getSongsByPath(
+        @Field("path") paths: List<String>
+    ): Call<GetSongsByPathResponse>
 
     @GET("getSongsByGenre.view")
     fun getSongsByGenre(

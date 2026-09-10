@@ -16,6 +16,7 @@ add_library(lmssubsonic STATIC
 	impl/endpoints/Podcast.cpp
 	impl/endpoints/ScanScope.cpp
 	impl/endpoints/Searching.cpp
+	impl/endpoints/SongsByPath.cpp
 	impl/endpoints/Spotify.cpp
 	impl/endpoints/System.cpp
 	impl/endpoints/Transcoding.cpp

@@ -363,3 +363,84 @@ def test_get_memories_clamps_absurd_parameters(admin_credentials, media_library)
     assert resp.status_code == 200, resp.text[:500]
     body = resp.json()["subsonic-response"]
     assert body["status"] == "ok", body
+
+
+def _subsonic_post(endpoint, username, password, data):
+    """A Subsonic call whose parameters travel in the body rather than the query string.
+
+    getSongsByPath takes one `path` per track, and thirty of them run to several kilobytes --
+    around where a request line starts meeting proxy buffer limits. The credentials stay in the
+    query string, exactly as the mobile client's interceptor puts them there, so this also pins
+    that the server merges both sources into one parameter map.
+    """
+    query = {
+        "u": username,
+        "p": password,
+        "v": SUBSONIC_VERSION,
+        "c": SUBSONIC_CLIENT,
+        "f": "json",
+    }
+    return requests.post(f"{LMS_URL}/rest/{endpoint}", params=query, data=data, timeout=10)
+
+
+def _fixture_song_path(username, password):
+    song_id = getattr(pytest, "song_id", None)
+    assert song_id, "test_fixture_track_is_findable_with_correct_metadata must run first"
+
+    resp = _subsonic_get("getSong.view", username, password, id=song_id)
+    assert resp.status_code == 200, resp.text[:500]
+    song = resp.json()["subsonic-response"]["song"]
+    assert song.get("path"), f"the song node carries no path: {song}"
+    return song_id, song["path"]
+
+
+def test_get_songs_by_path_resolves_a_path_to_a_playable_song(admin_credentials, media_library):
+    """The bridge MuMa's personalized feeds stand on.
+
+    MuMa ranks a feed and knows its tracks only by file path; this server knows them by id, and
+    nothing else joins the two. If this call stops resolving, the release radar and the daily mix
+    go silently empty in the car -- they would still list nothing rather than fail.
+    """
+    username, password = admin_credentials
+    song_id, path = _fixture_song_path(username, password)
+
+    resp = _subsonic_post("getSongsByPath.view", username, password, data=[("path", path)])
+
+    assert resp.status_code == 200, resp.text[:500]
+    body = resp.json()["subsonic-response"]
+    assert body["status"] == "ok", body
+    songs = body["songsByPath"]["song"]
+    assert [song["id"] for song in songs] == [song_id]
+
+
+def test_get_songs_by_path_answers_in_the_order_it_was_asked(admin_credentials, media_library):
+    """The order is the feed. A quota per genre, a cap per artist and release date descending are
+
+    all decided by MuMa, and a server that answered in its own order would replace the ranking
+    with a different one without anybody noticing.
+    """
+    username, password = admin_credentials
+    song_id, path = _fixture_song_path(username, password)
+
+    resp = _subsonic_post(
+        "getSongsByPath.view",
+        username,
+        password,
+        data=[("path", "no/such/file.mp3"), ("path", path), ("path", "another/missing.flac")],
+    )
+
+    assert resp.status_code == 200, resp.text[:500]
+    songs = resp.json()["subsonic-response"]["songsByPath"]["song"]
+    # The two unknown paths drop out; the known one keeps its place rather than failing the call.
+    assert [song["id"] for song in songs] == [song_id]
+
+
+def test_get_songs_by_path_without_a_path_is_refused(admin_credentials, media_library):
+    """A call with no paths is a caller bug, not an empty feed, and is answered as one."""
+    username, password = admin_credentials
+
+    resp = _subsonic_post("getSongsByPath.view", username, password, data={})
+
+    assert resp.status_code == 200, resp.text[:500]
+    body = resp.json()["subsonic-response"]
+    assert body["status"] == "failed", body

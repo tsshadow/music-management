@@ -644,6 +644,19 @@ open class RESTMusicService(
     }
 
     @Throws(Exception::class)
+    override fun getSongsByPath(paths: List<String>): MusicDirectory {
+        // An empty feed is a normal answer, and asking the server to resolve nothing is not.
+        if (paths.isEmpty()) return MusicDirectory()
+
+        val response = API.getSongsByPath(paths).execute().throwOnFailure()
+
+        val result = MusicDirectory()
+        result.addAll(response.body()!!.songsList.toDomainEntityList(activeServerId))
+
+        return result
+    }
+
+    @Throws(Exception::class)
     override fun getSongsByGenre(
         genre: String,
         year: Int?,

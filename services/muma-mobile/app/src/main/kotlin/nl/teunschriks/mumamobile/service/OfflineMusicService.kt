@@ -409,6 +409,14 @@ class OfflineMusicService :
     @Throws(Exception::class)
     override fun getStarred(): SearchResult = throw OfflineException("Starred not available in offline mode")
 
+    // The ranking lives on the server, so there is nothing offline to fall back to. Refused
+    // rather than answered empty: an empty feed reads as "nothing was released", which is a
+    // claim this cannot make while the server is unreachable.
+    @Throws(Exception::class)
+    override fun getSongsByPath(paths: List<String>): MusicDirectory = throw OfflineException(
+        "Feeds not available in offline mode"
+    )
+
     @Throws(Exception::class)
     override fun getSongsByGenre(
         genre: String,

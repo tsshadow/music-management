@@ -8,7 +8,9 @@
 package nl.teunschriks.mumamobile.service.androidauto
 
 import java.time.LocalDate
+import java.util.concurrent.ConcurrentHashMap
 import nl.teunschriks.mumamobile.api.muma.MumaAPIDefinition
+import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.service.MusicService
 import timber.log.Timber
@@ -25,18 +27,28 @@ import timber.log.Timber
  * The order MuMa returns is the whole product -- quota per genre, the artist cap, release date
  * descending -- so it is preserved here rather than re-sorted by whatever the server hands back.
  *
- * Cached for the day it was built. A feed is stable within a day by design (the daily mix is
+ * **Both calls block.** Everything here runs on the thread that asks, so every caller has to be
+ * on one that may do I/O. That is not an oversight to be fixed with a coroutine inside: the
+ * media3 session callbacks want an answer, and hiding the wait would only move the deadlock.
+ *
+ * Cached per server and per day. A feed is stable within a day by design (the daily mix is
  * ordered by a hash of user, date and track), so a second visit to the folder does not pay for
- * two more round trips, and a car started tomorrow does not get yesterday's radar.
+ * two more round trips, a car started tomorrow does not get yesterday's radar, and switching
+ * accounts does not show the previous listener's recommendations with the previous server's
+ * track ids.
  */
 class FeedRepository(
     private val mumaApiProvider: () -> MumaAPIDefinition,
     private val musicServiceProvider: () -> MusicService,
-    private val today: () -> String = { LocalDate.now().toString() }
+    private val today: () -> String = { LocalDate.now().toString() },
+    private val serverId: () -> Int = { ActiveServerProvider.getActiveServerId() }
 ) {
-    private data class Entry(val day: String, val tracks: List<Track>)
+    private data class Key(val slug: String, val day: String, val server: Int)
 
-    private val cache = mutableMapOf<String, Entry>()
+    // Concurrent because the browser reaches it from a coroutine on the service scope while a
+    // tap can arrive on the session callback thread. Two simultaneous misses cost two requests,
+    // which is wasteful but never wrong; a plain map could corrupt.
+    private val cache = ConcurrentHashMap<Key, List<Track>>()
 
     /**
      * The feed's tracks, or an empty list when there is nothing to play.
@@ -47,24 +59,32 @@ class FeedRepository(
      * the only one worth acting on is logged.
      */
     fun tracksFor(slug: String): List<Track> {
-        val day = today()
-        cache[slug]?.let { if (it.day == day) return it.tracks }
+        val key = Key(slug, today(), serverId())
+        cache[key]?.let { return it }
 
-        val tracks = fetch(slug)
-        // A failed fetch is not cached: the next visit should try again rather than show an
-        // empty folder for the rest of the day because the network was down once.
-        if (tracks != null) cache[slug] = Entry(day, tracks)
-        return tracks.orEmpty()
+        val outcome = fetch(slug)
+        // A failed or incomplete answer is handed to the caller but not remembered: a folder
+        // opened while the network blinked or while the server was halfway through a scan must
+        // not stay short for the rest of the day.
+        if (outcome.worthKeeping) cache[key] = outcome.tracks
+        return outcome.tracks
     }
 
     /** Drop what was remembered, so the next visit rebuilds it. */
     fun clear() = cache.clear()
 
-    private fun fetch(slug: String): List<Track>? = try {
+    /** What one attempt produced, and whether it is the whole feed or only what survived. */
+    private data class Outcome(val tracks: List<Track>, val worthKeeping: Boolean) {
+        companion object {
+            val nothing = Outcome(emptyList(), false)
+        }
+    }
+
+    private fun fetch(slug: String): Outcome = try {
         val feed = mumaApiProvider().getFeed(slug).execute().body()
         if (feed == null) {
             Timber.w("Feed %s: no answer from MuMa", slug)
-            null
+            Outcome.nothing
         } else {
             val paths = feed.tracks.mapNotNull { it.libraryPath }.filter { it.isNotBlank() }
             if (feed.state != "ok") Timber.i("Feed %s came back as %s", slug, feed.state)
@@ -72,23 +92,25 @@ class FeedRepository(
         }
     } catch (all: Exception) {
         Timber.w(all, "Could not fetch feed %s", slug)
-        null
+        Outcome.nothing
     }
 
-    private fun resolve(slug: String, paths: List<String>): List<Track>? {
-        if (paths.isEmpty()) return emptyList()
+    private fun resolve(slug: String, paths: List<String>): Outcome {
+        // An empty feed is a real answer and worth keeping: nothing was released this week.
+        if (paths.isEmpty()) return Outcome(emptyList(), true)
         return try {
             // getSongsByPath answers in the order it was asked, leaving out what it does not
             // have. So this is already MuMa's ranking, minus whatever the server is missing --
             // no re-sort here, and none of the paths are matched up again afterwards.
             val songs = musicServiceProvider().getSongsByPath(paths).getTracks()
-            if (songs.size < paths.size) {
-                Timber.i("Feed %s: %s of %s tracks resolved to a song", slug, songs.size, paths.size)
+            val complete = songs.size == paths.size
+            if (!complete) {
+                Timber.i("Feed %s: only %s of %s tracks resolved, not caching", slug, songs.size, paths.size)
             }
-            songs
+            Outcome(songs, complete)
         } catch (all: Exception) {
             Timber.w(all, "Could not resolve feed %s to songs", slug)
-            null
+            Outcome.nothing
         }
     }
 }

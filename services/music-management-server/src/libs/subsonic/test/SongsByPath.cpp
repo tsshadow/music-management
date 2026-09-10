@@ -44,8 +44,10 @@ namespace lms::api::subsonic::tests
 
     TEST(SongsByPath, everyRootIsTriedForARelativePath)
     {
-        // Unlike a scan scope, an ambiguous relative path is not refused here: resolving under
-        // the wrong root finds no track, which is the same answer as not having the file.
+        // Unlike a scan scope, an ambiguous relative path is not refused here. Configuration
+        // order decides, and with two libraries that both hold the same relative path that is a
+        // real ambiguity -- see the note in the header. This pins the order so the choice is at
+        // least the same on every call.
         const std::vector<std::filesystem::path> expected{ "/music/x/01.mp3", "/podcasts/x/01.mp3" };
         EXPECT_EQ(candidateSpellings("x/01.mp3", twoLibraries), expected);
     }

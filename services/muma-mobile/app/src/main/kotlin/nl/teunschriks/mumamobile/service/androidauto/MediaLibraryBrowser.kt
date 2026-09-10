@@ -632,7 +632,6 @@ class MediaLibraryBrowser(
         slug: String
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceScope.future {
         val tracks = dataProvider.feeds.tracksFor(slug)
-        dataProvider.feedCache[slug] = tracks
 
         val mediaItems: MutableList<MediaItem> = ArrayList()
         if (tracks.size > 1) {

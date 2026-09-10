@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+## Global Version 6.33.0 (2026-09-10)
+
+- **Dagelijkse mix en release radar staan nu in het hoofdmenu van Android Auto.**
+
+- **Een feed starten in de auto deed niets meer na een herstart, en speelde na middernacht de lijst
+  van gisteren.** Allebei verholpen.
+
+- **Ingevulde sterren zijn nu groen in de Spotify-stijl,** in plaats van hetzelfde grijs als een
+  lege ster. Een waardering is nu in één oogopslag te zien.
 ## Global Version 6.32.1 (2026-09-10)
 
 - **De bibliotheek, genres en zoeken gaven een verbindingsfout die geen verbindingsfout was.** De

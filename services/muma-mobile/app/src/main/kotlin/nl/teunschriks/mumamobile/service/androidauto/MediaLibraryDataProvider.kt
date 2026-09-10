@@ -9,12 +9,14 @@ package nl.teunschriks.mumamobile.service.androidauto
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.guava.future
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.SearchResult
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.service.MusicService
 import nl.teunschriks.mumamobile.service.MusicServiceFactory
+import org.koin.java.KoinJavaComponent
 import timber.log.Timber
 
 /**
@@ -32,9 +34,25 @@ import timber.log.Timber
 
 class MediaLibraryDataProvider(
     private val serviceScope: CoroutineScope,
-    private val musicServiceProvider: () -> MusicService = MusicServiceFactory::getMusicService
+    private val musicServiceProvider: () -> MusicService = MusicServiceFactory::getMusicService,
+    /**
+     * Where a personalized feed comes from. One instance for the whole car session, shared by
+     * the browser that lists a feed and the controller that plays one, so a tap cannot end up
+     * playing a different day's ranking than the list it was tapped in.
+     *
+     * Built on first use rather than at construction: the API client comes out of Koin, and a
+     * test that never opens a feed must not need it.
+     */
+    feedRepositoryProvider: () -> FeedRepository = {
+        FeedRepository(
+            { KoinJavaComponent.get<SubsonicAPIClient>(SubsonicAPIClient::class.java).mumaApi.api },
+            musicServiceProvider
+        )
+    }
 ) : MediaLibraryBase() {
     val musicService: MusicService get() = musicServiceProvider()
+
+    val feeds: FeedRepository by lazy(feedRepositoryProvider)
 
     lateinit var playbackController: MediaLibraryPlaybackController
     var playlistCache: List<Track>? = null
@@ -90,6 +108,11 @@ class MediaLibraryDataProvider(
             )
 
             MEDIA_SEARCH_SONG_ITEM -> playbackController.playSearch(mediaIdParts[INDEX_ID])
+            MEDIA_FEED_ID -> playbackController.playFeed(mediaIdParts[INDEX_ID])
+            MEDIA_FEED_ITEM -> playbackController.playFeedSong(
+                mediaIdParts[INDEX_ID],
+                mediaIdParts[INDEX_NAME]
+            )
             else -> {
                 listOf()
             }

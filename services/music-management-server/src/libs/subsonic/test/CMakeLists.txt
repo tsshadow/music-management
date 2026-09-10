@@ -6,6 +6,7 @@ add_executable(test-subsonic
 	FestivalLineup.cpp
 	Memories.cpp
 	ScanScope.cpp
+	SongsByPath.cpp
 	Subsonic.cpp
 	SubsonicResponse.cpp
 	TranscodeDecision.cpp

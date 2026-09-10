@@ -153,6 +153,16 @@ abstract class MediaLibraryBase protected constructor() {
         internal const val MEDIA_NEWS_ID = "MEDIA_NEWS_ID"
         internal const val MEDIA_NEWS_ITEM = "MEDIA_NEWS_ITEM"
 
+        // Personalized feeds. Browsable as "MEDIA_FEED_ID|<slug>", one playable track as
+        // "MEDIA_FEED_ITEM|<slug>|<song id>". The slug travels in the id because that is the
+        // only thing that comes back on a tap: Android Auto drops a command's own extras.
+        internal const val MEDIA_FEED_ID = "MEDIA_FEED_ID"
+        internal const val MEDIA_FEED_ITEM = "MEDIA_FEED_ITEM"
+
+        // The two feeds MuMa serves. Slugs, not display names -- they are part of the API path.
+        internal const val FEED_RELEASE_RADAR = "release-radar"
+        internal const val FEED_DAILY_MIX = "daily-mix"
+
         // Genres -> songs
         internal const val MEDIA_GET_GENRES = "MEDIA_GET_GENRES"
         internal const val MEDIA_GET_YEARS = "MEDIA_GET_YEARS"

@@ -57,6 +57,7 @@
 #include "endpoints/Playlists.hpp"
 #include "endpoints/Podcast.hpp"
 #include "endpoints/Searching.hpp"
+#include "endpoints/SongsByPath.hpp"
 #include "endpoints/Spotify.hpp"
 #include "endpoints/System.hpp"
 #include "endpoints/Transcoding.hpp"
@@ -189,6 +190,9 @@ namespace lms::api::subsonic
             { "/getSongsByGenreAndYear", { handleGetSongsByGenreRequest } },
             { "/getSongsByFilter", { handleGetSongsByFilterRequest } },
             { "/getSongs", { handleGetSongs } },
+            // The bridge for music-manager's personalized feeds: it ranks, this resolves the
+            // paths it hands back into playable songs. See endpoints/SongsByPath.hpp.
+            { "/getSongsByPath", { handleGetSongsByPath } },
             { "/getSongSortMethods", { handleGetSongSortMethods } },
             { "/getLineups", { handleGetLineups } },
             { "/getNowPlaying", { handleGetNowPlayingRequest } },

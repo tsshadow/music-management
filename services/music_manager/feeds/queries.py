@@ -47,6 +47,19 @@ _AUDIO_FEATURES_SUBQUERY = """
     ) af ON af.internal_track_id = t.id
 """
 
+#: The release date a feed filters and sorts on. `library_tracks.release_date` is the servers'
+#: own reading of the file tag, settled hourly by release_date_sync, and it is preferred
+#: because it covers the whole library; the audio-features column behind it covers only the
+#: tracks the ml-analyzer processed and on production was never filled at all.
+#:
+#: A CASE and not a COALESCE, because the two empty values do not mean the same thing. NULL is
+#: "no server holds this file", a gap, and the analyzer's value is better than nothing. The
+#: empty string is "a server holds it and no date could be agreed on" -- a decision the sync
+#: made after weighing every file on every server, and falling through it would resurrect
+#: exactly the date that was just rejected. COALESCE cannot tell those apart and would treat
+#: both as a gap.
+_RELEASE_DATE = "CASE WHEN t.release_date IS NULL THEN af.release_date ELSE NULLIF(t.release_date, '') END"
+
 
 def listens_query(username: str | None, window_days: int, now: datetime) -> tuple[str, list]:
     """A user's (or everyone's) listening history for the profile.
@@ -162,10 +175,10 @@ def candidates_query(username: str, policy: FeedPolicy, now: datetime) -> tuple[
         # mistagged future release as "released this week" is the measurement
         # this whole V1 exists to take, taken wrong.
         cutoff = (now.date() - timedelta(days=policy.release_window_days)).isoformat()
-        where.append('LENGTH(af.release_date) = 10')
-        where.append('af.release_date >= %s')
+        where.append(f'LENGTH({_RELEASE_DATE}) = 10')
+        where.append(f'{_RELEASE_DATE} >= %s')
         params.append(cutoff)
-        where.append('af.release_date <= %s')
+        where.append(f'{_RELEASE_DATE} <= %s')
         params.append(now.date().isoformat())
 
     pool_clause = _pool_clause(username, policy, params)
@@ -189,7 +202,7 @@ def candidates_query(username: str, policy: FeedPolicy, now: datetime) -> tuple[
              WHERE mf.track_id = t.id LIMIT 1) AS file_path,
             COALESCE(af.tempo, af.bpm_tag) AS bpm,
             af.release_year,
-            af.release_date,
+            {_RELEASE_DATE} AS release_date,
             EXISTS (SELECT 1 FROM library_track_channels ltc
                     JOIN channels c ON c.id = ltc.channel_id
                     WHERE ltc.track_id = t.id AND c.platform = 'soundcloud') AS is_soundcloud,

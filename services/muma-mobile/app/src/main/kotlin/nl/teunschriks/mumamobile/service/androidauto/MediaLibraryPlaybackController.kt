@@ -99,6 +99,33 @@ class MediaLibraryPlaybackController(
         return null
     }
 
+    /**
+     * The whole feed, in MuMa's order.
+     *
+     * Always through the repository, never through a cache of its own. Android Auto keeps browse
+     * items across a restart of this service, so a tap can arrive when nothing is loaded and the
+     * two round trips have to happen here -- and it can also arrive after midnight, when what is
+     * still on screen is yesterday's ranking. The repository is the only thing that knows which
+     * day and which server the tracks it holds belong to; a second cache beside it answered
+     * neither question and quietly served the wrong feed.
+     *
+     * `serviceScope.future { ... }.get()` and not a direct call, exactly like the starred and
+     * random paths above: this runs on the session callback thread, which is the main thread,
+     * and the repository blocks. Called straight it raises NetworkOnMainThreadException, which
+     * the repository catches and reports as an empty feed -- a car button that silently does
+     * nothing.
+     */
+    fun playFeed(slug: String): List<Track>? {
+        val tracks = serviceScope.future { dataProvider.feeds.tracksFor(slug) }.get()
+        return tracks.ifEmpty { null }
+    }
+
+    fun playFeedSong(slug: String, songId: String): List<Track>? {
+        val song = playFeed(slug)?.firstOrNull { it.id == songId }
+        if (song != null) return listOf(song)
+        return null
+    }
+
     fun playSearch(id: String): List<Track>? {
         // If there is no cache, we can't play the selected song.
         if (dataProvider.searchSongsCache != null) {
@@ -192,6 +219,8 @@ class MediaLibraryPlaybackController(
             )
 
             MEDIA_SEARCH_SONG_ITEM -> playSearch(mediaIdParts[INDEX_ID])
+            MEDIA_FEED_ID -> playFeed(mediaIdParts[INDEX_ID])
+            MEDIA_FEED_ITEM -> playFeedSong(mediaIdParts[INDEX_ID], mediaIdParts[INDEX_NAME])
             else -> null
         }
 

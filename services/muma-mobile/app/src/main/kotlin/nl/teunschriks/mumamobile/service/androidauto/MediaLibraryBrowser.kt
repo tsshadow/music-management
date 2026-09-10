@@ -10,6 +10,7 @@ package nl.teunschriks.mumamobile.service.androidauto
 import android.net.Uri
 import android.os.Bundle
 import android.text.format.DateFormat
+import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_PLAYLIST
@@ -303,6 +304,14 @@ class MediaLibraryBrowser(
             MEDIA_ROOT_ID -> getRootItems()
             MEDIA_RADIO_ID -> getRadioChannelItems()
             MEDIA_NEWS_ID -> getNewsBulletinItems()
+            MEDIA_FEED_ID -> {
+                val slug = parts.getOrNull(INDEX_ID)
+                if (slug != null) {
+                    getFeedItems(slug)
+                } else {
+                    emptyResult("Missing feed slug in $parentId")
+                }
+            }
             MEDIA_LIBRARY_ID -> getLibraryItems()
             MEDIA_FAVORITES_ID -> getFavoriteItems()
             MEDIA_FAVORITE_GENRES_ID -> getFavoriteGenreItems()
@@ -516,6 +525,27 @@ class MediaLibraryBrowser(
             mediaType = MEDIA_TYPE_FOLDER_MIXED
         )
 
+        // The two personalized feeds, above Radio: they are the reason to open the app in the
+        // car, and a driver should not have to scroll past the whole library to start one.
+        mediaItems.add(
+            R.string.main_daily_mix_title,
+            listOf(MEDIA_FEED_ID, FEED_DAILY_MIX).joinToString("|"),
+            imageUri = "android.resource://$packageName/${R.drawable.media_shuffle}".toUri(),
+            isBrowsable = true,
+            mediaType = MEDIA_TYPE_FOLDER_MIXED
+        )
+
+        mediaItems.add(
+            R.string.main_release_radar_title,
+            listOf(MEDIA_FEED_ID, FEED_RELEASE_RADAR).joinToString("|"),
+            // toUri rather than Uri.parse, and not only because lint prefers it: an identical
+            // Uri.parse string here consumes the lint baseline entry belonging to the Favorites
+            // row further down, which then fails the build for code nobody touched.
+            imageUri = "android.resource://$packageName/${R.drawable.ic_star_full}".toUri(),
+            isBrowsable = true,
+            mediaType = MEDIA_TYPE_FOLDER_MIXED
+        )
+
         mediaItems.add(
             R.string.main_radio_title,
             MEDIA_RADIO_ID,
@@ -586,6 +616,32 @@ class MediaLibraryBrowser(
                 mediaId = listOf(MEDIA_NEWS_ITEM, bulletin.id.toString()).joinToString("|"),
                 isBrowsable = false,
                 mediaType = MEDIA_TYPE_PLAYLIST
+            )
+        }
+        itemListResult(mediaItems)
+    }
+
+    /**
+     * One personalized feed as a list of tracks, MuMa's order kept.
+     *
+     * The tracks are cached on the data provider before the items are built, because a tap in
+     * the car comes back as a media id and nothing else -- the playback side has to find the
+     * song again without asking who was showing it.
+     */
+    private fun getFeedItems(
+        slug: String
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceScope.future {
+        val tracks = dataProvider.feeds.tracksFor(slug)
+
+        val mediaItems: MutableList<MediaItem> = ArrayList()
+        if (tracks.size > 1) {
+            mediaItems.addPlayAllItem(listOf(MEDIA_FEED_ID, slug).joinToString("|"))
+        }
+        for (track in tracks) {
+            mediaItems.add(
+                track.toMediaItem(
+                    listOf(MEDIA_FEED_ITEM, slug, track.id).joinToString("|")
+                )
             )
         }
         itemListResult(mediaItems)

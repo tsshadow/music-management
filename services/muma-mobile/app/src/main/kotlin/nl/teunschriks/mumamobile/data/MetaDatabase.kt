@@ -44,7 +44,7 @@ import nl.teunschriks.mumamobile.domain.TrackArtistRef
         )
     ],
     exportSchema = true,
-    version = 8
+    version = 9
 )
 @TypeConverters(Converters::class)
 abstract class MetaDatabase : RoomDatabase() {
@@ -148,5 +148,32 @@ val META_MIGRATION_7_8: Migration = object : Migration(7, 8) {
         db.execSQL("ALTER TABLE `tracks` ADD COLUMN `artists` TEXT NOT NULL DEFAULT '[]'")
         db.execSQL("ALTER TABLE `tracks` ADD COLUMN `moods` TEXT NOT NULL DEFAULT '[]'")
         db.execSQL("ALTER TABLE `tracks` ADD COLUMN `labels` TEXT NOT NULL DEFAULT '[]'")
+    }
+}
+
+// Version 8 exists in two shapes in the field. 6.32.0 added workId, isCanonical and versionKind
+// to the track entity and rewrote the exported schema in place instead of bumping the version,
+// so a phone that filled its cache before that build carries a version 8 database without those
+// columns and Room refuses to open it ("Room cannot verify the data integrity"). Bumping to 9
+// gives both shapes a migration; each column is checked first because adding one that a 6.32.0
+// database already has would abort the migration.
+val META_MIGRATION_8_9: Migration = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        val existing = mutableSetOf<String>()
+        db.query("PRAGMA table_info(`tracks`)").use { cursor ->
+            val nameColumn = cursor.getColumnIndexOrThrow("name")
+            while (cursor.moveToNext()) {
+                existing.add(cursor.getString(nameColumn))
+            }
+        }
+        if (!existing.contains("workId")) {
+            db.execSQL("ALTER TABLE `tracks` ADD COLUMN `workId` INTEGER")
+        }
+        if (!existing.contains("isCanonical")) {
+            db.execSQL("ALTER TABLE `tracks` ADD COLUMN `isCanonical` INTEGER NOT NULL DEFAULT 1")
+        }
+        if (!existing.contains("versionKind")) {
+            db.execSQL("ALTER TABLE `tracks` ADD COLUMN `versionKind` TEXT")
+        }
     }
 }

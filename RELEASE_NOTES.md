@@ -11,6 +11,13 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.57.0 (2026-09-10)
+
+- **Een Room-schema dat van vorm verandert zonder van versienummer te veranderen laat CI nu vallen.**
+  `services/muma-mobile/app/schemas/identity-hashes.json` legt de identity hash van elk geëxporteerd
+  schema vast, en `tests/ci/test_room_schema_versions.py` vergelijkt. Zo'n wijziging was tot nu toe
+  een schone diff in een gegenereerd bestand, en de app merkte het pas op de telefoon van iemand die
+  zijn cache al gevuld had.
 ## Global Version 0.56.0 (2026-09-10)
 
 - **`canonicalOnly` is een filter in de query geworden, geen lus die pagina's bij elkaar scant.** De

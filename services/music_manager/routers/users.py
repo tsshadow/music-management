@@ -1237,6 +1237,27 @@ def sync_single_server_db(muma_conn, db_path, source):
     return synced_users
 
 
+def run_lms_db_sync_loop(sleeptime: int = 3600) -> None:
+    """Keep the server's copy of the version model current.
+
+    Running this once at startup was not enough, twice over. A deploy restarts both
+    services, so the first attempt meets a server that is still migrating (fixed by the
+    retry below) or one whose database is locked by its own startup scan. And the version
+    worker groups roughly 500 tracks an hour for as long as it has a backlog: what it learns
+    never reached the server until somebody restarted muma, so lists kept showing every copy
+    of a song that had been grouped hours earlier.
+
+    Users and playlists ride along, which is harmless -- that sync is idempotent and cheap
+    next to walking the library.
+    """
+    while True:
+        try:
+            run_lms_db_sync_with_retry()
+        except Exception as e:
+            logging.error('lms.db sync loop: %s', e, exc_info=True)
+        time.sleep(sleeptime)
+
+
 def run_lms_db_sync_with_retry(attempts: int = 6, delay_seconds: int = 60) -> int:
     """Run the lms.db sync, and try again while a server has not migrated yet.
 

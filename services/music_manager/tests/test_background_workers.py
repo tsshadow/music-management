@@ -58,6 +58,17 @@ class BackgroundWorkersEnabledTest(unittest.TestCase):
         self.assertTrue(thread.called)
         registered = {call.args[0] for call in start_thread.call_args_list}
         self.assertEqual(
-            {'tagger', 'scanner', 'radio', 'news', 'events-retention', 'scrobble-rematch', 'song-versions'},
+            {
+                'tagger',
+                'scanner',
+                'radio',
+                'news',
+                'events-retention',
+                'scrobble-rematch',
+                'song-versions',
+                # A loop rather than a one-off since 0.57: the version worker keeps grouping
+                # tracks, and what it learns has to reach the server without a restart.
+                'lms-db-sync',
+            },
             registered,
         )

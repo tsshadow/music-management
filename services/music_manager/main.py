@@ -46,7 +46,7 @@ from services.music_manager.routers import (
 from services.music_manager.routers.artist_images import run_fetch_missing
 from services.music_manager.routers.scanner import run_scanner_loop
 from services.music_manager.routers.tagger import run_tagger_loop
-from services.music_manager.routers.users import run_lms_db_sync_with_retry
+from services.music_manager.routers.users import run_lms_db_sync_loop
 from services.music_manager.scrobble_rematch import run_scrobble_rematch
 from services.music_manager.song_version_worker import run_song_version_grouping
 from services.music_manager.thread_registry import start_thread, thread_status
@@ -128,9 +128,10 @@ def startup_event():
     if background_workers_enabled():
         # Eenmalige achtergrondtaken: die geven na afloop terug en horen niet in
         # het liveness-register, anders staat /health binnen een minuut op degraded.
-        # With retry: on a deploy muma is usually up before the server has migrated its own
-        # schema, and a single attempt then leaves the song-version columns empty.
-        threading.Thread(target=run_lms_db_sync_with_retry, daemon=True).start()
+        # A loop, not a one-off: the version worker keeps grouping tracks for as long as it
+        # has a backlog, and what it learns has to reach the server without waiting for the
+        # next deploy. See run_lms_db_sync_loop.
+        start_thread('lms-db-sync', run_lms_db_sync_loop, (int(os.getenv('LMS_DB_SYNC_SLEEPTIME', '3600')),))
         threading.Thread(target=run_fetch_missing, daemon=True).start()
 
         # Lussen die horen te blijven draaien.

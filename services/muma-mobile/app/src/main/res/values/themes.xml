@@ -41,7 +41,10 @@
         <item name="colorInkTertiary">@color/spotify_text_secondary</item>
         <item name="colorInkQuaternary">@color/spotify_text_secondary</item>
         <item name="colorHairline">@android:color/transparent</item>
-        <item name="colorRating">@color/spotify_text_secondary</item>
+        <!-- A filled star used to take the same grey as an empty one, so a rating read as
+             five identical stars and the count had to be counted. Green is the style's own
+             accent and measures 7.25:1 on the window. -->
+        <item name="colorRating">@color/spotify_green</item>
         <!-- Both styles. It fills the error banner, which carries white text; the Home
              proposal's warm #d98324 is a text accent on a dark ground, and using it as a fill
              would drop that white text to 2.91:1. An error is red in both styles. -->

@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.33.0] - 2026-09-10
+
+### Added
+- **Dagelijkse mix en release radar staan nu in de auto**, direct in het hoofdmenu boven Radio, zodat
+  je ze kunt starten zonder eerst de bibliotheek in te lopen. De volgorde is die van MuMa — een
+  quotum per genre, een maximum per artiest, nieuwste release eerst — en de app sorteert daar niets
+  overheen. Een feed wordt één keer per dag opgehaald; een mislukte poging wordt niet onthouden, dus
+  een lege map door een korte netwerkstoring verdwijnt zodra je hem opnieuw opent.
+
+### Changed
+- **Een ingevulde ster is groen in de Spotify-stijl.** Hij had dezelfde grijstint als een lege ster
+  (`#b3b3b3` voor allebei), dus een waardering van 3 op 5 zag eruit als vijf identieke sterren en
+  moest geteld worden aan de vorm. De ster neemt nu het accentgroen van de stijl, `#1db954`, dat
+  7,25:1 haalt op de achtergrond. Dat raakt overal waar de ster staat: de lijst, de speler, de
+  autostand en de favorietenmarkering op een kaart. De MuMa-stijl hield zijn goud.
+
+### Fixed
+- **Een feed starten in de auto deed niets na een herstart van de afspeeldienst.** Android Auto
+  bewaart de items die het al getoond heeft, dus een tik kon binnenkomen zonder dat er iets geladen
+  was — en de netwerkcall gebeurde dan op de session-callback-thread. Dat is de main thread, wat
+  `NetworkOnMainThreadException` oplevert, wat de app opving als "lege feed": een knop die stil
+  niets doet. Loopt nu via dezelfde achtergrond-scope als de sterren- en random-lijsten.
+- **Na middernacht speelde "alles afspelen" de ranglijst van gisteren**, en na het wisselen van
+  server of account die van de vorige gebruiker, met de track-ids van de vorige server. Er stonden
+  twee caches naast elkaar en de tweede kende dag noch server. Die is weg; wat overblijft is
+  gesleuteld op feed, dag en server. Een feed die maar half opgelost kon worden — de server was
+  bijvoorbeeld midden in een scan — wordt niet meer voor de rest van de dag onthouden.
 ## [6.32.1] - 2026-09-10
 
 ### Fixed

@@ -55,7 +55,10 @@ async function feedPaths(slug, limit) {
       .map((track) => track.library_path)
       .filter((path) => typeof path === "string" && path.length > 0);
   } catch (err) {
-    console.error(`Failed to load feed ${slug}:`, err);
+    // The slug is a separate argument rather than interpolated into the message: semgrep's
+    // unsafe-formatstring reads a non-literal inside a console template as a forgeable log line,
+    // and it is right that the message itself should be a constant.
+    console.error("Failed to load feed:", slug, err);
     return [];
   }
 }

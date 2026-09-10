@@ -4,6 +4,7 @@ import android.util.TypedValue
 import android.view.ContextThemeWrapper
 import nl.teunschriks.mumamobile.R
 import org.amshove.kluent.`should be equal to`
+import org.amshove.kluent.`should not be equal to`
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -56,11 +57,14 @@ class StyleThemeTest {
     }
 
     @Test
-    fun `only the muma style draws a hairline and a gold star`() {
+    fun `only the muma style draws a hairline, and each style has its own star`() {
         colorOf("muma", R.attr.colorHairline) `should be equal to` mumaHairline
         colorOf("muma", R.attr.colorRating) `should be equal to` mumaRating
-        // Spotify resolves both, but to values that draw nothing new.
-        colorOf("spotify", R.attr.colorRating) `should be equal to` grey
+        // Spotify resolves the hairline too, but to a value that draws nothing new. Its star is
+        // the accent green: it used to be the same grey as an empty star, which made a rating of
+        // three read as five stars until you counted them.
+        colorOf("spotify", R.attr.colorRating) `should be equal to` green
+        colorOf("spotify", R.attr.colorRating) `should not be equal to` grey
     }
 
     @Test

@@ -594,6 +594,9 @@ namespace lms::api::subsonic
         // that only the web can ask for would leave the phone showing a canonical it cannot
         // look past.
         const std::optional<int> workId{ getParameterAs<int>(context.getParameters(), "workId") };
+        // One row per song rather than one per file. Off unless asked: every existing client
+        // browses this endpoint and none of them expects rows to disappear.
+        const bool canonicalOnly{ getParameterAs<bool>(context.getParameters(), "canonicalOnly").value_or(false) };
 
         size = std::min(size, defaultMaxCountSize);
 
@@ -605,6 +608,9 @@ namespace lms::api::subsonic
         params.setRange(Range{ offset, size });
         params.filters.setMediaLibrary(mediaLibraryId);
         params.workId = workId;
+        // Asking for one song's versions and collapsing to one of them are opposites, so the
+        // filter never applies when a workId was named.
+        params.canonicalOnly = canonicalOnly && !workId.has_value();
 
         std::map<std::string, std::set<ClusterId>> clusterGroups;
         if (filters.has_value())

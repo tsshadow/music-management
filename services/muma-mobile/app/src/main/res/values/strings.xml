@@ -100,6 +100,7 @@
     <string name="lyrics.nomatch">No lyrics found</string>
     <string name="track_info.open">Show track info</string>
     <string name="track_info.versions">Versions</string>
+
     <string name="track_info.versions_title">Versions of %1$s</string>
     <string name="track_info.versions_only_one">This is the only version of this song.</string>
     <string name="track_info.versions_failed">Could not load the versions of this song</string>
@@ -245,6 +246,9 @@
     <string name="settings.app_icon_blue">Blue</string>
     <string name="settings.app_icon_changed">Icon changed. Some launchers remove the app from the home screen; you may have to place it again.</string>
     <string name="settings.memories_on_home_title">Show memories on the home screen</string>
+    <string name="setting_key.canonical_only">canonicalOnly</string>
+    <string name="settings.canonical_only_title">Show one row per song</string>
+    <string name="settings.canonical_only_summary">Leaves out the other copies of a song and keeps the version MuMa rates best. The rest stay reachable under Versions in the track info.</string>
     <string name="settings.memories_on_home_summary">A short row of "today, X years ago" releases above the other sections</string>
     <string name="settings.separate_home_history_title">Separate home history per mode</string>
     <string name="settings.separate_home_history_summary">Keep recently opened items apart for songs and livesets</string>

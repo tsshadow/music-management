@@ -682,7 +682,8 @@ open class RESTMusicService(
         minDuration: Int?,
         maxDuration: Int?,
         artistIds: List<String>?,
-        workId: Int?
+        workId: Int?,
+        canonicalOnly: Boolean?
     ): MusicDirectory {
         Timber.d(filters.toString())
 
@@ -702,7 +703,10 @@ open class RESTMusicService(
             minDuration,
             maxDuration,
             artistIds?.takeIf { it.isNotEmpty() },
-            workId
+            workId,
+            // Asking for one song's versions and collapsing to one of them are opposites, so
+            // a workId always wins over the setting.
+            if (workId != null) false else canonicalOnly ?: Settings.canonicalOnly
         ).execute().throwOnFailure()
 
         val result = MusicDirectory()

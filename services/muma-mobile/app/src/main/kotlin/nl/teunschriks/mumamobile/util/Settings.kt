@@ -55,6 +55,16 @@ object Settings {
         false
     )
 
+    // One row per song instead of one per file: the server keeps the version MuMa named best
+    // and leaves out the other copies. On by default, matching the web player. What it hides
+    // stays reachable through the Versions list in the track info sheet -- that list is why
+    // this may default to on at all.
+    @JvmStatic
+    var canonicalOnly by BooleanSetting(
+        getKey(R.string.setting_key_canonical_only),
+        true
+    )
+
     // The memories carousel on the home screen. Only the teaser: the Memories page in the Library
     // tab stays reachable whatever this is set to.
     @JvmStatic

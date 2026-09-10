@@ -111,6 +111,10 @@ namespace lms::db
             //: version list behind a row asks for, and the only way to get playable ids for
             //: the alternatives -- muma's own /api/songs/{id} knows paths, not LMS ids.
             std::optional<int> workId;
+            //: One row per song instead of one per file: only the version muma named
+            //: canonical, plus everything it has not grouped. A predicate rather than a
+            //: collapse loop, so paging, sorting and counting keep agreeing with each other.
+            bool canonicalOnly{};
             std::set<std::string> allowedArtists;
 
             void setAllowedArtists(const std::set<std::string>& artists)

@@ -853,6 +853,12 @@ namespace lms::db
                 baseQuery += " AND t.work_id = ?";
                 bindFuncs.emplace_back([workId](auto& q) { q.bind(workId); });
             }
+
+            // A track muma has not grouped has no canonical to lose to, so it stays. That is
+            // not a nicety: while the version worker is catching up a large part of the
+            // library carries no work, and "AND is_canonical" alone would empty the browser.
+            if (params.canonicalOnly)
+                baseQuery += " AND (t.is_canonical <> 0 OR t.work_id IS NULL OR t.work_id = 0)";
             if (!params.allowedArtists.empty())
             {
                 baseQuery += " AND LOWER(t.artist_display_name) IN (" + utils::createPlaceholders(params.allowedArtists.size()) + ")";

@@ -55,7 +55,20 @@ data class Track(
      */
     var artists: List<TrackArtistRef> = emptyList(),
     var moods: List<String> = emptyList(),
-    var labels: List<String> = emptyList()
+    var labels: List<String> = emptyList(),
+    /**
+     * The song this file is a version of, as MuMa grouped it, or null when it has not been
+     * grouped. An ungrouped track is its own song rather than a version of somebody else's.
+     *
+     * Last in the constructor deliberately: MediaItemConverter and friends build a Track
+     * positionally, so a field inserted higher up silently shifts every argument after it
+     * into the wrong parameter.
+     */
+    var workId: Int? = null,
+    /** Whether MuMa named this file the version to play. */
+    var isCanonical: Boolean = true,
+    /** radio, edit, original, extended or instrumental; null when the title says nothing. */
+    var versionKind: String? = null
 ) : MusicDirectoryEntry(),
     Serializable {
     companion object {

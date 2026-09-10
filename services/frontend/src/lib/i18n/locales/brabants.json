@@ -68,6 +68,13 @@
     "removeFavorite": "Uit de favorietjes haole",
     "showAll": "Laot alles zien"
   },
+  "feed": {
+    "empty": "Hier staget nou niks",
+    "emptyMixHelp": "De mix wordt gemaokt uit wa ge geluisterd het. Draai is wa en kom terug.",
+    "emptyRadarHelp": "De radar laat releases van de afgeloupe week zien die bij oew passe.",
+    "mixSubtitle": "Vandaag veur oew uitgezocht",
+    "radarSubtitle": "Deez week uitgebrocht, veur oew uitgezocht"
+  },
   "filter": {
     "allGenres": "Alle soorte",
     "allRatings": "Alles",
@@ -115,6 +122,7 @@
   "nav": {
     "albums": "Albums",
     "artists": "Artieste",
+    "dailyMix": "Dagelijkse mix",
     "genres": "Soorte",
     "history": "Wa ge gehoord het",
     "home": "Thuis",

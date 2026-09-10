@@ -10,7 +10,9 @@ import nl.teunschriks.mumamobile.api.subsonic.SubsonicClientConfiguration
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.log.TimberOkHttpLogger
 import nl.teunschriks.mumamobile.service.CachedMusicService
+import nl.teunschriks.mumamobile.service.FeedRepository
 import nl.teunschriks.mumamobile.service.MusicService
+import nl.teunschriks.mumamobile.service.MusicServiceFactory
 import nl.teunschriks.mumamobile.service.OfflineMusicService
 import nl.teunschriks.mumamobile.service.RESTMusicService
 import nl.teunschriks.mumamobile.util.Constants
@@ -67,5 +69,18 @@ val musicServiceModule = module {
 
     single<MusicService>(named(OFFLINE_MUSIC_SERVICE)) {
         OfflineMusicService()
+    }
+
+    // One personalized-feed repository for the whole app. The car's browse tree, the car's
+    // playback callbacks and the phone's home screen all show the same two feeds, and each is a
+    // pair of round trips; a repository per caller would fetch them three times and could hold
+    // three different days' rankings at once. The music service is resolved per call, never
+    // captured, because MusicServiceFactory swaps the instance on a server change or when the
+    // network comes back.
+    single {
+        FeedRepository(
+            mumaApiProvider = { get<SubsonicAPIClient>().mumaApi.api },
+            musicServiceProvider = { MusicServiceFactory.getMusicService() }
+        )
     }
 }

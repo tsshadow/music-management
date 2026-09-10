@@ -5,7 +5,7 @@
  * Distributed under terms of the GNU GPLv3 license.
  */
 
-package nl.teunschriks.mumamobile.service.androidauto
+package nl.teunschriks.mumamobile.service
 
 import io.mockk.every
 import io.mockk.mockk
@@ -15,7 +15,6 @@ import nl.teunschriks.mumamobile.api.muma.MumaFeed
 import nl.teunschriks.mumamobile.api.muma.MumaFeedTrack
 import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.Track
-import nl.teunschriks.mumamobile.service.MusicService
 import org.amshove.kluent.`should be empty`
 import org.amshove.kluent.`should be equal to`
 import org.junit.Test

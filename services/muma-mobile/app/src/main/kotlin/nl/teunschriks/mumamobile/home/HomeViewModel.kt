@@ -25,8 +25,10 @@ import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.domain.MemoryGroup
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.service.FeedRepository
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.util.Settings
+import org.koin.java.KoinJavaComponent
 import timber.log.Timber
 
 /**
@@ -41,8 +43,16 @@ class HomeViewModel(
     /** Overridden by tests only; the app always loads on [Dispatchers.IO]. */
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     /** Overridden by tests only; null means the real sections below. */
-    providers: List<HomeSectionProvider>? = null
+    providers: List<HomeSectionProvider>? = null,
+    /**
+     * The personalized feeds. Resolved lazily rather than injected at construction so that a test
+     * handing in its own [providers] never touches Koin -- the same reason the car's data provider
+     * resolves it on first use.
+     */
+    feedRepository: Lazy<FeedRepository> = lazy { KoinJavaComponent.get(FeedRepository::class.java) }
 ) : ViewModel() {
+
+    private val feeds: FeedRepository by feedRepository
 
     /**
      * One entry per provider, in provider order. Positions are kept rather than compacted so that
@@ -68,6 +78,21 @@ class HomeViewModel(
             setsMode = { Settings.isSetsMode },
             count = { HomeLimits.shortcuts(Settings.homeShortcutCount) },
             resolveCoverArt = { card -> borrowedCoverArt(card) }
+        ),
+        // Above the two "recently ..." lists on purpose. Those are the library sorted by date;
+        // these are the two lists that were picked for this listener, which is the reason to open
+        // the app rather than scroll it.
+        FeedProvider(
+            titleRes = R.string.home_daily_mix,
+            slug = FeedRepository.DAILY_MIX,
+            rows = ::listRows,
+            loadFeed = { slug -> feedTracks(slug) }
+        ),
+        FeedProvider(
+            titleRes = R.string.home_release_radar,
+            slug = FeedRepository.RELEASE_RADAR,
+            rows = ::listRows,
+            loadFeed = { slug -> feedTracks(slug) }
         ),
         RecentTracksProvider(
             titleRes = R.string.home_recently_released,
@@ -233,6 +258,19 @@ class HomeViewModel(
      * What comes back is kept by id so that [trackFor] can answer a tap without asking the server
      * again: a home card is plain serializable data and cannot carry a whole [Track].
      */
+    /**
+     * One personalized feed, and its tracks kept by id like every other section's.
+     *
+     * The repository is shared with the car (see the Koin `single`), so opening the phone after a
+     * drive costs nothing, and both surfaces are looking at the same day's ranking rather than two
+     * that were fetched minutes apart.
+     */
+    private fun feedTracks(slug: String): List<Track> {
+        val loaded = feeds.tracksFor(slug)
+        loaded.forEach { tracksById[it.id] = it }
+        return loaded
+    }
+
     private fun tracks(sortMethod: String, count: Int): List<Track> {
         val filters = Filters().apply {
             add(Filter(FILTER_LENGTH, if (Settings.isSetsMode) LENGTH_LONG else LENGTH_SHORT))

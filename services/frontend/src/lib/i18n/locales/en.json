@@ -126,6 +126,13 @@
     "reset": "Reset",
     "title": "Equalizer"
   },
+  "feed": {
+    "empty": "Nothing here right now",
+    "emptyMixHelp": "The mix is built from your listening history. Play some music and come back.",
+    "emptyRadarHelp": "The radar shows releases from the past week that fit what you listen to.",
+    "mixSubtitle": "Picked for you today",
+    "radarSubtitle": "Released this week, picked for you"
+  },
   "filter": {
     "allGenres": "All genres",
     "allRatings": "All",
@@ -827,6 +834,7 @@
     "albums": "Albums",
     "artists": "Artists",
     "closeMenu": "Close menu",
+    "dailyMix": "Daily Mix",
     "festivals": "Festivals",
     "genres": "Genres",
     "history": "History",

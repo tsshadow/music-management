@@ -68,6 +68,13 @@
     "removeFavorite": "Uut de favorieten hoaln",
     "showAll": "Loat alles zien"
   },
+  "feed": {
+    "empty": "Hier stiet noe niks",
+    "emptyMixHelp": "De mix wödt maakt uut wat ie eluusterd hebt. Draai is wat en kom weerum.",
+    "emptyRadarHelp": "De radar loat releases van de afgelopen weke zien die bie oe passen.",
+    "mixSubtitle": "Vandage veur oe uutezöch",
+    "radarSubtitle": "Disse weke uut ebracht, veur oe uutezöch"
+  },
   "filter": {
     "allGenres": "Alle soortn",
     "allRatings": "Alles",
@@ -115,6 +122,7 @@
   "nav": {
     "albums": "Albums",
     "artists": "Artiesten",
+    "dailyMix": "Daagse mix",
     "genres": "Soortn",
     "history": "Wat i-j ehad hebt",
     "home": "Thuus",

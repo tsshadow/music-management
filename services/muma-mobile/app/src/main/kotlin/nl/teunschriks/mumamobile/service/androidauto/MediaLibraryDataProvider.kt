@@ -9,11 +9,11 @@ package nl.teunschriks.mumamobile.service.androidauto
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.guava.future
-import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.SearchResult
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.service.FeedRepository
 import nl.teunschriks.mumamobile.service.MusicService
 import nl.teunschriks.mumamobile.service.MusicServiceFactory
 import org.koin.java.KoinJavaComponent
@@ -40,14 +40,13 @@ class MediaLibraryDataProvider(
      * the browser that lists a feed and the controller that plays one, so a tap cannot end up
      * playing a different day's ranking than the list it was tapped in.
      *
-     * Built on first use rather than at construction: the API client comes out of Koin, and a
-     * test that never opens a feed must not need it.
+     * One instance for the whole app, not just for the car: the phone's home screen shows the
+     * same two feeds, and a second repository beside this one would fetch them again and could
+     * hold a different day's ranking. Resolved on first use rather than at construction, so a
+     * test that never opens a feed does not need Koin.
      */
     feedRepositoryProvider: () -> FeedRepository = {
-        FeedRepository(
-            { KoinJavaComponent.get<SubsonicAPIClient>(SubsonicAPIClient::class.java).mumaApi.api },
-            musicServiceProvider
-        )
+        KoinJavaComponent.get(FeedRepository::class.java)
     }
 ) : MediaLibraryBase() {
     val musicService: MusicService get() = musicServiceProvider()

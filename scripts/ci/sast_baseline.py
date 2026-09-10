@@ -168,9 +168,12 @@ REASONS = {
         'The ntfy notify call in the crash-triage listener builds its URL from '
         'NTFY_URL, an operator-set value in a root-owned env file, and the code '
         'pins the scheme to http(s) before opening it -- a mangled value cannot '
-        'become a file:// read. Audited 2026-08-31. This reason was once restored '
-        'by hand after a regeneration replaced it with the placeholder; that is '
-        'what unwritable_rationale() below now prevents.'
+        'become a file:// read. Audited 2026-08-31. The nightly prod-check '
+        'collector does the same with MUMA_URL from the same env file: its '
+        'ProdClient refuses anything but http(s) in its constructor. Audited '
+        '2026-09-10. This reason was once restored by hand after a regeneration '
+        'replaced it with the placeholder; that is what unwritable_rationale() '
+        'below now prevents.'
     ),
     'unsafe-formatstring': (
         'Format strings built from internal constants in one-off tools, not '

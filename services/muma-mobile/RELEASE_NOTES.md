@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+## Global Version 6.31.0 (2026-09-10)
+
+- Bij een nummer kun je nu zien welke andere versies ervan in je bibliotheek staan.
 ## Global Version 6.30.1 (2026-09-08)
 
 - Wat speelt en wat je hebt geselecteerd zijn nu twee verschillende dingen om naar te kijken, en de

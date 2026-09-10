@@ -99,6 +99,11 @@
     <string name="jukebox.is_default">Jukebox By Default</string>
     <string name="lyrics.nomatch">No lyrics found</string>
     <string name="track_info.open">Show track info</string>
+    <string name="track_info.versions">Versions</string>
+    <string name="track_info.versions_title">Versions of %1$s</string>
+    <string name="track_info.versions_only_one">This is the only version of this song.</string>
+    <string name="track_info.versions_failed">Could not load the versions of this song</string>
+    <string name="track_info.versions_best">best version</string>
     <string name="track_info.cover_description">Album art</string>
     <string name="track_info.artist">Artist</string>
     <string name="track_info.album">Album</string>

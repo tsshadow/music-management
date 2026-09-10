@@ -66,6 +66,12 @@ private fun populateCommonProps(entry: MusicDirectoryEntry, source: MusicDirecto
 }
 
 private fun populateTrackProps(track: Track, source: MusicDirectoryChild) {
+    // On Track and not on MusicDirectoryEntry: an album has no canonical. Zero means MuMa has
+    // not grouped this file, which is not the same as "it is alone" -- that difference decides
+    // whether the version list is offered at all.
+    track.workId = source.workId.takeIf { it > 0 }
+    track.isCanonical = source.isCanonical
+    track.versionKind = source.versionKind.takeIf { it.isNotBlank() }
     track.size = source.size
     track.contentType = source.contentType
     track.suffix = source.suffix

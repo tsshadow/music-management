@@ -301,6 +301,14 @@
                     app:icon="@drawable/ic_menu_bookmark" />
 
                 <com.google.android.material.button.MaterialButton
+                    android:id="@+id/track_info_action_versions"
+                    style="@style/Ultrasonic.TrackInfo.Action"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/track_info.versions"
+                    app:icon="@drawable/ic_menu_playlists" />
+
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/track_info_action_refresh"
                     style="@style/Ultrasonic.TrackInfo.Action"
                     android:layout_width="wrap_content"

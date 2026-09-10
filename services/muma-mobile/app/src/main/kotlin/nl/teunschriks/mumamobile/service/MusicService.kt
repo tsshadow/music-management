@@ -205,7 +205,9 @@ interface MusicService {
         minDuration: Int? = null,
         maxDuration: Int? = null,
         /** Artist entity ids; a track has to involve every one of them to match. */
-        artistIds: List<String>? = null
+        artistIds: List<String>? = null,
+        /** One song's work id: returns every version of it, best first. */
+        workId: Int? = null
     ): MusicDirectory
 
     @Throws(Exception::class)

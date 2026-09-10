@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## Global Version 6.32.1 (2026-09-10)
+
+- **De bibliotheek, genres en zoeken gaven een verbindingsfout die geen verbindingsfout was.** De
+  app kon zijn eigen cache niet meer openen na de vorige update. Dat is hersteld; de cache wissen is
+  niet meer nodig.
 ## Global Version 6.32.0 (2026-09-10)
 
 - Je ziet nu één regel per nummer in plaats van dezelfde track drie keer. Uit te zetten in de

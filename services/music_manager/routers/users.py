@@ -1272,28 +1272,34 @@ def run_lms_db_sync_with_retry(attempts: int = 6, delay_seconds: int = 60) -> in
     database, an unreachable server, no lms.db at all -- is already best-effort inside the
     sync itself and gets no second pass here.
     """
+    synced = run_lms_db_sync()
     for attempt in range(1, attempts + 1):
-        synced = run_lms_db_sync()
-        if not _skipped_unmigrated_servers:
+        pending = set(_skipped_unmigrated_servers)
+        if not pending:
             return synced
         if attempt == attempts:
             logging.warning(
-                'lms.db sync: %s server database(s) still have no version columns after %s attempts; '
-                'the song-version columns stay empty until the next restart',
-                len(_skipped_unmigrated_servers),
+                'lms.db sync: %s still have no version columns after %s attempts; their '
+                'song-version columns stay empty until they migrate',
+                ', '.join(sorted(pending)),
                 attempts,
             )
             return synced
         logging.info(
-            'lms.db sync: %s server database(s) not migrated yet, trying again in %ss',
-            len(_skipped_unmigrated_servers),
+            'lms.db sync: %s not migrated yet, trying again in %ss',
+            ', '.join(sorted(pending)),
             delay_seconds,
         )
         time.sleep(delay_seconds)
-    return 0
+        # Only the ones that were skipped. Retrying everything meant walking 285.360 tracks
+        # again for a server that had just been written correctly -- six times an hour,
+        # because a second instance is parked on an old schema and never becomes ready.
+        run_lms_db_sync(only_sources=pending)
+    return synced
 
 
-def run_lms_db_sync():
+def run_lms_db_sync(only_sources: set[str] | None = None):
+    """Sync every server database, or only the ones named in `only_sources`."""
     _skipped_unmigrated_servers.clear()
     db_root = os.getenv('MUMA_SERVER_DB_ROOT') or os.getenv('LMS_DB_ROOT') or '/app/data'
     targets = []
@@ -1316,6 +1322,9 @@ def run_lms_db_sync():
         root_db = os.path.join(db_root, 'lms.db')
         if os.path.exists(root_db):
             targets.append((root_db, 'server-root'))
+
+    if only_sources is not None:
+        targets = [(db_path, source) for db_path, source in targets if source in only_sources]
 
     conn = get_db_connection()
     if not conn:

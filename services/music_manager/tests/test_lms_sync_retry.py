@@ -38,8 +38,8 @@ class LmsSyncRetryTest(unittest.TestCase):
     def test_a_server_that_is_still_migrating_gets_another_pass(self):
         calls = []
 
-        def sync():
-            calls.append(1)
+        def sync(only_sources=None):
+            calls.append(only_sources)
             # Ready on the third attempt, which is what a server restart looks like.
             if len(calls) < 3:
                 users._skipped_unmigrated_servers.add('server-stable')
@@ -53,7 +53,7 @@ class LmsSyncRetryTest(unittest.TestCase):
         self.assertEqual(len(calls), 3)
 
     def test_it_gives_up_rather_than_retrying_forever(self):
-        def sync():
+        def sync(only_sources=None):
             users._skipped_unmigrated_servers.add('server-stable')
             return 0
 
@@ -91,6 +91,50 @@ class LmsSyncRetryTest(unittest.TestCase):
             versions.return_value = {'considered': 0, 'matched': 0, 'skipped_no_columns': 1}
             users.sync_single_server_db(MagicMock(), '/app/data/alpha/lms.db', 'server-alpha')
         self.assertEqual(users._skipped_unmigrated_servers, {'server-alpha'})
+
+
+class RetryScopeTest(unittest.TestCase):
+    """A retry must cost only the server it is waiting for.
+
+    Production ran the full pass six times an hour: a second LMS instance sits on an old
+    schema and never becomes ready, so every attempt walked all 285.360 tracks again --
+    including for the server that had just been written correctly.
+    """
+
+    def setUp(self):
+        users._skipped_unmigrated_servers.clear()
+        self.addCleanup(users._skipped_unmigrated_servers.clear)
+        sleep = patch.object(users.time, 'sleep')
+        sleep.start()
+        self.addCleanup(sleep.stop)
+
+    def test_a_retry_names_only_the_server_that_was_skipped(self):
+        calls = []
+
+        def sync(only_sources=None):
+            calls.append(only_sources)
+            users._skipped_unmigrated_servers.clear()
+            users._skipped_unmigrated_servers.add('server-alpha')
+            return 0
+
+        with patch.object(users, 'run_lms_db_sync', side_effect=sync):
+            users.run_lms_db_sync_with_retry(attempts=3, delay_seconds=1)
+
+        self.assertIsNone(calls[0], 'the first pass covers every server')
+        self.assertTrue(all(c == {'server-alpha'} for c in calls[1:]), calls)
+
+    def test_a_server_that_is_ready_is_not_walked_again(self):
+        calls = []
+
+        def sync(only_sources=None):
+            calls.append(only_sources)
+            users._skipped_unmigrated_servers.clear()
+            return 5
+
+        with patch.object(users, 'run_lms_db_sync', side_effect=sync):
+            self.assertEqual(users.run_lms_db_sync_with_retry(attempts=6, delay_seconds=1), 5)
+
+        self.assertEqual(len(calls), 1, 'nothing was skipped, so nothing is retried')
 
 
 if __name__ == '__main__':

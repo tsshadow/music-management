@@ -164,7 +164,7 @@ class FeedsRouterTest(_FeedsAuthTestCase):
                     'duration_secs': 200,
                     'bpm': 180,
                     'release_date': '2026-09-01',
-                    'file_path': '/music/1.flac',
+                    'file_path': '/mnt/music/EPs/Label/01.mp3',
                     'heard': False,
                     'has_label': True,
                     'is_soundcloud': False,
@@ -197,12 +197,16 @@ class FeedsRouterTest(_FeedsAuthTestCase):
                 'bpm',
                 'release_date',
                 'file_path',
+                'library_path',
                 'bucket',
                 'reason',
             },
         )
         self.assertEqual(track['bucket'], 'uptempo')
         self.assertEqual(track['reason'], 'genre')
+        # The path a client hands to LMS's getSongsByPath: library-relative, because muma's
+        # own absolute spelling names a file LMS does not have.
+        self.assertEqual(track['library_path'], 'EPs/Label/01.mp3')
         self.assertTrue(conn.closed, 'the connection get_feed opened was never closed')
 
 

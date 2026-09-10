@@ -20,6 +20,7 @@ from services.music_manager.database import get_db_connection
 from services.music_manager.feeds.build import build_feed, resolve_profile
 from services.music_manager.feeds.policy import POLICIES, STARTING_GENRES_SETTING, parse_starting_genres
 from services.music_manager.feeds.queries import exclusions_query
+from services.music_manager.library_paths import relative_path
 
 router = APIRouter(tags=['feeds'])
 settings = Settings()
@@ -90,6 +91,10 @@ def _starting_genres() -> list[str] | None:
 
 def _track_view(track: dict) -> dict:
     view = {field: track.get(field) for field in _TRACK_FIELDS}
+    # What a client hands to LMS's getSongsByPath to turn this into something playable. The
+    # absolute `file_path` beside it is muma's own spelling (/mnt/music/...), which names a
+    # file LMS does not have -- see library_paths.relative_path.
+    view['library_path'] = relative_path(track.get('file_path'))
     view['bucket'] = track.get('bucket')
     view['reason'] = track.get('reason')
     return view

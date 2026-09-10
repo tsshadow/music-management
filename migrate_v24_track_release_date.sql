@@ -1,0 +1,26 @@
+-- De releasedatum per track, gekopieerd uit de server.
+--
+-- `library_track_audio_features.release_date` bestond al (migrate_v8_release_date.sql)
+-- maar wordt alleen gevuld door de ml-analyzer, en die heeft nooit meer dan een kwart
+-- van de bibliotheek verwerkt: op productie staan er 89.869 feature-rijen tegenover
+-- 352.977 tracks, en op 2026-09-10 was de kolom nul keer gevuld. De feeds
+-- (services/music_manager/feeds/) filteren op die datum en gaven daardoor altijd nul
+-- tracks terug -- zowel de release radar als de daily mix.
+--
+-- De server heeft de datum wel, voor 238.207 tracks op dagprecisie: hij leest bij elke
+-- scan `ORIGINALDATE` naar `track.original_date` en `DATE` naar `track.date`. Die kolom
+-- wordt hier per uur overgenomen door services/music_manager/release_date_sync.py, over
+-- dezelfde padbrug die song-versions al gebruikt. De waarde blijft een string van tien
+-- tekens ('2026-09-04'); alles korter dan dat is geen dag en wordt niet overgenomen.
+--
+-- Bewust géén index. Het vensterfilter van de feeds staat op
+-- `COALESCE(NULLIF(t.release_date, ''), af.release_date)`, en MariaDB kan een index niet
+-- gebruiken door een expressie heen, dus een index op deze kolom zou wél onderhoud kosten en
+-- niets opleveren. Het filter scant `library_tracks`; dat is één keer per feed, niet per track.
+-- Wie het filter ooit vereenvoudigt tot alleen deze kolom, voegt de index dan toe.
+--
+-- De jaarhistogrammen blijven op release_year in audio_features staan.
+--
+-- Safe to re-run.
+
+ALTER TABLE library_tracks ADD COLUMN IF NOT EXISTS release_date VARCHAR(10) NULL;

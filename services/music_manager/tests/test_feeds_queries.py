@@ -45,7 +45,19 @@ class ListensQueryTest(unittest.TestCase):
 class CandidatesQueryTest(unittest.TestCase):
     def test_a_release_window_demands_day_precision(self):
         sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
-        self.assertIn('LENGTH(af.release_date) = 10', sql)
+        self.assertIn("LENGTH(COALESCE(NULLIF(t.release_date, ''), af.release_date)) = 10", sql)
+
+    def test_the_synced_track_date_is_preferred_over_the_audio_features_one(self):
+        """`library_tracks.release_date` is what the server read off the file, copied over
+
+        hourly by release_date_sync and covering the whole library. The audio-features
+        column behind it only ever held what the ml-analyzer processed -- a quarter of the
+        library, and on production nothing at all, which is why both feeds returned zero
+        tracks. Preferring the wrong one of the two is a silently empty feed, so the order
+        inside the COALESCE is asserted rather than assumed.
+        """
+        sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
+        self.assertIn("COALESCE(NULLIF(t.release_date, ''), af.release_date) AS release_date", sql)
 
     def test_a_release_dated_in_the_future_is_outside_the_window(self):
         """`release_date` comes out of a file tag, so a track tagged 2027-01-01
@@ -55,7 +67,7 @@ class CandidatesQueryTest(unittest.TestCase):
         long as it exists. The window is closed at `now` for exactly that.
         """
         sql, params = candidates_query('user', POLICIES['release-radar'], NOW)
-        self.assertIn('af.release_date <= %s', sql)
+        self.assertIn("COALESCE(NULLIF(t.release_date, ''), af.release_date) <= %s", sql)
         self.assertIn(NOW.date().isoformat(), params)
         lower = params.index((NOW.date() - timedelta(days=7)).isoformat())
         upper = params.index(NOW.date().isoformat())
@@ -63,8 +75,8 @@ class CandidatesQueryTest(unittest.TestCase):
 
     def test_the_daily_mix_window_is_bounded_at_both_ends_too(self):
         sql, params = candidates_query('user', POLICIES['daily-mix'], NOW)
-        self.assertIn('af.release_date >= %s', sql)
-        self.assertIn('af.release_date <= %s', sql)
+        self.assertIn("COALESCE(NULLIF(t.release_date, ''), af.release_date) >= %s", sql)
+        self.assertIn("COALESCE(NULLIF(t.release_date, ''), af.release_date) <= %s", sql)
         self.assertIn((NOW.date() - timedelta(days=90)).isoformat(), params)
         self.assertIn(NOW.date().isoformat(), params)
 

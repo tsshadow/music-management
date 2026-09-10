@@ -184,6 +184,8 @@
     <string name="main.songs_starred">Starred</string>
     <string name="main.radio_title">Radio</string>
     <string name="main.news_title">News</string>
+    <string name="main.daily_mix_title">Daily mix</string>
+    <string name="main.release_radar_title">Release radar</string>
     <string name="main.songs_title">Songs</string>
     <string name="main.livesets_title">Livesets</string>
     <string name="main.videos">Videos</string>

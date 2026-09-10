@@ -100,8 +100,11 @@ class MediaLibrarySessionCallback :
     // Android Auto browsing a dead or offline service until the process is restarted, even though
     // the phone UI has already recovered.
     private val musicService get() = MusicServiceFactory.getMusicService()
+
+    // Named rather than a trailing lambda: the data provider takes a feed repository after the
+    // service provider now, and a trailing lambda would silently bind to that instead.
     private var dataProvider: MediaLibraryDataProvider =
-        MediaLibraryDataProvider(serviceScope = serviceScope) { musicService }
+        MediaLibraryDataProvider(serviceScope = serviceScope, musicServiceProvider = { musicService })
     private var playbackController: MediaLibraryPlaybackController =
         MediaLibraryPlaybackController(serviceScope = serviceScope) { musicService }
 

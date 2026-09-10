@@ -265,11 +265,35 @@ an empty list is never returned with `state = "ok"`.
 
 ## Cross-App Impact
 
-**None in V1.** No client consumes these endpoints yet. That is deliberate: the path-based bridge
-between a MuMa track and an LMS song is unproven (see `functional.md`, Open Questions), and the
+**None in V1.** No client consumed these endpoints. That was deliberate: the path-based bridge
+between a MuMa track and an LMS song was unproven (see `functional.md`, Open Questions), and the
 returned `file_path` is exactly what a later LMS endpoint needs in order to resolve a playable song.
 Web, mobile and the LMS server are a separate change, made atomically per AGENTS.md rule 7 once the
 bridge is demonstrated.
+
+### V2 — Android Auto
+
+The bridge is demonstrated, and the feeds are now playable from the car. Three things changed:
+
+- **`library_tracks.release_date`** (`migrate_v24_track_release_date.sql`), copied out of the
+  server's `track.original_date` / `track.date` every hour by
+  `services/music_manager/release_date_sync.py`, riding along in the lms.db pass that already syncs
+  users, playlists, artist images and song versions. The candidate query prefers it over the
+  audio-features column. **This is what made the feeds non-empty at all:** measured on production
+  2026-09-10, `library_track_audio_features.release_date` was filled for 0 of 89.869 rows and that
+  table covers 87.816 of 352.977 tracks, so `LENGTH(af.release_date) = 10` excluded the entire
+  library. The server had a day-precision date for 238.207 of its 338.662 tracks, 169 of them
+  released inside the radar's seven-day window.
+- **`getSongsByPath`** on the server (`endpoints/SongsByPath.{hpp,cpp}`): repeated `path`
+  parameters, library-relative the way `resolveScanScope` already defines it, answered with song
+  nodes in the order asked. It never calls back out to music-manager — a Subsonic request that
+  waits on an HTTP round trip holds a Wt thread, and that pool is small enough that a slow
+  music-manager once took the site down.
+- **`library_path`** in the feed's track view: `file_path` with the scan mount stripped, because
+  MuMa's absolute path names a file the server does not have.
+
+The client makes two calls, in that order, and re-sorts nothing: the order MuMa returns *is* the
+feed.
 
 ## Dry Run
 

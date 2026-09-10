@@ -1314,7 +1314,6 @@ a27cd96be7bdd706 x1  # readability-else-after-return src/lms/ui/Utils.cpp
 # --- readability-function-cognitive-complexity ---
 # Long functions. A finding here is a refactor with its own risk, so it
 # belongs in the change that touches the function anyway, not in a sweep.
-#
 # Two of these move whenever anything in their function moves: the measured
 # complexity is part of the finding, so buildAdvancedQueryBody (87) and
 # handleGetSpotifyTracks (51) produce a fresh entry for a one-line change. Both
@@ -1328,7 +1327,7 @@ e4de389a65e4ab86 x1  # readability-function-cognitive-complexity src/libs/audio/
 15820dc0935a4bfd x1  # readability-function-cognitive-complexity src/libs/database/impl/objects/Artist.cpp
 41aeff7cb54ddd5b x1  # readability-function-cognitive-complexity src/libs/database/impl/objects/Release.cpp
 a4390b32b458b503 x1  # readability-function-cognitive-complexity src/libs/database/impl/objects/Track.cpp
-6813463d1d9d525b x1  # readability-function-cognitive-complexity src/libs/database/impl/objects/Track.cpp
+eff16ca6f72b4140 x1  # readability-function-cognitive-complexity src/libs/database/impl/objects/Track.cpp
 888843545e4f8d50 x1  # readability-function-cognitive-complexity src/libs/muma/MumaResource.cpp
 cd4433a7061d7d91 x1  # readability-function-cognitive-complexity src/libs/services/auth/impl/musicmanagement/UserSynchronizer.cpp
 59b580e571f02a09 x1  # readability-function-cognitive-complexity src/libs/services/scanner/impl/scanners/audiofile/AudioFileScanOperation.cpp

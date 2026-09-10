@@ -239,6 +239,14 @@ class LockedServerDatabaseTest(SongVersionSyncTest):
         # Five seconds is what the 0.56.0 deploy tripped over.
         self.assertGreaterEqual(sync_module.BUSY_TIMEOUT_MS, 30000)
 
+    def test_the_timeout_statement_says_what_the_constant_says(self):
+        # The statement is a literal because PRAGMA takes no bound parameter, so nothing but
+        # this test stops the two from drifting apart.
+        self.assertEqual(
+            sync_module.BUSY_TIMEOUT_STATEMENT,
+            f'PRAGMA busy_timeout = {sync_module.BUSY_TIMEOUT_MS}',
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

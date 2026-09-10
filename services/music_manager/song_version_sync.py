@@ -44,7 +44,13 @@ CHUNK = 2000
 #: How long a statement waits for the server to let go of its write lock. Five seconds was
 #: not enough: a deploy restarts both services, LMS starts its own scan, and the sync ran
 #: into a locked database and wrote one track out of 285.332.
+#:
+#: Spelled out as a literal statement rather than built from the number. PRAGMA takes no
+#: bound parameter, so any computed form is a formatted SQL string -- a shape worth not
+#: having at all here, rather than one to explain away in the security baseline.
+#: SongVersionSyncTest keeps the two in step.
 BUSY_TIMEOUT_MS = 30000
+BUSY_TIMEOUT_STATEMENT = 'PRAGMA busy_timeout = 30000'
 
 #: How often a chunk may find the database locked before the pass gives up. A lock is the
 #: server working, not an error, so waiting through a scan step is the point.
@@ -149,7 +155,7 @@ def sync_song_versions_to_server(muma_conn, server_conn, source: str = 'unknown'
         return stats
 
     try:
-        server_conn.execute(f'PRAGMA busy_timeout = {BUSY_TIMEOUT_MS}')
+        server_conn.execute(BUSY_TIMEOUT_STATEMENT)
         with muma_conn.cursor() as muma_cursor:
             muma_cursor.execute(_TRACKS)
             while True:

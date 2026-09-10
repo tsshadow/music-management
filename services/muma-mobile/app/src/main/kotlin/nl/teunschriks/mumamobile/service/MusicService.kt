@@ -207,7 +207,12 @@ interface MusicService {
         /** Artist entity ids; a track has to involve every one of them to match. */
         artistIds: List<String>? = null,
         /** One song's work id: returns every version of it, best first. */
-        workId: Int? = null
+        workId: Int? = null,
+        /**
+         * One row per song. Null follows the user's setting, which is what every browsing
+         * caller wants; pass false where every file has to be listed.
+         */
+        canonicalOnly: Boolean? = null
     ): MusicDirectory
 
     @Throws(Exception::class)

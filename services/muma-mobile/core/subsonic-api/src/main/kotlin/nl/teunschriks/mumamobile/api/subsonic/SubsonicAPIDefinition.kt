@@ -402,7 +402,9 @@ interface SubsonicAPIDefinition {
         // reads: several artistId values mean "only tracks all of them are on".
         @Query("artistId") artistIds: List<String>? = null,
         /** Every version of one song, for the list behind a track. */
-        @Query("workId") workId: Int? = null
+        @Query("workId") workId: Int? = null,
+        /** One row per song: the version MuMa named best, plus everything it has not grouped. */
+        @Query("canonicalOnly") canonicalOnly: Boolean? = null
     ): Call<GetSongsResponse>
 
     @GET("getSongsByMood.view")

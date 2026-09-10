@@ -443,7 +443,8 @@ class OfflineMusicService :
         artistIds: List<String>?,
         // Ignored for the same reason: grouping versions is a decision MuMa makes, and an
         // offline library has only the files it cached.
-        workId: Int?
+        workId: Int?,
+        canonicalOnly: Boolean?
     ): MusicDirectory {
         var list = getAllTracks()
 

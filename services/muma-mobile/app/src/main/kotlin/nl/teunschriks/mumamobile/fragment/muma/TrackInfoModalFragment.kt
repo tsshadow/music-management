@@ -29,6 +29,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -66,6 +67,9 @@ class TrackInfoModalFragment : BottomSheetDialogFragment() {
 
     companion object {
         const val TAG = "TrackInfoModal"
+
+        /** A song with more versions than this is a grouping fault rather than a song. */
+        private const val VERSION_LIST_LIMIT = 50
 
         /** Fragment result key. The bundle always carries [RESULT_TRACK]. */
         const val RESULT_KEY = "trackInfoResult"
@@ -256,6 +260,66 @@ class TrackInfoModalFragment : BottomSheetDialogFragment() {
             reportAction(R.id.menu_item_bookmark_delete)
         }
         binding.trackInfoActionRefresh.setOnClickListener { reportAction(R.id.menu_refresh_track) }
+
+        // Only for a song MuMa has grouped. While the worker works through its backlog a large
+        // part of the library carries no work, and a button onto an empty list is worse than
+        // no button. Offline the answer would be the cached file and nothing else.
+        binding.trackInfoActionVersions.isVisible = online && track.workId != null
+        binding.trackInfoActionVersions.setOnClickListener { showVersions() }
+    }
+
+    /**
+     * Lists every version of this song: the same file in another format, another length, or
+     * from another source.
+     *
+     * Fetched rather than read from the list this sheet was opened from, because that list
+     * holds the one version the server chose -- the others were collapsed away before the app
+     * saw them. Read-only for now: playing one is the next step, and a list nobody can reach
+     * is the thing to fix first.
+     */
+    private fun showVersions() {
+        val workId = track.workId ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val versions = runCatching {
+                withContext(Dispatchers.IO) {
+                    MusicServiceFactory.getMusicService().getSongs(
+                        filters = Filters(),
+                        ratingMin = null,
+                        ratingMax = null,
+                        count = VERSION_LIST_LIMIT,
+                        offset = 0,
+                        sortMethod = null,
+                        workId = workId
+                    ).getTracks()
+                }
+            }.getOrElse {
+                Util.toast(R.string.track_info_versions_failed, context = requireContext())
+                return@launch
+            }
+
+            if (!isAdded) return@launch
+
+            val lines = versions.map(::versionLine).toTypedArray()
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(getString(R.string.track_info_versions_title, track.title.orEmpty()))
+                .setItems(lines, null)
+                .apply {
+                    if (versions.size <= 1) setMessage(R.string.track_info_versions_only_one)
+                }
+                .setPositiveButton(R.string.common_ok, null)
+                .show()
+        }
+    }
+
+    /** One line per version: what kind it is, what file it is, and which one wins. */
+    private fun versionLine(version: Track): String {
+        val parts = mutableListOf<String>()
+        version.versionKind?.takeIf { it.isNotBlank() && it != "none" }?.let(parts::add)
+        version.suffix?.takeIf { it.isNotBlank() }?.let { parts.add(it.uppercase()) }
+        version.bitRate?.takeIf { it > 0 }?.let { parts.add("$it kbps") }
+        if (version.isCanonical) parts.add(getString(R.string.track_info_versions_best))
+        val detail = parts.joinToString(" \u00b7 ")
+        return if (detail.isEmpty()) version.title.orEmpty() else "${version.title.orEmpty()}\n$detail"
     }
 
     private fun bindFacts() {

@@ -17,6 +17,17 @@ data class MusicDirectoryChild(
     val date: String = "",
     /** The original release date, which MuMa resolves from the scene NFO. Preferred over [date]. */
     val originalDate: String = "",
+    /**
+     * The song this file is a version of, as MuMa grouped it. Zero means it has not been
+     * grouped -- while the worker catches up that is a large part of the library -- and such
+     * a track is its own song rather than a version of somebody else's.
+     */
+    val workId: Int = 0,
+    /** Whether MuMa named this file the version to play. Defaults true so an ungrouped or
+     * older-server track is never treated as one to hide. */
+    val isCanonical: Boolean = true,
+    /** radio, edit, original, extended, instrumental, or empty when it says nothing. */
+    val versionKind: String = "",
     val coverArt: String = "",
     val size: Long = -1,
     val contentType: String = "",

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 8,
-    "identityHash": "2c396f41b4fbbf5f9e0e0f910412df8c",
+    "identityHash": "8b203f124fadae62cfd8c041b7814c56",
     "entities": [
       {
         "tableName": "artists",
@@ -208,7 +208,7 @@
       },
       {
         "tableName": "tracks",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `serverId` INTEGER NOT NULL DEFAULT -1, `parent` TEXT, `isDirectory` INTEGER NOT NULL, `title` TEXT, `album` TEXT, `albumId` TEXT, `artist` TEXT, `artistId` TEXT, `track` INTEGER, `year` INTEGER, `genre` TEXT, `genres` TEXT, `date` TEXT, `contentType` TEXT, `suffix` TEXT, `transcodedContentType` TEXT, `transcodedSuffix` TEXT, `coverArt` TEXT, `size` INTEGER, `songCount` INTEGER, `duration` INTEGER, `bitRate` INTEGER, `path` TEXT, `isVideo` INTEGER NOT NULL, `starred` INTEGER NOT NULL, `discNumber` INTEGER, `type` TEXT, `created` INTEGER, `closeness` INTEGER NOT NULL, `bookmarkPosition` INTEGER NOT NULL, `userRating` INTEGER, `averageRating` REAL, `name` TEXT, `artists` TEXT NOT NULL, `moods` TEXT NOT NULL, `labels` TEXT NOT NULL, PRIMARY KEY(`id`, `serverId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `serverId` INTEGER NOT NULL DEFAULT -1, `parent` TEXT, `isDirectory` INTEGER NOT NULL, `title` TEXT, `album` TEXT, `albumId` TEXT, `artist` TEXT, `artistId` TEXT, `track` INTEGER, `year` INTEGER, `genre` TEXT, `genres` TEXT, `date` TEXT, `contentType` TEXT, `suffix` TEXT, `transcodedContentType` TEXT, `transcodedSuffix` TEXT, `coverArt` TEXT, `size` INTEGER, `songCount` INTEGER, `duration` INTEGER, `bitRate` INTEGER, `workId` INTEGER, `isCanonical` INTEGER NOT NULL, `versionKind` TEXT, `path` TEXT, `isVideo` INTEGER NOT NULL, `starred` INTEGER NOT NULL, `discNumber` INTEGER, `type` TEXT, `created` INTEGER, `closeness` INTEGER NOT NULL, `bookmarkPosition` INTEGER NOT NULL, `userRating` INTEGER, `averageRating` REAL, `name` TEXT, `artists` TEXT NOT NULL, `moods` TEXT NOT NULL, `labels` TEXT NOT NULL, PRIMARY KEY(`id`, `serverId`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -328,6 +328,22 @@
             "fieldPath": "bitRate",
             "columnName": "bitRate",
             "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "workId",
+            "columnName": "workId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "isCanonical",
+            "columnName": "isCanonical",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "versionKind",
+            "columnName": "versionKind",
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "path",
@@ -507,7 +523,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2c396f41b4fbbf5f9e0e0f910412df8c')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8b203f124fadae62cfd8c041b7814c56')"
     ]
   }
 }

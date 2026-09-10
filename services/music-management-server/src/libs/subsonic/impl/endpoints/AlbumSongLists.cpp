@@ -589,6 +589,11 @@ namespace lms::api::subsonic
         std::optional<int> minDuration = getParameterAs<int>(context.getParameters(), "minDuration");
         std::optional<int> maxDuration = getParameterAs<int>(context.getParameters(), "maxDuration");
         const std::vector<ArtistId> artistIds{ getMultiParametersAs<ArtistId>(context.getParameters(), "artistId") };
+        // Every version of one song, for the list behind a track in the app. The same filter
+        // getSpotifyTracks takes: the app browses through this endpoint, and a version list
+        // that only the web can ask for would leave the phone showing a canonical it cannot
+        // look past.
+        const std::optional<int> workId{ getParameterAs<int>(context.getParameters(), "workId") };
 
         size = std::min(size, defaultMaxCountSize);
 
@@ -599,6 +604,7 @@ namespace lms::api::subsonic
         params.setSortMethod(sortMethod);
         params.setRange(Range{ offset, size });
         params.filters.setMediaLibrary(mediaLibraryId);
+        params.workId = workId;
 
         std::map<std::string, std::set<ClusterId>> clusterGroups;
         if (filters.has_value())

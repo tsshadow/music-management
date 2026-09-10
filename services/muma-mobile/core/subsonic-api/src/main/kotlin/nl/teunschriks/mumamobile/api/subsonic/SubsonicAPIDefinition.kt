@@ -400,7 +400,9 @@ interface SubsonicAPIDefinition {
         @Query("maxDuration") maxDuration: Int? = null,
         // Retrofit repeats a list as one query parameter per element, which is what the server
         // reads: several artistId values mean "only tracks all of them are on".
-        @Query("artistId") artistIds: List<String>? = null
+        @Query("artistId") artistIds: List<String>? = null,
+        /** Every version of one song, for the list behind a track. */
+        @Query("workId") workId: Int? = null
     ): Call<GetSongsResponse>
 
     @GET("getSongsByMood.view")

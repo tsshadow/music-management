@@ -28,8 +28,10 @@ applies: short statements, no schema changes, and a busy timeout so a locked dat
 skipped sync instead of a failed one.
 """
 
+import contextlib
 import logging
 import sqlite3
+import time
 
 from services.music_manager.library_paths import candidate_paths
 
@@ -38,6 +40,24 @@ logger = logging.getLogger(__name__)
 #: How many tracks to read from muma at a time. The join is cheap; the point of the chunk
 #: is to keep each write transaction against the live server database short.
 CHUNK = 2000
+
+#: How long a statement waits for the server to let go of its write lock. Five seconds was
+#: not enough: a deploy restarts both services, LMS starts its own scan, and the sync ran
+#: into a locked database and wrote one track out of 285.332.
+#:
+#: Spelled out as a literal statement rather than built from the number. PRAGMA takes no
+#: bound parameter, so any computed form is a formatted SQL string -- a shape worth not
+#: having at all here, rather than one to explain away in the security baseline.
+#: SongVersionSyncTest keeps the two in step.
+BUSY_TIMEOUT_MS = 30000
+BUSY_TIMEOUT_STATEMENT = 'PRAGMA busy_timeout = 30000'
+
+#: How often a chunk may find the database locked before the pass gives up. A lock is the
+#: server working, not an error, so waiting through a scan step is the point.
+LOCK_RETRIES = 10
+
+#: How long to wait after a locked chunk before trying it again.
+LOCK_BACKOFF_SECONDS = 15
 
 #: What muma knows about every track that has a media file, canonical or not. `is_canonical`
 #: is computed rather than stored: the work names its winner, so a track is canonical when
@@ -79,6 +99,47 @@ def _server_has_columns(server_cursor) -> bool:
     return {'work_id', 'is_canonical', 'version_kind', 'version_score'} <= columns
 
 
+def _write_chunk(server_conn, server_cursor, rows, stats: dict, source: str) -> int:
+    """Write one chunk, waiting out the server's write lock rather than giving up on it.
+
+    A locked database is LMS doing its own work -- a scan step, a playlist write -- and it
+    lets go again. The first version of this treated the lock as the end of the whole pass,
+    which is how a deploy that restarted both services wrote one track out of 285.332 and
+    left the columns a day stale. A chunk that stays locked is skipped, not fatal: the next
+    pass rewrites the same rows.
+    """
+    for attempt in range(1, LOCK_RETRIES + 1):
+        matched = 0
+        try:
+            for row in rows:
+                # Every spelling of the path, because muma scans /mnt/music and the server
+                # was told /music. The first one that hits a row wins; a path that hits
+                # nothing is a file the server does not have, which is not an error -- the
+                # two libraries are allowed to differ.
+                for path in candidate_paths(row['file_path']):
+                    server_cursor.execute(
+                        _UPDATE,
+                        (row['work_id'], row['is_canonical'], row['version_kind'], row['version_score'], path),
+                    )
+                    if server_cursor.rowcount:
+                        matched += server_cursor.rowcount
+                        break
+            server_conn.commit()
+            return matched
+        except sqlite3.OperationalError as e:
+            if 'locked' not in str(e).lower() and 'busy' not in str(e).lower():
+                raise
+            with contextlib.suppress(Exception):
+                server_conn.rollback()
+            if attempt == LOCK_RETRIES:
+                stats['chunks_skipped'] = stats.get('chunks_skipped', 0) + 1
+                logger.warning('%s: gave up on a chunk after %s locked attempts', source, attempt)
+                return 0
+            logger.info('%s: server database locked, waiting %ss', source, LOCK_BACKOFF_SECONDS)
+            time.sleep(LOCK_BACKOFF_SECONDS)
+    return 0
+
+
 def sync_song_versions_to_server(muma_conn, server_conn, source: str = 'unknown') -> dict:
     """Write muma's version model into the server database. Returns what it did.
 
@@ -86,7 +147,7 @@ def sync_song_versions_to_server(muma_conn, server_conn, source: str = 'unknown'
     alpha instance -- and a line that does not say which one it skipped costs somebody the
     time to go and find out.
     """
-    stats = {'considered': 0, 'matched': 0, 'skipped_no_columns': 0}
+    stats = {'considered': 0, 'matched': 0, 'skipped_no_columns': 0, 'chunks_skipped': 0}
     server_cursor = server_conn.cursor()
     if not _server_has_columns(server_cursor):
         logger.info('%s: no version columns yet, skipping the song-version sync', source)
@@ -94,36 +155,17 @@ def sync_song_versions_to_server(muma_conn, server_conn, source: str = 'unknown'
         return stats
 
     try:
-        server_conn.execute('PRAGMA busy_timeout = 5000')
+        server_conn.execute(BUSY_TIMEOUT_STATEMENT)
         with muma_conn.cursor() as muma_cursor:
             muma_cursor.execute(_TRACKS)
             while True:
                 rows = muma_cursor.fetchmany(CHUNK)
                 if not rows:
                     break
-                matched = 0
-                for row in rows:
-                    stats['considered'] += 1
-                    # Every spelling of the path, because muma scans /mnt/music and the
-                    # server was told /music. The first one that hits a row wins; a path
-                    # that hits nothing is a file the server does not have, which is not
-                    # an error -- the two libraries are allowed to differ.
-                    for path in candidate_paths(row['file_path']):
-                        server_cursor.execute(
-                            _UPDATE,
-                            (row['work_id'], row['is_canonical'], row['version_kind'], row['version_score'], path),
-                        )
-                        if server_cursor.rowcount:
-                            matched += server_cursor.rowcount
-                            break
-                server_conn.commit()
-                stats['matched'] += matched
-    except sqlite3.OperationalError as e:
-        # A locked database is the server doing its own work. Losing this pass costs
-        # nothing: the next one writes the same rows.
-        logger.warning('Song-version sync could not write to the server database: %s', e)
+                stats['considered'] += len(rows)
+                stats['matched'] += _write_chunk(server_conn, server_cursor, rows, stats, source)
     except Exception as e:
-        logger.error('Song-version sync failed: %s', e, exc_info=True)
+        logger.error('%s: song-version sync failed: %s', source, e, exc_info=True)
 
     logger.info(
         '%s: song-version sync considered %s tracks, matched %s in the server database',

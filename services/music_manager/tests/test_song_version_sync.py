@@ -11,8 +11,9 @@ somebody else's schema, and a mock would happily accept SQL the server rejects.
 
 import sqlite3
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
+from services.music_manager import song_version_sync as sync_module
 from services.music_manager.song_version_sync import sync_song_versions_to_server
 
 MIGRATED = """
@@ -155,6 +156,96 @@ class SongVersionSyncTest(unittest.TestCase):
         # No exception reaches the caller: the lms.db pass has users and playlists to finish.
         stats = sync_song_versions_to_server(muma_with([row('/mnt/music/EPs/Texcore/01.mp3', work_id=7)]), locked)
         self.assertEqual(stats['matched'], 0)
+
+
+class FlakyServer:
+    """A server connection whose commit can refuse, the way a busy LMS does.
+
+    sqlite3.Connection is a C object and takes no patched attributes, so the refusal is
+    wrapped around a real database rather than mocked onto one -- which also keeps the
+    writes real: what is asserted afterwards is what SQLite actually stored.
+    """
+
+    def __init__(self, connection, failures: int, error: str = 'database is locked'):
+        self._connection = connection
+        self._failures = failures
+        self._error = error
+        self.commits = 0
+
+    def cursor(self):
+        return self._connection.cursor()
+
+    def execute(self, *args):
+        return self._connection.execute(*args)
+
+    def rollback(self):
+        return self._connection.rollback()
+
+    def commit(self):
+        self.commits += 1
+        if self.commits <= self._failures:
+            raise sqlite3.OperationalError(self._error)
+        return self._connection.commit()
+
+
+class LockedServerDatabaseTest(SongVersionSyncTest):
+    """A locked database is the server working, not a failure.
+
+    The first version treated it as the end of the pass. On the 0.56.0 deploy LMS was
+    running its own startup scan, the sync met a locked database, and it wrote one track out
+    of 285.332 -- leaving the server's copy of the version model a day stale. Nothing came
+    back either, because the sync only ran at startup.
+    """
+
+    def test_a_chunk_that_is_locked_once_is_written_after_the_wait(self):
+        self.add_track(1, '/mnt/music/Soundcloud/rip.mp3')
+        server = FlakyServer(self.server, failures=1)
+
+        with patch.object(sync_module, 'time') as clock:
+            stats = sync_song_versions_to_server(
+                muma_with([row('/mnt/music/Soundcloud/rip.mp3', work_id=42, is_canonical=0)]),
+                server,
+            )
+
+        clock.sleep.assert_called_once()
+        self.assertEqual(stats['matched'], 1)
+        self.assertEqual(self.stored(1)[1], 0)
+
+    def test_a_chunk_that_stays_locked_is_skipped_rather_than_ending_the_pass(self):
+        self.add_track(1, '/mnt/music/EPs/Texcore/01.mp3')
+        server = FlakyServer(self.server, failures=99)
+
+        with patch.object(sync_module, 'time'), patch.object(sync_module, 'LOCK_RETRIES', 3):
+            stats = sync_song_versions_to_server(
+                muma_with([row('/mnt/music/EPs/Texcore/01.mp3', work_id=42)]),
+                server,
+            )
+
+        self.assertEqual(stats['chunks_skipped'], 1)
+        self.assertEqual(stats['matched'], 0)
+        self.assertEqual(server.commits, 3, 'every retry has to reach the database')
+
+    def test_an_error_that_is_not_a_lock_is_not_waited_out(self):
+        # Waiting on a broken schema helps nobody and buries the real message.
+        self.add_track(1, '/mnt/music/EPs/Texcore/01.mp3')
+        server = FlakyServer(self.server, failures=99, error='no such table: track')
+
+        with patch.object(sync_module, 'time') as clock:
+            sync_song_versions_to_server(muma_with([row('/mnt/music/EPs/Texcore/01.mp3', work_id=42)]), server)
+
+        clock.sleep.assert_not_called()
+
+    def test_it_waits_long_enough_for_a_scan_step(self):
+        # Five seconds is what the 0.56.0 deploy tripped over.
+        self.assertGreaterEqual(sync_module.BUSY_TIMEOUT_MS, 30000)
+
+    def test_the_timeout_statement_says_what_the_constant_says(self):
+        # The statement is a literal because PRAGMA takes no bound parameter, so nothing but
+        # this test stops the two from drifting apart.
+        self.assertEqual(
+            sync_module.BUSY_TIMEOUT_STATEMENT,
+            f'PRAGMA busy_timeout = {sync_module.BUSY_TIMEOUT_MS}',
+        )
 
 
 if __name__ == '__main__':

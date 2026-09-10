@@ -79,12 +79,17 @@ def _server_has_columns(server_cursor) -> bool:
     return {'work_id', 'is_canonical', 'version_kind', 'version_score'} <= columns
 
 
-def sync_song_versions_to_server(muma_conn, server_conn) -> dict:
-    """Write muma's version model into the server database. Returns what it did."""
+def sync_song_versions_to_server(muma_conn, server_conn, source: str = 'unknown') -> dict:
+    """Write muma's version model into the server database. Returns what it did.
+
+    `source` names which server database this is. There is more than one -- a stable and an
+    alpha instance -- and a line that does not say which one it skipped costs somebody the
+    time to go and find out.
+    """
     stats = {'considered': 0, 'matched': 0, 'skipped_no_columns': 0}
     server_cursor = server_conn.cursor()
     if not _server_has_columns(server_cursor):
-        logger.info('Server database has no version columns yet; skipping the song-version sync')
+        logger.info('%s: no version columns yet, skipping the song-version sync', source)
         stats['skipped_no_columns'] = 1
         return stats
 
@@ -121,7 +126,8 @@ def sync_song_versions_to_server(muma_conn, server_conn) -> dict:
         logger.error('Song-version sync failed: %s', e, exc_info=True)
 
     logger.info(
-        'Song-version sync: %s tracks considered, %s matched in the server database',
+        '%s: song-version sync considered %s tracks, matched %s in the server database',
+        source,
         stats['considered'],
         stats['matched'],
     )

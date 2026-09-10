@@ -1,8 +1,10 @@
 import contextlib
 import json
+import logging
 import os
 import secrets
 import sqlite3
+import time
 
 import bcrypt
 import requests
@@ -1188,6 +1190,11 @@ def _sync_server_playlists(cursor, sqlite_cursor, source):
         print(f'Playlist sync failed for {source}: {pe}')
 
 
+#: Servers whose schema was not ready during the last sync, by source name. Read by
+#: run_lms_db_sync_with_retry to decide whether coming back is worth it.
+_skipped_unmigrated_servers: set[str] = set()
+
+
 def sync_single_server_db(muma_conn, db_path, source):
     print(f'Syncing Music Management Server DB: {db_path} ({source})')
     synced_users = 0
@@ -1219,14 +1226,54 @@ def sync_single_server_db(muma_conn, db_path, source):
         # locked database costs this pass and nothing more.
         from services.music_manager.song_version_sync import sync_song_versions_to_server
 
-        sync_song_versions_to_server(muma_conn, sqlite_conn)
+        versions = sync_song_versions_to_server(muma_conn, sqlite_conn, source)
+        if versions.get('skipped_no_columns'):
+            # The server is still migrating. Remembered so the caller can come back rather
+            # than leaving the columns empty until the next restart.
+            _skipped_unmigrated_servers.add(source)
         sqlite_conn.close()
     except Exception as e:
         print(f'Sync failed for {db_path}: {e}')
     return synced_users
 
 
+def run_lms_db_sync_with_retry(attempts: int = 6, delay_seconds: int = 60) -> int:
+    """Run the lms.db sync, and try again while a server has not migrated yet.
+
+    A deploy restarts both services at once, and muma usually wins: it syncs before the
+    server has applied its own schema migration, finds no version columns, and skips. That
+    was correct -- writing to a schema that is mid-migration is the one thing not to do --
+    but nothing came back afterwards, so the columns stayed empty until somebody restarted
+    the container by hand. That happened on the 0.54.0 deploy, and without the restart the
+    release would have shipped a feature that silently did nothing.
+
+    Retries only while a database was skipped for that reason. Everything else -- a locked
+    database, an unreachable server, no lms.db at all -- is already best-effort inside the
+    sync itself and gets no second pass here.
+    """
+    for attempt in range(1, attempts + 1):
+        synced = run_lms_db_sync()
+        if not _skipped_unmigrated_servers:
+            return synced
+        if attempt == attempts:
+            logging.warning(
+                'lms.db sync: %s server database(s) still have no version columns after %s attempts; '
+                'the song-version columns stay empty until the next restart',
+                len(_skipped_unmigrated_servers),
+                attempts,
+            )
+            return synced
+        logging.info(
+            'lms.db sync: %s server database(s) not migrated yet, trying again in %ss',
+            len(_skipped_unmigrated_servers),
+            delay_seconds,
+        )
+        time.sleep(delay_seconds)
+    return 0
+
+
 def run_lms_db_sync():
+    _skipped_unmigrated_servers.clear()
     db_root = os.getenv('MUMA_SERVER_DB_ROOT') or os.getenv('LMS_DB_ROOT') or '/app/data'
     targets = []
 

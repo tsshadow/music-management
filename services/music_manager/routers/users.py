@@ -1198,6 +1198,7 @@ _skipped_unmigrated_servers: set[str] = set()
 def sync_single_server_db(muma_conn, db_path, source):
     print(f'Syncing Music Management Server DB: {db_path} ({source})')
     synced_users = 0
+    sqlite_conn = None
     try:
         sqlite_conn = sqlite3.connect(db_path)
         sqlite_cursor = sqlite_conn.cursor()
@@ -1231,9 +1232,15 @@ def sync_single_server_db(muma_conn, db_path, source):
             # The server is still migrating. Remembered so the caller can come back rather
             # than leaving the columns empty until the next restart.
             _skipped_unmigrated_servers.add(source)
-        sqlite_conn.close()
     except Exception as e:
         print(f'Sync failed for {db_path}: {e}')
+    finally:
+        # In a finally, because a connection that is dropped mid-exception keeps whatever
+        # transaction it had open -- and the server dies on a locked database rather than
+        # waiting for it. That is how a failed sync took the player down for 102 restarts.
+        if sqlite_conn is not None:
+            with contextlib.suppress(Exception):
+                sqlite_conn.close()
     return synced_users
 
 

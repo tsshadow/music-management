@@ -23,6 +23,7 @@ import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.api.subsonic.models.Filter
 import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.MemoryGroup
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.service.FeedRepository
@@ -55,58 +56,69 @@ class HomeViewModel(
     private val feeds: FeedRepository by feedRepository
 
     /**
-     * One entry per provider, in provider order. Positions are kept rather than compacted so that
-     * a section always renders in its own slot, and so a slot can show a skeleton while the
-     * sections around it are already filled in.
+     * What the screen is made of, in order: the shared button grid first when anything is set to
+     * button, then one slot per section set to overview. Positions are kept rather than compacted
+     * so that a slot can show a skeleton while the ones around it are already filled in.
      */
-    private val mutableSections = MutableStateFlow<List<HomeSectionState>>(emptyList())
-    val sections: StateFlow<List<HomeSectionState>> = mutableSections.asStateFlow()
+    private val mutableSlots = MutableStateFlow<List<HomeSlot>>(emptyList())
+    val slots: StateFlow<List<HomeSlot>> = mutableSlots.asStateFlow()
 
-    private val providers: List<HomeSectionProvider> = providers ?: defaultProviders()
+    /** What each section contributed to the grid, so one arriving late does not clear the rest. */
+    private val buttonCards = ConcurrentHashMap<HomeSectionId, List<HomeCard>>()
 
-    private fun defaultProviders(): List<HomeSectionProvider> = listOf(
-        MemoriesProvider(
-            titleRes = R.string.home_memories,
-            loadMemories = { date -> memories(date) },
-            today = { LocalDate.now().toString() },
-            title = { string(R.string.home_memories) },
-            summary = ::memorySummary
-        ),
-        ShortcutsProvider(
-            titleRes = R.string.home_shortcuts,
+    /**
+     * Providers handed in by a test, which then decide the whole screen: one overview slot each, in
+     * the order given, and no button grid. Null in the app, where the sections come from settings.
+     */
+    private val overrideProviders: List<HomeSectionProvider>? = providers
+
+    /** The provider that fills one section's overview, or null when that section has none. */
+    private fun providerFor(config: HomeSectionConfig): HomeSectionProvider? = when (config.id) {
+        // Memories is a button or nothing: a memory card is already a summary of a year.
+        HomeSectionId.MEMORIES -> null
+
+        HomeSectionId.SHORTCUTS -> ShortcutsProvider(
+            titleRes = config.id.titleRes,
             store = store,
             setsMode = { Settings.isSetsMode },
-            count = { HomeLimits.shortcuts(Settings.homeShortcutCount) },
+            count = { config.count },
             resolveCoverArt = { card -> borrowedCoverArt(card) }
-        ),
-        // Above the two "recently ..." lists on purpose. Those are the library sorted by date;
-        // these are the two lists that were picked for this listener, which is the reason to open
-        // the app rather than scroll it.
-        FeedProvider(
-            titleRes = R.string.home_daily_mix,
-            slug = FeedRepository.DAILY_MIX,
-            rows = ::listRows,
-            loadFeed = { slug -> feedTracks(slug) }
-        ),
-        FeedProvider(
-            titleRes = R.string.home_release_radar,
+        )
+
+        HomeSectionId.RELEASE_RADAR -> FeedProvider(
+            titleRes = config.id.titleRes,
             slug = FeedRepository.RELEASE_RADAR,
-            rows = ::listRows,
+            rows = { config.count },
             loadFeed = { slug -> feedTracks(slug) }
-        ),
-        RecentTracksProvider(
-            titleRes = R.string.home_recently_released,
+        )
+
+        HomeSectionId.DAILY_MIX -> FeedProvider(
+            titleRes = config.id.titleRes,
+            slug = FeedRepository.DAILY_MIX,
+            rows = { config.count },
+            loadFeed = { slug -> feedTracks(slug) }
+        )
+
+        HomeSectionId.FAVORITES -> FavoritesProvider(
+            titleRes = config.id.titleRes,
+            rows = { config.count },
+            loadFavorites = { count -> favoriteCards(count) }
+        )
+
+        HomeSectionId.RECENTLY_RELEASED -> RecentTracksProvider(
+            titleRes = config.id.titleRes,
             sortMethod = HomeSorts.RELEASED,
-            rows = ::listRows,
-            loadTracks = { sortMethod, count -> tracks(sortMethod, count) }
-        ),
-        RecentTracksProvider(
-            titleRes = R.string.home_recently_added,
-            sortMethod = HomeSorts.ADDED,
-            rows = ::listRows,
+            rows = { config.count },
             loadTracks = { sortMethod, count -> tracks(sortMethod, count) }
         )
-    )
+
+        HomeSectionId.RECENTLY_ADDED -> RecentTracksProvider(
+            titleRes = config.id.titleRes,
+            sortMethod = HomeSorts.ADDED,
+            rows = { config.count },
+            loadTracks = { sortMethod, count -> tracks(sortMethod, count) }
+        )
+    }
 
     /**
      * Loads every section at once and publishes each one the moment it arrives, so a fast section
@@ -116,12 +128,45 @@ class HomeViewModel(
      * return to the home screen only looks broken.
      */
     fun load() {
+        val configs = if (overrideProviders == null) HomeLayoutSettings.visible() else emptyList()
+        val buttons = configs.filter { it.mode == HomeSectionMode.BUTTON }
+
+        val overviews: List<Pair<HomeSectionId, HomeSectionProvider>> = overrideProviders
+            ?.mapIndexed { index, provider -> HomeSectionId.entries[index % HomeSectionId.entries.size] to provider }
+            ?: configs.filter { it.mode == HomeSectionMode.OVERVIEW }
+                .mapNotNull { config -> providerFor(config)?.let { config.id to it } }
+
+        // The shape first, so the screen has its slots before anything is loaded. Every button that
+        // needs no request is already in this emission: the grid is on screen immediately and only
+        // the sections that hold items fill in behind it.
+        buttonCards.keys.retainAll(buttons.map { it.id }.toSet())
+        buttons.forEach { config ->
+            instantButtons(config)?.let { buttonCards[config.id] = it }
+        }
+        publishSlots(buttons.isNotEmpty(), overviews.map { it.first })
+
         viewModelScope.launch {
-            mutableSections.value = providers.indices.map {
-                mutableSections.value.getOrElse(it) { HomeSectionState.Loading }
+            buttons.forEach { config ->
+                launch(ioDispatcher) {
+                    // A button that cannot be refreshed keeps the one it had: unlike a list, there
+                    // is nothing partial to show, and an entry vanishing reads as the section being
+                    // gone rather than as a request that failed.
+                    val loaded = try {
+                        loadedButtons(config)
+                    } catch (e: Exception) {
+                        Timber.w(e, "Home buttons for %s failed to load", config.id)
+                        null
+                    }
+                    if (loaded != null) {
+                        buttonCards[config.id] = loaded
+                        publishGrid()
+                    }
+                }
             }
 
-            providers.forEachIndexed { index, provider ->
+            overviews.forEachIndexed { position, (_, provider) ->
+                val index = position + if (buttons.isEmpty()) 0 else 1
+
                 launch(ioDispatcher) {
                     val cached = provider.cacheKey?.let { cardCache.read(it) }
                     if (cached != null && cached.cards.isNotEmpty()) {
@@ -137,6 +182,107 @@ class HomeViewModel(
                         publishFailed(index, provider, cached)
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * The buttons a section can draw without asking anything: the ones that stand for a whole
+     * destination, plus the shortcuts, which come out of a local store.
+     *
+     * Null means "this section has to load first", and whatever it contributed last stays up
+     * meanwhile rather than the grid jumping.
+     */
+    private fun instantButtons(config: HomeSectionConfig): List<HomeCard>? = when (config.id) {
+        HomeSectionId.RELEASE_RADAR,
+        HomeSectionId.DAILY_MIX,
+        HomeSectionId.RECENTLY_RELEASED,
+        HomeSectionId.RECENTLY_ADDED,
+        HomeSectionId.MEMORIES -> listOf(HomeButtons.forSection(config.id, string(config.id.titleRes)))
+
+        HomeSectionId.SHORTCUTS -> shortcutButtons(config)
+
+        HomeSectionId.FAVORITES -> null
+    }
+
+    /** What a section needs a request for, or null when [instantButtons] already said everything. */
+    private suspend fun loadedButtons(config: HomeSectionConfig): List<HomeCard>? = when (config.id) {
+        // The button is already up; this only adds "Vandaag, 1 jaar geleden - 30 nummers" to it.
+        HomeSectionId.MEMORIES -> memoryButton(config)
+
+        HomeSectionId.FAVORITES -> HomeButtons.forItems(
+            id = config.id,
+            cards = favoriteCards(config.count),
+            sourceLabel = string(R.string.home_source_favorite),
+            count = config.count
+        ).ifEmpty { listOf(HomeButtons.forSection(config.id, string(config.id.titleRes))) }
+
+        else -> null
+    }
+
+    /**
+     * The shortcuts, or one button standing for the section when there are none yet.
+     *
+     * A section set to button keeps its place on an empty library: only "uit" takes a section off
+     * the screen, and a grid that silently loses two entries reads as something being broken.
+     */
+    private fun shortcutButtons(config: HomeSectionConfig): List<HomeCard> = HomeButtons.forItems(
+        id = config.id,
+        cards = store.recent(Settings.isSetsMode, config.count),
+        sourceLabel = string(R.string.home_source_shortcut),
+        count = config.count
+    ).ifEmpty { listOf(HomeButtons.forSection(config.id, string(config.id.titleRes))) }
+
+    private fun memoryButton(config: HomeSectionConfig): List<HomeCard> {
+        val nearest = memories(LocalDate.now().toString())
+            .filter { it.tracks.isNotEmpty() }
+            .minByOrNull { it.yearsAgo }
+            ?: return listOf(HomeButtons.forSection(config.id, string(config.id.titleRes)))
+
+        return listOf(
+            HomeButtons.forSection(config.id, string(config.id.titleRes)).copy(
+                subtitle = memorySummary(nearest),
+                coverArtId = nearest.tracks.firstOrNull()?.coverArt
+            )
+        )
+    }
+
+    /**
+     * The slots, rebuilt. Anything already loaded keeps its state: this runs on every return to the
+     * home screen, and replacing live content with skeletons every time only looks broken.
+     */
+    private fun publishSlots(hasButtons: Boolean, overviews: List<HomeSectionId>) {
+        mutableSlots.update { current ->
+            val previous = current.filter { it.id != null }.associateBy { it.id }
+            buildList {
+                if (hasButtons) {
+                    add(HomeSlot(id = null, style = CardStyle.GRID, state = HomeSectionState.Content(gridSection())))
+                }
+                overviews.forEach { id ->
+                    add(
+                        HomeSlot(
+                            id = id,
+                            style = styleFor(id),
+                            state = previous[id]?.state ?: HomeSectionState.Loading
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    /** A section's own shape when it is shown as an overview. */
+    private fun styleFor(id: HomeSectionId): CardStyle = when (id) {
+        HomeSectionId.SHORTCUTS, HomeSectionId.FAVORITES -> CardStyle.GRID
+        else -> CardStyle.LIST
+    }
+
+    private fun gridSection(): HomeSection = HomeSection(R.string.music_library_label, CardStyle.GRID, HomeButtons.grid(buttonCards))
+
+    private fun publishGrid() {
+        mutableSlots.update { current ->
+            current.map { slot ->
+                if (slot.id != null) slot else slot.copy(state = HomeSectionState.Content(gridSection()))
             }
         }
     }
@@ -174,8 +320,10 @@ class HomeViewModel(
 
     /** Replaces one slot without disturbing the others, whichever order they finish in. */
     private fun publish(index: Int, state: HomeSectionState) {
-        mutableSections.update { current ->
-            current.mapIndexed { slot, existing -> if (slot == index) state else existing }
+        mutableSlots.update { current ->
+            current.mapIndexed { position, existing ->
+                if (position == index) existing.copy(state = state) else existing
+            }
         }
     }
 
@@ -189,7 +337,35 @@ class HomeViewModel(
      * Hiding it is enforced here rather than in the provider so that the provider stays a plain
      * mapper with no opinion about settings.
      */
-    private fun memories(date: String): List<MemoryGroup> = if (Settings.memoriesOnHome) getMusicService().getMemories(date) else emptyList()
+    /**
+     * The memory groups for [date].
+     *
+     * No longer gated on a setting of its own: whether memories appear at all is the section's mode
+     * now, and this is only reached when that mode is not "uit".
+     */
+    private fun memories(date: String): List<MemoryGroup> = getMusicService().getMemories(date)
+
+    /**
+     * The favourites worth a card: starred albums and artists, which are both a place to go.
+     *
+     * The tracks rated four and five stars stay on the Favorites tab. On the home screen they would
+     * be a third kind of card in a grid that already has to explain itself, and playing one is what
+     * the shortcuts are for.
+     */
+    private fun favoriteCards(count: Int): List<HomeCard> {
+        val starred = if (ActiveServerProvider.shouldUseId3Tags()) {
+            getMusicService().getStarred2()
+        } else {
+            getMusicService().getStarred()
+        }
+
+        val albums = starred.albums.orEmpty().map { it.toHomeCard() }
+        val artists = starred.artists.orEmpty().map { it.toHomeCard() }
+
+        // Albums first and then artists, rather than interleaved: the order has to be the same on
+        // every load or the grid reshuffles itself whenever the server answers in another order.
+        return (albums + artists).take(count)
+    }
 
     /** Resolved here rather than in the provider, which is deliberately free of a context. */
     private fun memoryLabel(group: MemoryGroup): String = UApp.applicationContext().getString(

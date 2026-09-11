@@ -97,6 +97,39 @@ object Settings {
             HomeLimits.DEFAULT_LIST_ROWS
         )
 
+    // One mode per home section. Stored as the HomeSectionMode name; everything that reads them
+    // goes through HomeLayoutSettings, which is what turns an unwritten or hand-edited value into
+    // something renderable. Memories' old on/off checkbox is still read as a fallback there.
+    @JvmStatic
+    var homeModeMemories by StringSetting(getKey(R.string.setting_key_home_mode_memories), "")
+
+    @JvmStatic
+    var homeModeReleaseRadar by StringSetting(getKey(R.string.setting_key_home_mode_release_radar), "")
+
+    @JvmStatic
+    var homeModeDailyMix by StringSetting(getKey(R.string.setting_key_home_mode_daily_mix), "")
+
+    @JvmStatic
+    var homeModeFavorites by StringSetting(getKey(R.string.setting_key_home_mode_favorites), "")
+
+    @JvmStatic
+    var homeModeShortcuts by StringSetting(getKey(R.string.setting_key_home_mode_shortcuts), "")
+
+    @JvmStatic
+    var homeModeRecentlyReleased by StringSetting(getKey(R.string.setting_key_home_mode_recently_released), "")
+
+    @JvmStatic
+    var homeModeRecentlyAdded by StringSetting(getKey(R.string.setting_key_home_mode_recently_added), "")
+
+    // The two sections that are new enough not to have a count of their own yet. Shortcuts and the
+    // recent lists keep reading home_shortcut_count and home_list_count, so an upgrade shows the
+    // same amount of the same things it showed yesterday.
+    @JvmStatic
+    var homeCountDailyMix by StringIntSetting(getKey(R.string.setting_key_home_count_daily_mix), 0)
+
+    @JvmStatic
+    var homeCountFavorites by StringIntSetting(getKey(R.string.setting_key_home_count_favorites), 0)
+
     @JvmStatic
     var lastSyncedVersion by IntSetting(
         getKey(R.string.setting_key_last_synced_version),

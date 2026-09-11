@@ -13,6 +13,11 @@
     <action
         android:id="@+id/toMemories"
         app:destination="@id/memoriesFragment" />
+    <!-- The Favorites home button opens the same screen the bottom bar does. A global action
+         because the button lives on the home screen, which is a different destination. -->
+    <action
+        android:id="@+id/toFavorites"
+        app:destination="@id/favoritesFragment" />
     <action
         android:id="@+id/toMediaLibrary"
         app:destination="@id/mediaLibraryFragment" />
@@ -166,6 +171,13 @@
             android:name="filters"
             app:argType="string"
             android:defaultValue="@null"
+            app:nullable="true" />
+        <!-- A personalized feed's slug: "release-radar" or "daily-mix". Set, it is the whole
+             query: the list is MuMa's ranking and not something the filters below can express. -->
+        <argument
+            android:name="feed"
+            android:defaultValue="@null"
+            app:argType="string"
             app:nullable="true" />
         <argument
             android:name="year"

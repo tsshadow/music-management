@@ -6,27 +6,14 @@
     a:fillViewport="true">
 
     <LinearLayout
+        a:id="@+id/home_sections"
         a:layout_width="match_parent"
         a:layout_height="wrap_content"
         a:orientation="vertical"
         a:paddingTop="8dp"
         a:paddingBottom="80dp">
 
-        <include
-            a:id="@+id/section_memories"
-            layout="@layout/home_section" />
-
-        <include
-            a:id="@+id/section_shortcuts"
-            layout="@layout/home_section" />
-
-        <include
-            a:id="@+id/section_released"
-            layout="@layout/home_section" />
-
-        <include
-            a:id="@+id/section_added"
-            layout="@layout/home_section" />
-
-    </LinearLayout>
+        <!-- Filled at runtime: which sections there are, and in which shape, is a setting now.
+             MainFragment inflates one home_section per slot into here. -->
+        </LinearLayout>
 </androidx.core.widget.NestedScrollView>

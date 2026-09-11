@@ -69,6 +69,18 @@
     <string name="setting_key.separate_home_history" translatable="false">separateHomeHistory</string>
     <string name="setting_key.home_shortcut_count" translatable="false">homeShortcutCount</string>
     <string name="setting_key.home_list_count" translatable="false">homeListCount</string>
+
+    <!-- One mode and one count per home section. The section names match HomeSectionId so that a
+         new section needs a key here and nothing else in the resolution. -->
+    <string name="setting_key.home_mode_memories" translatable="false">homeModeMEMORIES</string>
+    <string name="setting_key.home_mode_release_radar" translatable="false">homeModeRELEASE_RADAR</string>
+    <string name="setting_key.home_mode_daily_mix" translatable="false">homeModeDAILY_MIX</string>
+    <string name="setting_key.home_mode_favorites" translatable="false">homeModeFAVORITES</string>
+    <string name="setting_key.home_mode_shortcuts" translatable="false">homeModeSHORTCUTS</string>
+    <string name="setting_key.home_mode_recently_released" translatable="false">homeModeRECENTLY_RELEASED</string>
+    <string name="setting_key.home_mode_recently_added" translatable="false">homeModeRECENTLY_ADDED</string>
+    <string name="setting_key.home_count_daily_mix" translatable="false">homeCountDAILY_MIX</string>
+    <string name="setting_key.home_count_favorites" translatable="false">homeCountFAVORITES</string>
     <string name="setting_key.last_synced_version" translatable="false">lastSyncedVersion</string>
     <string name="setting_key.muma_api_key" translatable="false">mumaApiKey</string>
     <string name="setting_key.muma_user_id" translatable="false">mumaUserId</string>

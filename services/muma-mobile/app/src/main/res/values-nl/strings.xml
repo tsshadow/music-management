@@ -584,6 +584,16 @@
     <string name="home.recently_released">Recent uitgebracht</string>
     <string name="home.daily_mix">Dagelijkse mix</string>
     <string name="home.release_radar">Release radar</string>
+    <string name="home.favorites">Favorieten</string>
+    <string name="home.source_favorite">favoriet</string>
+    <string name="home.source_shortcut">recent gespeeld</string>
+    <string name="home.mode_button">Knop</string>
+    <string name="home.mode_overview">Overzicht</string>
+    <string name="home.mode_off">Uit</string>
+    <string name="settings.home_title">Startscherm</string>
+    <string name="settings.home_summary">Een knop opent het vanuit het raster bovenaan; een overzicht toont de inhoud eronder.</string>
+    <string name="settings.home_count_daily_mix_title">Aantal dagelijkse mixen</string>
+    <string name="settings.home_count_favorites_title">Aantal favorieten</string>
     <string name="home.recently_added">Recent toegevoegd</string>
     <string name="home.show_more">Meer</string>
     <plurals name="home.memories_track_count">

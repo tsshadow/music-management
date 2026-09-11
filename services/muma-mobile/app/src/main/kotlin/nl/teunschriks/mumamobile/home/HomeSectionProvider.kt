@@ -180,3 +180,32 @@ class FeedProvider(
         return HomeSection(titleRes, CardStyle.LIST, cards)
     }
 }
+
+/**
+ * Favourites on the home screen: the albums and artists the listener starred.
+ *
+ * The same three categories the Favorites tab shows would be three sections in one, so the home
+ * screen takes the two that are a place to go -- an album and an artist -- and leaves the rated
+ * tracks to the tab, where they have room to be a list.
+ *
+ * [loadFavorites] is passed in for the same reason as everywhere else here: it keeps this a mapper
+ * that can be tested without a sixty-method music service.
+ */
+class FavoritesProvider(
+    @StringRes private val titleRes: Int,
+    private val rows: () -> Int,
+    private val loadFavorites: suspend (count: Int) -> List<HomeCard>
+) : HomeSectionProvider {
+
+    override val cacheKey: String = "favorites"
+
+    override fun sectionOf(cards: List<HomeCard>): HomeSection = HomeSection(titleRes, CardStyle.GRID, cards)
+
+    override suspend fun load(): HomeSection? {
+        val requested = rows()
+        val cards = loadFavorites(requested).take(requested)
+        if (cards.isEmpty()) return null
+
+        return HomeSection(titleRes, CardStyle.GRID, cards)
+    }
+}

@@ -11,6 +11,49 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.59.0 (2026-09-11)
+
+- **De dagelijkse mix en de release radar staan nu ook in de web-UI en op de telefoon**, niet alleen
+  in de auto. Op het startscherm staan ze bovenaan als twee rijen; "toon alles" opent de hele feed
+  met een afspeelknop, op `/daily-mix` en `/release-radar`.
+- **De rij die "Release Radar" heette op het webstartscherm was de radar niet.** Dat was
+  `getSpotifyPlaylist?id=spotify:release_radar`: de hele bibliotheek onder tien minuten, gesorteerd
+  op releasedatum — dezelfde lijst voor elke luisteraar, persoonlijk in naam alleen. MuMa's echte
+  radar weet wat dit account draait en neemt de naam en de plek over. Het server-endpoint blijft
+  bestaan voor wie het nog aanroept.
+- Een feed die leeg terugkomt laat zijn rij weg in plaats van een kop boven niets te zetten. Leeg is
+  een echt antwoord — er kwam deze week niets uit dat past — en dat hoort er anders uit te zien dan
+  een lijst die nog laadt.
+
+- **Productie wordt elke nacht om 02:00 nagelopen.** Nieuwe fouten worden beoordeeld en,
+  als de oorzaak eenduidig is, als fix-MR klaargezet; elke nacht komt er één
+  ntfy-bericht, ook als er niets was.
+
+- **De lms.db-sync liep zes keer per uur in plaats van één keer.** Er draait een tweede
+  LMS-instantie (`alpha`) die de migratie naar databaseversie 118 nooit heeft gedraaid. De
+  herhaalpoging uit 0.55.0 zag daardoor elke ronde "server nog niet gemigreerd" en herhaalde de
+  vólledige pass — 285.360 tracks, ook voor de server die net correct was weggeschreven. Zes keer
+  per uur, tegen een database die de speler open heeft staan.
+- Een herhaalpoging gaat nu alleen nog over de servers die daadwerkelijk zijn overgeslagen. De eerste
+  ronde dekt alles, elke volgende noemt precies de instantie waarop gewacht wordt — en de
+  waarschuwing daarna zegt welke dat is, in plaats van hoeveel het er waren.
+
+- **De versie-sync legde de speler plat.** LMS sterft aan een vergrendelde database — een
+  onafgevangen exception, het proces stopt — en de sync hield dat slot vast: elke ronde alle 285.671
+  rijen herschrijven, met dertig seconden geduld per statement en vijftien seconden tussen elke
+  nieuwe poging. Resultaat: **102 herstarts** en een onbereikbare bibliotheek.
+- De rolverdeling was omgekeerd. Dit is een achtergrondtaak en LMS is de speler; als beide hetzelfde
+  slot willen, hoort degene naar wie niemand luistert te wijken. De wachttijd gaat van dertig
+  seconden naar twee, het aantal pogingen van tien naar drie, en de pauze ertussen van vijftien
+  seconden naar een minuut — wachten in plaats van duwen. Wat blijft liggen kost niets: de volgende
+  ronde schrijft dezelfde rijen.
+- **En er wordt alleen nog geschreven wat verandert.** De `UPDATE` draagt dezelfde vier waarden
+  nogmaals als voorwaarde, dus een rij die het al goed heeft wordt niet aangeraakt. Na de eerste
+  ronde is dat vrijwel alles: 285.000 ongewijzigde rijen per uur herschrijven is wat deze taak
+  überhaupt in het pad van de speler bracht.
+- **Een mislukte sync liet zijn verbinding open staan.** `sqlite_conn.close()` stond ná de
+  `try`-body, dus bij een fout werd hij overgeslagen en bleef de transactie hangen — een slot dat
+  niemand meer losliet. Nu in een `finally`.
 ## Global Version 0.58.0 (2026-09-10)
 
 - De release radar en de dagelijkse mix zijn nu te starten vanuit de auto. MuMa rangschikt de feed

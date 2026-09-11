@@ -69,6 +69,14 @@ namespace lms::db
                 LMS_LOG(DB, DEBUG, "Setting per-connection settings...");
                 executeSql("PRAGMA journal_mode=WAL");
                 executeSql("PRAGMA synchronous=normal");
+                // Without this SQLite answers a held write lock with SQLITE_BUSY at once, and
+                // at startup that surfaces as an uncaught exception from ANALYZE -- the process
+                // dies, autoheal restarts it, and the next startup meets the same lock. muma
+                // writes into this database on a schedule (users, playlists, artist images,
+                // song versions) in transactions of a few seconds, and two such writes cost
+                // this server 102 and 43 restarts in one day. Waiting is the whole fix: WAL
+                // already lets readers through, so this only ever serialises two writers.
+                executeSql("PRAGMA busy_timeout=15000");
                 executeSql("PRAGMA uri=ON");
                 executeSql("ATTACH DATABASE 'file::memory:?cache=shared' AS volatile");
                 LMS_LOG(DB, DEBUG, "Setting per-connection settings done!");

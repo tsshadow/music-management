@@ -46,12 +46,6 @@
             app:iconSpaceReserved="false"/>
         <CheckBoxPreference
             a:defaultValue="true"
-            a:key="@string/setting_key.memories_on_home"
-            a:summary="@string/settings.memories_on_home_summary"
-            a:title="@string/settings.memories_on_home_title"
-            app:iconSpaceReserved="false"/>
-        <CheckBoxPreference
-            a:defaultValue="true"
             a:key="@string/setting_key.separate_home_history"
             a:summary="@string/settings.separate_home_history_summary"
             a:title="@string/settings.separate_home_history_title"
@@ -72,6 +66,92 @@
             a:summary="@string/settings.home_list_count_summary"
             a:title="@string/settings.home_list_count_title"
             app:iconSpaceReserved="false"/>
+    </PreferenceCategory>
+
+    <!-- One row per home section, in the order they appear on the screen. Everything set to a
+         button shares the grid at the top; everything set to an overview keeps its own heading
+         below it. See docs/designs/home-sections/functional.md. -->
+    <PreferenceCategory
+        a:summary="@string/settings.home_summary"
+        a:title="@string/settings.home_title"
+        app:iconSpaceReserved="false">
+        <ListPreference
+            a:defaultValue="BUTTON"
+            a:entries="@array/homeSectionModeNamesNoOverview"
+            a:entryValues="@array/homeSectionModeValuesNoOverview"
+            a:key="@string/setting_key.home_mode_memories"
+            a:title="@string/home.memories"
+            app:iconSpaceReserved="false"
+            app:useSimpleSummaryProvider="true"/>
+        <ListPreference
+            a:defaultValue="BUTTON"
+            a:entries="@array/homeSectionModeNames"
+            a:entryValues="@array/homeSectionModeValues"
+            a:key="@string/setting_key.home_mode_release_radar"
+            a:title="@string/home.release_radar"
+            app:iconSpaceReserved="false"
+            app:useSimpleSummaryProvider="true"/>
+        <ListPreference
+            a:defaultValue="BUTTON"
+            a:entries="@array/homeSectionModeNames"
+            a:entryValues="@array/homeSectionModeValues"
+            a:key="@string/setting_key.home_mode_daily_mix"
+            a:title="@string/home.daily_mix"
+            app:iconSpaceReserved="false"
+            app:useSimpleSummaryProvider="true"/>
+        <ListPreference
+            a:defaultValue="2"
+            a:entries="@array/homeListCounts"
+            a:entryValues="@array/homeListCounts"
+            a:key="@string/setting_key.home_count_daily_mix"
+            a:title="@string/settings.home_count_daily_mix_title"
+            app:iconSpaceReserved="false"
+            app:useSimpleSummaryProvider="true"/>
+        <ListPreference
+            a:defaultValue="OFF"
+            a:entries="@array/homeSectionModeNames"
+            a:entryValues="@array/homeSectionModeValues"
+            a:key="@string/setting_key.home_mode_favorites"
+            a:title="@string/home.favorites"
+            app:iconSpaceReserved="false"
+            app:useSimpleSummaryProvider="true"/>
+        <ListPreference
+            a:defaultValue="4"
+            a:entries="@array/homeListCounts"
+            a:entryValues="@array/homeListCounts"
+            a:key="@string/setting_key.home_count_favorites"
+            a:title="@string/settings.home_count_favorites_title"
+            app:iconSpaceReserved="false"
+            app:useSimpleSummaryProvider="true"/>
+        <ListPreference
+            a:defaultValue="OVERVIEW"
+            a:entries="@array/homeSectionModeNames"
+            a:entryValues="@array/homeSectionModeValues"
+            a:key="@string/setting_key.home_mode_shortcuts"
+            a:title="@string/home.shortcuts"
+            app:iconSpaceReserved="false"
+            app:useSimpleSummaryProvider="true"/>
+        <ListPreference
+            a:defaultValue="OVERVIEW"
+            a:entries="@array/homeSectionModeNames"
+            a:entryValues="@array/homeSectionModeValues"
+            a:key="@string/setting_key.home_mode_recently_released"
+            a:title="@string/home.recently_released"
+            app:iconSpaceReserved="false"
+            app:useSimpleSummaryProvider="true"/>
+        <ListPreference
+            a:defaultValue="OVERVIEW"
+            a:entries="@array/homeSectionModeNames"
+            a:entryValues="@array/homeSectionModeValues"
+            a:key="@string/setting_key.home_mode_recently_added"
+            a:title="@string/home.recently_added"
+            app:iconSpaceReserved="false"
+            app:useSimpleSummaryProvider="true"/>
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        a:title="@string/settings.appearance_title"
+        app:iconSpaceReserved="false">
         <CheckBoxPreference
             a:defaultValue="true"
             a:key="@string/setting_key.server_scaling"

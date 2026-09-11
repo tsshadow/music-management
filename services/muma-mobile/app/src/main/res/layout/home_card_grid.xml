@@ -26,6 +26,11 @@
             app:layout_constraintTop_toTopOf="parent"
             tools:src="@drawable/unknown_album" />
 
+        <!-- Title and source are one vertically centred block: a card in the shared grid has to
+             say what it is *and* which section put it there, because the grid has no headings and
+             the same album can arrive from Favorieten and from the shortcuts alike. The title drops
+             to one line when there is a source to show; HomeCardAdapter does that, because whether
+             there is one is a property of the card. -->
         <TextView
             a:id="@+id/card_title"
             a:layout_width="0dp"
@@ -37,11 +42,30 @@
             a:textAppearance="@style/TextAppearance.Material3.LabelLarge"
             a:textColor="?android:attr/textColorPrimary"
             a:textStyle="bold"
-            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintBottom_toTopOf="@+id/card_subtitle"
             app:layout_constraintEnd_toStartOf="@+id/card_favorite"
             app:layout_constraintStart_toEndOf="@+id/card_image"
             app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_chainStyle="packed"
             tools:text="Recent Hardstyle" />
+
+        <TextView
+            a:id="@+id/card_subtitle"
+            a:layout_width="0dp"
+            a:layout_height="wrap_content"
+            a:layout_marginStart="10dp"
+            a:layout_marginEnd="8dp"
+            a:ellipsize="end"
+            a:maxLines="1"
+            a:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+            a:textColor="?android:attr/textColorSecondary"
+            a:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/card_favorite"
+            app:layout_constraintStart_toEndOf="@+id/card_image"
+            app:layout_constraintTop_toBottomOf="@+id/card_title"
+            tools:text="favoriet"
+            tools:visibility="visible" />
 
         <ImageView
             a:id="@+id/card_favorite"

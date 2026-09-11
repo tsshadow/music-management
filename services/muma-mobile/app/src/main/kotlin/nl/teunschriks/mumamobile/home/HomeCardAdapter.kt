@@ -7,6 +7,7 @@
 
 package nl.teunschriks.mumamobile.home
 
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -83,12 +84,35 @@ class HomeCardAdapter(
         return ViewHolder(LayoutInflater.from(parent.context).inflate(layout, parent, false))
     }
 
+    /**
+     * The second line, which the grid treats differently from every other style.
+     *
+     * A list or a carousel card always has room for one, so it falls back to naming the card's type
+     * ("Genre", "Album") when the card itself says nothing. A grid card is 56dp tall and shares that
+     * space with its title, so it only spends it on something the card actually chose to say -- in
+     * the shared button grid that is which section contributed the button, which is the one thing
+     * the grid cannot show any other way. Everything else keeps the two-line title it has today.
+     */
+    private fun bindSubtitle(holder: ViewHolder, card: HomeCard, context: Context) {
+        val subtitle = holder.subtitle ?: return
+
+        if (style != CardStyle.GRID) {
+            subtitle.text = card.subtitle ?: context.getString(subtitleResFor(card.type))
+            return
+        }
+
+        val own = card.subtitle
+        subtitle.visibility = if (own.isNullOrBlank()) View.GONE else View.VISIBLE
+        subtitle.text = own.orEmpty()
+        holder.title.maxLines = if (own.isNullOrBlank()) 2 else 1
+    }
+
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val card = items[position]
         val context = holder.itemView.context
 
         holder.title.text = card.title
-        holder.subtitle?.text = card.subtitle ?: context.getString(subtitleResFor(card.type))
+        bindSubtitle(holder, card, context)
         holder.itemView.setOnClickListener { onClick(card) }
         holder.favorite?.visibility = if (card.isFavorite) View.VISIBLE else View.GONE
         bindMeta(holder, card)
@@ -198,9 +222,13 @@ class HomeCardAdapter(
         // A memory card always sets its own subtitle (the track count); this is only the fallback.
         HomeCardType.MEMORY -> R.string.home_memories
         HomeCardType.DYNAMIC_PLAYLIST, HomeCardType.STATIC_PLAYLIST -> R.string.playlist_label
+        // A section button names itself in its title; the fallback is never reached in the grid,
+        // which is the only place these appear.
+        HomeCardType.SECTION -> R.string.music_library_label
     }
 
     private fun defaultResourceFor(type: HomeCardType): Int = when (type) {
+        HomeCardType.SECTION -> R.drawable.ic_menu_playlists
         HomeCardType.ALBUM -> R.drawable.unknown_album
         HomeCardType.ARTIST -> R.drawable.ic_contact_picture
         HomeCardType.TRACK -> R.drawable.baseline_music_note_24

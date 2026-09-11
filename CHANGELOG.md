@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.60.0] - 2026-09-11
+
+### Added
+- **Het startscherm van de app is instelbaar.** Onder Instellingen → Startscherm krijgt elke sectie
+  één keuze — **knop**, **overzicht** of **uit** — plus hoeveel hij toont. Alles op knop vult samen
+  één raster bovenaan (Memories, Release radar, Dagelijkse mix, favorieten, shortcuts, in vaste
+  volgorde), alles op overzicht houdt zijn eigen kop eronder. Favorieten staan er nieuw bij en
+  beginnen uit. `HomeLayout.resolve()` is een pure functie over de opgeslagen waarden, dus wat een
+  bestaande gebruiker na de upgrade krijgt is te testen zonder Android: het oude memories-vinkje zet
+  memories nog steeds uit, `home_shortcut_count` en `home_list_count` gaan ongewijzigd mee, en een
+  waarde die de app niet kent valt terug op een standaard. Ontwerp in `docs/designs/home-sections/`.
+- **Recent uitgebracht en Recent toegevoegd waren in 6.34.0 van het startscherm verdwenen.**
+  `primary.xml` had vier vaste sectieslots en `MainFragment.render()` koppelde die op index aan de
+  secties van de view model, dus de twee feeds namen de plekken van de twee recent-lijsten in — met
+  hun "Meer"-knop, die daarna de verkeerde lijst opende. De slots zijn weg: er wordt er één
+  geïnflate per sectie die de view model noemt, en de acties komen uit de sectie zelf.
+- `HomeCard.key` was `type:itemId`, waardoor hetzelfde album dat zowel Favorieten als Shortcuts
+  aanleveren één identiteit was en de diffing één van de twee knoppen liet vallen. De aanleverende
+  sectie zit er nu in.
+- De dagelijkse mix en de release radar hebben een eigen pagina op de telefoon
+  (`trackCollectionFragment` met een `feed`-argument): MuMa's volgorde, geen filters eroverheen,
+  niet sorteerbaar en geen paginering.
 ## [0.59.0] - 2026-09-11
 
 ### Added

@@ -81,9 +81,14 @@ fun wizardCatalog(context: Context): List<WizardStep> = listOf(
         bodyRes = R.string.wizard_step_memories_body,
         imageRes = null,
         introducedIn = 0,
-        control = WizardControl.Toggle(
-            prefKey = context.getString(R.string.setting_key_memories_on_home),
-            default = true
+        // A mode rather than a checkbox since the home screen became configurable: the same
+        // question, but it now writes the key the home screen actually reads. The old
+        // memories_on_home is still honoured for anyone who answered this before.
+        control = WizardControl.Choice(
+            prefKey = context.getString(R.string.setting_key_home_mode_memories),
+            entriesRes = R.array.homeSectionModeNamesNoOverview,
+            valuesRes = R.array.homeSectionModeValuesNoOverview,
+            default = "BUTTON"
         )
     ),
     WizardStep(

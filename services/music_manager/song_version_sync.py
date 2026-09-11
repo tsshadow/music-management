@@ -41,23 +41,27 @@ logger = logging.getLogger(__name__)
 #: is to keep each write transaction against the live server database short.
 CHUNK = 2000
 
-#: How long a statement waits for the server to let go of its write lock. Five seconds was
-#: not enough: a deploy restarts both services, LMS starts its own scan, and the sync ran
-#: into a locked database and wrote one track out of 285.332.
+#: How long a statement waits for the server to let go of its write lock -- deliberately
+#: short. This is a background job and LMS is the player: when the two want the same lock,
+#: the one nobody is listening to has to yield. Thirty seconds did the opposite, and LMS
+#: does not wait at all -- it dies on a locked database with an uncaught exception, which
+#: cost 102 restarts and the whole library being unreachable.
 #:
 #: Spelled out as a literal statement rather than built from the number. PRAGMA takes no
 #: bound parameter, so any computed form is a formatted SQL string -- a shape worth not
 #: having at all here, rather than one to explain away in the security baseline.
 #: SongVersionSyncTest keeps the two in step.
-BUSY_TIMEOUT_MS = 30000
-BUSY_TIMEOUT_STATEMENT = 'PRAGMA busy_timeout = 30000'
+BUSY_TIMEOUT_MS = 2000
+BUSY_TIMEOUT_STATEMENT = 'PRAGMA busy_timeout = 2000'
 
-#: How often a chunk may find the database locked before the pass gives up. A lock is the
-#: server working, not an error, so waiting through a scan step is the point.
-LOCK_RETRIES = 10
+#: How often a chunk may find the database locked before the pass gives up on it. Few, and
+#: far apart: retrying hard is what turned a busy server into a crashing one. What is left
+#: undone costs nothing -- the next hourly pass writes the same rows.
+LOCK_RETRIES = 3
 
-#: How long to wait after a locked chunk before trying it again.
-LOCK_BACKOFF_SECONDS = 15
+#: How long to wait after a locked chunk before trying it again. Long enough for a scan
+#: step to finish rather than to fight it.
+LOCK_BACKOFF_SECONDS = 60
 
 #: What muma knows about every track that has a media file, canonical or not. `is_canonical`
 #: is computed rather than stored: the work names its winner, so a track is canonical when
@@ -84,7 +88,12 @@ _UPDATE = """
     UPDATE track
     SET work_id = ?, is_canonical = ?, version_kind = ?, version_score = ?
     WHERE absolute_file_path = ?
+      AND (work_id IS NOT ? OR is_canonical IS NOT ? OR version_kind IS NOT ? OR version_score IS NOT ?)
 """
+
+#: Does this server know this file at all? Asked before writing, so a path that is simply
+#: not there costs a read instead of a write attempt.
+_KNOWN = 'SELECT 1 FROM track WHERE absolute_file_path = ? LIMIT 1'
 
 
 def _server_has_columns(server_cursor) -> bool:
@@ -112,18 +121,22 @@ def _write_chunk(server_conn, server_cursor, rows, stats: dict, source: str) -> 
         matched = 0
         try:
             for row in rows:
+                values = (row['work_id'], row['is_canonical'], row['version_kind'], row['version_score'])
                 # Every spelling of the path, because muma scans /mnt/music and the server
-                # was told /music. The first one that hits a row wins; a path that hits
-                # nothing is a file the server does not have, which is not an error -- the
-                # two libraries are allowed to differ.
+                # was told /music. The first one the server knows wins; a path it knows
+                # nothing about is a file it does not have, which is not an error -- the two
+                # libraries are allowed to differ.
                 for path in candidate_paths(row['file_path']):
-                    server_cursor.execute(
-                        _UPDATE,
-                        (row['work_id'], row['is_canonical'], row['version_kind'], row['version_score'], path),
-                    )
-                    if server_cursor.rowcount:
-                        matched += server_cursor.rowcount
-                        break
+                    server_cursor.execute(_KNOWN, (path,))
+                    if server_cursor.fetchone() is None:
+                        continue
+                    # The UPDATE carries the same four values again as a WHERE clause, so a
+                    # row that already says this is not rewritten. After the first pass that
+                    # is nearly every row: rewriting 285.000 unchanged rows every hour is
+                    # what put this job in the player's way to begin with.
+                    server_cursor.execute(_UPDATE, values + (path,) + values)
+                    matched += server_cursor.rowcount
+                    break
             server_conn.commit()
             return matched
         except sqlite3.OperationalError as e:

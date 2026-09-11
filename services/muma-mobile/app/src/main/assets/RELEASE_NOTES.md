@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+## Global Version 6.34.0 (2026-09-11)
+
+- **Dagelijkse mix en release radar staan nu ook op het startscherm**, niet alleen in de auto.
 ## Global Version 6.33.0 (2026-09-10)
 
 - **Dagelijkse mix en release radar staan nu in het hoofdmenu van Android Auto.**

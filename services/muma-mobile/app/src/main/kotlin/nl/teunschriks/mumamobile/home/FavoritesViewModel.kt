@@ -70,9 +70,11 @@ class FavoritesViewModel : ViewModel() {
     }
 
     private fun highlyRatedTracks(): List<Track> {
+        // The rating travels as ratingMin/ratingMax below. It used to be sent as a cluster too,
+        // and the server has no cluster type called RATING: it answered "not found" and dropped
+        // the whole request, so this section was empty on every home screen that asked for it.
         val filters = Filters().apply {
             add(Filter("LENGTH", if (Settings.isSetsMode) "long" else "short"))
-            add(Filter("RATING", MIN_RATING.toString()))
         }
 
         return getMusicService().getSongs(

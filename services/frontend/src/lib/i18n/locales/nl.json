@@ -126,6 +126,13 @@
     "reset": "Herstellen",
     "title": "Equalizer"
   },
+  "feed": {
+    "empty": "Hier staat nu niets",
+    "emptyMixHelp": "De mix wordt gebouwd uit je luistergeschiedenis. Draai wat muziek en kom terug.",
+    "emptyRadarHelp": "De radar toont releases van de afgelopen week die bij je luistergedrag passen.",
+    "mixSubtitle": "Vandaag voor jou gekozen",
+    "radarSubtitle": "Deze week uitgebracht, voor jou gekozen"
+  },
   "filter": {
     "allGenres": "Alle Genres",
     "allRatings": "Alle",
@@ -827,6 +834,7 @@
     "albums": "Albums",
     "artists": "Artiesten",
     "closeMenu": "Menu sluiten",
+    "dailyMix": "Dagelijkse mix",
     "festivals": "Festivals",
     "genres": "Genres",
     "history": "Geschiedenis",

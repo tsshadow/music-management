@@ -235,9 +235,11 @@ class LockedServerDatabaseTest(SongVersionSyncTest):
 
         clock.sleep.assert_not_called()
 
-    def test_it_waits_long_enough_for_a_scan_step(self):
-        # Five seconds is what the 0.56.0 deploy tripped over.
-        self.assertGreaterEqual(sync_module.BUSY_TIMEOUT_MS, 30000)
+    def test_it_yields_quickly_rather_than_holding_the_player_up(self):
+        # This pinned the opposite yesterday, and the opposite was wrong. LMS dies on a
+        # locked database with an uncaught exception -- 102 restarts and no music -- so the
+        # background job has to let go long before the player asks twice.
+        self.assertLessEqual(sync_module.BUSY_TIMEOUT_MS, 5000)
 
     def test_the_timeout_statement_says_what_the_constant_says(self):
         # The statement is a literal because PRAGMA takes no bound parameter, so nothing but
@@ -246,6 +248,40 @@ class LockedServerDatabaseTest(SongVersionSyncTest):
             sync_module.BUSY_TIMEOUT_STATEMENT,
             f'PRAGMA busy_timeout = {sync_module.BUSY_TIMEOUT_MS}',
         )
+
+
+class OnlyChangedRowsTest(SongVersionSyncTest):
+    """Rewriting rows that already say the right thing is what put this job in the way.
+
+    Every hour it walked 285.000 tracks and wrote all of them, holding the write lock the
+    player needs. After the first pass almost nothing changes, so almost nothing should be
+    written.
+    """
+
+    def test_a_row_that_already_agrees_is_not_rewritten(self):
+        self.add_track(1, '/mnt/music/EPs/Texcore/01.mp3', work_id=42, is_canonical=1, version_kind='radio')
+        stats = sync_song_versions_to_server(
+            muma_with([row('/mnt/music/EPs/Texcore/01.mp3', work_id=42, is_canonical=1, kind='radio')]),
+            self.server,
+        )
+        self.assertEqual(stats['considered'], 1)
+        self.assertEqual(stats['matched'], 0, 'nothing changed, so nothing was written')
+
+    def test_a_row_that_disagrees_is_written(self):
+        self.add_track(1, '/mnt/music/Soundcloud/rip.mp3', work_id=42, is_canonical=1)
+        stats = sync_song_versions_to_server(
+            muma_with([row('/mnt/music/Soundcloud/rip.mp3', work_id=42, is_canonical=0)]),
+            self.server,
+        )
+        self.assertEqual(stats['matched'], 1)
+        self.assertEqual(self.stored(1)[1], 0)
+
+    def test_a_file_the_server_does_not_have_costs_no_write(self):
+        stats = sync_song_versions_to_server(
+            muma_with([row('/mnt/music/EPs/Texcore/absent.mp3', work_id=7)]),
+            self.server,
+        )
+        self.assertEqual((stats['considered'], stats['matched']), (1, 0))
 
 
 if __name__ == '__main__':

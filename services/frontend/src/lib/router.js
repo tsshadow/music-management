@@ -13,6 +13,10 @@
 
 /** Sidebar and top-level pages that map straight onto a path of the same name. */
 const PLAIN_VIEWS = [
+  // The personalized feeds. Hyphenated because the slug is part of MuMa's API path and the URL
+  // says the same word the API does.
+  "release-radar",
+  "daily-mix",
   "songs",
   "sets",
   "albums",

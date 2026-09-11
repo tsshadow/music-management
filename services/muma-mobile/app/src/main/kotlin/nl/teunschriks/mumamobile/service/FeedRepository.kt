@@ -5,14 +5,13 @@
  * Distributed under terms of the GNU GPLv3 license.
  */
 
-package nl.teunschriks.mumamobile.service.androidauto
+package nl.teunschriks.mumamobile.service
 
 import java.time.LocalDate
 import java.util.concurrent.ConcurrentHashMap
 import nl.teunschriks.mumamobile.api.muma.MumaAPIDefinition
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.Track
-import nl.teunschriks.mumamobile.service.MusicService
 import timber.log.Timber
 
 /**
@@ -72,6 +71,13 @@ class FeedRepository(
 
     /** Drop what was remembered, so the next visit rebuilds it. */
     fun clear() = cache.clear()
+
+    companion object {
+        // The slugs MuMa's API spells, kept here because the car's browse tree, the car's playback
+        // callbacks and the phone's home screen all name the same two feeds.
+        const val RELEASE_RADAR = "release-radar"
+        const val DAILY_MIX = "daily-mix"
+    }
 
     /** What one attempt produced, and whether it is the whole feed or only what survived. */
     private data class Outcome(val tracks: List<Track>, val worthKeeping: Boolean) {

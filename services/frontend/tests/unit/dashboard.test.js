@@ -130,7 +130,28 @@ describe("Dashboard", () => {
     render(Dashboard, { activeView: "home" });
 
     await waitFor(() => expect(screen.getAllByText("Raise Your Fist").length).toBeGreaterThan(0));
-    expect(urlsFor("/rest/getSpotifyPlaylist")).toHaveLength(3);
+    // Two now, not three: the row that used to be called Release Radar was the whole library
+    // sorted by release date, and MuMa's real radar has taken its place. That one is a feed and
+    // does not come from getSpotifyPlaylist at all.
+    expect(urlsFor("/rest/getSpotifyPlaylist")).toHaveLength(2);
+  });
+
+  it("asks MuMa for the two personalized feeds", async () => {
+    render(Dashboard, { activeView: "home" });
+
+    await waitFor(() => expect(urlsFor("/api/feeds/").length).toBeGreaterThan(0));
+
+    const asked = urlsFor("/api/feeds/").map((url) => url.split("/api/feeds/")[1].split("?")[0]);
+    expect(asked.sort()).toEqual(["daily-mix", "release-radar"]);
+  });
+
+  it("leaves a feed row off the screen when the feed is empty", async () => {
+    // An empty feed is a real answer -- nothing was released this week -- and a header above
+    // nothing reads as a broken screen rather than as an answer.
+    render(Dashboard, { activeView: "home" });
+
+    await waitFor(() => expect(screen.getAllByText("Raise Your Fist").length).toBeGreaterThan(0));
+    expect(screen.queryByText("Release Radar")).toBeNull();
   });
 
   it("the memories row stays away when it is switched off", async () => {

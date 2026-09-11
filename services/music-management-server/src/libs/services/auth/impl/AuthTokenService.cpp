@@ -19,6 +19,8 @@
 
 #include "AuthTokenService.hpp"
 
+#include <Wt/Dbo/Exception.h>
+
 #include <Wt/Auth/HashFunction.h>
 #include <Wt/WRandom.h>
 
@@ -32,6 +34,10 @@ namespace lms::auth
 {
     namespace
     {
+        // How stale last_used may be before a request rewrites it. One write a minute per
+        // token instead of one per request, which is what keeps this off the hot path.
+        constexpr int LAST_USED_GRANULARITY_SECS{ 60 };
+
         AuthTokenService::AuthTokenInfo createAuthTokenInfo(const db::AuthToken::pointer& authToken)
         {
             return AuthTokenService::AuthTokenInfo{
@@ -122,13 +128,40 @@ namespace lms::auth
 
         AuthTokenInfo res{ createAuthTokenInfo(authToken) };
 
-        const std::size_t tokenUseCount{ authToken.modify()->incUseCount() };
-        authToken.modify()->setLastUsed(Wt::WDateTime::currentDateTime());
+        // Every authenticated request used to write here: bump use_count, stamp last_used.
+        // Dbo versions the row, so two requests carrying the same token -- the app's home
+        // screen fires several at once -- both load version N, the second write throws
+        // StaleObjectException, and that request is aborted with "Uncaught exception from
+        // handleRequest". Nine of those in one hour on one token, every one of them a
+        // failed call the user saw.
+        //
+        // The write only matters when something reads it: a token with a use limit needs
+        // the count, and last_used needs to move now and then, not on every call. Everything
+        // else stays a read.
+        const auto now{ Wt::WDateTime::currentDateTime() };
+        const bool countMatters{ authToken->getMaxUseCount().has_value() };
+        const bool stampIsStale{ !authToken->getLastUsed().isValid() || authToken->getLastUsed().secsTo(now) >= LAST_USED_GRANULARITY_SECS };
 
-        if (auto maxUseCount{ authToken->getMaxUseCount() })
+        if (countMatters || stampIsStale)
         {
-            if (*maxUseCount >= tokenUseCount)
-                authToken.remove();
+            try
+            {
+                const std::size_t tokenUseCount{ authToken.modify()->incUseCount() };
+                authToken.modify()->setLastUsed(now);
+
+                if (auto maxUseCount{ authToken->getMaxUseCount() })
+                {
+                    if (*maxUseCount >= tokenUseCount)
+                        authToken.remove();
+                }
+            }
+            catch (const Wt::Dbo::StaleObjectException&)
+            {
+                // A concurrent request bumped the same row first. Its bump is as good as
+                // ours; the token was valid when we looked, and failing the caller over a
+                // bookkeeping race is the one outcome that cannot be right.
+                LMS_LOG(UI, DEBUG, "Auth token bump lost a race with a concurrent request; ignoring");
+            }
         }
 
         return res;

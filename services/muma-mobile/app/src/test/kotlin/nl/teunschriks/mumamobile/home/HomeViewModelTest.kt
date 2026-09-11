@@ -59,6 +59,15 @@ class HomeViewModelTest {
         cards = titles.map { HomeCard(HomeCardType.ALBUM, itemId = it, title = it) }
     )
 
+    /**
+     * The state of each slot, in order.
+     *
+     * The view model emits [HomeSlot]s now -- the shared button grid plus one per section shown as
+     * an overview. Providers handed in by a test are all overviews and produce no grid, so what
+     * these tests assert on is unchanged.
+     */
+    private val HomeViewModel.states: List<HomeSectionState> get() = slots.value.map { it.state }
+
     private fun viewModel(providers: List<HomeSectionProvider>) = HomeViewModel(
         store = mockk(relaxed = true),
         cardCache = cardCache,
@@ -84,7 +93,7 @@ class HomeViewModelTest {
         viewModel.load()
         testScheduler.runCurrent()
 
-        viewModel.sections.value `should be equal to` listOf(
+        viewModel.states `should be equal to` listOf(
             HomeSectionState.Loading,
             HomeSectionState.Loading
         )
@@ -102,8 +111,8 @@ class HomeViewModelTest {
         fast.complete(section("Album"))
         testScheduler.runCurrent()
 
-        viewModel.sections.value[0] `should be equal to` HomeSectionState.Loading
-        viewModel.sections.value[1] `should be instance of` HomeSectionState.Content::class
+        viewModel.states[0] `should be equal to` HomeSectionState.Loading
+        viewModel.states[1] `should be instance of` HomeSectionState.Content::class
     }
 
     @Test
@@ -115,7 +124,7 @@ class HomeViewModelTest {
         result.complete(null)
         testScheduler.runCurrent()
 
-        viewModel.sections.value `should be equal to` listOf(HomeSectionState.Empty)
+        viewModel.states `should be equal to` listOf(HomeSectionState.Empty)
     }
 
     @Test
@@ -136,8 +145,8 @@ class HomeViewModelTest {
         working.complete(section("Album"))
         testScheduler.runCurrent()
 
-        viewModel.sections.value[0] `should be equal to` HomeSectionState.Empty
-        viewModel.sections.value[1] `should be instance of` HomeSectionState.Content::class
+        viewModel.states[0] `should be equal to` HomeSectionState.Empty
+        viewModel.states[1] `should be instance of` HomeSectionState.Content::class
     }
 
     @Test
@@ -153,7 +162,7 @@ class HomeViewModelTest {
         viewModel.load()
         testScheduler.runCurrent()
 
-        viewModel.sections.value[0] `should be instance of` HomeSectionState.Content::class
+        viewModel.states[0] `should be instance of` HomeSectionState.Content::class
     }
 
     @Test
@@ -165,7 +174,7 @@ class HomeViewModelTest {
         viewModel.load()
         testScheduler.runCurrent()
 
-        val state = viewModel.sections.value.single()
+        val state = viewModel.states.single()
         state `should be instance of` HomeSectionState.Stale::class
         (state as HomeSectionState.Stale).section.cards.single().title `should be equal to` "Cached"
     }
@@ -178,7 +187,7 @@ class HomeViewModelTest {
         viewModel.load()
         testScheduler.runCurrent()
 
-        viewModel.sections.value.single() `should be equal to` HomeSectionState.Loading
+        viewModel.states.single() `should be equal to` HomeSectionState.Loading
     }
 
     @Test
@@ -192,7 +201,7 @@ class HomeViewModelTest {
         result.complete(section("Fresh"))
         testScheduler.runCurrent()
 
-        viewModel.sections.value.single() `should be instance of` HomeSectionState.Content::class
+        viewModel.states.single() `should be instance of` HomeSectionState.Content::class
         cardCache.read("tracks:added")!!.cards.single().title `should be equal to` "Fresh"
     }
 
@@ -207,7 +216,7 @@ class HomeViewModelTest {
         result.complete(null)
         testScheduler.runCurrent()
 
-        viewModel.sections.value.single() `should be equal to` HomeSectionState.Empty
+        viewModel.states.single() `should be equal to` HomeSectionState.Empty
         cardCache.read("tracks:added").`should be null`()
     }
 
@@ -219,7 +228,7 @@ class HomeViewModelTest {
         viewModel.load()
         testScheduler.runCurrent()
 
-        val state = viewModel.sections.value.single()
+        val state = viewModel.states.single()
         state `should be instance of` HomeSectionState.Content::class
         (state as HomeSectionState.Content).section.cards.single().title `should be equal to` "Cached"
         cardCache.read("tracks:added")!!.cards.single().title `should be equal to` "Cached"
@@ -232,7 +241,7 @@ class HomeViewModelTest {
         viewModel.load()
         testScheduler.runCurrent()
 
-        viewModel.sections.value.single() `should be equal to` HomeSectionState.Empty
+        viewModel.states.single() `should be equal to` HomeSectionState.Empty
     }
 
     @Test

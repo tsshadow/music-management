@@ -1,7 +1,7 @@
 # Configurable Home Screen — Functional Design
 
-> Status: **draft, not agreed**. The open questions at the end are real; nothing here is built yet.
-> Scope is the muma-mobile phone app. See [docs/designs/README.md](../README.md) for the process.
+> Agreed and built. Scope is the muma-mobile phone app; the technical contract is in
+> [`technical.md`](technical.md). See [docs/designs/README.md](../README.md) for the process.
 
 ## Overview
 
@@ -176,27 +176,15 @@ visit before the app works properly is worse than a changed screen.
 
 ## Open Questions / Not Yet Decided
 
-1. **Is a small "favoriet" / "recent gespeeld" line on a button enough?** It is the proposal, and
-   it is a guess that wants a look at a real phone with long track names and large text before it is
-   built. The star that already exists (`HomeCard.isFavorite`) is *not* a substitute: a favourite
-   album can also turn up among the shortcuts, so the star says "you like this", not "this button
-   comes from Favorieten". The alternative is a heading per section in the grid, which costs the
-   compactness the sketch was about.
-2. **What does the daily-mix count mean while there is only one mix?** Proposed: it yields what
-   exists, so a count of 2 shows one button today and two when a second mix is built. The
-   alternative is to hide the count until there is more than one mix, which is less honest but shows
-   nothing that looks broken.
-3. **Does a button start playing?** Proposed: no, a button opens the list and you press play there.
-   For a daily mix, "tap and it plays" is arguably the whole point.
-4. **Does the shortcuts count still mean pairs?** It steps 2/4/6/8/10 today because the grid is two
-   columns. In a shared grid that constraint is gone, so 1–10 would work — but an odd count leaves a
-   half-empty row wherever that section lands.
-5. **Two things in the code make this more than a layout change, and both need a decision.** The
-   grid card layout (`home_card_grid.xml`) has no second line at all — 56dp artwork, a title of at
-   most two lines, an optional star — so the source label needs a new view, which changes how every
-   existing grid card looks. And `HomeCard.key` is `type:itemId`, so the same album contributed by
-   both Favorieten and Shortcuts is one key twice; the grid's diffing needs an identity that
-   includes which section put it there.
-6. **Where does the setting live?** Proposed: a "Startscherm" block on the existing settings page,
-   one row per section. With seven sections plus counts that is fourteen rows, which may deserve its
-   own sub-page.
+1. **Is a small "favoriet" / "recent gespeeld" line on a button enough to tell them apart?** It is
+   what was built, and it is still a guess: it wants a look at a real phone with long titles and
+   large text. The star that already exists (`HomeCard.isFavorite`) is not a substitute — a
+   favourite album can also turn up among the shortcuts, so the star says "you like this", not
+   "this button comes from Favorieten". Favourites stay off by default partly for this reason.
+2. **Does a button start playing?** It does not: it opens the list and you press play there. For a
+   daily mix, "tap and it plays" is arguably the whole point, and that would be a fourth mode rather
+   than a change to this one.
+3. **The grid card gained a second line**, which changes how every existing grid card *can* look.
+   Only cards that set a subtitle themselves use it, so the shortcuts grid is unchanged today — but
+   the first section that starts setting one will make its cards one-line-titled.
+4. **Reordering** is still not here. The order is `HomeSectionId`'s declaration order.

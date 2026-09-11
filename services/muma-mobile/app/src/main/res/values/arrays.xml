@@ -337,4 +337,24 @@
         <item>9</item>
         <item>10</item>
     </string-array>
+    <!-- Values are HomeSectionMode names; the labels beside them are what the listener reads. -->
+    <string-array name="homeSectionModeValues" translatable="false">
+        <item>BUTTON</item>
+        <item>OVERVIEW</item>
+        <item>OFF</item>
+    </string-array>
+    <string-array name="homeSectionModeNames">
+        <item>@string/home.mode_button</item>
+        <item>@string/home.mode_overview</item>
+        <item>@string/home.mode_off</item>
+    </string-array>
+    <!-- Memories has no inline form, so it offers two of the three. -->
+    <string-array name="homeSectionModeValuesNoOverview" translatable="false">
+        <item>BUTTON</item>
+        <item>OFF</item>
+    </string-array>
+    <string-array name="homeSectionModeNamesNoOverview">
+        <item>@string/home.mode_button</item>
+        <item>@string/home.mode_off</item>
+    </string-array>
 </resources>

@@ -16,6 +16,7 @@ import nl.teunschriks.mumamobile.fragment.ArtistNavigation
 import nl.teunschriks.mumamobile.fragment.muma.TileInfo
 import nl.teunschriks.mumamobile.fragment.muma.navigateToGenre
 import nl.teunschriks.mumamobile.fragment.muma.navigateToGenreByName
+import nl.teunschriks.mumamobile.service.FeedRepository
 import nl.teunschriks.mumamobile.util.Settings
 
 /** What tapping a card should do. Tracks play; everything else opens a screen. */
@@ -72,8 +73,38 @@ object HomeCardNavigator {
         // rather than playing any single track.
         HomeCardType.MEMORY -> NavigationGraphDirections.toMemories()
 
+        HomeCardType.SECTION -> directionsForSection(card)
+
         HomeCardType.TRACK -> error("TRACK cards are played, see actionFor")
     }
+
+    /**
+     * Where a whole-section button in the shared grid goes.
+     *
+     * The card's id is a [HomeSectionId] name; an id from a newer build than this one falls back to
+     * the library rather than crashing a home screen that is otherwise fine.
+     */
+    private fun directionsForSection(card: HomeCard): NavDirections {
+        val id = HomeSectionId.entries.firstOrNull { it.name == card.itemId }
+
+        return when (id) {
+            HomeSectionId.MEMORIES -> NavigationGraphDirections.toMemories()
+            HomeSectionId.FAVORITES -> NavigationGraphDirections.toFavorites()
+            HomeSectionId.RELEASE_RADAR -> directionsForFeed(FeedRepository.RELEASE_RADAR, card.title)
+            HomeSectionId.DAILY_MIX -> directionsForFeed(FeedRepository.DAILY_MIX, card.title)
+            HomeSectionId.RECENTLY_RELEASED -> directionsForRecentTracks(card.title, HomeSorts.RELEASED)
+            HomeSectionId.RECENTLY_ADDED -> directionsForRecentTracks(card.title, HomeSorts.ADDED)
+            // Shortcuts have no page of their own -- the grid is the page -- so its button, which
+            // only appears when there is nothing to show, opens the library.
+            HomeSectionId.SHORTCUTS, null -> NavigationGraphDirections.toMediaLibrary()
+        }
+    }
+
+    /**
+     * One personalized feed, whole. No filters travel with it: the feed is MuMa's ranking and the
+     * length filter the other lists carry would quietly cut tracks out of it.
+     */
+    fun directionsForFeed(slug: String, title: String): NavDirections = NavigationGraphDirections.toTrackCollection(feed = slug, name = title)
 
     /**
      * "Show more" behind one of the home track lists: the same query the section was built from,

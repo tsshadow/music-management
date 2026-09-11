@@ -12,6 +12,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AnimationUtils
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.annotation.StringRes
 import androidx.lifecycle.Lifecycle
@@ -25,6 +26,7 @@ import com.google.android.material.progressindicator.LinearProgressIndicator
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import nl.teunschriks.mumamobile.NavigationGraphDirections
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.home.CardStyle
 import nl.teunschriks.mumamobile.home.HomeCard
@@ -32,9 +34,12 @@ import nl.teunschriks.mumamobile.home.HomeCardAction
 import nl.teunschriks.mumamobile.home.HomeCardAdapter
 import nl.teunschriks.mumamobile.home.HomeCardNavigator
 import nl.teunschriks.mumamobile.home.HomeSection
+import nl.teunschriks.mumamobile.home.HomeSectionId
 import nl.teunschriks.mumamobile.home.HomeSectionState
+import nl.teunschriks.mumamobile.home.HomeSlot
 import nl.teunschriks.mumamobile.home.HomeSorts
 import nl.teunschriks.mumamobile.home.HomeViewModel
+import nl.teunschriks.mumamobile.service.FeedRepository
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.service.RxBus
 import org.koin.androidx.scope.ScopeFragment
@@ -66,6 +71,11 @@ class MainFragment :
 
     private var slots: List<SectionSlot> = emptyList()
 
+    /** What the slots were built for, so an unchanged shape is not rebuilt on every emission. */
+    private var slotShape: List<Pair<HomeSectionId?, CardStyle>> = emptyList()
+
+    private var sectionContainer: LinearLayout? = null
+
     private var rxBusSubscription = CompositeDisposable()
 
     override fun onCreateView(
@@ -93,20 +103,11 @@ class MainFragment :
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         FragmentTitle.setTitle(this, R.string.music_library_label)
 
-        slots = listOf(
-            slot(view, R.id.section_memories, CardStyle.BANNER),
-            slot(view, R.id.section_shortcuts, CardStyle.GRID),
-            slot(view, R.id.section_released, CardStyle.LIST) {
-                showMore(R.string.home_recently_released, HomeSorts.RELEASED)
-            },
-            slot(view, R.id.section_added, CardStyle.LIST) {
-                showMore(R.string.home_recently_added, HomeSorts.ADDED)
-            }
-        )
+        sectionContainer = view.findViewById(R.id.home_sections)
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                homeViewModel.sections.collectLatest(::render)
+                homeViewModel.slots.collectLatest(::render)
             }
         }
 
@@ -119,14 +120,18 @@ class MainFragment :
         homeViewModel.load()
     }
 
-    private fun slot(
-        root: View,
-        sectionId: Int,
-        style: CardStyle,
-        /** Only the track lists have more to show; the grid and the banner pass nothing. */
-        onMore: (() -> Unit)? = null
-    ): SectionSlot {
-        val container: View = root.findViewById(sectionId)
+    /**
+     * Builds one section's views and adds them to the screen.
+     *
+     * Inflated rather than declared in the layout: which sections there are, in which order and in
+     * which shape is a setting now, so a fixed set of slots cannot express it. The version that had
+     * four `<include>`s paired them with the view model by position, which is how adding the two
+     * feeds silently took the two recent lists' places -- see docs/designs/home-sections.
+     */
+    private fun slot(id: HomeSectionId?, style: CardStyle): SectionSlot {
+        val container = layoutInflater.inflate(R.layout.home_section, sectionContainer, false)
+        sectionContainer?.addView(container)
+
         val recycler: RecyclerView = container.findViewById(R.id.section_recycler)
 
         recycler.layoutManager = when (style) {
@@ -152,6 +157,27 @@ class MainFragment :
         val skeletonCards: ViewGroup = container.findViewById(R.id.section_skeleton_cards)
         layoutInflater.inflate(skeletonLayout, skeletonCards, true)
 
+        // "Meer" belongs to the section that is actually in this slot, resolved from its id rather
+        // than from where it happens to sit.
+        val onMore: (() -> Unit)? = when (id) {
+            HomeSectionId.RECENTLY_RELEASED -> {
+                { showMore(id.titleRes, HomeSorts.RELEASED) }
+            }
+            HomeSectionId.RECENTLY_ADDED -> {
+                { showMore(id.titleRes, HomeSorts.ADDED) }
+            }
+            HomeSectionId.RELEASE_RADAR -> {
+                { openFeed(FeedRepository.RELEASE_RADAR, getString(id.titleRes)) }
+            }
+            HomeSectionId.DAILY_MIX -> {
+                { openFeed(FeedRepository.DAILY_MIX, getString(id.titleRes)) }
+            }
+            HomeSectionId.FAVORITES -> {
+                { findNavController().navigate(NavigationGraphDirections.toFavorites()) }
+            }
+            else -> null
+        }
+
         val more: TextView = container.findViewById(R.id.section_more)
         if (onMore != null) more.setOnClickListener { onMore() }
 
@@ -160,8 +186,9 @@ class MainFragment :
             title = container.findViewById(R.id.section_title),
             more = more,
             hasMore = onMore != null,
-            // A banner names itself, so a heading above it would only say the same thing twice.
-            showTitle = style != CardStyle.BANNER,
+            // The shared button grid names nothing: its cards say what they are, and a heading
+            // above them would have to be a word that covers all of them. A banner names itself.
+            showTitle = id != null && style != CardStyle.BANNER,
             skeleton = container.findViewById(R.id.section_skeleton),
             progress = container.findViewById(R.id.section_progress),
             recycler = recycler,
@@ -169,13 +196,31 @@ class MainFragment :
         )
     }
 
+    private fun openFeed(slug: String, title: String) {
+        findNavController().navigate(HomeCardNavigator.directionsForFeed(slug, title))
+    }
+
     /**
      * A slot with no state yet is treated as still loading: that is what the screen looks like for
      * the first moments after a cold start, and it is exactly when a skeleton is wanted.
      */
-    private fun render(states: List<HomeSectionState>) {
+    /**
+     * Draws whatever slots the view model says there are, rebuilding the views when that changes.
+     *
+     * The shape only changes when a setting does, so the usual call finds it identical and only
+     * updates content -- a rebuild on every emission would drop the scroll position and restart
+     * every image load.
+     */
+    private fun render(states: List<HomeSlot>) {
+        val shape = states.map { it.id to it.style }
+        if (shape != slotShape) {
+            sectionContainer?.removeAllViews()
+            slots = states.map { slot(it.id, it.style) }
+            slotShape = shape
+        }
+
         slots.forEachIndexed { index, slot ->
-            when (val state = states.getOrElse(index) { HomeSectionState.Loading }) {
+            when (val state = states.getOrElse(index) { HomeSlot(null, CardStyle.LIST, HomeSectionState.Loading) }.state) {
                 is HomeSectionState.Loading -> slot.showSkeleton()
                 is HomeSectionState.Empty -> slot.container.visibility = View.GONE
                 is HomeSectionState.Stale -> slot.showStale(state.section)
@@ -214,6 +259,8 @@ class MainFragment :
         super.onDestroyView()
         rxBusSubscription.clear()
         slots = emptyList()
+        slotShape = emptyList()
+        sectionContainer = null
         binding = null
     }
 

@@ -22,10 +22,12 @@ import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.service.DownloadService
 import nl.teunschriks.mumamobile.service.DownloadState
+import nl.teunschriks.mumamobile.service.FeedRepository
 import nl.teunschriks.mumamobile.service.MusicServiceFactory
 import nl.teunschriks.mumamobile.util.CommunicationError
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Util
+import org.koin.java.KoinJavaComponent
 import timber.log.Timber
 
 /*
@@ -80,6 +82,12 @@ class TrackCollectionModel(application: Application) : GenericListModel(applicat
         val size: Int = -1,
         val getRandomTracks: Boolean = false,
         val getStarredTracks: Boolean = false,
+        /**
+         * A personalized feed's slug. Set, it is the whole query: the list is MuMa's ranking --
+         * a quota per genre, a cap per artist, release date descending -- and none of the filters
+         * beside it can express that, so they are not applied on top of it.
+         */
+        val feedSlug: String? = null,
         val filtersJson: String? = null,
         val refresh: Boolean = false
     )
@@ -110,6 +118,9 @@ class TrackCollectionModel(application: Application) : GenericListModel(applicat
             } else if (params.shareId != null) {
                 title.postValue(params.shareName!!)
                 getShare(params.shareId)
+            } else if (params.feedSlug != null) {
+                title.postValue(params.name ?: params.feedSlug)
+                getFeed(params.feedSlug)
             } else if (params.getStarredTracks) {
                 title.postValue(context.getString(R.string.main_songs_starred))
                 getStarred()
@@ -308,6 +319,24 @@ class TrackCollectionModel(application: Application) : GenericListModel(applicat
 
             // Update current offset
             loadedUntil = newOffset
+        }
+    }
+
+    /**
+     * One personalized feed, whole, in the order MuMa ranked it.
+     *
+     * Not sortable and not paged: every other list here is a query this screen can ask for more of,
+     * and a feed is a fixed set of about thirty tracks that was already ordered by the time it
+     * arrived. Re-sorting it would replace the feed with a different list under the same name.
+     */
+    suspend fun getFeed(slug: String) {
+        withContext(Dispatchers.IO) {
+            val tracks = KoinJavaComponent.get<FeedRepository>(FeedRepository::class.java).tracksFor(slug)
+            val musicDirectory = MusicDirectory()
+            musicDirectory.addAll(tracks)
+            currentListIsSortable = false
+            hasMoreData = false
+            updateList(musicDirectory)
         }
     }
 

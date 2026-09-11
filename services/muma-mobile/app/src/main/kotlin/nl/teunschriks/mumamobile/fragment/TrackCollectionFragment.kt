@@ -553,6 +553,7 @@ open class TrackCollectionFragment :
             size = if (navArgs.size < 0) Settings.maxSongs else navArgs.size,
             getRandomTracks = displayRandom(),
             getStarredTracks = displayStarred(),
+            feedSlug = navArgs.feed,
             filtersJson = navArgs.filters,
             refresh = navArgs.refresh
         )

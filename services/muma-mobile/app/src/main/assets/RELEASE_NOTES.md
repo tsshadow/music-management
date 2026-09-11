@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## Global Version 6.35.0 (2026-09-11)
+
+- **Stel zelf in wat er op je startscherm staat** — per sectie een knop, een overzicht of niets,
+  onder Instellingen → Startscherm. En Recent uitgebracht en Recent toegevoegd zijn terug.
 ## Global Version 6.34.0 (2026-09-11)
 
 - **Dagelijkse mix en release radar staan nu ook op het startscherm**, niet alleen in de auto.

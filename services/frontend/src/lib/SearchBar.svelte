@@ -1,7 +1,8 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount, untrack } from 'svelte';
-  import { authParams, activeView, currentTrack, playlist, viewMode, activeModal, restUrl } from './store.js';
+  import { activeView, currentTrack, playlist, viewMode, activeModal } from './store.js';
+  import { listOf, subsonicJson } from './subsonic.js';
   import SearchResults from './SearchResults.svelte';
 
   let query = $state('');
@@ -36,9 +37,12 @@
     loading = true;
     try {
       // Search for artists, albums, and songs
-      const durationFilter = $viewMode === 'sets' ? '&minDuration=10' : '&maxDuration=10';
-      const response = await fetch(restUrl(`/rest/search3?${$authParams}&query=${encodeURIComponent(query)}&artistCount=20&albumCount=20&songCount=20${durationFilter}`), { signal });
-      const data = await response.json();
+      const durationFilter = $viewMode === 'sets' ? { minDuration: 10 } : { maxDuration: 10 };
+      const data = await subsonicJson(
+        'search3',
+        { query, artistCount: 20, albumCount: 20, songCount: 20, ...durationFilter },
+        { signal }
+      );
       results = data['subsonic-response']?.searchResult3 || {};
 
       // Filter genres and labels locally
@@ -88,9 +92,7 @@
    */
   async function loadAllGenres() {
     try {
-      const response = await fetch(restUrl(`/rest/getGenres?${$authParams}`));
-      const data = await response.json();
-      const genreList = data['subsonic-response']?.genres?.genre || [];
+      const genreList = listOf(await subsonicJson('getGenres'), 'genres.genre');
       allGenres = genreList.map(g => typeof g === 'string' ? g : (g.value || g.name));
     } catch (e) {
       console.error("Failed to load genres for search:", e);
@@ -102,9 +104,7 @@
    */
   async function loadAllLabels() {
     try {
-      const response = await fetch(restUrl(`/rest/getRecordLabels?${$authParams}`));
-      const data = await response.json();
-      const labelList = data['subsonic-response']?.recordLabels?.recordLabel || [];
+      const labelList = listOf(await subsonicJson('getRecordLabels'), 'recordLabels.recordLabel');
       allLabels = labelList.map(l => typeof l === 'string' ? l : (l.value || l.name));
     } catch (e) {
       console.error("Failed to load labels for search:", e);

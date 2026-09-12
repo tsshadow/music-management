@@ -100,6 +100,29 @@ export function createCapacitorStorage(plugin) {
     },
 
     /**
+     * Whether the device has no route to the server.
+     *
+     * Advisory, and the Kotlin side says so: a network with internet
+     * capability can still fail to reach a server on the listener's own LAN.
+     * `subsonic.js` therefore treats a `false` here as "worth trying" rather
+     * than as a promise, and falls back on the request failing anyway.
+     *
+     * @returns {Promise<boolean>}
+     */
+    async isOffline() {
+      const answer = await plugin.isOffline();
+      return answer?.value === true;
+    },
+
+    /**
+     * @param {function({online: boolean}): void} handler
+     * @returns {function(): void} Unsubscribes.
+     */
+    onConnectivity(handler) {
+      return listen(plugin, "connectivity", (event) => handler({ online: event?.online === true }));
+    },
+
+    /**
      * @param {function({id: string, state: string, progress: number}): void} handler
      * @returns {function(): void} Unsubscribes.
      */

@@ -129,17 +129,29 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  * @typedef {object} PlatformStorage Music kept on the device.
  * @property {boolean} supported False in a browser tab; the Downloads screen
  *   hides itself on it.
- * @property {function(object): Promise<object>} query A Subsonic-shaped request
- *   answered from local files, returning the body a Subsonic call would have, so a
- *   list component never learns a second data source.
- * @property {function(string): Promise<void>} download Track, album or playlist id.
- * @property {function(): Promise<Array<object>>} list What is on the device.
- * @property {function(string): Promise<void>} remove
+ * @property {function({method: string, params?: object}): Promise<object>} query A
+ *   Subsonic-shaped request answered from local files, returning the body a
+ *   Subsonic call would have, so a list component never learns a second data
+ *   source. A method the device cannot answer returns the empty success body
+ *   rather than an error. `src/lib/subsonic.js` is the only caller.
+ * @property {function(string|string[], {pin?: boolean}=): Promise<{requested: number,
+ *   unknown: number}>} download Track ids. `pin` keeps the files through a cache sweep.
+ * @property {function(): Promise<Array<{id: string, title: string, artist: string,
+ *   album: string, duration: number, state: string}>>} list What is on the device.
+ *   Note there is no per-item byte count: `size()` is the only exact figure, and the
+ *   Downloads screen estimates the rest. See `downloads.js`.
+ * @property {function(string|string[]): Promise<void>} remove
  * @property {function(string[]): Promise<Record<string,
  *   'none'|'queued'|'running'|'done'|'failed'>>} stateOf Batched per list.
  * @property {function(string): Promise<boolean>} isLocal
  * @property {function(): Promise<number>} size Bytes used.
- * @property {function(function({id: string, percent: number}): void): function(): void} onProgress
+ * @property {function(): Promise<boolean>} isOffline Whether there is no route to
+ *   the server. Advisory: a caller still tries the server and falls back on a
+ *   failure, because a reachable internet is not a reachable LAN.
+ * @property {function(function({id: string, state: string, progress: number}): void):
+ *   function(): void} onProgress `progress` is a percentage, 0 to 100, and 0
+ *   whenever the server sent no content length to measure against.
+ * @property {function(function({online: boolean}): void): function(): void} onConnectivity
  */
 
 /**

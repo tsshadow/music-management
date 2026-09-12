@@ -4,6 +4,7 @@
   import { authParams, viewMode, currentTrack, playlist, playerState, restUrl } from './store.js';
   import TrackList from './TrackList.svelte';
   import ArtistList from './ArtistList.svelte';
+  import { listOf, subsonicJson } from './subsonic.js';
 
   const { albumId, onnavigate } = $props();
 
@@ -78,13 +79,11 @@
     if (!$authParams) return;
     isLoading = true;
     try {
-      const response = await fetch(restUrl(`/rest/getAlbum?id=${albumId}&${$authParams}`));
-      const data = await response.json();
+      const data = await subsonicJson('getAlbum', { id: albumId });
       const albumData = data['subsonic-response']?.album;
       if (albumData) {
         album = albumData;
-        const result = albumData.song || [];
-        allTracks = Array.isArray(result) ? result : [result];
+        allTracks = listOf(data, 'album.song');
 
         loadAlbumInfo();
       }

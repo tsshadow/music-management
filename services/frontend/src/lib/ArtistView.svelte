@@ -8,6 +8,7 @@
   import { Pencil } from '@lucide/svelte';
   import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
   import TrackList from './TrackList.svelte';
+  import { listOf, subsonicJson } from './subsonic.js';
 
   const { artistId, onnavigate } = $props();
 
@@ -53,8 +54,7 @@
     if (!$authParams) return;
     isLoading = true;
     try {
-      const response = await fetch(restUrl(`/rest/getArtist?id=${artistId}&${$authParams}`));
-      const data = await response.json();
+      const data = await subsonicJson('getArtist', { id: artistId });
       const artistData = data['subsonic-response']?.artist;
       if (artistData) {
         artist = artistData;
@@ -99,18 +99,21 @@
         seenKeys = new SvelteMap();
     }
     const pageSize = append ? 100 : 25;
-    const durationFilter = $viewMode === 'sets' ? 'minDuration=10' : 'maxDuration=10';
+    const durationFilter = $viewMode === 'sets' ? { minDuration: 10 } : { maxDuration: 10 };
     
     let currentBatch = [];
     try {
       while (currentBatch.length < pageSize && allTracksHasMore) {
-        let url = `/rest/getSpotifyTracks?artistId=${artistId}&offset=${allTracksOffset}&count=${pageSize}&${durationFilter}&sort=recent&${$authParams}`;
-        if ($deduplicateEnabled) url += `&deduplicate=true`;
-        const response = await fetch(restUrl(url));
-        const data = await response.json();
+        const data = await subsonicJson('getSpotifyTracks', {
+          artistId,
+          offset: allTracksOffset,
+          count: pageSize,
+          sort: 'recent',
+          deduplicate: $deduplicateEnabled ? 'true' : undefined,
+          ...durationFilter
+        });
         const tracksNode = data['subsonic-response']?.tracks;
-        const result = tracksNode?.track || [];
-        const newTracks = Array.isArray(result) ? result : [result];
+        const newTracks = listOf(data, 'tracks.track');
 
         const deduped = $deduplicateEnabled ? deduplicateTracks(newTracks, seenKeys) : newTracks;
         if ($deduplicateEnabled) {

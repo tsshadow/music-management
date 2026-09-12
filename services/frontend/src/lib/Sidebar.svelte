@@ -1,6 +1,8 @@
 <script>
-  import { viewMode, authParams, favoriteGenres, isAdmin, restUrl } from './store.js';
+  import { viewMode, authParams, favoriteGenres, isAdmin } from './store.js';
   import { itemsForMode } from './collections.js';
+  import { listOf, subsonicJson } from './subsonic.js';
+  import { platform } from './platform/index.js';
   import { t } from './i18n/index.js';
   import { ChevronRight } from '@lucide/svelte';
   import SidebarHeader from './SidebarHeader.svelte';
@@ -36,15 +38,9 @@
   async function loadGenres() {
     if (!$authParams) return;
     try {
-        const response = await fetch(restUrl(`/rest/getGenres?${$authParams}`));
-        if (response.ok) {
-            const data = await response.json();
-            const result = data['subsonic-response']?.genres?.genre || [];
-            const resultArr = Array.isArray(result) ? result : [result];
-            allGenres = resultArr
-                .filter(g => Number(g.songCount) >= 5)
-                .sort((a, b) => b.songCount - a.songCount);
-        }
+        allGenres = listOf(await subsonicJson('getGenres'), 'genres.genre')
+            .filter(g => Number(g.songCount) >= 5)
+            .sort((a, b) => b.songCount - a.songCount);
     } catch (e) {
         console.error("Failed to fetch genres for sidebar:", e);
     }
@@ -84,6 +80,11 @@
     { id: 'festivals', label: $t('nav.festivals'), icon: 'M12 2L2 22h20L12 2zm0 4.8L18.1 20H5.9L12 6.8z' },
     { id: 'years', label: $t('nav.years'), icon: 'M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14v10zM5 8V6h14v2H5z' },
     { id: 'lineups', label: $t('nav.lineups'), icon: 'M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h10v2H4v-2z' },
+    // Only inside a shell that can actually keep files. Criterion 13: in a
+    // plain browser this entry does not exist at all.
+    ...(platform.storage.supported
+      ? [{ id: 'downloads', label: $t('nav.downloads'), icon: 'M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z' }]
+      : []),
   ]);
 
   // Not every browse view answers in both modes -- see COLLECTION_MODES.

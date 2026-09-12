@@ -17,6 +17,7 @@
   import { get } from 'svelte/store';
   import { pathToState, viewToPath } from './lib/router.js';
   import { platform } from './lib/platform/index.js';
+  import { watchConnectivity } from './lib/subsonic.js';
   import { deepLinkAction, randomTracksUrl } from './lib/shellRoutes.js';
   import { t } from './lib/i18n/index.js';
 
@@ -135,6 +136,9 @@
     const unsubscribes = [
       platform.system.onBack(handleShellBack),
       platform.system.onDeepLink(handleDeepLink),
+      // Also a no-op in a browser: `platform.storage.supported` is false there,
+      // `offline` never becomes true, and no screen changes.
+      watchConnectivity(platform),
     ];
     return () => {
       for (const unsubscribe of unsubscribes) unsubscribe();

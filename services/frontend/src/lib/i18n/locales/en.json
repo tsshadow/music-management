@@ -838,6 +838,7 @@
     "artists": "Artists",
     "closeMenu": "Close menu",
     "dailyMix": "Daily Mix",
+    "downloads": "Downloads",
     "festivals": "Festivals",
     "genres": "Genres",
     "history": "History",
@@ -967,6 +968,7 @@
       "artistRelationsHelp": "Show extra roles, such as composer or remixer, directly on the artist.",
       "dedupe": "Deduplication",
       "dedupeHelp": "Hide duplicate tracks based on artist and title.",
+      "downloads": "Downloads",
       "externalClients": "External clients (Subsonic)",
       "externalServices": "External services",
       "feedbackSystem": "Feedback (rating) system",
@@ -991,7 +993,9 @@
       "title": "General settings",
       "trackArtists": "Track artists",
       "transcodingDefault": "Transcoding default",
-      "transcodingHelp": "Always transcode for Subsonic clients?"
+      "transcodingHelp": "Always transcode for Subsonic clients?",
+      "wifiOnly": "Wi-Fi only",
+      "wifiOnlyHelp": "Wait for Wi-Fi before downloading. Saved with your account; the downloader does not read it yet."
     },
     "language": {
       "help": "The language of the interface. Saved to your account, so it follows you to your other devices.",
@@ -1059,5 +1063,37 @@
     "heading": "Song",
     "versionCount": "{count} versions",
     "notFound": "This song has no versions to show."
+  },
+  "downloads": {
+    "browserHelp": "This browser cannot keep music on the device. Open MuMa in the app to download.",
+    "browserTitle": "Downloads live in the app",
+    "confirmTitle": "Download this set?",
+    "discover": "Find music",
+    "download": "Download to device",
+    "emptyHelp": "Nothing is on this device yet. Download a track or a set and it turns up here.",
+    "emptyTitle": "No downloads",
+    "estimatedNote": "Sizes without an exact figure are estimated from the bitrate and the length.",
+    "remove": "Remove download",
+    "removeConfirm": "Remove {title} ({size}) from this device?",
+    "removeFailed": "The download could not be removed",
+    "removed": "{title} removed from this device",
+    "retry": "Try again",
+    "sizeEstimated": "Estimated from the bitrate and the length; the real file may differ.",
+    "sizeExact": "The size the library reports for this recording.",
+    "startFailed": "The download could not be started",
+    "state": {
+      "done": "Downloaded",
+      "failed": "Download failed",
+      "none": "Not downloaded",
+      "queued": "Queued",
+      "running": "Downloading"
+    },
+    "total": "{size} on this device · {count} items"
+  },
+  "offline": {
+    "emptyHelp": "There is no connection, and nothing in this list is on the device.",
+    "emptyTitle": "Nothing downloaded here",
+    "unavailableHelp": "This screen needs the server. It works again as soon as there is a connection.",
+    "unavailableTitle": "Not available without a connection"
   }
 }

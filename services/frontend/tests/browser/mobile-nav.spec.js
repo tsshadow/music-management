@@ -42,7 +42,10 @@ test("the phone's three bottom tabs move between Home, Search and Library", asyn
 });
 
 test("a browse tile under Search opens the section it stands for", async ({ page }) => {
-  await page.getByRole("navigation", { name: "Navigatiebalk" }).getByRole("button", { name: "Zoeken" }).click();
+  await page
+    .getByRole("navigation", { name: "Navigatiebalk" })
+    .getByRole("button", { name: "Zoeken" })
+    .click();
 
   await page.getByRole("button", { name: "Genres" }).click();
 

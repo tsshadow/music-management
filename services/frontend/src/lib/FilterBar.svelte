@@ -1,7 +1,8 @@
 <script>
   import { t } from './i18n/index.js';
 
-  import { authParams, visibleSortOptions, allSortOptions, restUrl } from './store.js';
+  import { authParams, visibleSortOptions, allSortOptions } from './store.js';
+  import { listOf, subsonicJson } from './subsonic.js';
 
   let {
     genre = $bindable(''),
@@ -42,15 +43,9 @@
   async function loadGenres() {
     if (!$authParams) return;
     try {
-        const response = await fetch(restUrl(`/rest/getGenres?${$authParams}`));
-        if (response.ok) {
-            const data = await response.json();
-            const result = data['subsonic-response']?.genres?.genre || [];
-            const resultArr = Array.isArray(result) ? result : [result];
-            genres = resultArr
-                .filter(g => Number(g.songCount) >= 10)
-                .sort((a, b) => a.value.localeCompare(b.value));
-        }
+        genres = listOf(await subsonicJson('getGenres'), 'genres.genre')
+            .filter(g => Number(g.songCount) >= 10)
+            .sort((a, b) => a.value.localeCompare(b.value));
     } catch (e) {
         console.error("Failed to fetch genres:", e);
     }
@@ -62,14 +57,8 @@
   async function loadYears() {
     if (!$authParams) return;
     try {
-        const response = await fetch(restUrl(`/rest/getYears?${$authParams}`));
-        if (response.ok) {
-            const data = await response.json();
-            const result = data['subsonic-response']?.years?.year || [];
-            const sortedYears = Array.isArray(result) ? result : [result];
-            sortedYears.sort((a, b) => b.value.localeCompare(a.value));
-            years = sortedYears;
-        }
+        years = listOf(await subsonicJson('getYears'), 'years.year')
+            .sort((a, b) => b.value.localeCompare(a.value));
     } catch (e) {
         console.error("Failed to fetch years:", e);
     }

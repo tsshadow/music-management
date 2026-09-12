@@ -1,15 +1,14 @@
 import { get } from "svelte/store";
 import { platform as defaultPlatform } from "./platform/index.js";
 import {
-  authParams,
   credentials,
   currentTrack,
   mumaApiKey,
   mumaApiUrl,
   playerState,
   playlist,
-  restUrl,
 } from "./store.js";
+import { subsonicJson } from "./subsonic.js";
 import { signIn } from "./login.js";
 
 /**
@@ -160,18 +159,20 @@ export async function rehydrateQueue(platform, fetchImpl = undefined) {
  * id that no longer resolves is dropped instead of failing the whole restore --
  * a single deleted track must not cost the listener the rest of their queue.
  *
+ * Through `subsonicJson`, so that a WebView rebuilt in a tunnel restores the
+ * queue from the downloaded library instead of coming back empty. That is the
+ * one path where the tracks are known to be local: they were playing.
+ *
  * @param {string[]} ids
  * @param {typeof fetch} [fetchImpl]
  * @returns {Promise<Array<object>>} In queue order, without the failures.
  */
 async function fetchTracks(ids, fetchImpl = undefined) {
   const call = fetchImpl ?? fetch;
-  const auth = get(authParams);
   const answers = await Promise.all(
     ids.map(async (id) => {
       try {
-        const response = await call(restUrl(`/rest/getSong?id=${encodeURIComponent(id)}&${auth}`));
-        const body = await response.json();
+        const body = await subsonicJson("getSong", { id }, { fetchImpl: call });
         return body?.["subsonic-response"]?.song ?? null;
       } catch (error) {
         console.warn("Could not look up a queued track", id, error);

@@ -2,8 +2,13 @@
   import { t } from '../i18n/index.js';
   import { onMount } from 'svelte';
   import { SvelteURLSearchParams } from 'svelte/reactivity';
-  import { deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, TRACK_PAGE_SIZES, authParams, credentials, restUrl } from '../store.js';
+  import { deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, TRACK_PAGE_SIZES, downloadsWifiOnly, authParams, credentials, restUrl } from '../store.js';
+  import { platform } from '../platform/index.js';
   import LanguageSetting from './LanguageSetting.svelte';
+
+  // Only where downloads exist. A browser has no files to keep, so a "wifi only"
+  // switch there would promise something nothing does.
+  const downloadsSupported = platform.storage.supported;
 
   // Server default for uiArtistReleaseSortMethod (ReleaseSortMethod::OriginalDateDesc).
   const DEFAULT_SORT_METHOD = 8;
@@ -252,6 +257,24 @@
         </div>
       </div>
     </section>
+
+    {#if downloadsSupported}
+      <!-- Downloads Section -->
+      <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+        <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.general.downloads')}</h2>
+
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-1">
+            <h3 class="text-lg font-bold">{$t('settings.general.wifiOnly')}</h3>
+            <p class="text-sm text-[#b3b3b3]">{$t('settings.general.wifiOnlyHelp')}</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" class="sr-only peer" checked={$downloadsWifiOnly} onchange={() => downloadsWifiOnly.update((v) => !v)} aria-label={$t('settings.general.wifiOnly')}>
+            <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+          </label>
+        </div>
+      </section>
+    {/if}
 
     <!-- Subsonic Section -->
     <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">

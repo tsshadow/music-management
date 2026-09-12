@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { authParams, playlist, currentTrack, playerState, mumaApiUrl, restUrl } from './store.js';
   import TrackList from './TrackList.svelte';
+  import { listOf, subsonicJson } from './subsonic.js';
 
   const { onnavigate } = $props();
   let tracks = $state([]);
@@ -17,21 +18,10 @@
     if (!$authParams) return;
     isLoading = true;
     try {
-      const response = await fetch(restUrl(`/rest/getStarred2?${$authParams}`));
-      if (response.ok) {
-        const data = await response.json();
-        const res = data['subsonic-response']?.starred2;
-        if (res) {
-          const s = res.song || [];
-          tracks = Array.isArray(s) ? s : [s];
-          
-          const al = res.album || [];
-          albums = Array.isArray(al) ? al : [al];
-          
-          const ar = res.artist || [];
-          artists = Array.isArray(ar) ? ar : [ar];
-        }
-      }
+      const data = await subsonicJson('getStarred2');
+      tracks = listOf(data, 'starred2.song');
+      albums = listOf(data, 'starred2.album');
+      artists = listOf(data, 'starred2.artist');
     } catch (e) {
       console.error("Failed to load starred items:", e);
     } finally {

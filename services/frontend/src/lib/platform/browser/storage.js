@@ -74,6 +74,27 @@ const storage = {
   },
 
   /**
+   * Whether there is no route to the music server.
+   *
+   * A browser tab never answers `true`: it has no offline library to switch
+   * to, so "offline" would only mean "show nothing", and a failing request
+   * already says that more accurately than a guess made in advance does.
+   *
+   * @returns {Promise<boolean>} Always false.
+   */
+  async isOffline() {
+    return false;
+  },
+
+  /**
+   * @param {function({online: boolean}): void} _handler
+   * @returns {function(): void} Unsubscribes. Never fires here.
+   */
+  onConnectivity(_handler) {
+    return () => {};
+  },
+
+  /**
    * @param {function(object): void} _handler
    * @returns {function(): void} Unsubscribes. Never fires here.
    */

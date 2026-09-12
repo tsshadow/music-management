@@ -1,13 +1,129 @@
 <script>
-  import { t } from './i18n/index.js';
+  import { t, locale } from './i18n/index.js';
   import { currentTrack, playerState, authParams, playlist, isMobile, highlightedTrackId, mumaApiUrl, restUrl } from './store.js';
   import ArtistList from './ArtistList.svelte';
   import Modal from './Modal.svelte';
   import { subsonicError } from './utils.js';
   import { notify } from './notifications.js';
   import { releaseDateLabel } from './trackDate.js';
+  import { platform as defaultPlatform } from './platform/index.js';
+  import { coverArtSrc, localCoverArt, resolveCoverArt } from './coverArt.js';
+  import { offline } from './subsonic.js';
+  import { formatBytes, isSet, trackSize } from './downloads.js';
 
-  const { tracks = [], isQueue = false, playlistId = null, onremove = null, onnavigate, showDate = false } = $props();
+  const {
+    tracks = [],
+    isQueue = false,
+    playlistId = null,
+    onremove = null,
+    onnavigate,
+    showDate = false,
+    platform = defaultPlatform
+  } = $props();
+
+  /**
+   * What is downloaded, for the rows on screen.
+   *
+   * One `stateOf` per rendered list rather than one per row -- that is the
+   * whole reason the plugin takes a batch -- refreshed from the `progress`
+   * event, which is the only thing that can change an answer while the list is
+   * up. In a browser `supported` is false, nothing is asked, and every row
+   * renders exactly as it did before this feature existed.
+   */
+  const downloadsSupported = $derived(platform?.storage?.supported === true);
+  let downloadStates = $state({});
+  /** The set whose size is being confirmed, or null. */
+  let pendingSet = $state(null);
+
+  const trackIds = $derived(tracks.map((track) => String(track.id)));
+
+  async function refreshDownloadStates() {
+    if (!downloadsSupported || trackIds.length === 0) return;
+    try {
+      downloadStates = await platform.storage.stateOf(trackIds);
+    } catch (e) {
+      console.warn('Could not read the download states for this list', e);
+    }
+  }
+
+  $effect(() => {
+    // Reads `trackIds` so a new list is asked about; the call itself is not
+    // reactive, so nothing here loops.
+    void trackIds;
+    refreshDownloadStates();
+  });
+
+  $effect(() => {
+    if (!downloadsSupported) return;
+    return platform.storage.onProgress((event) => {
+      if (!trackIds.includes(String(event.id))) return;
+      downloadStates = { ...downloadStates, [String(event.id)]: event.state };
+    });
+  });
+
+  // Offline, the artwork comes off the device; online this resolves nothing.
+  $effect(() => {
+    void $offline;
+    resolveCoverArt(tracks.map((track) => track.coverArt), platform);
+  });
+
+  /**
+   * @param {Object} track
+   * @returns {string} One of none/queued/running/done/failed.
+   */
+  function downloadStateOf(track) {
+    return downloadStates[String(track.id)] ?? 'none';
+  }
+
+  /**
+   * Starts a download, asking first when it is a set.
+   *
+   * The size line before a set is the functional design's own requirement: a
+   * two-hour recording is hundreds of megabytes and a tap should not spend them
+   * silently. Short tracks start straight away -- a confirmation per three
+   * minute song would be noise.
+   *
+   * @param {Event} e
+   * @param {Object} track
+   */
+  function download(e, track) {
+    e.stopPropagation();
+    if (isSet(track)) {
+      pendingSet = track;
+      return;
+    }
+    start(track);
+  }
+
+  /**
+   * @param {Object} track
+   */
+  async function start(track) {
+    pendingSet = null;
+    downloadStates = { ...downloadStates, [String(track.id)]: 'queued' };
+    try {
+      await platform.storage.download([String(track.id)], { pin: true });
+    } catch (err) {
+      console.error('Could not start a download', err);
+      notify.error($t('downloads.startFailed'), { detail: err.message });
+      await refreshDownloadStates();
+    }
+  }
+
+  /**
+   * @param {Event} e
+   * @param {Object} track
+   */
+  async function removeDownload(e, track) {
+    e.stopPropagation();
+    try {
+      await platform.storage.remove([String(track.id)]);
+      downloadStates = { ...downloadStates, [String(track.id)]: 'none' };
+    } catch (err) {
+      console.error('Could not remove a download', err);
+      notify.error($t('downloads.removeFailed'), { detail: err.message });
+    }
+  }
 
   let selectedLyricsTrack = $state(null);
   let lyricsLines = $state([]);
@@ -308,13 +424,33 @@
         <td class="p-2 px-4">
           <div class="flex items-center gap-3">
             <img
-              src={track.coverArt ? restUrl(`/rest/getCoverArt?id=${track.coverArt}&size=48&${$authParams}`) : '/images/spotify-fallback.svg'}
+              src={coverArtSrc(track.coverArt, 48, $authParams, $localCoverArt, $offline)}
               alt=""
               class="w-10 h-10 md:w-12 md:h-12 rounded shadow"
               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
             />
             <div class="flex flex-col min-w-0">
-              <span class="text-sm md:text-base font-medium truncate {String($currentTrack?.id) === String(track.id) ? 'text-brand' : 'text-white'}">{track.title}</span>
+              <span class="text-sm md:text-base font-medium truncate {String($currentTrack?.id) === String(track.id) ? 'text-brand' : 'text-white'}">
+                {track.title}
+                {#if downloadStateOf(track) !== 'none'}
+                  {@const state = downloadStateOf(track)}
+                  <span
+                    class="inline-block align-middle ml-1.5 {state === 'failed' ? 'text-red-400' : state === 'done' ? 'text-brand' : 'text-[#b3b3b3]'}"
+                    aria-label={$t(`downloads.state.${state}`)}
+                    title={$t(`downloads.state.${state}`)}
+                    data-testid="download-glyph"
+                    data-state={state}
+                  >
+                    {#if state === 'done'}
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1 14.4L6.6 12 8 10.6l3 3 5-5L17.4 10 11 16.4z"></path></svg>
+                    {:else if state === 'failed'}
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path></svg>
+                    {:else}
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" class={state === 'running' ? 'animate-pulse' : ''}><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"></path></svg>
+                    {/if}
+                  </span>
+                {/if}
+              </span>
               <ArtistList
                 artist={track.artist}
                 artistId={track.artistId}
@@ -469,6 +605,35 @@
                   </svg>
               </button>
 
+              {#if downloadsSupported}
+                <!-- Keeping the file on this device, which is not the browser's
+                     "save a copy" below: the two live side by side because they
+                     do different things, and only one of them exists here. -->
+                {#if downloadStateOf(track) === 'none' || downloadStateOf(track) === 'failed'}
+                  <button
+                    aria-label={$t('downloads.download')}
+                    title={$t('downloads.download')}
+                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                    onclick={(e) => download(e, track)}
+                  >
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                          <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 11.2V16h-2v-2.8L8.4 15 7 13.6 12 9l5 4.6-1.4 1.4L13 13.2z" transform="rotate(180 12 12)"></path>
+                      </svg>
+                  </button>
+                {:else}
+                  <button
+                    aria-label={$t('downloads.remove')}
+                    title={$t('downloads.remove')}
+                    class="bg-transparent border-none text-brand cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                    onclick={(e) => removeDownload(e, track)}
+                  >
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                          <path d="M6 19c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"></path>
+                      </svg>
+                  </button>
+                {/if}
+              {/if}
+
               <a
                 href={restUrl(`/rest/download?id=${track.id}&${$authParams}`)}
                 download={`${track.artist} - ${track.title}.mp3`}
@@ -487,6 +652,32 @@
     {/each}
   </tbody>
 </table>
+
+{#if pendingSet}
+  {@const size = trackSize(pendingSet)}
+  <Modal title={$t('downloads.confirmTitle')} onclose={() => (pendingSet = null)}>
+    <div class="flex flex-col gap-4 py-4" data-testid="set-size-confirm">
+      <p class="text-white text-lg font-bold m-0">{pendingSet.title}</p>
+      <!-- The size is the whole point of this sheet, so where it came from is
+           part of it: `size` off the library when LMS sent one, otherwise
+           bitrate times length, which the note underneath says out loud. -->
+      <p class="text-2xl font-bold text-brand m-0" data-testid="set-size">{formatBytes(size.bytes, $locale)}</p>
+      <p class="text-sm text-[#b3b3b3] m-0">
+        {size.estimated ? $t('downloads.sizeEstimated') : $t('downloads.sizeExact')}
+      </p>
+      <div class="flex gap-3 justify-end">
+        <button
+          class="bg-transparent border border-[#727272] text-white px-6 py-2 rounded-[24px] font-bold cursor-pointer hover:border-white"
+          onclick={() => (pendingSet = null)}
+        >{$t('common.cancel')}</button>
+        <button
+          class="bg-brand text-black px-6 py-2 rounded-[24px] font-bold cursor-pointer"
+          onclick={() => start(pendingSet)}
+        >{$t('downloads.download')}</button>
+      </div>
+    </div>
+  </Modal>
+{/if}
 
 {#if selectedLyricsTrack}
   <Modal 

@@ -25,6 +25,9 @@
   import Management from './management/Management.svelte';
   import CollectionBar from './CollectionBar.svelte';
   import CollectionGrid from './CollectionGrid.svelte';
+  import DownloadsView from './DownloadsView.svelte';
+  import OfflineNotice from './OfflineNotice.svelte';
+  import { listOf, offline, subsonicJson, viewHasOfflineSource } from './subsonic.js';
   import { getArtistImageUrl, viewArgument } from './utils.js';
   import { localDateString, memoryCount, memoryHeading, parseMemoryGroups } from './memories.js';
   import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
@@ -191,50 +194,33 @@
     let currentBatch = [];
     try {
       while (currentBatch.length < pageSize && tracksHasMore) {
-        let url = `/rest/getSpotifyTracks?sort=${currentSort}&offset=${tracksOffset}&count=${pageSize}&${$authParams}`;
-        if (currentSort === 'random') url += `&seed=${currentSeed}`;
-        if ($deduplicateEnabled) url += `&deduplicate=true`;
-        if (currentTrackSearch) url += `&query=${encodeURIComponent(currentTrackSearch)}`;
-        if (currentGenre) url += `&genre=${encodeURIComponent(currentGenre)}`;
-        else if (activeView.startsWith('genre:')) {
-          url += `&genre=${encodeURIComponent(viewArgument(activeView))}`;
-        }
-        if (activeView.startsWith('label:')) {
-          url += `&label=${encodeURIComponent(viewArgument(activeView))}`;
-        }
-        if (activeView.startsWith('podcast:')) {
-          url += `&podcast=${encodeURIComponent(viewArgument(activeView))}`;
-        }
-        if (activeView.startsWith('festival:')) {
-          url += `&festival=${encodeURIComponent(viewArgument(activeView))}`;
-        }
-        if (activeView.startsWith('lineup:')) {
-          url += `&lineup=${encodeURIComponent(viewArgument(activeView))}`;
-        }
+        const argument = viewArgument(activeView);
+        const params = {
+          sort: currentSort,
+          offset: tracksOffset,
+          count: pageSize,
+          seed: currentSort === 'random' ? currentSeed : undefined,
+          deduplicate: $deduplicateEnabled ? 'true' : undefined,
+          query: currentTrackSearch || undefined,
+          genre: currentGenre || (activeView.startsWith('genre:') ? argument : undefined),
+          label: activeView.startsWith('label:') ? argument : undefined,
+          podcast: activeView.startsWith('podcast:') ? argument : undefined,
+          festival: activeView.startsWith('festival:') ? argument : undefined,
+          lineup: activeView.startsWith('lineup:') ? argument : undefined,
+          // The year view reuses the parameter the filter bar already drives. Seeding
+          // `currentYear` from the route instead would not survive: resetTrackFiltersFor
+          // clears it on every arrival at a new track view, before the first fetch.
+          year: currentYear || (activeView.startsWith('year:') ? argument : undefined),
+          minRating: currentMinRating !== '0' ? currentMinRating : undefined,
+          includeUnrated: includeUnrated ? 'true' : undefined,
+          // Minutes on this endpoint, not seconds; the offline library reads them
+          // the same way. Ten is the songs/sets boundary the whole app uses.
+          ...($viewMode === 'sets' ? { minDuration: 10 } : { maxDuration: 10 })
+        };
 
-        // The year view reuses the parameter the filter bar already drives. Seeding
-        // `currentYear` from the route instead would not survive: resetTrackFiltersFor
-        // clears it on every arrival at a new track view, before the first fetch.
-        if (currentYear) url += `&year=${encodeURIComponent(currentYear)}`;
-        else if (activeView.startsWith('year:')) {
-          url += `&year=${encodeURIComponent(viewArgument(activeView))}`;
-        }
-        if (currentMinRating !== '0') url += `&minRating=${currentMinRating}`;
-        if (includeUnrated) url += `&includeUnrated=true`;
-
-        if ($viewMode === 'sets') {
-          url += `&minDuration=10`;
-        } else {
-          url += `&maxDuration=10`;
-        }
-
-        console.log(`Fetching: ${url}`);
-        const response = await fetch(restUrl(url), { signal });
-        const data = await response.json();
-        console.log("Track data received:", data);
+        const data = await subsonicJson('getSpotifyTracks', params, { signal });
         const tracksNode = data['subsonic-response']?.tracks;
-        const result = tracksNode?.track || [];
-        const newTracks = Array.isArray(result) ? result : [result];
+        const newTracks = listOf(data, 'tracks.track');
 
         // Deduplicate this batch against what we've seen before if enabled
         const deduped = $deduplicateEnabled ? deduplicateTracks(newTracks, seenKeys) : newTracks;
@@ -292,14 +278,18 @@
     const signal = albumsController?.signal;
 
     try {
-      let url = `/rest/getAlbumList2?type=${currentAlbumSort}&size=${pageSize}&offset=${albumsOffset}&${$authParams}`;
-      if (currentAlbumGenre) url += `&genre=${encodeURIComponent(currentAlbumGenre)}`;
-      if (currentAlbumSearch) url += `&query=${encodeURIComponent(currentAlbumSearch)}`;
-
-      const response = await fetch(restUrl(url), { signal });
-      const data = await response.json();
-      const result = data['subsonic-response']?.albumList2?.album || [];
-      const newAlbums = Array.isArray(result) ? result : [result];
+      const data = await subsonicJson(
+        'getAlbumList2',
+        {
+          type: currentAlbumSort,
+          size: pageSize,
+          offset: albumsOffset,
+          genre: currentAlbumGenre || undefined,
+          query: currentAlbumSearch || undefined
+        },
+        { signal }
+      );
+      const newAlbums = listOf(data, 'albumList2.album');
 
       if (append) {
         albums = [...albums, ...newAlbums];
@@ -335,13 +325,18 @@
     const signal = artistsController?.signal;
 
     try {
-      let url = `/rest/getArtistList?type=${currentArtistSort}&role=${currentArtistRole}&size=${pageSize}&offset=${artistsOffset}&${$authParams}`;
-      if (currentArtistSearch) url += `&query=${encodeURIComponent(currentArtistSearch)}`;
-
-      const response = await fetch(restUrl(url), { signal });
-      const data = await response.json();
-      const result = data['subsonic-response']?.artistList?.artist || [];
-      const newArtists = Array.isArray(result) ? result : [result];
+      const data = await subsonicJson(
+        'getArtistList',
+        {
+          type: currentArtistSort,
+          role: currentArtistRole,
+          size: pageSize,
+          offset: artistsOffset,
+          query: currentArtistSearch || undefined
+        },
+        { signal }
+      );
+      const newArtists = listOf(data, 'artistList.artist');
 
       if (append) {
         artists = [...artists, ...newArtists];
@@ -377,13 +372,9 @@
     isLoading = true;
     console.log("Fetching all genres...");
     try {
-      const response = await fetch(restUrl(`/rest/getGenres?${$authParams}`));
-      const data = await response.json();
-      console.log("Genres response:", data);
-      const result = data['subsonic-response']?.genres?.genre || [];
       // Kept unfiltered and unsorted: the CollectionBar owns both now, so the
       // "minimaal" chips can reach the long tail instead of it being dropped here.
-      const genres = Array.isArray(result) ? result : [result];
+      const genres = listOf(await subsonicJson('getGenres'), 'genres.genre');
       // getGenres carries no colour. MuMa derives one per genre so this list and the
       // mobile app draw Hardstyle in the same orange; a genre MuMa does not know keeps
       // the brand accent.
@@ -403,10 +394,7 @@
     if (!$authParams) return;
     isLoading = true;
     try {
-      const response = await fetch(restUrl(`/rest/getRecordLabels?${$authParams}`));
-      const data = await response.json();
-      const result = data['subsonic-response']?.recordLabels?.recordLabel || [];
-      allLabels = Array.isArray(result) ? result : [result];
+      allLabels = listOf(await subsonicJson('getRecordLabels'), 'recordLabels.recordLabel');
     } catch (e) {
       console.error("Failed to load labels:", e);
     } finally {
@@ -651,8 +639,11 @@
     const view = activeView;
     const auth = $authParams;
     const mode = $viewMode;
+    // A dependency on purpose: coming back online has to re-run the loader for
+    // the view the listener is already standing on.
+    const unreachable = $offline && !viewHasOfflineSource(view);
 
-    if (auth) {
+    if (auth && !unreachable) {
       untrack(() => {
         if (view === 'home') {
             loadCurated();
@@ -723,7 +714,14 @@
 {/snippet}
 
 <div class="flex flex-col gap-8">
-  {#if activeView === 'home'}
+  <!-- Checked before every other branch, and before any loader runs, so a view
+       whose only data source is the server says so in one line instead of
+       spinning at a request that cannot be answered. -->
+  {#if $offline && !viewHasOfflineSource(activeView)}
+    <OfflineNotice kind="unavailable" onnavigate={onnavigate} />
+  {:else if activeView === 'downloads'}
+    <DownloadsView onnavigate={onnavigate} />
+  {:else if activeView === 'home'}
     {#if $memoriesOnHomeEnabled && memoryGroups.length > 0}
       <section class="flex flex-col gap-4">
         <div class="flex justify-between items-end mb-4">
@@ -842,6 +840,10 @@
                     </button>
                 </div>
             {/if}
+        {:else if $offline}
+            <!-- The list is empty and there is no connection, so the reason is
+                 that nothing here is downloaded -- not that the library is empty. -->
+            <OfflineNotice kind="empty" onnavigate={onnavigate} />
         {:else}
             <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
                 <p class="text-xl font-bold mb-2 text-white">{$viewMode === 'sets' ? $t('dashboard.noSets') : $t('dashboard.noTracks')}</p>
@@ -1144,10 +1146,16 @@
       {/if}
 
       {#if tracks.length === 0 && artists.length === 0 && albums.length === 0}
-        <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
-            <p class="text-xl font-bold mb-2 text-white">{$t('search.noResults')}</p>
-            <p class="text-sm opacity-60">{$t('search.tryAnother')}</p>
-        </div>
+        {#if $offline}
+          <!-- Search does reach the device; finding nothing there means nothing
+               matching is downloaded, which is not "try another term". -->
+          <OfflineNotice kind="empty" onnavigate={onnavigate} />
+        {:else}
+          <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
+              <p class="text-xl font-bold mb-2 text-white">{$t('search.noResults')}</p>
+              <p class="text-sm opacity-60">{$t('search.tryAnother')}</p>
+          </div>
+        {/if}
       {/if}
     </div>
   {:else if activeView === 'settings'}

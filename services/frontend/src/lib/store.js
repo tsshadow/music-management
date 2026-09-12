@@ -240,6 +240,15 @@ export const DEFAULT_TRACK_PAGE_SIZE = 50;
 export const trackPageSize = writable(DEFAULT_TRACK_PAGE_SIZE);
 persist("lms_track_page_size", trackPageSize);
 
+// Whether downloads wait for wifi. Stored and synced to the account like every
+// other setting here; NOT yet passed to the native downloader -- `DownloadService`
+// has no such switch and `platform.storage` has no call to set one, so until a
+// later change adds both, this records the listener's answer and nothing acts on
+// it. The Downloads heading only appears when `platform.storage.supported`, so
+// nobody sees a switch their shell could not honour anyway.
+export const downloadsWifiOnly = writable(false);
+persist("lms_downloads_wifi_only", downloadsWifiOnly);
+
 // How many history entries this session pushed itself. A back control can only
 // honestly go back when there is somewhere of ours to return to: arriving straight
 // on /management/config from a bookmark leaves nothing behind, and history.back()
@@ -500,6 +509,12 @@ async function applyAccountSettings(userId) {
     trackPageSize.set(settings.trackPageSize);
     applyingAccountSettings = false;
   }
+
+  if (settings && typeof settings.downloadsWifiOnly === "boolean") {
+    applyingAccountSettings = true;
+    downloadsWifiOnly.set(settings.downloadsWifiOnly);
+    applyingAccountSettings = false;
+  }
 }
 
 mumaUser.subscribe(($user) => {
@@ -546,6 +561,17 @@ trackPageSize.subscribe(($size) => {
   const userId = syncedUserId;
   clearTimeout(pageSizeSaveTimer);
   pageSizeSaveTimer = setTimeout(() => saveFrontendSetting(userId, "trackPageSize", $size), 400);
+});
+
+let wifiOnlySaveTimer = null;
+downloadsWifiOnly.subscribe(($wifiOnly) => {
+  if (applyingAccountSettings || !syncedUserId) return;
+  const userId = syncedUserId;
+  clearTimeout(wifiOnlySaveTimer);
+  wifiOnlySaveTimer = setTimeout(
+    () => saveFrontendSetting(userId, "downloadsWifiOnly", $wifiOnly),
+    400,
+  );
 });
 
 export const isAdmin = derived(

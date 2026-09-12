@@ -32,6 +32,11 @@ const PLAIN_VIEWS = [
   "history",
   "listening",
   "starred",
+  // Reachable everywhere, listed only where it can work: the drawer and the tab
+  // strip add it on `platform.storage.supported`, and in a browser the screen
+  // itself says why it is empty. A route that existed only inside the shell
+  // would make a shared link land on the home screen.
+  "downloads",
 ];
 
 /**

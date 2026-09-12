@@ -838,6 +838,7 @@
     "artists": "Artiesten",
     "closeMenu": "Menu sluiten",
     "dailyMix": "Dagelijkse mix",
+    "downloads": "Downloads",
     "festivals": "Festivals",
     "genres": "Genres",
     "history": "Geschiedenis",
@@ -967,6 +968,7 @@
       "artistRelationsHelp": "Toon extra rollen (zoals componist of remixer) direct bij de artiest.",
       "dedupe": "Deduplicatie",
       "dedupeHelp": "Verberg dubbele nummers op basis van artiest en titel.",
+      "downloads": "Downloads",
       "externalClients": "Externe Clients (Subsonic)",
       "externalServices": "Externe Diensten",
       "feedbackSystem": "Feedback (Rating) Systeem",
@@ -991,7 +993,9 @@
       "title": "Algemene Instellingen",
       "trackArtists": "Track Artiesten",
       "transcodingDefault": "Transcoding Standaard",
-      "transcodingHelp": "Altijd transcoderen voor Subsonic clients?"
+      "transcodingHelp": "Altijd transcoderen voor Subsonic clients?",
+      "wifiOnly": "Alleen via wifi",
+      "wifiOnlyHelp": "Wacht op wifi voordat er gedownload wordt. Wordt bij je account bewaard; de downloader leest hem nog niet."
     },
     "language": {
       "help": "De taal van de interface. Wordt opgeslagen bij je account, zodat hij meegaat naar je andere apparaten.",
@@ -1059,5 +1063,37 @@
     "heading": "Nummer",
     "versionCount": "{count} versies",
     "notFound": "Dit nummer heeft geen versies om te tonen."
+  },
+  "downloads": {
+    "browserHelp": "Deze browser kan geen muziek op het apparaat bewaren. Open MuMa in de app om te downloaden.",
+    "browserTitle": "Downloads zitten in de app",
+    "confirmTitle": "Deze set downloaden?",
+    "discover": "Muziek zoeken",
+    "download": "Downloaden naar apparaat",
+    "emptyHelp": "Er staat nog niets op dit apparaat. Download een nummer of een set en die verschijnt hier.",
+    "emptyTitle": "Geen downloads",
+    "estimatedNote": "Groottes zonder exacte opgave zijn geschat uit de bitrate en de lengte.",
+    "remove": "Download verwijderen",
+    "removeConfirm": "{title} ({size}) van dit apparaat verwijderen?",
+    "removeFailed": "De download kon niet worden verwijderd",
+    "removed": "{title} van dit apparaat verwijderd",
+    "retry": "Opnieuw proberen",
+    "sizeEstimated": "Geschat uit de bitrate en de lengte; het echte bestand kan afwijken.",
+    "sizeExact": "De grootte die de bibliotheek voor deze opname opgeeft.",
+    "startFailed": "De download kon niet worden gestart",
+    "state": {
+      "done": "Gedownload",
+      "failed": "Download mislukt",
+      "none": "Niet gedownload",
+      "queued": "In de wachtrij",
+      "running": "Bezig met downloaden"
+    },
+    "total": "{size} op dit apparaat · {count} items"
+  },
+  "offline": {
+    "emptyHelp": "Er is geen verbinding en niets uit deze lijst staat op het apparaat.",
+    "emptyTitle": "Hier is niets gedownload",
+    "unavailableHelp": "Dit scherm heeft de server nodig. Zodra er verbinding is werkt het weer.",
+    "unavailableTitle": "Niet beschikbaar zonder verbinding"
   }
 }

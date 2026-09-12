@@ -1,6 +1,6 @@
 # App Crashes On Launch While Connected To The Car
 
-# status: fixed
+# status: fixed — root cause superseded: `MediaPlayerManager` is an application-scoped `single` since `refactor/mobile-player-app-scope`, so root-scope resolution of the player no longer fails at all
 
 # reported problem
 Opening MuMa Mobile while sitting in the car makes the app disappear. Reported 2026-08-22. The

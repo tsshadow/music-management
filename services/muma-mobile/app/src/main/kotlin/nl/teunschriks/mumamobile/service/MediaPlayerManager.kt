@@ -61,6 +61,12 @@ private const val MILLIS_PER_SECOND = 1000L
  * well as switch between different player interfaces (local, remote, cast etc).
  * This class contains everything that is necessary for the Application UI
  * to control the Media Player implementation.
+ *
+ * Application-scoped (see `MediaPlayerModule`): it holds no activity, its only context is
+ * `UApp.applicationContext()`, and the [PlaybackService] it drives already outlives every screen.
+ * [onCreate] and [onDestroy] are therefore a start/stop pair that can run more than once over the
+ * life of this instance -- the exit menu destroys it and a later launch starts it again -- so
+ * neither may leave anything permanently torn down.
  */
 @Suppress("TooManyFunctions")
 class MediaPlayerManager(
@@ -358,8 +364,11 @@ class MediaPlayerManager(
     fun onDestroy() {
         if (!created) return
 
-        // First stop listening to events
-        rxBusSubscription.dispose()
+        // First stop listening to events.
+        // clear(), not dispose(): a disposed CompositeDisposable rejects everything added to it
+        // afterwards, and this instance is reused when the app is opened again after an exit.
+        // Disposing here left the resurrected player deaf to every RxBus event.
+        rxBusSubscription.clear()
         releaseController()
 
         // Shutdown the rest
@@ -819,6 +828,12 @@ class MediaPlayerManager(
         controller?.removeListener(listeners)
         controller?.release()
         if (mediaControllerFuture != null) MediaController.releaseFuture(mediaControllerFuture!!)
+
+        // Forget the released handles. A released MediaController throws on every call, and this
+        // instance is reused: the next onCreate() has to build a fresh one rather than find a
+        // corpse here.
+        controller = null
+        mediaControllerFuture = null
         Timber.i("MediaPlayerController released")
     }
 

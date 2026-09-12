@@ -35,7 +35,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import nl.teunschriks.mumamobile.R
-import nl.teunschriks.mumamobile.activity.NavigationActivity
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.audiofx.EqualizerController
@@ -50,6 +49,7 @@ import nl.teunschriks.mumamobile.service.androidauto.NewsPlaybackController
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.SessionMarker
 import nl.teunschriks.mumamobile.util.Settings
+import nl.teunschriks.mumamobile.util.UiVariant
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.Util.stopForegroundRemoveNotification
 import nl.teunschriks.mumamobile.util.toTrack
@@ -358,7 +358,7 @@ class PlaybackService :
     }
 
     private fun getPendingIntentForContent(): PendingIntent {
-        val intent = Intent(this, NavigationActivity::class.java)
+        val intent = UiVariant.launchIntent(this)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
         var flags = FLAG_UPDATE_CURRENT
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -401,7 +401,7 @@ class PlaybackService :
             )
             val pendingIntent =
                 TaskStackBuilder.create(this@PlaybackService).run {
-                    addNextIntent(Intent(this@PlaybackService, NavigationActivity::class.java))
+                    addNextIntent(UiVariant.launchIntent(this@PlaybackService))
 
                     val immutableFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         FLAG_IMMUTABLE

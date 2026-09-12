@@ -123,7 +123,8 @@ object CrashReportManager {
             hasExplicitCrashFile = evidence.hasExplicitCrashFile,
             explicitCrashText = evidence.explicitCrashText,
             hadUnexpectedShutdown = evidence.hadUnexpectedShutdown,
-            ringBufferText = evidence.ringBufferText
+            ringBufferText = evidence.ringBufferText,
+            webActionLogText = WebActionLog.asReportText()
         ) ?: return
 
         if (BuildConfig.DEBUG) {
@@ -154,7 +155,11 @@ object CrashReportManager {
      */
     fun sendManualReport(context: Context) {
         sendReport(
-            buildManualReport(RingBufferLoggerTree.currentText(), previousSessionRingBuffer),
+            buildManualReport(
+                RingBufferLoggerTree.currentText(),
+                previousSessionRingBuffer,
+                WebActionLog.asReportText()
+            ),
             deleteCrashFileOnSuccess = false
         ) { exported, uploaded ->
             val message = when {
@@ -254,14 +259,33 @@ internal fun buildPendingReport(
     hasExplicitCrashFile: Boolean,
     explicitCrashText: String,
     hadUnexpectedShutdown: Boolean,
-    ringBufferText: String
-): CrashReportManager.PendingCrashReport? = when {
-    !crashDetectionEnabled -> null
-    hasExplicitCrashFile ->
-        CrashReportManager.PendingCrashReport(stacktraceText = explicitCrashText, ringBufferText = ringBufferText)
-    hadUnexpectedShutdown && ringBufferText.isNotBlank() ->
-        CrashReportManager.PendingCrashReport(stacktraceText = null, ringBufferText = ringBufferText)
-    else -> null
+    ringBufferText: String,
+    webActionLogText: String = ""
+): CrashReportManager.PendingCrashReport? {
+    val log = withWebActionLog(ringBufferText, webActionLogText)
+    return when {
+        !crashDetectionEnabled -> null
+        hasExplicitCrashFile ->
+            CrashReportManager.PendingCrashReport(stacktraceText = explicitCrashText, ringBufferText = log)
+        // Judged on the ring buffer alone: a web action log without any log around it says
+        // nothing about why the process died, and reporting on it would turn every clean kill
+        // during a session with the new UI open into a crash report.
+        hadUnexpectedShutdown && ringBufferText.isNotBlank() ->
+            CrashReportManager.PendingCrashReport(stacktraceText = null, ringBufferText = log)
+        else -> null
+    }
+}
+
+/**
+ * Appends the web UI's action log to a session's log text.
+ *
+ * It goes at the end rather than the start because the ring buffer is what a triager reads
+ * first, and an empty log is appended as nothing at all.
+ */
+internal fun withWebActionLog(ringBufferText: String, webActionLogText: String): String = when {
+    webActionLogText.isBlank() -> ringBufferText
+    ringBufferText.isBlank() -> webActionLogText
+    else -> "$ringBufferText\n\n$webActionLogText"
 }
 
 /**
@@ -274,20 +298,24 @@ internal fun buildPendingReport(
  */
 internal fun buildManualReport(
     currentSessionText: String,
-    previousSessionText: String = ""
+    previousSessionText: String = "",
+    webActionLogText: String = ""
 ) = CrashReportManager.PendingCrashReport(
     stacktraceText = CrashReportManager.MANUAL_REPORT_MARKER,
-    ringBufferText = if (previousSessionText.isBlank()) {
-        currentSessionText
-    } else {
-        buildString {
-            append(CrashReportManager.PREVIOUS_SESSION_HEADER)
-            append("\n\n")
-            append(previousSessionText)
-            append("\n\n")
-            append(CrashReportManager.CURRENT_SESSION_HEADER)
-            append("\n\n")
-            append(currentSessionText)
-        }
-    }
+    ringBufferText = withWebActionLog(
+        if (previousSessionText.isBlank()) {
+            currentSessionText
+        } else {
+            buildString {
+                append(CrashReportManager.PREVIOUS_SESSION_HEADER)
+                append("\n\n")
+                append(previousSessionText)
+                append("\n\n")
+                append(CrashReportManager.CURRENT_SESSION_HEADER)
+                append("\n\n")
+                append(currentSessionText)
+            }
+        },
+        webActionLogText
+    )
 )

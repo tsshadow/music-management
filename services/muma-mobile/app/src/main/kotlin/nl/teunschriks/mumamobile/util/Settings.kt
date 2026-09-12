@@ -40,6 +40,21 @@ object Settings {
     )
 
     /**
+     * Whether the app opens in the Svelte web player instead of the Kotlin screens.
+     *
+     * Off by default and staying that way for as long as the web shell is a beta: this is the
+     * only thing that decides which of the two interfaces exists for a user, and every install
+     * that never touches it behaves exactly as it did before the shell was added. Writing it is
+     * not enough on its own -- [AppIconVariant.apply] has to move the launcher alias with it,
+     * because Android reads the manifest and not this.
+     */
+    @JvmStatic
+    var webUiEnabled by BooleanSetting(
+        getKey(R.string.setting_key_web_ui),
+        false
+    )
+
+    /**
      * Percentage the whole interface is scaled by. 100 is the density the device reports,
      * lower values shrink every dp and sp so more content fits on screen.
      */

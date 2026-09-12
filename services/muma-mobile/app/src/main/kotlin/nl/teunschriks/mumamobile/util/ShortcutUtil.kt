@@ -8,16 +8,14 @@
 package nl.teunschriks.mumamobile.util
 
 import android.app.Activity
-import android.content.Intent
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
 import nl.teunschriks.mumamobile.R
-import nl.teunschriks.mumamobile.activity.NavigationActivity
 
 object ShortcutUtil {
     fun registerShortcuts(activity: Activity) {
-        val shortcutIntent = Intent(activity, NavigationActivity::class.java).apply {
+        val shortcutIntent = UiVariant.launchIntent(activity).apply {
             action = Constants.INTENT_PLAY_RANDOM_SONGS
         }
 

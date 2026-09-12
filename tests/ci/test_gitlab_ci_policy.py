@@ -143,7 +143,10 @@ JOB_SCOPES = COMPONENT_SCOPES | {
 CORE_VERBS = {"format", "lint", "unit"}
 EXTRA_VERBS = {
     "backend": {"typecheck", "integration"},
-    "frontend": {"typecheck", "e2e"},
+    # `bundle` produces services/frontend/dist as an artifact for the Android build, which
+    # runs in an image without Node. It is a frontend job because it is the frontend's own
+    # toolchain that builds it; it is not a check, which is why it needs a verb of its own.
+    "frontend": {"typecheck", "e2e", "bundle"},
     "mobile": {"smoke", "build-debug", "build-release"},
     "server": set(),
 }

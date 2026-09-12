@@ -86,6 +86,14 @@ class RxBus {
                 // Need to specify thread, see comment at beginning
                 .throttleLatest(300, TimeUnit.MILLISECONDS, mainThread())
 
+        // A failed item leaves Media3 in STATE_IDLE, which is indistinguishable from "nothing
+        // loaded". Without this the Capacitor shell could only report the silence, never the
+        // reason for it.
+        val playerErrorPublisher: PublishSubject<PlayerError> =
+            PublishSubject.create()
+        val playerErrorObservable: Observable<PlayerError> =
+            playerErrorPublisher.observeOn(mainThread())
+
         val playlistPublisher: PublishSubject<List<Track>> =
             PublishSubject.create()
         val playlistObservable: Observable<List<Track>> =
@@ -148,6 +156,9 @@ class RxBus {
     )
 
     data class TrackDownloadState(val id: String, val state: DownloadState, val progress: Int?)
+
+    /** What Media3 reported when an item refused to play. [code] is a `PlaybackException` code. */
+    data class PlayerError(val code: Int, val message: String?)
 
     data class Folder(val id: String?)
 }

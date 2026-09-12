@@ -8,6 +8,7 @@
     <string name="setting_key.app_icon" translatable="false">appIcon</string>
     <string name="setting_key.app_icon_green" translatable="false">green</string>
     <string name="setting_key.app_icon_blue" translatable="false">blue</string>
+    <string name="setting_key.web_ui" translatable="false">webUiEnabled</string>
     <string name="setting_key.ui_scale" translatable="false">uiScale</string>
     <string name="setting_key.display_bitrate_with_artist" translatable="false">displayBitrateWithArtist</string>
     <string name="setting_key.use_folder_for_album_artist" translatable="false">useFolderForAlbumArtist</string>

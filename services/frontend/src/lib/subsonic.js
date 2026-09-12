@@ -18,14 +18,22 @@ import { platform as defaultPlatform } from "./platform/index.js";
  * 1. `platform.storage.supported === false` -- a plain browser tab -- always
  *    fetches. Nothing below runs, which is what keeps criterion 13 ("no other
  *    screen differs") true by construction rather than by testing.
- * 2. Inside a shell that reports itself offline, the request goes straight to
- *    `platform.storage.query`. No fetch is attempted: on a phone in a tunnel
- *    that is twenty seconds of spinner per list.
+ * 2. Inside a shell that reports itself offline, `platform.storage.isOffline()`
+ *    is asked again first -- cheap, a bridge call rather than a network round
+ *    trip -- because the flag can be minutes old and set from a single earlier
+ *    blip. Confirmed, the request goes straight to `platform.storage.query`: no
+ *    fetch is attempted, which on a phone in a tunnel is twenty seconds of
+ *    spinner per list. Not confirmed, the flag was stale and clears before
+ *    falling through to rule 3, so a connection that came back is used the
+ *    moment anything asks again rather than waiting for a connectivity event.
  * 3. Inside a shell that believes it is online, the server is tried first and a
- *    *network* failure falls back to the local library. `isOffline()` is
- *    advisory (the Kotlin side says so: internet capability is not the same as
- *    a route to a server on the listener's own LAN), so this fallback, not the
- *    flag, is what actually makes offline work.
+ *    *network* failure asks `isOffline()` once more before falling back to the
+ *    local library. Only a confirmed "no route" flips the flag and uses the
+ *    device; anything else is a transient failure and travels to the caller
+ *    exactly as it would in a browser tab, because a single dropped request is
+ *    not the same claim as "this device has no way to reach a server", and
+ *    must not be allowed to make every later screen believe that until an
+ *    unrelated connectivity event fires.
  *
  * An HTTP status is deliberately not a reason to fall back. A 401 or a 500 is
  * the server answering, and answering the listener's own library instead would
@@ -105,14 +113,42 @@ export function queryString(params = {}) {
 /**
  * Whether a thrown error means "the request never reached a server".
  *
- * `fetch` rejects with a `TypeError` for DNS, connection and CORS failures; an
- * abort is an `AbortError` and is the caller's own doing, so it travels on.
+ * `fetch` rejects with a `TypeError` for DNS, connection and CORS failures, so
+ * that is the check -- not "anything that isn't an abort". A response that
+ * did arrive but was not JSON (a proxy's HTML error page, a captive portal)
+ * throws a `SyntaxError` out of `response.json()`, and that is the server
+ * answering, however badly; treating it as "no route to a server" would fall
+ * back to the device on exactly the kind of error rule 3's own comment above
+ * says must not do that. An abort is the caller's own doing and travels on
+ * regardless of its constructor.
  *
  * @param {unknown} error
  * @returns {boolean}
  */
 function isNetworkFailure(error) {
-  return Boolean(error) && error.name !== "AbortError";
+  return error instanceof TypeError && error.name !== "AbortError";
+}
+
+/**
+ * Asks the shell's own connectivity signal fresh, rather than trusting
+ * whatever the `offline` store currently holds.
+ *
+ * Cheap -- a bridge call answered from the OS, not a network round trip --
+ * which is why both the fast path (skip the fetch outright when the flag is
+ * already set) and the failure path (decide whether a failed request means
+ * "offline" at all) confirm through here instead of a flag that a single
+ * earlier blip could have set minutes ago.
+ *
+ * @param {object} storage
+ * @returns {Promise<boolean>}
+ */
+async function confirmedOffline(storage) {
+  try {
+    return (await storage.isOffline()) === true;
+  } catch (error) {
+    console.warn("Could not read the connectivity state", error);
+    return false;
+  }
 }
 
 /**
@@ -134,7 +170,13 @@ export async function subsonicJson(method, params = {}, options = {}) {
   const storage = platform?.storage;
   const local = storage?.supported === true;
 
-  if (local && get(offline)) return await localQuery(storage, method, params);
+  if (local && get(offline)) {
+    if (await confirmedOffline(storage)) return await localQuery(storage, method, params);
+    // The device now says it has a route again. A flag flipped by one earlier
+    // blip must not keep outliving the connection problem it recorded, so it
+    // clears here rather than waiting for an unrelated connectivity event.
+    offline.set(false);
+  }
 
   try {
     const call = fetchImpl ?? fetch;
@@ -144,12 +186,11 @@ export async function subsonicJson(method, params = {}, options = {}) {
     return await response.json();
   } catch (error) {
     if (!local || !isNetworkFailure(error)) throw error;
+    if (!(await confirmedOffline(storage))) throw error;
     // The method is an argument rather than interpolated: a name that reached a
     // log line as a format string could forge the rest of the message, and
     // semgrep's `unsafe-formatstring` is right to say so even here.
     console.info("The server did not answer /rest/%s; using what is on the device", method, error);
-    // Believed online and yet unreachable: record it, so the next list in this
-    // screenful skips the twenty-second wait this one just paid for.
     offline.set(true);
     return await localQuery(storage, method, params);
   }

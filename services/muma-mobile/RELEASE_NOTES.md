@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+## Global Version 6.35.1 (2026-09-11)
+
+- De sectie "Hoog gewaardeerd" op het startscherm toont nu daadwerkelijk je hoog gewaardeerde nummers.
 ## Global Version 6.35.0 (2026-09-11)
 
 - **Stel zelf in wat er op je startscherm staat** — per sectie een knop, een overzicht of niets,

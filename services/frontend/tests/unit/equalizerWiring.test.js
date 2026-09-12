@@ -5,8 +5,9 @@ import * as equalizer from "../../src/lib/equalizer.js";
 import { EQ_PRESETS } from "../../src/lib/equalizerPresets.js";
 
 /**
- * Mirrors the single $effect in Player.svelte. If the player's version and this
- * one drift apart, this test stops protecting anything -- keep them identical.
+ * Mirrors `platform.player.setEqualizer`, which is where Player.svelte's $effect
+ * lands. If the engine's version and this one drift apart, this test stops
+ * protecting anything -- keep them identical.
  */
 function applySettings(settings, element) {
   if (!settings.enabled) {

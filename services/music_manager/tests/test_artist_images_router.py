@@ -473,7 +473,7 @@ class SyncImagesToServerTest(unittest.TestCase):
 
     def test_a_new_image_and_artwork_row_are_created_and_linked(self):
         self.muma_cursor.fetchall.return_value = [self.image_row()]
-        self.server_cursor.fetchone.side_effect = [(3,), None, None]
+        self.server_cursor.fetchone.side_effect = [(3, None), None, None]
         self.server_cursor.lastrowid = 11
         self.sync()
         statements = [call.args[0] for call in self.server_cursor.execute.call_args_list]
@@ -483,11 +483,21 @@ class SyncImagesToServerTest(unittest.TestCase):
 
     def test_an_image_the_server_already_knows_is_reused(self):
         self.muma_cursor.fetchall.return_value = [self.image_row()]
-        self.server_cursor.fetchone.side_effect = [(3,), (11,), (12,)]
+        self.server_cursor.fetchone.side_effect = [(3, None), (11,), (12,)]
         self.sync()
         statements = [call.args[0] for call in self.server_cursor.execute.call_args_list]
         self.assertFalse(any('INSERT INTO image' in s for s in statements))
         self.assertFalse(any('INSERT INTO artwork' in s for s in statements))
+        self.assertTrue(any('UPDATE artist' in s for s in statements))
+
+    def test_an_artist_already_pointing_at_the_artwork_is_not_written(self):
+        # After the first pass this is every artist. Writing them anyway held the server's
+        # write lock for thirty seconds an hour, and the player aborts a rating after one.
+        self.muma_cursor.fetchall.return_value = [self.image_row()]
+        self.server_cursor.fetchone.side_effect = [(3, 12), (11,), (12,)]
+        self.sync()
+        statements = [call.args[0] for call in self.server_cursor.execute.call_args_list]
+        self.assertFalse(any(s.lstrip().startswith(('UPDATE', 'INSERT')) for s in statements))
 
     def test_an_artist_the_server_does_not_know_is_skipped(self):
         self.muma_cursor.fetchall.return_value = [self.image_row()]

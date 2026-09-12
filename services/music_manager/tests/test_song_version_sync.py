@@ -283,6 +283,40 @@ class OnlyChangedRowsTest(SongVersionSyncTest):
         )
         self.assertEqual((stats['considered'], stats['matched']), (1, 0))
 
+    def test_a_chunk_that_agrees_opens_no_write_transaction(self):
+        # The previous guard lived in the UPDATE's WHERE clause, and an UPDATE that matches
+        # nothing still takes the write lock from the moment it runs until the commit. The
+        # player waits one second for that lock and then aborts the request -- which is how
+        # a rating from the app came back as a 500 while this job walked 285.000 rows.
+        for i in range(3):
+            self.add_track(i, f'/mnt/music/EPs/Texcore/{i}.mp3', work_id=42, is_canonical=1, version_kind='radio')
+        statements = []
+        self.server.set_trace_callback(statements.append)
+        sync_song_versions_to_server(
+            muma_with(
+                [row(f'/mnt/music/EPs/Texcore/{i}.mp3', work_id=42, is_canonical=1, kind='radio') for i in range(3)]
+            ),
+            self.server,
+        )
+        self.server.set_trace_callback(None)
+        writes = [s for s in statements if s.lstrip().upper().startswith(('UPDATE', 'BEGIN', 'INSERT'))]
+        self.assertEqual(writes, [])
+
+    def test_rows_that_disagree_are_written_in_short_batches(self):
+        # One second is all the player waits. A hundred indexed UPDATEs commit well inside
+        # it; a first pass over the whole library must not become one long transaction.
+        for i in range(5):
+            self.add_track(i, f'/mnt/music/Soundcloud/{i}.mp3', work_id=42, is_canonical=1)
+        server = FlakyServer(self.server, failures=0)
+        with patch.object(sync_module, 'WRITE_BATCH', 2):
+            stats = sync_song_versions_to_server(
+                muma_with([row(f'/mnt/music/Soundcloud/{i}.mp3', work_id=42, is_canonical=0) for i in range(5)]),
+                server,
+            )
+        self.assertEqual(stats['matched'], 5)
+        self.assertEqual(server.commits, 3, 'five rows in batches of two is three transactions')
+        self.assertEqual([self.stored(i)[1] for i in range(5)], [0] * 5)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.35.1] - 2026-09-11
+
+### Fixed
+- **"Hoog gewaardeerd" op het startscherm was altijd leeg.** De sectie vroeg de server om nummers met
+  een rating, en stuurde die rating behalve als `ratingMin`/`ratingMax` óók als cluster mee. De server
+  kent geen clustertype `RATING`, antwoordde "not found" en liet het hele verzoek vallen. Sinds de
+  dag dat de code geschreven werd, zonder dat iemand een fout zag: een lege sectie wordt gewoon niet
+  getoond.
 ## [6.35.0] - 2026-09-11
 
 ### Added

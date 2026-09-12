@@ -148,6 +148,12 @@
     "play": "Nieuws van dit uurke",
     "playing": "Nieuws speult, tik mar om trug te gaon"
   },
+  "nowPlaying": {
+    "close": "Dichtdoen",
+    "pause": "Pauze",
+    "play": "Afspele",
+    "playingFrom": "Speult uit: {name}"
+  },
   "player": {
     "next": "Volgende",
     "nothingPlaying": "D'r speult niks, zet 's wa op",

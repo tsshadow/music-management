@@ -893,6 +893,12 @@
     "trackRefreshFailed": "Track verversen mislukt",
     "trackRefreshed": "Track ververst. De wijzigingen zijn over enkele seconden zichtbaar."
   },
+  "nowPlaying": {
+    "close": "Sluiten",
+    "pause": "Pauze",
+    "play": "Afspelen",
+    "playingFrom": "Afspelen uit: {name}"
+  },
   "player": {
     "next": "Volgende",
     "nothingPlaying": "Niets aan het afspelen",

@@ -264,6 +264,44 @@ export const pushedHistoryEntries = writable(0);
 
 export const activeModal = writable(null); // { type, data }
 
+// The phone's full-screen Now Playing overlay, opened from a tap on the mini
+// player. Deliberately not persisted, like the other overlay flags above -- a
+// reload should land on whatever page it lands on, not re-open on top of it.
+export const nowPlayingOpen = writable(false);
+
+/**
+ * Opens Now Playing and pushes a history entry for it, so a browser/shell back
+ * press closes the overlay instead of leaving the page underneath. Mirrors the
+ * view-path effect in `App.svelte`, which does the same for a real navigation.
+ */
+export function openNowPlaying() {
+  nowPlayingOpen.set(true);
+  window.history.pushState({}, "");
+  pushedHistoryEntries.update((n) => n + 1);
+}
+
+/**
+ * Closes Now Playing: the chevron, a swipe on the cover, and the shell/browser
+ * back button all call this.
+ *
+ * The store flips straight away, so the view closes the instant any of those
+ * fires rather than waiting on a `popstate` round-trip. When opening it also
+ * pushed a history entry (the normal case), that entry is still there and has
+ * to be consumed or the next back press hits it for no visible reason -- so
+ * this also calls `history.back()`, purely to balance the stack. By the time
+ * that `popstate` actually arrives, `nowPlayingOpen` already reads `false`, so
+ * the listener in `App.svelte` takes its ordinary branch instead of closing
+ * anything a second time; it still does the one thing that matters there,
+ * decrementing `pushedHistoryEntries` to match. See `SidebarHeader.svelte` for
+ * the same back-consuming pattern used for a real navigation entry.
+ */
+export function closeNowPlaying() {
+  nowPlayingOpen.set(false);
+  if (get(pushedHistoryEntries) > 0) {
+    window.history.back();
+  }
+}
+
 export const visibleSortOptions = writable({
   songs: ["recent", "added", "mostplayed", "recentlyplayed", "rating", "alpha", "random"],
   albums: ["newest", "recent", "alphabeticalByName", "alphabeticalByArtist", "random", "starred"],

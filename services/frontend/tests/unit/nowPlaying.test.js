@@ -1,0 +1,177 @@
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/svelte";
+import NowPlaying from "../../src/lib/NowPlaying.svelte";
+
+const TRACK = {
+  id: "song-1",
+  title: "Raise Your Fist",
+  artist: "Angerfist",
+  album: "Bad Blood",
+};
+
+function renderNowPlaying(props = {}) {
+  return render(NowPlaying, {
+    open: true,
+    track: TRACK,
+    playing: false,
+    progress: 30,
+    duration: 240,
+    rating: 0,
+    onclose: vi.fn(),
+    ontogglePlay: vi.fn(),
+    onnext: vi.fn(),
+    onprev: vi.fn(),
+    onrate: vi.fn(),
+    ontoggleShuffle: vi.fn(),
+    ontoggleRepeat: vi.fn(),
+    onseek: vi.fn(),
+    ontoggleEqualizer: vi.fn(),
+    ontoggleQueue: vi.fn(),
+    ...props,
+  });
+}
+
+describe("NowPlaying", () => {
+  it("renders nothing when closed", () => {
+    renderNowPlaying({ open: false });
+
+    expect(screen.queryByTestId("now-playing")).toBeNull();
+  });
+
+  it("shows the track's title, artist and cover", () => {
+    renderNowPlaying({ coverUrl: "https://example.test/cover.jpg" });
+
+    expect(screen.getByTestId("now-playing")).toBeTruthy();
+    expect(screen.getByText("Raise Your Fist")).toBeTruthy();
+    expect(screen.getByText("Angerfist")).toBeTruthy();
+    expect(screen.getByAltText("Raise Your Fist")).toHaveAttribute(
+      "src",
+      "https://example.test/cover.jpg",
+    );
+  });
+
+  it("reads the album as the playing-from context", () => {
+    renderNowPlaying();
+
+    expect(screen.getByText("Afspelen uit: Bad Blood")).toBeTruthy();
+  });
+
+  it("falls back to the queue when the track has no album", () => {
+    renderNowPlaying({ track: { ...TRACK, album: null } });
+
+    expect(screen.getByText("Afspelen uit: Wachtrij")).toBeTruthy();
+  });
+
+  it("calls back to the player for play/pause", async () => {
+    const ontogglePlay = vi.fn();
+    renderNowPlaying({ ontogglePlay });
+
+    await fireEvent.click(screen.getByLabelText("Afspelen"));
+
+    expect(ontogglePlay).toHaveBeenCalled();
+  });
+
+  it("labels the button for pause once playing", () => {
+    renderNowPlaying({ playing: true });
+
+    expect(screen.getByLabelText("Pauze")).toBeTruthy();
+  });
+
+  it("calls back for next and previous", async () => {
+    const onnext = vi.fn();
+    const onprev = vi.fn();
+    renderNowPlaying({ onnext, onprev });
+
+    await fireEvent.click(screen.getByLabelText("Volgende"));
+    await fireEvent.click(screen.getByLabelText("Vorige"));
+
+    expect(onnext).toHaveBeenCalled();
+    expect(onprev).toHaveBeenCalled();
+  });
+
+  it("rates the track with the star tapped", async () => {
+    const onrate = vi.fn();
+    renderNowPlaying({ onrate });
+
+    await fireEvent.click(screen.getAllByLabelText("4 sterren")[0]);
+
+    expect(onrate).toHaveBeenCalledWith(4);
+  });
+
+  it("toggles shuffle and repeat", async () => {
+    const ontoggleShuffle = vi.fn();
+    const ontoggleRepeat = vi.fn();
+    renderNowPlaying({ ontoggleShuffle, ontoggleRepeat });
+
+    await fireEvent.click(screen.getByLabelText("Shuffle"));
+    await fireEvent.click(screen.getByLabelText("Herhalen"));
+
+    expect(ontoggleShuffle).toHaveBeenCalled();
+    expect(ontoggleRepeat).toHaveBeenCalled();
+  });
+
+  it("opens the equalizer and the queue from its bottom row", async () => {
+    const ontoggleEqualizer = vi.fn();
+    const ontoggleQueue = vi.fn();
+    renderNowPlaying({ ontoggleEqualizer, ontoggleQueue, equalizerSupported: true });
+
+    await fireEvent.click(screen.getByLabelText("Equalizer"));
+    await fireEvent.click(screen.getByLabelText("Wachtrij"));
+
+    expect(ontoggleEqualizer).toHaveBeenCalled();
+    expect(ontoggleQueue).toHaveBeenCalled();
+  });
+
+  it("hides the equalizer button when the platform has no equalizer", () => {
+    renderNowPlaying({ equalizerSupported: false });
+
+    expect(screen.queryByLabelText("Equalizer")).toBeNull();
+  });
+
+  it("closes on the chevron", async () => {
+    const onclose = vi.fn();
+    renderNowPlaying({ onclose });
+
+    await fireEvent.click(screen.getByLabelText("Sluiten"));
+
+    expect(onclose).toHaveBeenCalled();
+  });
+
+  it("closes on a firm downward drag on the cover", async () => {
+    const onclose = vi.fn();
+    renderNowPlaying({ onclose });
+
+    const cover = screen.getByAltText("Raise Your Fist").parentElement;
+    await fireEvent.touchStart(cover, { touches: [{ clientY: 100 }] });
+    await fireEvent.touchEnd(cover, { changedTouches: [{ clientY: 220 }] });
+
+    expect(onclose).toHaveBeenCalled();
+  });
+
+  it("does not close on a short tap on the cover", async () => {
+    const onclose = vi.fn();
+    renderNowPlaying({ onclose });
+
+    const cover = screen.getByAltText("Raise Your Fist").parentElement;
+    await fireEvent.touchStart(cover, { touches: [{ clientY: 100 }] });
+    await fireEvent.touchEnd(cover, { changedTouches: [{ clientY: 110 }] });
+
+    expect(onclose).not.toHaveBeenCalled();
+  });
+
+  it("seeks through the onseek callback", async () => {
+    const onseek = vi.fn();
+    renderNowPlaying({ onseek });
+
+    await fireEvent.click(screen.getByLabelText("Door nummer spoelen"));
+
+    expect(onseek).toHaveBeenCalled();
+  });
+
+  it("shows elapsed and total time", () => {
+    renderNowPlaying({ progress: 65, duration: 240 });
+
+    expect(screen.getByText("1:05")).toBeTruthy();
+    expect(screen.getByText("4:00")).toBeTruthy();
+  });
+});

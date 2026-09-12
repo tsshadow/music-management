@@ -119,6 +119,9 @@
       "other": "Vandage, {count} joar eleden"
     }
   },
+  "mobile": {
+    "browseAll": "Alles deurbladern"
+  },
   "nav": {
     "albums": "Albums",
     "artists": "Artiesten",
@@ -132,6 +135,7 @@
     "memories": "Herinneringen",
     "playlists": "Lieskes",
     "releaseRadar": "Nieuw binnen",
+    "search": "Zeuken",
     "sets": "Sets",
     "songs": "Nummers",
     "starred": "Favorieten"

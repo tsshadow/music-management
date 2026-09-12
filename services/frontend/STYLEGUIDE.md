@@ -82,7 +82,7 @@ The UI relies on system font stacks for performance and familiarity.
     - Compact bar (`64px` height) fixed above the navigation.
     - Displays: Small cover art, Track Title, Artist, and Play/Pause + Next buttons.
     - Progress: A thin (2px) progress line at the very top of the bar.
-- **Bottom Navigation**: Tab bar for quick access (Home, Search, Library). Fixed at the bottom with `env(safe-area-inset-bottom)`.
+- **Bottom Navigation**: Three tabs -- Home, Search, Library -- fixed at the bottom with `env(safe-area-inset-bottom)`. Songs/Sets is not a tab; it is the mode-chip pair (`ModeChips`) shown above the content on all three. Downloads and Management are not tabs either: Downloads is a chip in the Library tab's own chip row (`LibraryChips`, only when `platform.storage.supported`), and Management is a profile-menu entry (admin only).
 
 ### Full-Screen Player (Proposed)
 

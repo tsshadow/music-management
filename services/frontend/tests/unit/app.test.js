@@ -13,6 +13,7 @@ import {
   mumaSessionActive,
   mumaUser,
   playlist,
+  searchResultsOpen,
   viewMode,
 } from "../../src/lib/store.js";
 import { setLocaleFromAccount } from "../../src/lib/i18n/index.js";
@@ -56,15 +57,29 @@ function subsonic() {
 /**
  * One tab of the phone's bottom bar.
  *
- * By its landmark, because the desktop sidebar renders the same two words: the
- * mode switch has a "Nummers" and a "Sets" of its own, and clicking that one
- * proves nothing about the tab strip.
+ * By its landmark, because the desktop sidebar renders its own "Nummers" and
+ * "Sets" too, on the mode switch, and clicking that one proves nothing about
+ * the tab strip.
  *
  * @param {string} label - The tab's visible label.
  * @returns {HTMLElement}
  */
 function bottomBarTab(label) {
   return within(screen.getByRole("navigation", { name: "Navigatiebalk" })).getByRole("button", {
+    name: label,
+  });
+}
+
+/**
+ * One chip of the phone's Songs/Sets mode switch (`ModeChips.svelte`), shown
+ * above Home, Search and Library. Unlike the old bottom-bar tabs it replaced,
+ * a chip only ever sets `viewMode` -- it never navigates.
+ *
+ * @param {string} label - The chip's visible label.
+ * @returns {HTMLElement}
+ */
+function modeChip(label) {
+  return within(screen.getByRole("group", { name: "Modus wisselen" })).getByRole("button", {
     name: label,
   });
 }
@@ -79,6 +94,7 @@ describe("App", () => {
     playlist.set([]);
     isMobile.set(false);
     currentPlaylist.set(null);
+    searchResultsOpen.set(false);
     activeSettingsTab.set("general");
     activeManagementTab.set("overview");
     // Not mumaUser.set(null): store.js reads that as a logout and resets the
@@ -142,34 +158,60 @@ describe("App", () => {
     await waitFor(() => expect(get(activeView)).toBe("sets"));
   });
 
-  // The tab landed and the route stayed on '/songs': the tap set the view to
-  // 'sets' while the mode still said 'songs', and the effect that keeps the two
-  // in step put the view straight back. Both halves move or neither does.
-  it("the Sets tab in the bottom bar switches the mode and the view together", async () => {
+  // Unlike the old bottom-bar tab it replaced, the mode chip is a switch, not a
+  // destination: it changes the brand colour everywhere without moving the
+  // listener off the tab they were already standing on.
+  it("the Sets chip changes the mode without leaving the tab", async () => {
     render(App);
     await waitFor(() => expect(screen.getAllByText("Afspeellijsten").length).toBeGreaterThan(0));
-    activeView.set("songs");
 
-    await fireEvent.click(bottomBarTab("Sets"));
+    await fireEvent.click(modeChip("Sets"));
 
-    await waitFor(() => expect(get(activeView)).toBe("sets"));
-    expect(get(viewMode)).toBe("sets");
-    expect(window.location.pathname).toBe("/sets");
+    await waitFor(() => expect(get(viewMode)).toBe("sets"));
+    expect(get(activeView)).toBe("home");
     // The brand colour the whole app reads off the document.
     expect(document.documentElement.classList.contains("mode-sets")).toBe(true);
   });
 
-  it("the Nummers tab takes the app back out of set mode", async () => {
+  it("the Nummers chip takes the app back out of set mode", async () => {
     viewMode.set("sets");
     render(App);
     await waitFor(() => expect(screen.getAllByText("Afspeellijsten").length).toBeGreaterThan(0));
-    activeView.set("sets");
 
-    await fireEvent.click(bottomBarTab("Nummers"));
+    await fireEvent.click(modeChip("Nummers"));
 
-    await waitFor(() => expect(get(activeView)).toBe("songs"));
-    expect(get(viewMode)).toBe("songs");
-    expect(window.location.pathname).toBe("/songs");
+    await waitFor(() => expect(get(viewMode)).toBe("songs"));
+    expect(document.documentElement.classList.contains("mode-sets")).toBe(false);
+  });
+
+  it("the bottom bar's three tabs move between home, search and library", async () => {
+    render(App);
+    await waitFor(() => expect(screen.getAllByText("Afspeellijsten").length).toBeGreaterThan(0));
+
+    await fireEvent.click(bottomBarTab("Zoeken"));
+    await waitFor(() => expect(get(activeView)).toBe("search"));
+    expect(window.location.pathname).toBe("/search");
+    expect(screen.getByText("Alles doorbladeren")).toBeTruthy();
+
+    await fireEvent.click(bottomBarTab("Bieb"));
+    await waitFor(() => expect(get(activeView)).toBe("playlists"));
+    expect(window.location.pathname).toBe("/playlists");
+  });
+
+  // The mirror exists so the shell's Android back handler can close a search
+  // result before it falls through to leaving the tab (see App's
+  // `handleShellBack`); it must not stay stuck on true once the listener has
+  // already left some other way, or a later back press on another tab would
+  // wrongly read as "there is a result open here to close".
+  it("clears the mirrored search-results flag on leaving the Search tab", async () => {
+    render(App);
+    await waitFor(() => expect(screen.getAllByText("Afspeellijsten").length).toBeGreaterThan(0));
+    activeView.set("search");
+    searchResultsOpen.set(true);
+
+    activeView.set("home");
+
+    await waitFor(() => expect(get(searchResultsOpen)).toBe(false));
   });
 
   it("switching back to song mode moves the sets view along", async () => {

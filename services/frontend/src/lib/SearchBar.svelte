@@ -5,6 +5,13 @@
   import { listOf, subsonicJson } from './subsonic.js';
   import SearchResults from './SearchResults.svelte';
 
+  // Bindable so the shell's Android back handler can dismiss the results panel
+  // from the outside (via `searchResultsOpen` in the store, bound by TopBar)
+  // without SearchBar knowing anything about the shell. Every existing caller
+  // renders SearchBar without binding it, which leaves this exactly the local
+  // `$state` it always was.
+  let { showResults = $bindable(false) } = $props();
+
   let query = $state('');
   let results = $state({});
   let filteredGenres = $state([]);
@@ -12,7 +19,6 @@
   let filteredLabels = $state([]);
   let allLabels = $state([]);
   let loading = $state(false);
-  let showResults = $state(false);
   let debounceTimer;
   let searchController;
 

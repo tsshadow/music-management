@@ -37,6 +37,11 @@ const PLAIN_VIEWS = [
   // itself says why it is empty. A route that existed only inside the shell
   // would make a shared link land on the home screen.
   "downloads",
+  // The phone's middle bottom tab: a browse grid over the sections the desktop
+  // sidebar lists. Distinct from the 'search:<query>' argument view below --
+  // that one is a specific search's results, this one is the tab a listener
+  // lands on before they have typed anything.
+  "search",
 ];
 
 /**
@@ -97,6 +102,31 @@ const ARGUMENT_VIEWS = [
  */
 export function modeForView(view) {
   return view === "songs" || view === "sets" ? view : null;
+}
+
+/**
+ * The views the phone's "Bibliotheek" bottom tab cycles through with its own
+ * chip row. 'playlists' is the tab's default -- tapping the bottom bar icon
+ * itself always lands there; the chips move sideways from it.
+ */
+export const LIBRARY_TAB_VIEWS = ["playlists", "artists", "albums", "starred", "downloads"];
+
+/**
+ * Which of the phone's three bottom tabs (Home / Search / Library), if any, a
+ * view belongs to.
+ *
+ * Used only to decide when the phone-only mode chips and the library chip row
+ * show themselves above the content; the desktop sidebar covers the same
+ * ground on its own and never calls this.
+ *
+ * @param {string} view - The view identifier.
+ * @returns {'home'|'search'|'library'|null}
+ */
+export function phoneTabForView(view) {
+  if (view === "home") return "home";
+  if (view === "search") return "search";
+  if (LIBRARY_TAB_VIEWS.includes(view)) return "library";
+  return null;
 }
 
 /** The personal settings tabs, in sidebar order. */

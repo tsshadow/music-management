@@ -833,6 +833,9 @@
       "other": "Today, {count} years ago"
     }
   },
+  "mobile": {
+    "browseAll": "Browse all"
+  },
   "nav": {
     "albums": "Albums",
     "artists": "Artists",
@@ -855,6 +858,7 @@
     "playlists": "Playlists",
     "podcasts": "Podcasts",
     "releaseRadar": "Release Radar",
+    "search": "Search",
     "sets": "Sets",
     "songs": "Songs",
     "starred": "Favourites",

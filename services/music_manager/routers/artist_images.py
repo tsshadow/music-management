@@ -602,6 +602,15 @@ def trigger_fetch(artist_name: str):
 def sync_artist_images_to_server(muma_conn, server_conn):
     """
     Syncs primary artist images from MuMa MariaDB to Music Management Server SQLite DB.
+
+    Reads first and writes only what differs, one short transaction per artist that needs
+    one. The first version wrote every artist's preferred_artwork_id unconditionally inside
+    a single transaction: 11.762 UPDATEs, thirty seconds, and the server's write lock held
+    the whole time. The server does not wait for that lock -- its transactions read before
+    they write, and SQLite refuses a read-to-write upgrade at once while another connection
+    holds the lock, busy timeout or not -- so the request that needed it, a rating or a
+    scrobble, was aborted. After the first pass nearly every artist already points at the
+    right artwork, so nearly nothing is written and the lock is barely taken.
     """
     print('Syncing artist images to Music Management Server...')
     try:
@@ -614,11 +623,11 @@ def sync_artist_images_to_server(muma_conn, server_conn):
             for img in images:
                 artist_name = img['artist_name']
                 abs_path = img['cached_path']
-                server_cursor.execute('SELECT id FROM artist WHERE name = ?', (artist_name,))
+                server_cursor.execute('SELECT id, preferred_artwork_id FROM artist WHERE name = ?', (artist_name,))
                 artist_row = server_cursor.fetchone()
                 if not artist_row:
                     continue
-                artist_id = artist_row[0]
+                artist_id, current_artwork_id = artist_row[0], artist_row[1]
                 server_cursor.execute('SELECT id FROM image WHERE absolute_file_path = ?', (abs_path,))
                 image_row = server_cursor.fetchone()
                 image_id = None
@@ -639,10 +648,13 @@ def sync_artist_images_to_server(muma_conn, server_conn):
                 else:
                     server_cursor.execute('INSERT INTO artwork (version, image_id) VALUES (?, ?)', (1, image_id))
                     artwork_id = server_cursor.lastrowid
-                server_cursor.execute(
-                    'UPDATE artist SET preferred_artwork_id = ? WHERE id = ?', (artwork_id, artist_id)
-                )
-            server_conn.commit()
+                if current_artwork_id != artwork_id:
+                    server_cursor.execute(
+                        'UPDATE artist SET preferred_artwork_id = ? WHERE id = ?', (artwork_id, artist_id)
+                    )
+                # Commit per artist, so a write transaction never spans more than the
+                # three statements above. A no-op commit costs nothing.
+                server_conn.commit()
             print(f'Synced {len(images)} artist images to Music Management Server')
     except Exception as e:
         print(f'Failed to sync artist images to Music Management Server: {e}')

@@ -79,8 +79,22 @@
                 android:resource="@xml/searchable"/>
         </activity>
 
-        <!-- The launcher entry lives on aliases so the user can pick an icon. Exactly one is
-             enabled at a time; see util/AppIconVariant.kt. -->
+        <!--
+            The opt-in Capacitor shell: the Svelte web player over the same playback service.
+            It is not exported and has no launcher filter of its own - it is reached through
+            MainAliasWeb* below, from a notification, or from a shortcut. Deliberately singleTask
+            like NavigationActivity, so the notification's CLEAR_TOP reuses the instance instead
+            of stacking WebViews.
+        -->
+        <activity android:name=".activity.CapacitorActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize|smallestScreenSize|screenLayout|uiMode"
+            android:launchMode="singleTask"
+            android:exported="false" />
+
+        <!-- The launcher entry lives on aliases so the user can pick an icon, and since the
+             Capacitor shell also which interface that icon opens. Four combinations, exactly one
+             enabled at a time; see util/AppIconVariant.kt. The two Web aliases ship disabled, so
+             an install that never touches the setting behaves exactly as before. -->
         <activity-alias
             android:name=".MainAliasGreen"
             android:targetActivity=".activity.NavigationActivity"
@@ -98,6 +112,34 @@
         <activity-alias
             android:name=".MainAliasBlue"
             android:targetActivity=".activity.NavigationActivity"
+            android:label="@string/common_appname"
+            android:icon="@mipmap/ic_launcher_blue"
+            android:roundIcon="@mipmap/ic_launcher_blue_round"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".MainAliasWebGreen"
+            android:targetActivity=".activity.CapacitorActivity"
+            android:label="@string/common_appname"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".MainAliasWebBlue"
+            android:targetActivity=".activity.CapacitorActivity"
             android:label="@string/common_appname"
             android:icon="@mipmap/ic_launcher_blue"
             android:roundIcon="@mipmap/ic_launcher_blue_round"

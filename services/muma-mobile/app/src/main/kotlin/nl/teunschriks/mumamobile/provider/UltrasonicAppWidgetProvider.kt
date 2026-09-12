@@ -21,10 +21,10 @@ import android.view.View.GONE
 import android.view.View.VISIBLE
 import android.widget.RemoteViews
 import nl.teunschriks.mumamobile.R
-import nl.teunschriks.mumamobile.activity.NavigationActivity
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.receiver.UltrasonicIntentReceiver
 import nl.teunschriks.mumamobile.util.Constants
+import nl.teunschriks.mumamobile.util.UiVariant
 import timber.log.Timber
 
 /**
@@ -212,7 +212,7 @@ open class UltrasonicAppWidgetProvider : AppWidgetProvider() {
         private fun linkButtons(context: Context, views: RemoteViews, playerActive: Boolean) {
             var intent = Intent(
                 context,
-                NavigationActivity::class.java
+                UiVariant.current().activityClass
             ).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
             if (playerActive) intent.putExtra(Constants.INTENT_SHOW_PLAYER, true)
             intent.action = Intent.ACTION_MAIN

@@ -1,0 +1,284 @@
+/*
+ * CapacitorActivity.kt
+ * Copyright (C) 2009-2026 Ultrasonic developers
+ *
+ * Distributed under terms of the GNU GPLv3 license.
+ */
+
+package nl.teunschriks.mumamobile.activity
+
+import android.app.SearchManager
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.Intent
+import android.media.AudioManager
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.provider.MediaStore
+import androidx.activity.OnBackPressedCallback
+import androidx.lifecycle.lifecycleScope
+import com.getcapacitor.BridgeActivity
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.capacitor.MumaDiagnosticsPlugin
+import nl.teunschriks.mumamobile.capacitor.MumaPlayerPlugin
+import nl.teunschriks.mumamobile.capacitor.MumaSpeechPlugin
+import nl.teunschriks.mumamobile.capacitor.MumaStoragePlugin
+import nl.teunschriks.mumamobile.capacitor.MumaSystemPlugin
+import nl.teunschriks.mumamobile.car.CarConnectionWatcher
+import nl.teunschriks.mumamobile.car.CarModeIntent
+import nl.teunschriks.mumamobile.car.CarModeNotifier
+import nl.teunschriks.mumamobile.car.CarModeSession
+import nl.teunschriks.mumamobile.car.CarPresence
+import nl.teunschriks.mumamobile.diagnostics.CrashReportManager
+import nl.teunschriks.mumamobile.service.MediaPlayerLifecycleSupport
+import nl.teunschriks.mumamobile.service.MediaPlayerManager
+import nl.teunschriks.mumamobile.util.Constants
+import nl.teunschriks.mumamobile.util.LocaleHelper
+import nl.teunschriks.mumamobile.util.Settings
+import nl.teunschriks.mumamobile.util.UiScaleHelper
+import nl.teunschriks.mumamobile.util.Util
+import nl.teunschriks.mumamobile.voice.VoiceTileService
+import org.koin.android.ext.android.inject
+import timber.log.Timber
+
+/**
+ * The opt-in shell: the Svelte web player in a `WebView`, over the services the Kotlin app
+ * already has.
+ *
+ * It is not a replacement for [NavigationActivity] -- both are in the APK, only one is the
+ * launcher (see `AppIconVariant`), and the default is still the Kotlin UI. Everything below the
+ * screens is shared and untouched: `PlaybackService`, the media session, Android Auto, the
+ * notification, `DownloadService`, Room and the Koin graph. This activity carries over the parts
+ * of `NavigationActivity` that are the *app's* lifecycle rather than the UI's, and nothing else:
+ *
+ * - `Util.applyTheme` and the locale/scale [attachBaseContext] wrapping, so a WebView launched
+ *   from a shortcut is configured the same way every other screen is;
+ * - `volumeControlStream`, so the hardware keys reach the music stream and not the ringer;
+ * - the notification permission, asked once;
+ * - `lifecycleSupport.onCreate()` in [onResume], which is what starts the player's event
+ *   receivers -- it is deliberately *not* in `onCreate`, matching `NavigationActivity`;
+ * - `CrashReportManager.maybeHandlePendingReport`, so a crash in either interface is offered;
+ * - the car-presence loop, which here emits `carConnected` to the web UI instead of navigating.
+ *
+ * Deep links arrive the way they always have -- as intent extras and actions -- and are
+ * translated into the route strings the web router understands, so the quick-settings tile, the
+ * car-mode notification, the launcher shortcut and a search intent all still land somewhere.
+ *
+ * ### Where the web side plugs in
+ *
+ * - The bundle is read from `assets/public/`, which the `prepareWebBundle` Gradle task fills from
+ *   `services/frontend/dist`. It is gitignored; a build without it ships a page that says so.
+ * - `assets/capacitor.config.json` is the runtime config. Its paths (`webDir`, `android.path`)
+ *   are written relative to `services/frontend`, so the copy the web module keeps for
+ *   `@capacitor/cli` is the same file. `server.androidScheme` is `https`, which makes the origin
+ *   `https://localhost`, and `plugins.CapacitorHttp.enabled` is true -- that is what lets the web
+ *   player reach LMS, which sends no CORS headers at all, and the muma API, whose allowlist is
+ *   dev-only. Nothing on this side blocks it: the app already permits cleartext
+ *   (`network_security_config.xml`), so a plain `http://` server on the LAN works too.
+ */
+class CapacitorActivity : BridgeActivity() {
+
+    private val lifecycleSupport: MediaPlayerLifecycleSupport by inject()
+    private val mediaPlayerManager: MediaPlayerManager by inject()
+    private val carConnectionWatcher: CarConnectionWatcher by inject()
+    private val carPresence: CarPresence by inject()
+    private val carModeSession: CarModeSession by inject()
+    private val carModeNotifier: CarModeNotifier by inject()
+
+    private val main = Handler(Looper.getMainLooper())
+    private var backSequence = 0L
+    private var pendingBack: Runnable? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        // Same guard NavigationActivity opens with: an activity can be the process's first, and
+        // every `by inject()` below resolves lazily, so a missing container would only surface at
+        // the first use rather than here.
+        if (UApp.instance != null && !UApp.instance!!.initiated) {
+            Timber.d("Starting Koin")
+            UApp.instance!!.startKoin()
+        }
+
+        // Registered before super.onCreate: the bridge instantiates its plugins there, and one
+        // registered after it is simply not in the WebView.
+        registerPlugin(MumaPlayerPlugin::class.java)
+        registerPlugin(MumaSystemPlugin::class.java)
+        registerPlugin(MumaStoragePlugin::class.java)
+        registerPlugin(MumaDiagnosticsPlugin::class.java)
+        registerPlugin(MumaSpeechPlugin::class.java)
+
+        CrashReportManager.maybeHandlePendingReport(this)
+        Util.applyTheme(this)
+
+        super.onCreate(savedInstanceState)
+
+        carConnectionWatcher.start()
+        volumeControlStream = AudioManager.STREAM_MUSIC
+        Util.ensurePermissionToPostNotification(this)
+
+        installBackHandling()
+        watchCarPresence()
+        deliver(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Lifecycle support's constructor registers some event receivers so it should be created
+        // early. Same placement as NavigationActivity: onResume, not onCreate.
+        lifecycleSupport.onCreate()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        deliver(intent)
+    }
+
+    override fun onDestroy() {
+        pendingBack?.let(main::removeCallbacks)
+        pendingBack = null
+        super.onDestroy()
+    }
+
+    /**
+     * Apply the customized language settings if needed. Identical to [NavigationActivity]: the
+     * two activities are the same app, and a WebView started from a shortcut must not be in a
+     * different locale or at a different scale than the rest.
+     */
+    override fun attachBaseContext(newBase: Context?) {
+        val locale = Settings.overrideLanguage
+        val localizedContext: Context? = if (locale.isNotEmpty()) {
+            LocaleHelper.wrap(newBase, locale)
+        } else {
+            newBase
+        }
+        val scaledContext: ContextWrapper = UiScaleHelper.wrap(localizedContext, Settings.uiScalePercent)
+        super.attachBaseContext(scaledContext)
+    }
+
+    // ------------------------------------------------------------------- back
+
+    /**
+     * The back protocol, in full. See [MumaSystemPlugin] for the JS side.
+     *
+     * 1. The `WebView` has history → go back in it, and do not tell JS. History always wins;
+     *    anything else would make the hardware gesture and the on-screen back button disagree.
+     * 2. No history → emit `back` with a fresh sequence number and wait [BACK_CLAIM_WINDOW_MS].
+     * 3. `MumaSystem.handledBack({seq})` with that sequence number cancels the wait. The web UI
+     *    calls it when the press closed a sheet, a dialog or an overlay -- none of which are
+     *    history entries, which is precisely why the WebView cannot be asked.
+     * 4. The wait expires → `finish()`, which is what back at the root of an app does.
+     *
+     * The window is short enough not to feel like a stuck button and long enough for a message
+     * to cross the bridge twice. A press while a claim is outstanding supersedes it: the older
+     * sequence number is no longer the current one, so a late claim is ignored.
+     */
+    private fun installBackHandling() {
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() = onBack()
+            }
+        )
+        // The bridge builds its plugins during super.onCreate, so the instance is there by now;
+        // onBack re-attaches anyway, for the case where the WebView was rebuilt underneath us.
+        MumaSystemPlugin.instance?.onBackClaimed = ::onBackClaimed
+    }
+
+    private fun onBack() {
+        val webView = bridge?.webView
+        if (webView != null && webView.canGoBack()) {
+            webView.goBack()
+            return
+        }
+
+        val plugin = MumaSystemPlugin.instance
+        if (plugin == null) {
+            finish()
+            return
+        }
+        plugin.onBackClaimed = ::onBackClaimed
+
+        pendingBack?.let(main::removeCallbacks)
+        backSequence += 1
+        val seq = backSequence
+        val finisher = Runnable {
+            if (backSequence == seq) {
+                Timber.d("Back was not claimed by the web UI, finishing")
+                finish()
+            }
+        }
+        pendingBack = finisher
+        main.postDelayed(finisher, BACK_CLAIM_WINDOW_MS)
+        plugin.emitBack(seq)
+    }
+
+    private fun onBackClaimed(seq: Long) {
+        if (seq != backSequence) return
+        pendingBack?.let(main::removeCallbacks)
+        pendingBack = null
+    }
+
+    // -------------------------------------------------------------------- car
+
+    /**
+     * The screen is offered, never forced -- same rule as [NavigationActivity]. The difference is
+     * what "offer" means here: the web UI decides whether to show its car screen, so presence is
+     * handed to it as an event and the notification keeps doing the rest.
+     */
+    private fun watchCarPresence() {
+        lifecycleScope.launch {
+            carPresence.isInCar.collectLatest { inCar ->
+                MumaSystemPlugin.emit("carConnected") { it.emitCarConnected(inCar) }
+                when (carModeSession.onPresenceChanged(inCar) { mediaPlayerManager.isPlaying }) {
+                    CarModeIntent.Offer -> carModeNotifier.offer(carModeSession.shouldRaise)
+                    CarModeIntent.Close -> carModeNotifier.cancel()
+                    CarModeIntent.Nothing -> Unit
+                }
+            }
+        }
+    }
+
+    // ------------------------------------------------------------- deep links
+
+    /**
+     * Translates the intents the app has always used into routes the web router understands.
+     *
+     * The extras are the existing cross-process contract -- they are in `PendingIntent`s the
+     * system is already holding -- so they are read, not redefined. A route the web does not know
+     * is its problem to ignore; sending nothing at all would mean a tap that does nothing.
+     */
+    private fun deliver(intent: Intent?) {
+        val route = routeFor(intent) ?: return
+        MumaSystemPlugin.emit("deepLink") { it.emitDeepLink(route) }
+    }
+
+    private fun routeFor(intent: Intent?): String? {
+        if (intent == null) return null
+        if (intent.getBooleanExtra(CarModeNotifier.EXTRA_OPEN_CAR_MODE, false)) return ROUTE_CAR
+        if (intent.getBooleanExtra(VoiceTileService.EXTRA_OPEN_VOICE, false)) return ROUTE_VOICE
+        if (intent.getBooleanExtra(Constants.INTENT_SHOW_PLAYER, false)) return ROUTE_PLAYER
+        return when (intent.action) {
+            Constants.INTENT_PLAY_RANDOM_SONGS -> ROUTE_RANDOM
+            Intent.ACTION_SEARCH,
+            MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH ->
+                intent.getStringExtra(SearchManager.QUERY)?.let { "search:$it" }
+            else -> null
+        }
+    }
+
+    companion object {
+        /**
+         * How long the web UI has to say it used the back press. Two bridge hops and a render;
+         * long enough that a busy frame does not lose it, short enough that a press the UI does
+         * not want still closes the app without feeling stuck.
+         */
+        const val BACK_CLAIM_WINDOW_MS = 350L
+
+        const val ROUTE_CAR = "car"
+        const val ROUTE_VOICE = "voice"
+        const val ROUTE_PLAYER = "player"
+        const val ROUTE_RANDOM = "random"
+    }
+}

@@ -19,7 +19,7 @@ class AppIconVariantTest {
 
     private val context: Context get() = RuntimeEnvironment.getApplication()
 
-    private fun enabled(variant: AppIconVariant): Boolean = context.packageManager.getComponentEnabledSetting(variant.componentName(context)) ==
+    private fun enabled(variant: AppIconVariant, ui: UiVariant = UiVariant.LEGACY): Boolean = context.packageManager.getComponentEnabledSetting(variant.componentName(context, ui)) ==
         PackageManager.COMPONENT_ENABLED_STATE_ENABLED
 
     @Test
@@ -44,6 +44,30 @@ class AppIconVariantTest {
         AppIconVariant.fromSetting("purple") `should be equal to` AppIconVariant.GREEN
         AppIconVariant.fromSetting("blue") `should be equal to` AppIconVariant.BLUE
         AppIconVariant.fromSetting("green") `should be equal to` AppIconVariant.GREEN
+    }
+
+    /**
+     * The interface is the second dimension of the same switch: four aliases, still exactly one
+     * enabled. Getting this wrong for a user who never turns the web UI on is the whole risk of
+     * the Capacitor work, so both directions are exercised.
+     */
+    @Test
+    fun `switching to the web interface enables only its alias`() {
+        AppIconVariant.apply(context, AppIconVariant.GREEN, UiVariant.WEB)
+
+        enabled(AppIconVariant.GREEN, UiVariant.WEB) `should be equal to` true
+        enabled(AppIconVariant.GREEN, UiVariant.LEGACY) `should be equal to` false
+        enabled(AppIconVariant.BLUE, UiVariant.WEB) `should be equal to` false
+        enabled(AppIconVariant.BLUE, UiVariant.LEGACY) `should be equal to` false
+    }
+
+    @Test
+    fun `switching back to the legacy interface enables only its alias`() {
+        AppIconVariant.apply(context, AppIconVariant.BLUE, UiVariant.WEB)
+        AppIconVariant.apply(context, AppIconVariant.BLUE, UiVariant.LEGACY)
+
+        enabled(AppIconVariant.BLUE, UiVariant.LEGACY) `should be equal to` true
+        enabled(AppIconVariant.BLUE, UiVariant.WEB) `should be equal to` false
     }
 
     @Test

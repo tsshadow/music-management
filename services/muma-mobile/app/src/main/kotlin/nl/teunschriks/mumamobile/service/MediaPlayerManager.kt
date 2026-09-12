@@ -53,6 +53,10 @@ import timber.log.Timber
 private const val CONTROLLER_SWITCH_DELAY = 500L
 private const val VOLUME_DELTA = 0.05f
 
+/** Media3 rejects a speed of zero, and nothing above eight is still audible as music. */
+private const val MIN_PLAYBACK_SPEED = 0.25f
+private const val MAX_PLAYBACK_SPEED = 4.0f
+
 /** Media3 reports every position in milliseconds; a listen is recorded in whole seconds. */
 private const val MILLIS_PER_SECOND = 1000L
 
@@ -173,6 +177,9 @@ class MediaPlayerManager(
 
         override fun onPlayerError(error: PlaybackException) {
             Timber.w(error.toString())
+            // Published before the jukebox branch below returns: every listener wants to know an
+            // item failed, and only the jukebox wants the toast and the fallback.
+            RxBus.playerErrorPublisher.onNext(RxBus.PlayerError(error.errorCode, error.message))
             if (!isJukeboxEnabled) return
 
             mainScope.launch {
@@ -836,6 +843,30 @@ class MediaPlayerManager(
         mediaControllerFuture = null
         Timber.i("MediaPlayerController released")
     }
+
+    /**
+     * The output gain, 0..1, as the web player's `platform.player.setVolume` means it.
+     *
+     * [adjustVolume] steps the same knob; this is the absolute form, which is what a slider in
+     * the WebView needs and what `state()` reports back.
+     */
+    @set:Synchronized
+    var volume: Float
+        get() = controller?.volume ?: 1.0f
+        set(value) {
+            controller?.volume = value.coerceIn(0.0f, 1.0f)
+        }
+
+    /**
+     * Playback speed, 1 being normal. Clamped to something a human can still recognise as music;
+     * Media3 throws on zero and below.
+     */
+    @set:Synchronized
+    var playbackSpeed: Float
+        get() = controller?.playbackParameters?.speed ?: 1.0f
+        set(value) {
+            controller?.setPlaybackSpeed(value.coerceIn(MIN_PLAYBACK_SPEED, MAX_PLAYBACK_SPEED))
+        }
 
     fun adjustVolume(up: Boolean) {
         val delta = if (up) VOLUME_DELTA else -VOLUME_DELTA

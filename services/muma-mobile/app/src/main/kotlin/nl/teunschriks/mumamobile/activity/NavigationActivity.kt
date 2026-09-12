@@ -73,6 +73,7 @@ import nl.teunschriks.mumamobile.api.muma.GoogleAuthRequest
 import nl.teunschriks.mumamobile.api.muma.MumaAPIClient
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.capacitor.MumaSystemPlugin
 import nl.teunschriks.mumamobile.car.CarConnectionWatcher
 import nl.teunschriks.mumamobile.car.CarModeIntent
 import nl.teunschriks.mumamobile.car.CarModeNotifier
@@ -224,6 +225,11 @@ class NavigationActivity : ScopeActivity() {
 
         if (intent.getBooleanExtra(VoiceTileService.EXTRA_OPEN_VOICE, false)) {
             navController.navigate(R.id.mumaVoiceFragment)
+        }
+
+        // The web shell has no page for the phone-only preferences, so it opens this one.
+        if (intent.getBooleanExtra(MumaSystemPlugin.EXTRA_OPEN_SETTINGS, false)) {
+            navController.navigate(R.id.settingsFragment)
         }
 
         setupActionBar(navController, appBarConfiguration)
@@ -497,6 +503,10 @@ class NavigationActivity : ScopeActivity() {
 
         if (intent.getBooleanExtra(VoiceTileService.EXTRA_OPEN_VOICE, false)) {
             findNavController(R.id.nav_host_fragment).navigate(R.id.mumaVoiceFragment)
+        }
+
+        if (intent.getBooleanExtra(MumaSystemPlugin.EXTRA_OPEN_SETTINGS, false)) {
+            findNavController(R.id.nav_host_fragment).navigate(R.id.settingsFragment)
         }
 
         when (intent.action) {

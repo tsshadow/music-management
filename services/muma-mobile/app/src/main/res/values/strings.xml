@@ -247,6 +247,9 @@
     <string name="settings.app_icon_green">Green</string>
     <string name="settings.app_icon_blue">Blue</string>
     <string name="settings.app_icon_changed">Icon changed. Some launchers remove the app from the home screen; you may have to place it again.</string>
+    <string name="settings.web_ui_title">New interface (beta)</string>
+    <string name="settings.web_ui_summary">Shows the web player inside the app. The music keeps playing through the same service, so the notification, Bluetooth and Android Auto are unchanged. Switch back here or from the web player itself.</string>
+    <string name="settings.web_ui_changed">The app restarts into the interface you picked.</string>
     <string name="setting_key.canonical_only">canonicalOnly</string>
     <string name="settings.canonical_only_title">Show one row per song</string>
     <string name="settings.canonical_only_summary">Leaves out the other copies of a song and keeps the version MuMa rates best. The rest stay reachable under Versions in the track info.</string>

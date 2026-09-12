@@ -113,7 +113,8 @@ android {
                     'minify/proguard-retrofit.pro',
                     'minify/proguard-jackson.pro',
                     'minify/proguard-kotlin-reflect.pro',
-                    'minify/proguard-kotlin.pro'
+                    'minify/proguard-kotlin.pro',
+                    'minify/proguard-capacitor.pro'
 
             buildConfigField "String", "DEFAULT_SERVERS_JSON", "\"${getServerJson(false)}\""
             resValue "string", "common_appname", "MuMa"
@@ -144,6 +145,82 @@ android {
     }
 
     preBuild.dependsOn copyChangelog
+
+    /*
+     * The web bundle the Capacitor shell serves.
+     *
+     * `services/frontend/dist` is built by Node, which the Android CI image does not have, so
+     * the bundle is never a build requirement: when it is there it is copied in, and when it is
+     * not the task writes a single page that says so. That keeps `assembleDebug` working on a
+     * bare checkout, in the emulator smoke job and on a runner that has never seen npm, while
+     * `frontend:bundle` supplies the real thing in the pipelines that build a shippable APK.
+     *
+     * `src/main/assets/public` is gitignored for the same reason `CHANGELOG.md` above is copied
+     * rather than committed: it is a build product that happens to live in a source directory.
+     */
+    def frontendDistDir = new File(rootProject.projectDir.parentFile, "frontend/dist")
+    def webBundleDir = new File(projectDir, "src/main/assets/public")
+
+    tasks.register("prepareWebBundle") {
+        description = "Stages services/frontend/dist into the APK assets, or a placeholder page."
+        inputs.files(fileTree(frontendDistDir)).withPropertyName("frontendDist").optional()
+        outputs.dir(webBundleDir)
+        doLast {
+            webBundleDir.deleteDir()
+            webBundleDir.mkdirs()
+            def hasBundle = new File(frontendDistDir, "index.html").isFile()
+            if (hasBundle) {
+                def src = frontendDistDir.toPath()
+                def dst = webBundleDir.toPath()
+                java.nio.file.Files.walk(src).forEach { path ->
+                    def target = dst.resolve(src.relativize(path).toString())
+                    if (java.nio.file.Files.isDirectory(path)) {
+                        java.nio.file.Files.createDirectories(target)
+                    } else {
+                        java.nio.file.Files.createDirectories(target.getParent())
+                        java.nio.file.Files.copy(
+                                path, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+                    }
+                }
+                logger.lifecycle("prepareWebBundle: copied the Svelte bundle from $frontendDistDir")
+            } else {
+                new File(webBundleDir, "index.html").setText("""<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MuMa - webbundel ontbreekt</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 2rem;
+         background: #121212; color: #f5f5f5; line-height: 1.5; }
+  code { background: #262626; padding: .1rem .35rem; border-radius: .25rem; }
+  h1 { font-size: 1.25rem; }
+  p { max-width: 40rem; }
+</style>
+</head>
+<body>
+<h1>De webbundel is niet gebouwd</h1>
+<p>Deze APK is samengesteld zonder <code>services/frontend/dist</code>, dus de nieuwe interface
+zit er niet in. Dit is geen fout in de app: de Android-build heeft geen Node en draait bewust
+door zonder bundel.</p>
+<p>Bouw de bundel met <code>services/frontend/node_modules/.bin/vite build</code> en bouw de APK
+opnieuw, of gebruik een APK uit een pipeline waarin <code>frontend:bundle</code> heeft gedraaid.</p>
+<hr>
+<h1>The web bundle was not built</h1>
+<p>This APK was assembled without <code>services/frontend/dist</code>, so the new interface is
+not in it. Nothing failed: the Android build has no Node and deliberately carries on without a
+bundle.</p>
+<p>Build it with <code>services/frontend/node_modules/.bin/vite build</code> and rebuild the APK,
+or install an APK from a pipeline in which <code>frontend:bundle</code> ran.</p>
+</body>
+</html>
+""", "UTF-8")
+                logger.lifecycle("prepareWebBundle: no bundle at $frontendDistDir, wrote a placeholder")
+            }
+        }
+    }
+
+    preBuild.dependsOn "prepareWebBundle"
 
     packagingOptions {
         resources {
@@ -243,6 +320,7 @@ dependencies {
     implementation libs.media3common
     implementation libs.media3exoplayer
     implementation libs.media3session
+    implementation libs.capacitorCore
     implementation libs.media3datasource
     implementation libs.media3okhttp
     implementation libs.swipeRefresh

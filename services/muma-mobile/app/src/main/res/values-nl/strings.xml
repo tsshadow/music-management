@@ -177,6 +177,9 @@
     <string name="settings.app_icon_green">Groen</string>
     <string name="settings.app_icon_blue">Blauw</string>
     <string name="settings.app_icon_changed">Icoon gewijzigd. Sommige launchers halen de app van het beginscherm; je moet hem dan opnieuw plaatsen.</string>
+    <string name="settings.web_ui_title">Nieuwe interface (bèta)</string>
+    <string name="settings.web_ui_summary">Toont de webspeler in de app. De muziek blijft via dezelfde service spelen, dus de melding, bluetooth en Android Auto veranderen niet. Terugschakelen kan hier of in de webspeler zelf.</string>
+    <string name="settings.web_ui_changed">De app start opnieuw op in de gekozen interface.</string>
     <string name="settings.increment_time_0">Uitgeschakeld</string>
     <string name="settings.increment_time_1">1 seconde</string>
     <string name="settings.increment_time_10">10 seconden</string>

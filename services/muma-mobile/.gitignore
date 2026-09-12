@@ -57,3 +57,7 @@ local.properties
 # Build logs
 build_log*.txt
 docs
+
+# The web bundle the Capacitor shell serves. Built by Node into services/frontend/dist and
+# staged here by the prepareWebBundle Gradle task; never committed.
+app/src/main/assets/public/

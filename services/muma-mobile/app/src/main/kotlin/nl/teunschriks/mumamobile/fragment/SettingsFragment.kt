@@ -64,6 +64,7 @@ import nl.teunschriks.mumamobile.util.Settings.preferences
 import nl.teunschriks.mumamobile.util.Storage
 import nl.teunschriks.mumamobile.util.TimeSpanPreference
 import nl.teunschriks.mumamobile.util.TimeSpanPreferenceDialogFragmentCompat
+import nl.teunschriks.mumamobile.util.UiVariant
 import nl.teunschriks.mumamobile.util.Util.toast
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -161,6 +162,20 @@ class SettingsFragment :
                 val enabled = sharedPreferences.getBoolean(key, false)
                 showArtistPicture?.isEnabled = enabled
                 useId3TagsOffline?.isEnabled = enabled
+            }
+            getString(R.string.setting_key_web_ui) -> {
+                // The launcher lives in the manifest, so the alias has to move with the setting,
+                // and the running activity belongs to the interface being left: the task is
+                // cleared rather than this screen finished, or one back press would return to it.
+                context?.let {
+                    AppIconVariant.apply(it, AppIconVariant.fromSetting(Settings.appIcon))
+                    toast(R.string.settings_web_ui_changed)
+                    startActivity(
+                        UiVariant.launchIntent(it)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    )
+                    activity?.finish()
+                }
             }
             getString(R.string.setting_key_app_icon) -> {
                 // Not a theme change: the icon lives in the manifest, so nothing on screen

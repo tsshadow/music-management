@@ -26,6 +26,13 @@ import timber.log.Timber
 
 /**
  * This class is responsible for handling received events for the Media Player implementation
+ *
+ * Application-scoped (see `MediaPlayerModule`), so one instance answers every activity, fragment
+ * and broadcast receiver for as long as the process lives. [onCreate] is therefore called again on
+ * every `NavigationActivity.onResume` -- after a rotation, after a return from the background, and
+ * after an explicit exit. It has to be idempotent in both directions: a second call must not
+ * register a second headset receiver or restore the saved queue on top of the live one, and a call
+ * after [onDestroy] must leave the instance fully working again.
  */
 class MediaPlayerLifecycleSupport(
     val mediaPlayerManager: MediaPlayerManager,
@@ -42,6 +49,15 @@ class MediaPlayerLifecycleSupport(
 
     // Listen to lifecycle events
     init {
+        subscribeToLifecycleCommands()
+    }
+
+    /**
+     * A disposed [CompositeDisposable] refuses everything added to it afterwards, so this cannot be
+     * a one-off in `init` now that the instance survives [onDestroy]: it is re-armed there instead.
+     * Without that, an exit followed by a relaunch produced a listener that was never told to start.
+     */
+    private fun subscribeToLifecycleCommands() {
         rxBusSubscription += RxBus.createServiceCommandObservable.subscribe {
             onCreate()
         }
@@ -99,13 +115,20 @@ class MediaPlayerLifecycleSupport(
 
     private fun onDestroy() {
         if (!created) return
-        rxBusSubscription.dispose()
 
-        applicationContext().unregisterReceiver(headsetEventReceiver)
+        // clear(), not dispose(): this instance is reused by the next activity, and a disposed
+        // container silently drops everything added to it afterwards.
+        rxBusSubscription.clear()
+
+        headsetEventReceiver.ifNotNull { applicationContext().unregisterReceiver(it) }
+        headsetEventReceiver = null
 
         imageLoaderProvider.clearImageLoader()
 
         created = false
+
+        // Re-arm, so a later start command still reaches us.
+        subscribeToLifecycleCommands()
         Timber.i("LifecycleSupport destroyed")
     }
 
@@ -139,6 +162,11 @@ class MediaPlayerLifecycleSupport(
      * while Ultrasonic is running.
      */
     private fun registerHeadsetReceiver() {
+        // Belt and braces next to the `created` guard in onCreate: the receiver is registered
+        // against the application context, so a second registration would outlive every activity
+        // and double every headset event.
+        if (headsetEventReceiver != null) return
+
         headsetEventReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 val extras = intent.extras ?: return

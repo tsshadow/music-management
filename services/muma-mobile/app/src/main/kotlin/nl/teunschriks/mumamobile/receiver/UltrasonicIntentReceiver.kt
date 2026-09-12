@@ -15,6 +15,12 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import timber.log.Timber
 
+/**
+ * A `BroadcastReceiver` is not an `AndroidScopeComponent`, so this injects from Koin's root scope.
+ * That used to be the one scope [MediaPlayerLifecycleSupport] was absent from, which means every
+ * external play/pause/next intent threw `NoDefinitionFoundException` straight into the `catch`
+ * below and did nothing at all. The definition is application-scoped now and this resolves.
+ */
 class UltrasonicIntentReceiver :
     BroadcastReceiver(),
     KoinComponent {

@@ -355,6 +355,10 @@ class NavigationActivity : ScopeActivity() {
         override fun onMenuItemSelected(item: MenuItem): Boolean {
             if (item.itemId == R.id.menu_exit) {
                 setResult(Constants.RESULT_CLOSE_ALL)
+                // The player is application-scoped, so this stops it rather than discarding it:
+                // finishAndRemoveTask() need not end the process, and the same instance answers the
+                // next launch. onDestroy()/onCreate() are a reusable stop/start pair for exactly
+                // that reason -- see MediaPlayerManager.
                 mediaPlayerManager.onDestroy()
                 finish()
                 exit()
@@ -463,8 +467,9 @@ class NavigationActivity : ScopeActivity() {
     private fun watchCarPresence(navController: NavController) {
         lifecycleScope.launch {
             carPresence.isInCar.collectLatest { inCar ->
-                // The player is supplied from here because it is scoped to this activity, and the
-                // session that asks for it is not.
+                // The player is supplied from here rather than injected into the session: the
+                // session is a plain Kotlin class with no Koin lookups of its own, which is what
+                // keeps it unit-testable without a container.
                 when (carModeSession.onPresenceChanged(inCar) { mediaPlayerManager.isPlaying }) {
                     CarModeIntent.Offer -> carModeNotifier.offer(carModeSession.shouldRaise)
 
@@ -599,6 +604,8 @@ class NavigationActivity : ScopeActivity() {
         Timber.i("Logging out")
 
         // Whatever is playing was streamed with credentials that are about to be dropped.
+        // Only the queue goes: the player itself is application-scoped and stays started, so the
+        // next sign-in plays through the same instance without a second onCreate().
         mediaPlayerManager.clear()
 
         Settings.staticPassword = ""

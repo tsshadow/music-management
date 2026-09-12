@@ -80,6 +80,23 @@ const system = {
   carConnected(_handler) {
     return () => {};
   },
+
+  /**
+   * The "Apparaat" settings tab has nothing to read in a browser tab -- there is no
+   * native whitelist behind it -- and the tab itself never shows without `isNative`,
+   * so this is never actually read.
+   *
+   * @returns {Promise<import('../index.js').DeviceSettings>}
+   */
+  async getSettings() {
+    return /** @type {import('../index.js').DeviceSettings} */ ({});
+  },
+
+  /**
+   * @param {{key: string, value: boolean|number}} _setting
+   * @returns {Promise<void>} Resolves without writing anything.
+   */
+  async setSetting(_setting) {},
 };
 
 export default system;

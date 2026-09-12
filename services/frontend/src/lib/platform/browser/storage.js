@@ -73,6 +73,9 @@ const storage = {
     return 0;
   },
 
+  /** @returns {Promise<void>} There is nothing to delete in a browser tab. */
+  async clearCache() {},
+
   /**
    * Whether there is no route to the music server.
    *

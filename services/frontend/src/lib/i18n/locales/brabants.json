@@ -192,6 +192,9 @@
     "language": {
       "help": "De taol van de interface. Wordt opgeslagen bij oew account, dus ie gaot mee naor oew aandere apparate.",
       "title": "Taol"
+    },
+    "tabs": {
+      "device": "Apparaot"
     }
   },
   "sidebar": {

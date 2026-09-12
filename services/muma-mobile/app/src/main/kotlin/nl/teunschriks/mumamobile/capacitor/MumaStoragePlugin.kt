@@ -31,6 +31,7 @@ import nl.teunschriks.mumamobile.service.DownloadService
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.service.RxBus
 import nl.teunschriks.mumamobile.service.plusAssign
+import nl.teunschriks.mumamobile.util.CacheCleaner
 import nl.teunschriks.mumamobile.util.FileUtil
 import nl.teunschriks.mumamobile.util.FileUtil.getCompleteFile
 import nl.teunschriks.mumamobile.util.FileUtil.getPinnedFile
@@ -60,6 +61,7 @@ import timber.log.Timber
  * | `isOffline()` | [hasRouteToServer], the same test the Kotlin services make |
  * | `onProgress(fn)` | the `progress` event, from `RxBus.trackDownloadStatePublisher` |
  * | `onConnectivity(fn)` | the `connectivity` event, from a `ConnectivityManager` callback |
+ * | `clearCache()` | cancels queued/active downloads, then [CacheCleaner.clearCache] |
  *
  * Every id has to become a whole [Track] first: the filename a download lives under is derived
  * from the title, artist, path and suffix (`FileUtil.getSongFile`), so an id alone cannot answer
@@ -81,6 +83,7 @@ class MumaStoragePlugin :
 
     private val mediaPlayerManager: MediaPlayerManager by inject()
     private val activeServerProvider: ActiveServerProvider by inject()
+    private val cacheCleaner: CacheCleaner by inject()
 
     private val lookup by lazy { TrackLookup(mediaPlayerManager, activeServerProvider) }
     private val main = Handler(Looper.getMainLooper())
@@ -212,6 +215,20 @@ class MumaStoragePlugin :
             }
             call.resolve(JSObject().put("value", bytes))
         }
+    }
+
+    /**
+     * The device-settings screen's "Clear cache": cancels whatever is queued or downloading, then
+     * deletes every cached file that is not pinned and not part of the current playlist. Pinned
+     * files are never at risk -- [CacheCleaner.clearCache] only ever matches the ".partial" and
+     * ".complete" suffixes a pin is renamed away from.
+     */
+    @PluginMethod
+    fun clearCache(call: PluginCall) {
+        DownloadService.clearDownloads()
+        cacheCleaner.clearCache()
+        offline.invalidate()
+        call.resolve()
     }
 
     /**

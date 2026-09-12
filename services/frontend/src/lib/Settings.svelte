@@ -2,8 +2,10 @@
   import General from './settings/GeneralSettings.svelte';
   import Advanced from './settings/Advanced.svelte';
   import About from './settings/About.svelte';
+  import DeviceSettings from './settings/DeviceSettings.svelte';
   import { activeSettingsTab } from './store.js';
   import { SETTINGS_TABS } from './router.js';
+  import { platform } from './platform/index.js';
 
   // The active tab is persisted and can also arrive from the URL, so an
   // account that still has one of the removed admin tabs ('libraries',
@@ -22,6 +24,8 @@
       <Advanced />
     {:else if $activeSettingsTab === 'about'}
       <About />
+    {:else if $activeSettingsTab === 'device' && platform.system.isNative}
+      <DeviceSettings />
     {:else}
       <General />
     {/if}

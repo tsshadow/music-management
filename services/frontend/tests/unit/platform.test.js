@@ -122,6 +122,10 @@ describe("browser storage", () => {
   it("hands back an unsubscribe that can be called", () => {
     expect(() => browserStorage.onProgress(() => {})()).not.toThrow();
   });
+
+  it("clearCache is a no-op that resolves", async () => {
+    await expect(browserStorage.clearCache()).resolves.toBeUndefined();
+  });
 });
 
 describe("browser speech", () => {
@@ -228,6 +232,15 @@ describe("browser system", () => {
         username: "user",
         password: "pw",
       }),
+    ).resolves.toBeUndefined();
+  });
+
+  // The device-settings tab never shows without isNative, so these are never actually
+  // read in a browser tab; they still have to resolve rather than throw.
+  it("getSettings and setSetting are no-ops that resolve", async () => {
+    await expect(browserSystem.getSettings()).resolves.toEqual({});
+    await expect(
+      browserSystem.setSetting({ key: "wifiOnly", value: true }),
     ).resolves.toBeUndefined();
   });
 });

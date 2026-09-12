@@ -9,6 +9,7 @@ package nl.teunschriks.mumamobile.util
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import java.util.regex.Pattern
 import nl.teunschriks.mumamobile.BuildConfig
@@ -162,10 +163,14 @@ object Settings {
             }
         }
 
-    private var maxBitRateWifi
+    // Not private: MumaSystemPlugin's device-settings whitelist reads and writes both directly,
+    // rather than through maxBitRate, which only ever answers for the network the phone is on.
+    @JvmStatic
+    var maxBitRateWifi
         by StringIntSetting(getKey(R.string.setting_key_max_bitrate_wifi))
 
-    private var maxBitRateMobile
+    @JvmStatic
+    var maxBitRateMobile
         by StringIntSetting(getKey(R.string.setting_key_max_bitrate_mobile))
 
     var maxBitRatePinning
@@ -182,7 +187,18 @@ object Settings {
             return if (preloadCount == -1) Int.MAX_VALUE else preloadCount
         }
 
-    val parallelDownloads by IntSetting(getKey(R.string.setting_key_parallel_downloads), 3)
+    /**
+     * Writes the raw preference behind [preloadCount]. `-1` is the sentinel [preloadCount] turns
+     * into "no limit" on read; this is what the device-settings whitelist writes with, so it takes
+     * the same sentinel rather than [Int.MAX_VALUE] a caller would otherwise have to know about.
+     */
+    @JvmStatic
+    fun setPreloadCount(count: Int) {
+        preferences.edit { putString(getKey(R.string.setting_key_preload_count), count.toString()) }
+    }
+
+    @JvmStatic
+    var parallelDownloads by IntSetting(getKey(R.string.setting_key_parallel_downloads), 3)
 
     @JvmStatic
     val cacheSizeMB: Int
@@ -193,6 +209,12 @@ object Settings {
             )!!.toInt()
             return if (cacheSize == -1) Int.MAX_VALUE else cacheSize
         }
+
+    /** Writes the raw preference behind [cacheSizeMB]; see [setPreloadCount] for the `-1` sentinel. */
+    @JvmStatic
+    fun setCacheSizeMB(sizeMB: Int) {
+        preferences.edit { putString(getKey(R.string.setting_key_cache_size), sizeMB.toString()) }
+    }
 
     @JvmStatic
     var customCacheLocation by BooleanSetting(

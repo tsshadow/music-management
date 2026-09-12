@@ -33,6 +33,7 @@
     "cancel": "Loat mer zitten",
     "close": "Dichtdoon",
     "closeModal": "Vensterken dichtdoon",
+    "closeSheet": "Paneelken dichtdoon",
     "download": "Binnenhaaln",
     "edit": "Bewarkn",
     "gotIt": "Duudelijk",
@@ -79,6 +80,7 @@
     "allGenres": "Alle soortn",
     "allRatings": "Alles",
     "allYears": "Alle joarn",
+    "genre": "Soort",
     "sortBy": "Sorteern op",
     "year": "Joar"
   },

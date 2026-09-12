@@ -27,6 +27,7 @@ import nl.teunschriks.mumamobile.service.plusAssign
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.TrackDateFormatter
 import nl.teunschriks.mumamobile.util.Util
+import nl.teunschriks.mumamobile.util.brandColor
 import nl.teunschriks.mumamobile.util.themeColor
 import org.koin.core.component.KoinComponent
 
@@ -289,11 +290,7 @@ class TrackViewHolder(val view: View) :
      * The brand colour the rest of the app marks the current mode with: green for songs, blue for
      * sets. Read per call rather than cached, because a holder outlives a mode switch.
      */
-    private fun brandColor(): Int = if (Settings.isSetsMode) {
-        view.context.themeColor(R.attr.brandColorSets)
-    } else {
-        view.context.themeColor(androidx.appcompat.R.attr.colorPrimary)
-    }
+    private fun brandColor(): Int = view.context.brandColor()
 
     /**
      * Selection tints the row; playing marks the title (see [setPlayIcon]). They used to be the

@@ -82,6 +82,23 @@ const ARGUMENT_VIEWS = [
   { kind: "genre-edit", segment: "genre", encode: true, suffix: "edit" },
 ];
 
+/**
+ * The library mode a view belongs to, or null when it belongs to neither.
+ *
+ * `activeView` and `viewMode` are two halves of one thing: '/songs' cannot be
+ * open while the app is in set mode, and App keeps the pair in step with an
+ * effect that corrects whichever half is behind. Anything that moves to one of
+ * the two views therefore has to say the mode as well. Setting only the view is
+ * what made the "Sets" tab in the bottom bar do nothing at all: the effect read
+ * the mode, still 'songs', and put the view straight back.
+ *
+ * @param {string} view - The view identifier.
+ * @returns {string|null} 'songs', 'sets', or null for every other view.
+ */
+export function modeForView(view) {
+  return view === "songs" || view === "sets" ? view : null;
+}
+
 /** The personal settings tabs, in sidebar order. */
 export const SETTINGS_TABS = ["general", "advanced", "about"];
 

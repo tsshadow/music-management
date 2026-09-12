@@ -28,7 +28,13 @@
   }
 </script>
 
-<nav class="flex justify-around items-center bg-black border-t border-[#282828] pb-safe pt-2">
+<!-- Named because the app has two navigation landmarks: this bar below `md` and
+     the sidebar above it. Unnamed they are indistinguishable to a screen reader
+     and to a test that has to click one tab and not the other. -->
+<nav
+  aria-label={$t('nav.bottomBar')}
+  class="flex justify-around items-center bg-black border-t border-[#282828] pb-safe pt-2"
+>
   {#each navItems as item (item.id)}
     <button
       class="flex flex-col items-center gap-1 bg-transparent border-none py-2 px-4 cursor-pointer transition-colors {activeView === item.id || (item.id === 'playlists' && ['playlists', 'artists', 'albums', 'genres'].includes(activeView)) ? 'text-white' : 'text-[#b3b3b3]'}"

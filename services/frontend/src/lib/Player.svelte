@@ -9,7 +9,7 @@
   // later. See platform/index.js for the interface and
   // docs/designs/universal-ui/ for why.
   import { platform } from './platform/index.js';
-  import { createNativeQueue } from './nativeQueue.js';
+  import { createNativeQueue, trackAfterCommand } from './nativeQueue.js';
   import { createRadioController } from './radioController.js';
   import { shouldPushJamState } from './radioSync.js';
   import { resolveDuration, progressPercent } from './playerProgress.js';
@@ -589,23 +589,31 @@
    *
    * Sent for a press on the notification, a head unit, a headset button and for
    * the end of a track. The queue is the service's, so there is nothing to
-   * decide here: the snapshot says which track it is on now, and the UI is
-   * pointed at the entry with that id. It must not call playNext/playPrev --
-   * that would be the UI asking for a move that already happened.
+   * decide here: the UI is pointed at whatever the service says it is playing.
+   * It must not call playNext/playPrev -- that would be the UI asking for a
+   * move that already happened.
+   *
+   * Both halves of what the service said are read, with the newer winning: the
+   * snapshot that travelled with the command, and anything it has sent since.
+   * The plugin notifies the new state and then the move, as two bridge
+   * messages, so a `next` read off the carried half alone can still be looking
+   * at the track the service has already left. `trackAfterCommand` is what
+   * closes that gap.
    *
    * @param {{name: string, seconds: number|null, state: object}} command
    */
   function handleNativeCommand(command) {
-      const engine = command.state ?? platform.player.state();
+      const engine = { ...(command.state ?? {}), ...platform.player.state() };
       playerState.update(s => ({
           ...s,
           playing: engine.status === 'playing',
           progress: engine.position,
       }));
 
-      const playingId = engine.trackId;
-      if (!playingId || String($currentTrack?.id) === String(playingId)) return;
-      const moved = $playlist.find(entry => String(entry.id) === String(playingId));
+      const moved = trackAfterCommand($playlist, $currentTrack?.id ?? null, {
+          name: command.name,
+          trackId: engine.trackId,
+      });
       if (!moved) return;
       hasScrobbledStarted = false;
       hasScrobbledFinished = false;

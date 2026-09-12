@@ -9,28 +9,36 @@
  *
  * Three rules, and every subtle bug in this area is one of them being broken:
  *
- * - **The whole list, or nothing.** `setQueue` replaces it wholesale. A
- *   different set of ids is a new queue; the same ids in the same order is not,
- *   however many times a store fired.
- * - **A move inside the queue is a `load`, not a `setQueue`.** Re-pushing an
- *   identical list makes the service seek to the start of the item, which is
- *   exactly how a restored position gets thrown away.
+ * - **The whole list, every time.** Every queue mutation -- add to queue, play
+ *   next, remove, reorder, play-this-list-from-index, clear -- is one
+ *   `setQueue` carrying the complete ordered queue and the position of the
+ *   current track in it. Nothing is ever pushed as a fragment: the plugin
+ *   compares the item at `index` with the item it has loaded and rebuilds the
+ *   rest around it, so a list is the only honest way to describe an edit.
+ * - **The current track is always in the list that goes across.** A track
+ *   playing from somewhere with no list behind it -- a card on the home screen,
+ *   a search result -- sets `currentTrack` and leaves `playlist` alone. The
+ *   service can only play what it holds, so that track goes in *front of* the
+ *   queue rather than instead of it. Sending it instead of the queue is what
+ *   made "add to queue" disappear on the emulator: every later edit was pushed
+ *   as a one-item list holding only what was already playing.
  * - **Never send back what just came in.** When the service moves the track by
  *   itself, the UI mirrors it into `currentTrack`, and that write looks just
  *   like a listener pressing next. The guard is the service's own snapshot: if
- *   it already has that track loaded, there is nothing to ask it for.
+ *   it already holds this list and has that track loaded, there is nothing to
+ *   ask it for.
  *
  * The third rule is also why `setQueue` carries the autoplay rather than a
  * `load` behind it: the plugin positions the service on `index` as part of
- * accepting the queue, so by the time the next call is considered the service
- * is *already* on that track and the guard swallows it. A queue pushed with
- * `autoplay: false` and nothing after it is a queue that never starts, which is
- * what a tapped track did on the phone while every unit test here passed.
+ * accepting the queue, so by the time a follow-up call is considered the
+ * service is *already* on that track and the guard swallows it. A queue pushed
+ * with `autoplay: false` and nothing after it is a queue that never starts,
+ * which is what a tapped track did on the phone while every unit test here
+ * passed.
  *
- * Every call is serialised onto one promise chain. `setQueue` and `load` are
- * bridge hops, and a `load` that overtook the `setQueue` that put the track in
- * the queue is rejected by the plugin with "not in the queue and not in this
- * device's cache" -- a real failure, reported as a missing track.
+ * Every call is serialised onto one promise chain: a `setQueue` is a bridge hop
+ * and two of them racing would leave the service on whichever landed last
+ * rather than on whichever was asked for last.
  */
 
 /**
@@ -66,6 +74,64 @@ export function isDifferentQueue(previous, next) {
   if (previous === null) return true;
   if (previous.length !== next.length) return true;
   return previous.some((id, position) => id !== next[position]);
+}
+
+/**
+ * The list to send across, and where the current track sits in it.
+ *
+ * Almost always the UI's queue unchanged. The exception is the second rule: a
+ * current track that is not in the queue is put in front of it, because the
+ * service can only play what it holds. That also matches what a browser does
+ * with the same stores -- `playNext` from a track outside the queue plays the
+ * queue's first entry.
+ *
+ * @param {Array<object>} tracks - The UI's queue, in order.
+ * @param {object|null} current - The track the UI wants playing.
+ * @param {boolean} [adopting=false] - True on the boot sync, where the UI is
+ *   following the service rather than steering it. A leftover `currentTrack`
+ *   outside the restored queue is stale there, not an instruction, and putting
+ *   it in front would replace a queue the listener is halfway through.
+ * @returns {{queue: Array<object>, index: number}} `index` is -1 when there is
+ *   no track to point the service at.
+ */
+export function queueToPush(tracks, current, adopting = false) {
+  const currentId = current == null ? null : String(current.id);
+  const index =
+    currentId === null ? -1 : tracks.findIndex((track) => String(track.id) === currentId);
+  if (index >= 0 || currentId === null || adopting) return { queue: tracks, index };
+  return { queue: [current, ...tracks], index: 0 };
+}
+
+/**
+ * Which track the UI should show as playing after the service moved by itself.
+ *
+ * The service is the one that advances on a native shell, and it reports the
+ * move as a `command` event. Normally the snapshot that comes with it already
+ * names the new track and this is a lookup. It does not always: the plugin
+ * notifies the new state and the move as two separate bridge messages, and a
+ * `command` read before the state caught up still says "next" while the
+ * snapshot still says the old track. Stepping the UI's own queue by one is then
+ * the answer, and it is a safe one -- the plugin only reports a move when the
+ * track actually changed, and a step past either end returns nothing rather
+ * than guessing at a wrap.
+ *
+ * @param {Array<object>} queue - The UI's queue, in order.
+ * @param {string|number|null} currentId - Id of the track the UI shows now.
+ * @param {{name?: string, trackId?: string|null}} command - The event.
+ * @returns {object|null} The queue entry to move to, or null to stay put.
+ */
+export function trackAfterCommand(queue, currentId, { name = "", trackId = null } = {}) {
+  const current = currentId == null ? null : String(currentId);
+  const playing = trackId == null ? null : String(trackId);
+  if (playing !== null && playing !== current) {
+    return queue.find((entry) => String(entry.id) === playing) ?? null;
+  }
+
+  const step = name === "next" ? 1 : name === "previous" ? -1 : 0;
+  if (step === 0 || current === null) return null;
+  const position = queue.findIndex((entry) => String(entry.id) === current);
+  if (position < 0) return null;
+  return queue[position + step] ?? null;
 }
 
 /**
@@ -112,10 +178,14 @@ export function createNativeQueue(player, { artworkUrlFor, onError = () => {} })
    * @param {Array<object>} tracks - The UI's queue, in order.
    * @param {object|null} current - The track the UI wants playing, as the
    *   library returned it. The whole track rather than its id, because it is
-   *   not always in `tracks`: see [push].
+   *   not always in `tracks`: see [queueToPush].
    * @param {{autoplay?: boolean}} [options] - Whether a move should start
-   *   playback. False on the first sync after a boot, so restoring a queue does
-   *   not start the music by itself.
+   *   playback. False on the first sync after a boot and true on every sync
+   *   after it, so restoring a queue does not start the music by itself while
+   *   an intent that fills the queue ("play something", from a car or a tile)
+   *   still does. It is not the UI's play/pause state: the plugin ignores it
+   *   for an edit that keeps the current item, which is what makes re-sending
+   *   the queue on every change safe.
    * @returns {Promise<void>}
    */
   function sync(tracks, current, { autoplay = true } = {}) {
@@ -124,49 +194,31 @@ export function createNativeQueue(player, { artworkUrlFor, onError = () => {} })
   }
 
   async function push(tracks, current, autoplay) {
-    const ids = tracks.map((track) => String(track.id));
-    const currentId = current == null ? null : String(current.id);
-    const index = currentId === null ? -1 : ids.indexOf(currentId);
+    // `autoplay` false is the boot sync and nothing else; see [sync].
+    const { queue, index } = queueToPush(tracks, current, !autoplay);
+    const ids = queue.map((track) => String(track.id));
+    const same = !isDifferentQueue(pushed, ids);
 
-    // "Play this one", from somewhere that has no list behind it: a card on the
-    // home screen, a search result. Those set `currentTrack` and leave the
-    // queue alone, which in a browser is enough because the engine plays
-    // whatever the current track is. The service can only play what it holds,
-    // so here the track has to become the queue.
-    //
-    // Never on the boot sync (`autoplay` false): there the UI is following the
-    // service, and replacing a queue it is halfway through would be the exact
-    // thing phase 1 must not do.
-    if (index < 0 && currentId !== null && autoplay) {
-      await player.setQueue({
-        tracks: [toQueueTrack(current, artworkUrlFor)],
-        index: 0,
-        autoplay: true,
-      });
-      pushed = [currentId];
-      return;
-    }
+    // Nothing the service does not already know. Either there is no track to
+    // point it at, or it is on that one -- which is its own move coming back
+    // through `currentTrack`. Re-sending an identical list with the same
+    // current item makes the plugin rebuild the queue around it for no reason.
+    if (same && index < 0) return;
+    if (same && String(player.state().trackId) === ids[index]) return;
 
-    if (isDifferentQueue(pushed, ids)) {
-      // The autoplay rides along: the plugin positions the service on `index`
-      // while accepting the queue, so a `load` after this one is swallowed by
-      // the "already on that track" guard below.
-      await player.setQueue({
-        tracks: tracks.map((track) => toQueueTrack(track, artworkUrlFor)),
-        index: Math.max(index, 0),
-        autoplay: autoplay && index >= 0,
-      });
-      pushed = ids;
-      if (index >= 0) return;
-    }
-
-    if (index < 0) return;
-    // The service is already on this track: either it moved there itself and
-    // the UI is following, or nothing changed. Asking again would seek to the
-    // start of it.
-    if (String(player.state().trackId) === ids[index]) return;
-
-    await player.load({ trackId: ids[index], autoplay });
+    // One call for every kind of change. A different list is a new queue; the
+    // same list with a different `index` is "play that one instead", and the
+    // plugin tells those apart by comparing the item at `index` with the item
+    // it has loaded. The autoplay rides along because the plugin positions the
+    // service on `index` while accepting the queue; it is ignored on an edit
+    // that leaves the current item where it is, so a queue that keeps being
+    // re-sent cannot un-pause the player.
+    await player.setQueue({
+      tracks: queue.map((track) => toQueueTrack(track, artworkUrlFor)),
+      index: Math.max(index, 0),
+      autoplay: autoplay && index >= 0,
+    });
+    pushed = ids;
   }
 
   return { adopt, sync, pushedIds: () => (pushed === null ? null : pushed.slice()) };

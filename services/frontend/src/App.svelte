@@ -15,7 +15,7 @@
   import { notify } from './lib/notifications.js';
   import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, currentTrack, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive, pushedHistoryEntries, sidebarDrawerOpen, restUrl } from './lib/store.js';
   import { get } from 'svelte/store';
-  import { pathToState, viewToPath } from './lib/router.js';
+  import { modeForView, pathToState, viewToPath } from './lib/router.js';
   import { platform } from './lib/platform/index.js';
   import { watchConnectivity } from './lib/subsonic.js';
   import { deepLinkAction, randomTracksUrl } from './lib/shellRoutes.js';
@@ -99,11 +99,8 @@
    * @param {Object} state - The view state parsed out of the path.
    */
   function applyState(state) {
-    if (state.view === 'sets') {
-        viewMode.set('sets');
-    } else if (state.view === 'songs') {
-        viewMode.set('songs');
-    }
+    const mode = modeForView(state.view);
+    if (mode) viewMode.set(mode);
 
     if (state.playlistId) currentPlaylist.set({ id: state.playlistId });
     if (state.settingsTab) activeSettingsTab.set(state.settingsTab);
@@ -244,6 +241,12 @@
     // the two that make a report tell a story; anything more would be noise in
     // a fifty-line buffer.
     platform.diagnostics.log('navigate', { view });
+    // The mode first, then the view: the effect above reads both and corrects
+    // whichever is behind, and it runs after this handler returns. Moving the
+    // view alone to 'sets' while the mode still said 'songs' is what made the
+    // "Sets" tab in the bottom bar land back on '/songs' every time.
+    const mode = modeForView(view);
+    if (mode) viewMode.set(mode);
     activeView.set(view);
   }
 

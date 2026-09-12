@@ -3,6 +3,7 @@ import browserStorage from "./browser/storage.js";
 import browserSpeech from "./browser/speech.js";
 import browserDiagnostics from "./browser/diagnostics.js";
 import browserSystem from "./browser/system.js";
+import { createCapacitorPlatform } from "./capacitor/index.js";
 
 /**
  * Everything the UI is not allowed to know by itself.
@@ -54,18 +55,42 @@ import browserSystem from "./browser/system.js";
  */
 
 /**
- * @typedef {'timeupdate'|'durationchange'|'play'|'pause'|'ended'|'error'|'volumechange'} PlayerEvent
+ * @typedef {'timeupdate'|'durationchange'|'play'|'pause'|'ended'|'error'|'volumechange'|'command'} PlayerEvent
  *   `timeupdate` position moved (at least four times a second while playing) ·
  *   `durationchange` a length is known for the loaded item · `play` · `pause` ·
  *   `ended` the item ran out, which is the cue to advance the queue · `error`
  *   the source failed · `volumechange`. Every handler is called with the
  *   {@link PlayerState} snapshot as it is after the event.
+ *
+ *   `command` is the exception, and only an implementation with `ownsQueue`
+ *   sends it: `{name: 'next'|'previous'|'play'|'pause'|'seekTo', seconds, state}`
+ *   reports a transport move the platform service *already performed* -- from
+ *   the notification, a head unit, a headset button, or the end of a track. The
+ *   UI mirrors it into its own state; it must not perform the move again. A
+ *   browser tab accepts the subscription and never fires it, so a caller needs
+ *   no branch around it.
  */
 
 /**
  * @typedef {object} PlatformPlayer One playback engine. Never two at once: on a
  *   native shell the platform service owns playback and no `<audio>` element is
  *   created at all.
+ * @property {boolean} ownsQueue Whether the queue lives on the far side. False
+ *   in a browser: the UI holds the list, advances it on `ended`, and the engine
+ *   only ever knows about one source at a time. True on a shell whose service
+ *   survives the UI -- there the whole list goes across with `setQueue`, the
+ *   service decides what plays next, `ended` must not advance anything in JS,
+ *   and `command` events are what the UI follows. Everything that has to behave
+ *   differently branches on this one flag.
+ * @property {function({tracks: Array<object>, index?: number, autoplay?: boolean}):
+ *   Promise<{index: number, length: number, trackIds: string[]}>} setQueue
+ *   Replaces the platform queue wholesale; the order of `tracks` is the order
+ *   of the queue. Each track is `{id, title, artist, album, artworkUrl,
+ *   duration}`. A browser answers with an empty queue and keeps its own list,
+ *   so the UI can call this unconditionally.
+ * @property {function(): Promise<{index: number, length: number, trackIds: string[]}>} queueState
+ *   What the platform is holding. This is what a UI rebuilt after the WebView
+ *   died reads to find its way back.
  * @property {function(HTMLMediaElement|null): void} attach Browser only: the
  *   media element to drive. A native implementation ignores the argument and
  *   returns; its engine is bound by the shell.
@@ -139,9 +164,14 @@ import browserSystem from "./browser/system.js";
  * @typedef {object} PlatformSystem The shell itself.
  * @property {boolean} isNative
  * @property {function(): {subsonic: string, mumaApi: string}} serverUrl Bases to
- *   build URLs on; an empty string means same origin.
- * @property {function(function(): void): function(): void} onBack The platform's
- *   back gesture, not browser history.
+ *   build URLs on; an empty string means same origin. Synchronous everywhere: a
+ *   shell that has to ask across a bridge caches the answer, and its boot path
+ *   pulls it once with `loadServerUrl()` before anything fetches.
+ * @property {function(function(): boolean): function(): void} onBack The platform's
+ *   back gesture, not browser history. The handler must be synchronous and
+ *   return `true` when it used the press -- closing a sheet, a drawer or a
+ *   panel, or popping a history entry. Anything else lets the shell close the
+ *   app, which is what back at the root of an app does. A browser never fires it.
  * @property {function(function(string): void): function(): void} onDeepLink A
  *   route the router understands, e.g. "album:123".
  * @property {function(function(boolean): void): function(): void} carConnected
@@ -166,6 +196,18 @@ const browser = {
 };
 
 /**
+ * The shell implementation, built at most once.
+ *
+ * Lazily, because a browser tab imports this module too and must not register
+ * plugins it has no bridge for; memoised, because two playback engines alive at
+ * the same time is the failure this design exists to prevent, and a second call
+ * to `selectPlatform` inside the shell must hand back the same engine.
+ *
+ * @type {Platform|null}
+ */
+let capacitor = null;
+
+/**
  * Picks the implementation. The single place a shell plugs itself in.
  *
  * It runs once, at import time, on purpose: an app that could change platform
@@ -176,14 +218,9 @@ const browser = {
  * @returns {Platform}
  */
 export function selectPlatform(host = typeof window === "undefined" ? {} : window) {
-  // Phase 1 adds `capacitor` here, built on the Kotlin plugins around
-  // PlaybackService, DownloadService, OfflineMusicService, SpeechCapture and
-  // CrashReportManager. Until that entry exists a shell falls through to the
-  // browser implementation, which is wrong there and loudly so: playback would
-  // come out of the WebView instead of the notification.
-  const implementations = { browser };
-  const shell = host?.Capacitor?.isNativePlatform?.() ? "capacitor" : "browser";
-  return implementations[shell] ?? implementations.browser;
+  if (host?.Capacitor?.isNativePlatform?.() !== true) return browser;
+  capacitor ??= createCapacitorPlatform();
+  return capacitor;
 }
 
 /** @type {Platform} */

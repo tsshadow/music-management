@@ -13,9 +13,11 @@
   import SearchMoreModal from './lib/SearchMoreModal.svelte';
   import Toaster from './lib/Toaster.svelte';
   import { notify } from './lib/notifications.js';
-  import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive, pushedHistoryEntries, sidebarDrawerOpen, restUrl } from './lib/store.js';
+  import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, currentTrack, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive, pushedHistoryEntries, sidebarDrawerOpen, restUrl } from './lib/store.js';
   import { get } from 'svelte/store';
   import { pathToState, viewToPath } from './lib/router.js';
+  import { platform } from './lib/platform/index.js';
+  import { deepLinkAction, randomTracksUrl } from './lib/shellRoutes.js';
   import { t } from './lib/i18n/index.js';
 
   const hours = new Date().getHours();
@@ -127,7 +129,95 @@
         applyState(pathToState(window.location.pathname));
         pushedHistoryEntries.update((n) => Math.max(0, n - 1));
     });
+
+    // The two things only a shell sends. Both are no-ops in a browser, so there
+    // is no platform check around them -- that is what the interface is for.
+    const unsubscribes = [
+      platform.system.onBack(handleShellBack),
+      platform.system.onDeepLink(handleDeepLink),
+    ];
+    return () => {
+      for (const unsubscribe of unsubscribes) unsubscribe();
+    };
   });
+
+  /**
+   * The platform back gesture, which is not browser history.
+   *
+   * Runs to completion before anything is awaited: the shell gives the web UI a
+   * 350 ms window to say it used the press and finishes the activity if it does
+   * not, so an await here would be a coin flip between closing a sheet and
+   * closing the app.
+   *
+   * Order matters and is the order things are stacked on screen: a modal is
+   * over the drawer, the drawer over the queue panel, and only then is there
+   * nothing left but a page to go back to. Returning false is what lets the
+   * press leave the app, which is what back at the top of an app should do.
+   *
+   * @returns {boolean} Whether the press was used.
+   */
+  function handleShellBack() {
+    if (get(activeModal)) {
+      activeModal.set(null);
+      return true;
+    }
+    if (get(sidebarDrawerOpen)) {
+      sidebarDrawerOpen.set(false);
+      return true;
+    }
+    if (showQueue) {
+      showQueue = false;
+      return true;
+    }
+    if (get(pushedHistoryEntries) > 0) {
+      window.history.back();
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * A route from outside the app: the quick-settings tile, the car-mode
+   * notification, a launcher shortcut, a "play from search" intent.
+   *
+   * @param {string} route
+   */
+  async function handleDeepLink(route) {
+    const action = deepLinkAction(route);
+    platform.diagnostics.log('deeplink', { route, unbuilt: action.unbuilt ?? null });
+    if (action.kind === 'queue') {
+      showQueue = true;
+      return;
+    }
+    if (action.kind === 'random') {
+      await playRandom();
+      return;
+    }
+    activeView.set(action.view);
+  }
+
+  /**
+   * Fills the queue with random tracks in the mode the listener is in and
+   * starts it. This is what the car-mode "play something" intent has always
+   * meant, and the player component takes it from the stores as usual.
+   */
+  async function playRandom() {
+    try {
+      const response = await fetch(restUrl(randomTracksUrl({ mode: get(viewMode), auth: get(authParams) })));
+      const body = await response.json();
+      const node = body['subsonic-response']?.tracks?.track ?? [];
+      const tracks = Array.isArray(node) ? node : [node];
+      if (!tracks.length) {
+        notify.error($t('notify.noRandomTracks'));
+        return;
+      }
+      playlist.set(tracks);
+      currentTrack.set(tracks[0]);
+    } catch (e) {
+      console.error('Could not start random playback', e);
+      notify.error($t('notify.noRandomTracks'), { detail: e.message });
+    }
+  }
 
   $effect(() => {
     if (isMounted) {
@@ -146,6 +236,10 @@
   });
 
   function handleNavigate(view) {
+    // The action trail a crash report reads back. Navigation and play/pause are
+    // the two that make a report tell a story; anything more would be noise in
+    // a fifty-line buffer.
+    platform.diagnostics.log('navigate', { view });
     activeView.set(view);
   }
 

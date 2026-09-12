@@ -9,6 +9,7 @@
   // later. See platform/index.js for the interface and
   // docs/designs/universal-ui/ for why.
   import { platform } from './platform/index.js';
+  import { createNativeQueue } from './nativeQueue.js';
   import { createRadioController } from './radioController.js';
   import { shouldPushJamState } from './radioSync.js';
   import { resolveDuration, progressPercent } from './playerProgress.js';
@@ -23,11 +24,22 @@
 
   const { onnavigate, ontoggleQueue } = $props();
 
-  let audioElement;
+  // `$state` rather than a plain `let`: the element is inside an `{#if}` now
+  // (there is none in the shell), so the binding writes to it after the first
+  // render and Svelte refuses a non-reactive target for that.
+  let audioElement = $state(null);
   // Effects declared here run before onMount, so the engine has nothing to play
   // through yet when the first of them fires. Anything that needs a live engine
   // waits for this.
   let engineReady = $state(false);
+
+  // Whether the platform service holds the queue instead of this component.
+  // True inside the Android shell and false in a browser; every place below
+  // that behaves differently branches on this and nothing else. See
+  // platform/index.js (`ownsQueue`) and nativeQueue.js.
+  const nativePlayback = platform.player.ownsQueue;
+  /** @type {ReturnType<typeof createNativeQueue>|null} */
+  let nativeQueue = null;
   let muted = $state(false);
   let lastVolume = $state(50);
   let lastSyncTime = null;
@@ -94,6 +106,14 @@
    * nothing to choose, so it starts straight away.
    */
   async function toggleRadio() {
+    // Radio steers the media element itself -- it swaps the source to join a
+    // track mid-stream -- and a native shell has no element: the service owns
+    // playback. Phase 2 moves the controller onto platform.player; until then
+    // the feature is off there rather than half-working.
+    if (nativePlayback) {
+      notify.error($t('radio.notOnPhone'));
+      return;
+    }
     if ($radioChannel) {
       radioController?.stop();
       clearInterval(radioTickInterval);
@@ -177,6 +197,12 @@
    * buys the same authentication the rest of the app uses.
    */
   async function toggleNews() {
+    // Same reason as toggleRadio: a bulletin is played from a blob URL on the
+    // media element, and there is none in the shell.
+    if (nativePlayback) {
+      notify.error($t('news.notOnPhone'));
+      return;
+    }
     if (newsSnapshot) {
       await stopNews();
       return;
@@ -382,6 +408,9 @@
    */
   function togglePlay() {
     if (!platform.player.ready()) return;
+    platform.diagnostics.log(platform.player.state().status === 'playing' ? 'pause' : 'play', {
+      trackId: track?.id ?? null,
+    });
 
     if ($syncMode === 'follower-jam') {
         // Remote control: toggle the state reported by the server
@@ -543,12 +572,44 @@
       // A long set otherwise reports only the four minutes at which the first submission fired.
       scrobble(true);
       hasScrobbledFinished = true;
+      // The service already moved on to the next item in its own queue and will
+      // report it as a `command` event. Advancing here as well would ask it for
+      // a second move -- two tracks skipped for one that ended.
+      if (nativePlayback) return;
       if ($playerState.repeat === 'one') {
           platform.player.seek(0);
           platform.player.play();
       } else {
           playNext();
       }
+  }
+
+  /**
+   * Follows a transport move the platform service already performed.
+   *
+   * Sent for a press on the notification, a head unit, a headset button and for
+   * the end of a track. The queue is the service's, so there is nothing to
+   * decide here: the snapshot says which track it is on now, and the UI is
+   * pointed at the entry with that id. It must not call playNext/playPrev --
+   * that would be the UI asking for a move that already happened.
+   *
+   * @param {{name: string, seconds: number|null, state: object}} command
+   */
+  function handleNativeCommand(command) {
+      const engine = command.state ?? platform.player.state();
+      playerState.update(s => ({
+          ...s,
+          playing: engine.status === 'playing',
+          progress: engine.position,
+      }));
+
+      const playingId = engine.trackId;
+      if (!playingId || String($currentTrack?.id) === String(playingId)) return;
+      const moved = $playlist.find(entry => String(entry.id) === String(playingId));
+      if (!moved) return;
+      hasScrobbledStarted = false;
+      hasScrobbledFinished = false;
+      currentTrack.set(moved);
   }
 
   /**
@@ -603,7 +664,12 @@
    */
   function handleDurationChange(state = platform.player.state()) {
     playerState.update(s => ({ ...s, duration: currentLength(state) }));
-    if (!initialized && track) {
+    // Restoring the last position is a browser-only move: there the element is
+    // fresh and knows nothing. The platform service kept playing while this
+    // WebView was gone, so seeking it to a position the UI remembers would
+    // throw away the one it actually has -- the exact failure phase 1 exists to
+    // prove does not happen.
+    if (!initialized && track && !nativePlayback) {
         platform.player.seek($playerState.progress || 0);
         initialized = true;
     }
@@ -866,6 +932,8 @@
   let hasScrobbledStarted = false;
   let hasScrobbledFinished = false;
   let initialized = false;
+  /** Whether the platform queue has been synced at least once this session. */
+  let nativeQueueSynced = false;
 
   /**
    * When this play of the current track began, in milliseconds.
@@ -940,13 +1008,39 @@
     }
   }
 
+  // The queue as the platform service should hold it. Native only: in a browser
+  // `sync` is never called and the queue stays exactly where it always was, in
+  // the `playlist` store. Reads both stores before the readiness check so the
+  // effect re-runs once the engine is up.
+  $effect(() => {
+    const queue = $playlist;
+    const wantedId = $currentTrack?.id ?? null;
+    if (!nativePlayback || !engineReady || !nativeQueue) return;
+    // The first sync after a boot must not start the music: what is in the
+    // stores then is either what the service was already playing (in which case
+    // nothing is sent at all) or a queue restored from localStorage, and an app
+    // that starts playing the moment it is opened is a bug people notice at
+    // night.
+    const autoplay = nativeQueueSynced;
+    nativeQueueSynced = true;
+    // An empty queue at boot is not an instruction to clear the service's: it
+    // means the rehydrate found nothing to restore, which is no reason to stop
+    // music that is playing.
+    if (!autoplay && queue.length === 0) return;
+    nativeQueue.sync(queue, wantedId, { autoplay });
+  });
+
   $effect(() => {
     if (track && track.id !== lastTrackId) {
         const isInitialLoad = !lastTrackId && !initialized;
         lastTrackId = track.id;
         hasScrobbledStarted = false;
         hasScrobbledFinished = false;
-        
+
+        // The service owns what plays; the queue effect above is what tells it.
+        // Loading a stream URL here as well would be the second engine.
+        if (nativePlayback) return;
+
         // Don't load audio in remote-only jam mode
         if ($syncMode === 'follower-jam') return;
         // Radio owns the audio element while it is on; the controller decides
@@ -975,8 +1069,23 @@
     // The element is rendered here and driven by the engine from now on. On a
     // native shell nothing is handed over and the platform service plays
     // instead; that is the whole point of the hand-off.
-    platform.player.attach(audioElement);
-    platform.player.setVolume(volume / 100);
+    platform.player.attach(audioElement ?? null);
+    if (nativePlayback) {
+      // The service has a volume of its own and it outlived this WebView, so
+      // the UI follows it rather than pushing a remembered number at it.
+      playerState.update(s => ({ ...s, volume: platform.player.state().volume * 100 }));
+      // Take over the queue that is already there before any effect pushes one.
+      // Both go on the same chain, so the adopt always wins the race.
+      nativeQueue = createNativeQueue(platform.player, {
+        artworkUrlFor: (entry) => (entry.coverArt
+          ? restUrl(`/rest/getCoverArt?id=${entry.coverArt}&size=512&${$authParams}`)
+          : ''),
+        onError: (e) => console.error('Could not hand the queue to the player service', e),
+      });
+      nativeQueue.adopt();
+    } else {
+      platform.player.setVolume(volume / 100);
+    }
     engineReady = true;
 
     // The queue lives in this component, so the transport controls outside the
@@ -997,9 +1106,12 @@
       platform.player.on('volumechange', handleVolumeChange),
       platform.player.on('ended', handleEnded),
       platform.player.on('error', handleAudioError),
+      // Never fires in a browser; on a native shell it is how a press on the
+      // notification, a head unit or a headset reaches the UI.
+      platform.player.on('command', handleNativeCommand),
     ];
 
-    if (track && !initialized) {
+    if (track && !initialized && !nativePlayback) {
         // The position is restored on 'durationchange'.
         platform.player.load({ url: streamUrl, trackId: track.id });
     }
@@ -1095,8 +1207,14 @@
   The element the browser engine drives. `crossorigin` has to be on it from the
   first byte or the Web Audio equalizer may not read it. Everything else about
   it -- events, source, transport -- is `platform.player`'s.
+
+  Absent inside the Android shell, and that is a rule rather than an
+  optimisation: `document.querySelector('audio')` being null there is what makes
+  "two engines can never play at once" checkable instead of merely intended.
 -->
-<audio bind:this={audioElement} crossorigin="anonymous"></audio>
+{#if !nativePlayback}
+  <audio bind:this={audioElement} crossorigin="anonymous"></audio>
+{/if}
 
 <footer class="flex items-center h-full px-2 md:px-4 relative">
   {#if $isMobile}

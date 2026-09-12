@@ -33,6 +33,11 @@ function fakePlayer(initial = {}) {
         length: request.tracks.length,
         trackIds: request.tracks.map((t) => String(t.id)),
       };
+      // What the plugin does, and the reason this fake once hid a bug that
+      // stopped every tapped track from playing: accepting a queue also
+      // positions the service on `index`, so the next call sees that track
+      // already loaded.
+      state = { ...state, trackId: queue.trackIds[request.index] ?? null };
       return queue;
     },
     async load(request) {
@@ -97,8 +102,8 @@ describe("createNativeQueue", () => {
     queue = createNativeQueue(player, { artworkUrlFor, onError });
   });
 
-  it("pushes a new queue and then asks for the track in it", async () => {
-    await queue.sync(TRACKS, 2);
+  it("pushes a new queue and starts it in the same call", async () => {
+    await queue.sync(TRACKS, TRACKS[1]);
 
     expect(player.calls).toEqual([
       [
@@ -106,20 +111,19 @@ describe("createNativeQueue", () => {
         {
           tracks: TRACKS.map((t) => toQueueTrack(t, artworkUrlFor)),
           index: 1,
-          autoplay: false,
+          autoplay: true,
         },
       ],
-      ["load", { trackId: "2", autoplay: true }],
     ]);
   });
 
   // The second rule: re-pushing an identical list makes the service seek to the
   // start of the item, which is how a restored position disappears.
   it("does not push the same queue twice", async () => {
-    await queue.sync(TRACKS, 1);
+    await queue.sync(TRACKS, TRACKS[0]);
     player.calls.length = 0;
 
-    await queue.sync([...TRACKS], 2);
+    await queue.sync([...TRACKS], TRACKS[1]);
 
     expect(player.calls).toEqual([["load", { trackId: "2", autoplay: true }]]);
   });
@@ -127,19 +131,28 @@ describe("createNativeQueue", () => {
   // The third rule: a move the service made comes back into `currentTrack`, and
   // that write must not be sent straight back out again.
   it("asks for nothing when the service is already on that track", async () => {
-    await queue.sync(TRACKS, 1);
+    await queue.sync(TRACKS, TRACKS[0]);
     player.calls.length = 0;
     player.nowPlaying("3");
 
-    await queue.sync(TRACKS, 3);
+    await queue.sync(TRACKS, TRACKS[2]);
 
     expect(player.calls).toEqual([]);
   });
 
   it("can push a queue without starting it, which is what a boot does", async () => {
-    await queue.sync(TRACKS, 1, { autoplay: false });
+    await queue.sync(TRACKS, TRACKS[0], { autoplay: false });
 
-    expect(player.calls[1]).toEqual(["load", { trackId: "1", autoplay: false }]);
+    expect(player.calls).toEqual([
+      [
+        "setQueue",
+        {
+          tracks: TRACKS.map((t) => toQueueTrack(t, artworkUrlFor)),
+          index: 0,
+          autoplay: false,
+        },
+      ],
+    ]);
   });
 
   it("pushes an empty queue but asks for no track", async () => {
@@ -148,20 +161,49 @@ describe("createNativeQueue", () => {
     expect(player.calls).toEqual([["setQueue", { tracks: [], index: 0, autoplay: false }]]);
   });
 
-  it("pushes the queue but asks for nothing when the track is not in it", async () => {
-    await queue.sync(TRACKS, 99);
+  // A card on the home screen, a search result: `currentTrack` moves and the
+  // queue it came from does not exist. In a browser the engine simply plays
+  // whatever the current track is; the service can only play what it holds.
+  it("makes a track the queue when the UI plays one outside it", async () => {
+    const loose = { id: 99, title: "Loose", artist: "L", album: "Z", duration: 42 };
 
-    expect(player.calls.map(([name]) => name)).toEqual(["setQueue"]);
+    await queue.sync(TRACKS, loose);
+
+    expect(player.calls).toEqual([
+      ["setQueue", { tracks: [toQueueTrack(loose, artworkUrlFor)], index: 0, autoplay: true }],
+    ]);
+    expect(queue.pushedIds()).toEqual(["99"]);
+  });
+
+  // The same shape at boot means the opposite thing: the UI is following the
+  // service rather than steering it, so the restored queue goes across and the
+  // stray track starts nothing. Replacing a queue with one item because of a
+  // leftover `currentTrack` is the one move phase 1 exists to prevent.
+  it("pushes the restored queue, not the stray track, when a boot finds one", async () => {
+    const loose = { id: 99, title: "Loose", artist: "L", album: "Z", duration: 42 };
+
+    await queue.sync(TRACKS, loose, { autoplay: false });
+
+    expect(player.calls).toEqual([
+      [
+        "setQueue",
+        {
+          tracks: TRACKS.map((t) => toQueueTrack(t, artworkUrlFor)),
+          index: 0,
+          autoplay: false,
+        },
+      ],
+    ]);
   });
 
   // A `load` that overtook the `setQueue` that put the track in the queue is
   // rejected by the plugin, so the order has to be guaranteed rather than likely.
   it("serialises every call onto one chain", async () => {
-    const first = queue.sync(TRACKS, 1);
-    const second = queue.sync([TRACKS[2]], 3);
+    const first = queue.sync(TRACKS, TRACKS[0]);
+    const second = queue.sync([TRACKS[2]], TRACKS[2]);
     await Promise.all([first, second]);
 
-    expect(player.calls.map(([name]) => name)).toEqual(["setQueue", "load", "setQueue", "load"]);
+    expect(player.calls.map(([name]) => name)).toEqual(["setQueue", "setQueue"]);
   });
 
   it("adopts the queue the service is already holding, and pushes nothing for it", async () => {
@@ -173,7 +215,7 @@ describe("createNativeQueue", () => {
     expect(queue.pushedIds()).toEqual(["1", "2", "3"]);
 
     player.calls.length = 0;
-    await queue.sync(TRACKS, 2, { autoplay: false });
+    await queue.sync(TRACKS, TRACKS[1], { autoplay: false });
 
     expect(player.calls).toEqual([]);
   });
@@ -181,11 +223,11 @@ describe("createNativeQueue", () => {
   it("reports a failed hand-off instead of leaving a dead chain behind", async () => {
     player.setQueue = () => Promise.reject(new Error("no service"));
 
-    await queue.sync(TRACKS, 1);
+    await queue.sync(TRACKS, TRACKS[0]);
     expect(onError).toHaveBeenCalledTimes(1);
 
     player.setQueue = fakePlayer().setQueue;
-    await queue.sync(TRACKS, 1);
+    await queue.sync(TRACKS, TRACKS[0]);
     expect(onError).toHaveBeenCalledTimes(1);
   });
 });

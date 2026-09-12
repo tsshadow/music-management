@@ -20,6 +20,13 @@
  *   like a listener pressing next. The guard is the service's own snapshot: if
  *   it already has that track loaded, there is nothing to ask it for.
  *
+ * The third rule is also why `setQueue` carries the autoplay rather than a
+ * `load` behind it: the plugin positions the service on `index` as part of
+ * accepting the queue, so by the time the next call is considered the service
+ * is *already* on that track and the guard swallows it. A queue pushed with
+ * `autoplay: false` and nothing after it is a queue that never starts, which is
+ * what a tapped track did on the phone while every unit test here passed.
+ *
  * Every call is serialised onto one promise chain. `setQueue` and `load` are
  * bridge hops, and a `load` that overtook the `setQueue` that put the track in
  * the queue is rejected by the plugin with "not in the queue and not in this
@@ -68,7 +75,7 @@ export function isDifferentQueue(previous, next) {
  * @param {{artworkUrlFor: function(object): string,
  *          onError?: function(Error): void}} options
  * @returns {{adopt: function(): Promise<string[]>,
- *            sync: function(Array<object>, string|null, {autoplay?: boolean}=): Promise<void>,
+ *            sync: function(Array<object>, object|null, {autoplay?: boolean}=): Promise<void>,
  *            pushedIds: function(): string[]|null}}
  */
 export function createNativeQueue(player, { artworkUrlFor, onError = () => {} }) {
@@ -103,28 +110,54 @@ export function createNativeQueue(player, { artworkUrlFor, onError = () => {} })
    * Makes the service's queue match this one.
    *
    * @param {Array<object>} tracks - The UI's queue, in order.
-   * @param {string|null} currentId - The track the UI wants playing.
+   * @param {object|null} current - The track the UI wants playing, as the
+   *   library returned it. The whole track rather than its id, because it is
+   *   not always in `tracks`: see [push].
    * @param {{autoplay?: boolean}} [options] - Whether a move should start
    *   playback. False on the first sync after a boot, so restoring a queue does
    *   not start the music by itself.
    * @returns {Promise<void>}
    */
-  function sync(tracks, currentId, { autoplay = true } = {}) {
-    chain = chain.then(() => push(tracks, currentId, autoplay)).catch((error) => onError(error));
+  function sync(tracks, current, { autoplay = true } = {}) {
+    chain = chain.then(() => push(tracks, current, autoplay)).catch((error) => onError(error));
     return chain;
   }
 
-  async function push(tracks, currentId, autoplay) {
+  async function push(tracks, current, autoplay) {
     const ids = tracks.map((track) => String(track.id));
-    const index = currentId == null ? -1 : ids.indexOf(String(currentId));
+    const currentId = current == null ? null : String(current.id);
+    const index = currentId === null ? -1 : ids.indexOf(currentId);
+
+    // "Play this one", from somewhere that has no list behind it: a card on the
+    // home screen, a search result. Those set `currentTrack` and leave the
+    // queue alone, which in a browser is enough because the engine plays
+    // whatever the current track is. The service can only play what it holds,
+    // so here the track has to become the queue.
+    //
+    // Never on the boot sync (`autoplay` false): there the UI is following the
+    // service, and replacing a queue it is halfway through would be the exact
+    // thing phase 1 must not do.
+    if (index < 0 && currentId !== null && autoplay) {
+      await player.setQueue({
+        tracks: [toQueueTrack(current, artworkUrlFor)],
+        index: 0,
+        autoplay: true,
+      });
+      pushed = [currentId];
+      return;
+    }
 
     if (isDifferentQueue(pushed, ids)) {
+      // The autoplay rides along: the plugin positions the service on `index`
+      // while accepting the queue, so a `load` after this one is swallowed by
+      // the "already on that track" guard below.
       await player.setQueue({
         tracks: tracks.map((track) => toQueueTrack(track, artworkUrlFor)),
         index: Math.max(index, 0),
-        autoplay: false,
+        autoplay: autoplay && index >= 0,
       });
       pushed = ids;
+      if (index >= 0) return;
     }
 
     if (index < 0) return;

@@ -1014,7 +1014,10 @@
   // effect re-runs once the engine is up.
   $effect(() => {
     const queue = $playlist;
-    const wantedId = $currentTrack?.id ?? null;
+    // The whole track, not its id: it is not always in the queue -- a card on
+    // the home screen sets the current track and nothing else -- and the
+    // service needs a title and an artist to put in the notification.
+    const wanted = $currentTrack ?? null;
     if (!nativePlayback || !engineReady || !nativeQueue) return;
     // The first sync after a boot must not start the music: what is in the
     // stores then is either what the service was already playing (in which case
@@ -1027,7 +1030,7 @@
     // means the rehydrate found nothing to restore, which is no reason to stop
     // music that is playing.
     if (!autoplay && queue.length === 0) return;
-    nativeQueue.sync(queue, wantedId, { autoplay });
+    nativeQueue.sync(queue, wanted, { autoplay });
   });
 
   $effect(() => {

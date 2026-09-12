@@ -1,6 +1,6 @@
 <script>
   import { t } from './i18n/index.js';
-  import { currentTrack, playerState, authParams, playlist, isMobile, highlightedTrackId, mumaApiUrl } from './store.js';
+  import { currentTrack, playerState, authParams, playlist, isMobile, highlightedTrackId, mumaApiUrl, restUrl } from './store.js';
   import ArtistList from './ArtistList.svelte';
   import Modal from './Modal.svelte';
   import { subsonicError } from './utils.js';
@@ -25,7 +25,7 @@
       lyricsLines = [];
       isLoadingLyrics = true;
       try {
-          const response = await fetch(`/rest/getLyricsBySongId?id=${track.id}&${$authParams}`);
+          const response = await fetch(restUrl(`/rest/getLyricsBySongId?id=${track.id}&${$authParams}`));
           const data = await response.json();
           const structuredLyrics = data['subsonic-response']?.lyricsList?.structuredLyrics;
           if (structuredLyrics) {
@@ -110,7 +110,7 @@
       // the body is the only thing that says whether the rating was stored.
       // `subsonicError` is that check, shared with the player.
       const failure = await subsonicError(
-        await fetch(`/rest/setRating?id=${track.id}&rating=${newRating}&${$authParams}`)
+        await fetch(restUrl(`/rest/setRating?id=${track.id}&rating=${newRating}&${$authParams}`))
       );
       if (failure) throw new Error(failure.message);
     } catch (e) {
@@ -308,7 +308,7 @@
         <td class="p-2 px-4">
           <div class="flex items-center gap-3">
             <img
-              src={track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=48&${$authParams}` : '/images/spotify-fallback.svg'}
+              src={track.coverArt ? restUrl(`/rest/getCoverArt?id=${track.coverArt}&size=48&${$authParams}`) : '/images/spotify-fallback.svg'}
               alt=""
               class="w-10 h-10 md:w-12 md:h-12 rounded shadow"
               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
@@ -470,7 +470,7 @@
               </button>
 
               <a
-                href={`/rest/download?id=${track.id}&${$authParams}`}
+                href={restUrl(`/rest/download?id=${track.id}&${$authParams}`)}
                 download={`${track.artist} - ${track.title}.mp3`}
                 aria-label={$t('common.download')}
                 title={$t('common.download')}

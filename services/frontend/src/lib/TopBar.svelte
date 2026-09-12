@@ -3,7 +3,7 @@
   import ProfileButton from './ProfileButton.svelte';
   import SearchBar from './SearchBar.svelte';
   import ReleaseNotesModal from './ReleaseNotesModal.svelte';
-  import { activeView, authParams, activeModal, sidebarDrawerOpen } from './store.js';
+  import { activeView, authParams, activeModal, sidebarDrawerOpen, restUrl } from './store.js';
   import { t } from './i18n/index.js';
   import { Menu } from '@lucide/svelte';
   import { get } from 'svelte/store';
@@ -20,7 +20,7 @@
           const auth = get(authParams);
           if (!auth) return;
 
-          const response = await fetch(`/rest/ping?${auth}`);
+          const response = await fetch(restUrl(`/rest/ping?${auth}`));
           const data = await response.json();
           const res = data['subsonic-response'];
           if (!res) return;

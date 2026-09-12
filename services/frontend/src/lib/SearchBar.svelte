@@ -1,7 +1,7 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount, untrack } from 'svelte';
-  import { authParams, activeView, currentTrack, playlist, viewMode, activeModal } from './store.js';
+  import { authParams, activeView, currentTrack, playlist, viewMode, activeModal, restUrl } from './store.js';
   import SearchResults from './SearchResults.svelte';
 
   let query = $state('');
@@ -37,7 +37,7 @@
     try {
       // Search for artists, albums, and songs
       const durationFilter = $viewMode === 'sets' ? '&minDuration=10' : '&maxDuration=10';
-      const response = await fetch(`/rest/search3?${$authParams}&query=${encodeURIComponent(query)}&artistCount=20&albumCount=20&songCount=20${durationFilter}`, { signal });
+      const response = await fetch(restUrl(`/rest/search3?${$authParams}&query=${encodeURIComponent(query)}&artistCount=20&albumCount=20&songCount=20${durationFilter}`), { signal });
       const data = await response.json();
       results = data['subsonic-response']?.searchResult3 || {};
 
@@ -88,7 +88,7 @@
    */
   async function loadAllGenres() {
     try {
-      const response = await fetch(`/rest/getGenres?${$authParams}`);
+      const response = await fetch(restUrl(`/rest/getGenres?${$authParams}`));
       const data = await response.json();
       const genreList = data['subsonic-response']?.genres?.genre || [];
       allGenres = genreList.map(g => typeof g === 'string' ? g : (g.value || g.name));
@@ -102,7 +102,7 @@
    */
   async function loadAllLabels() {
     try {
-      const response = await fetch(`/rest/getRecordLabels?${$authParams}`);
+      const response = await fetch(restUrl(`/rest/getRecordLabels?${$authParams}`));
       const data = await response.json();
       const labelList = data['subsonic-response']?.recordLabels?.recordLabel || [];
       allLabels = labelList.map(l => typeof l === 'string' ? l : (l.value || l.name));

@@ -1,5 +1,5 @@
 <script>
-  import { viewMode, authParams, favoriteGenres, isAdmin } from './store.js';
+  import { viewMode, authParams, favoriteGenres, isAdmin, restUrl } from './store.js';
   import { itemsForMode } from './collections.js';
   import { t } from './i18n/index.js';
   import { ChevronRight } from '@lucide/svelte';
@@ -36,7 +36,7 @@
   async function loadGenres() {
     if (!$authParams) return;
     try {
-        const response = await fetch(`/rest/getGenres?${$authParams}`);
+        const response = await fetch(restUrl(`/rest/getGenres?${$authParams}`));
         if (response.ok) {
             const data = await response.json();
             const result = data['subsonic-response']?.genres?.genre || [];

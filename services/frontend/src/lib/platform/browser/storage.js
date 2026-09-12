@@ -22,7 +22,7 @@ const storage = {
   /**
    * A Subsonic-shaped query answered from what is on the device.
    *
-   * @param {object} _request - The same parameters `/rest/*` takes.
+   * @param {object} _request - The same parameters a Subsonic call takes.
    * @returns {Promise<object>} An empty `subsonic-response` body, so list
    *   components can read it the way they read the server's.
    */

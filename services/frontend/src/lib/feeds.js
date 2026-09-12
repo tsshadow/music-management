@@ -13,7 +13,7 @@
  * minus the gaps.
  */
 
-import { apiBase, fetchMumaJson } from "./mumaApi.js";
+import { apiBase, fetchMumaJson, restUrl } from "./mumaApi.js";
 
 /** The slugs MuMa's API spells. */
 export const RELEASE_RADAR = "release-radar";
@@ -75,7 +75,7 @@ async function resolveSongs(paths, authParams) {
   paths.forEach((path) => body.append("path", path));
 
   try {
-    const response = await fetch(`/rest/getSongsByPath.view?${authParams}`, {
+    const response = await fetch(restUrl(`/rest/getSongsByPath.view?${authParams}`), {
       method: "POST",
       body,
     });

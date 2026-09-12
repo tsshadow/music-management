@@ -14,6 +14,9 @@ import { DAILY_MIX, RELEASE_RADAR, loadFeed } from "../../src/lib/feeds.js";
 vi.mock("../../src/lib/mumaApi.js", () => ({
   apiBase: () => "http://muma",
   fetchMumaJson: (...args) => globalThis.__fetchMumaJson(...args),
+  // `restUrl` normally builds on `credentials.url`; a bare passthrough is enough here since
+  // these tests only care that the Subsonic path and body reach `fetch` untouched.
+  restUrl: (pathAndQuery) => pathAndQuery,
 }));
 
 const AUTH = "u=user&p=secret&v=1.16.1&c=test&f=json";

@@ -1,12 +1,11 @@
 <script>
   import { t } from './i18n/index.js';
   import { untrack } from 'svelte';
-  import { currentPlaylist, authParams, playlist, currentTrack, playerState } from './store.js';
+  import { currentPlaylist, authParams, playlist, currentTrack, playerState, restUrl } from './store.js';
   import TrackList from './TrackList.svelte';
 
   const { onnavigate } = $props();
   let tracks = $state([]);
-  const apiBase = '/rest';
 
   /**
    * Fetches the tracks for a specific playlist.
@@ -16,7 +15,7 @@
   async function fetchTracks(id) {
     if (!id || !$authParams) return;
     try {
-      const resp = await fetch(`${apiBase}/getPlaylist?id=${encodeURIComponent(id)}&${$authParams}`);
+      const resp = await fetch(restUrl(`/rest/getPlaylist?id=${encodeURIComponent(id)}&${$authParams}`));
       const data = await resp.json();
       const playlistData = data['subsonic-response']?.playlist;
       const result = playlistData?.entry || [];
@@ -57,7 +56,7 @@
     const id = $currentPlaylist?.id;
     if (!id || !$authParams) return;
     try {
-      const resp = await fetch(`${apiBase}/updatePlaylist?playlistId=${encodeURIComponent(id)}&songIndexToRemove=${index}&${$authParams}`);
+      const resp = await fetch(restUrl(`/rest/updatePlaylist?playlistId=${encodeURIComponent(id)}&songIndexToRemove=${index}&${$authParams}`));
       if (resp.ok) {
         tracks = tracks.filter((_, i) => i !== index);
       }
@@ -73,7 +72,7 @@
       <div class="w-40 h-40 md:w-52 md:h-52 bg-[#282828] shadow-2xl flex items-center justify-center flex-shrink-0 overflow-hidden">
         {#if $currentPlaylist.coverArt}
           <img
-            src="/rest/getCoverArt?id={$currentPlaylist.coverArt}&{$authParams}&size=300"
+            src={restUrl(`/rest/getCoverArt?id=${$currentPlaylist.coverArt}&${$authParams}&size=300`)}
             alt=""
             class="w-full h-full object-cover"
             onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}

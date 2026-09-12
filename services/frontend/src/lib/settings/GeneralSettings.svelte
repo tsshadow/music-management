@@ -2,7 +2,7 @@
   import { t } from '../i18n/index.js';
   import { onMount } from 'svelte';
   import { SvelteURLSearchParams } from 'svelte/reactivity';
-  import { deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, TRACK_PAGE_SIZES, authParams, credentials } from '../store.js';
+  import { deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, TRACK_PAGE_SIZES, authParams, credentials, restUrl } from '../store.js';
   import LanguageSetting from './LanguageSetting.svelte';
 
   // Server default for uiArtistReleaseSortMethod (ReleaseSortMethod::OriginalDateDesc).
@@ -61,7 +61,7 @@
   async function fetchSettings() {
     isLoading = true;
     try {
-      const resp = await fetch(`/rest/getUser?${$authParams}&username=${encodeURIComponent($credentials.username)}`);
+      const resp = await fetch(restUrl(`/rest/getUser?${$authParams}&username=${encodeURIComponent($credentials.username)}`));
       const data = await resp.json();
       const user = data['subsonic-response']?.user;
       if (user) {
@@ -103,7 +103,7 @@
         }
       });
 
-      const resp = await fetch(`/rest/updateUser?${$authParams}&${params.toString()}`);
+      const resp = await fetch(restUrl(`/rest/updateUser?${$authParams}&${params.toString()}`));
       const data = await resp.json();
       if (data['subsonic-response']?.status === 'ok') {
         message = $t('settings.saved');

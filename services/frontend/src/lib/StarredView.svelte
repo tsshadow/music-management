@@ -1,7 +1,7 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
-  import { authParams, playlist, currentTrack, playerState, mumaApiUrl } from './store.js';
+  import { authParams, playlist, currentTrack, playerState, mumaApiUrl, restUrl } from './store.js';
   import TrackList from './TrackList.svelte';
 
   const { onnavigate } = $props();
@@ -17,7 +17,7 @@
     if (!$authParams) return;
     isLoading = true;
     try {
-      const response = await fetch(`/rest/getStarred2?${$authParams}`);
+      const response = await fetch(restUrl(`/rest/getStarred2?${$authParams}`));
       if (response.ok) {
         const data = await response.json();
         const res = data['subsonic-response']?.starred2;
@@ -108,7 +108,7 @@
                 >
                   <div class="relative mb-4 aspect-square shadow-lg">
                     <img 
-                      src="/rest/getCoverArt?id={album.coverArt}&size=300&{$authParams}" 
+                      src={restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`)}
                       alt={album.name}
                       class="w-full h-full object-cover rounded-md"
                       onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}

@@ -105,7 +105,7 @@ import browserSystem from "./browser/system.js";
  * @property {boolean} supported False in a browser tab; the Downloads screen
  *   hides itself on it.
  * @property {function(object): Promise<object>} query A Subsonic-shaped request
- *   answered from local files, returning the body `/rest/*` would have, so a
+ *   answered from local files, returning the body a Subsonic call would have, so a
  *   list component never learns a second data source.
  * @property {function(string): Promise<void>} download Track, album or playlist id.
  * @property {function(): Promise<Array<object>>} list What is on the device.

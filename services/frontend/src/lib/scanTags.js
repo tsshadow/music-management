@@ -7,6 +7,8 @@
  * scanner's settings, which ride along on `getScanStatus` -- and only for an admin.
  */
 
+import { restUrl } from "./store.js";
+
 /**
  * Reads the scanner's extra tags.
  *
@@ -21,7 +23,7 @@ export async function loadIndexedTags(authParams) {
   if (!authParams) return null;
 
   try {
-    const response = await fetch(`/rest/getScanStatus?${authParams}`);
+    const response = await fetch(restUrl(`/rest/getScanStatus?${authParams}`));
     if (!response.ok) return null;
 
     const data = await response.json();

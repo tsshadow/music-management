@@ -11,7 +11,14 @@ import { get } from "svelte/store";
 
 import { mumaApiKey, mumaApiUrl } from "./store";
 
-/** Base URL of the MuMa API, as configured for this deployment. */
+// `restUrl` builds on `credentials`, which lives in `store.js`; re-exported
+// here so a module that already reaches for `apiBase`/`getHeaders` does not
+// need a second import just to reach the Subsonic side of the same contract.
+export { restUrl } from "./store";
+
+/** Base URL of the MuMa API, as configured for this deployment. `apiBase()` and
+ * `mumaApiUrl` are the one resolver for every `/api/*` call -- nothing else
+ * should decide this base for itself. */
 export function apiBase() {
   return get(mumaApiUrl);
 }

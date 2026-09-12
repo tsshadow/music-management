@@ -1,7 +1,7 @@
 <script>
   import { t } from './i18n/index.js';
 
-  import { authParams, visibleSortOptions, allSortOptions } from './store.js';
+  import { authParams, visibleSortOptions, allSortOptions, restUrl } from './store.js';
 
   let {
     genre = $bindable(''),
@@ -42,7 +42,7 @@
   async function loadGenres() {
     if (!$authParams) return;
     try {
-        const response = await fetch(`/rest/getGenres?${$authParams}`);
+        const response = await fetch(restUrl(`/rest/getGenres?${$authParams}`));
         if (response.ok) {
             const data = await response.json();
             const result = data['subsonic-response']?.genres?.genre || [];
@@ -62,7 +62,7 @@
   async function loadYears() {
     if (!$authParams) return;
     try {
-        const response = await fetch(`/rest/getYears?${$authParams}`);
+        const response = await fetch(restUrl(`/rest/getYears?${$authParams}`));
         if (response.ok) {
             const data = await response.json();
             const result = data['subsonic-response']?.years?.year || [];

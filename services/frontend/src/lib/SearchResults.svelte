@@ -15,7 +15,7 @@
 
   import { deduplicateTracks } from './deduplicate.js';
   import { getArtistImageUrl } from './utils.js';
-  import { authParams } from './store.js';
+  import { authParams, restUrl } from './store.js';
 
   const artists = $derived(results.artist || []);
   const albums = $derived(results.album || []);
@@ -60,7 +60,7 @@
               >
                 <div class="w-10 h-10 bg-[#333] rounded flex-shrink-0 flex items-center justify-center overflow-hidden">
                   {#if track.coverArt}
-                    <img src={`/rest/getCoverArt?id=${track.coverArt}&size=40`} alt="" class="w-full h-full object-cover" />
+                    <img src={restUrl(`/rest/getCoverArt?id=${track.coverArt}&size=40`)} alt="" class="w-full h-full object-cover" />
                   {:else}
                     <svg viewBox="0 0 24 24" class="w-6 h-6 fill-[#b3b3b3]"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
                   {/if}
@@ -115,7 +115,7 @@
               >
                 <div class="w-10 h-10 bg-[#333] rounded flex-shrink-0 flex items-center justify-center overflow-hidden">
                    {#if album.coverArt}
-                    <img src={`/rest/getCoverArt?id=${album.coverArt}&size=40`} alt="" class="w-full h-full object-cover" />
+                    <img src={restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=40`)} alt="" class="w-full h-full object-cover" />
                   {:else}
                     <svg viewBox="0 0 24 24" class="w-6 h-6 fill-[#b3b3b3]"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zm0-5.5c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1z"/></svg>
                   {/if}

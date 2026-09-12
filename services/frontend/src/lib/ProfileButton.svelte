@@ -2,7 +2,7 @@
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
   import { Settings2 } from '@lucide/svelte';
-  import { credentials, isAdmin, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser } from './store.js';
+  import { credentials, isAdmin, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser, defaultSubsonicUrl } from './store.js';
 
   const { onNavigate } = $props();
 
@@ -31,7 +31,7 @@
     }
 
     // Reset credentials and ensure localStorage is updated
-    const emptyCreds = { url: import.meta.env.VITE_SUBSONIC_URL || (import.meta.env.DEV ? '' : window.location.origin), username: '', password: '' };
+    const emptyCreds = { url: defaultSubsonicUrl(), username: '', password: '' };
     credentials.set(emptyCreds);
     localStorage.setItem('lms_credentials', JSON.stringify(emptyCreds));
 

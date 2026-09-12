@@ -68,6 +68,7 @@ the retroactive documentation above):
 | [`favorite-genres/`](favorite-genres/) | Per-user favorite genres in the web player, persisted to the account instead of only `localStorage` (`services/frontend/src/lib/store.js`), reusing the existing generic `/api/users/{id}/settings/{app_id}` endpoints. |
 | [`i18n/`](i18n/) | Web frontend internationalisation: JSON translation files, a `t()` store, and a language setting (English/Dutch) synced to the account through the same `/api/users/{id}/settings/frontend` blob as favorite genres. Mechanism only — converting the existing screens is a follow-up. |
 | [`ultrasonic-session-and-loading/`](ultrasonic-session-and-loading/) | Android client: per-section skeleton loading on the home screen, a "Log out" entry, and returning to the login screen when the server rejects the stored password (Subsonic error 40). Client-side only. |
+| [`universal-ui/`](universal-ui/) | **Proposal.** One Svelte UI for web, phone and PC: the web player in a Capacitor shell over the phone's native playback, offline, Android Auto and voice services (Path A), with restyling the Kotlin app to the web's look worked out as the alternative (Path B). Sets as a first-class mode on every surface. |
 
 ## Relationship to `.ai/docs` and `.ai/requirements`
 

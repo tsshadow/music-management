@@ -89,12 +89,12 @@
     >{$t('collection.clearFilters')}</button>
   </div>
 {:else}
-  <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+  <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
     {#each visible as item (item.value)}
       <div
         role="button"
         tabindex="0"
-        class="bg-[#181818] p-6 rounded-lg flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors hover:bg-[#282828] aspect-square relative group"
+        class="bg-[#181818] p-3 md:p-6 rounded-lg flex flex-col items-center justify-center gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-[#282828] aspect-square relative group"
         onclick={() => open(item)}
         onkeydown={(e) => e.key === 'Enter' && open(item)}
       >
@@ -114,10 +114,10 @@
              than a class: the value is a hex from the server, and Tailwind can only compile
              classes it can see. -->
         <div
-          class="w-16 h-16 rounded-full flex items-center justify-center text-black mb-2 shadow-lg {item.tint ? '' : 'bg-brand'}"
+          class="w-10 h-10 md:w-16 md:h-16 rounded-full flex items-center justify-center text-black mb-1 md:mb-2 shadow-lg {item.tint ? '' : 'bg-brand'}"
           style={item.tint ? `background-color: ${item.tint}` : undefined}
         >
-          <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+          <svg viewBox="0 0 24 24" class="w-5 h-5 md:w-8 md:h-8" fill="currentColor">
             <path d={card.icon}></path>
           </svg>
         </div>

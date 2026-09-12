@@ -4,7 +4,6 @@
   import { Pencil } from '@lucide/svelte';
   import { untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
-  import TrackCard from './TrackCard.svelte';
   import TrackList from './TrackList.svelte';
   import FilterBar from './FilterBar.svelte';
   import PlaylistView from './PlaylistView.svelte';
@@ -25,6 +24,7 @@
   import Management from './management/Management.svelte';
   import CollectionBar from './CollectionBar.svelte';
   import CollectionGrid from './CollectionGrid.svelte';
+  import HomeShelf from './HomeShelf.svelte';
   import DownloadsView from './DownloadsView.svelte';
   import OfflineNotice from './OfflineNotice.svelte';
   import { listOf, offline, subsonicJson, viewHasOfflineSource } from './subsonic.js';
@@ -34,7 +34,7 @@
   import { defaultCollectionState, durationParts, lineupLevel, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
   import { loadIndexedTags } from './scanTags.js';
   import { loadFeed, DAILY_MIX, RELEASE_RADAR } from './feeds.js';
-  import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, hasPermission, restUrl } from './store.js';
+  import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, hasPermission, isMobile, restUrl } from './store.js';
 
   // Navigation that has to survive a refresh goes through onnavigate, which App turns into a URL.
   // The local assignment stays the fallback for the many places that only switch the screen.
@@ -731,7 +731,7 @@
             onclick={() => onnavigate('memories')}
           >{$t('dashboard.showAll')}</button>
         </div>
-        <div class="flex gap-4 overflow-x-auto pb-2">
+        <div class="flex gap-4 overflow-x-auto scrollbar-hide pb-2">
           {#each memoryGroups as group (group.year)}
             <button
               class="flex-shrink-0 w-40 text-left bg-transparent border-none cursor-pointer p-0"
@@ -756,33 +756,24 @@
       </section>
     {/if}
     {#each sections.filter((s) => !s.id.startsWith('feed:') || s.tracks.length > 0) as section (section.id)}
-      <section class="flex flex-col gap-4">
-        <div class="flex justify-between items-end mb-4">
-          <h2 class="text-2xl font-bold m-0">{$t(section.titleKey)}</h2>
-          <button
-            class="bg-transparent border-none text-[#b3b3b3] text-[12px] font-bold cursor-pointer uppercase tracking-[0.1em] hover:underline"
-            onclick={() => {
-              if (section.id.startsWith('feed:')) {
-                onnavigate(section.id.slice('feed:'.length));
-              } else if (section.id === 'spotify:songs') {
-                viewMode.set('songs');
-                activeView = 'songs';
-              } else if (section.id === 'spotify:sets') {
-                viewMode.set('sets');
-                activeView = 'sets';
-              }
-            }}
-          >{$t('dashboard.showAll')}</button>
-        </div>
-        <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
-          {#each section.tracks.slice(0, 6) as track (track.id)}
-            <TrackCard {track} onnavigate={(v) => activeView = v} />
-          {/each}
-          {#if section.tracks.length === 0}
-            <p class="text-[#b3b3b3] col-span-full">{$t('dashboard.noTracksInSection')}</p>
-          {/if}
-        </div>
-      </section>
+      <HomeShelf
+        title={$t(section.titleKey)}
+        tracks={section.tracks.slice(0, 6)}
+        noTracksText={$t('dashboard.noTracksInSection')}
+        showAllLabel={$t('dashboard.showAll')}
+        onnavigate={(v) => activeView = v}
+        onshowall={() => {
+          if (section.id.startsWith('feed:')) {
+            onnavigate(section.id.slice('feed:'.length));
+          } else if (section.id === 'spotify:songs') {
+            viewMode.set('songs');
+            activeView = 'songs';
+          } else if (section.id === 'spotify:sets') {
+            viewMode.set('sets');
+            activeView = 'sets';
+          }
+        }}
+      />
     {/each}
   {:else if activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('podcast:') || activeView.startsWith('festival:') || activeView.startsWith('year:') || activeView.startsWith('lineup:')}
     <div class="flex flex-col gap-4 mb-6">
@@ -857,12 +848,12 @@
       <FilterBar view="albums" bind:genre={currentAlbumGenre} bind:sort={currentAlbumSort} bind:search={currentAlbumSearch} onchange={handleFilterChange} />
     </div>
     {#if albums.length > 0}
-        <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+        <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
             {#each albums as album (album.id)}
                 <div
                   role="button"
                   tabindex="0"
-                  class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
+                  class="bg-[#181818] p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
                   onclick={() => activeView = `album:${album.id}`}
                   onkeydown={(e) => e.key === 'Enter' && (activeView = `album:${album.id}`)}
                 >
@@ -983,12 +974,12 @@
       <h2 class="text-2xl font-bold m-0">{$t('nav.artists')}</h2>
       <FilterBar view="artists" bind:sort={currentArtistSort} bind:role={currentArtistRole} bind:search={currentArtistSearch} onchange={handleFilterChange} />
     </div>
-    <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+    <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
         {#each artists as artist (artist.id)}
             <div
               role="button"
               tabindex="0"
-              class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
+              class="bg-[#181818] p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
               onclick={() => activeView = `artist:${artist.id}`}
               onkeydown={(e) => e.key === 'Enter' && (activeView = `artist:${artist.id}`)}
             >
@@ -1027,6 +1018,47 @@
         </div>
     {:else if visiblePlaylists.length === 0}
         {@render noMatches(() => (playlistView = defaultCollectionState('playlists')))}
+    {:else if $isMobile}
+    <!-- Spotify's own Library tab lists playlists rather than tiling them; a phone screen has
+         room for one column of real information (name, track count, length) but not for a
+         cover big enough to tell two playlists apart, so a row with a small thumbnail reads
+         better here than the desktop's cover grid. -->
+    <div class="flex flex-col" role="list">
+        {#each visiblePlaylists as playlist (playlist.id)}
+            <div
+              role="button"
+              tabindex="0"
+              class="flex items-center gap-3 py-2 cursor-pointer rounded hover:bg-white/5 active:bg-white/10"
+              onclick={() => openPlaylist(playlist)}
+              onkeydown={(e) => e.key === 'Enter' && openPlaylist(playlist)}
+            >
+                <img
+                  src={playlist.coverArt ? restUrl(`/rest/getCoverArt?id=${playlist.coverArt}&size=112&${$authParams}`) : '/images/spotify-fallback.svg'}
+                  alt=""
+                  class="w-14 h-14 object-cover rounded shrink-0"
+                  onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
+                />
+                <div class="flex flex-col min-w-0 flex-1">
+                  <span class="font-bold truncate">{playlist.name}</span>
+                  <span class="text-xs text-[#b3b3b3] truncate">
+                    {$t('common.trackCount', { count: Number(playlist.songCount) || 0 })}
+                    {#if Number(playlist.duration) > 0}
+                      &middot; {playlistLength(playlist.duration)}
+                    {/if}
+                  </span>
+                </div>
+                <button
+                    class="p-2 shrink-0 text-brand {$favoritePlaylists.includes(String(playlist.id)) ? '' : 'opacity-40'}"
+                    onclick={(e) => { e.stopPropagation(); toggleFavoriteIn(favoritePlaylists, String(playlist.id)); }}
+                    aria-label={$t('collection.toggleFavoritePlaylist')}
+                >
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill={$favoritePlaylists.includes(String(playlist.id)) ? "currentColor" : "none"} stroke="currentColor" stroke-width="2">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+                    </svg>
+                </button>
+            </div>
+        {/each}
+    </div>
     {:else}
     <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
         {#each visiblePlaylists as playlist (playlist.id)}
@@ -1091,12 +1123,12 @@
       {#if artists.length > 0}
         <section>
           <h3 class="text-xl font-bold mb-4">{$t('nav.artists')}</h3>
-          <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+          <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
             {#each artists as artist (artist.id)}
               <div
                 role="button"
                 tabindex="0"
-                class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
+                class="bg-[#181818] p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
                 onclick={() => activeView = `artist:${artist.id}`}
                 onkeydown={(e) => e.key === 'Enter' && (activeView = `artist:${artist.id}`)}
               >
@@ -1117,12 +1149,12 @@
       {#if albums.length > 0}
         <section>
           <h3 class="text-xl font-bold mb-4">{$t('nav.albums')}</h3>
-          <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+          <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
             {#each albums as album (album.id)}
               <div
                 role="button"
                 tabindex="0"
-                class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
+                class="bg-[#181818] p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
                 onclick={() => activeView = `album:${album.id}`}
                 onkeydown={(e) => e.key === 'Enter' && (activeView = `album:${album.id}`)}
               >

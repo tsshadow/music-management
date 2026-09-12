@@ -365,19 +365,19 @@
         {#each Object.entries(albumGroups).sort() as [type, groupAlbums] (type)}
             <section>
                 <h2 class="text-2xl font-bold mb-4">{type}s</h2>
-                <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+                <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
                     {#each groupAlbums as album (album.id)}
                         <div
                           role="button"
                           tabindex="0"
-                          class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]"
+                          class="bg-[#181818] p-2 md:p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]"
                           onclick={() => openAlbum(album.id)}
                           onkeydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
                         >
                             <img
                               src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
                               alt={album.name}
-                              class="w-full aspect-square object-cover mb-4 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
+                              class="w-full aspect-square object-cover mb-2 md:mb-4 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
                             />
                             <span class="block font-bold mb-1 whitespace-nowrap overflow-hidden text-ellipsis">{album.name}</span>
@@ -391,19 +391,19 @@
         {#if appearsOn.length > 0}
             <section>
                 <h2 class="text-2xl font-bold mb-4">{$t('artist.appearsOn')}</h2>
-                <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+                <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
                     {#each appearsOn as album (album.id)}
                         <div
                           role="button"
                           tabindex="0"
-                          class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]"
+                          class="bg-[#181818] p-2 md:p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]"
                           onclick={() => openAlbum(album.id)}
                           onkeydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
                         >
                             <img
                               src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
                               alt={album.name}
-                              class="w-full aspect-square object-cover mb-4 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
+                              class="w-full aspect-square object-cover mb-2 md:mb-4 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
                             />
                             <span class="block font-bold mb-1 whitespace-nowrap overflow-hidden text-ellipsis">{album.name}</span>
@@ -417,16 +417,16 @@
         {#if similarArtists.length > 0}
             <section>
                 <h2 class="text-2xl font-bold mb-4">{$t('artist.similar')}</h2>
-                <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+                <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
                     {#each similarArtists as similar (similar.id)}
                         <div
                           role="button"
                           tabindex="0"
-                          class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]"
+                          class="bg-[#181818] p-2 md:p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]"
                           onclick={() => openArtist(similar.id)}
                           onkeydown={(e) => e.key === 'Enter' && openArtist(similar.id)}
                         >
-                            <div class="mb-4">
+                            <div class="mb-2 md:mb-4">
                                 <img
                                   src={getArtistImageUrl(similar, $authParams)}
                                   alt={similar.name}

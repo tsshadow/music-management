@@ -73,11 +73,21 @@ import timber.log.Timber
  *   `services/frontend/dist`. It is gitignored; a build without it ships a page that says so.
  * - `assets/capacitor.config.json` is the runtime config. Its paths (`webDir`, `android.path`)
  *   are written relative to `services/frontend`, so the copy the web module keeps for
- *   `@capacitor/cli` is the same file. `server.androidScheme` is `https`, which makes the origin
- *   `https://localhost`, and `plugins.CapacitorHttp.enabled` is true -- that is what lets the web
- *   player reach LMS, which sends no CORS headers at all, and the muma API, whose allowlist is
- *   dev-only. Nothing on this side blocks it: the app already permits cleartext
- *   (`network_security_config.xml`), so a plain `http://` server on the LAN works too.
+ *   `@capacitor/cli` is the same file. `plugins.CapacitorHttp.enabled` is true -- that is what
+ *   lets the web player reach LMS, which sends no CORS headers at all, and the muma API, whose
+ *   allowlist is dev-only.
+ * - `server.androidScheme` is **`http`**, which makes the origin `http://localhost`. With the
+ *   `https` scheme it used to default to, every cover from a plain-http server on the LAN was
+ *   mixed content and Chromium refused it -- "This request has been blocked; the content must be
+ *   served over HTTPS", once per image, and the whole UI rendered without artwork. `CapacitorHttp`
+ *   hid it for `fetch`, because those requests leave through Kotlin, but an `<img src>` never
+ *   touches the plugin. `android.allowMixedContent` is the documented answer and it does not work:
+ *   measured on the emulator, the config was parsed (`isMixedContentAllowed` true) and the WebView
+ *   was at `MIXED_CONTENT_ALWAYS_ALLOW`, and Chromium blocked the images anyway, before and after
+ *   a reload. The origin's own scheme is the only lever left. `http://localhost` is still a
+ *   trustworthy origin to Chromium, so nothing that needs a secure context is given up, and an
+ *   https server keeps working -- https subresources on an http page were never the blocked
+ *   direction.
  */
 class CapacitorActivity : BridgeActivity() {
 

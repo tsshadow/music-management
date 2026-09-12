@@ -8,33 +8,36 @@ import org.junit.Test
  * The launcher switch, which is the one thing in the Capacitor work that can break an install
  * that never asked for it.
  *
- * Android reads the launcher from the manifest, so "which interface does the icon open" is a
- * question about `activity-alias` enablement and not about a preference. Two failures matter:
- * two enabled aliases give the user two identical icons, and none at all makes the app vanish
- * from the home screen with no way back. Both are checked here for every combination, because
- * the combinations are the whole of the mechanism.
+ * Android reads the launcher from the manifest, so every alias points at the trampoline and the
+ * interface is decided in Kotlin. What is checked here is the invariant that survived the
+ * redesign: exactly one alias is enabled. Two enabled aliases give the user two identical icons,
+ * and none at all makes the app vanish from the home screen with no way back.
+ *
+ * The redesign itself is checked by what is *absent*: an alias no longer knows about
+ * [UiVariant] at all, so switching interface has no component to disable, and no task of the
+ * user's can be deleted along with it.
  */
 class LauncherSwitchTest {
 
     @Test
-    fun `exactly one alias is enabled, whichever icon and interface`() {
+    fun `exactly one alias is enabled, whichever icon`() {
         AppIconVariant.entries.forEach { icon ->
-            UiVariant.entries.forEach { ui ->
-                val enabled = AppIconVariant.enabledAlias(icon, ui)
-                val disabled = AppIconVariant.disabledAliases(icon, ui)
+            val enabled = AppIconVariant.enabledAlias(icon)
+            val disabled = AppIconVariant.disabledAliases(icon)
 
-                (enabled in disabled) shouldBeEqualTo false
-                (disabled + enabled).toSet() shouldBeEqualTo AppIconVariant.allAliases().toSet()
-                disabled.size shouldBeEqualTo AppIconVariant.allAliases().size - 1
-            }
+            (enabled in disabled) shouldBeEqualTo false
+            (disabled + enabled).toSet() shouldBeEqualTo AppIconVariant.allAliases().toSet()
+            disabled.size shouldBeEqualTo AppIconVariant.allAliases().size - 1
         }
     }
 
     @Test
-    fun `the four aliases are four distinct manifest entries`() {
+    fun `the manifest entries are four distinct names, two of them retired`() {
         val aliases = AppIconVariant.allAliases()
         aliases.size shouldBeEqualTo 4
         aliases.toSet().size shouldBeEqualTo 4
+        aliases shouldContain AppIconVariant.RETIRED_ALIASES[0]
+        aliases shouldContain AppIconVariant.RETIRED_ALIASES[1]
     }
 
     /**
@@ -44,15 +47,28 @@ class LauncherSwitchTest {
      * the enum.
      */
     @Test
-    fun `the legacy alias names are the ones already shipped`() {
-        AppIconVariant.GREEN.aliasClass(UiVariant.LEGACY) shouldBeEqualTo "nl.teunschriks.mumamobile.MainAliasGreen"
-        AppIconVariant.BLUE.aliasClass(UiVariant.LEGACY) shouldBeEqualTo "nl.teunschriks.mumamobile.MainAliasBlue"
+    fun `the alias names are the ones already shipped`() {
+        AppIconVariant.GREEN.alias shouldBeEqualTo "nl.teunschriks.mumamobile.MainAliasGreen"
+        AppIconVariant.BLUE.alias shouldBeEqualTo "nl.teunschriks.mumamobile.MainAliasBlue"
     }
 
+    /**
+     * The per-interface aliases of the first shell build are still declared, and still switched
+     * off by [AppIconVariant.apply]. An install sitting on one of them would otherwise lose its
+     * icon on upgrade: a component dropped from the manifest keeps the disabled state Android
+     * stored for its replacement.
+     */
     @Test
-    fun `the web aliases are new names, so no install starts out on them`() {
-        AppIconVariant.GREEN.aliasClass(UiVariant.WEB) shouldBeEqualTo "nl.teunschriks.mumamobile.MainAliasWebGreen"
-        AppIconVariant.BLUE.aliasClass(UiVariant.WEB) shouldBeEqualTo "nl.teunschriks.mumamobile.MainAliasWebBlue"
+    fun `the retired web aliases are still disabled by name`() {
+        AppIconVariant.RETIRED_ALIASES shouldBeEqualTo listOf(
+            "nl.teunschriks.mumamobile.MainAliasWebGreen",
+            "nl.teunschriks.mumamobile.MainAliasWebBlue"
+        )
+        AppIconVariant.entries.forEach { icon ->
+            AppIconVariant.RETIRED_ALIASES.forEach { retired ->
+                AppIconVariant.disabledAliases(icon) shouldContain retired
+            }
+        }
     }
 
     @Test

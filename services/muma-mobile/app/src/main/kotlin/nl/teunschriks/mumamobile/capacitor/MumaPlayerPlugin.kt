@@ -52,7 +52,7 @@ private const val MILLIS_PER_SECOND = 1000.0
  * | JS | Kotlin |
  * |---|---|
  * | `load({url, trackId, position, autoplay})` | `seekTo(index, ms)` when the id is already queued, otherwise `addToPlaylist(listOf(track), CLEAR)`; `play(index)` when `autoplay`. **`url` is ignored** — a native shell never streams through the WebView; the service resolves a downloaded file or a stream URL itself. |
- * | `setQueue({tracks, index, autoplay})` | `addToPlaylist(tracks, autoPlay = false, shuffle = false, InsertionMode.CLEAR)` then `play(index)` or `seekTo(index, 0)` |
+ * | `setQueue({tracks, index, autoplay})` | `replaceQueueAroundCurrent(before, after)` when the track at `index` is the track already loaded — playback is not touched at all; otherwise `addToPlaylist(tracks, InsertionMode.CLEAR)` and start at `index` |
  * | `queueState()` | `{index, length, trackIds}` |
  * | `play()` | `resumeOrPlay()` when something is loaded, `play()` otherwise |
  * | `pause()` | `pause()` |
@@ -171,10 +171,18 @@ class MumaPlayerPlugin :
         }
     }
 
+    /**
+     * Starts at an index *and a position*, which is not the same as `play(index)`.
+     *
+     * `MediaPlayerManager.play(index)` seeks to the start of the item before playing, so calling
+     * it after a `seekTo(index, position)` throws the position away -- the resume the UI asked for
+     * silently became "from the top". Prepare-then-resume keeps it.
+     */
     private fun startAt(index: Int, positionMs: Int, autoplay: Boolean) {
         failed = false
         mediaPlayerManager.seekTo(index, positionMs)
-        if (autoplay) mediaPlayerManager.play(index) else mediaPlayerManager.prepare()
+        mediaPlayerManager.prepare()
+        if (autoplay) mediaPlayerManager.resumeOrPlay()
     }
 
     /**
@@ -182,8 +190,15 @@ class MumaPlayerPlugin :
      *
      * The web module still *owns* the queue — shuffle, radio and the news decide what goes in it —
      * but it cannot hold it: the WebView is reclaimed whenever Android feels like it, and playback
-     * and "next" have to survive that. So the list is replaced wholesale and the order of
+     * and "next" have to survive that. So the whole list arrives on every change and the order of
      * `tracks` is the order of the queue.
+     *
+     * What it must *not* do is take that literally. Every queue change -- adding one track,
+     * removing one, reordering the tail -- arrives as a complete `setQueue`, and replacing the
+     * playlist restarts whatever is playing: on the emulator a set at 176 s went back to 5 s
+     * because the user pressed "add to queue". So [queuePlanFor] compares the item at `index` with
+     * the item loaded, and when they are the same track the player is not addressed at all;
+     * `autoplay` is ignored in that case, because a queue edit is not a transport command.
      */
     @PluginMethod
     fun setQueue(call: PluginCall) {
@@ -198,18 +213,48 @@ class MumaPlayerPlugin :
         val index = clampQueueIndex(call.getInt("index") ?: 0, tracks.size)
         val autoplay = call.getBoolean("autoplay", false) == true
         val serverId = ActiveServerProvider.getActiveServerId()
-        val domain = tracks.toTracks(serverId)
 
         onMain {
             failed = false
+            applyQueue(ManagerQueueSink(serverId), tracks, index, autoplay)
+            call.resolve(queueSnapshot())
+        }
+    }
+
+    /**
+     * [QueueSink] over [MediaPlayerManager]. The decision it serves lives in `QueuePlan.kt`, so
+     * that it can be tested without a Media3 session; this class is the half that cannot.
+     */
+    private inner class ManagerQueueSink(private val serverId: Int) : QueueSink {
+
+        override val currentTrackId: String?
+            get() = mediaPlayerManager.currentMediaItem?.toTrack()?.id
+
+        override val currentIndex: Int
+            get() = mediaPlayerManager.currentMediaItemIndex
+
+        override val positionMs: Int
+            get() = mediaPlayerManager.playerPosition
+
+        override val isPlaying: Boolean
+            get() = mediaPlayerManager.isPlaying
+
+        override fun rebuildAround(before: List<QueueTrack>, after: List<QueueTrack>): Boolean = mediaPlayerManager.replaceQueueAroundCurrent(
+            before = before.toTracks(serverId),
+            after = after.toTracks(serverId)
+        )
+
+        override fun replace(tracks: List<QueueTrack>, index: Int, positionMs: Int, autoplay: Boolean) {
+            if (positionMs > 0) {
+                Timber.w("The player refused a queue rebuild; replacing it and restoring %d ms", positionMs)
+            }
             mediaPlayerManager.addToPlaylist(
-                songs = domain,
+                songs = tracks.toTracks(serverId),
                 autoPlay = false,
                 shuffle = false,
                 insertionMode = MediaPlayerManager.InsertionMode.CLEAR
             )
-            if (autoplay) mediaPlayerManager.play(index) else mediaPlayerManager.seekTo(index, 0)
-            call.resolve(queueSnapshot())
+            startAt(index, positionMs, autoplay)
         }
     }
 

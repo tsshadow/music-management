@@ -677,6 +677,41 @@ class MediaPlayerManager(
     val bufferedPercentage: Int
         get() = controller?.bufferedPercentage ?: 0
 
+    /**
+     * Rebuilds the queue around the item that is playing, without touching that item.
+     *
+     * A UI that owns the queue but cannot hold it (the web player) sends the whole list on every
+     * change, so "add one track" arrives as a complete queue. Replacing it wholesale restarts the
+     * current track, which on a 40-minute set is the difference between a listen and nothing.
+     * Media3 leaves playback alone for as long as the current window is not among the ones
+     * replaced, so each side is replaced separately and the current index is skipped. The tail
+     * goes first: replacing the head moves every index behind it.
+     *
+     * @return false when the player cannot do it -- no controller, an empty timeline, or a session
+     *   that did not grant `COMMAND_CHANGE_MEDIA_ITEMS` -- so the caller can fall back to
+     *   replacing the queue. It never returns false halfway: the checks all precede the writes.
+     */
+    @Synchronized
+    fun replaceQueueAroundCurrent(before: List<Track>, after: List<Track>): Boolean {
+        val player = controller ?: return false
+        val current = player.currentMediaItemIndex
+        val count = player.mediaItemCount
+        if (current < 0 || current >= count) return false
+        if (!player.isCommandAvailable(Player.COMMAND_CHANGE_MEDIA_ITEMS)) return false
+
+        logAction(
+            "queue.replaceAround",
+            "before" to before.size,
+            "after" to after.size,
+            "at" to current,
+            "had" to count
+        )
+        player.replaceMediaItems(current + 1, count, after.map { it.toMediaItem() })
+        player.replaceMediaItems(0, current, before.map { it.toMediaItem() })
+        logAction("queue.replacedAround", "queue" to mediaItemCount, "at" to currentMediaItemIndex)
+        return true
+    }
+
     @Synchronized
     fun moveItemInPlaylist(oldPos: Int, newPos: Int) {
         logAction("queue.move", "from" to oldPos, "to" to newPos)

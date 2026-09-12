@@ -7,6 +7,17 @@
         <item name="android:paddingHorizontal">4dp</item>
     </style>
 
+    <!-- The launcher trampoline (activity/LauncherActivity.kt) exists for one frame and must not
+         draw anything, or a tap on the icon flashes a blank screen before the UI appears.
+         Translucent rather than Theme.NoDisplay: NoDisplay crashes on newer Android when the
+         activity reaches onResume before finishing, and a trampoline that starts another activity
+         cannot guarantee it will not. -->
+    <style name="LauncherTrampoline" parent="@android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
+
     <!-- Here we define some basic attributes that are the same for each theme -->
     <style name="UltrasonicTheme.Base" parent="">
         <item name="searchViewStyle">@style/CleanSearchStyle</item>

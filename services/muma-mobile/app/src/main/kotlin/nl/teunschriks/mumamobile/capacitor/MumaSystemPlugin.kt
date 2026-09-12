@@ -15,7 +15,6 @@ import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import nl.teunschriks.mumamobile.activity.NavigationActivity
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
-import nl.teunschriks.mumamobile.util.AppIconVariant
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.UiVariant
@@ -122,11 +121,13 @@ class MumaSystemPlugin :
     }
 
     /**
-     * Puts the launcher and the setting back on the Kotlin app and restarts into it.
+     * Puts the setting back on the Kotlin app and restarts into it.
      *
      * The task is cleared rather than the activity finished: the web UI is the task's root, and
      * leaving it on the stack would let one back press return to the interface the user just
-     * left.
+     * left. No launcher component is disabled on the way out -- the aliases point at the
+     * trampoline, which reads the setting -- because disabling one takes this very task down with
+     * it. See `activity/LauncherActivity.kt`.
      */
     @PluginMethod
     fun switchToLegacyUi(call: PluginCall) {
@@ -135,11 +136,10 @@ class MumaSystemPlugin :
             return
         }
         Settings.webUiEnabled = false
-        AppIconVariant.apply(activity, AppIconVariant.fromSetting(Settings.appIcon), UiVariant.LEGACY)
         call.resolve()
         activity.runOnUiThread {
             activity.startActivity(
-                Intent(activity, NavigationActivity::class.java)
+                UiVariant.launchIntent(activity)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             )
             activity.finish()

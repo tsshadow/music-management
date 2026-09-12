@@ -4,11 +4,10 @@
   "webDir": "dist",
   "android": {
     "path": "../muma-mobile",
-    "allowMixedContent": true,
     "webContentsDebuggingEnabled": true
   },
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "http"
   },
   "plugins": {
     "CapacitorHttp": {

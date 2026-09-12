@@ -82,7 +82,8 @@ class WizardSideEffectsTest {
         applyWizardSideEffect(context, context.getString(R.string.setting_key_app_icon))
 
         // fromSetting falls back to GREEN, which is what an untouched store holds; the point is
-        // that a variant is enabled at all - nothing else in the app calls AppIconVariant.apply.
+        // that a variant is enabled at all, in this run - the launcher trampoline reconciles the
+        // stored value too, but only on the next launch.
         val packageManager = context.packageManager
         assertEquals(
             android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED,

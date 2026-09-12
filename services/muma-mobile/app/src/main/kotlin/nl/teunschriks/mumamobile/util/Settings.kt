@@ -45,8 +45,9 @@ object Settings {
      * Off by default and staying that way for as long as the web shell is a beta: this is the
      * only thing that decides which of the two interfaces exists for a user, and every install
      * that never touches it behaves exactly as it did before the shell was added. Writing it is
-     * not enough on its own -- [AppIconVariant.apply] has to move the launcher alias with it,
-     * because Android reads the manifest and not this.
+     * the whole change: the launcher aliases point at `LauncherActivity`, which reads this at tap
+     * time. They deliberately do *not* name an interface -- moving the alias with the setting is
+     * what used to delete the task the user was standing in.
      */
     @JvmStatic
     var webUiEnabled by BooleanSetting(

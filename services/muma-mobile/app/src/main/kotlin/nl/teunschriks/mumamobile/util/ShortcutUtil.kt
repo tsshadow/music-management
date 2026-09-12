@@ -15,7 +15,10 @@ import nl.teunschriks.mumamobile.R
 
 object ShortcutUtil {
     fun registerShortcuts(activity: Activity) {
-        val shortcutIntent = UiVariant.launchIntent(activity).apply {
+        // The trampoline, not the interface: the launcher stores this intent as it is, and a
+        // shortcut naming an activity would keep opening the interface that happened to be
+        // enabled when it was created. ShortcutUtil itself only runs from the Kotlin UI.
+        val shortcutIntent = UiVariant.trampolineIntent(activity).apply {
             action = Constants.INTENT_PLAY_RANDOM_SONGS
         }
 

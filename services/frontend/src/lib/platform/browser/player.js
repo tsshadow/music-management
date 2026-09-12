@@ -18,8 +18,27 @@ import { resolveDuration } from "../../playerProgress.js";
  * those stay in `Player.svelte`, which drives this engine.
  */
 
-/** The events an engine emits. Keep in sync with the JSDoc in `../index.js`. */
-const EVENTS = ["timeupdate", "durationchange", "play", "pause", "ended", "error", "volumechange"];
+/**
+ * The events an engine emits. Keep in sync with the JSDoc in `../index.js`.
+ *
+ * `command` is in the list and never fires here: it reports a transport move a
+ * platform service performed by itself, and in a tab there is no such service.
+ * Accepting the subscription is what lets `Player.svelte` take it out
+ * unconditionally instead of asking which shell it is running in.
+ */
+const EVENTS = [
+  "timeupdate",
+  "durationchange",
+  "play",
+  "pause",
+  "ended",
+  "error",
+  "volumechange",
+  "command",
+];
+
+/** What a queue-less engine answers with. See `ownsQueue` in `../index.js`. */
+const NO_QUEUE = Object.freeze({ index: -1, length: 0, trackIds: [] });
 
 /** The snapshot an engine that has nothing to play reports. */
 const EMPTY_STATE = Object.freeze({
@@ -386,7 +405,27 @@ export function createBrowserPlayer() {
     return media;
   }
 
+  /**
+   * The queue is the UI's here, so there is nothing to hand over and nothing to
+   * read back. Both answer with an empty queue rather than throwing, so the
+   * queue logic can call them without first asking which shell it is in; the
+   * `ownsQueue` flag is what it branches on when the answer actually matters.
+   *
+   * @returns {Promise<{index: number, length: number, trackIds: string[]}>}
+   */
+  async function setQueue() {
+    return { ...NO_QUEUE };
+  }
+
+  /** @returns {Promise<{index: number, length: number, trackIds: string[]}>} */
+  async function queueState() {
+    return { ...NO_QUEUE };
+  }
+
   return {
+    ownsQueue: false,
+    setQueue,
+    queueState,
     attach,
     detach,
     ready,

@@ -17,6 +17,7 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@capacitor/core": "^8.5.2",
     "@lucide/svelte": "^1.25.0",
     "lucide-svelte": "^1.0.1"
   },

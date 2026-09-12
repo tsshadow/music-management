@@ -256,6 +256,7 @@
   },
   "login": {
     "avatar": "Avatar",
+    "backToLegacyUi": "Terug naar oude interface",
     "backToLogin": "Terug naar inloggen",
     "connect": "Verbinden",
     "createAccount": "Account Aanmaken",
@@ -272,6 +273,8 @@
     "requestPending": "Je toegangsaanvraag is in behandeling. Een beheerder moet deze goedkeuren voordat je kunt inloggen.",
     "requestRejected": "Je toegangsaanvraag is afgewezen. Neem contact op met een beheerder voor meer informatie.",
     "requestedOn": "Aangevraagd op: {date}",
+    "server": "Server",
+    "serverHint": "Het adres van je muziekserver. Alleen nodig in de app; de webversie weet dit zelf.",
     "settingUp": "Bezig met instellen...",
     "setupIntro": "Er zijn nog geen gebruikers gevonden. Maak de eerste beheerder aan om te beginnen.",
     "setupTitle": "Systeem Setup",
@@ -858,12 +861,14 @@
   "news": {
     "couldNotPlay": "Kon het nieuws niet afspelen",
     "none": "Nog geen bulletin opgenomen",
+    "notOnPhone": "Het nieuws speelt nog niet in de app",
     "play": "Nieuws van het uur",
     "playing": "Nieuws speelt, tik om terug te gaan"
   },
   "notify": {
     "dismiss": "Sluiten",
     "dismissAll": "Alles wissen",
+    "noRandomTracks": "Geen willekeurige nummers gevonden",
     "playbackFailed": "Afspelen kon niet starten",
     "queueSaveFailed": "Afspeellijst kon niet worden opgeslagen",
     "queueSaved": "Afspeellijst opgeslagen",
@@ -897,7 +902,8 @@
   "radio": {
     "chooseChannel": "Kies een kanaal",
     "couldNotStart": "Kon de radio niet starten",
-    "noChannels": "Geen radiokanalen beschikbaar"
+    "noChannels": "Geen radiokanalen beschikbaar",
+    "notOnPhone": "De radio speelt nog niet in de app"
   },
   "releaseNotes": {
     "intro": "Er is een nieuwe versie van LMS. Dit is er veranderd:",

@@ -31,14 +31,22 @@ describe("platform selection", () => {
     expect(selected.system).toBe(browserSystem);
   });
 
-  // Until phase 1 ships its Kotlin plugins there is nothing else to choose, so
-  // a shell falls through to the browser. This test is the marker for that: it
-  // has to be rewritten the moment the Capacitor implementation lands, which is
-  // exactly when someone should look at this line.
-  it("a native shell falls through to the browser while there is nothing else", () => {
+  it("a native shell gets the Capacitor implementation instead", () => {
     const shell = { Capacitor: { isNativePlatform: () => true } };
 
-    expect(selectPlatform(shell).player).toBe(browserPlayer);
+    const selected = selectPlatform(shell);
+
+    expect(selected.player).not.toBe(browserPlayer);
+    expect(selected.player.ownsQueue).toBe(true);
+    expect(selected.system.isNative).toBe(true);
+  });
+
+  // Two playback engines alive at once is the failure this design exists to
+  // prevent, and a second call that built a second set would be exactly that.
+  it("builds the shell implementation once", () => {
+    const shell = { Capacitor: { isNativePlatform: () => true } };
+
+    expect(selectPlatform(shell)).toBe(selectPlatform(shell));
   });
 
   it("a shell that is not running natively is a browser tab", () => {
@@ -57,6 +65,27 @@ describe("platform selection", () => {
   it("everyone gets the same platform", () => {
     expect(selectPlatform({})).toBe(platform);
     expect(platform.player).toBe(browserPlayer);
+  });
+});
+
+describe("browser player queue", () => {
+  // Not because a browser has a platform queue -- it has none -- but so that
+  // the queue logic can call these without first asking which shell it is in.
+  it("says the queue is the UI's, and answers the queue calls with nothing", async () => {
+    expect(browserPlayer.ownsQueue).toBe(false);
+    expect(await browserPlayer.setQueue({ tracks: [{ id: "1" }], index: 0 })).toEqual({
+      index: -1,
+      length: 0,
+      trackIds: [],
+    });
+    expect(await browserPlayer.queueState()).toEqual({ index: -1, length: 0, trackIds: [] });
+  });
+
+  it("accepts a subscription to the event only a platform service sends", () => {
+    const handler = vi.fn();
+
+    expect(() => browserPlayer.on("command", handler)()).not.toThrow();
+    expect(handler).not.toHaveBeenCalled();
   });
 });
 

@@ -256,6 +256,7 @@
   },
   "login": {
     "avatar": "Avatar",
+    "backToLegacyUi": "Back to the old interface",
     "backToLogin": "Back to login",
     "connect": "Connect",
     "createAccount": "Create account",
@@ -272,6 +273,8 @@
     "requestPending": "Your access request is pending. An administrator has to approve it before you can log in.",
     "requestRejected": "Your access request was rejected. Contact an administrator for more information.",
     "requestedOn": "Requested on: {date}",
+    "server": "Server",
+    "serverHint": "The address of your music server. Only needed in the app; the web version knows its own.",
     "settingUp": "Setting up…",
     "setupIntro": "No users exist yet. Create the first administrator to get started.",
     "setupTitle": "System setup",
@@ -858,12 +861,14 @@
   "news": {
     "couldNotPlay": "Could not play the news",
     "none": "No bulletin recorded yet",
+    "notOnPhone": "The news does not play in the app yet",
     "play": "News of the hour",
     "playing": "News is playing, tap to go back"
   },
   "notify": {
     "dismiss": "Dismiss",
     "dismissAll": "Clear all",
+    "noRandomTracks": "No random tracks found",
     "playbackFailed": "Playback could not start",
     "queueSaveFailed": "Could not save the playlist",
     "queueSaved": "Playlist saved",
@@ -897,7 +902,8 @@
   "radio": {
     "chooseChannel": "Choose a channel",
     "couldNotStart": "Could not start radio",
-    "noChannels": "No radio channels available"
+    "noChannels": "No radio channels available",
+    "notOnPhone": "Radio does not play in the app yet"
   },
   "releaseNotes": {
     "intro": "A new version of LMS has been detected! Here are the key changes:",

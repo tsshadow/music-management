@@ -1084,13 +1084,25 @@ mobile:build-debug:
   tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    # Manual on develop too: the universal-UI (Capacitor) work touches
+    # services/muma-mobile/** on nearly every commit while it's in flight, and
+    # an automatic build here would spend the ~45m Gradle/Docker build and push
+    # a fresh APK to the debug series on every single one of them. Pressing the
+    # button when a test build is actually wanted keeps that cost opt-in. This
+    # only changes *when* the job runs -- the debug series it uploads to
+    # (UpdateChecker's BuildConfig.DEBUG branch) and mobile:build-release's own
+    # rules are untouched, so the release series a phone in production polls
+    # can never receive one of these builds.
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $APK_HOSTER_URL'
       changes:
         - services/muma-mobile/**/*
         - .gitlab-ci.yml
-    # Manual opt-in for merge request / feature branches: lets a reviewer build
-    # and upload a debug APK for a specific MR (e.g. to test a UI fix against
-    # prod before merging) without doing it for every push on every branch.
+      when: manual
+      allow_failure: true
+    # Same manual opt-in for merge request / feature branches: lets a reviewer
+    # build and upload a debug APK for a specific MR (e.g. to test a UI fix
+    # against prod before merging) without doing it for every push on every
+    # branch.
     - if: '$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH && $APK_HOSTER_URL'
       changes:
         - services/muma-mobile/**/*

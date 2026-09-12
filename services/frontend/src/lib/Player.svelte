@@ -1,9 +1,14 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
-  import { currentTrack, playerState, audio, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey, equalizerSettings } from './store.js';
+  import { currentTrack, playerState, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey, equalizerSettings } from './store.js';
   import Equalizer from './Equalizer.svelte';
   import * as equalizer from './equalizer.js';
+  // Everything this component does with playback goes through here; the engine
+  // behind it is the browser's <audio> today and the phone's PlaybackService
+  // later. See platform/index.js for the interface and
+  // docs/designs/universal-ui/ for why.
+  import { platform } from './platform/index.js';
   import { createRadioController } from './radioController.js';
   import { shouldPushJamState } from './radioSync.js';
   import { resolveDuration, progressPercent } from './playerProgress.js';
@@ -19,6 +24,10 @@
   const { onnavigate, ontoggleQueue } = $props();
 
   let audioElement;
+  // Effects declared here run before onMount, so the engine has nothing to play
+  // through yet when the first of them fires. Anything that needs a live engine
+  // waits for this.
+  let engineReady = $state(false);
   let muted = $state(false);
   let lastVolume = $state(50);
   let lastSyncTime = null;
@@ -29,7 +38,6 @@
   let radioTickInterval = null;
   let radioRefreshInterval = null;
   let radioClockInterval = null;
-  let progressTicker = null;
   let radioChannels = $state([]);
   // Set while a news bulletin is interrupting the music, and holding what to
   // put back when it ends.
@@ -62,19 +70,11 @@
     return () => window.removeEventListener('click', closeEqualizerOnOutsideClick);
   });
 
-  // The one place settings reach the audio graph. Attaching happens lazily,
-  // on the first switch-on: that is always a user gesture, which is what the
-  // browser demands before an AudioContext may start.
+  // Settings reach the audio graph through the engine, which owns the element
+  // they have to be built around -- so this waits until it has one.
   $effect(() => {
     const settings = $equalizerSettings;
-    if (!settings.enabled) {
-      equalizer.setEnabled(false);
-      return;
-    }
-    if (!equalizer.attach(audioElement)) return;
-    equalizer.setGains(settings.gains);
-    equalizer.setPreamp(settings.preamp);
-    equalizer.setEnabled(true);
+    if (engineReady) platform.player.setEqualizer(settings);
   });
 
   /**
@@ -145,7 +145,9 @@
     showRadioPicker = false;
     try {
       radioController = createRadioController({
-        audio: audioElement,
+        // The radio steers the element itself: it swaps the source to join a
+        // track mid-stream, which is not something the transport does.
+        audio: platform.player.element(),
         apiBase: $mumaApiUrl,
         apiKey: $mumaApiKey,
         streamUrlFor: radioStreamUrl,
@@ -201,7 +203,7 @@
 
       newsSnapshot = snapshotOf({
         trackId: $radioChannel ? null : (track?.id ?? null),
-        positionSeconds: audioElement?.currentTime ?? 0,
+        positionSeconds: platform.player.state().position,
         radioChannel: $radioChannel,
       });
       // Radio has to be switched off rather than paused: it drives the same
@@ -209,8 +211,7 @@
       if ($radioChannel) await toggleRadio();
 
       newsObjectUrl = URL.createObjectURL(blob);
-      audioElement.src = newsObjectUrl;
-      await audioElement.play();
+      await platform.player.load({ url: newsObjectUrl, trackId: null, autoplay: true });
     } catch (e) {
       console.error('Could not play the news', e);
       notify.error($t('news.couldNotPlay'), { detail: e.message });
@@ -231,15 +232,17 @@
       return;
     }
     if (target.action === 'none') {
-      audioElement.pause();
-      audioElement.removeAttribute('src');
+      platform.player.stop();
       return;
     }
 
-    audioElement.src = streamUrl;
-    audioElement.currentTime = target.positionSeconds;
     try {
-      await audioElement.play();
+      await platform.player.load({
+        url: streamUrl,
+        trackId: target.trackId,
+        position: target.positionSeconds,
+        autoplay: true,
+      });
     } catch (e) {
       if (e.name !== 'AbortError') console.error('Could not resume after the news', e);
     }
@@ -259,9 +262,10 @@
         const trackIds = $playlist.map(t => `id=${t.id}`).join('&');
         
         // Use overrides if provided, otherwise use local state
+        const engine = platform.player.state();
         const currentId = overrideTrackId !== null ? overrideTrackId : ($currentTrack?.id || '');
-        const isPlaying = overridePlaying !== null ? overridePlaying : (audioElement ? !audioElement.paused : false);
-        const position = audioElement ? Math.floor(audioElement.currentTime * 1000) : 0;
+        const isPlaying = overridePlaying !== null ? overridePlaying : engine.status === 'playing';
+        const position = Math.floor(engine.position * 1000);
 
         // In follower mode, we NEVER push periodic position to avoid fighting the host.
         // The 'position' parameter is only included if we are the Host.
@@ -280,7 +284,7 @@
    * Fetches the player state from the server and synchronizes the local player.
    */
   async function syncJam() {
-    if ($syncMode === 'off' || isSyncing || !$credentials.username || !audioElement) return;
+    if ($syncMode === 'off' || isSyncing || !$credentials.username || !platform.player.ready()) return;
 
     // Don't sync from server if we just pushed our own state (within last 5 seconds)
     // to avoid "jumps" caused by server having slightly outdated state.
@@ -310,7 +314,7 @@
             const trackChanged = serverTrack && String($currentTrack?.id) !== String(serverTrack.id);
 
             const serverPlaying = playQueue.playing === "true" || playQueue.playing === true;
-            const playingChanged = serverPlaying !== !audioElement.paused;
+            const playingChanged = serverPlaying !== (platform.player.state().status === 'playing');
 
             // HOST LOGIC: Only apply changes if the server state is different from local
             // (indicating a remote command from a Follower)
@@ -318,8 +322,8 @@
                 if (trackChanged || playingChanged) {
                     if (trackChanged) currentTrack.set(serverTrack);
                     if (playingChanged) {
-                        if (serverPlaying) audioElement.play().catch(() => {});
-                        else audioElement.pause();
+                        if (serverPlaying) platform.player.play().catch(() => {});
+                        else platform.player.pause();
                     }
                 }
                 lastSyncTime = serverChanged;
@@ -335,8 +339,8 @@
                 playerState.update(s => ({ ...s, playing: serverPlaying }));
                 
                 // Ensure audio is stopped
-                if (!audioElement.paused) {
-                    audioElement.pause();
+                if (platform.player.state().status === 'playing') {
+                    platform.player.pause();
                 }
                 lastSyncTime = serverChanged;
                 return;
@@ -348,17 +352,18 @@
             }
 
             const serverPos = (playQueue.position || 0) / 1000;
+            const engine = platform.player.state();
 
             // Sync position if difference > 5 seconds
-            if (Math.abs(audioElement.currentTime - serverPos) > 5) {
-                audioElement.currentTime = serverPos;
+            if (Math.abs(engine.position - serverPos) > 5) {
+                platform.player.seek(serverPos);
             }
 
             // Sync play/pause
-            if (serverPlaying && audioElement.paused) {
-                audioElement.play().catch(() => {});
-            } else if (!serverPlaying && !audioElement.paused) {
-                audioElement.pause();
+            if (serverPlaying && engine.status !== 'playing') {
+                platform.player.play().catch(() => {});
+            } else if (!serverPlaying && engine.status === 'playing') {
+                platform.player.pause();
             }
 
             lastSyncTime = serverChanged;
@@ -376,7 +381,7 @@
    * Toggles between play and pause states.
    */
   function togglePlay() {
-    if (!audioElement) return;
+    if (!platform.player.ready()) return;
 
     if ($syncMode === 'follower-jam') {
         // Remote control: toggle the state reported by the server
@@ -384,13 +389,13 @@
         return;
     }
 
-    if (audioElement.paused) {
-      audioElement.play().catch(e => {
+    if (platform.player.state().status === 'playing') {
+      platform.player.pause();
+    } else {
+      platform.player.play().catch(e => {
         console.error("Playback failed", e);
         notify.error($t('notify.playbackFailed'), { detail: e.message });
       });
-    } else {
-      audioElement.pause();
     }
     if ($syncMode !== 'off') {
       pushJamState();
@@ -459,9 +464,9 @@
 
           // If it's the same track (e.g. single track playlist), restart it manually
           // because the $effect that watches currentTrack might not trigger on same ID
-          if (String($currentTrack?.id) === String(nextTrack.id) && audioElement) {
-              audioElement.currentTime = 0;
-              audioElement.play().catch(() => {});
+          if (String($currentTrack?.id) === String(nextTrack.id) && platform.player.ready()) {
+              platform.player.seek(0);
+              platform.player.play().catch(() => {});
           }
           currentTrack.set(nextTrack);
       }
@@ -477,8 +482,8 @@
    */
   function playPrev() {
       // If more than 3 seconds into the track, restart it
-      if (audioElement && audioElement.currentTime > 3) {
-          audioElement.currentTime = 0;
+      if (platform.player.state().position > 3) {
+          platform.player.seek(0);
           return;
       }
 
@@ -512,9 +517,9 @@
               return;
           }
 
-          if (String($currentTrack?.id) === String(prevTrack.id) && audioElement) {
-              audioElement.currentTime = 0;
-              audioElement.play().catch(() => {});
+          if (String($currentTrack?.id) === String(prevTrack.id) && platform.player.ready()) {
+              platform.player.seek(0);
+              platform.player.play().catch(() => {});
           }
           currentTrack.set(prevTrack);
       }
@@ -539,8 +544,8 @@
       scrobble(true);
       hasScrobbledFinished = true;
       if ($playerState.repeat === 'one') {
-          audioElement.currentTime = 0;
-          audioElement.play();
+          platform.player.seek(0);
+          platform.player.play();
       } else {
           playNext();
       }
@@ -553,9 +558,9 @@
     muted = !muted;
     if (muted) {
       lastVolume = $playerState.volume;
-      audioElement.volume = 0;
+      platform.player.setVolume(0);
     } else {
-      audioElement.volume = lastVolume / 100;
+      platform.player.setVolume(lastVolume / 100);
     }
   }
 
@@ -563,15 +568,13 @@
    * Handles time updates from the audio element.
    * Updates global player state, saves progress periodically, and handles mid-track scrobbling.
    */
-  function handleTimeUpdate() {
-    if (!audioElement) return;
-    playerState.update(s => ({ ...s, progress: audioElement.currentTime }));
-    updatePositionState();
+  function handleTimeUpdate(state = platform.player.state()) {
+    playerState.update(s => ({ ...s, progress: state.position }));
 
-    const length = currentLength();
+    const length = currentLength(state);
     if (!hasScrobbledFinished && track && length > 0) {
         const threshold = Math.min(240, length / 2);
-        if (audioElement.currentTime > threshold) {
+        if (state.position > threshold) {
             scrobble(true);
             hasScrobbledFinished = true;
         }
@@ -586,47 +589,22 @@
    * and their length has nothing to do with the track that stays selected
    * underneath them.
    *
+   * @param {object} [state] - The engine snapshot to read the length from.
    * @returns {number} A usable length, or 0 when nothing knows one.
    */
-  function currentLength() {
+  function currentLength(state = platform.player.state()) {
     const own = !newsSnapshot && !$radioChannel;
-    return resolveDuration(audioElement?.duration, own ? track?.duration : 0);
+    return resolveDuration(state.duration, own ? track?.duration : 0);
   }
 
   /**
-   * Polls the audio element while it plays.
-   *
-   * The `timeupdate` event is the obvious source for the position, and on a
-   * desktop browser it is enough. The LG TV browser only fires it on a state
-   * change -- play, pause, seek, ended -- and never on the ~4Hz cadence the
-   * spec asks for, so the bar there sits still until someone touches the
-   * transport. Reading `currentTime` on a timer of our own is the same number
-   * from the same element and costs nothing, so it drives the bar everywhere
-   * rather than only on the devices that misbehave.
-   */
-  function startProgressTicker() {
-    stopProgressTicker();
-    progressTicker = setInterval(() => {
-      if (audioElement && !audioElement.paused) handleTimeUpdate();
-    }, 250);
-  }
-
-  function stopProgressTicker() {
-    if (progressTicker) {
-      clearInterval(progressTicker);
-      progressTicker = null;
-    }
-  }
-
-  /**
-   * Handles the 'loadedmetadata' event.
+   * Handles the engine's 'durationchange' event.
    * Sets track duration and restores saved progress if available.
    */
-  function handleLoadedMetadata() {
-    playerState.update(s => ({ ...s, duration: currentLength() }));
-    updatePositionState();
+  function handleDurationChange(state = platform.player.state()) {
+    playerState.update(s => ({ ...s, duration: currentLength(state) }));
     if (!initialized && track) {
-        audioElement.currentTime = $playerState.progress || 0;
+        platform.player.seek($playerState.progress || 0);
         initialized = true;
     }
   }
@@ -636,11 +614,7 @@
    * Updates playing state and triggers initial scrobble.
    */
   function handlePlay() {
-    // A context the browser suspended passes no sound at all, and play is the
-    // moment that matters.
-    equalizer.resume();
     playerState.update(s => ({ ...s, playing: true }));
-    startProgressTicker();
     if (!hasScrobbledStarted) {
         listenStartedAtMs = Date.now();
         scrobble(false);
@@ -664,17 +638,14 @@
    */
   function handlePause() {
     playerState.update(s => ({ ...s, playing: false }));
-    // The element fires its own `timeupdate` on a pause -- on every browser,
-    // the TV included -- so the final position lands without a tick.
-    stopProgressTicker();
   }
 
   /**
    * Handles the 'volumechange' event.
    * Updates global player volume state.
    */
-  function handleVolumeChange() {
-    playerState.update(s => ({ ...s, volume: audioElement.volume * 100 }));
+  function handleVolumeChange(state = platform.player.state()) {
+    playerState.update(s => ({ ...s, volume: state.volume * 100 }));
   }
 
   /**
@@ -686,10 +657,10 @@
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const percentage = x / rect.width;
-    // Not `audioElement.duration`: a chunked stream leaves that at `Infinity`,
-    // and seeking to `Infinity * 0.5` throws the position away.
+    // Not the engine's own length: a chunked stream leaves that at 0, and the
+    // bar is drawn from the track's length instead -- seek to the same one.
     if (duration <= 0) return;
-    audioElement.currentTime = percentage * duration;
+    platform.player.seek(percentage * duration);
     if ($syncMode !== 'off') {
       pushJamState();
     }
@@ -704,7 +675,7 @@
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const vol = Math.max(0, Math.min(1, x / rect.width));
-      audioElement.volume = vol;
+      platform.player.setVolume(vol);
       muted = (vol === 0);
   }
 
@@ -722,27 +693,6 @@
     const min = Math.floor(seconds / 60);
     const sec = Math.floor(seconds % 60);
     return `${min}:${sec < 10 ? '0' : ''}${sec}`;
-  }
-
-  /**
-   * Updates the Media Session API position state for OS integration.
-   */
-  function updatePositionState() {
-    const length = currentLength();
-    if ('mediaSession' in navigator &&
-        'setPositionState' in navigator.mediaSession &&
-        audioElement &&
-        length > 0) {
-      try {
-        navigator.mediaSession.setPositionState({
-          duration: length,
-          playbackRate: audioElement.playbackRate || 1,
-          position: Math.max(0, Math.min(audioElement.currentTime || 0, length))
-        });
-      } catch (e) {
-        console.error("Failed to set position state", e);
-      }
-    }
   }
 
   /**
@@ -784,20 +734,18 @@
    * Increases the volume by 5%.
    */
   function volumeUp() {
-    if (audioElement) {
-      audioElement.volume = Math.min(1, audioElement.volume + 0.05);
-      muted = false;
-    }
+    if (!platform.player.ready()) return;
+    platform.player.setVolume(platform.player.state().volume + 0.05);
+    muted = false;
   }
 
   /**
    * Decreases the volume by 5%.
    */
   function volumeDown() {
-    if (audioElement) {
-      audioElement.volume = Math.max(0, audioElement.volume - 0.05);
-      if (audioElement.volume === 0) muted = true;
-    }
+    if (!platform.player.ready()) return;
+    platform.player.setVolume(platform.player.state().volume - 0.05);
+    if (platform.player.state().volume === 0) muted = true;
   }
 
   /**
@@ -875,27 +823,21 @@
   const coverUrl = $derived(track?.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}` : '/images/spotify-fallback.svg');
   const streamUrl = $derived(track?.id ? `/rest/stream?id=${track.id}&${$authParams}` : '');
 
+  // What the notification, the lock screen and a car head unit show. The engine
+  // owns the OS integration; this is the only thing it cannot work out for
+  // itself, because the artwork URL carries our credentials and the fallback
+  // length comes from the library rather than the stream.
   $effect(() => {
-    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator && track) {
-      const artUrl = track.coverArt
+    if (!track) return;
+    platform.player.setNowPlaying({
+      title: track.title || 'Onbekend nummer',
+      artist: track.artist || 'Onbekende artiest',
+      album: track.album || 'Onbekend album',
+      artworkUrl: track.coverArt
         ? `${$credentials.url}/rest/getCoverArt?id=${track.coverArt}&size=512&${$authParams}`
-        : window.location.origin + '/images/spotify-fallback.svg';
-
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: track.title || 'Onbekend nummer',
-        artist: track.artist || 'Onbekende artiest',
-        album: track.album || 'Onbekend album',
-        artwork: [
-          { src: artUrl, sizes: '512x512', type: 'image/jpeg' }
-        ]
-      });
-    }
-  });
-
-  $effect(() => {
-    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
-      navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
-    }
+        : window.location.origin + '/images/spotify-fallback.svg',
+      duration: fallbackLength,
+    });
   });
 
   $effect(() => {
@@ -948,7 +890,7 @@
     // Subsonic ones; a listen without them records only that something was played, which cannot be
     // turned into listening time for a collection whose average track is a quarter of an hour.
     // Only a submission has a playing time to report -- a "now playing" ping fires at the start.
-    const playedSeconds = submission && audioElement ? Math.floor(audioElement.currentTime) : null;
+    const playedSeconds = submission ? Math.floor(platform.player.state().position) : null;
     let extra = playedSeconds ? `&playedSeconds=${playedSeconds}` : '';
     if (submission && listenStartedAtMs) extra += `&time=${listenStartedAtMs}`;
     const url = `${$credentials.url}/rest/scrobble?id=${track.id}&submission=${submission}&source=frontend${extra}&${params}`;
@@ -1013,46 +955,53 @@
         // A bulletin owns it too, and hands it back itself when it ends.
         if (newsSnapshot) return;
 
-        if (audioElement) {
-            audioElement.src = streamUrl;
-            if (!isInitialLoad) {
-                audioElement.play().catch(e => {
-                    // An AbortError is the previous track's play() being
-                    // cancelled by this one, which is what skipping does --
-                    // not something to report.
-                    if (e.name !== 'AbortError') {
-                        console.error("Auto-play failed", e);
-                        notify.error($t('notify.playbackFailed'), { detail: e.message });
-                    }
-                });
-            }
+        if (platform.player.ready()) {
+            platform.player
+              .load({ url: streamUrl, trackId: track.id, autoplay: !isInitialLoad })
+              .catch(e => {
+                  // An AbortError is the previous track's play() being
+                  // cancelled by this one, which is what skipping does --
+                  // not something to report.
+                  if (e.name !== 'AbortError') {
+                      console.error("Auto-play failed", e);
+                      notify.error($t('notify.playbackFailed'), { detail: e.message });
+                  }
+              });
         }
     }
   });
 
   onMount(() => {
-    audio.set(audioElement);
-    audioElement.volume = volume / 100;
+    // The element is rendered here and driven by the engine from now on. On a
+    // native shell nothing is handed over and the platform service plays
+    // instead; that is the whole point of the hand-off.
+    platform.player.attach(audioElement);
+    platform.player.setVolume(volume / 100);
+    engineReady = true;
+
+    // The queue lives in this component, so the transport controls outside the
+    // app come back to it.
+    platform.player.setCommandHandlers({
+      play: togglePlay,
+      pause: togglePlay,
+      previous: playPrev,
+      next: playNext,
+      seekTo: (seconds) => platform.player.seek(seconds),
+    });
+
+    const unsubscribes = [
+      platform.player.on('timeupdate', handleTimeUpdate),
+      platform.player.on('durationchange', handleDurationChange),
+      platform.player.on('play', handlePlay),
+      platform.player.on('pause', handlePause),
+      platform.player.on('volumechange', handleVolumeChange),
+      platform.player.on('ended', handleEnded),
+      platform.player.on('error', handleAudioError),
+    ];
 
     if (track && !initialized) {
-        audioElement.src = streamUrl;
-        // currentTime will be set in handleLoadedMetadata
-    }
-
-    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
-      navigator.mediaSession.setActionHandler('play', () => togglePlay());
-      navigator.mediaSession.setActionHandler('pause', () => togglePlay());
-      navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
-      navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
-      try {
-        navigator.mediaSession.setActionHandler('seekto', (details) => {
-          if (details.seekTime !== undefined && audioElement) {
-            audioElement.currentTime = details.seekTime;
-          }
-        });
-      } catch (e) {
-        console.warn("MediaSession seekto not supported", e);
-      }
+        // The position is restored on 'durationchange'.
+        platform.player.load({ url: streamUrl, trackId: track.id });
     }
 
     const handleGlobalKeyDown = (e) => {
@@ -1136,22 +1085,18 @@
       if (radioTickInterval) clearInterval(radioTickInterval);
       if (radioRefreshInterval) clearInterval(radioRefreshInterval);
       if (radioClockInterval) clearInterval(radioClockInterval);
-      stopProgressTicker();
+      for (const unsubscribe of unsubscribes) unsubscribe();
+      platform.player.detach();
     };
   });
 </script>
 
-<audio
-  bind:this={audioElement}
-  crossorigin="anonymous"
-  ontimeupdate={handleTimeUpdate}
-  onloadedmetadata={handleLoadedMetadata}
-  onplay={handlePlay}
-  onpause={handlePause}
-  onvolumechange={handleVolumeChange}
-  onended={handleEnded}
-  onerror={handleAudioError}
-></audio>
+<!--
+  The element the browser engine drives. `crossorigin` has to be on it from the
+  first byte or the Web Audio equalizer may not read it. Everything else about
+  it -- events, source, transport -- is `platform.player`'s.
+-->
+<audio bind:this={audioElement} crossorigin="anonymous"></audio>
 
 <footer class="flex items-center h-full px-2 md:px-4 relative">
   {#if $isMobile}

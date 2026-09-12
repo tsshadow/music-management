@@ -21,11 +21,19 @@ exists, and that only holds if the sync actively *clears* a stale row rather tha
 whatever it wrote last time: a track that left its work after a split would otherwise stay
 hidden forever.
 
-Written in one transaction per database, in chunks, against a database the server has open.
-An UPDATE of four columns keyed on an indexed path is a different class of operation from
-the DROP TABLE that once took production down (docs/bug-reports/005), but the same care
-applies: short statements, no schema changes, and a busy timeout so a locked database is a
-skipped sync instead of a failed one.
+Read first, write the difference. The server database is the player's, and the player
+does not wait for it: a Dbo transaction reads before it writes, and SQLite answers a
+read-to-write upgrade with SQLITE_BUSY the moment another connection holds the write lock
+-- the busy timeout only applies to a connection with no transaction open. So while this
+job held that lock, a rating from the app was a 500 and a scrobble was lost. This job
+therefore reads every chunk without a transaction (reads take no write lock in WAL mode),
+keeps only the rows the server disagrees with, and writes those in transactions short
+enough to be gone before anyone notices. After the first pass almost nothing disagrees and
+almost nothing is written. An UPDATE of four columns keyed on
+an indexed path is a different class of operation from the DROP TABLE that once took
+production down (docs/bug-reports/005), but the same care applies: short statements, no
+schema changes, and a busy timeout so a locked database is a skipped batch instead of a
+failed sync.
 """
 
 import contextlib
@@ -37,8 +45,8 @@ from services.music_manager.library_paths import candidate_paths
 
 logger = logging.getLogger(__name__)
 
-#: How many tracks to read from muma at a time. The join is cheap; the point of the chunk
-#: is to keep each write transaction against the live server database short.
+#: How many tracks to read from muma at a time. The join is cheap; the chunk bounds how
+#: much sits in memory, not how long a write transaction lasts -- WRITE_BATCH does that.
 CHUNK = 2000
 
 #: How long a statement waits for the server to let go of its write lock -- deliberately
@@ -88,12 +96,20 @@ _UPDATE = """
     UPDATE track
     SET work_id = ?, is_canonical = ?, version_kind = ?, version_score = ?
     WHERE absolute_file_path = ?
-      AND (work_id IS NOT ? OR is_canonical IS NOT ? OR version_kind IS NOT ? OR version_score IS NOT ?)
 """
 
-#: Does this server know this file at all? Asked before writing, so a path that is simply
-#: not there costs a read instead of a write attempt.
-_KNOWN = 'SELECT 1 FROM track WHERE absolute_file_path = ? LIMIT 1'
+#: What the server currently says about this file. Read before anything is written, so a
+#: row that already agrees costs a read and no write -- and, more to the point, no write
+#: *transaction*. An UPDATE whose WHERE matches nothing still takes SQLite's write lock
+#: from the moment it runs until the commit, and that is what the player ran into.
+_CURRENT = 'SELECT work_id, is_canonical, version_kind, version_score FROM track WHERE absolute_file_path = ? LIMIT 1'
+
+#: How many UPDATEs share one write transaction. The player aborts a request -- a rating,
+#: a scrobble, a token bump -- the instant it meets this job's lock (see the module
+#: docstring), so every transaction this job opens has to be a blink. A hundred indexed
+#: UPDATEs commit in milliseconds; the first pass over the whole library is a few thousand
+#: of those blinks rather than one ten-minute hold.
+WRITE_BATCH = 100
 
 
 def _server_has_columns(server_cursor) -> bool:
@@ -108,35 +124,57 @@ def _server_has_columns(server_cursor) -> bool:
     return {'work_id', 'is_canonical', 'version_kind', 'version_score'} <= columns
 
 
-def _write_chunk(server_conn, server_cursor, rows, stats: dict, source: str) -> int:
-    """Write one chunk, waiting out the server's write lock rather than giving up on it.
+def _as_stored(values) -> tuple:
+    """The shape SQLite hands back, so a muma row and a server row compare as equals."""
+    work_id, is_canonical, version_kind, version_score = values
+    return (
+        None if work_id is None else int(work_id),
+        int(is_canonical),
+        str(version_kind or ''),
+        int(version_score or 0),
+    )
+
+
+def _rows_to_write(server_cursor, rows) -> list[tuple]:
+    """Which rows of this chunk the server disagrees with, as (values, path) pairs.
+
+    Pure reads, and reads take no write lock in WAL mode: the player is not in the way and
+    this is not in the player's way. After the first pass almost every row agrees, so
+    almost every chunk ends here with nothing to write.
+    """
+    pending = []
+    for row in rows:
+        values = _as_stored((row['work_id'], row['is_canonical'], row['version_kind'], row['version_score']))
+        # Every spelling of the path, because muma scans /mnt/music and the server was told
+        # /music. The first one the server knows wins; a path it knows nothing about is a
+        # file it does not have, which is not an error -- the two libraries are allowed to
+        # differ.
+        for path in candidate_paths(row['file_path']):
+            server_cursor.execute(_CURRENT, (path,))
+            current = server_cursor.fetchone()
+            if current is None:
+                continue
+            if _as_stored(current) != values:
+                pending.append((values, path))
+            break
+    return pending
+
+
+def _write_batch(server_conn, server_cursor, batch, stats: dict, source: str) -> int:
+    """Write one batch, waiting out the server's write lock rather than giving up on it.
 
     A locked database is LMS doing its own work -- a scan step, a playlist write -- and it
     lets go again. The first version of this treated the lock as the end of the whole pass,
     which is how a deploy that restarted both services wrote one track out of 285.332 and
-    left the columns a day stale. A chunk that stays locked is skipped, not fatal: the next
+    left the columns a day stale. A batch that stays locked is skipped, not fatal: the next
     pass rewrites the same rows.
     """
     for attempt in range(1, LOCK_RETRIES + 1):
         matched = 0
         try:
-            for row in rows:
-                values = (row['work_id'], row['is_canonical'], row['version_kind'], row['version_score'])
-                # Every spelling of the path, because muma scans /mnt/music and the server
-                # was told /music. The first one the server knows wins; a path it knows
-                # nothing about is a file it does not have, which is not an error -- the two
-                # libraries are allowed to differ.
-                for path in candidate_paths(row['file_path']):
-                    server_cursor.execute(_KNOWN, (path,))
-                    if server_cursor.fetchone() is None:
-                        continue
-                    # The UPDATE carries the same four values again as a WHERE clause, so a
-                    # row that already says this is not rewritten. After the first pass that
-                    # is nearly every row: rewriting 285.000 unchanged rows every hour is
-                    # what put this job in the player's way to begin with.
-                    server_cursor.execute(_UPDATE, values + (path,) + values)
-                    matched += server_cursor.rowcount
-                    break
+            for values, path in batch:
+                server_cursor.execute(_UPDATE, values + (path,))
+                matched += server_cursor.rowcount
             server_conn.commit()
             return matched
         except sqlite3.OperationalError as e:
@@ -146,11 +184,20 @@ def _write_chunk(server_conn, server_cursor, rows, stats: dict, source: str) -> 
                 server_conn.rollback()
             if attempt == LOCK_RETRIES:
                 stats['chunks_skipped'] = stats.get('chunks_skipped', 0) + 1
-                logger.warning('%s: gave up on a chunk after %s locked attempts', source, attempt)
+                logger.warning('%s: gave up on a batch after %s locked attempts', source, attempt)
                 return 0
             logger.info('%s: server database locked, waiting %ss', source, LOCK_BACKOFF_SECONDS)
             time.sleep(LOCK_BACKOFF_SECONDS)
     return 0
+
+
+def _write_chunk(server_conn, server_cursor, rows, stats: dict, source: str) -> int:
+    """Settle one chunk of muma rows against the server: read all, write the difference."""
+    pending = _rows_to_write(server_cursor, rows)
+    matched = 0
+    for start in range(0, len(pending), WRITE_BATCH):
+        matched += _write_batch(server_conn, server_cursor, pending[start : start + WRITE_BATCH], stats, source)
+    return matched
 
 
 def sync_song_versions_to_server(muma_conn, server_conn, source: str = 'unknown') -> dict:

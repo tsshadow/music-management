@@ -345,7 +345,10 @@ export function createBrowserPlayer() {
       try {
         navigator.mediaSession.setActionHandler(action, handler ?? null);
       } catch (e) {
-        console.warn(`MediaSession ${action} not supported`, e);
+        // The action goes in as an argument rather than into the string: a
+        // template literal in a log call is a format-string finding, and the
+        // console prints it just the same.
+        console.warn("MediaSession action not supported", action, e);
       }
     };
     set("play", commands.play && (() => commands.play()));

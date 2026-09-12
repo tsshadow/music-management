@@ -833,6 +833,9 @@
       "other": "Vandaag, {count} jaar geleden"
     }
   },
+  "mobile": {
+    "browseAll": "Alles doorbladeren"
+  },
   "nav": {
     "albums": "Albums",
     "artists": "Artiesten",
@@ -855,6 +858,7 @@
     "playlists": "Afspeellijsten",
     "podcasts": "Podcasts",
     "releaseRadar": "Release Radar",
+    "search": "Zoeken",
     "sets": "Sets",
     "songs": "Nummers",
     "starred": "Favorieten",

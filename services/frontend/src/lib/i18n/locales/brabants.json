@@ -119,6 +119,9 @@
       "other": "Vandaag, {count} jaor gelejen"
     }
   },
+  "mobile": {
+    "browseAll": "Alles deurbladere"
+  },
   "nav": {
     "albums": "Albums",
     "artists": "Artieste",
@@ -132,6 +135,7 @@
     "memories": "Herinneringe",
     "playlists": "Lijstjes",
     "releaseRadar": "Nieuw binne",
+    "search": "Zoeke",
     "sets": "Sets",
     "songs": "Nummerkes",
     "starred": "Favorietjes"

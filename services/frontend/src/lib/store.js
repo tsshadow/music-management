@@ -195,6 +195,13 @@ persist("lms_active_management_tab", activeManagementTab);
 // a reload would cover the screen on arrival.
 export const sidebarDrawerOpen = writable(false);
 
+// Whether SearchBar's results panel is currently open, mirrored out of its own
+// component state. The phone shell's Android back handler needs this to close
+// a search result before it falls through to leaving the Search tab -- and it
+// lives in `App.svelte`, not inside SearchBar, so it cannot just read a local
+// `$state`. Deliberately not persisted: a reload starts with nothing open.
+export const searchResultsOpen = writable(false);
+
 export const isMobile = writable(false);
 export const syncMode = writable("off"); // 'off', 'host', 'follower-jam', 'follower-radio'
 persist("lms_sync_mode", syncMode);

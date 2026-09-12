@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
+  LIBRARY_TAB_VIEWS,
   MANAGEMENT_GROUPS,
   MANAGEMENT_TABS,
   SETTINGS_TABS,
   modeForView,
   pathToState,
+  phoneTabForView,
   viewToPath,
 } from "../../src/lib/router.js";
 
@@ -384,6 +386,41 @@ describe("modeForView", () => {
   it("leaves the mode alone for every other view", () => {
     for (const view of ["home", "playlists", "albums", "genre:Hardcore", "management"]) {
       expect(modeForView(view)).toBeNull();
+    }
+  });
+});
+
+describe("the search tab route", () => {
+  it("maps both ways like every other plain view", () => {
+    expect(viewToPath(state("search"))).toBe("/search");
+    expect(pathToState("/search")).toEqual({ view: "search" });
+    expect(pathToState("/search/")).toEqual({ view: "search" });
+  });
+
+  it("does not swallow a search-results argument view of the same name", () => {
+    expect(viewToPath(state("search:hardstyle"))).toBe("/search/hardstyle");
+    expect(pathToState("/search/hardstyle")).toEqual({ view: "search:hardstyle" });
+  });
+});
+
+describe("phoneTabForView", () => {
+  it("names the tab home belongs to", () => {
+    expect(phoneTabForView("home")).toBe("home");
+  });
+
+  it("names the tab the search screen belongs to", () => {
+    expect(phoneTabForView("search")).toBe("search");
+  });
+
+  it("names the library tab for every view its chip row offers", () => {
+    for (const view of LIBRARY_TAB_VIEWS) {
+      expect(phoneTabForView(view)).toBe("library");
+    }
+  });
+
+  it("names no tab for a pushed detail page", () => {
+    for (const view of ["genre:Hardcore", "artist:1", "songs", "sets", "settings", "management"]) {
+      expect(phoneTabForView(view)).toBeNull();
     }
   });
 });

@@ -220,6 +220,31 @@ Every route the web player has today, and where it lands on the phone. Nothing i
 URLs keep working inside the shell: a deep link `muma://` or the site's `https://…/set/…` opens
 the matching page, and the Android back button follows the same history the browser would.
 
+## Telefoonlayout
+
+Shipped ahead of the shell rewrite above, directly in `services/frontend`: the existing web player
+now uses Spotify's phone navigation below `md` (`isMobile`); the desktop layout is untouched.
+
+- **Three tabs, not six.** The bottom bar (`MobileNav`) is Home, Search, Library. Songs/Sets is no
+  longer a tab of its own, and Downloads and Management are gone from it too.
+- **Mode chips, not a mode tab.** A Songs/Sets pill pair (`ModeChips`) sits above Home, Search and
+  Library. Tapping a chip only sets `viewMode` — it never navigates — the same thing the desktop
+  sidebar's own toggle has always done; the old bottom tab used to conflate the two, which is what
+  made the "Sets" tab land back on `/songs` when the mode effect corrected it.
+- **Browse lives under Search.** The search box stays exactly where it is, in `TopBar`, shared with
+  every screen. The Search tab adds a two-column tile grid (`BrowseGrid`) over every section the
+  desktop sidebar lists — genres, labels, podcasts, festivals, years, lineups, artists, albums,
+  memories, history, listening, starred — coloured with a fixed palette, for the moment before
+  anything is typed. Typing opens the existing results panel as a floating overlay on top of the
+  grid; no second search box was added.
+- **Library is one screen with chips.** `LibraryChips` (Playlists, Artists, Albums, Favourites, and
+  Downloads where `platform.storage.supported`) picks which existing view renders underneath;
+  `activeView` is the only source of truth, so a chip and a direct link never disagree.
+- **Profile menu covers the rest.** Settings and Management (admin) open from the profile button, as
+  before; once inside either, the existing drawer is still how their own tab list opens on a phone.
+- **Not in this pass.** The full-screen Now Playing sheet and the phone's filter-chip row (`FilterBar`
+  collapsing to a bottom sheet) follow in separate MRs.
+
 ## Functional Flows
 
 | Situation | Observable outcome |

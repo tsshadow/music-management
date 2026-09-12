@@ -3,7 +3,7 @@
   import ProfileButton from './ProfileButton.svelte';
   import SearchBar from './SearchBar.svelte';
   import ReleaseNotesModal from './ReleaseNotesModal.svelte';
-  import { activeView, authParams, activeModal, sidebarDrawerOpen, restUrl } from './store.js';
+  import { activeView, authParams, activeModal, sidebarDrawerOpen, searchResultsOpen, restUrl } from './store.js';
   import { t } from './i18n/index.js';
   import { Menu } from '@lucide/svelte';
   import { get } from 'svelte/store';
@@ -85,7 +85,7 @@
         <h1 class="text-xl md:text-3xl font-bold ml-2 whitespace-nowrap">{greeting}</h1>
     {/if}
     
-    <SearchBar />
+    <SearchBar bind:showResults={$searchResultsOpen} />
   </div>
 
   <div class="flex items-center gap-4">

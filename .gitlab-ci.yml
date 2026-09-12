@@ -662,6 +662,44 @@ frontend:unit:
         coverage_format: cobertura
         path: services/frontend/coverage/cobertura-coverage.xml
 
+# The web bundle the Android shell serves, built where Node exists.
+#
+# This is the first producer/consumer artifact edge in this pipeline, and it exists because the
+# toolchains are split across two hosts: npm runs on the LXC, Gradle runs inside the Android image,
+# and that image has no Node. GitLab moves the artifact between them; a shared /tmp path could not.
+#
+# It sits in `quality` so that every later stage inherits the artifact by default -- a job without
+# `needs:` downloads from all earlier stages, which is how mobile:build-debug gets it without
+# having its ordering changed. The two mobile jobs that do declare `needs:` name it explicitly,
+# `optional: true` because this job has `changes:` rules and is frequently absent.
+#
+# Absent is a supported outcome, not a failure: `prepareWebBundle` in app/build.gradle writes a
+# placeholder page when services/frontend/dist is missing, so a local build, a bare checkout and
+# any pipeline without this job still assemble. Only the interface is missing, and it says so.
+#
+# The `changes:` list includes the mobile tree on purpose: a pipeline triggered by an Android
+# change still ships an APK, and that APK should carry the real bundle rather than the placeholder.
+frontend:bundle:
+  stage: quality
+  timeout: 15m
+  retry: !reference [.infra_retry, retry]
+  cache: !reference [.npm_cache, cache]
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.release_rule, rules]
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - changes:
+        - services/frontend/**/*
+        - services/muma-mobile/**/*
+        - scripts/ci/frontend-bundle.sh
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/ci/frontend-bundle.sh
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - services/frontend/dist/
+
 # The Android checks, split by what they check like every other component.
 #
 # The cost here is real and worth stating, because it is the one place where
@@ -942,6 +980,9 @@ mobile:smoke:
   needs:
     - job: mobile:unit
       optional: true
+    # This job builds a release APK too, so it wants the real bundle when there is one.
+    - job: frontend:bundle
+      optional: true
   rules:
     - !reference [.dedicated_schedule_guard, rules]
     - !reference [.release_rule, rules]
@@ -1084,6 +1125,11 @@ mobile:build-release:
     # startup must never reach the hoster. On a release branch .release_rule
     # makes it always present.
     - job: mobile:smoke
+      optional: true
+    # The APK that ships. Optional because frontend:bundle carries `changes:` rules like
+    # everything else here, and a non-optional need on an absent job drops the whole pipeline;
+    # without it the build falls back to the placeholder page rather than failing.
+    - job: frontend:bundle
       optional: true
   rules:
     - !reference [.dedicated_schedule_guard, rules]

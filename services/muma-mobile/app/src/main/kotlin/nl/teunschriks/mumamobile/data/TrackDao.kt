@@ -32,6 +32,17 @@ interface TrackDao : GenericDao<Track> {
     fun byId(id: String): Track?
 
     /**
+     * The same lookup as [byId] for a whole list, in one statement.
+     *
+     * A track list on the web player asks for the download state of every row it draws, which is
+     * two hundred ids on one screen. Two hundred round trips through Room is not the same cost as
+     * one `IN (...)`, and the caller has no way to spread them out. Callers chunk to stay under
+     * SQLite's host-parameter limit; see `TrackLookup.fromCache`.
+     */
+    @Query("SELECT * FROM tracks WHERE id IN (:ids)")
+    fun byIds(ids: List<String>): List<Track>
+
+    /**
      * Get albums by artist
      */
     @Query("SELECT * FROM tracks WHERE albumId LIKE :id")

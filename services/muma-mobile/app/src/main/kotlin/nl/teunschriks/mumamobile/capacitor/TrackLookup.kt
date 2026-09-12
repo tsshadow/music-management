@@ -56,6 +56,28 @@ class TrackLookup(
         null
     }
 
-    /** Never on the main thread. Leaves out what it cannot find. */
-    fun fromCache(ids: Collection<String>): Map<String, Track> = ids.distinct().mapNotNull { id -> fromCache(id)?.let { id to it } }.toMap()
+    /**
+     * Never on the main thread. Leaves out what it cannot find.
+     *
+     * One statement per [SQLITE_VARIABLE_LIMIT] ids rather than one per id: a track list asks for
+     * the state of every row it draws at once, and two hundred separate `byId` calls is the
+     * difference between a list that renders its glyphs and one that renders them a frame late.
+     * The chunking is not a nicety -- SQLite refuses a statement with more host parameters than
+     * it was compiled for, and a long playlist would hit that.
+     */
+    fun fromCache(ids: Collection<String>): Map<String, Track> = try {
+        val dao = activeServerProvider.getActiveMetaDatabase().trackDao()
+        ids.distinct()
+            .chunked(SQLITE_VARIABLE_LIMIT)
+            .flatMap { chunk -> dao.byIds(chunk) }
+            .associateBy { it.id }
+    } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
+        Timber.w(all, "Failed to resolve %d tracks from the metadata cache", ids.size)
+        emptyMap()
+    }
+
+    companion object {
+        /** SQLite's default `SQLITE_MAX_VARIABLE_NUMBER` is 999; this stays well under it. */
+        const val SQLITE_VARIABLE_LIMIT = 500
+    }
 }

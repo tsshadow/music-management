@@ -1,7 +1,7 @@
 <script>
   import { t, locale } from './i18n/index.js';
   import MumaMark from './MumaMark.svelte';
-  import { credentials, mumaApiUrl, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser } from './store.js';
+  import { credentials, mumaApiUrl, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser, restUrl } from './store.js';
 
   let username = $state('');
   let password = $state('');
@@ -15,8 +15,6 @@
   let googleRequest = $state(null);
   let idToken = '';
 
-  const SUBSONIC_BASE = import.meta.env.VITE_SUBSONIC_URL || (import.meta.env.DEV ? '' : window.location.origin);
-
   /**
    * Verifies the provided credentials by pinging the Subsonic API.
    */
@@ -26,7 +24,7 @@
 
     const params = `u=${encodeURIComponent(username)}&p=${encodeURIComponent(password)}&v=1.12.0&c=spotify&f=json`;
     try {
-      const response = await fetch(`${SUBSONIC_BASE}/rest/ping?${params}`);
+      const response = await fetch(restUrl(`/rest/ping?${params}`));
       const data = await response.json();
 
       if (data['subsonic-response'] && data['subsonic-response'].status === 'ok') {

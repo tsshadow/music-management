@@ -31,7 +31,7 @@
   import { defaultCollectionState, durationParts, lineupLevel, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
   import { loadIndexedTags } from './scanTags.js';
   import { loadFeed, DAILY_MIX, RELEASE_RADAR } from './feeds.js';
-  import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, hasPermission } from './store.js';
+  import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, hasPermission, restUrl } from './store.js';
 
   // Navigation that has to survive a refresh goes through onnavigate, which App turns into a URL.
   // The local assignment stays the fallback for the many places that only switch the screen.
@@ -153,7 +153,7 @@
 
     console.log(`Fetching tracks for curated playlist: ${id}`);
     try {
-        const response = await fetch(`/rest/getSpotifyPlaylist?id=${encodeURIComponent(id)}&seed=${currentSeed}&${$authParams}`);
+        const response = await fetch(restUrl(`/rest/getSpotifyPlaylist?id=${encodeURIComponent(id)}&seed=${currentSeed}&${$authParams}`));
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
         console.log(`Data for ${id}:`, data);
@@ -229,7 +229,7 @@
         }
 
         console.log(`Fetching: ${url}`);
-        const response = await fetch(url, { signal });
+        const response = await fetch(restUrl(url), { signal });
         const data = await response.json();
         console.log("Track data received:", data);
         const tracksNode = data['subsonic-response']?.tracks;
@@ -296,7 +296,7 @@
       if (currentAlbumGenre) url += `&genre=${encodeURIComponent(currentAlbumGenre)}`;
       if (currentAlbumSearch) url += `&query=${encodeURIComponent(currentAlbumSearch)}`;
 
-      const response = await fetch(url, { signal });
+      const response = await fetch(restUrl(url), { signal });
       const data = await response.json();
       const result = data['subsonic-response']?.albumList2?.album || [];
       const newAlbums = Array.isArray(result) ? result : [result];
@@ -338,7 +338,7 @@
       let url = `/rest/getArtistList?type=${currentArtistSort}&role=${currentArtistRole}&size=${pageSize}&offset=${artistsOffset}&${$authParams}`;
       if (currentArtistSearch) url += `&query=${encodeURIComponent(currentArtistSearch)}`;
 
-      const response = await fetch(url, { signal });
+      const response = await fetch(restUrl(url), { signal });
       const data = await response.json();
       const result = data['subsonic-response']?.artistList?.artist || [];
       const newArtists = Array.isArray(result) ? result : [result];
@@ -363,7 +363,7 @@
   async function loadPlaylists() {
     if (!$authParams) return;
     try {
-      const response = await fetch(`/rest/getPlaylists?${$authParams}`);
+      const response = await fetch(restUrl(`/rest/getPlaylists?${$authParams}`));
       const data = await response.json();
       playlists = data['subsonic-response']?.playlists?.playlist || [];
     } catch (e) { console.error(e); }
@@ -377,7 +377,7 @@
     isLoading = true;
     console.log("Fetching all genres...");
     try {
-      const response = await fetch(`/rest/getGenres?${$authParams}`);
+      const response = await fetch(restUrl(`/rest/getGenres?${$authParams}`));
       const data = await response.json();
       console.log("Genres response:", data);
       const result = data['subsonic-response']?.genres?.genre || [];
@@ -403,7 +403,7 @@
     if (!$authParams) return;
     isLoading = true;
     try {
-      const response = await fetch(`/rest/getRecordLabels?${$authParams}`);
+      const response = await fetch(restUrl(`/rest/getRecordLabels?${$authParams}`));
       const data = await response.json();
       const result = data['subsonic-response']?.recordLabels?.recordLabel || [];
       allLabels = Array.isArray(result) ? result : [result];
@@ -425,7 +425,7 @@
     if (!$authParams) return;
     isLoading = true;
     try {
-      const response = await fetch(`/rest/getTags?name=PODCAST&${$authParams}`);
+      const response = await fetch(restUrl(`/rest/getTags?name=PODCAST&${$authParams}`));
       const data = await response.json();
       const result = data['subsonic-response']?.tags?.tag || [];
       allPodcasts = Array.isArray(result) ? result : [result];
@@ -447,7 +447,7 @@
     if (!$authParams) return [];
     isLoading = true;
     try {
-      const response = await fetch(`/rest/getTags?name=${tag}&${$authParams}`);
+      const response = await fetch(restUrl(`/rest/getTags?name=${tag}&${$authParams}`));
       const data = await response.json();
       const result = data['subsonic-response']?.tags?.tag || [];
       const list = Array.isArray(result) ? result : [result];
@@ -474,7 +474,7 @@
     if (!$authParams) return;
     isLoading = true;
     try {
-      const response = await fetch(`/rest/getLineups?${$authParams}`);
+      const response = await fetch(restUrl(`/rest/getLineups?${$authParams}`));
       const data = await response.json();
       const result = data['subsonic-response']?.lineups?.lineup || [];
       const list = Array.isArray(result) ? result : [result];
@@ -636,7 +636,7 @@
     }
 
     try {
-      const response = await fetch(`/rest/getMemories?date=${localDateString()}&${$authParams}`);
+      const response = await fetch(restUrl(`/rest/getMemories?date=${localDateString()}&${$authParams}`));
       if (!response.ok) return;
 
       const data = await response.json();
@@ -742,7 +742,7 @@
               <img
                 class="w-40 h-40 object-cover mb-2 rounded-md"
                 src={group.songs[0]?.coverArt
-                  ? `/rest/getCoverArt?id=${group.songs[0].coverArt}&size=300&${$authParams}`
+                  ? restUrl(`/rest/getCoverArt?id=${group.songs[0].coverArt}&size=300&${$authParams}`)
                   : '/images/spotify-fallback.svg'}
                 alt=""
               />
@@ -865,7 +865,7 @@
                   onkeydown={(e) => e.key === 'Enter' && (activeView = `album:${album.id}`)}
                 >
                     <img
-                      src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+                      src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
                       alt={album.name}
                       class="w-full aspect-square object-cover rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                       onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
@@ -1036,7 +1036,7 @@
               onkeydown={(e) => e.key === 'Enter' && openPlaylist(playlist)}
             >
                 <img
-                  src={playlist.coverArt ? `/rest/getCoverArt?id=${playlist.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+                  src={playlist.coverArt ? restUrl(`/rest/getCoverArt?id=${playlist.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
                   alt={playlist.name}
                   class="w-full aspect-square object-cover rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                   onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
@@ -1125,7 +1125,7 @@
                 onkeydown={(e) => e.key === 'Enter' && (activeView = `album:${album.id}`)}
               >
                   <img
-                    src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+                    src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
                     alt={album.name}
                     class="w-full aspect-square object-cover rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                     onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}

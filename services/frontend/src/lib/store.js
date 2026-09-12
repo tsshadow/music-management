@@ -38,8 +38,21 @@ function persist(key, store, options = {}) {
   });
 }
 
+/**
+ * The Subsonic base a fresh browser session starts with: an explicit
+ * per-deployment override, empty during `vite dev` (the dev server proxies
+ * `/rest/*` itself, so a relative URL is exactly right), or the page's own
+ * origin otherwise. `restUrl()` below falls back to the same origin at
+ * request time, so this and that fallback always agree.
+ *
+ * @returns {string}
+ */
+export function defaultSubsonicUrl() {
+  return import.meta.env.VITE_SUBSONIC_URL || (import.meta.env.DEV ? "" : window.location.origin);
+}
+
 export const credentials = writable({
-  url: import.meta.env.VITE_SUBSONIC_URL || (import.meta.env.DEV ? "" : window.location.origin),
+  url: defaultSubsonicUrl(),
   username: "",
   password: "",
 });
@@ -49,6 +62,25 @@ export const mumaApiUrl = writable(
   import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "" : "/muma"),
 );
 persist("muma_api_url", mumaApiUrl);
+
+/**
+ * Builds an absolute Subsonic (`/rest/*`) URL from `credentials.url`, so a
+ * request reaches the configured server even when the page it runs on does
+ * not share that origin -- inside the Capacitor shell the page origin is
+ * `https://localhost`, so a bare `fetch('/rest/...')` would resolve against
+ * the WebView instead of the music server.
+ *
+ * In the browser today `credentials.url` already holds the page's own
+ * origin (see `defaultSubsonicUrl` above), so this produces exactly the
+ * string a relative fetch would have hit: no behaviour change there.
+ *
+ * @param {string} pathAndQuery - Starting with `/`, e.g. `/rest/ping?u=...`.
+ * @returns {string}
+ */
+export function restUrl(pathAndQuery) {
+  const base = get(credentials).url || window.location.origin;
+  return `${base.replace(/\/+$/, "")}${pathAndQuery}`;
+}
 
 export const mumaApiKey = writable("");
 persist("muma_api_key", mumaApiKey);
@@ -289,7 +321,7 @@ async function checkAdminStatus(creds) {
   try {
     const params = `u=${encodeURIComponent(creds.username)}&p=${encodeURIComponent(creds.password)}&v=1.12.0&c=spotify&f=json`;
     const resp = await fetch(
-      `/rest/getUser?${params}&username=${encodeURIComponent(creds.username)}`,
+      restUrl(`/rest/getUser?${params}&username=${encodeURIComponent(creds.username)}`),
     );
     const data = await resp.json();
     subsonicIsAdmin.set(data["subsonic-response"]?.user?.adminRole === true);

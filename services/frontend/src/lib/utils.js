@@ -1,5 +1,4 @@
-import { get } from "svelte/store";
-import { mumaApiUrl } from "./store.js";
+import { apiBase, restUrl } from "./mumaApi.js";
 
 /**
  * Splits a comma-separated string of artists into an array of trimmed names.
@@ -51,12 +50,11 @@ export function viewArgument(view) {
  * @returns {string} The image URL.
  */
 export function getArtistImageUrl(artist, authParams) {
-  const mumaApiBase = get(mumaApiUrl);
   if (artist && artist.coverArt) {
-    return `/rest/getCoverArt?id=${artist.coverArt}&size=300&${authParams}`;
+    return restUrl(`/rest/getCoverArt?id=${artist.coverArt}&size=300&${authParams}`);
   }
   if (artist && artist.name) {
-    return `${mumaApiBase}/api/artists/${encodeURIComponent(artist.name)}/image?${authParams}`;
+    return `${apiBase()}/api/artists/${encodeURIComponent(artist.name)}/image?${authParams}`;
   }
   if (artist && artist.id) {
     return `/media/artist-images/${artist.id}/primary.jpg`;
@@ -77,7 +75,7 @@ export function getArtistImageUrl(artist, authParams) {
  * page or a login redirect rather than a stored write -- calling that a
  * success is the same silent failure in a different disguise.
  *
- * @param {Response} response - The response from a `/rest/...` call.
+ * @param {Response} response - The response from a Subsonic call.
  * @returns {Promise<{code: number|null, message: string}|null>} `null` when
  *   the call succeeded, otherwise the reported failure.
  */

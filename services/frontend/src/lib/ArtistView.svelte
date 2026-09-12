@@ -2,7 +2,7 @@
   import { t } from './i18n/index.js';
   import { untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
-  import { authParams, viewMode, deduplicateEnabled, mumaApiUrl, currentTrack, playlist, playerState, hasPermission } from './store.js';
+  import { authParams, viewMode, deduplicateEnabled, mumaApiUrl, currentTrack, playlist, playerState, hasPermission, restUrl } from './store.js';
   import { getArtistImageUrl } from './utils.js';
   import { getHeaders } from './mumaApi.js';
   import { Pencil } from '@lucide/svelte';
@@ -36,7 +36,7 @@
     else artist.starred = new Date().toISOString();
 
     try {
-      const response = await fetch(`/rest/${endpoint}?artistId=${artistId}&${$authParams}`);
+      const response = await fetch(restUrl(`/rest/${endpoint}?artistId=${artistId}&${$authParams}`));
       if (!response.ok) throw new Error('Failed to toggle star');
     } catch (e) {
       console.error(e);
@@ -53,7 +53,7 @@
     if (!$authParams) return;
     isLoading = true;
     try {
-      const response = await fetch(`/rest/getArtist?id=${artistId}&${$authParams}`);
+      const response = await fetch(restUrl(`/rest/getArtist?id=${artistId}&${$authParams}`));
       const data = await response.json();
       const artistData = data['subsonic-response']?.artist;
       if (artistData) {
@@ -106,7 +106,7 @@
       while (currentBatch.length < pageSize && allTracksHasMore) {
         let url = `/rest/getSpotifyTracks?artistId=${artistId}&offset=${allTracksOffset}&count=${pageSize}&${durationFilter}&sort=recent&${$authParams}`;
         if ($deduplicateEnabled) url += `&deduplicate=true`;
-        const response = await fetch(url);
+        const response = await fetch(restUrl(url));
         const data = await response.json();
         const tracksNode = data['subsonic-response']?.tracks;
         const result = tracksNode?.track || [];
@@ -141,7 +141,7 @@
    */
   async function loadArtistInfo() {
     try {
-      const response = await fetch(`/rest/getArtistInfo2?id=${artistId}&${$authParams}`);
+      const response = await fetch(restUrl(`/rest/getArtistInfo2?id=${artistId}&${$authParams}`));
       const data = await response.json();
       const info = data['subsonic-response']?.artistInfo || data['subsonic-response']?.artistInfo2;
       if (info) {
@@ -372,7 +372,7 @@
                           onkeydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
                         >
                             <img
-                              src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+                              src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
                               alt={album.name}
                               class="w-full aspect-square object-cover mb-4 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
@@ -398,7 +398,7 @@
                           onkeydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
                         >
                             <img
-                              src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+                              src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
                               alt={album.name}
                               class="w-full aspect-square object-cover mb-4 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}

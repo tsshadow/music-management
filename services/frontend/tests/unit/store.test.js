@@ -12,6 +12,7 @@ import {
   loadFrontendSettings,
   saveFrontendSetting,
   hydrateMumaUserFromApiKey,
+  restUrl,
 } from "../../src/lib/store";
 import { locale } from "../../src/lib/i18n";
 
@@ -66,6 +67,30 @@ describe("store - authParams", () => {
     const params = get(authParams);
     expect(params).toContain("u=user%40example.com");
     expect(params).toContain("p=pass%20word");
+  });
+});
+
+describe("store - restUrl", () => {
+  it("falls back to the page origin when no server is configured", () => {
+    credentials.set({ url: "", username: "", password: "" });
+    expect(restUrl("/rest/ping?u=x")).toBe(`${window.location.origin}/rest/ping?u=x`);
+  });
+
+  it("builds on a configured server without a trailing slash", () => {
+    credentials.set({ url: "https://muma.example", username: "", password: "" });
+    expect(restUrl("/rest/ping?u=x")).toBe("https://muma.example/rest/ping?u=x");
+  });
+
+  it("strips a trailing slash from the configured server so the path is not doubled", () => {
+    credentials.set({ url: "https://muma.example/", username: "", password: "" });
+    expect(restUrl("/rest/ping?u=x")).toBe("https://muma.example/rest/ping?u=x");
+  });
+
+  it("passes a leading-slash path and its query string through unchanged", () => {
+    credentials.set({ url: "https://muma.example", username: "", password: "" });
+    expect(restUrl("/rest/getCoverArt?id=42&size=300")).toBe(
+      "https://muma.example/rest/getCoverArt?id=42&size=300",
+    );
   });
 });
 

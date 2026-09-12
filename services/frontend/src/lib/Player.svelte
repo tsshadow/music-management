@@ -1,7 +1,7 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
-  import { currentTrack, playerState, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey, equalizerSettings } from './store.js';
+  import { currentTrack, playerState, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey, equalizerSettings, restUrl } from './store.js';
   import Equalizer from './Equalizer.svelte';
   import * as equalizer from './equalizer.js';
   // Everything this component does with playback goes through here; the engine
@@ -86,7 +86,7 @@
    * @returns {string}
    */
   function radioStreamUrl(trackId, offsetSeconds) {
-    return `${$credentials.url}/rest/stream?id=${trackId}&format=mp3&maxBitRate=320&timeOffset=${offsetSeconds}&${$authParams}`;
+    return restUrl(`/rest/stream?id=${trackId}&format=mp3&maxBitRate=320&timeOffset=${offsetSeconds}&${$authParams}`);
   }
 
   /**
@@ -269,12 +269,12 @@
 
         // In follower mode, we NEVER push periodic position to avoid fighting the host.
         // The 'position' parameter is only included if we are the Host.
-        let url = `${$credentials.url}/rest/savePlayQueue?${trackIds}&current=${currentId}&playing=${isPlaying}&${params}`;
+        let url = `/rest/savePlayQueue?${trackIds}&current=${currentId}&playing=${isPlaying}&${params}`;
         if ($syncMode === 'host') {
             url += `&position=${position}`;
         }
 
-        await fetch(url);
+        await fetch(restUrl(url));
     } catch (e) {
         console.error("Jam push failed", e);
     }
@@ -293,7 +293,7 @@
     isSyncing = true;
     try {
       const params = $authParams;
-      const response = await fetch(`${$credentials.url}/rest/getPlayQueue?${params}`);
+      const response = await fetch(restUrl(`/rest/getPlayQueue?${params}`));
       const data = await response.json();
       const playQueue = data['subsonic-response']?.playQueue;
 
@@ -820,8 +820,8 @@
   // Radio listeners cannot steer the stream, exactly like a follower-radio client.
   const transportLocked = $derived($syncMode === 'follower-radio' || isRadioActive);
   const releaseDate = $derived(track ? releaseDateLabel(track) : '');
-  const coverUrl = $derived(track?.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}` : '/images/spotify-fallback.svg');
-  const streamUrl = $derived(track?.id ? `/rest/stream?id=${track.id}&${$authParams}` : '');
+  const coverUrl = $derived(track?.coverArt ? restUrl(`/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}`) : '/images/spotify-fallback.svg');
+  const streamUrl = $derived(track?.id ? restUrl(`/rest/stream?id=${track.id}&${$authParams}`) : '');
 
   // What the notification, the lock screen and a car head unit show. The engine
   // owns the OS integration; this is the only thing it cannot work out for
@@ -834,7 +834,7 @@
       artist: track.artist || 'Onbekende artiest',
       album: track.album || 'Onbekend album',
       artworkUrl: track.coverArt
-        ? `${$credentials.url}/rest/getCoverArt?id=${track.coverArt}&size=512&${$authParams}`
+        ? restUrl(`/rest/getCoverArt?id=${track.coverArt}&size=512&${$authParams}`)
         : window.location.origin + '/images/spotify-fallback.svg',
       duration: fallbackLength,
     });
@@ -893,7 +893,7 @@
     const playedSeconds = submission ? Math.floor(platform.player.state().position) : null;
     let extra = playedSeconds ? `&playedSeconds=${playedSeconds}` : '';
     if (submission && listenStartedAtMs) extra += `&time=${listenStartedAtMs}`;
-    const url = `${$credentials.url}/rest/scrobble?id=${track.id}&submission=${submission}&source=frontend${extra}&${params}`;
+    const url = restUrl(`/rest/scrobble?id=${track.id}&submission=${submission}&source=frontend${extra}&${params}`);
     try {
       const failure = await subsonicError(await fetch(url));
       if (failure) {
@@ -929,7 +929,7 @@
       // the body is the only thing that says whether the rating was stored.
       // `subsonicError` is that check, shared with the track list.
       const failure = await subsonicError(
-        await fetch(`${$credentials.url}/rest/setRating?id=${trackId}&rating=${newRating}&${$authParams}`)
+        await fetch(restUrl(`/rest/setRating?id=${trackId}&rating=${newRating}&${$authParams}`))
       );
       if (failure) throw new Error(failure.message);
     } catch (e) {

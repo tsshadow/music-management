@@ -1,6 +1,6 @@
 <script>
   import { t } from './i18n/index.js';
-  import { currentTrack, playerState, authParams } from './store.js';
+  import { currentTrack, playerState, authParams, restUrl } from './store.js';
   import ArtistList from './ArtistList.svelte';
 
   const { track, onnavigate } = $props();
@@ -13,7 +13,7 @@
     playerState.update(s => ({ ...s, playing: true }));
   }
 
-  const coverUrl = $derived(track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg');
+  const coverUrl = $derived(track.coverArt ? restUrl(`/rest/getCoverArt?id=${track.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg');
 </script>
 
 <div

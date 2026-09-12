@@ -1,7 +1,7 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
-  import { authParams, viewMode, activeModal, activeView, deduplicateEnabled } from './store.js';
+  import { authParams, viewMode, activeModal, activeView, deduplicateEnabled, restUrl } from './store.js';
   import { getArtistImageUrl } from './utils.js';
   import { deduplicateTracks } from './deduplicate.js';
   import TrackList from './TrackList.svelte';
@@ -29,7 +29,7 @@
       const albumCount = category === 'albums' ? 100 : 1;
       const songCount = category === 'tracks' ? 100 : 1;
       
-      const response = await fetch(`/rest/search3?${$authParams}&query=${encodeURIComponent(query)}&artistCount=${artistCount}&albumCount=${albumCount}&songCount=${songCount}${durationFilter}`);
+      const response = await fetch(restUrl(`/rest/search3?${$authParams}&query=${encodeURIComponent(query)}&artistCount=${artistCount}&albumCount=${albumCount}&songCount=${songCount}${durationFilter}`));
       const data = await response.json();
       const searchResult = data['subsonic-response']?.searchResult3 || {};
       
@@ -116,7 +116,7 @@
             onkeydown={(e) => e.key === 'Enter' && navigate(`album:${album.id}`)}
           >
               <img
-                src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+                src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
                 alt={album.name}
                 class="w-full aspect-square object-cover rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                 onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}

@@ -4,7 +4,7 @@
  * `HTMLMediaElement.duration` is the honest answer whenever the browser has
  * worked one out, but it is `NaN` until the metadata lands and `Infinity` for a
  * stream that arrives chunked without a `Content-Length` -- which is what a
- * transcoding `/rest/stream` hands the LG TV browser. Both values turn every
+ * transcoding stream hands the LG TV browser. Both values turn every
  * `progress / duration` into `NaN` and pin the bar at zero width forever. The
  * track metadata already carries the length, so fall back to it.
  *

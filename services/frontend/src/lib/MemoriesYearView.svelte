@@ -1,7 +1,7 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
-  import { authParams, playlist, currentTrack, playerState } from './store.js';
+  import { authParams, playlist, currentTrack, playerState, restUrl } from './store.js';
   import TrackList from './TrackList.svelte';
   import { memoriesUrl, memoryCount, memoryHeading, parseMemoryGroups } from './memories.js';
 
@@ -33,7 +33,7 @@
     isLoading = true;
     shownCount = PAGE_SIZE;
     try {
-      const response = await fetch(memoriesUrl($authParams, { year }));
+      const response = await fetch(restUrl(memoriesUrl($authParams, { year })));
       if (response.ok) {
         const data = await response.json();
         group = parseMemoryGroups(data).find((candidate) => String(candidate.year) === String(year)) ?? null;

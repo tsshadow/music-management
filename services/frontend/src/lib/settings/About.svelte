@@ -1,7 +1,7 @@
 <script>
   import { t } from '../i18n/index.js';
   import { onMount } from 'svelte';
-  import { authParams } from '../store.js';
+  import { authParams, restUrl } from '../store.js';
 
   let version = $state('');
   let isLoading = $state(true);
@@ -12,7 +12,7 @@
    */
   async function loadInfo() {
     try {
-      const response = await fetch(`/rest/ping?${$authParams}`);
+      const response = await fetch(restUrl(`/rest/ping?${$authParams}`));
       const data = await response.json();
       const res = data['subsonic-response'];
       if (res) {

@@ -1,7 +1,7 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
-  import { authParams, playlist, currentTrack, playerState } from './store.js';
+  import { authParams, playlist, currentTrack, playerState, restUrl } from './store.js';
   import MemoryYearCard from './MemoryYearCard.svelte';
   import { memoriesUrl, parseMemoryGroups, yearTiles } from './memories.js';
 
@@ -24,7 +24,7 @@
     if (!$authParams) return;
     isLoading = true;
     try {
-      const response = await fetch(memoriesUrl($authParams));
+      const response = await fetch(restUrl(memoriesUrl($authParams)));
       if (response.ok) {
         const data = await response.json();
         groups = parseMemoryGroups(data);
@@ -49,7 +49,7 @@
   async function playYear(year) {
     let songs = [];
     try {
-      const response = await fetch(memoriesUrl($authParams, { year }));
+      const response = await fetch(restUrl(memoriesUrl($authParams, { year })));
       if (response.ok) {
         const data = await response.json();
         songs = parseMemoryGroups(data).find((g) => String(g.year) === String(year))?.songs ?? [];

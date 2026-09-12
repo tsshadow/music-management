@@ -1,6 +1,6 @@
 <script>
   import { t } from './i18n/index.js';
-  import { authParams } from './store.js';
+  import { authParams, restUrl } from './store.js';
   import TrackList from './TrackList.svelte';
 
   /**
@@ -57,7 +57,7 @@
     try {
       while (collected.length < MAX_VERSIONS) {
         const response = await fetch(
-          `/rest/getSpotifyTracks?workId=${id}&count=${PAGE_SIZE}&offset=${offset}&${$authParams}`,
+          restUrl(`/rest/getSpotifyTracks?workId=${id}&count=${PAGE_SIZE}&offset=${offset}&${$authParams}`),
         );
         const data = await response.json();
         // Subsonic answers its own failures with HTTP 200 and an error in the body, so the

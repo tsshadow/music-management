@@ -1,7 +1,7 @@
 <script>
   import { t } from '../../i18n/index.js';
   import { onMount, onDestroy } from 'svelte';
-  import { authParams } from '../../store.js';
+  import { authParams, restUrl } from '../../store.js';
 
   const { onMessage, onError } = $props();
 
@@ -92,7 +92,7 @@
       return;
     }
     try {
-      const response = await fetch(`/rest/getScanStatus?${$authParams}`);
+      const response = await fetch(restUrl(`/rest/getScanStatus?${$authParams}`));
       const data = await response.json();
       const res = data['subsonic-response'];
       if (!res?.scanStatus) return;
@@ -129,7 +129,7 @@
       query += `&defaultTagDelimiters=${encodeURIComponent(settings.defaultTagDelimiters.join('|'))}`;
       query += `&artistsToNotSplit=${encodeURIComponent(settings.artistsToNotSplit.join('|'))}`;
 
-      const response = await fetch(`/rest/updateScanSettings?${query}`);
+      const response = await fetch(restUrl(`/rest/updateScanSettings?${query}`));
       const data = await response.json();
       if (data['subsonic-response']?.status === 'ok') {
         originalSettings = JSON.parse(JSON.stringify(settings));
@@ -156,7 +156,7 @@
       if (forceOptimize) query += '&forceOptimize=true';
       if (compact) query += '&compact=true';
 
-      const response = await fetch(`/rest/startScan?${query}`);
+      const response = await fetch(restUrl(`/rest/startScan?${query}`));
       const data = await response.json();
       const res = data['subsonic-response'];
       if (res?.scanStatus) {

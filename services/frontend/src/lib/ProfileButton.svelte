@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { Settings2 } from '@lucide/svelte';
   import { credentials, isAdmin, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser, defaultSubsonicUrl } from './store.js';
+  import { platform } from './platform/index.js';
 
   const { onNavigate } = $props();
 
@@ -22,12 +23,25 @@
   /**
    * Logs out the user by clearing credentials and reloading the page.
    *
+   * Awaits the phone's own sign-out first. Inside the Capacitor shell that clears the
+   * credentials Kotlin has stored; skipping it -- or racing it with the reload -- was the bug:
+   * `bootstrapShell()` read the untouched native credentials straight back out on the next boot
+   * and signed the shell back in, so logging out visibly did nothing. A browser tab's
+   * `signOut()` is a no-op that resolves at once, so this is unconditional rather than branching
+   * on `platform.system.isNative`.
+   *
    * @param {Event} [event] - Optional click event.
    */
-  function handleLogout(event) {
+  async function handleLogout(event) {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
+    }
+
+    try {
+      await platform.system.signOut();
+    } catch (error) {
+      console.warn("The native session could not be cleared before logging out", error);
     }
 
     // Reset credentials and ensure localStorage is updated

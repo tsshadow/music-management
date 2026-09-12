@@ -369,6 +369,23 @@ describe("capacitor system", () => {
       "openLegacySettings",
     ]);
   });
+
+  it("forwards signOut to the plugin and awaits it", async () => {
+    const { platform, plugins } = nativePlatform();
+
+    await platform.system.signOut();
+
+    expect(plugins.MumaSystem.calls).toEqual([["signOut", undefined]]);
+  });
+
+  it("forwards a verified pair to saveCredentials unchanged", async () => {
+    const { platform, plugins } = nativePlatform();
+    const creds = { url: "https://lms.example", username: "user", password: "hunter2" };
+
+    await platform.system.saveCredentials(creds);
+
+    expect(plugins.MumaSystem.calls).toEqual([["saveCredentials", creds]]);
+  });
 });
 
 describe("capacitor storage", () => {

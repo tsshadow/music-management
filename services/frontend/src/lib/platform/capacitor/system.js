@@ -87,6 +87,29 @@ export function createCapacitorSystem(plugin) {
       };
     },
 
+    /**
+     * Ends the session on the phone: clears the stored password, the muma API key/user id and
+     * the muma tokens, and stops the queue the platform service was holding. Downloaded files are
+     * left alone. The caller reloads afterwards -- this only has to make sure the next boot finds
+     * nothing to sign back in with.
+     *
+     * @returns {Promise<void>}
+     */
+    signOut() {
+      return plugin.signOut();
+    },
+
+    /**
+     * Writes a username/password pair the web login screen just verified back to the phone, so
+     * downloads, Android Auto and the legacy UI see the same session afterwards.
+     *
+     * @param {{url?: string, username: string, password: string}} creds
+     * @returns {Promise<void>}
+     */
+    saveCredentials(creds) {
+      return plugin.saveCredentials(creds);
+    },
+
     /** Hands the phone back to the Kotlin interface and restarts into it. */
     switchToLegacyUi() {
       fireAndForget("switchToLegacyUi", plugin.switchToLegacyUi());

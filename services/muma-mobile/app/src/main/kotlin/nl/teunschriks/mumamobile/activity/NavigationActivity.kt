@@ -93,7 +93,6 @@ import nl.teunschriks.mumamobile.service.RxBus
 import nl.teunschriks.mumamobile.service.plusAssign
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.LocaleHelper
-import nl.teunschriks.mumamobile.util.SecureSettings
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.ShortcutUtil
 import nl.teunschriks.mumamobile.util.Storage
@@ -649,13 +648,9 @@ class NavigationActivity : ScopeActivity() {
         // next sign-in plays through the same instance without a second onCreate().
         mediaPlayerManager.clear()
 
-        Settings.staticPassword = ""
-        Settings.mumaApiKey = ""
-        Settings.mumaUserId = -1
-        SecureSettings.clear()
-
-        activeServerProvider.invalidateCache()
-        MusicServiceFactory.resetMusicService()
+        // The password, the muma API key/user id and the encrypted muma tokens -- shared with
+        // `MumaSystem.signOut()` in the Capacitor shell, see `ActiveServerProvider.signOut`.
+        activeServerProvider.signOut()
 
         // The welcome dialog only shows itself once per app start; a fresh logout is exactly the
         // case where it must show itself again.

@@ -51,8 +51,33 @@
       error = result.reason === 'offline'
         ? $t('login.noServerConnection')
         : `Fout: ${result.message || $t('login.invalidCredentials')}`;
+    } else if (isNative) {
+      // Writes the pair back to Kotlin, so downloads, Android Auto and the legacy UI see the
+      // same session -- without this a sign-in typed here only ever lived in the WebView, and
+      // a `switchToLegacyUi()` or a download right after would still look logged out.
+      await saveNativeCredentials(username, password);
     }
     isLoading = false;
+  }
+
+  /**
+   * Persists a verified pair to the phone. Never lets a bridge failure surface as a login error:
+   * the web session is already live at this point, and losing the native copy only degrades the
+   * native-only features, it does not undo the sign-in.
+   *
+   * @param {string} verifiedUsername
+   * @param {string} verifiedPassword
+   */
+  async function saveNativeCredentials(verifiedUsername, verifiedPassword) {
+    try {
+      await platform.system.saveCredentials({
+        url: server,
+        username: verifiedUsername,
+        password: verifiedPassword,
+      });
+    } catch (e) {
+      console.warn('Could not save the verified credentials back to the phone', e);
+    }
   }
 
   /** Gives the phone back to the Kotlin interface. Native only. */
@@ -99,6 +124,13 @@
 
   /**
    * Handles the response from Google Identity Services.
+   *
+   * Known gap, not fixed here: unlike {@link verifyLogin}, this path never calls
+   * `platform.system.saveCredentials()`. A Google sign-in performed inside the Capacitor shell
+   * therefore only ever updates the web session -- Kotlin keeps whatever it had before (or
+   * nothing, on a first sign-in), so downloads, Android Auto and the legacy UI do not pick up an
+   * account that was only ever confirmed through Google here. A password sign-in on this same
+   * screen is unaffected and does push through.
    */
   async function handleGoogleResponse(response) {
     idToken = response.credential;

@@ -26,6 +26,27 @@ const system = {
   },
 
   /**
+   * The phone-side half of signing out. A browser tab has no native session to end -- the caller
+   * clears its own stores -- so this resolves immediately.
+   *
+   * @returns {Promise<void>}
+   */
+  signOut() {
+    return Promise.resolve();
+  },
+
+  /**
+   * The phone-side half of persisting a verified sign-in. A browser tab has nowhere to write it
+   * back to, so this resolves immediately.
+   *
+   * @param {{url?: string, username: string, password: string}} _creds
+   * @returns {Promise<void>}
+   */
+  saveCredentials(_creds) {
+    return Promise.resolve();
+  },
+
+  /**
    * The platform's own back gesture -- the Android back button, not the browser
    * history. The web has no such thing: history is the browser's and the router
    * already listens to it.

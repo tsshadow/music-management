@@ -15,6 +15,7 @@ import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import nl.teunschriks.mumamobile.activity.NavigationActivity
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
+import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.UiVariant
@@ -33,6 +34,8 @@ import timber.log.Timber
  * |---|---|
  * | `isNative` | `isNative()` → `{value: true}` |
  * | `serverUrl()` | `serverUrl()` → `{subsonic, mumaApi}` |
+ * | `signOut()` | `signOut()` |
+ * | `saveCredentials({url, username, password})` | `saveCredentials()` |
  * | `onBack(fn)` | listener on the `back` event, answered with `handledBack({seq})` |
  * | `onDeepLink(fn)` | listener on the `deepLink` event |
  * | `carConnected(fn)` | listener on the `carConnected` event |
@@ -58,6 +61,7 @@ class MumaSystemPlugin :
     KoinComponent {
 
     private val activeServerProvider: ActiveServerProvider by inject()
+    private val mediaPlayerManager: MediaPlayerManager by inject()
 
     /** Set by [CapacitorActivity] so a claim can cancel the pending finish. */
     var onBackClaimed: ((Long) -> Unit)? = null
@@ -118,6 +122,40 @@ class MumaSystemPlugin :
         Settings.mumaApiKey.takeIf { it.isNotBlank() }?.let { result.put("mumaApiKey", it) }
         Settings.mumaUserId.takeIf { it > 0 }?.let { result.put("mumaUserId", it) }
         call.resolve(result)
+    }
+
+    /**
+     * Ends the session started in the Svelte shell, the same way the legacy logout menu does.
+     *
+     * The queue goes first -- [MediaPlayerManager.clear], never `onDestroy()`: both are root
+     * `single`s (see `di/MediaPlayerModule.kt`), application-scoped and started once, and
+     * `onDestroy()` tears down the controller and the external-storage monitor for the whole app,
+     * not just the session. [ActiveServerProvider.signOut] then clears the password, the muma API
+     * key/user id and the encrypted muma tokens, exactly as `NavigationActivity.logOut` does, so
+     * there is one definition of "signed out" for both UIs. The username and any downloaded files
+     * are left alone.
+     */
+    @PluginMethod
+    fun signOut(call: PluginCall) {
+        mediaPlayerManager.clear()
+        activeServerProvider.signOut()
+        call.resolve()
+    }
+
+    /**
+     * Persists a username/password pair the Svelte login screen just verified, so downloads,
+     * Android Auto and the legacy UI see the same session afterwards. Goes through
+     * [ActiveServerProvider.saveCredentials]. `url` is accepted for symmetry with the JS contract
+     * but not stored: static mode has exactly one server address (see
+     * `ServerSettingsModel.STATIC_SERVERS`), so there is nowhere on this side to put a different
+     * one.
+     */
+    @PluginMethod
+    fun saveCredentials(call: PluginCall) {
+        val username = call.getString("username") ?: ""
+        val password = call.getString("password") ?: ""
+        activeServerProvider.saveCredentials(username, password)
+        call.resolve()
     }
 
     /**

@@ -217,4 +217,17 @@ describe("browser system", () => {
 
     expect(handler).not.toHaveBeenCalled();
   });
+
+  // A browser tab has no native session and nowhere to persist one; both resolve at
+  // once rather than making every caller branch on `isNative` first.
+  it("signOut and saveCredentials are no-ops that resolve", async () => {
+    await expect(browserSystem.signOut()).resolves.toBeUndefined();
+    await expect(
+      browserSystem.saveCredentials({
+        url: "https://lms.example",
+        username: "user",
+        password: "pw",
+      }),
+    ).resolves.toBeUndefined();
+  });
 });

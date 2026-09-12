@@ -76,7 +76,7 @@ describe("subsonicJson", () => {
   });
 
   it("hands the body back untouched, so a caller cannot tell who answered", async () => {
-    const platform = shell();
+    const platform = shell({ isOffline: vi.fn(async () => true) });
     offline.set(true);
 
     const online = await subsonicJson("getSpotifyTracks", {}, { fetchImpl: answering() });
@@ -87,9 +87,11 @@ describe("subsonicJson", () => {
   });
 
   // A phone in a tunnel: attempting the server first is twenty seconds of
-  // spinner per list, so a known-offline shell does not attempt it at all.
-  it("goes straight to the device when the shell says there is no route", async () => {
-    const platform = shell();
+  // spinner per list, so a known-offline shell does not attempt it at all --
+  // provided the device still confirms it, which is what `isOffline: true`
+  // stands in for here.
+  it("goes straight to the device when the shell confirms there is no route", async () => {
+    const platform = shell({ isOffline: vi.fn(async () => true) });
     const fetchImpl = answering();
     offline.set(true);
 
@@ -103,23 +105,63 @@ describe("subsonicJson", () => {
     expect(body["subsonic-response"].tracks.track[0].id).toBe("local");
   });
 
-  // `isOffline()` is advisory -- a reachable internet is not a reachable LAN --
-  // so this fallback, not the flag, is what actually makes offline work.
-  it("falls back to the device when a request that should have worked did not", async () => {
-    const platform = shell();
+  // The flag is a leftover from an earlier blip; the device says it can reach
+  // a server again, so the stale "offline" belief clears and the request is
+  // tried for real rather than being shortcut to the device forever.
+  it("does not keep shortcutting to the device once the shell says the route is back", async () => {
+    const platform = shell({ isOffline: vi.fn(async () => false) });
+    const fetchImpl = answering();
+    offline.set(true);
+
+    const body = await subsonicJson("getGenres", {}, { platform, fetchImpl });
+
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    expect(platform.storage.query).not.toHaveBeenCalled();
+    expect(get(offline)).toBe(false);
+    expect(body["subsonic-response"].tracks.track[0].id).toBe("1");
+  });
+
+  // The actual sticky-flag bug: `isOffline()` is advisory, so a request that
+  // merely timed out on a device the shell still believes has a route must not
+  // be quietly answered from the library -- that is what left the app
+  // reporting "offline" until a restart on one blip.
+  it("does not fall back on a failed request the device does not confirm as offline", async () => {
+    const platform = shell({ isOffline: vi.fn(async () => false) });
+
+    await expect(
+      subsonicJson("getGenres", {}, { platform, fetchImpl: unreachable() }),
+    ).rejects.toThrow(/Failed to fetch/);
+
+    expect(platform.storage.query).not.toHaveBeenCalled();
+    expect(get(offline)).toBe(false);
+  });
+
+  // Only once the device itself confirms it has no route does the same failed
+  // request fall back and set the flag, so the next list in this screenful
+  // skips the wait this one just paid for.
+  it("falls back to the device, and remembers it, once offline is confirmed", async () => {
+    const platform = shell({ isOffline: vi.fn(async () => true) });
 
     const body = await subsonicJson("getGenres", {}, { platform, fetchImpl: unreachable() });
 
     expect(platform.storage.query).toHaveBeenCalledOnce();
     expect(body["subsonic-response"].tracks.track[0].id).toBe("local");
+    expect(get(offline)).toBe(true);
   });
 
-  it("remembers the failure, so the next list in the same screenful skips the wait", async () => {
-    const platform = shell();
+  // A device that cannot even answer "am I offline" is treated as "not
+  // confirmed offline" rather than crashing the caller with a second error.
+  it("treats a broken connectivity check as not confirmed, and lets the error travel", async () => {
+    const platform = shell({
+      isOffline: vi.fn(async () => Promise.reject(new Error("no bridge"))),
+    });
 
-    await subsonicJson("getGenres", {}, { platform, fetchImpl: unreachable() });
+    await expect(
+      subsonicJson("getGenres", {}, { platform, fetchImpl: unreachable() }),
+    ).rejects.toThrow(/Failed to fetch/);
 
-    expect(get(offline)).toBe(true);
+    expect(platform.storage.query).not.toHaveBeenCalled();
+    expect(get(offline)).toBe(false);
   });
 
   it("keeps a browser tab exactly as it was: no fallback, the error travels", async () => {
@@ -145,6 +187,28 @@ describe("subsonicJson", () => {
     expect(body["subsonic-response"].status).toBe("failed");
   });
 
+  // A response that arrived but was not JSON -- a proxy's HTML error page, a
+  // captive portal -- throws a `SyntaxError` out of `response.json()`. That is
+  // the server answering, however badly, so it must not be classified as "no
+  // route to a server" the way an actual `TypeError` from `fetch` itself is.
+  it("does not fall back on a response that arrived but was not JSON", async () => {
+    const platform = shell({ isOffline: vi.fn(async () => true) });
+    const fetchImpl = vi.fn(async () => ({
+      ok: false,
+      status: 502,
+      json: async () => {
+        throw new SyntaxError("Unexpected token < in JSON");
+      },
+    }));
+
+    await expect(subsonicJson("getGenres", {}, { platform, fetchImpl })).rejects.toThrow(
+      /Unexpected token/,
+    );
+
+    expect(platform.storage.query).not.toHaveBeenCalled();
+    expect(get(offline)).toBe(false);
+  });
+
   it("lets an abort through rather than answering it from the device", async () => {
     const platform = shell();
     const abort = Object.assign(new Error("aborted"), { name: "AbortError" });
@@ -166,6 +230,7 @@ describe("subsonicJson", () => {
 
   it("answers an empty body when even the device cannot", async () => {
     const platform = shell({
+      isOffline: vi.fn(async () => true),
       query: vi.fn(async () => {
         throw new Error("no room");
       }),

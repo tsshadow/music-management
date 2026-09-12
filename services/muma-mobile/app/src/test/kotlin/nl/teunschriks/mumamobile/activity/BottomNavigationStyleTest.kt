@@ -40,6 +40,8 @@ class BottomNavigationStyleTest {
     private val mumaDeep = 0xFF0D0B0B.toInt()
     private val white = 0xFFFFFFFF.toInt()
     private val grey = 0xFFB3B3B3.toInt()
+    private val green = 0xFF1DB954.toInt()
+    private val setsBlue = 0xFF2D5AFC.toInt()
 
     private fun themed(style: Int): ContextThemeWrapper = ContextThemeWrapper(RuntimeEnvironment.getApplication(), style)
 
@@ -70,6 +72,21 @@ class BottomNavigationStyleTest {
 
         colors.getColorForState(intArrayOf(android.R.attr.state_checked), 0) `should be equal to` white
         colors.getColorForState(intArrayOf(-android.R.attr.state_checked), 0) `should be equal to` grey
+    }
+
+    /**
+     * The shape behind the active destination. It was `colorSecondaryContainer`, which neither
+     * style declared, so it drew Material3's own `#4a4458` - the only colour on the app's first
+     * screen and one no MuMa style picked. It carries the mode's brand colour at a fifth now, the
+     * same strength a selected track row is tinted with and the same the web writes `bg-brand/20`.
+     */
+    @Test
+    fun `the active destination sits on the brand colour, not on Material3's purple`() {
+        val baselineSecondaryContainer = 0xFF4A4458.toInt()
+
+        navIndicatorColor(green) `should be equal to` 0x331DB954
+        navIndicatorColor(setsBlue) `should be equal to` 0x332D5AFC
+        navIndicatorColor(green) `should not be equal to` baselineSecondaryContainer
     }
 
     @Test

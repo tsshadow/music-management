@@ -101,7 +101,7 @@ import nl.teunschriks.mumamobile.util.UiScaleHelper
 import nl.teunschriks.mumamobile.util.UncaughtExceptionHandler
 import nl.teunschriks.mumamobile.util.UpdateChecker
 import nl.teunschriks.mumamobile.util.Util
-import nl.teunschriks.mumamobile.util.themeColor
+import nl.teunschriks.mumamobile.util.brandColor
 import nl.teunschriks.mumamobile.voice.VoiceTileService
 import nl.teunschriks.mumamobile.wizard.UpdateEntry
 import nl.teunschriks.mumamobile.wizard.WIZARD_INTRODUCED_IN
@@ -114,6 +114,12 @@ import org.koin.android.ext.android.inject
 import org.koin.androidx.scope.ScopeActivity
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import timber.log.Timber
+
+/**
+ * The brand colour behind the active destination in the navigation bar, at a fifth. The same
+ * strength a selected track row is tinted with, so "where you are" reads the same in both places.
+ */
+private const val NAV_INDICATOR_ALPHA = 0x33
 
 /**
  * The main (and only) Activity of Ultrasonic which loads all other screens as Fragments.
@@ -187,6 +193,7 @@ class NavigationActivity : ScopeActivity() {
         setContentView(R.layout.navigation_activity)
         nowPlayingView = findViewById(R.id.now_playing_fragment)
         bottomNavigationView = findViewById(R.id.bottom_navigation)
+        applyBottomNavigationBrand()
 
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
@@ -344,11 +351,12 @@ class NavigationActivity : ScopeActivity() {
             setsToggle?.let { toggle ->
                 toggle.setOnCheckedChangeListener(null)
                 toggle.isChecked = Settings.isSetsMode
-                updateSetsToggleColors(toggle, Settings.isSetsMode)
+                updateSetsToggleColors(toggle)
 
                 toggle.setOnCheckedChangeListener { _, isChecked ->
                     Settings.isSetsMode = isChecked
-                    updateSetsToggleColors(toggle, isChecked)
+                    updateSetsToggleColors(toggle)
+                    applyBottomNavigationBrand()
                     RxBus.setsModeChangedPublisher.onNext(isChecked)
                 }
             }
@@ -378,8 +386,10 @@ class NavigationActivity : ScopeActivity() {
         }
     }
 
-    private fun updateSetsToggleColors(toggle: MaterialSwitch, isSets: Boolean) {
-        val brandColor = themeColor(androidx.appcompat.R.attr.colorPrimary)
+    private fun updateSetsToggleColors(toggle: MaterialSwitch) {
+        // brandColor() rather than colorPrimary: the toggle switches *to* sets, so the one moment
+        // it is checked is the moment the app's accent is blue, and it used to go green there.
+        val brandColor = brandColor()
         val states = arrayOf(
             intArrayOf(android.R.attr.state_checked),
             intArrayOf(-android.R.attr.state_checked)
@@ -389,6 +399,27 @@ class NavigationActivity : ScopeActivity() {
 
         toggle.thumbTintList = ColorStateList(states, thumbColors)
         toggle.trackTintList = ColorStateList(states, trackColors)
+    }
+
+    /**
+     * Tints the shape behind the active destination with the mode's brand colour.
+     *
+     * The bar is the one piece of chrome always on screen and it had no brand colour anywhere:
+     * the icons are deliberately white and grey, like the web's, and the shape underneath the
+     * active one was Material3's own `#4a4458` -- `colorSecondaryContainer`, which neither style
+     * defined. So the only colour the app's first screen carried was a purple nobody chose.
+     *
+     * It takes the brand at a fifth, which is what "selected" already means in this app: a
+     * selected track row is tinted with the same colour at the same strength, and the web writes
+     * it `bg-brand/20`. The white label on top only gains contrast from it. The icon and label
+     * state list is untouched -- exactly one destination stands out, which is the point of it.
+     *
+     * Done here rather than in a `<selector>` because the colour depends on [Settings.isSetsMode],
+     * which a resource cannot read; re-applied when the mode changes for the same reason.
+     */
+    private fun applyBottomNavigationBrand() {
+        val bar = bottomNavigationView ?: return
+        bar.itemActiveIndicatorColor = ColorStateList.valueOf(navIndicatorColor(brandColor()))
     }
 
     private fun Int.withAlpha(alpha: Int): Int = (this and 0x00FFFFFF) or (alpha shl 24)
@@ -1243,3 +1274,12 @@ internal fun showsSetsToggle(destinationId: Int): Boolean = when (destinationId)
     R.id.mainFragment, R.id.libraryFragment -> true
     else -> false
 }
+
+/**
+ * The colour of the shape behind the active destination in the navigation bar: [brand] at a fifth.
+ *
+ * Top-level and internal for the same reason as the two rules above - a test can state it without
+ * standing up an Activity. What it replaces is `colorSecondaryContainer`, which neither style
+ * declared, so the shape came out in Material3's own `#4a4458`.
+ */
+internal fun navIndicatorColor(brand: Int): Int = (brand and 0x00FFFFFF) or (NAV_INDICATOR_ALPHA shl 24)

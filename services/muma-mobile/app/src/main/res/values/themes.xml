@@ -39,6 +39,18 @@
         <item name="colorAccent">@color/spotify_green</item>
         <item name="colorOnPrimary">@color/spotify_black</item>
         <item name="brandColorSets">@color/spotify_blue</item>
+
+        <!-- Material3's secondary ramp, which this style used to leave at the library's baseline:
+             a lavender #ccc2dc on #332d41, and a #4a4458 container. Both belong to no MuMa style
+             and both were on screen - the missing-cover placeholder painted the whole player
+             lavender and the navigation bar drew the purple container under the active
+             destination. Declared here so that nothing the app has not themed by hand can reach
+             Material's purple again: the accent pair is the brand, the container pair is a
+             surface, exactly as elsewhere in this style. -->
+        <item name="colorSecondary">@color/spotify_green</item>
+        <item name="colorOnSecondary">@color/spotify_black</item>
+        <item name="colorSecondaryContainer">@color/spotify_card</item>
+        <item name="colorOnSecondaryContainer">@color/spotify_text_primary</item>
         <item name="android:colorBackground">@color/spotify_black</item>
         <item name="colorSurface">@color/spotify_black</item>
         <item name="colorSurfaceContainer">@color/spotify_light</item>

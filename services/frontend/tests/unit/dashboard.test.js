@@ -8,6 +8,7 @@ import {
   favoriteGenres,
   favoriteLabels,
   favoritePlaylists,
+  isMobile,
   memoriesOnHomeEnabled,
   viewMode,
 } from "../../src/lib/store.js";
@@ -124,6 +125,7 @@ describe("Dashboard", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    isMobile.set(false);
   });
 
   it("shows the curated rows on the home screen", async () => {
@@ -327,6 +329,16 @@ describe("Dashboard", () => {
     render(Dashboard, { activeView: "playlists" });
 
     await waitFor(() => expect(screen.getByText("Gabber")).toBeTruthy());
+  });
+
+  // Spotify's own Library tab is a list, not a cover grid -- a phone screen has room for one
+  // column of real information, not for tiles big enough to tell two playlists apart.
+  it("lists playlists as rows instead of cover tiles on a phone", async () => {
+    isMobile.set(true);
+    render(Dashboard, { activeView: "playlists" });
+
+    await waitFor(() => expect(screen.getByText("Gabber")).toBeTruthy());
+    expect(screen.getByRole("list")).toBeTruthy();
   });
 
   it("the genres view lists the genres", async () => {

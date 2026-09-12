@@ -44,3 +44,18 @@ body {
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
 }
+
+/*
+ * A missing cover falls back to the MuMa mark (spotify-fallback.svg). Stretched edge-to-edge with
+ * `object-cover` it reads as a giant, blinding blank tile on a phone, where a shelf can show a
+ * dozen of them at once. Below Tailwind's `md` breakpoint only -- desktop, where a placeholder is
+ * one tile among a normal-density grid, is untouched.
+ */
+@media (max-width: 767px) {
+  img[src="/images/spotify-fallback.svg"] {
+    object-fit: contain;
+    padding: 18%;
+    opacity: 0.35;
+    background-color: rgba(0, 0, 0, 0.15);
+  }
+}

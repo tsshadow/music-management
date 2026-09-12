@@ -15,57 +15,73 @@ private const val NAMESPACE = "nl.teunschriks.mumamobile"
  * enabled before the previous one is disabled, so there is never an instant in which the
  * app has no launcher entry.
  *
- * Since the Capacitor shell there are two dimensions rather than one: the icon and the
- * interface the icon opens ([UiVariant]). An alias names an activity, so the two cannot be
- * separated in the manifest and the four combinations each get their own alias. Exactly one
- * of the four is ever enabled — [apply] is the only thing that touches them, and it enables
- * one and disables the other three in the same call.
+ * Every alias targets `LauncherActivity`, which is a trampoline: **which interface** the icon
+ * opens is read from [Settings.webUiEnabled] at tap time and is not encoded in the manifest.
+ * That is not a detail. The shell first shipped with an alias per (icon, interface) pair, and
+ * changing interface therefore disabled the alias the user's own task was rooted at, which makes
+ * Android delete that task and with it the interface just started. See
+ * `activity/LauncherActivity.kt` for the full account. Since the aliases no longer name a UI,
+ * this class is back to one dimension: one alias per colour.
+ *
+ * [RETIRED_ALIASES] are the two per-interface aliases from that first version. They are still in
+ * the manifest, disabled, and are switched off explicitly here, so an install that has one of
+ * them enabled does not lose its launcher entry on upgrade.
  */
-enum class AppIconVariant(private val legacyAlias: String, private val webAlias: String) {
-    GREEN("$NAMESPACE.MainAliasGreen", "$NAMESPACE.MainAliasWebGreen"),
-    BLUE("$NAMESPACE.MainAliasBlue", "$NAMESPACE.MainAliasWebBlue");
-
-    /** The manifest class name of the alias for this icon in the given interface. */
-    fun aliasClass(ui: UiVariant): String = when (ui) {
-        UiVariant.LEGACY -> legacyAlias
-        UiVariant.WEB -> webAlias
-    }
+enum class AppIconVariant(val alias: String) {
+    GREEN("$NAMESPACE.MainAliasGreen"),
+    BLUE("$NAMESPACE.MainAliasBlue");
 
     /**
      * The class name comes from the module's namespace, not from [Context.getPackageName]:
      * the debug build carries an `.debug` applicationIdSuffix, so the two differ there and
      * building the name from the package would point at a component that does not exist.
      */
-    @JvmOverloads
-    fun componentName(context: Context, ui: UiVariant = UiVariant.current()): ComponentName = ComponentName(context.packageName, aliasClass(ui))
+    fun componentName(context: Context): ComponentName = ComponentName(context.packageName, alias)
 
     companion object {
+        /**
+         * The aliases of the first shell release, which pointed at an interface rather than at the
+         * trampoline. Kept in the manifest for one reason: a debug install that switched to the
+         * web UI has `MainAliasGreen` disabled and `MainAliasWebGreen` enabled, and a component
+         * removed from the manifest keeps its stored disabled state, so deleting these outright
+         * would leave that install with no icon at all until the user reinstalled.
+         */
+        val RETIRED_ALIASES = listOf(
+            "$NAMESPACE.MainAliasWebGreen",
+            "$NAMESPACE.MainAliasWebBlue"
+        )
+
         fun fromSetting(value: String): AppIconVariant = entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: GREEN
 
         /**
          * Every alias the manifest declares, in a stable order. Kept next to [enabledAlias] so
          * a test can assert that the two agree without a `PackageManager`.
          */
-        fun allAliases(): List<String> = UiVariant.entries.flatMap { ui -> entries.map { it.aliasClass(ui) } }
+        fun allAliases(): List<String> = entries.map { it.alias } + RETIRED_ALIASES
 
-        /** The single alias that must be enabled for a given icon and interface. */
-        fun enabledAlias(variant: AppIconVariant, ui: UiVariant): String = variant.aliasClass(ui)
+        /** The single alias that must be enabled. */
+        fun enabledAlias(variant: AppIconVariant): String = variant.alias
 
-        /** The three that must be disabled at the same moment. */
-        fun disabledAliases(variant: AppIconVariant, ui: UiVariant): List<String> {
-            val enabled = enabledAlias(variant, ui)
-            return allAliases().filter { it != enabled }
-        }
+        /** Everything that must be disabled at the same moment. */
+        fun disabledAliases(variant: AppIconVariant): List<String> = allAliases().filter { it != enabledAlias(variant) }
 
-        @JvmOverloads
-        fun apply(context: Context, variant: AppIconVariant, ui: UiVariant = UiVariant.current()) {
+        /**
+         * Points the launcher at [variant] and at nothing else.
+         *
+         * Safe to call from anywhere, which the previous version was not: the components touched
+         * here are aliases of the trampoline, so no task the user can be standing in is ever
+         * rooted at one of them. It is also idempotent -- `PackageManager` does nothing when the
+         * state it is handed is the state it already has -- so the trampoline calls it on every
+         * launch to repair an install left on a retired alias.
+         */
+        fun apply(context: Context, variant: AppIconVariant) {
             val packageManager = context.packageManager
             packageManager.setComponentEnabledSetting(
-                ComponentName(context.packageName, enabledAlias(variant, ui)),
+                ComponentName(context.packageName, enabledAlias(variant)),
                 PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
                 PackageManager.DONT_KILL_APP
             )
-            disabledAliases(variant, ui).forEach {
+            disabledAliases(variant).forEach {
                 packageManager.setComponentEnabledSetting(
                     ComponentName(context.packageName, it),
                     PackageManager.COMPONENT_ENABLED_STATE_DISABLED,

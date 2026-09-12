@@ -164,11 +164,13 @@ class SettingsFragment :
                 useId3TagsOffline?.isEnabled = enabled
             }
             getString(R.string.setting_key_web_ui) -> {
-                // The launcher lives in the manifest, so the alias has to move with the setting,
-                // and the running activity belongs to the interface being left: the task is
-                // cleared rather than this screen finished, or one back press would return to it.
+                // No launcher component is touched here, and that is the fix: the aliases target
+                // the trampoline, which reads this setting at tap time. Disabling the alias the
+                // user's own task was rooted at is what made Android delete that task and drop
+                // the user on the home screen a second after switching. The running activity does
+                // belong to the interface being left, so the task is cleared rather than this
+                // screen finished, or one back press would return to it.
                 context?.let {
-                    AppIconVariant.apply(it, AppIconVariant.fromSetting(Settings.appIcon))
                     toast(R.string.settings_web_ui_changed)
                     startActivity(
                         UiVariant.launchIntent(it)

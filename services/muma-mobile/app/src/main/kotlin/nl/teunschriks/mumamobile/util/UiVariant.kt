@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import nl.teunschriks.mumamobile.activity.CapacitorActivity
+import nl.teunschriks.mumamobile.activity.LauncherActivity
 import nl.teunschriks.mumamobile.activity.NavigationActivity
 
 /**
@@ -14,9 +15,10 @@ import nl.teunschriks.mumamobile.activity.NavigationActivity
  * `MediaPlayerManager`, the same `PlaybackService`, the same downloads and the same Android
  * Auto session -- only the screens differ, so switching never disturbs what is playing.
  *
- * The choice is stored in [Settings.webUiEnabled] and mirrored into the launcher by
- * [AppIconVariant.apply], because Android decides what a home-screen tap opens from the
- * manifest and not from a preference.
+ * The choice is stored in [Settings.webUiEnabled]. Android decides what a home-screen tap opens
+ * from the manifest and not from a preference, so every launcher alias points at
+ * [LauncherActivity], which asks [current] and forwards. Nothing about the icon depends on this
+ * enum any more; see `activity/LauncherActivity.kt` for why that separation is load-bearing.
  */
 enum class UiVariant {
     LEGACY,
@@ -38,7 +40,18 @@ enum class UiVariant {
          */
         fun current(): UiVariant = if (Settings.webUiEnabled) WEB else LEGACY
 
-        /** An `Intent` at the enabled interface. */
+        /** An `Intent` at the enabled interface, decided now. */
         fun launchIntent(context: Context): Intent = Intent(context, current().activityClass)
+
+        /**
+         * An `Intent` that decides *when it is used* rather than now.
+         *
+         * For anything that outlives the decision: a home-screen shortcut is stored by the
+         * launcher with the component it was created with, so a shortcut built by [launchIntent]
+         * keeps opening the interface that was enabled on the day it was made -- and
+         * `ShortcutUtil` only runs from the Kotlin UI, which a web-UI user never starts again.
+         * Pointing it at the trampoline instead makes the shortcut follow the setting forever.
+         */
+        fun trampolineIntent(context: Context): Intent = Intent(context, LauncherActivity::class.java)
     }
 }

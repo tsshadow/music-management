@@ -91,13 +91,29 @@
             android:launchMode="singleTask"
             android:exported="false" />
 
-        <!-- The launcher entry lives on aliases so the user can pick an icon, and since the
-             Capacitor shell also which interface that icon opens. Four combinations, exactly one
-             enabled at a time; see util/AppIconVariant.kt. The two Web aliases ship disabled, so
-             an install that never touches the setting behaves exactly as before. -->
+        <!--
+            The trampoline every launcher alias points at. It has no window and no UI: it reads
+            the webUiEnabled setting, starts NavigationActivity or CapacitorActivity and finishes.
+            Its own task is the only task ever rooted at an alias, which is the whole point -
+            disabling an alias deletes the tasks rooted at it, and that is what used to throw the
+            user onto the home screen one second after switching interface. taskAffinity="" keeps
+            it out of the app's task, so the UI's task is created from an explicit component and
+            no alias can reach it. See activity/LauncherActivity.kt.
+        -->
+        <activity android:name=".activity.LauncherActivity"
+            android:theme="@style/LauncherTrampoline"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:exported="false" />
+
+        <!-- The launcher entry lives on aliases so the user can pick an icon. Exactly one is
+             enabled at a time; see util/AppIconVariant.kt. All of them target the trampoline, so
+             an alias says which *icon* is showing and never which interface opens. The two Web
+             aliases are the retired per-interface pair, kept disabled so an install that switched
+             to the web UI before this change keeps an icon. -->
         <activity-alias
             android:name=".MainAliasGreen"
-            android:targetActivity=".activity.NavigationActivity"
+            android:targetActivity=".activity.LauncherActivity"
             android:label="@string/common_appname"
             android:icon="@mipmap/ic_launcher"
             android:roundIcon="@mipmap/ic_launcher_round"
@@ -111,7 +127,7 @@
 
         <activity-alias
             android:name=".MainAliasBlue"
-            android:targetActivity=".activity.NavigationActivity"
+            android:targetActivity=".activity.LauncherActivity"
             android:label="@string/common_appname"
             android:icon="@mipmap/ic_launcher_blue"
             android:roundIcon="@mipmap/ic_launcher_blue_round"
@@ -125,7 +141,7 @@
 
         <activity-alias
             android:name=".MainAliasWebGreen"
-            android:targetActivity=".activity.CapacitorActivity"
+            android:targetActivity=".activity.LauncherActivity"
             android:label="@string/common_appname"
             android:icon="@mipmap/ic_launcher"
             android:roundIcon="@mipmap/ic_launcher_round"
@@ -139,7 +155,7 @@
 
         <activity-alias
             android:name=".MainAliasWebBlue"
-            android:targetActivity=".activity.CapacitorActivity"
+            android:targetActivity=".activity.LauncherActivity"
             android:label="@string/common_appname"
             android:icon="@mipmap/ic_launcher_blue"
             android:roundIcon="@mipmap/ic_launcher_blue_round"

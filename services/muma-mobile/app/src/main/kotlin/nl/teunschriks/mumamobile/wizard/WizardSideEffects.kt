@@ -16,11 +16,11 @@ import nl.teunschriks.mumamobile.util.Util
  * same store with no settings screen alive, so without this the preference is stored and nothing
  * observable happens:
  *
- *  - **App icon.** Each variant is an `activity-alias` that has to be enabled by hand, and
- *    `SettingsFragment` is the only caller of [AppIconVariant.apply] in the app - nothing
- *    reconciles the stored value at startup. Picking Blue here without this would leave the
- *    launcher on Green forever while the settings screen already shows Blue as selected, so
- *    re-selecting Blue fires no change event and the two can never be brought back into step.
+ *  - **App icon.** Each variant is an `activity-alias` that has to be enabled by hand. The
+ *    launcher trampoline reconciles the stored value on the next launch, but "next launch" is not
+ *    good enough here: picking Blue would leave the launcher on Green for the rest of this run
+ *    while the settings screen already shows Blue as selected, so re-selecting Blue fires no
+ *    change event and the two can only come back into step by luck.
  *  - **Style** and **interface size.** Both are baked into the activity's context, so they need
  *    the activity rebuilt; `SettingsFragment` does that by publishing on
  *    [RxBus.themeChangedEventPublisher], which `NavigationActivity` turns into `recreate()`.

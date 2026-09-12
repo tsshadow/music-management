@@ -3,6 +3,7 @@ import {
   MANAGEMENT_GROUPS,
   MANAGEMENT_TABS,
   SETTINGS_TABS,
+  modeForView,
   pathToState,
   viewToPath,
 } from "../../src/lib/router.js";
@@ -366,5 +367,23 @@ describe("MANAGEMENT_GROUPS", () => {
   it("sends a stale link to a deleted tab to the management view with no tab", () => {
     expect(pathToState("/management/versions")).toEqual({ view: "management" });
     expect(pathToState("/management/about")).toEqual({ view: "management" });
+  });
+});
+
+/**
+ * The half of navigation that is not a path: the two library views each belong
+ * to a mode, and moving to one without the other is a navigation that undoes
+ * itself.
+ */
+describe("modeForView", () => {
+  it("names the mode the two library views belong to", () => {
+    expect(modeForView("sets")).toBe("sets");
+    expect(modeForView("songs")).toBe("songs");
+  });
+
+  it("leaves the mode alone for every other view", () => {
+    for (const view of ["home", "playlists", "albums", "genre:Hardcore", "management"]) {
+      expect(modeForView(view)).toBeNull();
+    }
   });
 });

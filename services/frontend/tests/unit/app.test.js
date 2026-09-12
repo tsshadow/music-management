@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import App from "../../src/App.svelte";
 import {
@@ -50,6 +50,22 @@ function subsonic() {
       ok: true,
       json: async () => ({ "subsonic-response": { status: "ok", serverVersion: "0.0.57" } }),
     };
+  });
+}
+
+/**
+ * One tab of the phone's bottom bar.
+ *
+ * By its landmark, because the desktop sidebar renders the same two words: the
+ * mode switch has a "Nummers" and a "Sets" of its own, and clicking that one
+ * proves nothing about the tab strip.
+ *
+ * @param {string} label - The tab's visible label.
+ * @returns {HTMLElement}
+ */
+function bottomBarTab(label) {
+  return within(screen.getByRole("navigation", { name: "Navigatiebalk" })).getByRole("button", {
+    name: label,
   });
 }
 
@@ -124,6 +140,36 @@ describe("App", () => {
     viewMode.set("sets");
 
     await waitFor(() => expect(get(activeView)).toBe("sets"));
+  });
+
+  // The tab landed and the route stayed on '/songs': the tap set the view to
+  // 'sets' while the mode still said 'songs', and the effect that keeps the two
+  // in step put the view straight back. Both halves move or neither does.
+  it("the Sets tab in the bottom bar switches the mode and the view together", async () => {
+    render(App);
+    await waitFor(() => expect(screen.getAllByText("Afspeellijsten").length).toBeGreaterThan(0));
+    activeView.set("songs");
+
+    await fireEvent.click(bottomBarTab("Sets"));
+
+    await waitFor(() => expect(get(activeView)).toBe("sets"));
+    expect(get(viewMode)).toBe("sets");
+    expect(window.location.pathname).toBe("/sets");
+    // The brand colour the whole app reads off the document.
+    expect(document.documentElement.classList.contains("mode-sets")).toBe(true);
+  });
+
+  it("the Nummers tab takes the app back out of set mode", async () => {
+    viewMode.set("sets");
+    render(App);
+    await waitFor(() => expect(screen.getAllByText("Afspeellijsten").length).toBeGreaterThan(0));
+    activeView.set("sets");
+
+    await fireEvent.click(bottomBarTab("Nummers"));
+
+    await waitFor(() => expect(get(activeView)).toBe("songs"));
+    expect(get(viewMode)).toBe("songs");
+    expect(window.location.pathname).toBe("/songs");
   });
 
   it("switching back to song mode moves the sets view along", async () => {

@@ -14,9 +14,10 @@
   import SettingsSidebar from './lib/SettingsSidebar.svelte';
   import ManagementSidebar from './lib/management/ManagementSidebar.svelte';
   import SearchMoreModal from './lib/SearchMoreModal.svelte';
+  import BottomSheet from './lib/BottomSheet.svelte';
   import Toaster from './lib/Toaster.svelte';
   import { notify } from './lib/notifications.js';
-  import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, currentTrack, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive, pushedHistoryEntries, sidebarDrawerOpen, searchResultsOpen, restUrl } from './lib/store.js';
+  import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, currentTrack, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive, pushedHistoryEntries, sidebarDrawerOpen, searchResultsOpen, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying } from './lib/store.js';
   import { get } from 'svelte/store';
   import { modeForView, pathToState, viewToPath, phoneTabForView } from './lib/router.js';
   import { platform } from './lib/platform/index.js';
@@ -142,6 +143,18 @@
     }
 
     window.addEventListener('popstate', () => {
+        // Now Playing pushed its own entry on open (see `openNowPlaying`). A
+        // real, external back press -- a browser back button with no shell in
+        // front of it -- lands here first and is what actually has to close
+        // the view; `closeNowPlaying` (the chevron, a swipe, the shell's own
+        // back gesture) already flipped `nowPlayingOpen` before this fires, so
+        // this branch is skipped then and the fall-through below only
+        // consumes the entry.
+        if (get(nowPlayingOpen)) {
+          nowPlayingOpen.set(false);
+          pushedHistoryEntries.update((n) => Math.max(0, n - 1));
+          return;
+        }
         applyState(pathToState(window.location.pathname));
         pushedHistoryEntries.update((n) => Math.max(0, n - 1));
     });
@@ -177,6 +190,15 @@
    * @returns {boolean} Whether the press was used.
    */
   function handleShellBack() {
+    // Now Playing's own queue button opens the same bottom sheet as the
+    // mini player's, stacked on top of it -- so a press while both are open
+    // has to close the sheet first (the `showQueue` branch further down) and
+    // leave Now Playing for the next one, rather than close what looks like
+    // nothing from on top of the sheet.
+    if (get(nowPlayingOpen) && !showQueue) {
+      closeNowPlaying();
+      return true;
+    }
     if (get(activeModal)) {
       activeModal.set(null);
       return true;
@@ -207,10 +229,14 @@
    * @param {string} route
    */
   async function handleDeepLink(route) {
-    const action = deepLinkAction(route);
+    const action = deepLinkAction(route, { isMobile: get(isMobile) });
     platform.diagnostics.log('deeplink', { route, unbuilt: action.unbuilt ?? null });
     if (action.kind === 'queue') {
       showQueue = true;
+      return;
+    }
+    if (action.kind === 'now-playing') {
+      openNowPlaying();
       return;
     }
     if (action.kind === 'random') {
@@ -425,6 +451,32 @@
     </div>
   {/if}
 </main>
+{/if}
+
+{#if showQueue && $isMobile}
+  <!-- The phone has no room for the resizable desktop panel above, so the same
+       queue -- same actions, same list -- opens as a bottom sheet instead.
+       Reachable from the mini player's queue button and from Now Playing's. -->
+  <BottomSheet title={$t('queue.title')} onclose={() => showQueue = false}>
+    <div class="flex items-center gap-2 px-4 pb-3">
+      <button class="flex items-center justify-center w-9 h-9 rounded-full bg-transparent text-[#b3b3b3] hover:bg-white/10 hover:text-white transition-all cursor-pointer" onclick={saveQueueAsPlaylist} aria-label={$t('queue.saveAsPlaylist')}>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+          <path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2v9.67z"></path>
+        </svg>
+      </button>
+      <button class="flex items-center justify-center w-9 h-9 rounded-full bg-transparent text-[#b3b3b3] hover:bg-white/10 hover:text-white transition-all cursor-pointer" onclick={shuffleQueue} aria-label={$t('queue.shuffle')}>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+          <path d="M4.5 6.307a.75.75 0 1 1 0-1.5 5.862 5.862 0 0 1 4.671 2.382l.66.883 5.03 6.717a4.362 4.362 0 0 0 3.471 1.769h1.918a.75.75 0 1 1 0 1.5h-1.918a5.862 5.862 0 0 1-4.671-2.381l-.66-.883-5.03-6.717a4.362 4.362 0 0 0-3.471-1.77H4.5zM14.862 8.567l.66-.883A5.862 5.862 0 0 1 20.193 5.3h1.057a.75.75 0 1 1 0 1.5h-1.057a4.362 4.362 0 0 0-3.471 1.768l-.66.883-.16-.214-.132-.176-.908-1.213-.01.014zM4.5 19.193a.75.75 0 1 0 0-1.5h1.057a4.362 4.362 0 0 0 3.471-1.768l.66-.883.908 1.213.14.186.124.166.01-.013.66.883A5.862 5.862 0 0 1 16.208 20.193H4.5z"></path>
+        </svg>
+      </button>
+      <button class="flex items-center justify-center w-9 h-9 rounded-full bg-transparent text-[#b3b3b3] hover:bg-white/10 hover:text-white transition-all cursor-pointer" onclick={clearQueue} aria-label={$t('queue.clear')}>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
+        </svg>
+      </button>
+    </div>
+    <TrackList tracks={$playlist} isQueue={true} onnavigate={handleNavigate} />
+  </BottomSheet>
 {/if}
 
 {#if $activeModal}

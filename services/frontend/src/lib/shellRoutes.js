@@ -17,15 +17,19 @@ export const SHELL_ROUTES = ["car", "voice", "player", "random", "search:<query>
  * What to do about one route.
  *
  * @param {string} route - `car`, `voice`, `player`, `random` or `search:<query>`.
- * @returns {{kind: 'queue'|'random'|'view', view?: string, unbuilt?: string}}
- *   `queue` opens the queue the app has today · `random` fills the queue with
- *   random tracks in the current mode · `view` sets `activeView`. `unbuilt` is
- *   set for a route whose screen is a later phase: it still lands somewhere
- *   usable, and the action log says which screen was asked for, which is the
- *   only way a tap that "did nothing" can be read back out of a crash report.
+ * @param {{isMobile?: boolean}} [context] - `isMobile` is read from the
+ *   `isMobile` store by the caller rather than imported here, so this stays a
+ *   pure function of its arguments and is cheap to test for both shells.
+ * @returns {{kind: 'queue'|'now-playing'|'random'|'view', view?: string, unbuilt?: string}}
+ *   `queue` opens the desktop queue panel · `now-playing` opens the phone's
+ *   full-screen player · `random` fills the queue with random tracks in the
+ *   current mode · `view` sets `activeView`. `unbuilt` is set for a route
+ *   whose screen is a later phase: it still lands somewhere usable, and the
+ *   action log says which screen was asked for, which is the only way a tap
+ *   that "did nothing" can be read back out of a crash report.
  */
-export function deepLinkAction(route) {
-  if (route === "player") return { kind: "queue" };
+export function deepLinkAction(route, { isMobile = false } = {}) {
+  if (route === "player") return { kind: isMobile ? "now-playing" : "queue" };
   if (route === "random") return { kind: "random" };
   if (typeof route === "string" && route.startsWith("search:")) {
     const query = route.slice("search:".length).trim();

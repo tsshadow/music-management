@@ -148,6 +148,12 @@
     "play": "Nieuws van t uur",
     "playing": "Nieuws speult, tikke um terogge te gaon"
   },
+  "nowPlaying": {
+    "close": "Dichtdoun",
+    "pause": "Pauze",
+    "play": "Ofspölen",
+    "playingFrom": "Speult van: {name}"
+  },
   "player": {
     "next": "Volgende",
     "nothingPlaying": "Der geet niks an",

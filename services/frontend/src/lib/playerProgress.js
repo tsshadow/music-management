@@ -32,3 +32,20 @@ export function progressPercent(progress, duration) {
   if (!Number.isFinite(progress) || !Number.isFinite(duration) || duration <= 0) return 0;
   return Math.max(0, Math.min(100, (progress / duration) * 100));
 }
+
+/**
+ * Formats seconds into a "M:SS" string, shared between the mini player and the
+ * full-screen Now Playing view so a track's elapsed/total time reads the same
+ * everywhere.
+ *
+ * @param {number} seconds - Time in seconds.
+ * @returns {string} Formatted time string.
+ */
+export function formatTime(seconds) {
+  // `Infinity` as well as `NaN`: an endless stream reports one, and it would
+  // render as "Infinity:NaN".
+  if (!Number.isFinite(seconds)) return "0:00";
+  const min = Math.floor(seconds / 60);
+  const sec = Math.floor(seconds % 60);
+  return `${min}:${sec < 10 ? "0" : ""}${sec}`;
+}

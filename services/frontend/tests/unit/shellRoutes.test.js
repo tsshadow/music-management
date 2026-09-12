@@ -12,6 +12,17 @@ describe("deepLinkAction", () => {
     expect(deepLinkAction("player")).toEqual({ kind: "queue" });
   });
 
+  it("opens the queue on desktop even when asked explicitly", () => {
+    expect(deepLinkAction("player", { isMobile: false })).toEqual({ kind: "queue" });
+  });
+
+  // The phone has no desktop queue panel: the same notification tap opens the
+  // full-screen Now Playing view instead, which is where the transport lives
+  // on that layout.
+  it("opens Now Playing for the same tap on the phone", () => {
+    expect(deepLinkAction("player", { isMobile: true })).toEqual({ kind: "now-playing" });
+  });
+
   it("plays something for the car-mode 'play random' intent", () => {
     expect(deepLinkAction("random")).toEqual({ kind: "random" });
   });

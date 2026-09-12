@@ -893,6 +893,12 @@
     "trackRefreshFailed": "Could not refresh the track",
     "trackRefreshed": "Track refreshed. The changes appear in a few seconds."
   },
+  "nowPlaying": {
+    "close": "Close",
+    "pause": "Pause",
+    "play": "Play",
+    "playingFrom": "Playing from: {name}"
+  },
   "player": {
     "next": "Next",
     "nothingPlaying": "Nothing playing",

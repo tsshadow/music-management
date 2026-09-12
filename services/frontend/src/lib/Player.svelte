@@ -1,8 +1,9 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
-  import { currentTrack, playerState, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey, equalizerSettings, restUrl } from './store.js';
+  import { currentTrack, playerState, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey, equalizerSettings, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying } from './store.js';
   import Equalizer from './Equalizer.svelte';
+  import NowPlaying from './NowPlaying.svelte';
   import * as equalizer from './equalizer.js';
   // Everything this component does with playback goes through here; the engine
   // behind it is the browser's <audio> today and the phone's PlaybackService
@@ -12,7 +13,7 @@
   import { createNativeQueue, trackAfterCommand } from './nativeQueue.js';
   import { createRadioController } from './radioController.js';
   import { shouldPushJamState } from './radioSync.js';
-  import { resolveDuration, progressPercent } from './playerProgress.js';
+  import { resolveDuration, progressPercent, formatTime } from './playerProgress.js';
   import { describeFilter } from './management/radioChannels.js';
   import { snapshotOf, restoreTarget, bulletinStreamUrl } from './newsQueue.js';
   import { startTrail, stepBack, stepForward } from './shuffleHistory.js';
@@ -59,20 +60,21 @@
 
   let showEqualizer = $state(false);
   let equalizerPanelEl = $state(null);
-  let equalizerButtonEl = $state(null);
   const equalizerSupported = equalizer.isSupported();
 
   /**
    * Closes the panel on a click elsewhere.
    *
-   * The toggle button has to be excluded as well as the panel: on mobile the
-   * button sits in the mini player and the sheet is a separate fixed element,
-   * so without this check the button's own click would close the sheet again
-   * the instant its handler opened it.
+   * Every toggle button has to be excluded as well as the panel, not just one
+   * of them: on mobile the button sits in the mini player and the sheet is a
+   * separate fixed element, and Now Playing renders a third button of its own
+   * -- without this check any of their own clicks would close the sheet again
+   * the instant its handler opened it. `data-eq-toggle` is what all three
+   * share, rather than a separate bound element ref per button.
    */
   function closeEqualizerOnOutsideClick(event) {
     if (equalizerPanelEl?.contains(event.target)) return;
-    if (equalizerButtonEl?.contains(event.target)) return;
+    if (event.target.closest('[data-eq-toggle]')) return;
     showEqualizer = false;
   }
 
@@ -755,21 +757,6 @@
 
 
   /**
-   * Formats seconds into a "M:SS" string.
-   *
-   * @param {number} seconds - Time in seconds.
-   * @returns {string} Formatted time string.
-   */
-  function formatTime(seconds) {
-    // `Infinity` as well as `NaN`: an endless stream reports one, and it would
-    // render as "Infinity:NaN".
-    if (!Number.isFinite(seconds)) return "0:00";
-    const min = Math.floor(seconds / 60);
-    const sec = Math.floor(seconds % 60);
-    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
-  }
-
-  /**
    * Cycles through repeat modes: none -> all -> one -> none.
    */
   function toggleRepeat() {
@@ -841,6 +828,20 @@
       highlightedTrackId.set(track.id);
       onnavigate(`album:${track.albumId}`);
     }
+  }
+
+  /**
+   * Opens the full-screen Now Playing view for a tap on the mobile mini
+   * player -- everywhere on it except the play/pause and next buttons, which
+   * are real `<button>`s nested inside the same tappable row and keep their
+   * own action instead.
+   *
+   * @param {MouseEvent} e
+   */
+  function handleMiniPlayerTap(e) {
+    if (e.target.closest('button')) return;
+    if (!track) return;
+    openNowPlaying();
   }
 
   const track = $derived($radioChannel && $radioNowPlaying
@@ -1229,11 +1230,21 @@
 
 <footer class="flex items-center h-full px-2 md:px-4 relative">
   {#if $isMobile}
-    <!-- Mobile Mini Player -->
-    <div class="flex flex-1 items-center gap-3 min-w-0 py-2 h-full">
+    <!-- Mobile Mini Player. A tap anywhere on it opens Now Playing, except on the
+         play/pause and next buttons -- those are real <button>s inside this same
+         row and keep their own action; `handleMiniPlayerTap` is what tells the
+         two apart. Album navigation (`goToAlbum`, still used by the desktop
+         player below) moves to that full-screen view instead of firing here. -->
+    <div
+      class="flex flex-1 items-center gap-3 min-w-0 py-2 h-full {track ? 'cursor-pointer' : ''}"
+      role="button"
+      tabindex="0"
+      onclick={handleMiniPlayerTap}
+      onkeydown={(e) => e.key === 'Enter' && handleMiniPlayerTap(e)}
+    >
       {#if track}
         <img src={coverUrl} alt={track.title} class="w-11 h-11 rounded shadow-lg" onerror={(e) => e.target.src = '/images/spotify-fallback.svg'} />
-        <div class="flex-1 min-w-0 cursor-pointer" onclick={goToAlbum} role="button" tabindex="0" onkeydown={(e) => e.key === 'Enter' && goToAlbum()}>
+        <div class="flex-1 min-w-0">
           <div class="text-[13px] font-bold text-white truncate">{track.title}</div>
           <div class="flex items-center gap-1.5 min-w-0">
             {#if primaryArtist}
@@ -1273,7 +1284,7 @@
       <div class="flex items-center gap-3 px-2">
         {#if equalizerSupported}
           <button
-            bind:this={equalizerButtonEl}
+            data-eq-toggle
             class="bg-transparent border-none p-0 cursor-pointer transition-colors {$equalizerSettings.enabled ? 'text-brand' : 'text-[#b3b3b3]'}"
             onclick={() => (showEqualizer = !showEqualizer)}
             aria-label={$t('equalizer.title')}
@@ -1325,6 +1336,34 @@
         <Equalizer onclose={() => (showEqualizer = false)} />
       </div>
     {/if}
+    <!-- Reuses everything this component already computed for the mini player --
+         rating, transport, shuffle/repeat -- rather than a second copy of that
+         state. Its own queue button goes through the same `ontoggleQueue` the
+         mini player never exposed a button for, so it opens the one queue view
+         App.svelte already renders (a bottom sheet on the phone). -->
+    <NowPlaying
+      open={$nowPlayingOpen}
+      {track}
+      {playing}
+      {progress}
+      {duration}
+      rating={currentRating}
+      {shuffleMode}
+      {repeatMode}
+      {transportLocked}
+      {coverUrl}
+      {equalizerSupported}
+      onclose={closeNowPlaying}
+      ontogglePlay={togglePlay}
+      onnext={playNext}
+      onprev={playPrev}
+      onrate={updateRating}
+      ontoggleShuffle={toggleShuffleMode}
+      ontoggleRepeat={toggleRepeat}
+      onseek={seek}
+      ontoggleEqualizer={() => (showEqualizer = !showEqualizer)}
+      {ontoggleQueue}
+    />
   {:else}
     <!-- Desktop Player -->
     <div class="w-[30%] hidden md:flex items-center gap-3">
@@ -1509,7 +1548,7 @@
       {#if equalizerSupported}
         <div class="relative">
           <button
-            bind:this={equalizerButtonEl}
+            data-eq-toggle
             class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white {$equalizerSettings.enabled ? 'text-brand' : 'text-[#b3b3b3]'}"
             onclick={() => (showEqualizer = !showEqualizer)}
             aria-label={$t('equalizer.title')}

@@ -33,6 +33,7 @@
     "cancel": "Laot mer zitte",
     "close": "Dichtdoen",
     "closeModal": "Vensterke dichtdoen",
+    "closeSheet": "Paneelke dichtdoen",
     "download": "Binnehaole",
     "edit": "Bewerke",
     "gotIt": "Duidelijk, jong",
@@ -79,6 +80,7 @@
     "allGenres": "Alle soorte",
     "allRatings": "Alles",
     "allYears": "Alle jaore",
+    "genre": "Soort",
     "sortBy": "Sortere op",
     "year": "Jaor"
   },

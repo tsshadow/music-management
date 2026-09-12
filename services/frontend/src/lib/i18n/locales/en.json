@@ -27,7 +27,9 @@
       "other": "{count} albums"
     },
     "allOfLineup": "Everything from {name}",
+    "ascending": "Ascending",
     "clearFilters": "Clear filters",
+    "descending": "Descending",
     "episodeCount": {
       "one": "{count} episode",
       "other": "{count} episodes"
@@ -65,6 +67,7 @@
     "cancel": "Cancel",
     "close": "Close",
     "closeModal": "Close dialogue",
+    "closeSheet": "Close sheet",
     "download": "Download",
     "edit": "Edit",
     "gotIt": "Got it",
@@ -137,6 +140,9 @@
     "allGenres": "All genres",
     "allRatings": "All",
     "allYears": "All years",
+    "clearFilter": "Clear {name}",
+    "filtersGroup": "Filters",
+    "genre": "Genre",
     "rating": "Rating",
     "refreshList": "Refresh list",
     "role": "Role",
@@ -153,6 +159,8 @@
       "track": "Track artists",
       "writer": "Writers"
     },
+    "searchClose": "Close search",
+    "searchOpen": "Open search",
     "sortBy": "Sort by",
     "starsExactly": {
       "one": "{count} star",

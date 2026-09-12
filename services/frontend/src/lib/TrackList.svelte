@@ -381,7 +381,7 @@
   <thead class="border-b border-white/10">
     <tr>
       <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[50px] text-right hidden md:table-cell">#</th>
-      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em]">{$t('track.title')}</th>
+      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em]">{#if !$isMobile}{$t('track.title')}{/if}</th>
       {#if !isQueue}
         <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] hidden md:table-cell">{$t('common.album')}</th>
         <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] hidden md:table-cell">{$t('nav.genres')}</th>
@@ -426,7 +426,7 @@
             <img
               src={coverArtSrc(track.coverArt, 48, $authParams, $localCoverArt, $offline)}
               alt=""
-              class="w-10 h-10 md:w-12 md:h-12 rounded shadow"
+              class="w-12 h-12 rounded shadow"
               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
             />
             <div class="flex flex-col min-w-0">
@@ -458,6 +458,25 @@
                 active={String($currentTrack?.id) === String(track.id)}
                 onnavigate={onnavigate}
               />
+              {#if $isMobile && !isQueue}
+                <!-- The phone has no hover state to reveal the desktop rating
+                     column (`hidden lg:table-cell` below), so a touch device
+                     gets its own copy under the artist instead of losing
+                     rating access entirely. -->
+                <div class="flex gap-0.5 mt-0.5" data-testid="mobile-rating">
+                  {#each [1, 2, 3, 4, 5] as star (star)}
+                    <button
+                      aria-label="{star} sterren"
+                      class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { ratingOf(track) >= star ? 'text-brand' : 'text-white/20' }"
+                      onclick={(e) => { e.stopPropagation(); updateRating(track, star); }}
+                    >
+                      <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor">
+                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+                      </svg>
+                    </button>
+                  {/each}
+                </div>
+              {/if}
             </div>
           </div>
         </td>
@@ -491,19 +510,21 @@
             {track.globalPlayCount || ''}
           </td>
           <td class="p-2 px-4 hidden lg:table-cell">
-            <div class="flex gap-0.5 justify-center">
-              {#each [1, 2, 3, 4, 5] as star (star)}
-                <button
-                  aria-label="{star} sterren"
-                  class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { ratingOf(track) >= star ? 'text-brand' : 'text-white/10 hover:text-white/30' }"
-                  onclick={(e) => { e.stopPropagation(); updateRating(track, star); }}
-                >
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
-                  </svg>
-                </button>
-              {/each}
-            </div>
+            {#if !$isMobile}
+              <div class="flex gap-0.5 justify-center">
+                {#each [1, 2, 3, 4, 5] as star (star)}
+                  <button
+                    aria-label="{star} sterren"
+                    class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { ratingOf(track) >= star ? 'text-brand' : 'text-white/10 hover:text-white/30' }"
+                    onclick={(e) => { e.stopPropagation(); updateRating(track, star); }}
+                  >
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+                    </svg>
+                  </button>
+                {/each}
+              </div>
+            {/if}
           </td>
         {/if}
         <td class="p-2 px-4 text-right text-xs md:text-sm">{formatTime(track.duration * 1000)}</td>

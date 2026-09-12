@@ -27,7 +27,9 @@
       "other": "{count} albums"
     },
     "allOfLineup": "Alles van {name}",
+    "ascending": "Oplopend",
     "clearFilters": "Filters wissen",
+    "descending": "Aflopend",
     "episodeCount": {
       "one": "{count} aflevering",
       "other": "{count} afleveringen"
@@ -65,6 +67,7 @@
     "cancel": "Annuleren",
     "close": "Sluiten",
     "closeModal": "Modal sluiten",
+    "closeSheet": "Paneel sluiten",
     "download": "Downloaden",
     "edit": "Bewerken",
     "gotIt": "Duidelijk",
@@ -137,6 +140,9 @@
     "allGenres": "Alle Genres",
     "allRatings": "Alle",
     "allYears": "Alle Jaren",
+    "clearFilter": "{name} wissen",
+    "filtersGroup": "Filters",
+    "genre": "Genre",
     "rating": "Rating",
     "refreshList": "Lijst vernieuwen",
     "role": "Rol",
@@ -153,6 +159,8 @@
       "track": "Nummer artiesten",
       "writer": "Schrijvers"
     },
+    "searchClose": "Zoeken sluiten",
+    "searchOpen": "Zoeken openen",
     "sortBy": "Sorteer op",
     "starsExactly": {
       "one": "{count} ster",

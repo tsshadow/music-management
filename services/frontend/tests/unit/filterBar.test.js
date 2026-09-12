@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/svelte";
 import FilterBar from "../../src/lib/FilterBar.svelte";
-import { credentials, visibleSortOptions } from "../../src/lib/store.js";
+import { credentials, visibleSortOptions, isMobile } from "../../src/lib/store.js";
 
 const GENRES = [
   { value: "Uptempo", songCount: 40 },
@@ -190,5 +190,127 @@ describe("FilterBar", () => {
     await vi.advanceTimersByTimeAsync(100);
     expect(onchange).toHaveBeenCalledWith(expect.objectContaining({ search: "anger" }));
     vi.useRealTimers();
+  });
+});
+
+describe("FilterBar phone chips", () => {
+  beforeEach(() => {
+    credentials.set({ url: "", username: "user", password: "pw" });
+    visibleSortOptions.set({
+      songs: ["recent", "alpha"],
+      albums: ["newest"],
+      artists: ["alphabetical"],
+    });
+    globalThis.fetch = subsonic();
+    isMobile.set(true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    isMobile.set(false);
+  });
+
+  async function renderMobile(props = {}) {
+    const rendered = render(FilterBar, { onchange: vi.fn(), ...props });
+    await waitFor(() => expect(screen.getByTestId("mobile-filter-chips")).toBeTruthy());
+    return rendered;
+  }
+
+  it("shows the chip row instead of the desktop panel", async () => {
+    await renderMobile();
+
+    expect(screen.getByTestId("mobile-filter-bar")).toBeTruthy();
+    expect(screen.queryByLabelText("Genres")).toBeNull();
+  });
+
+  it("opens the genre sheet, picks an option, and reports it", async () => {
+    const onchange = vi.fn();
+    await renderMobile({ onchange });
+
+    await fireEvent.click(screen.getByTestId("chip-genre"));
+    const sheet = await screen.findByTestId("bottom-sheet");
+    await fireEvent.click(within(sheet).getByText("Hardcore (1200)"));
+
+    expect(onchange).toHaveBeenCalledWith(expect.objectContaining({ genre: "Hardcore" }));
+    await waitFor(() => expect(screen.queryByTestId("bottom-sheet")).toBeNull());
+  });
+
+  it("shows the chosen genre on the chip, filled in", async () => {
+    await renderMobile({ genre: "Hardcore" });
+
+    const chip = screen.getByTestId("chip-genre");
+    expect(within(chip).getByText("Hardcore")).toBeTruthy();
+  });
+
+  it("clears an active filter from its chip without opening the sheet", async () => {
+    const onchange = vi.fn();
+    await renderMobile({ genre: "Hardcore", onchange });
+
+    await fireEvent.click(screen.getByLabelText("Hardcore wissen"));
+
+    expect(onchange).toHaveBeenCalledWith(expect.objectContaining({ genre: "" }));
+    expect(screen.queryByTestId("bottom-sheet")).toBeNull();
+  });
+
+  it("picks a year from its sheet", async () => {
+    const onchange = vi.fn();
+    await renderMobile({ onchange });
+
+    await fireEvent.click(screen.getByTestId("chip-year"));
+    const sheet = await screen.findByTestId("bottom-sheet");
+    await fireEvent.click(within(sheet).getByText("2024"));
+
+    expect(onchange).toHaveBeenCalledWith(expect.objectContaining({ year: "2024" }));
+  });
+
+  it("picks a sort option; the sort chip always shows the current choice", async () => {
+    const onchange = vi.fn();
+    await renderMobile({ onchange });
+
+    expect(within(screen.getByTestId("chip-sort")).getByText("Recent uitgebracht")).toBeTruthy();
+
+    await fireEvent.click(screen.getByTestId("chip-sort"));
+    const sheet = await screen.findByTestId("bottom-sheet");
+    await fireEvent.click(within(sheet).getByText("Alfabetisch"));
+
+    expect(onchange).toHaveBeenCalledWith(expect.objectContaining({ sort: "alpha" }));
+  });
+
+  it("toggles the unrated chip", async () => {
+    const onchange = vi.fn();
+    await renderMobile({ onchange });
+
+    const chip = screen.getByTestId("chip-unrated");
+    expect(chip.getAttribute("aria-pressed")).toBe("false");
+
+    await fireEvent.click(chip);
+
+    expect(onchange).toHaveBeenCalledWith(expect.objectContaining({ includeUnrated: false }));
+    expect(chip.getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("expands a compact search chip into an input", async () => {
+    const onchange = vi.fn();
+    vi.useFakeTimers();
+    await renderMobile({ onchange });
+
+    expect(screen.queryByRole("textbox")).toBeNull();
+
+    await fireEvent.click(screen.getByTestId("chip-search"));
+    expect(screen.getByRole("textbox")).toBeTruthy();
+
+    await fireEvent.input(screen.getByRole("textbox"), { target: { value: "anger" } });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(onchange).toHaveBeenCalledWith(expect.objectContaining({ search: "anger" }));
+    vi.useRealTimers();
+  });
+
+  it("only offers genre/year/rating chips on the songs view", async () => {
+    await renderMobile({ view: "artists" });
+
+    expect(screen.queryByTestId("chip-genre")).toBeNull();
+    expect(screen.queryByTestId("chip-year")).toBeNull();
+    expect(screen.queryByTestId("chip-rating")).toBeNull();
+    expect(screen.getByTestId("chip-role")).toBeTruthy();
   });
 });

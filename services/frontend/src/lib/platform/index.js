@@ -179,6 +179,16 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   build URLs on; an empty string means same origin. Synchronous everywhere: a
  *   shell that has to ask across a bridge caches the answer, and its boot path
  *   pulls it once with `loadServerUrl()` before anything fetches.
+ * @property {function(): Promise<void>} signOut Ends the session on the phone -- the
+ *   stored password, the muma API key/user id and the muma tokens, plus whatever the
+ *   platform service had queued. A browser tab has none of that and resolves at once.
+ *   Downloaded files are never touched by this. The caller still owns clearing its own
+ *   stores and reloading; this only has to make sure the next boot has nothing left to
+ *   sign back in with.
+ * @property {function({url?: string, username: string, password: string}): Promise<void>}
+ *   saveCredentials Writes a pair the web login screen just verified back to the phone,
+ *   so downloads, Android Auto and the legacy UI see the same session afterwards. A
+ *   browser tab has nowhere to put it and resolves at once.
  * @property {function(function(): boolean): function(): void} onBack The platform's
  *   back gesture, not browser history. The handler must be synchronous and
  *   return `true` when it used the press -- closing a sheet, a drawer or a

@@ -19,6 +19,7 @@ import nl.teunschriks.mumamobile.di.DB_FILENAME
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.resetMusicService
 import nl.teunschriks.mumamobile.service.RxBus
 import nl.teunschriks.mumamobile.util.Constants
+import nl.teunschriks.mumamobile.util.SecureSettings
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Util
 import timber.log.Timber
@@ -192,6 +193,35 @@ class ActiveServerProvider(private val repository: ServerSettingDao) : Coroutine
                 resetMusicService()
             }
         }
+    }
+
+    /**
+     * Persists a signed-in username/password pair, e.g. from the Capacitor shell's web login
+     * screen, so downloads, Android Auto and the legacy UI see the same session. Goes through
+     * [update] -- the same path the server-selector settings screen uses -- rather than writing
+     * [Settings] a second way. There is one server in static mode (see
+     * [nl.teunschriks.mumamobile.model.ServerSettingsModel.STATIC_SERVERS]), so its url is fixed
+     * and only the credentials move.
+     */
+    fun saveCredentials(username: String, password: String) {
+        update(getActiveServer().copy(userName = username, password = password))
+    }
+
+    /**
+     * Clears everything that can authenticate: the static password, the muma API key/user id and
+     * the encrypted muma tokens in [SecureSettings]. The username is kept -- it is not a secret,
+     * and it is what the next sign-in prefills. This is the same clearing `NavigationActivity`'s
+     * logout menu already did; both now call this so there is one definition of "signed out".
+     * Callers that hold a [nl.teunschriks.mumamobile.service.MediaPlayerManager] still have to
+     * clear its queue themselves -- that is not this class's job. Downloaded files are untouched.
+     */
+    fun signOut() {
+        Settings.staticPassword = ""
+        Settings.mumaApiKey = ""
+        Settings.mumaUserId = -1
+        SecureSettings.clear()
+        invalidateCache()
+        resetMusicService()
     }
 
     /**

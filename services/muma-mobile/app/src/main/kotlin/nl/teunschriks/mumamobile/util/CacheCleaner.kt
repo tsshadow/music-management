@@ -73,6 +73,23 @@ class CacheCleaner :
         }
     }
 
+    /**
+     * The user pressing "Clear cache": every complete or partial download goes, regardless of the
+     * cache-size preference, except pinned files (they never match [isPartial]/[isComplete] in the
+     * first place) and whatever the current playlist is holding onto ([findFilesToNotDelete]).
+     * Shares the same `cleaning` flag as [clean] so the two cannot run over each other.
+     */
+    fun clearCache() {
+        if (cleaning) return
+        synchronized(lock) {
+            if (cleaning) return
+            cleaning = true
+            launch(exceptionHandler("clearCache")) {
+                backgroundClearCache()
+            }
+        }
+    }
+
     fun cleanPlaylists(playlists: List<Playlist>) {
         if (playlistCleaning) return
         synchronized(lock) {
@@ -207,6 +224,25 @@ class CacheCleaner :
             Timber.e(all, "Error in cache cleaning.")
         } finally {
             spaceCleaning = false
+        }
+    }
+
+    private fun backgroundClearCache() {
+        try {
+            val files: MutableList<AbstractFile> = ArrayList()
+            val dirs: MutableList<AbstractFile> = ArrayList()
+
+            findCandidatesForDeletion(musicDirectory, files, dirs)
+            val filesToNotDelete = findFilesToNotDelete()
+            // A bytesToDelete of Long.MAX_VALUE with deletePartials = false deletes everything
+            // deleteFiles is willing to touch, instead of stopping once the cache-size preference
+            // is satisfied the way backgroundSpaceCleanup does.
+            deleteFiles(files, filesToNotDelete, Long.MAX_VALUE, false)
+            deleteEmptyDirs(dirs, filesToNotDelete)
+        } catch (all: RuntimeException) {
+            Timber.e(all, "Error clearing cache.")
+        } finally {
+            cleaning = false
         }
     }
 

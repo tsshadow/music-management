@@ -145,6 +145,9 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   'none'|'queued'|'running'|'done'|'failed'>>} stateOf Batched per list.
  * @property {function(string): Promise<boolean>} isLocal
  * @property {function(): Promise<number>} size Bytes used.
+ * @property {function(): Promise<void>} clearCache Deletes every downloaded file that is not
+ *   pinned, after cancelling whatever is queued or downloading. What the device-settings tab's
+ *   "Clear cache" row calls; a browser tab has nothing to delete and resolves at once.
  * @property {function(): Promise<boolean>} isOffline Whether there is no route to
  *   the server. Advisory: a caller still tries the server and falls back on a
  *   failure, because a reachable internet is not a reachable LAN.
@@ -173,6 +176,32 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  */
 
 /**
+ * @typedef {object} DeviceSettings The "Apparaat" settings tab's whole state, as
+ *   `platform.system.getSettings()` answers it. Every field here except
+ *   `cacheLocationUri`, `carModeDeviceCount` and `carModeFullScreenGranted` is also a key
+ *   `setSetting` accepts; those three are shown, not edited -- the device-settings tab
+ *   sends the user to `openLegacySettings()` for them instead. `carModeFullScreenGranted`
+ *   is absent entirely rather than `false` where the question does not apply (below
+ *   Android 14): a missing key means "not applicable", not "denied".
+ * @property {boolean} wifiOnly
+ * @property {number} parallelDownloads
+ * @property {number} cacheSizeMB `-1` means no limit.
+ * @property {string} cacheLocationUri Read-only; empty means the default location.
+ * @property {number} maxBitrateMobile Kbps; `0` means no limit.
+ * @property {number} maxBitrateWifi Kbps; `0` means no limit.
+ * @property {number} preloadCount `-1` means the whole queue.
+ * @property {boolean} resumeOnHeadphonesPlug
+ * @property {number} resumeOnBluetoothDevice `0` any device, `1` A2DP only, `2` never.
+ * @property {number} pauseOnBluetoothDevice Same three values as `resumeOnBluetoothDevice`.
+ * @property {boolean} hardwareOffload
+ * @property {boolean} carModeManual
+ * @property {number} carModeDeviceCount Read-only: how many Bluetooth devices are marked
+ *   as "this is my car".
+ * @property {boolean} [carModeFullScreenGranted] Read-only; absent where not applicable.
+ * @property {boolean} scrobbleEnabled
+ */
+
+/**
  * @typedef {object} PlatformSystem The shell itself.
  * @property {boolean} isNative
  * @property {function(): {subsonic: string, mumaApi: string}} serverUrl Bases to
@@ -197,6 +226,13 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  * @property {function(function(string): void): function(): void} onDeepLink A
  *   route the router understands, e.g. "album:123".
  * @property {function(function(boolean): void): function(): void} carConnected
+ * @property {function(): Promise<DeviceSettings>} getSettings The "Apparaat" settings tab's
+ *   whole state in one call. A browser tab answers `{}`; the tab is hidden there anyway
+ *   (`system.isNative` is how it decides), so an empty object is never read.
+ * @property {function({key: string, value: boolean|number}): Promise<void>} setSetting
+ *   Writes one field of {@link DeviceSettings}. Rejects on a key the native whitelist does
+ *   not recognise or a value of the wrong type; a browser tab resolves without writing
+ *   anything, for the same reason `getSettings` answers empty there.
  */
 
 /**

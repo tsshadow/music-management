@@ -166,6 +166,25 @@ export function createCapacitorSystem(plugin) {
     carConnected(handler) {
       return listen(plugin, "carConnected", (event) => handler(event?.connected === true));
     },
+
+    /**
+     * The "Apparaat" settings tab's whole state in one call.
+     *
+     * @returns {Promise<import('../index.js').DeviceSettings>}
+     */
+    async getSettings() {
+      return await plugin.getSettings();
+    },
+
+    /**
+     * Writes one field of {@link import('../index.js').DeviceSettings}.
+     *
+     * @param {{key: string, value: boolean|number}} setting
+     * @returns {Promise<void>}
+     */
+    async setSetting(setting) {
+      await plugin.setSetting(setting);
+    },
   };
 }
 

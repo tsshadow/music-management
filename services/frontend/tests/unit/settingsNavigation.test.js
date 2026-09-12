@@ -4,6 +4,7 @@ import { get } from "svelte/store";
 import Settings from "../../src/lib/Settings.svelte";
 import SettingsSidebar from "../../src/lib/SettingsSidebar.svelte";
 import { activeSettingsTab, credentials } from "../../src/lib/store.js";
+import { platform } from "../../src/lib/platform/index.js";
 
 function mockUser() {
   return vi.fn(async () => ({
@@ -37,6 +38,26 @@ describe("player settings navigation", () => {
 
     for (const gone of ["Bibliotheken", "Scan Instellingen", "Scanner", "Gebruikers"]) {
       expect(screen.queryByText(gone)).toBeNull();
+    }
+  });
+
+  // The whitelist behind it is a Kotlin plugin; there is nothing for the tab to open in
+  // a browser tab, so it stays off `platform.system.isNative` the same way the Downloads
+  // screen stays off `platform.storage.supported`.
+  it("hides the device tab outside a native shell", () => {
+    render(SettingsSidebar, { onnavigate: () => {} });
+
+    expect(screen.queryByText("Apparaat")).toBeNull();
+  });
+
+  it("offers the device tab inside a native shell", () => {
+    platform.system.isNative = true;
+    try {
+      render(SettingsSidebar, { onnavigate: () => {} });
+
+      expect(screen.getByText("Apparaat")).toBeTruthy();
+    } finally {
+      platform.system.isNative = false;
     }
   });
 

@@ -129,8 +129,14 @@ export function phoneTabForView(view) {
   return null;
 }
 
-/** The personal settings tabs, in sidebar order. */
-export const SETTINGS_TABS = ["general", "advanced", "about"];
+/**
+ * The personal settings tabs, in sidebar order. `device` is a native-only tab -- see
+ * `SettingsSidebar.svelte`, which is the one place that decides whether it is offered at
+ * all -- but it stays in this list regardless of platform: the URL router has no notion of
+ * "native", and a browser tab that lands on `/settings/device` anyway (a stale bookmark, a
+ * link shared from the phone) falls back to General in `Settings.svelte` rather than here.
+ */
+export const SETTINGS_TABS = ["general", "advanced", "about", "device"];
 
 /** The management tabs, in sidebar order. */
 export const MANAGEMENT_TABS = [

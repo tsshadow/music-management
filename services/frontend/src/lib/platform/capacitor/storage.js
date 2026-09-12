@@ -100,6 +100,16 @@ export function createCapacitorStorage(plugin) {
     },
 
     /**
+     * The device-settings tab's "Clear cache": cancels queued/active downloads, then deletes
+     * every cached file that is not pinned.
+     *
+     * @returns {Promise<void>}
+     */
+    async clearCache() {
+      await plugin.clearCache();
+    },
+
+    /**
      * Whether the device has no route to the server.
      *
      * Advisory, and the Kotlin side says so: a network with internet

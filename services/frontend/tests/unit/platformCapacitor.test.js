@@ -386,6 +386,22 @@ describe("capacitor system", () => {
 
     expect(plugins.MumaSystem.calls).toEqual([["saveCredentials", creds]]);
   });
+
+  it("answers the device-settings tab's whole state from the plugin", async () => {
+    const { platform } = nativePlatform({
+      MumaSystem: { getSettings: { wifiOnly: true, parallelDownloads: 3 } },
+    });
+
+    expect(await platform.system.getSettings()).toEqual({ wifiOnly: true, parallelDownloads: 3 });
+  });
+
+  it("forwards a setting write unchanged and awaits it", async () => {
+    const { platform, plugins } = nativePlatform();
+
+    await platform.system.setSetting({ key: "wifiOnly", value: true });
+
+    expect(plugins.MumaSystem.calls).toEqual([["setSetting", { key: "wifiOnly", value: true }]]);
+  });
 });
 
 describe("capacitor storage", () => {
@@ -434,6 +450,14 @@ describe("capacitor storage", () => {
     expect(await platform.storage.isLocal("1")).toBe(true);
     expect(await platform.storage.size()).toBe(4096);
     expect(await platform.storage.list()).toEqual([{ id: "1" }]);
+  });
+
+  it("forwards clearCache to the plugin and awaits it", async () => {
+    const { platform, plugins } = nativePlatform();
+
+    await platform.storage.clearCache();
+
+    expect(plugins.MumaStorage.calls).toEqual([["clearCache", undefined]]);
   });
 
   it("reports download progress per id", () => {

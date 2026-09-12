@@ -1,0 +1,99 @@
+package nl.teunschriks.mumamobile.capacitor
+
+import com.getcapacitor.JSObject
+import com.getcapacitor.PluginCall
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.slot
+import io.mockk.verify
+import nl.teunschriks.mumamobile.util.Settings
+import org.amshove.kluent.shouldBeEqualTo
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+
+/**
+ * `getSettings`/`setSetting` end to end, with a mocked [PluginCall].
+ *
+ * Neither method touches the two `by inject()` properties [MumaSystemPlugin] otherwise has (the
+ * active-server provider, the media player manager), so this builds the plugin directly rather than
+ * starting a Koin container -- the same shortcut `MumaDiagnosticsPluginTest` takes for its plugin.
+ * `DeviceSettingsTest` already covers the whitelist's unknown-key and wrong-type branches on a plain
+ * JVM; this is the thinner layer on top: does a real value actually reach [Settings], and does the
+ * plugin resolve or reject the way `setSetting`'s contract promises.
+ */
+@RunWith(RobolectricTestRunner::class)
+class MumaSystemPluginSettingsTest {
+
+    private val plugin = MumaSystemPlugin()
+
+    private fun call(vararg args: Pair<String, Any?>): PluginCall {
+        val call = mockk<PluginCall>(relaxed = true)
+        every { call.getString("key") } returns args.toMap()["key"] as? String
+        every { call.getBoolean("value") } returns args.toMap()["value"] as? Boolean
+        every { call.getInt("value") } returns args.toMap()["value"] as? Int
+        return call
+    }
+
+    @Test
+    fun `getSettings answers the fields the device-settings tab reads`() {
+        Settings.isWifiRequiredForDownload = true
+        Settings.scrobbleEnabled = false
+
+        val result = slot<JSObject>()
+        val resolveCall = mockk<PluginCall>(relaxed = true)
+        every { resolveCall.resolve(capture(result)) } returns Unit
+
+        plugin.getSettings(resolveCall)
+
+        result.captured.getBoolean("wifiOnly") shouldBeEqualTo true
+        result.captured.getBoolean("scrobbleEnabled") shouldBeEqualTo false
+        // A read-only field: shown, never accepted by setSetting (see DeviceSettingsTest).
+        result.captured.has("carModeDeviceCount") shouldBeEqualTo true
+    }
+
+    @Test
+    fun `setSetting writes a boolean key and resolves`() {
+        Settings.isWifiRequiredForDownload = false
+
+        plugin.setSetting(call("key" to "wifiOnly", "value" to true))
+
+        Settings.isWifiRequiredForDownload shouldBeEqualTo true
+    }
+
+    @Test
+    fun `setSetting writes an int key and resolves`() {
+        plugin.setSetting(call("key" to "parallelDownloads", "value" to 5))
+
+        Settings.parallelDownloads shouldBeEqualTo 5
+    }
+
+    @Test
+    fun `setSetting rejects an unknown key without writing anything`() {
+        val theCall = call("key" to "notARealSetting", "value" to true)
+
+        plugin.setSetting(theCall)
+
+        verify { theCall.reject(any()) }
+    }
+
+    @Test
+    fun `setSetting rejects a value of the wrong type`() {
+        val theCall = call("key" to "wifiOnly") // no "value" mocked -> getBoolean answers null
+        Settings.isWifiRequiredForDownload = false
+
+        plugin.setSetting(theCall)
+
+        verify { theCall.reject(any()) }
+        Settings.isWifiRequiredForDownload shouldBeEqualTo false
+    }
+
+    @Test
+    fun `setSetting rejects a missing key`() {
+        val theCall = call("value" to true)
+
+        plugin.setSetting(theCall)
+
+        verify { theCall.reject(any()) }
+    }
+}

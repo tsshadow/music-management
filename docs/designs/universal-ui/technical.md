@@ -105,6 +105,17 @@ id and the native `DownloadService`/`OfflineMusicService` resolve the local file
 - **Diagnostics**: `CrashReportManager` stays; the plugin adds `log(action)` so the UI's action log
   joins the report, and the WebView's uncaught errors are forwarded to it. Reports go to the same
   crash-report endpoint.
+- **Device settings**: a native-only "Apparaat" tab in the Svelte settings screen (`platform.system.isNative`
+  is the gate, the same check `platform.storage.supported` serves as elsewhere) covers the phone-only
+  preferences Spotify-style: downloads, streaming quality, playback, car mode, diagnostics. `MumaSystem`
+  gained `getSettings()` (a snapshot of every field the tab shows) and `setSetting({key, value})`, which
+  checks `key` against a fixed whitelist and `value`'s type before writing through `Settings` — an
+  unrecognised key or a wrong-typed value rejects the call rather than silently doing nothing. Two
+  read-only fields (the cache location, how many car-mode devices are paired) and one action (pairing
+  a car-mode device) are shown but not edited from the tab; a row at the bottom calls
+  `openLegacySettings()` for those and for everything else phase 1 leaves in the Kotlin screens
+  (appearance, the app icon, sharing, search limits). `MumaStorage` gained `clearCache()`, which cancels
+  queued/active downloads and deletes every cached file that is not pinned.
 
 ### What is deleted from the Kotlin module
 

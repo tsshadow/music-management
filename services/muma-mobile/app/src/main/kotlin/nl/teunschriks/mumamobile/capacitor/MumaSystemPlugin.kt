@@ -7,7 +7,9 @@
 
 package nl.teunschriks.mumamobile.capacitor
 
+import android.app.NotificationManager
 import android.content.Intent
+import android.os.Build
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -39,6 +41,8 @@ import timber.log.Timber
  * | `onBack(fn)` | listener on the `back` event, answered with `handledBack({seq})` |
  * | `onDeepLink(fn)` | listener on the `deepLink` event |
  * | `carConnected(fn)` | listener on the `carConnected` event |
+ * | `getSettings()` | a snapshot of the device-settings tab's fields, see [getSettings] |
+ * | `setSetting({key, value})` | [DEVICE_SETTING_WHITELIST], see [setSetting] |
  *
  * ### The back protocol
  *
@@ -226,6 +230,94 @@ class MumaSystemPlugin :
     fun emitDeepLink(route: String) = notifyListeners(EVENT_DEEP_LINK, JSObject().put("route", route))
 
     fun emitCarConnected(connected: Boolean) = notifyListeners(EVENT_CAR_CONNECTED, JSObject().put("connected", connected))
+
+    /**
+     * The "Apparaat" settings tab's whole state in one call: every field
+     * [DEVICE_SETTING_WHITELIST] can write, plus a few read-only ones the tab only ever shows --
+     * the cache location and how many car-mode devices are paired, both edited from the legacy
+     * screen rather than here (see `openLegacySettings`).
+     *
+     * `carModeFullScreenGranted` is left out entirely below Android 14 and where
+     * [NotificationManager] cannot answer, exactly as the legacy row hides itself in that case --
+     * the web UI reads a missing key as "not applicable" rather than as `false`.
+     */
+    @PluginMethod
+    fun getSettings(call: PluginCall) {
+        val result = JSObject()
+            .put("wifiOnly", Settings.isWifiRequiredForDownload)
+            .put("parallelDownloads", Settings.parallelDownloads)
+            .put("cacheSizeMB", sentinelToUnlimited(Settings.cacheSizeMB))
+            .put("cacheLocationUri", Settings.cacheLocationUri)
+            .put("maxBitrateMobile", Settings.maxBitRateMobile)
+            .put("maxBitrateWifi", Settings.maxBitRateWifi)
+            .put("preloadCount", sentinelToUnlimited(Settings.preloadCount))
+            .put("resumeOnHeadphonesPlug", Settings.resumePlayOnHeadphonePlug)
+            .put("resumeOnBluetoothDevice", Settings.resumeOnBluetoothDevice)
+            .put("pauseOnBluetoothDevice", Settings.pauseOnBluetoothDevice)
+            .put("hardwareOffload", Settings.useHwOffload)
+            .put("carModeManual", Settings.carModeManual)
+            .put("carModeDeviceCount", Settings.carModeDevices.size)
+            .put("scrobbleEnabled", Settings.scrobbleEnabled)
+        fullScreenIntentGranted()?.let { result.put("carModeFullScreenGranted", it) }
+        call.resolve(result)
+    }
+
+    /**
+     * Writes one field of the device-settings tab, through [writeDeviceSetting] and
+     * [DEVICE_SETTING_WHITELIST]. An unknown key or a value of the wrong type rejects the call
+     * rather than writing a preference nothing validated -- the same reason `credentials()` above
+     * never trusts the bridge either.
+     *
+     * `value` is read as the type the whitelist declares for `key`, because `PluginCall` has no
+     * "give me whatever this is" accessor; a key not in the whitelist is rejected before either
+     * accessor runs, so there is nothing to read a wrong-typed value from in the first place.
+     */
+    @PluginMethod
+    fun setSetting(call: PluginCall) {
+        val key = call.getString("key")
+        if (key.isNullOrBlank()) {
+            call.reject("missing key")
+            return
+        }
+        val spec = DEVICE_SETTING_WHITELIST[key]
+        if (spec == null) {
+            call.reject("unknown setting: $key")
+            return
+        }
+        val value: Any? = when (spec.type) {
+            DeviceSettingType.BOOLEAN -> call.getBoolean("value")
+            DeviceSettingType.INT -> call.getInt("value")
+        }
+        when (writeDeviceSetting(key, value)) {
+            DeviceSettingWriteResult.OK -> call.resolve()
+            DeviceSettingWriteResult.INVALID_VALUE -> call.reject("invalid value for $key")
+            // Already handled above; the whitelist cannot change between the two lookups.
+            DeviceSettingWriteResult.UNKNOWN_KEY -> call.reject("unknown setting: $key")
+        }
+    }
+
+    /**
+     * Whether Android has granted the "use full screen intent" permission the car-mode
+     * notification raises the screen with, or `null` where the question does not apply: below
+     * Android 14 every app has it implicitly. Mirrors `SettingsFragment.setupCarModeFullScreen`,
+     * which hides its row on exactly the same condition instead of answering `null`.
+     *
+     * Catches everything rather than letting `getSettings` fail over one optional field: a plugin
+     * with no bridge attached yet -- true for a moment during every cold start -- has no [context]
+     * to ask, and answering "not applicable" is the honest read of that, not an error.
+     */
+    private fun fullScreenIntentGranted(): Boolean? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return null
+        return try {
+            context?.getSystemService(NotificationManager::class.java)?.canUseFullScreenIntent()
+        } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
+            Timber.w(all, "Could not read the full-screen-intent permission")
+            null
+        }
+    }
+
+    /** `-1` is the on-disk sentinel for "no limit"; both preferences answer [Int.MAX_VALUE] for it. */
+    private fun sentinelToUnlimited(value: Int): Int = if (value == Int.MAX_VALUE) -1 else value
 
     companion object {
         const val EVENT_BACK = "back"

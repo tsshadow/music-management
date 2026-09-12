@@ -21,6 +21,9 @@ This project is now modularized. Detailed release notes for each module can be f
 - `busy_timeout=15000`: LMS wacht nu tot vijftien seconden op een slot in plaats van te sterven. WAL
   laat lezers al altijd door, dus dit serialiseert alleen ooit twee schrijvers — en een schrijver van
   muma houdt het slot een paar seconden, niet vijftien.
+- Een rating of scrobble vanaf de telefoon mislukte tien minuten per uur, zolang muma op de
+  achtergrond zijn versie-model naar de server schreef. Die sync houdt het slot van de server nu
+  niet meer vast.
 ## Global Version 0.60.1 (2026-09-11)
 
 - **"Algemene API-fout", "Playback could not start", "Scrobble failed HTTP 500" — één oorzaak.** Elk

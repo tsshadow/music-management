@@ -7,20 +7,33 @@
 
 package nl.teunschriks.mumamobile.capacitor
 
+import android.Manifest
+import android.app.Activity
 import android.app.NotificationManager
+import android.bluetooth.BluetoothManager
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
+import android.provider.DocumentsContract
+import androidx.activity.result.ActivityResult
+import androidx.core.app.ActivityCompat
+import androidx.core.net.toUri
+import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
+import com.getcapacitor.annotation.ActivityCallback
 import com.getcapacitor.annotation.CapacitorPlugin
 import nl.teunschriks.mumamobile.activity.NavigationActivity
+import nl.teunschriks.mumamobile.car.CAR_DEVICE_CLASSES
 import nl.teunschriks.mumamobile.car.CarPresence
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
+import nl.teunschriks.mumamobile.service.DownloadService
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.Settings
+import nl.teunschriks.mumamobile.util.Storage
 import nl.teunschriks.mumamobile.util.UiVariant
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -289,6 +302,24 @@ class MumaSystemPlugin :
     }
 
     /**
+     * Tells the shell which language the web `LanguageSetting` just picked
+     * (`services/frontend/src/lib/settings/LanguageSetting.svelte`), so the native chrome --
+     * permission dialogs, share sheets, anything `CapacitorActivity.attachBaseContext` wraps with
+     * [nl.teunschriks.mumamobile.util.LocaleHelper] -- follows the same language as the web UI's
+     * own text, not whatever locale the device happened to boot with.
+     *
+     * Recreating the activity is the only way that context wrapper runs again; the WebView reloads
+     * as a result, which is expected for a rare, deliberate settings change rather than something
+     * this is ever called on every boot.
+     */
+    @PluginMethod
+    fun setAppLocale(call: PluginCall) {
+        Settings.overrideLanguage = call.getString("locale") ?: ""
+        call.resolve()
+        activity?.runOnUiThread { activity?.recreate() }
+    }
+
+    /**
      * The "Apparaat" settings tab's whole state in one call: every field
      * [DEVICE_SETTING_WHITELIST] can write, plus a few read-only ones the tab only ever shows --
      * the cache location and how many car-mode devices are paired, both edited from the legacy
@@ -305,16 +336,28 @@ class MumaSystemPlugin :
             .put("parallelDownloads", Settings.parallelDownloads)
             .put("cacheSizeMB", sentinelToUnlimited(Settings.cacheSizeMB))
             .put("cacheLocationUri", Settings.cacheLocationUri)
+            .put("customCacheLocation", Settings.customCacheLocation)
             .put("maxBitrateMobile", Settings.maxBitRateMobile)
             .put("maxBitrateWifi", Settings.maxBitRateWifi)
+            .put("maxBitratePinning", Settings.maxBitRatePinning)
             .put("preloadCount", sentinelToUnlimited(Settings.preloadCount))
             .put("resumeOnHeadphonesPlug", Settings.resumePlayOnHeadphonePlug)
             .put("resumeOnBluetoothDevice", Settings.resumeOnBluetoothDevice)
             .put("pauseOnBluetoothDevice", Settings.pauseOnBluetoothDevice)
             .put("hardwareOffload", Settings.useHwOffload)
             .put("carModeManual", Settings.carModeManual)
-            .put("carModeDeviceCount", Settings.carModeDevices.size)
+            .put("carModeDevices", JSArray(Settings.carModeDevices.toList()))
+            .put("networkTimeout", Settings.networkTimeout)
+            .put("autoSwitchOffline", Settings.autoSwitchOffline)
+            .put("directoryCacheTime", Settings.directoryCacheTime)
+            .put("hideMedia", Settings.hideMedia)
+            .put("mediaDeviceExport", Settings.mediaDeviceExportEnabled)
             .put("scrobbleEnabled", Settings.scrobbleEnabled)
+        // Read-only: login fills both (ActiveServerProvider.setMumaSettings), nothing here lets a
+        // user edit them. mumaApiKeySet rather than the raw key, same reason updatePreferenceSummaries
+        // masks it on the legacy screen instead of showing it back.
+        Settings.mumaUserId.takeIf { it > 0 }?.let { result.put("mumaUserId", it) }
+        result.put("mumaApiKeySet", Settings.mumaApiKey.isNotBlank())
         fullScreenIntentGranted()?.let { result.put("carModeFullScreenGranted", it) }
         call.resolve(result)
     }
@@ -344,6 +387,7 @@ class MumaSystemPlugin :
         val value: Any? = when (spec.type) {
             DeviceSettingType.BOOLEAN -> call.getBoolean("value")
             DeviceSettingType.INT -> call.getInt("value")
+            DeviceSettingType.STRING_SET -> call.getArray("value")?.let { jsArrayToStringSet(it) }
         }
         when (writeDeviceSetting(key, value)) {
             DeviceSettingWriteResult.OK -> call.resolve()
@@ -351,6 +395,126 @@ class MumaSystemPlugin :
             // Already handled above; the whitelist cannot change between the two lookups.
             DeviceSettingWriteResult.UNKNOWN_KEY -> call.reject("unknown setting: $key")
         }
+    }
+
+    /**
+     * The paired Bluetooth devices, for the Apparaat tab's car-mode picker.
+     *
+     * `permissionGranted` is answered rather than an empty list left to speak for itself: a phone
+     * with the permission denied and a phone with nothing paired both have zero devices, and only
+     * one of those is something a "grant access" row should react to. Same permission check and
+     * same "which class looks like a car" guess as the legacy picker
+     * (`SettingsFragment.setupCarModeDevices`) -- see [CAR_DEVICE_CLASSES].
+     */
+    @PluginMethod
+    fun listBondedDevices(call: PluginCall) {
+        val activity = activity ?: run {
+            call.resolve(JSObject().put("permissionGranted", false).put("devices", JSArray()))
+            return
+        }
+        val granted = ActivityCompat.checkSelfPermission(activity, Manifest.permission.BLUETOOTH_CONNECT) ==
+            PackageManager.PERMISSION_GRANTED
+        val result = JSObject().put("permissionGranted", granted)
+        if (!granted) {
+            call.resolve(result.put("devices", JSArray()))
+            return
+        }
+        val adapter = activity.getSystemService(BluetoothManager::class.java)?.adapter
+        val devices = adapter?.bondedDevices.orEmpty().map {
+            JSObject()
+                .put("address", it.address)
+                .put("name", it.name ?: it.address)
+                .put("isCarClass", it.bluetoothClass?.deviceClass in CAR_DEVICE_CLASSES)
+        }
+        call.resolve(result.put("devices", JSArray(devices)))
+    }
+
+    /**
+     * Fires the same system settings screen the legacy row's click listener does
+     * (`SettingsFragment.setupCarModeFullScreen`), so the user can grant the "use full screen
+     * intent" permission car mode raises the screen with. Fire-and-forget, like
+     * `switchToLegacyUi`/`openLegacySettings`: there is no result to wait for, only
+     * `getSettings`'s `carModeFullScreenGranted` on the next read.
+     */
+    @PluginMethod
+    fun requestCarModeFullScreenPermission(call: PluginCall) {
+        // Same guard as fullScreenIntentGranted()/the legacy row's own visibility check: below
+        // Android 14 the permission does not exist, and the action below is API 34.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            call.resolve()
+            return
+        }
+        val activity = activity ?: run {
+            call.reject("no activity")
+            return
+        }
+        activity.runOnUiThread {
+            activity.startActivity(
+                Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
+                    .setData("package:${activity.packageName}".toUri())
+            )
+        }
+        call.resolve()
+    }
+
+    /**
+     * Opens the system's directory picker for a custom cache location, the same
+     * `ACTION_OPEN_DOCUMENT_TREE` flow `SelectCacheActivityContract` drives for the legacy screen.
+     * The result comes back through [onCacheLocationPicked]; this only has to start the intent.
+     */
+    @PluginMethod
+    fun pickCacheLocation(call: PluginCall) {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+            .addFlags(CACHE_LOCATION_RW_FLAG)
+            .addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+        // No SDK_INT guard here: minSdk is 33, well above the O (26) SelectCacheActivityContract
+        // still checks for on the legacy path.
+        if (Settings.cacheLocationUri.isNotEmpty()) {
+            intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, Settings.cacheLocationUri.toUri())
+        }
+        startActivityForResult(call, intent, "onCacheLocationPicked")
+    }
+
+    /**
+     * The other half of [pickCacheLocation]: takes a persistable permission on the chosen tree,
+     * writes it through exactly what `SettingsFragment.setCacheLocation` does (clearing the
+     * download queue and resetting [Storage] against the new root), and resolves with the path the
+     * device-settings tab already shows via `cacheLocationUri`. Resolves with no `uri` -- not a
+     * rejection -- when the user backed out of the picker; a cancelled pick is not a failure.
+     */
+    // detekt cannot see the call: Capacitor invokes this by the string name passed to
+    // startActivityForResult above, not a direct Kotlin reference.
+    @Suppress("UnusedPrivateMember")
+    @ActivityCallback
+    private fun onCacheLocationPicked(call: PluginCall?, result: ActivityResult) {
+        if (call == null) return
+        val uri = if (result.resultCode == Activity.RESULT_OK) result.data?.data else null
+        if (uri == null) {
+            call.resolve(JSObject())
+            return
+        }
+        context?.contentResolver?.takePersistableUriPermission(uri, CACHE_LOCATION_RW_FLAG)
+        Settings.cacheLocationUri = uri.toString()
+        Settings.customCacheLocation = true
+        DownloadService.clearDownloads()
+        Storage.reset()
+        Storage.checkForErrorsWithCustomRoot()
+        call.resolve(JSObject().put("uri", uri.toString()).put("path", uri.path ?: ""))
+    }
+
+    /**
+     * Turns a custom cache location back off, the same as unchecking the legacy screen's
+     * "custom_cache_location" box with nothing picked yet: back to the default location, download
+     * queue cleared, [Storage] reset against it.
+     */
+    @PluginMethod
+    fun clearCustomCacheLocation(call: PluginCall) {
+        Settings.customCacheLocation = false
+        Settings.cacheLocationUri = ""
+        DownloadService.clearDownloads()
+        Storage.reset()
+        Storage.checkForErrorsWithCustomRoot()
+        call.resolve()
     }
 
     /**
@@ -376,6 +540,17 @@ class MumaSystemPlugin :
     /** `-1` is the on-disk sentinel for "no limit"; both preferences answer [Int.MAX_VALUE] for it. */
     private fun sentinelToUnlimited(value: Int): Int = if (value == Int.MAX_VALUE) -1 else value
 
+    /**
+     * `PluginCall.getArray` hands back a `JSArray` (a `org.json.JSONArray`), not a `Set<String>`;
+     * this is the one conversion [setSetting] needs for [DeviceSettingType.STRING_SET]. Anything
+     * that is not a string is dropped rather than failing the whole call -- the bridge serialises a
+     * JS array of strings faithfully, so a non-string entry would mean a caller bug, not a user
+     * mistake worth rejecting the write for.
+     */
+    private fun jsArrayToStringSet(array: JSArray): Set<String> = buildSet {
+        for (i in 0 until array.length()) (array.opt(i) as? String)?.let { add(it) }
+    }
+
     companion object {
         const val EVENT_BACK = "back"
         const val EVENT_DEEP_LINK = "deepLink"
@@ -383,6 +558,10 @@ class MumaSystemPlugin :
 
         /** Tells [NavigationActivity] to open its settings screen; see [openLegacySettings]. */
         const val EXTRA_OPEN_SETTINGS = "nl.teunschriks.mumamobile.OPEN_SETTINGS"
+
+        /** Same flags `SettingsFragment`'s `RW_FLAG` grants the legacy cache-location picker. */
+        const val CACHE_LOCATION_RW_FLAG = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+            Intent.FLAG_GRANT_WRITE_URI_PERMISSION
 
         /**
          * The bridge builds plugins, so the activity cannot construct one. It looks the live

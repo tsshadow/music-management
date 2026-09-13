@@ -33,14 +33,15 @@ class DeviceSettingsTest {
     }
 
     /**
-     * Read-only fields such as the cache location or the car-mode device list are answered by
+     * Read-only fields such as the cache location or whether it is a custom one are answered by
      * `getSettings` but deliberately absent here: a request to write one must read as "unknown"
-     * rather than silently succeed against a field the whitelist never listed.
+     * rather than silently succeed against a field the whitelist never listed. `pickCacheLocation`/
+     * `clearCustomCacheLocation` are the actions that change these two, not `setSetting`.
      */
     @Test
     fun `read-only fields getSettings answers are not writable`() {
         writeDeviceSetting("cacheLocationUri", "file://x") shouldBeEqualTo DeviceSettingWriteResult.UNKNOWN_KEY
-        writeDeviceSetting("carModeDeviceCount", 2) shouldBeEqualTo DeviceSettingWriteResult.UNKNOWN_KEY
+        writeDeviceSetting("customCacheLocation", true) shouldBeEqualTo DeviceSettingWriteResult.UNKNOWN_KEY
         writeDeviceSetting("carModeFullScreenGranted", true) shouldBeEqualTo DeviceSettingWriteResult.UNKNOWN_KEY
     }
 
@@ -54,13 +55,44 @@ class DeviceSettingsTest {
                 "cacheSizeMB",
                 "maxBitrateMobile",
                 "maxBitrateWifi",
+                "maxBitratePinning",
                 "preloadCount",
                 "resumeOnHeadphonesPlug",
                 "resumeOnBluetoothDevice",
                 "pauseOnBluetoothDevice",
                 "hardwareOffload",
                 "carModeManual",
+                "carModeDevices",
+                "networkTimeout",
+                "autoSwitchOffline",
+                "directoryCacheTime",
+                "hideMedia",
+                "mediaDeviceExport",
                 "scrobbleEnabled"
             )
+    }
+
+    @Test
+    fun `a string-set key rejects a non-string-set value`() {
+        writeDeviceSetting("carModeDevices", "AA:BB:CC") shouldBeEqualTo DeviceSettingWriteResult.INVALID_VALUE
+        writeDeviceSetting("carModeDevices", listOf("AA:BB:CC")) shouldBeEqualTo DeviceSettingWriteResult.INVALID_VALUE
+        writeDeviceSetting("carModeDevices", setOf(1, 2)) shouldBeEqualTo DeviceSettingWriteResult.INVALID_VALUE
+        writeDeviceSetting("carModeDevices", null) shouldBeEqualTo DeviceSettingWriteResult.INVALID_VALUE
+    }
+
+    // Accepting a valid set -- OK, not just "not rejected" -- means calling spec.write, which
+    // touches the real Settings object; that needs Robolectric and is covered end to end by
+    // MumaSystemPluginSettingsTest's "setSetting writes a string-set key..." instead, the same
+    // split this file's own doc comment describes for the boolean/int keys above.
+
+    /**
+     * The muma sync fields and the cache-location/full-screen-permission actions are read-only or
+     * action-only for a reason spelled out on [DEVICE_SETTING_WHITELIST]'s own doc comment; this
+     * pins the reason down as a test rather than only a comment.
+     */
+    @Test
+    fun `read-only muma sync fields are not writable through the whitelist`() {
+        writeDeviceSetting("mumaUserId", 42) shouldBeEqualTo DeviceSettingWriteResult.UNKNOWN_KEY
+        writeDeviceSetting("mumaApiKeySet", true) shouldBeEqualTo DeviceSettingWriteResult.UNKNOWN_KEY
     }
 }

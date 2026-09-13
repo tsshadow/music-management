@@ -7,6 +7,7 @@
 
 package nl.teunschriks.mumamobile.capacitor
 
+import nl.teunschriks.mumamobile.util.HideMediaEffect
 import nl.teunschriks.mumamobile.util.Settings
 
 /**
@@ -20,11 +21,13 @@ import nl.teunschriks.mumamobile.util.Settings
  * preferences store [MumaSystemPluginSettingsTest] provides through Robolectric.
  *
  * Every key here is also part of what `MumaSystem.getSettings` reads back; a few more read-only
- * fields (the cache location, how many car-mode devices are paired) are answered there without a
- * matching entry here, because the device-settings screen only ever shows them, through a button
- * to the legacy screen rather than an editable row.
+ * fields (the cache location, the muma sync credentials, the car-mode full-screen permission) are
+ * answered there without a matching entry here -- either genuinely read-only (login fills the
+ * muma sync fields), or an action that needs an Activity and a result callback rather than a
+ * plain value (the cache-location picker, the full-screen permission prompt; both are their own
+ * `MumaSystemPlugin` methods instead).
  */
-internal enum class DeviceSettingType { BOOLEAN, INT }
+internal enum class DeviceSettingType { BOOLEAN, INT, STRING_SET }
 
 /**
  * @property type What `setSetting`'s `value` must be for this key.
@@ -58,6 +61,8 @@ internal val DEVICE_SETTING_WHITELIST: Map<String, DeviceSettingSpec> = mapOf(
         DeviceSettingSpec(DeviceSettingType.INT) { Settings.maxBitRateMobile = it as Int },
     "maxBitrateWifi" to
         DeviceSettingSpec(DeviceSettingType.INT) { Settings.maxBitRateWifi = it as Int },
+    "maxBitratePinning" to
+        DeviceSettingSpec(DeviceSettingType.INT) { Settings.maxBitRatePinning = it as Int },
     "preloadCount" to
         DeviceSettingSpec(DeviceSettingType.INT) { Settings.setPreloadCount(it as Int) },
     "resumeOnHeadphonesPlug" to
@@ -70,6 +75,29 @@ internal val DEVICE_SETTING_WHITELIST: Map<String, DeviceSettingSpec> = mapOf(
         DeviceSettingSpec(DeviceSettingType.BOOLEAN) { Settings.useHwOffload = it as Boolean },
     "carModeManual" to
         DeviceSettingSpec(DeviceSettingType.BOOLEAN) { Settings.carModeManual = it as Boolean },
+    "carModeDevices" to
+        DeviceSettingSpec(DeviceSettingType.STRING_SET) {
+            @Suppress("UNCHECKED_CAST")
+            Settings.carModeDevices = it as Set<String>
+            // Same as the legacy MultiSelectListPreference's change listener
+            // (SettingsFragment.setupCarModeDevices): once the web tab has written a choice, even
+            // an empty one, that choice is the answer -- CarPresence must not re-fill it from the
+            // car-class guess on the next bonded-device scan.
+            Settings.carModeDevicesChosen = true
+        },
+    "networkTimeout" to
+        DeviceSettingSpec(DeviceSettingType.INT) { Settings.networkTimeout = it as Int },
+    "autoSwitchOffline" to
+        DeviceSettingSpec(DeviceSettingType.BOOLEAN) { Settings.autoSwitchOffline = it as Boolean },
+    "directoryCacheTime" to
+        DeviceSettingSpec(DeviceSettingType.INT) { Settings.directoryCacheTime = it as Int },
+    "hideMedia" to
+        DeviceSettingSpec(DeviceSettingType.BOOLEAN) {
+            Settings.hideMedia = it as Boolean
+            HideMediaEffect.apply(it)
+        },
+    "mediaDeviceExport" to
+        DeviceSettingSpec(DeviceSettingType.BOOLEAN) { Settings.mediaDeviceExportEnabled = it as Boolean },
     "scrobbleEnabled" to
         DeviceSettingSpec(DeviceSettingType.BOOLEAN) { Settings.scrobbleEnabled = it as Boolean }
 )
@@ -87,6 +115,7 @@ internal fun writeDeviceSetting(key: String, value: Any?): DeviceSettingWriteRes
     val matchesType = when (spec.type) {
         DeviceSettingType.BOOLEAN -> value is Boolean
         DeviceSettingType.INT -> value is Int
+        DeviceSettingType.STRING_SET -> value is Set<*> && value.all { it is String }
     }
     if (!matchesType) return DeviceSettingWriteResult.INVALID_VALUE
     spec.write(value!!)

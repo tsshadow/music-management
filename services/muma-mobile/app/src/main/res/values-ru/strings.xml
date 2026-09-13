@@ -137,18 +137,6 @@
     <string name="select_genre.empty">Жанры не найдены</string>
     <string name="select_playlist.empty">Нет сохраненных плейлистов на сервере</string>
     <string name="settings.appearance_title">Появление</string>
-    <string name="settings.increment_time_0">Отключено</string>
-    <string name="settings.increment_time_1">1 секунда</string>
-    <string name="settings.increment_time_10">10 секунд</string>
-    <string name="settings.increment_time_12">12 секунд</string>
-    <string name="settings.increment_time_120">2 минуты</string>
-    <string name="settings.increment_time_15">15 секунд</string>
-    <string name="settings.increment_time_2">2 секунды</string>
-    <string name="settings.increment_time_20">20 секунд</string>
-    <string name="settings.increment_time_30">30 секунд</string>
-    <string name="settings.increment_time_5">5 секунд</string>
-    <string name="settings.increment_time_60">1 минута</string>
-    <string name="settings.increment_time_8">8 секунд</string>
     <string name="settings.cache_location">Расположение кэша</string>
     <string name="settings.cache_location_error">Неверное расположение кеша. Использование по умолчанию.</string>
     <string name="settings.cache_size">Размер кэша</string>
@@ -171,13 +159,6 @@
     <string name="settings.cache_size_9000">9 GB</string>
     <string name="settings.cache_size_unlimited">Неограниченный</string>
     <string name="settings.cache_title">Музыкальный кэш</string>
-    <string name="settings.chat_refresh">Интервал обновления чата</string>
-    <string name="settings.clear_bookmark">Очистить закладку</string>
-    <string name="settings.clear_bookmark_summary">Очистить закладку после завершения воспроизведения песни</string>
-    <string name="settings.clear_search_history">Очистить историю поиска</string>
-    <string name="settings.default_albums">Альбомы по умолчанию</string>
-    <string name="settings.default_artists">Исполнители по умолчанию</string>
-    <string name="settings.default_songs">Треки по умолчанию</string>
     <string name="settings.directory_cache_time">Время кэша каталогов</string>
     <string name="settings.directory_cache_time_0">Отключить</string>
     <string name="settings.directory_cache_time_1">1 минута</string>
@@ -193,8 +174,6 @@
     <string name="settings.hide_media_title">Скрыть от других</string>
     <string name="settings.hide_media_toast">Вступает в силу в следующий раз, Android сканирует ваш телефон на предмет музыки</string>
     <string name="settings.invalid_url">Пожалуйста, укажите действительный URL.</string>
-    <string name="settings.max_albums">Максимум альбомов</string>
-    <string name="settings.max_artists">Максимум исполнителей</string>
     <string name="settings.max_bitrate_112">112 Kbps</string>
     <string name="settings.max_bitrate_128">128 Kbps</string>
     <string name="settings.max_bitrate_160">160 Kbps</string>
@@ -208,7 +187,6 @@
     <string name="settings.max_bitrate_mobile">Максимальный битрейт - Мобильный интернет</string>
     <string name="settings.max_bitrate_unlimited">Неограниченный</string>
     <string name="settings.max_bitrate_wifi">Максимальный битрейт - Wi-Fi подключение</string>
-    <string name="settings.max_songs">Максимум треков</string>
     <string name="settings.network_timeout">Таймаут сети</string>
     <string name="settings.network_timeout_105000">105 секунд</string>
     <string name="settings.network_timeout_120000">120 секунд</string>
@@ -218,7 +196,6 @@
     <string name="settings.network_timeout_60000">60 секунд</string>
     <string name="settings.network_timeout_75000">75 секунд</string>
     <string name="settings.network_timeout_90000">90 секунд</string>
-    <string name="settings.notifications_title">Уведомления</string>
     <string name="settings.network_title">Сеть</string>
     <string name="settings.other_title">Другие настройки</string>
     <string name="settings.playback_control_title">Настройки управления воспроизведением</string>
@@ -252,27 +229,16 @@
     <string name="settings.search_50">50</string>
     <string name="settings.search_500">500</string>
     <string name="settings.search_75">75</string>
-    <string name="settings.search_history_cleared">История поиска очищена</string>
     <string name="settings.search_title">Настройки поиска</string>
     <string name="settings.server_address">Адрес сервера</string>
     <string name="settings.server_name">Имя</string>
     <string name="settings.server_password">Пароль</string>
-    <string name="settings.server_scaling_summary">Загрузка масштабированных изображений с сервера вместо полноразмерного (экономит трафик)</string>
-    <string name="settings.server_scaling_title">Серверное масштабирование обложек альбомов</string>
     <string name="settings.server_username">Имя пользователя</string>
-    <string name="settings.show_now_playing">Показать что сейчас играет</string>
-    <string name="settings.show_now_playing_summary">Показать текущий воспроизводимый трек во всех активностях</string>
     <string name="settings.show_track_number">Показать номер трека</string>
     <string name="settings.show_track_number_summary">Включить номер дорожки при отображении песни</string>
     <string name="settings.test_connection_title">Тестовое соединение</string>
     <string name="settings.title.allow_self_signed_certificate">Разрешить самоподписанный сертификат HTTPS</string>
     <string name="settings.title.force_plain_text_password">Принудительная аутентификация по обычному паролю</string>
-    <string name="settings.use_folder_for_album_artist">Использовать папки для имени исполнителя</string>
-    <string name="settings.use_folder_for_album_artist_summary">Предположим, папка верхнего уровня - это имя исполнителя альбома</string>
-    <string name="settings.use_id3">Обзор с использованием тегов ID3</string>
-    <string name="settings.use_id3_summary">Используйте методы тегов ID3 ​​вместо методов на основе файловой системы</string>
-    <string name="settings.show_artist_picture">Показать изображение исполнителя в списке исполнителей</string>
-    <string name="settings.show_artist_picture_summary">Отображает изображение исполнителя в списке исполнителей, если доступно</string>
     <string name="main.video" tools:ignore="UnusedResources">Видео</string>
     <string name="song_details.kbps">%d kbps</string>
     <string name="util.no_time" tools:ignore="TypographyDashes">-:--</string>
@@ -280,10 +246,6 @@
     <string name="widget.initial_text">Нажмите, чтобы выбрать музыку</string>
     <string name="widget.sdcard_busy">SD-карта недоступна</string>
     <string name="widget.sdcard_missing">Нет SD-карты</string>
-    <string name="settings.share_description_default">Описание общего ресурса</string>
-    <string name="settings.sharing_title">Поделиться</string>
-    <string name="settings.sharing_always_ask_for_details">Всегда спрашивайте подробности</string>
-    <string name="settings.share_expiration_default">Время истечения по умолчанию</string>
     <string name="do_not_show_dialog_again">Больше не показывать диалог</string>
     <string name="share_set_share_options">Установить параметры общего доступа</string>
     <string name="no_expiration">Нет срока годности</string>
@@ -306,7 +268,6 @@
     <string name="settings.share_expiration">Время до истечения</string>
     <string name="download_song_removed">\"%s\" был удален из плейлиста</string>
     <string name="download.share_playlist">Поделиться плейлистом</string>
-    <string name="settings.share_greeting_default">Поделиться приветствием по умолчанию</string>
     <string name="share_default_greeting">Проверьте эту музыку, с которой я поделился %s</string>
     <string name="share_via">Поделиться треками через</string>
     <string name="menu.share">Поделиться</string>

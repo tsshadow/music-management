@@ -332,9 +332,18 @@ class ActiveServerProvider(private val repository: ServerSettingDao) : Coroutine
         }
 
         /**
-         * Queries if ID3 tags should be used
+         * Queries if ID3 tags should be used.
+         *
+         * Hardcoded: the `id3_tags`/`id3_tags_offline` preferences that used to gate this are
+         * retired (see docs/designs/universal-ui/functional.md, "Device settings"). ID3 mode picks
+         * the endpoints in RESTMusicService, MediaLibraryBrowser/MediaLibraryDataProvider,
+         * DownloadUtil and the *ListModel classes; those false branches are left in place rather
+         * than deleted; they are simply unreachable now.
          */
-        fun shouldUseId3Tags(): Boolean = Settings.id3TagsEnabledOnline && (!isOffline() || Settings.id3TagsEnabledOffline)
+        // Kept as a function, not a const val: every call site below uses shouldUseId3Tags()
+        // rather than a property, and there are too many of them to be worth changing for this.
+        @Suppress("FunctionOnlyReturningConstant")
+        fun shouldUseId3Tags(): Boolean = true
 
         /**
          * Queries if Server Scaling is enabled

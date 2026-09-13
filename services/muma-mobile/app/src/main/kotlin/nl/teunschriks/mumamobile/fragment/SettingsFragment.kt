@@ -9,7 +9,6 @@ package nl.teunschriks.mumamobile.fragment
 
 import android.Manifest
 import android.app.NotificationManager
-import android.bluetooth.BluetoothClass
 import android.bluetooth.BluetoothManager
 import android.content.DialogInterface
 import android.content.Intent
@@ -19,7 +18,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.SearchRecentSuggestions
 import android.view.View
 import androidx.annotation.StringRes
 import androidx.core.app.ActivityCompat
@@ -31,12 +29,12 @@ import androidx.preference.ListPreference
 import androidx.preference.MultiSelectListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
-import java.io.File
 import kotlin.math.ceil
 import nl.teunschriks.mumamobile.BuildConfig
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.car.BondedDevice
+import nl.teunschriks.mumamobile.car.CAR_DEVICE_CLASSES
 import nl.teunschriks.mumamobile.car.CarPresence
 import nl.teunschriks.mumamobile.car.preTickedCarDevices
 import nl.teunschriks.mumamobile.diagnostics.CrashReportManager
@@ -48,18 +46,16 @@ import nl.teunschriks.mumamobile.log.FileLoggerTree.Companion.getLogFileNumber
 import nl.teunschriks.mumamobile.log.FileLoggerTree.Companion.getLogFileSizes
 import nl.teunschriks.mumamobile.log.FileLoggerTree.Companion.plantToTimberForest
 import nl.teunschriks.mumamobile.log.FileLoggerTree.Companion.uprootFromTimberForest
-import nl.teunschriks.mumamobile.provider.SearchSuggestionProvider
 import nl.teunschriks.mumamobile.service.DownloadService
 import nl.teunschriks.mumamobile.service.RxBus
-import nl.teunschriks.mumamobile.util.AppIconVariant
 import nl.teunschriks.mumamobile.util.ConfirmationDialog
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.ErrorDialog
 import nl.teunschriks.mumamobile.util.FileUtil.ultrasonicDirectory
+import nl.teunschriks.mumamobile.util.HideMediaEffect
 import nl.teunschriks.mumamobile.util.InfoDialog
 import nl.teunschriks.mumamobile.util.SelectCacheActivityContract
 import nl.teunschriks.mumamobile.util.Settings
-import nl.teunschriks.mumamobile.util.Settings.id3TagsEnabledOnline
 import nl.teunschriks.mumamobile.util.Settings.preferences
 import nl.teunschriks.mumamobile.util.Storage
 import nl.teunschriks.mumamobile.util.TimeSpanPreference
@@ -81,10 +77,7 @@ class SettingsFragment :
     private val activeServerProvider: nl.teunschriks.mumamobile.data.ActiveServerProvider by inject()
     private val carPresence: CarPresence by inject()
 
-    private var style: ListPreference? = null
     private var cacheLocation: Preference? = null
-    private var showArtistPicture: CheckBoxPreference? = null
-    private var useId3TagsOffline: CheckBoxPreference? = null
     private var resumeOnBluetoothDevice: Preference? = null
     private var pauseOnBluetoothDevice: Preference? = null
     private var debugLogToFile: CheckBoxPreference? = null
@@ -97,20 +90,16 @@ class SettingsFragment :
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setTitle(this, R.string.menu_settings)
-        style = findPreference(getString(R.string.setting_key_style))
         resumeOnBluetoothDevice =
             findPreference(getString(R.string.setting_key_resume_on_bluetooth_device))
         pauseOnBluetoothDevice =
             findPreference(getString(R.string.setting_key_pause_on_bluetooth_device))
         debugLogToFile = findPreference(getString(R.string.setting_key_debug_log_to_file))
-        showArtistPicture = findPreference(getString(R.string.setting_key_show_artist_picture))
-        useId3TagsOffline = findPreference(getString(R.string.setting_key_id3_tags_offline))
         customCacheLocation = findPreference(getString(R.string.setting_key_custom_cache_location))
         cacheLocation = findPreference(getString(R.string.setting_key_cache_location))
 
         setupDebugPreferences()
         setupSendDiagnosticsPreference()
-        setupClearSearchPreference()
         setupCacheLocationPreference()
         setupBluetoothDevicePreferences()
         setupCarModeDevices()
@@ -158,11 +147,6 @@ class SettingsFragment :
             getString(R.string.setting_key_debug_log_to_file) -> {
                 setDebugLogToFile(sharedPreferences.getBoolean(key, false))
             }
-            getString(R.string.setting_key_id3_tags) -> {
-                val enabled = sharedPreferences.getBoolean(key, false)
-                showArtistPicture?.isEnabled = enabled
-                useId3TagsOffline?.isEnabled = enabled
-            }
             getString(R.string.setting_key_web_ui) -> {
                 // No launcher component is touched here, and that is the fix: the aliases target
                 // the trampoline, which reads this setting at tap time. Disabling the alias the
@@ -179,21 +163,10 @@ class SettingsFragment :
                     activity?.finish()
                 }
             }
-            getString(R.string.setting_key_app_icon) -> {
-                // Not a theme change: the icon lives in the manifest, so nothing on screen
-                // needs rebuilding. The toast is the only place the launcher caveat fits --
-                // updatePreferenceSummaries overwrites every ListPreference summary with the
-                // selected entry.
-                context?.let {
-                    AppIconVariant.apply(it, AppIconVariant.fromSetting(Settings.appIcon))
-                    toast(R.string.settings_app_icon_changed)
-                }
-            }
-            getString(R.string.setting_key_style),
-            getString(R.string.setting_key_ui_scale),
             getString(R.string.setting_key_track_list_lines) -> {
-                // Theme and scale are baked into the activity's context; the track row layout is
-                // chosen when a row is inflated. All three need the activity rebuilt.
+                // The track row layout is chosen when a row is inflated, so it needs the activity
+                // rebuilt -- same as a style or scale change used to, before both were retired
+                // from this screen (see docs/designs/universal-ui/functional.md).
                 RxBus.themeChangedEventPublisher.onNext(Unit)
             }
             getString(R.string.setting_key_custom_cache_location) -> {
@@ -500,24 +473,6 @@ class SettingsFragment :
         findNavController().navigate(R.id.logViewerFragment)
     }
 
-    private fun setupClearSearchPreference() {
-        val clearSearchPreference =
-            findPreference<Preference>(getString(R.string.setting_key_clear_search_history))
-        if (clearSearchPreference != null) {
-            clearSearchPreference.onPreferenceClickListener =
-                Preference.OnPreferenceClickListener {
-                    val suggestions = SearchRecentSuggestions(
-                        activity,
-                        SearchSuggestionProvider.AUTHORITY,
-                        SearchSuggestionProvider.MODE
-                    )
-                    suggestions.clearHistory()
-                    toast(R.string.settings_search_history_cleared)
-                    false
-                }
-        }
-    }
-
     private fun updateCustomPreferences() {
         if (debugLogToFile?.isChecked == true) {
             debugLogToFile?.summary = getString(
@@ -528,23 +483,10 @@ class SettingsFragment :
         } else {
             debugLogToFile?.summary = ""
         }
-
-        showArtistPicture?.isEnabled = id3TagsEnabledOnline
-        useId3TagsOffline?.isEnabled = id3TagsEnabledOnline
     }
 
     private fun setHideMedia(hide: Boolean) {
-        // TODO this only hides the media files in the Ultrasonic dir and not in the music cache
-        val nomediaDir = File(ultrasonicDirectory, ".nomedia")
-        if (hide && !nomediaDir.exists()) {
-            if (!nomediaDir.mkdir()) {
-                Timber.w("Failed to create %s", nomediaDir)
-            }
-        } else if (nomediaDir.exists()) {
-            if (!nomediaDir.delete()) {
-                Timber.w("Failed to delete %s", nomediaDir)
-            }
-        }
+        HideMediaEffect.apply(hide)
         toast(R.string.settings_hide_media_toast, false)
     }
 
@@ -603,16 +545,6 @@ class SettingsFragment :
     }
 
     companion object {
-        /**
-         * A suggestion, never the answer: see [preTickedCarDevices]. Handsfree is included because
-         * most car kits report it, and excluded from meaning anything on its own because some
-         * headsets report it too.
-         */
-        private val CAR_DEVICE_CLASSES = setOf(
-            BluetoothClass.Device.AUDIO_VIDEO_CAR_AUDIO,
-            BluetoothClass.Device.AUDIO_VIDEO_HANDSFREE
-        )
-
         const val RW_FLAG = Intent.FLAG_GRANT_READ_URI_PERMISSION or
             Intent.FLAG_GRANT_WRITE_URI_PERMISSION
         const val PERSISTABLE_FLAG = Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION

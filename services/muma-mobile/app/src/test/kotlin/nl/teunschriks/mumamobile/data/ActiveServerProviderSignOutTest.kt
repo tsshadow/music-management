@@ -14,7 +14,9 @@ import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import io.mockk.verify
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.model.ServerSettingsModel
 import nl.teunschriks.mumamobile.util.SecureSettings
 import nl.teunschriks.mumamobile.util.Settings
 import org.amshove.kluent.shouldBeEqualTo
@@ -80,6 +82,29 @@ class ActiveServerProviderSignOutTest {
 
         Settings.staticUserName shouldBeEqualTo "user"
         Settings.staticPassword shouldBeEqualTo "newpass"
+    }
+
+    @Test
+    fun `saveCredentials on a fresh install activates the server it signed in to`() {
+        // A fresh install is Offline. `update()` ignores that id, so the pair used to be lost and
+        // the shell rebooted into a login page with the WebView's own origin as its server.
+        Settings.activeServer = ActiveServerProvider.OFFLINE_DB_ID
+        Settings.staticUserName = ""
+        Settings.staticPassword = ""
+
+        provider.saveCredentials("user", "newpass")
+
+        Settings.staticUserName shouldBeEqualTo "user"
+        Settings.staticPassword shouldBeEqualTo "newpass"
+        Settings.activeServer shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `signInServer is the static server even while Offline is active`() {
+        Settings.activeServer = ActiveServerProvider.OFFLINE_DB_ID
+
+        provider.signInServer().url shouldBeEqualTo ServerSettingsModel.SERVER_URL
+        provider.getActiveServer().url shouldBeEqualTo SubsonicAPIClient.OFFLINE_DB_URL
     }
 
     @Test

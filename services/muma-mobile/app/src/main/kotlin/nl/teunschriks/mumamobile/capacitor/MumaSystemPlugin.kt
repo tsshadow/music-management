@@ -91,10 +91,14 @@ class MumaSystemPlugin :
      * as `SubsonicAPIClient.mumaBaseUrlFor` does for the native code, so the shell and the Kotlin
      * app can never disagree about which backend they are talking to. Neither is ever an empty
      * string here: a native shell has no origin to fall back on.
+     *
+     * Read from [ActiveServerProvider.signInServer] rather than the active server: with Offline
+     * active (every fresh install) the active url is `http://localhost`, the WebView's own origin,
+     * and every request the web player made would have been answered by its own index.html.
      */
     @PluginMethod
     fun serverUrl(call: PluginCall) {
-        val urls = serverUrlsOf(activeServerProvider.getActiveServer().url)
+        val urls = serverUrlsOf(activeServerProvider.signInServer().url)
         call.resolve(
             JSObject()
                 .put("subsonic", urls.subsonic)

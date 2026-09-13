@@ -16,6 +16,7 @@ import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient.Companion.OFFLINE_DB_URL
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.di.DB_FILENAME
+import nl.teunschriks.mumamobile.model.ServerSettingsModel
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.resetMusicService
 import nl.teunschriks.mumamobile.service.RxBus
 import nl.teunschriks.mumamobile.util.Constants
@@ -196,15 +197,36 @@ class ActiveServerProvider(private val repository: ServerSettingDao) : Coroutine
     }
 
     /**
+     * The one server the app can sign in to, whatever the active selection is.
+     *
+     * "Offline" (the default on a fresh install, and what the legacy UI switches to when the
+     * network is gone) is a mode rather than a server: its url is `http://localhost`, which is
+     * also the origin the Capacitor WebView serves the bundle from. A shell that built its
+     * requests on it would ask its own page for `/rest/ping` and get index.html back, so the
+     * shell reads the real server from here instead of from [getActiveServer].
+     */
+    fun signInServer(): ServerSetting = ServerSettingsModel.STATIC_SERVERS.first().copy(
+        userName = Settings.staticUserName,
+        password = Settings.staticPassword
+    )
+
+    /**
      * Persists a signed-in username/password pair, e.g. from the Capacitor shell's web login
      * screen, so downloads, Android Auto and the legacy UI see the same session. Goes through
      * [update] -- the same path the server-selector settings screen uses -- rather than writing
      * [Settings] a second way. There is one server in static mode (see
      * [nl.teunschriks.mumamobile.model.ServerSettingsModel.STATIC_SERVERS]), so its url is fixed
      * and only the credentials move.
+     *
+     * Written against [signInServer], not [getActiveServer]: on a fresh install the active server
+     * is Offline, [update] ignores that id, and the pair the listener just typed would be lost.
+     * The server is then made active as well, which is what the legacy login dialog does
+     * (`NavigationActivity`) and what the next boot's `credentials()` relies on.
      */
     fun saveCredentials(username: String, password: String) {
-        update(getActiveServer().copy(userName = username, password = password))
+        val server = signInServer()
+        update(server.copy(userName = username, password = password))
+        if (getActiveServerId() == OFFLINE_DB_ID) setActiveServerById(server.id)
     }
 
     /**

@@ -360,3 +360,51 @@ now uses Spotify's phone navigation below `md` (`isMobile`); the desktop layout 
     `ThemeExt.kt`, `AppIconVariant`, `UiScaleHelper`) and its test suite (`StyleThemeTest`) still
     branch on more than one value each; collapsing that is theme-engine surgery for a later MR, not
     this one. No UI anywhere writes a non-default value any more, which is what criterion 10 asks.
+- **Lyrics — decided 2026-09-14: port it.** LMS's Subsonic implementation is real, not a stub:
+  `handleGetLyrics`/`handleGetLyricsBySongId` in `MediaRetrieval.cpp` read `db::TrackLyrics`, which
+  the scanner populates from embedded tags and matching `.lrc` files
+  (`ScanStepAssociateExternalLyrics.cpp`, `LyricsFileScanner.cpp`). The desktop `TrackList.svelte`
+  already shows lyrics this way for a track row. `Player.svelte` now fetches
+  `getLyricsBySongId(id)` for whatever is playing (via the new `lyrics.js`, through `subsonicJson`)
+  and holds the result once for both renderings: a "Lyrics" button opens a bottom sheet in
+  `NowPlaying.svelte` on the phone, and a small popover panel next to the queue button on desktop.
+  Both are id-based, not the artist/title text match the Kotlin `LyricsFragment` used — an id
+  always resolves to exactly one track, where a text match can hit more than one and LMS answers
+  nothing at all in that case. Both stay hidden entirely when LMS has no lyrics for the track,
+  rather than showing a "no lyrics" placeholder for what coverage data says is the common case.
+- **Setup wizard and "what's new" — decided 2026-09-14: retire the wizard, keep the announcement.**
+  The Kotlin `SetupWizardFragment`/`wizard/` package is retired outright — deleted in the
+  follow-up MR, per the functional flow "app opens signed in, on Home, existing downloads listed
+  and playable; no wizard". What it still owed a listener was knowing what changed. `MumaSystem`
+  now exposes `appVersion()` (the APK's `versionName`, distinct from `platform.diagnostics`'s
+  bundle version, which is a git hash unrelated to `CHANGELOG.md` headings). A new
+  `mobileReleaseNotes.js`, run once from `App.svelte`'s boot path, compares that against a
+  `localStorage` record of the last version the device saw and — on an upgrade, never a first
+  install — shows what changed through the same `activeModal`/`ReleaseNotesModal.svelte` pair
+  `TopBar.svelte` already uses for the LMS server's own release notes. The notes themselves are
+  read from muma-mobile's own `CHANGELOG.md` through a new `MumaSystem.releaseNotes()`, not
+  bundled into the frontend at build time: `frontend:bundle`'s Docker build context is
+  `services/frontend` alone, so a build-time import reaching into `services/muma-mobile` cannot
+  resolve there even though it resolves fine under a local `vite dev`/`vitest` run against the full
+  checkout. `releaseNotes()` reads the exact same asset `copyChangelog` in `app/build.gradle`
+  already stages for the legacy `Util.showChangelog`, so nothing new needed wiring into the Gradle
+  build, and the text is only asked for once an upgrade is already confirmed, not on every boot.
+- **Manual — decided 2026-09-14: retire, with one paragraph moved.** Read every chapter in
+  `ManualChapter.kt`. All but one describe a screen the web already has and already reads the
+  same way; retiring the manual loses nothing there. The exception: nowhere in the web UI is it
+  written that plugging into Android Auto is what normally opens the car screen — the "Automodus"
+  switch in device settings only covers driving without a paired car, and read on its own it reads
+  as the only way in. That one paragraph moved to a new "How it works" section in
+  `About.svelte` (`settings.about.howCarModeTitle`/`howCarModeBody`, Dutch and English). Downloads
+  vs. cache already had its own explanation there (`cacheSizeHelp` already states the pinned/cached
+  distinction the manual's "Two kinds of local file" chapter made) so nothing else needed moving.
+- **Log viewer — decided 2026-09-14: retire.** `LogViewerFragment` read `FileLoggerTree`'s log
+  file. `RingBufferLoggerTree` is a second Timber tree already planted permanently in both debug
+  and release builds, receiving the exact same `Timber.*` calls, and `CrashReportManager` already
+  includes its text (`ringBufferText`, appended with the web action log) in every report, plus the
+  device model, app version and UI variant the viewer never showed. The one real regression is
+  retention: the ring buffer holds roughly the last screen's worth (600 lines) against the file
+  logger's up-to-10 MB rotation, and the file logger has to be turned on by a hidden debug setting
+  where the ring buffer runs unconditionally. Judged not worth carrying a whole screen for: a
+  report already answers the "something is wrong, get a log to whoever can read it" need the
+  viewer served.

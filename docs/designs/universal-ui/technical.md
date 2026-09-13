@@ -143,11 +143,31 @@ id and the native `DownloadService`/`OfflineMusicService` resolve the local file
 
 ### What is deleted from the Kotlin module
 
-`activity/` (UI parts), `fragment/`, `adapters/`, `view/`, all of `res/layout`, both style
-themes, the Ultrasonic settings screens, `LibraryPagerAdapter`, `FilterButtonBar`. Roughly 76 files
-and 95 layouts. What remains is a Capacitor `BridgeActivity`, the services, Room, Koin modules
-re-scoped to the application, the Auto module, `core/voice`, `core/domain`, `core/subsonic-api`,
-and the plugins.
+Updated 2026-09-14, once every screen the design had not yet mapped was decided (see
+`functional.md`'s "Open Questions" entries for Lyrics, the setup wizard, the manual and the log
+viewer):
+
+- Every fragment under `fragment/`, including the four the design had not covered until now
+  (`LyricsFragment`, `SetupWizardFragment`, `ManualFragment`, `LogViewerFragment`) and the ones
+  already known to have no web equivalent worth keeping: Chat, Shares, the standalone Podcast
+  screens (podcasts live inside the library on the web, not their own fragment), Bookmarks
+  (replaced by set resume), Jukebox (not carried over — see `functional.md`'s open question).
+- `wizard/` and `manual/` in full — the packages behind the two fragments above, not just the
+  fragments themselves (`WizardCatalog`, `UpdateEntry`, `WizardPagerAdapter`, `ManualChapter`,
+  `ManualAdapter`, and the rest).
+- `activity/NavigationActivity.kt` and the rest of `activity/`'s UI parts.
+- `adapters/`, `view/`, `LibraryPagerAdapter`, `FilterButtonBar`.
+- All of `res/layout`, `res/xml/settings.xml`, the nav graph, and both style themes.
+
+Roughly 76 files and 95 layouts. What stays: `CapacitorActivity`/`LauncherActivity`, the services,
+Room, the Koin root `single`s, `service/androidauto/`, `core/*` (`core/voice`, `core/domain`,
+`core/subsonic-api`), `capacitor/*` (the plugins, including `MumaSystemPlugin`'s new
+`appVersion()`), `CrashReportManager`, `car/*`, `voice/VoiceTileService`, the widget, and the
+launcher shortcuts.
+
+No Kotlin is deleted by the MR that resolved the four screens above — the retirements are recorded
+in `functional.md` and this list is refreshed so the actual deletion MR has one place to check
+against, but the files themselves still exist until that follow-up lands.
 
 ### What is added to the web module
 

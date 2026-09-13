@@ -24,6 +24,7 @@
   import { watchConnectivity } from './lib/subsonic.js';
   import { deepLinkAction, randomTracksUrl } from './lib/shellRoutes.js';
   import { t } from './lib/i18n/index.js';
+  import { logAction } from './lib/diagnosticsLog.js';
 
   const hours = new Date().getHours();
   const greetingKey = hours < 12 ? 'greeting.morning' : hours < 18 ? 'greeting.afternoon' : 'greeting.evening';
@@ -230,7 +231,7 @@
    */
   async function handleDeepLink(route) {
     const action = deepLinkAction(route, { isMobile: get(isMobile) });
-    platform.diagnostics.log('deeplink', { route, unbuilt: action.unbuilt ?? null });
+    logAction('deeplink', { route, unbuilt: action.unbuilt ?? null });
     if (action.kind === 'queue') {
       showQueue = true;
       return;
@@ -289,7 +290,7 @@
     // The action trail a crash report reads back. Navigation and play/pause are
     // the two that make a report tell a story; anything more would be noise in
     // a fifty-line buffer.
-    platform.diagnostics.log('navigate', { view });
+    logAction('navigate', { view });
     // The mode first, then the view: the effect above reads both and corrects
     // whichever is behind, and it runs after this handler returns. Moving the
     // view alone to 'sets' while the mode still said 'songs' is what made the

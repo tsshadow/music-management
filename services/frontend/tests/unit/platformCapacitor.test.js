@@ -536,4 +536,24 @@ describe("capacitor diagnostics", () => {
     expect(platform.diagnostics.report()).toEqual([]);
     expect(plugins.MumaDiagnostics.calls.map(([name]) => name)).toEqual(["log", "clear"]);
   });
+
+  it("sends the bundle version and user agent across the bridge", () => {
+    const { platform, plugins } = nativePlatform();
+
+    platform.diagnostics.identify({ bundleVersion: "abc1234", userAgent: "Mozilla/5.0" });
+
+    expect(plugins.MumaDiagnostics.calls).toEqual([
+      ["identify", { bundleVersion: "abc1234", userAgent: "Mozilla/5.0" }],
+    ]);
+  });
+
+  it("identifies with nulls rather than undefined when nothing is known", () => {
+    const { platform, plugins } = nativePlatform();
+
+    platform.diagnostics.identify({});
+
+    expect(plugins.MumaDiagnostics.calls).toEqual([
+      ["identify", { bundleVersion: null, userAgent: null }],
+    ]);
+  });
 });

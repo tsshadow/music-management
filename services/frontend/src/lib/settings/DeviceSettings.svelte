@@ -2,6 +2,7 @@
   import { t } from '../i18n/index.js';
   import { onMount } from 'svelte';
   import { platform } from '../platform/index.js';
+  import { logAction } from '../diagnosticsLog.js';
 
   /**
    * `null` while `getSettings()` has not resolved yet. Once it has, every field
@@ -61,6 +62,7 @@
     const previous = settings[key];
     settings = { ...settings, [key]: value };
     saveError = '';
+    logAction('settings.set', { key, value });
     try {
       await platform.system.setSetting({ key, value });
     } catch (e) {

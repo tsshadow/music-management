@@ -70,5 +70,18 @@ export function createCapacitorDiagnostics(plugin) {
     send() {
       fireAndForget("diagnostics.send", plugin.send());
     },
+
+    /**
+     * @param {{bundleVersion?: string|null, userAgent?: string|null}} info
+     */
+    identify(info) {
+      fireAndForget(
+        "diagnostics.identify",
+        plugin.identify({
+          bundleVersion: info?.bundleVersion ?? null,
+          userAgent: info?.userAgent ?? null,
+        }),
+      );
+    },
   };
 }

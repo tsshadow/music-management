@@ -14,6 +14,7 @@ import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import nl.teunschriks.mumamobile.diagnostics.CrashReportManager
 import nl.teunschriks.mumamobile.diagnostics.WebActionLog
+import nl.teunschriks.mumamobile.diagnostics.WebEnvironment
 import nl.teunschriks.mumamobile.log.logAction
 import org.json.JSONArray
 
@@ -31,6 +32,7 @@ import org.json.JSONArray
  * | `log(action, detail)` | `log({action, detail})` |
  * | `report()` | `report()` → `{entries: [{action, at, detail}]}`, oldest first, at most 50 |
  * | `clear()` | `clear()` |
+ * | `identify({bundleVersion, userAgent})` | `identify({bundleVersion, userAgent})` → [WebEnvironment] |
  * | — | `send()`, which is `CrashReportManager.sendManualReport` |
  */
 @CapacitorPlugin(name = "MumaDiagnostics")
@@ -62,6 +64,20 @@ class MumaDiagnosticsPlugin : Plugin() {
     @PluginMethod
     fun clear(call: PluginCall) {
         WebActionLog.clear()
+        call.resolve()
+    }
+
+    /**
+     * Tells [WebEnvironment] which UI, which frontend build and which WebView a report from now
+     * on describes. Called once, from the web boot path -- see `identifyBundle` in
+     * `services/frontend/src/lib/diagnosticsLog.js`.
+     */
+    @PluginMethod
+    fun identify(call: PluginCall) {
+        WebEnvironment.identify(
+            bundleVersion = call.getString("bundleVersion"),
+            userAgent = call.getString("userAgent")
+        )
         call.resolve()
     }
 

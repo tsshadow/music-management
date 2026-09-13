@@ -1,3 +1,5 @@
+import { logAction } from "./diagnosticsLog.js";
+
 /**
  * Keeping the platform service's queue in step with the UI's.
  *
@@ -205,6 +207,8 @@ export function createNativeQueue(player, { artworkUrlFor, onError = () => {} })
     // current item makes the plugin rebuild the queue around it for no reason.
     if (same && index < 0) return;
     if (same && String(player.state().trackId) === ids[index]) return;
+
+    logAction("queue.replace", { length: ids.length, index: Math.max(index, 0) });
 
     // One call for every kind of change. A different list is a new queue; the
     // same list with a different `index` is "play that one instead", and the

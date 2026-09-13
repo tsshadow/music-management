@@ -4,6 +4,7 @@
   import { Settings2 } from '@lucide/svelte';
   import { credentials, isAdmin, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser, defaultSubsonicUrl } from './store.js';
   import { platform } from './platform/index.js';
+  import { logAction } from './diagnosticsLog.js';
 
   const { onNavigate } = $props();
 
@@ -37,6 +38,8 @@
       event.preventDefault();
       event.stopPropagation();
     }
+
+    logAction('auth.logout');
 
     try {
       await platform.system.signOut();

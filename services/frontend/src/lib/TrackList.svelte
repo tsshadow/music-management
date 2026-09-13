@@ -10,6 +10,7 @@
   import { coverArtSrc, localCoverArt, resolveCoverArt } from './coverArt.js';
   import { offline } from './subsonic.js';
   import { formatBytes, isSet, trackSize } from './downloads.js';
+  import { logAction } from './diagnosticsLog.js';
 
   const {
     tracks = [],
@@ -101,6 +102,7 @@
   async function start(track) {
     pendingSet = null;
     downloadStates = { ...downloadStates, [String(track.id)]: 'queued' };
+    logAction('download.start', { trackId: track.id });
     try {
       await platform.storage.download([String(track.id)], { pin: true });
     } catch (err) {
@@ -116,6 +118,7 @@
    */
   async function removeDownload(e, track) {
     e.stopPropagation();
+    logAction('download.cancel', { trackId: track.id });
     try {
       await platform.storage.remove([String(track.id)]);
       downloadStates = { ...downloadStates, [String(track.id)]: 'none' };

@@ -193,6 +193,15 @@ describe("browser diagnostics", () => {
 
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+
+  // There is no report here to attach a bundle version or a user agent to,
+  // so a call site never needs a platform check around `identify`.
+  it("has nothing to identify to and does not throw", () => {
+    expect(() =>
+      diagnostics.identify({ bundleVersion: "abc1234", userAgent: "Mozilla/5.0" }),
+    ).not.toThrow();
+    expect(() => diagnostics.identify()).not.toThrow();
+  });
 });
 
 describe("browser system", () => {

@@ -116,4 +116,34 @@ class WebActionLogTest {
         report.stacktraceText shouldBeEqualTo "boom"
         report.ringBufferText shouldBeEqualTo "ring buffer\n\nweb actions"
     }
+
+    /**
+     * A JS error is recorded the same way any other web action is -- `MumaDiagnosticsPlugin.log`
+     * does not distinguish them (see `logError` in `services/frontend/src/lib/diagnosticsLog.js`)
+     * -- so a report reads the two kinds of line in the order they happened rather than as two
+     * separate sections.
+     */
+    @Test
+    fun `an uncaught web error sits alongside the actions that led up to it`() {
+        WebActionLog.record("navigate", detail = """{"view":"albums"}""", at = 1)
+        WebActionLog.record("js.error", detail = """{"message":"boom","stack":"at foo (app.js:1)"}""", at = 2)
+
+        val text = WebActionLog.asReportText()
+        text shouldContain "navigate"
+        text shouldContain "js.error"
+        text shouldContain "boom"
+        text shouldContain "at foo (app.js:1)"
+        (text.indexOf("navigate") < text.indexOf("js.error")) shouldBeEqualTo true
+    }
+
+    @Test
+    fun `a manual report carries a web error, marker and all`() {
+        WebActionLog.record("js.error", detail = """{"message":"boom"}""", at = 1)
+
+        val report = buildManualReport("current session", webActionLogText = WebActionLog.asReportText())
+
+        report.stacktraceText shouldBeEqualTo CrashReportManager.MANUAL_REPORT_MARKER
+        report.ringBufferText shouldContain "js.error"
+        report.ringBufferText shouldContain "boom"
+    }
 }

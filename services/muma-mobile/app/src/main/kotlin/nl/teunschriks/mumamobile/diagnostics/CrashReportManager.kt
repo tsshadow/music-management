@@ -226,6 +226,11 @@ object CrashReportManager {
             "Android API level: ${Build.VERSION.SDK_INT}\n" +
             "App version: ${Util.getVersionName(context)} (${Util.getVersionCode(context)})\n" +
             "Build type: ${BuildConfig.BUILD_TYPE}\n" +
+            buildEnvironmentHeader(
+                uiVariant = WebEnvironment.uiVariant(),
+                bundleVersion = WebEnvironment.bundleVersionOrNull(),
+                userAgent = WebEnvironment.userAgentOrNull()
+            ) +
             "Timestamp: ${java.util.Date()}\n\n"
     }
 

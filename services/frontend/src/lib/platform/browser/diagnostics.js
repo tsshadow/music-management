@@ -47,6 +47,14 @@ export function createBrowserDiagnostics() {
     clear() {
       entries = [];
     },
+
+    /**
+     * A browser tab has no crash report to attach this to -- there is nothing
+     * downstream of the ring buffer above -- so it is a no-op. Kept as part of
+     * the contract anyway, so a call site never needs a platform check around
+     * it.
+     */
+    identify() {},
   };
 }
 

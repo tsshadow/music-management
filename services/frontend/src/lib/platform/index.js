@@ -173,6 +173,9 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  * @property {function(): Array<{action: string, at: number, detail: object|null}>} report
  *   Oldest first, at most the last 50.
  * @property {function(): void} clear
+ * @property {function({bundleVersion?: string|null, userAgent?: string|null}): void} identify
+ *   Tells a report which UI built it, what frontend code it is running and what rendered it. A
+ *   browser tab has no report to attach this to and ignores the call.
  */
 
 /**

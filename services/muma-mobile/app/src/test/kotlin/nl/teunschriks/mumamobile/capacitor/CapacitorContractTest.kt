@@ -65,6 +65,36 @@ class CapacitorContractTest {
             listOf("idle", "loading", "playing", "paused", "ended", "error")
     }
 
+    // -------------------------------------------------------------- repeat mode
+
+    @Test
+    fun `every wire word becomes its Media3 repeat mode`() {
+        repeatModeOf("all") shouldBeEqualTo Player.REPEAT_MODE_ALL
+        repeatModeOf("one") shouldBeEqualTo Player.REPEAT_MODE_ONE
+        repeatModeOf("none") shouldBeEqualTo Player.REPEAT_MODE_OFF
+    }
+
+    /** A `setMode` call that left the field out means the same as "none" everywhere else here. */
+    @Test
+    fun `an unknown or missing repeat word is off, not a crash`() {
+        repeatModeOf(null) shouldBeEqualTo Player.REPEAT_MODE_OFF
+        repeatModeOf("shuffle") shouldBeEqualTo Player.REPEAT_MODE_OFF
+    }
+
+    @Test
+    fun `every Media3 repeat mode becomes its wire word`() {
+        repeatModeWire(Player.REPEAT_MODE_ALL) shouldBeEqualTo "all"
+        repeatModeWire(Player.REPEAT_MODE_ONE) shouldBeEqualTo "one"
+        repeatModeWire(Player.REPEAT_MODE_OFF) shouldBeEqualTo "none"
+    }
+
+    @Test
+    fun `the mapping is a round trip in both directions`() {
+        listOf("none", "all", "one").forEach { wire ->
+            repeatModeWire(repeatModeOf(wire)) shouldBeEqualTo wire
+        }
+    }
+
     // ---------------------------------------------------------- download states
 
     @Test

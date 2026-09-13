@@ -47,7 +47,12 @@ const EMPTY_STATE = Object.freeze({
   volume: 1,
   queueIndex: -1,
   queueLength: 0,
+  shuffle: false,
+  repeat: "none",
 });
+
+/** The three words `setMode`'s `repeat` and `state().repeat` are allowed to answer with. */
+const REPEAT_MODES = new Set(["none", "all", "one"]);
 
 /** An empty queue, in the shape `setQueue`/`queueState` answer with. */
 const EMPTY_QUEUE = Object.freeze({ index: -1, length: 0, trackIds: [] });
@@ -77,6 +82,8 @@ function snapshotOf(payload, previous) {
     volume: numberOr(payload.volume, previous.volume),
     queueIndex: numberOr(payload.queueIndex, previous.queueIndex),
     queueLength: numberOr(payload.queueLength, previous.queueLength),
+    shuffle: typeof payload.shuffle === "boolean" ? payload.shuffle : previous.shuffle,
+    repeat: REPEAT_MODES.has(payload.repeat) ? payload.repeat : previous.repeat,
   };
 }
 
@@ -241,6 +248,22 @@ export function createCapacitorPlayer(plugin) {
     /** @param {number} value - 1 is normal speed. */
     setRate(value) {
       fireAndForget("setRate", plugin.setRate({ value }));
+    },
+
+    /**
+     * Puts shuffle and repeat on the service, which is where they have to live once it owns the
+     * queue: Media3 already applies both when the current item ends or a head unit asks for
+     * "next", with no JS in the loop at all. The snapshot the plugin answers with is cached the
+     * same way every other event does, so the very next `state()` read -- and the caller that
+     * awaited this -- see the mode that was actually applied rather than the one that was asked
+     * for.
+     *
+     * @param {{shuffle: boolean, repeat: 'none'|'all'|'one'}} mode
+     * @returns {Promise<object>}
+     */
+    async setMode({ shuffle = false, repeat = "none" } = {}) {
+      snapshot = snapshotOf(await plugin.setMode({ shuffle, repeat }), snapshot);
+      return { ...snapshot };
     },
 
     /**

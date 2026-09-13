@@ -52,6 +52,9 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   fallback.
  * @property {string|null} trackId The id passed to `load()`, or null.
  * @property {number} volume 0..1.
+ * @property {boolean} [shuffle] Native only. Whether the platform service is shuffling its queue.
+ *   Absent on a browser -- `ownsQueue` is what a caller branches on, not this field's presence.
+ * @property {'none'|'all'|'one'} [repeat] Native only, alongside `shuffle`.
  */
 
 /**
@@ -119,6 +122,12 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   previous?: Function, seekTo?: function(number): void}): void} setCommandHandlers
  *   What a transport control outside the app does. The queue lives in the UI, so
  *   `next` and `previous` come back to it.
+ * @property {function({shuffle: boolean, repeat: 'none'|'all'|'one'}): Promise<PlayerState>} setMode
+ *   Where shuffle and repeat live when `ownsQueue` is true: on the platform service, which already
+ *   applies both to its own queue and stops needing this call answered before it can be trusted --
+ *   the returned state is the fresh snapshot, for a caller that mirrors it straight into its own
+ *   store rather than waiting for the next event. A browser has nowhere to put either flag but
+ *   the store; see `browser/player.js`.
  * @property {function(PlayerEvent, function(PlayerState): void): function(): void} on
  * @property {function(): PlayerState} state
  * @property {function(): HTMLMediaElement|null} element Browser only, for the

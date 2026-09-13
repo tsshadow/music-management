@@ -422,10 +422,26 @@ export function createBrowserPlayer() {
     return { ...NO_QUEUE };
   }
 
+  /**
+   * Deliberately does nothing beyond answering.
+   *
+   * Shuffle and repeat stay a decision `Player.svelte` makes for itself when `ownsQueue` is
+   * false -- there is no service on this side of the bridge for either to live on, and the
+   * contract says the fields are simply absent from a browser's state. Answering with the
+   * unchanged snapshot is what lets a caller invoke this unconditionally rather than asking
+   * which shell it is in first, the same as `setQueue`/`queueState` above.
+   *
+   * @returns {Promise<object>}
+   */
+  async function setMode() {
+    return state();
+  }
+
   return {
     ownsQueue: false,
     setQueue,
     queueState,
+    setMode,
     attach,
     detach,
     ready,

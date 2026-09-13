@@ -9,6 +9,7 @@ package nl.teunschriks.mumamobile.capacitor
 
 import android.os.Handler
 import android.os.Looper
+import androidx.media3.common.Player
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -62,15 +63,18 @@ private const val MILLIS_PER_SECOND = 1000.0
  * | `setRate({value})` | `playbackSpeed = value` |
  * | `setNowPlaying(...)` | no-op; the `MediaSession` already carries the metadata of the queue it was given, and a second source of truth for the notification is exactly the bug this design avoids |
  * | `setEqualizer({enabled, gains, preamp})` | `EqualizerController`, resampled by [nativeBandGains] |
- * | `state()` | `{status, position, duration, trackId, volume, queueIndex, queueLength}` |
+ * | `setMode({shuffle, repeat})` | `mediaPlayerManager.isShufflePlayEnabled`/`repeatMode`, resolved with a fresh [snapshot] |
+ * | `state()` | `{status, position, duration, trackId, volume, queueIndex, queueLength, shuffle, repeat}` |
  *
  * ### Events
  *
  * `timeupdate`, `durationchange`, `play`, `pause`, `ended`, `error` and `volumechange` carry the
- * same snapshot `state()` returns. `command` carries `{name, seconds?}` and reports a transport
- * change the native service performed, so the UI can mirror it. It does **not** distinguish who
- * asked: a `next` from the car head unit and a `next` the web UI itself requested look the same,
- * because the queue lives in the service either way and the UI's job in both cases is to redraw.
+ * same snapshot `state()` returns, which is also where a mode change made outside the WebView --
+ * Android Auto's own button, the notification -- reaches the web: see the `tick()` note on
+ * `modeChanged`. `command` carries `{name, seconds?}` and reports a transport change the native
+ * service performed, so the UI can mirror it. It does **not** distinguish who asked: a `next` from
+ * the car head unit and a `next` the web UI itself requested look the same, because the queue
+ * lives in the service either way and the UI's job in both cases is to redraw.
  *
  * Everything that touches Media3 is posted to the main thread; Capacitor calls plugin methods off
  * it, and `MediaPlayerManager` is a main-thread, synchronous API.
@@ -95,6 +99,11 @@ class MumaPlayerPlugin :
     private var lastQueueIndex = -1
     private var lastPositionMs = 0L
     private var lastTickAt = 0L
+
+    /** What the last tick saw, so a mode changed from outside the WebView -- Android Auto's own
+     *  repeat button, the notification -- is noticed even while nothing else is moving. */
+    private var lastShuffle = false
+    private var lastRepeatMode = Player.REPEAT_MODE_OFF
 
     /** Suppresses the seek detector for the one tick after the UI asked for a seek itself. */
     private var selfSeekAt = 0L
@@ -302,6 +311,27 @@ class MumaPlayerPlugin :
     }
 
     /**
+     * Puts shuffle and repeat where they belong: on the service, not in the WebView.
+     *
+     * `Player.svelte` used to decide the next track itself -- walking its own shuffle trail,
+     * looping on repeat -- because the queue used to live there too. Now the queue lives here, and
+     * a JS-side decision would disagree with what [MediaPlayerManager] actually plays next: Media3
+     * already applies `shuffleModeEnabled` and `repeatMode` when the current item ends or a head
+     * unit asks for "next", with no help needed from this plugin at all.
+     *
+     * @param call `{shuffle: boolean, repeat: "none"|"all"|"one"}`. Either field missing reads as
+     *   its off value, the same as everywhere else on this bridge.
+     */
+    @PluginMethod
+    fun setMode(call: PluginCall) = onMain {
+        mediaPlayerManager.isShufflePlayEnabled = call.getBoolean("shuffle", false) == true
+        mediaPlayerManager.repeatMode = repeatModeOf(call.getString("repeat"))
+        lastShuffle = mediaPlayerManager.isShufflePlayEnabled
+        lastRepeatMode = mediaPlayerManager.repeatMode
+        call.resolve(snapshot())
+    }
+
+    /**
      * Deliberately does nothing.
      *
      * The `MediaSession` derives the notification, the lock screen and the head unit from the
@@ -380,6 +410,12 @@ class MumaPlayerPlugin :
      * The position clock, and the only place a seek performed elsewhere can be noticed: Media3
      * publishes no "somebody seeked" event a `MediaController` can read, so a jump larger than
      * the time that has passed is taken for one.
+     *
+     * It is also where a shuffle or repeat change made outside the WebView -- Android Auto's own
+     * button, the notification -- is noticed: nothing else here reacts to
+     * `onShuffleModeEnabledChanged`, and this runs four times a second regardless of playback
+     * state, so a mode flipped while paused still reaches the web within one tick instead of
+     * waiting for the next `play`/`pause`.
      */
     private fun tick() {
         val now = System.currentTimeMillis()
@@ -394,7 +430,14 @@ class MumaPlayerPlugin :
 
         lastTickAt = now
         lastPositionMs = position
-        if (mediaPlayerManager.isPlaying) notifyState(EVENT_TIME_UPDATE)
+
+        val shuffle = mediaPlayerManager.isShufflePlayEnabled
+        val repeatMode = mediaPlayerManager.repeatMode
+        val modeChanged = shuffle != lastShuffle || repeatMode != lastRepeatMode
+        lastShuffle = shuffle
+        lastRepeatMode = repeatMode
+
+        if (mediaPlayerManager.isPlaying || modeChanged) notifyState(EVENT_TIME_UPDATE)
     }
 
     private fun notifyCommand(name: String, seconds: Double? = null) {
@@ -411,7 +454,7 @@ class MumaPlayerPlugin :
 
     // ----------------------------------------------------------------- state
 
-    /** The contract's `PlayerState`, plus the two fields a native queue adds. */
+    /** The contract's `PlayerState`, plus the fields a native queue -- and now a native mode -- add. */
     private fun snapshot(): JSObject {
         val durationMs = mediaPlayerManager.playerDuration
         return JSObject()
@@ -422,6 +465,8 @@ class MumaPlayerPlugin :
             .put("volume", mediaPlayerManager.volume.toDouble())
             .put("queueIndex", mediaPlayerManager.currentMediaItemIndex)
             .put("queueLength", mediaPlayerManager.mediaItemCount)
+            .put("shuffle", mediaPlayerManager.isShufflePlayEnabled)
+            .put("repeat", repeatModeWire(mediaPlayerManager.repeatMode))
     }
 
     private fun queueSnapshot(): JSObject = JSObject()

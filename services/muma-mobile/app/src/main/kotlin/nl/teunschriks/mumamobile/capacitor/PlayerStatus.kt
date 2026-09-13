@@ -48,3 +48,29 @@ fun playerStatusOf(playbackState: Int, isPlaying: Boolean, failed: Boolean = fal
     playbackState == Player.STATE_READY -> PlayerStatus.PAUSED
     else -> PlayerStatus.IDLE
 }
+
+/**
+ * The three repeat words `services/frontend/src/lib/platform/index.js` speaks, translated onto
+ * Media3's `Player.RepeatMode`.
+ *
+ * Shuffle and repeat used to be a browser-only decision -- `Player.svelte` walked its own queue
+ * and the native service never heard about either. Now the mode lives on the service, and
+ * `MumaPlayerPlugin.setMode` is the one place a wire word becomes a `@Player.RepeatMode` int and
+ * back; a pure function so the mapping can be checked without a player, same as [playerStatusOf].
+ *
+ * @param wire one of the contract's three words. Anything else -- including a call that omitted
+ *   the field -- reads as "off" rather than throwing, which is what a missing field on this
+ *   contract has always meant elsewhere on this bridge.
+ */
+fun repeatModeOf(wire: String?): Int = when (wire) {
+    "all" -> Player.REPEAT_MODE_ALL
+    "one" -> Player.REPEAT_MODE_ONE
+    else -> Player.REPEAT_MODE_OFF
+}
+
+/** The inverse of [repeatModeOf], for `state()` and every event that carries a snapshot. */
+fun repeatModeWire(mode: Int): String = when (mode) {
+    Player.REPEAT_MODE_ALL -> "all"
+    Player.REPEAT_MODE_ONE -> "one"
+    else -> "none"
+}

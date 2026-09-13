@@ -113,10 +113,42 @@ const system = {
   },
 
   /**
-   * @param {{key: string, value: boolean|number}} _setting
+   * @param {{key: string, value: boolean|number|string[]}} _setting
    * @returns {Promise<void>} Resolves without writing anything.
    */
   async setSetting(_setting) {},
+
+  /**
+   * A browser has no Bluetooth pairing list to read.
+   *
+   * @returns {Promise<{permissionGranted: boolean, devices: Array}>}
+   */
+  async listBondedDevices() {
+    return { permissionGranted: false, devices: [] };
+  },
+
+  /** A browser has no such permission to request. */
+  requestCarModeFullScreenPermission() {},
+
+  /**
+   * A browser has no filesystem to pick a cache directory in.
+   *
+   * @returns {Promise<{}>}
+   */
+  async pickCacheLocation() {
+    return {};
+  },
+
+  /** A browser has no custom cache location to clear. */
+  clearCustomCacheLocation() {},
+
+  /**
+   * A browser has no native chrome to follow the pick; the web UI's own `locale` store is what
+   * it reads instead.
+   *
+   * @param {string} _locale
+   */
+  setAppLocale(_locale) {},
 };
 
 export default system;

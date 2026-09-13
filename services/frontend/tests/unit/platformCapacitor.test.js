@@ -493,6 +493,65 @@ describe("capacitor system", () => {
 
     expect(plugins.MumaSystem.calls).toEqual([["setSetting", { key: "wifiOnly", value: true }]]);
   });
+
+  it("normalises listBondedDevices' answer, even a malformed one", async () => {
+    const { platform } = nativePlatform({
+      MumaSystem: { listBondedDevices: { permissionGranted: true, devices: [{ address: "AA" }] } },
+    });
+
+    expect(await platform.system.listBondedDevices()).toEqual({
+      permissionGranted: true,
+      devices: [{ address: "AA" }],
+    });
+
+    const { platform: denied } = nativePlatform({ MumaSystem: { listBondedDevices: {} } });
+    expect(await denied.system.listBondedDevices()).toEqual({
+      permissionGranted: false,
+      devices: [],
+    });
+  });
+
+  it("fires the full-screen permission request without awaiting it", () => {
+    const { platform, plugins } = nativePlatform();
+
+    platform.system.requestCarModeFullScreenPermission();
+
+    expect(plugins.MumaSystem.calls.map(([name]) => name)).toEqual([
+      "requestCarModeFullScreenPermission",
+    ]);
+  });
+
+  it("answers the cache-location pick, or {} if the plugin sent nothing", async () => {
+    const { platform } = nativePlatform({
+      MumaSystem: { pickCacheLocation: { uri: "content://tree/x", path: "/tree/x" } },
+    });
+
+    expect(await platform.system.pickCacheLocation()).toEqual({
+      uri: "content://tree/x",
+      path: "/tree/x",
+    });
+
+    const { platform: cancelled } = nativePlatform({
+      MumaSystem: { pickCacheLocation: undefined },
+    });
+    expect(await cancelled.system.pickCacheLocation()).toEqual({});
+  });
+
+  it("fires clearCustomCacheLocation without awaiting it", () => {
+    const { platform, plugins } = nativePlatform();
+
+    platform.system.clearCustomCacheLocation();
+
+    expect(plugins.MumaSystem.calls.map(([name]) => name)).toEqual(["clearCustomCacheLocation"]);
+  });
+
+  it("forwards the picked locale to setAppLocale without awaiting it", () => {
+    const { platform, plugins } = nativePlatform();
+
+    platform.system.setAppLocale("nl");
+
+    expect(plugins.MumaSystem.calls).toEqual([["setAppLocale", { locale: "nl" }]]);
+  });
 });
 
 describe("capacitor storage", () => {

@@ -467,7 +467,9 @@
       const currentIndex = p.findIndex(t => String(t.id) === currentTrackId);
 
       let nextIndex;
-      if ($playerState.shuffle) {
+      // Native only: the service has its own shuffle order, and this component never sees it, so
+      // walking a JS-decided trail here would disagree with whatever it actually plays next.
+      if ($playerState.shuffle && !nativePlayback) {
           // Walk the trail rather than drawing blind, so a previous followed by a
           // next lands back on the track it came from instead of a third one.
           const stepped = stepForward(trailFor(p, currentTrackId), p.map(t => String(t.id)));
@@ -524,7 +526,8 @@
       const currentIndex = p.findIndex(t => String(t.id) === currentTrackId);
 
       let prevIndex;
-      if ($playerState.shuffle) {
+      // Same guard as `playNext`: the service's shuffle order is not this component's to walk.
+      if ($playerState.shuffle && !nativePlayback) {
           const stepped = stepBack(trailFor(p, currentTrackId));
           shuffleTrail = stepped.trail;
           prevIndex = p.findIndex(t => String(t.id) === stepped.id);
@@ -758,22 +761,38 @@
 
   /**
    * Cycles through repeat modes: none -> all -> one -> none.
+   *
+   * Native only: pushed to the platform service instead of only the local store. The service
+   * decides repeat for itself there -- see `nativePlayback` -- so the cycle is not assumed to have
+   * landed; the store mirrors back whatever `setMode` says was actually applied.
    */
   function toggleRepeat() {
-      playerState.update(s => {
-          let next;
-          if (s.repeat === 'none') next = 'all';
-          else if (s.repeat === 'all') next = 'one';
-          else next = 'none';
-          return { ...s, repeat: next };
-      });
+      const next = $playerState.repeat === 'none' ? 'all' : $playerState.repeat === 'all' ? 'one' : 'none';
+      if (nativePlayback) {
+          platform.player.setMode({ shuffle: $playerState.shuffle, repeat: next })
+              .then(mode => playerState.update(s => ({ ...s, shuffle: mode.shuffle, repeat: mode.repeat })))
+              .catch(e => console.error('Could not set the native repeat mode', e));
+          return;
+      }
+      playerState.update(s => ({ ...s, repeat: next }));
   }
 
   /**
    * Toggles the shuffle mode.
+   *
+   * Native only: same hand-off as `toggleRepeat`, and `shuffleTrail` is left untouched -- it is
+   * `playNext`/`playPrev`'s own bookkeeping for walking a JS-decided shuffle order, and on a
+   * native shell the service has a shuffle order of its own that this component never sees.
    */
   function toggleShuffleMode() {
-      playerState.update(s => ({ ...s, shuffle: !s.shuffle }));
+      const next = !$playerState.shuffle;
+      if (nativePlayback) {
+          platform.player.setMode({ shuffle: next, repeat: $playerState.repeat })
+              .then(mode => playerState.update(s => ({ ...s, shuffle: mode.shuffle, repeat: mode.repeat })))
+              .catch(e => console.error('Could not set the native shuffle mode', e));
+          return;
+      }
+      playerState.update(s => ({ ...s, shuffle: next }));
       // A fresh run of shuffle starts its trail here, so the first "previous"
       // after switching it on goes back to the track that was playing.
       shuffleTrail = startTrail($currentTrack?.id);
@@ -1084,8 +1103,17 @@
     platform.player.attach(audioElement ?? null);
     if (nativePlayback) {
       // The service has a volume of its own and it outlived this WebView, so
-      // the UI follows it rather than pushing a remembered number at it.
-      playerState.update(s => ({ ...s, volume: platform.player.state().volume * 100 }));
+      // the UI follows it rather than pushing a remembered number at it. Shuffle
+      // and repeat are the same story: a restored session may already have
+      // either set, and the store should show what the service is actually
+      // doing rather than the defaults this component starts with.
+      const native = platform.player.state();
+      playerState.update(s => ({
+        ...s,
+        volume: native.volume * 100,
+        shuffle: native.shuffle,
+        repeat: native.repeat,
+      }));
       // Take over the queue that is already there before any effect pushes one.
       // Both go on the same chain, so the adopt always wins the race.
       nativeQueue = createNativeQueue(platform.player, {

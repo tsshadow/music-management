@@ -196,6 +196,15 @@ describe("browser player", () => {
 
       await expect(player.play()).resolves.toBeUndefined();
     });
+
+    // Shuffle and repeat stay `Player.svelte`'s own decision here -- there is no
+    // service on this side of the bridge for either to live on -- so the engine
+    // has nothing to do beyond answering, the same as `setQueue`/`queueState`.
+    it("has nowhere to put a mode, and says so by doing nothing", async () => {
+      await expect(player.setMode({ shuffle: true, repeat: "all" })).resolves.toEqual(
+        player.state(),
+      );
+    });
   });
 
   describe("the state it reports", () => {

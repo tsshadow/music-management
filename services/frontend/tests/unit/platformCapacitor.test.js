@@ -65,6 +65,8 @@ const PLAYING = {
   volume: 0.8,
   queueIndex: 1,
   queueLength: 3,
+  shuffle: false,
+  repeat: "none",
 };
 
 describe("capacitor platform", () => {
@@ -265,6 +267,51 @@ describe("capacitor player", () => {
   it("takes transport handlers and wires none of them", () => {
     expect(() => platform.player.setCommandHandlers({ next: () => {} })).not.toThrow();
     expect(plugins.MumaPlayer.calls).toEqual([]);
+  });
+
+  // Shuffle and repeat live on the service once it owns the queue -- Media3
+  // applies both by itself, with no JS in the loop -- so `setMode` sends the
+  // ask and trusts the answer over it, the same shape every other event does.
+  it("asks the service for a mode and mirrors what it actually applied", async () => {
+    const { platform: native, plugins: fakes } = nativePlatform({
+      MumaPlayer: { setMode: { ...PLAYING, shuffle: true, repeat: "one" } },
+    });
+
+    const answer = await native.player.setMode({ shuffle: true, repeat: "all" });
+
+    expect(fakes.MumaPlayer.calls).toEqual([["setMode", { shuffle: true, repeat: "all" }]]);
+    // The service answered "one", not the "all" that was asked for.
+    expect(answer).toMatchObject({ shuffle: true, repeat: "one" });
+    expect(native.player.state()).toMatchObject({ shuffle: true, repeat: "one" });
+  });
+
+  it("defaults a mode call made without one to off", async () => {
+    await platform.player.setMode();
+
+    expect(plugins.MumaPlayer.calls).toEqual([["setMode", { shuffle: false, repeat: "none" }]]);
+  });
+
+  // Android Auto's own repeat button, or the notification, can move the
+  // service without the WebView ever calling `setMode`; every event still
+  // carries the fields, the same as every other part of the snapshot.
+  it("picks up a mode changed from outside the WebView on any event", () => {
+    plugins.MumaPlayer.emit("timeupdate", { ...PLAYING, shuffle: true, repeat: "all" });
+
+    expect(platform.player.state()).toMatchObject({ shuffle: true, repeat: "all" });
+  });
+
+  it("keeps the last known mode when a message leaves it out", () => {
+    plugins.MumaPlayer.emit("play", { ...PLAYING, shuffle: true, repeat: "one" });
+    plugins.MumaPlayer.emit("pause", { status: "paused", trackId: "42" });
+
+    expect(platform.player.state()).toMatchObject({ shuffle: true, repeat: "one" });
+  });
+
+  it("refuses a repeat word the contract does not know, rather than trust the far side blindly", () => {
+    plugins.MumaPlayer.emit("play", { ...PLAYING, shuffle: true, repeat: "one" });
+    plugins.MumaPlayer.emit("pause", { repeat: "backwards" });
+
+    expect(platform.player.state().repeat).toBe("one");
   });
 });
 

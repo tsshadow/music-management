@@ -175,3 +175,55 @@ describe("NowPlaying", () => {
     expect(screen.getByText("4:00")).toBeTruthy();
   });
 });
+
+describe("NowPlaying in sets mode", () => {
+  it("shows h:mm:ss instead of m:ss", () => {
+    renderNowPlaying({ isSetMode: true, progress: 632, duration: 7825 });
+
+    expect(screen.getByText("0:10:32")).toBeTruthy();
+    expect(screen.getByText("2:10:25")).toBeTruthy();
+    expect(screen.queryByText("10:32")).toBeNull();
+  });
+
+  it("does not show ±30 s buttons for a song", () => {
+    renderNowPlaying({ isSetMode: false });
+
+    expect(screen.queryByLabelText("30 seconden terug")).toBeNull();
+    expect(screen.queryByLabelText("30 seconden verder")).toBeNull();
+  });
+
+  it("skips back and forward through onskip", async () => {
+    const onskip = vi.fn();
+    renderNowPlaying({ isSetMode: true, onskip });
+
+    await fireEvent.click(screen.getByLabelText("30 seconden terug"));
+    await fireEvent.click(screen.getByLabelText("30 seconden verder"));
+
+    expect(onskip).toHaveBeenCalledWith(-30);
+    expect(onskip).toHaveBeenCalledWith(30);
+  });
+
+  it("scrubs through onseekTo rather than the songs-mode onseek", async () => {
+    const onseekTo = vi.fn();
+    const onseek = vi.fn();
+    renderNowPlaying({ isSetMode: true, duration: 7200, progress: 100, onseekTo, onseek });
+
+    const bar = screen.getByLabelText("Door nummer spoelen");
+    await fireEvent.input(bar, { target: { value: "500" } });
+
+    expect(onseekTo).toHaveBeenCalledWith(500);
+    expect(onseek).not.toHaveBeenCalled();
+  });
+
+  it("overrides the scrub bar's arrow keys to skip ±30 s", async () => {
+    const onskip = vi.fn();
+    renderNowPlaying({ isSetMode: true, onskip });
+
+    const bar = screen.getByLabelText("Door nummer spoelen");
+    await fireEvent.keyDown(bar, { key: "ArrowRight" });
+    await fireEvent.keyDown(bar, { key: "ArrowLeft" });
+
+    expect(onskip).toHaveBeenCalledWith(30);
+    expect(onskip).toHaveBeenCalledWith(-30);
+  });
+});

@@ -14,11 +14,18 @@
   import { createNativeQueue, trackAfterCommand } from './nativeQueue.js';
   import { createRadioController } from './radioController.js';
   import { shouldPushJamState } from './radioSync.js';
-  import { resolveDuration, progressPercent, formatTime } from './playerProgress.js';
+  import { resolveDuration, progressPercent, formatTime, formatClock } from './playerProgress.js';
   import { describeFilter } from './management/radioChannels.js';
   import { snapshotOf, restoreTarget, bulletinStreamUrl } from './newsQueue.js';
   import { startTrail, stepBack, stepForward } from './shuffleHistory.js';
   import { releaseDateLabel } from './trackDate.js';
+  import { isSet } from './downloads.js';
+  import {
+    resumeKeyFor,
+    shouldResume,
+    loadSetResumePositions,
+    saveSetResumePosition,
+  } from './setResume.js';
   import ArtistList from './ArtistList.svelte';
   import { getArtistImageUrl, subsonicError } from './utils.js';
   import { getHeaders } from './mumaApi.js';
@@ -755,6 +762,7 @@
   function handleTimeUpdate(state = platform.player.state()) {
     playerState.update(s => ({ ...s, progress: state.position }));
     reconcileNativeRadioNews(state);
+    persistCurrentResumePosition();
 
     const length = currentLength(state);
     if (!hasScrobbledFinished && track && length > 0) {
@@ -810,6 +818,7 @@
         scrobble(false);
         hasScrobbledStarted = true;
     }
+    maybeOfferResume(track);
   }
 
   /**
@@ -828,6 +837,79 @@
    */
   function handlePause() {
     playerState.update(s => ({ ...s, playing: false }));
+    persistCurrentResumePosition(true);
+  }
+
+  /**
+   * Writes one set's position into the account, if it is a set and the
+   * position is worth keeping. Shared by every write site below rather than
+   * each computing its own guard.
+   *
+   * @param {Object|null} targetTrack
+   * @param {number} position - Seconds into `targetTrack`.
+   */
+  function persistResumePositionFor(targetTrack, position) {
+    if (!targetTrack || !isSet(targetTrack)) return;
+    saveSetResumePosition(resumeKeyFor(targetTrack), position).catch((e) =>
+      console.warn('Could not save the resume position', e));
+  }
+
+  /**
+   * Writes the current set's position, throttled to once every
+   * `RESUME_WRITE_INTERVAL_MS` unless `force` -- pause, a track change and
+   * `beforeunload` all want the write to happen right away, the periodic
+   * `timeupdate` tick does not.
+   *
+   * Radio and a bulletin are excluded through `isSetMode`, which already
+   * carries the same `own` gate `currentLength()` uses -- neither is really
+   * "the selected track", and writing under its key would corrupt whatever
+   * set that key actually belongs to.
+   *
+   * @param {boolean} [force=false]
+   */
+  function persistCurrentResumePosition(force = false) {
+    if (!isSetMode) return;
+    const now = Date.now();
+    if (!force && now - lastResumeWriteAt < RESUME_WRITE_INTERVAL_MS) return;
+    lastResumeWriteAt = now;
+    persistResumePositionFor(track, platform.player.state().position);
+  }
+
+  /**
+   * Offers to resume a set, once per track: seeks straight to the stored
+   * position (rather than waiting for a tap) and raises a dismissable toast
+   * with an "opnieuw" action, so starting over is one tap rather than a
+   * fight with the scrub bar. Guarded by `resumeOfferedTrackId` so pausing
+   * and pressing play again on the same set does not ask a second time.
+   *
+   * @param {Object|null} currentTrackRef
+   */
+  async function maybeOfferResume(currentTrackRef) {
+    if (!currentTrackRef || !isSet(currentTrackRef)) return;
+    if (resumeOfferedTrackId === currentTrackRef.id) return;
+    resumeOfferedTrackId = currentTrackRef.id;
+    try {
+      const all = await loadSetResumePositions();
+      const entry = all[resumeKeyFor(currentTrackRef)];
+      if (!shouldResume(entry, currentTrackRef.duration)) return;
+      // The current track may have moved on while this was in flight.
+      if ($currentTrack?.id !== currentTrackRef.id) return;
+      const target = entry.position;
+      logAction('player.resumeOffered', { trackId: currentTrackRef.id, seconds: target });
+      platform.player.seek(target);
+      playerState.update((s) => ({ ...s, progress: target }));
+      notify.info($t('notify.resumeAt', { time: formatClock(target) }), {
+        action: {
+          label: $t('notify.resumeRestart'),
+          onClick: () => {
+            platform.player.seek(0);
+            playerState.update((s) => ({ ...s, progress: 0 }));
+          },
+        },
+      });
+    } catch (e) {
+      console.warn('Could not read the resume position', e);
+    }
   }
 
   /**
@@ -836,6 +918,26 @@
    */
   function handleVolumeChange(state = platform.player.state()) {
     playerState.update(s => ({ ...s, volume: state.volume * 100 }));
+  }
+
+  /**
+   * Seeks to an absolute position, in seconds, clamped to the track's length.
+   *
+   * The one path every other seek goes through: a click on the songs-mode
+   * bar, a drag on the sets-mode range input, and the ±30 s buttons. Kept
+   * separate from `seek(e)` below because the range input and the skip
+   * buttons already have seconds, not a mouse event to compute them from.
+   *
+   * @param {number} seconds
+   */
+  function seekTo(seconds) {
+    if (duration <= 0 || !Number.isFinite(seconds)) return;
+    const clamped = Math.max(0, Math.min(duration, seconds));
+    logAction('player.seek', { trackId: track?.id ?? null, seconds: Math.round(clamped) });
+    platform.player.seek(clamped);
+    if ($syncMode !== 'off') {
+      pushJamState();
+    }
   }
 
   /**
@@ -850,12 +952,19 @@
     // Not the engine's own length: a chunked stream leaves that at 0, and the
     // bar is drawn from the track's length instead -- seek to the same one.
     if (duration <= 0) return;
-    const seconds = percentage * duration;
-    logAction('player.seek', { trackId: track?.id ?? null, seconds: Math.round(seconds) });
-    platform.player.seek(seconds);
-    if ($syncMode !== 'off') {
-      pushJamState();
-    }
+    seekTo(percentage * duration);
+  }
+
+  /**
+   * Jumps the current position by a number of seconds, forward or back. Sets
+   * mode's ±30 s buttons and the sets-mode scrub bar's arrow keys, on both the
+   * desktop bar and Now Playing.
+   *
+   * @param {number} deltaSeconds
+   */
+  function skip(deltaSeconds) {
+    if (!platform.player.ready()) return;
+    seekTo(platform.player.state().position + deltaSeconds);
   }
 
   /**
@@ -1008,6 +1117,11 @@
   // fallback length; see currentLength().
   const fallbackLength = $derived((newsSnapshot || $radioChannel) ? 0 : (track?.duration ?? 0));
   const duration = $derived(track ? resolveDuration($playerState.duration, fallbackLength) : 0);
+  // Whether the sets-mode player chrome applies: ±30 s buttons, h:mm:ss time
+  // labels, the fine-grained scrub bar. Radio and a bulletin are never a set
+  // regardless of their nominal track's duration -- the same gate
+  // `currentLength()` uses, because neither is really "the selected track".
+  const isSetMode = $derived(!newsSnapshot && !$radioChannel && isSet(track));
   const volume = $derived($playerState.volume);
   const repeatMode = $derived($playerState.repeat);
   const shuffleMode = $derived($playerState.shuffle);
@@ -1075,6 +1189,15 @@
   let initialized = false;
   /** Whether the platform queue has been synced at least once this session. */
   let nativeQueueSynced = false;
+
+  /** How often a playing set's position is written to the account, in ms. */
+  const RESUME_WRITE_INTERVAL_MS = 15000;
+  /** `Date.now()` of the last resume write, so `persistCurrentResumePosition` can throttle. */
+  let lastResumeWriteAt = 0;
+  /** The track `maybeOfferResume` last decided about, so pausing and pressing play again does not ask twice. */
+  let resumeOfferedTrackId = null;
+  /** The track this component is tracking a resume position for -- the previous value of `track`, kept for the write on the way out when it changes. */
+  let previousTrackForResume = null;
 
   /**
    * When this play of the current track began, in milliseconds.
@@ -1202,6 +1325,15 @@
   $effect(() => {
     if (track && track.id !== lastTrackId) {
         const isInitialLoad = !lastTrackId && !initialized;
+        // Writes wherever the outgoing track (not the one about to play) was
+        // left, before the engine's position means something else. Reads
+        // `platform.player.state()` rather than `progress`: the engine has not
+        // been told to load the new track yet at this point in the effect, so
+        // its position is still the outgoing track's.
+        if (!isInitialLoad) {
+          persistResumePositionFor(previousTrackForResume, platform.player.state().position);
+        }
+        previousTrackForResume = track;
         lastTrackId = track.id;
         hasScrobbledStarted = false;
         hasScrobbledFinished = false;
@@ -1372,11 +1504,18 @@
       }
     };
 
+    // The last chance to record a set's position: a reload or a closed tab
+    // gives none of the periodic or track-change writes above a chance to
+    // run first.
+    const handleBeforeUnload = () => persistCurrentResumePosition(true);
+
     window.addEventListener('wheel', handleGlobalWheel, { passive: true });
     window.addEventListener('keydown', handleGlobalKeyDown);
+    window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDown);
       window.removeEventListener('wheel', handleGlobalWheel);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       if (radioTickInterval) clearInterval(radioTickInterval);
       if (radioRefreshInterval) clearInterval(radioRefreshInterval);
       if (radioClockInterval) clearInterval(radioClockInterval);
@@ -1529,6 +1668,7 @@
       {transportLocked}
       {coverUrl}
       {equalizerSupported}
+      {isSetMode}
       onclose={closeNowPlaying}
       ontogglePlay={togglePlay}
       onnext={playNext}
@@ -1537,6 +1677,8 @@
       ontoggleShuffle={toggleShuffleMode}
       ontoggleRepeat={toggleRepeat}
       onseek={seek}
+      onseekTo={seekTo}
+      onskip={skip}
       ontoggleEqualizer={() => (showEqualizer = !showEqualizer)}
       {ontoggleQueue}
     />
@@ -1583,9 +1725,9 @@
             <div class="w-1 h-1 bg-brand rounded-full mt-0.5"></div>
           {/if}
         </button>
-        <button 
-          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}" 
-          onclick={playPrev} 
+        <button
+          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+          onclick={playPrev}
           disabled={transportLocked}
           aria-label={$t('player.previous')}
         >
@@ -1593,8 +1735,22 @@
             <path d="M3.3 1a.7.7 0 0 1 .7.7v5.15l9.95-5.744a.7.7 0 0 1 1.05.606v12.575a.7.7 0 0 1-1.05.607L4 9.15v5.15a.7.7 0 0 1-.7.7H1.7a.7.7 0 0 1-.7-.7V1.7a.7.7 0 0 1 .7-.7h1.6z"></path>
           </svg>
         </button>
-        <button 
-          class="w-9 h-9 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105 {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}" 
+        {#if isSetMode}
+          <button
+            class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+            onclick={() => skip(-30)}
+            disabled={transportLocked}
+            aria-label={$t('player.skipBack')}
+            title={$t('player.skipBack')}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+              <path d="M12 5V1L7 6l5 5V7a6 6 0 1 1-6 6H5a7 7 0 1 0 7-7z"></path>
+            </svg>
+            <span class="text-[8px] font-bold -ml-1">30</span>
+          </button>
+        {/if}
+        <button
+          class="w-9 h-9 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105 {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
           onclick={togglePlay}
           disabled={transportLocked}
         >
@@ -1608,9 +1764,23 @@
             </svg>
           {/if}
         </button>
-        <button 
-          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}" 
-          onclick={playNext} 
+        {#if isSetMode}
+          <button
+            class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+            onclick={() => skip(30)}
+            disabled={transportLocked}
+            aria-label={$t('player.skipForward')}
+            title={$t('player.skipForward')}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+              <path d="M12 5V1l5 5-5 5V7a6 6 0 1 0 6 6h2a7 7 0 1 1-7-7z"></path>
+            </svg>
+            <span class="text-[8px] font-bold -ml-1">30</span>
+          </button>
+        {/if}
+        <button
+          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+          onclick={playNext}
           disabled={transportLocked}
           aria-label={$t('player.next')}
         >
@@ -1631,18 +1801,41 @@
         </button>
       </div>
       <div class="hidden md:flex w-full items-center gap-2 text-[11px] text-[#b3b3b3]">
-        <span>{formatTime(progress)}</span>
-      <div 
-        role="button"
-        tabindex="0"
-        class="flex-1 h-1 bg-[#4d4d4d] rounded-sm cursor-pointer {transportLocked ? 'pointer-events-none opacity-50' : ''}"
-        onclick={seek}
-        onkeydown={(e) => e.key === 'Enter' && seek(e)}
-        aria-label={$t('player.seek')}
-      >
+        <span>{isSetMode ? formatClock(progress) : formatTime(progress)}</span>
+      {#if isSetMode}
+        <!-- A native `range`, not the songs-mode click div below: a two-hour
+             file needs real dragging, not a per-pixel click, to land on a
+             chosen second -- see the "step 1 s" note in setResume.js's
+             design. Arrow keys are overridden to ±30 s instead of the range's
+             own 1 s step, matching the skip buttons above. -->
+        <input
+          type="range"
+          class="flex-1 accent-brand-blue h-1 cursor-pointer {transportLocked ? 'pointer-events-none opacity-50' : ''}"
+          min="0"
+          max={duration || 0}
+          step="1"
+          value={progress}
+          disabled={transportLocked}
+          oninput={(e) => seekTo(Number(e.currentTarget.value))}
+          onkeydown={(e) => {
+            if (e.key === 'ArrowLeft') { e.preventDefault(); skip(-30); }
+            else if (e.key === 'ArrowRight') { e.preventDefault(); skip(30); }
+          }}
+          aria-label={$t('player.seek')}
+        />
+      {:else}
+        <div
+          role="button"
+          tabindex="0"
+          class="flex-1 h-1 bg-[#4d4d4d] rounded-sm cursor-pointer {transportLocked ? 'pointer-events-none opacity-50' : ''}"
+          onclick={seek}
+          onkeydown={(e) => e.key === 'Enter' && seek(e)}
+          aria-label={$t('player.seek')}
+        >
           <div class="h-full bg-white rounded-sm" style="width: {progressPercent(progress, duration)}%"></div>
-      </div>
-        <span>{formatTime(duration)}</span>
+        </div>
+      {/if}
+        <span>{isSetMode ? formatClock(duration) : formatTime(duration)}</span>
       </div>
     </div>
 

@@ -19,6 +19,7 @@ import android.provider.MediaStore
 import androidx.activity.OnBackPressedCallback
 import androidx.lifecycle.lifecycleScope
 import com.getcapacitor.BridgeActivity
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import nl.teunschriks.mumamobile.app.UApp
@@ -33,6 +34,7 @@ import nl.teunschriks.mumamobile.car.CarModeNotifier
 import nl.teunschriks.mumamobile.car.CarModeSession
 import nl.teunschriks.mumamobile.car.CarPresence
 import nl.teunschriks.mumamobile.diagnostics.CrashReportManager
+import nl.teunschriks.mumamobile.service.BookmarkMigration
 import nl.teunschriks.mumamobile.service.MediaPlayerLifecycleSupport
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.util.Constants
@@ -130,6 +132,7 @@ class CapacitorActivity : BridgeActivity() {
 
         installBackHandling()
         watchCarPresence()
+        migrateBookmarksOnce()
         deliver(intent)
     }
 
@@ -228,6 +231,22 @@ class CapacitorActivity : BridgeActivity() {
         if (seq != backSequence) return
         pendingBack?.let(main::removeCallbacks)
         pendingBack = null
+    }
+
+    // -------------------------------------------------------------- bookmarks
+
+    /**
+     * One-time push of this account's Subsonic bookmarks into the web's `setResume` account
+     * setting -- see [BookmarkMigration]. The shell's bootstrap is where this runs, once: the
+     * Kotlin UI has no equivalent moment (there is no single "app started" screen there, only
+     * whichever fragment the user lands on), and the shell is the only surface this design adds
+     * anything to. Both network calls block, so this is off the main thread; nothing in the UI
+     * waits on it.
+     */
+    private fun migrateBookmarksOnce() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            BookmarkMigration.runOnce()
+        }
     }
 
     // -------------------------------------------------------------------- car

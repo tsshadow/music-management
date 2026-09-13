@@ -75,7 +75,7 @@ export function logError(error, { action = "js.error" } = {}) {
   if (platform.system?.isNative) {
     logAction(action, detail);
   } else {
-    console.error(`[${action}]`, detail.message, error);
+    console.error("Uncaught in the web UI", action, detail.message, error);
   }
 }
 

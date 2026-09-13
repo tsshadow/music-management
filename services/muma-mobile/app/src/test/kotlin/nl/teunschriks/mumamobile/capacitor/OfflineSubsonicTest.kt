@@ -37,16 +37,20 @@ class OfflineSubsonicTest {
     private lateinit var database: MetaDatabase
     private lateinit var offline: OfflineSubsonic
 
+    private var playlistRecords: List<OfflineSubsonic.PlaylistRecord> = emptyList()
+
     @Before
     fun setUp() {
         database = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), MetaDatabase::class.java)
             .allowMainThreadQueries()
             .build()
         database.trackDao().set(listOf(shortOne, shortTwo, longSet, notDownloaded))
+        playlistRecords = emptyList()
         offline = OfflineSubsonic(
             allTracks = { database.trackDao().get() },
             onDisk = { it.id in DOWNLOADED },
-            coverArtUrl = { track -> if (track.coverArt == "art-tr-1") COVER_URL else null }
+            coverArtUrl = { track -> if (track.coverArt == "art-tr-1") COVER_URL else null },
+            playlists = { playlistRecords }
         )
     }
 
@@ -132,6 +136,42 @@ class OfflineSubsonicTest {
         answer("getStarred2") shouldBeEqualTo
             """{"subsonic-response":{$OK,"starred2":{"artist":[$STARRED_ARTIST],""" +
             """"album":[$STARRED_ALBUM],"song":[$TRACK_ONE]}}}"""
+    }
+
+    // ------------------------------------------------------------------- playlists
+
+    @Test
+    fun `getPlaylists answers every remembered playlist, its downloaded songs only`() {
+        playlistRecords = listOf(
+            OfflineSubsonic.PlaylistRecord(id = "pl-1", name = "Warm-up", trackIds = listOf("tr-1", "tr-4", "tr-2"))
+        )
+        answer("getPlaylists") shouldBeEqualTo
+            """{"subsonic-response":{$OK,"playlists":{"playlist":[""" +
+            """{"id":"pl-1","name":"Warm-up","songCount":2,"duration":800,"coverArt":"art-tr-1"}]}}}"""
+    }
+
+    @Test
+    fun `getPlaylist answers the playlist with its entries in playlist order`() {
+        playlistRecords = listOf(
+            OfflineSubsonic.PlaylistRecord(id = "pl-1", name = "Warm-up", trackIds = listOf("tr-2", "tr-1"))
+        )
+        answer("getPlaylist", "id" to "pl-1") shouldBeEqualTo
+            """{"subsonic-response":{$OK,"playlist":{"id":"pl-1","name":"Warm-up","songCount":2,""" +
+            """"duration":800,"coverArt":"art-tr-2","entry":[$TRACK_TWO,$TRACK_ONE]}}}"""
+    }
+
+    @Test
+    fun `a track a playlist remembers but the device never downloaded is left out`() {
+        playlistRecords = listOf(OfflineSubsonic.PlaylistRecord(id = "pl-1", name = "Warm-up", trackIds = listOf("tr-4")))
+        answer("getPlaylist", "id" to "pl-1") shouldBeEqualTo
+            """{"subsonic-response":{$OK,"playlist":{"id":"pl-1","name":"Warm-up","songCount":0,"duration":0,"entry":[]}}}"""
+    }
+
+    @Test
+    fun `a playlist id nobody remembers is not found rather than empty`() {
+        answer("getPlaylist", "id" to "does-not-exist") shouldBeEqualTo
+            """{"subsonic-response":{"status":"failed","version":"1.16.1","type":"lms","openSubsonic":true,""" +
+            """"error":{"code":70,"message":"The requested data was not found."}}}"""
     }
 
     /** `.view` and a leading path are both things the web sends; neither is a different request. */

@@ -99,8 +99,27 @@ class MumaStoragePlugin :
         OfflineSubsonic(
             allTracks = { activeServerProvider.getActiveMetaDatabase().trackDao().get() },
             onDisk = ::isOnDisk,
-            coverArtUrl = ::localCoverArtUrl
+            coverArtUrl = ::localCoverArtUrl,
+            playlists = ::offlinePlaylists
         )
+    }
+
+    /**
+     * Every playlist this device remembers for the active server: the `offline_playlists` Room
+     * rows [nl.teunschriks.mumamobile.service.RESTMusicService] writes on every playlist fetch,
+     * plus any `.m3u` file downloaded before that table existed -- see [LegacyPlaylistFiles].
+     */
+    private fun offlinePlaylists(): List<OfflineSubsonic.PlaylistRecord> {
+        val database = activeServerProvider.getActiveMetaDatabase()
+        val stored = database.offlinePlaylistDao().get().map {
+            OfflineSubsonic.PlaylistRecord(id = it.id, name = it.name, trackIds = it.trackIds)
+        }
+        val legacy = LegacyPlaylistFiles.read(
+            directory = FileUtil.getPlaylistDirectory(activeServerProvider.getActiveServer().name),
+            knownNames = stored.map { it.name }.toSet(),
+            tracks = database.trackDao().get()
+        )
+        return stored + legacy
     }
 
     private val connectivity: ConnectivityManager?

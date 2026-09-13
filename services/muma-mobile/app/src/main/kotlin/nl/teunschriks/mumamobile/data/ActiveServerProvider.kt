@@ -156,6 +156,7 @@ class ActiveServerProvider(private val repository: ServerSettingDao) : Coroutine
         .addMigrations(META_MIGRATION_6_7)
         .addMigrations(META_MIGRATION_7_8)
         .addMigrations(META_MIGRATION_8_9)
+        .addMigrations(META_MIGRATION_9_10)
         .fallbackToDestructiveMigrationOnDowngrade()
         .build()
 

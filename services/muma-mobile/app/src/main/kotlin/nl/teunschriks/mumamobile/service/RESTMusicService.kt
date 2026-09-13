@@ -35,6 +35,7 @@ import nl.teunschriks.mumamobile.domain.Mood
 import nl.teunschriks.mumamobile.domain.MumaTile
 import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.MusicFolder
+import nl.teunschriks.mumamobile.domain.OfflinePlaylist
 import nl.teunschriks.mumamobile.domain.Playlist
 import nl.teunschriks.mumamobile.domain.PodcastsChannel
 import nl.teunschriks.mumamobile.domain.SearchCriteria
@@ -277,6 +278,7 @@ open class RESTMusicService(
 
         val playlist = response.body()!!.playlist.toMusicDirectoryDomainEntity(activeServerId)
         savePlaylist(name, playlist)
+        cacheOfflinePlaylist(id, name, playlist)
 
         return playlist
     }
@@ -289,6 +291,29 @@ open class RESTMusicService(
         )
 
         FileUtil.savePlaylist(playlistFile, playlist, name)
+    }
+
+    /**
+     * Remembers this playlist's server id, name and track ids, so the offline shell's
+     * `OfflineSubsonic` can answer `getPlaylists`/`getPlaylist` for it once the phone has no route
+     * to the server. [savePlaylist] writes a `.m3u` file next to this that carries none of that --
+     * see [OfflinePlaylist]'s class doc -- so the file alone cannot make an offline row become the
+     * same row as its online one.
+     *
+     * Called from the one place both a plain view and a "download this playlist" go through, so
+     * either is enough to keep the playlist reachable offline; there is no separate "download"
+     * step for a playlist to hook into.
+     */
+    private fun cacheOfflinePlaylist(id: String, name: String, playlist: MusicDirectory) {
+        activeServerProvider.getActiveMetaDatabase().offlinePlaylistDao().insert(
+            OfflinePlaylist(
+                id = id,
+                serverId = activeServerId,
+                name = name,
+                trackIds = playlist.getTracks().map { it.id },
+                updated = System.currentTimeMillis()
+            )
+        )
     }
 
     @Throws(Exception::class)

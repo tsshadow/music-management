@@ -1,7 +1,7 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
-  import { Settings2 } from '@lucide/svelte';
+  import { Settings2, CarFront } from '@lucide/svelte';
   import { credentials, isAdmin, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser, defaultSubsonicUrl } from './store.js';
   import { platform } from './platform/index.js';
   import { logAction } from './diagnosticsLog.js';
@@ -115,6 +115,15 @@
         >
           {$t('nav.management')}
           <Settings2 size={16} />
+        </button>
+      {/if}
+      {#if platform.system.isNative}
+        <button
+          class="w-full text-left px-4 py-3 text-sm hover:bg-[#3e3e3e] transition-colors border-none bg-transparent text-white cursor-pointer flex justify-between items-center"
+          onclick={() => { isOpen = false; onNavigate('car'); }}
+        >
+          {$t('nav.carMode')}
+          <CarFront size={16} />
         </button>
       {/if}
       <button

@@ -290,6 +290,17 @@ export function createBrowserPlayer() {
     errored = false;
   }
 
+  /**
+   * Native-only on the capacitor engine, where the platform service holds the queue and has to be
+   * asked to move it. A browser tab's queue lives in `Player.svelte`, which already advances it
+   * itself and never calls this -- kept here only so a caller that branches on `platform.system.isNative`
+   * rather than on `ownsQueue` still finds a function rather than `undefined`.
+   */
+  function next() {}
+
+  /** See `next`. */
+  function previous() {}
+
   /** @param {number} seconds */
   function seek(seconds) {
     if (media) media.currentTime = seconds;
@@ -468,6 +479,8 @@ export function createBrowserPlayer() {
     play,
     pause,
     stop,
+    next,
+    previous,
     seek,
     setVolume,
     setRate,

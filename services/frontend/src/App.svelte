@@ -16,6 +16,7 @@
   import SearchMoreModal from './lib/SearchMoreModal.svelte';
   import BottomSheet from './lib/BottomSheet.svelte';
   import Toaster from './lib/Toaster.svelte';
+  import CarModeView from './lib/CarModeView.svelte';
   import { notify } from './lib/notifications.js';
   import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, currentTrack, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive, pushedHistoryEntries, sidebarDrawerOpen, searchResultsOpen, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying } from './lib/store.js';
   import { get } from 'svelte/store';
@@ -23,6 +24,7 @@
   import { platform } from './lib/platform/index.js';
   import { watchConnectivity } from './lib/subsonic.js';
   import { deepLinkAction, randomTracksUrl } from './lib/shellRoutes.js';
+  import { createCarModeSession, CarModeIntent } from './lib/carMode.js';
   import { t } from './lib/i18n/index.js';
   import { logAction } from './lib/diagnosticsLog.js';
 
@@ -32,6 +34,13 @@
   const greeting = $derived($t(greetingKey));
 
   let showQueue = $state(false);
+
+  // The view to return to when the car screen closes. `carModeSession` is the ported
+  // `car/CarModeSession.kt`: it decides whether `carConnected` firing again this trip should
+  // reopen the screen, independently of whatever the native notification is doing with the
+  // same signal (see `lib/carMode.js`).
+  const carModeSession = createCarModeSession();
+  let carReturnView = 'home';
 
   $effect(() => {
     if ($viewMode === 'sets') {
@@ -160,19 +169,60 @@
         pushedHistoryEntries.update((n) => Math.max(0, n - 1));
     });
 
-    // The two things only a shell sends. Both are no-ops in a browser, so there
-    // is no platform check around them -- that is what the interface is for.
+    // The three things only a shell sends. All are no-ops in a browser, so there
+    // is no platform check around any of them -- that is what the interface is for.
     const unsubscribes = [
       platform.system.onBack(handleShellBack),
       platform.system.onDeepLink(handleDeepLink),
+      platform.system.carConnected(handleCarPresence),
       // Also a no-op in a browser: `platform.storage.supported` is false there,
       // `offline` never becomes true, and no screen changes.
       watchConnectivity(platform),
     ];
+
+    // A cold start already in the car: `carConnected` only reaches a listener that
+    // subscribed before the shell fired it, so a boot that missed the event asks once
+    // instead. Read after subscribing, not before -- a connection that happens in
+    // between is still caught by the listener above, and `onPresenceChanged` treats a
+    // second report of the same state as nothing, so there is no double-navigate.
+    platform.system.carState()
+      .then((state) => handleCarPresence(state.connected))
+      .catch(() => {});
+
     return () => {
       for (const unsubscribe of unsubscribes) unsubscribe();
     };
   });
+
+  /**
+   * `platform.system.carConnected`, and the bootstrap read of `carState()`. Both feed the same
+   * ported state machine, so a screen already open when the trip ends is exactly the thing that
+   * closes it, and a screen the driver dismissed does not reopen on the next duplicate report.
+   *
+   * @param {boolean} connected
+   */
+  function handleCarPresence(connected) {
+    const intent = carModeSession.onPresenceChanged(connected);
+    if (intent === CarModeIntent.OFFER) enterCarMode();
+    else if (intent === CarModeIntent.CLOSE && get(activeView) === 'car') {
+      activeView.set(carReturnView);
+    }
+  }
+
+  /** Remembers where to return to, then switches -- shared by the auto-open path and the
+   *  overflow menu's own "Carmodus" entry (see `handleNavigate`). */
+  function enterCarMode() {
+    if (get(activeView) === 'car') return;
+    carReturnView = get(activeView);
+    activeView.set('car');
+  }
+
+  /** The car screen's own close button. Recorded as a dismissal so a duplicate `carConnected`
+   *  report for the same trip does not reopen it; a real disconnect and reconnect still will. */
+  function handleCarClose() {
+    carModeSession.onDismissed();
+    activeView.set(carReturnView);
+  }
 
   /**
    * The platform back gesture, which is not browser history.
@@ -191,6 +241,15 @@
    * @returns {boolean} Whether the press was used.
    */
   function handleShellBack() {
+    // Above everything else on screen (z-50; see CarModeView), so it is checked first.
+    // Goes through the same close path as the screen's own button -- not
+    // `pushedHistoryEntries` below -- so a dismissal by the hardware gesture is recorded
+    // the same as a tap, and a duplicate `carConnected` report right after does not
+    // reopen it.
+    if (get(activeView) === 'car') {
+      handleCarClose();
+      return true;
+    }
     // Now Playing's own queue button opens the same bottom sheet as the
     // mini player's, stacked on top of it -- so a press while both are open
     // has to close the sheet first (the `showQueue` branch further down) and
@@ -244,6 +303,14 @@
       await playRandom();
       return;
     }
+    // The car-mode notification's own tap: an explicit ask, not the auto-open gate
+    // `carModeSession` guards, so it always opens the screen regardless of an earlier
+    // dismissal this trip. Goes through `enterCarMode` rather than a bare
+    // `activeView.set` so closing the screen still knows where to return to.
+    if (action.view === 'car') {
+      enterCarMode();
+      return;
+    }
     activeView.set(action.view);
   }
 
@@ -291,6 +358,12 @@
     // the two that make a report tell a story; anything more would be noise in
     // a fifty-line buffer.
     logAction('navigate', { view });
+    // The overflow menu's own "Carmodus" entry (ProfileButton, native only): an
+    // explicit ask, so it opens the same way the notification tap does.
+    if (view === 'car') {
+      enterCarMode();
+      return;
+    }
     // The mode first, then the view: the effect above reads both and corrects
     // whichever is behind, and it runs after this handler returns. Moving the
     // view alone to 'sets' while the mode still said 'songs' is what made the
@@ -455,6 +528,14 @@
         {/if}
       </div>
     </div>
+  {/if}
+
+  <!-- z-50: above Player's internal z-40 Now Playing and the z-40 drawer above, the
+       highest anything in the app goes. MobileNav and the mini player stay mounted
+       underneath rather than being torn down, so playback is untouched -- the point of
+       this screen is that music keeps going while it is up. -->
+  {#if $activeView === 'car'}
+    <CarModeView onclose={handleCarClose} onmicrophone={() => handleNavigate('voice')} />
   {/if}
 </main>
 {/if}

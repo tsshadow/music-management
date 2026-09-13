@@ -21,6 +21,12 @@
     "similar": "Fans vinden dit ook leuk",
     "verified": "Geverifieerde artiest"
   },
+  "car": {
+    "microphone": "Spraakzoekopdracht",
+    "mixFavorites": "Favorieten-mix",
+    "mixGenre": "{genre}-mix",
+    "rate": "Beoordeel met {star} sterren"
+  },
   "collection": {
     "albumCount": {
       "one": "{count} album",
@@ -849,6 +855,7 @@
     "albums": "Albums",
     "artists": "Artiesten",
     "bottomBar": "Navigatiebalk",
+    "carMode": "Carmodus",
     "closeMenu": "Menu sluiten",
     "dailyMix": "Dagelijkse mix",
     "downloads": "Downloads",

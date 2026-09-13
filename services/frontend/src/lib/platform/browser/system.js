@@ -82,6 +82,26 @@ const system = {
   },
 
   /**
+   * What `carConnected` would have last reported. A browser tab is never in a car, so this is
+   * always `{connected: false}` -- the same honest-empty answer `carConnected` gives by never
+   * firing.
+   *
+   * @returns {Promise<{connected: boolean}>}
+   */
+  async carState() {
+    return { connected: false };
+  },
+
+  /**
+   * The lock-screen behaviour a native car screen asks for while it is on top. A browser tab has
+   * no lock screen to show over, so this resolves without doing anything.
+   *
+   * @param {{showWhenLocked: boolean, turnScreenOn: boolean}} _flags
+   * @returns {Promise<void>}
+   */
+  async setKeepScreenOn(_flags) {},
+
+  /**
    * The "Apparaat" settings tab has nothing to read in a browser tab -- there is no
    * native whitelist behind it -- and the tab itself never shows without `isNative`,
    * so this is never actually read.

@@ -13,6 +13,9 @@
 
 /** Sidebar and top-level pages that map straight onto a path of the same name. */
 const PLAIN_VIEWS = [
+  // The driving screen. Reached from the overflow menu, the car-mode notification, and
+  // `platform.system.carConnected` firing on its own -- see `App.svelte`.
+  "car",
   // The personalized feeds. Hyphenated because the slug is part of MuMa's API path and the URL
   // says the same word the API does.
   "release-radar",

@@ -239,6 +239,24 @@ export function createCapacitorPlayer(plugin) {
       fireAndForget("stop", plugin.stop());
     },
 
+    /**
+     * Moves the service's queue forward one track. Native only -- there is no equivalent on the
+     * browser engine, whose queue lives in `Player.svelte` -- so this exists for screens that are
+     * themselves native-only, today just the car-mode screen. Nothing here mirrors the move into
+     * `state()`/`currentTrack` by itself: the plugin call changes the service's queue index, which
+     * the existing `tick()` polling on the Kotlin side already reports as a `command` event no
+     * differently than a head-unit button press, and the same `on('command', ...)` handling that
+     * already exists for that case is what draws the new track.
+     */
+    next() {
+      fireAndForget("next", plugin.next());
+    },
+
+    /** See `next`. */
+    previous() {
+      fireAndForget("previous", plugin.previous());
+    },
+
     /** @param {number} seconds */
     seek(seconds) {
       fireAndForget("seek", plugin.seek({ seconds }));

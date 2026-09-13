@@ -25,6 +25,7 @@ describe("viewToPath", () => {
   });
 
   it.each([
+    ["car", "/car"],
     ["songs", "/songs"],
     ["sets", "/sets"],
     ["albums", "/albums"],
@@ -257,6 +258,7 @@ describe("round trip", () => {
   const paths = [
     "/",
     "/login",
+    "/car",
     "/songs",
     "/sets",
     "/albums",

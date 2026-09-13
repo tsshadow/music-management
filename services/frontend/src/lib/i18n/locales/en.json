@@ -21,6 +21,12 @@
     "similar": "Fans also like",
     "verified": "Verified artist"
   },
+  "car": {
+    "microphone": "Voice search",
+    "mixFavorites": "Favourites mix",
+    "mixGenre": "{genre} mix",
+    "rate": "Rate {star} stars"
+  },
   "collection": {
     "albumCount": {
       "one": "{count} album",
@@ -849,6 +855,7 @@
     "albums": "Albums",
     "artists": "Artists",
     "bottomBar": "Navigation bar",
+    "carMode": "Car mode",
     "closeMenu": "Close menu",
     "dailyMix": "Daily Mix",
     "downloads": "Downloads",

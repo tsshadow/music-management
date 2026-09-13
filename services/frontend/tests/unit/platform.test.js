@@ -87,6 +87,14 @@ describe("browser player queue", () => {
     expect(() => browserPlayer.on("command", handler)()).not.toThrow();
     expect(handler).not.toHaveBeenCalled();
   });
+
+  // A browser has no service to ask; the queue in Player.svelte already advances itself and
+  // never calls these, but a caller that branches on isNative rather than ownsQueue must still
+  // find a function here rather than crash on undefined.
+  it("has next and previous, and neither does anything", () => {
+    expect(() => browserPlayer.next()).not.toThrow();
+    expect(() => browserPlayer.previous()).not.toThrow();
+  });
 });
 
 describe("browser storage", () => {
@@ -240,6 +248,19 @@ describe("browser system", () => {
     browserSystem.carConnected(handler)();
 
     expect(handler).not.toHaveBeenCalled();
+  });
+
+  // A browser tab is never in a car; this is the same honest-empty answer carConnected
+  // gives by never firing, just readable once instead of waited for.
+  it("carState is never connected", async () => {
+    await expect(browserSystem.carState()).resolves.toEqual({ connected: false });
+  });
+
+  // There is no lock screen to ask in a browser tab.
+  it("setKeepScreenOn is a no-op that resolves", async () => {
+    await expect(
+      browserSystem.setKeepScreenOn({ showWhenLocked: true, turnScreenOn: true }),
+    ).resolves.toBeUndefined();
   });
 
   // A browser tab has no native session and nowhere to persist one; both resolve at

@@ -58,6 +58,7 @@ private const val MILLIS_PER_SECOND = 1000.0
  * | `play()` | `resumeOrPlay()` when something is loaded, `play()` otherwise |
  * | `pause()` | `pause()` |
  * | `stop()` | `stop()` |
+ * | `next()`/`previous()` | [next]/[previous]; capacitor-only, see their doc comments |
  * | `seek({seconds})` | `seekTo(ms)` |
  * | `setVolume({value})` | `volume = value` |
  * | `setRate({value})` | `playbackSpeed = value` |
@@ -289,6 +290,31 @@ class MumaPlayerPlugin :
     @PluginMethod
     fun stop(call: PluginCall) = onMain {
         mediaPlayerManager.stop()
+        call.resolve()
+    }
+
+    /**
+     * Moves the service's queue forward one track, the same call the legacy car-mode screen makes
+     * directly on [MediaPlayerManager] and the notification's "next" button reaches through Media3.
+     *
+     * Deliberately not a `platform.player` contract method: the browser owns its queue in
+     * `Player.svelte` and has no service to ask, so this exists only on the capacitor side, for the
+     * screens -- today just car mode -- that need to drive the native queue without duplicating it
+     * in JS. Nothing here emits [EVENT_COMMAND] itself; [tick] already reports every queue-index
+     * change as `command: next`/`previous` regardless of who caused it, and doing it twice would be
+     * the "next from a head unit and a next the UI asked for look the same" promise turning into a
+     * double move.
+     */
+    @PluginMethod
+    fun next(call: PluginCall) = onMain {
+        mediaPlayerManager.seekToNext()
+        call.resolve()
+    }
+
+    /** See [next]; the same call in the other direction. */
+    @PluginMethod
+    fun previous(call: PluginCall) = onMain {
+        mediaPlayerManager.seekToPrevious()
         call.resolve()
     }
 

@@ -57,6 +57,16 @@ interface LibraryVocabulary {
     /** The albums whose titles look like [term]. Carries ids, because an album is played by id. */
     fun albums(term: String): List<NamedRef> = emptyList()
 
+    /**
+     * Every festival the library has tagged sets under.
+     *
+     * Asked only for a request that already asks for sets: a festival has no meaning for the
+     * songs path, and asking here for every ordinary genre or artist request would be a round
+     * trip nobody needed. Default empty, like the other optional lookups -- a library with
+     * nothing tagged this way still answers "play a set" with the length filter alone.
+     */
+    fun festivals(): List<String> = emptyList()
+
     /** Every playlist. Few enough to fetch whole, and played by id. */
     fun playlists(): List<NamedRef> = emptyList()
 

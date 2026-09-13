@@ -32,6 +32,7 @@ object VoiceExplanation {
         ALBUM,
         PLAYLIST,
         YEAR,
+        FESTIVAL,
 
         /** The star range asked for, as "5", "4-5" or "4+". */
         RATING,
@@ -65,7 +66,8 @@ object VoiceExplanation {
         Field.ARTIST,
         Field.ALBUM,
         Field.PLAYLIST,
-        Field.YEAR
+        Field.YEAR,
+        Field.FESTIVAL
     )
 
     /** Every row worth showing about [resolution], the words that were heard first. */
@@ -109,6 +111,7 @@ object VoiceExplanation {
                 QueryResolver.FILTER_ARTIST -> rows.add(Row(Field.ARTIST, value))
                 QueryResolver.FILTER_PUBLISHER -> rows.add(Row(Field.LABEL, value))
                 QueryResolver.FILTER_YEAR -> rows.add(Row(Field.YEAR, value))
+                QueryResolver.FILTER_FESTIVAL -> rows.add(Row(Field.FESTIVAL, value))
                 QueryResolver.FILTER_LENGTH ->
                     if (value == VoiceQuery.LENGTH_LONG) rows.add(Row(Field.SETS))
                 // The tag is only a fallback: the range is the wider truth, and the two are set
@@ -157,5 +160,6 @@ object VoiceExplanation {
         EntityKind.ARTIST -> Field.ARTIST
         EntityKind.ALBUM -> Field.ALBUM
         EntityKind.PLAYLIST -> Field.PLAYLIST
+        EntityKind.FESTIVAL -> Field.FESTIVAL
     }
 }

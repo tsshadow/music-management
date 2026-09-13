@@ -104,6 +104,14 @@ class VoiceExplanationTest {
     }
 
     @Test
+    fun `a festival set names the festival and says set rather than printing the length filter`() {
+        val rows = explain("play a Defqon set")
+
+        valueOf(rows, VoiceExplanation.Field.FESTIVAL) `should be equal to` "Defqon.1"
+        rows.map { it.field } `should contain` VoiceExplanation.Field.SETS
+    }
+
+    @Test
     fun `a request that named nothing carries the resolver's own reason`() {
         val rows = explain("speel zwabberkore af")
 

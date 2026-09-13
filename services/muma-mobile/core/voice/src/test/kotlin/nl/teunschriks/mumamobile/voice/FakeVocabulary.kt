@@ -36,7 +36,8 @@ class FakeVocabulary(
     private val playlists: List<NamedRef> = listOf(
         NamedRef("pl-1", "Thunderdome"),
         NamedRef("pl-2", "Zomer")
-    )
+    ),
+    private val festivals: List<String> = listOf("Defqon.1", "Decibel")
 ) : LibraryVocabulary {
 
     /** Every lookup the resolver made, so a test can assert it did not ask for what it cannot use. */
@@ -80,5 +81,10 @@ class FakeVocabulary(
     override fun playlists(): List<NamedRef> {
         asked.add("playlists")
         return playlists
+    }
+
+    override fun festivals(): List<String> {
+        asked.add("festivals")
+        return festivals
     }
 }

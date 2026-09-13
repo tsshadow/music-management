@@ -478,6 +478,7 @@ class MumaVoiceFragment : ScopeFragment() {
         EntityKind.ARTIST -> R.string.muma_voice_kind_artist
         EntityKind.ALBUM -> R.string.muma_voice_kind_album
         EntityKind.PLAYLIST -> R.string.muma_voice_kind_playlist
+        EntityKind.FESTIVAL -> R.string.muma_voice_kind_festival
     }
 
     private fun labelOf(field: VoiceExplanation.Field): Int = when (field) {
@@ -488,6 +489,7 @@ class MumaVoiceFragment : ScopeFragment() {
         VoiceExplanation.Field.ALBUM -> R.string.voice_explain_album
         VoiceExplanation.Field.PLAYLIST -> R.string.voice_explain_playlist
         VoiceExplanation.Field.YEAR -> R.string.voice_explain_year
+        VoiceExplanation.Field.FESTIVAL -> R.string.voice_explain_festival
         VoiceExplanation.Field.RATING -> R.string.voice_explain_rating
         VoiceExplanation.Field.SETS -> R.string.voice_explain_sets
         VoiceExplanation.Field.ORDER -> R.string.voice_explain_order

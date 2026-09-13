@@ -84,6 +84,32 @@ class QueryResolverTest {
     }
 
     @Test
+    fun `a bare request for a set plays any liveset rather than reporting no match`() {
+        val resolved = resolve("speel een set af")
+
+        resolved.`should not be null`()
+        resolved!!.filters.toString() `should be equal to` """[{"name":"LENGTH","value":"long"}]"""
+        resolved.sortMethod `should be equal to` SortMethods.RELEASED
+    }
+
+    @Test
+    fun `a festival named in a set request resolves to the festival filter`() {
+        val resolved = resolve("play a Defqon set")
+
+        resolved!!.filters.toString() `should contain` """{"name":"FESTIVAL","value":"Defqon.1"}"""
+        resolved.filters.toString() `should contain` """{"name":"LENGTH","value":"long"}"""
+    }
+
+    @Test
+    fun `the latest set of an artist names the artist and sorts by release`() {
+        val resolved = resolve("speel de nieuwste set van headhunterz af")
+
+        resolved!!.filters.toString() `should contain` """{"name":"ARTIST","value":"Headhunterz"}"""
+        resolved.filters.toString() `should contain` """{"name":"LENGTH","value":"long"}"""
+        resolved.sortMethod `should be equal to` SortMethods.RELEASED
+    }
+
+    @Test
     fun `bounds a favourites request on both sides`() {
         val resolved = resolve("speel favoriete hardstyle af")
 

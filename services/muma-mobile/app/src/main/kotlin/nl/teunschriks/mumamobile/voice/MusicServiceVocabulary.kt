@@ -77,6 +77,8 @@ class MusicServiceVocabulary(private val musicService: MusicService) : LibraryVo
         musicService.getPlaylists(false).map { NamedRef(it.id, it.name) }
     }
 
+    override fun festivals(): List<String> = tagNames(TAG_FESTIVAL)
+
     private fun tagNames(type: String): List<String> = safely(type) { musicService.getTags(false, type, null, null).map { it.name } }
 
     private fun safely(what: String, block: () -> List<String>): List<String> = runCatching(block).getOrElse {
@@ -93,6 +95,7 @@ class MusicServiceVocabulary(private val musicService: MusicService) : LibraryVo
         const val TAG_PUBLISHER = "PUBLISHER"
         const val TAG_YEAR = "YEAR"
         const val TAG_RATING = "RATING"
+        const val TAG_FESTIVAL = "FESTIVAL"
 
         /** How many artists the server is asked to offer for one spoken name. */
         const val ARTIST_CANDIDATES = 20

@@ -78,6 +78,12 @@ data class ParsedQuery(
      */
     enum class Sort { RELEASED, ADDED, RANDOM }
 
-    /** Whether the utterance asked for nothing this can act on. */
-    fun isEmpty(): Boolean = this == ParsedQuery(length = length)
+    /**
+     * Whether the utterance asked for nothing this can act on.
+     *
+     * A bare "play a set" is the one exception: it names no genre, artist or anything else, but
+     * [length] alone is already an answer -- "any liveset" -- so it is not empty the way a
+     * genuinely bare utterance is.
+     */
+    fun isEmpty(): Boolean = this == ParsedQuery(length = length) && length != VoiceQuery.LENGTH_LONG
 }

@@ -110,7 +110,7 @@ object VoiceQuery {
     private val ADDED_WORDS = setOf("toegevoegd", "added")
     private val RELEASED_WORDS = setOf(
         "recent", "recente", "recently", "nieuw", "nieuwe", "new", "uitgebracht", "released",
-        "laatste", "latest"
+        "laatste", "latest", "nieuwste", "newest"
     )
 
     /**
@@ -118,7 +118,7 @@ object VoiceQuery {
      * headhunterz"), so which one it is depends entirely on what comes next.
      */
     private val YEAR_PREPOSITIONS = setOf("uit", "van", "in", "from", "of", "sinds", "since")
-    private val ARTICLE_WORDS = setOf("het", "de", "the", "een")
+    private val ARTICLE_WORDS = setOf("het", "de", "the", "een", "a", "an")
     private val SET_WORDS = setOf("set", "sets", "liveset", "livesets", "djset", "djsets")
     private val SET_QUALIFIERS = setOf("live", "dj")
     private val SEPARATORS = Regex("[^\\p{L}\\p{N}&]+")
@@ -143,6 +143,14 @@ object VoiceQuery {
     }
 
     /**
+     * [KEYWORDS] without [SET_WORDS], for the one check that must not disqualify a title on the
+     * strength of that word alone: a track can genuinely be titled "Set", and "speel het nummer
+     * set af" asking for it is not the same request as "speel een set af" asking for any liveset.
+     * Every other keyword still disqualifies a title exactly as before.
+     */
+    private val TITLE_DISQUALIFIERS: Set<String> by lazy { KEYWORDS - SET_WORDS }
+
+    /**
      * @brief Parses a spoken query into a request.
      *
      * @param query the utterance, exactly as it arrived
@@ -158,15 +166,37 @@ object VoiceQuery {
         var tokens = strip(query)
         trace?.tokens("stripped", tokens)
 
-        val wantsSets = tokens.any { it in SET_WORDS }
-        if (wantsSets) {
-            tokens = tokens.filterNot { it in SET_WORDS || it in SET_QUALIFIERS }
-            trace?.rule("a set word was spoken, so LENGTH becomes \"$LENGTH_LONG\"")
-        }
+        // "Speel een set af" and "play a Defqon set" both open with an article that names
+        // nothing on its own; left in place it would leak into the free term as "a defqon"
+        // rather than "defqon". Scoped to utterances that ask for a set at all, so it never
+        // touches "speel een nummer af" -- there is no set word there to trigger it.
+        tokens = dropLeadingArticleBeforeASet(tokens)
 
         tokens = tokens.filterNot { it in NOISE_WORDS }
         tokens = dropTitleWordsThatNameNothing(tokens, trace)
         tokens = dropArticlesAroundKeywords(tokens)
+
+        // Whether a set word found here would flip the intent, or is simply what a track is
+        // titled. "Speel het nummer live set af" asks for the track named "Live Set"; nothing
+        // else in the utterance names anything, so the set word is all the title has.
+        val setWordIndices = tokens.indices.filter { tokens[it] in SET_WORDS }
+        val titleIndex = tokens.indexOfFirst { it in TITLE_WORDS }
+        val setWordNamesTheTitle = titleIndex != -1 &&
+            setWordIndices.isNotEmpty() &&
+            setWordIndices.all { it > titleIndex }
+
+        val wantsSets = setWordIndices.isNotEmpty() && !setWordNamesTheTitle
+        if (wantsSets) {
+            // "The latest set of headhunterz" names the artist through "of" the same way "van"
+            // does, but only right after the set word that was just dropped -- "art of creation"
+            // never sees this, because nothing there was a set word to begin with.
+            tokens = tokens.mapIndexed { index, token ->
+                if (token == "of" && index > 0 && tokens[index - 1] in SET_WORDS) "van" else token
+            }.filterNot { it in SET_WORDS || it in SET_QUALIFIERS }
+            trace?.rule("a set word was spoken, so LENGTH becomes \"$LENGTH_LONG\"")
+        } else if (setWordNamesTheTitle) {
+            trace?.rule("\"set\" follows the title word and names nothing else, so it stays part of the title")
+        }
         trace?.tokens("carried", tokens)
 
         // One entry per slot, and inside it one list of words per spoken value. Keeping the values
@@ -326,9 +356,22 @@ object VoiceQuery {
         if (token !in TITLE_WORDS) return@filterIndexed true
 
         val next = tokens.drop(index + 1).firstOrNull { it !in ARTICLE_WORDS }
-        val names = next != null && next !in KEYWORDS && !next.matches(YEAR)
+        val names = next != null && next !in TITLE_DISQUALIFIERS && !next.matches(YEAR)
         if (!names) trace?.rule("\"$token\" names nothing after it, so it is dropped as noise")
         names
+    }
+
+    /**
+     * Drops the leading article of "speel een set af" and "play a Defqon set", so the noun after
+     * it is not "een defqon" or "a defqon" by the time it reaches the free term.
+     *
+     * Scoped to utterances that name a set at all: without a set word anywhere, this is a no-op,
+     * so "speel een nummer af" keeps behaving exactly as it always has.
+     */
+    private fun dropLeadingArticleBeforeASet(tokens: List<String>): List<String> {
+        if (tokens.isEmpty() || tokens.first() !in ARTICLE_WORDS) return tokens
+        if (tokens.none { it in SET_WORDS }) return tokens
+        return tokens.drop(1)
     }
 
     /** Splits the utterance and drops the wrapping that is never part of what was asked for. */

@@ -63,6 +63,7 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
             val names = lookup(trace, "labels", "") { vocabulary.labels() }
             matched(trace, "label", it, VoiceQuery.match(it, names))
         }
+        var festival: String? = null
         val known = if (parsed.years.isEmpty()) {
             emptyList()
         } else {
@@ -86,6 +87,7 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
                         namedGenres = spellingsOf(trace, reading.candidate.name, genres)
                     EntityKind.ARTIST -> artist = reading.candidate.name
                     EntityKind.LABEL -> label = reading.candidate.name
+                    EntityKind.FESTIVAL -> festival = reading.candidate.name
                     else -> Unit
                 }
                 // Everything nameable came back empty, so the request is headed for NoMatch. A
@@ -99,8 +101,12 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
         }
 
         val asksForARating = parsed.ratingMin != null
-        val named = namedGenres + listOfNotNull(artist, label) + years
-        if (named.isEmpty() && !asksForARating && parsed.sort == null) {
+        val named = namedGenres + listOfNotNull(artist, label, festival) + years
+        val namesNothing = named.isEmpty() && !asksForARating && parsed.sort == null
+        // "Play a set" alone names none of the above, and it is still a request worth running:
+        // the length filter is an answer on its own -- any liveset -- rather than nothing.
+        val asksForASet = parsed.length == VoiceQuery.LENGTH_LONG
+        if (namesNothing && !asksForASet) {
             here.outcome("NoMatch: the library places nothing the utterance named")
             return QueryResolution.NoMatch("nothing the utterance named is in the library", here)
         }
@@ -109,6 +115,7 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
             if (namedGenres.isNotEmpty()) add(Filter(FILTER_GENRE, namedGenres))
             artist?.let { add(Filter(FILTER_ARTIST, it)) }
             label?.let { add(Filter(FILTER_PUBLISHER, it)) }
+            festival?.let { add(Filter(FILTER_FESTIVAL, it)) }
             // One year stays a single value, so the request looks exactly as it always has; several
             // become the array the engine reads as an OR.
             when (years.size) {
@@ -253,6 +260,22 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
             // matter for a name no genre claims.
             trace?.note("\"$free\" is a genre the library spells \"$asGenre\", so nothing else is asked")
             return listOf(Candidate(EntityKind.GENRE, asGenre, score = scoreOf(asGenre, EntityKind.GENRE)))
+        }
+
+        // Only asked when the utterance already wants sets: a festival has no meaning for songs,
+        // and this would otherwise cost every ordinary genre or artist request a round trip.
+        // Unlike a genre, the partial fallback stays on -- a festival's library spelling routinely
+        // carries a suffix nobody says out loud ("Defqon.1" for "Defqon"), and that is the ordinary
+        // case here rather than a near miss.
+        if (parsed.length == VoiceQuery.LENGTH_LONG) {
+            val festivals = lookup(trace, "festivals", "") { vocabulary.festivals() }
+            val asFestival = VoiceQuery.match(free, festivals)
+            if (asFestival != null) {
+                trace?.note("\"$free\" is a festival the library spells \"$asFestival\", so nothing else is asked")
+                return listOf(
+                    Candidate(EntityKind.FESTIVAL, asFestival, score = scoreOf(asFestival, EntityKind.FESTIVAL))
+                )
+            }
         }
 
         val labels = lookup(trace, "labels", "") { vocabulary.labels() }
@@ -473,6 +496,7 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
         const val FILTER_YEAR = "YEAR"
         const val FILTER_RATING = "RATING"
         const val FILTER_LENGTH = "LENGTH"
+        const val FILTER_FESTIVAL = "FESTIVAL"
 
         /** What an exact match on the library's own spelling is worth. */
         const val EXACT = 100
@@ -486,6 +510,7 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
         /** The order the resolver has always preferred, now only a tie-break. */
         val KIND_ORDER = listOf(
             EntityKind.GENRE,
+            EntityKind.FESTIVAL,
             EntityKind.LABEL,
             EntityKind.ARTIST,
             EntityKind.ALBUM,

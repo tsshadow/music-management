@@ -45,4 +45,9 @@ class LibraryVocabularyTest {
     fun `a library with no genres has nothing prominent`() {
         vocabularyOf(emptyList()).prominentGenres() `should be equal to` emptyList()
     }
+
+    @Test
+    fun `a vocabulary that never overrode festivals has none`() {
+        vocabularyOf(emptyList()).festivals() `should be equal to` emptyList()
+    }
 }

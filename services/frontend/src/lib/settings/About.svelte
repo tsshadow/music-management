@@ -71,6 +71,15 @@
     </section>
 
     <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+      <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.about.howItWorksTitle')}</h2>
+
+      <div>
+        <h3 class="text-white font-bold mb-1">{$t('settings.about.howCarModeTitle')}</h3>
+        <p class="text-[#b3b3b3] text-sm">{$t('settings.about.howCarModeBody')}</p>
+      </div>
+    </section>
+
+    <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
       <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.about.whatsNew')}</h2>
 
       {#if isLoading}

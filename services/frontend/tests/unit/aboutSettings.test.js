@@ -92,6 +92,14 @@ describe("About", () => {
     expect(screen.getByText("2026-08-02")).toBeInTheDocument();
   });
 
+  it("explains how car mode turns on, since Android Auto is mentioned nowhere else on the web", async () => {
+    render(About);
+    await waitFor(() => expect(screen.getByText("Versie 0.0.60")).toBeInTheDocument());
+
+    expect(screen.getByText("Hoe de automodus aangaat")).toBeInTheDocument();
+    expect(screen.getByText(/Android Auto/)).toBeInTheDocument();
+  });
+
   it("survives release notes that cannot be fetched", async () => {
     globalThis.fetch = respond({
       "/rest/ping": PING_OK,

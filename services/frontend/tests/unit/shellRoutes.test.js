@@ -44,11 +44,20 @@ describe("deepLinkAction", () => {
     expect(deepLinkAction("search:   ")).toEqual({ kind: "view", view: "home" });
   });
 
-  // Phase 4 builds these screens. Until then the tap has to land somewhere
-  // usable and the action log has to say what was asked for, because that is
-  // the only way "it did nothing" reads back out of a crash report.
-  it.each(["car", "voice"])("lands %s on home and records that it is unbuilt", (route) => {
-    expect(deepLinkAction(route)).toEqual({ kind: "view", view: "home", unbuilt: route });
+  // Car mode is still a later phase. Until it exists the tap has to land
+  // somewhere usable and the action log has to say what was asked for,
+  // because that is the only way "it did nothing" reads back out of a crash
+  // report.
+  it("lands car mode on home and records that it is unbuilt", () => {
+    expect(deepLinkAction("car")).toEqual({ kind: "view", view: "home", unbuilt: "car" });
+  });
+
+  // The voice screen is a Svelte screen now: the quick-settings tile, the
+  // launcher shortcut and a car-mode microphone all arrive as this route (see
+  // `VoiceTileService.EXTRA_OPEN_VOICE` and `CapacitorActivity.ROUTE_VOICE`),
+  // and it must open the real screen rather than the `unbuilt` placeholder.
+  it("opens the voice screen for the voice route", () => {
+    expect(deepLinkAction("voice")).toEqual({ kind: "view", view: "voice" });
   });
 
   it.each([undefined, null, "", "something-else"])("sends %s home", (route) => {

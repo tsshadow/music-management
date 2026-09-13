@@ -167,12 +167,81 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  */
 
 /**
+ * @typedef {object} VoiceExplanation What a resolution says, keyed the way a screen prints it:
+ *   `heard` is the words the request arrived as; `understood` is the naming rows joined into one
+ *   sentence ("Hardstyle, 2021"), present only when something was resolved; `genre`, `label`,
+ *   `artist`, `album`, `playlist`, `year`, `rating`, `sets`, `order` are the same rows individually,
+ *   present only when the resolution carries that field; `question` is the term a pending
+ *   {@link VoiceQuestion} is about; `reason` is why nothing could be run, present only on
+ *   `kind: 'nothing'`. Every value is already the library's own spelling or a fixed token
+ *   (`order` is `'released'|'added'|'random'`) -- nothing here needs a further lookup to display.
+ * @property {string} [heard]
+ * @property {string} [understood]
+ * @property {string} [genre]
+ * @property {string} [label]
+ * @property {string} [artist]
+ * @property {string} [album]
+ * @property {string} [playlist]
+ * @property {string} [year]
+ * @property {string} [rating]
+ * @property {string} [sets]
+ * @property {string} [order]
+ * @property {string} [question]
+ * @property {string} [reason]
+ */
+
+/**
+ * @typedef {object} VoiceQuery What plays for a `kind: 'play'` resolution -- run it exactly the way
+ *   a preset or a Home card does, through `subsonic.js` and the `playlist`/`currentTrack` stores;
+ *   this is data, never a command back to the platform.
+ * @property {'filtered'|'item'} type
+ * @property {string} [method] `'getSongs'`, for `type: 'filtered'`.
+ * @property {Record<string, string>} [params] For `subsonicJson(query.method, params)`; already
+ *   in that call's own shape (`clusters` is the JSON string `presetQuery` builds, `sortMethod` is
+ *   one of the values `getSongs` accepts).
+ * @property {'album'|'playlist'} [kind] For `type: 'item'`: which subsonic call to make.
+ * @property {string} [id] For `type: 'item'`.
+ * @property {string} [name] For `type: 'item'`, the name as the library spells it.
+ */
+
+/**
+ * @typedef {object} VoiceQuestion A `kind: 'ask'` resolution's follow-up.
+ * @property {string} prompt The term nobody qualified, e.g. `"thunderdome"`.
+ * @property {string[]} options The kinds it could be, lower-case: `"genre"|"label"|"artist"|
+ *   "album"|"playlist"`. Tapping one re-runs `interpret` with the same text and that kind as
+ *   `pinned`; answering by voice re-runs `interpret` with the new words and no `pinned` at all,
+ *   the same as any other utterance.
+ */
+
+/**
+ * @typedef {object} VoiceResolution What `platform.speech.interpret()` answers with.
+ * @property {VoiceExplanation} explanation
+ * @property {object} resolution
+ * @property {'play'|'ask'|'nothing'} resolution.kind
+ * @property {VoiceQuery} [resolution.query] Present only for `kind: 'play'`.
+ * @property {VoiceQuestion} [resolution.question] Present only for `kind: 'ask'`.
+ * @property {Array<{label: string, text: string}>} resolution.trace Every stage the parser and the
+ *   resolver went through, oldest first, for the diagnostics panel.
+ */
+
+/**
  * @typedef {object} PlatformSpeech Voice input.
- * @property {boolean} supported False in a browser tab.
+ * @property {boolean} supported False in a browser tab; the voice screen and its entry points
+ *   hide themselves on it rather than offering a microphone that always rejects.
  * @property {function({locale?: string}=): Promise<void>} start
  * @property {function(): void} stop
  * @property {function(function({text: string}): void): function(): void} onPartial
  * @property {function(function({text: string}): void): function(): void} onFinal
+ * @property {function({text: string, hypotheses?: string[], entryPoint?: string, pinned?: string}):
+ *   Promise<VoiceResolution>} interpret Runs `text` -- and, failing that, `hypotheses` in order --
+ *   through the same parser and resolver Android Auto and the microphone use. Never plays anything
+ *   itself: the caller runs `resolution.query` through its own queue on `kind: 'play'`. `pinned` is
+ *   one of a standing question's `options`, answering it without re-speaking the whole request.
+ * @property {function(): Promise<{title: string, html: string}>} vocabulary What the "what MuMa
+ *   understands" page shows, from the same string resources the legacy screen used -- `html` may
+ *   contain `<b>` and `\n`, exactly as a string resource does.
+ * @property {function(): Promise<{traces: Array<{summary: string, lines: Array<{label: string,
+ *   text: string}>}>}>} trace The recent voice requests, newest first, for the diagnostics panel.
  */
 
 /**

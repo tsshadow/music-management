@@ -29,6 +29,7 @@
   import OfflineNotice from './OfflineNotice.svelte';
   import PresetGrid from './PresetGrid.svelte';
   import PresetView from './PresetView.svelte';
+  import VoiceView from './VoiceView.svelte';
   import { presets, refreshPresets, createPreset, presetParamsFromFilters } from './presets.js';
   import { notify } from './notifications.js';
   import { listOf, offline, subsonicJson, viewHasOfflineSource } from './subsonic.js';
@@ -1291,6 +1292,8 @@
     <MemoriesView onnavigate={(v) => onnavigate(v)} />
   {:else if activeView.startsWith('memories:')}
     <MemoriesYearView year={viewArgument(activeView)} onnavigate={(v) => onnavigate(v)} />
+  {:else if activeView === 'voice'}
+    <VoiceView />
   {/if}
 </div>
 

@@ -45,6 +45,28 @@ const speech = {
   onFinal(_handler) {
     return () => {};
   },
+
+  /**
+   * @param {{text: string, hypotheses?: string[], entryPoint?: string, pinned?: string}} _options
+   * @returns {Promise<never>} Always rejects with {@link UNSUPPORTED}. The voice screen hides its
+   *   microphone on `supported`, so this is only ever reached by a direct link.
+   */
+  async interpret(_options) {
+    throw new Error(UNSUPPORTED);
+  },
+
+  /**
+   * @returns {Promise<{title: string, html: string}>} Empty; the "what MuMa understands" page is
+   *   reached from the voice screen, which is not offered here either.
+   */
+  async vocabulary() {
+    return { title: "", html: "" };
+  },
+
+  /** @returns {Promise<{traces: Array<object>}>} Empty; there is no request to have traced. */
+  async trace() {
+    return { traces: [] };
+  },
 };
 
 export default speech;

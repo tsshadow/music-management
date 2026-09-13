@@ -35,9 +35,10 @@ export function deepLinkAction(route, { isMobile = false } = {}) {
     const query = route.slice("search:".length).trim();
     return query ? { kind: "view", view: `search:${query}` } : { kind: "view", view: "home" };
   }
-  // Car mode and the voice screen are Svelte screens in phase 4. Until they
-  // exist the tap opens the app on its home screen rather than on nothing.
-  if (route === "car" || route === "voice") return { kind: "view", view: "home", unbuilt: route };
+  if (route === "voice") return { kind: "view", view: "voice" };
+  // Car mode is a Svelte screen in phase 4. Until it exists the tap opens the
+  // app on its home screen rather than on nothing.
+  if (route === "car") return { kind: "view", view: "home", unbuilt: route };
   return { kind: "view", view: "home" };
 }
 

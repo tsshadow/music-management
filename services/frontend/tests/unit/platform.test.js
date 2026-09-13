@@ -142,6 +142,17 @@ describe("browser speech", () => {
     expect(() => browserSpeech.onPartial(() => {})()).not.toThrow();
     expect(() => browserSpeech.onFinal(() => {})()).not.toThrow();
   });
+
+  it("rejects interpret the same way it rejects start", async () => {
+    await expect(browserSpeech.interpret({ text: "speel hardstyle af" })).rejects.toThrow(
+      /browser/,
+    );
+  });
+
+  it("answers vocabulary and trace empty rather than throwing", async () => {
+    await expect(browserSpeech.vocabulary()).resolves.toEqual({ title: "", html: "" });
+    await expect(browserSpeech.trace()).resolves.toEqual({ traces: [] });
+  });
 });
 
 describe("browser diagnostics", () => {

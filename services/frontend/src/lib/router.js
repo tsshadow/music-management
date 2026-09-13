@@ -42,6 +42,10 @@ const PLAIN_VIEWS = [
   // that one is a specific search's results, this one is the tab a listener
   // lands on before they have typed anything.
   "search",
+  // The mic, reached from the Search tab or a car/tile/shortcut deep link (see
+  // `shellRoutes.js`). "What MuMa understands" is a panel inside this same
+  // view rather than a route of its own, so this stays the only routing change.
+  "voice",
 ];
 
 /**

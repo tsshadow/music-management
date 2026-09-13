@@ -40,6 +40,7 @@ describe("viewToPath", () => {
     ["festivals", "/festivals"],
     ["years", "/years"],
     ["lineups", "/lineups"],
+    ["voice", "/voice"],
   ])("maps the %s sidebar page to %s", (view, path) => {
     expect(viewToPath(state(view))).toBe(path);
   });
@@ -269,6 +270,7 @@ describe("round trip", () => {
     "/history",
     "/listening",
     "/starred",
+    "/voice",
     "/genre/Drum%20%26%20Bass%20%2F%20UK",
     "/label/Hardcore",
     "/podcast/Hard%20With%20Style",

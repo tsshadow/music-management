@@ -98,6 +98,27 @@ export function createCapacitorSpeech(plugin) {
     onError(handler) {
       return listen(plugin, "error", (event) => handler({ code: event?.code ?? 0 }));
     },
+
+    /**
+     * Runs text through `core/voice`'s parser and resolver, unchanged, and answers with what it
+     * found. Never plays anything -- see the `interpret` doc in `platform/index.js`.
+     *
+     * @param {{text: string, hypotheses?: string[], entryPoint?: string, pinned?: string}} options
+     * @returns {Promise<import('../index.js').VoiceResolution>}
+     */
+    async interpret({ text, hypotheses = [], entryPoint, pinned } = {}) {
+      return await plugin.interpret({ text, hypotheses, entryPoint, pinned });
+    },
+
+    /** What the "what MuMa understands" page shows. */
+    async vocabulary() {
+      return await plugin.vocabulary();
+    },
+
+    /** The recent voice requests, newest first. */
+    async trace() {
+      return await plugin.trace();
+    },
   };
 
   return speech;

@@ -270,6 +270,24 @@ class ParseFolderTest(TaggerTestCase):
             self.tagger.parse_folder(folder, SongTypeEnum.SOUNDCLOUD)
         self.assertEqual(try_parse.call_count, 3)
 
+    def test_a_directory_named_like_a_song_is_not_parsed_as_one(self):
+        """`glob` matches names, and the library really does contain folders ending in `.mp3`.
+
+        `/mnt/music/EPs/This is Terror/TITCD018 - Srb - Rocket Science (2015).mp3` is a
+        directory. It reached mutagen on every pass and came back as
+        `IsADirectoryError: [Errno 21]`, which the parallel worker logs as `Parse_song
+        failed` -- five a night on production on 2026-09-10, and never fewer, because
+        nothing about a directory becomes readable on the next run.
+        """
+        folder = self.music / 'Soundcloud' / 'artist'
+        song = self.make_song(folder)
+        (folder / 'Srb - Rocket Science (2015).mp3').mkdir()
+
+        with patch.object(self.tagger, '_try_parse') as try_parse:
+            self.tagger.parse_folder(folder, SongTypeEnum.SOUNDCLOUD)
+
+        self.assertEqual([call.args[0] for call in try_parse.call_args_list], [song])
+
     def test_synology_metadata_folders_are_skipped(self):
         folder = self.music / 'Soundcloud' / '@eaDir'
         self.make_song(folder)

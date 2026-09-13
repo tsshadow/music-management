@@ -94,7 +94,7 @@
         <button
           onclick={changePassword}
           disabled={isChangingPassword || !newPassword}
-          class="mt-6 bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-8 rounded-full transition-colors disabled:opacity-50"
+          class="mt-6 bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-8 rounded-full transition-colors whitespace-nowrap shrink-0 disabled:opacity-50"
         >
           {isChangingPassword ? $t('settings.advanced.changing') : $t('settings.advanced.updatePassword')}
         </button>

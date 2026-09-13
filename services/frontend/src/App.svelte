@@ -416,7 +416,12 @@
     </div>
   {/if}
 
-  <div class="bg-[#181818] col-start-1 col-end-2 md:col-end-4 row-start-2 row-end-3 border-t border-[#282828] z-20 min-h-[64px] md:min-h-0">
+  <!-- z-40, not z-20: a grid item with a z-index is a stacking context, so the phone's
+       full-screen Now Playing (`fixed inset-0 z-40` inside Player) can never rise above
+       this number. At z-20 the content column's sticky TopBar (z-30) and the bottom nav
+       (z-20, later in the DOM) both painted over it. The drawer below is z-40 too and
+       later in the DOM, so it still wins; the z-[100] sheets and modals are untouched. -->
+  <div class="bg-[#181818] col-start-1 col-end-2 md:col-end-4 row-start-2 row-end-3 border-t border-[#282828] z-40 min-h-[64px] md:min-h-0">
     <Player
       ontoggleQueue={() => showQueue = !showQueue}
       onnavigate={handleNavigate}

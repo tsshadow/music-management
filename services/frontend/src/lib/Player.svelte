@@ -1243,7 +1243,12 @@
       onkeydown={(e) => e.key === 'Enter' && handleMiniPlayerTap(e)}
     >
       {#if track}
-        <img src={coverUrl} alt={track.title} class="w-11 h-11 rounded shadow-lg" onerror={(e) => e.target.src = '/images/spotify-fallback.svg'} />
+        <!-- Boxed, so the phone's placeholder padding (app.css, `padding: 18%`) resolves against
+             these 44px and not against the whole bar: a bare `w-11` img with a wide containing
+             block grew to ~150px and stretched the mini player to three times its height. -->
+        <div class="w-11 h-11 shrink-0 rounded shadow-lg overflow-hidden">
+          <img src={coverUrl} alt={track.title} class="w-full h-full object-cover" onerror={(e) => e.target.src = '/images/spotify-fallback.svg'} />
+        </div>
         <div class="flex-1 min-w-0">
           <div class="text-[13px] font-bold text-white truncate">{track.title}</div>
           <div class="flex items-center gap-1.5 min-w-0">

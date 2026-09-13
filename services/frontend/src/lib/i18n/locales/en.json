@@ -89,7 +89,8 @@
       "one": "{count} track",
       "other": "{count} tracks"
     },
-    "unknownError": "Unknown error"
+    "unknownError": "Unknown error",
+    "more": "More"
   },
   "dashboard": {
     "addFavorite": "Add to favourites",
@@ -1185,5 +1186,22 @@
     "emptyTitle": "Nothing downloaded here",
     "unavailableHelp": "This screen needs the server. It works again as soon as there is a connection.",
     "unavailableTitle": "Not available without a connection"
+  },
+  "presets": {
+    "title": "Presets",
+    "one": "Preset",
+    "everything": "everything",
+    "empty": "No tracks for this preset.",
+    "save": "Save as preset",
+    "namePrompt": "Name for the preset:",
+    "saved": "Preset saved",
+    "saveFailed": "Could not save the preset",
+    "delete": "Delete preset",
+    "deleteConfirm": "Delete the preset \"{name}\"?",
+    "deleted": "Preset deleted",
+    "deleteFailed": "Could not delete the preset",
+    "recentWord": "Recent",
+    "notFound": "This preset does not exist (any more).",
+    "randomWord": "Random"
   }
 }

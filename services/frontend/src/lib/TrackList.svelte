@@ -377,7 +377,11 @@
   });
 </script>
 
-<table class="w-full border-collapse text-[#b3b3b3] text-sm">
+<!-- table-fixed: the title cell holds nowrap text, and under the default auto layout that
+     text sets the column's minimum width, so a long title pushed the table past the phone's
+     viewport and the whole page scrolled sideways. Fixed layout gives the title column what
+     is left after the sized columns and lets `truncate` do its work. -->
+<table class="w-full table-fixed border-collapse text-[#b3b3b3] text-sm">
   <thead class="border-b border-white/10">
     <tr>
       <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[50px] text-right hidden md:table-cell">#</th>
@@ -389,13 +393,16 @@
         <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-12 hidden lg:table-cell text-center">{$t('track.plays')}</th>
         <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-32 hidden lg:table-cell text-center">{$t('filter.rating')}</th>
       {/if}
-      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[80px] md:w-[100px] text-right">
+      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[56px] md:w-[100px] text-right">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="inline">
           <path d="M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM0 8a8 8 0 1116 0A8 8 0 010 8z"></path>
           <path d="M8 4a.5.5 0 01.5.5v3h3a.5.5 0 010 1H8a.5.5 0 01-.5-.5v-4A.5.5 0 018 4z"></path>
         </svg>
       </th>
-      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[100px] text-center"></th>
+      <!-- The action buttons only show on hover, which a phone has not got; the column is
+           dropped there except in the queue and on a playlist, where "remove" and the download
+           toggle stay visible (reorder, versions and lyrics are desktop-only in that column). -->
+      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] text-center {isQueue || playlistId ? 'w-[84px] md:w-[100px]' : 'w-[100px] hidden md:table-cell'}"></th>
     </tr>
   </thead>
   <tbody>
@@ -528,13 +535,13 @@
           </td>
         {/if}
         <td class="p-2 px-4 text-right text-xs md:text-sm">{formatTime(track.duration * 1000)}</td>
-        <td class="p-2 px-4 text-center">
-          <div class="flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+        <td class="p-2 px-4 text-center {isQueue || playlistId ? '' : 'hidden md:table-cell'}">
+          <div class="flex gap-1 justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity">
               {#if isQueue}
                       <button
                         aria-label={$t('track.moveUp')}
                         title={$t('track.moveUp')}
-                        class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed"
+                        class="hidden md:flex bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed"
                         onclick={(e) => moveTrack(e, i, -1)}
                         disabled={i === 0}
                       >
@@ -545,7 +552,7 @@
                       <button
                         aria-label={$t('track.moveDown')}
                         title={$t('track.moveDown')}
-                        class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed"
+                        class="hidden md:flex bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed"
                         onclick={(e) => moveTrack(e, i, 1)}
                         disabled={i === tracks.length - 1}
                       >
@@ -606,7 +613,7 @@
                 <button
                   aria-label={$t('track.versions')}
                   title={$t('track.versions')}
-                  class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                  class="hidden md:flex bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 items-center justify-center rounded hover:bg-[#333] hover:text-white"
                   onclick={(e) => { e.stopPropagation(); onnavigate?.(`song:${track.workId}`); }}
                 >
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -618,7 +625,7 @@
               <button
                 aria-label={$t('track.lyrics')}
                 title={$t('track.lyrics')}
-                class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                class="hidden md:flex bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 items-center justify-center rounded hover:bg-[#333] hover:text-white"
                 onclick={(e) => showLyrics(e, track)}
               >
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -660,7 +667,7 @@
                 download={`${track.artist} - ${track.title}.mp3`}
                 aria-label={$t('common.download')}
                 title={$t('common.download')}
-                class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                class="hidden md:flex bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 items-center justify-center rounded hover:bg-[#333] hover:text-white"
                 onclick={(e) => e.stopPropagation()}
               >
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">

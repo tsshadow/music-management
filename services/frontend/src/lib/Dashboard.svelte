@@ -27,6 +27,10 @@
   import HomeShelf from './HomeShelf.svelte';
   import DownloadsView from './DownloadsView.svelte';
   import OfflineNotice from './OfflineNotice.svelte';
+  import PresetGrid from './PresetGrid.svelte';
+  import PresetView from './PresetView.svelte';
+  import { presets, refreshPresets, createPreset, presetParamsFromFilters } from './presets.js';
+  import { notify } from './notifications.js';
   import { listOf, offline, subsonicJson, viewHasOfflineSource } from './subsonic.js';
   import { getArtistImageUrl, viewArgument } from './utils.js';
   import { localDateString, memoryCount, memoryHeading, parseMemoryGroups } from './memories.js';
@@ -34,7 +38,7 @@
   import { defaultCollectionState, durationParts, lineupLevel, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
   import { loadIndexedTags } from './scanTags.js';
   import { loadFeed, DAILY_MIX, RELEASE_RADAR } from './feeds.js';
-  import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, hasPermission, isMobile, restUrl } from './store.js';
+  import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, hasPermission, isMobile, restUrl, mumaUser } from './store.js';
 
   // Navigation that has to survive a refresh goes through onnavigate, which App turns into a URL.
   // The local assignment stays the fallback for the many places that only switch the screen.
@@ -64,6 +68,9 @@
   let albums = $state([]);
   let artists = $state([]);
   let allGenres = $state([]);
+  // Per-genre colours for the preset tiles; `{}` until MuMa answers, and the tiles fall
+  // back to their own palette meanwhile.
+  let genreTints = $state({});
   let allLabels = $state([]);
   let allPodcasts = $state([]);
   let allFestivals = $state([]);
@@ -362,6 +369,60 @@
       const data = await response.json();
       playlists = data['subsonic-response']?.playlists?.playlist || [];
     } catch (e) { console.error(e); }
+  }
+
+  // The presets follow the MuMa account, not the Subsonic login: they are that user's dynamic
+  // playlists. Reloaded whenever the account changes, which includes signing in after a boot
+  // that started logged out.
+  $effect(() => {
+    const userId = $mumaUser?.id;
+    if (!userId) {
+      presets.set([]);
+      return;
+    }
+    refreshPresets(userId);
+    fetchGenreTints().then((tints) => (genreTints = tints));
+  });
+
+  /**
+   * Saves the list on screen -- its genre/label/year, sort, rating floor and mode -- as a preset
+   * tile on the home screen. The name is the only thing asked for; everything else is what the
+   * filter bar already says.
+   */
+  async function saveCurrentAsPreset() {
+    const userId = $mumaUser?.id;
+    if (!userId) return;
+    const argument = viewArgument(activeView);
+    const name = prompt($t('presets.namePrompt'), defaultPresetName());
+    if (!name?.trim()) return;
+    try {
+      await createPreset(userId, {
+        name: name.trim(),
+        params: presetParamsFromFilters({
+          genre: currentGenre || (activeView.startsWith('genre:') ? argument : ''),
+          label: activeView.startsWith('label:') ? argument : '',
+          year: currentYear || (activeView.startsWith('year:') ? argument : ''),
+          sort: currentSort,
+          minRating: currentMinRating,
+          viewMode: $viewMode,
+        }),
+      });
+      await refreshPresets(userId);
+      notify.success($t('presets.saved'));
+    } catch (e) {
+      console.error(e);
+      notify.error($t('presets.saveFailed'));
+    }
+  }
+
+  /** "Random Uptempo Hardcore", "Recent Hardstyle (2024)": the sort word first, as the old tiles were named. */
+  function defaultPresetName() {
+    const argument = viewArgument(activeView);
+    const subject = currentGenre || (activeView.startsWith('genre:') || activeView.startsWith('label:') ? argument : '')
+      || ($viewMode === 'sets' ? $t('nav.sets') : $t('nav.songs'));
+    const year = currentYear || (activeView.startsWith('year:') ? argument : '');
+    const sortWord = currentSort === 'random' ? $t('presets.randomWord') : currentSort === 'recent' ? $t('presets.recentWord') : '';
+    return `${sortWord} ${subject}${year ? ` (${year})` : ''}`.trim();
   }
 
   /**
@@ -722,6 +783,7 @@
   {:else if activeView === 'downloads'}
     <DownloadsView onnavigate={onnavigate} />
   {:else if activeView === 'home'}
+    <PresetGrid presets={$presets} tints={genreTints} onopen={(preset) => onnavigate(`preset:${preset.id}`)} />
     {#if $memoriesOnHomeEnabled && memoryGroups.length > 0}
       <section class="flex flex-col gap-4">
         <div class="flex justify-between items-end mb-4">
@@ -815,6 +877,20 @@
                   <Pencil size={20} />
                 </button>
               {/if}
+            {/if}
+            {#if $mumaUser && (activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('year:'))}
+              <!-- Saves this list as a home tile. Only the views whose filters a tile can
+                   carry offer it; a podcast or a lineup has no cluster in the tile format. -->
+              <button
+                class="ml-auto shrink-0 flex items-center gap-1.5 bg-transparent border border-[#727272] hover:border-white text-white text-xs font-bold px-3 py-1.5 rounded-full cursor-pointer transition-colors whitespace-nowrap"
+                onclick={saveCurrentAsPreset}
+                title={$t('presets.save')}
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+                  <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2zm-4 10h-2v-2H9V9h2V7h2v2h2v2h-2v2z"></path>
+                </svg>
+                <span class="hidden sm:inline">{$t('presets.save')}</span>
+              </button>
             {/if}
         </h2>
         <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} showGenre={!activeView.startsWith('genre:') && !activeView.startsWith('label:') && !activeView.startsWith('podcast:')} showYear={!activeView.startsWith('year:')} onchange={handleFilterChange} />
@@ -1204,6 +1280,13 @@
     <FeedView slug={RELEASE_RADAR} onnavigate={(v) => onnavigate(v)} />
   {:else if activeView === 'daily-mix'}
     <FeedView slug={DAILY_MIX} onnavigate={(v) => onnavigate(v)} />
+  {:else if activeView.startsWith('preset:')}
+    {@const preset = $presets.find((p) => p.id === viewArgument(activeView))}
+    {#if preset}
+      <PresetView {preset} onnavigate={(v) => onnavigate(v)} />
+    {:else}
+      <p class="text-[#b3b3b3] p-12 text-center">{$presets.length === 0 && $mumaUser ? $t('common.loading') : $t('presets.notFound')}</p>
+    {/if}
   {:else if activeView === 'memories'}
     <MemoriesView onnavigate={(v) => onnavigate(v)} />
   {:else if activeView.startsWith('memories:')}

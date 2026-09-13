@@ -7,7 +7,13 @@ apply from: "${project.rootDir}/gradle_scripts/code_quality.gradle"
 
 // Note: the JVM target for all Kotlin compile tasks (including this module's) is already
 // set globally in the root build.gradle's `allprojects { tasks.withType(KotlinCompile) ... }`
-// block, so no per-module jvmTarget configuration is needed here.
+// block. The Java side has no such global default: without this, compileJava targets
+// whatever JDK runs the Gradle daemon (e.g. 25 when Android Studio pins one via
+// gradle-daemon-jvm.properties) and Kotlin's JVM-target validation fails the build.
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
 
 sourceSets {
     main.java.srcDirs += "${projectDir}/src/main/kotlin"

@@ -91,7 +91,7 @@
         aria-label={$t('nowPlaying.close')}
       >
         <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
-          <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path>
+          <path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"></path>
         </svg>
       </button>
       <div class="flex-1 text-center text-[11px] font-bold uppercase tracking-wide text-[#b3b3b3] truncate px-2">

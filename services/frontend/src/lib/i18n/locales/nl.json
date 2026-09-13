@@ -89,7 +89,8 @@
       "one": "{count} nummer",
       "other": "{count} nummers"
     },
-    "unknownError": "Onbekende fout"
+    "unknownError": "Onbekende fout",
+    "more": "Meer"
   },
   "dashboard": {
     "addFavorite": "Toevoegen aan favorieten",
@@ -1185,5 +1186,22 @@
     "emptyTitle": "Hier is niets gedownload",
     "unavailableHelp": "Dit scherm heeft de server nodig. Zodra er verbinding is werkt het weer.",
     "unavailableTitle": "Niet beschikbaar zonder verbinding"
+  },
+  "presets": {
+    "title": "Presets",
+    "one": "Preset",
+    "everything": "alles",
+    "empty": "Geen nummers voor deze preset.",
+    "save": "Opslaan als preset",
+    "namePrompt": "Naam voor de preset:",
+    "saved": "Preset opgeslagen",
+    "saveFailed": "Preset opslaan mislukt",
+    "delete": "Preset verwijderen",
+    "deleteConfirm": "Preset \"{name}\" verwijderen?",
+    "deleted": "Preset verwijderd",
+    "deleteFailed": "Preset verwijderen mislukt",
+    "recentWord": "Recente",
+    "notFound": "Deze preset bestaat niet (meer).",
+    "randomWord": "Random"
   }
 }

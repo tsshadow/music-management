@@ -266,6 +266,16 @@ describe("capacitor player", () => {
 
   // The MediaSession already draws the notification from the queue it was
   // handed; a second source of truth is the bug this design avoids.
+  it("asks the service to move the queue and does not mirror the move itself", () => {
+    platform.player.next();
+    platform.player.previous();
+
+    expect(plugins.MumaPlayer.calls).toEqual([
+      ["next", undefined],
+      ["previous", undefined],
+    ]);
+  });
+
   it("takes transport handlers and wires none of them", () => {
     expect(() => platform.player.setCommandHandlers({ next: () => {} })).not.toThrow();
     expect(plugins.MumaPlayer.calls).toEqual([]);
@@ -405,6 +415,38 @@ describe("capacitor system", () => {
     plugins.MumaSystem.emit("carConnected", {});
 
     expect(seen).toEqual([true, false]);
+  });
+
+  it("reads the presence the plugin last knew about, for a bootstrap that missed the event", async () => {
+    const { platform } = nativePlatform({ MumaSystem: { carState: { connected: true } } });
+
+    expect(await platform.system.carState()).toEqual({ connected: true });
+  });
+
+  it("reads a missing or malformed carState answer as not connected", async () => {
+    const { platform } = nativePlatform({ MumaSystem: { carState: {} } });
+
+    expect(await platform.system.carState()).toEqual({ connected: false });
+  });
+
+  it("forwards the keep-screen-on flags unchanged and awaits them", async () => {
+    const { platform, plugins } = nativePlatform();
+
+    await platform.system.setKeepScreenOn({ showWhenLocked: true, turnScreenOn: true });
+
+    expect(plugins.MumaSystem.calls).toEqual([
+      ["setKeepScreenOn", { showWhenLocked: true, turnScreenOn: true }],
+    ]);
+  });
+
+  it("defaults keep-screen-on flags left out to false rather than sending undefined", async () => {
+    const { platform, plugins } = nativePlatform();
+
+    await platform.system.setKeepScreenOn({});
+
+    expect(plugins.MumaSystem.calls).toEqual([
+      ["setKeepScreenOn", { showWhenLocked: false, turnScreenOn: false }],
+    ]);
   });
 
   it("hands the phone back to the Kotlin interface", () => {

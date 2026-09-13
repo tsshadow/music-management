@@ -16,6 +16,7 @@ import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import nl.teunschriks.mumamobile.activity.NavigationActivity
+import nl.teunschriks.mumamobile.car.CarPresence
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.util.Constants
@@ -41,6 +42,8 @@ import timber.log.Timber
  * | `onBack(fn)` | listener on the `back` event, answered with `handledBack({seq})` |
  * | `onDeepLink(fn)` | listener on the `deepLink` event |
  * | `carConnected(fn)` | listener on the `carConnected` event |
+ * | `carState()` | `carState()` → `{connected}`, see [carState] |
+ * | `setKeepScreenOn({showWhenLocked, turnScreenOn})` | [setKeepScreenOn] |
  * | `getSettings()` | a snapshot of the device-settings tab's fields, see [getSettings] |
  * | `setSetting({key, value})` | [DEVICE_SETTING_WHITELIST], see [setSetting] |
  *
@@ -66,6 +69,7 @@ class MumaSystemPlugin :
 
     private val activeServerProvider: ActiveServerProvider by inject()
     private val mediaPlayerManager: MediaPlayerManager by inject()
+    private val carPresence: CarPresence by inject()
 
     /** Set by [CapacitorActivity] so a claim can cancel the pending finish. */
     var onBackClaimed: ((Long) -> Unit)? = null
@@ -234,6 +238,55 @@ class MumaSystemPlugin :
     fun emitDeepLink(route: String) = notifyListeners(EVENT_DEEP_LINK, JSObject().put("route", route))
 
     fun emitCarConnected(connected: Boolean) = notifyListeners(EVENT_CAR_CONNECTED, JSObject().put("connected", connected))
+
+    /**
+     * The value [emitCarConnected] would have sent had the web UI been listening from the start.
+     *
+     * `carConnected` only reaches a listener that subscribed before the event fired, and
+     * [nl.teunschriks.mumamobile.activity.CapacitorActivity] starts watching presence in `onCreate`
+     * -- before the WebView has necessarily finished loading and registered this plugin's
+     * listener. Bootstrap therefore has to ask rather than wait: read [CarPresence.isInCar] once, the
+     * same source [nl.teunschriks.mumamobile.activity.CapacitorActivity] emits from, so the answer
+     * here and the next event agree.
+     */
+    @PluginMethod
+    fun carState(call: PluginCall) {
+        call.resolve(JSObject().put("connected", carPresence.isInCar.value))
+    }
+
+    /**
+     * Lets the web UI ask for the lock-screen behaviour the legacy car-mode screen gets from
+     * `NavigationActivity`'s destination listener -- there is no destination here to key it off,
+     * so the web view asks explicitly when its own car screen is on top, and again with both flags
+     * false when it closes.
+     *
+     * Both flags are applied together and default to `false` when absent, so a call that forgets
+     * one does not leave the other stuck on from a previous call.
+     */
+    @PluginMethod
+    fun setKeepScreenOn(call: PluginCall) {
+        // `Plugin.getActivity()` reads `bridge.getActivity()` with no null check of its own, so an
+        // unattached bridge throws rather than answering null -- true only outside a running app
+        // (a bare-constructed plugin in a test), but caught here so this branch is reachable at
+        // all rather than only ever NPE-ing where the other "no activity" rejects in this class
+        // never get exercised either.
+        val runningActivity = try {
+            activity
+        } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
+            null
+        }
+        if (runningActivity == null) {
+            call.reject("no activity")
+            return
+        }
+        val showWhenLocked = call.getBoolean("showWhenLocked") ?: false
+        val turnScreenOn = call.getBoolean("turnScreenOn") ?: false
+        runningActivity.runOnUiThread {
+            runningActivity.setShowWhenLocked(showWhenLocked)
+            runningActivity.setTurnScreenOn(turnScreenOn)
+        }
+        call.resolve()
+    }
 
     /**
      * The "Apparaat" settings tab's whole state in one call: every field

@@ -168,6 +168,32 @@ export function createCapacitorSystem(plugin) {
     },
 
     /**
+     * What `emitCarConnected` last sent, read once rather than waited for -- the bootstrap path
+     * calls this before the car screen is shown so a cold start already in the car does not have
+     * to wait for the plugin to feel like repeating itself.
+     *
+     * @returns {Promise<{connected: boolean}>}
+     */
+    async carState() {
+      const answer = await plugin.carState();
+      return { connected: answer?.connected === true };
+    },
+
+    /**
+     * Asks for, or releases, the lock-screen behaviour the legacy car-mode screen got for free
+     * from a navigation-destination listener.
+     *
+     * @param {{showWhenLocked: boolean, turnScreenOn: boolean}} flags
+     * @returns {Promise<void>}
+     */
+    async setKeepScreenOn(flags) {
+      await plugin.setKeepScreenOn({
+        showWhenLocked: flags?.showWhenLocked === true,
+        turnScreenOn: flags?.turnScreenOn === true,
+      });
+    },
+
+    /**
      * The "Apparaat" settings tab's whole state in one call.
      *
      * @returns {Promise<import('../index.js').DeviceSettings>}

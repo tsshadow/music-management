@@ -119,6 +119,11 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  * @property {function(): void} pause
  * @property {function(): void} stop Stops and lets go of the source; `status`
  *   becomes `idle`.
+ * @property {function(): void} next Moves the platform service's queue forward one track. Native
+ *   only: a browser has no service to ask and does nothing. Screens that are themselves native-only
+ *   (car mode) may call this directly instead of re-deciding the next track in JS; everything else
+ *   keeps advancing its own queue the way it always has.
+ * @property {function(): void} previous See `next`, the other direction.
  * @property {function(number): void} seek Seconds from the start.
  * @property {function(number): void} setVolume 0..1.
  * @property {function(number): void} setRate 1 is normal speed.
@@ -328,6 +333,18 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  * @property {function(function(string): void): function(): void} onDeepLink A
  *   route the router understands, e.g. "album:123".
  * @property {function(function(boolean): void): function(): void} carConnected
+ * @property {function(): Promise<{connected: boolean}>} carState What `carConnected` would have
+ *   last reported, for a subscriber that starts listening after the shell already knows -- a
+ *   browser tab that boots the car screen from a stale URL rather than from the event.
+ *   `carConnected` only reaches a listener that subscribed before it fired, so the bootstrap path
+ *   calls this once instead of racing the plugin's own load. A browser tab answers `{connected: false}`.
+ * @property {function({showWhenLocked: boolean, turnScreenOn: boolean}): Promise<void>} setKeepScreenOn
+ *   Asks for (or releases) the lock-screen behaviour the legacy car-mode screen gets for free from
+ *   a navigation-destination listener: showing over the lock screen and turning it on. The car
+ *   screen calls this with both flags true while it is the active view and both false the moment
+ *   it stops being one -- there is no destination change here to key it off automatically, so the
+ *   asking and the releasing are both the caller's job. A browser tab resolves without doing
+ *   anything; there is no lock screen to ask.
  * @property {function(): Promise<DeviceSettings>} getSettings The "Apparaat" settings tab's
  *   whole state in one call. A browser tab answers `{}`; the tab is hidden there anyway
  *   (`system.isNative` is how it decides), so an empty object is never read.

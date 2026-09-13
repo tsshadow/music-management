@@ -7,7 +7,9 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import nl.teunschriks.mumamobile.diagnostics.WebActionLog
+import nl.teunschriks.mumamobile.diagnostics.WebEnvironment
 import org.amshove.kluent.shouldBeEqualTo
+import org.amshove.kluent.shouldBeNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,7 +29,10 @@ class MumaDiagnosticsPluginTest {
     private val plugin = MumaDiagnosticsPlugin()
 
     @Before
-    fun clear() = WebActionLog.clear()
+    fun clear() {
+        WebActionLog.clear()
+        WebEnvironment.reset()
+    }
 
     private fun call(action: String?, detail: JSObject? = null): PluginCall {
         val call = mockk<PluginCall>(relaxed = true)
@@ -82,5 +87,32 @@ class MumaDiagnosticsPluginTest {
         plugin.clear(mockk(relaxed = true))
 
         WebActionLog.entries().size shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `identify records the bundle and marks the UI as web`() {
+        val call = mockk<PluginCall>(relaxed = true)
+        every { call.getString("bundleVersion") } returns "abc1234"
+        every { call.getString("userAgent") } returns "Mozilla/5.0 (Muma WebView)"
+
+        plugin.identify(call)
+
+        verify { call.resolve() }
+        WebEnvironment.uiVariant() shouldBeEqualTo "web"
+        WebEnvironment.bundleVersionOrNull() shouldBeEqualTo "abc1234"
+        WebEnvironment.userAgentOrNull() shouldBeEqualTo "Mozilla/5.0 (Muma WebView)"
+    }
+
+    /** A build without `version.json` (see `vite.config.js`) still identifies the UI as web. */
+    @Test
+    fun `identify with no bundle version still switches the UI variant`() {
+        val call = mockk<PluginCall>(relaxed = true)
+        every { call.getString("bundleVersion") } returns null
+        every { call.getString("userAgent") } returns "some UA"
+
+        plugin.identify(call)
+
+        WebEnvironment.uiVariant() shouldBeEqualTo "web"
+        WebEnvironment.bundleVersionOrNull().shouldBeNull()
     }
 }

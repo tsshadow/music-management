@@ -9,6 +9,7 @@ import {
   restUrl,
   userPermissions,
 } from "./store.js";
+import { logAction } from "./diagnosticsLog.js";
 
 /**
  * Signing in, once, for everyone who does it.
@@ -56,11 +57,13 @@ export async function signIn(username, password) {
     const response = await fetch(restUrl(`/rest/ping?${subsonicAuthQuery(username, password)}`));
     body = await response.json();
   } catch (error) {
+    logAction("auth.login", { ok: false, reason: "offline" });
     return { ok: false, reason: "offline", message: error?.message ?? "" };
   }
 
   const answer = body?.["subsonic-response"];
   if (answer?.status !== "ok") {
+    logAction("auth.login", { ok: false, reason: "rejected" });
     return { ok: false, reason: "rejected", message: answer?.error?.message ?? "" };
   }
 
@@ -69,6 +72,7 @@ export async function signIn(username, password) {
   // working player, which is what the original inline version did too.
   await startManagementSession(username, password);
   credentials.update((current) => ({ ...current, username, password }));
+  logAction("auth.login", { ok: true });
   return { ok: true };
 }
 

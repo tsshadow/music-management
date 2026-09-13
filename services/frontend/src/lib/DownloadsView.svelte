@@ -18,6 +18,7 @@
   import { t, locale } from './i18n/index.js';
   import { platform as defaultPlatform } from './platform/index.js';
   import { formatBytes, groupDownloads, groupProgress, groupState } from './downloads.js';
+  import { logAction } from './diagnosticsLog.js';
   import { currentTrack, playerState, playlist } from './store.js';
   import { notify } from './notifications.js';
 
@@ -87,6 +88,7 @@
    */
   async function remove(group) {
     pendingRemoval = null;
+    logAction('download.cancel', { group: group.key, tracks: group.items.length });
     try {
       await platform.storage.remove(group.items.map((item) => item.id));
       notify.success($t('downloads.removed', { title: group.title }));
@@ -206,7 +208,7 @@
             {#if state === 'failed'}
               <button
                 class="bg-transparent border border-[#727272] text-white text-xs px-3 py-1 rounded-full cursor-pointer hover:border-white"
-                onclick={(e) => { e.stopPropagation(); platform.storage.download(group.items.map((item) => item.id), { pin: true }); }}
+                onclick={(e) => { e.stopPropagation(); logAction('download.start', { group: group.key, tracks: group.items.length }); platform.storage.download(group.items.map((item) => item.id), { pin: true }); }}
               >{$t('downloads.retry')}</button>
             {/if}
 

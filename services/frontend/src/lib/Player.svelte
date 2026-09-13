@@ -10,6 +10,7 @@
   // later. See platform/index.js for the interface and
   // docs/designs/universal-ui/ for why.
   import { platform } from './platform/index.js';
+  import { logAction } from './diagnosticsLog.js';
   import { createNativeQueue, trackAfterCommand } from './nativeQueue.js';
   import { createRadioController } from './radioController.js';
   import { shouldPushJamState } from './radioSync.js';
@@ -410,7 +411,7 @@
    */
   function togglePlay() {
     if (!platform.player.ready()) return;
-    platform.diagnostics.log(platform.player.state().status === 'playing' ? 'pause' : 'play', {
+    logAction(platform.player.state().status === 'playing' ? 'player.pause' : 'player.play', {
       trackId: track?.id ?? null,
     });
 
@@ -463,6 +464,7 @@
   function playNext() {
       const p = $playlist;
       if (p.length === 0) return;
+      logAction('player.next', { trackId: $currentTrack?.id ?? null });
       const currentTrackId = $currentTrack ? String($currentTrack.id) : null;
       const currentIndex = p.findIndex(t => String(t.id) === currentTrackId);
 
@@ -522,6 +524,7 @@
 
       const p = $playlist;
       if (p.length === 0) return;
+      logAction('player.previous', { trackId: $currentTrack?.id ?? null });
       const currentTrackId = $currentTrack ? String($currentTrack.id) : null;
       const currentIndex = p.findIndex(t => String(t.id) === currentTrackId);
 
@@ -739,7 +742,9 @@
     // Not the engine's own length: a chunked stream leaves that at 0, and the
     // bar is drawn from the track's length instead -- seek to the same one.
     if (duration <= 0) return;
-    platform.player.seek(percentage * duration);
+    const seconds = percentage * duration;
+    logAction('player.seek', { trackId: track?.id ?? null, seconds: Math.round(seconds) });
+    platform.player.seek(seconds);
     if ($syncMode !== 'off') {
       pushJamState();
     }
@@ -1014,6 +1019,7 @@
     const trackId = track.id;
     const oldRating = currentRating;
     const newRating = oldRating === rating ? 0 : rating;
+    logAction('rating.set', { trackId, rating: newRating });
 
     // Optimistic update
     ownRating = { trackId, rating: newRating };

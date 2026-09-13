@@ -7,6 +7,7 @@
 package nl.teunschriks.mumamobile.service
 
 import android.content.ComponentName
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import androidx.annotation.IntRange
@@ -20,6 +21,7 @@ import androidx.media3.common.Rating
 import androidx.media3.common.StarRating
 import androidx.media3.common.Timeline
 import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
@@ -30,6 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.capacitor.radioItemMediaId
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.OFFLINE_DB_ID
 import nl.teunschriks.mumamobile.data.RatingUpdate
 import nl.teunschriks.mumamobile.domain.Track
@@ -725,6 +728,59 @@ class MediaPlayerManager(
         set(newMode) {
             controller?.repeatMode = newMode
         }
+
+    /**
+     * Tunes the service into a radio channel, through the exact media id
+     * [nl.teunschriks.mumamobile.service.androidauto.MediaLibrarySessionCallback.onAddMediaItems]
+     * already recognises for Android Auto's browse tree and Assistant's spoken radio requests --
+     * see [radioItemMediaId]. The web module (`Player.svelte`) owns the channel picker; this is
+     * only the hand-off, so the server timeline sync stays in one place
+     * ([nl.teunschriks.mumamobile.service.androidauto.RadioPlaybackController]) rather than a
+     * third copy of it living here.
+     */
+    @Synchronized
+    fun startRadioChannel(slug: String) {
+        logAction("radio.start", "slug" to slug)
+        controller?.setMediaItems(listOf(MediaItem.Builder().setMediaId(radioItemMediaId(slug)).build()), true)
+    }
+
+    /**
+     * Leaves radio mode without starting anything else. There is no `Player` call for that --
+     * radio is driven entirely by
+     * [nl.teunschriks.mumamobile.service.androidauto.RadioPlaybackController], not by the queue --
+     * so this is a session command rather than a [MediaController] method.
+     */
+    @Synchronized
+    fun stopRadio() {
+        logAction("radio.stop")
+        sendCustomCommand(PlaybackService.CUSTOM_COMMAND_STOP_RADIO)
+    }
+
+    /**
+     * Plays the latest bulletin, or hands the music back if one is already running -- the exact
+     * toggle the notification's own news button performs
+     * ([nl.teunschriks.mumamobile.service.androidauto.NewsPlaybackController]).
+     */
+    @Synchronized
+    fun toggleNews() {
+        logAction("news.toggle")
+        sendCustomCommand(PlaybackService.CUSTOM_COMMAND_PLAY_NEWS)
+    }
+
+    /** The channel the service is following right now, or null when it is not doing radio. */
+    val currentRadioSlug: String? get() = PlaybackService.instance?.currentRadioSlug
+
+    /** Whether a news bulletin is playing right now. */
+    val isNewsPlaying: Boolean get() = PlaybackService.instance?.isNewsPlaying == true
+
+    /**
+     * Neither of the two custom commands above carries a payload: both resolve themselves
+     * entirely on the far side (the slug already went across as a media id; "latest" is resolved
+     * server-side), the same way Android Auto's own buttons work.
+     */
+    private fun sendCustomCommand(action: String) {
+        (controller as? MediaController)?.sendCustomCommand(SessionCommand(action, Bundle.EMPTY), Bundle.EMPTY)
+    }
 
     @Synchronized
     @JvmOverloads

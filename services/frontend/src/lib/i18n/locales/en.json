@@ -876,7 +876,6 @@
   "news": {
     "couldNotPlay": "Could not play the news",
     "none": "No bulletin recorded yet",
-    "notOnPhone": "The news does not play in the app yet",
     "play": "News of the hour",
     "playing": "News is playing, tap to go back"
   },
@@ -923,8 +922,7 @@
   "radio": {
     "chooseChannel": "Choose a channel",
     "couldNotStart": "Could not start radio",
-    "noChannels": "No radio channels available",
-    "notOnPhone": "Radio does not play in the app yet"
+    "noChannels": "No radio channels available"
   },
   "releaseNotes": {
     "intro": "A new version of LMS has been detected! Here are the key changes:",

@@ -184,4 +184,24 @@ class CapacitorContractTest {
     fun `a device without bands gets nothing rather than an exception`() {
         nativeBandGains(listOf(1f), 0f, 0, -1500, 1500).size shouldBeEqualTo 0
     }
+
+    // ------------------------------------------------------------------- radio
+
+    /**
+     * The one thing that has to stay true for [nl.teunschriks.mumamobile.service.MediaPlayerManager
+     * .startRadioChannel] to work at all: the format
+     * [nl.teunschriks.mumamobile.service.androidauto.MediaLibrarySessionCallback.onAddMediaItems]
+     * recognises has to be exactly this, or a channel started from the web silently falls through
+     * to the ordinary queue path instead of tuning in.
+     */
+    @Test
+    fun `a radio channel becomes the media id the session recognises`() {
+        radioItemMediaId("hardstyle") shouldBeEqualTo "MEDIA_RADIO_ITEM|hardstyle"
+    }
+
+    @Test
+    fun `a slug with its own pipe still round-trips through substringAfter`() {
+        val mediaId = radioItemMediaId("late-night|beta")
+        mediaId.substringAfter('|') shouldBeEqualTo "late-night|beta"
+    }
 }

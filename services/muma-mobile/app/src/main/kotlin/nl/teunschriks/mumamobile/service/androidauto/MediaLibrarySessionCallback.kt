@@ -137,6 +137,12 @@ class MediaLibrarySessionCallback :
         onRetune = { player, slug -> radioPlaybackController.start(player, slug) }
     )
 
+    /** Read by [PlaybackService] for the Capacitor bridge. */
+    val currentRadioSlug: String? get() = radioPlaybackController.currentSlug
+
+    /** Same, for a running news bulletin. */
+    val isNewsPlaying: Boolean get() = newsPlaybackController.isActive
+
     init {
 
         playbackController.dataProvider = dataProvider
@@ -216,6 +222,14 @@ class MediaLibrarySessionCallback :
                 } else {
                     startNews(session, null)
                 }
+            }
+
+            PlaybackService.CUSTOM_COMMAND_STOP_RADIO -> {
+                // The web module's own stop button: it starts a channel through a media id
+                // (`onAddMediaItems` below) but has no equivalent shape for "just stop", so this
+                // is the one radio action that needs a command rather than reusing that path.
+                customCommandFuture = Futures.immediateFuture(SessionResult(RESULT_SUCCESS))
+                stopRadioIfRunning(session)
             }
 
             PlaybackService.CUSTOM_COMMAND_SHUFFLE -> {
@@ -677,12 +691,20 @@ class MediaLibrarySessionCallback :
      * Built from [MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS] rather than
      * from `super.onConnect()`: since media3 1.11 that returns an empty set carrying a "callback
      * not implemented" flag, and reading its fields out drops the flag and grants nothing.
+     *
+     * [PlaybackService.CUSTOM_COMMAND_STOP_RADIO] is added by hand rather than through
+     * [MediaLibraryCommandHandler.allCustomCommands]: it has no [CommandButton] -- there is no car
+     * button for it, only the web module's own stop action -- but a [MediaController] rejects any
+     * custom command that is not in this set before it ever reaches [onCustomCommand], regardless
+     * of who is asking, including the app's own in-process controller
+     * ([nl.teunschriks.mumamobile.service.MediaPlayerManager]).
      */
     private fun sessionCommandsWithCustomButtons(): SessionCommands {
         val builder = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
         for (commandButton in commandHandler.allCustomCommands) {
             commandButton.sessionCommand?.let { builder.add(it) }
         }
+        builder.add(SessionCommand(PlaybackService.CUSTOM_COMMAND_STOP_RADIO, Bundle.EMPTY))
         return builder.build()
     }
 

@@ -155,6 +155,18 @@ describe("createRadioController", () => {
     expect(() => controller.tick()).not.toThrow();
   });
 
+  // Native: the platform service streams the channel and corrects its own drift
+  // (see RadioPlaybackController.kt); this instance only exists there for
+  // `getEntry()`, so every place that would touch the element has to be a
+  // no-op rather than a crash on a null `audio`.
+  it("still tracks the entry for display when there is no audio element to drive", async () => {
+    const controller = make({ audio: null });
+    await controller.start("main");
+    expect(controller.getEntry().track_id).toBe("tr-42");
+    expect(() => controller.tick()).not.toThrow();
+    expect(() => controller.stop()).not.toThrow();
+  });
+
   it("survives a channel with an empty timeline", async () => {
     fetchImpl = vi.fn((url) => {
       if (url.includes("/time")) {

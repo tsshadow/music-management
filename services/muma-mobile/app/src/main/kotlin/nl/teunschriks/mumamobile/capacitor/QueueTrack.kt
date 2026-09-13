@@ -8,6 +8,7 @@
 package nl.teunschriks.mumamobile.capacitor
 
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.service.androidauto.MediaLibraryBase
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -93,3 +94,16 @@ fun clampQueueIndex(index: Int, size: Int): Int = when {
 }
 
 private fun JSONObject.optStringOrNull(key: String): String? = if (has(key) && !isNull(key)) optString(key).takeIf { it.isNotEmpty() } else null
+
+/**
+ * The `mediaId` a radio channel becomes when [nl.teunschriks.mumamobile.service.MediaPlayerManager
+ * .startRadioChannel] hands it to the session -- the exact format
+ * [nl.teunschriks.mumamobile.service.androidauto.MediaLibrarySessionCallback.onAddMediaItems]
+ * already recognises for Android Auto's browse tree and Assistant's spoken radio requests.
+ * Reusing that path is what lets a channel started from the web tune the service onto the
+ * server's timeline through
+ * [nl.teunschriks.mumamobile.service.androidauto.RadioPlaybackController] without a second
+ * implementation of [nl.teunschriks.mumamobile.service.androidauto.RadioSync] -- the web already
+ * has its own, in `radioSync.js`, for the browser tab.
+ */
+fun radioItemMediaId(slug: String): String = "${MediaLibraryBase.MEDIA_RADIO_ITEM}|$slug"

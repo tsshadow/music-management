@@ -97,6 +97,17 @@ class PlaybackService :
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession = mediaLibrarySession
 
+    /**
+     * Read by the Capacitor bridge ([nl.teunschriks.mumamobile.capacitor.MumaPlayerPlugin]) so the
+     * web module can tell a native radio session apart from an ordinary queue -- including right
+     * after the WebView was recreated, when the queue it remembers and the one the service is
+     * actually playing are not the same thing.
+     */
+    val currentRadioSlug: String? get() = librarySessionCallback.currentRadioSlug
+
+    /** Same, for a running news bulletin. */
+    val isNewsPlaying: Boolean get() = librarySessionCallback.isNewsPlaying
+
     override fun onTaskRemoved(rootIntent: Intent?) {
         Timber.i("Stopping the playback because we were swiped away")
         releasePlayerAndSession()
@@ -463,6 +474,12 @@ class PlaybackService :
         // itself instead of trusting a payload that may not arrive.
         const val CUSTOM_COMMAND_PLAY_NEWS =
             "org.moire.ultrasonic.PLAY_NEWS"
+
+        // Starting radio has a media id of its own (see `radioItemMediaId`) and needs no custom
+        // command; stopping it without starting anything else does not fit that shape, so it gets
+        // one -- the mirror of CUSTOM_COMMAND_PLAY_NEWS, which already toggles both ways.
+        const val CUSTOM_COMMAND_STOP_RADIO =
+            "org.moire.ultrasonic.STOP_RADIO"
         private const val NOTIFICATION_ID = 3009
     }
 }

@@ -64,7 +64,10 @@ private const val MILLIS_PER_SECOND = 1000.0
  * | `setNowPlaying(...)` | no-op; the `MediaSession` already carries the metadata of the queue it was given, and a second source of truth for the notification is exactly the bug this design avoids |
  * | `setEqualizer({enabled, gains, preamp})` | `EqualizerController`, resampled by [nativeBandGains] |
  * | `setMode({shuffle, repeat})` | `mediaPlayerManager.isShufflePlayEnabled`/`repeatMode`, resolved with a fresh [snapshot] |
- * | `state()` | `{status, position, duration, trackId, volume, queueIndex, queueLength, shuffle, repeat}` |
+ * | `startRadio({slug})` | `mediaPlayerManager.startRadioChannel(slug)` -- a media id [nl.teunschriks.mumamobile.service.androidauto.MediaLibrarySessionCallback.onAddMediaItems] already resolves onto the server's timeline |
+ * | `stopRadio()` | `mediaPlayerManager.stopRadio()` -- the `CUSTOM_COMMAND_STOP_RADIO` session command |
+ * | `toggleNews()` | `mediaPlayerManager.toggleNews()` -- the `CUSTOM_COMMAND_PLAY_NEWS` session command, which already toggles both ways |
+ * | `state()` | `{status, position, duration, trackId, volume, queueIndex, queueLength, shuffle, repeat, radioChannel, newsPlaying}` |
  *
  * ### Events
  *
@@ -343,6 +346,42 @@ class MumaPlayerPlugin :
     @PluginMethod
     fun setNowPlaying(call: PluginCall) = call.resolve()
 
+    /**
+     * Tunes into a radio channel. See [MediaPlayerManager.startRadioChannel] -- the server's
+     * timeline sync happens entirely on the far side, in
+     * [nl.teunschriks.mumamobile.service.androidauto.RadioPlaybackController], which is what
+     * Android Auto's browse tree and Assistant already use for the same channel.
+     */
+    @PluginMethod
+    fun startRadio(call: PluginCall) {
+        val slug = call.getString("slug")
+        if (slug.isNullOrBlank()) {
+            call.reject("startRadio needs a slug")
+            return
+        }
+        onMain {
+            mediaPlayerManager.startRadioChannel(slug)
+            call.resolve()
+        }
+    }
+
+    /** Leaves radio mode without starting anything else. */
+    @PluginMethod
+    fun stopRadio(call: PluginCall) = onMain {
+        mediaPlayerManager.stopRadio()
+        call.resolve()
+    }
+
+    /**
+     * Plays the latest bulletin, or hands the music back if one is already running -- one call
+     * either way, the same toggle the notification's own news button performs.
+     */
+    @PluginMethod
+    fun toggleNews(call: PluginCall) = onMain {
+        mediaPlayerManager.toggleNews()
+        call.resolve()
+    }
+
     @PluginMethod
     fun setEqualizer(call: PluginCall) = onMain {
         val enabled = call.getBoolean("enabled", false) == true
@@ -454,7 +493,17 @@ class MumaPlayerPlugin :
 
     // ----------------------------------------------------------------- state
 
-    /** The contract's `PlayerState`, plus the fields a native queue -- and now a native mode -- add. */
+    /**
+     * The contract's `PlayerState`, plus the fields a native queue -- and now a native mode, and
+     * radio/news -- add.
+     *
+     * `radioChannel`/`newsPlaying` are read from [MediaPlayerManager], not tracked here: both are
+     * driven by [nl.teunschriks.mumamobile.service.androidauto.MediaLibrarySessionCallback], which
+     * can change either from something this plugin never called -- Android Auto's browse tree, a
+     * head unit's own button, Assistant. Reading them fresh on every snapshot is what lets the web
+     * module notice a change it did not ask for, the same way it already notices a mode change
+     * from outside the WebView (see `tick()`'s `modeChanged`).
+     */
     private fun snapshot(): JSObject {
         val durationMs = mediaPlayerManager.playerDuration
         return JSObject()
@@ -467,6 +516,8 @@ class MumaPlayerPlugin :
             .put("queueLength", mediaPlayerManager.mediaItemCount)
             .put("shuffle", mediaPlayerManager.isShufflePlayEnabled)
             .put("repeat", repeatModeWire(mediaPlayerManager.repeatMode))
+            .put("radioChannel", mediaPlayerManager.currentRadioSlug)
+            .put("newsPlaying", mediaPlayerManager.isNewsPlaying)
     }
 
     private fun queueSnapshot(): JSObject = JSObject()

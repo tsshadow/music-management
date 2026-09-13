@@ -43,6 +43,28 @@ describe("TrackList genre column", () => {
   });
 });
 
+describe("TrackList duration column", () => {
+  it("shows a song's duration as m:ss", () => {
+    render(TrackList, { tracks: [track({ duration: 245 })], onnavigate: vi.fn() });
+    expect(screen.getByText("4:05")).toBeTruthy();
+  });
+
+  it("shows a set's duration as h:mm, not m:ss, once it crosses the ten-minute boundary", () => {
+    render(TrackList, { tracks: [track({ duration: 4530 })], onnavigate: vi.fn() }); // 1h 15m 30s
+    expect(screen.getByText("1:15")).toBeTruthy();
+    expect(screen.queryByText("75:30")).toBeNull();
+  });
+
+  it("decides per row rather than on the mode a mixed list might not agree with", () => {
+    render(TrackList, {
+      tracks: [track({ id: "song", duration: 200 }), track({ id: "set", duration: 4200 })],
+      onnavigate: vi.fn(),
+    });
+    expect(screen.getByText("3:20")).toBeTruthy();
+    expect(screen.getByText("1:10")).toBeTruthy();
+  });
+});
+
 describe("TrackList versions", () => {
   it("offers the versions of a song the server has grouped", () => {
     render(TrackList, { tracks: [track({ workId: 42 })], onnavigate: vi.fn() });

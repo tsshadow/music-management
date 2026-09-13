@@ -53,6 +53,17 @@
           {#if item.detail}
             <p class="m-0 mt-1 text-xs text-[#b3b3b3] break-words">{item.detail}</p>
           {/if}
+          {#if item.action}
+            <button
+              class="mt-1 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-brand hover:underline"
+              onclick={() => {
+                item.action.onClick();
+                dismiss(item.id);
+              }}
+            >
+              {item.action.label}
+            </button>
+          {/if}
         </div>
         {#if item.count > 1}
           <span class="shrink-0 rounded-full bg-[#3e3e3e] px-2 py-0.5 text-xs font-bold text-white">

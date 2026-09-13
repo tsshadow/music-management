@@ -10,6 +10,7 @@
   import { coverArtSrc, localCoverArt, resolveCoverArt } from './coverArt.js';
   import { offline } from './subsonic.js';
   import { formatBytes, isSet, trackSize } from './downloads.js';
+  import { formatHoursMinutes } from './playerProgress.js';
   import { logAction } from './diagnosticsLog.js';
 
   const {
@@ -364,6 +365,20 @@
     return minutes + ":" + (seconds < 10 ? '0' : '') + seconds;
   }
 
+  /**
+   * The duration column's text for one row: "h:mm" for a set -- the design's
+   * own call, worth the space a two-hour recording actually needs -- and the
+   * existing "M:SS" for a plain track. Decided per row on the track's own
+   * duration rather than on `viewMode`, so a mixed list (history, search)
+   * never shows the wrong format for what a row actually is.
+   *
+   * @param {Object} track
+   * @returns {string}
+   */
+  function durationCellText(track) {
+    return isSet(track) ? formatHoursMinutes(track.duration) : formatTime(track.duration * 1000);
+  }
+
 
   $effect(() => {
     if ($highlightedTrackId) {
@@ -537,7 +552,7 @@
             {/if}
           </td>
         {/if}
-        <td class="p-2 px-4 text-right text-xs md:text-sm">{formatTime(track.duration * 1000)}</td>
+        <td class="p-2 px-4 text-right text-xs md:text-sm">{durationCellText(track)}</td>
         <td class="p-2 px-4 text-center {isQueue || playlistId ? '' : 'hidden md:table-cell'}">
           <div class="flex gap-1 justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity">
               {#if isQueue}

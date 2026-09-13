@@ -25,7 +25,7 @@ export const MAX_VISIBLE = 5;
 /**
  * The notifications currently on screen, oldest first.
  *
- * @type {import('svelte/store').Writable<Array<{id: number, type: NotificationType, message: string, detail: string|null, count: number}>>}
+ * @type {import('svelte/store').Writable<Array<{id: number, type: NotificationType, message: string, detail: string|null, action: {label: string, onClick: Function}|null, count: number}>>}
  */
 export const notifications = writable([]);
 
@@ -130,15 +130,20 @@ function evictOne(list) {
  * Adds a notification, or counts it against an identical one already on
  * screen.
  *
+ * An identical notification with an `action` is never merged into an
+ * existing one -- set resume is the one caller that passes one, and it is
+ * always for a different set, so re-counting it under someone else's
+ * "opnieuw" button would fire the wrong track's restart.
+ *
  * @param {NotificationType} type
  * @param {string} message - Already translated; this module holds no i18n.
- * @param {{detail?: string}} [options]
+ * @param {{detail?: string, action?: {label: string, onClick: Function}}} [options]
  * @returns {number} The notification's id, for an early `dismiss`.
  */
 function add(type, message, options = {}) {
-  const existing = get(notifications).find(
-    (item) => item.type === type && item.message === message,
-  );
+  const existing = !options.action
+    ? get(notifications).find((item) => item.type === type && item.message === message)
+    : null;
   if (existing) {
     notifications.update((list) =>
       list.map((item) => (item.id === existing.id ? { ...item, count: item.count + 1 } : item)),
@@ -150,7 +155,7 @@ function add(type, message, options = {}) {
   const id = nextId++;
   notifications.update((list) => [
     ...evictOne(list),
-    { id, type, message, detail: options.detail ?? null, count: 1 },
+    { id, type, message, detail: options.detail ?? null, action: options.action ?? null, count: 1 },
   ]);
   startTimer(id, LIFETIMES[type]);
   return id;

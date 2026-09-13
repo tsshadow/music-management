@@ -1,7 +1,7 @@
 <script>
   import { t } from './i18n/index.js';
   import { fly } from 'svelte/transition';
-  import { formatTime, progressPercent } from './playerProgress.js';
+  import { formatTime, formatClock, progressPercent } from './playerProgress.js';
 
   /**
    * The phone's full-screen "Now Playing" view, opened by a tap on the mini
@@ -32,6 +32,7 @@
     transportLocked = false,
     coverUrl = '/images/spotify-fallback.svg',
     equalizerSupported = false,
+    isSetMode = false,
     onclose,
     ontogglePlay,
     onnext,
@@ -40,6 +41,8 @@
     ontoggleShuffle,
     ontoggleRepeat,
     onseek,
+    onseekTo,
+    onskip,
     ontoggleEqualizer,
     ontoggleQueue,
   } = $props();
@@ -152,19 +155,40 @@
       {/if}
 
       <div class="mb-2">
-        <div
-          role="button"
-          tabindex="0"
-          class="h-1 bg-[#4d4d4d] rounded-sm cursor-pointer {transportLocked ? 'pointer-events-none opacity-50' : ''}"
-          onclick={onseek}
-          onkeydown={(e) => e.key === 'Enter' && onseek?.(e)}
-          aria-label={$t('player.seek')}
-        >
-          <div class="h-full bg-white rounded-sm" style="width: {progressPercent(progress, duration)}%"></div>
-        </div>
+        {#if isSetMode}
+          <!-- A native `range`, not the songs-mode click div below: dragging is
+               the only way to land on a chosen second in a two-hour file.
+               Arrow keys are overridden to ±30 s, matching the skip buttons. -->
+          <input
+            type="range"
+            class="w-full accent-brand-blue h-1 cursor-pointer {transportLocked ? 'pointer-events-none opacity-50' : ''}"
+            min="0"
+            max={duration || 0}
+            step="1"
+            value={progress}
+            disabled={transportLocked}
+            oninput={(e) => onseekTo?.(Number(e.currentTarget.value))}
+            onkeydown={(e) => {
+              if (e.key === 'ArrowLeft') { e.preventDefault(); onskip?.(-30); }
+              else if (e.key === 'ArrowRight') { e.preventDefault(); onskip?.(30); }
+            }}
+            aria-label={$t('player.seek')}
+          />
+        {:else}
+          <div
+            role="button"
+            tabindex="0"
+            class="h-1 bg-[#4d4d4d] rounded-sm cursor-pointer {transportLocked ? 'pointer-events-none opacity-50' : ''}"
+            onclick={onseek}
+            onkeydown={(e) => e.key === 'Enter' && onseek?.(e)}
+            aria-label={$t('player.seek')}
+          >
+            <div class="h-full bg-white rounded-sm" style="width: {progressPercent(progress, duration)}%"></div>
+          </div>
+        {/if}
         <div class="flex justify-between text-[11px] text-[#b3b3b3] mt-1">
-          <span>{formatTime(progress)}</span>
-          <span>{formatTime(duration)}</span>
+          <span>{isSetMode ? formatClock(progress) : formatTime(progress)}</span>
+          <span>{isSetMode ? formatClock(duration) : formatTime(duration)}</span>
         </div>
       </div>
 
@@ -189,6 +213,19 @@
             <path d="M3.3 1a.7.7 0 0 1 .7.7v5.15l9.95-5.744a.7.7 0 0 1 1.05.606v12.575a.7.7 0 0 1-1.05.607L4 9.15v5.15a.7.7 0 0 1-.7.7H1.7a.7.7 0 0 1-.7-.7V1.7a.7.7 0 0 1 .7-.7h1.6z"></path>
           </svg>
         </button>
+        {#if isSetMode}
+          <button
+            class="relative bg-transparent border-none p-2 cursor-pointer text-white {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+            onclick={() => onskip?.(-30)}
+            disabled={transportLocked}
+            aria-label={$t('player.skipBack')}
+          >
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
+              <path d="M12 5V1L7 6l5 5V7a6 6 0 1 1-6 6H5a7 7 0 1 0 7-7z"></path>
+            </svg>
+            <span class="absolute text-[8px] font-bold top-1/2 left-1/2 -translate-x-1/2 -translate-y-[35%]">30</span>
+          </button>
+        {/if}
         <button
           class="w-16 h-16 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105 {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
           onclick={ontogglePlay}
@@ -205,6 +242,19 @@
             </svg>
           {/if}
         </button>
+        {#if isSetMode}
+          <button
+            class="relative bg-transparent border-none p-2 cursor-pointer text-white {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+            onclick={() => onskip?.(30)}
+            disabled={transportLocked}
+            aria-label={$t('player.skipForward')}
+          >
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
+              <path d="M12 5V1l5 5-5 5V7a6 6 0 1 0 6 6h2a7 7 0 1 1-7-7z"></path>
+            </svg>
+            <span class="absolute text-[8px] font-bold top-1/2 left-1/2 -translate-x-1/2 -translate-y-[35%]">30</span>
+          </button>
+        {/if}
         <button
           class="bg-transparent border-none p-2 cursor-pointer text-white {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
           onclick={onnext}

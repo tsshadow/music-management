@@ -49,3 +49,38 @@ export function formatTime(seconds) {
   const sec = Math.floor(seconds % 60);
   return `${min}:${sec < 10 ? "0" : ""}${sec}`;
 }
+
+/**
+ * Formats seconds into "h:mm", the track list's own duration column in sets
+ * mode -- a set's length is the one thing worth the space on that row, and
+ * showing it in minutes alone (`formatTime`'s "125:33" for a two-hour file)
+ * is not the read a listener wants.
+ *
+ * @param {number} seconds - Time in seconds.
+ * @returns {string} Formatted "h:mm" string.
+ */
+export function formatHoursMinutes(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+  const total = Math.floor(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  return `${hours}:${minutes < 10 ? "0" : ""}${minutes}`;
+}
+
+/**
+ * Formats seconds into "h:mm:ss", the sets-mode scrub bar and full-screen
+ * player -- a set can run for two hours, and dropping the hour digit the way
+ * `formatTime` does for a song would read as a much shorter recording than
+ * it is.
+ *
+ * @param {number} seconds - Time in seconds.
+ * @returns {string} Formatted "h:mm:ss" string.
+ */
+export function formatClock(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00:00";
+  const total = Math.floor(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  return `${hours}:${minutes < 10 ? "0" : ""}${minutes}:${secs < 10 ? "0" : ""}${secs}`;
+}

@@ -371,6 +371,16 @@ object Settings {
 
     var firstRunExecuted by BooleanSetting(getKey(R.string.setting_key_first_run_executed), false)
 
+    /**
+     * Whether the one-time push of this account's Subsonic bookmarks into the
+     * `setResume` account-settings key (the web's set-resume feature) has
+     * already run. See `BookmarkMigration.kt` -- this exists so a listener's
+     * bookmarks are not re-pushed, and any resume position they have since
+     * moved past on another device is not clobbered, on every later launch.
+     */
+    var bookmarksMigratedToSetResume
+        by BooleanSetting(getKey(R.string.setting_key_bookmarks_migrated_to_set_resume), false)
+
     val shouldShowArtistPicture
         by BooleanSetting(getKey(R.string.setting_key_show_artist_picture), true)
 

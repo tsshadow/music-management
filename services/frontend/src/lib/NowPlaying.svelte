@@ -2,6 +2,7 @@
   import { t } from './i18n/index.js';
   import { fly } from 'svelte/transition';
   import { formatTime, formatClock, progressPercent } from './playerProgress.js';
+  import BottomSheet from './BottomSheet.svelte';
 
   /**
    * The phone's full-screen "Now Playing" view, opened by a tap on the mini
@@ -33,6 +34,7 @@
     coverUrl = '/images/spotify-fallback.svg',
     equalizerSupported = false,
     isSetMode = false,
+    lyricsLines = [],
     onclose,
     ontogglePlay,
     onnext,
@@ -53,6 +55,7 @@
   const playingFrom = $derived(track?.album || $t('queue.title'));
 
   let touchStartY = $state(null);
+  let showLyricsSheet = $state(false);
 
   function handleTouchStart(e) {
     touchStartY = e.touches?.[0]?.clientY ?? null;
@@ -100,12 +103,21 @@
       <div class="flex-1 text-center text-[11px] font-bold uppercase tracking-wide text-[#b3b3b3] truncate px-2">
         {$t('nowPlaying.playingFrom', { name: playingFrom })}
       </div>
-      <!-- Decorative only for now: no overflow menu exists yet for this view. -->
-      <div class="w-8 h-8 flex items-center justify-center text-white" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-          <path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm0 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"></path>
-        </svg>
-      </div>
+      {#if lyricsLines.length > 0}
+        <button
+          class="w-8 h-8 flex items-center justify-center text-white bg-transparent border-none cursor-pointer"
+          onclick={() => (showLyricsSheet = true)}
+          aria-label={$t('track.lyrics')}
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"></path>
+          </svg>
+        </button>
+      {:else}
+        <!-- No lyrics for this track: the spacer keeps the title centered
+             rather than shifting it once one shows up on the next track. -->
+        <div class="w-8 h-8" aria-hidden="true"></div>
+      {/if}
     </header>
 
     <div class="flex-1 flex flex-col px-6 pb-6 min-h-0 overflow-y-auto">
@@ -304,4 +316,13 @@
       </div>
     </div>
   </div>
+  {#if showLyricsSheet}
+    <BottomSheet title={$t('track.lyrics')} onclose={() => (showLyricsSheet = false)}>
+      <div class="px-4 pb-4 text-center space-y-3">
+        {#each lyricsLines as line, i (i)}
+          <p class="text-lg font-bold text-white">{line}</p>
+        {/each}
+      </div>
+    </BottomSheet>
+  {/if}
 {/if}

@@ -4,6 +4,7 @@
   import { currentTrack, playerState, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey, equalizerSettings, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying } from './store.js';
   import Equalizer from './Equalizer.svelte';
   import NowPlaying from './NowPlaying.svelte';
+  import { fetchLyricsLines } from './lyrics.js';
   import * as equalizer from './equalizer.js';
   // Everything this component does with playback goes through here; the engine
   // behind it is the browser's <audio> today and the phone's PlaybackService
@@ -70,6 +71,15 @@
   let equalizerPanelEl = $state(null);
   const equalizerSupported = equalizer.isSupported();
 
+  // The current track's lyrics, or an empty array once LMS has answered and
+  // found none -- most tracks. Computed here rather than inside `NowPlaying`
+  // (or a second copy on the desktop panel below) for the same reason
+  // `currentRating` already is: one fetch, two renderings of the same state.
+  // An empty array is also what hides the affordance in both places, so
+  // nothing shows a "no lyrics" placeholder for the common case.
+  let lyricsLines = $state([]);
+  let showLyricsPanel = $state(false);
+
   /**
    * Closes the panel on a click elsewhere.
    *
@@ -90,6 +100,21 @@
     if (!showEqualizer) return;
     window.addEventListener('click', closeEqualizerOnOutsideClick);
     return () => window.removeEventListener('click', closeEqualizerOnOutsideClick);
+  });
+
+  $effect(() => {
+    const id = track?.id;
+    let cancelled = false;
+    lyricsLines = [];
+    showLyricsPanel = false;
+    if (id) {
+      fetchLyricsLines(id).then((lines) => {
+        if (!cancelled) lyricsLines = lines;
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
   });
 
   // Settings reach the audio graph through the engine, which owns the element
@@ -1669,6 +1694,7 @@
       {coverUrl}
       {equalizerSupported}
       {isSetMode}
+      {lyricsLines}
       onclose={closeNowPlaying}
       ontogglePlay={togglePlay}
       onnext={playNext}
@@ -1930,6 +1956,32 @@
           {#if showEqualizer}
             <div bind:this={equalizerPanelEl} class="absolute bottom-full right-0 mb-3 z-50">
               <Equalizer onclose={() => (showEqualizer = false)} />
+            </div>
+          {/if}
+        </div>
+      {/if}
+      {#if lyricsLines.length > 0}
+        <div class="relative">
+          <button
+            class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white {showLyricsPanel ? 'text-brand' : 'text-[#b3b3b3]'}"
+            onclick={() => (showLyricsPanel = !showLyricsPanel)}
+            aria-label={$t('track.lyrics')}
+            aria-pressed={showLyricsPanel}
+            aria-expanded={showLyricsPanel}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+              <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"></path>
+            </svg>
+          </button>
+          {#if showLyricsPanel}
+            <div
+              class="absolute bottom-full right-0 mb-3 w-64 max-h-72 overflow-y-auto bg-[#282828] rounded-md shadow-xl border border-white/5 p-3 z-50 text-sm text-white"
+              role="dialog"
+              aria-label={$t('track.lyrics')}
+            >
+              {#each lyricsLines as line, i (i)}
+                <p class="m-0 mb-1 last:mb-0">{line}</p>
+              {/each}
             </div>
           {/if}
         </div>

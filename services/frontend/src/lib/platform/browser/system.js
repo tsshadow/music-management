@@ -17,6 +17,15 @@ const system = {
   isNative: false,
 
   /**
+   * A browser tab is not an APK and has no version of its own to report.
+   *
+   * @returns {Promise<string>}
+   */
+  async appVersion() {
+    return "";
+  },
+
+  /**
    * @returns {{subsonic: string, mumaApi: string}} Bases to build URLs on.
    *   Either may be an empty string, which means "same origin" -- that is what
    *   the dev server and the reverse proxy in front of production both want.

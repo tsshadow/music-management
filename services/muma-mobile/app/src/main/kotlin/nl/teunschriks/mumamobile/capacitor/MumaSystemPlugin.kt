@@ -35,6 +35,7 @@ import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Storage
 import nl.teunschriks.mumamobile.util.UiVariant
+import nl.teunschriks.mumamobile.util.Util
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import timber.log.Timber
@@ -49,6 +50,7 @@ import timber.log.Timber
  * | JS contract | here |
  * |---|---|
  * | `isNative` | `isNative()` → `{value: true}` |
+ * | `appVersion()` | `appVersion()` → `{version}`, the APK's `versionName` |
  * | `serverUrl()` | `serverUrl()` → `{subsonic, mumaApi}` |
  * | `signOut()` | `signOut()` |
  * | `saveCredentials({url, username, password})` | `saveCredentials()` |
@@ -99,6 +101,31 @@ class MumaSystemPlugin :
     @PluginMethod
     fun isNative(call: PluginCall) {
         call.resolve(JSObject().put("value", true))
+    }
+
+    /**
+     * The APK's own `versionName` (e.g. "6.35.1"), for the web UI's once-per-upgrade release
+     * notes -- see `mobileReleaseNotes.js`. Deliberately not `WebEnvironment`'s bundle version:
+     * that one is a git short hash the frontend build stamps on itself, useful for a crash
+     * report but not something a semantic-version comparison or muma-mobile's own
+     * `CHANGELOG.md` headings can be matched against. An empty string is what a `PackageManager`
+     * that could not find this app's own package answers with -- practically never, but the web
+     * side already treats a blank answer as "nothing to compare", the same way it treats a
+     * first install with no prior version stored.
+     */
+    @PluginMethod
+    fun appVersion(call: PluginCall) {
+        // `context`, not `activity`: this only needs a `PackageManager`. Both plugin accessors
+        // throw rather than answer null when the bridge is not attached -- true for a
+        // bare-constructed plugin in a test, never in production -- which is why this is caught
+        // the same way `setKeepScreenOn` catches `activity` for the same reason.
+        val runningContext = try {
+            context
+        } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
+            null
+        }
+        val version = runningContext?.let { Util.getVersionName(it) } ?: ""
+        call.resolve(JSObject().put("version", version))
     }
 
     /**

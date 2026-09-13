@@ -39,6 +39,17 @@ export function createCapacitorSystem(plugin) {
     isNative: true,
 
     /**
+     * The APK's own `versionName`, e.g. "6.35.1". See the `PlatformSystem` typedef for why this
+     * is a separate call from `platform.diagnostics.identify`'s bundle version.
+     *
+     * @returns {Promise<string>}
+     */
+    async appVersion() {
+      const answer = await plugin.appVersion();
+      return typeof answer?.version === "string" ? answer.version : "";
+    },
+
+    /**
      * The bases every URL is built on, as last read by {@link loadServerUrl}.
      *
      * @returns {{subsonic: string, mumaApi: string}}

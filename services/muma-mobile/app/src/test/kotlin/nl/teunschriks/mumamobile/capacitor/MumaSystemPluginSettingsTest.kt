@@ -122,4 +122,22 @@ class MumaSystemPluginSettingsTest {
         Settings.cacheLocationUri shouldBeEqualTo ""
         verify { theCall.resolve() }
     }
+
+    /**
+     * `appVersion` reads through `context`, not `activity` -- the same distinction
+     * `setKeepScreenOn`'s own class comment draws -- specifically so it resolves rather than
+     * throws for a bare plugin with no bridge attached, which is what every other test in this
+     * class already builds. There is no real `versionName` to read here without one; the web
+     * side (`mobileReleaseNotes.js`) already treats a blank answer as "nothing to compare".
+     */
+    @Test
+    fun `appVersion resolves an empty version without an attached bridge`() {
+        val result = slot<JSObject>()
+        val theCall = mockk<PluginCall>(relaxed = true)
+        every { theCall.resolve(capture(result)) } returns Unit
+
+        plugin.appVersion(theCall)
+
+        result.captured.getString("version") shouldBeEqualTo ""
+    }
 }

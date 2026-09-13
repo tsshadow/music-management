@@ -325,6 +325,11 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
 /**
  * @typedef {object} PlatformSystem The shell itself.
  * @property {boolean} isNative
+ * @property {function(): Promise<string>} appVersion The APK's own `versionName`, for the
+ *   once-per-upgrade release notes in `mobileReleaseNotes.js` -- not the frontend bundle version
+ *   `platform.diagnostics.identify` sends, which is a git hash with no relation to
+ *   muma-mobile's own `CHANGELOG.md` headings. A browser tab answers `''`: there is no APK, and
+ *   `mobileReleaseNotes.js` already reads a blank answer as "nothing to compare".
  * @property {function(): {subsonic: string, mumaApi: string}} serverUrl Bases to
  *   build URLs on; an empty string means same origin. Synchronous everywhere: a
  *   shell that has to ask across a bridge caches the answer, and its boot path

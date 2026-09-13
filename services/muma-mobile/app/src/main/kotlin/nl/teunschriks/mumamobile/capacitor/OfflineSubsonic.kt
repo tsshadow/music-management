@@ -55,13 +55,31 @@ import timber.log.Timber
  * @param onDisk whether that track's file is actually on the device.
  * @param coverArtUrl an absolute URL the WebView can load the track's artwork from, or null when
  *   this device cannot serve it cheaply. See [MumaStoragePlugin.query].
+ * @param playlists every playlist this device remembers, merged from the `offline_playlists`
+ *   Room table and any `.m3u` file downloaded before that table existed. See [PlaylistRecord].
  */
 @Suppress("TooManyFunctions")
 class OfflineSubsonic(
     private val allTracks: () -> List<Track>,
     private val onDisk: (Track) -> Boolean,
-    private val coverArtUrl: (Track) -> String? = { null }
+    private val coverArtUrl: (Track) -> String? = { null },
+    private val playlists: () -> List<PlaylistRecord> = { emptyList() }
 ) {
+
+    /**
+     * One playlist, the way this device remembers it: a server id, a name and the ids of the
+     * tracks it held the last time the app fetched it -- in playlist order.
+     *
+     * A track that is not [onDisk] is silently dropped when this is answered, the same way an
+     * undownloaded track never appears in any other list here; a playlist is not a promise that
+     * every one of these ids still resolves to a played file.
+     *
+     * @param id the server's playlist id, or a synthetic one for a `.m3u` file downloaded before
+     *   this device started remembering it (see `LegacyPlaylistFiles`). Stable across calls
+     *   either way, which is what lets the web treat this row as one playlist rather than a new
+     *   one every time the list is drawn.
+     */
+    data class PlaylistRecord(val id: String, val name: String, val trackIds: List<String>)
 
     /**
      * The downloaded set, held between calls because one screen makes several: a list, its filter
@@ -105,6 +123,8 @@ class OfflineSubsonic(
         "getStarred2" -> ok().put("starred2", starred())
         "getSong" -> song(params)
         "getCoverArt" -> coverArt(params)
+        "getPlaylists" -> ok().put("playlists", JSONObject().put("playlist", playlistArray()))
+        "getPlaylist" -> playlist(params)
         else -> unsupported(method)
     }
 
@@ -302,6 +322,33 @@ class OfflineSubsonic(
         val track = downloaded().firstOrNull { it.coverArt == id || it.id == id } ?: return notFound()
         val url = coverArtUrl(track) ?: return notFound()
         return ok().put("url", url)
+    }
+
+    // ------------------------------------------------------------------------- playlists
+
+    private fun playlistArray(): JSONArray = playlists().jsonArray { playlistNode(it, withEntries = false) }
+
+    private fun playlist(params: JSONObject): JSONObject {
+        val id = params.text("id") ?: return notFound()
+        val found = playlists().firstOrNull { it.id == id } ?: return notFound()
+        return ok().put("playlist", playlistNode(found, withEntries = true))
+    }
+
+    /**
+     * A playlist as [PlaylistRecord] and the downloaded set together describe it: its own id and
+     * name, and whichever of its tracks are actually [onDisk] -- the rest are the same "not on
+     * this device" gap every other list here leaves rather than papering over.
+     */
+    private fun playlistNode(record: PlaylistRecord, withEntries: Boolean): JSONObject {
+        val matched = record.trackIds.mapNotNull { id -> downloaded().firstOrNull { it.id == id } }
+        val node = JSONObject()
+            .put("id", record.id)
+            .put("name", record.name)
+            .put("songCount", matched.size)
+            .put("duration", matched.sumOf { it.duration ?: 0 })
+        matched.firstNotNullOfOrNull { it.coverArt }?.let { node.put("coverArt", it) }
+        if (withEntries) node.put("entry", matched.jsonArray(::songNode))
+        return node
     }
 
     // -------------------------------------------------------------------- derived groups

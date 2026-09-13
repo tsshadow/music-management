@@ -365,9 +365,8 @@
   async function loadPlaylists() {
     if (!$authParams) return;
     try {
-      const response = await fetch(restUrl(`/rest/getPlaylists?${$authParams}`));
-      const data = await response.json();
-      playlists = data['subsonic-response']?.playlists?.playlist || [];
+      const data = await subsonicJson('getPlaylists');
+      playlists = listOf(data, 'playlists.playlist');
     } catch (e) { console.error(e); }
   }
 

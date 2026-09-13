@@ -2,19 +2,22 @@
   import { t } from '../i18n/index.js';
   import { onMount } from 'svelte';
   import { SvelteURLSearchParams } from 'svelte/reactivity';
-  import { deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, TRACK_PAGE_SIZES, downloadsWifiOnly, authParams, credentials, restUrl } from '../store.js';
+  import { deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, TRACK_PAGE_SIZES, authParams, credentials, restUrl } from '../store.js';
   import { platform } from '../platform/index.js';
   import LanguageSetting from './LanguageSetting.svelte';
 
   // Only where downloads exist. A browser has no files to keep, so a "wifi only"
-  // switch there would promise something nothing does.
+  // switch there would promise something nothing does; the row below never renders
+  // without this, which is also why it is the only place this setting lives -- there
+  // used to be a second, account-synced `downloadsWifiOnly` store for a browser that
+  // cannot get here, and nothing ever read it.
   const downloadsSupported = platform.storage.supported;
 
-  // On native this row has to be the real Kotlin setting, not the `downloadsWifiOnly`
-  // store -- that store is saved to the account but nothing downstream reads it. The
-  // same row also lives on the device-settings tab (`DeviceSettings.svelte`); the two
-  // read the same underlying preference, they just do not share a live subscription,
-  // so a change on one only appears on the other after a reload of this page.
+  // The one source of truth for this setting is the real Kotlin preference
+  // (`Settings.isWifiRequiredForDownload`, written through `wifiOnly`). The same row
+  // also lives on the device-settings tab (`DeviceSettings.svelte`); the two read the
+  // same underlying preference, they just do not share a live subscription, so a
+  // change on one only appears on the other after a reload of this page.
   let nativeWifiOnly = $state(false);
 
   // Server default for uiArtistReleaseSortMethod (ReleaseSortMethod::OriginalDateDesc).
@@ -80,16 +83,9 @@
     }
   }
 
-  /**
-   * On native, writes the real Kotlin setting; on browser (where this row never
-   * renders in the first place) falls back to the unconnected store, only so the
-   * function has a safe no-op meaning if it is ever called from there.
-   */
+  /** Writes the real Kotlin setting; this row never renders without `downloadsSupported`. */
   async function toggleWifiOnly() {
-    if (!downloadsSupported) {
-      downloadsWifiOnly.update((v) => !v);
-      return;
-    }
+    if (!downloadsSupported) return;
     const next = !nativeWifiOnly;
     nativeWifiOnly = next;
     try {
@@ -306,7 +302,7 @@
             <p class="text-sm text-[#b3b3b3]">{$t('settings.general.wifiOnlyHelp')}</p>
           </div>
           <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" class="sr-only peer" checked={downloadsSupported ? nativeWifiOnly : $downloadsWifiOnly} onchange={toggleWifiOnly} aria-label={$t('settings.general.wifiOnly')}>
+            <input type="checkbox" class="sr-only peer" checked={nativeWifiOnly} onchange={toggleWifiOnly} aria-label={$t('settings.general.wifiOnly')}>
             <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
           </label>
         </div>

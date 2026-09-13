@@ -44,6 +44,11 @@ describe("viewToPath", () => {
     expect(viewToPath(state(view))).toBe(path);
   });
 
+  it("routes a preset by its MuMa id and reads it back", () => {
+    expect(viewToPath(state("preset:15"))).toBe("/preset/15");
+    expect(pathToState("/preset/15")).toEqual({ view: "preset:15" });
+  });
+
   it("percent-encodes a genre name so a slash in it cannot change the route", () => {
     expect(viewToPath(state("genre:Drum & Bass / UK"))).toBe("/genre/Drum%20%26%20Bass%20%2F%20UK");
   });

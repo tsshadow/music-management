@@ -182,15 +182,15 @@
 </script>
 
 <div class="p-8 max-w-4xl mx-auto pb-24">
-  <header class="mb-8 flex justify-between items-end">
-    <div>
+  <header class="mb-8 flex justify-between items-end gap-4">
+    <div class="min-w-0">
       <h1 class="text-3xl font-bold mb-2">{$t('settings.general.title')}</h1>
       <p class="text-[#b3b3b3]">{$t('settings.general.subtitle')}</p>
     </div>
     <button
       onclick={saveSettings}
       disabled={isSaving || isLoading}
-      class="bg-brand text-black font-bold py-3 px-8 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+      class="bg-brand text-black font-bold py-3 px-8 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100 whitespace-nowrap shrink-0"
     >
       {isSaving ? $t('common.saving') : $t('common.saveChanges')}
     </button>

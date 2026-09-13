@@ -130,7 +130,7 @@
       <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
         <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.device.groups.downloads')}</h2>
         <div class="flex flex-col gap-6">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.wifiOnly')}</h3>
               <p class="text-sm text-[#b3b3b3]">{$t('settings.device.wifiOnlyHelp')}</p>
@@ -141,7 +141,7 @@
             </label>
           </div>
 
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.parallelDownloads')}</h3>
               <p class="text-sm text-[#b3b3b3]">{$t('settings.device.parallelDownloadsHelp')}</p>
@@ -158,7 +158,7 @@
             </select>
           </div>
 
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.cacheSize')}</h3>
               <p class="text-sm text-[#b3b3b3]">{$t('settings.device.cacheSizeHelp')}</p>
@@ -176,7 +176,7 @@
             </select>
           </div>
 
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.clearCache')}</h3>
               <p class="text-sm text-[#b3b3b3]">
@@ -186,13 +186,13 @@
             <button
               onclick={clearCache}
               disabled={isClearingCache}
-              class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors disabled:opacity-50"
+              class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0 disabled:opacity-50"
             >
               {isClearingCache ? $t('settings.device.clearingCache') : $t('settings.device.clearCache')}
             </button>
           </div>
 
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <h3 class="text-lg font-bold">{$t('settings.device.cacheLocation')}</h3>
             <span class="text-sm text-[#b3b3b3]">{settings.cacheLocationUri || $t('settings.device.cacheLocationDefault')}</span>
           </div>
@@ -203,7 +203,7 @@
       <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
         <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.device.groups.streaming')}</h2>
         <div class="flex flex-col gap-6">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.maxBitrateMobile')}</h3>
               <p class="text-sm text-[#b3b3b3]">{$t('settings.device.maxBitrateMobileHelp')}</p>
@@ -221,7 +221,7 @@
             </select>
           </div>
 
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.maxBitrateWifi')}</h3>
               <p class="text-sm text-[#b3b3b3]">{$t('settings.device.maxBitrateWifiHelp')}</p>
@@ -239,7 +239,7 @@
             </select>
           </div>
 
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.preloadCount')}</h3>
               <p class="text-sm text-[#b3b3b3]">{$t('settings.device.preloadCountHelp')}</p>
@@ -263,7 +263,7 @@
       <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
         <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.device.groups.playback')}</h2>
         <div class="flex flex-col gap-6">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.resumeOnHeadphonesPlug')}</h3>
               <p class="text-sm text-[#b3b3b3]">{$t('settings.device.resumeOnHeadphonesPlugHelp')}</p>
@@ -274,7 +274,7 @@
             </label>
           </div>
 
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.resumeOnBluetoothDevice')}</h3>
               <p class="text-sm text-[#b3b3b3]">{$t('settings.device.resumeOnBluetoothDeviceHelp')}</p>
@@ -291,7 +291,7 @@
             </select>
           </div>
 
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.pauseOnBluetoothDevice')}</h3>
               <p class="text-sm text-[#b3b3b3]">{$t('settings.device.pauseOnBluetoothDeviceHelp')}</p>
@@ -308,7 +308,7 @@
             </select>
           </div>
 
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.hardwareOffload')}</h3>
               <p class="text-sm text-[#b3b3b3]">{$t('settings.device.hardwareOffloadHelp')}</p>
@@ -325,7 +325,7 @@
       <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
         <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.device.groups.car')}</h2>
         <div class="flex flex-col gap-6">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.carModeManual')}</h3>
               <p class="text-sm text-[#b3b3b3]">{$t('settings.device.carModeManualHelp')}</p>
@@ -338,7 +338,7 @@
 
           <!-- Shown, not edited: pairing a device is a Bluetooth picker the legacy
                screen already has, and duplicating it here is not worth the seam. -->
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.carModeDevices')}</h3>
               <p class="text-sm text-[#b3b3b3]">
@@ -347,13 +347,13 @@
                   : $t('settings.device.carModeDevicesNone')}
               </p>
             </div>
-            <button onclick={openLegacySettings} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors">
+            <button onclick={openLegacySettings} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0">
               {$t('settings.device.carModeDevicesEdit')}
             </button>
           </div>
 
           {#if settings.carModeFullScreenGranted !== undefined}
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between gap-4">
               <div class="flex flex-col gap-1">
                 <h3 class="text-lg font-bold">{$t('settings.device.carModeFullScreen')}</h3>
                 <p class="text-sm text-[#b3b3b3]">
@@ -363,7 +363,7 @@
                 </p>
               </div>
               {#if !settings.carModeFullScreenGranted}
-                <button onclick={openLegacySettings} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors">
+                <button onclick={openLegacySettings} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0">
                   {$t('settings.device.carModeFullScreenAction')}
                 </button>
               {/if}
@@ -376,19 +376,19 @@
       <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
         <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.device.groups.diagnostics')}</h2>
         <div class="flex flex-col gap-6">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.sendDiagnostics')}</h3>
               <p class="text-sm text-[#b3b3b3]">
                 {diagnosticsStatus || $t('settings.device.sendDiagnosticsHelp')}
               </p>
             </div>
-            <button onclick={sendDiagnostics} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors">
+            <button onclick={sendDiagnostics} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0">
               {$t('settings.device.sendDiagnostics')}
             </button>
           </div>
 
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.scrobbleEnabled')}</h3>
               <p class="text-sm text-[#b3b3b3]">{$t('settings.device.scrobbleEnabledHelp')}</p>
@@ -405,22 +405,22 @@
       <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
         <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.device.groups.interface')}</h2>
         <div class="flex flex-col gap-6">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.switchToLegacyUi')}</h3>
               <p class="text-sm text-[#b3b3b3]">{$t('settings.device.switchToLegacyUiHelp')}</p>
             </div>
-            <button onclick={switchToLegacyUi} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors">
+            <button onclick={switchToLegacyUi} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0">
               {$t('settings.device.switchToLegacyUi')}
             </button>
           </div>
 
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.allAppSettings')}</h3>
               <p class="text-sm text-[#b3b3b3]">{$t('settings.device.allAppSettingsHelp')}</p>
             </div>
-            <button onclick={openLegacySettings} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors">
+            <button onclick={openLegacySettings} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0">
               {$t('settings.device.allAppSettings')}
             </button>
           </div>

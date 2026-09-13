@@ -318,6 +318,10 @@ class MediaLibraryBrowser(
             MEDIA_FAVORITE_PLAYLISTS_ID -> getFavoritePlaylistItems()
             MEDIA_SONGS_ID -> getSongsTabItems()
             MEDIA_LIVESETS_ID -> getLiveSetsTabItems()
+            MEDIA_SETS_ID -> getSetsTabItems()
+            MEDIA_SETS_FAVORITES_ID -> getSetsFavoriteItems()
+            MEDIA_FAVORITE_GENRES_SETS_ID -> getFavoriteGenreItems(length = "long")
+            MEDIA_FAVORITE_PLAYLISTS_SETS_ID -> getFavoritePlaylistItems(length = "long")
             MEDIA_LAST_PLAYED_GENRES_SONGS -> getLastPlayedGenres("short")
             MEDIA_LAST_PLAYED_GENRES_LIVESETS -> getLastPlayedGenres("long")
             MEDIA_ARTIST_ID -> getArtists()
@@ -525,6 +529,21 @@ class MediaLibraryBrowser(
             mediaType = MEDIA_TYPE_FOLDER_MIXED
         )
 
+        // The Sets root: always here next to Songs and Livesets, regardless of the phone's
+        // sets-mode setting -- a driver picks songs or sets by tapping a folder, not by whatever
+        // was last selected on the phone.
+        //
+        // toUri rather than Uri.parse, same reason as the Release Radar row below: an identical
+        // Uri.parse string anywhere in this file can consume a lint baseline entry that belongs
+        // to a different row further down, which then fails the build for code nobody touched.
+        mediaItems.add(
+            R.string.main_sets,
+            MEDIA_SETS_ID,
+            imageUri = "android.resource://$packageName/${R.drawable.ic_menu_podcasts}".toUri(),
+            isBrowsable = true,
+            mediaType = MEDIA_TYPE_FOLDER_MIXED
+        )
+
         // The two personalized feeds, above Radio: they are the reason to open the app in the
         // car, and a driver should not have to scroll past the whole library to start one.
         mediaItems.add(
@@ -667,15 +686,18 @@ class MediaLibraryBrowser(
 
     /**
      * One tap from the folder to the music: this skips the year and sort-method levels the Genres
-     * browse chain has. Livesets stay reachable through the Livesets tab, so the length is fixed.
+     * browse chain has. [length] used to be fixed at "short" -- Livesets stayed reachable through
+     * the Livesets tab regardless -- but the Sets root needs the same shortcut for "long".
      */
-    private fun getFavoriteGenreItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+    private fun getFavoriteGenreItems(
+        length: String = "short"
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val mediaItems: MutableList<MediaItem> = ArrayList()
 
         favoriteGenres().forEach { genre ->
             mediaItems.add(
                 genre,
-                "$MEDIA_GET_SONGS_BY_GENRE|short|$genre||AddedDesc",
+                "$MEDIA_GET_SONGS_BY_GENRE|$length|$genre||AddedDesc",
                 isBrowsable = true,
                 mediaType = MEDIA_TYPE_PLAYLIST,
                 imageUri = genreArt(genre)
@@ -687,8 +709,14 @@ class MediaLibraryBrowser(
         )
     }
 
-    private fun getFavoritePlaylistItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        val mediaItems: MutableList<MediaItem> = favoriteTiles()
+    /**
+     * [length] narrows to the tiles saved under that length; `null` (the original call, still used
+     * by the songs/mixed Favorites folder) keeps every favourited tile regardless of length.
+     */
+    private fun getFavoritePlaylistItems(
+        length: String? = null
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val mediaItems: MutableList<MediaItem> = favoriteTiles(length)
             .map { it.toMediaItem() }
             .toMutableList()
 
@@ -699,12 +727,19 @@ class MediaLibraryBrowser(
 
     private fun favoriteGenres(): List<String> = FavoriteGenres.current()
 
-    /** The star in the filter modal, which until now was only stored, marks a tile as a favorite. */
-    private fun favoriteTiles(): List<TileInfo> {
+    /**
+     * The star in the filter modal, which until now was only stored, marks a tile as a favorite.
+     *
+     * [length] filters on [TileInfo.length] when given. A tile already knows its own length --
+     * that is how a car tap on it builds the right "short"/"long" media id in [toMediaItem] -- so
+     * this reuses that field rather than asking which storage page ("song" vs "liveset") it came
+     * from.
+     */
+    private fun favoriteTiles(length: String? = null): List<TileInfo> {
         val context = UApp.applicationContext()
 
         return (TileStorage.loadTiles(context, "song") + TileStorage.loadTiles(context, "liveset"))
-            .filter { it.favorite }
+            .filter { it.favorite && (length == null || it.length == length) }
     }
 
     private fun getLibraryItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
@@ -733,6 +768,46 @@ class MediaLibraryBrowser(
         mediaItems.add(R.string.main_albums_released, "$MEDIA_SONG_RECENT|long|DateDescAndRelease")
         mediaItems.add(R.string.main_last_played_genres, MEDIA_LAST_PLAYED_GENRES_LIVESETS)
         return Futures.immediateFuture(itemListResult(mediaItems))
+    }
+
+    /**
+     * The Sets root's own tree. Every entry reuses a child media id [getLiveSetsTabItems] already
+     * produces for "long" -- genres, recently added, recently released, last played genres -- so
+     * two different parents lead into the exact same, already-tested nodes rather than a second
+     * definition of them. The one thing Livesets never got is [MEDIA_SETS_FAVORITES_ID]: its own
+     * folder hardcoded "short" everywhere, so a favourite genre or playlist saved for sets had no
+     * way back into the car at all.
+     */
+    private fun getSetsTabItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val mediaItems: MutableList<MediaItem> = ArrayList()
+        mediaItems.add(R.string.button_bar_search, "$MEDIA_GET_GENRES|long")
+        mediaItems.add(R.string.main_songs_recent_added, "$MEDIA_SONG_RECENT|long|AddedDesc")
+        mediaItems.add(R.string.main_albums_released, "$MEDIA_SONG_RECENT|long|DateDescAndRelease")
+        mediaItems.add(R.string.main_last_played_genres, MEDIA_LAST_PLAYED_GENRES_LIVESETS)
+        mediaItems.add(R.string.favorites_title, MEDIA_SETS_FAVORITES_ID)
+        return Futures.immediateFuture(itemListResult(mediaItems))
+    }
+
+    /**
+     * Favourites, filtered to sets. There is no starred-sets row: `getStarred2` has no length
+     * filter on the server, and inventing a client-side duration threshold just for this one
+     * branch would be a second, drifting definition of "long" next to the server's own `LENGTH`
+     * filter that every other node here goes through.
+     */
+    private fun getSetsFavoriteItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val mediaItems: MutableList<MediaItem> = ArrayList()
+
+        if (favoriteGenres().isNotEmpty()) {
+            mediaItems.add(R.string.favorites_genres, MEDIA_FAVORITE_GENRES_SETS_ID)
+        }
+
+        if (favoriteTiles(length = "long").isNotEmpty()) {
+            mediaItems.add(R.string.favorites_playlists, MEDIA_FAVORITE_PLAYLISTS_SETS_ID)
+        }
+
+        return Futures.immediateFuture(
+            itemListResult(mediaItems)
+        )
     }
 
     private fun getLastPlayedGenres(length: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {

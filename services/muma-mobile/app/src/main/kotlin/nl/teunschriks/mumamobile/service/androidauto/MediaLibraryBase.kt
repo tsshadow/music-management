@@ -120,6 +120,16 @@ abstract class MediaLibraryBase protected constructor() {
         internal const val MEDIA_LIBRARY_ID = "MEDIA_LIBRARY_ID"
         internal const val MEDIA_SONGS_ID = "MEDIA_SONGS_ID"
         internal const val MEDIA_LIVESETS_ID = "MEDIA_LIVESETS_ID"
+
+        // The Sets root: same tree shape as Songs/Livesets already had, plus the favourites reach
+        // Favorites never gave sets (it hardcoded the "short" length). Added next to the existing
+        // roots rather than folded into Livesets, so the tree everything above diffs against stays
+        // byte-for-byte the same -- this is the one addition.
+        internal const val MEDIA_SETS_ID = "MEDIA_SETS_ID"
+        internal const val MEDIA_SETS_FAVORITES_ID = "MEDIA_SETS_FAVORITES_ID"
+        internal const val MEDIA_FAVORITE_GENRES_SETS_ID = "MEDIA_FAVORITE_GENRES_SETS_ID"
+        internal const val MEDIA_FAVORITE_PLAYLISTS_SETS_ID = "MEDIA_FAVORITE_PLAYLISTS_SETS_ID"
+
         internal const val MEDIA_FAVORITES_ID = "MEDIA_FAVORITES_ID"
         internal const val MEDIA_FAVORITE_GENRES_ID = "MEDIA_FAVORITE_GENRES_ID"
         internal const val MEDIA_FAVORITE_PLAYLISTS_ID = "MEDIA_FAVORITE_PLAYLISTS_ID"

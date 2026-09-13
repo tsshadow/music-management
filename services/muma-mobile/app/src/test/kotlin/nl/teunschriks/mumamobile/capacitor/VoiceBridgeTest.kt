@@ -100,7 +100,7 @@ class VoiceBridgeTest {
 
     @Test
     fun `a word EntityKind does not have, or none at all, answers null rather than throwing`() {
-        voiceEntityKindOf("festival").shouldBeNull()
+        voiceEntityKindOf("spaceship").shouldBeNull()
         voiceEntityKindOf(null).shouldBeNull()
     }
 

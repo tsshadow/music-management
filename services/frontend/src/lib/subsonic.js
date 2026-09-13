@@ -70,6 +70,8 @@ export const OFFLINE_METHODS = Object.freeze([
   "search3",
   "getStarred2",
   "getCoverArt",
+  "getPlaylists",
+  "getPlaylist",
 ]);
 
 /** The empty success body, which is what "the device cannot answer that" looks like. */
@@ -249,10 +251,9 @@ export function listOf(body, path) {
 /**
  * The views that still have something to show without a connection.
  *
- * Everything else -- playlists (downloads are m3u files with no server id, so
- * `getPlaylists` is absent from the offline library by design), the personal
- * feeds, memories, history, listening stats, the tag collections -- is a server
- * answer or nothing, and says so rather than spinning.
+ * Everything else -- the personal feeds, memories, history, listening stats,
+ * the tag collections -- is a server answer or nothing, and says so rather
+ * than spinning.
  *
  * @param {string} view - An `activeView` identifier.
  * @returns {boolean}
@@ -274,6 +275,8 @@ const OFFLINE_VIEWS = new Set([
   "starred",
   "downloads",
   "settings",
+  "playlists",
+  "playlist-detail",
 ]);
 
 // `label:` and `year:` are here and `podcast:`, `festival:` and `lineup:` are

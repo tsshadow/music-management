@@ -286,12 +286,12 @@ describe("viewHasOfflineSource", () => {
     },
   );
 
-  // Playlists are m3u files on the device with no server id, which is why
-  // `getPlaylists` is absent from the offline library by design; the feeds,
-  // memories and the stats are muma endpoints.
+  it.each(["playlists", "playlist-detail"])("%s can be answered from the device", (view) => {
+    expect(viewHasOfflineSource(view)).toBe(true);
+  });
+
+  // The feeds, memories and the stats are muma endpoints with no offline answer.
   it.each([
-    "playlists",
-    "playlist-detail",
     "memories",
     "history",
     "listening",

@@ -67,6 +67,8 @@ const PLAYING = {
   queueLength: 3,
   shuffle: false,
   repeat: "none",
+  radioChannel: null,
+  newsPlaying: false,
 };
 
 describe("capacitor platform", () => {

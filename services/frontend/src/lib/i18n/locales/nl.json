@@ -876,7 +876,6 @@
   "news": {
     "couldNotPlay": "Kon het nieuws niet afspelen",
     "none": "Nog geen bulletin opgenomen",
-    "notOnPhone": "Het nieuws speelt nog niet in de app",
     "play": "Nieuws van het uur",
     "playing": "Nieuws speelt, tik om terug te gaan"
   },
@@ -923,8 +922,7 @@
   "radio": {
     "chooseChannel": "Kies een kanaal",
     "couldNotStart": "Kon de radio niet starten",
-    "noChannels": "Geen radiokanalen beschikbaar",
-    "notOnPhone": "De radio speelt nog niet in de app"
+    "noChannels": "Geen radiokanalen beschikbaar"
   },
   "releaseNotes": {
     "intro": "Er is een nieuwe versie van LMS. Dit is er veranderd:",

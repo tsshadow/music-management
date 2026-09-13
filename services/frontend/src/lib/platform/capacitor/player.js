@@ -49,6 +49,8 @@ const EMPTY_STATE = Object.freeze({
   queueLength: 0,
   shuffle: false,
   repeat: "none",
+  radioChannel: null,
+  newsPlaying: false,
 });
 
 /** The three words `setMode`'s `repeat` and `state().repeat` are allowed to answer with. */
@@ -84,6 +86,8 @@ function snapshotOf(payload, previous) {
     queueLength: numberOr(payload.queueLength, previous.queueLength),
     shuffle: typeof payload.shuffle === "boolean" ? payload.shuffle : previous.shuffle,
     repeat: REPEAT_MODES.has(payload.repeat) ? payload.repeat : previous.repeat,
+    radioChannel: payload.radioChannel == null ? null : String(payload.radioChannel),
+    newsPlaying: payload.newsPlaying === true,
   };
 }
 
@@ -291,6 +295,33 @@ export function createCapacitorPlayer(plugin) {
         })
         .catch((error) => console.warn("Could not apply the equalizer", error));
       return equalizerInEffect;
+    },
+
+    /**
+     * Tunes into a channel by slug. The service streams it and locks onto the server's timeline
+     * itself -- [RadioPlaybackController.kt]/[RadioSync.kt], reused from Android Auto's own radio
+     * support rather than a second copy of the maths living here too.
+     *
+     * @param {string} slug
+     * @returns {Promise<void>}
+     */
+    async startRadio(slug) {
+      await plugin.startRadio({ slug });
+    },
+
+    /** Leaves radio mode without starting anything else. */
+    async stopRadio() {
+      await plugin.stopRadio();
+    },
+
+    /**
+     * Plays the latest bulletin, or hands the music back if one is already running -- one call
+     * either way, the same toggle the notification's own news button performs.
+     *
+     * @returns {Promise<void>}
+     */
+    async toggleNews() {
+      await plugin.toggleNews();
     },
 
     /**

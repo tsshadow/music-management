@@ -30,8 +30,13 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  * - A capability that is missing reports `supported: false` and still answers
  *   every call, with the emptiest honest value. Screens hide themselves on the
  *   flag; they must not have to catch exceptions to find out.
- * - Nothing here knows about the queue, shuffle, radio, jam sync or the news.
- *   Those are UI state, they live in the web module, and they drive `player`.
+ * - Jam sync is the one thing that stays entirely outside this interface: it is UI state, it lives
+ *   in the web module, and it drives `player` through the ordinary calls. The queue, shuffle,
+ *   repeat, radio and the news are different -- on a shell where `ownsQueue` is true, the service
+ *   is the one deciding what plays next, so it has to be told about each of them for the same
+ *   reason it has to be told the queue itself; `setQueue`, `setMode`, `startRadio`/`stopRadio` and
+ *   `toggleNews` are that hand-off. A browser answers all four with an inert default and keeps
+ *   deciding for itself, the way `browser/player.js` documents.
  */
 
 /**
@@ -55,6 +60,13 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  * @property {boolean} [shuffle] Native only. Whether the platform service is shuffling its queue.
  *   Absent on a browser -- `ownsQueue` is what a caller branches on, not this field's presence.
  * @property {'none'|'all'|'one'} [repeat] Native only, alongside `shuffle`.
+ * @property {string|null} [radioChannel] Native only. The channel slug the service is following,
+ *   or null when it is not doing radio. Set by `startRadio`/`stopRadio`, but also by anything else
+ *   that can start or stop it on the far side -- Android Auto's browse tree, Assistant -- which is
+ *   why a caller reads this rather than only trusting its own last call.
+ * @property {boolean} [newsPlaying] Native only, alongside `radioChannel`. Whether a bulletin is
+ *   playing right now; `toggleNews` is the only way to change it from here, but the service can
+ *   also end one on its own when the bulletin runs out.
  */
 
 /**
@@ -128,6 +140,15 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   the returned state is the fresh snapshot, for a caller that mirrors it straight into its own
  *   store rather than waiting for the next event. A browser has nowhere to put either flag but
  *   the store; see `browser/player.js`.
+ * @property {function(string): Promise<void>} startRadio Tunes into a channel by slug. Native
+ *   only in effect: the service streams it and locks onto the server's timeline itself, reusing
+ *   Android Auto's own radio support rather than a second implementation of it. A browser answers
+ *   and does nothing -- `Player.svelte` drives radio there directly through `radioController.js`
+ *   and the `<audio>` element, and never calls this.
+ * @property {function(): Promise<void>} stopRadio Leaves radio mode without starting anything
+ *   else. Native only in effect, the mirror of `startRadio`.
+ * @property {function(): Promise<void>} toggleNews Plays the latest bulletin, or hands the music
+ *   back if one is already running -- one call either way. Native only in effect; see `startRadio`.
  * @property {function(PlayerEvent, function(PlayerState): void): function(): void} on
  * @property {function(): PlayerState} state
  * @property {function(): HTMLMediaElement|null} element Browser only, for the

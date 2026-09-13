@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/svelte";
+import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 
 /**
@@ -47,6 +47,10 @@ const playerPlugin = fakePlugin({
   // back is what every test below overrides when it wants to check that the
   // store follows the *answer* rather than the ask.
   setMode: vi.fn(async (request) => ({ shuffle: request.shuffle, repeat: request.repeat })),
+  startRadio: vi.fn(async () => ({})),
+  stopRadio: vi.fn(async () => ({})),
+  toggleNews: vi.fn(async () => ({})),
+  pause: vi.fn(async () => ({})),
 });
 
 const plugins = {
@@ -85,6 +89,11 @@ describe("Player on the native shell", () => {
     isMobile.set(false);
     nowPlayingOpen.set(false);
     playerPlugin.setMode.mockClear();
+    playerPlugin.startRadio.mockClear();
+    playerPlugin.stopRadio.mockClear();
+    playerPlugin.toggleNews.mockClear();
+    playerPlugin.pause.mockClear();
+    global.fetch = vi.fn();
   });
 
   afterEach(() => {
@@ -157,5 +166,100 @@ describe("Player on the native shell", () => {
     await Promise.resolve();
 
     expect(get(currentTrack)).toEqual(SECOND);
+  });
+
+  // Radio and the news, once the service streams and syncs either instead of
+  // this component's own `<audio>` element: `Player.svelte` hands off through
+  // the plugin's `startRadio`/`stopRadio`/`toggleNews` and reads the result
+  // back from `state()` rather than owning any of it itself.
+  describe("radio and the news", () => {
+    // `createCapacitorPlayer`'s snapshot is a module-level singleton shared by every test in this
+    // file, and none of the tests above reset `radioChannel`/`newsPlaying` on it -- only the
+    // stores get reset in the outer `beforeEach`. Without this, whichever of these tests ran last
+    // would leak its native state into the next one through a stale `onMount` read.
+    afterEach(() => {
+      playerPlugin.fire("timeupdate", { radioChannel: null, newsPlaying: false });
+    });
+
+    it("tunes into the only channel through the service rather than the audio element", async () => {
+      global.fetch = vi.fn(async (url) => {
+        if (String(url).includes("/api/radio/channels")) {
+          return { ok: true, json: async () => ({ channels: [{ slug: "main", name: "Radio" }] }) };
+        }
+        if (String(url).includes("/api/radio/time")) {
+          return { ok: true, json: async () => ({ server_time: Date.now() / 1000 }) };
+        }
+        return { ok: true, json: async () => ({ current: null, next: null }) };
+      });
+      renderPlayer();
+
+      await fireEvent.click(screen.getByLabelText("Radio"));
+      await waitFor(() => expect(get(radioChannel)).toBe("main"));
+
+      expect(playerPlugin.startRadio).toHaveBeenCalledWith({ slug: "main" });
+    });
+
+    it("leaves radio through the service and goes silent, rather than falling into the queue", async () => {
+      global.fetch = vi.fn(async (url) => {
+        if (String(url).includes("/api/radio/time")) {
+          return { ok: true, json: async () => ({ server_time: Date.now() / 1000 }) };
+        }
+        return { ok: true, json: async () => ({ current: null, next: null }) };
+      });
+      renderPlayer();
+      // Arrive at "radio is on" the same way a real session would -- through a
+      // snapshot from the service -- rather than seeding the store directly.
+      playerPlugin.fire("timeupdate", { position: 1, radioChannel: "main" });
+      await waitFor(() => expect(get(radioChannel)).toBe("main"));
+
+      await fireEvent.click(screen.getByLabelText("Radio"));
+
+      expect(playerPlugin.stopRadio).toHaveBeenCalled();
+      expect(playerPlugin.pause).toHaveBeenCalled();
+      expect(get(radioChannel)).toBeNull();
+    });
+
+    it("toggles the news through one call to the service", async () => {
+      renderPlayer();
+
+      await fireEvent.click(screen.getByLabelText("Nieuws van het uur"));
+
+      expect(playerPlugin.toggleNews).toHaveBeenCalled();
+    });
+
+    // The service can start or stop either without this component asking --
+    // Android Auto's browse tree, Assistant, a car button, or a WebView
+    // recreated mid-channel. `state()`'s own `radioChannel`/`newsPlaying`
+    // fields, read on every `timeupdate`, are how the UI notices.
+    it("notices radio the service started on its own", async () => {
+      global.fetch = vi.fn(async (url) => {
+        if (String(url).includes("/api/radio/time")) {
+          return { ok: true, json: async () => ({ server_time: Date.now() / 1000 }) };
+        }
+        return { ok: true, json: async () => ({ current: null, next: null }) };
+      });
+      renderPlayer();
+
+      playerPlugin.fire("timeupdate", { position: 1, radioChannel: "other" });
+      await waitFor(() => expect(get(radioChannel)).toBe("other"));
+
+      // Already tuned in on the far side -- asking again would restart the stream.
+      expect(playerPlugin.startRadio).not.toHaveBeenCalled();
+    });
+
+    it("notices radio the service stopped on its own", async () => {
+      global.fetch = vi.fn(async (url) => {
+        if (String(url).includes("/api/radio/time")) {
+          return { ok: true, json: async () => ({ server_time: Date.now() / 1000 }) };
+        }
+        return { ok: true, json: async () => ({ current: null, next: null }) };
+      });
+      renderPlayer();
+      playerPlugin.fire("timeupdate", { position: 1, radioChannel: "main" });
+      await waitFor(() => expect(get(radioChannel)).toBe("main"));
+
+      playerPlugin.fire("timeupdate", { position: 2, radioChannel: null });
+      await waitFor(() => expect(get(radioChannel)).toBeNull());
+    });
   });
 });

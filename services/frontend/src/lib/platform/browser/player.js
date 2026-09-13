@@ -437,11 +437,30 @@ export function createBrowserPlayer() {
     return state();
   }
 
+  /**
+   * Deliberately does nothing.
+   *
+   * Radio and the news are driven directly by `Player.svelte` here -- `radioController.js` steers
+   * this same element, and a bulletin plays from a blob URL on it -- so neither of these three is
+   * ever actually called in a browser tab. They exist so the contract answers every call the same
+   * way `setQueue`/`setMode` already do, without a caller having to ask which shell it is in first.
+   */
+  async function startRadio() {}
+
+  /** @see startRadio */
+  async function stopRadio() {}
+
+  /** @see startRadio */
+  async function toggleNews() {}
+
   return {
     ownsQueue: false,
     setQueue,
     queueState,
     setMode,
+    startRadio,
+    stopRadio,
+    toggleNews,
     attach,
     detach,
     ready,

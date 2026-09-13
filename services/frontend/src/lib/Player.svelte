@@ -105,29 +105,132 @@
   }
 
   /**
+   * A sentinel `newsSnapshot`, used only on a native shell.
+   *
+   * On the browser `newsSnapshot` is what to restore when the bulletin ends -- the interrupted
+   * track or channel, and the position. On native there is nothing here to restore: the service
+   * does that itself, entirely on the far side
+   * (`NewsPlaybackController.stopAndRestore`/`NewsQueueRules.kt`, the mirror of `newsQueue.js`).
+   * `newsSnapshot` is kept truthy anyway, because every other place in this component -- the
+   * colour of the news button, `currentLength()`'s length fallback, `handleEnded()` -- only ever
+   * asks whether it is set, never what is in it.
+   */
+  const NATIVE_NEWS_MARKER = Object.freeze({ native: true });
+
+  /**
+   * Starts (or restarts) the display-only poll of `/api/radio/{slug}/state`.
+   *
+   * Every caller below wants the same three things: the store updated, `radioController` pointed
+   * at the right channel, and a ten-second refresh loop feeding `radioNowPlaying`. What differs is
+   * whether the service still needs to be told to tune in -- `startRadio` (a listener tapped a
+   * channel) does, `reconcileNativeRadioNews` (the service is already doing it, from Android Auto,
+   * Assistant, or a WebView recreated mid-channel) must not, or it would restart the stream for no
+   * reason.
+   *
+   * @param {string} slug
+   */
+  function beginRadioDisplay(slug) {
+    clearInterval(radioTickInterval);
+    clearInterval(radioRefreshInterval);
+    clearInterval(radioClockInterval);
+    radioTickInterval = null;
+    radioClockInterval = null;
+
+    radioController = createRadioController({
+      // Native: no element to drive, and none of its own maths to run -- the
+      // service corrects its own drift. This instance exists only for
+      // `getEntry()`. See the `audio` note on `createRadioController`.
+      audio: nativePlayback ? null : platform.player.element(),
+      apiBase: $mumaApiUrl,
+      apiKey: $mumaApiKey,
+      streamUrlFor: radioStreamUrl,
+    });
+    radioChannel.set(slug);
+    radioController
+      .start(slug)
+      .then(() => radioNowPlaying.set(radioController?.getEntry() ?? null))
+      .catch((e) => {
+        console.error($t('radio.couldNotStart'), e);
+        // The service (native) or the element (browser) never actually joined
+        // the channel; showing radio as on with nothing playing and no
+        // now-playing metadata would be a stuck picker rather than an error.
+        endRadioDisplay();
+      });
+
+    radioRefreshInterval = setInterval(async () => {
+      await radioController?.refresh();
+      radioNowPlaying.set(radioController?.getEntry() ?? null);
+    }, 10000);
+    if (!nativePlayback) {
+      radioTickInterval = setInterval(() => radioController?.tick(), 2000);
+      // Clocks drift over a long listening session, so re-measure now and then.
+      radioClockInterval = setInterval(() => radioController?.measureClockOffset(), 300000);
+    }
+  }
+
+  /** Tears down the display poll and the local radio state, without touching the service. */
+  function endRadioDisplay() {
+    clearInterval(radioTickInterval);
+    clearInterval(radioRefreshInterval);
+    clearInterval(radioClockInterval);
+    radioTickInterval = null;
+    radioRefreshInterval = null;
+    radioClockInterval = null;
+    radioController = null;
+    radioChannel.set(null);
+    radioNowPlaying.set(null);
+  }
+
+  /**
+   * Notices radio or a bulletin that this component did not start itself -- Android Auto,
+   * Assistant, a car button, or a WebView recreated mid-channel or mid-bulletin. Native only; a
+   * browser tab is always the one deciding either, and `state()` never carries these two fields
+   * there.
+   *
+   * Called from every place this component already reads a fresh native snapshot: on mount, and
+   * on every `timeupdate` while something plays.
+   *
+   * @param {object} state - `platform.player.state()`.
+   */
+  function reconcileNativeRadioNews(state) {
+    if (!nativePlayback) return;
+
+    const slug = state.radioChannel ?? null;
+    if (slug && slug !== $radioChannel) {
+      beginRadioDisplay(slug);
+    } else if (!slug && $radioChannel) {
+      endRadioDisplay();
+      showRadioPicker = false;
+    }
+
+    const active = state.newsPlaying === true;
+    if (active !== Boolean(newsSnapshot)) {
+      newsSnapshot = active ? NATIVE_NEWS_MARKER : null;
+    }
+  }
+
+  /**
    * Switches radio off, or offers the channels on air. With one channel there is
    * nothing to choose, so it starts straight away.
    */
   async function toggleRadio() {
-    // Radio steers the media element itself -- it swaps the source to join a
-    // track mid-stream -- and a native shell has no element: the service owns
-    // playback. Phase 2 moves the controller onto platform.player; until then
-    // the feature is off there rather than half-working.
-    if (nativePlayback) {
-      notify.error($t('radio.notOnPhone'));
-      return;
-    }
     if ($radioChannel) {
-      radioController?.stop();
-      clearInterval(radioTickInterval);
-      clearInterval(radioRefreshInterval);
-      clearInterval(radioClockInterval);
-      radioTickInterval = null;
-      radioRefreshInterval = null;
-      radioClockInterval = null;
-      radioController = null;
-      radioChannel.set(null);
-      radioNowPlaying.set(null);
+      if (nativePlayback) {
+        // Radio is driven entirely by the service; leaving it is a session
+        // command rather than anything this controller does. `pause()`
+        // afterwards is what makes it go silent instead of carrying straight on
+        // into whatever queue item comes back -- the same thing
+        // `radioController.stop()`'s own `audio.pause()` does for the browser.
+        try {
+          await platform.player.stopRadio();
+          platform.player.pause();
+        } catch (e) {
+          console.error($t('radio.couldNotStart'), e);
+        }
+      } else {
+        radioController?.stop();
+      }
+      endRadioDisplay();
       showRadioPicker = false;
       return;
     }
@@ -167,25 +270,15 @@
   async function startRadio(channel) {
     showRadioPicker = false;
     try {
-      radioController = createRadioController({
-        // The radio steers the element itself: it swaps the source to join a
-        // track mid-stream, which is not something the transport does.
-        audio: platform.player.element(),
-        apiBase: $mumaApiUrl,
-        apiKey: $mumaApiKey,
-        streamUrlFor: radioStreamUrl,
-      });
-      await radioController.start(channel.slug);
-      radioChannel.set(channel.slug);
-      radioNowPlaying.set(radioController.getEntry());
-
-      radioTickInterval = setInterval(() => radioController?.tick(), 2000);
-      radioRefreshInterval = setInterval(async () => {
-        await radioController?.refresh();
-        radioNowPlaying.set(radioController?.getEntry() ?? null);
-      }, 10000);
-      // Clocks drift over a long listening session, so re-measure now and then.
-      radioClockInterval = setInterval(() => radioController?.measureClockOffset(), 300000);
+      if (nativePlayback) {
+        // The service streams the channel and locks onto the server's timeline
+        // itself -- the same maths as `radioSync.js`, reused from Android
+        // Auto's own radio support (`RadioPlaybackController.kt`) rather than a
+        // third copy of it. `beginRadioDisplay` below only keeps a display
+        // poller of its own for the mini player and Now Playing.
+        await platform.player.startRadio(channel.slug);
+      }
+      beginRadioDisplay(channel.slug);
     } catch (e) {
       console.error($t('radio.couldNotStart'), e);
     }
@@ -200,10 +293,19 @@
    * buys the same authentication the rest of the app uses.
    */
   async function toggleNews() {
-    // Same reason as toggleRadio: a bulletin is played from a blob URL on the
-    // media element, and there is none in the shell.
     if (nativePlayback) {
-      notify.error($t('news.notOnPhone'));
+      // One call either way: the service already knows whether a bulletin is
+      // running, so this is the exact toggle the notification's own news
+      // button performs. It also snapshots and restores the interrupted queue
+      // (and re-tunes radio, if that was on) entirely on its own --
+      // `NewsPlaybackController.kt` is the mirror of the browser logic below.
+      try {
+        await platform.player.toggleNews();
+        newsSnapshot = newsSnapshot ? null : NATIVE_NEWS_MARKER;
+      } catch (e) {
+        console.error('Could not toggle the news', e);
+        notify.error($t('news.couldNotPlay'), { detail: e.message });
+      }
       return;
     }
     if (newsSnapshot) {
@@ -571,7 +673,12 @@
    */
   function handleEnded() {
       // A bulletin that runs out is the cue to resume, not to skip a track.
-      if (newsSnapshot) {
+      // Browser only: on native the service restores the interrupted queue (and
+      // re-tunes radio) itself and reports the result as an ordinary state
+      // change, which `reconcileNativeRadioNews` and the native `command`
+      // handling below already follow -- calling `stopNews()` here as well
+      // would ask the service for a resume it already performed.
+      if (newsSnapshot && !nativePlayback) {
           stopNews();
           return;
       }
@@ -647,6 +754,7 @@
    */
   function handleTimeUpdate(state = platform.player.state()) {
     playerState.update(s => ({ ...s, progress: state.position }));
+    reconcileNativeRadioNews(state);
 
     const length = currentLength(state);
     if (!hasScrobbledFinished && track && length > 0) {
@@ -1042,6 +1150,9 @@
     }
   }
 
+  /** Whether the last run of the queue-sync effect below found radio or a bulletin on. */
+  let wasRadioOrNews = false;
+
   // The queue as the platform service should hold it. Native only: in a browser
   // `sync` is never called and the queue stays exactly where it always was, in
   // the `playlist` store. Reads both stores before the readiness check so the
@@ -1052,13 +1163,34 @@
     // the home screen sets the current track and nothing else -- and the
     // service needs a title and an artist to put in the notification.
     const wanted = $currentTrack ?? null;
-    if (!nativePlayback || !engineReady || !nativeQueue) return;
+    // Radio and a bulletin own the service's single-item queue while either is
+    // on; pushing the ordinary one over it would replace whatever is actually
+    // playing. `toggleRadio`/`toggleNews`'s own service calls handle turning
+    // either off -- this effect only has to stay out of the way while they are
+    // running and resync once they are not.
+    const radioOrNewsActive = Boolean($radioChannel) || Boolean(newsSnapshot);
+    if (!nativePlayback || !engineReady || !nativeQueue) {
+      wasRadioOrNews = radioOrNewsActive;
+      return;
+    }
+    if (radioOrNewsActive) {
+      wasRadioOrNews = true;
+      return;
+    }
+    // Coming back from radio or a bulletin must not resume playback on its
+    // own: turning radio off already leaves the service silent
+    // (`toggleRadio`'s `pause()`), and a bulletin already resumed itself, on
+    // the far side, at the position it interrupted
+    // (`NewsPlaybackController.stopAndRestore`). Pushing the queue again here
+    // with `autoplay: true` would fight either.
+    const justLeftRadioOrNews = wasRadioOrNews;
+    wasRadioOrNews = false;
     // The first sync after a boot must not start the music: what is in the
     // stores then is either what the service was already playing (in which case
     // nothing is sent at all) or a queue restored from localStorage, and an app
     // that starts playing the moment it is opened is a bug people notice at
     // night.
-    const autoplay = nativeQueueSynced;
+    const autoplay = justLeftRadioOrNews ? false : nativeQueueSynced;
     nativeQueueSynced = true;
     // An empty queue at boot is not an instruction to clear the service's: it
     // means the rehydrate found nothing to restore, which is no reason to stop
@@ -1120,6 +1252,11 @@
         shuffle: native.shuffle,
         repeat: native.repeat,
       }));
+      // Radio or a bulletin may already be running -- started before this
+      // WebView existed, or surviving its recreation. Recognising it here,
+      // before `engineReady` flips true below, is what keeps the queue-sync
+      // effect from immediately pushing a stale queue over it.
+      reconcileNativeRadioNews(native);
       // Take over the queue that is already there before any effect pushes one.
       // Both go on the same chain, so the adopt always wins the race.
       nativeQueue = createNativeQueue(platform.player, {

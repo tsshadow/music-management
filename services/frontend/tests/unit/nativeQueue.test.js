@@ -253,6 +253,24 @@ describe("createNativeQueue", () => {
     expect(player.calls).toEqual([]);
   });
 
+  // The native snapshot the service-already-there check reads (`player.state().trackId`) is not
+  // trustworthy during an in-flight queue replacement: the plugin's own clear-and-reload sequence
+  // walks it through `null`, an unrelated first item, and only then the one actually requested.
+  // Two of those transient snapshots reaching the UI as `currentTrack` flips used to re-push a
+  // `setQueue` the far side had already been told about, and the native reply to *that* push
+  // produced the same transient sequence again -- a loop. Remembering the index of the last push
+  // and comparing against that, rather than only the volatile native snapshot, is what stops it.
+  it("does not re-push a queue and index it already pushed, even if the native snapshot lags", async () => {
+    await queue.sync(TRACKS, TRACKS[1]);
+    player.calls.length = 0;
+    // A transient snapshot mid-replacement, as the plugin's own clear briefly produces.
+    player.nowPlaying(null);
+
+    await queue.sync(TRACKS, TRACKS[1]);
+
+    expect(player.calls).toEqual([]);
+  });
+
   it("reports a failed hand-off instead of leaving a dead chain behind", async () => {
     player.setQueue = () => Promise.reject(new Error("no service"));
 
@@ -418,5 +436,26 @@ describe("trackAfterCommand", () => {
   it("survives a command with nothing in it", () => {
     expect(trackAfterCommand(TRACKS, "1", {})).toBeNull();
     expect(trackAfterCommand(TRACKS, null, { name: "next" })).toBeNull();
+  });
+
+  // A self-inflicted queue replacement clears the native timeline before loading the new list,
+  // and the transient snapshot that produces along the way -- no track, nothing queued -- is not
+  // a lagging move to step past: it is the plugin talking to itself. Stepping on it is what turned
+  // one `setQueue` into a `previous` immediately followed by a `next`, which the UI mirrored back
+  // into another `setQueue`, forever. See TransportTracker.kt for the Kotlin half of this fix.
+  it("treats an empty snapshot as no move, not a lagging one", () => {
+    expect(
+      trackAfterCommand(TRACKS, "2", { name: "previous", trackId: null, queueLength: 0 }),
+    ).toBeNull();
+    expect(
+      trackAfterCommand(TRACKS, "2", { name: "next", trackId: null, queueLength: 0 }),
+    ).toBeNull();
+  });
+
+  // The bail-out above is specifically for `queueLength: 0`. A caller that does not know the
+  // native queue length at all (an older event shape, or a test) gets the pre-existing step
+  // behaviour rather than being silently treated as empty.
+  it("still steps by name when queueLength was not reported at all", () => {
+    expect(trackAfterCommand(TRACKS, "1", { name: "next", trackId: null })).toBe(TRACKS[1]);
   });
 });

@@ -98,9 +98,8 @@ class MumaPlayerPlugin :
     private val subscriptions = CompositeDisposable()
 
     private var failed = false
-    private var lastTrackId: String? = null
+    private val transportTracker = TransportTracker()
     private var lastIsPlaying = false
-    private var lastQueueIndex = -1
     private var lastPositionMs = 0L
     private var lastTickAt = 0L
 
@@ -127,6 +126,9 @@ class MumaPlayerPlugin :
         subscriptions += RxBus.playerErrorObservable.subscribe(
             { error ->
                 failed = true
+                // A failed load never reaches the index it was expecting; leaving the expectation
+                // set would suppress every state after it, forever.
+                transportTracker.clearExpectation()
                 notifyState(EVENT_ERROR, JSObject().put("code", error.code).put("message", error.message))
             },
             { Timber.w(it, "player error stream failed") }
@@ -172,6 +174,9 @@ class MumaPlayerPlugin :
             }
             withContext(Dispatchers.Main) {
                 failed = false
+                // Before the clear: `addToPlaylist(CLEAR)` reports a transient `track=null` state
+                // of its own, and that has to be suppressed too, not just the seek that follows.
+                transportTracker.expect(0)
                 mediaPlayerManager.addToPlaylist(
                     songs = listOf(track),
                     autoPlay = false,
@@ -193,6 +198,7 @@ class MumaPlayerPlugin :
      */
     private fun startAt(index: Int, positionMs: Int, autoplay: Boolean) {
         failed = false
+        transportTracker.expect(index)
         mediaPlayerManager.seekTo(index, positionMs)
         mediaPlayerManager.prepare()
         if (autoplay) mediaPlayerManager.resumeOrPlay()
@@ -261,6 +267,10 @@ class MumaPlayerPlugin :
             if (positionMs > 0) {
                 Timber.w("The player refused a queue rebuild; replacing it and restoring %d ms", positionMs)
             }
+            // Before the clear: `addToPlaylist(CLEAR)` reports its own transient `track=null`
+            // state, and the first item of the new list loads before the seek below reaches
+            // `index` -- both have to be suppressed, not just the seek itself.
+            transportTracker.expect(index)
             mediaPlayerManager.addToPlaylist(
                 songs = tracks.toTracks(serverId),
                 autoPlay = false,
@@ -445,19 +455,17 @@ class MumaPlayerPlugin :
     // ----------------------------------------------------------------- events
 
     private fun onPlayerState(state: RxBus.StateWithTrack) {
-        val trackId = state.track?.id
-        if (trackId != lastTrackId) {
-            lastTrackId = trackId
+        val event = transportTracker.accept(state.track?.id, state.index)
+        // A self-inflicted queue replacement clears the timeline and loads the new list's first
+        // item before it reaches the index that was actually asked for; none of that is a move
+        // anybody but this plugin decided on, so [TransportTracker] swallows all of it -- no
+        // `durationchange`, no `command`, no `ended` -- until it settles on the requested item.
+        if (event.suppressed) return
+
+        if (event.trackChanged) {
             notifyState(EVENT_DURATION_CHANGE)
-            val moved = when {
-                lastQueueIndex < 0 || state.index < 0 -> null
-                state.index > lastQueueIndex -> COMMAND_NEXT
-                state.index < lastQueueIndex -> COMMAND_PREVIOUS
-                else -> null
-            }
-            if (moved != null) notifyCommand(moved)
+            event.command?.let { notifyCommand(it) }
         }
-        lastQueueIndex = state.index
 
         if (state.isPlaying != lastIsPlaying) {
             lastIsPlaying = state.isPlaying
@@ -489,7 +497,7 @@ class MumaPlayerPlugin :
         val expected = if (mediaPlayerManager.isPlaying) lastPositionMs + elapsed else lastPositionMs
         val jumped = lastTickAt != 0L && abs(position - expected) > SEEK_DETECTION_TOLERANCE_MS
 
-        if (jumped && now - selfSeekAt > SEEK_DETECTION_TOLERANCE_MS && lastTrackId != null) {
+        if (jumped && now - selfSeekAt > SEEK_DETECTION_TOLERANCE_MS && transportTracker.lastTrackId != null) {
             notifyCommand(COMMAND_SEEK_TO, position / MILLIS_PER_SECOND)
         }
 

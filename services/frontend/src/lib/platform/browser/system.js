@@ -1,0 +1,173 @@
+import { get } from "svelte/store";
+import { credentials, mumaApiUrl } from "../../store.js";
+
+/**
+ * Where the servers are, and the platform events the browser never sends.
+ *
+ * `serverUrl()` does not decide anything: the web resolves both bases exactly as
+ * it always has -- `credentials.url` defaults to `window.location.origin` and
+ * `mumaApiUrl` to `/muma`, both in `store.js`, both overridable per environment
+ * and per user -- and this reads them back. A native shell answers the same call
+ * from the server the user signed in to, which is the whole point of asking the
+ * platform rather than the window.
+ */
+
+/** @type {import('../index.js').PlatformSystem} */
+const system = {
+  isNative: false,
+
+  /**
+   * A browser tab is not an APK and has no version of its own to report.
+   *
+   * @returns {Promise<string>}
+   */
+  async appVersion() {
+    return "";
+  },
+
+  /**
+   * A browser tab has no APK assets to read muma-mobile's `CHANGELOG.md` from. `null` is what
+   * keeps `mobileReleaseNotes.js`'s once-per-upgrade modal from ever showing outside the shell.
+   *
+   * @returns {Promise<null>}
+   */
+  async releaseNotes() {
+    return null;
+  },
+
+  /**
+   * @returns {{subsonic: string, mumaApi: string}} Bases to build URLs on.
+   *   Either may be an empty string, which means "same origin" -- that is what
+   *   the dev server and the reverse proxy in front of production both want.
+   */
+  serverUrl() {
+    return { subsonic: get(credentials).url, mumaApi: get(mumaApiUrl) };
+  },
+
+  /**
+   * The phone-side half of signing out. A browser tab has no native session to end -- the caller
+   * clears its own stores -- so this resolves immediately.
+   *
+   * @returns {Promise<void>}
+   */
+  signOut() {
+    return Promise.resolve();
+  },
+
+  /**
+   * The phone-side half of persisting a verified sign-in. A browser tab has nowhere to write it
+   * back to, so this resolves immediately.
+   *
+   * @param {{url?: string, username: string, password: string}} _creds
+   * @returns {Promise<void>}
+   */
+  saveCredentials(_creds) {
+    return Promise.resolve();
+  },
+
+  /**
+   * The platform's own back gesture -- the Android back button, not the browser
+   * history. The web has no such thing: history is the browser's and the router
+   * already listens to it.
+   *
+   * @param {function(): void} _handler
+   * @returns {function(): void} Unsubscribes. Never fires here.
+   */
+  onBack(_handler) {
+    return () => {};
+  },
+
+  /**
+   * A link opened outside the app, as a route the router understands
+   * ("album:123"). The web reaches its routes through the URL instead.
+   *
+   * @param {function(string): void} _handler
+   * @returns {function(): void} Unsubscribes. Never fires here.
+   */
+  onDeepLink(_handler) {
+    return () => {};
+  },
+
+  /**
+   * Whether the app is showing on a car screen. Reported on subscribe and on
+   * every change; the browser reports nothing, so a subscriber keeps whatever
+   * it defaulted to.
+   *
+   * @param {function(boolean): void} _handler
+   * @returns {function(): void} Unsubscribes. Never fires here.
+   */
+  carConnected(_handler) {
+    return () => {};
+  },
+
+  /**
+   * What `carConnected` would have last reported. A browser tab is never in a car, so this is
+   * always `{connected: false}` -- the same honest-empty answer `carConnected` gives by never
+   * firing.
+   *
+   * @returns {Promise<{connected: boolean}>}
+   */
+  async carState() {
+    return { connected: false };
+  },
+
+  /**
+   * The lock-screen behaviour a native car screen asks for while it is on top. A browser tab has
+   * no lock screen to show over, so this resolves without doing anything.
+   *
+   * @param {{showWhenLocked: boolean, turnScreenOn: boolean}} _flags
+   * @returns {Promise<void>}
+   */
+  async setKeepScreenOn(_flags) {},
+
+  /**
+   * The "Apparaat" settings tab has nothing to read in a browser tab -- there is no
+   * native whitelist behind it -- and the tab itself never shows without `isNative`,
+   * so this is never actually read.
+   *
+   * @returns {Promise<import('../index.js').DeviceSettings>}
+   */
+  async getSettings() {
+    return /** @type {import('../index.js').DeviceSettings} */ ({});
+  },
+
+  /**
+   * @param {{key: string, value: boolean|number|string[]}} _setting
+   * @returns {Promise<void>} Resolves without writing anything.
+   */
+  async setSetting(_setting) {},
+
+  /**
+   * A browser has no Bluetooth pairing list to read.
+   *
+   * @returns {Promise<{permissionGranted: boolean, devices: Array}>}
+   */
+  async listBondedDevices() {
+    return { permissionGranted: false, devices: [] };
+  },
+
+  /** A browser has no such permission to request. */
+  requestCarModeFullScreenPermission() {},
+
+  /**
+   * A browser has no filesystem to pick a cache directory in.
+   *
+   * @returns {Promise<{}>}
+   */
+  async pickCacheLocation() {
+    return {};
+  },
+
+  /** A browser has no custom cache location to clear. */
+  clearCustomCacheLocation() {},
+
+  /**
+   * A browser has no native chrome to follow the pick; the web UI's own `locale` store is what
+   * it reads instead.
+   *
+   * @param {string} _locale
+   */
+  setAppLocale(_locale) {},
+};
+
+export default system;

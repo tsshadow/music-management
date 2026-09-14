@@ -33,6 +33,7 @@
     "cancel": "Laot mer zitte",
     "close": "Dichtdoen",
     "closeModal": "Vensterke dichtdoen",
+    "closeSheet": "Paneelke dichtdoen",
     "download": "Binnehaole",
     "edit": "Bewerke",
     "gotIt": "Duidelijk, jong",
@@ -79,6 +80,7 @@
     "allGenres": "Alle soorte",
     "allRatings": "Alles",
     "allYears": "Alle jaore",
+    "genre": "Soort",
     "sortBy": "Sortere op",
     "year": "Jaor"
   },
@@ -119,6 +121,9 @@
       "other": "Vandaag, {count} jaor gelejen"
     }
   },
+  "mobile": {
+    "browseAll": "Alles deurbladere"
+  },
   "nav": {
     "albums": "Albums",
     "artists": "Artieste",
@@ -132,6 +137,7 @@
     "memories": "Herinneringe",
     "playlists": "Lijstjes",
     "releaseRadar": "Nieuw binne",
+    "search": "Zoeke",
     "sets": "Sets",
     "songs": "Nummerkes",
     "starred": "Favorietjes"
@@ -141,6 +147,12 @@
     "none": "Nog gin bulletin opgenome",
     "play": "Nieuws van dit uurke",
     "playing": "Nieuws speult, tik mar om trug te gaon"
+  },
+  "nowPlaying": {
+    "close": "Dichtdoen",
+    "pause": "Pauze",
+    "play": "Afspele",
+    "playingFrom": "Speult uit: {name}"
   },
   "player": {
     "next": "Volgende",
@@ -186,6 +198,9 @@
     "language": {
       "help": "De taol van de interface. Wordt opgeslagen bij oew account, dus ie gaot mee naor oew aandere apparate.",
       "title": "Taol"
+    },
+    "tabs": {
+      "device": "Apparaot"
     }
   },
   "sidebar": {

@@ -58,7 +58,7 @@ describe("getArtistImageUrl", () => {
 
   it("prefers the Subsonic cover art when the artist has one", () => {
     const url = getArtistImageUrl({ coverArt: "ar-1", name: "Angerfist", id: 7 }, "u=user&t=x");
-    expect(url).toBe("/rest/getCoverArt?id=ar-1&size=300&u=user&t=x");
+    expect(url).toBe(`${window.location.origin}/rest/getCoverArt?id=ar-1&size=300&u=user&t=x`);
   });
 
   it("falls back to the MuMa image endpoint, keyed on the name", () => {

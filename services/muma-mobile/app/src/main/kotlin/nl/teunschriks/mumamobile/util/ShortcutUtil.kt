@@ -8,16 +8,17 @@
 package nl.teunschriks.mumamobile.util
 
 import android.app.Activity
-import android.content.Intent
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
 import nl.teunschriks.mumamobile.R
-import nl.teunschriks.mumamobile.activity.NavigationActivity
 
 object ShortcutUtil {
     fun registerShortcuts(activity: Activity) {
-        val shortcutIntent = Intent(activity, NavigationActivity::class.java).apply {
+        // The trampoline, not the interface: the launcher stores this intent as it is, and a
+        // shortcut naming an activity would keep opening the interface that happened to be
+        // enabled when it was created. ShortcutUtil itself only runs from the Kotlin UI.
+        val shortcutIntent = UiVariant.trampolineIntent(activity).apply {
             action = Constants.INTENT_PLAY_RANDOM_SONGS
         }
 

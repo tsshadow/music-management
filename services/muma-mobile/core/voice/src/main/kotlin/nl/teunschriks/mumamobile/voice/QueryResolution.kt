@@ -16,7 +16,7 @@ import nl.teunschriks.mumamobile.api.subsonic.models.Filters
  * that search is already the fallback for [QueryResolution.NoMatch] -- adding it here would give
  * the same utterance two owners.
  */
-enum class EntityKind { GENRE, LABEL, ARTIST, ALBUM, PLAYLIST }
+enum class EntityKind { GENRE, LABEL, ARTIST, ALBUM, PLAYLIST, FESTIVAL }
 
 /** Something the library holds under a name, for the kinds that are addressed by id. */
 data class NamedRef(val id: String, val name: String)

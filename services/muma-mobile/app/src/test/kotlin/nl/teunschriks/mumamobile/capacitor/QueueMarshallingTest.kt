@@ -1,0 +1,103 @@
+package nl.teunschriks.mumamobile.capacitor
+
+import org.amshove.kluent.shouldBeEqualTo
+import org.amshove.kluent.shouldBeNull
+import org.json.JSONArray
+import org.json.JSONObject
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+
+/**
+ * `setQueue` is where the two codebases actually touch: the web player owns the queue and the
+ * native service holds it, and the only thing keeping them agreed is that index `n` of the request
+ * is index `n` of the playlist. These tests are on `org.json`, so they need Robolectric -- the
+ * stubbed `org.json` of a plain JVM unit test throws on every call.
+ */
+@RunWith(RobolectricTestRunner::class)
+class QueueMarshallingTest {
+
+    private fun track(id: String, title: String? = null): JSONObject = JSONObject().apply {
+        put("id", id)
+        if (title != null) put("title", title)
+    }
+
+    @Test
+    fun `the order of the request is the order of the queue`() {
+        val json = JSONArray().apply {
+            put(track("c"))
+            put(track("a"))
+            put(track("b"))
+        }
+
+        queueTracksOf(json).map { it.id } shouldBeEqualTo listOf("c", "a", "b")
+        queueTracksOf(json).toTracks(serverId = 7).map { it.id } shouldBeEqualTo listOf("c", "a", "b")
+    }
+
+    @Test
+    fun `every field the notification shows survives the crossing`() {
+        val json = JSONObject().apply {
+            put("id", "42")
+            put("title", "Trance Energy 2004")
+            put("artist", "Marco V")
+            put("album", "Trance Energy")
+            put("artworkUrl", "https://lms.example.org/art/42")
+            put("duration", 4711)
+        }
+
+        val parsed = queueTrackOf(json)!!
+        parsed.title shouldBeEqualTo "Trance Energy 2004"
+        parsed.artist shouldBeEqualTo "Marco V"
+        parsed.album shouldBeEqualTo "Trance Energy"
+        parsed.artworkUrl shouldBeEqualTo "https://lms.example.org/art/42"
+        parsed.duration shouldBeEqualTo 4711
+
+        val domain = parsed.toTrack(serverId = 3)
+        domain.serverId shouldBeEqualTo 3
+        domain.coverArt shouldBeEqualTo "https://lms.example.org/art/42"
+        domain.duration shouldBeEqualTo 4711
+        domain.isDirectory shouldBeEqualTo false
+    }
+
+    @Test
+    fun `a track with only an id is still playable`() {
+        val parsed = queueTrackOf(track("42"))!!
+        parsed.id shouldBeEqualTo "42"
+        parsed.title.shouldBeNull()
+        parsed.duration.shouldBeNull()
+    }
+
+    /**
+     * A queue with one unusable row still plays. Rejecting the whole call would leave the user
+     * with silence over a row the server sent without an id.
+     */
+    @Test
+    fun `an entry without an id is dropped rather than fatal`() {
+        val json = JSONArray().apply {
+            put(track("a"))
+            put(JSONObject().put("title", "nameless"))
+            put(track("b"))
+        }
+
+        queueTracksOf(json).map { it.id } shouldBeEqualTo listOf("a", "b")
+    }
+
+    @Test
+    fun `no tracks at all is an empty queue, not an exception`() {
+        queueTracksOf(null) shouldBeEqualTo emptyList()
+        queueTracksOf(JSONArray()) shouldBeEqualTo emptyList()
+    }
+
+    @Test
+    fun `an explicit null is not a value`() {
+        val json = JSONObject().apply {
+            put("id", "1")
+            put("title", JSONObject.NULL)
+            put("duration", JSONObject.NULL)
+        }
+
+        val parsed = queueTrackOf(json)!!
+        parsed.title.shouldBeNull()
+        parsed.duration.shouldBeNull()
+    }
+}

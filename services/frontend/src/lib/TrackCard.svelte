@@ -1,6 +1,6 @@
 <script>
   import { t } from './i18n/index.js';
-  import { currentTrack, playerState, authParams } from './store.js';
+  import { currentTrack, playerState, authParams, isMobile, restUrl } from './store.js';
   import ArtistList from './ArtistList.svelte';
 
   const { track, onnavigate } = $props();
@@ -13,13 +13,13 @@
     playerState.update(s => ({ ...s, playing: true }));
   }
 
-  const coverUrl = $derived(track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg');
+  const coverUrl = $derived(track.coverArt ? restUrl(`/rest/getCoverArt?id=${track.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg');
 </script>
 
 <div
   role="button"
   tabindex="0"
-  class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer flex flex-col gap-3 group hover:bg-[#282828]"
+  class="bg-[#181818] rounded-lg transition-colors cursor-pointer flex flex-col group hover:bg-[#282828] {$isMobile ? 'p-2 gap-1.5' : 'p-4 gap-3'}"
   onclick={play}
   onkeydown={(e) => e.key === 'Enter' && play()}
 >
@@ -40,9 +40,11 @@
       </svg>
     </button>
   </div>
-  <div class="flex flex-col">
+  <div class="flex flex-col min-w-0">
     <span class="text-base font-bold whitespace-nowrap overflow-hidden text-ellipsis">{track.title || track.name}</span>
-    <ArtistList artist={track.artist} artistId={track.artistId} artists={track.artists} onnavigate={onnavigate} />
+    <div class="truncate">
+      <ArtistList artist={track.artist} artistId={track.artistId} artists={track.artists} onnavigate={onnavigate} />
+    </div>
   </div>
 </div>
 

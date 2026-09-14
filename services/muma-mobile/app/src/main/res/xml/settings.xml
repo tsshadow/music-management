@@ -17,26 +17,11 @@
     <PreferenceCategory
         a:title="@string/settings.appearance_title"
         app:iconSpaceReserved="false">
-        <ListPreference
-            a:defaultValue="@string/setting_key.style_spotify"
-            a:entries="@array/styleNames"
-            a:entryValues="@array/styleValues"
-            a:key="@string/setting_key.style"
-            a:title="@string/settings.style_title"
-            app:iconSpaceReserved="false"/>
-        <ListPreference
-            a:defaultValue="@string/setting_key.app_icon_green"
-            a:entries="@array/appIconNames"
-            a:entryValues="@array/appIconValues"
-            a:key="@string/setting_key.app_icon"
-            a:title="@string/settings.app_icon_title"
-            app:iconSpaceReserved="false"/>
-        <ListPreference
-            a:defaultValue="75"
-            a:entries="@array/uiScaleNames"
-            a:entryValues="@array/uiScaleValues"
-            a:key="@string/setting_key.ui_scale"
-            a:title="@string/settings.ui_scale_title"
+        <CheckBoxPreference
+            a:defaultValue="false"
+            a:key="@string/setting_key.web_ui"
+            a:summary="@string/settings.web_ui_summary"
+            a:title="@string/settings.web_ui_title"
             app:iconSpaceReserved="false"/>
         <CheckBoxPreference
             a:defaultValue="true"
@@ -154,21 +139,9 @@
         app:iconSpaceReserved="false">
         <CheckBoxPreference
             a:defaultValue="true"
-            a:key="@string/setting_key.server_scaling"
-            a:summary="@string/settings.server_scaling_summary"
-            a:title="@string/settings.server_scaling_title"
-            app:iconSpaceReserved="false"/>
-        <CheckBoxPreference
-            a:defaultValue="true"
             a:key="@string/setting_key.display_bitrate_with_artist"
             a:summary="@string/settings.display_bitrate_summary"
             a:title="@string/settings.display_bitrate"
-            app:iconSpaceReserved="false"/>
-        <CheckBoxPreference
-            a:defaultValue="false"
-            a:key="@string/setting_key.use_folder_for_album_artist"
-            a:summary="@string/settings.use_folder_for_album_artist_summary"
-            a:title="@string/settings.use_folder_for_album_artist"
             app:iconSpaceReserved="false"/>
         <CheckBoxPreference
             a:defaultValue="false"
@@ -194,49 +167,6 @@
     <PreferenceCategory
         a:title="@string/settings.playback_control_title"
         app:iconSpaceReserved="false">
-        <CheckBoxPreference
-            a:defaultValue="true"
-            a:key="@string/setting_key.show_now_playing_details"
-            a:summary="@string/settings.show_now_playing_details_summary"
-            a:title="@string/settings.show_now_playing_details"
-            app:iconSpaceReserved="false"/>
-        <CheckBoxPreference
-            a:defaultValue="true"
-            a:key="@string/setting_key.id3_tags"
-            a:summary="@string/settings.use_id3_summary"
-            a:title="@string/settings.use_id3"
-            app:iconSpaceReserved="false"/>
-        <CheckBoxPreference
-            a:defaultValue="true"
-            a:key="@string/setting_key.id3_tags_offline"
-            a:summary="@string/settings.use_id3_offline_summary"
-            a:title="@string/settings.use_id3_offline"
-            app:iconSpaceReserved="false"/>
-        <CheckBoxPreference
-            a:defaultValue="true"
-            a:key="@string/setting_key.show_artist_picture"
-            a:summary="@string/settings.show_artist_picture_summary"
-            a:title="@string/settings.show_artist_picture"
-            app:iconSpaceReserved="false"/>
-        <CheckBoxPreference
-            a:defaultValue="true"
-            a:key="@string/setting_key.download_transition"
-            a:summary="@string/settings.download_transition_summary"
-            a:title="@string/settings.download_transition"
-            app:iconSpaceReserved="false"/>
-        <CheckBoxPreference
-            a:defaultValue="false"
-            a:key="@string/setting_key.clear_bookmark"
-            a:summary="@string/settings.clear_bookmark_summary"
-            a:title="@string/settings.clear_bookmark"
-            app:iconSpaceReserved="false"/>
-        <ListPreference
-            a:defaultValue="10000"
-            a:entries="@array/incrementTimeNames"
-            a:entryValues="@array/incrementTimeValues"
-            a:key="@string/setting_key.increment_time"
-            a:title="@string/settings.increment_time"
-            app:iconSpaceReserved="false"/>
         <CheckBoxPreference
             a:defaultValue="false"
             a:key="@string/setting_key.resume_play_on_headphones_plug"
@@ -277,45 +207,6 @@
             a:summary="@string/car_mode.full_screen_summary"
             a:title="@string/car_mode.full_screen"
             app:iconSpaceReserved="false" />
-    </PreferenceCategory>
-    <PreferenceCategory
-        a:title="@string/settings.notifications_title"
-        app:iconSpaceReserved="false">
-        <CheckBoxPreference
-            a:defaultValue="true"
-            a:key="@string/setting_key.show_now_playing"
-            a:summary="@string/settings.show_now_playing_summary"
-            a:title="@string/settings.show_now_playing"
-            app:iconSpaceReserved="false"/>
-    </PreferenceCategory>
-    <PreferenceCategory
-        a:title="@string/settings.sharing_title"
-        app:iconSpaceReserved="false">
-        <EditTextPreference
-            a:key="@string/setting_key.default_share_greeting"
-            a:title="@string/settings.share_greeting_default"
-            app:iconSpaceReserved="false"/>
-        <CheckBoxPreference
-            a:defaultValue="true"
-            a:key="@string/setting_key.share_on_server"
-            a:title="@string/share_on_server"
-            a:summary="@string/settings.share_on_server_summary"
-            app:iconSpaceReserved="false"/>
-        <CheckBoxPreference
-            a:defaultValue="true"
-            a:key="@string/setting_key.ask_for_share_details"
-            a:summary="@string/settings.sharing_always_ask_for_details_summary"
-            a:title="@string/settings.sharing_always_ask_for_details"
-            app:iconSpaceReserved="false"/>
-        <EditTextPreference
-            a:key="@string/setting_key.default_share_description"
-            a:title="@string/settings.share_description_default"
-            app:iconSpaceReserved="false"/>
-        <nl.teunschriks.mumamobile.util.TimeSpanPreference
-            a:defaultValue="0"
-            a:key="@string/setting_key.default_share_expiration"
-            a:title="@string/settings.share_expiration_default"
-            app:iconSpaceReserved="false"/>
     </PreferenceCategory>
     <PreferenceCategory
         a:title="@string/settings.network_title"
@@ -359,13 +250,6 @@
             a:entryValues="@array/networkTimeoutValues"
             a:key="@string/setting_key.network_timeout"
             a:title="@string/settings.network_timeout"
-            app:iconSpaceReserved="false"/>
-        <ListPreference
-            a:defaultValue="5000"
-            a:entries="@array/chatRefreshNames"
-            a:entryValues="@array/chatRefreshValues"
-            a:key="@string/setting_key.chat_refresh_interval"
-            a:title="@string/settings.chat_refresh"
             app:iconSpaceReserved="false"/>
     </PreferenceCategory>
     <PreferenceCategory
@@ -420,59 +304,12 @@
         a:title="@string/settings.search_title"
         app:iconSpaceReserved="false">
         <ListPreference
-            a:defaultValue="3"
-            a:entries="@array/searchNames"
-            a:entryValues="@array/searchValues"
-            a:key="@string/setting_key.default_artists"
-            a:title="@string/settings.default_artists"
-            app:iconSpaceReserved="false"/>
-        <ListPreference
-            a:defaultValue="10"
-            a:entries="@array/searchNames"
-            a:entryValues="@array/searchValues"
-            a:key="@string/setting_key.max_artists"
-            a:title="@string/settings.max_artists"
-            app:iconSpaceReserved="false"/>
-        <ListPreference
-            a:defaultValue="5"
-            a:entries="@array/searchNames"
-            a:entryValues="@array/searchValues"
-            a:key="@string/setting_key.default_albums"
-            a:title="@string/settings.default_albums"
-            app:iconSpaceReserved="false"/>
-        <ListPreference
-            a:defaultValue="20"
-            a:entries="@array/searchNames"
-            a:entryValues="@array/searchValues"
-            a:key="@string/setting_key.max_albums"
-            a:title="@string/settings.max_albums"
-            app:iconSpaceReserved="false"/>
-        <ListPreference
-            a:defaultValue="10"
-            a:entries="@array/searchNames"
-            a:entryValues="@array/searchValues"
-            a:key="@string/setting_key.default_songs"
-            a:title="@string/settings.default_songs"
-            app:iconSpaceReserved="false"/>
-        <ListPreference
-            a:defaultValue="500"
-            a:entries="@array/searchNames"
-            a:entryValues="@array/searchValues"
-            a:key="@string/setting_key.max_songs"
-            a:title="@string/settings.max_songs"
-            app:iconSpaceReserved="false"/>
-        <ListPreference
             a:defaultValue="100"
             a:entries="@array/searchNames"
             a:entryValues="@array/searchValues"
             a:key="@string/setting_key.genre_track_limit"
             a:title="@string/settings.genre_track_limit"
             a:summary="@string/settings.genre_track_limit_summary"
-            app:iconSpaceReserved="false"/>
-        <Preference
-            a:key="@string/setting_key.clear_search_history"
-            a:persistent="false"
-            a:title="@string/settings.clear_search_history"
             app:iconSpaceReserved="false"/>
     </PreferenceCategory>
     <PreferenceCategory

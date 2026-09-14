@@ -1,6 +1,6 @@
 <script>
   import { t } from '../i18n/index.js';
-  import { visibleSortOptions, allSortOptions, authParams, credentials } from '../store.js';
+  import { visibleSortOptions, allSortOptions, authParams, credentials, restUrl } from '../store.js';
 
   let newPassword = $state('');
   let confirmPassword = $state('');
@@ -23,7 +23,7 @@
     isChangingPassword = true;
     passwordMessage = '';
     try {
-      const resp = await fetch(`/rest/updateUser?${$authParams}&username=${encodeURIComponent($credentials.username)}&password=${encodeURIComponent(newPassword)}`);
+      const resp = await fetch(restUrl(`/rest/updateUser?${$authParams}&username=${encodeURIComponent($credentials.username)}&password=${encodeURIComponent(newPassword)}`));
       const data = await resp.json();
       if (data['subsonic-response']?.status === 'ok') {
         passwordMessage = $t('settings.advanced.passwordChanged');
@@ -94,7 +94,7 @@
         <button
           onclick={changePassword}
           disabled={isChangingPassword || !newPassword}
-          class="mt-6 bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-8 rounded-full transition-colors disabled:opacity-50"
+          class="mt-6 bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-8 rounded-full transition-colors whitespace-nowrap shrink-0 disabled:opacity-50"
         >
           {isChangingPassword ? $t('settings.advanced.changing') : $t('settings.advanced.updatePassword')}
         </button>

@@ -1,9 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
+  LIBRARY_TAB_VIEWS,
   MANAGEMENT_GROUPS,
   MANAGEMENT_TABS,
   SETTINGS_TABS,
+  modeForView,
   pathToState,
+  phoneTabForView,
   viewToPath,
 } from "../../src/lib/router.js";
 
@@ -22,6 +25,7 @@ describe("viewToPath", () => {
   });
 
   it.each([
+    ["car", "/car"],
     ["songs", "/songs"],
     ["sets", "/sets"],
     ["albums", "/albums"],
@@ -37,8 +41,14 @@ describe("viewToPath", () => {
     ["festivals", "/festivals"],
     ["years", "/years"],
     ["lineups", "/lineups"],
+    ["voice", "/voice"],
   ])("maps the %s sidebar page to %s", (view, path) => {
     expect(viewToPath(state(view))).toBe(path);
+  });
+
+  it("routes a preset by its MuMa id and reads it back", () => {
+    expect(viewToPath(state("preset:15"))).toBe("/preset/15");
+    expect(pathToState("/preset/15")).toEqual({ view: "preset:15" });
   });
 
   it("percent-encodes a genre name so a slash in it cannot change the route", () => {
@@ -248,6 +258,7 @@ describe("round trip", () => {
   const paths = [
     "/",
     "/login",
+    "/car",
     "/songs",
     "/sets",
     "/albums",
@@ -261,6 +272,7 @@ describe("round trip", () => {
     "/history",
     "/listening",
     "/starred",
+    "/voice",
     "/genre/Drum%20%26%20Bass%20%2F%20UK",
     "/label/Hardcore",
     "/podcast/Hard%20With%20Style",
@@ -366,5 +378,58 @@ describe("MANAGEMENT_GROUPS", () => {
   it("sends a stale link to a deleted tab to the management view with no tab", () => {
     expect(pathToState("/management/versions")).toEqual({ view: "management" });
     expect(pathToState("/management/about")).toEqual({ view: "management" });
+  });
+});
+
+/**
+ * The half of navigation that is not a path: the two library views each belong
+ * to a mode, and moving to one without the other is a navigation that undoes
+ * itself.
+ */
+describe("modeForView", () => {
+  it("names the mode the two library views belong to", () => {
+    expect(modeForView("sets")).toBe("sets");
+    expect(modeForView("songs")).toBe("songs");
+  });
+
+  it("leaves the mode alone for every other view", () => {
+    for (const view of ["home", "playlists", "albums", "genre:Hardcore", "management"]) {
+      expect(modeForView(view)).toBeNull();
+    }
+  });
+});
+
+describe("the search tab route", () => {
+  it("maps both ways like every other plain view", () => {
+    expect(viewToPath(state("search"))).toBe("/search");
+    expect(pathToState("/search")).toEqual({ view: "search" });
+    expect(pathToState("/search/")).toEqual({ view: "search" });
+  });
+
+  it("does not swallow a search-results argument view of the same name", () => {
+    expect(viewToPath(state("search:hardstyle"))).toBe("/search/hardstyle");
+    expect(pathToState("/search/hardstyle")).toEqual({ view: "search:hardstyle" });
+  });
+});
+
+describe("phoneTabForView", () => {
+  it("names the tab home belongs to", () => {
+    expect(phoneTabForView("home")).toBe("home");
+  });
+
+  it("names the tab the search screen belongs to", () => {
+    expect(phoneTabForView("search")).toBe("search");
+  });
+
+  it("names the library tab for every view its chip row offers", () => {
+    for (const view of LIBRARY_TAB_VIEWS) {
+      expect(phoneTabForView(view)).toBe("library");
+    }
+  });
+
+  it("names no tab for a pushed detail page", () => {
+    for (const view of ["genre:Hardcore", "artist:1", "songs", "sets", "settings", "management"]) {
+      expect(phoneTabForView(view)).toBeNull();
+    }
   });
 });

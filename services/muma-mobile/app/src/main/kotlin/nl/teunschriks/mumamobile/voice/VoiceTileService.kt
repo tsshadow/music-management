@@ -11,7 +11,7 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
 import android.service.quicksettings.TileService
-import nl.teunschriks.mumamobile.activity.NavigationActivity
+import nl.teunschriks.mumamobile.util.UiVariant
 
 /**
  * A quick-settings shortcut to the microphone screen.
@@ -36,7 +36,7 @@ class VoiceTileService : TileService() {
     }
 
     private fun openVoiceScreen() {
-        val intent = Intent(this, NavigationActivity::class.java)
+        val intent = UiVariant.launchIntent(this)
             .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             .putExtra(EXTRA_OPEN_VOICE, true)
 

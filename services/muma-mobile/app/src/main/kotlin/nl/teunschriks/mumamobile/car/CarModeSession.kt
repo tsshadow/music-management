@@ -20,12 +20,11 @@ enum class CarModeIntent { Offer, Close, Nothing }
  * answered.
  *
  * Whether something is playing arrives as an argument to [onPresenceChanged] rather than as a
- * constructor dependency. It reaches into the media session, which keeps this class plain Kotlin,
- * but the caller has to be the one to reach: this is a `single`, so its definition is resolved by
- * Koin's root scope no matter who asks for it, while `MediaPlayerManager` lives only inside
- * `scope<NavigationActivity>`. A `get` from in here would compile and then throw on the first car
- * of the day. Taking it as an argument means only a caller that already holds the player can
- * supply it.
+ * constructor dependency. That started as a workaround -- `MediaPlayerManager` used to live only in
+ * `scope<NavigationActivity>`, so a `get` from this `single` compiled and then threw on the first
+ * car of the day -- and the player is application-scoped now, so the workaround is no longer
+ * needed. It is kept because it is the better shape anyway: no Koin lookup in here means this class
+ * stays plain Kotlin and testable without a container, and the caller decides what "playing" means.
  */
 class CarModeSession {
 

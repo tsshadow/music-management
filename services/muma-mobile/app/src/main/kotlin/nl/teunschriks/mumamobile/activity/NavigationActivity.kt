@@ -73,6 +73,7 @@ import nl.teunschriks.mumamobile.api.muma.GoogleAuthRequest
 import nl.teunschriks.mumamobile.api.muma.MumaAPIClient
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.capacitor.MumaSystemPlugin
 import nl.teunschriks.mumamobile.car.CarConnectionWatcher
 import nl.teunschriks.mumamobile.car.CarModeIntent
 import nl.teunschriks.mumamobile.car.CarModeNotifier
@@ -92,7 +93,6 @@ import nl.teunschriks.mumamobile.service.RxBus
 import nl.teunschriks.mumamobile.service.plusAssign
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.LocaleHelper
-import nl.teunschriks.mumamobile.util.SecureSettings
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.ShortcutUtil
 import nl.teunschriks.mumamobile.util.Storage
@@ -100,7 +100,7 @@ import nl.teunschriks.mumamobile.util.UiScaleHelper
 import nl.teunschriks.mumamobile.util.UncaughtExceptionHandler
 import nl.teunschriks.mumamobile.util.UpdateChecker
 import nl.teunschriks.mumamobile.util.Util
-import nl.teunschriks.mumamobile.util.themeColor
+import nl.teunschriks.mumamobile.util.brandColor
 import nl.teunschriks.mumamobile.voice.VoiceTileService
 import nl.teunschriks.mumamobile.wizard.UpdateEntry
 import nl.teunschriks.mumamobile.wizard.WIZARD_INTRODUCED_IN
@@ -113,6 +113,12 @@ import org.koin.android.ext.android.inject
 import org.koin.androidx.scope.ScopeActivity
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import timber.log.Timber
+
+/**
+ * The brand colour behind the active destination in the navigation bar, at a fifth. The same
+ * strength a selected track row is tinted with, so "where you are" reads the same in both places.
+ */
+private const val NAV_INDICATOR_ALPHA = 0x33
 
 /**
  * The main (and only) Activity of Ultrasonic which loads all other screens as Fragments.
@@ -186,6 +192,7 @@ class NavigationActivity : ScopeActivity() {
         setContentView(R.layout.navigation_activity)
         nowPlayingView = findViewById(R.id.now_playing_fragment)
         bottomNavigationView = findViewById(R.id.bottom_navigation)
+        applyBottomNavigationBrand()
 
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
@@ -224,6 +231,11 @@ class NavigationActivity : ScopeActivity() {
 
         if (intent.getBooleanExtra(VoiceTileService.EXTRA_OPEN_VOICE, false)) {
             navController.navigate(R.id.mumaVoiceFragment)
+        }
+
+        // The web shell has no page for the phone-only preferences, so it opens this one.
+        if (intent.getBooleanExtra(MumaSystemPlugin.EXTRA_OPEN_SETTINGS, false)) {
+            navController.navigate(R.id.settingsFragment)
         }
 
         setupActionBar(navController, appBarConfiguration)
@@ -338,11 +350,12 @@ class NavigationActivity : ScopeActivity() {
             setsToggle?.let { toggle ->
                 toggle.setOnCheckedChangeListener(null)
                 toggle.isChecked = Settings.isSetsMode
-                updateSetsToggleColors(toggle, Settings.isSetsMode)
+                updateSetsToggleColors(toggle)
 
                 toggle.setOnCheckedChangeListener { _, isChecked ->
                     Settings.isSetsMode = isChecked
-                    updateSetsToggleColors(toggle, isChecked)
+                    updateSetsToggleColors(toggle)
+                    applyBottomNavigationBrand()
                     RxBus.setsModeChangedPublisher.onNext(isChecked)
                 }
             }
@@ -355,6 +368,10 @@ class NavigationActivity : ScopeActivity() {
         override fun onMenuItemSelected(item: MenuItem): Boolean {
             if (item.itemId == R.id.menu_exit) {
                 setResult(Constants.RESULT_CLOSE_ALL)
+                // The player is application-scoped, so this stops it rather than discarding it:
+                // finishAndRemoveTask() need not end the process, and the same instance answers the
+                // next launch. onDestroy()/onCreate() are a reusable stop/start pair for exactly
+                // that reason -- see MediaPlayerManager.
                 mediaPlayerManager.onDestroy()
                 finish()
                 exit()
@@ -368,8 +385,10 @@ class NavigationActivity : ScopeActivity() {
         }
     }
 
-    private fun updateSetsToggleColors(toggle: MaterialSwitch, isSets: Boolean) {
-        val brandColor = themeColor(androidx.appcompat.R.attr.colorPrimary)
+    private fun updateSetsToggleColors(toggle: MaterialSwitch) {
+        // brandColor() rather than colorPrimary: the toggle switches *to* sets, so the one moment
+        // it is checked is the moment the app's accent is blue, and it used to go green there.
+        val brandColor = brandColor()
         val states = arrayOf(
             intArrayOf(android.R.attr.state_checked),
             intArrayOf(-android.R.attr.state_checked)
@@ -379,6 +398,27 @@ class NavigationActivity : ScopeActivity() {
 
         toggle.thumbTintList = ColorStateList(states, thumbColors)
         toggle.trackTintList = ColorStateList(states, trackColors)
+    }
+
+    /**
+     * Tints the shape behind the active destination with the mode's brand colour.
+     *
+     * The bar is the one piece of chrome always on screen and it had no brand colour anywhere:
+     * the icons are deliberately white and grey, like the web's, and the shape underneath the
+     * active one was Material3's own `#4a4458` -- `colorSecondaryContainer`, which neither style
+     * defined. So the only colour the app's first screen carried was a purple nobody chose.
+     *
+     * It takes the brand at a fifth, which is what "selected" already means in this app: a
+     * selected track row is tinted with the same colour at the same strength, and the web writes
+     * it `bg-brand/20`. The white label on top only gains contrast from it. The icon and label
+     * state list is untouched -- exactly one destination stands out, which is the point of it.
+     *
+     * Done here rather than in a `<selector>` because the colour depends on [Settings.isSetsMode],
+     * which a resource cannot read; re-applied when the mode changes for the same reason.
+     */
+    private fun applyBottomNavigationBrand() {
+        val bar = bottomNavigationView ?: return
+        bar.itemActiveIndicatorColor = ColorStateList.valueOf(navIndicatorColor(brandColor()))
     }
 
     private fun Int.withAlpha(alpha: Int): Int = (this and 0x00FFFFFF) or (alpha shl 24)
@@ -463,8 +503,9 @@ class NavigationActivity : ScopeActivity() {
     private fun watchCarPresence(navController: NavController) {
         lifecycleScope.launch {
             carPresence.isInCar.collectLatest { inCar ->
-                // The player is supplied from here because it is scoped to this activity, and the
-                // session that asks for it is not.
+                // The player is supplied from here rather than injected into the session: the
+                // session is a plain Kotlin class with no Koin lookups of its own, which is what
+                // keeps it unit-testable without a container.
                 when (carModeSession.onPresenceChanged(inCar) { mediaPlayerManager.isPlaying }) {
                     CarModeIntent.Offer -> carModeNotifier.offer(carModeSession.shouldRaise)
 
@@ -492,6 +533,10 @@ class NavigationActivity : ScopeActivity() {
 
         if (intent.getBooleanExtra(VoiceTileService.EXTRA_OPEN_VOICE, false)) {
             findNavController(R.id.nav_host_fragment).navigate(R.id.mumaVoiceFragment)
+        }
+
+        if (intent.getBooleanExtra(MumaSystemPlugin.EXTRA_OPEN_SETTINGS, false)) {
+            findNavController(R.id.nav_host_fragment).navigate(R.id.settingsFragment)
         }
 
         when (intent.action) {
@@ -599,15 +644,13 @@ class NavigationActivity : ScopeActivity() {
         Timber.i("Logging out")
 
         // Whatever is playing was streamed with credentials that are about to be dropped.
+        // Only the queue goes: the player itself is application-scoped and stays started, so the
+        // next sign-in plays through the same instance without a second onCreate().
         mediaPlayerManager.clear()
 
-        Settings.staticPassword = ""
-        Settings.mumaApiKey = ""
-        Settings.mumaUserId = -1
-        SecureSettings.clear()
-
-        activeServerProvider.invalidateCache()
-        MusicServiceFactory.resetMusicService()
+        // The password, the muma API key/user id and the encrypted muma tokens -- shared with
+        // `MumaSystem.signOut()` in the Capacitor shell, see `ActiveServerProvider.signOut`.
+        activeServerProvider.signOut()
 
         // The welcome dialog only shows itself once per app start; a fresh logout is exactly the
         // case where it must show itself again.
@@ -1226,3 +1269,12 @@ internal fun showsSetsToggle(destinationId: Int): Boolean = when (destinationId)
     R.id.mainFragment, R.id.libraryFragment -> true
     else -> false
 }
+
+/**
+ * The colour of the shape behind the active destination in the navigation bar: [brand] at a fifth.
+ *
+ * Top-level and internal for the same reason as the two rules above - a test can state it without
+ * standing up an Activity. What it replaces is `colorSecondaryContainer`, which neither style
+ * declared, so the shape came out in Material3's own `#4a4458`.
+ */
+internal fun navIndicatorColor(brand: Int): Int = (brand and 0x00FFFFFF) or (NAV_INDICATOR_ALPHA shl 24)

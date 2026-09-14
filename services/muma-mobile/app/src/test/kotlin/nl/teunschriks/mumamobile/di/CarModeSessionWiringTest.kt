@@ -16,15 +16,18 @@ import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 
 /**
- * Pins that arriving in the car can be answered from the root scope.
+ * Pins that arriving in the car is answered by a definition with nothing left to resolve.
  *
  * [CarModeSession] is a `single`, so its definition is resolved by the root scope no matter who
- * asks for it, while `MediaPlayerManager` only exists inside `scope<NavigationActivity>`. A `get`
- * for the player from inside this definition therefore compiles, starts and navigates, and throws
- * the moment the car is first reported -- which is the app disappearing on launch in the car.
+ * asks for it. While `MediaPlayerManager` lived only in `scope<NavigationActivity>`, a `get` for the
+ * player from inside this definition therefore compiled, started and navigated, and threw the moment
+ * the car was first reported -- which is the app disappearing on launch in the car. The player is
+ * application-scoped now (see `MediaPlayerModule`), so that particular trap is gone, but the shape
+ * pinned here is the right one regardless: this class resolves nothing and takes what it needs as an
+ * argument, which is also what keeps it testable without a container.
  *
  * Only [CarModeSession] is resolved here, so the rest of the module, which does need an Android
- * context, is never instantiated.
+ * context, is never instantiated. The player's own scoping is pinned by `MumaVoicePlaybackScopeTest`.
  */
 class CarModeSessionWiringTest {
 

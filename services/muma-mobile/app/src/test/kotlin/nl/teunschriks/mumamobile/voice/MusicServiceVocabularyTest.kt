@@ -10,6 +10,7 @@ package nl.teunschriks.mumamobile.voice
 import io.mockk.every
 import io.mockk.mockk
 import nl.teunschriks.mumamobile.domain.Genre
+import nl.teunschriks.mumamobile.domain.Tag
 import nl.teunschriks.mumamobile.service.MusicService
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.`should contain`
@@ -77,5 +78,24 @@ class MusicServiceVocabularyTest {
 
         vocabulary.genres() `should be equal to` emptyList()
         vocabulary.prominentGenres() `should be equal to` emptyList()
+    }
+
+    @Test
+    fun `festivals are read off the FESTIVAL tag`() {
+        val service = mockk<MusicService>()
+        every { service.getTags(false, MusicServiceVocabulary.TAG_FESTIVAL, null, null) } returns
+            listOf(Tag("1", "Defqon.1", 500), Tag("2", "Decibel", 300))
+
+        MusicServiceVocabulary(service).festivals() `should be equal to`
+            listOf("Defqon.1", "Decibel")
+    }
+
+    @Test
+    fun `a failing festival lookup answers with nothing rather than throwing`() {
+        val service = mockk<MusicService>()
+        every { service.getTags(false, MusicServiceVocabulary.TAG_FESTIVAL, null, null) } throws
+            IllegalStateException("offline")
+
+        MusicServiceVocabulary(service).festivals() `should be equal to` emptyList()
     }
 }

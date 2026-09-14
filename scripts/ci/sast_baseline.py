@@ -118,7 +118,11 @@ REASONS = {
     'detected-jwt-token': 'Test fixtures for the Subsonic API client.',
     'exported_activity': (
         'Android activities that are launched by the system or by another app '
-        'on purpose -- the launcher alias and the media button receiver.'
+        'on purpose -- the launcher aliases and the media button receiver. '
+        'Four aliases since the Capacitor shell: icon x interface, exactly one '
+        'enabled at a time. An alias carrying a LAUNCHER intent filter has to '
+        'be exported to be launchable at all; CapacitorActivity itself, which '
+        'two of them target, is not.'
     ),
     'wildcard-cors': (
         'OPEN HARDENING ITEM, not a false positive. services/music_manager/'

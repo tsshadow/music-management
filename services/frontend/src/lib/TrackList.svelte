@@ -1,13 +1,133 @@
 <script>
-  import { t } from './i18n/index.js';
-  import { currentTrack, playerState, authParams, playlist, isMobile, highlightedTrackId, mumaApiUrl } from './store.js';
+  import { t, locale } from './i18n/index.js';
+  import { currentTrack, playerState, authParams, playlist, isMobile, highlightedTrackId, mumaApiUrl, restUrl, showConfirmationDialog } from './store.js';
   import ArtistList from './ArtistList.svelte';
   import Modal from './Modal.svelte';
   import { subsonicError } from './utils.js';
   import { notify } from './notifications.js';
   import { releaseDateLabel } from './trackDate.js';
+  import { platform as defaultPlatform } from './platform/index.js';
+  import { coverArtSrc, localCoverArt, resolveCoverArt } from './coverArt.js';
+  import { offline } from './subsonic.js';
+  import { formatBytes, isSet, trackSize } from './downloads.js';
+  import { formatHoursMinutes } from './playerProgress.js';
+  import { logAction } from './diagnosticsLog.js';
 
-  const { tracks = [], isQueue = false, playlistId = null, onremove = null, onnavigate, showDate = false } = $props();
+  const {
+    tracks = [],
+    isQueue = false,
+    playlistId = null,
+    onremove = null,
+    onnavigate,
+    showDate = false,
+    platform = defaultPlatform
+  } = $props();
+
+  /**
+   * What is downloaded, for the rows on screen.
+   *
+   * One `stateOf` per rendered list rather than one per row -- that is the
+   * whole reason the plugin takes a batch -- refreshed from the `progress`
+   * event, which is the only thing that can change an answer while the list is
+   * up. In a browser `supported` is false, nothing is asked, and every row
+   * renders exactly as it did before this feature existed.
+   */
+  const downloadsSupported = $derived(platform?.storage?.supported === true);
+  let downloadStates = $state({});
+  /** The set whose size is being confirmed, or null. */
+  let pendingSet = $state(null);
+
+  const trackIds = $derived(tracks.map((track) => String(track.id)));
+
+  async function refreshDownloadStates() {
+    if (!downloadsSupported || trackIds.length === 0) return;
+    try {
+      downloadStates = await platform.storage.stateOf(trackIds);
+    } catch (e) {
+      console.warn('Could not read the download states for this list', e);
+    }
+  }
+
+  $effect(() => {
+    // Reads `trackIds` so a new list is asked about; the call itself is not
+    // reactive, so nothing here loops.
+    void trackIds;
+    refreshDownloadStates();
+  });
+
+  $effect(() => {
+    if (!downloadsSupported) return;
+    return platform.storage.onProgress((event) => {
+      if (!trackIds.includes(String(event.id))) return;
+      downloadStates = { ...downloadStates, [String(event.id)]: event.state };
+    });
+  });
+
+  // Offline, the artwork comes off the device; online this resolves nothing.
+  $effect(() => {
+    void $offline;
+    resolveCoverArt(tracks.map((track) => track.coverArt), platform);
+  });
+
+  /**
+   * @param {Object} track
+   * @returns {string} One of none/queued/running/done/failed.
+   */
+  function downloadStateOf(track) {
+    return downloadStates[String(track.id)] ?? 'none';
+  }
+
+  /**
+   * Starts a download, asking first when it is a set.
+   *
+   * The size line before a set is the functional design's own requirement: a
+   * two-hour recording is hundreds of megabytes and a tap should not spend them
+   * silently. Short tracks start straight away -- a confirmation per three
+   * minute song would be noise.
+   *
+   * @param {Event} e
+   * @param {Object} track
+   */
+  function download(e, track) {
+    e.stopPropagation();
+    if (isSet(track) && $showConfirmationDialog) {
+      pendingSet = track;
+      return;
+    }
+    start(track);
+  }
+
+  /**
+   * @param {Object} track
+   */
+  async function start(track) {
+    pendingSet = null;
+    downloadStates = { ...downloadStates, [String(track.id)]: 'queued' };
+    logAction('download.start', { trackId: track.id });
+    try {
+      await platform.storage.download([String(track.id)], { pin: true });
+    } catch (err) {
+      console.error('Could not start a download', err);
+      notify.error($t('downloads.startFailed'), { detail: err.message });
+      await refreshDownloadStates();
+    }
+  }
+
+  /**
+   * @param {Event} e
+   * @param {Object} track
+   */
+  async function removeDownload(e, track) {
+    e.stopPropagation();
+    logAction('download.cancel', { trackId: track.id });
+    try {
+      await platform.storage.remove([String(track.id)]);
+      downloadStates = { ...downloadStates, [String(track.id)]: 'none' };
+    } catch (err) {
+      console.error('Could not remove a download', err);
+      notify.error($t('downloads.removeFailed'), { detail: err.message });
+    }
+  }
 
   let selectedLyricsTrack = $state(null);
   let lyricsLines = $state([]);
@@ -25,7 +145,7 @@
       lyricsLines = [];
       isLoadingLyrics = true;
       try {
-          const response = await fetch(`/rest/getLyricsBySongId?id=${track.id}&${$authParams}`);
+          const response = await fetch(restUrl(`/rest/getLyricsBySongId?id=${track.id}&${$authParams}`));
           const data = await response.json();
           const structuredLyrics = data['subsonic-response']?.lyricsList?.structuredLyrics;
           if (structuredLyrics) {
@@ -110,7 +230,7 @@
       // the body is the only thing that says whether the rating was stored.
       // `subsonicError` is that check, shared with the player.
       const failure = await subsonicError(
-        await fetch(`/rest/setRating?id=${track.id}&rating=${newRating}&${$authParams}`)
+        await fetch(restUrl(`/rest/setRating?id=${track.id}&rating=${newRating}&${$authParams}`))
       );
       if (failure) throw new Error(failure.message);
     } catch (e) {
@@ -245,6 +365,20 @@
     return minutes + ":" + (seconds < 10 ? '0' : '') + seconds;
   }
 
+  /**
+   * The duration column's text for one row: "h:mm" for a set -- the design's
+   * own call, worth the space a two-hour recording actually needs -- and the
+   * existing "M:SS" for a plain track. Decided per row on the track's own
+   * duration rather than on `viewMode`, so a mixed list (history, search)
+   * never shows the wrong format for what a row actually is.
+   *
+   * @param {Object} track
+   * @returns {string}
+   */
+  function durationCellText(track) {
+    return isSet(track) ? formatHoursMinutes(track.duration) : formatTime(track.duration * 1000);
+  }
+
 
   $effect(() => {
     if ($highlightedTrackId) {
@@ -261,11 +395,15 @@
   });
 </script>
 
-<table class="w-full border-collapse text-[#b3b3b3] text-sm">
+<!-- table-fixed: the title cell holds nowrap text, and under the default auto layout that
+     text sets the column's minimum width, so a long title pushed the table past the phone's
+     viewport and the whole page scrolled sideways. Fixed layout gives the title column what
+     is left after the sized columns and lets `truncate` do its work. -->
+<table class="w-full table-fixed border-collapse text-[#b3b3b3] text-sm">
   <thead class="border-b border-white/10">
     <tr>
       <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[50px] text-right hidden md:table-cell">#</th>
-      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em]">{$t('track.title')}</th>
+      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em]">{#if !$isMobile}{$t('track.title')}{/if}</th>
       {#if !isQueue}
         <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] hidden md:table-cell">{$t('common.album')}</th>
         <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] hidden md:table-cell">{$t('nav.genres')}</th>
@@ -273,13 +411,16 @@
         <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-12 hidden lg:table-cell text-center">{$t('track.plays')}</th>
         <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-32 hidden lg:table-cell text-center">{$t('filter.rating')}</th>
       {/if}
-      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[80px] md:w-[100px] text-right">
+      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[56px] md:w-[100px] text-right">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="inline">
           <path d="M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM0 8a8 8 0 1116 0A8 8 0 010 8z"></path>
           <path d="M8 4a.5.5 0 01.5.5v3h3a.5.5 0 010 1H8a.5.5 0 01-.5-.5v-4A.5.5 0 018 4z"></path>
         </svg>
       </th>
-      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[100px] text-center"></th>
+      <!-- The action buttons only show on hover, which a phone has not got; the column is
+           dropped there except in the queue and on a playlist, where "remove" and the download
+           toggle stay visible (reorder, versions and lyrics are desktop-only in that column). -->
+      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] text-center {isQueue || playlistId ? 'w-[84px] md:w-[100px]' : 'w-[100px] hidden md:table-cell'}"></th>
     </tr>
   </thead>
   <tbody>
@@ -308,13 +449,33 @@
         <td class="p-2 px-4">
           <div class="flex items-center gap-3">
             <img
-              src={track.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=48&${$authParams}` : '/images/spotify-fallback.svg'}
+              src={coverArtSrc(track.coverArt, 48, $authParams, $localCoverArt, $offline)}
               alt=""
-              class="w-10 h-10 md:w-12 md:h-12 rounded shadow"
+              class="w-12 h-12 rounded shadow"
               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
             />
             <div class="flex flex-col min-w-0">
-              <span class="text-sm md:text-base font-medium truncate {String($currentTrack?.id) === String(track.id) ? 'text-brand' : 'text-white'}">{track.title}</span>
+              <span class="text-sm md:text-base font-medium truncate {String($currentTrack?.id) === String(track.id) ? 'text-brand' : 'text-white'}">
+                {track.title}
+                {#if downloadStateOf(track) !== 'none'}
+                  {@const state = downloadStateOf(track)}
+                  <span
+                    class="inline-block align-middle ml-1.5 {state === 'failed' ? 'text-red-400' : state === 'done' ? 'text-brand' : 'text-[#b3b3b3]'}"
+                    aria-label={$t(`downloads.state.${state}`)}
+                    title={$t(`downloads.state.${state}`)}
+                    data-testid="download-glyph"
+                    data-state={state}
+                  >
+                    {#if state === 'done'}
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1 14.4L6.6 12 8 10.6l3 3 5-5L17.4 10 11 16.4z"></path></svg>
+                    {:else if state === 'failed'}
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path></svg>
+                    {:else}
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" class={state === 'running' ? 'animate-pulse' : ''}><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"></path></svg>
+                    {/if}
+                  </span>
+                {/if}
+              </span>
               <ArtistList
                 artist={track.artist}
                 artistId={track.artistId}
@@ -322,6 +483,25 @@
                 active={String($currentTrack?.id) === String(track.id)}
                 onnavigate={onnavigate}
               />
+              {#if $isMobile && !isQueue}
+                <!-- The phone has no hover state to reveal the desktop rating
+                     column (`hidden lg:table-cell` below), so a touch device
+                     gets its own copy under the artist instead of losing
+                     rating access entirely. -->
+                <div class="flex gap-0.5 mt-0.5" data-testid="mobile-rating">
+                  {#each [1, 2, 3, 4, 5] as star (star)}
+                    <button
+                      aria-label="{star} sterren"
+                      class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { ratingOf(track) >= star ? 'text-brand' : 'text-white/20' }"
+                      onclick={(e) => { e.stopPropagation(); updateRating(track, star); }}
+                    >
+                      <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor">
+                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+                      </svg>
+                    </button>
+                  {/each}
+                </div>
+              {/if}
             </div>
           </div>
         </td>
@@ -355,29 +535,31 @@
             {track.globalPlayCount || ''}
           </td>
           <td class="p-2 px-4 hidden lg:table-cell">
-            <div class="flex gap-0.5 justify-center">
-              {#each [1, 2, 3, 4, 5] as star (star)}
-                <button
-                  aria-label="{star} sterren"
-                  class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { ratingOf(track) >= star ? 'text-brand' : 'text-white/10 hover:text-white/30' }"
-                  onclick={(e) => { e.stopPropagation(); updateRating(track, star); }}
-                >
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
-                  </svg>
-                </button>
-              {/each}
-            </div>
+            {#if !$isMobile}
+              <div class="flex gap-0.5 justify-center">
+                {#each [1, 2, 3, 4, 5] as star (star)}
+                  <button
+                    aria-label="{star} sterren"
+                    class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { ratingOf(track) >= star ? 'text-brand' : 'text-white/10 hover:text-white/30' }"
+                    onclick={(e) => { e.stopPropagation(); updateRating(track, star); }}
+                  >
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+                    </svg>
+                  </button>
+                {/each}
+              </div>
+            {/if}
           </td>
         {/if}
-        <td class="p-2 px-4 text-right text-xs md:text-sm">{formatTime(track.duration * 1000)}</td>
-        <td class="p-2 px-4 text-center">
-          <div class="flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+        <td class="p-2 px-4 text-right text-xs md:text-sm">{durationCellText(track)}</td>
+        <td class="p-2 px-4 text-center {isQueue || playlistId ? '' : 'hidden md:table-cell'}">
+          <div class="flex gap-1 justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity">
               {#if isQueue}
                       <button
                         aria-label={$t('track.moveUp')}
                         title={$t('track.moveUp')}
-                        class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed"
+                        class="hidden md:flex bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed"
                         onclick={(e) => moveTrack(e, i, -1)}
                         disabled={i === 0}
                       >
@@ -388,7 +570,7 @@
                       <button
                         aria-label={$t('track.moveDown')}
                         title={$t('track.moveDown')}
-                        class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed"
+                        class="hidden md:flex bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed"
                         onclick={(e) => moveTrack(e, i, 1)}
                         disabled={i === tracks.length - 1}
                       >
@@ -449,7 +631,7 @@
                 <button
                   aria-label={$t('track.versions')}
                   title={$t('track.versions')}
-                  class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                  class="hidden md:flex bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 items-center justify-center rounded hover:bg-[#333] hover:text-white"
                   onclick={(e) => { e.stopPropagation(); onnavigate?.(`song:${track.workId}`); }}
                 >
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -461,7 +643,7 @@
               <button
                 aria-label={$t('track.lyrics')}
                 title={$t('track.lyrics')}
-                class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                class="hidden md:flex bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 items-center justify-center rounded hover:bg-[#333] hover:text-white"
                 onclick={(e) => showLyrics(e, track)}
               >
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -469,12 +651,41 @@
                   </svg>
               </button>
 
+              {#if downloadsSupported}
+                <!-- Keeping the file on this device, which is not the browser's
+                     "save a copy" below: the two live side by side because they
+                     do different things, and only one of them exists here. -->
+                {#if downloadStateOf(track) === 'none' || downloadStateOf(track) === 'failed'}
+                  <button
+                    aria-label={$t('downloads.download')}
+                    title={$t('downloads.download')}
+                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                    onclick={(e) => download(e, track)}
+                  >
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                          <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 11.2V16h-2v-2.8L8.4 15 7 13.6 12 9l5 4.6-1.4 1.4L13 13.2z" transform="rotate(180 12 12)"></path>
+                      </svg>
+                  </button>
+                {:else}
+                  <button
+                    aria-label={$t('downloads.remove')}
+                    title={$t('downloads.remove')}
+                    class="bg-transparent border-none text-brand cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                    onclick={(e) => removeDownload(e, track)}
+                  >
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                          <path d="M6 19c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"></path>
+                      </svg>
+                  </button>
+                {/if}
+              {/if}
+
               <a
-                href={`/rest/download?id=${track.id}&${$authParams}`}
+                href={restUrl(`/rest/download?id=${track.id}&${$authParams}`)}
                 download={`${track.artist} - ${track.title}.mp3`}
                 aria-label={$t('common.download')}
                 title={$t('common.download')}
-                class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                class="hidden md:flex bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 items-center justify-center rounded hover:bg-[#333] hover:text-white"
                 onclick={(e) => e.stopPropagation()}
               >
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -487,6 +698,32 @@
     {/each}
   </tbody>
 </table>
+
+{#if pendingSet}
+  {@const size = trackSize(pendingSet)}
+  <Modal title={$t('downloads.confirmTitle')} onclose={() => (pendingSet = null)}>
+    <div class="flex flex-col gap-4 py-4" data-testid="set-size-confirm">
+      <p class="text-white text-lg font-bold m-0">{pendingSet.title}</p>
+      <!-- The size is the whole point of this sheet, so where it came from is
+           part of it: `size` off the library when LMS sent one, otherwise
+           bitrate times length, which the note underneath says out loud. -->
+      <p class="text-2xl font-bold text-brand m-0" data-testid="set-size">{formatBytes(size.bytes, $locale)}</p>
+      <p class="text-sm text-[#b3b3b3] m-0">
+        {size.estimated ? $t('downloads.sizeEstimated') : $t('downloads.sizeExact')}
+      </p>
+      <div class="flex gap-3 justify-end">
+        <button
+          class="bg-transparent border border-[#727272] text-white px-6 py-2 rounded-[24px] font-bold cursor-pointer hover:border-white"
+          onclick={() => (pendingSet = null)}
+        >{$t('common.cancel')}</button>
+        <button
+          class="bg-brand text-black px-6 py-2 rounded-[24px] font-bold cursor-pointer"
+          onclick={() => start(pendingSet)}
+        >{$t('downloads.download')}</button>
+      </div>
+    </div>
+  </Modal>
+{/if}
 
 {#if selectedLyricsTrack}
   <Modal 

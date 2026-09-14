@@ -113,18 +113,6 @@
     <string name="select_genre.empty">Žánry nenalezeny</string>
     <string name="select_playlist.empty">Žádné uložené playlisty na serveru</string>
     <string name="settings.appearance_title">Vzhled</string>
-    <string name="settings.increment_time_0">Vypnuto</string>
-    <string name="settings.increment_time_1">1 sekunda</string>
-    <string name="settings.increment_time_10">10 sekund</string>
-    <string name="settings.increment_time_12">12 sekund</string>
-    <string name="settings.increment_time_120">2 minuty</string>
-    <string name="settings.increment_time_15">15 sekund</string>
-    <string name="settings.increment_time_2">2 sekundy</string>
-    <string name="settings.increment_time_20">20 sekund</string>
-    <string name="settings.increment_time_30">30 sekund</string>
-    <string name="settings.increment_time_5">5 sekund</string>
-    <string name="settings.increment_time_60">1 minuta</string>
-    <string name="settings.increment_time_8">8 sekund</string>
     <string name="settings.cache_location">Umístění cache</string>
     <string name="settings.cache_location_error">Neplatné umístění cache. Používám výchozí cestu.</string>
     <string name="settings.cache_size">Velikost cache</string>
@@ -147,13 +135,6 @@
     <string name="settings.cache_size_9000">9 GB</string>
     <string name="settings.cache_size_unlimited">Neomezeně</string>
     <string name="settings.cache_title">Hudební cache</string>
-    <string name="settings.chat_refresh">Interval obnovení chatu</string>
-    <string name="settings.clear_bookmark">Zahodit záložku</string>
-    <string name="settings.clear_bookmark_summary">Zahodit záložku po dokončení přehrávání skladby</string>
-    <string name="settings.clear_search_history">Vyčistit historii vyhledávání</string>
-    <string name="settings.default_albums">Výchozí alba</string>
-    <string name="settings.default_artists">Výchozí umělci</string>
-    <string name="settings.default_songs">Výchozí skladby</string>
     <string name="settings.directory_cache_time">Čas udržení cache adresáře</string>
     <string name="settings.directory_cache_time_0">Vypnuto</string>
     <string name="settings.directory_cache_time_1">1 minuta</string>
@@ -169,8 +150,6 @@
     <string name="settings.hide_media_title">Skrýt před ostatními</string>
     <string name="settings.hide_media_toast">Nabyde účinnosti při příštím skenování hudby systému Android.</string>
     <string name="settings.invalid_url">Zadejte funkční adresu URL.</string>
-    <string name="settings.max_albums">Maximum alb</string>
-    <string name="settings.max_artists">Maximum umělců</string>
     <string name="settings.max_bitrate_112">112 Kbps</string>
     <string name="settings.max_bitrate_128">128 Kbps</string>
     <string name="settings.max_bitrate_160">160 Kbps</string>
@@ -184,7 +163,6 @@
     <string name="settings.max_bitrate_mobile">Max Bitrate - mobilní síť</string>
     <string name="settings.max_bitrate_unlimited">Neomezené</string>
     <string name="settings.max_bitrate_wifi">Max Bitrate - wi-fi</string>
-    <string name="settings.max_songs">Maximum skladeb</string>
     <string name="settings.network_timeout">Čas vypršení připojení</string>
     <string name="settings.network_timeout_105000">105 sekund</string>
     <string name="settings.network_timeout_120000">120 sekund</string>
@@ -194,7 +172,6 @@
     <string name="settings.network_timeout_60000">60 sekund</string>
     <string name="settings.network_timeout_75000">75 sekund</string>
     <string name="settings.network_timeout_90000">90 sekund</string>
-    <string name="settings.notifications_title">Upozornění</string>
     <string name="settings.network_title">Síť</string>
     <string name="settings.other_title">Další nastavení</string>
     <string name="settings.playback_control_title">Nastavení ovládání přehrávání</string>
@@ -226,27 +203,16 @@
     <string name="settings.search_50">50</string>
     <string name="settings.search_500">500</string>
     <string name="settings.search_75">75</string>
-    <string name="settings.search_history_cleared">Historie hledání vyčištěna</string>
     <string name="settings.search_title">Nastavení vyhledávání</string>
     <string name="settings.server_address">Adresa serveru</string>
     <string name="settings.server_name">Název</string>
     <string name="settings.server_password">Heslo</string>
-    <string name="settings.server_scaling_summary">Stahovat škálované obrázky ze serveru místo plné velikosti (šetří přenos dat)</string>
-    <string name="settings.server_scaling_title">Škálování obrázků alb na serveru</string>
     <string name="settings.server_username">Uživatelské jméno</string>
-    <string name="settings.show_now_playing">Zobrazovat přehrávanou skladbu</string>
-    <string name="settings.show_now_playing_summary">Zobrazovat přehrávanou skladbu v aktivitách</string>
     <string name="settings.show_track_number">Zobrazovat číslo skladby</string>
     <string name="settings.show_track_number_summary">Připojovat číslo skladby při zobrazování skladby</string>
     <string name="settings.test_connection_title">Test připojení</string>
     <string name="settings.title.allow_self_signed_certificate">Povolit HTTPS certifikáty podepsané samé sebou</string>
     <string name="settings.title.force_plain_text_password">Vynutit ověření nešifrovaným heslem</string>
-    <string name="settings.use_folder_for_album_artist">Jména adresářů jako jména umělců</string>
-    <string name="settings.use_folder_for_album_artist_summary">Očekává jména hlavních adresářů obsahující jména umělců</string>
-    <string name="settings.use_id3">Procházet za použití ID3 tagů</string>
-    <string name="settings.use_id3_summary">Používat metodu ID3 tagů místo jmen na základě adresářové struktury</string>
-    <string name="settings.show_artist_picture">Obrázek umělce v seznamu umělců</string>
-    <string name="settings.show_artist_picture_summary">Zobrazí obrázek umělce v náhledu umělců pokud je dostupný</string>
     <string name="main.video" tools:ignore="UnusedResources">Video</string>
     <string name="song_details.kbps">%d kbps</string>
     <string name="util.no_time" tools:ignore="TypographyDashes">-:--</string>
@@ -254,10 +220,6 @@
     <string name="widget.initial_text">Ťuknutím vybrat hudbu</string>
     <string name="widget.sdcard_busy">SD karta nedostupná</string>
     <string name="widget.sdcard_missing">Chybí SD karta</string>
-    <string name="settings.share_description_default">Výchozí popis sdílení</string>
-    <string name="settings.sharing_title">Sdílení</string>
-    <string name="settings.sharing_always_ask_for_details">Vždy se dotazovat na detaily</string>
-    <string name="settings.share_expiration_default">Výchozí čas vypršení</string>
     <string name="do_not_show_dialog_again">Dialog opět nezobrazovat</string>
     <string name="share_set_share_options">Nastavit možnosti sdílení</string>
     <string name="no_expiration">Bez vypršení</string>
@@ -280,7 +242,6 @@
     <string name="settings.share_expiration">Čas vypršení</string>
     <string name="download_song_removed">\"%s\" odstraněn z playlistu</string>
     <string name="download.share_playlist">Sdílet playlist</string>
-    <string name="settings.share_greeting_default">Výchozí pozdrav sdílení</string>
     <string name="share_default_greeting">Mrkni na hudbu sdílenou z %s</string>
     <string name="share_via">Sdílet skladby přes</string>
     <string name="menu.share">Sdílení</string>

@@ -11,6 +11,98 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.61.0 (2026-09-14)
+
+- De "Apparaat"-instellingen zijn compleet: netwerk, cache, auto-koppeling en cachelocatie kiezen
+  kan nu allemaal zonder het oude scherm te openen, en een deel van de instellingen volgt voortaan
+  het account op elk apparaat.
+
+- Instellingen → Over MuMa legt nu uit hoe de automodus aangaat.
+
+- Grondwerk voor de toekomstige app-schil: elk verzoek aan de server loopt nu via één plek in de
+  code. Aan wat je ziet of hoort verandert niets.
+
+- Inside de Android-app draait de nieuwe interface nu op de bestaande afspeeldienst: de webspeler logt zichzelf in met de server en het account die op de telefoon staan, geeft de wachtrij aan de notificatie en Android Auto door, en vindt na een herstart van de WebView zijn plek in het nummer terug. In de browser verandert er niets.
+
+- De app heeft weer een instellingenscherm voor downloads, streamingkwaliteit, koptelefoon- en
+  bluetoothgedrag en automodus, nu in de nieuwe interface zelf.
+
+- **Een crashrapport uit de nieuwe interface leest nu als een verhaal in plaats van een leeg
+  logbestand.** Navigatie, afspelen, wachtrijwijzigingen, waarderingen, downloads, in- en uitloggen
+  en instellingen schrijven allemaal één regel naar hetzelfde actielogboek dat de Kotlin-app al
+  gebruikte; een JavaScript-fout die de app nooit toonde, komt er nu ook met stacktrace in terecht.
+  Een rapport vermeldt voortaan ook of het uit de webinterface of de klassieke app komt, welke
+  frontend-build draaide en welke WebView hem toonde.
+
+- In de app is de muziek die je gedownload hebt nu zonder verbinding te doorbladeren en af te spelen — nummers, sets, albums, artiesten, genres, labels, favorieten en zoeken komen van de telefoon zodra de server niet bereikbaar is — met een eigen Downloads-pagina die per album en per set laat zien wat er staat, hoe groot het is en hoe ver een download is, een downloadteken in de nummerlijst en een maatvraag voordat je een set van honderden megabytes binnenhaalt. In de browser verandert er niets.
+
+- De speler toont nu songtekst wanneer LMS die heeft: een knop naast de wachtrij op het
+  bureaublad, een bottom sheet in "Nu speelt" op de telefoon.
+
+- De minispeler blijft op de telefoon even hoog, ook bij een nummer zonder hoes.
+
+- De app toont na een update kort wat er veranderd is in plaats van de oude setup-wizard te
+  openen; bij een nieuwe installatie verschijnt niets.
+
+- **Afspelen op de telefoon-app kon blijven hangen op 0:00 na een wachtrijwijziging.** Nu niet meer.
+
+- **"Toevoegen aan wachtrij" deed niets in de nieuwe interface op de telefoon.** Het toegevoegde
+  nummer gaat nu echt de wachtrij in, zonder dat het spelende nummer opnieuw begint.
+
+- **De knop "Sets" onderin de app navigeerde niet.** Nu wel.
+
+- Een tik op de minispeler opent op de telefoon nu een "Nu speelt"-scherm met cover, sterren, seekbar
+  en alle afspeelknoppen, met een eigen wachtrij-bottom-sheet.
+
+- **Management en Bibliotheek toonden soms "geen verbinding" terwijl de telefoon online was.** Eén
+  mislukte aanvraag zet de app niet meer blijvend offline.
+
+- **De app is dichter bevolkt op een telefoon.** Home scrollt nu horizontaal per rij in plaats van
+  verticaal per twee kaarten, overzichten tonen meer per scherm, en een ontbrekende cover valt niet
+  langer op als een groot wit vlak.
+
+- Op de telefoon nemen de filters van Songs, Sets en Playlists niet langer een half scherm in voordat de eerste rij komt. Genre, Jaar, Rating, Sorteren en een Ongewaardeerd-schakelaar staan nu in één horizontaal scrollbare rij chips; een actieve chip toont zijn waarde en is groen gevuld, met een × om hem te wissen. Een tik opent een van onderen inschuivend paneel (nieuw `BottomSheet.svelte`) met de opties, in plaats van een `<select>`. Zoeken is een loep-chip die uitklapt in plaats van een altijd zichtbaar veld. Playlists krijgt dezelfde aanpak: Favorieten/Alle/Van mij/Openbaar/Privé als chips in één rij, een sorteerchip met veld én richting in het paneel, en het aantal staat nu in de sectieregel ("296 playlists") in plaats van los rechts te zweven. De nummerlijst toont geen "TITLE"-kolomkop meer op de telefoon en de sterren staan onder de artiestnaam. Desktop blijft ongewijzigd.
+
+- De navigatie op de telefoon is nu Spotify-stijl: onderaan staan alleen nog Home, Zoeken en Bibliotheek — Songs/Sets is geen tab meer maar een modus-knop boven Home, Zoeken en Bibliotheek, Downloads is een keuzeknop in de Bibliotheek-tab geworden en Beheer zit in het profielmenu. De Zoeken-tab toont, zolang er niet gezocht wordt, een raster met alle sidebar-secties (genres, labels, podcasts, festivals, jaren, lineups, artiesten, albums, memories, geschiedenis, luisterstatistieken, favorieten) zodat niets van de desktop-sidebar op de telefoon onbereikbaar blijft. De desktop-indeling verandert niet.
+
+- Now Playing op de telefoon ligt nu echt bovenop: sluitknop, "speelt uit" en de knoppen
+  onderin zijn weer zichtbaar en bedienbaar.
+
+- De wachtrij op de telefoon is weer een gewone lijst: geen reuzenhoezen, geen zijwaarts
+  scrollen, en verwijderen/downloaden per nummer direct zichtbaar.
+
+- Je presets (Random Uptempo, Recent Hardstyle, …) staan nu bovenaan het startscherm van de
+  webspeler en de nieuwe interface op de telefoon. Nieuwe maak je met "Opslaan als preset" op
+  een gefilterde lijst.
+
+- **Uitloggen in de nieuwe interface op de telefoon werkt nu echt.** Voorheen leek de knop dood:
+  na het "uitloggen" was je meteen weer ingelogd.
+
+- Playlists werken nu ook zonder verbinding, net als de rest van de bibliotheek. Een oude,
+  ongebruikte kopie van de "alleen via wifi downloaden"-instelling is opgeruimd.
+
+- MuMa Voice werkt nu ook in de nieuwe interface: een microfoon op het zoektabblad, en dezelfde
+  vraag-en-antwoord-flow als op de telefoon als een naam dubbelzinnig is.
+
+- De webspeler is van binnen opgeruimd: het afspelen zelf staat nu los van het scherm eromheen,
+  zodat de telefoon-app er later dezelfde code voor kan gebruiken. Aan wat je ziet of hoort
+  verandert niets.
+
+- Sets krijgen ±30 s-knoppen, een h:mm:ss-tijdweergave en een sleepbare seekbalk in de speler, en
+  onthouden voortaan waar je gebleven was — op elk apparaat.
+
+- De webspeler heeft nu een rijscherm: grote knoppen, sterren om te beoordelen en snelle
+  genre-mixtegels, dat zelf opent zodra de telefoon een gekoppelde auto ziet.
+
+- Radio en het nieuws van het uur werken nu ook op de telefoon in de nieuwe interface.
+
+- Shuffle en herhalen werken nu ook echt in de nieuwe interface op de telefoon, en de muziek stopt
+  niet meer zomaar aan het einde van een wachtrij met herhalen aan.
+
+- **In de nieuwe interface op de telefoon begon een aangetikt nummer niet te spelen.** Nu wel.
+
+- **Mappen met `.mp3` in de naam worden niet langer als nummer ingelezen.** Ze leverden elke
+  tagronde dezelfde foutmelding op.
 ## Global Version 0.60.2 (2026-09-11)
 
 - **LMS stierf zodra een andere schrijver zijn database vasthield.** De verbinding zette

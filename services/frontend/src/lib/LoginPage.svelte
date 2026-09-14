@@ -2,6 +2,8 @@
   import { t, locale } from './i18n/index.js';
   import MumaMark from './MumaMark.svelte';
   import { credentials, mumaApiUrl, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser } from './store.js';
+  import { signIn } from './login.js';
+  import { platform } from './platform/index.js';
 
   let username = $state('');
   let password = $state('');
@@ -9,13 +11,28 @@
   let isLoading = $state(false);
   let setupRequired = $state(false);
 
+  // The browser knows its server: the page came from it. Inside the Android
+  // shell the page came from `https://localhost`, so the server is a field --
+  // prefilled from what the phone is signed in to, and editable, because a
+  // first run against a new server is exactly when it is wrong.
+  const isNative = platform.system.isNative;
+  let server = $state('');
+
+  /**
+   * Points the app at the typed server before anything is verified against it.
+   * Native only; on the web `credentials.url` is derived from the location and
+   * must stay that way.
+   */
+  function applyServer() {
+    if (!isNative) return;
+    credentials.update(c => ({ ...c, url: server.trim().replace(/\/+$/, '') }));
+  }
+
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   let requestStatus = $state(null); // 'unknown', 'pending', 'approved', 'rejected'
   let googleUser = $state(null);
   let googleRequest = $state(null);
   let idToken = '';
-
-  const SUBSONIC_BASE = import.meta.env.VITE_SUBSONIC_URL || (import.meta.env.DEV ? '' : window.location.origin);
 
   /**
    * Verifies the provided credentials by pinging the Subsonic API.
@@ -23,41 +40,49 @@
   async function verifyLogin() {
     error = '';
     isLoading = true;
+    applyServer();
 
-    const params = `u=${encodeURIComponent(username)}&p=${encodeURIComponent(password)}&v=1.12.0&c=spotify&f=json`;
-    try {
-      const response = await fetch(`${SUBSONIC_BASE}/rest/ping?${params}`);
-      const data = await response.json();
-
-      if (data['subsonic-response'] && data['subsonic-response'].status === 'ok') {
-        // Also try to login to music-manager to get permissions
-        try {
-          const loginRes = await fetch(`${$mumaApiUrl}/api/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-          });
-          if (loginRes.ok) {
-            const loginData = await loginRes.json();
-            mumaApiKey.set(loginData.api_key);
-            mumaRefreshToken.set(loginData.refresh_token);
-            userPermissions.set(loginData.user.permissions);
-            mumaUser.set(loginData.user);
-            mumaSessionActive.set(true);
-          }
-        } catch (e) {
-          console.warn('Management API login failed during Subsonic login', e);
-        }
-        save();
-      } else {
-        const errorMsg = data['subsonic-response']?.error?.message || $t('login.invalidCredentials');
-        error = `Fout: ${errorMsg}`;
-      }
-    } catch (e) {
-      error = $t('login.noServerConnection');
-    } finally {
-      isLoading = false;
+    // `signIn` is the one sign-in path in the app: this screen and the Android
+    // shell's silent boot login both go through it, so "signed in" has one
+    // definition. It never throws; a failure comes back as a reason and this
+    // screen turns it into a sentence.
+    const result = await signIn(username, password);
+    if (!result.ok) {
+      error = result.reason === 'offline'
+        ? $t('login.noServerConnection')
+        : `Fout: ${result.message || $t('login.invalidCredentials')}`;
+    } else if (isNative) {
+      // Writes the pair back to Kotlin, so downloads, Android Auto and the legacy UI see the
+      // same session -- without this a sign-in typed here only ever lived in the WebView, and
+      // a `switchToLegacyUi()` or a download right after would still look logged out.
+      await saveNativeCredentials(username, password);
     }
+    isLoading = false;
+  }
+
+  /**
+   * Persists a verified pair to the phone. Never lets a bridge failure surface as a login error:
+   * the web session is already live at this point, and losing the native copy only degrades the
+   * native-only features, it does not undo the sign-in.
+   *
+   * @param {string} verifiedUsername
+   * @param {string} verifiedPassword
+   */
+  async function saveNativeCredentials(verifiedUsername, verifiedPassword) {
+    try {
+      await platform.system.saveCredentials({
+        url: server,
+        username: verifiedUsername,
+        password: verifiedPassword,
+      });
+    } catch (e) {
+      console.warn('Could not save the verified credentials back to the phone', e);
+    }
+  }
+
+  /** Gives the phone back to the Kotlin interface. Native only. */
+  function backToLegacyUi() {
+    platform.system.switchToLegacyUi();
   }
 
   /**
@@ -99,6 +124,13 @@
 
   /**
    * Handles the response from Google Identity Services.
+   *
+   * Known gap, not fixed here: unlike {@link verifyLogin}, this path never calls
+   * `platform.system.saveCredentials()`. A Google sign-in performed inside the Capacitor shell
+   * therefore only ever updates the web session -- Kotlin keeps whatever it had before (or
+   * nothing, on a first sign-in), so downloads, Android Auto and the legacy UI do not pick up an
+   * account that was only ever confirmed through Google here. A password sign-in on this same
+   * screen is unaffected and does push through.
    */
   async function handleGoogleResponse(response) {
     idToken = response.credential;
@@ -188,6 +220,9 @@
         username = $credentials.username;
         password = $credentials.password;
     }
+    if (isNative) {
+        server = platform.system.serverUrl().subsonic || $credentials.url;
+    }
 
     if (GOOGLE_CLIENT_ID) {
       const script = document.createElement('script');
@@ -275,6 +310,13 @@
         <div class="bg-[#e91429] text-white p-3 rounded-lg text-sm font-medium">{error}</div>
       {/if}
 
+      {#if isNative}
+        <div class="flex flex-col gap-2">
+          <label for="server" class="text-xs font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('login.server')}</label>
+          <input id="server" type="url" inputmode="url" autocomplete="url" value={server} oninput={(e) => server = e.target.value} placeholder="https://muma.example" class="bg-[#2a2a2a] border border-transparent rounded-lg p-3 text-white text-sm focus:outline-none focus:border-[#1db954] disabled:opacity-50" disabled={isLoading} />
+          <p class="text-[11px] text-[#b3b3b3] m-0">{$t('login.serverHint')}</p>
+        </div>
+      {/if}
       <div class="flex flex-col gap-2">
         <label for="username" class="text-xs font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('login.username')}</label>
         <input id="username" type="text" value={username} oninput={(e) => username = e.target.value} placeholder={$t('login.username')} class="bg-[#2a2a2a] border border-transparent rounded-lg p-3 text-white text-sm focus:outline-none focus:border-[#1db954] disabled:opacity-50" disabled={isLoading} />
@@ -296,6 +338,14 @@
 
         <div id="googleBtn" class="flex justify-center w-full"></div>
       {/if}
+    {/if}
+
+    {#if isNative}
+      <!-- The Kotlin interface is still in the APK and still the default; this
+           is the way back out of the beta without reinstalling anything. -->
+      <button class="text-[#b3b3b3] text-sm hover:underline bg-transparent border-none cursor-pointer mt-2" onclick={backToLegacyUi}>
+        {$t('login.backToLegacyUi')}
+      </button>
     {/if}
   </div>
 </div>

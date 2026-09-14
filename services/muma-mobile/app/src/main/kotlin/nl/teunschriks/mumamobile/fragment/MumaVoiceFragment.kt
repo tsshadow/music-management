@@ -76,10 +76,11 @@ import timber.log.Timber
  * words: [VoiceExplanation] exists because the object a request resolves to prints itself as the
  * server's JSON, and that is unreadable at exactly the moment it matters.
  *
- * A `ScopeFragment` rather than a plain one, because [MediaPlayerManager] is scoped to the hosting
- * `NavigationActivity` and a plain fragment injects from the root scope, where it is not. The
- * injection is lazy, so getting that wrong costs nothing until the moment something resolves and
- * this screen actually has music to start.
+ * A `ScopeFragment` like every other screen here. It had to be one when [MediaPlayerManager] was
+ * scoped to the hosting `NavigationActivity`: a plain fragment injects from the root scope, where
+ * the player was not, and the injection is lazy, so that cost nothing until the moment this screen
+ * actually had music to start. The player is application-scoped now and a plain fragment would
+ * resolve it fine; the scope stays for consistency with the rest of the fragments.
  */
 class MumaVoiceFragment : ScopeFragment() {
 
@@ -477,6 +478,7 @@ class MumaVoiceFragment : ScopeFragment() {
         EntityKind.ARTIST -> R.string.muma_voice_kind_artist
         EntityKind.ALBUM -> R.string.muma_voice_kind_album
         EntityKind.PLAYLIST -> R.string.muma_voice_kind_playlist
+        EntityKind.FESTIVAL -> R.string.muma_voice_kind_festival
     }
 
     private fun labelOf(field: VoiceExplanation.Field): Int = when (field) {
@@ -487,6 +489,7 @@ class MumaVoiceFragment : ScopeFragment() {
         VoiceExplanation.Field.ALBUM -> R.string.voice_explain_album
         VoiceExplanation.Field.PLAYLIST -> R.string.voice_explain_playlist
         VoiceExplanation.Field.YEAR -> R.string.voice_explain_year
+        VoiceExplanation.Field.FESTIVAL -> R.string.voice_explain_festival
         VoiceExplanation.Field.RATING -> R.string.voice_explain_rating
         VoiceExplanation.Field.SETS -> R.string.voice_explain_sets
         VoiceExplanation.Field.ORDER -> R.string.voice_explain_order

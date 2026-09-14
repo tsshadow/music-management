@@ -37,45 +37,6 @@ fun wizardCatalog(context: Context): List<WizardStep> = listOf(
         control = WizardControl.Jump(R.id.serverSelectorFragment)
     ),
     WizardStep(
-        id = "style",
-        titleRes = R.string.wizard_step_style_title,
-        bodyRes = R.string.wizard_step_style_body,
-        imageRes = null,
-        introducedIn = 0,
-        control = WizardControl.Choice(
-            prefKey = context.getString(R.string.setting_key_style),
-            entriesRes = R.array.styleNames,
-            valuesRes = R.array.styleValues,
-            default = context.getString(R.string.setting_key_style_spotify)
-        )
-    ),
-    WizardStep(
-        id = "app_icon",
-        titleRes = R.string.wizard_step_app_icon_title,
-        bodyRes = R.string.wizard_step_app_icon_body,
-        imageRes = null,
-        introducedIn = 0,
-        control = WizardControl.Choice(
-            prefKey = context.getString(R.string.setting_key_app_icon),
-            entriesRes = R.array.appIconNames,
-            valuesRes = R.array.appIconValues,
-            default = context.getString(R.string.setting_key_app_icon_green)
-        )
-    ),
-    WizardStep(
-        id = "ui_scale",
-        titleRes = R.string.wizard_step_ui_scale_title,
-        bodyRes = R.string.wizard_step_ui_scale_body,
-        imageRes = null,
-        introducedIn = 0,
-        control = WizardControl.Choice(
-            prefKey = context.getString(R.string.setting_key_ui_scale),
-            entriesRes = R.array.uiScaleNames,
-            valuesRes = R.array.uiScaleValues,
-            default = "75"
-        )
-    ),
-    WizardStep(
         id = "memories",
         titleRes = R.string.wizard_step_memories_title,
         bodyRes = R.string.wizard_step_memories_body,
@@ -113,17 +74,6 @@ fun wizardCatalog(context: Context): List<WizardStep> = listOf(
         control = WizardControl.Toggle(
             prefKey = context.getString(R.string.setting_key_wifi_required_for_download),
             default = false
-        )
-    ),
-    WizardStep(
-        id = "now_playing",
-        titleRes = R.string.wizard_step_now_playing_title,
-        bodyRes = R.string.wizard_step_now_playing_body,
-        imageRes = null,
-        introducedIn = 0,
-        control = WizardControl.Toggle(
-            prefKey = context.getString(R.string.setting_key_show_now_playing),
-            default = true
         )
     ),
     WizardStep(

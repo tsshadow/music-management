@@ -1,8 +1,16 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount, untrack } from 'svelte';
-  import { authParams, activeView, currentTrack, playlist, viewMode, activeModal } from './store.js';
+  import { activeView, currentTrack, playlist, viewMode, activeModal } from './store.js';
+  import { listOf, subsonicJson } from './subsonic.js';
   import SearchResults from './SearchResults.svelte';
+
+  // Bindable so the shell's Android back handler can dismiss the results panel
+  // from the outside (via `searchResultsOpen` in the store, bound by TopBar)
+  // without SearchBar knowing anything about the shell. Every existing caller
+  // renders SearchBar without binding it, which leaves this exactly the local
+  // `$state` it always was.
+  let { showResults = $bindable(false) } = $props();
 
   let query = $state('');
   let results = $state({});
@@ -11,7 +19,6 @@
   let filteredLabels = $state([]);
   let allLabels = $state([]);
   let loading = $state(false);
-  let showResults = $state(false);
   let debounceTimer;
   let searchController;
 
@@ -36,9 +43,12 @@
     loading = true;
     try {
       // Search for artists, albums, and songs
-      const durationFilter = $viewMode === 'sets' ? '&minDuration=10' : '&maxDuration=10';
-      const response = await fetch(`/rest/search3?${$authParams}&query=${encodeURIComponent(query)}&artistCount=20&albumCount=20&songCount=20${durationFilter}`, { signal });
-      const data = await response.json();
+      const durationFilter = $viewMode === 'sets' ? { minDuration: 10 } : { maxDuration: 10 };
+      const data = await subsonicJson(
+        'search3',
+        { query, artistCount: 20, albumCount: 20, songCount: 20, ...durationFilter },
+        { signal }
+      );
       results = data['subsonic-response']?.searchResult3 || {};
 
       // Filter genres and labels locally
@@ -88,9 +98,7 @@
    */
   async function loadAllGenres() {
     try {
-      const response = await fetch(`/rest/getGenres?${$authParams}`);
-      const data = await response.json();
-      const genreList = data['subsonic-response']?.genres?.genre || [];
+      const genreList = listOf(await subsonicJson('getGenres'), 'genres.genre');
       allGenres = genreList.map(g => typeof g === 'string' ? g : (g.value || g.name));
     } catch (e) {
       console.error("Failed to load genres for search:", e);
@@ -102,9 +110,7 @@
    */
   async function loadAllLabels() {
     try {
-      const response = await fetch(`/rest/getRecordLabels?${$authParams}`);
-      const data = await response.json();
-      const labelList = data['subsonic-response']?.recordLabels?.recordLabel || [];
+      const labelList = listOf(await subsonicJson('getRecordLabels'), 'recordLabels.recordLabel');
       allLabels = labelList.map(l => typeof l === 'string' ? l : (l.value || l.name));
     } catch (e) {
       console.error("Failed to load labels for search:", e);

@@ -59,7 +59,6 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 import nl.teunschriks.mumamobile.R
-import nl.teunschriks.mumamobile.activity.NavigationActivity
 import nl.teunschriks.mumamobile.app.UApp.Companion.applicationContext
 import nl.teunschriks.mumamobile.domain.Bookmark
 import nl.teunschriks.mumamobile.domain.MusicDirectory
@@ -761,7 +760,7 @@ object Util {
     }
 
     fun getPendingIntentToShowPlayer(context: Context): PendingIntent {
-        val intent = Intent(context, NavigationActivity::class.java)
+        val intent = UiVariant.launchIntent(context)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         intent.putExtra(Constants.INTENT_SHOW_PLAYER, true)

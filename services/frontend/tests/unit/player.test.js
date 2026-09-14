@@ -6,6 +6,7 @@ import {
   credentials,
   currentTrack,
   isMobile,
+  nowPlayingOpen,
   playerState,
   playlist,
   radioChannel,
@@ -60,6 +61,7 @@ describe("Player", () => {
     syncMode.set("off");
     radioChannel.set(null);
     isMobile.set(false);
+    nowPlayingOpen.set(false);
     globalThis.fetch = api();
     // jsdom has no real audio pipeline.
     window.HTMLMediaElement.prototype.play = vi.fn(async () => {});
@@ -187,6 +189,112 @@ describe("Player", () => {
     await fireEvent.click(screen.getByLabelText("Vorige"));
 
     expect(get(currentTrack)).toEqual(FIRST);
+  });
+
+  describe("Now Playing", () => {
+    it("opens on a tap on the mobile mini player", async () => {
+      isMobile.set(true);
+      renderPlayer();
+      expect(screen.queryByTestId("now-playing")).toBeNull();
+
+      await fireEvent.click(screen.getByText("Raise Your Fist"));
+
+      expect(screen.getByTestId("now-playing")).toBeTruthy();
+      expect(get(nowPlayingOpen)).toBe(true);
+    });
+
+    it("does not open from a tap on the play or next button", async () => {
+      isMobile.set(true);
+      renderPlayer();
+
+      await fireEvent.click(screen.getByLabelText("Afspelen"));
+      await fireEvent.click(screen.getAllByLabelText("Volgende")[0]);
+
+      expect(screen.queryByTestId("now-playing")).toBeNull();
+      expect(get(nowPlayingOpen)).toBe(false);
+    });
+
+    it("never opens on the desktop layout, even if asked to", () => {
+      isMobile.set(false);
+      nowPlayingOpen.set(true);
+
+      renderPlayer();
+
+      expect(screen.queryByTestId("now-playing")).toBeNull();
+    });
+
+    it("closes on its own chevron", async () => {
+      // closeNowPlaying() also consumes the history entry openNowPlaying()
+      // pushed; a real history.back() in jsdom is not what this test is
+      // about, so it is stubbed the same way SidebarHeader's test does.
+      vi.spyOn(window.history, "back").mockImplementation(() => {});
+      isMobile.set(true);
+      renderPlayer();
+      await fireEvent.click(screen.getByText("Raise Your Fist"));
+      expect(screen.getByTestId("now-playing")).toBeTruthy();
+
+      await fireEvent.click(screen.getByLabelText("Sluiten"));
+
+      expect(screen.queryByTestId("now-playing")).toBeNull();
+      expect(get(nowPlayingOpen)).toBe(false);
+    });
+  });
+
+  describe("lyrics", () => {
+    /** Answers `getLyricsBySongId` with structured lyrics, everything else as usual. */
+    function lyricsApi(lines) {
+      return vi.fn(async (url) => {
+        if (url.includes("/rest/getLyricsBySongId")) {
+          return {
+            ok: true,
+            json: async () => ({
+              "subsonic-response": {
+                status: "ok",
+                lyricsList: { structuredLyrics: { line: lines.map((value) => ({ value })) } },
+              },
+            }),
+          };
+        }
+        return { ok: true, json: async () => ({ "subsonic-response": { status: "ok" } }) };
+      });
+    }
+
+    it("shows a desktop lyrics button once LMS answers with lines for the track", async () => {
+      globalThis.fetch = lyricsApi(["Raise your fist", "in the air"]);
+      isMobile.set(false);
+      renderPlayer();
+
+      await waitFor(() => expect(screen.queryByLabelText("Lyrics")).toBeTruthy());
+
+      await fireEvent.click(screen.getByLabelText("Lyrics"));
+
+      expect(screen.getByText("Raise your fist")).toBeTruthy();
+      expect(screen.getByText("in the air")).toBeTruthy();
+    });
+
+    it("shows no lyrics affordance when LMS has none for the track", async () => {
+      globalThis.fetch = api();
+      isMobile.set(false);
+      renderPlayer();
+
+      // Lets the (empty) lyrics fetch settle before asserting its absence.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(screen.queryByLabelText("Lyrics")).toBeNull();
+    });
+
+    it("offers lyrics from the phone's Now Playing sheet once LMS answers with some", async () => {
+      globalThis.fetch = lyricsApi(["One line only"]);
+      isMobile.set(true);
+      renderPlayer();
+      await fireEvent.click(screen.getByText("Raise Your Fist"));
+      expect(screen.getByTestId("now-playing")).toBeTruthy();
+
+      await waitFor(() => expect(screen.queryByLabelText("Lyrics")).toBeTruthy());
+      await fireEvent.click(screen.getByLabelText("Lyrics"));
+
+      expect(screen.getByText("One line only")).toBeTruthy();
+    });
   });
 
   describe("news of the hour", () => {

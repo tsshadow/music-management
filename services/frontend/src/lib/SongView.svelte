@@ -1,7 +1,7 @@
 <script>
   import { t } from './i18n/index.js';
-  import { authParams } from './store.js';
   import TrackList from './TrackList.svelte';
+  import { listOf, subsonicJson } from './subsonic.js';
 
   /**
    * One song and every file of it.
@@ -56,18 +56,19 @@
     let offset = 0;
     try {
       while (collected.length < MAX_VERSIONS) {
-        const response = await fetch(
-          `/rest/getSpotifyTracks?workId=${id}&count=${PAGE_SIZE}&offset=${offset}&${$authParams}`,
-        );
-        const data = await response.json();
+        const data = await subsonicJson('getSpotifyTracks', {
+          workId: id,
+          count: PAGE_SIZE,
+          offset
+        });
         // Subsonic answers its own failures with HTTP 200 and an error in the body, so the
         // status in the body is the only thing that says this worked.
         const payload = data?.['subsonic-response'];
-        if (!response.ok || payload?.status !== 'ok') {
-          throw new Error(payload?.error?.message || response.statusText || 'failed');
+        if (payload?.status !== 'ok') {
+          throw new Error(payload?.error?.message || 'failed');
         }
-        const result = payload.tracks?.track || [];
-        collected.push(...(Array.isArray(result) ? result : [result]));
+        const result = listOf(data, 'tracks.track');
+        collected.push(...result);
 
         const more = payload.tracks?.moreResults;
         if (!(more === true || more === 'true') || result.length === 0) break;

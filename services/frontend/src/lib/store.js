@@ -38,8 +38,21 @@ function persist(key, store, options = {}) {
   });
 }
 
+/**
+ * The Subsonic base a fresh browser session starts with: an explicit
+ * per-deployment override, empty during `vite dev` (the dev server proxies
+ * `/rest/*` itself, so a relative URL is exactly right), or the page's own
+ * origin otherwise. `restUrl()` below falls back to the same origin at
+ * request time, so this and that fallback always agree.
+ *
+ * @returns {string}
+ */
+export function defaultSubsonicUrl() {
+  return import.meta.env.VITE_SUBSONIC_URL || (import.meta.env.DEV ? "" : window.location.origin);
+}
+
 export const credentials = writable({
-  url: import.meta.env.VITE_SUBSONIC_URL || (import.meta.env.DEV ? "" : window.location.origin),
+  url: defaultSubsonicUrl(),
   username: "",
   password: "",
 });
@@ -49,6 +62,25 @@ export const mumaApiUrl = writable(
   import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "" : "/muma"),
 );
 persist("muma_api_url", mumaApiUrl);
+
+/**
+ * Builds an absolute Subsonic (`/rest/*`) URL from `credentials.url`, so a
+ * request reaches the configured server even when the page it runs on does
+ * not share that origin -- inside the Capacitor shell the page origin is
+ * `https://localhost`, so a bare `fetch('/rest/...')` would resolve against
+ * the WebView instead of the music server.
+ *
+ * In the browser today `credentials.url` already holds the page's own
+ * origin (see `defaultSubsonicUrl` above), so this produces exactly the
+ * string a relative fetch would have hit: no behaviour change there.
+ *
+ * @param {string} pathAndQuery - Starting with `/`, e.g. `/rest/ping?u=...`.
+ * @returns {string}
+ */
+export function restUrl(pathAndQuery) {
+  const base = get(credentials).url || window.location.origin;
+  return `${base.replace(/\/+$/, "")}${pathAndQuery}`;
+}
 
 export const mumaApiKey = writable("");
 persist("muma_api_key", mumaApiKey);
@@ -163,6 +195,13 @@ persist("lms_active_management_tab", activeManagementTab);
 // a reload would cover the screen on arrival.
 export const sidebarDrawerOpen = writable(false);
 
+// Whether SearchBar's results panel is currently open, mirrored out of its own
+// component state. The phone shell's Android back handler needs this to close
+// a search result before it falls through to leaving the Search tab -- and it
+// lives in `App.svelte`, not inside SearchBar, so it cannot just read a local
+// `$state`. Deliberately not persisted: a reload starts with nothing open.
+export const searchResultsOpen = writable(false);
+
 export const isMobile = writable(false);
 export const syncMode = writable("off"); // 'off', 'host', 'follower-jam', 'follower-radio'
 persist("lms_sync_mode", syncMode);
@@ -215,6 +254,44 @@ persist("lms_track_page_size", trackPageSize);
 export const pushedHistoryEntries = writable(0);
 
 export const activeModal = writable(null); // { type, data }
+
+// The phone's full-screen Now Playing overlay, opened from a tap on the mini
+// player. Deliberately not persisted, like the other overlay flags above -- a
+// reload should land on whatever page it lands on, not re-open on top of it.
+export const nowPlayingOpen = writable(false);
+
+/**
+ * Opens Now Playing and pushes a history entry for it, so a browser/shell back
+ * press closes the overlay instead of leaving the page underneath. Mirrors the
+ * view-path effect in `App.svelte`, which does the same for a real navigation.
+ */
+export function openNowPlaying() {
+  nowPlayingOpen.set(true);
+  window.history.pushState({}, "");
+  pushedHistoryEntries.update((n) => n + 1);
+}
+
+/**
+ * Closes Now Playing: the chevron, a swipe on the cover, and the shell/browser
+ * back button all call this.
+ *
+ * The store flips straight away, so the view closes the instant any of those
+ * fires rather than waiting on a `popstate` round-trip. When opening it also
+ * pushed a history entry (the normal case), that entry is still there and has
+ * to be consumed or the next back press hits it for no visible reason -- so
+ * this also calls `history.back()`, purely to balance the stack. By the time
+ * that `popstate` actually arrives, `nowPlayingOpen` already reads `false`, so
+ * the listener in `App.svelte` takes its ordinary branch instead of closing
+ * anything a second time; it still does the one thing that matters there,
+ * decrementing `pushedHistoryEntries` to match. See `SidebarHeader.svelte` for
+ * the same back-consuming pattern used for a real navigation entry.
+ */
+export function closeNowPlaying() {
+  nowPlayingOpen.set(false);
+  if (get(pushedHistoryEntries) > 0) {
+    window.history.back();
+  }
+}
 
 export const visibleSortOptions = writable({
   songs: ["recent", "added", "mostplayed", "recentlyplayed", "rating", "alpha", "random"],
@@ -289,7 +366,7 @@ async function checkAdminStatus(creds) {
   try {
     const params = `u=${encodeURIComponent(creds.username)}&p=${encodeURIComponent(creds.password)}&v=1.12.0&c=spotify&f=json`;
     const resp = await fetch(
-      `/rest/getUser?${params}&username=${encodeURIComponent(creds.username)}`,
+      restUrl(`/rest/getUser?${params}&username=${encodeURIComponent(creds.username)}`),
     );
     const data = await resp.json();
     subsonicIsAdmin.set(data["subsonic-response"]?.user?.adminRole === true);
@@ -430,6 +507,79 @@ const syncedFavoriteLists = {
 };
 
 /**
+ * Every store built by {@link accountSetting}, keyed by the same string the account's `frontend`
+ * blob uses. Populated by each call below the account-setting stores are declared with; a plain
+ * array rather than an object because two settings sharing a key would be a bug worth a duplicate
+ * entry surfacing, not a silent overwrite.
+ *
+ * @type {Array<{key: string, store: import('svelte/store').Writable}>}
+ */
+const accountSettingStores = [];
+
+/**
+ * Creates one account-level setting: a writable persisted to localStorage under `lms_${key}` (so
+ * it survives a reload before any account is known, same as every other store above) and, once a
+ * user is signed in, synced to that account's `frontend` settings blob under `key` -- the same
+ * plumbing `trackPageSize` above hand-wrote, generalised so a new setting is one call instead of
+ * another copy of it. Registered in {@link accountSettingStores} so {@link applyAccountSettings}
+ * picks it up too.
+ *
+ * Like `trackPageSize`, a value is only ever read from the account, never seeded from whatever the
+ * store defaulted to locally: an account that has never chosen has not chosen, and writing the
+ * default back would make every login look like a deliberate pick.
+ *
+ * @param {string} key
+ * @param {any} defaultValue
+ * @returns {import('svelte/store').Writable}
+ */
+function accountSetting(key, defaultValue) {
+  const store = writable(defaultValue);
+  persist(`lms_${key}`, store);
+  accountSettingStores.push({ key, store });
+
+  let saveTimer = null;
+  store.subscribe(($value) => {
+    if (applyingAccountSettings || !syncedUserId) return;
+    const userId = syncedUserId;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => saveFrontendSetting(userId, key, $value), 400);
+  });
+  return store;
+}
+
+// Ported from the Kotlin device-settings screen (see docs/designs/universal-ui/functional.md,
+// "Device settings"): these used to be a per-phone SharedPreferences value and are now a
+// per-account one, so they follow a login to the web and to a second phone alike.
+// home_mode_memories is not among these: memoriesOnHomeEnabled above already covers it and
+// predates this change.
+export const homeShortcutCount = accountSetting("homeShortcutCount", 8);
+export const homeListCount = accountSetting("homeListCount", 5);
+export const separateHomeHistory = accountSetting("separateHomeHistory", true);
+export const homeModeReleaseRadar = accountSetting("homeModeReleaseRadar", "BUTTON");
+export const homeModeDailyMix = accountSetting("homeModeDailyMix", "BUTTON");
+export const homeCountDailyMix = accountSetting("homeCountDailyMix", 2);
+export const homeModeFavorites = accountSetting("homeModeFavorites", "OFF");
+export const homeCountFavorites = accountSetting("homeCountFavorites", 4);
+export const homeModeShortcuts = accountSetting("homeModeShortcuts", "OVERVIEW");
+export const homeModeRecentlyReleased = accountSetting("homeModeRecentlyReleased", "OVERVIEW");
+export const homeModeRecentlyAdded = accountSetting("homeModeRecentlyAdded", "OVERVIEW");
+
+// "Weergave" (display). canonical_only is not among these: deduplicateEnabled above already
+// covers it (one row per song version) and predates this change; it is not yet synced to the
+// account the way these are.
+export const showTrackNumber = accountSetting("showTrackNumber", false);
+export const trackListLines = accountSetting("trackListLines", 2);
+export const displayBitrateWithArtist = accountSetting("displayBitrateWithArtist", true);
+export const discSort = accountSetting("discSort", false);
+export const genreTrackLimit = accountSetting("genreTrackLimit", 100);
+
+// The set-size download confirmation TrackList.svelte already shows unconditionally; this is what
+// lets it be switched off. Defaults to true, not the legacy preference's false: the web has always
+// confirmed here with no toggle at all, and defaulting this new one to false would silently turn
+// that off for every existing user the first time this ships.
+export const showConfirmationDialog = accountSetting("showConfirmationDialog", true);
+
+/**
  * Applies `userId`'s account settings to the local stores. Anything the
  * account doesn't have yet is uploaded from the local value instead, so a
  * pre-existing local-only choice isn't lost the first time this user logs in
@@ -439,6 +589,14 @@ const syncedFavoriteLists = {
  */
 async function applyAccountSettings(userId) {
   const settings = await loadFrontendSettings(userId);
+
+  for (const { key, store } of accountSettingStores) {
+    if (settings && key in settings) {
+      applyingAccountSettings = true;
+      store.set(settings[key]);
+      applyingAccountSettings = false;
+    }
+  }
 
   for (const [key, store] of Object.entries(syncedFavoriteLists)) {
     if (settings && Array.isArray(settings[key])) {

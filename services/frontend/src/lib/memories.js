@@ -50,7 +50,7 @@ export function memoriesUrl(authParams, { date = localDateString(), year } = {})
 }
 
 /**
- * Normalises a `/rest/getMemories` response into year groups.
+ * Normalises a `getMemories` response into year groups.
  *
  * The Subsonic JSON encoding collapses a single-element array into a bare object, so both the
  * `memory` list and each group's `song` list are coerced back into arrays here.

@@ -44,3 +44,22 @@ body {
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
 }
+
+/*
+ * A missing cover falls back to the MuMa mark (spotify-fallback.svg). Stretched edge-to-edge with
+ * `object-cover` it reads as a giant, blinding blank tile on a phone, where a shelf can show a
+ * dozen of them at once. Below Tailwind's `md` breakpoint only -- desktop, where a placeholder is
+ * one tile among a normal-density grid, is untouched.
+ */
+@media (max-width: 767px) {
+  /* Fluid tiles only (`w-full`): the percentage padding resolves against the containing block,
+     and a fixed-size thumbnail (`w-12` in a track row, `w-11` in the mini player) sits in a
+     block as wide as the row, so 18% of that made a 48px cover ~240px and the row with it. The
+     thumbnails were never the blinding tile this rule is for; they keep the plain mark. */
+  img.w-full[src="/images/spotify-fallback.svg"] {
+    object-fit: contain;
+    padding: 18%;
+    opacity: 0.35;
+    background-color: rgba(0, 0, 0, 0.15);
+  }
+}

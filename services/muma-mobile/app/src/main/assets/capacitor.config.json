@@ -1,0 +1,20 @@
+{
+  "appId": "nl.teunschriks.mumamobile",
+  "appName": "MuMa",
+  "webDir": "dist",
+  "android": {
+    "path": "../muma-mobile",
+    "webContentsDebuggingEnabled": true
+  },
+  "server": {
+    "androidScheme": "http"
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    },
+    "CapacitorCookies": {
+      "enabled": true
+    }
+  }
+}

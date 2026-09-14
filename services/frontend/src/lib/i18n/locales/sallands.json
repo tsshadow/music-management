@@ -33,6 +33,7 @@
     "cancel": "Loat mer zitten",
     "close": "Dichtdoon",
     "closeModal": "Vensterken dichtdoon",
+    "closeSheet": "Paneelken dichtdoon",
     "download": "Binnenhaaln",
     "edit": "Bewarkn",
     "gotIt": "Duudelijk",
@@ -79,6 +80,7 @@
     "allGenres": "Alle soortn",
     "allRatings": "Alles",
     "allYears": "Alle joarn",
+    "genre": "Soort",
     "sortBy": "Sorteern op",
     "year": "Joar"
   },
@@ -119,6 +121,9 @@
       "other": "Vandage, {count} joar eleden"
     }
   },
+  "mobile": {
+    "browseAll": "Alles deurbladern"
+  },
   "nav": {
     "albums": "Albums",
     "artists": "Artiesten",
@@ -132,6 +137,7 @@
     "memories": "Herinneringen",
     "playlists": "Lieskes",
     "releaseRadar": "Nieuw binnen",
+    "search": "Zeuken",
     "sets": "Sets",
     "songs": "Nummers",
     "starred": "Favorieten"
@@ -141,6 +147,12 @@
     "none": "Nog gien bulletin opneumen",
     "play": "Nieuws van t uur",
     "playing": "Nieuws speult, tikke um terogge te gaon"
+  },
+  "nowPlaying": {
+    "close": "Dichtdoun",
+    "pause": "Pauze",
+    "play": "Ofspölen",
+    "playingFrom": "Speult van: {name}"
   },
   "player": {
     "next": "Volgende",
@@ -186,6 +198,9 @@
     "language": {
       "help": "De toal van de interface. Wörd bewaard bie oew account, dus hee giet mee noar oew aandere apparaten.",
       "title": "Toal"
+    },
+    "tabs": {
+      "device": "Apperaot"
     }
   },
   "sidebar": {

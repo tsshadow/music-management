@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import App from "../../src/App.svelte";
 import {
@@ -13,9 +13,11 @@ import {
   mumaSessionActive,
   mumaUser,
   playlist,
+  searchResultsOpen,
   viewMode,
 } from "../../src/lib/store.js";
 import { setLocaleFromAccount } from "../../src/lib/i18n/index.js";
+import { platform } from "../../src/lib/platform/index.js";
 
 /** Answers everything the shell and the home screen ask for. */
 function subsonic() {
@@ -53,6 +55,36 @@ function subsonic() {
   });
 }
 
+/**
+ * One tab of the phone's bottom bar.
+ *
+ * By its landmark, because the desktop sidebar renders its own "Nummers" and
+ * "Sets" too, on the mode switch, and clicking that one proves nothing about
+ * the tab strip.
+ *
+ * @param {string} label - The tab's visible label.
+ * @returns {HTMLElement}
+ */
+function bottomBarTab(label) {
+  return within(screen.getByRole("navigation", { name: "Navigatiebalk" })).getByRole("button", {
+    name: label,
+  });
+}
+
+/**
+ * One chip of the phone's Songs/Sets mode switch (`ModeChips.svelte`), shown
+ * above Home, Search and Library. Unlike the old bottom-bar tabs it replaced,
+ * a chip only ever sets `viewMode` -- it never navigates.
+ *
+ * @param {string} label - The chip's visible label.
+ * @returns {HTMLElement}
+ */
+function modeChip(label) {
+  return within(screen.getByRole("group", { name: "Modus wisselen" })).getByRole("button", {
+    name: label,
+  });
+}
+
 describe("App", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
@@ -63,6 +95,7 @@ describe("App", () => {
     playlist.set([]);
     isMobile.set(false);
     currentPlaylist.set(null);
+    searchResultsOpen.set(false);
     activeSettingsTab.set("general");
     activeManagementTab.set("overview");
     // Not mumaUser.set(null): store.js reads that as a logout and resets the
@@ -124,6 +157,62 @@ describe("App", () => {
     viewMode.set("sets");
 
     await waitFor(() => expect(get(activeView)).toBe("sets"));
+  });
+
+  // Unlike the old bottom-bar tab it replaced, the mode chip is a switch, not a
+  // destination: it changes the brand colour everywhere without moving the
+  // listener off the tab they were already standing on.
+  it("the Sets chip changes the mode without leaving the tab", async () => {
+    render(App);
+    await waitFor(() => expect(screen.getAllByText("Afspeellijsten").length).toBeGreaterThan(0));
+
+    await fireEvent.click(modeChip("Sets"));
+
+    await waitFor(() => expect(get(viewMode)).toBe("sets"));
+    expect(get(activeView)).toBe("home");
+    // The brand colour the whole app reads off the document.
+    expect(document.documentElement.classList.contains("mode-sets")).toBe(true);
+  });
+
+  it("the Nummers chip takes the app back out of set mode", async () => {
+    viewMode.set("sets");
+    render(App);
+    await waitFor(() => expect(screen.getAllByText("Afspeellijsten").length).toBeGreaterThan(0));
+
+    await fireEvent.click(modeChip("Nummers"));
+
+    await waitFor(() => expect(get(viewMode)).toBe("songs"));
+    expect(document.documentElement.classList.contains("mode-sets")).toBe(false);
+  });
+
+  it("the bottom bar's three tabs move between home, search and library", async () => {
+    render(App);
+    await waitFor(() => expect(screen.getAllByText("Afspeellijsten").length).toBeGreaterThan(0));
+
+    await fireEvent.click(bottomBarTab("Zoeken"));
+    await waitFor(() => expect(get(activeView)).toBe("search"));
+    expect(window.location.pathname).toBe("/search");
+    expect(screen.getByText("Alles doorbladeren")).toBeTruthy();
+
+    await fireEvent.click(bottomBarTab("Bieb"));
+    await waitFor(() => expect(get(activeView)).toBe("playlists"));
+    expect(window.location.pathname).toBe("/playlists");
+  });
+
+  // The mirror exists so the shell's Android back handler can close a search
+  // result before it falls through to leaving the tab (see App's
+  // `handleShellBack`); it must not stay stuck on true once the listener has
+  // already left some other way, or a later back press on another tab would
+  // wrongly read as "there is a result open here to close".
+  it("clears the mirrored search-results flag on leaving the Search tab", async () => {
+    render(App);
+    await waitFor(() => expect(screen.getAllByText("Afspeellijsten").length).toBeGreaterThan(0));
+    activeView.set("search");
+    searchResultsOpen.set(true);
+
+    activeView.set("home");
+
+    await waitFor(() => expect(get(searchResultsOpen)).toBe(false));
   });
 
   it("switching back to song mode moves the sets view along", async () => {
@@ -243,5 +332,71 @@ describe("App", () => {
     await waitFor(() =>
       expect(globalThis.fetch.mock.calls.some(([url]) => url.includes("/rest/search3"))).toBe(true),
     );
+  });
+
+  // `platform.system.carConnected`, wired to the car screen through the ported
+  // `car/CarModeSession.kt` (`lib/carMode.js`). `carConnected` and `carState` are spied on
+  // rather than driven through a fake bridge, the same shortcut `settingsNavigation.test.js`
+  // takes for `isNative` -- this is a browser `platform.system` in every test in this file,
+  // and the point here is only what App does with the events, not the bridge plumbing itself.
+  describe("car mode auto-open", () => {
+    afterEach(() => {
+      platform.system.isNative = false;
+    });
+
+    it("navigates to the car screen when the shell reports a connection", async () => {
+      platform.system.isNative = true;
+      let handler;
+      vi.spyOn(platform.system, "carConnected").mockImplementation((fn) => {
+        handler = fn;
+        return () => {};
+      });
+      vi.spyOn(platform.system, "carState").mockResolvedValue({ connected: false });
+
+      render(App);
+      await waitFor(() => expect(handler).toBeTruthy());
+
+      handler(true);
+
+      await waitFor(() => expect(screen.getByTestId("car-mode")).toBeTruthy());
+    });
+
+    it("does not reopen the screen after the driver closes it, until the next connection", async () => {
+      platform.system.isNative = true;
+      let handler;
+      vi.spyOn(platform.system, "carConnected").mockImplementation((fn) => {
+        handler = fn;
+        return () => {};
+      });
+      vi.spyOn(platform.system, "carState").mockResolvedValue({ connected: false });
+
+      render(App);
+      await waitFor(() => expect(handler).toBeTruthy());
+      handler(true);
+      await waitFor(() => expect(screen.getByTestId("car-mode")).toBeTruthy());
+
+      await fireEvent.click(screen.getByLabelText("Sluiten"));
+      await waitFor(() => expect(screen.queryByTestId("car-mode")).toBeNull());
+
+      // A duplicate report of the same connection -- `refreshManual()` re-publishing on
+      // the native side, say -- must not reopen a screen the driver just closed.
+      handler(true);
+      expect(screen.queryByTestId("car-mode")).toBeNull();
+
+      // A real disconnect and reconnect is the next trip, and offers it again.
+      handler(false);
+      handler(true);
+      await waitFor(() => expect(screen.getByTestId("car-mode")).toBeTruthy());
+    });
+
+    it("opens on a cold start already in the car", async () => {
+      platform.system.isNative = true;
+      vi.spyOn(platform.system, "carConnected").mockImplementation(() => () => {});
+      vi.spyOn(platform.system, "carState").mockResolvedValue({ connected: true });
+
+      render(App);
+
+      await waitFor(() => expect(screen.getByTestId("car-mode")).toBeTruthy());
+    });
   });
 });

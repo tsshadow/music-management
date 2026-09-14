@@ -1,8 +1,17 @@
 <script>
   import { locale, t, SUPPORTED_LOCALES } from '../i18n/index.js';
+  import { platform } from '../platform/index.js';
 
+  /**
+   * Sets the web UI's own language immediately, and tells the shell too -- fire-and-forget, same
+   * as `switchToLegacyUi` -- so native chrome (permission dialogs, share sheets) follows the pick
+   * rather than staying on whatever locale the device booted with. A browser tab's `setAppLocale`
+   * is a no-op; there is no native chrome there to begin with.
+   */
   function pick(event) {
-    locale.set(event.currentTarget.value);
+    const code = event.currentTarget.value;
+    locale.set(code);
+    platform.system.setAppLocale(code);
   }
 </script>
 

@@ -118,7 +118,8 @@ describe("PlaylistView", () => {
     render(PlaylistView, { onnavigate: vi.fn() });
 
     await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
-    expect(globalThis.fetch.mock.calls[0][0]).toContain("/rest/getPlaylist?id=pl-1");
+    expect(globalThis.fetch.mock.calls[0][0]).toContain("/rest/getPlaylist?");
+    expect(globalThis.fetch.mock.calls[0][0]).toContain("id=pl-1");
   });
 
   it("copes with a playlist holding a single track", async () => {

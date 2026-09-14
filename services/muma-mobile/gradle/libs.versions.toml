@@ -26,7 +26,7 @@ gson                   = "2.14.0"
 kotlinxSerializationJson = "1.11.0"
 lifecycleLivedataKtx   = "2.11.0"
 media                  = "1.8.0"
-navigation             = "2.10.0"
+navigation             = "2.10.1"
 credentials            = "1.6.0"
 googleid               = "1.2.0"
 security               = "1.1.0"
@@ -41,12 +41,17 @@ detekt                 = "1.23.8"
 documentFile           = "1.1.0"
 preferences            = "1.2.1"
 media3                 = "1.11.0"
+# Capacitor 9 does not exist as a release: npm carries 9.0.0-alpha.6 under the `next`
+# tag and Maven Central has nothing above 8.5.2 for com.capacitorjs:core. 8.5.2 is the
+# current stable, and the web side must install @capacitor/core and @capacitor/cli at the
+# same version -- the bridge and the JS runtime are one artefact split in two.
+capacitor              = "8.5.2"
 
 materialDesign         = "1.14.0"
 constraintLayout       = "2.2.2"
-room                   = "2.8.4"
+room                   = "2.8.5"
 kotlin                 = "2.4.20"
-ksp                    = "2.3.11"
+ksp                    = "2.3.12"
 kotlinxCoroutines      = "1.11.0"
 transition             = "1.7.1"
 viewModelKtx           = "2.11.0"
@@ -113,6 +118,7 @@ media3exoplayer         = { module = "androidx.media3:media3-exoplayer", version
 media3datasource        = { module = "androidx.media3:media3-datasource", version.ref = "media3" }
 media3okhttp            = { module = "androidx.media3:media3-datasource-okhttp", version.ref = "media3" }
 media3session           = { module = "androidx.media3:media3-session", version.ref = "media3" }
+capacitorCore           = { module = "com.capacitorjs:core", version.ref = "capacitor" }
 credentials            = { module = "androidx.credentials:credentials", version.ref = "credentials" }
 credentialsPlayServicesAuth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }
 googleid               = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }

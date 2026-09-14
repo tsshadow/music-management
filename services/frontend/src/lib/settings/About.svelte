@@ -1,7 +1,7 @@
 <script>
   import { t } from '../i18n/index.js';
   import { onMount } from 'svelte';
-  import { authParams } from '../store.js';
+  import { authParams, restUrl } from '../store.js';
 
   let version = $state('');
   let isLoading = $state(true);
@@ -12,7 +12,7 @@
    */
   async function loadInfo() {
     try {
-      const response = await fetch(`/rest/ping?${$authParams}`);
+      const response = await fetch(restUrl(`/rest/ping?${$authParams}`));
       const data = await response.json();
       const res = data['subsonic-response'];
       if (res) {
@@ -68,6 +68,15 @@
       <p class="text-[#b3b3b3] text-sm mt-6">
         {$t('settings.about.blurb')}
       </p>
+    </section>
+
+    <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+      <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.about.howItWorksTitle')}</h2>
+
+      <div>
+        <h3 class="text-white font-bold mb-1">{$t('settings.about.howCarModeTitle')}</h3>
+        <p class="text-[#b3b3b3] text-sm">{$t('settings.about.howCarModeBody')}</p>
+      </div>
     </section>
 
     <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">

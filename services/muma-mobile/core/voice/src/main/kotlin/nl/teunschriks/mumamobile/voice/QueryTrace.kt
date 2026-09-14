@@ -23,6 +23,9 @@ object VoiceEntryPoint {
     /** The voice screen's own field, for trying a request without speaking it. */
     const val TEXT_INPUT = "TextInput"
 
+    /** The Svelte voice screen, through `MumaSpeechPlugin.interpret`. Same pipeline, a third door. */
+    const val WEB_VOICE = "WebVoice"
+
     /**
      * The library's search box. Kept apart from [TEXT_INPUT] on purpose: the diagnostics screen
      * has to be able to tell someone looking for music from someone trying the parser out.

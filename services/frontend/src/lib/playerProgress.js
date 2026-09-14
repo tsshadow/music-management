@@ -4,7 +4,7 @@
  * `HTMLMediaElement.duration` is the honest answer whenever the browser has
  * worked one out, but it is `NaN` until the metadata lands and `Infinity` for a
  * stream that arrives chunked without a `Content-Length` -- which is what a
- * transcoding `/rest/stream` hands the LG TV browser. Both values turn every
+ * transcoding stream hands the LG TV browser. Both values turn every
  * `progress / duration` into `NaN` and pin the bar at zero width forever. The
  * track metadata already carries the length, so fall back to it.
  *
@@ -31,4 +31,56 @@ export function resolveDuration(elementDuration, trackDuration) {
 export function progressPercent(progress, duration) {
   if (!Number.isFinite(progress) || !Number.isFinite(duration) || duration <= 0) return 0;
   return Math.max(0, Math.min(100, (progress / duration) * 100));
+}
+
+/**
+ * Formats seconds into a "M:SS" string, shared between the mini player and the
+ * full-screen Now Playing view so a track's elapsed/total time reads the same
+ * everywhere.
+ *
+ * @param {number} seconds - Time in seconds.
+ * @returns {string} Formatted time string.
+ */
+export function formatTime(seconds) {
+  // `Infinity` as well as `NaN`: an endless stream reports one, and it would
+  // render as "Infinity:NaN".
+  if (!Number.isFinite(seconds)) return "0:00";
+  const min = Math.floor(seconds / 60);
+  const sec = Math.floor(seconds % 60);
+  return `${min}:${sec < 10 ? "0" : ""}${sec}`;
+}
+
+/**
+ * Formats seconds into "h:mm", the track list's own duration column in sets
+ * mode -- a set's length is the one thing worth the space on that row, and
+ * showing it in minutes alone (`formatTime`'s "125:33" for a two-hour file)
+ * is not the read a listener wants.
+ *
+ * @param {number} seconds - Time in seconds.
+ * @returns {string} Formatted "h:mm" string.
+ */
+export function formatHoursMinutes(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+  const total = Math.floor(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  return `${hours}:${minutes < 10 ? "0" : ""}${minutes}`;
+}
+
+/**
+ * Formats seconds into "h:mm:ss", the sets-mode scrub bar and full-screen
+ * player -- a set can run for two hours, and dropping the hour digit the way
+ * `formatTime` does for a song would read as a much shorter recording than
+ * it is.
+ *
+ * @param {number} seconds - Time in seconds.
+ * @returns {string} Formatted "h:mm:ss" string.
+ */
+export function formatClock(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00:00";
+  const total = Math.floor(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  return `${hours}:${minutes < 10 ? "0" : ""}${minutes}:${secs < 10 ? "0" : ""}${secs}`;
 }

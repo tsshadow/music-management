@@ -10,8 +10,15 @@ import { medianClockOffset, targetPosition, correction } from "./radioSync.js";
  * stream URL rather than seeking, so `srcOffset` tracks where the current
  * source begins.
  *
+ * `audio` may be null: on the native shell the platform service streams the channel and corrects
+ * its own drift against the server's timeline itself
+ * (`RadioPlaybackController.kt`/`RadioSync.kt`, reusing what Android Auto's radio support already
+ * has), so a second instance of this controller is only kept around there for `getEntry()` --
+ * `Player.svelte` still wants somewhere to read the now-playing metadata from. Every place that
+ * would touch the element becomes a no-op instead of a crash.
+ *
  * @param {Object} options
- * @param {HTMLAudioElement} options.audio
+ * @param {HTMLAudioElement|null} options.audio
  * @param {string} options.apiBase - e.g. "/muma"
  * @param {string} options.apiKey
  * @param {function(string, number): string} options.streamUrlFor
@@ -40,7 +47,7 @@ export function createRadioController({
   }
 
   function localPosition() {
-    return srcOffset + (audio.currentTime || 0);
+    return srcOffset + (audio?.currentTime || 0);
   }
 
   async function measureClockOffset() {
@@ -58,6 +65,8 @@ export function createRadioController({
   function loadEntryAt(nextEntry, position) {
     const offset = Math.max(0, Math.floor(position));
     srcOffset = offset;
+    // Display-only mode: see the `audio` note on `createRadioController`.
+    if (!audio) return;
     audio.playbackRate = 1;
     audio.src = streamUrlFor(nextEntry.track_id, offset);
     audio.play().catch(() => {});
@@ -90,6 +99,8 @@ export function createRadioController({
 
   function tick() {
     if (!slug || !entry) return;
+    // Display-only mode: the platform service corrects its own drift; see the `audio` note above.
+    if (!audio) return;
     const target = targetPosition({ startedAtMs: entry.started_at * 1000 }, serverNowMs());
     const result = correction(localPosition(), target);
     if (result.action === "seek") {
@@ -109,6 +120,7 @@ export function createRadioController({
     slug = null;
     entry = null;
     srcOffset = 0;
+    if (!audio) return;
     audio.playbackRate = 1;
     audio.pause();
   }

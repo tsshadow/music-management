@@ -1,7 +1,7 @@
 <script>
   import { t } from './i18n/index.js';
   import { untrack } from 'svelte';
-  import { authParams, trackPageSize } from './store.js';
+  import { authParams, trackPageSize, restUrl } from './store.js';
   import TrackList from './TrackList.svelte';
 
   const { onnavigate } = $props();
@@ -27,7 +27,7 @@
 
     isLoading = true;
     try {
-        const response = await fetch(`/rest/getSpotifyHistory?offset=${offset}&count=${pageSize}&${$authParams}`);
+        const response = await fetch(restUrl(`/rest/getSpotifyHistory?offset=${offset}&count=${pageSize}&${$authParams}`));
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
         const entries = data['subsonic-response']?.history?.entry || [];

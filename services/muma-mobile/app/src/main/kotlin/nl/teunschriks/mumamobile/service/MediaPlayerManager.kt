@@ -7,6 +7,7 @@
 package nl.teunschriks.mumamobile.service
 
 import android.content.ComponentName
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import androidx.annotation.IntRange
@@ -20,6 +21,7 @@ import androidx.media3.common.Rating
 import androidx.media3.common.StarRating
 import androidx.media3.common.Timeline
 import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
@@ -30,6 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.capacitor.radioItemMediaId
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.OFFLINE_DB_ID
 import nl.teunschriks.mumamobile.data.RatingUpdate
 import nl.teunschriks.mumamobile.domain.Track
@@ -53,6 +56,10 @@ import timber.log.Timber
 private const val CONTROLLER_SWITCH_DELAY = 500L
 private const val VOLUME_DELTA = 0.05f
 
+/** Media3 rejects a speed of zero, and nothing above eight is still audible as music. */
+private const val MIN_PLAYBACK_SPEED = 0.25f
+private const val MAX_PLAYBACK_SPEED = 4.0f
+
 /** Media3 reports every position in milliseconds; a listen is recorded in whole seconds. */
 private const val MILLIS_PER_SECOND = 1000L
 
@@ -61,6 +68,12 @@ private const val MILLIS_PER_SECOND = 1000L
  * well as switch between different player interfaces (local, remote, cast etc).
  * This class contains everything that is necessary for the Application UI
  * to control the Media Player implementation.
+ *
+ * Application-scoped (see `MediaPlayerModule`): it holds no activity, its only context is
+ * `UApp.applicationContext()`, and the [PlaybackService] it drives already outlives every screen.
+ * [onCreate] and [onDestroy] are therefore a start/stop pair that can run more than once over the
+ * life of this instance -- the exit menu destroys it and a later launch starts it again -- so
+ * neither may leave anything permanently torn down.
  */
 @Suppress("TooManyFunctions")
 class MediaPlayerManager(
@@ -167,6 +180,9 @@ class MediaPlayerManager(
 
         override fun onPlayerError(error: PlaybackException) {
             Timber.w(error.toString())
+            // Published before the jukebox branch below returns: every listener wants to know an
+            // item failed, and only the jukebox wants the toast and the fallback.
+            RxBus.playerErrorPublisher.onNext(RxBus.PlayerError(error.errorCode, error.message))
             if (!isJukeboxEnabled) return
 
             mainScope.launch {
@@ -358,8 +374,11 @@ class MediaPlayerManager(
     fun onDestroy() {
         if (!created) return
 
-        // First stop listening to events
-        rxBusSubscription.dispose()
+        // First stop listening to events.
+        // clear(), not dispose(): a disposed CompositeDisposable rejects everything added to it
+        // afterwards, and this instance is reused when the app is opened again after an exit.
+        // Disposing here left the resurrected player deaf to every RxBus event.
+        rxBusSubscription.clear()
         releaseController()
 
         // Shutdown the rest
@@ -661,6 +680,41 @@ class MediaPlayerManager(
     val bufferedPercentage: Int
         get() = controller?.bufferedPercentage ?: 0
 
+    /**
+     * Rebuilds the queue around the item that is playing, without touching that item.
+     *
+     * A UI that owns the queue but cannot hold it (the web player) sends the whole list on every
+     * change, so "add one track" arrives as a complete queue. Replacing it wholesale restarts the
+     * current track, which on a 40-minute set is the difference between a listen and nothing.
+     * Media3 leaves playback alone for as long as the current window is not among the ones
+     * replaced, so each side is replaced separately and the current index is skipped. The tail
+     * goes first: replacing the head moves every index behind it.
+     *
+     * @return false when the player cannot do it -- no controller, an empty timeline, or a session
+     *   that did not grant `COMMAND_CHANGE_MEDIA_ITEMS` -- so the caller can fall back to
+     *   replacing the queue. It never returns false halfway: the checks all precede the writes.
+     */
+    @Synchronized
+    fun replaceQueueAroundCurrent(before: List<Track>, after: List<Track>): Boolean {
+        val player = controller ?: return false
+        val current = player.currentMediaItemIndex
+        val count = player.mediaItemCount
+        if (current < 0 || current >= count) return false
+        if (!player.isCommandAvailable(Player.COMMAND_CHANGE_MEDIA_ITEMS)) return false
+
+        logAction(
+            "queue.replaceAround",
+            "before" to before.size,
+            "after" to after.size,
+            "at" to current,
+            "had" to count
+        )
+        player.replaceMediaItems(current + 1, count, after.map { it.toMediaItem() })
+        player.replaceMediaItems(0, current, before.map { it.toMediaItem() })
+        logAction("queue.replacedAround", "queue" to mediaItemCount, "at" to currentMediaItemIndex)
+        return true
+    }
+
     @Synchronized
     fun moveItemInPlaylist(oldPos: Int, newPos: Int) {
         logAction("queue.move", "from" to oldPos, "to" to newPos)
@@ -674,6 +728,59 @@ class MediaPlayerManager(
         set(newMode) {
             controller?.repeatMode = newMode
         }
+
+    /**
+     * Tunes the service into a radio channel, through the exact media id
+     * [nl.teunschriks.mumamobile.service.androidauto.MediaLibrarySessionCallback.onAddMediaItems]
+     * already recognises for Android Auto's browse tree and Assistant's spoken radio requests --
+     * see [radioItemMediaId]. The web module (`Player.svelte`) owns the channel picker; this is
+     * only the hand-off, so the server timeline sync stays in one place
+     * ([nl.teunschriks.mumamobile.service.androidauto.RadioPlaybackController]) rather than a
+     * third copy of it living here.
+     */
+    @Synchronized
+    fun startRadioChannel(slug: String) {
+        logAction("radio.start", "slug" to slug)
+        controller?.setMediaItems(listOf(MediaItem.Builder().setMediaId(radioItemMediaId(slug)).build()), true)
+    }
+
+    /**
+     * Leaves radio mode without starting anything else. There is no `Player` call for that --
+     * radio is driven entirely by
+     * [nl.teunschriks.mumamobile.service.androidauto.RadioPlaybackController], not by the queue --
+     * so this is a session command rather than a [MediaController] method.
+     */
+    @Synchronized
+    fun stopRadio() {
+        logAction("radio.stop")
+        sendCustomCommand(PlaybackService.CUSTOM_COMMAND_STOP_RADIO)
+    }
+
+    /**
+     * Plays the latest bulletin, or hands the music back if one is already running -- the exact
+     * toggle the notification's own news button performs
+     * ([nl.teunschriks.mumamobile.service.androidauto.NewsPlaybackController]).
+     */
+    @Synchronized
+    fun toggleNews() {
+        logAction("news.toggle")
+        sendCustomCommand(PlaybackService.CUSTOM_COMMAND_PLAY_NEWS)
+    }
+
+    /** The channel the service is following right now, or null when it is not doing radio. */
+    val currentRadioSlug: String? get() = PlaybackService.instance?.currentRadioSlug
+
+    /** Whether a news bulletin is playing right now. */
+    val isNewsPlaying: Boolean get() = PlaybackService.instance?.isNewsPlaying == true
+
+    /**
+     * Neither of the two custom commands above carries a payload: both resolve themselves
+     * entirely on the far side (the slug already went across as a media id; "latest" is resolved
+     * server-side), the same way Android Auto's own buttons work.
+     */
+    private fun sendCustomCommand(action: String) {
+        (controller as? MediaController)?.sendCustomCommand(SessionCommand(action, Bundle.EMPTY), Bundle.EMPTY)
+    }
 
     @Synchronized
     @JvmOverloads
@@ -819,8 +926,38 @@ class MediaPlayerManager(
         controller?.removeListener(listeners)
         controller?.release()
         if (mediaControllerFuture != null) MediaController.releaseFuture(mediaControllerFuture!!)
+
+        // Forget the released handles. A released MediaController throws on every call, and this
+        // instance is reused: the next onCreate() has to build a fresh one rather than find a
+        // corpse here.
+        controller = null
+        mediaControllerFuture = null
         Timber.i("MediaPlayerController released")
     }
+
+    /**
+     * The output gain, 0..1, as the web player's `platform.player.setVolume` means it.
+     *
+     * [adjustVolume] steps the same knob; this is the absolute form, which is what a slider in
+     * the WebView needs and what `state()` reports back.
+     */
+    @set:Synchronized
+    var volume: Float
+        get() = controller?.volume ?: 1.0f
+        set(value) {
+            controller?.volume = value.coerceIn(0.0f, 1.0f)
+        }
+
+    /**
+     * Playback speed, 1 being normal. Clamped to something a human can still recognise as music;
+     * Media3 throws on zero and below.
+     */
+    @set:Synchronized
+    var playbackSpeed: Float
+        get() = controller?.playbackParameters?.speed ?: 1.0f
+        set(value) {
+            controller?.setPlaybackSpeed(value.coerceIn(MIN_PLAYBACK_SPEED, MAX_PLAYBACK_SPEED))
+        }
 
     fun adjustVolume(up: Boolean) {
         val delta = if (up) VOLUME_DELTA else -VOLUME_DELTA

@@ -1,8 +1,10 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
-  import { Settings2 } from '@lucide/svelte';
-  import { credentials, isAdmin, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser } from './store.js';
+  import { Settings2, CarFront } from '@lucide/svelte';
+  import { credentials, isAdmin, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser, defaultSubsonicUrl } from './store.js';
+  import { platform } from './platform/index.js';
+  import { logAction } from './diagnosticsLog.js';
 
   const { onNavigate } = $props();
 
@@ -22,16 +24,31 @@
   /**
    * Logs out the user by clearing credentials and reloading the page.
    *
+   * Awaits the phone's own sign-out first. Inside the Capacitor shell that clears the
+   * credentials Kotlin has stored; skipping it -- or racing it with the reload -- was the bug:
+   * `bootstrapShell()` read the untouched native credentials straight back out on the next boot
+   * and signed the shell back in, so logging out visibly did nothing. A browser tab's
+   * `signOut()` is a no-op that resolves at once, so this is unconditional rather than branching
+   * on `platform.system.isNative`.
+   *
    * @param {Event} [event] - Optional click event.
    */
-  function handleLogout(event) {
+  async function handleLogout(event) {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
     }
 
+    logAction('auth.logout');
+
+    try {
+      await platform.system.signOut();
+    } catch (error) {
+      console.warn("The native session could not be cleared before logging out", error);
+    }
+
     // Reset credentials and ensure localStorage is updated
-    const emptyCreds = { url: import.meta.env.VITE_SUBSONIC_URL || (import.meta.env.DEV ? '' : window.location.origin), username: '', password: '' };
+    const emptyCreds = { url: defaultSubsonicUrl(), username: '', password: '' };
     credentials.set(emptyCreds);
     localStorage.setItem('lms_credentials', JSON.stringify(emptyCreds));
 
@@ -98,6 +115,15 @@
         >
           {$t('nav.management')}
           <Settings2 size={16} />
+        </button>
+      {/if}
+      {#if platform.system.isNative}
+        <button
+          class="w-full text-left px-4 py-3 text-sm hover:bg-[#3e3e3e] transition-colors border-none bg-transparent text-white cursor-pointer flex justify-between items-center"
+          onclick={() => { isOpen = false; onNavigate('car'); }}
+        >
+          {$t('nav.carMode')}
+          <CarFront size={16} />
         </button>
       {/if}
       <button

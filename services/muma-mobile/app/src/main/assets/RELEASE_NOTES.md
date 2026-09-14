@@ -1,5 +1,108 @@
 ## [Unreleased]
 
+## Global Version 6.36.0 (2026-09-14)
+
+- **`MumaSystem` kreeg vier methodes erbij voor de webspeler's instellingen-tab.**
+  `listBondedDevices()` geeft de gekoppelde bluetooth-apparaten met wie een auto is; het schrijven
+  van `carModeDevices` via `setSetting` gaat voor het eerst via een echte set in plaats van een
+  aantal. `requestCarModeFullScreenPermission()` en `pickCacheLocation()`/
+  `clearCustomCacheLocation()` doen wat de klassieke rijen voor volledig-scherm-toestemming en
+  cachelocatie altijd al deden, nu bereikbaar zonder het klassieke scherm te openen.
+  `setAppLocale()` past de taal van de shell zelf aan (vergunningsschermen, deelvensters), niet
+  alleen de tekst van de webinterface.
+
+- **Android Auto heeft nu ook een Sets-map**, naast Songs en Livesets, met genres, recent
+  toegevoegd/uitgebracht en favoriete genres/afspeellijsten voor sets — precies wat Songs al had.
+
+- Bestaande bookmarks worden bij de eerste start van de nieuwe schil automatisch omgezet naar het
+  nieuwe "hervat een set"-onthouden, zodat er niets verloren gaat.
+
+- Je kunt de webspeler nu in de app proberen: Instellingen → Weergave → Nieuwe interface (bèta).
+  De muziek blijft via dezelfde speler lopen, dus melding, bluetooth en Android Auto werken
+  gewoon door. Standaard staat hij uit.
+
+- **`MumaSystem` beantwoordt de nieuwe instellingen-tab van de webspeler.** `getSettings()` geeft
+  een momentopname van de instellingen die de tab toont; `setSetting({key, value})` schrijft er één
+  terug, tegen een vaste whitelist met een typecontrole — een onbekende sleutel of een verkeerd
+  type wordt geweigerd in plaats van een instelling stilzwijgend niets te laten doen. `MumaStorage`
+  kreeg er `clearCache()` bij: annuleert wachtende en actieve downloads en verwijdert daarna elk
+  gecachet bestand dat niet is vastgezet.
+
+- **`MumaDiagnostics` weet nu ook wélke interface een rapport schreef.** `identify({bundleVersion,
+  userAgent})` legt vast dat de webinterface heeft gedraaid, met welke frontend-build en welke
+  WebView; ontbreekt die aanroep, dan meldt een rapport gewoon "legacy" zoals voorheen.
+  `CrashReportManager` zet die drie feiten voor in de metadata-kop, boven het bestaande
+  actielogboek dat de webacties en -fouten al bevatte.
+
+- **Een aantal instellingen uit het klassieke scherm is opgeruimd, nu de webtab alles dekt wat nog
+  nodig was.** Stijl, app-icoon en interfaceschaal zijn geen keuze meer — Spotify-stijl is de enige
+  stijl, schalen gaat via de tekstgrootte van het toestel. Delen en chat waren al dode code; hun
+  instellingen zijn weg. Bladwijzers zijn al vervangen door het onthouden van de afspeelpositie in
+  een set; vooruit/achteruit springen is voortaan altijd ±30 s. ID3-modus staat altijd aan. De
+  zoeklimieten en een aantal weergaverijen zijn óf naar de webtab verhuisd, óf hadden al geen
+  effect meer. De installatiewizard verloor de drie stappen die deze instellingen tijdens het
+  eerste gebruik lieten kiezen. Niets hiervan was nog bereikbaar vanuit de nieuwe interface; het
+  klassieke scherm zelf blijft intact tot dat in een latere stap verdwijnt.
+
+- **"Ik zie eigenlijk alleen zwart wit": het beginscherm van de Kotlin-app had geen enkele
+  merkkleur en de speler stond vol met Material-lila.** Gemeten op een API 34-emulator: van de
+  2.527.200 beeldpunten op het beginscherm waren er nul groen, en het enige kleurvlak was een
+  `#4a4458` paars dat in geen van beide stijlen voorkomt. Drie oorzaken, alle drie een kleur die
+  niemand gekozen heeft. Beide stijlen overschrijven Material3's primaire en oppervlakteattributen
+  maar lieten de secundaire reeks onaangeroerd, dus alles wat die aansprak kreeg het lila van de
+  bibliotheek — en de navigatiebalk tekent de vorm achter het actieve tabblad juist met
+  `colorSecondaryContainer`. De hoesvervanger sprak diezelfde reeks aan, dus een nummer zonder hoes
+  werd een `#ccc2dc` vlak: op de speler 822.514 beeldpunten, bijna een derde van het scherm. En de
+  notenglyph van een nummer zonder hoes was hard op `#000000` getint, wat 1,12:1 haalt op een
+  venster dat in beide stijlen bijna zwart is — die stond er dus wel en was onzichtbaar. De
+  secundaire reeks is nu in beide stijlen benoemd, de hoesvervanger tekent op
+  `colorSurfaceVariant` met `colorInkTertiary` (3,92:1 in de MuMa-stijl, 7,03:1 in Spotify, boven
+  de 3:1-ondergrens voor wat getekend en niet gelezen wordt), de notenglyph neemt
+  `colorControlNormal` (8,8:1) en de vorm achter het actieve tabblad neemt de merkkleur van de
+  modus op een vijfde — groen voor nummers, blauw voor sets, dezelfde sterkte waarmee een
+  geselecteerde regel al getint wordt. Voor de volledigheid: de sets-schakelaar in de werkbalk
+  werd groen op het ene moment dat de app juist blauw is, en leest nu ook de modus.
+
+- De webspeler in de app weet nu welke versie er draait en kan de eigen release notes lezen, voor
+  het "wat is er nieuw"-scherm na een update.
+
+- Gedownloade playlists blijven nu ook zichtbaar zonder verbinding, inclusief playlists die al voor
+  deze update waren gedownload.
+
+- De nieuwe interface werkt nu ook zonder verbinding: alles wat je gedownload hebt staat gewoon in
+  de lijsten, met dezelfde hoesjes en dezelfde filters.
+
+- De speler zit niet langer vast aan het hoofdscherm. Dat haalt de crash weg die de app liet
+  verdwijnen zodra je in de auto stapte, en laat de muziek ongestoord doorlopen als een scherm
+  opnieuw wordt opgebouwd.
+
+- **Afspelen op de telefoon-app kon blijven hangen op 0:00 na een wachtrijwijziging.** Nu niet meer.
+
+- De speeldienst en de auto-detectie ondersteunen nu het rijscherm van de nieuwe interface.
+
+- Inloggen in de nieuwe interface werkt nu ook op een app die nog nooit was ingelogd.
+
+- Radio en het nieuws van het uur sturen in de nieuwe interface nu de speeldienst zelf aan, net als
+  shuffle en herhalen al deden.
+
+- Shuffle en herhalen in de nieuwe interface sturen nu de speeldienst zelf aan, niet meer alleen
+  het scherm.
+
+- **Uitloggen in de nieuwe interface werkt nu ook aan de Kotlin-kant.** Een nieuwe aanmelding daar
+  wordt voortaan ook door de klassieke app en Android Auto herkend.
+
+- **Wisselen tussen de klassieke en de nieuwe interface werkt.** Voorheen kwam je een seconde later
+  op je beginscherm terecht in plaats van in de app.
+- **De wachtrij aanvullen begint je nummer niet meer opnieuw.** Een set van drie minuten sprong
+  eerder terug naar het begin.
+- **Hoesjes zijn ook zichtbaar op een server zonder https.**
+
+- De spraakherkenning van de app is nu ook beschikbaar voor de nieuwe interface, via hetzelfde
+  woordbegrip als de auto en het bestaande microfoonscherm.
+
+- Je kunt nu ook zonder genre om een liveset vragen: "speel een set af", "speel een Defqon set af"
+  of "speel de nieuwste set van headhunterz af" (en de Engelse versies) werken vanaf nu net als in
+  de auto.
 ## Global Version 6.35.1 (2026-09-11)
 
 - De sectie "Hoog gewaardeerd" op het startscherm toont nu daadwerkelijk je hoog gewaardeerde nummers.

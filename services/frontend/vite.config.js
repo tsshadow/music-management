@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { defineConfig, loadEnv } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 
@@ -12,11 +13,41 @@ function backendProxy(env) {
   };
 }
 
+/**
+ * Stages `dist/version.json` next to `index.html`, so a diagnostics report
+ * built from the web UI (`identifyBundle` in `src/lib/diagnosticsLog.js`) can
+ * say which build it was running -- the APK's own version name covers the
+ * shell, not the bundle inside it, and the two ship on separate schedules.
+ *
+ * `apply: "build"` on purpose: `vite build` is the only thing that produces a
+ * `dist/` at all, so a dev server or a vitest run never spawns `git`.
+ */
+function bundleVersionFile() {
+  return {
+    name: "muma-bundle-version",
+    apply: "build",
+    generateBundle() {
+      let version = "unknown";
+      try {
+        version = execSync("git rev-parse --short HEAD", { cwd: process.cwd() }).toString().trim();
+      } catch {
+        // No git, or no repository -- an npm-only checkout. "unknown" still
+        // beats failing the build over a diagnostics nicety.
+      }
+      this.emitFile({
+        type: "asset",
+        fileName: "version.json",
+        source: JSON.stringify({ version, builtAt: new Date().toISOString() }),
+      });
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   return {
-    plugins: [svelte()],
+    plugins: [svelte(), bundleVersionFile()],
     base: "/",
     // Vitest runs in Node, where Svelte would otherwise resolve to its
     // server-only build and `mount()` throws. Component tests need the

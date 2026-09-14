@@ -9,7 +9,7 @@
    */
   import { onMount } from 'svelte';
 
-  import { authParams } from '../store.js';
+  import { authParams, restUrl } from '../store.js';
   import ChipEditor from './ChipEditor.svelte';
   import CurationShell from './CurationShell.svelte';
   import GenreRuleEditor from './GenreRuleEditor.svelte';
@@ -72,7 +72,7 @@
   }
 
   async function resolveName() {
-    const response = await fetch(`/rest/getArtist?id=${artistId}&${$authParams}`);
+    const response = await fetch(restUrl(`/rest/getArtist?id=${artistId}&${$authParams}`));
     const data = await response.json();
     const resolved = data['subsonic-response']?.artist?.name;
     if (!resolved) throw new Error('Deze artiest bestaat niet meer in de bibliotheek.');

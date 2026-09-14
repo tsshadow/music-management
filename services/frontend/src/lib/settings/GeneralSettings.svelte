@@ -2,8 +2,48 @@
   import { t } from '../i18n/index.js';
   import { onMount } from 'svelte';
   import { SvelteURLSearchParams } from 'svelte/reactivity';
-  import { deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, TRACK_PAGE_SIZES, authParams, credentials } from '../store.js';
+  import {
+    deduplicateEnabled,
+    memoriesOnHomeEnabled,
+    trackPageSize,
+    TRACK_PAGE_SIZES,
+    authParams,
+    credentials,
+    restUrl,
+    homeShortcutCount,
+    homeListCount,
+    separateHomeHistory,
+    homeModeReleaseRadar,
+    homeModeDailyMix,
+    homeCountDailyMix,
+    homeModeFavorites,
+    homeCountFavorites,
+    homeModeShortcuts,
+    homeModeRecentlyReleased,
+    homeModeRecentlyAdded,
+    showTrackNumber,
+    trackListLines,
+    displayBitrateWithArtist,
+    discSort,
+    genreTrackLimit,
+    showConfirmationDialog
+  } from '../store.js';
+  import { platform } from '../platform/index.js';
   import LanguageSetting from './LanguageSetting.svelte';
+
+  // Only where downloads exist. A browser has no files to keep, so a "wifi only"
+  // switch there would promise something nothing does; the row below never renders
+  // without this, which is also why it is the only place this setting lives -- there
+  // used to be a second, account-synced `downloadsWifiOnly` store for a browser that
+  // cannot get here, and nothing ever read it.
+  const downloadsSupported = platform.storage.supported;
+
+  // The one source of truth for this setting is the real Kotlin preference
+  // (`Settings.isWifiRequiredForDownload`, written through `wifiOnly`). The same row
+  // also lives on the device-settings tab (`DeviceSettings.svelte`); the two read the
+  // same underlying preference, they just do not share a live subscription, so a
+  // change on one only appears on the other after a reload of this page.
+  let nativeWifiOnly = $state(false);
 
   // Server default for uiArtistReleaseSortMethod (ReleaseSortMethod::OriginalDateDesc).
   const DEFAULT_SORT_METHOD = 8;
@@ -56,12 +96,35 @@
 
   onMount(async () => {
     await fetchSettings();
+    if (downloadsSupported) await loadNativeWifiOnly();
   });
+
+  async function loadNativeWifiOnly() {
+    try {
+      const device = await platform.system.getSettings();
+      nativeWifiOnly = device?.wifiOnly === true;
+    } catch (e) {
+      console.error("Failed to load the device's wifi-only setting", e);
+    }
+  }
+
+  /** Writes the real Kotlin setting; this row never renders without `downloadsSupported`. */
+  async function toggleWifiOnly() {
+    if (!downloadsSupported) return;
+    const next = !nativeWifiOnly;
+    nativeWifiOnly = next;
+    try {
+      await platform.system.setSetting({ key: 'wifiOnly', value: next });
+    } catch (e) {
+      nativeWifiOnly = !next;
+      console.error("Failed to save the device's wifi-only setting", e);
+    }
+  }
 
   async function fetchSettings() {
     isLoading = true;
     try {
-      const resp = await fetch(`/rest/getUser?${$authParams}&username=${encodeURIComponent($credentials.username)}`);
+      const resp = await fetch(restUrl(`/rest/getUser?${$authParams}&username=${encodeURIComponent($credentials.username)}`));
       const data = await resp.json();
       const user = data['subsonic-response']?.user;
       if (user) {
@@ -103,7 +166,7 @@
         }
       });
 
-      const resp = await fetch(`/rest/updateUser?${$authParams}&${params.toString()}`);
+      const resp = await fetch(restUrl(`/rest/updateUser?${$authParams}&${params.toString()}`));
       const data = await resp.json();
       if (data['subsonic-response']?.status === 'ok') {
         message = $t('settings.saved');
@@ -130,6 +193,20 @@
     memoriesOnHomeEnabled.update((v) => !v);
   }
 
+  // homeSectionModeValues; OFF hides the section, BUTTON puts it in the shortcuts grid, OVERVIEW
+  // gives it its own heading. Ported from the legacy home_mode_* preferences -- see
+  // docs/designs/universal-ui/functional.md, "Device settings".
+  const HOME_MODE_OPTIONS = [
+    { value: 'OFF', labelKey: 'settings.general.home.modeOff' },
+    { value: 'BUTTON', labelKey: 'settings.general.home.modeButton' },
+    { value: 'OVERVIEW', labelKey: 'settings.general.home.modeOverview' }
+  ];
+  const HOME_COUNT_STEPS = [2, 4, 6, 8, 10];
+  const TRACK_LIST_LINES_OPTIONS = [
+    { value: 2, labelKey: 'settings.general.display.trackListLinesCompact' },
+    { value: 3, labelKey: 'settings.general.display.trackListLinesDetailed' }
+  ];
+
   function toggleRole(roleId) {
     if (settings.uiInlineArtistRelationships.includes(roleId)) {
       settings.uiInlineArtistRelationships = settings.uiInlineArtistRelationships.filter((id) => id !== roleId);
@@ -140,15 +217,15 @@
 </script>
 
 <div class="p-8 max-w-4xl mx-auto pb-24">
-  <header class="mb-8 flex justify-between items-end">
-    <div>
+  <header class="mb-8 flex justify-between items-end gap-4">
+    <div class="min-w-0">
       <h1 class="text-3xl font-bold mb-2">{$t('settings.general.title')}</h1>
       <p class="text-[#b3b3b3]">{$t('settings.general.subtitle')}</p>
     </div>
     <button
       onclick={saveSettings}
       disabled={isSaving || isLoading}
-      class="bg-brand text-black font-bold py-3 px-8 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+      class="bg-brand text-black font-bold py-3 px-8 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100 whitespace-nowrap shrink-0"
     >
       {isSaving ? $t('common.saving') : $t('common.saveChanges')}
     </button>
@@ -252,6 +329,256 @@
         </div>
       </div>
     </section>
+
+    <!-- Home Section -->
+    <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+      <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.general.home.title')}</h2>
+      <p class="text-xs text-[#b3b3b3] mb-6">{$t('settings.general.home.help')}</p>
+
+      <div class="flex flex-col gap-6">
+        <div class="flex items-center justify-between gap-4">
+          <h3 class="text-lg font-bold">{$t('settings.general.home.releaseRadar')}</h3>
+          <select
+            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            aria-label={$t('settings.general.home.releaseRadar')}
+            value={$homeModeReleaseRadar}
+            onchange={(e) => homeModeReleaseRadar.set(e.currentTarget.value)}
+          >
+            {#each HOME_MODE_OPTIONS as option (option.value)}
+              <option value={option.value}>{$t(option.labelKey)}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="flex items-center justify-between gap-4">
+          <h3 class="text-lg font-bold">{$t('settings.general.home.dailyMix')}</h3>
+          <select
+            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            aria-label={$t('settings.general.home.dailyMix')}
+            value={$homeModeDailyMix}
+            onchange={(e) => homeModeDailyMix.set(e.currentTarget.value)}
+          >
+            {#each HOME_MODE_OPTIONS as option (option.value)}
+              <option value={option.value}>{$t(option.labelKey)}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="flex items-center justify-between gap-4">
+          <h3 class="text-lg font-bold">{$t('settings.general.home.favorites')}</h3>
+          <select
+            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            aria-label={$t('settings.general.home.favorites')}
+            value={$homeModeFavorites}
+            onchange={(e) => homeModeFavorites.set(e.currentTarget.value)}
+          >
+            {#each HOME_MODE_OPTIONS as option (option.value)}
+              <option value={option.value}>{$t(option.labelKey)}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="flex items-center justify-between gap-4">
+          <h3 class="text-lg font-bold">{$t('settings.general.home.shortcuts')}</h3>
+          <select
+            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            aria-label={$t('settings.general.home.shortcuts')}
+            value={$homeModeShortcuts}
+            onchange={(e) => homeModeShortcuts.set(e.currentTarget.value)}
+          >
+            {#each HOME_MODE_OPTIONS as option (option.value)}
+              <option value={option.value}>{$t(option.labelKey)}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="flex items-center justify-between gap-4">
+          <h3 class="text-lg font-bold">{$t('settings.general.home.recentlyReleased')}</h3>
+          <select
+            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            aria-label={$t('settings.general.home.recentlyReleased')}
+            value={$homeModeRecentlyReleased}
+            onchange={(e) => homeModeRecentlyReleased.set(e.currentTarget.value)}
+          >
+            {#each HOME_MODE_OPTIONS as option (option.value)}
+              <option value={option.value}>{$t(option.labelKey)}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="flex items-center justify-between gap-4">
+          <h3 class="text-lg font-bold">{$t('settings.general.home.recentlyAdded')}</h3>
+          <select
+            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            aria-label={$t('settings.general.home.recentlyAdded')}
+            value={$homeModeRecentlyAdded}
+            onchange={(e) => homeModeRecentlyAdded.set(e.currentTarget.value)}
+          >
+            {#each HOME_MODE_OPTIONS as option (option.value)}
+              <option value={option.value}>{$t(option.labelKey)}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="flex items-center justify-between gap-4">
+          <h3 class="text-lg font-bold">{$t('settings.general.home.dailyMixCount')}</h3>
+          <select
+            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            aria-label={$t('settings.general.home.dailyMixCount')}
+            value={$homeCountDailyMix}
+            onchange={(e) => homeCountDailyMix.set(Number(e.currentTarget.value))}
+          >
+            {#each HOME_COUNT_STEPS as count (count)}
+              <option value={count}>{count}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="flex items-center justify-between gap-4">
+          <h3 class="text-lg font-bold">{$t('settings.general.home.favoritesCount')}</h3>
+          <select
+            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            aria-label={$t('settings.general.home.favoritesCount')}
+            value={$homeCountFavorites}
+            onchange={(e) => homeCountFavorites.set(Number(e.currentTarget.value))}
+          >
+            {#each HOME_COUNT_STEPS as count (count)}
+              <option value={count}>{count}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="flex items-center justify-between gap-4">
+          <h3 class="text-lg font-bold">{$t('settings.general.home.shortcutCount')}</h3>
+          <select
+            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            aria-label={$t('settings.general.home.shortcutCount')}
+            value={$homeShortcutCount}
+            onchange={(e) => homeShortcutCount.set(Number(e.currentTarget.value))}
+          >
+            {#each [4, 6, 8, 10, 12] as count (count)}
+              <option value={count}>{count}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="flex items-center justify-between gap-4">
+          <h3 class="text-lg font-bold">{$t('settings.general.home.listCount')}</h3>
+          <select
+            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            aria-label={$t('settings.general.home.listCount')}
+            value={$homeListCount}
+            onchange={(e) => homeListCount.set(Number(e.currentTarget.value))}
+          >
+            {#each [3, 5, 8, 10] as count (count)}
+              <option value={count}>{count}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-1">
+            <h3 class="text-lg font-bold">{$t('settings.general.home.separateHistory')}</h3>
+            <p class="text-sm text-[#b3b3b3]">{$t('settings.general.home.separateHistoryHelp')}</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" class="sr-only peer" checked={$separateHomeHistory} onchange={() => separateHomeHistory.update((v) => !v)}>
+            <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Weergave (display) Section -->
+    <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+      <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.general.display.title')}</h2>
+
+      <div class="flex flex-col gap-6">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-bold">{$t('settings.general.display.showConfirmationDialog')}</h3>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" class="sr-only peer" checked={$showConfirmationDialog} onchange={() => showConfirmationDialog.update((v) => !v)}>
+            <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+          </label>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-bold">{$t('settings.general.display.showTrackNumber')}</h3>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" class="sr-only peer" checked={$showTrackNumber} onchange={() => showTrackNumber.update((v) => !v)}>
+            <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+          </label>
+        </div>
+
+        <div class="flex items-center justify-between gap-4">
+          <h3 class="text-lg font-bold">{$t('settings.general.display.trackListLines')}</h3>
+          <select
+            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            aria-label={$t('settings.general.display.trackListLines')}
+            value={$trackListLines}
+            onchange={(e) => trackListLines.set(Number(e.currentTarget.value))}
+          >
+            {#each TRACK_LIST_LINES_OPTIONS as option (option.value)}
+              <option value={option.value}>{$t(option.labelKey)}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-bold">{$t('settings.general.display.displayBitrateWithArtist')}</h3>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" class="sr-only peer" checked={$displayBitrateWithArtist} onchange={() => displayBitrateWithArtist.update((v) => !v)}>
+            <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+          </label>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-1">
+            <h3 class="text-lg font-bold">{$t('settings.general.display.discSort')}</h3>
+            <p class="text-sm text-[#b3b3b3]">{$t('settings.general.display.discSortHelp')}</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" class="sr-only peer" checked={$discSort} onchange={() => discSort.update((v) => !v)}>
+            <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+          </label>
+        </div>
+
+        <div class="flex items-center justify-between gap-4">
+          <div class="flex flex-col gap-1">
+            <h3 class="text-lg font-bold">{$t('settings.general.display.genreTrackLimit')}</h3>
+            <p class="text-sm text-[#b3b3b3]">{$t('settings.general.display.genreTrackLimitHelp')}</p>
+          </div>
+          <select
+            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            aria-label={$t('settings.general.display.genreTrackLimit')}
+            value={$genreTrackLimit}
+            onchange={(e) => genreTrackLimit.set(Number(e.currentTarget.value))}
+          >
+            {#each [50, 100, 200, 500] as count (count)}
+              <option value={count}>{count}</option>
+            {/each}
+          </select>
+        </div>
+      </div>
+    </section>
+
+    {#if downloadsSupported}
+      <!-- Downloads Section -->
+      <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+        <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.general.downloads')}</h2>
+
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-1">
+            <h3 class="text-lg font-bold">{$t('settings.general.wifiOnly')}</h3>
+            <p class="text-sm text-[#b3b3b3]">{$t('settings.general.wifiOnlyHelp')}</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" class="sr-only peer" checked={nativeWifiOnly} onchange={toggleWifiOnly} aria-label={$t('settings.general.wifiOnly')}>
+            <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+          </label>
+        </div>
+      </section>
+    {/if}
 
     <!-- Subsonic Section -->
     <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">

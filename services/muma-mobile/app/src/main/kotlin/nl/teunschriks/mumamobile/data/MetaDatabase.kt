@@ -22,6 +22,7 @@ import nl.teunschriks.mumamobile.domain.Album
 import nl.teunschriks.mumamobile.domain.Artist
 import nl.teunschriks.mumamobile.domain.Index
 import nl.teunschriks.mumamobile.domain.MusicFolder
+import nl.teunschriks.mumamobile.domain.OfflinePlaylist
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.domain.TrackArtistRef
 
@@ -35,7 +36,8 @@ import nl.teunschriks.mumamobile.domain.TrackArtistRef
         Album::class,
         Track::class,
         Index::class,
-        MusicFolder::class
+        MusicFolder::class,
+        OfflinePlaylist::class
     ],
     autoMigrations = [
         AutoMigration(
@@ -44,7 +46,7 @@ import nl.teunschriks.mumamobile.domain.TrackArtistRef
         )
     ],
     exportSchema = true,
-    version = 9
+    version = 10
 )
 @TypeConverters(Converters::class)
 abstract class MetaDatabase : RoomDatabase() {
@@ -57,6 +59,8 @@ abstract class MetaDatabase : RoomDatabase() {
     abstract fun musicFoldersDao(): MusicFoldersDao
 
     abstract fun indexDao(): IndexDao
+
+    abstract fun offlinePlaylistDao(): OfflinePlaylistDao
 }
 
 class Converters {
@@ -175,5 +179,19 @@ val META_MIGRATION_8_9: Migration = object : Migration(8, 9) {
         if (!existing.contains("versionKind")) {
             db.execSQL("ALTER TABLE `tracks` ADD COLUMN `versionKind` TEXT")
         }
+    }
+}
+
+// Downloaded playlists were `.m3u` files with a display name and nothing else -- no server id,
+// so the offline shell had no way to answer a Subsonic-shaped request for one. This table gives
+// a playlist fetched from the server a row of its own; a phone with only the old files still
+// lists them, from the files themselves, under a synthetic id.
+val META_MIGRATION_9_10: Migration = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `offline_playlists` (`id` TEXT NOT NULL, " +
+                "`serverId` INTEGER NOT NULL DEFAULT -1, `name` TEXT NOT NULL, " +
+                "`trackIds` TEXT NOT NULL, `updated` INTEGER NOT NULL, PRIMARY KEY(`id`, `serverId`))"
+        )
     }
 }

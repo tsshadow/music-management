@@ -1,6 +1,6 @@
 <script>
   import { t } from './i18n/index.js';
-  import { authParams } from './store.js';
+  import { authParams, restUrl } from './store.js';
   import { memoryHeading } from './memories.js';
 
   const { tile, onopen, onplay } = $props();
@@ -19,7 +19,7 @@
    * @returns {string} The request URL.
    */
   function coverUrl(id) {
-    return `/rest/getCoverArt?id=${id}&size=300&${$authParams}`;
+    return restUrl(`/rest/getCoverArt?id=${id}&size=300&${$authParams}`);
   }
 </script>
 

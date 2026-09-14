@@ -15,7 +15,7 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import nl.teunschriks.mumamobile.R
-import nl.teunschriks.mumamobile.activity.NavigationActivity
+import nl.teunschriks.mumamobile.util.UiVariant
 
 /**
  * Tells the user the car is here, and offers the screen.
@@ -35,7 +35,7 @@ class CarModeNotifier(private val context: Context) {
         val open = PendingIntent.getActivity(
             context,
             REQUEST_CODE,
-            Intent(context, NavigationActivity::class.java)
+            UiVariant.launchIntent(context)
                 .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 .putExtra(EXTRA_OPEN_CAR_MODE, true),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE

@@ -1,7 +1,7 @@
 <script>
   import { t } from '../../i18n/index.js';
   import { onMount } from 'svelte';
-  import { authParams, mumaApiUrl } from '../../store.js';
+  import { authParams, mumaApiUrl, restUrl } from '../../store.js';
 
   const { onMessage, onError } = $props();
 
@@ -26,7 +26,7 @@
       if (response.ok) {
         libraries = await response.json();
       } else {
-        const subResponse = await fetch(`/rest/getMusicFolders?${$authParams}`);
+        const subResponse = await fetch(restUrl(`/rest/getMusicFolders?${$authParams}`));
         const data = await subResponse.json();
         const folders = data['subsonic-response']?.musicFolders?.musicFolder;
         libraries = folders ? (Array.isArray(folders) ? folders : [folders]) : [];

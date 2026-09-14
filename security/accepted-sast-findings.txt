@@ -83,10 +83,14 @@ dd45bf5b5d0df701 x1  # detected-ssh-password scripts/deploy.sh
 1ad6abb9c22c9ef5 x1  # dynamic-urllib-use-detected scripts/crash-triage/crash_triage_listener.py
 3767fc89712eec02 x1  # dynamic-urllib-use-detected scripts/nightly-prod-check/collect.py
 
-# --- exported_activity --- [r:2d33265c]
+# --- exported_activity --- [r:1f5932e6]
 # Android activities that are launched by the system or by another app on
-# purpose -- the launcher alias and the media button receiver.
-ebf37587c4b240da x3  # exported_activity services/muma-mobile/app/src/main/AndroidManifest.xml
+# purpose -- the launcher aliases and the media button receiver. Four
+# aliases since the Capacitor shell: icon x interface, exactly one enabled
+# at a time. An alias carrying a LAUNCHER intent filter has to be exported
+# to be launchable at all; CapacitorActivity itself, which two of them
+# target, is not.
+ebf37587c4b240da x5  # exported_activity services/muma-mobile/app/src/main/AndroidManifest.xml
 
 # --- exposing-docker-socket-volume --- [r:8dd0d286]
 # The socket is mounted where a container genuinely drives Docker. Each new

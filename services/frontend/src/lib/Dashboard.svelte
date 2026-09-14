@@ -4,7 +4,6 @@
   import { Pencil } from '@lucide/svelte';
   import { untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
-  import TrackCard from './TrackCard.svelte';
   import TrackList from './TrackList.svelte';
   import FilterBar from './FilterBar.svelte';
   import PlaylistView from './PlaylistView.svelte';
@@ -25,13 +24,22 @@
   import Management from './management/Management.svelte';
   import CollectionBar from './CollectionBar.svelte';
   import CollectionGrid from './CollectionGrid.svelte';
+  import HomeShelf from './HomeShelf.svelte';
+  import DownloadsView from './DownloadsView.svelte';
+  import OfflineNotice from './OfflineNotice.svelte';
+  import PresetGrid from './PresetGrid.svelte';
+  import PresetView from './PresetView.svelte';
+  import VoiceView from './VoiceView.svelte';
+  import { presets, refreshPresets, createPreset, presetParamsFromFilters } from './presets.js';
+  import { notify } from './notifications.js';
+  import { listOf, offline, subsonicJson, viewHasOfflineSource } from './subsonic.js';
   import { getArtistImageUrl, viewArgument } from './utils.js';
   import { localDateString, memoryCount, memoryHeading, parseMemoryGroups } from './memories.js';
   import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
   import { defaultCollectionState, durationParts, lineupLevel, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
   import { loadIndexedTags } from './scanTags.js';
   import { loadFeed, DAILY_MIX, RELEASE_RADAR } from './feeds.js';
-  import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, hasPermission } from './store.js';
+  import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, hasPermission, isMobile, restUrl, mumaUser } from './store.js';
 
   // Navigation that has to survive a refresh goes through onnavigate, which App turns into a URL.
   // The local assignment stays the fallback for the many places that only switch the screen.
@@ -61,6 +69,9 @@
   let albums = $state([]);
   let artists = $state([]);
   let allGenres = $state([]);
+  // Per-genre colours for the preset tiles; `{}` until MuMa answers, and the tiles fall
+  // back to their own palette meanwhile.
+  let genreTints = $state({});
   let allLabels = $state([]);
   let allPodcasts = $state([]);
   let allFestivals = $state([]);
@@ -153,7 +164,7 @@
 
     console.log(`Fetching tracks for curated playlist: ${id}`);
     try {
-        const response = await fetch(`/rest/getSpotifyPlaylist?id=${encodeURIComponent(id)}&seed=${currentSeed}&${$authParams}`);
+        const response = await fetch(restUrl(`/rest/getSpotifyPlaylist?id=${encodeURIComponent(id)}&seed=${currentSeed}&${$authParams}`));
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
         console.log(`Data for ${id}:`, data);
@@ -191,50 +202,33 @@
     let currentBatch = [];
     try {
       while (currentBatch.length < pageSize && tracksHasMore) {
-        let url = `/rest/getSpotifyTracks?sort=${currentSort}&offset=${tracksOffset}&count=${pageSize}&${$authParams}`;
-        if (currentSort === 'random') url += `&seed=${currentSeed}`;
-        if ($deduplicateEnabled) url += `&deduplicate=true`;
-        if (currentTrackSearch) url += `&query=${encodeURIComponent(currentTrackSearch)}`;
-        if (currentGenre) url += `&genre=${encodeURIComponent(currentGenre)}`;
-        else if (activeView.startsWith('genre:')) {
-          url += `&genre=${encodeURIComponent(viewArgument(activeView))}`;
-        }
-        if (activeView.startsWith('label:')) {
-          url += `&label=${encodeURIComponent(viewArgument(activeView))}`;
-        }
-        if (activeView.startsWith('podcast:')) {
-          url += `&podcast=${encodeURIComponent(viewArgument(activeView))}`;
-        }
-        if (activeView.startsWith('festival:')) {
-          url += `&festival=${encodeURIComponent(viewArgument(activeView))}`;
-        }
-        if (activeView.startsWith('lineup:')) {
-          url += `&lineup=${encodeURIComponent(viewArgument(activeView))}`;
-        }
+        const argument = viewArgument(activeView);
+        const params = {
+          sort: currentSort,
+          offset: tracksOffset,
+          count: pageSize,
+          seed: currentSort === 'random' ? currentSeed : undefined,
+          deduplicate: $deduplicateEnabled ? 'true' : undefined,
+          query: currentTrackSearch || undefined,
+          genre: currentGenre || (activeView.startsWith('genre:') ? argument : undefined),
+          label: activeView.startsWith('label:') ? argument : undefined,
+          podcast: activeView.startsWith('podcast:') ? argument : undefined,
+          festival: activeView.startsWith('festival:') ? argument : undefined,
+          lineup: activeView.startsWith('lineup:') ? argument : undefined,
+          // The year view reuses the parameter the filter bar already drives. Seeding
+          // `currentYear` from the route instead would not survive: resetTrackFiltersFor
+          // clears it on every arrival at a new track view, before the first fetch.
+          year: currentYear || (activeView.startsWith('year:') ? argument : undefined),
+          minRating: currentMinRating !== '0' ? currentMinRating : undefined,
+          includeUnrated: includeUnrated ? 'true' : undefined,
+          // Minutes on this endpoint, not seconds; the offline library reads them
+          // the same way. Ten is the songs/sets boundary the whole app uses.
+          ...($viewMode === 'sets' ? { minDuration: 10 } : { maxDuration: 10 })
+        };
 
-        // The year view reuses the parameter the filter bar already drives. Seeding
-        // `currentYear` from the route instead would not survive: resetTrackFiltersFor
-        // clears it on every arrival at a new track view, before the first fetch.
-        if (currentYear) url += `&year=${encodeURIComponent(currentYear)}`;
-        else if (activeView.startsWith('year:')) {
-          url += `&year=${encodeURIComponent(viewArgument(activeView))}`;
-        }
-        if (currentMinRating !== '0') url += `&minRating=${currentMinRating}`;
-        if (includeUnrated) url += `&includeUnrated=true`;
-
-        if ($viewMode === 'sets') {
-          url += `&minDuration=10`;
-        } else {
-          url += `&maxDuration=10`;
-        }
-
-        console.log(`Fetching: ${url}`);
-        const response = await fetch(url, { signal });
-        const data = await response.json();
-        console.log("Track data received:", data);
+        const data = await subsonicJson('getSpotifyTracks', params, { signal });
         const tracksNode = data['subsonic-response']?.tracks;
-        const result = tracksNode?.track || [];
-        const newTracks = Array.isArray(result) ? result : [result];
+        const newTracks = listOf(data, 'tracks.track');
 
         // Deduplicate this batch against what we've seen before if enabled
         const deduped = $deduplicateEnabled ? deduplicateTracks(newTracks, seenKeys) : newTracks;
@@ -292,14 +286,18 @@
     const signal = albumsController?.signal;
 
     try {
-      let url = `/rest/getAlbumList2?type=${currentAlbumSort}&size=${pageSize}&offset=${albumsOffset}&${$authParams}`;
-      if (currentAlbumGenre) url += `&genre=${encodeURIComponent(currentAlbumGenre)}`;
-      if (currentAlbumSearch) url += `&query=${encodeURIComponent(currentAlbumSearch)}`;
-
-      const response = await fetch(url, { signal });
-      const data = await response.json();
-      const result = data['subsonic-response']?.albumList2?.album || [];
-      const newAlbums = Array.isArray(result) ? result : [result];
+      const data = await subsonicJson(
+        'getAlbumList2',
+        {
+          type: currentAlbumSort,
+          size: pageSize,
+          offset: albumsOffset,
+          genre: currentAlbumGenre || undefined,
+          query: currentAlbumSearch || undefined
+        },
+        { signal }
+      );
+      const newAlbums = listOf(data, 'albumList2.album');
 
       if (append) {
         albums = [...albums, ...newAlbums];
@@ -335,13 +333,18 @@
     const signal = artistsController?.signal;
 
     try {
-      let url = `/rest/getArtistList?type=${currentArtistSort}&role=${currentArtistRole}&size=${pageSize}&offset=${artistsOffset}&${$authParams}`;
-      if (currentArtistSearch) url += `&query=${encodeURIComponent(currentArtistSearch)}`;
-
-      const response = await fetch(url, { signal });
-      const data = await response.json();
-      const result = data['subsonic-response']?.artistList?.artist || [];
-      const newArtists = Array.isArray(result) ? result : [result];
+      const data = await subsonicJson(
+        'getArtistList',
+        {
+          type: currentArtistSort,
+          role: currentArtistRole,
+          size: pageSize,
+          offset: artistsOffset,
+          query: currentArtistSearch || undefined
+        },
+        { signal }
+      );
+      const newArtists = listOf(data, 'artistList.artist');
 
       if (append) {
         artists = [...artists, ...newArtists];
@@ -363,10 +366,63 @@
   async function loadPlaylists() {
     if (!$authParams) return;
     try {
-      const response = await fetch(`/rest/getPlaylists?${$authParams}`);
-      const data = await response.json();
-      playlists = data['subsonic-response']?.playlists?.playlist || [];
+      const data = await subsonicJson('getPlaylists');
+      playlists = listOf(data, 'playlists.playlist');
     } catch (e) { console.error(e); }
+  }
+
+  // The presets follow the MuMa account, not the Subsonic login: they are that user's dynamic
+  // playlists. Reloaded whenever the account changes, which includes signing in after a boot
+  // that started logged out.
+  $effect(() => {
+    const userId = $mumaUser?.id;
+    if (!userId) {
+      presets.set([]);
+      return;
+    }
+    refreshPresets(userId);
+    fetchGenreTints().then((tints) => (genreTints = tints));
+  });
+
+  /**
+   * Saves the list on screen -- its genre/label/year, sort, rating floor and mode -- as a preset
+   * tile on the home screen. The name is the only thing asked for; everything else is what the
+   * filter bar already says.
+   */
+  async function saveCurrentAsPreset() {
+    const userId = $mumaUser?.id;
+    if (!userId) return;
+    const argument = viewArgument(activeView);
+    const name = prompt($t('presets.namePrompt'), defaultPresetName());
+    if (!name?.trim()) return;
+    try {
+      await createPreset(userId, {
+        name: name.trim(),
+        params: presetParamsFromFilters({
+          genre: currentGenre || (activeView.startsWith('genre:') ? argument : ''),
+          label: activeView.startsWith('label:') ? argument : '',
+          year: currentYear || (activeView.startsWith('year:') ? argument : ''),
+          sort: currentSort,
+          minRating: currentMinRating,
+          viewMode: $viewMode,
+        }),
+      });
+      await refreshPresets(userId);
+      notify.success($t('presets.saved'));
+    } catch (e) {
+      console.error(e);
+      notify.error($t('presets.saveFailed'));
+    }
+  }
+
+  /** "Random Uptempo Hardcore", "Recent Hardstyle (2024)": the sort word first, as the old tiles were named. */
+  function defaultPresetName() {
+    const argument = viewArgument(activeView);
+    const subject = currentGenre || (activeView.startsWith('genre:') || activeView.startsWith('label:') ? argument : '')
+      || ($viewMode === 'sets' ? $t('nav.sets') : $t('nav.songs'));
+    const year = currentYear || (activeView.startsWith('year:') ? argument : '');
+    const sortWord = currentSort === 'random' ? $t('presets.randomWord') : currentSort === 'recent' ? $t('presets.recentWord') : '';
+    return `${sortWord} ${subject}${year ? ` (${year})` : ''}`.trim();
   }
 
   /**
@@ -377,13 +433,9 @@
     isLoading = true;
     console.log("Fetching all genres...");
     try {
-      const response = await fetch(`/rest/getGenres?${$authParams}`);
-      const data = await response.json();
-      console.log("Genres response:", data);
-      const result = data['subsonic-response']?.genres?.genre || [];
       // Kept unfiltered and unsorted: the CollectionBar owns both now, so the
       // "minimaal" chips can reach the long tail instead of it being dropped here.
-      const genres = Array.isArray(result) ? result : [result];
+      const genres = listOf(await subsonicJson('getGenres'), 'genres.genre');
       // getGenres carries no colour. MuMa derives one per genre so this list and the
       // mobile app draw Hardstyle in the same orange; a genre MuMa does not know keeps
       // the brand accent.
@@ -403,10 +455,7 @@
     if (!$authParams) return;
     isLoading = true;
     try {
-      const response = await fetch(`/rest/getRecordLabels?${$authParams}`);
-      const data = await response.json();
-      const result = data['subsonic-response']?.recordLabels?.recordLabel || [];
-      allLabels = Array.isArray(result) ? result : [result];
+      allLabels = listOf(await subsonicJson('getRecordLabels'), 'recordLabels.recordLabel');
     } catch (e) {
       console.error("Failed to load labels:", e);
     } finally {
@@ -425,7 +474,7 @@
     if (!$authParams) return;
     isLoading = true;
     try {
-      const response = await fetch(`/rest/getTags?name=PODCAST&${$authParams}`);
+      const response = await fetch(restUrl(`/rest/getTags?name=PODCAST&${$authParams}`));
       const data = await response.json();
       const result = data['subsonic-response']?.tags?.tag || [];
       allPodcasts = Array.isArray(result) ? result : [result];
@@ -447,7 +496,7 @@
     if (!$authParams) return [];
     isLoading = true;
     try {
-      const response = await fetch(`/rest/getTags?name=${tag}&${$authParams}`);
+      const response = await fetch(restUrl(`/rest/getTags?name=${tag}&${$authParams}`));
       const data = await response.json();
       const result = data['subsonic-response']?.tags?.tag || [];
       const list = Array.isArray(result) ? result : [result];
@@ -474,7 +523,7 @@
     if (!$authParams) return;
     isLoading = true;
     try {
-      const response = await fetch(`/rest/getLineups?${$authParams}`);
+      const response = await fetch(restUrl(`/rest/getLineups?${$authParams}`));
       const data = await response.json();
       const result = data['subsonic-response']?.lineups?.lineup || [];
       const list = Array.isArray(result) ? result : [result];
@@ -636,7 +685,7 @@
     }
 
     try {
-      const response = await fetch(`/rest/getMemories?date=${localDateString()}&${$authParams}`);
+      const response = await fetch(restUrl(`/rest/getMemories?date=${localDateString()}&${$authParams}`));
       if (!response.ok) return;
 
       const data = await response.json();
@@ -651,8 +700,11 @@
     const view = activeView;
     const auth = $authParams;
     const mode = $viewMode;
+    // A dependency on purpose: coming back online has to re-run the loader for
+    // the view the listener is already standing on.
+    const unreachable = $offline && !viewHasOfflineSource(view);
 
-    if (auth) {
+    if (auth && !unreachable) {
       untrack(() => {
         if (view === 'home') {
             loadCurated();
@@ -723,7 +775,15 @@
 {/snippet}
 
 <div class="flex flex-col gap-8">
-  {#if activeView === 'home'}
+  <!-- Checked before every other branch, and before any loader runs, so a view
+       whose only data source is the server says so in one line instead of
+       spinning at a request that cannot be answered. -->
+  {#if $offline && !viewHasOfflineSource(activeView)}
+    <OfflineNotice kind="unavailable" onnavigate={onnavigate} />
+  {:else if activeView === 'downloads'}
+    <DownloadsView onnavigate={onnavigate} />
+  {:else if activeView === 'home'}
+    <PresetGrid presets={$presets} tints={genreTints} onopen={(preset) => onnavigate(`preset:${preset.id}`)} />
     {#if $memoriesOnHomeEnabled && memoryGroups.length > 0}
       <section class="flex flex-col gap-4">
         <div class="flex justify-between items-end mb-4">
@@ -733,7 +793,7 @@
             onclick={() => onnavigate('memories')}
           >{$t('dashboard.showAll')}</button>
         </div>
-        <div class="flex gap-4 overflow-x-auto pb-2">
+        <div class="flex gap-4 overflow-x-auto scrollbar-hide pb-2">
           {#each memoryGroups as group (group.year)}
             <button
               class="flex-shrink-0 w-40 text-left bg-transparent border-none cursor-pointer p-0"
@@ -742,7 +802,7 @@
               <img
                 class="w-40 h-40 object-cover mb-2 rounded-md"
                 src={group.songs[0]?.coverArt
-                  ? `/rest/getCoverArt?id=${group.songs[0].coverArt}&size=300&${$authParams}`
+                  ? restUrl(`/rest/getCoverArt?id=${group.songs[0].coverArt}&size=300&${$authParams}`)
                   : '/images/spotify-fallback.svg'}
                 alt=""
               />
@@ -758,33 +818,24 @@
       </section>
     {/if}
     {#each sections.filter((s) => !s.id.startsWith('feed:') || s.tracks.length > 0) as section (section.id)}
-      <section class="flex flex-col gap-4">
-        <div class="flex justify-between items-end mb-4">
-          <h2 class="text-2xl font-bold m-0">{$t(section.titleKey)}</h2>
-          <button
-            class="bg-transparent border-none text-[#b3b3b3] text-[12px] font-bold cursor-pointer uppercase tracking-[0.1em] hover:underline"
-            onclick={() => {
-              if (section.id.startsWith('feed:')) {
-                onnavigate(section.id.slice('feed:'.length));
-              } else if (section.id === 'spotify:songs') {
-                viewMode.set('songs');
-                activeView = 'songs';
-              } else if (section.id === 'spotify:sets') {
-                viewMode.set('sets');
-                activeView = 'sets';
-              }
-            }}
-          >{$t('dashboard.showAll')}</button>
-        </div>
-        <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
-          {#each section.tracks.slice(0, 6) as track (track.id)}
-            <TrackCard {track} onnavigate={(v) => activeView = v} />
-          {/each}
-          {#if section.tracks.length === 0}
-            <p class="text-[#b3b3b3] col-span-full">{$t('dashboard.noTracksInSection')}</p>
-          {/if}
-        </div>
-      </section>
+      <HomeShelf
+        title={$t(section.titleKey)}
+        tracks={section.tracks.slice(0, 6)}
+        noTracksText={$t('dashboard.noTracksInSection')}
+        showAllLabel={$t('dashboard.showAll')}
+        onnavigate={(v) => activeView = v}
+        onshowall={() => {
+          if (section.id.startsWith('feed:')) {
+            onnavigate(section.id.slice('feed:'.length));
+          } else if (section.id === 'spotify:songs') {
+            viewMode.set('songs');
+            activeView = 'songs';
+          } else if (section.id === 'spotify:sets') {
+            viewMode.set('sets');
+            activeView = 'sets';
+          }
+        }}
+      />
     {/each}
   {:else if activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('podcast:') || activeView.startsWith('festival:') || activeView.startsWith('year:') || activeView.startsWith('lineup:')}
     <div class="flex flex-col gap-4 mb-6">
@@ -827,6 +878,20 @@
                 </button>
               {/if}
             {/if}
+            {#if $mumaUser && (activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('year:'))}
+              <!-- Saves this list as a home tile. Only the views whose filters a tile can
+                   carry offer it; a podcast or a lineup has no cluster in the tile format. -->
+              <button
+                class="ml-auto shrink-0 flex items-center gap-1.5 bg-transparent border border-[#727272] hover:border-white text-white text-xs font-bold px-3 py-1.5 rounded-full cursor-pointer transition-colors whitespace-nowrap"
+                onclick={saveCurrentAsPreset}
+                title={$t('presets.save')}
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+                  <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2zm-4 10h-2v-2H9V9h2V7h2v2h2v2h-2v2z"></path>
+                </svg>
+                <span class="hidden sm:inline">{$t('presets.save')}</span>
+              </button>
+            {/if}
         </h2>
         <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} showGenre={!activeView.startsWith('genre:') && !activeView.startsWith('label:') && !activeView.startsWith('podcast:')} showYear={!activeView.startsWith('year:')} onchange={handleFilterChange} />
     </div>
@@ -842,6 +907,10 @@
                     </button>
                 </div>
             {/if}
+        {:else if $offline}
+            <!-- The list is empty and there is no connection, so the reason is
+                 that nothing here is downloaded -- not that the library is empty. -->
+            <OfflineNotice kind="empty" onnavigate={onnavigate} />
         {:else}
             <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
                 <p class="text-xl font-bold mb-2 text-white">{$viewMode === 'sets' ? $t('dashboard.noSets') : $t('dashboard.noTracks')}</p>
@@ -855,17 +924,17 @@
       <FilterBar view="albums" bind:genre={currentAlbumGenre} bind:sort={currentAlbumSort} bind:search={currentAlbumSearch} onchange={handleFilterChange} />
     </div>
     {#if albums.length > 0}
-        <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+        <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
             {#each albums as album (album.id)}
                 <div
                   role="button"
                   tabindex="0"
-                  class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
+                  class="bg-[#181818] p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
                   onclick={() => activeView = `album:${album.id}`}
                   onkeydown={(e) => e.key === 'Enter' && (activeView = `album:${album.id}`)}
                 >
                     <img
-                      src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+                      src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
                       alt={album.name}
                       class="w-full aspect-square object-cover rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                       onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
@@ -981,12 +1050,12 @@
       <h2 class="text-2xl font-bold m-0">{$t('nav.artists')}</h2>
       <FilterBar view="artists" bind:sort={currentArtistSort} bind:role={currentArtistRole} bind:search={currentArtistSearch} onchange={handleFilterChange} />
     </div>
-    <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+    <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
         {#each artists as artist (artist.id)}
             <div
               role="button"
               tabindex="0"
-              class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
+              class="bg-[#181818] p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
               onclick={() => activeView = `artist:${artist.id}`}
               onkeydown={(e) => e.key === 'Enter' && (activeView = `artist:${artist.id}`)}
             >
@@ -1025,6 +1094,47 @@
         </div>
     {:else if visiblePlaylists.length === 0}
         {@render noMatches(() => (playlistView = defaultCollectionState('playlists')))}
+    {:else if $isMobile}
+    <!-- Spotify's own Library tab lists playlists rather than tiling them; a phone screen has
+         room for one column of real information (name, track count, length) but not for a
+         cover big enough to tell two playlists apart, so a row with a small thumbnail reads
+         better here than the desktop's cover grid. -->
+    <div class="flex flex-col" role="list">
+        {#each visiblePlaylists as playlist (playlist.id)}
+            <div
+              role="button"
+              tabindex="0"
+              class="flex items-center gap-3 py-2 cursor-pointer rounded hover:bg-white/5 active:bg-white/10"
+              onclick={() => openPlaylist(playlist)}
+              onkeydown={(e) => e.key === 'Enter' && openPlaylist(playlist)}
+            >
+                <img
+                  src={playlist.coverArt ? restUrl(`/rest/getCoverArt?id=${playlist.coverArt}&size=112&${$authParams}`) : '/images/spotify-fallback.svg'}
+                  alt=""
+                  class="w-14 h-14 object-cover rounded shrink-0"
+                  onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
+                />
+                <div class="flex flex-col min-w-0 flex-1">
+                  <span class="font-bold truncate">{playlist.name}</span>
+                  <span class="text-xs text-[#b3b3b3] truncate">
+                    {$t('common.trackCount', { count: Number(playlist.songCount) || 0 })}
+                    {#if Number(playlist.duration) > 0}
+                      &middot; {playlistLength(playlist.duration)}
+                    {/if}
+                  </span>
+                </div>
+                <button
+                    class="p-2 shrink-0 text-brand {$favoritePlaylists.includes(String(playlist.id)) ? '' : 'opacity-40'}"
+                    onclick={(e) => { e.stopPropagation(); toggleFavoriteIn(favoritePlaylists, String(playlist.id)); }}
+                    aria-label={$t('collection.toggleFavoritePlaylist')}
+                >
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill={$favoritePlaylists.includes(String(playlist.id)) ? "currentColor" : "none"} stroke="currentColor" stroke-width="2">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+                    </svg>
+                </button>
+            </div>
+        {/each}
+    </div>
     {:else}
     <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
         {#each visiblePlaylists as playlist (playlist.id)}
@@ -1036,7 +1146,7 @@
               onkeydown={(e) => e.key === 'Enter' && openPlaylist(playlist)}
             >
                 <img
-                  src={playlist.coverArt ? `/rest/getCoverArt?id=${playlist.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+                  src={playlist.coverArt ? restUrl(`/rest/getCoverArt?id=${playlist.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
                   alt={playlist.name}
                   class="w-full aspect-square object-cover rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                   onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
@@ -1089,12 +1199,12 @@
       {#if artists.length > 0}
         <section>
           <h3 class="text-xl font-bold mb-4">{$t('nav.artists')}</h3>
-          <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+          <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
             {#each artists as artist (artist.id)}
               <div
                 role="button"
                 tabindex="0"
-                class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
+                class="bg-[#181818] p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
                 onclick={() => activeView = `artist:${artist.id}`}
                 onkeydown={(e) => e.key === 'Enter' && (activeView = `artist:${artist.id}`)}
               >
@@ -1115,17 +1225,17 @@
       {#if albums.length > 0}
         <section>
           <h3 class="text-xl font-bold mb-4">{$t('nav.albums')}</h3>
-          <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+          <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
             {#each albums as album (album.id)}
               <div
                 role="button"
                 tabindex="0"
-                class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
+                class="bg-[#181818] p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
                 onclick={() => activeView = `album:${album.id}`}
                 onkeydown={(e) => e.key === 'Enter' && (activeView = `album:${album.id}`)}
               >
                   <img
-                    src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+                    src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
                     alt={album.name}
                     class="w-full aspect-square object-cover rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                     onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
@@ -1144,10 +1254,16 @@
       {/if}
 
       {#if tracks.length === 0 && artists.length === 0 && albums.length === 0}
-        <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
-            <p class="text-xl font-bold mb-2 text-white">{$t('search.noResults')}</p>
-            <p class="text-sm opacity-60">{$t('search.tryAnother')}</p>
-        </div>
+        {#if $offline}
+          <!-- Search does reach the device; finding nothing there means nothing
+               matching is downloaded, which is not "try another term". -->
+          <OfflineNotice kind="empty" onnavigate={onnavigate} />
+        {:else}
+          <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
+              <p class="text-xl font-bold mb-2 text-white">{$t('search.noResults')}</p>
+              <p class="text-sm opacity-60">{$t('search.tryAnother')}</p>
+          </div>
+        {/if}
       {/if}
     </div>
   {:else if activeView === 'settings'}
@@ -1164,10 +1280,19 @@
     <FeedView slug={RELEASE_RADAR} onnavigate={(v) => onnavigate(v)} />
   {:else if activeView === 'daily-mix'}
     <FeedView slug={DAILY_MIX} onnavigate={(v) => onnavigate(v)} />
+  {:else if activeView.startsWith('preset:')}
+    {@const preset = $presets.find((p) => p.id === viewArgument(activeView))}
+    {#if preset}
+      <PresetView {preset} onnavigate={(v) => onnavigate(v)} />
+    {:else}
+      <p class="text-[#b3b3b3] p-12 text-center">{$presets.length === 0 && $mumaUser ? $t('common.loading') : $t('presets.notFound')}</p>
+    {/if}
   {:else if activeView === 'memories'}
     <MemoriesView onnavigate={(v) => onnavigate(v)} />
   {:else if activeView.startsWith('memories:')}
     <MemoriesYearView year={viewArgument(activeView)} onnavigate={(v) => onnavigate(v)} />
+  {:else if activeView === 'voice'}
+    <VoiceView />
   {/if}
 </div>
 

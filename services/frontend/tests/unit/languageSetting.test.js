@@ -1,13 +1,15 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import LanguageSetting from "../../src/lib/settings/LanguageSetting.svelte";
 import { locale } from "../../src/lib/i18n";
+import { platform } from "../../src/lib/platform/index.js";
 
 describe("LanguageSetting", () => {
   beforeEach(() => {
     localStorage.clear();
     locale.set("en");
+    platform.system.setAppLocale = vi.fn();
   });
 
   it("offers every shipped language, labelled in its own language", () => {
@@ -46,5 +48,11 @@ describe("LanguageSetting", () => {
     await fireEvent.change(screen.getByRole("combobox"), { target: { value: "nl" } });
     expect(get(locale)).toBe("nl");
     expect(screen.getByText("Taal")).toBeInTheDocument();
+  });
+
+  it("tells the shell which language was picked, so native chrome follows it too", async () => {
+    render(LanguageSetting);
+    await fireEvent.change(screen.getByRole("combobox"), { target: { value: "nl" } });
+    expect(platform.system.setAppLocale).toHaveBeenCalledWith("nl");
   });
 });

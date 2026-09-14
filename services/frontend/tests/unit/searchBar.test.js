@@ -255,6 +255,16 @@ describe("SearchBar", () => {
     expect(screen.getByRole("textbox").value).toBe("angerfist");
   });
 
+  it("lets an outside binding close the results panel", async () => {
+    const { rerender } = render(SearchBar);
+    await search("angerfist");
+    await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
+
+    await rerender({ showResults: false });
+
+    await waitFor(() => expect(screen.queryByText("Raise Your Fist")).toBeNull());
+  });
+
   it("survives a genre list that fails to load", async () => {
     globalThis.fetch = vi.fn(async (url) => {
       if (url.includes("/rest/getGenres")) throw new Error("network down");

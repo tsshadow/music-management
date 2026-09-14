@@ -1,9 +1,10 @@
 <script>
   import { t, locale } from './i18n/index.js';
   import { untrack } from 'svelte';
-  import { authParams, viewMode, currentTrack, playlist, playerState } from './store.js';
+  import { authParams, viewMode, currentTrack, playlist, playerState, restUrl } from './store.js';
   import TrackList from './TrackList.svelte';
   import ArtistList from './ArtistList.svelte';
+  import { listOf, subsonicJson } from './subsonic.js';
 
   const { albumId, onnavigate } = $props();
 
@@ -25,7 +26,7 @@
     else album.starred = new Date().toISOString();
 
     try {
-      const response = await fetch(`/rest/${endpoint}?albumId=${albumId}&${$authParams}`);
+      const response = await fetch(restUrl(`/rest/${endpoint}?albumId=${albumId}&${$authParams}`));
       if (!response.ok) throw new Error('Failed to toggle star');
     } catch (e) {
       console.error(e);
@@ -78,13 +79,11 @@
     if (!$authParams) return;
     isLoading = true;
     try {
-      const response = await fetch(`/rest/getAlbum?id=${albumId}&${$authParams}`);
-      const data = await response.json();
+      const data = await subsonicJson('getAlbum', { id: albumId });
       const albumData = data['subsonic-response']?.album;
       if (albumData) {
         album = albumData;
-        const result = albumData.song || [];
-        allTracks = Array.isArray(result) ? result : [result];
+        allTracks = listOf(data, 'album.song');
 
         loadAlbumInfo();
       }
@@ -100,7 +99,7 @@
    */
   async function loadAlbumInfo() {
     try {
-      const response = await fetch(`/rest/getAlbumInfo2?id=${albumId}&${$authParams}`);
+      const response = await fetch(restUrl(`/rest/getAlbumInfo2?id=${albumId}&${$authParams}`));
       const data = await response.json();
       albumInfo = data['subsonic-response']?.albumInfo;
     } catch (e) {
@@ -124,7 +123,7 @@
   <div class="flex flex-col">
     <header class="h-auto md:h-[340px] flex flex-col md:flex-row items-center md:items-end p-6 md:p-8 bg-linear-to-b from-transparent to-black/50 relative gap-6 text-center md:text-left">
        <img
-         src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+         src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
          alt={album.name}
          class="w-[160px] h-[160px] md:w-[232px] md:h-[232px] object-cover shadow-[0_4px_60px_rgba(0,0,0,0.5)]"
          onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}

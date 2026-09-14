@@ -2,12 +2,13 @@
   import { t } from './i18n/index.js';
   import { untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
-  import { authParams, viewMode, deduplicateEnabled, mumaApiUrl, currentTrack, playlist, playerState, hasPermission } from './store.js';
+  import { authParams, viewMode, deduplicateEnabled, mumaApiUrl, currentTrack, playlist, playerState, hasPermission, restUrl } from './store.js';
   import { getArtistImageUrl } from './utils.js';
   import { getHeaders } from './mumaApi.js';
   import { Pencil } from '@lucide/svelte';
   import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
   import TrackList from './TrackList.svelte';
+  import { listOf, subsonicJson } from './subsonic.js';
 
   const { artistId, onnavigate } = $props();
 
@@ -36,7 +37,7 @@
     else artist.starred = new Date().toISOString();
 
     try {
-      const response = await fetch(`/rest/${endpoint}?artistId=${artistId}&${$authParams}`);
+      const response = await fetch(restUrl(`/rest/${endpoint}?artistId=${artistId}&${$authParams}`));
       if (!response.ok) throw new Error('Failed to toggle star');
     } catch (e) {
       console.error(e);
@@ -53,8 +54,7 @@
     if (!$authParams) return;
     isLoading = true;
     try {
-      const response = await fetch(`/rest/getArtist?id=${artistId}&${$authParams}`);
-      const data = await response.json();
+      const data = await subsonicJson('getArtist', { id: artistId });
       const artistData = data['subsonic-response']?.artist;
       if (artistData) {
         artist = artistData;
@@ -99,18 +99,21 @@
         seenKeys = new SvelteMap();
     }
     const pageSize = append ? 100 : 25;
-    const durationFilter = $viewMode === 'sets' ? 'minDuration=10' : 'maxDuration=10';
+    const durationFilter = $viewMode === 'sets' ? { minDuration: 10 } : { maxDuration: 10 };
     
     let currentBatch = [];
     try {
       while (currentBatch.length < pageSize && allTracksHasMore) {
-        let url = `/rest/getSpotifyTracks?artistId=${artistId}&offset=${allTracksOffset}&count=${pageSize}&${durationFilter}&sort=recent&${$authParams}`;
-        if ($deduplicateEnabled) url += `&deduplicate=true`;
-        const response = await fetch(url);
-        const data = await response.json();
+        const data = await subsonicJson('getSpotifyTracks', {
+          artistId,
+          offset: allTracksOffset,
+          count: pageSize,
+          sort: 'recent',
+          deduplicate: $deduplicateEnabled ? 'true' : undefined,
+          ...durationFilter
+        });
         const tracksNode = data['subsonic-response']?.tracks;
-        const result = tracksNode?.track || [];
-        const newTracks = Array.isArray(result) ? result : [result];
+        const newTracks = listOf(data, 'tracks.track');
 
         const deduped = $deduplicateEnabled ? deduplicateTracks(newTracks, seenKeys) : newTracks;
         if ($deduplicateEnabled) {
@@ -141,7 +144,7 @@
    */
   async function loadArtistInfo() {
     try {
-      const response = await fetch(`/rest/getArtistInfo2?id=${artistId}&${$authParams}`);
+      const response = await fetch(restUrl(`/rest/getArtistInfo2?id=${artistId}&${$authParams}`));
       const data = await response.json();
       const info = data['subsonic-response']?.artistInfo || data['subsonic-response']?.artistInfo2;
       if (info) {
@@ -362,19 +365,19 @@
         {#each Object.entries(albumGroups).sort() as [type, groupAlbums] (type)}
             <section>
                 <h2 class="text-2xl font-bold mb-4">{type}s</h2>
-                <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+                <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
                     {#each groupAlbums as album (album.id)}
                         <div
                           role="button"
                           tabindex="0"
-                          class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]"
+                          class="bg-[#181818] p-2 md:p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]"
                           onclick={() => openAlbum(album.id)}
                           onkeydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
                         >
                             <img
-                              src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+                              src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
                               alt={album.name}
-                              class="w-full aspect-square object-cover mb-4 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
+                              class="w-full aspect-square object-cover mb-2 md:mb-4 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
                             />
                             <span class="block font-bold mb-1 whitespace-nowrap overflow-hidden text-ellipsis">{album.name}</span>
@@ -388,19 +391,19 @@
         {#if appearsOn.length > 0}
             <section>
                 <h2 class="text-2xl font-bold mb-4">{$t('artist.appearsOn')}</h2>
-                <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+                <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
                     {#each appearsOn as album (album.id)}
                         <div
                           role="button"
                           tabindex="0"
-                          class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]"
+                          class="bg-[#181818] p-2 md:p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]"
                           onclick={() => openAlbum(album.id)}
                           onkeydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
                         >
                             <img
-                              src={album.coverArt ? `/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}` : '/images/spotify-fallback.svg'}
+                              src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
                               alt={album.name}
-                              class="w-full aspect-square object-cover mb-4 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
+                              class="w-full aspect-square object-cover mb-2 md:mb-4 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
                             />
                             <span class="block font-bold mb-1 whitespace-nowrap overflow-hidden text-ellipsis">{album.name}</span>
@@ -414,16 +417,16 @@
         {#if similarArtists.length > 0}
             <section>
                 <h2 class="text-2xl font-bold mb-4">{$t('artist.similar')}</h2>
-                <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 md:gap-6">
+                <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
                     {#each similarArtists as similar (similar.id)}
                         <div
                           role="button"
                           tabindex="0"
-                          class="bg-[#181818] p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]"
+                          class="bg-[#181818] p-2 md:p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]"
                           onclick={() => openArtist(similar.id)}
                           onkeydown={(e) => e.key === 'Enter' && openArtist(similar.id)}
                         >
-                            <div class="mb-4">
+                            <div class="mb-2 md:mb-4">
                                 <img
                                   src={getArtistImageUrl(similar, $authParams)}
                                   alt={similar.name}

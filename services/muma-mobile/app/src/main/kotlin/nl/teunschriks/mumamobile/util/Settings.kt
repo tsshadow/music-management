@@ -9,6 +9,7 @@ package nl.teunschriks.mumamobile.util
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import java.util.regex.Pattern
 import nl.teunschriks.mumamobile.BuildConfig
@@ -37,6 +38,22 @@ object Settings {
     var appIcon by StringSetting(
         getKey(R.string.setting_key_app_icon),
         getKey(R.string.setting_key_app_icon_green)
+    )
+
+    /**
+     * Whether the app opens in the Svelte web player instead of the Kotlin screens.
+     *
+     * Off by default and staying that way for as long as the web shell is a beta: this is the
+     * only thing that decides which of the two interfaces exists for a user, and every install
+     * that never touches it behaves exactly as it did before the shell was added. Writing it is
+     * the whole change: the launcher aliases point at `LauncherActivity`, which reads this at tap
+     * time. They deliberately do *not* name an interface -- moving the alias with the setting is
+     * what used to delete the task the user was standing in.
+     */
+    @JvmStatic
+    var webUiEnabled by BooleanSetting(
+        getKey(R.string.setting_key_web_ui),
+        false
     )
 
     /**
@@ -146,16 +163,26 @@ object Settings {
             }
         }
 
-    private var maxBitRateWifi
+    // Not private: MumaSystemPlugin's device-settings whitelist reads and writes both directly,
+    // rather than through maxBitRate, which only ever answers for the network the phone is on.
+    @JvmStatic
+    var maxBitRateWifi
         by StringIntSetting(getKey(R.string.setting_key_max_bitrate_wifi))
 
-    private var maxBitRateMobile
+    @JvmStatic
+    var maxBitRateMobile
         by StringIntSetting(getKey(R.string.setting_key_max_bitrate_mobile))
 
+    @JvmStatic
     var maxBitRatePinning
         by StringIntSetting(getKey(R.string.setting_key_max_bitrate_pinning))
     val pinWithHighestQuality: Boolean
         get() = (maxBitRatePinning == 0)
+
+    // Not private, for the same reason as maxBitRateWifi/maxBitRateMobile above: the
+    // device-settings whitelist reads and writes it directly.
+    @JvmStatic
+    var networkTimeout by StringIntSetting(getKey(R.string.setting_key_network_timeout), 60000)
 
     @JvmStatic
     val preloadCount: Int
@@ -166,7 +193,18 @@ object Settings {
             return if (preloadCount == -1) Int.MAX_VALUE else preloadCount
         }
 
-    val parallelDownloads by IntSetting(getKey(R.string.setting_key_parallel_downloads), 3)
+    /**
+     * Writes the raw preference behind [preloadCount]. `-1` is the sentinel [preloadCount] turns
+     * into "no limit" on read; this is what the device-settings whitelist writes with, so it takes
+     * the same sentinel rather than [Int.MAX_VALUE] a caller would otherwise have to know about.
+     */
+    @JvmStatic
+    fun setPreloadCount(count: Int) {
+        preferences.edit { putString(getKey(R.string.setting_key_preload_count), count.toString()) }
+    }
+
+    @JvmStatic
+    var parallelDownloads by IntSetting(getKey(R.string.setting_key_parallel_downloads), 3)
 
     @JvmStatic
     val cacheSizeMB: Int
@@ -177,6 +215,12 @@ object Settings {
             )!!.toInt()
             return if (cacheSize == -1) Int.MAX_VALUE else cacheSize
         }
+
+    /** Writes the raw preference behind [cacheSizeMB]; see [setPreloadCount] for the `-1` sentinel. */
+    @JvmStatic
+    fun setCacheSizeMB(sizeMB: Int) {
+        preferences.edit { putString(getKey(R.string.setting_key_cache_size), sizeMB.toString()) }
+    }
 
     @JvmStatic
     var customCacheLocation by BooleanSetting(
@@ -202,8 +246,18 @@ object Settings {
         false
     )
 
+    // The .nomedia marker itself is HideMediaEffect's job, not this property's; both
+    // SettingsFragment and MumaSystem.setSetting's "hideMedia" entry call that after writing this.
     @JvmStatic
-    var shareOnServer by BooleanSetting(getKey(R.string.setting_key_share_on_server), true)
+    var hideMedia by BooleanSetting(
+        getKey(R.string.setting_key_hide_media),
+        false
+    )
+
+    // Retired from the settings screen; the Shares fragment is dead code but still writes this, so
+    // it stays a plain in-memory var instead of a val.
+    @JvmStatic
+    var shareOnServer = true
 
     @JvmStatic
     var shouldDisplayBitrateWithArtist by BooleanSetting(
@@ -211,9 +265,10 @@ object Settings {
         true
     )
 
+    // Retired from the settings screen; AlbumHeader still branches on it, so the value is frozen
+    // at the default rather than deleted outright.
     @JvmStatic
-    var shouldUseFolderForArtistName
-        by BooleanSetting(getKey(R.string.setting_key_use_folder_for_album_artist), false)
+    val shouldUseFolderForArtistName = false
 
     @JvmStatic
     var shouldShowTrackNumber
@@ -229,33 +284,32 @@ object Settings {
         TRACK_LIST_LINES_COMPACT
     )
 
+    // default_artists/albums/songs and max_artists/albums/songs used to be a settings screen of
+    // their own; the web player enforces its own search limits, so the legacy Kotlin UI keeps
+    // reading these exact numbers -- the values res/xml/settings.xml shipped as defaults -- with
+    // no row left anywhere to change them.
     @JvmStatic
-    var defaultAlbums
-        by StringIntSetting(getKey(R.string.setting_key_default_albums), 5)
+    val defaultAlbums = 5
 
     @JvmStatic
-    var maxAlbums
-        by StringIntSetting(getKey(R.string.setting_key_max_albums), 20)
+    val maxAlbums = 20
 
     @JvmStatic
-    var defaultSongs
-        by StringIntSetting(getKey(R.string.setting_key_default_songs), 10)
+    val defaultSongs = 10
 
     @JvmStatic
-    var maxSongs
-        by StringIntSetting(getKey(R.string.setting_key_max_songs), 25)
+    val maxSongs = 500
 
     @JvmStatic
-    var maxArtists
-        by StringIntSetting(getKey(R.string.setting_key_max_artists), 10)
+    val maxArtists = 10
 
     @JvmStatic
-    var defaultArtists
-        by StringIntSetting(getKey(R.string.setting_key_default_artists), 3)
+    val defaultArtists = 3
 
+    // Bookmarks are replaced by set resume; skip is a fixed +/-30s rather than a configurable
+    // increment_time preference.
     @JvmStatic
-    var seekInterval
-        by StringIntSetting(getKey(R.string.setting_key_increment_time), 5000)
+    val seekInterval = 30000
 
     val seekIntervalMillis: Long
         get() = (seekInterval / 1000).toLong()
@@ -302,30 +356,32 @@ object Settings {
         false
     )
 
+    // The media3 notification is mandatory for a foreground service; this toggle never actually
+    // gated it. Retired from the settings screen, frozen at the default it always effectively had.
     @JvmStatic
-    var showNowPlaying
-        by BooleanSetting(getKey(R.string.setting_key_show_now_playing), true)
+    val showNowPlaying = true
 
     @JvmStatic
-    var shouldTransitionOnPlayback by BooleanSetting(
-        getKey(R.string.setting_key_download_transition),
-        true
-    )
+    val shouldTransitionOnPlayback = true
 
     @JvmStatic
-    var showNowPlayingDetails
-        by BooleanSetting(getKey(R.string.setting_key_show_now_playing_details), false)
+    val showNowPlayingDetails = true
 
     var scrobbleEnabled by BooleanSetting(getKey(R.string.setting_key_scrobble), true)
 
     // Normally you don't need to use these Settings directly,
     // use ActiveServerProvider.isID3Enabled() instead
+    //
+    // Retired from the settings screen: ActiveServerProvider.shouldUseId3Tags() is hardcoded to
+    // true and no longer reads either of these. They stay plain in-memory vars, defaulting true,
+    // rather than vals, only because a few unit tests still poke them directly to exercise the
+    // handful of call sites that read the property instead of the function.
     @JvmStatic
-    var id3TagsEnabledOnline by BooleanSetting(getKey(R.string.setting_key_id3_tags), true)
+    var id3TagsEnabledOnline = true
 
     // See comment above.
     @JvmStatic
-    var id3TagsEnabledOffline by BooleanSetting(getKey(R.string.setting_key_id3_tags_offline), true)
+    var id3TagsEnabledOffline = true
 
     var activeServer by IntSetting(getKey(R.string.setting_key_server_instance), -1)
 
@@ -333,14 +389,27 @@ object Settings {
 
     var firstRunExecuted by BooleanSetting(getKey(R.string.setting_key_first_run_executed), false)
 
-    val shouldShowArtistPicture
-        by BooleanSetting(getKey(R.string.setting_key_show_artist_picture), true)
+    /**
+     * Whether the one-time push of this account's Subsonic bookmarks into the
+     * `setResume` account-settings key (the web's set-resume feature) has
+     * already run. See `BookmarkMigration.kt` -- this exists so a listener's
+     * bookmarks are not re-pushed, and any resume position they have since
+     * moved past on another device is not clobbered, on every later launch.
+     */
+    var bookmarksMigratedToSetResume
+        by BooleanSetting(getKey(R.string.setting_key_bookmarks_migrated_to_set_resume), false)
 
+    // In-memory rather than persisted: ArtistHeaderBinderTest/ArtistRowBinderTest flip this to
+    // isolate themselves from the real Koin-backed image loader; there is otherwise no settings
+    // screen row, and no persistence, left for it.
     @JvmStatic
-    var chatRefreshInterval by StringIntSetting(
-        getKey(R.string.setting_key_chat_refresh_interval),
-        5000
-    )
+    var shouldShowArtistPicture = true
+
+    // Shares/Chat fragments are dead code; every setting below this point that only fed one of
+    // them is frozen at its default rather than deleted, since these are still real properties a
+    // handful of call sites in those fragments read.
+    @JvmStatic
+    val chatRefreshInterval = 5000
 
     var directoryCacheTime by StringIntSetting(
         getKey(R.string.setting_key_directory_cache_time),
@@ -350,45 +419,35 @@ object Settings {
     var shouldSortByDisc
         by BooleanSetting(getKey(R.string.setting_key_disc_sort), false)
 
-    var shouldClearBookmark
-        by BooleanSetting(getKey(R.string.setting_key_clear_bookmark), false)
+    // Bookmarks are replaced by set resume.
+    // Not a const val: ktlint wants SCREAMING_SNAKE_CASE for those, and renaming would touch
+    // every call site that still reads this camelCase property name.
+    @Suppress("MayBeConst")
+    val shouldClearBookmark = false
 
-    var shouldAskForShareDetails
-        by BooleanSetting(getKey(R.string.setting_key_ask_for_share_details), true)
+    // In-memory rather than persisted: the Shares fragment that writes this is dead code, but it
+    // still compiles and still writes, so this stays a plain var instead of a val.
+    var shouldAskForShareDetails = true
 
-    var defaultShareDescription
-        by StringSetting(getKey(R.string.setting_key_default_share_description), "")
+    var defaultShareDescription = ""
 
     @JvmStatic
     val shareGreeting: String?
         get() {
             val context = Util.appContext()
-            val defaultVal = String.format(
+            return String.format(
                 context.resources.getString(R.string.share_default_greeting),
                 context.resources.getString(R.string.common_appname)
             )
-            return preferences.getString(
-                getKey(R.string.setting_key_default_share_greeting),
-                defaultVal
-            )
         }
 
-    var defaultShareExpiration by StringSetting(
-        getKey(R.string.setting_key_default_share_expiration),
-        "0"
-    )
+    var defaultShareExpiration = "0"
 
-    val defaultShareExpirationInMillis: Long
-        get() {
-            val preference = defaultShareExpiration
-            val split = COLON_PATTERN.split(preference)
-            if (split.size == 2) {
-                val timeSpanAmount = split[0].toLong()
-                val timeSpanType = split[1]
-                return TimeSpanPicker.calculateTimeSpan(appContext, timeSpanType, timeSpanAmount)
-            }
-            return 0
-        }
+    // TimeSpanPicker.calculateTimeSpan needs a live Context to resolve a "weeks"/"months" span,
+    // which is why this used to be computed instead of frozen; the Shares fragment that read it is
+    // dead code, so a fixed "no expiration" answer costs nothing.
+    @Suppress("MayBeConst")
+    val defaultShareExpirationInMillis: Long = 0
 
     @JvmStatic
     var debugLogToFile by BooleanSetting(
@@ -407,8 +466,11 @@ object Settings {
         false
     )
 
+    // Was a val: only the legacy ListPreference wrote it, straight to SharedPreferences, never
+    // through this property. MumaSystemPlugin.setAppLocale writes it through the property instead,
+    // so it has to be a var now -- see docs/designs/universal-ui/functional.md, "Device settings".
     @JvmStatic
-    val overrideLanguage by StringSetting(getKey(R.string.setting_key_override_language), "")
+    var overrideLanguage by StringSetting(getKey(R.string.setting_key_override_language), "")
 
     var useHwOffload by BooleanSetting(getKey(R.string.setting_key_hardware_offload), false)
 

@@ -35,7 +35,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import nl.teunschriks.mumamobile.R
-import nl.teunschriks.mumamobile.activity.NavigationActivity
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.audiofx.EqualizerController
@@ -50,6 +49,7 @@ import nl.teunschriks.mumamobile.service.androidauto.NewsPlaybackController
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.SessionMarker
 import nl.teunschriks.mumamobile.util.Settings
+import nl.teunschriks.mumamobile.util.UiVariant
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.Util.stopForegroundRemoveNotification
 import nl.teunschriks.mumamobile.util.toTrack
@@ -96,6 +96,17 @@ class PlaybackService :
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession = mediaLibrarySession
+
+    /**
+     * Read by the Capacitor bridge ([nl.teunschriks.mumamobile.capacitor.MumaPlayerPlugin]) so the
+     * web module can tell a native radio session apart from an ordinary queue -- including right
+     * after the WebView was recreated, when the queue it remembers and the one the service is
+     * actually playing are not the same thing.
+     */
+    val currentRadioSlug: String? get() = librarySessionCallback.currentRadioSlug
+
+    /** Same, for a running news bulletin. */
+    val isNewsPlaying: Boolean get() = librarySessionCallback.isNewsPlaying
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         Timber.i("Stopping the playback because we were swiped away")
@@ -358,7 +369,7 @@ class PlaybackService :
     }
 
     private fun getPendingIntentForContent(): PendingIntent {
-        val intent = Intent(this, NavigationActivity::class.java)
+        val intent = UiVariant.launchIntent(this)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
         var flags = FLAG_UPDATE_CURRENT
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -401,7 +412,7 @@ class PlaybackService :
             )
             val pendingIntent =
                 TaskStackBuilder.create(this@PlaybackService).run {
-                    addNextIntent(Intent(this@PlaybackService, NavigationActivity::class.java))
+                    addNextIntent(UiVariant.launchIntent(this@PlaybackService))
 
                     val immutableFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         FLAG_IMMUTABLE
@@ -463,6 +474,12 @@ class PlaybackService :
         // itself instead of trusting a payload that may not arrive.
         const val CUSTOM_COMMAND_PLAY_NEWS =
             "org.moire.ultrasonic.PLAY_NEWS"
+
+        // Starting radio has a media id of its own (see `radioItemMediaId`) and needs no custom
+        // command; stopping it without starting anything else does not fit that shape, so it gets
+        // one -- the mirror of CUSTOM_COMMAND_PLAY_NEWS, which already toggles both ways.
+        const val CUSTOM_COMMAND_STOP_RADIO =
+            "org.moire.ultrasonic.STOP_RADIO"
         private const val NOTIFICATION_ID = 3009
     }
 }

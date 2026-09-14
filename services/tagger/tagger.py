@@ -159,7 +159,14 @@ class Tagger:
                 'aac': parse_aac,
             }.items():
                 if enabled:
-                    files.extend(folder.glob(f'*.{ext}'))
+                    # `glob` matches on the name, so a *directory* called
+                    # `Some Release (2015).mp3` comes back as a candidate song. Everything
+                    # downstream then treats it as a file: `stat()` and `needs_processing`
+                    # both succeed on a directory, and it only falls over inside mutagen,
+                    # as `IsADirectoryError` wrapped in a `MutagenError`. That is one
+                    # `Parse_song failed` per pass, forever, because no tagger run can ever
+                    # make a directory readable as audio.
+                    files.extend(f for f in folder.glob(f'*.{ext}') if f.is_file())
             if self.parallel and files:
                 with ThreadPoolExecutor(max_workers=16) as executor:
                     futures = [

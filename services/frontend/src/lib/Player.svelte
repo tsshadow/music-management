@@ -1,16 +1,32 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
-  import { currentTrack, playerState, audio, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey, equalizerSettings } from './store.js';
+  import { currentTrack, playerState, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey, equalizerSettings, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying } from './store.js';
   import Equalizer from './Equalizer.svelte';
+  import NowPlaying from './NowPlaying.svelte';
+  import { fetchLyricsLines } from './lyrics.js';
   import * as equalizer from './equalizer.js';
+  // Everything this component does with playback goes through here; the engine
+  // behind it is the browser's <audio> today and the phone's PlaybackService
+  // later. See platform/index.js for the interface and
+  // docs/designs/universal-ui/ for why.
+  import { platform } from './platform/index.js';
+  import { logAction } from './diagnosticsLog.js';
+  import { createNativeQueue, trackAfterCommand } from './nativeQueue.js';
   import { createRadioController } from './radioController.js';
   import { shouldPushJamState } from './radioSync.js';
-  import { resolveDuration, progressPercent } from './playerProgress.js';
+  import { resolveDuration, progressPercent, formatTime, formatClock } from './playerProgress.js';
   import { describeFilter } from './management/radioChannels.js';
   import { snapshotOf, restoreTarget, bulletinStreamUrl } from './newsQueue.js';
   import { startTrail, stepBack, stepForward } from './shuffleHistory.js';
   import { releaseDateLabel } from './trackDate.js';
+  import { isSet } from './downloads.js';
+  import {
+    resumeKeyFor,
+    shouldResume,
+    loadSetResumePositions,
+    saveSetResumePosition,
+  } from './setResume.js';
   import ArtistList from './ArtistList.svelte';
   import { getArtistImageUrl, subsonicError } from './utils.js';
   import { getHeaders } from './mumaApi.js';
@@ -18,7 +34,22 @@
 
   const { onnavigate, ontoggleQueue } = $props();
 
-  let audioElement;
+  // `$state` rather than a plain `let`: the element is inside an `{#if}` now
+  // (there is none in the shell), so the binding writes to it after the first
+  // render and Svelte refuses a non-reactive target for that.
+  let audioElement = $state(null);
+  // Effects declared here run before onMount, so the engine has nothing to play
+  // through yet when the first of them fires. Anything that needs a live engine
+  // waits for this.
+  let engineReady = $state(false);
+
+  // Whether the platform service holds the queue instead of this component.
+  // True inside the Android shell and false in a browser; every place below
+  // that behaves differently branches on this and nothing else. See
+  // platform/index.js (`ownsQueue`) and nativeQueue.js.
+  const nativePlayback = platform.player.ownsQueue;
+  /** @type {ReturnType<typeof createNativeQueue>|null} */
+  let nativeQueue = null;
   let muted = $state(false);
   let lastVolume = $state(50);
   let lastSyncTime = null;
@@ -29,7 +60,6 @@
   let radioTickInterval = null;
   let radioRefreshInterval = null;
   let radioClockInterval = null;
-  let progressTicker = null;
   let radioChannels = $state([]);
   // Set while a news bulletin is interrupting the music, and holding what to
   // put back when it ends.
@@ -39,20 +69,30 @@
 
   let showEqualizer = $state(false);
   let equalizerPanelEl = $state(null);
-  let equalizerButtonEl = $state(null);
   const equalizerSupported = equalizer.isSupported();
+
+  // The current track's lyrics, or an empty array once LMS has answered and
+  // found none -- most tracks. Computed here rather than inside `NowPlaying`
+  // (or a second copy on the desktop panel below) for the same reason
+  // `currentRating` already is: one fetch, two renderings of the same state.
+  // An empty array is also what hides the affordance in both places, so
+  // nothing shows a "no lyrics" placeholder for the common case.
+  let lyricsLines = $state([]);
+  let showLyricsPanel = $state(false);
 
   /**
    * Closes the panel on a click elsewhere.
    *
-   * The toggle button has to be excluded as well as the panel: on mobile the
-   * button sits in the mini player and the sheet is a separate fixed element,
-   * so without this check the button's own click would close the sheet again
-   * the instant its handler opened it.
+   * Every toggle button has to be excluded as well as the panel, not just one
+   * of them: on mobile the button sits in the mini player and the sheet is a
+   * separate fixed element, and Now Playing renders a third button of its own
+   * -- without this check any of their own clicks would close the sheet again
+   * the instant its handler opened it. `data-eq-toggle` is what all three
+   * share, rather than a separate bound element ref per button.
    */
   function closeEqualizerOnOutsideClick(event) {
     if (equalizerPanelEl?.contains(event.target)) return;
-    if (equalizerButtonEl?.contains(event.target)) return;
+    if (event.target.closest('[data-eq-toggle]')) return;
     showEqualizer = false;
   }
 
@@ -62,19 +102,26 @@
     return () => window.removeEventListener('click', closeEqualizerOnOutsideClick);
   });
 
-  // The one place settings reach the audio graph. Attaching happens lazily,
-  // on the first switch-on: that is always a user gesture, which is what the
-  // browser demands before an AudioContext may start.
+  $effect(() => {
+    const id = track?.id;
+    let cancelled = false;
+    lyricsLines = [];
+    showLyricsPanel = false;
+    if (id) {
+      fetchLyricsLines(id).then((lines) => {
+        if (!cancelled) lyricsLines = lines;
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
+  });
+
+  // Settings reach the audio graph through the engine, which owns the element
+  // they have to be built around -- so this waits until it has one.
   $effect(() => {
     const settings = $equalizerSettings;
-    if (!settings.enabled) {
-      equalizer.setEnabled(false);
-      return;
-    }
-    if (!equalizer.attach(audioElement)) return;
-    equalizer.setGains(settings.gains);
-    equalizer.setPreamp(settings.preamp);
-    equalizer.setEnabled(true);
+    if (engineReady) platform.player.setEqualizer(settings);
   });
 
   /**
@@ -86,7 +133,112 @@
    * @returns {string}
    */
   function radioStreamUrl(trackId, offsetSeconds) {
-    return `${$credentials.url}/rest/stream?id=${trackId}&format=mp3&maxBitRate=320&timeOffset=${offsetSeconds}&${$authParams}`;
+    return restUrl(`/rest/stream?id=${trackId}&format=mp3&maxBitRate=320&timeOffset=${offsetSeconds}&${$authParams}`);
+  }
+
+  /**
+   * A sentinel `newsSnapshot`, used only on a native shell.
+   *
+   * On the browser `newsSnapshot` is what to restore when the bulletin ends -- the interrupted
+   * track or channel, and the position. On native there is nothing here to restore: the service
+   * does that itself, entirely on the far side
+   * (`NewsPlaybackController.stopAndRestore`/`NewsQueueRules.kt`, the mirror of `newsQueue.js`).
+   * `newsSnapshot` is kept truthy anyway, because every other place in this component -- the
+   * colour of the news button, `currentLength()`'s length fallback, `handleEnded()` -- only ever
+   * asks whether it is set, never what is in it.
+   */
+  const NATIVE_NEWS_MARKER = Object.freeze({ native: true });
+
+  /**
+   * Starts (or restarts) the display-only poll of `/api/radio/{slug}/state`.
+   *
+   * Every caller below wants the same three things: the store updated, `radioController` pointed
+   * at the right channel, and a ten-second refresh loop feeding `radioNowPlaying`. What differs is
+   * whether the service still needs to be told to tune in -- `startRadio` (a listener tapped a
+   * channel) does, `reconcileNativeRadioNews` (the service is already doing it, from Android Auto,
+   * Assistant, or a WebView recreated mid-channel) must not, or it would restart the stream for no
+   * reason.
+   *
+   * @param {string} slug
+   */
+  function beginRadioDisplay(slug) {
+    clearInterval(radioTickInterval);
+    clearInterval(radioRefreshInterval);
+    clearInterval(radioClockInterval);
+    radioTickInterval = null;
+    radioClockInterval = null;
+
+    radioController = createRadioController({
+      // Native: no element to drive, and none of its own maths to run -- the
+      // service corrects its own drift. This instance exists only for
+      // `getEntry()`. See the `audio` note on `createRadioController`.
+      audio: nativePlayback ? null : platform.player.element(),
+      apiBase: $mumaApiUrl,
+      apiKey: $mumaApiKey,
+      streamUrlFor: radioStreamUrl,
+    });
+    radioChannel.set(slug);
+    radioController
+      .start(slug)
+      .then(() => radioNowPlaying.set(radioController?.getEntry() ?? null))
+      .catch((e) => {
+        console.error($t('radio.couldNotStart'), e);
+        // The service (native) or the element (browser) never actually joined
+        // the channel; showing radio as on with nothing playing and no
+        // now-playing metadata would be a stuck picker rather than an error.
+        endRadioDisplay();
+      });
+
+    radioRefreshInterval = setInterval(async () => {
+      await radioController?.refresh();
+      radioNowPlaying.set(radioController?.getEntry() ?? null);
+    }, 10000);
+    if (!nativePlayback) {
+      radioTickInterval = setInterval(() => radioController?.tick(), 2000);
+      // Clocks drift over a long listening session, so re-measure now and then.
+      radioClockInterval = setInterval(() => radioController?.measureClockOffset(), 300000);
+    }
+  }
+
+  /** Tears down the display poll and the local radio state, without touching the service. */
+  function endRadioDisplay() {
+    clearInterval(radioTickInterval);
+    clearInterval(radioRefreshInterval);
+    clearInterval(radioClockInterval);
+    radioTickInterval = null;
+    radioRefreshInterval = null;
+    radioClockInterval = null;
+    radioController = null;
+    radioChannel.set(null);
+    radioNowPlaying.set(null);
+  }
+
+  /**
+   * Notices radio or a bulletin that this component did not start itself -- Android Auto,
+   * Assistant, a car button, or a WebView recreated mid-channel or mid-bulletin. Native only; a
+   * browser tab is always the one deciding either, and `state()` never carries these two fields
+   * there.
+   *
+   * Called from every place this component already reads a fresh native snapshot: on mount, and
+   * on every `timeupdate` while something plays.
+   *
+   * @param {object} state - `platform.player.state()`.
+   */
+  function reconcileNativeRadioNews(state) {
+    if (!nativePlayback) return;
+
+    const slug = state.radioChannel ?? null;
+    if (slug && slug !== $radioChannel) {
+      beginRadioDisplay(slug);
+    } else if (!slug && $radioChannel) {
+      endRadioDisplay();
+      showRadioPicker = false;
+    }
+
+    const active = state.newsPlaying === true;
+    if (active !== Boolean(newsSnapshot)) {
+      newsSnapshot = active ? NATIVE_NEWS_MARKER : null;
+    }
   }
 
   /**
@@ -95,16 +247,22 @@
    */
   async function toggleRadio() {
     if ($radioChannel) {
-      radioController?.stop();
-      clearInterval(radioTickInterval);
-      clearInterval(radioRefreshInterval);
-      clearInterval(radioClockInterval);
-      radioTickInterval = null;
-      radioRefreshInterval = null;
-      radioClockInterval = null;
-      radioController = null;
-      radioChannel.set(null);
-      radioNowPlaying.set(null);
+      if (nativePlayback) {
+        // Radio is driven entirely by the service; leaving it is a session
+        // command rather than anything this controller does. `pause()`
+        // afterwards is what makes it go silent instead of carrying straight on
+        // into whatever queue item comes back -- the same thing
+        // `radioController.stop()`'s own `audio.pause()` does for the browser.
+        try {
+          await platform.player.stopRadio();
+          platform.player.pause();
+        } catch (e) {
+          console.error($t('radio.couldNotStart'), e);
+        }
+      } else {
+        radioController?.stop();
+      }
+      endRadioDisplay();
       showRadioPicker = false;
       return;
     }
@@ -144,23 +302,15 @@
   async function startRadio(channel) {
     showRadioPicker = false;
     try {
-      radioController = createRadioController({
-        audio: audioElement,
-        apiBase: $mumaApiUrl,
-        apiKey: $mumaApiKey,
-        streamUrlFor: radioStreamUrl,
-      });
-      await radioController.start(channel.slug);
-      radioChannel.set(channel.slug);
-      radioNowPlaying.set(radioController.getEntry());
-
-      radioTickInterval = setInterval(() => radioController?.tick(), 2000);
-      radioRefreshInterval = setInterval(async () => {
-        await radioController?.refresh();
-        radioNowPlaying.set(radioController?.getEntry() ?? null);
-      }, 10000);
-      // Clocks drift over a long listening session, so re-measure now and then.
-      radioClockInterval = setInterval(() => radioController?.measureClockOffset(), 300000);
+      if (nativePlayback) {
+        // The service streams the channel and locks onto the server's timeline
+        // itself -- the same maths as `radioSync.js`, reused from Android
+        // Auto's own radio support (`RadioPlaybackController.kt`) rather than a
+        // third copy of it. `beginRadioDisplay` below only keeps a display
+        // poller of its own for the mini player and Now Playing.
+        await platform.player.startRadio(channel.slug);
+      }
+      beginRadioDisplay(channel.slug);
     } catch (e) {
       console.error($t('radio.couldNotStart'), e);
     }
@@ -175,6 +325,21 @@
    * buys the same authentication the rest of the app uses.
    */
   async function toggleNews() {
+    if (nativePlayback) {
+      // One call either way: the service already knows whether a bulletin is
+      // running, so this is the exact toggle the notification's own news
+      // button performs. It also snapshots and restores the interrupted queue
+      // (and re-tunes radio, if that was on) entirely on its own --
+      // `NewsPlaybackController.kt` is the mirror of the browser logic below.
+      try {
+        await platform.player.toggleNews();
+        newsSnapshot = newsSnapshot ? null : NATIVE_NEWS_MARKER;
+      } catch (e) {
+        console.error('Could not toggle the news', e);
+        notify.error($t('news.couldNotPlay'), { detail: e.message });
+      }
+      return;
+    }
     if (newsSnapshot) {
       await stopNews();
       return;
@@ -201,7 +366,7 @@
 
       newsSnapshot = snapshotOf({
         trackId: $radioChannel ? null : (track?.id ?? null),
-        positionSeconds: audioElement?.currentTime ?? 0,
+        positionSeconds: platform.player.state().position,
         radioChannel: $radioChannel,
       });
       // Radio has to be switched off rather than paused: it drives the same
@@ -209,8 +374,7 @@
       if ($radioChannel) await toggleRadio();
 
       newsObjectUrl = URL.createObjectURL(blob);
-      audioElement.src = newsObjectUrl;
-      await audioElement.play();
+      await platform.player.load({ url: newsObjectUrl, trackId: null, autoplay: true });
     } catch (e) {
       console.error('Could not play the news', e);
       notify.error($t('news.couldNotPlay'), { detail: e.message });
@@ -231,15 +395,17 @@
       return;
     }
     if (target.action === 'none') {
-      audioElement.pause();
-      audioElement.removeAttribute('src');
+      platform.player.stop();
       return;
     }
 
-    audioElement.src = streamUrl;
-    audioElement.currentTime = target.positionSeconds;
     try {
-      await audioElement.play();
+      await platform.player.load({
+        url: streamUrl,
+        trackId: target.trackId,
+        position: target.positionSeconds,
+        autoplay: true,
+      });
     } catch (e) {
       if (e.name !== 'AbortError') console.error('Could not resume after the news', e);
     }
@@ -259,18 +425,19 @@
         const trackIds = $playlist.map(t => `id=${t.id}`).join('&');
         
         // Use overrides if provided, otherwise use local state
+        const engine = platform.player.state();
         const currentId = overrideTrackId !== null ? overrideTrackId : ($currentTrack?.id || '');
-        const isPlaying = overridePlaying !== null ? overridePlaying : (audioElement ? !audioElement.paused : false);
-        const position = audioElement ? Math.floor(audioElement.currentTime * 1000) : 0;
+        const isPlaying = overridePlaying !== null ? overridePlaying : engine.status === 'playing';
+        const position = Math.floor(engine.position * 1000);
 
         // In follower mode, we NEVER push periodic position to avoid fighting the host.
         // The 'position' parameter is only included if we are the Host.
-        let url = `${$credentials.url}/rest/savePlayQueue?${trackIds}&current=${currentId}&playing=${isPlaying}&${params}`;
+        let url = `/rest/savePlayQueue?${trackIds}&current=${currentId}&playing=${isPlaying}&${params}`;
         if ($syncMode === 'host') {
             url += `&position=${position}`;
         }
 
-        await fetch(url);
+        await fetch(restUrl(url));
     } catch (e) {
         console.error("Jam push failed", e);
     }
@@ -280,7 +447,7 @@
    * Fetches the player state from the server and synchronizes the local player.
    */
   async function syncJam() {
-    if ($syncMode === 'off' || isSyncing || !$credentials.username || !audioElement) return;
+    if ($syncMode === 'off' || isSyncing || !$credentials.username || !platform.player.ready()) return;
 
     // Don't sync from server if we just pushed our own state (within last 5 seconds)
     // to avoid "jumps" caused by server having slightly outdated state.
@@ -289,7 +456,7 @@
     isSyncing = true;
     try {
       const params = $authParams;
-      const response = await fetch(`${$credentials.url}/rest/getPlayQueue?${params}`);
+      const response = await fetch(restUrl(`/rest/getPlayQueue?${params}`));
       const data = await response.json();
       const playQueue = data['subsonic-response']?.playQueue;
 
@@ -310,7 +477,7 @@
             const trackChanged = serverTrack && String($currentTrack?.id) !== String(serverTrack.id);
 
             const serverPlaying = playQueue.playing === "true" || playQueue.playing === true;
-            const playingChanged = serverPlaying !== !audioElement.paused;
+            const playingChanged = serverPlaying !== (platform.player.state().status === 'playing');
 
             // HOST LOGIC: Only apply changes if the server state is different from local
             // (indicating a remote command from a Follower)
@@ -318,8 +485,8 @@
                 if (trackChanged || playingChanged) {
                     if (trackChanged) currentTrack.set(serverTrack);
                     if (playingChanged) {
-                        if (serverPlaying) audioElement.play().catch(() => {});
-                        else audioElement.pause();
+                        if (serverPlaying) platform.player.play().catch(() => {});
+                        else platform.player.pause();
                     }
                 }
                 lastSyncTime = serverChanged;
@@ -335,8 +502,8 @@
                 playerState.update(s => ({ ...s, playing: serverPlaying }));
                 
                 // Ensure audio is stopped
-                if (!audioElement.paused) {
-                    audioElement.pause();
+                if (platform.player.state().status === 'playing') {
+                    platform.player.pause();
                 }
                 lastSyncTime = serverChanged;
                 return;
@@ -348,17 +515,18 @@
             }
 
             const serverPos = (playQueue.position || 0) / 1000;
+            const engine = platform.player.state();
 
             // Sync position if difference > 5 seconds
-            if (Math.abs(audioElement.currentTime - serverPos) > 5) {
-                audioElement.currentTime = serverPos;
+            if (Math.abs(engine.position - serverPos) > 5) {
+                platform.player.seek(serverPos);
             }
 
             // Sync play/pause
-            if (serverPlaying && audioElement.paused) {
-                audioElement.play().catch(() => {});
-            } else if (!serverPlaying && !audioElement.paused) {
-                audioElement.pause();
+            if (serverPlaying && engine.status !== 'playing') {
+                platform.player.play().catch(() => {});
+            } else if (!serverPlaying && engine.status === 'playing') {
+                platform.player.pause();
             }
 
             lastSyncTime = serverChanged;
@@ -376,7 +544,10 @@
    * Toggles between play and pause states.
    */
   function togglePlay() {
-    if (!audioElement) return;
+    if (!platform.player.ready()) return;
+    logAction(platform.player.state().status === 'playing' ? 'player.pause' : 'player.play', {
+      trackId: track?.id ?? null,
+    });
 
     if ($syncMode === 'follower-jam') {
         // Remote control: toggle the state reported by the server
@@ -384,13 +555,13 @@
         return;
     }
 
-    if (audioElement.paused) {
-      audioElement.play().catch(e => {
+    if (platform.player.state().status === 'playing') {
+      platform.player.pause();
+    } else {
+      platform.player.play().catch(e => {
         console.error("Playback failed", e);
         notify.error($t('notify.playbackFailed'), { detail: e.message });
       });
-    } else {
-      audioElement.pause();
     }
     if ($syncMode !== 'off') {
       pushJamState();
@@ -427,11 +598,14 @@
   function playNext() {
       const p = $playlist;
       if (p.length === 0) return;
+      logAction('player.next', { trackId: $currentTrack?.id ?? null });
       const currentTrackId = $currentTrack ? String($currentTrack.id) : null;
       const currentIndex = p.findIndex(t => String(t.id) === currentTrackId);
 
       let nextIndex;
-      if ($playerState.shuffle) {
+      // Native only: the service has its own shuffle order, and this component never sees it, so
+      // walking a JS-decided trail here would disagree with whatever it actually plays next.
+      if ($playerState.shuffle && !nativePlayback) {
           // Walk the trail rather than drawing blind, so a previous followed by a
           // next lands back on the track it came from instead of a third one.
           const stepped = stepForward(trailFor(p, currentTrackId), p.map(t => String(t.id)));
@@ -459,9 +633,9 @@
 
           // If it's the same track (e.g. single track playlist), restart it manually
           // because the $effect that watches currentTrack might not trigger on same ID
-          if (String($currentTrack?.id) === String(nextTrack.id) && audioElement) {
-              audioElement.currentTime = 0;
-              audioElement.play().catch(() => {});
+          if (String($currentTrack?.id) === String(nextTrack.id) && platform.player.ready()) {
+              platform.player.seek(0);
+              platform.player.play().catch(() => {});
           }
           currentTrack.set(nextTrack);
       }
@@ -477,18 +651,20 @@
    */
   function playPrev() {
       // If more than 3 seconds into the track, restart it
-      if (audioElement && audioElement.currentTime > 3) {
-          audioElement.currentTime = 0;
+      if (platform.player.state().position > 3) {
+          platform.player.seek(0);
           return;
       }
 
       const p = $playlist;
       if (p.length === 0) return;
+      logAction('player.previous', { trackId: $currentTrack?.id ?? null });
       const currentTrackId = $currentTrack ? String($currentTrack.id) : null;
       const currentIndex = p.findIndex(t => String(t.id) === currentTrackId);
 
       let prevIndex;
-      if ($playerState.shuffle) {
+      // Same guard as `playNext`: the service's shuffle order is not this component's to walk.
+      if ($playerState.shuffle && !nativePlayback) {
           const stepped = stepBack(trailFor(p, currentTrackId));
           shuffleTrail = stepped.trail;
           prevIndex = p.findIndex(t => String(t.id) === stepped.id);
@@ -512,9 +688,9 @@
               return;
           }
 
-          if (String($currentTrack?.id) === String(prevTrack.id) && audioElement) {
-              audioElement.currentTime = 0;
-              audioElement.play().catch(() => {});
+          if (String($currentTrack?.id) === String(prevTrack.id) && platform.player.ready()) {
+              platform.player.seek(0);
+              platform.player.play().catch(() => {});
           }
           currentTrack.set(prevTrack);
       }
@@ -529,7 +705,12 @@
    */
   function handleEnded() {
       // A bulletin that runs out is the cue to resume, not to skip a track.
-      if (newsSnapshot) {
+      // Browser only: on native the service restores the interrupted queue (and
+      // re-tunes radio) itself and reports the result as an ordinary state
+      // change, which `reconcileNativeRadioNews` and the native `command`
+      // handling below already follow -- calling `stopNews()` here as well
+      // would ask the service for a resume it already performed.
+      if (newsSnapshot && !nativePlayback) {
           stopNews();
           return;
       }
@@ -538,12 +719,53 @@
       // A long set otherwise reports only the four minutes at which the first submission fired.
       scrobble(true);
       hasScrobbledFinished = true;
+      // The service already moved on to the next item in its own queue and will
+      // report it as a `command` event. Advancing here as well would ask it for
+      // a second move -- two tracks skipped for one that ended.
+      if (nativePlayback) return;
       if ($playerState.repeat === 'one') {
-          audioElement.currentTime = 0;
-          audioElement.play();
+          platform.player.seek(0);
+          platform.player.play();
       } else {
           playNext();
       }
+  }
+
+  /**
+   * Follows a transport move the platform service already performed.
+   *
+   * Sent for a press on the notification, a head unit, a headset button and for
+   * the end of a track. The queue is the service's, so there is nothing to
+   * decide here: the UI is pointed at whatever the service says it is playing.
+   * It must not call playNext/playPrev -- that would be the UI asking for a
+   * move that already happened.
+   *
+   * Both halves of what the service said are read, with the newer winning: the
+   * snapshot that travelled with the command, and anything it has sent since.
+   * The plugin notifies the new state and then the move, as two bridge
+   * messages, so a `next` read off the carried half alone can still be looking
+   * at the track the service has already left. `trackAfterCommand` is what
+   * closes that gap.
+   *
+   * @param {{name: string, seconds: number|null, state: object}} command
+   */
+  function handleNativeCommand(command) {
+      const engine = { ...(command.state ?? {}), ...platform.player.state() };
+      playerState.update(s => ({
+          ...s,
+          playing: engine.status === 'playing',
+          progress: engine.position,
+      }));
+
+      const moved = trackAfterCommand($playlist, $currentTrack?.id ?? null, {
+          name: command.name,
+          trackId: engine.trackId,
+          queueLength: engine.queueLength,
+      });
+      if (!moved) return;
+      hasScrobbledStarted = false;
+      hasScrobbledFinished = false;
+      currentTrack.set(moved);
   }
 
   /**
@@ -553,9 +775,9 @@
     muted = !muted;
     if (muted) {
       lastVolume = $playerState.volume;
-      audioElement.volume = 0;
+      platform.player.setVolume(0);
     } else {
-      audioElement.volume = lastVolume / 100;
+      platform.player.setVolume(lastVolume / 100);
     }
   }
 
@@ -563,15 +785,15 @@
    * Handles time updates from the audio element.
    * Updates global player state, saves progress periodically, and handles mid-track scrobbling.
    */
-  function handleTimeUpdate() {
-    if (!audioElement) return;
-    playerState.update(s => ({ ...s, progress: audioElement.currentTime }));
-    updatePositionState();
+  function handleTimeUpdate(state = platform.player.state()) {
+    playerState.update(s => ({ ...s, progress: state.position }));
+    reconcileNativeRadioNews(state);
+    persistCurrentResumePosition();
 
-    const length = currentLength();
+    const length = currentLength(state);
     if (!hasScrobbledFinished && track && length > 0) {
         const threshold = Math.min(240, length / 2);
-        if (audioElement.currentTime > threshold) {
+        if (state.position > threshold) {
             scrobble(true);
             hasScrobbledFinished = true;
         }
@@ -586,47 +808,27 @@
    * and their length has nothing to do with the track that stays selected
    * underneath them.
    *
+   * @param {object} [state] - The engine snapshot to read the length from.
    * @returns {number} A usable length, or 0 when nothing knows one.
    */
-  function currentLength() {
+  function currentLength(state = platform.player.state()) {
     const own = !newsSnapshot && !$radioChannel;
-    return resolveDuration(audioElement?.duration, own ? track?.duration : 0);
+    return resolveDuration(state.duration, own ? track?.duration : 0);
   }
 
   /**
-   * Polls the audio element while it plays.
-   *
-   * The `timeupdate` event is the obvious source for the position, and on a
-   * desktop browser it is enough. The LG TV browser only fires it on a state
-   * change -- play, pause, seek, ended -- and never on the ~4Hz cadence the
-   * spec asks for, so the bar there sits still until someone touches the
-   * transport. Reading `currentTime` on a timer of our own is the same number
-   * from the same element and costs nothing, so it drives the bar everywhere
-   * rather than only on the devices that misbehave.
-   */
-  function startProgressTicker() {
-    stopProgressTicker();
-    progressTicker = setInterval(() => {
-      if (audioElement && !audioElement.paused) handleTimeUpdate();
-    }, 250);
-  }
-
-  function stopProgressTicker() {
-    if (progressTicker) {
-      clearInterval(progressTicker);
-      progressTicker = null;
-    }
-  }
-
-  /**
-   * Handles the 'loadedmetadata' event.
+   * Handles the engine's 'durationchange' event.
    * Sets track duration and restores saved progress if available.
    */
-  function handleLoadedMetadata() {
-    playerState.update(s => ({ ...s, duration: currentLength() }));
-    updatePositionState();
-    if (!initialized && track) {
-        audioElement.currentTime = $playerState.progress || 0;
+  function handleDurationChange(state = platform.player.state()) {
+    playerState.update(s => ({ ...s, duration: currentLength(state) }));
+    // Restoring the last position is a browser-only move: there the element is
+    // fresh and knows nothing. The platform service kept playing while this
+    // WebView was gone, so seeking it to a position the UI remembers would
+    // throw away the one it actually has -- the exact failure phase 1 exists to
+    // prove does not happen.
+    if (!initialized && track && !nativePlayback) {
+        platform.player.seek($playerState.progress || 0);
         initialized = true;
     }
   }
@@ -636,16 +838,13 @@
    * Updates playing state and triggers initial scrobble.
    */
   function handlePlay() {
-    // A context the browser suspended passes no sound at all, and play is the
-    // moment that matters.
-    equalizer.resume();
     playerState.update(s => ({ ...s, playing: true }));
-    startProgressTicker();
     if (!hasScrobbledStarted) {
         listenStartedAtMs = Date.now();
         scrobble(false);
         hasScrobbledStarted = true;
     }
+    maybeOfferResume(track);
   }
 
   /**
@@ -664,17 +863,107 @@
    */
   function handlePause() {
     playerState.update(s => ({ ...s, playing: false }));
-    // The element fires its own `timeupdate` on a pause -- on every browser,
-    // the TV included -- so the final position lands without a tick.
-    stopProgressTicker();
+    persistCurrentResumePosition(true);
+  }
+
+  /**
+   * Writes one set's position into the account, if it is a set and the
+   * position is worth keeping. Shared by every write site below rather than
+   * each computing its own guard.
+   *
+   * @param {Object|null} targetTrack
+   * @param {number} position - Seconds into `targetTrack`.
+   */
+  function persistResumePositionFor(targetTrack, position) {
+    if (!targetTrack || !isSet(targetTrack)) return;
+    saveSetResumePosition(resumeKeyFor(targetTrack), position).catch((e) =>
+      console.warn('Could not save the resume position', e));
+  }
+
+  /**
+   * Writes the current set's position, throttled to once every
+   * `RESUME_WRITE_INTERVAL_MS` unless `force` -- pause, a track change and
+   * `beforeunload` all want the write to happen right away, the periodic
+   * `timeupdate` tick does not.
+   *
+   * Radio and a bulletin are excluded through `isSetMode`, which already
+   * carries the same `own` gate `currentLength()` uses -- neither is really
+   * "the selected track", and writing under its key would corrupt whatever
+   * set that key actually belongs to.
+   *
+   * @param {boolean} [force=false]
+   */
+  function persistCurrentResumePosition(force = false) {
+    if (!isSetMode) return;
+    const now = Date.now();
+    if (!force && now - lastResumeWriteAt < RESUME_WRITE_INTERVAL_MS) return;
+    lastResumeWriteAt = now;
+    persistResumePositionFor(track, platform.player.state().position);
+  }
+
+  /**
+   * Offers to resume a set, once per track: seeks straight to the stored
+   * position (rather than waiting for a tap) and raises a dismissable toast
+   * with an "opnieuw" action, so starting over is one tap rather than a
+   * fight with the scrub bar. Guarded by `resumeOfferedTrackId` so pausing
+   * and pressing play again on the same set does not ask a second time.
+   *
+   * @param {Object|null} currentTrackRef
+   */
+  async function maybeOfferResume(currentTrackRef) {
+    if (!currentTrackRef || !isSet(currentTrackRef)) return;
+    if (resumeOfferedTrackId === currentTrackRef.id) return;
+    resumeOfferedTrackId = currentTrackRef.id;
+    try {
+      const all = await loadSetResumePositions();
+      const entry = all[resumeKeyFor(currentTrackRef)];
+      if (!shouldResume(entry, currentTrackRef.duration)) return;
+      // The current track may have moved on while this was in flight.
+      if ($currentTrack?.id !== currentTrackRef.id) return;
+      const target = entry.position;
+      logAction('player.resumeOffered', { trackId: currentTrackRef.id, seconds: target });
+      platform.player.seek(target);
+      playerState.update((s) => ({ ...s, progress: target }));
+      notify.info($t('notify.resumeAt', { time: formatClock(target) }), {
+        action: {
+          label: $t('notify.resumeRestart'),
+          onClick: () => {
+            platform.player.seek(0);
+            playerState.update((s) => ({ ...s, progress: 0 }));
+          },
+        },
+      });
+    } catch (e) {
+      console.warn('Could not read the resume position', e);
+    }
   }
 
   /**
    * Handles the 'volumechange' event.
    * Updates global player volume state.
    */
-  function handleVolumeChange() {
-    playerState.update(s => ({ ...s, volume: audioElement.volume * 100 }));
+  function handleVolumeChange(state = platform.player.state()) {
+    playerState.update(s => ({ ...s, volume: state.volume * 100 }));
+  }
+
+  /**
+   * Seeks to an absolute position, in seconds, clamped to the track's length.
+   *
+   * The one path every other seek goes through: a click on the songs-mode
+   * bar, a drag on the sets-mode range input, and the ±30 s buttons. Kept
+   * separate from `seek(e)` below because the range input and the skip
+   * buttons already have seconds, not a mouse event to compute them from.
+   *
+   * @param {number} seconds
+   */
+  function seekTo(seconds) {
+    if (duration <= 0 || !Number.isFinite(seconds)) return;
+    const clamped = Math.max(0, Math.min(duration, seconds));
+    logAction('player.seek', { trackId: track?.id ?? null, seconds: Math.round(clamped) });
+    platform.player.seek(clamped);
+    if ($syncMode !== 'off') {
+      pushJamState();
+    }
   }
 
   /**
@@ -686,13 +975,22 @@
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const percentage = x / rect.width;
-    // Not `audioElement.duration`: a chunked stream leaves that at `Infinity`,
-    // and seeking to `Infinity * 0.5` throws the position away.
+    // Not the engine's own length: a chunked stream leaves that at 0, and the
+    // bar is drawn from the track's length instead -- seek to the same one.
     if (duration <= 0) return;
-    audioElement.currentTime = percentage * duration;
-    if ($syncMode !== 'off') {
-      pushJamState();
-    }
+    seekTo(percentage * duration);
+  }
+
+  /**
+   * Jumps the current position by a number of seconds, forward or back. Sets
+   * mode's ±30 s buttons and the sets-mode scrub bar's arrow keys, on both the
+   * desktop bar and Now Playing.
+   *
+   * @param {number} deltaSeconds
+   */
+  function skip(deltaSeconds) {
+    if (!platform.player.ready()) return;
+    seekTo(platform.player.state().position + deltaSeconds);
   }
 
   /**
@@ -704,65 +1002,45 @@
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const vol = Math.max(0, Math.min(1, x / rect.width));
-      audioElement.volume = vol;
+      platform.player.setVolume(vol);
       muted = (vol === 0);
   }
 
 
   /**
-   * Formats seconds into a "M:SS" string.
-   *
-   * @param {number} seconds - Time in seconds.
-   * @returns {string} Formatted time string.
-   */
-  function formatTime(seconds) {
-    // `Infinity` as well as `NaN`: an endless stream reports one, and it would
-    // render as "Infinity:NaN".
-    if (!Number.isFinite(seconds)) return "0:00";
-    const min = Math.floor(seconds / 60);
-    const sec = Math.floor(seconds % 60);
-    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
-  }
-
-  /**
-   * Updates the Media Session API position state for OS integration.
-   */
-  function updatePositionState() {
-    const length = currentLength();
-    if ('mediaSession' in navigator &&
-        'setPositionState' in navigator.mediaSession &&
-        audioElement &&
-        length > 0) {
-      try {
-        navigator.mediaSession.setPositionState({
-          duration: length,
-          playbackRate: audioElement.playbackRate || 1,
-          position: Math.max(0, Math.min(audioElement.currentTime || 0, length))
-        });
-      } catch (e) {
-        console.error("Failed to set position state", e);
-      }
-    }
-  }
-
-  /**
    * Cycles through repeat modes: none -> all -> one -> none.
+   *
+   * Native only: pushed to the platform service instead of only the local store. The service
+   * decides repeat for itself there -- see `nativePlayback` -- so the cycle is not assumed to have
+   * landed; the store mirrors back whatever `setMode` says was actually applied.
    */
   function toggleRepeat() {
-      playerState.update(s => {
-          let next;
-          if (s.repeat === 'none') next = 'all';
-          else if (s.repeat === 'all') next = 'one';
-          else next = 'none';
-          return { ...s, repeat: next };
-      });
+      const next = $playerState.repeat === 'none' ? 'all' : $playerState.repeat === 'all' ? 'one' : 'none';
+      if (nativePlayback) {
+          platform.player.setMode({ shuffle: $playerState.shuffle, repeat: next })
+              .then(mode => playerState.update(s => ({ ...s, shuffle: mode.shuffle, repeat: mode.repeat })))
+              .catch(e => console.error('Could not set the native repeat mode', e));
+          return;
+      }
+      playerState.update(s => ({ ...s, repeat: next }));
   }
 
   /**
    * Toggles the shuffle mode.
+   *
+   * Native only: same hand-off as `toggleRepeat`, and `shuffleTrail` is left untouched -- it is
+   * `playNext`/`playPrev`'s own bookkeeping for walking a JS-decided shuffle order, and on a
+   * native shell the service has a shuffle order of its own that this component never sees.
    */
   function toggleShuffleMode() {
-      playerState.update(s => ({ ...s, shuffle: !s.shuffle }));
+      const next = !$playerState.shuffle;
+      if (nativePlayback) {
+          platform.player.setMode({ shuffle: next, repeat: $playerState.repeat })
+              .then(mode => playerState.update(s => ({ ...s, shuffle: mode.shuffle, repeat: mode.repeat })))
+              .catch(e => console.error('Could not set the native shuffle mode', e));
+          return;
+      }
+      playerState.update(s => ({ ...s, shuffle: next }));
       // A fresh run of shuffle starts its trail here, so the first "previous"
       // after switching it on goes back to the track that was playing.
       shuffleTrail = startTrail($currentTrack?.id);
@@ -784,20 +1062,18 @@
    * Increases the volume by 5%.
    */
   function volumeUp() {
-    if (audioElement) {
-      audioElement.volume = Math.min(1, audioElement.volume + 0.05);
-      muted = false;
-    }
+    if (!platform.player.ready()) return;
+    platform.player.setVolume(platform.player.state().volume + 0.05);
+    muted = false;
   }
 
   /**
    * Decreases the volume by 5%.
    */
   function volumeDown() {
-    if (audioElement) {
-      audioElement.volume = Math.max(0, audioElement.volume - 0.05);
-      if (audioElement.volume === 0) muted = true;
-    }
+    if (!platform.player.ready()) return;
+    platform.player.setVolume(platform.player.state().volume - 0.05);
+    if (platform.player.state().volume === 0) muted = true;
   }
 
   /**
@@ -819,6 +1095,20 @@
       highlightedTrackId.set(track.id);
       onnavigate(`album:${track.albumId}`);
     }
+  }
+
+  /**
+   * Opens the full-screen Now Playing view for a tap on the mobile mini
+   * player -- everywhere on it except the play/pause and next buttons, which
+   * are real `<button>`s nested inside the same tappable row and keep their
+   * own action instead.
+   *
+   * @param {MouseEvent} e
+   */
+  function handleMiniPlayerTap(e) {
+    if (e.target.closest('button')) return;
+    if (!track) return;
+    openNowPlaying();
   }
 
   const track = $derived($radioChannel && $radioNowPlaying
@@ -853,6 +1143,11 @@
   // fallback length; see currentLength().
   const fallbackLength = $derived((newsSnapshot || $radioChannel) ? 0 : (track?.duration ?? 0));
   const duration = $derived(track ? resolveDuration($playerState.duration, fallbackLength) : 0);
+  // Whether the sets-mode player chrome applies: ±30 s buttons, h:mm:ss time
+  // labels, the fine-grained scrub bar. Radio and a bulletin are never a set
+  // regardless of their nominal track's duration -- the same gate
+  // `currentLength()` uses, because neither is really "the selected track".
+  const isSetMode = $derived(!newsSnapshot && !$radioChannel && isSet(track));
   const volume = $derived($playerState.volume);
   const repeatMode = $derived($playerState.repeat);
   const shuffleMode = $derived($playerState.shuffle);
@@ -872,30 +1167,24 @@
   // Radio listeners cannot steer the stream, exactly like a follower-radio client.
   const transportLocked = $derived($syncMode === 'follower-radio' || isRadioActive);
   const releaseDate = $derived(track ? releaseDateLabel(track) : '');
-  const coverUrl = $derived(track?.coverArt ? `/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}` : '/images/spotify-fallback.svg');
-  const streamUrl = $derived(track?.id ? `/rest/stream?id=${track.id}&${$authParams}` : '');
+  const coverUrl = $derived(track?.coverArt ? restUrl(`/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}`) : '/images/spotify-fallback.svg');
+  const streamUrl = $derived(track?.id ? restUrl(`/rest/stream?id=${track.id}&${$authParams}`) : '');
 
+  // What the notification, the lock screen and a car head unit show. The engine
+  // owns the OS integration; this is the only thing it cannot work out for
+  // itself, because the artwork URL carries our credentials and the fallback
+  // length comes from the library rather than the stream.
   $effect(() => {
-    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator && track) {
-      const artUrl = track.coverArt
-        ? `${$credentials.url}/rest/getCoverArt?id=${track.coverArt}&size=512&${$authParams}`
-        : window.location.origin + '/images/spotify-fallback.svg';
-
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: track.title || 'Onbekend nummer',
-        artist: track.artist || 'Onbekende artiest',
-        album: track.album || 'Onbekend album',
-        artwork: [
-          { src: artUrl, sizes: '512x512', type: 'image/jpeg' }
-        ]
-      });
-    }
-  });
-
-  $effect(() => {
-    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
-      navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
-    }
+    if (!track) return;
+    platform.player.setNowPlaying({
+      title: track.title || 'Onbekend nummer',
+      artist: track.artist || 'Onbekende artiest',
+      album: track.album || 'Onbekend album',
+      artworkUrl: track.coverArt
+        ? restUrl(`/rest/getCoverArt?id=${track.coverArt}&size=512&${$authParams}`)
+        : window.location.origin + '/images/spotify-fallback.svg',
+      duration: fallbackLength,
+    });
   });
 
   $effect(() => {
@@ -924,6 +1213,17 @@
   let hasScrobbledStarted = false;
   let hasScrobbledFinished = false;
   let initialized = false;
+  /** Whether the platform queue has been synced at least once this session. */
+  let nativeQueueSynced = false;
+
+  /** How often a playing set's position is written to the account, in ms. */
+  const RESUME_WRITE_INTERVAL_MS = 15000;
+  /** `Date.now()` of the last resume write, so `persistCurrentResumePosition` can throttle. */
+  let lastResumeWriteAt = 0;
+  /** The track `maybeOfferResume` last decided about, so pausing and pressing play again does not ask twice. */
+  let resumeOfferedTrackId = null;
+  /** The track this component is tracking a resume position for -- the previous value of `track`, kept for the write on the way out when it changes. */
+  let previousTrackForResume = null;
 
   /**
    * When this play of the current track began, in milliseconds.
@@ -948,10 +1248,10 @@
     // Subsonic ones; a listen without them records only that something was played, which cannot be
     // turned into listening time for a collection whose average track is a quarter of an hour.
     // Only a submission has a playing time to report -- a "now playing" ping fires at the start.
-    const playedSeconds = submission && audioElement ? Math.floor(audioElement.currentTime) : null;
+    const playedSeconds = submission ? Math.floor(platform.player.state().position) : null;
     let extra = playedSeconds ? `&playedSeconds=${playedSeconds}` : '';
     if (submission && listenStartedAtMs) extra += `&time=${listenStartedAtMs}`;
-    const url = `${$credentials.url}/rest/scrobble?id=${track.id}&submission=${submission}&source=frontend${extra}&${params}`;
+    const url = restUrl(`/rest/scrobble?id=${track.id}&submission=${submission}&source=frontend${extra}&${params}`);
     try {
       const failure = await subsonicError(await fetch(url));
       if (failure) {
@@ -976,6 +1276,7 @@
     const trackId = track.id;
     const oldRating = currentRating;
     const newRating = oldRating === rating ? 0 : rating;
+    logAction('rating.set', { trackId, rating: newRating });
 
     // Optimistic update
     ownRating = { trackId, rating: newRating };
@@ -987,7 +1288,7 @@
       // the body is the only thing that says whether the rating was stored.
       // `subsonicError` is that check, shared with the track list.
       const failure = await subsonicError(
-        await fetch(`${$credentials.url}/rest/setRating?id=${trackId}&rating=${newRating}&${$authParams}`)
+        await fetch(restUrl(`/rest/setRating?id=${trackId}&rating=${newRating}&${$authParams}`))
       );
       if (failure) throw new Error(failure.message);
     } catch (e) {
@@ -998,13 +1299,75 @@
     }
   }
 
+  /** Whether the last run of the queue-sync effect below found radio or a bulletin on. */
+  let wasRadioOrNews = false;
+
+  // The queue as the platform service should hold it. Native only: in a browser
+  // `sync` is never called and the queue stays exactly where it always was, in
+  // the `playlist` store. Reads both stores before the readiness check so the
+  // effect re-runs once the engine is up.
+  $effect(() => {
+    const queue = $playlist;
+    // The whole track, not its id: it is not always in the queue -- a card on
+    // the home screen sets the current track and nothing else -- and the
+    // service needs a title and an artist to put in the notification.
+    const wanted = $currentTrack ?? null;
+    // Radio and a bulletin own the service's single-item queue while either is
+    // on; pushing the ordinary one over it would replace whatever is actually
+    // playing. `toggleRadio`/`toggleNews`'s own service calls handle turning
+    // either off -- this effect only has to stay out of the way while they are
+    // running and resync once they are not.
+    const radioOrNewsActive = Boolean($radioChannel) || Boolean(newsSnapshot);
+    if (!nativePlayback || !engineReady || !nativeQueue) {
+      wasRadioOrNews = radioOrNewsActive;
+      return;
+    }
+    if (radioOrNewsActive) {
+      wasRadioOrNews = true;
+      return;
+    }
+    // Coming back from radio or a bulletin must not resume playback on its
+    // own: turning radio off already leaves the service silent
+    // (`toggleRadio`'s `pause()`), and a bulletin already resumed itself, on
+    // the far side, at the position it interrupted
+    // (`NewsPlaybackController.stopAndRestore`). Pushing the queue again here
+    // with `autoplay: true` would fight either.
+    const justLeftRadioOrNews = wasRadioOrNews;
+    wasRadioOrNews = false;
+    // The first sync after a boot must not start the music: what is in the
+    // stores then is either what the service was already playing (in which case
+    // nothing is sent at all) or a queue restored from localStorage, and an app
+    // that starts playing the moment it is opened is a bug people notice at
+    // night.
+    const autoplay = justLeftRadioOrNews ? false : nativeQueueSynced;
+    nativeQueueSynced = true;
+    // An empty queue at boot is not an instruction to clear the service's: it
+    // means the rehydrate found nothing to restore, which is no reason to stop
+    // music that is playing.
+    if (!autoplay && queue.length === 0) return;
+    nativeQueue.sync(queue, wanted, { autoplay });
+  });
+
   $effect(() => {
     if (track && track.id !== lastTrackId) {
         const isInitialLoad = !lastTrackId && !initialized;
+        // Writes wherever the outgoing track (not the one about to play) was
+        // left, before the engine's position means something else. Reads
+        // `platform.player.state()` rather than `progress`: the engine has not
+        // been told to load the new track yet at this point in the effect, so
+        // its position is still the outgoing track's.
+        if (!isInitialLoad) {
+          persistResumePositionFor(previousTrackForResume, platform.player.state().position);
+        }
+        previousTrackForResume = track;
         lastTrackId = track.id;
         hasScrobbledStarted = false;
         hasScrobbledFinished = false;
-        
+
+        // The service owns what plays; the queue effect above is what tells it.
+        // Loading a stream URL here as well would be the second engine.
+        if (nativePlayback) return;
+
         // Don't load audio in remote-only jam mode
         if ($syncMode === 'follower-jam') return;
         // Radio owns the audio element while it is on; the controller decides
@@ -1013,46 +1376,85 @@
         // A bulletin owns it too, and hands it back itself when it ends.
         if (newsSnapshot) return;
 
-        if (audioElement) {
-            audioElement.src = streamUrl;
-            if (!isInitialLoad) {
-                audioElement.play().catch(e => {
-                    // An AbortError is the previous track's play() being
-                    // cancelled by this one, which is what skipping does --
-                    // not something to report.
-                    if (e.name !== 'AbortError') {
-                        console.error("Auto-play failed", e);
-                        notify.error($t('notify.playbackFailed'), { detail: e.message });
-                    }
-                });
-            }
+        if (platform.player.ready()) {
+            platform.player
+              .load({ url: streamUrl, trackId: track.id, autoplay: !isInitialLoad })
+              .catch(e => {
+                  // An AbortError is the previous track's play() being
+                  // cancelled by this one, which is what skipping does --
+                  // not something to report.
+                  if (e.name !== 'AbortError') {
+                      console.error("Auto-play failed", e);
+                      notify.error($t('notify.playbackFailed'), { detail: e.message });
+                  }
+              });
         }
     }
   });
 
   onMount(() => {
-    audio.set(audioElement);
-    audioElement.volume = volume / 100;
-
-    if (track && !initialized) {
-        audioElement.src = streamUrl;
-        // currentTime will be set in handleLoadedMetadata
+    // The element is rendered here and driven by the engine from now on. On a
+    // native shell nothing is handed over and the platform service plays
+    // instead; that is the whole point of the hand-off.
+    platform.player.attach(audioElement ?? null);
+    if (nativePlayback) {
+      // The service has a volume of its own and it outlived this WebView, so
+      // the UI follows it rather than pushing a remembered number at it. Shuffle
+      // and repeat are the same story: a restored session may already have
+      // either set, and the store should show what the service is actually
+      // doing rather than the defaults this component starts with.
+      const native = platform.player.state();
+      playerState.update(s => ({
+        ...s,
+        volume: native.volume * 100,
+        shuffle: native.shuffle,
+        repeat: native.repeat,
+      }));
+      // Radio or a bulletin may already be running -- started before this
+      // WebView existed, or surviving its recreation. Recognising it here,
+      // before `engineReady` flips true below, is what keeps the queue-sync
+      // effect from immediately pushing a stale queue over it.
+      reconcileNativeRadioNews(native);
+      // Take over the queue that is already there before any effect pushes one.
+      // Both go on the same chain, so the adopt always wins the race.
+      nativeQueue = createNativeQueue(platform.player, {
+        artworkUrlFor: (entry) => (entry.coverArt
+          ? restUrl(`/rest/getCoverArt?id=${entry.coverArt}&size=512&${$authParams}`)
+          : ''),
+        onError: (e) => console.error('Could not hand the queue to the player service', e),
+      });
+      nativeQueue.adopt();
+    } else {
+      platform.player.setVolume(volume / 100);
     }
+    engineReady = true;
 
-    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
-      navigator.mediaSession.setActionHandler('play', () => togglePlay());
-      navigator.mediaSession.setActionHandler('pause', () => togglePlay());
-      navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
-      navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
-      try {
-        navigator.mediaSession.setActionHandler('seekto', (details) => {
-          if (details.seekTime !== undefined && audioElement) {
-            audioElement.currentTime = details.seekTime;
-          }
-        });
-      } catch (e) {
-        console.warn("MediaSession seekto not supported", e);
-      }
+    // The queue lives in this component, so the transport controls outside the
+    // app come back to it.
+    platform.player.setCommandHandlers({
+      play: togglePlay,
+      pause: togglePlay,
+      previous: playPrev,
+      next: playNext,
+      seekTo: (seconds) => platform.player.seek(seconds),
+    });
+
+    const unsubscribes = [
+      platform.player.on('timeupdate', handleTimeUpdate),
+      platform.player.on('durationchange', handleDurationChange),
+      platform.player.on('play', handlePlay),
+      platform.player.on('pause', handlePause),
+      platform.player.on('volumechange', handleVolumeChange),
+      platform.player.on('ended', handleEnded),
+      platform.player.on('error', handleAudioError),
+      // Never fires in a browser; on a native shell it is how a press on the
+      // notification, a head unit or a headset reaches the UI.
+      platform.player.on('command', handleNativeCommand),
+    ];
+
+    if (track && !initialized && !nativePlayback) {
+        // The position is restored on 'durationchange'.
+        platform.player.load({ url: streamUrl, trackId: track.id });
     }
 
     const handleGlobalKeyDown = (e) => {
@@ -1128,38 +1530,62 @@
       }
     };
 
+    // The last chance to record a set's position: a reload or a closed tab
+    // gives none of the periodic or track-change writes above a chance to
+    // run first.
+    const handleBeforeUnload = () => persistCurrentResumePosition(true);
+
     window.addEventListener('wheel', handleGlobalWheel, { passive: true });
     window.addEventListener('keydown', handleGlobalKeyDown);
+    window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDown);
       window.removeEventListener('wheel', handleGlobalWheel);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       if (radioTickInterval) clearInterval(radioTickInterval);
       if (radioRefreshInterval) clearInterval(radioRefreshInterval);
       if (radioClockInterval) clearInterval(radioClockInterval);
-      stopProgressTicker();
+      for (const unsubscribe of unsubscribes) unsubscribe();
+      platform.player.detach();
     };
   });
 </script>
 
-<audio
-  bind:this={audioElement}
-  crossorigin="anonymous"
-  ontimeupdate={handleTimeUpdate}
-  onloadedmetadata={handleLoadedMetadata}
-  onplay={handlePlay}
-  onpause={handlePause}
-  onvolumechange={handleVolumeChange}
-  onended={handleEnded}
-  onerror={handleAudioError}
-></audio>
+<!--
+  The element the browser engine drives. `crossorigin` has to be on it from the
+  first byte or the Web Audio equalizer may not read it. Everything else about
+  it -- events, source, transport -- is `platform.player`'s.
+
+  Absent inside the Android shell, and that is a rule rather than an
+  optimisation: `document.querySelector('audio')` being null there is what makes
+  "two engines can never play at once" checkable instead of merely intended.
+-->
+{#if !nativePlayback}
+  <audio bind:this={audioElement} crossorigin="anonymous"></audio>
+{/if}
 
 <footer class="flex items-center h-full px-2 md:px-4 relative">
   {#if $isMobile}
-    <!-- Mobile Mini Player -->
-    <div class="flex flex-1 items-center gap-3 min-w-0 py-2 h-full">
+    <!-- Mobile Mini Player. A tap anywhere on it opens Now Playing, except on the
+         play/pause and next buttons -- those are real <button>s inside this same
+         row and keep their own action; `handleMiniPlayerTap` is what tells the
+         two apart. Album navigation (`goToAlbum`, still used by the desktop
+         player below) moves to that full-screen view instead of firing here. -->
+    <div
+      class="flex flex-1 items-center gap-3 min-w-0 py-2 h-full {track ? 'cursor-pointer' : ''}"
+      role="button"
+      tabindex="0"
+      onclick={handleMiniPlayerTap}
+      onkeydown={(e) => e.key === 'Enter' && handleMiniPlayerTap(e)}
+    >
       {#if track}
-        <img src={coverUrl} alt={track.title} class="w-11 h-11 rounded shadow-lg" onerror={(e) => e.target.src = '/images/spotify-fallback.svg'} />
-        <div class="flex-1 min-w-0 cursor-pointer" onclick={goToAlbum} role="button" tabindex="0" onkeydown={(e) => e.key === 'Enter' && goToAlbum()}>
+        <!-- Boxed, so the phone's placeholder padding (app.css, `padding: 18%`) resolves against
+             these 44px and not against the whole bar: a bare `w-11` img with a wide containing
+             block grew to ~150px and stretched the mini player to three times its height. -->
+        <div class="w-11 h-11 shrink-0 rounded shadow-lg overflow-hidden">
+          <img src={coverUrl} alt={track.title} class="w-full h-full object-cover" onerror={(e) => e.target.src = '/images/spotify-fallback.svg'} />
+        </div>
+        <div class="flex-1 min-w-0">
           <div class="text-[13px] font-bold text-white truncate">{track.title}</div>
           <div class="flex items-center gap-1.5 min-w-0">
             {#if primaryArtist}
@@ -1199,7 +1625,7 @@
       <div class="flex items-center gap-3 px-2">
         {#if equalizerSupported}
           <button
-            bind:this={equalizerButtonEl}
+            data-eq-toggle
             class="bg-transparent border-none p-0 cursor-pointer transition-colors {$equalizerSettings.enabled ? 'text-brand' : 'text-[#b3b3b3]'}"
             onclick={() => (showEqualizer = !showEqualizer)}
             aria-label={$t('equalizer.title')}
@@ -1251,6 +1677,38 @@
         <Equalizer onclose={() => (showEqualizer = false)} />
       </div>
     {/if}
+    <!-- Reuses everything this component already computed for the mini player --
+         rating, transport, shuffle/repeat -- rather than a second copy of that
+         state. Its own queue button goes through the same `ontoggleQueue` the
+         mini player never exposed a button for, so it opens the one queue view
+         App.svelte already renders (a bottom sheet on the phone). -->
+    <NowPlaying
+      open={$nowPlayingOpen}
+      {track}
+      {playing}
+      {progress}
+      {duration}
+      rating={currentRating}
+      {shuffleMode}
+      {repeatMode}
+      {transportLocked}
+      {coverUrl}
+      {equalizerSupported}
+      {isSetMode}
+      {lyricsLines}
+      onclose={closeNowPlaying}
+      ontogglePlay={togglePlay}
+      onnext={playNext}
+      onprev={playPrev}
+      onrate={updateRating}
+      ontoggleShuffle={toggleShuffleMode}
+      ontoggleRepeat={toggleRepeat}
+      onseek={seek}
+      onseekTo={seekTo}
+      onskip={skip}
+      ontoggleEqualizer={() => (showEqualizer = !showEqualizer)}
+      {ontoggleQueue}
+    />
   {:else}
     <!-- Desktop Player -->
     <div class="w-[30%] hidden md:flex items-center gap-3">
@@ -1294,9 +1752,9 @@
             <div class="w-1 h-1 bg-brand rounded-full mt-0.5"></div>
           {/if}
         </button>
-        <button 
-          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}" 
-          onclick={playPrev} 
+        <button
+          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+          onclick={playPrev}
           disabled={transportLocked}
           aria-label={$t('player.previous')}
         >
@@ -1304,8 +1762,22 @@
             <path d="M3.3 1a.7.7 0 0 1 .7.7v5.15l9.95-5.744a.7.7 0 0 1 1.05.606v12.575a.7.7 0 0 1-1.05.607L4 9.15v5.15a.7.7 0 0 1-.7.7H1.7a.7.7 0 0 1-.7-.7V1.7a.7.7 0 0 1 .7-.7h1.6z"></path>
           </svg>
         </button>
-        <button 
-          class="w-9 h-9 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105 {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}" 
+        {#if isSetMode}
+          <button
+            class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+            onclick={() => skip(-30)}
+            disabled={transportLocked}
+            aria-label={$t('player.skipBack')}
+            title={$t('player.skipBack')}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+              <path d="M12 5V1L7 6l5 5V7a6 6 0 1 1-6 6H5a7 7 0 1 0 7-7z"></path>
+            </svg>
+            <span class="text-[8px] font-bold -ml-1">30</span>
+          </button>
+        {/if}
+        <button
+          class="w-9 h-9 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105 {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
           onclick={togglePlay}
           disabled={transportLocked}
         >
@@ -1319,9 +1791,23 @@
             </svg>
           {/if}
         </button>
-        <button 
-          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}" 
-          onclick={playNext} 
+        {#if isSetMode}
+          <button
+            class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+            onclick={() => skip(30)}
+            disabled={transportLocked}
+            aria-label={$t('player.skipForward')}
+            title={$t('player.skipForward')}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+              <path d="M12 5V1l5 5-5 5V7a6 6 0 1 0 6 6h2a7 7 0 1 1-7-7z"></path>
+            </svg>
+            <span class="text-[8px] font-bold -ml-1">30</span>
+          </button>
+        {/if}
+        <button
+          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+          onclick={playNext}
           disabled={transportLocked}
           aria-label={$t('player.next')}
         >
@@ -1342,18 +1828,41 @@
         </button>
       </div>
       <div class="hidden md:flex w-full items-center gap-2 text-[11px] text-[#b3b3b3]">
-        <span>{formatTime(progress)}</span>
-      <div 
-        role="button"
-        tabindex="0"
-        class="flex-1 h-1 bg-[#4d4d4d] rounded-sm cursor-pointer {transportLocked ? 'pointer-events-none opacity-50' : ''}"
-        onclick={seek}
-        onkeydown={(e) => e.key === 'Enter' && seek(e)}
-        aria-label={$t('player.seek')}
-      >
+        <span>{isSetMode ? formatClock(progress) : formatTime(progress)}</span>
+      {#if isSetMode}
+        <!-- A native `range`, not the songs-mode click div below: a two-hour
+             file needs real dragging, not a per-pixel click, to land on a
+             chosen second -- see the "step 1 s" note in setResume.js's
+             design. Arrow keys are overridden to ±30 s instead of the range's
+             own 1 s step, matching the skip buttons above. -->
+        <input
+          type="range"
+          class="flex-1 accent-brand-blue h-1 cursor-pointer {transportLocked ? 'pointer-events-none opacity-50' : ''}"
+          min="0"
+          max={duration || 0}
+          step="1"
+          value={progress}
+          disabled={transportLocked}
+          oninput={(e) => seekTo(Number(e.currentTarget.value))}
+          onkeydown={(e) => {
+            if (e.key === 'ArrowLeft') { e.preventDefault(); skip(-30); }
+            else if (e.key === 'ArrowRight') { e.preventDefault(); skip(30); }
+          }}
+          aria-label={$t('player.seek')}
+        />
+      {:else}
+        <div
+          role="button"
+          tabindex="0"
+          class="flex-1 h-1 bg-[#4d4d4d] rounded-sm cursor-pointer {transportLocked ? 'pointer-events-none opacity-50' : ''}"
+          onclick={seek}
+          onkeydown={(e) => e.key === 'Enter' && seek(e)}
+          aria-label={$t('player.seek')}
+        >
           <div class="h-full bg-white rounded-sm" style="width: {progressPercent(progress, duration)}%"></div>
-      </div>
-        <span>{formatTime(duration)}</span>
+        </div>
+      {/if}
+        <span>{isSetMode ? formatClock(duration) : formatTime(duration)}</span>
       </div>
     </div>
 
@@ -1435,7 +1944,7 @@
       {#if equalizerSupported}
         <div class="relative">
           <button
-            bind:this={equalizerButtonEl}
+            data-eq-toggle
             class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white {$equalizerSettings.enabled ? 'text-brand' : 'text-[#b3b3b3]'}"
             onclick={() => (showEqualizer = !showEqualizer)}
             aria-label={$t('equalizer.title')}
@@ -1448,6 +1957,32 @@
           {#if showEqualizer}
             <div bind:this={equalizerPanelEl} class="absolute bottom-full right-0 mb-3 z-50">
               <Equalizer onclose={() => (showEqualizer = false)} />
+            </div>
+          {/if}
+        </div>
+      {/if}
+      {#if lyricsLines.length > 0}
+        <div class="relative">
+          <button
+            class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white {showLyricsPanel ? 'text-brand' : 'text-[#b3b3b3]'}"
+            onclick={() => (showLyricsPanel = !showLyricsPanel)}
+            aria-label={$t('track.lyrics')}
+            aria-pressed={showLyricsPanel}
+            aria-expanded={showLyricsPanel}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+              <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"></path>
+            </svg>
+          </button>
+          {#if showLyricsPanel}
+            <div
+              class="absolute bottom-full right-0 mb-3 w-64 max-h-72 overflow-y-auto bg-[#282828] rounded-md shadow-xl border border-white/5 p-3 z-50 text-sm text-white"
+              role="dialog"
+              aria-label={$t('track.lyrics')}
+            >
+              {#each lyricsLines as line, i (i)}
+                <p class="m-0 mb-1 last:mb-0">{line}</p>
+              {/each}
             </div>
           {/if}
         </div>

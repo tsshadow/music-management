@@ -113,6 +113,11 @@
         {#if menuOpen}
           <div class="absolute right-0 top-full mt-1 w-48 bg-[#282828] rounded-md shadow-xl border border-white/5 py-1 z-30" role="menu">
             <button
+              class="w-full text-left px-4 py-2 text-sm text-white hover:bg-white/10 bg-transparent border-none cursor-pointer"
+              role="menuitem"
+              onclick={() => { menuOpen = false; onnavigate?.(`preset-edit:${preset.id}`); }}
+            >{$t('presetBuilder.edit')}</button>
+            <button
               class="w-full text-left px-4 py-2 text-sm text-white hover:bg-white/10 bg-transparent border-none cursor-pointer disabled:opacity-50"
               role="menuitem"
               disabled={isDeleting}

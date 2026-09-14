@@ -46,6 +46,13 @@ describe("viewToPath", () => {
     expect(viewToPath(state(view))).toBe(path);
   });
 
+  it("routes the preset builder, new and over an existing preset", () => {
+    expect(viewToPath(state("new-preset"))).toBe("/new-preset");
+    expect(pathToState("/new-preset")).toEqual({ view: "new-preset" });
+    expect(viewToPath(state("preset-edit:15"))).toBe("/preset/15/edit");
+    expect(pathToState("/preset/15/edit")).toEqual({ view: "preset-edit:15" });
+  });
+
   it("routes a preset by its MuMa id and reads it back", () => {
     expect(viewToPath(state("preset:15"))).toBe("/preset/15");
     expect(pathToState("/preset/15")).toEqual({ view: "preset:15" });

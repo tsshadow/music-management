@@ -12,7 +12,7 @@
    * Colour comes from the first genre's tint when MuMa has one, so "Raw Hardstyle" is the same
    * red here as on the genre page, and from a fixed palette keyed on the name otherwise.
    */
-  const { presets = [], tints = {}, onopen } = $props();
+  const { presets = [], tints = {}, canCreate = false, onopen, oncreate } = $props();
 
   /** The Kotlin tile palette, minus the near-blacks that vanish on this background. */
   const PALETTE = [
@@ -30,9 +30,18 @@
   }
 </script>
 
-{#if presets.length > 0}
+{#if presets.length > 0 || canCreate}
   <section class="flex flex-col gap-4" data-testid="preset-grid">
-    <h2 class="text-2xl font-bold m-0">{$t('presets.title')}</h2>
+    <div class="flex items-center justify-between gap-4">
+      <h2 class="text-2xl font-bold m-0">{$t('presets.title')}</h2>
+      {#if canCreate}
+        <button
+          type="button"
+          class="text-sm font-bold text-[#b3b3b3] hover:text-white bg-transparent border-none cursor-pointer"
+          onclick={() => oncreate?.()}
+        >+ {$t('presetBuilder.new')}</button>
+      {/if}
+    </div>
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
       {#each presets as preset (preset.id)}
         <button

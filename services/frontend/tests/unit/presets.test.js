@@ -1,9 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
+  DEFAULT_PRESET_SIZE,
+  PRESET_SORTS,
   normalizePreset,
-  presetQuery,
+  presetParams,
   presetParamsFromFilters,
+  presetQuery,
   presetSummary,
+  updatePreset,
 } from "../../src/lib/presets.js";
 
 /**
@@ -228,5 +232,108 @@ describe("presetSummary", () => {
   it("says so when there is no filter at all", () => {
     const preset = normalizePreset({ id: 1, name: "x", params: "{}" });
     expect(presetSummary(preset, t)).toBe("sort.recentlyReleased · presets.everything");
+  });
+});
+
+describe("presetParams", () => {
+  it("writes every cluster as a list, in the Kotlin tile spelling", () => {
+    const params = JSON.parse(
+      presetParams({
+        genres: ["Uptempo Hardcore", "Terror"],
+        artists: ["Angerfist"],
+        labels: ["Masters of Hardcore"],
+        festivals: ["Dominator"],
+        years: [2024, "2023"],
+        sort: "random",
+        minRating: 3,
+        maxRating: 4,
+        viewMode: "sets",
+        size: 200,
+      }),
+    );
+
+    expect(params).toEqual({
+      pageKey: "sets",
+      genre: ["Uptempo Hardcore", "Terror"],
+      artists: ["Angerfist"],
+      label: ["Masters of Hardcore"],
+      festival: ["Dominator"],
+      year: ["2024", "2023"],
+      sortMethod: "Random",
+      ratingMin: 3,
+      ratingMax: 4,
+      length: "long",
+      size: 200,
+    });
+  });
+
+  it("leaves out empty lists, blank entries and a 0..5 rating range", () => {
+    const params = JSON.parse(presetParams({ genres: [" ", ""], artists: [], viewMode: "songs" }));
+
+    expect(params).toEqual({
+      pageKey: "songs",
+      sortMethod: "DateDescAndRelease",
+      length: "short",
+      size: DEFAULT_PRESET_SIZE,
+    });
+  });
+
+  it("keeps a ceiling below five even without a floor", () => {
+    const params = JSON.parse(presetParams({ maxRating: 2, viewMode: "songs" }));
+    expect(params.ratingMin).toBe(0);
+    expect(params.ratingMax).toBe(2);
+  });
+
+  it("round-trips through normalizePreset and into the getSongs clusters", () => {
+    const preset = normalizePreset({
+      id: 1,
+      name: "x",
+      params: presetParams({
+        genres: ["Hardstyle"],
+        artists: ["Sub Zero Project"],
+        festivals: ["Defqon.1"],
+        years: ["2025"],
+        sort: "added",
+        viewMode: "songs",
+      }),
+    });
+    const { params } = presetQuery(preset, { viewMode: "songs" });
+    const clusters = JSON.parse(params.clusters);
+
+    expect(clusters).toContainEqual({ name: "GENRE", value: ["Hardstyle"] });
+    expect(clusters).toContainEqual({ name: "ARTIST", value: ["Sub Zero Project"] });
+    expect(clusters).toContainEqual({ name: "FESTIVAL", value: ["Defqon.1"] });
+    expect(clusters).toContainEqual({ name: "YEAR", value: ["2025"] });
+    expect(params.sortMethod).toBe("AddedDesc");
+  });
+
+  it("offers every sort the summary can name", () => {
+    expect(PRESET_SORTS.map((s) => s.id)).toEqual([
+      "recent",
+      "added",
+      "random",
+      "starred",
+      "alpha",
+    ]);
+  });
+});
+
+describe("updatePreset", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("PUTs the name and params to the preset's own url", async () => {
+    globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ status: "ok" }) }));
+
+    await updatePreset(7, "15", { name: "Renamed", params: "{}" });
+
+    const [url, init] = globalThis.fetch.mock.calls[0];
+    expect(String(url)).toMatch(/\/api\/users\/7\/dynamic-playlists\/15$/);
+    expect(init.method).toBe("PUT");
+    expect(JSON.parse(init.body)).toEqual({ name: "Renamed", params: "{}" });
+  });
+
+  it("throws on a refusal", async () => {
+    globalThis.fetch = vi.fn(async () => ({ ok: false, status: 403 }));
+    await expect(updatePreset(7, "15", { name: "x" })).rejects.toThrow("403");
   });
 });

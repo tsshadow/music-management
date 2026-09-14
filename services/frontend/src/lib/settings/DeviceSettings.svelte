@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { platform } from '../platform/index.js';
   import { logAction } from '../diagnosticsLog.js';
+  import Modal from '../Modal.svelte';
 
   /**
    * `null` while `getSettings()` has not resolved yet. Once it has, every field
@@ -38,6 +39,18 @@
   const PRELOAD_STEPS = [1, 2, 3, 5, 10, 50, 100, 500, 1000, 10000, 100000];
 
   const PARALLEL_DOWNLOAD_STEPS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+  // networkTimeoutValues, milliseconds.
+  const NETWORK_TIMEOUT_STEPS = [15000, 30000, 45000, 60000, 75000, 90000, 105000, 120000];
+
+  // directoryCacheTimeValues, seconds; 0 is "don't cache directory listings".
+  const DIRECTORY_CACHE_TIME_STEPS = [0, 60, 120, 300, 600, 1800, 3600];
+
+  let bondedDevices = $state([]);
+  let bondedPermissionGranted = $state(true);
+  let selectedDeviceAddresses = $state([]);
+  let isDevicePickerOpen = $state(false);
+  let isLoadingDevices = $state(false);
 
   onMount(async () => {
     try {
@@ -105,8 +118,70 @@
     platform.system.switchToLegacyUi();
   }
 
-  function openLegacySettings() {
-    platform.system.openLegacySettings();
+  function requestCarModeFullScreenPermission() {
+    platform.system.requestCarModeFullScreenPermission();
+  }
+
+  /**
+   * Opens the car-mode device picker, pre-ticking whatever `carModeDevices` already holds -- or,
+   * if nothing has been chosen yet, the devices that look like a car -- same as the legacy
+   * screen's `preTickedCarDevices`.
+   */
+  async function openDevicePicker() {
+    isDevicePickerOpen = true;
+    isLoadingDevices = true;
+    try {
+      const answer = await platform.system.listBondedDevices();
+      bondedPermissionGranted = answer.permissionGranted;
+      bondedDevices = answer.devices;
+      const stored = settings.carModeDevices;
+      selectedDeviceAddresses =
+        Array.isArray(stored) && stored.length > 0
+          ? [...stored]
+          : bondedDevices.filter((d) => d.isCarClass).map((d) => d.address);
+    } catch (e) {
+      bondedPermissionGranted = false;
+      bondedDevices = [];
+      console.error('Failed to list bonded Bluetooth devices', e);
+    } finally {
+      isLoadingDevices = false;
+    }
+  }
+
+  function toggleDeviceSelected(address) {
+    selectedDeviceAddresses = selectedDeviceAddresses.includes(address)
+      ? selectedDeviceAddresses.filter((a) => a !== address)
+      : [...selectedDeviceAddresses, address];
+  }
+
+  async function saveDeviceSelection() {
+    await writeSetting('carModeDevices', selectedDeviceAddresses);
+    isDevicePickerOpen = false;
+  }
+
+  /** @param {Event} event */
+  async function pickCacheLocation() {
+    saveError = '';
+    try {
+      const answer = await platform.system.pickCacheLocation();
+      if (answer?.uri) {
+        settings = { ...settings, cacheLocationUri: answer.path || answer.uri, customCacheLocation: true };
+      }
+    } catch (e) {
+      saveError = $t('settings.device.saveError');
+      console.error('Failed to pick a cache location', e);
+    }
+  }
+
+  async function clearCustomCacheLocation() {
+    saveError = '';
+    try {
+      await platform.system.clearCustomCacheLocation();
+      settings = { ...settings, cacheLocationUri: '', customCacheLocation: false };
+    } catch (e) {
+      saveError = $t('settings.device.saveError');
+      console.error('Failed to clear the custom cache location', e);
+    }
   }
 </script>
 
@@ -195,8 +270,48 @@
           </div>
 
           <div class="flex items-center justify-between gap-4">
-            <h3 class="text-lg font-bold">{$t('settings.device.cacheLocation')}</h3>
-            <span class="text-sm text-[#b3b3b3]">{settings.cacheLocationUri || $t('settings.device.cacheLocationDefault')}</span>
+            <div class="flex flex-col gap-1">
+              <h3 class="text-lg font-bold">{$t('settings.device.cacheLocation')}</h3>
+              <span class="text-sm text-[#b3b3b3]">{settings.cacheLocationUri || $t('settings.device.cacheLocationDefault')}</span>
+            </div>
+            <div class="flex gap-2 shrink-0">
+              {#if settings.customCacheLocation}
+                <button onclick={clearCustomCacheLocation} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap">
+                  {$t('settings.device.cacheLocationReset')}
+                </button>
+              {/if}
+              <button onclick={pickCacheLocation} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap">
+                {$t('settings.device.cacheLocationChoose')}
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between gap-4">
+            <div class="flex flex-col gap-1">
+              <h3 class="text-lg font-bold">{$t('settings.device.directoryCacheTime')}</h3>
+              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.directoryCacheTimeHelp')}</p>
+            </div>
+            <select
+              class="bg-[#333] border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
+              aria-label={$t('settings.device.directoryCacheTime')}
+              value={settings.directoryCacheTime}
+              onchange={(e) => writeFromSelect('directoryCacheTime', e)}
+            >
+              {#each DIRECTORY_CACHE_TIME_STEPS as seconds (seconds)}
+                <option value={seconds}>{seconds === 0 ? $t('settings.device.directoryCacheTimeOff') : `${Math.round(seconds / 60)} min`}</option>
+              {/each}
+            </select>
+          </div>
+
+          <div class="flex items-center justify-between gap-4">
+            <div class="flex flex-col gap-1">
+              <h3 class="text-lg font-bold">{$t('settings.device.mediaDeviceExport')}</h3>
+              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.mediaDeviceExportHelp')}</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" class="sr-only peer" checked={settings.mediaDeviceExport} onchange={() => toggle('mediaDeviceExport')} aria-label={$t('settings.device.mediaDeviceExport')}>
+              <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+            </label>
           </div>
         </div>
       </section>
@@ -257,6 +372,52 @@
               {/each}
               <option value={-1}>{$t('settings.device.preloadCountUnlimited')}</option>
             </select>
+          </div>
+
+          <div class="flex items-center justify-between gap-4">
+            <div class="flex flex-col gap-1">
+              <h3 class="text-lg font-bold">{$t('settings.device.maxBitratePinning')}</h3>
+              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.maxBitratePinningHelp')}</p>
+            </div>
+            <select
+              class="bg-[#333] border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
+              aria-label={$t('settings.device.maxBitratePinning')}
+              value={settings.maxBitratePinning}
+              onchange={(e) => writeFromSelect('maxBitratePinning', e)}
+            >
+              {#each BITRATE_STEPS as kbps (kbps)}
+                <option value={kbps}>{kbps} kbps</option>
+              {/each}
+              <option value={0}>{$t('settings.device.bitrateHighestQuality')}</option>
+            </select>
+          </div>
+
+          <div class="flex items-center justify-between gap-4">
+            <div class="flex flex-col gap-1">
+              <h3 class="text-lg font-bold">{$t('settings.device.networkTimeout')}</h3>
+              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.networkTimeoutHelp')}</p>
+            </div>
+            <select
+              class="bg-[#333] border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
+              aria-label={$t('settings.device.networkTimeout')}
+              value={settings.networkTimeout}
+              onchange={(e) => writeFromSelect('networkTimeout', e)}
+            >
+              {#each NETWORK_TIMEOUT_STEPS as ms (ms)}
+                <option value={ms}>{ms / 1000}s</option>
+              {/each}
+            </select>
+          </div>
+
+          <div class="flex items-center justify-between gap-4">
+            <div class="flex flex-col gap-1">
+              <h3 class="text-lg font-bold">{$t('settings.device.autoSwitchOffline')}</h3>
+              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.autoSwitchOfflineHelp')}</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" class="sr-only peer" checked={settings.autoSwitchOffline} onchange={() => toggle('autoSwitchOffline')} aria-label={$t('settings.device.autoSwitchOffline')}>
+              <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+            </label>
           </div>
         </div>
       </section>
@@ -338,18 +499,16 @@
             </label>
           </div>
 
-          <!-- Shown, not edited: pairing a device is a Bluetooth picker the legacy
-               screen already has, and duplicating it here is not worth the seam. -->
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.carModeDevices')}</h3>
               <p class="text-sm text-[#b3b3b3]">
-                {settings.carModeDeviceCount > 0
-                  ? $t('settings.device.carModeDevicesCount', { count: settings.carModeDeviceCount })
+                {settings.carModeDevices?.length > 0
+                  ? $t('settings.device.carModeDevicesCount', { count: settings.carModeDevices.length })
                   : $t('settings.device.carModeDevicesNone')}
               </p>
             </div>
-            <button onclick={openLegacySettings} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0">
+            <button onclick={openDevicePicker} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0">
               {$t('settings.device.carModeDevicesEdit')}
             </button>
           </div>
@@ -365,7 +524,7 @@
                 </p>
               </div>
               {#if !settings.carModeFullScreenGranted}
-                <button onclick={openLegacySettings} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0">
+                <button onclick={requestCarModeFullScreenPermission} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0">
                   {$t('settings.device.carModeFullScreenAction')}
                 </button>
               {/if}
@@ -416,18 +575,74 @@
               {$t('settings.device.switchToLegacyUi')}
             </button>
           </div>
+        </div>
+      </section>
 
+      <!-- Other -->
+      <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+        <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.device.groups.other')}</h2>
+        <div class="flex flex-col gap-6">
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
-              <h3 class="text-lg font-bold">{$t('settings.device.allAppSettings')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.allAppSettingsHelp')}</p>
+              <h3 class="text-lg font-bold">{$t('settings.device.hideMedia')}</h3>
+              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.hideMediaHelp')}</p>
             </div>
-            <button onclick={openLegacySettings} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0">
-              {$t('settings.device.allAppSettings')}
-            </button>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" class="sr-only peer" checked={settings.hideMedia} onchange={() => toggle('hideMedia')} aria-label={$t('settings.device.hideMedia')}>
+              <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- Muma sync: read-only, filled by login -->
+      <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+        <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.device.groups.mumaSync')}</h2>
+        <div class="flex flex-col gap-6">
+          <div class="flex items-center justify-between gap-4">
+            <h3 class="text-lg font-bold">{$t('settings.device.mumaUserId')}</h3>
+            <span class="text-sm text-[#b3b3b3]">{settings.mumaUserId ?? $t('settings.device.mumaSyncNotLinked')}</span>
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <h3 class="text-lg font-bold">{$t('settings.device.mumaApiKeySet')}</h3>
+            <span class="text-sm text-[#b3b3b3]">
+              {settings.mumaApiKeySet ? $t('settings.device.mumaSyncLinked') : $t('settings.device.mumaSyncNotLinked')}
+            </span>
           </div>
         </div>
       </section>
     </div>
+
+    {#if isDevicePickerOpen}
+      <Modal title={$t('settings.device.carModeDevicesEdit')} onclose={() => (isDevicePickerOpen = false)}>
+        {#if isLoadingDevices}
+          <p class="text-[#b3b3b3]">{$t('settings.device.loading')}</p>
+        {:else if !bondedPermissionGranted}
+          <p class="text-[#b3b3b3]">{$t('settings.device.bluetoothPermissionDenied')}</p>
+        {:else if bondedDevices.length === 0}
+          <p class="text-[#b3b3b3]">{$t('settings.device.carModeDevicesNone')}</p>
+        {:else}
+          <div class="flex flex-col gap-3 mb-6">
+            {#each bondedDevices as device (device.address)}
+              <label class="flex items-center gap-3 p-3 bg-[#282828] rounded-md cursor-pointer">
+                <input
+                  type="checkbox"
+                  class="w-5 h-5 accent-brand"
+                  checked={selectedDeviceAddresses.includes(device.address)}
+                  onchange={() => toggleDeviceSelected(device.address)}
+                />
+                <span class="text-white font-medium">{device.name}</span>
+              </label>
+            {/each}
+          </div>
+          <button
+            onclick={saveDeviceSelection}
+            class="bg-brand text-black font-bold py-3 px-8 rounded-full hover:scale-105 transition-transform w-full"
+          >
+            {$t('common.saveChanges')}
+          </button>
+        {/if}
+      </Modal>
+    {/if}
   {/if}
 </div>

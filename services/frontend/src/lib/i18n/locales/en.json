@@ -987,8 +987,6 @@
       "updatePassword": "Update password"
     },
     "device": {
-      "allAppSettings": "All app settings…",
-      "allAppSettingsHelp": "Everything not listed above — appearance, the app icon, sharing and more — lives in the classic settings screen.",
       "bitrateUnlimited": "No limit",
       "bluetoothA2dp": "Audio devices only",
       "bluetoothAll": "Any device",
@@ -1023,7 +1021,9 @@
         "downloads": "Downloads",
         "interface": "Interface",
         "playback": "Playback",
-        "streaming": "Streaming"
+        "streaming": "Streaming",
+        "other": "Other",
+        "mumaSync": "Muma sync"
       },
       "hardwareOffload": "Hardware audio offload",
       "hardwareOffloadHelp": "Lets the device's audio chip handle playback, which uses less battery on supported hardware.",
@@ -1054,7 +1054,28 @@
       "switchToLegacyUiHelp": "Leaves this interface and restarts into the original Ultrasonic screens.",
       "title": "Device",
       "wifiOnly": "Wi-Fi only",
-      "wifiOnlyHelp": "Wait for Wi-Fi before downloading anything."
+      "wifiOnlyHelp": "Wait for Wi-Fi before downloading anything.",
+      "cacheLocationChoose": "Choose folder…",
+      "cacheLocationReset": "Reset to default",
+      "directoryCacheTime": "Directory listing cache time",
+      "directoryCacheTimeHelp": "How long a folder listing from the server is remembered before it is fetched again.",
+      "directoryCacheTimeOff": "Off",
+      "mediaDeviceExport": "Visible to other apps",
+      "mediaDeviceExportHelp": "Makes downloaded tracks visible to other media apps on this device.",
+      "maxBitratePinning": "Max bitrate (pinning)",
+      "maxBitratePinningHelp": "Quality pinned tracks are downloaded at.",
+      "bitrateHighestQuality": "Highest quality",
+      "networkTimeout": "Network timeout",
+      "networkTimeoutHelp": "How long to wait for a response from the server before giving up on a request.",
+      "autoSwitchOffline": "Switch to offline automatically",
+      "autoSwitchOfflineHelp": "Switches to offline mode automatically once the server becomes unreachable.",
+      "hideMedia": "Hide from the media scanner",
+      "hideMediaHelp": "Hides downloaded files from other apps that scan the device for music.",
+      "bluetoothPermissionDenied": "No access to Bluetooth devices. Grant the app Bluetooth access in the system settings.",
+      "mumaUserId": "Muma user id",
+      "mumaApiKeySet": "Muma API key",
+      "mumaSyncLinked": "Linked",
+      "mumaSyncNotLinked": "Not linked"
     },
     "general": {
       "albumSort": "Default album sorting",
@@ -1094,7 +1115,39 @@
       "transcodingDefault": "Transcoding default",
       "transcodingHelp": "Always transcode for Subsonic clients?",
       "wifiOnly": "Wi-Fi only",
-      "wifiOnlyHelp": "Wait for Wi-Fi before downloading. Saved with your account; the downloader does not read it yet."
+      "wifiOnlyHelp": "Wait for Wi-Fi before downloading. Saved with your account; the downloader does not read it yet.",
+      "home": {
+        "title": "Home",
+        "help": "Which sections show on the home screen, and how much they show. Everything set to 'Button' shares the shortcuts row at the top; 'Overview' gives a section its own heading further down.",
+        "modeOff": "Off",
+        "modeButton": "Button",
+        "modeOverview": "Overview",
+        "releaseRadar": "Release Radar",
+        "dailyMix": "Daily mix",
+        "dailyMixCount": "Daily mix count",
+        "favorites": "Favorites",
+        "favoritesCount": "Favorites count",
+        "shortcuts": "Shortcuts",
+        "recentlyReleased": "Recently released",
+        "recentlyAdded": "Recently added",
+        "shortcutCount": "Shortcut count",
+        "listCount": "Rows per list",
+        "separateHistory": "Separate history",
+        "separateHistoryHelp": "Keeps a separate shortcut history for songs and for sets."
+      },
+      "display": {
+        "title": "Display",
+        "showConfirmationDialog": "Confirm downloading a set",
+        "showTrackNumber": "Show track number",
+        "trackListLines": "Lines per track row",
+        "trackListLinesCompact": "Compact",
+        "trackListLinesDetailed": "Detailed",
+        "displayBitrateWithArtist": "Show bitrate next to artist",
+        "discSort": "Sort by disc and track number",
+        "discSortHelp": "Sorts album tracks by disc and track number instead of the server's own order.",
+        "genreTrackLimit": "Genre track limit",
+        "genreTrackLimitHelp": "How many tracks a genre overview shows at most."
+      }
     },
     "language": {
       "help": "The language of the interface. Saved to your account, so it follows you to your other devices.",

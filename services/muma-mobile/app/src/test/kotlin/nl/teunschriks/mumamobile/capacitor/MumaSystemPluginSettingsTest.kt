@@ -1,5 +1,6 @@
 package nl.teunschriks.mumamobile.capacitor
 
+import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
 import com.getcapacitor.PluginCall
 import io.mockk.every
@@ -32,6 +33,7 @@ class MumaSystemPluginSettingsTest {
         every { call.getString("key") } returns args.toMap()["key"] as? String
         every { call.getBoolean("value") } returns args.toMap()["value"] as? Boolean
         every { call.getInt("value") } returns args.toMap()["value"] as? Int
+        every { call.getArray("value") } returns (args.toMap()["value"] as? Collection<*>)?.let { JSArray(it) }
         return call
     }
 
@@ -49,7 +51,7 @@ class MumaSystemPluginSettingsTest {
         result.captured.getBoolean("wifiOnly") shouldBeEqualTo true
         result.captured.getBoolean("scrobbleEnabled") shouldBeEqualTo false
         // A read-only field: shown, never accepted by setSetting (see DeviceSettingsTest).
-        result.captured.has("carModeDeviceCount") shouldBeEqualTo true
+        result.captured.has("carModeDevices") shouldBeEqualTo true
     }
 
     @Test
@@ -66,6 +68,17 @@ class MumaSystemPluginSettingsTest {
         plugin.setSetting(call("key" to "parallelDownloads", "value" to 5))
 
         Settings.parallelDownloads shouldBeEqualTo 5
+    }
+
+    @Test
+    fun `setSetting writes a string-set key, marks the choice as made, and resolves`() {
+        Settings.carModeDevices = emptySet()
+        Settings.carModeDevicesChosen = false
+
+        plugin.setSetting(call("key" to "carModeDevices", "value" to listOf("AA:BB:CC")))
+
+        Settings.carModeDevices shouldBeEqualTo setOf("AA:BB:CC")
+        Settings.carModeDevicesChosen shouldBeEqualTo true
     }
 
     @Test
@@ -95,5 +108,18 @@ class MumaSystemPluginSettingsTest {
         plugin.setSetting(theCall)
 
         verify { theCall.reject(any()) }
+    }
+
+    @Test
+    fun `clearCustomCacheLocation resets both fields and resolves`() {
+        Settings.customCacheLocation = true
+        Settings.cacheLocationUri = "content://tree/x"
+        val theCall = call()
+
+        plugin.clearCustomCacheLocation(theCall)
+
+        Settings.customCacheLocation shouldBeEqualTo false
+        Settings.cacheLocationUri shouldBeEqualTo ""
+        verify { theCall.resolve() }
     }
 }

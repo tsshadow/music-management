@@ -205,11 +205,58 @@ export function createCapacitorSystem(plugin) {
     /**
      * Writes one field of {@link import('../index.js').DeviceSettings}.
      *
-     * @param {{key: string, value: boolean|number}} setting
+     * @param {{key: string, value: boolean|number|string[]}} setting
      * @returns {Promise<void>}
      */
     async setSetting(setting) {
       await plugin.setSetting(setting);
+    },
+
+    /**
+     * The phone's paired Bluetooth devices, for the car-mode picker.
+     *
+     * @returns {Promise<{permissionGranted: boolean, devices: Array<{address: string, name:
+     *   string, isCarClass: boolean}>}>}
+     */
+    async listBondedDevices() {
+      const answer = await plugin.listBondedDevices();
+      return {
+        permissionGranted: answer?.permissionGranted === true,
+        devices: Array.isArray(answer?.devices) ? answer.devices : [],
+      };
+    },
+
+    /** Opens the "use full screen intent" permission screen for car mode. Fire-and-forget. */
+    requestCarModeFullScreenPermission() {
+      fireAndForget(
+        "requestCarModeFullScreenPermission",
+        plugin.requestCarModeFullScreenPermission(),
+      );
+    },
+
+    /**
+     * Opens the system's directory picker for a custom cache location.
+     *
+     * @returns {Promise<{uri: string, path: string}|{}>}
+     */
+    async pickCacheLocation() {
+      return (await plugin.pickCacheLocation()) ?? {};
+    },
+
+    /** Turns a custom cache location back off. */
+    clearCustomCacheLocation() {
+      fireAndForget("clearCustomCacheLocation", plugin.clearCustomCacheLocation());
+    },
+
+    /**
+     * Tells the shell which language the web `LanguageSetting` just picked, so the native chrome
+     * follows it too. Fire-and-forget: the activity recreates itself on its own time, and the web
+     * UI has already applied the pick to its own `locale` store regardless of how this resolves.
+     *
+     * @param {string} locale
+     */
+    setAppLocale(locale) {
+      fireAndForget("setAppLocale", plugin.setAppLocale({ locale }));
     },
   };
 }

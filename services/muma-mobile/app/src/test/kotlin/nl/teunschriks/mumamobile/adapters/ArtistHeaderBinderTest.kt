@@ -30,8 +30,6 @@ import org.robolectric.annotation.Config
  *
  * Artist pictures are switched off for these tests: with them on, the binder resolves an
  * ImageLoaderProvider through Koin and starts a download, none of which this test is about.
- * `Settings.shouldShowArtistPicture` is a read-only property, so the switch is thrown one level
- * up - the binder also requires ID3 tags before it shows a picture at all.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = UApp::class)
@@ -41,7 +39,7 @@ class ArtistHeaderBinderTest {
 
     @Before
     fun setUp() {
-        Settings.id3TagsEnabledOnline = false
+        Settings.shouldShowArtistPicture = false
 
         val themed = ContextThemeWrapper(RuntimeEnvironment.getApplication(), R.style.UltrasonicTheme_Spotify)
         parent = FrameLayout(themed)

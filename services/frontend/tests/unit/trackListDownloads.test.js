@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/svelte";
 import TrackList from "../../src/lib/TrackList.svelte";
-import { credentials, currentTrack, playlist } from "../../src/lib/store.js";
+import {
+  credentials,
+  currentTrack,
+  playlist,
+  showConfirmationDialog,
+} from "../../src/lib/store.js";
 import { offline } from "../../src/lib/subsonic.js";
 
 const SONG = {
@@ -139,6 +144,20 @@ describe("TrackList download state", () => {
 
     await fireEvent.click(within(sheet).getByRole("button", { name: "Downloaden naar apparaat" }));
     expect(platform.storage.download).toHaveBeenCalledWith(["2"], { pin: true });
+  });
+
+  it("skips the size question when showConfirmationDialog is switched off", async () => {
+    showConfirmationDialog.set(false);
+    const platform = shell();
+    render(TrackList, { tracks: [SET], platform, onnavigate: vi.fn() });
+
+    await waitFor(() => expect(screen.getByTitle("Downloaden naar apparaat")).toBeTruthy());
+    await fireEvent.click(screen.getByTitle("Downloaden naar apparaat"));
+
+    expect(screen.queryByTestId("set-size-confirm")).toBeNull();
+    expect(platform.storage.download).toHaveBeenCalledWith(["2"], { pin: true });
+
+    showConfirmationDialog.set(true);
   });
 
   it("says so when the set's size is a guess from the bitrate", async () => {

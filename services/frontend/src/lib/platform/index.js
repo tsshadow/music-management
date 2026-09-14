@@ -284,28 +284,42 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
 
 /**
  * @typedef {object} DeviceSettings The "Apparaat" settings tab's whole state, as
- *   `platform.system.getSettings()` answers it. Every field here except
- *   `cacheLocationUri`, `carModeDeviceCount` and `carModeFullScreenGranted` is also a key
- *   `setSetting` accepts; those three are shown, not edited -- the device-settings tab
- *   sends the user to `openLegacySettings()` for them instead. `carModeFullScreenGranted`
- *   is absent entirely rather than `false` where the question does not apply (below
- *   Android 14): a missing key means "not applicable", not "denied".
+ *   `platform.system.getSettings()` answers it. Every field here is also a key `setSetting`
+ *   accepts, except the ones marked read-only below -- those are shown but changed through their
+ *   own action instead (`pickCacheLocation`/`clearCustomCacheLocation`,
+ *   `requestCarModeFullScreenPermission`, or nothing at all for the muma sync fields, which login
+ *   fills). `carModeFullScreenGranted` is absent entirely rather than `false` where the question
+ *   does not apply (below Android 14): a missing key means "not applicable", not "denied".
  * @property {boolean} wifiOnly
  * @property {number} parallelDownloads
  * @property {number} cacheSizeMB `-1` means no limit.
  * @property {string} cacheLocationUri Read-only; empty means the default location.
+ * @property {boolean} customCacheLocation Read-only: whether `cacheLocationUri` is a custom
+ *   location rather than the default; toggled through `pickCacheLocation`/`clearCustomCacheLocation`.
  * @property {number} maxBitrateMobile Kbps; `0` means no limit.
  * @property {number} maxBitrateWifi Kbps; `0` means no limit.
+ * @property {number} maxBitratePinning Kbps; `0` means the highest quality available.
  * @property {number} preloadCount `-1` means the whole queue.
  * @property {boolean} resumeOnHeadphonesPlug
  * @property {number} resumeOnBluetoothDevice `0` any device, `1` A2DP only, `2` never.
  * @property {number} pauseOnBluetoothDevice Same three values as `resumeOnBluetoothDevice`.
  * @property {boolean} hardwareOffload
  * @property {boolean} carModeManual
- * @property {number} carModeDeviceCount Read-only: how many Bluetooth devices are marked
- *   as "this is my car".
- * @property {boolean} [carModeFullScreenGranted] Read-only; absent where not applicable.
+ * @property {string[]} carModeDevices Read-only: the Bluetooth addresses marked as "this is my
+ *   car". Changed through `setSetting({key: 'carModeDevices', value: [...]})`, built from
+ *   `listBondedDevices()`'s own addresses -- not hand-typed, so it is listed as read-only here in
+ *   the sense that no plain row edits it.
+ * @property {boolean} [carModeFullScreenGranted] Read-only; absent where not applicable. Requested
+ *   through `requestCarModeFullScreenPermission()`.
+ * @property {number} networkTimeout Milliseconds.
+ * @property {boolean} autoSwitchOffline
+ * @property {number} directoryCacheTime Seconds.
+ * @property {boolean} hideMedia
+ * @property {boolean} mediaDeviceExport
  * @property {boolean} scrobbleEnabled
+ * @property {number} [mumaUserId] Read-only; absent when never signed in to muma.
+ * @property {boolean} mumaApiKeySet Read-only: whether a muma API key is stored, never the key
+ *   itself.
  */
 
 /**
@@ -348,10 +362,34 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  * @property {function(): Promise<DeviceSettings>} getSettings The "Apparaat" settings tab's
  *   whole state in one call. A browser tab answers `{}`; the tab is hidden there anyway
  *   (`system.isNative` is how it decides), so an empty object is never read.
- * @property {function({key: string, value: boolean|number}): Promise<void>} setSetting
+ * @property {function({key: string, value: boolean|number|string[]}): Promise<void>} setSetting
  *   Writes one field of {@link DeviceSettings}. Rejects on a key the native whitelist does
  *   not recognise or a value of the wrong type; a browser tab resolves without writing
  *   anything, for the same reason `getSettings` answers empty there.
+ * @property {function(): Promise<{permissionGranted: boolean, devices: Array<{address: string,
+ *   name: string, isCarClass: boolean}>}>} listBondedDevices The phone's paired Bluetooth
+ *   devices, for the car-mode picker. `permissionGranted` is false, and `devices` empty, when
+ *   the Bluetooth permission was never granted -- distinct from a phone with nothing paired,
+ *   which answers `true` and an empty list. A browser tab answers `{permissionGranted: false,
+ *   devices: []}`.
+ * @property {function(): Promise<void>} requestCarModeFullScreenPermission Opens the system
+ *   settings screen for the "use full screen intent" permission car mode's notification needs
+ *   to raise the screen by itself. Fire-and-forget, like `switchToLegacyUi` -- there is no
+ *   result to await, only `getSettings()`'s `carModeFullScreenGranted` on the next read. A
+ *   browser tab resolves without doing anything.
+ * @property {function(): Promise<{uri: string, path: string}|{}>} pickCacheLocation Opens the
+ *   system's directory picker and, if the user picks one, writes it as the cache location
+ *   (clearing the download queue, same as the legacy screen). Resolves with `{}` -- not a
+ *   rejection -- if the user backs out of the picker. A browser tab resolves with `{}` at once.
+ * @property {function(): Promise<void>} clearCustomCacheLocation Turns a custom cache location
+ *   back off, back to the default location. A browser tab resolves without doing anything.
+ * @property {function(string): Promise<void>} setAppLocale Tells the shell which language the
+ *   web `LanguageSetting` just picked, so the native chrome (permission dialogs, share sheets)
+ *   follows it too, not only the web UI's own text. `locale` is one of `SUPPORTED_LOCALES`'
+ *   codes, or `""` to follow the device's own language. Recreates the host activity to apply it,
+ *   so the WebView reloads -- expected for a rare, deliberate settings change, not something to
+ *   call on every boot. A browser tab resolves without doing anything; the web UI's own `locale`
+ *   store is what it reads instead.
  */
 
 /**

@@ -108,14 +108,38 @@ id and the native `DownloadService`/`OfflineMusicService` resolve the local file
 - **Device settings**: a native-only "Apparaat" tab in the Svelte settings screen (`platform.system.isNative`
   is the gate, the same check `platform.storage.supported` serves as elsewhere) covers the phone-only
   preferences Spotify-style: downloads, streaming quality, playback, car mode, diagnostics. `MumaSystem`
-  gained `getSettings()` (a snapshot of every field the tab shows) and `setSetting({key, value})`, which
-  checks `key` against a fixed whitelist and `value`'s type before writing through `Settings` — an
-  unrecognised key or a wrong-typed value rejects the call rather than silently doing nothing. Two
-  read-only fields (the cache location, how many car-mode devices are paired) and one action (pairing
-  a car-mode device) are shown but not edited from the tab; a row at the bottom calls
-  `openLegacySettings()` for those and for everything else phase 1 leaves in the Kotlin screens
-  (appearance, the app icon, sharing, search limits). `MumaStorage` gained `clearCache()`, which cancels
-  queued/active downloads and deletes every cached file that is not pinned.
+  has `getSettings()` (a snapshot of every field the tab shows) and `setSetting({key, value})`, which
+  checks `key` against a fixed whitelist (`DEVICE_SETTING_WHITELIST` in `capacitor/DeviceSettings.kt`,
+  now `BOOLEAN`/`INT`/`STRING_SET`) and `value`'s type before writing through `Settings` — an
+  unrecognised key or a wrong-typed value rejects the call rather than silently doing nothing. Every
+  legacy setting that had no equivalent here now does: `listBondedDevices()` backs a real Bluetooth
+  picker for `car_mode_devices` (pre-ticking whatever is already stored, or a car-class guess if
+  nothing is); `requestCarModeFullScreenPermission()` fires the same system settings screen the
+  legacy row's click listener did; `pickCacheLocation()`/`clearCustomCacheLocation()` drive the SAF
+  directory picker through `Plugin.startActivityForResult`/`@ActivityCallback`, the same flow
+  `SelectCacheActivityContract` gives the legacy screen. `muma_user_id`/`muma_api_key` are answered
+  read-only (`mumaUserId`, `mumaApiKeySet`) — login fills them, nothing here edits them. The "Alle
+  app-instellingen…" row and its `openLegacySettings()` call are gone from the tab now that nothing
+  in it needs the legacy screen any more; the plugin method itself is unchanged, kept for the
+  eventual deletion MR. `MumaStorage` has `clearCache()`, which cancels queued/active downloads and
+  deletes every cached file that is not pinned.
+
+  What used to be phone-only and is now an account-level web setting too (`accountSetting()` in
+  `store.js`, synced through the same `frontend` app-settings blob `favoriteGenres`/`language`
+  already use): the home-section keys and the "Weergave" (display) keys, surfaced in
+  `GeneralSettings.svelte`. `canonical_only` and `show_confirmation_dialog` map onto or extend an
+  existing web control (`deduplicateEnabled`, the set-size download confirmation) rather than adding
+  a parallel one. `override_language`'s existing `LanguageSetting.svelte` now also calls a new
+  `setAppLocale()` plugin method, so `CapacitorActivity.attachBaseContext`'s `LocaleHelper.wrap`
+  picks it up for the shell's own chrome, not only the WebView's JS-rendered text — this recreates
+  the host activity, so it is a deliberate, infrequent action, not something called on every boot.
+
+  Everything else the legacy screen offered is retired outright rather than ported: see
+  functional.md's "Open Questions / Not Yet Decided" entry ("Device settings") for the full list
+  and the reasons. `style`/`app_icon`/`ui_scale`/`server_scaling` keep their `Settings.kt` property
+  real and writable — deliberately not hardcoded — because the theming engine and its tests still
+  branch on more than the default; everything else that is retired and still read by other Kotlin
+  code is hardcoded there instead of deleted.
 
 ### What is deleted from the Kotlin module
 

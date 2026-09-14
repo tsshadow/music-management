@@ -310,3 +310,53 @@ now uses Spotify's phone navigation below `md` (`isMobile`); the desktop layout 
   phase 4.
 - **Podcasts in songs mode.** Episodes over ten minutes count as sets today, short ones as songs.
   Fine, or should podcasts be mode-independent like radio?
+- **Device settings — decided 2026-09-14: every legacy setting is either in the web UI or
+  retired.** The Kotlin settings screen (`res/xml/settings.xml`) is the last big chunk of the
+  legacy UI's surface the web tab (`DeviceSettings.svelte`) had not absorbed. It now has:
+  - **Ported into the Apparaat (device) tab**, `MumaSystem.setSetting`'s whitelist:
+    `network_timeout`, `max_bitrate_pinning`, `auto_switch_offline`, `directory_cache_time`,
+    `hide_media`, `media_device_export` as plain rows; `car_mode_devices` as a real Bluetooth
+    picker (`MumaSystem.listBondedDevices()`); `car_mode_full_screen` as a plugin action
+    (`requestCarModeFullScreenPermission()`); `custom_cache_location`/`cache_location` as a SAF
+    picker (`pickCacheLocation()`/`clearCustomCacheLocation()`); `muma_user_id`/`muma_api_key` as
+    read-only rows (login fills them, `ActiveServerProvider.setMumaSettings`). The "Alle
+    app-instellingen…" row and its `openLegacySettings()` call are gone from the tab; the plugin
+    method itself stays for now.
+  - **Moved to the account-level web settings** (the `frontend` app-settings blob,
+    `saveFrontendSetting`/`loadFrontendSettings`, generalised into `accountSetting()` in
+    `store.js`): the home-section keys (`home_mode_*`, `home_count_*`, `home_shortcut_count`,
+    `home_list_count`, `separate_home_history`) and the "Weergave" keys (`show_track_number`,
+    `track_list_lines`, `display_bitrate_with_artist`, `disc_sort`, `genre_track_limit`,
+    `show_confirmation_dialog`) now have an account-level counterpart, surfaced in
+    `GeneralSettings.svelte`'s new Home and Weergave sections and synced across devices.
+    `canonical_only` maps onto the web's pre-existing `deduplicateEnabled` rather than a new
+    setting. `show_confirmation_dialog` is wired into `TrackList.svelte`'s existing set-size
+    download confirmation; `disc_sort` and the rest of "Weergave"/"Home" are stored and synced but
+    not yet wired into `TrackList.svelte`/`Dashboard.svelte` rendering -- the two platforms' home
+    and track-row layouts differ enough (shelves vs. sections, no shortcuts grid on the web) that
+    wiring them for real is its own pass, not a settings migration. `override_language` already
+    had a web control (`LanguageSetting.svelte`); it now also calls
+    `platform.system.setAppLocale()` so the shell's own chrome (permission dialogs, share sheets)
+    follows the pick, not only the WebView's text.
+  - **Retired outright** (removed from `settings.xml`, `SettingsFragment.kt` and the wizard;
+    `Settings.kt` keeps the field, hardcoded, wherever other Kotlin code still reads it):
+    `style`/`app_icon`/`ui_scale`/`server_scaling` (acceptance criterion 10 -- Spotify is the only
+    style; interface scaling is left to the OS font scale); `default_share_*`, `share_on_server`,
+    `ask_for_share_details`, `chat_refresh_interval` (the Shares/Chat fragments are dead code);
+    `clear_bookmark`, `increment_time` (bookmarks are replaced by set resume, criterion 7; skip is
+    a fixed ±30 s); `id3_tags`/`id3_tags_offline` (`ActiveServerProvider.shouldUseId3Tags()` is
+    hardcoded `true`); `use_folder_for_album_artist`, `show_artist_picture`,
+    `show_now_playing_details`, `download_transition`, `show_now_playing` (the media3 notification
+    is mandatory for a foreground service; the toggle never actually gated it);
+    `default_artists/albums/songs`, `max_artists/albums/songs`, `clear_search_history` (the web
+    search has its own limits); `server_settings` (the shell has exactly one server,
+    `serverUrl()`/`LoginPage` -- the entry is only retired from the Apparaat tab's perspective, the
+    Kotlin server selector itself is untouched until the Kotlin screens are deleted). The three
+    wizard steps that offered style/app icon/interface size are removed along with the rows they
+    wrote; `applyWizardSideEffect` is now a no-op kept for a future step that needs one.
+  - `style`, `app_icon`, `ui_scale` and `server_scaling` are a deliberate partial exception: only
+    the *row* is retired. `Settings.kt`'s properties stay real, writable SharedPreferences-backed
+    values rather than hardcoded constants, because the theming engine (`Util.applyTheme`,
+    `ThemeExt.kt`, `AppIconVariant`, `UiScaleHelper`) and its test suite (`StyleThemeTest`) still
+    branch on more than one value each; collapsing that is theme-engine surgery for a later MR, not
+    this one. No UI anywhere writes a non-default value any more, which is what criterion 10 asks.

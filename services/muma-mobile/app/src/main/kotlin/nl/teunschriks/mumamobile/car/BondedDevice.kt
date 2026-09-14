@@ -7,8 +7,23 @@
 
 package nl.teunschriks.mumamobile.car
 
+import android.bluetooth.BluetoothClass
+
 /** One paired Bluetooth device, reduced to what the choice actually depends on. */
 data class BondedDevice(val address: String, val name: String?, val isCarClass: Boolean)
+
+/**
+ * A suggestion, never the answer: see [preTickedCarDevices]. Handsfree is included because most
+ * car kits report it, and excluded from meaning anything on its own because some headsets report
+ * it too.
+ *
+ * Shared between [nl.teunschriks.mumamobile.fragment.SettingsFragment]'s legacy device picker and
+ * `MumaSystemPlugin.listBondedDevices`, so the two pickers pre-tick the same devices.
+ */
+val CAR_DEVICE_CLASSES = setOf(
+    BluetoothClass.Device.AUDIO_VIDEO_CAR_AUDIO,
+    BluetoothClass.Device.AUDIO_VIDEO_HANDSFREE
+)
 
 /**
  * Which paired devices to tick when the user opens the list for the first time.

@@ -987,8 +987,6 @@
       "updatePassword": "Wachtwoord Bijwerken"
     },
     "device": {
-      "allAppSettings": "Alle app-instellingen…",
-      "allAppSettingsHelp": "Alles wat hierboven niet staat — vormgeving, het app-icoon, delen en meer — staat in het klassieke instellingenscherm.",
       "bitrateUnlimited": "Geen limiet",
       "bluetoothA2dp": "Alleen audioapparaten",
       "bluetoothAll": "Elk apparaat",
@@ -1023,7 +1021,9 @@
         "downloads": "Downloads",
         "interface": "Interface",
         "playback": "Afspelen",
-        "streaming": "Streaming"
+        "streaming": "Streaming",
+        "other": "Overig",
+        "mumaSync": "Muma-koppeling"
       },
       "hardwareOffload": "Hardwarematige audio-offload",
       "hardwareOffloadHelp": "Laat de audiochip van het toestel het afspelen verwerken; verbruikt minder batterij op ondersteunde hardware.",
@@ -1054,7 +1054,28 @@
       "switchToLegacyUiHelp": "Verlaat deze interface en start opnieuw op in de originele Ultrasonic-schermen.",
       "title": "Apparaat",
       "wifiOnly": "Alleen wifi",
-      "wifiOnlyHelp": "Wacht op wifi voordat er iets gedownload wordt."
+      "wifiOnlyHelp": "Wacht op wifi voordat er iets gedownload wordt.",
+      "cacheLocationChoose": "Kies map…",
+      "cacheLocationReset": "Terug naar standaard",
+      "directoryCacheTime": "Cachetijd mapoverzichten",
+      "directoryCacheTimeHelp": "Hoelang een mapoverzicht van de server onthouden wordt voordat het opnieuw wordt opgehaald.",
+      "directoryCacheTimeOff": "Uit",
+      "mediaDeviceExport": "Zichtbaar voor andere apps",
+      "mediaDeviceExportHelp": "Maakt gedownloade nummers zichtbaar voor andere media-apps op dit toestel.",
+      "maxBitratePinning": "Max. bitrate (vastzetten)",
+      "maxBitratePinningHelp": "Kwaliteit waarin vastgezette nummers gedownload worden.",
+      "bitrateHighestQuality": "Hoogste kwaliteit",
+      "networkTimeout": "Netwerktimeout",
+      "networkTimeoutHelp": "Hoelang gewacht wordt op een reactie van de server voordat een verzoek wordt afgebroken.",
+      "autoSwitchOffline": "Automatisch offline schakelen",
+      "autoSwitchOfflineHelp": "Schakelt automatisch naar offline zodra de server onbereikbaar is.",
+      "hideMedia": "Verbergen voor de mediascanner",
+      "hideMediaHelp": "Verbergt gedownloade bestanden voor andere apps die het toestel op muziek scannen.",
+      "bluetoothPermissionDenied": "Geen toegang tot bluetooth-apparaten. Geef de app toegang tot bluetooth in de systeeminstellingen.",
+      "mumaUserId": "Muma-gebruikers-ID",
+      "mumaApiKeySet": "Muma-API-sleutel",
+      "mumaSyncLinked": "Gekoppeld",
+      "mumaSyncNotLinked": "Niet gekoppeld"
     },
     "general": {
       "albumSort": "Standaard Sortering Albums",
@@ -1094,7 +1115,39 @@
       "transcodingDefault": "Transcoding Standaard",
       "transcodingHelp": "Altijd transcoderen voor Subsonic clients?",
       "wifiOnly": "Alleen via wifi",
-      "wifiOnlyHelp": "Wacht op wifi voordat er gedownload wordt. Wordt bij je account bewaard; de downloader leest hem nog niet."
+      "wifiOnlyHelp": "Wacht op wifi voordat er gedownload wordt. Wordt bij je account bewaard; de downloader leest hem nog niet.",
+      "home": {
+        "title": "Home",
+        "help": "Welke secties op het startscherm staan, en hoeveel ze tonen. Alles op 'Knop' deelt de snelkoppelingenrij boven aan het scherm; 'Overzicht' geeft een sectie zijn eigen kop verderop.",
+        "modeOff": "Uit",
+        "modeButton": "Knop",
+        "modeOverview": "Overzicht",
+        "releaseRadar": "Release Radar",
+        "dailyMix": "Dagelijkse mix",
+        "dailyMixCount": "Aantal in dagelijkse mix",
+        "favorites": "Favorieten",
+        "favoritesCount": "Aantal favorieten",
+        "shortcuts": "Snelkoppelingen",
+        "recentlyReleased": "Recent uitgebracht",
+        "recentlyAdded": "Recent toegevoegd",
+        "shortcutCount": "Aantal snelkoppelingen",
+        "listCount": "Rijen per lijst",
+        "separateHistory": "Gescheiden geschiedenis",
+        "separateHistoryHelp": "Houdt een aparte snelkoppelingengeschiedenis bij voor nummers en voor sets."
+      },
+      "display": {
+        "title": "Weergave",
+        "showConfirmationDialog": "Bevestig downloaden van sets",
+        "showTrackNumber": "Tracknummer tonen",
+        "trackListLines": "Regels per nummerrij",
+        "trackListLinesCompact": "Compact",
+        "trackListLinesDetailed": "Uitgebreid",
+        "displayBitrateWithArtist": "Bitrate tonen bij artiest",
+        "discSort": "Sorteren op schijf en tracknummer",
+        "discSortHelp": "Sorteert albumnummers op schijf en tracknummer in plaats van de servervolgorde.",
+        "genreTrackLimit": "Limiet nummers per genre",
+        "genreTrackLimitHelp": "Hoeveel nummers een genre-overzicht maximaal toont."
+      }
     },
     "language": {
       "help": "De taal van de interface. Wordt opgeslagen bij je account, zodat hij meegaat naar je andere apparaten.",

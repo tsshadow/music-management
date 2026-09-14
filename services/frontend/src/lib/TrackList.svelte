@@ -1,6 +1,6 @@
 <script>
   import { t, locale } from './i18n/index.js';
-  import { currentTrack, playerState, authParams, playlist, isMobile, highlightedTrackId, mumaApiUrl, restUrl } from './store.js';
+  import { currentTrack, playerState, authParams, playlist, isMobile, highlightedTrackId, mumaApiUrl, restUrl, showConfirmationDialog } from './store.js';
   import ArtistList from './ArtistList.svelte';
   import Modal from './Modal.svelte';
   import { subsonicError } from './utils.js';
@@ -90,7 +90,7 @@
    */
   function download(e, track) {
     e.stopPropagation();
-    if (isSet(track)) {
+    if (isSet(track) && $showConfirmationDialog) {
       pendingSet = track;
       return;
     }

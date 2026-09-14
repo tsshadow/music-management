@@ -507,6 +507,79 @@ const syncedFavoriteLists = {
 };
 
 /**
+ * Every store built by {@link accountSetting}, keyed by the same string the account's `frontend`
+ * blob uses. Populated by each call below the account-setting stores are declared with; a plain
+ * array rather than an object because two settings sharing a key would be a bug worth a duplicate
+ * entry surfacing, not a silent overwrite.
+ *
+ * @type {Array<{key: string, store: import('svelte/store').Writable}>}
+ */
+const accountSettingStores = [];
+
+/**
+ * Creates one account-level setting: a writable persisted to localStorage under `lms_${key}` (so
+ * it survives a reload before any account is known, same as every other store above) and, once a
+ * user is signed in, synced to that account's `frontend` settings blob under `key` -- the same
+ * plumbing `trackPageSize` above hand-wrote, generalised so a new setting is one call instead of
+ * another copy of it. Registered in {@link accountSettingStores} so {@link applyAccountSettings}
+ * picks it up too.
+ *
+ * Like `trackPageSize`, a value is only ever read from the account, never seeded from whatever the
+ * store defaulted to locally: an account that has never chosen has not chosen, and writing the
+ * default back would make every login look like a deliberate pick.
+ *
+ * @param {string} key
+ * @param {any} defaultValue
+ * @returns {import('svelte/store').Writable}
+ */
+function accountSetting(key, defaultValue) {
+  const store = writable(defaultValue);
+  persist(`lms_${key}`, store);
+  accountSettingStores.push({ key, store });
+
+  let saveTimer = null;
+  store.subscribe(($value) => {
+    if (applyingAccountSettings || !syncedUserId) return;
+    const userId = syncedUserId;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => saveFrontendSetting(userId, key, $value), 400);
+  });
+  return store;
+}
+
+// Ported from the Kotlin device-settings screen (see docs/designs/universal-ui/functional.md,
+// "Device settings"): these used to be a per-phone SharedPreferences value and are now a
+// per-account one, so they follow a login to the web and to a second phone alike.
+// home_mode_memories is not among these: memoriesOnHomeEnabled above already covers it and
+// predates this change.
+export const homeShortcutCount = accountSetting("homeShortcutCount", 8);
+export const homeListCount = accountSetting("homeListCount", 5);
+export const separateHomeHistory = accountSetting("separateHomeHistory", true);
+export const homeModeReleaseRadar = accountSetting("homeModeReleaseRadar", "BUTTON");
+export const homeModeDailyMix = accountSetting("homeModeDailyMix", "BUTTON");
+export const homeCountDailyMix = accountSetting("homeCountDailyMix", 2);
+export const homeModeFavorites = accountSetting("homeModeFavorites", "OFF");
+export const homeCountFavorites = accountSetting("homeCountFavorites", 4);
+export const homeModeShortcuts = accountSetting("homeModeShortcuts", "OVERVIEW");
+export const homeModeRecentlyReleased = accountSetting("homeModeRecentlyReleased", "OVERVIEW");
+export const homeModeRecentlyAdded = accountSetting("homeModeRecentlyAdded", "OVERVIEW");
+
+// "Weergave" (display). canonical_only is not among these: deduplicateEnabled above already
+// covers it (one row per song version) and predates this change; it is not yet synced to the
+// account the way these are.
+export const showTrackNumber = accountSetting("showTrackNumber", false);
+export const trackListLines = accountSetting("trackListLines", 2);
+export const displayBitrateWithArtist = accountSetting("displayBitrateWithArtist", true);
+export const discSort = accountSetting("discSort", false);
+export const genreTrackLimit = accountSetting("genreTrackLimit", 100);
+
+// The set-size download confirmation TrackList.svelte already shows unconditionally; this is what
+// lets it be switched off. Defaults to true, not the legacy preference's false: the web has always
+// confirmed here with no toggle at all, and defaulting this new one to false would silently turn
+// that off for every existing user the first time this ships.
+export const showConfirmationDialog = accountSetting("showConfirmationDialog", true);
+
+/**
  * Applies `userId`'s account settings to the local stores. Anything the
  * account doesn't have yet is uploaded from the local value instead, so a
  * pre-existing local-only choice isn't lost the first time this user logs in
@@ -516,6 +589,14 @@ const syncedFavoriteLists = {
  */
 async function applyAccountSettings(userId) {
   const settings = await loadFrontendSettings(userId);
+
+  for (const { key, store } of accountSettingStores) {
+    if (settings && key in settings) {
+      applyingAccountSettings = true;
+      store.set(settings[key]);
+      applyingAccountSettings = false;
+    }
+  }
 
   for (const [key, store] of Object.entries(syncedFavoriteLists)) {
     if (settings && Array.isArray(settings[key])) {

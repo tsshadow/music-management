@@ -49,6 +49,9 @@ const PLAIN_VIEWS = [
   // `shellRoutes.js`). "What MuMa understands" is a panel inside this same
   // view rather than a route of its own, so this stays the only routing change.
   "voice",
+  // Advanced search: every cluster as a list, saved as a preset. `/preset/<id>/edit` is the
+  // same page over an existing one, in ARGUMENT_VIEWS below.
+  "new-preset",
 ];
 
 /**
@@ -92,6 +95,7 @@ const ARGUMENT_VIEWS = [
   // suffixed entries first -- '/genre/Hardcore/edit' has to read as the edit page of
   // 'Hardcore', not as the view of a genre called 'Hardcore/edit'.
   { kind: "artist-edit", segment: "artist", encode: false, suffix: "edit" },
+  { kind: "preset-edit", segment: "preset", encode: false, suffix: "edit" },
   { kind: "label-edit", segment: "label", encode: true, suffix: "edit" },
   { kind: "genre-edit", segment: "genre", encode: true, suffix: "edit" },
 ];

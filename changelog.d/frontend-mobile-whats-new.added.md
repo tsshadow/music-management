@@ -6,8 +6,11 @@
   nieuwe `mobileReleaseNotes.js` vergelijkt die met een in `localStorage` onthouden vorige versie
   en toont, alleen bij een echte upgrade en nooit bij een nieuwe installatie, wat er veranderd is —
   via dezelfde `ReleaseNotesModal.svelte` die `TopBar.svelte` al gebruikt voor de release notes van
-  de LMS-server zelf. De tekst komt uit muma-mobile's eigen `CHANGELOG.md`, met Vite's `?raw`
-  ten tijde van de build in de bundel getrokken: tonen kost geen netwerkverzoek.
+  de LMS-server zelf. De tekst komt uit muma-mobile's eigen `CHANGELOG.md`, gelezen via een nieuwe
+  `MumaSystem.releaseNotes()` uit hetzelfde asset-bestand dat `copyChangelog` al voor de oude
+  "Wat is er nieuw"-knop klaarzet — niet gebundeld in de webspeler zelf, want die build draait in
+  een Docker-context die alleen `services/frontend` ziet. Tonen kost nog steeds geen netwerkverzoek:
+  de tekst zat al in de APK.
 
 <!-- release notes -->
 

@@ -26,44 +26,13 @@ object Settings {
     val preferences: SharedPreferences
         get() = PreferenceManager.getDefaultSharedPreferences(Util.appContext())
 
-    @JvmStatic
-    var style by StringSetting(
-        getKey(R.string.setting_key_style),
-        getKey(R.string.setting_key_style_spotify)
-    )
-
-    // Which launcher icon is showing. Deliberately independent of [accent]: the icon lives
-    // in the manifest and is switched by enabling one activity-alias, not by the theme.
+    // Which launcher icon is showing. The icon lives in the manifest and is switched by enabling
+    // one activity-alias; nothing writes this any more since the Kotlin settings screen went, so
+    // an install keeps whichever colour it picked and a fresh one gets green.
     @JvmStatic
     var appIcon by StringSetting(
         getKey(R.string.setting_key_app_icon),
         getKey(R.string.setting_key_app_icon_green)
-    )
-
-    /**
-     * Whether the app opens in the Svelte web player instead of the Kotlin screens.
-     *
-     * Off by default and staying that way for as long as the web shell is a beta: this is the
-     * only thing that decides which of the two interfaces exists for a user, and every install
-     * that never touches it behaves exactly as it did before the shell was added. Writing it is
-     * the whole change: the launcher aliases point at `LauncherActivity`, which reads this at tap
-     * time. They deliberately do *not* name an interface -- moving the alias with the setting is
-     * what used to delete the task the user was standing in.
-     */
-    @JvmStatic
-    var webUiEnabled by BooleanSetting(
-        getKey(R.string.setting_key_web_ui),
-        false
-    )
-
-    /**
-     * Percentage the whole interface is scaled by. 100 is the density the device reports,
-     * lower values shrink every dp and sp so more content fits on screen.
-     */
-    @JvmStatic
-    var uiScalePercent by StringIntSetting(
-        getKey(R.string.setting_key_ui_scale),
-        DEFAULT_UI_SCALE_PERCENT
     )
 
     @JvmStatic
@@ -362,9 +331,6 @@ object Settings {
     val showNowPlaying = true
 
     @JvmStatic
-    val shouldTransitionOnPlayback = true
-
-    @JvmStatic
     val showNowPlayingDetails = true
 
     var scrobbleEnabled by BooleanSetting(getKey(R.string.setting_key_scrobble), true)
@@ -384,8 +350,6 @@ object Settings {
     var id3TagsEnabledOffline = true
 
     var activeServer by IntSetting(getKey(R.string.setting_key_server_instance), -1)
-
-    var serverScaling by BooleanSetting(getKey(R.string.setting_key_server_scaling), false)
 
     var firstRunExecuted by BooleanSetting(getKey(R.string.setting_key_first_run_executed), false)
 
@@ -550,8 +514,6 @@ object Settings {
         get() = UApp.applicationContext()
 
     val COLON_PATTERN: Pattern = Pattern.compile(":")
-
-    const val DEFAULT_UI_SCALE_PERCENT = 75
 
     const val TRACK_LIST_LINES_COMPACT = 2
     const val TRACK_LIST_LINES_DETAILED = 3

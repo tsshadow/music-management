@@ -6,7 +6,7 @@ import { platform } from "./platform/index.js";
  *
  * `platform.diagnostics.log` already does the real work -- keeping the ring
  * buffer, and on the Android shell crossing the bridge into `WebActionLog`,
- * the same store `CrashReportManager` reads from for the legacy UI's own
+ * the same store `CrashReportManager` reads from for the native side's own
  * actions, so a report reads as one sequence rather than two logs someone has
  * to interleave by hand. This wrapper exists so every call site is one line
  * (`logAction('player.play', {trackId})`) and so a bad `detail` object -- or a

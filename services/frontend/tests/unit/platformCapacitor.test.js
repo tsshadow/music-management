@@ -479,18 +479,6 @@ describe("capacitor system", () => {
     ]);
   });
 
-  it("hands the phone back to the Kotlin interface", () => {
-    const { platform, plugins } = nativePlatform();
-
-    platform.system.switchToLegacyUi();
-    platform.system.openLegacySettings();
-
-    expect(plugins.MumaSystem.calls.map(([name]) => name)).toEqual([
-      "switchToLegacyUi",
-      "openLegacySettings",
-    ]);
-  });
-
   it("forwards signOut to the plugin and awaits it", async () => {
     const { platform, plugins } = nativePlatform();
 

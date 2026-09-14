@@ -42,9 +42,9 @@ import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.Artist
 import nl.teunschriks.mumamobile.domain.ArtistOrIndex
 import nl.teunschriks.mumamobile.domain.Track
-import nl.teunschriks.mumamobile.fragment.muma.TileInfo
-import nl.teunschriks.mumamobile.fragment.muma.TileStorage
 import nl.teunschriks.mumamobile.home.FavoriteGenres
+import nl.teunschriks.mumamobile.home.TileInfo
+import nl.teunschriks.mumamobile.home.TileStorage
 import nl.teunschriks.mumamobile.provider.AlbumArtContentProvider
 import nl.teunschriks.mumamobile.service.MusicService
 import nl.teunschriks.mumamobile.service.MusicServiceFactory

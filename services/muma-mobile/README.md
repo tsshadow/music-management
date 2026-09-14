@@ -13,11 +13,14 @@ the Android system across an in-place upgrade, not names.
 
 [ultrasonic]: https://gitlab.com/ultrasonic/ultrasonic
 
-## In-app manual
+## What is in this module
 
-The overflow menu has a Help entry: twelve chapters covering every screen, each with a screenshot.
-All twelve screenshots are still placeholders. `./scripts/manual-screenshot-status.sh` says which
-ones, and [docs/manual-screenshots.md](docs/manual-screenshots.md) says what each one should show.
+Since 7.0.0 the app has no screens of its own: the user interface is the Svelte web player from
+`services/frontend`, staged into the APK by the `prepareWebBundle` Gradle task and shown by
+`CapacitorActivity`. This module is the native half -- the playback service, downloads and the
+Room cache, Android Auto, car mode, voice, crash reports, the widget, and the Capacitor plugins
+under `capacitor/` the web player talks to. The design and its decisions are in
+`docs/designs/universal-ui/`.
 
 ## License
 

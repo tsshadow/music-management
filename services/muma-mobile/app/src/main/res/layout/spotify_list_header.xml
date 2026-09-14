@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:a="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    a:layout_width="match_parent"
-    a:layout_height="wrap_content"
-    a:padding="0dp">
-
-</RelativeLayout>

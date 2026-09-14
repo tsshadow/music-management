@@ -212,7 +212,7 @@ open class UltrasonicAppWidgetProvider : AppWidgetProvider() {
         private fun linkButtons(context: Context, views: RemoteViews, playerActive: Boolean) {
             var intent = Intent(
                 context,
-                UiVariant.current().activityClass
+                UiVariant.activityClass
             ).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
             if (playerActive) intent.putExtra(Constants.INTENT_SHOW_PLAYER, true)
             intent.action = Intent.ACTION_MAIN

@@ -8,7 +8,6 @@ plugins {
     alias libs.plugins.kotlinAndroid
     alias libs.plugins.kotlinSerialization
     alias libs.plugins.kotlinParcelize
-    alias libs.plugins.navigationSafeArgs
     id 'jacoco'
 }
 
@@ -304,18 +303,14 @@ dependencies {
     api(libs.picasso) {
         exclude group: "com.android.support"
     }
-    implementation libs.transition
     implementation libs.car
     implementation libs.appcompat
     implementation libs.activityKtx
-    implementation libs.fragmentKtx
     implementation libs.core
     implementation libs.design
     implementation libs.roomRuntime
     implementation libs.roomKtx
     implementation libs.viewModelKtx
-    implementation libs.constraintLayout
-    implementation libs.viewPager2
     implementation libs.preferences
     implementation libs.media3common
     implementation libs.media3exoplayer
@@ -323,30 +318,20 @@ dependencies {
     implementation libs.capacitorCore
     implementation libs.media3datasource
     implementation libs.media3okhttp
-    implementation libs.swipeRefresh
     implementation libs.lifecycleLivedataKtx
     implementation libs.credentials
     implementation libs.credentialsPlayServicesAuth
     implementation libs.googleid
     implementation libs.securityCrypto
 
-    implementation libs.navigationFragment
-    implementation libs.navigationUi
-    implementation libs.navigationFragmentKtx
-    implementation libs.navigationUiKtx
-    implementation libs.navigationFeature
 
     implementation libs.kotlinStdlib
     implementation libs.kotlinxCoroutines
     implementation libs.kotlinxGuava
     implementation libs.koinAndroid
     implementation libs.okhttpLogging
-    implementation libs.fastScroll
-    implementation libs.colorPickerView
     implementation libs.rxJava
     implementation libs.rxAndroid
-    implementation libs.multiType
-    implementation libs.gridlayout
     implementation libs.documentFile
 
     ksp libs.room
@@ -365,7 +350,6 @@ dependencies {
     testImplementation libs.kotlinxCoroutinesTest
 
     implementation libs.timber
-    implementation libs.markwon
     implementation(libs.media)
     implementation libs.gson
 

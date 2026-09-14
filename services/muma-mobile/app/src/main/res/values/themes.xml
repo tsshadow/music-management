@@ -87,32 +87,4 @@
         <item name="colorKicker">@color/spotify_green</item>
     </style>
 
-    <!-- Only the values below differ. The brand colours do not: both styles mark songs green and
-         sets blue, because the launcher icon, the glyph and the web frontend all use them. What
-         separates the two styles is depth and warmth - Spotify has one dark level under the
-         panel, MuMa has three - plus a seam between rows instead of a card around each one. -->
-    <style name="UltrasonicTheme.Muma" parent="UltrasonicTheme.Spotify">
-        <item name="colorPrimaryDark">@color/muma_deep</item>
-        <item name="colorOnPrimary">@color/muma_ground</item>
-        <item name="android:colorBackground">@color/muma_ground</item>
-
-        <item name="colorInkTertiary">@color/muma_ink_tertiary</item>
-        <item name="colorInkQuaternary">@color/muma_ink_quaternary</item>
-        <item name="colorHairline">@color/muma_hairline</item>
-        <item name="colorRating">@color/muma_rating</item>
-        <item name="colorNavSurface">@color/muma_deep</item>
-
-        <item name="radiusRow">4dp</item>
-        <item name="radiusSurface">12dp</item>
-        <item name="radiusBanner">4dp</item>
-        <item name="radiusThumb">3dp</item>
-
-        <item name="listRowBackground">@null</item>
-        <item name="rowSeam">@drawable/list_row_hairline</item>
-        <item name="rowMarginVertical">0dp</item>
-        <item name="rowMarginHorizontal">0dp</item>
-
-        <item name="colorKicker">@color/muma_ink_quaternary</item>
-    </style>
-
 </resources>

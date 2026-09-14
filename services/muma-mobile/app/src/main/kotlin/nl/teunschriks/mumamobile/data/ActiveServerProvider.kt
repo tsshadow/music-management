@@ -16,7 +16,6 @@ import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient.Companion.OFFLINE_DB_URL
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.di.DB_FILENAME
-import nl.teunschriks.mumamobile.model.ServerSettingsModel
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.resetMusicService
 import nl.teunschriks.mumamobile.service.RxBus
 import nl.teunschriks.mumamobile.util.Constants
@@ -43,8 +42,8 @@ class ActiveServerProvider(private val repository: ServerSettingDao) : Coroutine
         if (serverId > OFFLINE_DB_ID) {
             if (cachedServer != null && cachedServer!!.id == serverId) return cachedServer!!
 
-            // Get from static list in ServerSettingsModel
-            cachedServer = nl.teunschriks.mumamobile.model.ServerSettingsModel.STATIC_SERVERS.find { it.id == serverId }?.copy(
+            // Get from the static list
+            cachedServer = StaticServers.STATIC_SERVERS.find { it.id == serverId }?.copy(
                 userName = Settings.staticUserName,
                 password = Settings.staticPassword
             )
@@ -72,7 +71,7 @@ class ActiveServerProvider(private val repository: ServerSettingDao) : Coroutine
             return OFFLINE_DB_ID
         }
 
-        return nl.teunschriks.mumamobile.model.ServerSettingsModel.STATIC_SERVERS.find { it.index == index }?.id ?: 0
+        return StaticServers.STATIC_SERVERS.find { it.index == index }?.id ?: 0
     }
 
     /**
@@ -87,7 +86,7 @@ class ActiveServerProvider(private val repository: ServerSettingDao) : Coroutine
             return
         }
 
-        val serverId = nl.teunschriks.mumamobile.model.ServerSettingsModel.STATIC_SERVERS.find { it.index == index }?.id ?: 0
+        val serverId = StaticServers.STATIC_SERVERS.find { it.index == index }?.id ?: 0
         setActiveServerById(serverId)
     }
 
@@ -206,7 +205,7 @@ class ActiveServerProvider(private val repository: ServerSettingDao) : Coroutine
      * requests on it would ask its own page for `/rest/ping` and get index.html back, so the
      * shell reads the real server from here instead of from [getActiveServer].
      */
-    fun signInServer(): ServerSetting = ServerSettingsModel.STATIC_SERVERS.first().copy(
+    fun signInServer(): ServerSetting = StaticServers.STATIC_SERVERS.first().copy(
         userName = Settings.staticUserName,
         password = Settings.staticPassword
     )
@@ -216,7 +215,7 @@ class ActiveServerProvider(private val repository: ServerSettingDao) : Coroutine
      * screen, so downloads, Android Auto and the legacy UI see the same session. Goes through
      * [update] -- the same path the server-selector settings screen uses -- rather than writing
      * [Settings] a second way. There is one server in static mode (see
-     * [nl.teunschriks.mumamobile.model.ServerSettingsModel.STATIC_SERVERS]), so its url is fixed
+     * [StaticServers.STATIC_SERVERS]), so its url is fixed
      * and only the credentials move.
      *
      * Written against [signInServer], not [getActiveServer]: on a fresh install the active server
@@ -344,15 +343,5 @@ class ActiveServerProvider(private val repository: ServerSettingDao) : Coroutine
         // rather than a property, and there are too many of them to be worth changing for this.
         @Suppress("FunctionOnlyReturningConstant")
         fun shouldUseId3Tags(): Boolean = true
-
-        /**
-         * Queries if Server Scaling is enabled
-         */
-        fun isServerScalingEnabled(): Boolean {
-            if (isOffline()) {
-                return false
-            }
-            return Settings.serverScaling
-        }
     }
 }

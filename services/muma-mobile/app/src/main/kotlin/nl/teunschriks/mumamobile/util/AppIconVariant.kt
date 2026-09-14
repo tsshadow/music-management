@@ -15,13 +15,12 @@ private const val NAMESPACE = "nl.teunschriks.mumamobile"
  * enabled before the previous one is disabled, so there is never an instant in which the
  * app has no launcher entry.
  *
- * Every alias targets `LauncherActivity`, which is a trampoline: **which interface** the icon
- * opens is read from [Settings.webUiEnabled] at tap time and is not encoded in the manifest.
- * That is not a detail. The shell first shipped with an alias per (icon, interface) pair, and
- * changing interface therefore disabled the alias the user's own task was rooted at, which makes
- * Android delete that task and with it the interface just started. See
- * `activity/LauncherActivity.kt` for the full account. Since the aliases no longer name a UI,
- * this class is back to one dimension: one alias per colour.
+ * Every alias targets `LauncherActivity`, which is a trampoline, so no task the user can be
+ * standing in is ever rooted at an alias. That is not a detail. The shell first shipped with an
+ * alias per (icon, interface) pair, and changing interface therefore disabled the alias the
+ * user's own task was rooted at, which makes Android delete that task and with it the interface
+ * just started. See `activity/LauncherActivity.kt` for the full account. Since the aliases no
+ * longer name a UI, this class is back to one dimension: one alias per colour.
  *
  * [RETIRED_ALIASES] are the two per-interface aliases from that first version. They are still in
  * the manifest, disabled, and are switched off explicitly here, so an install that has one of

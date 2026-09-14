@@ -16,7 +16,6 @@ import io.mockk.unmockkObject
 import io.mockk.verify
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.app.UApp
-import nl.teunschriks.mumamobile.model.ServerSettingsModel
 import nl.teunschriks.mumamobile.util.SecureSettings
 import nl.teunschriks.mumamobile.util.Settings
 import org.amshove.kluent.shouldBeEqualTo
@@ -103,7 +102,7 @@ class ActiveServerProviderSignOutTest {
     fun `signInServer is the static server even while Offline is active`() {
         Settings.activeServer = ActiveServerProvider.OFFLINE_DB_ID
 
-        provider.signInServer().url shouldBeEqualTo ServerSettingsModel.SERVER_URL
+        provider.signInServer().url shouldBeEqualTo StaticServers.SERVER_URL
         provider.getActiveServer().url shouldBeEqualTo SubsonicAPIClient.OFFLINE_DB_URL
     }
 

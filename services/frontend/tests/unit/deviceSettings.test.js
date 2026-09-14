@@ -8,7 +8,7 @@ import { platform } from "../../src/lib/platform/index.js";
  * native-only member `DeviceSettings.svelte` calls is stubbed directly on the shared
  * singleton for the duration of each test -- the same trick `loginPageNativeCredentials.test.js`
  * uses for `isNative`, extended to the methods this component actually calls: `getSettings`,
- * `setSetting`, `storage.clearCache`, `diagnostics.send`, `switchToLegacyUi`,
+ * `setSetting`, `storage.clearCache`, `diagnostics.send`,
  * `listBondedDevices`, `requestCarModeFullScreenPermission`, `pickCacheLocation` and
  * `clearCustomCacheLocation`. In the real native shell these all come from the Capacitor
  * plugins; here they are plain mocks, because the point of these tests is what the component
@@ -46,7 +46,6 @@ describe("DeviceSettings", () => {
   beforeEach(() => {
     platform.system.getSettings = vi.fn(async () => baseSettings());
     platform.system.setSetting = vi.fn(async () => {});
-    platform.system.switchToLegacyUi = vi.fn();
     platform.system.listBondedDevices = vi.fn(async () => ({
       permissionGranted: true,
       devices: [],
@@ -70,7 +69,6 @@ describe("DeviceSettings", () => {
     expect(screen.getByText("Afspelen")).toBeInTheDocument();
     expect(screen.getByText("Auto")).toBeInTheDocument();
     expect(screen.getByText("Diagnostiek")).toBeInTheDocument();
-    expect(screen.getByText("Interface")).toBeInTheDocument();
     expect(screen.getByLabelText("Alleen wifi")).not.toBeChecked();
     expect(screen.getByText("Geen apparaten gekoppeld")).toBeInTheDocument();
   });
@@ -232,21 +230,6 @@ describe("DeviceSettings", () => {
 
     expect(platform.diagnostics.send).toHaveBeenCalled();
     expect(screen.getByText("Diagnostiek verstuurd.")).toBeInTheDocument();
-  });
-
-  it("switching to the classic interface calls platform.system.switchToLegacyUi", async () => {
-    render(DeviceSettings);
-    await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: "Terug naar de klassieke interface" }),
-      ).toBeInTheDocument(),
-    );
-
-    await fireEvent.click(
-      screen.getByRole("button", { name: "Terug naar de klassieke interface" }),
-    );
-
-    expect(platform.system.switchToLegacyUi).toHaveBeenCalled();
   });
 
   it("shows a load error rather than a blank page when getSettings rejects", async () => {

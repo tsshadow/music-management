@@ -35,6 +35,7 @@ import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Storage
 import nl.teunschriks.mumamobile.util.UiVariant
+import nl.teunschriks.mumamobile.util.Util
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import timber.log.Timber
@@ -49,6 +50,8 @@ import timber.log.Timber
  * | JS contract | here |
  * |---|---|
  * | `isNative` | `isNative()` → `{value: true}` |
+ * | `appVersion()` | `appVersion()` → `{version}`, the APK's `versionName` |
+ * | `releaseNotes()` | `releaseNotes()` → `{text}`, muma-mobile's own `CHANGELOG.md` |
  * | `serverUrl()` | `serverUrl()` → `{subsonic, mumaApi}` |
  * | `signOut()` | `signOut()` |
  * | `saveCredentials({url, username, password})` | `saveCredentials()` |
@@ -99,6 +102,61 @@ class MumaSystemPlugin :
     @PluginMethod
     fun isNative(call: PluginCall) {
         call.resolve(JSObject().put("value", true))
+    }
+
+    /**
+     * The APK's own `versionName` (e.g. "6.35.1"), for the web UI's once-per-upgrade release
+     * notes -- see `mobileReleaseNotes.js`. Deliberately not `WebEnvironment`'s bundle version:
+     * that one is a git short hash the frontend build stamps on itself, useful for a crash
+     * report but not something a semantic-version comparison or muma-mobile's own
+     * `CHANGELOG.md` headings can be matched against. An empty string is what a `PackageManager`
+     * that could not find this app's own package answers with -- practically never, but the web
+     * side already treats a blank answer as "nothing to compare", the same way it treats a
+     * first install with no prior version stored.
+     */
+    @PluginMethod
+    fun appVersion(call: PluginCall) {
+        val version = safeContext()?.let { Util.getVersionName(it) } ?: ""
+        call.resolve(JSObject().put("version", version))
+    }
+
+    /**
+     * The text of muma-mobile's own `CHANGELOG.md`, for the web UI's once-per-upgrade release
+     * notes -- see `mobileReleaseNotes.js`.
+     *
+     * Read from `assets/CHANGELOG.md` rather than bundled into the frontend itself:
+     * `frontend:bundle`'s Docker build context is `services/frontend` alone, so a build-time
+     * import reaching into `services/muma-mobile` cannot resolve there even though it resolves
+     * fine under a local `vite dev`/`vitest` run against the full checkout. `copyChangelog` in
+     * `app/build.gradle` already stages this exact file into the APK's assets, for the legacy
+     * `Util.showChangelog` -- reading it again here needs no new Gradle wiring.
+     *
+     * An empty string is what a missing asset (no bridge attached, or a checkout where
+     * `copyChangelog` never ran) answers with; the web side already treats that the same as "no
+     * asset at all".
+     */
+    @PluginMethod
+    fun releaseNotes(call: PluginCall) {
+        val text = safeContext()?.let {
+            try {
+                it.assets.open(CHANGELOG_ASSET).bufferedReader().use { reader -> reader.readText() }
+            } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
+                null
+            }
+        } ?: ""
+        call.resolve(JSObject().put("text", text))
+    }
+
+    /**
+     * `context`, not `activity`: [appVersion] and [releaseNotes] only need a `PackageManager`/
+     * `AssetManager`, and unlike `activity` (see `setKeepScreenOn`'s comment on the same
+     * distinction) `context` throws rather than answers null when the bridge is not attached --
+     * true for a bare-constructed plugin in a test, never in production.
+     */
+    private fun safeContext() = try {
+        context
+    } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
+        null
     }
 
     /**
@@ -562,6 +620,9 @@ class MumaSystemPlugin :
         /** Same flags `SettingsFragment`'s `RW_FLAG` grants the legacy cache-location picker. */
         const val CACHE_LOCATION_RW_FLAG = Intent.FLAG_GRANT_READ_URI_PERMISSION or
             Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+
+        /** Staged into the APK's assets by `copyChangelog` in `app/build.gradle`. See [releaseNotes]. */
+        private const val CHANGELOG_ASSET = "CHANGELOG.md"
 
         /**
          * The bridge builds plugins, so the activity cannot construct one. It looks the live

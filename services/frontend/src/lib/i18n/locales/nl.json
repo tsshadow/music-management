@@ -965,6 +965,9 @@
   "settings": {
     "about": {
       "blurb": "Je eigen muziekbibliotheek, overal te beluisteren. Loopt er iets niet goed of mis je een nummer? Laat het weten aan de beheerder van deze server.",
+      "howCarModeBody": "De telefoon aansluiten op Android Auto opent het autoscherm helemaal zelf. De schakelaar \"Automodus\" onder Apparaatinstellingen is alleen voor rijden zonder gekoppelde auto — die zet handmatig aan wat Android Auto anders zelf had aangezet.",
+      "howCarModeTitle": "Hoe de automodus aangaat",
+      "howItWorksTitle": "Hoe werkt…",
       "noReleaseNotes": "Nog geen release notes beschikbaar.",
       "subtitle": "Welke versie je gebruikt en wat er onlangs is veranderd.",
       "title": "Over MuMa",

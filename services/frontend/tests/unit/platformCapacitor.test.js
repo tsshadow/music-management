@@ -334,6 +334,36 @@ describe("capacitor system", () => {
     expect(platform.system.isNative).toBe(true);
   });
 
+  it("reads the APK's versionName", async () => {
+    const { platform } = nativePlatform({ MumaSystem: { appVersion: { version: "6.35.1" } } });
+
+    expect(await platform.system.appVersion()).toBe("6.35.1");
+  });
+
+  it("answers an empty version when the plugin sends something malformed", async () => {
+    const { platform } = nativePlatform({ MumaSystem: { appVersion: {} } });
+
+    expect(await platform.system.appVersion()).toBe("");
+  });
+
+  it("reads muma-mobile's own CHANGELOG.md text", async () => {
+    const { platform } = nativePlatform({
+      MumaSystem: { releaseNotes: { text: "## [6.35.1] - 2026-09-11\n" } },
+    });
+
+    expect(await platform.system.releaseNotes()).toBe("## [6.35.1] - 2026-09-11\n");
+  });
+
+  it("treats an empty or malformed releaseNotes answer as null", async () => {
+    const { platform: withEmptyText } = nativePlatform({
+      MumaSystem: { releaseNotes: { text: "" } },
+    });
+    const { platform: withNoText } = nativePlatform({ MumaSystem: { releaseNotes: {} } });
+
+    expect(await withEmptyText.system.releaseNotes()).toBeNull();
+    expect(await withNoText.system.releaseNotes()).toBeNull();
+  });
+
   it("answers serverUrl synchronously, from what the boot path loaded", async () => {
     const { platform } = nativePlatform({
       MumaSystem: {

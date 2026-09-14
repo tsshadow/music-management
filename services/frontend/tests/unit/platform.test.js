@@ -228,6 +228,18 @@ describe("browser system", () => {
     expect(browserSystem.isNative).toBe(false);
   });
 
+  // A browser tab is not an APK and always runs the latest served bundle --
+  // mobileReleaseNotes.js reads a blank appVersion as "nothing to compare".
+  it("has no app version of its own to report", async () => {
+    await expect(browserSystem.appVersion()).resolves.toBe("");
+  });
+
+  // No APK assets to read muma-mobile's CHANGELOG.md from -- null is what keeps
+  // mobileReleaseNotes.js's once-per-upgrade modal from ever showing here.
+  it("has no release notes of its own to report", async () => {
+    await expect(browserSystem.releaseNotes()).resolves.toBeNull();
+  });
+
   // The web resolves both bases in store.js, from window.location; this only
   // reads them back, so a change there cannot be undone here.
   it("reads the bases the web already resolved", () => {

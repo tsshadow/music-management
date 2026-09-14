@@ -39,6 +39,29 @@ export function createCapacitorSystem(plugin) {
     isNative: true,
 
     /**
+     * The APK's own `versionName`, e.g. "6.35.1". See the `PlatformSystem` typedef for why this
+     * is a separate call from `platform.diagnostics.identify`'s bundle version.
+     *
+     * @returns {Promise<string>}
+     */
+    async appVersion() {
+      const answer = await plugin.appVersion();
+      return typeof answer?.version === "string" ? answer.version : "";
+    },
+
+    /**
+     * The text of muma-mobile's own `CHANGELOG.md`, read from the APK's assets. See the
+     * `PlatformSystem` typedef for why this travels through the shell rather than a bundled
+     * import. An empty string reads the same as no asset at all: both mean nothing to show.
+     *
+     * @returns {Promise<string|null>}
+     */
+    async releaseNotes() {
+      const answer = await plugin.releaseNotes();
+      return typeof answer?.text === "string" && answer.text !== "" ? answer.text : null;
+    },
+
+    /**
      * The bases every URL is built on, as last read by {@link loadServerUrl}.
      *
      * @returns {{subsonic: string, mumaApi: string}}

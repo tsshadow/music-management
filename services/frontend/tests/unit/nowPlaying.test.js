@@ -174,6 +174,21 @@ describe("NowPlaying", () => {
     expect(screen.getByText("1:05")).toBeTruthy();
     expect(screen.getByText("4:00")).toBeTruthy();
   });
+
+  it("has no lyrics button when the player found none for the track", () => {
+    renderNowPlaying({ lyricsLines: [] });
+
+    expect(screen.queryByLabelText("Lyrics")).toBeNull();
+  });
+
+  it("opens a sheet with the lyrics Player.svelte already fetched", async () => {
+    renderNowPlaying({ lyricsLines: ["Raise your fist", "in the air"] });
+
+    await fireEvent.click(screen.getByLabelText("Lyrics"));
+
+    expect(screen.getByText("Raise your fist")).toBeTruthy();
+    expect(screen.getByText("in the air")).toBeTruthy();
+  });
 });
 
 describe("NowPlaying in sets mode", () => {

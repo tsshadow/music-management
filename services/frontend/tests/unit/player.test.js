@@ -240,6 +240,63 @@ describe("Player", () => {
     });
   });
 
+  describe("lyrics", () => {
+    /** Answers `getLyricsBySongId` with structured lyrics, everything else as usual. */
+    function lyricsApi(lines) {
+      return vi.fn(async (url) => {
+        if (url.includes("/rest/getLyricsBySongId")) {
+          return {
+            ok: true,
+            json: async () => ({
+              "subsonic-response": {
+                status: "ok",
+                lyricsList: { structuredLyrics: { line: lines.map((value) => ({ value })) } },
+              },
+            }),
+          };
+        }
+        return { ok: true, json: async () => ({ "subsonic-response": { status: "ok" } }) };
+      });
+    }
+
+    it("shows a desktop lyrics button once LMS answers with lines for the track", async () => {
+      globalThis.fetch = lyricsApi(["Raise your fist", "in the air"]);
+      isMobile.set(false);
+      renderPlayer();
+
+      await waitFor(() => expect(screen.queryByLabelText("Lyrics")).toBeTruthy());
+
+      await fireEvent.click(screen.getByLabelText("Lyrics"));
+
+      expect(screen.getByText("Raise your fist")).toBeTruthy();
+      expect(screen.getByText("in the air")).toBeTruthy();
+    });
+
+    it("shows no lyrics affordance when LMS has none for the track", async () => {
+      globalThis.fetch = api();
+      isMobile.set(false);
+      renderPlayer();
+
+      // Lets the (empty) lyrics fetch settle before asserting its absence.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(screen.queryByLabelText("Lyrics")).toBeNull();
+    });
+
+    it("offers lyrics from the phone's Now Playing sheet once LMS answers with some", async () => {
+      globalThis.fetch = lyricsApi(["One line only"]);
+      isMobile.set(true);
+      renderPlayer();
+      await fireEvent.click(screen.getByText("Raise Your Fist"));
+      expect(screen.getByTestId("now-playing")).toBeTruthy();
+
+      await waitFor(() => expect(screen.queryByLabelText("Lyrics")).toBeTruthy());
+      await fireEvent.click(screen.getByLabelText("Lyrics"));
+
+      expect(screen.getByText("One line only")).toBeTruthy();
+    });
+  });
+
   describe("news of the hour", () => {
     /** Answers the two news calls with the statuses a test wants to see. */
     function newsApi({ latest = 200, stream = 200 } = {}) {

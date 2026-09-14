@@ -27,6 +27,7 @@
   import { createCarModeSession, CarModeIntent } from './lib/carMode.js';
   import { t } from './lib/i18n/index.js';
   import { logAction } from './lib/diagnosticsLog.js';
+  import { checkForMobileUpdate } from './lib/mobileReleaseNotes.js';
 
   const hours = new Date().getHours();
   const greetingKey = hours < 12 ? 'greeting.morning' : hours < 18 ? 'greeting.afternoon' : 'greeting.evening';
@@ -188,6 +189,10 @@
     platform.system.carState()
       .then((state) => handleCarPresence(state.connected))
       .catch(() => {});
+
+    // No-op in a browser tab, same as the three subscriptions above: a plain
+    // `isNative` check inside, so there is no platform branch here either.
+    checkForMobileUpdate().catch(() => {});
 
     return () => {
       for (const unsubscribe of unsubscribes) unsubscribe();

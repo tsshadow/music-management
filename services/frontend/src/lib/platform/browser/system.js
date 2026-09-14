@@ -17,6 +17,25 @@ const system = {
   isNative: false,
 
   /**
+   * A browser tab is not an APK and has no version of its own to report.
+   *
+   * @returns {Promise<string>}
+   */
+  async appVersion() {
+    return "";
+  },
+
+  /**
+   * A browser tab has no APK assets to read muma-mobile's `CHANGELOG.md` from. `null` is what
+   * keeps `mobileReleaseNotes.js`'s once-per-upgrade modal from ever showing outside the shell.
+   *
+   * @returns {Promise<null>}
+   */
+  async releaseNotes() {
+    return null;
+  },
+
+  /**
    * @returns {{subsonic: string, mumaApi: string}} Bases to build URLs on.
    *   Either may be an empty string, which means "same origin" -- that is what
    *   the dev server and the reverse proxy in front of production both want.

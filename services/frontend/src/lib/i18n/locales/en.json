@@ -965,6 +965,9 @@
   "settings": {
     "about": {
       "blurb": "Your own music library, wherever you are. Something not working, or a track missing? Let the administrator of this server know.",
+      "howCarModeBody": "Plugging the phone into Android Auto opens the car screen by itself. The \"Car mode\" switch under Device settings is only for driving without a paired car — it switches on by hand everything Android Auto would otherwise have switched on.",
+      "howCarModeTitle": "How car mode turns on",
+      "howItWorksTitle": "How it works",
       "noReleaseNotes": "No release notes available yet.",
       "subtitle": "Which version you are on, and what changed recently.",
       "title": "About MuMa",

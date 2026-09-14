@@ -325,6 +325,17 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
 /**
  * @typedef {object} PlatformSystem The shell itself.
  * @property {boolean} isNative
+ * @property {function(): Promise<string>} appVersion The APK's own `versionName`, for the
+ *   once-per-upgrade release notes in `mobileReleaseNotes.js` -- not the frontend bundle version
+ *   `platform.diagnostics.identify` sends, which is a git hash with no relation to
+ *   muma-mobile's own `CHANGELOG.md` headings. A browser tab answers `''`: there is no APK, and
+ *   `mobileReleaseNotes.js` already reads a blank answer as "nothing to compare".
+ * @property {function(): Promise<string|null>} releaseNotes The text of muma-mobile's own
+ *   `CHANGELOG.md`, read from the APK's own assets (`copyChangelog` in `app/build.gradle` stages
+ *   it there already, for the legacy `Util.showChangelog`) -- not bundled into the frontend
+ *   itself, since `frontend:bundle`'s Docker build context is `services/frontend` alone and
+ *   cannot reach a file in `services/muma-mobile`. A browser tab has no such asset and answers
+ *   `null`, which is also what keeps `mobileReleaseNotes.js`'s modal from ever showing there.
  * @property {function(): {subsonic: string, mumaApi: string}} serverUrl Bases to
  *   build URLs on; an empty string means same origin. Synchronous everywhere: a
  *   shell that has to ask across a bridge caches the answer, and its boot path

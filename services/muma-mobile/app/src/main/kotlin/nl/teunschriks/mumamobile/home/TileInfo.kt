@@ -1,30 +1,9 @@
 package nl.teunschriks.mumamobile.home
 
-import android.content.Context
-import androidx.core.content.edit
 import androidx.core.graphics.toColorInt
 import com.google.gson.Gson
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.util.Settings.maxSongs
-
-object TileStorage {
-    private const val KEY = "user_tiles"
-
-    fun saveTiles(context: Context, tiles: MutableList<TileInfo>, page: String) {
-        val prefs = context.getSharedPreferences("${page}_tiles", Context.MODE_PRIVATE)
-        val json = Gson().toJson(tiles)
-        prefs.edit { putString(KEY, json) }
-    }
-
-    fun loadTiles(context: Context, page: String): MutableList<TileInfo> {
-        val prefs = context.getSharedPreferences("${page}_tiles", Context.MODE_PRIVATE)
-        val json = prefs.getString(KEY, "[]")
-        // Array<TileInfo>::class.java rather than an anonymous TypeToken: R8 full mode strips the
-        // generic superclass of those, making TypeToken.getType() throw in release builds.
-        return Gson().fromJson(json, Array<TileInfo>::class.java)
-            ?.toMutableList() ?: mutableListOf()
-    }
-}
 
 val tileInfoColors = listOf(
     "#000000", "#00008B", "#8B0000", "#006400", "#4B0082",

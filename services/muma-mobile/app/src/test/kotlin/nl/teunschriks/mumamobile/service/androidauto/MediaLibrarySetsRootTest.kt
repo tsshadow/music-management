@@ -16,11 +16,9 @@ import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import nl.teunschriks.mumamobile.api.subsonic.models.Filters
-import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.domain.MumaTile
 import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.Track
-import nl.teunschriks.mumamobile.home.TileInfo
-import nl.teunschriks.mumamobile.home.TileStorage
 import nl.teunschriks.mumamobile.service.MusicService
 import nl.teunschriks.mumamobile.util.Settings
 import org.amshove.kluent.`should be equal to`
@@ -62,13 +60,18 @@ class MediaLibrarySetsRootTest {
 
     @Before
     fun resetLocalFavoritesState() {
-        // Settings and TileStorage are backed by SharedPreferences shared across the whole
-        // process; without this a favorite left behind by one test leaks into the next.
+        // Settings is backed by SharedPreferences shared across the whole process; without this
+        // a favorite left behind by one test leaks into the next. The presets come from the
+        // (mocked) server, so a fresh browser per test starts with none.
         Settings.favoriteGenres = "[]"
-        val context = UApp.applicationContext()
-        TileStorage.saveTiles(context, mutableListOf(), "song")
-        TileStorage.saveTiles(context, mutableListOf(), "liveset")
     }
+
+    /** A preset as MuMa stores it: the Kotlin tile spelling in `smartParams`. */
+    private fun serverPreset(name: String, length: String) = MumaTile(
+        id = "1",
+        name = name,
+        smartParams = """{"length":"$length","sortMethod":"AddedDesc","genre":["Hardstyle"]}"""
+    )
 
     @Test
     fun `Songs and Sets are both roots regardless of the phone's sets-mode setting`() {
@@ -145,12 +148,8 @@ class MediaLibrarySetsRootTest {
     }
 
     @Test
-    fun `a playlist tile favorited for sets shows under Sets Favorites, not under Songs`() {
-        TileStorage.saveTiles(
-            UApp.applicationContext(),
-            mutableListOf(TileInfo(title = "My set mix", length = "long", favorite = true)),
-            "liveset"
-        )
+    fun `a preset saved for sets shows under Sets Favorites, not under Songs`() {
+        every { musicService.getMumaTiles() } returns listOf(serverPreset("My set mix", "long"))
 
         val setsFavorites = childIds(MediaLibraryBase.MEDIA_SETS_FAVORITES_ID)
         setsFavorites `should contain` MediaLibraryBase.MEDIA_FAVORITE_PLAYLISTS_SETS_ID
@@ -160,17 +159,13 @@ class MediaLibrarySetsRootTest {
     }
 
     @Test
-    fun `a playlist tile favorited for songs never leaks into Sets Favorites`() {
-        TileStorage.saveTiles(
-            UApp.applicationContext(),
-            mutableListOf(TileInfo(title = "My song mix", length = "short", favorite = true)),
-            "song"
-        )
+    fun `a preset saved for songs never leaks into Sets Favorites`() {
+        every { musicService.getMumaTiles() } returns listOf(serverPreset("My song mix", "short"))
 
         childIds(MediaLibraryBase.MEDIA_SETS_FAVORITES_ID) `should not contain`
             MediaLibraryBase.MEDIA_FAVORITE_PLAYLISTS_SETS_ID
 
-        // It is still reachable the old way, mixed in with every other favorited tile.
+        // It is still reachable the old way, mixed in with every other preset.
         childIds(MediaLibraryBase.MEDIA_FAVORITE_PLAYLISTS_ID).size `should be equal to` 1
     }
 
@@ -221,5 +216,33 @@ class MediaLibrarySetsRootTest {
         setsChildren.forEach { mediaId ->
             browser.getChildren(session, controller, mediaId, 0, 50, null).get().value.`should not be null`()
         }
+    }
+
+    /**
+     * The whole point of reading the server: a preset made on the web home grid is in the car on
+     * the next browse. It lists ahead of the server's static playlists, as the tiles always did.
+     */
+    @Test
+    fun `a preset saved on the web lists under Afspeellijsten ahead of the static playlists`() {
+        every { musicService.getMumaTiles() } returns listOf(serverPreset("Recent Hardstyle", "short"))
+        every { musicService.getPlaylists(any()) } returns listOf(
+            nl.teunschriks.mumamobile.domain.Playlist(id = "7", name = "Road trip")
+        )
+
+        val ids = childIds(MediaLibraryBase.MEDIA_PLAYLIST_ID)
+
+        ids.first() `should contain` "|Hardstyle|"
+        ids.last() `should contain` MediaLibraryBase.MEDIA_PLAYLIST_ITEM
+    }
+
+    /** A server that cannot answer costs the presets folder, not the tree. */
+    @Test
+    fun `an unreachable server leaves the presets folder out and the rest of Favorites intact`() {
+        every { musicService.getMumaTiles() } throws java.io.IOException("offline")
+
+        val favorites = childIds(MediaLibraryBase.MEDIA_FAVORITES_ID)
+
+        favorites `should contain` MediaLibraryBase.MEDIA_SONG_STARRED_ID
+        favorites `should not contain` MediaLibraryBase.MEDIA_FAVORITE_PLAYLISTS_ID
     }
 }

@@ -7,6 +7,241 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.36.0] - 2026-09-14
+
+### Added
+- **`MumaSystem` kreeg vier methodes erbij voor de webspeler's instellingen-tab.**
+  `listBondedDevices()` geeft de gekoppelde bluetooth-apparaten met wie een auto is; het schrijven
+  van `carModeDevices` via `setSetting` gaat voor het eerst via een echte set in plaats van een
+  aantal. `requestCarModeFullScreenPermission()` en `pickCacheLocation()`/
+  `clearCustomCacheLocation()` doen wat de klassieke rijen voor volledig-scherm-toestemming en
+  cachelocatie altijd al deden, nu bereikbaar zonder het klassieke scherm te openen.
+  `setAppLocale()` past de taal van de shell zelf aan (vergunningsschermen, deelvensters), niet
+  alleen de tekst van de webinterface.
+
+- **Android Auto had geen eigen tak voor sets.** De boomstructuur in de auto kende alleen Songs en
+  Livesets, en Livesets kreeg nooit de Favorieten-map die Songs al had: een genre of afspeellijst
+  die voor sets was opgeslagen, kwam in de auto nergens terug — `getFavoriteGenreItems()` had de
+  lengte hard op "short" staan, en `getFavoritePlaylistItems()` mengde beide lengtes zonder filter.
+  Er staat nu een nieuwe root **Sets** naast Songs en Livesets, altijd aanwezig ongeacht de
+  sets-modus-instelling op de telefoon, met dezelfde vier onderdelen als Livesets (zoeken op genre,
+  recent toegevoegd, recent uitgebracht, recent gespeelde genres) plus een eigen Favorieten-map voor
+  genres en afspeellijsten die met lengte "long" zijn opgeslagen. Songs en Livesets zijn ongewijzigd:
+  elke bestaande media-id in de auto blijft exact hetzelfde, en de twee feeds (dagmix, release radar)
+  staan waar ze stonden.
+
+- **De oude bookmarks-knop stond los van het nieuwe hervatten van sets.** Bookmarks werden nooit
+  lokaal opgeslagen — `createBookmark`/`deleteBookmark` gingen altijd al rechtstreeks naar de
+  Subsonic-server — dus een eenmalige `BookmarkMigration` leest die server-lijst nu bij het opstarten
+  van de schil en zet elke bookmark op een set (dezelfde tien-minuten-grens als de rest van de app)
+  om naar de webs `setResume`-sleutel in de account-instellingen, met dezelfde `work:<id>`/
+  `track:<id>`-sleutel als `getDeduplicateKey`. Draait maar één keer per account
+  (`Settings.bookmarksMigratedToSetResume`); een mislukte poging (offline, geen MuMa-account) laat
+  de vlag ongezet zodat de volgende start het opnieuw probeert.
+
+- **Nieuwe interface (bèta).** Onder Instellingen → Weergave staat een schakelaar die de app opent
+  met de webspeler in plaats van de Kotlin-schermen. De muziek loopt door dezelfde speeldienst, dus
+  de melding, bluetooth, de koptelefoonknoppen en Android Auto veranderen niet; alleen de schermen
+  zijn anders. Hij staat uit, en zolang hij uit staat is er niets aan de app veranderd.
+  Terugschakelen kan in de instellingen of vanuit de webspeler zelf.
+
+- **`MumaSystem` beantwoordt de nieuwe instellingen-tab van de webspeler.** `getSettings()` geeft
+  een momentopname van de instellingen die de tab toont; `setSetting({key, value})` schrijft er één
+  terug, tegen een vaste whitelist met een typecontrole — een onbekende sleutel of een verkeerd
+  type wordt geweigerd in plaats van een instelling stilzwijgend niets te laten doen. `MumaStorage`
+  kreeg er `clearCache()` bij: annuleert wachtende en actieve downloads en verwijdert daarna elk
+  gecachet bestand dat niet is vastgezet.
+
+- **`MumaDiagnostics` weet nu ook wélke interface een rapport schreef.** `identify({bundleVersion,
+  userAgent})` legt vast dat de webinterface heeft gedraaid, met welke frontend-build en welke
+  WebView; ontbreekt die aanroep, dan meldt een rapport gewoon "legacy" zoals voorheen.
+  `CrashReportManager` zet die drie feiten voor in de metadata-kop, boven het bestaande
+  actielogboek dat de webacties en -fouten al bevatte.
+
+- **`MumaSystem` beantwoordt nu `appVersion()` en `releaseNotes()`.** `appVersion()` geeft de
+  `versionName` van de APK terug, voor de webspeler die net-na-een-upgrade "wat is er nieuw" moet
+  tonen — iets anders dan de bundle-versie die `platform.diagnostics.identify()` al kreeg, want die
+  is een git-hash zonder relatie tot `CHANGELOG.md`. `releaseNotes()` geeft de tekst van
+  muma-mobile's eigen `CHANGELOG.md` terug, gelezen uit hetzelfde asset-bestand dat `copyChangelog`
+  al voor `Util.showChangelog` klaarzet: de webspeler kan dat bestand niet zelf inbundelen, want
+  `frontend:bundle` draait in een Docker-context die alleen `services/frontend` ziet. Beide lezen
+  via `context`, niet `activity`: dezelfde reden waarom `setKeepScreenOn` dat al deed.
+
+- **Downloaded playlists waren onvindbaar zodra het toestel geen route naar de server meer had.**
+  Ze bestonden alleen als `.m3u`-bestand met een weergavenaam en niets anders -- geen server-id, dus
+  `OfflineSubsonic` had `getPlaylists`/`getPlaylist` niet geïmplementeerd en de webspeler zag nul
+  playlists offline. `RESTMusicService.getPlaylist` -- de aanroep die zowel een simpele weergave als
+  "download deze playlist" al deed -- schrijft de server-id, naam en tracklijst nu ook in een eigen
+  Room-tabel (`offline_playlists`, migratie 9→10). Een playlist die alleen als oud `.m3u`-bestand
+  bestaat verdwijnt niet: die wordt gelezen en krijgt een stabiel synthetisch id
+  (`LegacyPlaylistFiles`). `getPlaylists`/`getPlaylist` in `OfflineSubsonic` beantwoorden beide uit
+  die samengevoegde lijst, in dezelfde JSON-vorm als de server, met alleen de tracks die daadwerkelijk
+  op het toestel staan.
+
+- **De nieuwe interface leest de gedownloade bibliotheek nu zonder verbinding.** `MumaStorage.query`
+  beantwoordt de `/rest`-aanroepen die de webspeler echt doet — tracks, albums, artiesten, genres,
+  jaren, labels, zoeken, favorieten en hoesjes — uit Room en de bestanden op het toestel, in
+  precies de JSON-vorm en met precies de id's die LMS teruggeeft, zodat een offline rij en een
+  online rij van hetzelfde nummer één rij zijn. Alleen tracks die daadwerkelijk gedownload zijn
+  tellen mee, en een aanroep die offline niets kan betekenen geeft een leeg maar geldig antwoord in
+  plaats van een fout.
+
+- **`MumaSystemPlugin` en `MumaPlayerPlugin` hadden niets voor het nieuwe rijscherm.** De
+  `carConnected`-event bestond al voor de bestaande autodetectie, maar een webscherm dat pas na het
+  laden gaat luisteren mist een event dat al is afgevuurd, en er was geen manier om vanuit de
+  WebView de wachtrij van de speeldienst te verschuiven of het scherm boven het lockscreen te
+  houden zoals de legacy `CarModeFragment` dat via `setShowWhenLocked`/`setTurnScreenOn` deed.
+- `MumaSystemPlugin.carState()` geeft de laatste stand van `CarPresence.isInCar` in één keer terug
+  voor een koude start; `setKeepScreenOn({showWhenLocked, turnScreenOn})` zet en laat beide vlaggen
+  weer los zodra het rijscherm zelf sluit. `MumaPlayerPlugin.next()`/`previous()` roepen
+  `MediaPlayerManager.seekToNext()`/`seekToPrevious()` aan — dezelfde aanroep die de legacy
+  `CarModeFragment` al deed — zodat de bestaande `tick()`-polling de zet net als een druk op het
+  stuurwiel terugmeldt, in plaats van dat de WebView een tweede wachtrij bijhoudt.
+
+- **`MumaPlayer` had geen manier om radio of het nieuws van het uur te starten.** Beide bestonden al
+  op de speeldienst -- `RadioPlaybackController`/`RadioSync.kt` en
+  `NewsPlaybackController`/`NewsQueueRules.kt`, gebouwd voor Android Auto's kanalenlijst en
+  Assistent -- maar de webinterface in de nieuwe schil kon er niet bij. Drie nieuwe plugin-methoden
+  (`startRadio`, `stopRadio`, `toggleNews`) sturen dezelfde media-id en dezelfde sessiecommando's aan
+  die de auto al gebruikt, dus er is geen tweede implementatie van de tijdlijn-synchronisatie of het
+  terugzetten van een onderbroken wachtrij bijgekomen. `state()` en elke status-event dragen voortaan
+  ook `radioChannel`/`newsPlaying`, zodat de webinterface een kanaal of bulletin opmerkt dat van
+  buiten kwam.
+
+- **`MumaSpeech` begrijpt spraak nu ook voor de webspeler.** Drie nieuwe methoden op het bestaande
+  `MumaSpeech`-plugin: `interpret` draait de gesproken of getypte tekst door dezelfde `core/voice`-
+  parser en -resolver die Android Auto en de microfoon van de Kotlin-app gebruiken, en levert een
+  klaar-voor-de-UI resultaat terug (wat verstaan is, of het een duidelijke opdracht/een vraag/niets
+  is, en bij een opdracht de filters als `getSongs`-parameters of het album/de afspeellijst-id) —
+  het plugin speelt zelf niets af, dat blijft aan de webkant. `vocabulary` geeft de tekst van "wat
+  verstaat MuMa" terug uit dezelfde stringresources als `VoiceCommandsFragment`, in elke taal die de
+  app al heeft. `trace` geeft de laatste spraakverzoeken uit `VoiceTraceLog` voor een diagnosescherm
+  op het web. De parser en de resolver zijn ongewijzigd; dit is alleen een derde deur ernaartoe,
+  naast de auto en het microfoonscherm.
+
+- **MuMa Voice kende maar één manier om om een liveset te vragen: een genre erbij noemen.** "Speel
+  hardstyle sets af" werkte, maar "speel een set af", "speel een Defqon set af" en "speel de
+  nieuwste set van headhunterz af" liepen allemaal op niets uit — een kaal setverzoek zonder genre
+  werd als een lege vraag gelezen, en een festivalnaam had geen plek om in te landen. De parser
+  herkent nu ook die vormen (en hun Engelse tegenhangers "play a set", "play a Defqon set", "play
+  the latest set of headhunterz"): een festivalfilter wordt herkend uit dezelfde bibliotheek als
+  genres en artiesten, en een track die toevallig zelf "Set" heet blijft gewoon die track. Beide
+  frases staan nu ook bij "Wat verstaat de spraakherkenning" in de app.
+
+### Changed
+- **De speler hoort nu bij de app in plaats van bij het hoofdscherm.** `MediaPlayerManager` en
+  `MediaPlayerLifecycleSupport` stonden in `scope<NavigationActivity>` en waren daarmee onzichtbaar
+  voor alles wat Koin via de root scope oplost: een gewone `Fragment`, een `BroadcastReceiver`, een
+  root `single`. Omdat `by inject()` lui is, viel dat pas om bij het eerste gebruik — vaak binnen een
+  `catch`, zodat het eruitzag alsof er niets gebeurde. Het kostte twee releases, waaronder
+  bugrapport 031 (de app verdween bij het starten zodra de auto verbonden was). Ze zijn nu gewone
+  `single`s: één speler, overal bereikbaar, en die hele soort fout bestaat niet meer.
+- Starten en stoppen mag nu vaker dan één keer. De speler overleeft het draaien van het scherm en
+  het afsluiten via het menu, dus `onCreate()` en `onDestroy()` zijn een herbruikbaar paar geworden:
+  de tweede start herstelt de bewaarde wachtrij niet bovenop de lopende en registreert geen tweede
+  koptelefoon-ontvanger, en na een afsluiting werkt dezelfde instantie weer volledig. Tegelijk is dit
+  het voorwerk voor de universele UI, waarin de native laag zonder `NavigationActivity` moet draaien.
+
+### Removed
+- **Een aantal instellingen uit het klassieke scherm is opgeruimd, nu de webtab alles dekt wat nog
+  nodig was.** Stijl, app-icoon en interfaceschaal zijn geen keuze meer — Spotify-stijl is de enige
+  stijl, schalen gaat via de tekstgrootte van het toestel. Delen en chat waren al dode code; hun
+  instellingen zijn weg. Bladwijzers zijn al vervangen door het onthouden van de afspeelpositie in
+  een set; vooruit/achteruit springen is voortaan altijd ±30 s. ID3-modus staat altijd aan. De
+  zoeklimieten en een aantal weergaverijen zijn óf naar de webtab verhuisd, óf hadden al geen
+  effect meer. De installatiewizard verloor de drie stappen die deze instellingen tijdens het
+  eerste gebruik lieten kiezen. Niets hiervan was nog bereikbaar vanuit de nieuwe interface; het
+  klassieke scherm zelf blijft intact tot dat in een latere stap verdwijnt.
+
+### Fixed
+- **"Ik zie eigenlijk alleen zwart wit": het beginscherm van de Kotlin-app had geen enkele
+  merkkleur en de speler stond vol met Material-lila.** Gemeten op een API 34-emulator: van de
+  2.527.200 beeldpunten op het beginscherm waren er nul groen, en het enige kleurvlak was een
+  `#4a4458` paars dat in geen van beide stijlen voorkomt. Drie oorzaken, alle drie een kleur die
+  niemand gekozen heeft. Beide stijlen overschrijven Material3's primaire en oppervlakteattributen
+  maar lieten de secundaire reeks onaangeroerd, dus alles wat die aansprak kreeg het lila van de
+  bibliotheek — en de navigatiebalk tekent de vorm achter het actieve tabblad juist met
+  `colorSecondaryContainer`. De hoesvervanger sprak diezelfde reeks aan, dus een nummer zonder hoes
+  werd een `#ccc2dc` vlak: op de speler 822.514 beeldpunten, bijna een derde van het scherm. En de
+  notenglyph van een nummer zonder hoes was hard op `#000000` getint, wat 1,12:1 haalt op een
+  venster dat in beide stijlen bijna zwart is — die stond er dus wel en was onzichtbaar. De
+  secundaire reeks is nu in beide stijlen benoemd, de hoesvervanger tekent op
+  `colorSurfaceVariant` met `colorInkTertiary` (3,92:1 in de MuMa-stijl, 7,03:1 in Spotify, boven
+  de 3:1-ondergrens voor wat getekend en niet gelezen wordt), de notenglyph neemt
+  `colorControlNormal` (8,8:1) en de vorm achter het actieve tabblad neemt de merkkleur van de
+  modus op een vijfde — groen voor nummers, blauw voor sets, dezelfde sterkte waarmee een
+  geselecteerde regel al getint wordt. Voor de volledigheid: de sets-schakelaar in de werkbalk
+  werd groen op het ene moment dat de app juist blauw is, en leest nu ook de modus.
+
+- **`setQueue` liet de afspeeldienst zijn eigen wachtrijwissel rapporteren als een "vorige" gevolgd
+  door een "volgende".** Het vervangen van de wachtrij wist eerst de tijdlijn, laadde daarna het
+  eerste nummer van de nieuwe lijst en sprong pas dán naar de gevraagde positie; elk van die drie
+  tussenstappen had een ander nummer dan de vorige en werd behandeld als een echte
+  transportbeweging. De webinterface volgde beide gemelde bewegingen naar `currentTrack`, wat een
+  nieuwe `setQueue` uitlokte die dezelfde drie tussenstappen weer opleverde — op de emulator zo'n
+  tien keer per seconde, zonder dat het gevraagde nummer ooit ging spelen en de teller op 0:00 bleef
+  staan. De plugin onthoudt nu, net als bij een eigen seek, welke positie hij zelf aan het opzoeken
+  is en meldt in de tussentijd niets — geen `command`, geen `durationchange`, geen `ended` — totdat
+  hij daar daadwerkelijk is aangekomen.
+
+- **Nieuwe interface: inloggen op een verse installatie.** Zolang de app nog nooit was ingelogd
+  stond de actieve server op "Offline", waarvan het adres `http://localhost` is -- precies de
+  plek waar de webspeler zijn eigen pagina vandaan haalt. Elke aanroep kreeg daardoor de
+  inlogpagina zelf terug in plaats van een antwoord van de server, en de ingevoerde gegevens
+  werden niet bewaard omdat de Offline-server geen wachtwoord kent. De schil leest nu altijd de
+  echte server, en een inlog vanuit de webspeler maakt die server ook actief, zoals de oude
+  inlogdialoog al deed.
+
+- **`MumaPlayer` had geen manier om shuffle of herhalen te zetten.** De speeldienst
+  (`MediaPlayerManager`/ExoPlayer) kent `isShufflePlayEnabled` en `repeatMode` al langer, maar de
+  webinterface in de nieuwe schil kon er niet bij: shuffle en herhalen bleven een beslissing van de
+  WebView, die geen weet had van de eigen wachtrijvolgorde van de dienst. Een nieuwe `setMode`-
+  plugin-methode zet beide op de dienst en levert de toegepaste stand terug; `state()` en elke
+  status-event bevatten `shuffle`/`repeat` voortaan ook, en een polling-tick merkt een stand die van
+  buiten de WebView kwam -- Android Auto's eigen knop, de melding -- ook op zonder dat er iets
+  anders beweegt.
+
+- **`MumaSystem` kon een sessie niet beëindigen.** De Svelte-shell had geen manier om de op de
+  telefoon opgeslagen server-credentials te wissen, dus een "uitloggen" in de webinterface liet
+  Kotlin's eigen kopie gewoon staan en de volgende `bootstrapShell()` logde meteen weer in. Nieuwe
+  pluginmethode `MumaSystem.signOut()` maakt nu hetzelfde op die Kotlin doet als de klassieke
+  uitlogknop: `ActiveServerProvider.signOut()` (nieuw, hergebruikt door beide kanten) wist het
+  wachtwoord, de muma API-key/user-id en de versleutelde muma-tokens in `SecureSettings` — de
+  gebruikersnaam blijft staan, net als bij de klassieke knop. De wachtrij gaat via
+  `MediaPlayerManager.clear()`, niet via `onDestroy()`: die laatste breekt de hele
+  app-brede speler af (root `single`, zie `di/MediaPlayerModule.kt`) in plaats van alleen de sessie
+  te sluiten. Gedownloade bestanden blijven ongemoeid.
+- **Een nieuwe aanmelding in de shell kwam nooit bij Kotlin terecht.** Nieuwe pluginmethode
+  `MumaSystem.saveCredentials({url, username, password})` schrijft een geverifieerd paar terug via
+  `ActiveServerProvider.saveCredentials()` (dezelfde weg als het server-instellingenscherm), zodat
+  downloads, Android Auto en de klassieke interface na een aanmelding in de webinterface dezelfde
+  sessie zien.
+
+- **Van interface wisselen zette je op het beginscherm van de telefoon in plaats van in de nieuwe
+  app.** De nieuwe interface kwam op, stond er ongeveer een seconde, en verdween. De schakelaar
+  zette namelijk ook de launcher om, en Android gooit élke taak weg waarvan de starter net is
+  uitgezet — dat was precies de taak waarin de gebruiker stond, met de zojuist gestarte interface
+  erin. De vier launcher-ingangen wijzen nu allemaal naar een onzichtbaar tussenactiviteitje dat de
+  instelling leest en doorstuurt, zodat er nooit meer iets wordt uitgezet waar de gebruiker in zit.
+  Beide richtingen blijven op de emulator staan, ook 15 seconden later, en het icoon opent na een
+  force-stop de gekozen interface. Hetzelfde gold ongemerkt voor het wisselen van de icoonkleur
+  vanuit de app; ook dat kan nu geen taak meer opruimen. Een snelkoppeling op het beginscherm volgt
+  vanaf nu de instelling in plaats van de interface van de dag dat hij gemaakt werd.
+- **Elke wijziging in de wachtrij begon het nummer waar je naar luisterde opnieuw.** De webspeler
+  bezit de wachtrij maar kan hem niet vasthouden, dus "voeg toe aan wachtrij" komt binnen als de
+  hele lijst opnieuw; de app wiste de lijst en sprong naar het begin. Een set die 176 seconden liep
+  stond daarna op 5. De app vergelijkt nu eerst: staat op de gevraagde plek het nummer dat al
+  speelt, dan wordt alleen de lijst eromheen herbouwd en wordt de speler niet aangeraakt — gemeten
+  op de emulator liep de stand door 75 → 142 → 149 seconden over drie wachtrijwijzigingen heen. Is
+  het een ander nummer, dan begint dat gewoon vooraan. Kan de speler het niet, dan wordt de
+  wachtrij alsnog vervangen, maar terug naar de stand van daarvoor in plaats van naar nul — een gat
+  van een fractie van een seconde in plaats van drie minuten.
+- **Op een server zonder https bleef in de nieuwe interface elke hoes leeg.** De pagina zelf liep
+  onder `https://localhost`, en een plaatje van een `http://`-server is dan gemengde inhoud die de
+  WebView weigert. De gedocumenteerde instelling daarvoor (`allowMixedContent`) bleek niets te doen:
+  de app las hem, de WebView stond op "altijd toestaan", en Chromium blokkeerde de plaatjes toch.
+  De pagina draait nu zelf op `http://localhost`, waarmee het verschil verdwijnt. Een https-server
+  werkt onveranderd.
 ## [6.35.1] - 2026-09-11
 
 ### Fixed

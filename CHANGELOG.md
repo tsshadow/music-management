@@ -7,6 +7,303 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.61.0] - 2026-09-14
+
+### Added
+- **De "Apparaat"-tab dekt nu bijna alles wat het klassieke instellingenscherm ooit deed.**
+  Netwerktimeout, max. bitrate bij vastzetten, automatisch offline schakelen, cachetijd van
+  mapoverzichten, zichtbaarheid voor andere apps en verbergen voor de mediascanner staan er nu als
+  gewone rijen. Auto-apparaten koppelen gaat voortaan met een echte bluetooth-kiezer in de tab zelf
+  in plaats van via het oude scherm; "Scherm automatisch aanzetten" vraagt de systeemtoestemming
+  direct aan. Een cachelocatie kiezen of terugzetten gebeurt met de systeem-mappenkiezer, zonder
+  het oude scherm te openen. De muma-gebruikers-ID en -API-sleutel staan er nu ook bij, alleen om te
+  zien — die vult inloggen al in. De rij "Alle app-instellingen…" is weg: er is nu niets meer dat
+  hiernaartoe verwijst.
+- **Instellingen die op de telefoon per apparaat stonden, volgen nu het account.** De indeling van
+  het startscherm (welke secties, hoeveel ze tonen) en een deel van de weergave-instellingen
+  (tracknummer, regels per rij, bitrate bij artiest, sorteren op schijf, limiet per genre,
+  bevestigen voor het downloaden van een set) staan voortaan bij "Algemeen" en gelden op elk
+  apparaat waarop is ingelogd, niet meer alleen op de telefoon waar ze gezet zijn.
+- **De gekozen taal werkt nu ook door in de systeemschermen van de app**, niet alleen in de tekst
+  van de webinterface zelf.
+
+- **Nergens op de webspeler stond hoe de automodus aangaat.** De legacy handleiding
+  (`ManualFragment`) legde uit dat het aansluiten op Android Auto het autoscherm zelf al opent en
+  dat de "Automodus"-schakelaar alleen voor rijden zonder gekoppelde auto is — maar die tekst wordt
+  met de handleiding zelf opgeruimd, en de instellingenpagina had alleen de schakelaar, zonder dat
+  verhaal. Instellingen → Over MuMa heeft nu een sectie "Hoe werkt…" met die ene paragraaf. De rest
+  van de handleiding beschreef schermen die de webspeler al op dezelfde manier toont, inclusief het
+  verschil tussen vastgezette en gecachete nummers (`cacheSizeHelp` legde dat al uit) — daar hoefde
+  niets bij.
+
+- Inside de Android-app draait de nieuwe interface nu op de bestaande afspeeldienst: de webspeler logt zichzelf in met de server en het account die op de telefoon staan, geeft de wachtrij aan de notificatie en Android Auto door, en vindt na een herstart van de WebView zijn plek in het nummer terug. In de browser verandert er niets.
+
+- **Instellingen krijgen een "Apparaat"-tab in de app.** Wifi-only downloads, cachegrootte en
+  "Cache wissen", max. bitrate voor mobiel en wifi, preload-aantal, hervatten bij koptelefoon of
+  bluetooth, hardware-audio-offload, automodus en het scrobble-schakelaartje waren tot nu toe
+  alleen bereikbaar via het klassieke instellingenscherm, dat vanuit de nieuwe interface nergens
+  aan te klikken was. De tab is alleen zichtbaar in de app zelf; een rij onderaan opent het
+  klassieke scherm voor alles wat hier niet staat.
+
+- **Een crashrapport uit de nieuwe interface leest nu als een verhaal in plaats van een leeg
+  logbestand.** Navigatie, afspelen, wachtrijwijzigingen, waarderingen, downloads, in- en uitloggen
+  en instellingen schrijven allemaal één regel naar hetzelfde actielogboek dat de Kotlin-app al
+  gebruikte; een JavaScript-fout die de app nooit toonde, komt er nu ook met stacktrace in terecht.
+  Een rapport vermeldt voortaan ook of het uit de webinterface of de klassieke app komt, welke
+  frontend-build draaide en welke WebView hem toonde.
+
+- In de app is de muziek die je gedownload hebt nu zonder verbinding te doorbladeren en af te spelen — nummers, sets, albums, artiesten, genres, labels, favorieten en zoeken komen van de telefoon zodra de server niet bereikbaar is — met een eigen Downloads-pagina die per album en per set laat zien wat er staat, hoe groot het is en hoe ver een download is, een downloadteken in de nummerlijst en een maatvraag voordat je een set van honderden megabytes binnenhaalt. In de browser verandert er niets.
+
+- **De speler kende geen songtekst.** De legacy `LyricsFragment` haalde die op via
+  `getLyrics(artist, title)`, maar de webspeler had nergens een knop. LMS beantwoordt songtekst
+  wel echt — `handleGetLyricsBySongId` in `MediaRetrieval.cpp` leest `db::TrackLyrics`, gevuld door
+  de scanner uit ingesloten tags en bijpassende `.lrc`-bestanden — en `TrackList.svelte` toonde
+  hem al voor een rij in de bureaubladlijst. `Player.svelte` haalt de songtekst nu op voor wat er
+  speelt (per track-id, niet de fuzzy artiest/titel-match die `LyricsFragment` deed) en toont een
+  knop zodra er tekst is: een bottom sheet in het "Nu speelt"-scherm op de telefoon, een klein
+  paneel naast de wachtrijknop op het bureaublad. Zonder songtekst voor het spelende nummer
+  verschijnt er niets — geen "geen songtekst"-plek die voor de meeste nummers leeg blijft staan.
+
+- **De setup-wizard opende na een update; de webspeler heeft geen wizard.** Voor
+  muma-mobile 7.0.0 moet de app na een update op Home openen met bestaande downloads, niet op een
+  carrousel — maar wat er veranderd is moet een luisteraar nog wel te weten komen. `MumaSystem`
+  geeft nu `appVersion()` (de `versionName` van de APK, iets anders dan de bundle-versie die
+  `platform.diagnostics` stuurt: dat is een git-hash zonder relatie tot `CHANGELOG.md`-koppen). Een
+  nieuwe `mobileReleaseNotes.js` vergelijkt die met een in `localStorage` onthouden vorige versie
+  en toont, alleen bij een echte upgrade en nooit bij een nieuwe installatie, wat er veranderd is —
+  via dezelfde `ReleaseNotesModal.svelte` die `TopBar.svelte` al gebruikt voor de release notes van
+  de LMS-server zelf. De tekst komt uit muma-mobile's eigen `CHANGELOG.md`, gelezen via een nieuwe
+  `MumaSystem.releaseNotes()` uit hetzelfde asset-bestand dat `copyChangelog` al voor de oude
+  "Wat is er nieuw"-knop klaarzet — niet gebundeld in de webspeler zelf, want die build draait in
+  een Docker-context die alleen `services/frontend` ziet. Tonen kost nog steeds geen netwerkverzoek:
+  de tekst zat al in de APK.
+
+- **Een tik op de minispeler op de telefoon opende voorheen niets.** Die tik opent nu een full-screen
+  "Nu speelt"-scherm (cover, titel/artiest, sterren, seekbar, shuffle/vorige/afspelen/volgende/herhalen,
+  een equalizer- en een wachtrijknop), te sluiten via de chevron, een swipe omlaag op de cover of de
+  terugknop. De wachtrij opent op de telefoon voortaan als bottom sheet in plaats van nergens. De deep
+  link die de melding op Android gebruikt (`player`) opent dit scherm op de telefoon; op desktop blijft
+  hij het wachtrijpaneel openen. Shuffle en herhalen sturen op de telefoon (native afspelen) nog
+  dezelfde browser-only stores aan als altijd — dat op de afspeeldienst zelf laten werken is een
+  bekende openstaande vervolgstap, niet in deze wijziging opgelost.
+
+- **Presets op het startscherm.** De tegels die de Kotlin-app al jaren heeft — "Random Uptempo",
+  "Recent Raw Hardstyle" — staan nu ook in de webspeler, bovenaan Home, in dezelfde lijst: het
+  zijn de dynamische afspeellijsten van je account in MuMa, dus een tegel die op de telefoon is
+  gemaakt staat op het web en andersom. Tik opent de lijst met een afspeelknop; het menu op die
+  pagina verwijdert de preset. Nieuw maken kan vanaf elke gefilterde lijst (genre, label, jaar,
+  Alle nummers/Sets) met "Opslaan als preset": de huidige filterstand — genre, jaar, minimaal
+  aantal sterren, sortering, nummers of sets — wordt bewaard in het formaat dat de Kotlin-app
+  leest. Afspelen gaat via dezelfde `getSongs`-aanroep als op de telefoon, dus tegels met meerdere
+  genres of jaren werken ook.
+
+- **MuMa Voice in de webspeler.** De microfoon werkt nu ook op het Svelte-scherm, niet alleen in de
+  Kotlin-app: een microfoonknop op het zoektabblad (alleen zichtbaar als het toestel spraakherkenning
+  heeft), en de tegel/snelkoppeling/auto-modus openen dezelfde nieuwe pagina in plaats van het
+  startscherm. Wat je zei en hoe MuMa dat begreep staat op het scherm; bij een dubbelzinnige naam
+  komt de vraag met tikbare keuzes ("bedoel je het album of de afspeellijst?") en luistert de
+  microfoon meteen weer mee voor een gesproken antwoord. Een duidelijke opdracht speelt meteen af,
+  via dezelfde `getSongs`/`getAlbum`/`getPlaylist`-aanroepen en wachtrij als een preset of een
+  Home-tegel. "Wat verstaat MuMa" en een inklapbare diagnoseleist met de laatste verzoeken zitten
+  er ook op. De spraakherkenning en de audio blijven native — alleen het scherm eromheen is nu web;
+  het woordbegrip (`core/voice`, de genre-, artiest- en labelherkenning) is ongewijzigd Kotlin en
+  draait via de nieuwe `MumaSpeech.interpret`-bridge.
+
+- **Sets kregen geen eigen afspeelknoppen.** De speler (desktop-balk en Now Playing) toont voortaan
+  −30 s/+30 s-knoppen naast play/pause zodra het geladen nummer een set is (dezelfde tien-minuten-
+  grens als de rest van de app, `isSet` uit `downloads.js`), rekent positie en duur in h:mm:ss in
+  plaats van m:ss, en vervangt de klikbare balk door een `<input type="range" step="1">` zodat een
+  positie in een bestand van twee uur ook echt te verslepen is; de pijltjestoetsen op die balk
+  springen ±30 s in plaats van de standaard 1 s-stap. Songs-modus verandert niet. `TrackList`'s
+  duurkolom toont voor een set nu h:mm in plaats van m:ss, per rij bepaald (niet per modus), zodat
+  een gemengde lijst nooit de verkeerde vorm toont.
+- **Setpositie volgde het apparaat niet.** Een nieuwe `setResume`-sleutel in de account-
+  instellingenblob (dezelfde blob als favoriete genres en taal) onthoudt de laatst gespeelde positie
+  per werk-id, met een cap van 50 en een throttle van 15 s tijdens het afspelen plus een directe
+  schrijving bij pauzeren, wisselen van nummer en `beforeunload`. Bij het starten van een set met een
+  bewaarde positie tussen de eerste en de laatste minuut springt de speler er automatisch naartoe en
+  toont een meldingsknop "Opnieuw" om alsnog van voren te beginnen. Werkt zowel via de browser-
+  engine als via de native speeldienst (`platform.player.state()`).
+
+- **De nieuwe interface kende geen rijscherm.** De Kotlin-app opent al jaren automatisch een groot
+  scherm — vorige/afspelen/volgende, ster-beoordeling, microfoon voor spraak, genre- en
+  favorieten-mixtegels — zodra de telefoon een gekoppelde auto ziet, maar de webspeler in de nieuwe
+  schil had daar niets tegenover: een auto die verbond liet de gebruiker gewoon op het gewone scherm
+  zitten.
+- Een `CarModeView` op route `car` doet nu hetzelfde: transport en beoordeling lopen via de
+  bestaande `platform.player`/`setRating`-paden (geen tweede wachtrij-eigenaar), de mixtegels
+  starten dezelfde shuffle-wachtrij als de Kotlin-tegels deden, en het scherm opent zelf zodra
+  `platform.system.carConnected` afgaat of, bij een koude start die de verbinding al mist, via een
+  eenmalige `carState()`-check. Wegtikken sluit het scherm voor de rest van deze rit — een dubbel
+  signaal van dezelfde verbinding (denk aan een bluetooth-hapering) opent het niet opnieuw — en de
+  volgende keer dat de auto verbindt, wel weer. Ook bereikbaar via het overflow-menu.
+
+- **Radio en het nieuws van het uur speelden helemaal niet op de telefoon in de nieuwe interface.**
+  Radio stuurt het `<audio>`-element rechtstreeks aan om halverwege een nummer in te haken, en een
+  bulletin speelt van een blob-URL af; de schil heeft geen van beide -- `PlaybackService` bezit de
+  afspeeldienst. Beide knoppen gaven meteen op met "speelt nog niet in de app". De speeldienst had
+  die twee al, ingebouwd voor Android Auto en Assistent (`RadioPlaybackController`/`RadioSync.kt`,
+  `NewsPlaybackController`/`NewsQueueRules.kt`): een kanaal starten is één media-id die
+  `onAddMediaItems` al herkent, een bulletin is één sessiecommando dat al beide kanten van de wissel
+  op zich neemt, inclusief het opnieuw intunen van radio als die aan stond. Twee nieuwe
+  plugin-methoden (`startRadio`/`stopRadio`/`toggleNews`) en twee velden op `state()`
+  (`radioChannel`/`newsPlaying`) zijn de hele uitbreiding; de webinterface merkt zo ook een kanaal of
+  bulletin op dat van buiten de WebView kwam -- Android Auto, Assistent, of een WebView die is
+  herschapen terwijl er iets speelde -- en bouwt de juiste knoppen dan terug op in plaats van een
+  gewone wachtrij te tonen.
+
+### Changed
+- **Elk verzoek aan de server loopt nu via één resolver, en er verandert niets zichtbaars.** Zo'n
+  twintig bestanden deden zelf `fetch(\`/rest/...\`)` op basis van de pagina-origin — cover art,
+  streams, playlists, scans — terwijl `/api/*`-aanroepen al via `apiBase()`/`mumaApiUrl` liepen.
+  Binnen de komende Capacitor-schil is de pagina-origin `https://localhost`, dus zo'n relatieve
+  `/rest/...` zou tegen de WebView praten in plaats van tegen de muziekserver. `restUrl()` in
+  `src/lib/store.js` bouwt nu elke Subsonic-URL op `credentials.url`, met dezelfde terugval naar
+  `window.location.origin` die er al was; op het web is dat exact dezelfde string als een relatieve
+  fetch. De derde kopie van die terugval in `LoginPage.svelte` is vervangen door de helper. Fase 0
+  van `docs/designs/universal-ui/`.
+
+- **Home en de overzichten toonden op een telefoon twee kaarten per rij, halve schermbreedte
+  groot, zodat één sectie al de hele hoogte innam en de pagina eindeloos doorscrolde.** Onder
+  Tailwinds `md`-grens (en waar dat niet volstond, achter de `isMobile`-store) zijn Home-secties nu
+  een horizontaal scrollende rij van vaste kaarten van 140 px — zoals Spotify's eigen "Daily Mix"-
+  rijen — in plaats van een raster van twee kolommen. Genres, labels, podcasts, festivals, jaren en
+  lineups (allemaal via `CollectionGrid`) en de albums-, artiesten- en zoekresultatenrasters gaan
+  naar drie kolommen met kleinere tegels. Playlists krijgen op de telefoon een lijst met een 56 px
+  miniatuur per rij in plaats van een tegelraster — dat is wat Spotify's eigen Bibliotheek-tab ook
+  doet, terwijl de genre-/labeltegels een raster blijven omdat Spotify die ook zo toont. Een
+  ontbrekende cover (het MuMa-merkteken) staat nu klein, gedempt en ingekaderd in plaats van
+  levensgroot en wit uitgelicht. Desktop (vanaf `md`) is in geen van deze schermen aangeraakt.
+
+- Op de telefoon nemen de filters van Songs, Sets en Playlists niet langer een half scherm in voordat de eerste rij komt. Genre, Jaar, Rating, Sorteren en een Ongewaardeerd-schakelaar staan nu in één horizontaal scrollbare rij chips; een actieve chip toont zijn waarde en is groen gevuld, met een × om hem te wissen. Een tik opent een van onderen inschuivend paneel (nieuw `BottomSheet.svelte`) met de opties, in plaats van een `<select>`. Zoeken is een loep-chip die uitklapt in plaats van een altijd zichtbaar veld. Playlists krijgt dezelfde aanpak: Favorieten/Alle/Van mij/Openbaar/Privé als chips in één rij, een sorteerchip met veld én richting in het paneel, en het aantal staat nu in de sectieregel ("296 playlists") in plaats van los rechts te zweven. De nummerlijst toont geen "TITLE"-kolomkop meer op de telefoon en de sterren staan onder de artiestnaam. Desktop blijft ongewijzigd.
+
+- De navigatie op de telefoon is nu Spotify-stijl: onderaan staan alleen nog Home, Zoeken en Bibliotheek — Songs/Sets is geen tab meer maar een modus-knop boven Home, Zoeken en Bibliotheek, Downloads is een keuzeknop in de Bibliotheek-tab geworden en Beheer zit in het profielmenu. De Zoeken-tab toont, zolang er niet gezocht wordt, een raster met alle sidebar-secties (genres, labels, podcasts, festivals, jaren, lineups, artiesten, albums, memories, geschiedenis, luisterstatistieken, favorieten) zodat niets van de desktop-sidebar op de telefoon onbereikbaar blijft. De desktop-indeling verandert niet.
+
+- **Afspelen zit vanaf nu achter een platformlaag, en er verandert niets zichtbaars.** `Player.svelte`
+  deed alles zelf met zijn `<audio>`-element — laden, spelen, spoelen, volume, de equalizer, de
+  Media Session, en een eigen timer omdat de browser van de tv geen `timeupdate` stuurt — en dat is
+  precies het stuk dat op een telefoon door `PlaybackService` gedaan wordt. Die motor staat nu in
+  `src/lib/platform/`, achter één `platform`-object met `player`, `storage`, `speech`, `diagnostics`
+  en `system`; de implementatie wordt één keer gekozen bij het importeren, en dat ene punt is waar
+  een Capacitor-schil zich later inhaakt. Wachtrij, shuffle, radio, nieuws en jam-sync bleven staan
+  waar ze stonden. Dezelfde DOM, dezelfde knoppen, dezelfde 1.318 bestaande tests ongewijzigd groen.
+  Fase 0 van `docs/designs/universal-ui/`.
+
+### Fixed
+- **Minispeler op de telefoon groeide tot drie keer zijn hoogte** zodra het huidige nummer geen
+  hoes had. De placeholder-hoes krijgt op de telefoon een rand van 18%, en die werd berekend
+  over de hele balk in plaats van over de 44px van het hoesje. Het hoesje staat nu in zijn
+  eigen kader, dus de rand blijft binnen de 44px.
+
+- **De webinterface hielp een lus op de telefoon-app in stand houden die het afspelen nooit liet
+  starten.** Een commando van de afspeeldienst zonder nummer en zonder wachtrijlengte — de
+  tussentoestand van een wachtrijwissel die zichzelf nog aan het bijwerken was, niet een echte
+  "vorige" of "volgende" — werd tot nu toe gelezen als een stap in de eigen wachtrij, wat
+  `currentTrack` verplaatste en een nieuwe wachtrij naar de telefoon stuurde. De hand-off stapt nu
+  niet meer op een leeg commando, en onthoudt bovendien bij welke wachtrij en positie al eerder is
+  gestuurd, zodat dezelfde stand nooit twee keer wordt doorgegeven — ook niet wanneer de
+  afspeeldienst zelf tijdelijk een verouderde stand teruggeeft.
+
+- **"Toevoegen aan wachtrij" bereikte de afspeeldienst op de telefoon nooit.** De webinterface
+  beslist wat er in de wachtrij staat maar houdt hem niet vast, dus elke wijziging reist als één
+  `setQueue` met de héle lijst. Stond het spelende nummer niet in die lijst — en dat is de gewone
+  toestand na een kaartje op het startscherm of een zoekresultaat — dan werd de lijst weggegooid en
+  ging alleen dat ene nummer over. Het toegevoegde nummer zat niet in het bericht en werd dus nooit
+  gespeeld; vóór 0.60.2 begon de spelende set er ook nog van vooraf aan. Een nummer zonder lijst
+  erachter gaat nu vóór de wachtrij in plaats van ernaast, precies zoals de browser met dezelfde
+  stores doet, en toevoegen, hierna afspelen, verwijderen, herordenen, leegmaken en "speel deze
+  lijst vanaf hier" sturen allemaal de complete wachtrij met de juiste positie mee. De UI volgt
+  daarnaast een `next` van de notificatie nu ook als het bericht over de nieuwe status nog niet was
+  aangekomen — twee losse berichten over de brug lieten de app een nummer achterlopen.
+
+- **De knop "Sets" onderin de app navigeerde niet.** Een tik zette de weergave op `sets` terwijl de
+  modus nog op `songs` stond, en het effect dat die twee gelijk houdt zette de weergave meteen weer
+  terug: het adres bleef `/songs` en de merkkleur bleef groen. Beide helften verhuizen nu samen, en
+  de schakelaar in de zijbalk op een groot scherm blijft werken zoals hij werkte.
+
+- **Management en Bibliotheek meldden "Not available without a connection" terwijl de telefoon
+  gewoon online was.** `subsonicJson()` zette de `offline`-vlag op elke netwerkfout, ook een enkele
+  time-out of een niet-JSON antwoord (een proxy-foutpagina gooit een `SyntaxError` uit
+  `response.json()`, geen `TypeError` van `fetch` zelf, maar werd tot nu toe hetzelfde behandeld).
+  Eenmaal gezet bleef de vlag staan tot het enige andere schrijfpunt, het Android
+  connectivity-event, weer *veranderde* — schermen zonder eigen offline-bron (playlists, feeds,
+  memories, listening, Management) lieten daarna hun "unavailable"-melding zien tot een herstart,
+  terwijl Songs gewoon doorwerkte omdat die view wél een lokale bron heeft. Een mislukte aanvraag
+  vraagt nu `storage.isOffline()` opnieuw voor de vlag omgaat; bevestigt het apparaat dat niet, dan
+  reist de oorspronkelijke fout gewoon door naar de aanroeper, precies zoals in de browser. Staat de
+  vlag nog van een eerdere blip, dan wordt diezelfde controle ook vóór het overslaan naar de
+  lokale bibliotheek gedaan, zodat een herstelde verbinding meteen weer geprobeerd wordt in plaats
+  van te wachten op een los connectivity-event.
+
+- **Now Playing op de telefoon lag onder de kop en de onderbalk.** Het schermvullende
+  Now Playing zit in de speler, en die had als rasteritem een eigen stapelcontext (`z-20`);
+  de plakkende zoekkop (`z-30`) en de onderbalk tekenden er overheen, dus de sluitknop,
+  "speelt uit" en de equalizer/wachtrij-knoppen onderaan waren onbereikbaar. De speler staat
+  nu boven beide. De sluitknop wijst bovendien omlaag (hij wees omhoog), en de knoppen op de
+  instellingenschermen ("Wijzigingen opslaan", "Cache wissen", ...) breken op de telefoon
+  niet meer over twee regels.
+
+- **Wachtrij en nummerlijsten op de telefoon.** Een nummer zonder hoes kreeg in de rij een
+  placeholder van ~240px (de 18%-rand van de placeholder rekende over de hele rij), en de tabel
+  was breder dan het scherm: de titelkolom rekte mee met de langste titel en de
+  hover-knoppenkolom nam 100px in zonder ooit zichtbaar te zijn. De placeholder-rand geldt nu
+  alleen voor de tegels, de tabel heeft een vaste kolomindeling zodat titels afkappen, en de
+  knoppenkolom is op de telefoon weg — behalve in de wachtrij en op een afspeellijst, waar
+  "verwijderen" en de download-knop altijd zichtbaar zijn.
+
+- **Uitloggen in de Android-shell deed zichtbaar niets.** `handleLogout` wiste alleen de
+  localStorage-cache en herlaadde de pagina; de credentials op de telefoon zelf bleven staan.
+  `bootstrapShell()` las ze bij het opnieuw opstarten gewoon terug uit Kotlin en logde de
+  gebruiker meteen weer in, dus de knop leek dood. `handleLogout` wacht nu eerst op het nieuwe
+  `platform.system.signOut()` — in de shell wist dat het wachtwoord, de muma API-key/refresh-token
+  en de wachtrij op de telefoon; in de browser is het een no-op die meteen resolvet — voordat de
+  rest van de sessie wordt gewist en er herladen wordt. Na een nieuwe aanmelding via de Svelte
+  LoginPage in de shell schrijft `platform.system.saveCredentials()` het paar ook weer terug naar
+  Kotlin, zodat downloads, Android Auto en de klassieke interface dezelfde sessie zien. Een
+  Google-aanmelding in de shell doet dat nog niet — dat blijft web-only, zie de code-comment bij
+  `handleGoogleResponse`.
+
+- **De playlists-tab en playlist-detailpagina omzeilden de offline-schakelaar volledig.** `Dashboard.svelte`
+  haalde `getPlaylists` en `PlaylistView.svelte` haalde `getPlaylist` met een losse `fetch` op, terwijl
+  elke andere lijst via `subsonicJson()` gaat -- die valt terug op `platform.storage.query` zodra de
+  shell geen route naar de server heeft. Beide gaan nu via `subsonicJson()`, en `playlists`/
+  `playlist-detail` staan in `viewHasOfflineSource` zodat de weergave dat ook weet. Zie het
+  gelijktijdige mobile-fragment voor het `OfflineSubsonic`-antwoord dat dit nu daadwerkelijk kan
+  beantwoorden.
+- **Er bestond een tweede, ongebruikte "wifi only voor downloads"-instelling.** De `downloadsWifiOnly`
+  store in `store.js` werd naar het account gesynchroniseerd, maar de enige plek die hem kon
+  schrijven rendert nooit (de rij bestaat alleen als `platform.storage.supported`, en dan schrijft
+  `GeneralSettings.svelte` al rechtstreeks de echte Kotlin-instelling). Die dode store, zijn
+  `persist`-regel en de account-sync zijn verwijderd; `Settings.isWifiRequiredForDownload` (geschreven
+  via de `wifiOnly`-sleutel) is de enige plek waar dit nog vandaan komt. `DownloadService` bleek die
+  vlag al te lezen en een download op mobiel netwerk al te laten wachten tot wifi terug is.
+
+- **Shuffle en herhalen deden niets op de telefoon, en de muziek stopte aan het einde van de
+  wachtrij.** De webspeler besliste zelf welk nummer volgde -- een eigen shuffle-spoor, een eigen
+  herhaalteller -- terwijl de afspeeldienst op de telefoon zijn eigen, vaste volgorde afspeelde en
+  daar nooit iets van hoorde. De knoppen zetten alleen een vlag in de webinterface; op de telefoon
+  veranderde er niets aan wat er werkelijk speelde, en een wachtrij die opraakte stopte gewoon. Beide
+  standen gaan nu naar de afspeeldienst zelf, die ze al kent (`shuffleModeEnabled`/`repeatMode`), dus
+  Android Auto, de melding en het einde van de wachtrij gedragen zich er meteen naar. In de browser
+  verandert er niets.
+
+- **In de nieuwe interface op de telefoon begon een aangetikt nummer nooit te spelen.** De
+  afspeeldienst kreeg de wachtrij wél binnen, maar bleef op pauze staan: het `setQueue`-bericht
+  vroeg niet om te starten, en het `load`-bericht dat dat daarna moest doen werd weggegooid door de
+  bewaker "de dienst staat al op dat nummer" — want het aannemen van een wachtrij zet de dienst
+  meteen op die positie. Een kaartje op het startscherm of een zoekresultaat kwam nog verder: dat
+  zet alleen het huidige nummer en geen wachtrij, en de dienst kan alleen spelen wat hij vasthoudt,
+  dus daar gebeurde helemaal niets. Het startverzoek reist nu mee met de wachtrij, en een nummer
+  zonder lijst erachter wordt zelf de wachtrij. De unit-test hierop kon dit niet zien: de nagemaakte
+  speler verzette het huidige nummer niet bij `setQueue`, zoals de echte plug-in dat wel doet.
+
+- **Een map met `.mp3` in de naam werd elke tagronde als nummer geparsed, en faalde elke keer.**
+  `parse_folder` zocht bestanden met `Path.glob`, en die matcht op naam — dus
+  `/mnt/music/EPs/This is Terror/TITCD018 - Srb - Rocket Science (2015).mp3`, een map, kwam
+  binnen als kandidaat. `stat()` en `needs_processing` slagen allebei op een map, dus het liep
+  pas stuk in mutagen, als `IsADirectoryError: [Errno 21]`. Dat is vijf `Parse_song failed` per
+  nacht op productie (2026-09-10) die nooit minder konden worden: geen enkele volgende ronde
+  maakt een map leesbaar als audio. De glob levert nu alleen echte bestanden op.
 ## [0.60.2] - 2026-09-11
 
 ### Fixed

@@ -1,1 +1,0 @@
-- Inside de Android-app draait de nieuwe interface nu op de bestaande afspeeldienst: de webspeler logt zichzelf in met de server en het account die op de telefoon staan, geeft de wachtrij aan de notificatie en Android Auto door, en vindt na een herstart van de WebView zijn plek in het nummer terug. In de browser verandert er niets.

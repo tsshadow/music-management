@@ -479,7 +479,6 @@ describe("capacitor system", () => {
     ]);
   });
 
-
   it("forwards signOut to the plugin and awaits it", async () => {
     const { platform, plugins } = nativePlatform();
 

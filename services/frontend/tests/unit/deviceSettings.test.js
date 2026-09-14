@@ -232,7 +232,6 @@ describe("DeviceSettings", () => {
     expect(screen.getByText("Diagnostiek verstuurd.")).toBeInTheDocument();
   });
 
-
   it("shows a load error rather than a blank page when getSettings rejects", async () => {
     platform.system.getSettings = vi.fn(async () => {
       throw new Error("bridge not ready");

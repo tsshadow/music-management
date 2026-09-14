@@ -760,6 +760,7 @@
       const moved = trackAfterCommand($playlist, $currentTrack?.id ?? null, {
           name: command.name,
           trackId: engine.trackId,
+          queueLength: engine.queueLength,
       });
       if (!moved) return;
       hasScrobbledStarted = false;

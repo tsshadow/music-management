@@ -119,15 +119,28 @@ export function queueToPush(tracks, current, adopting = false) {
  *
  * @param {Array<object>} queue - The UI's queue, in order.
  * @param {string|number|null} currentId - Id of the track the UI shows now.
- * @param {{name?: string, trackId?: string|null}} command - The event.
+ * @param {{name?: string, trackId?: string|null, queueLength?: number|null}} command - The event.
+ *   `queueLength` is the native side's own queue length, carried in the snapshot every command
+ *   arrives with.
  * @returns {object|null} The queue entry to move to, or null to stay put.
  */
-export function trackAfterCommand(queue, currentId, { name = "", trackId = null } = {}) {
+export function trackAfterCommand(
+  queue,
+  currentId,
+  { name = "", trackId = null, queueLength = null } = {},
+) {
   const current = currentId == null ? null : String(currentId);
   const playing = trackId == null ? null : String(trackId);
   if (playing !== null && playing !== current) {
     return queue.find((entry) => String(entry.id) === playing) ?? null;
   }
+
+  // No track and nothing queued is not a lagging snapshot catching up -- it is the transient
+  // state a self-inflicted queue replacement produces while it clears the old timeline before the
+  // new one loads (`status: "ended", queueLength: 0`). Stepping the UI's own queue on it invents a
+  // move nobody made; staying put and waiting for the snapshot that actually names a track is the
+  // only safe response to an empty one.
+  if (playing === null && queueLength === 0) return null;
 
   const step = name === "next" ? 1 : name === "previous" ? -1 : 0;
   if (step === 0 || current === null) return null;
@@ -149,6 +162,8 @@ export function trackAfterCommand(queue, currentId, { name = "", trackId = null 
 export function createNativeQueue(player, { artworkUrlFor, onError = () => {} }) {
   /** The ids last known to be on the far side; null until `adopt` or a push. */
   let pushed = null;
+  /** The index last known to be on the far side, alongside [pushed]; -1 until `adopt` or a push. */
+  let pushedIndex = -1;
   let chain = Promise.resolve();
 
   /**
@@ -165,6 +180,7 @@ export function createNativeQueue(player, { artworkUrlFor, onError = () => {} })
       .then(async () => {
         const queue = await player.queueState();
         pushed = queue.trackIds.slice();
+        pushedIndex = queue.index;
         return pushed;
       })
       .catch((error) => {
@@ -201,10 +217,13 @@ export function createNativeQueue(player, { artworkUrlFor, onError = () => {} })
     const ids = queue.map((track) => String(track.id));
     const same = !isDifferentQueue(pushed, ids);
 
-    // Nothing the service does not already know. Either there is no track to
-    // point it at, or it is on that one -- which is its own move coming back
-    // through `currentTrack`. Re-sending an identical list with the same
-    // current item makes the plugin rebuild the queue around it for no reason.
+    // Nothing the service does not already know. Either the last push already told it this exact
+    // list and index -- including a push it drove itself, which the UI mirrors back through
+    // `currentTrack` and would otherwise ask for again -- or there is no track to point it at, or
+    // it is already on that one. Re-sending an identical list with the same current item makes the
+    // plugin rebuild the queue around it for no reason; re-sending it with an index the native side
+    // never actually reached (a stale mirror of a transient event) would ask for a real move.
+    if (same && index === pushedIndex) return;
     if (same && index < 0) return;
     if (same && String(player.state().trackId) === ids[index]) return;
 
@@ -223,6 +242,7 @@ export function createNativeQueue(player, { artworkUrlFor, onError = () => {} })
       autoplay: autoplay && index >= 0,
     });
     pushed = ids;
+    pushedIndex = index;
   }
 
   return { adopt, sync, pushedIds: () => (pushed === null ? null : pushed.slice()) };

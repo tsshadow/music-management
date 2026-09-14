@@ -140,4 +140,22 @@ class MumaSystemPluginSettingsTest {
 
         result.captured.getString("version") shouldBeEqualTo ""
     }
+
+    /**
+     * `releaseNotes` reads through the same `safeContext()` seam as `appVersion`, for the same
+     * reason: a bare plugin with no bridge attached has nothing to open `CHANGELOG.md` from.
+     * Reading the real asset needs a context Robolectric can resolve `assets/` against, which
+     * nothing else in this class sets up -- the contract this test protects is "never throws and
+     * never resolves anything but a string", not "reads the real file".
+     */
+    @Test
+    fun `releaseNotes resolves an empty string without an attached bridge`() {
+        val result = slot<JSObject>()
+        val theCall = mockk<PluginCall>(relaxed = true)
+        every { theCall.resolve(capture(result)) } returns Unit
+
+        plugin.releaseNotes(theCall)
+
+        result.captured.getString("text") shouldBeEqualTo ""
+    }
 }

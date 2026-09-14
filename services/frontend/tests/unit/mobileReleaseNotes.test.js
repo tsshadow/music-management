@@ -149,7 +149,11 @@ describe("checkForMobileUpdate", () => {
 
   it("shows what changed since the version the device last saw", async () => {
     const platform = {
-      system: { isNative: true, appVersion: vi.fn().mockResolvedValue("6.35.1") },
+      system: {
+        isNative: true,
+        appVersion: vi.fn().mockResolvedValue("6.35.1"),
+        releaseNotes: vi.fn().mockResolvedValue(SAMPLE),
+      },
     };
     const storage = fakeStorage({ muma_mobile_last_app_version: "6.34.0" });
 
@@ -163,20 +167,54 @@ describe("checkForMobileUpdate", () => {
 
   it("shows nothing when the version has not actually changed", async () => {
     const platform = {
-      system: { isNative: true, appVersion: vi.fn().mockResolvedValue("6.35.1") },
+      system: {
+        isNative: true,
+        appVersion: vi.fn().mockResolvedValue("6.35.1"),
+        releaseNotes: vi.fn(),
+      },
     };
     const storage = fakeStorage({ muma_mobile_last_app_version: "6.35.1" });
+
+    await checkForMobileUpdate({ platform, storage });
+
+    expect(platform.system.releaseNotes).not.toHaveBeenCalled();
+    expect(get(activeModal)).toBeNull();
+  });
+
+  it("shows nothing when the shell has no changelog asset to read", async () => {
+    const platform = {
+      system: {
+        isNative: true,
+        appVersion: vi.fn().mockResolvedValue("6.35.1"),
+        releaseNotes: vi.fn().mockResolvedValue(null),
+      },
+    };
+    const storage = fakeStorage({ muma_mobile_last_app_version: "6.34.0" });
 
     await checkForMobileUpdate({ platform, storage });
 
     expect(get(activeModal)).toBeNull();
   });
 
-  it("resolves without throwing when the bridge call fails", async () => {
+  it("resolves without throwing when the appVersion bridge call fails", async () => {
     const platform = {
       system: { isNative: true, appVersion: vi.fn().mockRejectedValue(new Error("no bridge")) },
     };
     const storage = fakeStorage();
+
+    await expect(checkForMobileUpdate({ platform, storage })).resolves.toBeUndefined();
+    expect(get(activeModal)).toBeNull();
+  });
+
+  it("resolves without throwing when the releaseNotes bridge call fails", async () => {
+    const platform = {
+      system: {
+        isNative: true,
+        appVersion: vi.fn().mockResolvedValue("6.35.1"),
+        releaseNotes: vi.fn().mockRejectedValue(new Error("no bridge")),
+      },
+    };
+    const storage = fakeStorage({ muma_mobile_last_app_version: "6.34.0" });
 
     await expect(checkForMobileUpdate({ platform, storage })).resolves.toBeUndefined();
     expect(get(activeModal)).toBeNull();

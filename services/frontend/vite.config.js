@@ -56,15 +56,6 @@ export default defineConfig(({ mode }) => {
     server: {
       host: true,
       proxy: backendProxy(env),
-      // Vite's default `fs.allow` is this project's own root -- there is no
-      // monorepo-wide `package.json`/lockfile above it for `searchForWorkspaceRoot`
-      // to find instead. `mobileReleaseNotes.js` imports muma-mobile's own
-      // `CHANGELOG.md` with `?raw` so the app's once-per-upgrade release notes
-      // need no network call; one directory up (`services/`) is the smallest
-      // widening that request can resolve under.
-      fs: {
-        allow: [".."],
-      },
     },
     // `vite preview` serves the built bundle. The browser tests use it instead
     // of the dev server (see playwright.config.js), so it needs the same proxy

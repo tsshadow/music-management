@@ -1,4 +1,3 @@
-import changelogText from "../../../muma-mobile/CHANGELOG.md?raw";
 import { platform as defaultPlatform } from "./platform/index.js";
 import { activeModal } from "./store.js";
 
@@ -13,9 +12,14 @@ import { activeModal } from "./store.js";
  * `versionName` instead of the LMS server's version, and sourced from muma-mobile's own
  * `CHANGELOG.md` rather than a hand-maintained JSON: one file to keep current, not two.
  *
- * `?raw` pulls the file's text into the JS bundle at build time -- there is no request behind it
- * at runtime, which is what makes this safe to show as one of the first things a listener sees
- * after an upgrade, before the app has necessarily reached a server at all.
+ * The changelog text travels through `platform.system.releaseNotes()`, not a bundled import: a
+ * `?raw` import reaching into `services/muma-mobile` resolves fine under `vite dev`/`vitest`
+ * (the whole checkout is on disk there) but not in `frontend:bundle`'s Docker build, whose
+ * context is `services/frontend` alone -- the frontend build has to stay self-contained. The
+ * Capacitor plugin instead reads the same `CHANGELOG.md` that `copyChangelog` in
+ * `app/build.gradle` already stages into the APK's assets for the legacy `Util.showChangelog`,
+ * so nothing new has to be wired into the Gradle build either. A browser tab has no such asset
+ * and answers `null`, which is also what keeps this from ever showing outside the shell.
  */
 
 const STORAGE_KEY = "muma_mobile_last_app_version";
@@ -122,10 +126,10 @@ export function isNewerVersion(a, b) {
  * The releases to announce for an upgrade from `lastSeenVersion`, newest first.
  *
  * @param {string} lastSeenVersion
- * @param {Array<{version: string}>} [releases]
+ * @param {Array<{version: string}>} releases
  * @returns {Array<{version: string, date: string, notes: Record<string, string[]>}>}
  */
-export function releasesSince(lastSeenVersion, releases = parseMobileChangelog(changelogText)) {
+export function releasesSince(lastSeenVersion, releases) {
   return releases.filter((release) => isNewerVersion(release.version, lastSeenVersion));
 }
 
@@ -138,7 +142,9 @@ export function releasesSince(lastSeenVersion, releases = parseMobileChangelog(c
  * running the latest served bundle, so "what changed since your last version" does not apply.
  * A first install -- `localStorage` has nothing stored yet -- is stored and left alone rather
  * than shown every changelog entry that predates the install; only a device that has *seen* an
- * older version gets told what changed since.
+ * older version gets told what changed since. The changelog text itself is only asked for once
+ * an upgrade is already confirmed, not on every boot: it can be tens of kilobytes, and the
+ * common case (nothing changed since last time) never needs it.
  *
  * @param {object} [options]
  * @param {import('./platform/index.js').Platform} [options.platform]
@@ -163,7 +169,16 @@ export async function checkForMobileUpdate(options = {}) {
 
   if (!lastSeenVersion || lastSeenVersion === currentVersion) return;
 
-  const releases = releasesSince(lastSeenVersion);
+  let changelogText;
+  try {
+    changelogText = await platform.system.releaseNotes();
+  } catch (error) {
+    console.warn("Could not read muma-mobile's release notes", error);
+    return;
+  }
+  if (!changelogText) return;
+
+  const releases = releasesSince(lastSeenVersion, parseMobileChangelog(changelogText));
   if (releases.length > 0) {
     activeModal.set({ type: "release-notes", data: { releases } });
   }

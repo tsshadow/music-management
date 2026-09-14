@@ -124,23 +124,13 @@ export function createCapacitorSystem(plugin) {
 
     /**
      * Writes a username/password pair the web login screen just verified back to the phone, so
-     * downloads, Android Auto and the legacy UI see the same session afterwards.
+     * downloads and Android Auto see the same session afterwards.
      *
      * @param {{url?: string, username: string, password: string}} creds
      * @returns {Promise<void>}
      */
     saveCredentials(creds) {
       return plugin.saveCredentials(creds);
-    },
-
-    /** Hands the phone back to the Kotlin interface and restarts into it. */
-    switchToLegacyUi() {
-      fireAndForget("switchToLegacyUi", plugin.switchToLegacyUi());
-    },
-
-    /** Opens the Kotlin settings screen; phase 1 keeps downloads and the car there. */
-    openLegacySettings() {
-      fireAndForget("openLegacySettings", plugin.openLegacySettings());
     },
 
     /**

@@ -9,10 +9,8 @@ package nl.teunschriks.mumamobile.activity
 
 import android.content.Intent
 import nl.teunschriks.mumamobile.util.Constants
-import nl.teunschriks.mumamobile.util.Settings
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.shouldBeEqualTo
-import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -21,11 +19,8 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /**
- * The trampoline is the whole of the launcher decision, so this is where the decision is tested.
- *
- * Both directions matter equally and for the same reason: this is the only code that reads
- * `webUiEnabled` on the way in. If it picked wrongly, the icon would open the interface the user
- * turned off and the setting would look broken rather than the routing.
+ * The trampoline is the whole of the launcher entry, so this is where the hand-over is tested:
+ * the shell is what opens, and a shortcut's action and extras survive the hop.
  *
  * What is *not* asserted here, because a JVM test cannot see it, is why the trampoline exists at
  * all -- Android deleting the task whose `origActivity` names a disabled alias. That was measured
@@ -34,11 +29,6 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(application = nl.teunschriks.mumamobile.app.UApp::class)
 class LauncherActivityRoutingTest {
-
-    @After
-    fun reset() {
-        Settings.webUiEnabled = false
-    }
 
     private fun startedBy(intent: Intent? = null): Intent {
         val controller = if (intent == null) {
@@ -53,16 +43,7 @@ class LauncherActivityRoutingTest {
     }
 
     @Test
-    fun `with the web UI off the icon opens the Kotlin screens`() {
-        Settings.webUiEnabled = false
-
-        startedBy().component?.className `should be equal to` NavigationActivity::class.java.name
-    }
-
-    @Test
-    fun `with the web UI on the icon opens the shell`() {
-        Settings.webUiEnabled = true
-
+    fun `the icon opens the shell`() {
         startedBy().component?.className `should be equal to` CapacitorActivity::class.java.name
     }
 
@@ -72,7 +53,6 @@ class LauncherActivityRoutingTest {
      */
     @Test
     fun `the action and extras of a shortcut are handed on`() {
-        Settings.webUiEnabled = false
         val shortcut = Intent(Constants.INTENT_PLAY_RANDOM_SONGS)
             .putExtra(Constants.INTENT_SHOW_PLAYER, true)
 
@@ -80,7 +60,7 @@ class LauncherActivityRoutingTest {
 
         started.action `should be equal to` Constants.INTENT_PLAY_RANDOM_SONGS
         started.getBooleanExtra(Constants.INTENT_SHOW_PLAYER, false) shouldBeEqualTo true
-        started.component?.className `should be equal to` NavigationActivity::class.java.name
+        started.component?.className `should be equal to` CapacitorActivity::class.java.name
     }
 
     /** A tap on the icon returns to the app where it was, so the task is cleared down to the UI. */

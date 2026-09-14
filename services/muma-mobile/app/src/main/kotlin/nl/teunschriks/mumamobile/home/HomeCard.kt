@@ -7,8 +7,6 @@
 
 package nl.teunschriks.mumamobile.home
 
-import androidx.annotation.StringRes
-
 enum class HomeCardType {
     ALBUM,
     ARTIST,
@@ -47,7 +45,7 @@ enum class CardStyle { GRID, CAROUSEL, LIST, BANNER }
  * One item on the home screen, whichever section it appears in.
  *
  * Deliberately free of navigation and view state: shortcut cards are persisted as JSON by
- * [RecentActivityStore], so this has to stay plain data. Navigation lives in [HomeCardNavigator].
+ * [RecentActivityStore], so this has to stay plain data.
  */
 data class HomeCard(
     val type: HomeCardType,
@@ -78,28 +76,3 @@ data class HomeCard(
     /** Identity across sections and across app restarts. Two types never collide. */
     val key: String get() = if (source == null) "$type:$itemId" else "${source.name}:$type:$itemId"
 }
-
-/** A titled group of cards. The home screen renders whatever list of these it is given. */
-data class HomeSection(
-    @StringRes val titleRes: Int,
-    val style: CardStyle,
-    val cards: List<HomeCard>,
-    /**
-     * Format arguments for [titleRes]. Memories need a title that changes with the data ("Today,
-     * 8 years ago"); every other section passes none and is unaffected.
-     */
-    val titleArgs: List<Any> = emptyList()
-)
-
-/**
- * One row of the home screen: the shared button grid, or one section shown as an overview.
- *
- * [id] is null for the grid, which belongs to no single section -- it is what every section set to
- * button contributed. For everything else it is the section, which is what lets a rebuild keep a
- * slot's loaded content instead of putting a skeleton back over it.
- */
-data class HomeSlot(
-    val id: HomeSectionId?,
-    val style: CardStyle,
-    val state: HomeSectionState
-)

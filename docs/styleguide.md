@@ -142,5 +142,5 @@ To maintain clean design governance and prevent ad-hoc style drift:
   existing `default_ripple.xml`/`select_ripple.xml` drawables reference a `?attr/backgroundColor` that isn't
   a standard theme attribute in this app, so wiring one in without being able to visually verify it felt too
   risky for this pass. The rest of the Android UI (track/album cards, player, navigation) also hasn't been
-  brought in line with this style guide's component patterns; see `services/muma-mobile/STYLEGUIDE.md` for the
-  full reference these should eventually follow.
+  brought in line with this style guide's component patterns -- and then, since muma-mobile 7.0.0, the
+  Android UI is the web player itself (`docs/designs/universal-ui/`), so this paragraph is history.

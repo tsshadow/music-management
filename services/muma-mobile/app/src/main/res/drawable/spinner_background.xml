@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- A dropdown's box. It was white with a #CCCCCC stroke, left over from a light theme the app
-     has not had since well before the rebrand, so it painted a white slab on a black screen. -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="?attr/colorSurfaceVariant"/>
-    <stroke android:width="1dp" android:color="?attr/colorHairline"/>
-    <corners android:radius="?attr/radiusBanner"/>
-</shape>

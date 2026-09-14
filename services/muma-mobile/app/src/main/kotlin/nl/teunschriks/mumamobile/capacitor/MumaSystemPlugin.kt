@@ -25,7 +25,6 @@ import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.ActivityCallback
 import com.getcapacitor.annotation.CapacitorPlugin
-import nl.teunschriks.mumamobile.activity.NavigationActivity
 import nl.teunschriks.mumamobile.car.CAR_DEVICE_CLASSES
 import nl.teunschriks.mumamobile.car.CarPresence
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
@@ -34,7 +33,6 @@ import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Storage
-import nl.teunschriks.mumamobile.util.UiVariant
 import nl.teunschriks.mumamobile.util.Util
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -128,8 +126,8 @@ class MumaSystemPlugin :
      * `frontend:bundle`'s Docker build context is `services/frontend` alone, so a build-time
      * import reaching into `services/muma-mobile` cannot resolve there even though it resolves
      * fine under a local `vite dev`/`vitest` run against the full checkout. `copyChangelog` in
-     * `app/build.gradle` already stages this exact file into the APK's assets, for the legacy
-     * `Util.showChangelog` -- reading it again here needs no new Gradle wiring.
+     * `app/build.gradle` already stages this exact file into the APK's assets -- reading it
+     * here needs no new Gradle wiring.
      *
      * An empty string is what a missing asset (no bridge attached, or a checkout where
      * `copyChangelog` never ran) answers with; the web side already treats that the same as "no
@@ -230,7 +228,7 @@ class MumaSystemPlugin :
      * Android Auto and the legacy UI see the same session afterwards. Goes through
      * [ActiveServerProvider.saveCredentials]. `url` is accepted for symmetry with the JS contract
      * but not stored: static mode has exactly one server address (see
-     * `ServerSettingsModel.STATIC_SERVERS`), so there is nowhere on this side to put a different
+     * `StaticServers.STATIC_SERVERS`), so there is nowhere on this side to put a different
      * one.
      */
     @PluginMethod
@@ -238,55 +236,6 @@ class MumaSystemPlugin :
         val username = call.getString("username") ?: ""
         val password = call.getString("password") ?: ""
         activeServerProvider.saveCredentials(username, password)
-        call.resolve()
-    }
-
-    /**
-     * Puts the setting back on the Kotlin app and restarts into it.
-     *
-     * The task is cleared rather than the activity finished: the web UI is the task's root, and
-     * leaving it on the stack would let one back press return to the interface the user just
-     * left. No launcher component is disabled on the way out -- the aliases point at the
-     * trampoline, which reads the setting -- because disabling one takes this very task down with
-     * it. See `activity/LauncherActivity.kt`.
-     */
-    @PluginMethod
-    fun switchToLegacyUi(call: PluginCall) {
-        val activity = activity ?: run {
-            call.reject("no activity")
-            return
-        }
-        Settings.webUiEnabled = false
-        call.resolve()
-        activity.runOnUiThread {
-            activity.startActivity(
-                UiVariant.launchIntent(activity)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            )
-            activity.finish()
-        }
-    }
-
-    /**
-     * Opens the Kotlin settings screen on top of the web UI.
-     *
-     * Phase 1 leaves downloads, cache location, the car and the equalizer configured there; the
-     * web player has no page for them yet, and a second, half-complete settings screen would be
-     * worse than a visible seam.
-     */
-    @PluginMethod
-    fun openLegacySettings(call: PluginCall) {
-        val activity = activity ?: run {
-            call.reject("no activity")
-            return
-        }
-        activity.runOnUiThread {
-            activity.startActivity(
-                Intent(activity, NavigationActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    .putExtra(EXTRA_OPEN_SETTINGS, true)
-            )
-        }
         call.resolve()
     }
 
@@ -380,8 +329,7 @@ class MumaSystemPlugin :
     /**
      * The "Apparaat" settings tab's whole state in one call: every field
      * [DEVICE_SETTING_WHITELIST] can write, plus a few read-only ones the tab only ever shows --
-     * the cache location and how many car-mode devices are paired, both edited from the legacy
-     * screen rather than here (see `openLegacySettings`).
+     * the cache location and how many car-mode devices are paired.
      *
      * `carModeFullScreenGranted` is left out entirely below Android 14 and where
      * [NotificationManager] cannot answer, exactly as the legacy row hides itself in that case --
@@ -488,11 +436,9 @@ class MumaSystemPlugin :
     }
 
     /**
-     * Fires the same system settings screen the legacy row's click listener does
-     * (`SettingsFragment.setupCarModeFullScreen`), so the user can grant the "use full screen
-     * intent" permission car mode raises the screen with. Fire-and-forget, like
-     * `switchToLegacyUi`/`openLegacySettings`: there is no result to wait for, only
-     * `getSettings`'s `carModeFullScreenGranted` on the next read.
+     * Fires the system settings screen where the user can grant the "use full screen intent"
+     * permission car mode raises the screen with. Fire-and-forget: there is no result to wait
+     * for, only `getSettings`'s `carModeFullScreenGranted` on the next read.
      */
     @PluginMethod
     fun requestCarModeFullScreenPermission(call: PluginCall) {
@@ -516,9 +462,9 @@ class MumaSystemPlugin :
     }
 
     /**
-     * Opens the system's directory picker for a custom cache location, the same
-     * `ACTION_OPEN_DOCUMENT_TREE` flow `SelectCacheActivityContract` drives for the legacy screen.
-     * The result comes back through [onCacheLocationPicked]; this only has to start the intent.
+     * Opens the system's directory picker (`ACTION_OPEN_DOCUMENT_TREE`) for a custom cache
+     * location. The result comes back through [onCacheLocationPicked]; this only has to start the
+     * intent.
      */
     @PluginMethod
     fun pickCacheLocation(call: PluginCall) {
@@ -613,9 +559,6 @@ class MumaSystemPlugin :
         const val EVENT_BACK = "back"
         const val EVENT_DEEP_LINK = "deepLink"
         const val EVENT_CAR_CONNECTED = "carConnected"
-
-        /** Tells [NavigationActivity] to open its settings screen; see [openLegacySettings]. */
-        const val EXTRA_OPEN_SETTINGS = "nl.teunschriks.mumamobile.OPEN_SETTINGS"
 
         /** Same flags `SettingsFragment`'s `RW_FLAG` grants the legacy cache-location picker. */
         const val CACHE_LOCATION_RW_FLAG = Intent.FLAG_GRANT_READ_URI_PERMISSION or

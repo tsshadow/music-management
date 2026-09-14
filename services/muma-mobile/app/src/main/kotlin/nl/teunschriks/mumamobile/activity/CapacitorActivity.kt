@@ -9,7 +9,6 @@ package nl.teunschriks.mumamobile.activity
 
 import android.app.SearchManager
 import android.content.Context
-import android.content.ContextWrapper
 import android.content.Intent
 import android.media.AudioManager
 import android.os.Bundle
@@ -40,7 +39,6 @@ import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.LocaleHelper
 import nl.teunschriks.mumamobile.util.Settings
-import nl.teunschriks.mumamobile.util.UiScaleHelper
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.voice.VoiceTileService
 import org.koin.android.ext.android.inject
@@ -155,9 +153,8 @@ class CapacitorActivity : BridgeActivity() {
     }
 
     /**
-     * Apply the customized language settings if needed. Identical to [NavigationActivity]: the
-     * two activities are the same app, and a WebView started from a shortcut must not be in a
-     * different locale or at a different scale than the rest.
+     * Apply the customized language settings if needed, so the shell's own chrome (permission
+     * dialogs, share sheets) is in the language the user picked, not only the WebView's text.
      */
     override fun attachBaseContext(newBase: Context?) {
         val locale = Settings.overrideLanguage
@@ -166,8 +163,7 @@ class CapacitorActivity : BridgeActivity() {
         } else {
             newBase
         }
-        val scaledContext: ContextWrapper = UiScaleHelper.wrap(localizedContext, Settings.uiScalePercent)
-        super.attachBaseContext(scaledContext)
+        super.attachBaseContext(localizedContext)
     }
 
     // ------------------------------------------------------------------- back

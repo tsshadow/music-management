@@ -52,9 +52,9 @@
         ? $t('login.noServerConnection')
         : `Fout: ${result.message || $t('login.invalidCredentials')}`;
     } else if (isNative) {
-      // Writes the pair back to Kotlin, so downloads, Android Auto and the legacy UI see the
+      // Writes the pair back to Kotlin, so downloads and Android Auto see the
       // same session -- without this a sign-in typed here only ever lived in the WebView, and
-      // a `switchToLegacyUi()` or a download right after would still look logged out.
+      // a download right after would still look logged out.
       await saveNativeCredentials(username, password);
     }
     isLoading = false;
@@ -78,11 +78,6 @@
     } catch (e) {
       console.warn('Could not save the verified credentials back to the phone', e);
     }
-  }
-
-  /** Gives the phone back to the Kotlin interface. Native only. */
-  function backToLegacyUi() {
-    platform.system.switchToLegacyUi();
   }
 
   /**
@@ -128,7 +123,7 @@
    * Known gap, not fixed here: unlike {@link verifyLogin}, this path never calls
    * `platform.system.saveCredentials()`. A Google sign-in performed inside the Capacitor shell
    * therefore only ever updates the web session -- Kotlin keeps whatever it had before (or
-   * nothing, on a first sign-in), so downloads, Android Auto and the legacy UI do not pick up an
+   * nothing, on a first sign-in), so downloads and Android Auto do not pick up an
    * account that was only ever confirmed through Google here. A password sign-in on this same
    * screen is unaffected and does push through.
    */
@@ -338,14 +333,6 @@
 
         <div id="googleBtn" class="flex justify-center w-full"></div>
       {/if}
-    {/if}
-
-    {#if isNative}
-      <!-- The Kotlin interface is still in the APK and still the default; this
-           is the way back out of the beta without reinstalling anything. -->
-      <button class="text-[#b3b3b3] text-sm hover:underline bg-transparent border-none cursor-pointer mt-2" onclick={backToLegacyUi}>
-        {$t('login.backToLegacyUi')}
-      </button>
     {/if}
   </div>
 </div>

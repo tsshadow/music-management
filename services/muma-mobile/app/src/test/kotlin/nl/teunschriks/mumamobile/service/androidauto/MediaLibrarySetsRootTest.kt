@@ -19,8 +19,8 @@ import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.Track
-import nl.teunschriks.mumamobile.fragment.muma.TileInfo
-import nl.teunschriks.mumamobile.fragment.muma.TileStorage
+import nl.teunschriks.mumamobile.home.TileInfo
+import nl.teunschriks.mumamobile.home.TileStorage
 import nl.teunschriks.mumamobile.service.MusicService
 import nl.teunschriks.mumamobile.util.Settings
 import org.amshove.kluent.`should be equal to`

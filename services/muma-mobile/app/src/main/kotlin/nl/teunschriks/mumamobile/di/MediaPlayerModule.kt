@@ -5,7 +5,6 @@ import nl.teunschriks.mumamobile.service.MediaPlayerLifecycleSupport
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.service.PlaybackStateSerializer
 import nl.teunschriks.mumamobile.subsonic.NetworkAndStorageChecker
-import nl.teunschriks.mumamobile.subsonic.ShareHandler
 import org.koin.dsl.module
 
 /**
@@ -34,7 +33,6 @@ val mediaPlayerModule = module {
     single { PlaybackStateSerializer() }
     single { ExternalStorageMonitor() }
     single { NetworkAndStorageChecker() }
-    single { ShareHandler() }
 
     single { MediaPlayerManager(get(), get()) }
     single { MediaPlayerLifecycleSupport(get(), get(), get(), get()) }

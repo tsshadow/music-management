@@ -108,14 +108,10 @@
     }
   }
 
-  /** Fire-and-forget on the Kotlin side, same as `switchToLegacyUi`/`openLegacySettings` below. */
+  /** Fire-and-forget on the Kotlin side. */
   function sendDiagnostics() {
     platform.diagnostics.send();
     diagnosticsStatus = $t('settings.device.diagnosticsSent');
-  }
-
-  function switchToLegacyUi() {
-    platform.system.switchToLegacyUi();
   }
 
   function requestCarModeFullScreenPermission() {
@@ -562,21 +558,6 @@
         </div>
       </section>
 
-      <!-- Interface -->
-      <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
-        <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.device.groups.interface')}</h2>
-        <div class="flex flex-col gap-6">
-          <div class="flex items-center justify-between gap-4">
-            <div class="flex flex-col gap-1">
-              <h3 class="text-lg font-bold">{$t('settings.device.switchToLegacyUi')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.switchToLegacyUiHelp')}</p>
-            </div>
-            <button onclick={switchToLegacyUi} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0">
-              {$t('settings.device.switchToLegacyUi')}
-            </button>
-          </div>
-        </div>
-      </section>
 
       <!-- Other -->
       <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">

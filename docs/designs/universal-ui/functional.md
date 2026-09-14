@@ -298,6 +298,15 @@ now uses Spotify's phone navigation below `md` (`isMobile`); the desktop layout 
   phase only if a visible music folder, a tray icon or an unevictable cache turn out to be
   needed; the `platform` adapter makes that one more implementation, not a rebuild. Capacitor
   stays the Android shell; "Tauri for both" is closed.
+- **Android Auto's favourite tiles — open.** The "Afspeellijsten" root in Auto lists the favourite
+  tiles the Kotlin home screen used to save (`TileStorage`, a SharedPreferences JSON per page).
+  The Kotlin UI is gone since muma-mobile 7.0.0 and nothing writes that store any more, so Auto
+  keeps showing whatever tiles a phone had on the day of the upgrade and a fresh install has
+  none. The web has no equivalent of a saved filter tile. Options: (a) a "save as shortcut"
+  action on the web's filtered track list that writes the tile through a new `MumaStorage`
+  method, (b) Auto reads the web's home shortcuts from the account blob instead, (c) drop the
+  tiles from Auto and accept criterion 5's "plus a Sets root" gains a "minus favourite tiles".
+  Undecided; (b) is the smallest that keeps the car useful.
 - **Jukebox and bookmarks.** Not carried over. Bookmarks are replaced by set resume (functional
   criterion 7). If the jukebox is missed it becomes its own design.
 - **Home sections on the desktop.** This design applies the configurable home to every width. If

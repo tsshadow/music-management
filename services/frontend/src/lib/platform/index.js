@@ -348,7 +348,7 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   sign back in with.
  * @property {function({url?: string, username: string, password: string}): Promise<void>}
  *   saveCredentials Writes a pair the web login screen just verified back to the phone,
- *   so downloads, Android Auto and the legacy UI see the same session afterwards. A
+ *   so downloads and Android Auto see the same session afterwards. A
  *   browser tab has nowhere to put it and resolves at once.
  * @property {function(function(): boolean): function(): void} onBack The platform's
  *   back gesture, not browser history. The handler must be synchronous and
@@ -385,7 +385,7 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   devices: []}`.
  * @property {function(): Promise<void>} requestCarModeFullScreenPermission Opens the system
  *   settings screen for the "use full screen intent" permission car mode's notification needs
- *   to raise the screen by itself. Fire-and-forget, like `switchToLegacyUi` -- there is no
+ *   to raise the screen by itself. Fire-and-forget -- there is no
  *   result to await, only `getSettings()`'s `carModeFullScreenGranted` on the next read. A
  *   browser tab resolves without doing anything.
  * @property {function(): Promise<{uri: string, path: string}|{}>} pickCacheLocation Opens the

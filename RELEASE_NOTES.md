@@ -11,6 +11,26 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.62.0 (2026-09-15)
+
+- **Over-pagina toont nu alle versies**: server, API en webinterface.
+
+- **De app opnieuw openen leverde soms lege lijsten en foutmeldingen op** — een serverthread
+  bleef na een race op je login-token elke aanvraag afwijzen. Opgelost.
+
+- **De webspeler kent geen "Terug naar de klassieke interface" meer.** De knop op het
+  inlogscherm en de rij in Instellingen → Apparaat riepen `switchToLegacyUi` aan op de telefoon;
+  die interface bestaat sinds muma-mobile 7.0.0 niet meer, dus de knop, de rij, de groep
+  "Interface" op de Apparaat-tab en de plug-in-methoden `switchToLegacyUi`/`openLegacySettings`
+  zijn uit de shell-laag gehaald.
+
+- **Telefoon: onderbalk Home | Bladeren | Favorieten**, startscherm met blokjes voor Memories,
+  Release radar, Daily mix en Favorieten, een detailblad per nummer via "⋯", de instelling
+  voor 2 of 3 regels per nummer, en compactere instellingen.
+
+- **Geavanceerd zoeken.** Zoek op meerdere genres, artiesten, labels, festivals en jaren
+  tegelijk, met rating en sortering, en bewaar het als snelkoppeling op je startscherm — en in
+  de auto. Bestaande snelkoppelingen zijn nu ook te bewerken.
 ## Global Version 0.61.0 (2026-09-14)
 
 - De "Apparaat"-instellingen zijn compleet: netwerk, cache, auto-koppeling en cachelocatie kiezen

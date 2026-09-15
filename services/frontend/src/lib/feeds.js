@@ -13,7 +13,7 @@
  * minus the gaps.
  */
 
-import { apiBase, fetchMumaJson, restUrl } from "./mumaApi.js";
+import { apiBase, fetchMumaJson, getHeaders, restUrl } from "./mumaApi.js";
 
 /** The slugs MuMa's API spells. */
 export const RELEASE_RADAR = "release-radar";
@@ -49,7 +49,9 @@ export async function loadFeed(slug, authParams, limit) {
 async function feedPaths(slug, limit) {
   const query = limit ? `?limit=${encodeURIComponent(limit)}` : "";
   try {
-    const feed = await fetchMumaJson(`${apiBase()}/api/feeds/${encodeURIComponent(slug)}${query}`);
+    const feed = await fetchMumaJson(`${apiBase()}/api/feeds/${encodeURIComponent(slug)}${query}`, {
+      headers: getHeaders(),
+    });
     const tracks = Array.isArray(feed?.tracks) ? feed.tracks : [];
     return tracks
       .map((track) => track.library_path)

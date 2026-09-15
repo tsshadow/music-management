@@ -14,6 +14,9 @@ import { DAILY_MIX, RELEASE_RADAR, loadFeed } from "../../src/lib/feeds.js";
 vi.mock("../../src/lib/mumaApi.js", () => ({
   apiBase: () => "http://muma",
   fetchMumaJson: (...args) => globalThis.__fetchMumaJson(...args),
+  // A stand-in for the store-backed real one: fixed so a test can assert the feed request
+  // carries it, the way `/api/curation/*` and `/api/rules/genres` already do.
+  getHeaders: () => ({ "X-API-Key": "the-users-key" }),
   // `restUrl` normally builds on `credentials.url`; a bare passthrough is enough here since
   // these tests only care that the Subsonic path and body reach `fetch` untouched.
   restUrl: (pathAndQuery) => pathAndQuery,
@@ -71,7 +74,18 @@ describe("loadFeed", () => {
 
     expect(globalThis.__fetchMumaJson).toHaveBeenCalledWith(
       "http://muma/api/feeds/daily-mix?limit=10",
+      { headers: { "X-API-Key": "the-users-key" } },
     );
+  });
+
+  it("carries the user's own key, like every other /api call -- this is a per-user feed", async () => {
+    globalThis.__fetchMumaJson.mockResolvedValue(feedOf("a.mp3"));
+    globalThis.fetch.mockResolvedValue(songsResponse("1"));
+
+    await loadFeed(RELEASE_RADAR, AUTH);
+
+    const [, options] = globalThis.__fetchMumaJson.mock.calls[0];
+    expect(options.headers).toEqual({ "X-API-Key": "the-users-key" });
   });
 
   it("keeps the server's order rather than sorting it again", async () => {

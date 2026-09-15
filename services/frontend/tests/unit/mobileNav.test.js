@@ -12,8 +12,8 @@ describe("MobileNav", () => {
     render(MobileNav, { activeView: "home", onnavigate: vi.fn() });
 
     expect(bar().getByRole("button", { name: "Home" })).toBeTruthy();
-    expect(bar().getByRole("button", { name: "Zoeken" })).toBeTruthy();
-    expect(bar().getByRole("button", { name: "Bieb" })).toBeTruthy();
+    expect(bar().getByRole("button", { name: "Bladeren" })).toBeTruthy();
+    expect(bar().getByRole("button", { name: "Favorieten" })).toBeTruthy();
   });
 
   it("no longer offers Songs, Sets or Management as a tab of its own", () => {
@@ -24,38 +24,44 @@ describe("MobileNav", () => {
     expect(bar().queryByRole("button", { name: "Beheer" })).toBeNull();
   });
 
-  it("reports the library tab's own view when it is tapped", async () => {
+  it("reports the favorites tab's own view when it is tapped", async () => {
     const onnavigate = vi.fn();
     render(MobileNav, { activeView: "home", onnavigate });
 
-    await fireEvent.click(bar().getByRole("button", { name: "Bieb" }));
+    await fireEvent.click(bar().getByRole("button", { name: "Favorieten" }));
 
-    expect(onnavigate).toHaveBeenCalledWith("playlists");
+    expect(onnavigate).toHaveBeenCalledWith("favorites");
   });
 
   it("reports the search tab", async () => {
     const onnavigate = vi.fn();
     render(MobileNav, { activeView: "home", onnavigate });
 
-    await fireEvent.click(bar().getByRole("button", { name: "Zoeken" }));
+    await fireEvent.click(bar().getByRole("button", { name: "Bladeren" }));
 
-    expect(onnavigate).toHaveBeenCalledWith("search");
+    expect(onnavigate).toHaveBeenCalledWith("browse");
   });
 
-  it.each(["playlists", "artists", "albums", "starred", "downloads"])(
-    "marks the library tab active on %s, not only on its default view",
+  it.each(["favorites", "preset:42", "new-preset", "preset-edit:42"])(
+    "marks the favorites tab active on %s, not only on its default view",
     (view) => {
       render(MobileNav, { activeView: view, onnavigate: vi.fn() });
 
-      expect(bar().getByRole("button", { name: "Bieb" })).toHaveClass("text-white");
+      expect(bar().getByRole("button", { name: "Favorieten" })).toHaveClass("text-white");
     },
   );
 
   it("marks no tab active on a pushed detail page", () => {
     render(MobileNav, { activeView: "genre:Hardcore", onnavigate: vi.fn() });
 
-    for (const label of ["Home", "Zoeken", "Bieb"]) {
+    for (const label of ["Home", "Bladeren", "Favorieten"]) {
       expect(bar().getByRole("button", { name: label })).not.toHaveClass("text-white");
     }
   });
+});
+
+it.each(["playlists", "playlist-detail", "playlist:42"])("%s activates Browse", (view) => {
+  render(MobileNav, { activeView: view, onnavigate: vi.fn() });
+  expect(bar().getByRole("button", { name: "Bladeren" })).toHaveClass("text-white");
+  expect(bar().getByRole("button", { name: "Favorieten" })).not.toHaveClass("text-white");
 });

@@ -1,4 +1,5 @@
 <script>
+  import QuickAccessTile from './QuickAccessTile.svelte';
   import { t } from './i18n/index.js';
   import { presetSummary } from './presets.js';
   import { tintFor } from './genreTints.js';
@@ -12,7 +13,7 @@
    * Colour comes from the first genre's tint when MuMa has one, so "Raw Hardstyle" is the same
    * red here as on the genre page, and from a fixed palette keyed on the name otherwise.
    */
-  const { presets = [], tints = {}, canCreate = false, onopen, oncreate } = $props();
+  const { presets = [], tints = {}, canCreate = false, compact = false, onopen, oncreate } = $props();
 
   /** The Kotlin tile palette, minus the near-blacks that vanish on this background. */
   const PALETTE = [
@@ -30,7 +31,16 @@
   }
 </script>
 
-{#if presets.length > 0 || canCreate}
+{#if compact}
+  <div class="contents" data-testid="preset-grid">
+    {#each presets as preset (preset.id)}
+      <QuickAccessTile title={preset.name} subtitle={presetSummary(preset, $t)} color={colorFor(preset)} onclick={() => onopen?.(preset)} />
+    {/each}
+    {#if canCreate}
+      <QuickAccessTile title={'+ ' + $t('presetBuilder.new')} subtitle={$t('presets.title')} onclick={() => oncreate?.()} />
+    {/if}
+  </div>
+{:else if presets.length > 0 || canCreate}
   <section class="flex flex-col gap-4" data-testid="preset-grid">
     <div class="flex items-center justify-between gap-4">
       <h2 class="text-2xl font-bold m-0">{$t('presets.title')}</h2>

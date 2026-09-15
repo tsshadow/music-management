@@ -1,4 +1,5 @@
 <script>
+  import "./density.css";
   import { t } from '../i18n/index.js';
   import { onMount } from 'svelte';
   import { platform } from '../platform/index.js';
@@ -181,7 +182,7 @@
   }
 </script>
 
-<div class="p-8 max-w-4xl mx-auto pb-24">
+<div class="settings-density p-0 max-w-4xl mx-auto pb-24">
   <header class="mb-8">
     <h1 class="text-3xl font-bold mb-2">{$t('settings.device.title')}</h1>
     <p class="text-[#b3b3b3]">{$t('settings.device.subtitle')}</p>

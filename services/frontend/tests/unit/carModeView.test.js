@@ -51,6 +51,15 @@ describe("CarModeView", () => {
     vi.restoreAllMocks();
   });
 
+  it("adopts the native track on mount after missing a move", async () => {
+    const next = { ...TRACK, id: "43", title: "Already playing" };
+    playlist.set([TRACK, next]);
+    vi.spyOn(platform.player, "state").mockReturnValue({ status: "playing", trackId: "43" });
+    render(CarModeView, { onclose: vi.fn(), onmicrophone: vi.fn() });
+    expect(await screen.findByText("Already playing")).toBeTruthy();
+    expect(get(currentTrack).id).toBe("43");
+  });
+
   it("shows the current track", async () => {
     render(CarModeView, { onclose: vi.fn(), onmicrophone: vi.fn() });
 

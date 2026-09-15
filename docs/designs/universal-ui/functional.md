@@ -223,27 +223,34 @@ the matching page, and the Android back button follows the same history the brow
 ## Telefoonlayout
 
 Shipped ahead of the shell rewrite above, directly in `services/frontend`: the existing web player
-now uses Spotify's phone navigation below `md` (`isMobile`); the desktop layout is untouched.
+now uses Spotify's phone navigation below `md` (`isMobile`); desktop navigation and Home keep their layout.
 
-- **Three tabs, not six.** The bottom bar (`MobileNav`) is Home, Search, Library. Songs/Sets is no
-  longer a tab of its own, and Downloads and Management are gone from it too.
-- **Mode chips, not a mode tab.** A Songs/Sets pill pair (`ModeChips`) sits above Home, Search and
-  Library. Tapping a chip only sets `viewMode` — it never navigates — the same thing the desktop
-  sidebar's own toggle has always done; the old bottom tab used to conflate the two, which is what
-  made the "Sets" tab land back on `/songs` when the mode effect corrected it.
-- **Browse lives under Search.** The search box stays exactly where it is, in `TopBar`, shared with
-  every screen. The Search tab adds a two-column tile grid (`BrowseGrid`) over every section the
-  desktop sidebar lists — genres, labels, podcasts, festivals, years, lineups, artists, albums,
-  memories, history, listening, starred — coloured with a fixed palette, for the moment before
-  anything is typed. Typing opens the existing results panel as a floating overlay on top of the
-  grid; no second search box was added.
-- **Library is one screen with chips.** `LibraryChips` (Playlists, Artists, Albums, Favourites, and
-  Downloads where `platform.storage.supported`) picks which existing view renders underneath;
-  `activeView` is the only source of truth, so a chip and a direct link never disagree.
+- **Three tabs.** Home, Browse (Bladeren), Favorites (Favorieten). Browse owns artists, albums,
+  starred tracks, downloads and playlists, including playlist detail pages. Favorites owns presets,
+  the new-preset page and preset detail/edit pages. `/search` stays an alias.
+- **Browse starts with the library.** Artists, Playlists, Albums, Downloads (where storage is
+  supported) and starred tracks lead the two-column category grid. TopBar keeps the shared search
+  box; the microphone
+  and preset builder remain available. The library chip row is gone. Songs/Sets mode chips stay.
+- **Favorites holds the presets.** A new-preset action sits at the top, followed by saved presets
+  as compact tiles in two columns. The page owns the layout so other favourite tile kinds can be
+  added later; for now it shows presets only. Desktop Home keeps its existing preset grid.
+- **Home follows the account.** BUTTON sections share a compact two-column grid:
+  artwork or a coloured block on the left, bold title and one-line subtitle. Memories is one tile
+  with today's year/track counts. OVERVIEW sections get shelves below; OFF sections disappear.
+  Recently released and recently added query the existing track endpoint in release/add order.
+  Shortcuts renders nothing until the web has a recent-places source.
+- **Song details are a sheet.** Every phone row has a visible overflow button. It opens artwork,
+  metadata, rating and the existing versions, lyrics, queue, download and album/artist actions.
+  Opening the sheet never plays the track.
+- **Two or three lines.** The account setting chooses title/artist or title/artist/album and date.
+  The album stays a link and the mobile rating row stays available in either density.
+- **Compact settings.** Shared settings styles use 16px section padding and gaps, 16px headings,
+  14px medium row titles and 12px help, with the existing controls and touch targets.
 - **Profile menu covers the rest.** Settings and Management (admin) open from the profile button, as
   before; once inside either, the existing drawer is still how their own tab list opens on a phone.
-- **Not in this pass.** The full-screen Now Playing sheet and the phone's filter-chip row (`FilterBar`
-  collapsing to a bottom sheet) follow in separate MRs.
+- **Shared sheets.** Song details reuse the BottomSheet already used by phone filters and the queue;
+  Now Playing keeps its existing full-screen presentation.
 
 ## Functional Flows
 

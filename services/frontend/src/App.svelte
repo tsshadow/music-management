@@ -9,7 +9,6 @@
   import TrackList from './lib/TrackList.svelte';
   import MobileNav from './lib/MobileNav.svelte';
   import ModeChips from './lib/ModeChips.svelte';
-  import LibraryChips from './lib/LibraryChips.svelte';
   import MobileSearchView from './lib/MobileSearchView.svelte';
   import SettingsSidebar from './lib/SettingsSidebar.svelte';
   import ManagementSidebar from './lib/management/ManagementSidebar.svelte';
@@ -71,11 +70,7 @@
     if (!hasDrawer) sidebarDrawerOpen.set(false);
   });
 
-  // Which of the phone's three bottom tabs the current view belongs to, so the
-  // mode chips and the library chip row know when to show themselves. null on
-  // every detail page pushed on top of a tab (an artist, a genre, settings...),
-  // which is what keeps those pages full-screen instead of growing a chip row
-  // they have no use for.
+  // The current tab controls the phone-only mode chips; detail pages retain their owning tab.
   const phoneTab = $derived(phoneTabForView($activeView));
 
   // The search results panel is SearchBar's own state, mirrored into the store
@@ -83,7 +78,7 @@
   // way (tapping Home, following a link) should not leave that mirror stuck on
   // true for a back press made somewhere else entirely.
   $effect(() => {
-    if ($activeView !== 'search') searchResultsOpen.set(false);
+    if ($activeView !== 'search' && $activeView !== 'browse') searchResultsOpen.set(false);
   });
 
   function closeDrawer() {
@@ -430,19 +425,14 @@
   <div class="bg-linear-to-b from-[#121212] to-[#121212] row-start-1 row-end-2 col-start-1 md:col-start-2 col-end-2 md:col-end-3 overflow-y-auto p-4 md:p-8 relative min-h-0 min-w-0">
     <TopBar greeting={greeting} />
     <div class="content-area">
-      <!-- Phone-only: the desktop sidebar already offers the mode switch and every
-           library section, so these chip rows stay `md:hidden` rather than gated on
-           `$isMobile` -- the same pattern MobileNav itself already uses below. -->
+      <!-- The desktop sidebar already offers the mode switch; phone tabs keep it above content. -->
       {#if phoneTab}
         <div class="md:hidden flex flex-col gap-3 mb-4">
           <ModeChips />
-          {#if phoneTab === 'library'}
-            <LibraryChips activeView={$activeView} onnavigate={handleNavigate} />
-          {/if}
         </div>
       {/if}
 
-      {#if $activeView === 'search'}
+      {#if $activeView === 'search' || $activeView === 'browse'}
         <div class="md:hidden">
           <MobileSearchView onnavigate={handleNavigate} />
         </div>

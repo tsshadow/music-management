@@ -24,6 +24,8 @@
   import Management from './management/Management.svelte';
   import CollectionBar from './CollectionBar.svelte';
   import CollectionGrid from './CollectionGrid.svelte';
+  import FavoritesView from './FavoritesView.svelte';
+  import PhoneHome from './PhoneHome.svelte';
   import HomeShelf from './HomeShelf.svelte';
   import DownloadsView from './DownloadsView.svelte';
   import OfflineNotice from './OfflineNotice.svelte';
@@ -783,7 +785,12 @@
     <OfflineNotice kind="unavailable" onnavigate={onnavigate} />
   {:else if activeView === 'downloads'}
     <DownloadsView onnavigate={onnavigate} />
+  {:else if activeView === 'favorites'}
+    <FavoritesView presets={$presets} tints={genreTints} canCreate={Boolean($mumaUser)} {onnavigate} />
   {:else if activeView === 'home'}
+    {#if $isMobile}
+      <PhoneHome {sections} {memoryGroups} {onnavigate} onrecent={(sort) => { currentSort = sort; onnavigate($viewMode); }} />
+    {:else}
     <PresetGrid presets={$presets} tints={genreTints} canCreate={Boolean($mumaUser)} onopen={(preset) => onnavigate(`preset:${preset.id}`)} oncreate={() => onnavigate('new-preset')} />
     {#if $memoriesOnHomeEnabled && memoryGroups.length > 0}
       <section class="flex flex-col gap-4">
@@ -838,6 +845,7 @@
         }}
       />
     {/each}
+    {/if}
   {:else if activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('podcast:') || activeView.startsWith('festival:') || activeView.startsWith('year:') || activeView.startsWith('lineup:')}
     <div class="flex flex-col gap-4 mb-6">
         <h2 class="text-2xl font-bold m-0 flex items-center gap-3">

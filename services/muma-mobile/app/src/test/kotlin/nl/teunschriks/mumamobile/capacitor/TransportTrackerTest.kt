@@ -108,4 +108,32 @@ class TransportTrackerTest {
         val afterFailure = tracker.accept("tr-1", 0)
         afterFailure.suppressed `should be` false
     }
+
+    /** An unreachable expectation must not silence subsequent head-unit moves. */
+    @Test
+    fun `a stable different index releases a stuck expectation without a command`() {
+        val tracker = TransportTracker()
+        tracker.accept("old", 0)
+        tracker.expect(99)
+        tracker.accept(null, 0).suppressed `should be` true
+        tracker.accept("actual", 2).suppressed `should be` true
+        tracker.accept("actual", 2).suppressed `should be` true
+        val settled = tracker.accept("actual", 2)
+        settled.suppressed `should be` false
+        settled.trackChanged `should be` true
+        settled.command `should be` null
+        tracker.accept("next", 3).command `should be equal to` MumaPlayerPlugin.COMMAND_NEXT
+    }
+
+    /** A newer expectation starts its own stability window. */
+    @Test
+    fun `a superseding expectation resets stable reports`() {
+        val tracker = TransportTracker()
+        tracker.expect(99)
+        tracker.accept("actual", 2)
+        tracker.accept("actual", 2)
+        tracker.expect(3)
+        tracker.accept("actual", 2).suppressed `should be` true
+        tracker.accept("target", 3).suppressed `should be` false
+    }
 }

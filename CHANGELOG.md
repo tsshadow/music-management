@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Phone settings use compact shared spacing and typography.** All existing controls remain available.
+- **Phone Home follows the account's section modes.** Button sections share a two-column
+  quick-access grid; overview sections appear as shelves and disabled sections disappear.
+- **Phone navigation is Home, Browse, Favorites.** Browse starts with artists, playlists, albums,
+  supported downloads and starred tracks. Favorites holds preset tiles with a new-preset action
+  at the top; phone Home no longer shows presets, while desktop Home keeps them. Existing search
+  links keep working; the library chip row is removed.
+- **Phone tracks offer a song-details sheet** with metadata, ratings and track actions, and honour
+  the account's two/three-line preference with album and date on the optional third line.
+
+### Fixed
+- **Car mode follows native track changes again.** An unreachable queue-index expectation can no
+  longer suppress stable track events forever. The web also reconciles duration snapshots and
+  car-mode mount snapshots, without advancing twice when a command follows the same snapshot.
+
 ## [0.61.0] - 2026-09-14
 
 ### Added

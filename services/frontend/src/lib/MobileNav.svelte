@@ -1,20 +1,14 @@
 <script>
   import { t } from './i18n/index.js';
-  import { LIBRARY_TAB_VIEWS } from './router.js';
+  import { phoneTabForView } from './router.js';
 
-  /**
-   * The phone's bottom bar, cut down to Spotify's three tabs: Home, Search and
-   * Library. Songs/Sets is no longer a tab -- it moved to `ModeChips`, a mode
-   * switch rather than a destination -- and Downloads and Management moved
-   * into the Library chip row and the profile menu respectively, so nothing
-   * that used to be reachable here is lost, only relocated.
-   */
+  /** The phone's three destinations: Home, Browse and Favorites. */
   const { activeView = 'home', onnavigate } = $props();
 
   const navItems = $derived([
     { id: 'home', label: $t('nav.home'), icon: 'M12.5 3.5a.5.5 0 0 1 .5 0l9 5.25a.5.5 0 0 1 .25.433V20.5a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5v-5a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 0-.5.5v5a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5V9.183a.5.5 0 0 1 .25-.433z' },
-    { id: 'search', label: $t('nav.search'), icon: 'M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 5L20.49 19l-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z' },
-    { id: 'playlists', label: $t('nav.library'), icon: 'M3 22a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h15a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H3zm13-2V4H4v16h12z' },
+    { id: 'browse', label: $t('nav.browse'), icon: 'M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 5L20.49 19l-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z' },
+    { id: 'favorites', label: $t('nav.favorites'), icon: 'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z' },
   ]);
 
   /**
@@ -26,17 +20,9 @@
     if (onnavigate) onnavigate(id);
   }
 
-  /**
-   * Whether one bottom-bar tab should read as active. The Library tab covers
-   * every view its own chip row can switch to, not only its default
-   * ('playlists'), so landing on Artists or Downloads still lights it up.
-   *
-   * @param {string} id - The tab's own view id.
-   * @returns {boolean}
-   */
+  /** Detail pages keep their owning bottom tab active. */
   function isActive(id) {
-    if (id === 'playlists') return LIBRARY_TAB_VIEWS.includes(activeView);
-    return activeView === id;
+    return phoneTabForView(activeView) === id;
   }
 </script>
 

@@ -1,4 +1,5 @@
 <script>
+  import "./density.css";
   import { t } from '../i18n/index.js';
   import { onMount } from 'svelte';
   import { authParams, restUrl } from '../store.js';
@@ -37,7 +38,7 @@
   onMount(loadInfo);
 </script>
 
-<div class="max-w-4xl pb-24">
+<div class="settings-density max-w-4xl pb-24">
   <header class="mb-8">
     <h1 class="text-3xl font-bold mb-2">{$t('settings.about.title')}</h1>
     <p class="text-[#b3b3b3]">{$t('settings.about.subtitle')}</p>

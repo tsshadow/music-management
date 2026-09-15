@@ -354,10 +354,20 @@ class MediaPlayerManager(
         }
     }
 
+    /**
+     * The index is the timeline (window) index, shuffle or not.
+     *
+     * It used to be the play-order position while shuffle was on, for the Kotlin queue screen
+     * that drew the list in play order. That screen is gone and the only reader left is the
+     * Capacitor plugin's [nl.teunschriks.mumamobile.capacitor.TransportTracker], which compares
+     * this against the window index it asked `seekTo` for. In play-order space the two never
+     * matched under shuffle, so the tracker's expectation stayed pending and every later track
+     * change was swallowed -- the car screen kept showing the first track of the trip.
+     */
     private fun publishPlaybackState() {
         val newState = RxBus.StateWithTrack(
             track = currentMediaItem?.toTrack(),
-            index = if (isShufflePlayEnabled) getCurrentShuffleIndex() else currentMediaItemIndex,
+            index = currentMediaItemIndex,
             isPlaying = isPlaying,
             state = playbackState
         )
@@ -946,11 +956,6 @@ class MediaPlayerManager(
     val currentMediaItemIndex: Int
         get() = controller?.currentMediaItemIndex ?: -1
 
-    private fun getCurrentShuffleIndex(): Int {
-        val currentMediaItemIndex = controller?.currentMediaItemIndex ?: return -1
-        return getShuffledIndexOf(currentMediaItemIndex)
-    }
-
     /**
      * Loops over the timeline windows to find the entry which matches the given closure.
      *
@@ -982,18 +987,6 @@ class MediaPlayerManager(
         }
 
         return C.INDEX_UNSET
-    }
-
-    /**
-     * Returns the index of the shuffled position of the current playback item given its original
-     * position in the unshuffled timeline.
-     *
-     * @param searchPosition The index of the item in the unshuffled timeline to search for
-     * in the shuffled timeline.
-     * @return The index of the item in the shuffled timeline, or [C.INDEX_UNSET] if not found.
-     */
-    private fun getShuffledIndexOf(searchPosition: Int): Int = getWindowIndexWhere(false) { _, windowIndex ->
-        windowIndex == searchPosition
     }
 
     /**

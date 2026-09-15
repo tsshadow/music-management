@@ -6,7 +6,7 @@ import { credentials, mumaApiUrl } from "../../src/lib/store.js";
 
 /**
  * The other half of the sign-out fix: after a fresh sign-in on this screen inside the Capacitor
- * shell, Kotlin has to learn the pair too, or downloads, Android Auto and the legacy UI stay
+ * shell, Kotlin has to learn the pair too, or downloads and Android Auto stay
  * signed out with whatever (or nothing) it had before. There is no Capacitor bridge in this test
  * environment, so `platform` resolves to the browser implementation; `isNative` is flipped on
  * that shared singleton for the duration of each test to stand in for the shell, the same way

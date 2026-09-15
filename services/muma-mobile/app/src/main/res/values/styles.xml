@@ -6,19 +6,7 @@
          makes its items theme defaults. A TextView picks android:textColor up that way but not
          android:textAppearance, so the two styles differ here by colour alone - a brand-coloured
          label in Spotify, a dim one in MuMa. -->
-    <style name="Ultrasonic.AllCapsLabel" parent="">
-        <item name="android:textStyle">bold</item>
-        <item name="android:textColor">?attr/colorKicker</item>
-        <item name="android:textAppearance">?android:attr/textAppearanceSmall</item>
-        <item name="android:textAllCaps">true</item>
-        <item name="android:gravity">center_vertical</item>
-        <item name="android:singleLine">true</item>
-        <item name="android:ellipsize">end</item>
-    </style>
 
-    <style name="Ultrasonic.AllCapsLabel.Inset" parent="Ultrasonic.AllCapsLabel">
-        <item name="android:paddingStart">16dp</item>
-    </style>
 
     <style name="Widget.AppWidget.AppWidget.Container" parent="android:Widget">
         <item name="android:id">@android:id/background</item>
@@ -55,11 +43,6 @@
         <item name="android:adjustViewBounds">true</item>
     </style>
 
-    <style tools:ignore="PrivateResource" name="Widget.ChipDropdown" parent="Widget.Material3.TextInputLayout.OutlinedBox.Dense.ExposedDropdownMenu">
-        <item name="shapeAppearance">?attr/shapeAppearanceSmallComponent</item>
-        <item name="boxStrokeColor">@color/m3_textfield_stroke_color</item>
-    </style>
-
     <style name="Theme.AppWidget.AppWidgetContainerCropped" parent="Theme.AppWidget.AppWidgetContainer">
         <!-- Apply padding to avoid the content of the widget colliding with the rounded corners -->
         <item name="appWidgetPadding">4dp</item>
@@ -73,103 +56,26 @@
         <item name="android:padding">16dp</item>
     </style>
 
-    <style name="UltrasonicFilterDialogTheme" parent="Theme.MaterialComponents.Dialog">
-        <item name="android:windowBackground">@android:color/transparent</item>
-        <item name="android:backgroundDimEnabled">true</item>
-        <item name="android:windowIsFloating">true</item>
-        <item name="android:windowNoTitle">true</item>
-        <item name="android:windowElevation">0dp</item>
-    </style>
 
-    <style name="ShapeAppearance.Circle" parent="">
-        <item name="cornerSize">50%</item>
-    </style>
 
     <!-- Track info sheet. Its own Material3 bottom sheet theme rather than the
          MaterialComponents dialog theme above, so the M3 widget styles it uses resolve. -->
-    <style name="Ultrasonic.TrackInfoSheetTheme" parent="Theme.Material3.Dark.BottomSheetDialog">
-        <item name="bottomSheetStyle">@style/Ultrasonic.TrackInfoSheetStyle</item>
-        <item name="android:backgroundDimEnabled">true</item>
-    </style>
 
-    <style name="Ultrasonic.TrackInfoSheetStyle" parent="Widget.Material3.BottomSheet.Modal">
-        <item name="backgroundTint">?attr/colorSurfaceContainer</item>
-    </style>
 
-    <style name="ShapeAppearance.TrackInfoCover" parent="">
-        <item name="cornerFamily">rounded</item>
-        <item name="cornerSize">8dp</item>
-    </style>
 
-    <style name="Ultrasonic.TrackInfo.Label" parent="">
-        <item name="android:textAppearance">@style/TextAppearance.Material3.LabelMedium</item>
-        <item name="android:textColor">?android:attr/textColorSecondary</item>
-    </style>
 
-    <style name="Ultrasonic.TrackInfo.Value" parent="">
-        <item name="android:textAppearance">@style/TextAppearance.Material3.BodyLarge</item>
-        <item name="android:textColor">?android:attr/textColorPrimary</item>
-    </style>
 
-    <style name="Ultrasonic.TrackInfo.Action" parent="Widget.Material3.Button.TextButton.Icon">
-        <item name="android:textColor">?android:attr/textColorPrimary</item>
-        <item name="android:textAllCaps">false</item>
-        <item name="iconTint">?attr/colorPrimary</item>
-    </style>
 
     <!-- Login / Google-auth styles - mirror the web frontend's login card
          (services/frontend/src/lib/LoginPage.svelte) so both surfaces feel the same. -->
 
-    <style name="Ultrasonic.TextInputLayout" parent="Widget.Material3.TextInputLayout.FilledBox">
-        <item name="boxBackgroundColor">?attr/colorSurfaceVariant</item>
-        <item name="boxCornerRadiusTopStart">8dp</item>
-        <item name="boxCornerRadiusTopEnd">8dp</item>
-        <item name="boxCornerRadiusBottomStart">8dp</item>
-        <item name="boxCornerRadiusBottomEnd">8dp</item>
-        <item name="boxStrokeWidth">0dp</item>
-        <item name="boxStrokeWidthFocused">2dp</item>
-        <item name="boxStrokeColor">?attr/colorPrimary</item>
-        <item name="hintTextColor">?android:attr/textColorSecondary</item>
-        <item name="android:textColorHint">?android:attr/textColorSecondary</item>
-    </style>
 
-    <style name="Ultrasonic.Button.Primary" parent="Widget.Material3.Button">
-        <item name="backgroundTint">?attr/colorPrimary</item>
-        <item name="cornerRadius">24dp</item>
-        <item name="android:textColor">?attr/colorOnPrimary</item>
-        <item name="android:textStyle">bold</item>
-        <item name="android:textAllCaps">false</item>
-    </style>
 
-    <!-- Neutral light-theme "Sign in with Google" button, per Google's branding
-         guidelines - deliberately not brand-tinted like the rest of the dark UI. -->
-    <style name="Ultrasonic.Button.Google" parent="Widget.Material3.Button.OutlinedButton.Icon">
-        <item name="backgroundTint">@color/google_button_background</item>
-        <item name="android:textColor">@color/google_button_text</item>
-        <item name="strokeColor">@color/google_button_stroke</item>
-        <item name="strokeWidth">1dp</item>
-        <item name="cornerRadius">24dp</item>
-        <item name="iconTint">@null</item>
-        <item name="android:textAllCaps">false</item>
-    </style>
 
     <!-- Applied to the welcome/login dialog only (passed as the MaterialAlertDialogBuilder
          theme resId) so this styling stays scoped to that one screen instead of every
          AlertDialog in the app. Mirrors the web login card's bg-[#181818] rounded-2xl panel. -->
-    <style name="ThemeOverlay.Ultrasonic.WelcomeDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
-        <item name="colorSurface">?attr/colorSurfaceContainer</item>
-        <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.Ultrasonic.WelcomeDialog</item>
-        <item name="buttonBarPositiveButtonStyle">@style/Ultrasonic.Button.Primary</item>
-        <item name="materialAlertDialogTitleTextStyle">@style/TextAppearance.Ultrasonic.WelcomeDialog.Title</item>
-    </style>
 
-    <style name="ShapeAppearanceOverlay.Ultrasonic.WelcomeDialog" parent="">
-        <item name="cornerSize">20dp</item>
-    </style>
 
-    <style name="TextAppearance.Ultrasonic.WelcomeDialog.Title" parent="MaterialAlertDialog.Material3.Title.Text">
-        <item name="android:textColor">?android:attr/textColorPrimary</item>
-        <item name="android:textStyle">bold</item>
-    </style>
 </resources>
 

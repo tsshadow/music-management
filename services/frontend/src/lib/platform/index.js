@@ -323,6 +323,26 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  */
 
 /**
+ * @typedef {object} AppInfo What the shell knows about its own APK.
+ * @property {string} version `versionName`, e.g. "6.36.0".
+ * @property {number} versionCode The number apk-hoster and the update check compare on.
+ * @property {string} buildType "debug" or "release" -- also which APK series the phone follows.
+ * @property {string} packageName
+ * @property {string} androidVersion Release and API level, e.g. "15 (API 35)".
+ * @property {string} device Manufacturer and model.
+ */
+
+/**
+ * @typedef {object} AppUpdateCheck The hoster's answer, reduced to what the UI needs.
+ * @property {boolean} available A build with a higher `versionCode` exists in this series.
+ * @property {number} currentVersionCode
+ * @property {string} currentVersionName
+ * @property {number} latestVersionCode
+ * @property {string} latestVersionName
+ * @property {string} url Where to download it; already carries the hoster's guest credentials.
+ */
+
+/**
  * @typedef {object} PlatformSystem The shell itself.
  * @property {boolean} isNative
  * @property {function(): Promise<string>} appVersion The APK's own `versionName`, for the
@@ -330,6 +350,16 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   `platform.diagnostics.identify` sends, which is a git hash with no relation to
  *   muma-mobile's own `CHANGELOG.md` headings. A browser tab answers `''`: there is no APK, and
  *   `mobileReleaseNotes.js` already reads a blank answer as "nothing to compare".
+ * @property {function(): Promise<AppInfo|null>} appInfo Everything the About page lists about
+ *   the APK: `appVersion` plus the version code, the build type, the package and the phone it
+ *   runs on. A browser tab answers `null` -- there is no APK to describe.
+ * @property {function(): Promise<AppUpdateCheck>} checkForUpdate Asks apk-hoster whether a
+ *   newer build of this APK's series exists. Rejects when the hoster could not be asked (no
+ *   network, an error status), so "up to date" and "could not check" stay distinguishable --
+ *   `appUpdate.js` shows them differently. A browser tab rejects too: it has nothing to update.
+ * @property {function(string): Promise<void>} openUrl Opens a url outside the WebView -- the
+ *   download link of a newer build, which is an APK and not a page. A browser tab opens a new
+ *   tab.
  * @property {function(): Promise<string|null>} releaseNotes The text of muma-mobile's own
  *   `CHANGELOG.md`, read from the APK's own assets (`copyChangelog` in `app/build.gradle` stages
  *   it there already, for the legacy `Util.showChangelog`) -- not bundled into the frontend
@@ -348,7 +378,7 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   sign back in with.
  * @property {function({url?: string, username: string, password: string}): Promise<void>}
  *   saveCredentials Writes a pair the web login screen just verified back to the phone,
- *   so downloads, Android Auto and the legacy UI see the same session afterwards. A
+ *   so downloads and Android Auto see the same session afterwards. A
  *   browser tab has nowhere to put it and resolves at once.
  * @property {function(function(): boolean): function(): void} onBack The platform's
  *   back gesture, not browser history. The handler must be synchronous and
@@ -385,7 +415,7 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   devices: []}`.
  * @property {function(): Promise<void>} requestCarModeFullScreenPermission Opens the system
  *   settings screen for the "use full screen intent" permission car mode's notification needs
- *   to raise the screen by itself. Fire-and-forget, like `switchToLegacyUi` -- there is no
+ *   to raise the screen by itself. Fire-and-forget -- there is no
  *   result to await, only `getSettings()`'s `carModeFullScreenGranted` on the next read. A
  *   browser tab resolves without doing anything.
  * @property {function(): Promise<{uri: string, path: string}|{}>} pickCacheLocation Opens the

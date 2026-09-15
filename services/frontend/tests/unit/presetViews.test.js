@@ -170,7 +170,7 @@ describe("PresetView", () => {
     await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
 
     await fireEvent.click(screen.getByLabelText("Meer"));
-    await fireEvent.click(screen.getByRole("menuitem"));
+    await fireEvent.click(screen.getByRole("menuitem", { name: "Preset verwijderen" }));
 
     await waitFor(() => expect(onnavigate).toHaveBeenCalledWith("home"));
     const remove = globalThis.fetch.mock.calls.find(([, options]) => options?.method === "DELETE");
@@ -185,7 +185,7 @@ describe("PresetView", () => {
     await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
 
     await fireEvent.click(screen.getByLabelText("Meer"));
-    await fireEvent.click(screen.getByRole("menuitem"));
+    await fireEvent.click(screen.getByRole("menuitem", { name: "Preset verwijderen" }));
 
     expect(globalThis.fetch.mock.calls.some(([, options]) => options?.method === "DELETE")).toBe(
       false,

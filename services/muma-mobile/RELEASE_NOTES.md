@@ -1,5 +1,25 @@
 ## [Unreleased]
 
+## Global Version 7.0.0 (2026-09-15)
+
+- **Android Auto leest de snelkoppelingen nu van de server.** De map "Afspeellijsten" (en
+  dezelfde map onder Favorieten en onder Sets) toonde de tegels uit een lokale opslag die alleen
+  de oude Kotlin-schermen vulden; sinds die weg zijn kwam er niets meer bij. De auto vraagt nu de
+  dynamische afspeellijsten van de gebruiker rechtstreeks aan MuMa — dezelfde lijst die het
+  startscherm van de webspeler als tegels toont — dus een snelkoppeling die je op de web opslaat
+  staat bij de volgende keer bladeren in de auto. Vijf minuten gecachet; als de server niet
+  antwoordt valt de map weg en blijft de rest van de boom staan.
+
+- **Het rijscherm loopt weer mee** met het nummer dat speelt, ook met shuffle aan.
+
+- **De klassieke interface is weg.** De app opent altijd in de nieuwe speler; de knop "Terug naar
+  de klassieke interface" en het oude instellingenscherm bestaan niet meer. Afspelen, downloads,
+  Android Auto, automodus en stem werken zoals voorheen.
+
+- **Updatemelding is terug**, plus "Controleren op updates" en een Over-pagina met alle
+  versies (app, server, webinterface).
+
+- **Geen zwart scherm meer** als je de app na een tijdje weer opent.
 ## Global Version 6.36.0 (2026-09-14)
 
 - **`MumaSystem` kreeg vier methodes erbij voor de webspeler's instellingen-tab.**

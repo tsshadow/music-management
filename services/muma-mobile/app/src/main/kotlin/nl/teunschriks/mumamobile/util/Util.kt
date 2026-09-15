@@ -8,14 +8,12 @@
 package nl.teunschriks.mumamobile.util
 
 import android.Manifest.permission.POST_NOTIFICATIONS
-import android.app.Activity
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.app.Service.STOP_FOREGROUND_REMOVE
-import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -23,30 +21,20 @@ import android.graphics.BitmapFactory
 import android.media.MediaScannerConnection
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.net.Uri
 import android.net.wifi.WifiManager
 import android.net.wifi.WifiManager.WifiLock
 import android.os.Build
 import android.os.Environment
-import android.text.TextUtils
-import android.util.DisplayMetrics
-import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.AnyRes
 import androidx.annotation.StringRes
-import androidx.appcompat.app.AlertDialog
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import androidx.core.net.toUri
-import androidx.fragment.app.Fragment
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
-import androidx.navigation.fragment.findNavController
-import io.noties.markwon.Markwon
 import java.io.Closeable
 import java.io.UnsupportedEncodingException
 import java.security.MessageDigest
@@ -62,11 +50,9 @@ import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.app.UApp.Companion.applicationContext
 import nl.teunschriks.mumamobile.domain.Bookmark
 import nl.teunschriks.mumamobile.domain.MusicDirectory
-import nl.teunschriks.mumamobile.domain.SearchResult
 import nl.teunschriks.mumamobile.domain.Track
 import timber.log.Timber
 
-private const val LINE_LENGTH = 60
 private const val DEGRADE_PRECISION_AFTER = 10
 private const val MINUTES_IN_HOUR = 60
 private const val KBYTE = 1024
@@ -88,22 +74,16 @@ object Util {
     // Retrieves an instance of the application Context
     fun appContext(): Context = applicationContext()
 
+    /**
+     * The one theme the app has. The web player draws every screen; this only decides the
+     * window and status bar behind the WebView, and the notification and widget colours.
+     */
     @JvmStatic
     fun applyTheme(context: Context?) {
         if (context == null) return
-        val style = getStyleFromSettings(context)
-        // First set the theme (light, dark, etc.)
-        context.setTheme(style)
+        context.setTheme(R.style.UltrasonicTheme_Spotify)
         // Then apply an overlay controlling the status bar behaviour etc.
         context.theme.applyStyle(R.style.UltrasonicTheme_Base, true)
-    }
-
-    private fun getStyleFromSettings(context: Context): Int = if (Settings.style.lowercase() == context.getString(R.string.setting_key_style_muma)) {
-        R.style.UltrasonicTheme_Muma
-    } else {
-        // Anything else, including a value left behind by the old accent preference, is the
-        // Spotify style - the one the app already rendered, so an upgrade changes nothing.
-        R.style.UltrasonicTheme_Spotify
     }
 
     fun getString(@StringRes resId: Int): String = applicationContext().resources.getString(resId)
@@ -133,22 +113,6 @@ object Util {
         } catch (all: Exception) {
             Timber.w(all)
         }
-    }
-
-    fun Fragment.toast(message: CharSequence, shortDuration: Boolean = true) {
-        toast(
-            message,
-            shortDuration = shortDuration,
-            context = this.context
-        )
-    }
-
-    fun Fragment.toast(messageId: Int = 0, shortDuration: Boolean = true) {
-        toast(
-            messageId = messageId,
-            shortDuration = shortDuration,
-            context = this.context
-        )
     }
 
     /**
@@ -335,14 +299,6 @@ object Util {
         return (newWidth * aspectRatio).roundToInt()
     }
 
-    fun getSongsFromSearchResult(searchResult: SearchResult): MusicDirectory {
-        val musicDirectory = MusicDirectory()
-        for (entry in searchResult.songs) {
-            musicDirectory.add(entry)
-        }
-        return musicDirectory
-    }
-
     @JvmStatic
     fun getSongsFromBookmarks(bookmarks: Iterable<Bookmark>): MusicDirectory {
         val musicDirectory = MusicDirectory()
@@ -353,35 +309,6 @@ object Util {
             musicDirectory.add(song)
         }
         return musicDirectory
-    }
-
-    @JvmStatic
-    @Suppress("MagicNumber")
-    fun getNotificationImageSize(context: Context): Int {
-        val metrics = context.resources.displayMetrics
-        val imageSizeLarge =
-            min(metrics.widthPixels, metrics.heightPixels).toFloat().roundToInt()
-        return when {
-            imageSizeLarge <= 480 -> {
-                64
-            }
-            imageSizeLarge <= 768 -> 128
-            else -> 256
-        }
-    }
-
-    @Suppress("MagicNumber")
-    fun getAlbumImageSize(context: Context?): Int {
-        val metrics = context!!.resources.displayMetrics
-        val imageSizeLarge =
-            min(metrics.widthPixels, metrics.heightPixels).toFloat().roundToInt()
-        return when {
-            imageSizeLarge <= 480 -> {
-                128
-            }
-            imageSizeLarge <= 768 -> 256
-            else -> 512
-        }
     }
 
     fun getMaxDisplayMetric(): Int {
@@ -571,142 +498,6 @@ object Util {
         Settings.lastSeenVersion = getVersionCode(context)
     }
 
-    @JvmStatic
-    fun showChangelog(context: Context, full: Boolean = true) {
-        val fileName = if (full) "CHANGELOG.md" else "RELEASE_NOTES.md"
-        val changelog = try {
-            context.assets.open(fileName).bufferedReader().use { it.readText() }
-        } catch (e: Exception) {
-            if (!full) {
-                // Fallback to full changelog
-                return showChangelog(context, true)
-            }
-            Timber.e(e, "Could not read $fileName from assets")
-            "Changelog not available."
-        }
-
-        val markwon = Markwon.create(context)
-        val markdown = markwon.toMarkdown(changelog)
-
-        AlertDialog.Builder(context)
-            .setTitle(if (full) R.string.changelog_button else R.string.changelog_title)
-            .setMessage(markdown)
-            .setPositiveButton(R.string.common_ok, null)
-            .show()
-    }
-
-    fun hideKeyboard(activity: Activity?) {
-        val inputManager =
-            activity!!.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        val currentFocusedView = activity.currentFocus
-        if (currentFocusedView != null) {
-            inputManager.hideSoftInputFromWindow(
-                currentFocusedView.windowToken,
-                InputMethodManager.HIDE_NOT_ALWAYS
-            )
-        }
-    }
-
-    fun getUriToDrawable(context: Context, @AnyRes drawableId: Int): Uri = (
-        ContentResolver.SCHEME_ANDROID_RESOURCE +
-            "://" + context.resources.getResourcePackageName(drawableId) +
-            '/' + context.resources.getResourceTypeName(drawableId) +
-            '/' + context.resources.getResourceEntryName(drawableId)
-        ).toUri()
-
-    data class ReadableEntryDescription(
-        var artist: String,
-        var title: String,
-        val trackNumber: String,
-        val duration: String,
-        var bitrate: String?,
-        var fileFormat: String?
-    )
-
-    @Suppress("ComplexMethod", "LongMethod")
-    fun readableEntryDescription(song: Track): ReadableEntryDescription {
-        val artist = StringBuilder(LINE_LENGTH)
-        var bitRate: String? = null
-        var trackText = ""
-
-        val duration = song.duration
-
-        if (song.bitRate != null && song.bitRate!! > 0) {
-            bitRate = String.format(
-                appContext().getString(R.string.song_details_kbps),
-                song.bitRate
-            )
-        }
-
-        val fileFormat: String?
-        val suffix = song.suffix
-        val transcodedSuffix = song.transcodedSuffix
-
-        fileFormat = if (
-            TextUtils.isEmpty(transcodedSuffix) || transcodedSuffix == suffix || song.isVideo
-        ) {
-            suffix
-        } else {
-            String.format(Locale.ROOT, "%s > %s", suffix, transcodedSuffix)
-        }
-
-        val artistName = song.artist
-
-        if (artistName != null) {
-            if (Settings.shouldDisplayBitrateWithArtist &&
-                (
-                    !bitRate.isNullOrBlank() || !fileFormat.isNullOrBlank()
-                    )
-            ) {
-                artist.append(artistName).append(" (").append(
-                    String.format(
-                        appContext().getString(R.string.song_details_all),
-                        if (bitRate == null) {
-                            ""
-                        } else {
-                            String.format(Locale.ROOT, "%s ", bitRate)
-                        },
-                        fileFormat
-                    )
-                ).append(')')
-            } else {
-                artist.append(artistName)
-            }
-        }
-
-        val trackNumber = song.track ?: 0
-
-        val title = StringBuilder(LINE_LENGTH)
-        if (Settings.shouldShowTrackNumber && trackNumber > 0) {
-            trackText = String.format(Locale.ROOT, "%02d.", trackNumber)
-        }
-
-        title.append(song.title)
-
-        if (song.isVideo && Settings.shouldDisplayBitrateWithArtist) {
-            title.append(" (").append(
-                String.format(
-                    appContext().getString(R.string.song_details_all),
-                    if (bitRate == null) {
-                        ""
-                    } else {
-                        String.format(Locale.ROOT, "%s ", bitRate)
-                    },
-                    fileFormat
-                )
-            ).append(')')
-        }
-
-        return ReadableEntryDescription(
-            artist = artist.toString(),
-            title = title.toString(),
-            trackNumber = trackText,
-            duration = formatTotalDuration(duration?.toLong()),
-            bitrate = bitRate,
-            fileFormat = fileFormat
-        )
-    }
-
     /**
      * Removes diacritics (~= accents) from a string. The case will not be altered.
      * Note that ligatures will be left as is.
@@ -767,9 +558,6 @@ object Util {
         return PendingIntent.getActivity(context, 0, intent, flags)
     }
 
-    fun dpToPx(dp: Int, activity: Activity): Int = (dp * (activity.resources.displayMetrics.xdpi / DisplayMetrics.DENSITY_DEFAULT))
-        .roundToInt()
-
     private val connectivityManager: ConnectivityManager
         get() = appContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
@@ -801,13 +589,6 @@ object Util {
 
         keys.forEach {
             Timber.d("${it.key}: ${it.value}")
-        }
-    }
-
-    fun Fragment.navigateToCurrent() {
-        if (Settings.shouldTransitionOnPlayback) {
-            findNavController().popBackStack(R.id.playerFragment, true)
-            findNavController().navigate(R.id.playerFragment)
         }
     }
 }

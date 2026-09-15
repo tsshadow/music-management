@@ -46,6 +46,13 @@ describe("viewToPath", () => {
     expect(viewToPath(state(view))).toBe(path);
   });
 
+  it("routes the preset builder, new and over an existing preset", () => {
+    expect(viewToPath(state("new-preset"))).toBe("/new-preset");
+    expect(pathToState("/new-preset")).toEqual({ view: "new-preset" });
+    expect(viewToPath(state("preset-edit:15"))).toBe("/preset/15/edit");
+    expect(pathToState("/preset/15/edit")).toEqual({ view: "preset-edit:15" });
+  });
+
   it("routes a preset by its MuMa id and reads it back", () => {
     expect(viewToPath(state("preset:15"))).toBe("/preset/15");
     expect(pathToState("/preset/15")).toEqual({ view: "preset:15" });
@@ -418,18 +425,47 @@ describe("phoneTabForView", () => {
   });
 
   it("names the tab the search screen belongs to", () => {
-    expect(phoneTabForView("search")).toBe("search");
+    expect(phoneTabForView("search")).toBe("browse");
   });
 
-  it("names the library tab for every view its chip row offers", () => {
+  it("names Browse for every library destination", () => {
     for (const view of LIBRARY_TAB_VIEWS) {
-      expect(phoneTabForView(view)).toBe("library");
+      expect(phoneTabForView(view)).toBe("browse");
     }
   });
 
   it("names no tab for a pushed detail page", () => {
-    for (const view of ["genre:Hardcore", "artist:1", "songs", "sets", "settings", "management"]) {
+    for (const view of ["genre:Hardcore", "songs", "sets", "settings", "management"]) {
       expect(phoneTabForView(view)).toBeNull();
     }
   });
 });
+
+it.each(["browse", "artists", "artist:1", "albums", "album:1", "starred", "downloads"])(
+  "%s activates Browse",
+  (view) => {
+    expect(phoneTabForView(view)).toBe("browse");
+  },
+);
+it.each(["playlists", "playlist-detail", "playlist:42"])("%s activates Browse", (view) => {
+  expect(phoneTabForView(view)).toBe("browse");
+});
+it("roundtrips the Browse route", () => {
+  expect(viewToPath({ view: "browse" })).toBe("/browse");
+  expect(pathToState("/browse")).toEqual({ view: "browse" });
+});
+
+it.each(["favorites", "new-preset", "preset:42", "preset-edit:42"])(
+  "%s activates Favorites",
+  (view) => {
+    expect(phoneTabForView(view)).toBe("favorites");
+  },
+);
+it.each(["/favorites", "/new-preset", "/preset/42", "/preset/42/edit"])(
+  "%s opens within Favorites",
+  (path) => {
+    const state = pathToState(path);
+    expect(phoneTabForView(state.view)).toBe("favorites");
+    expect(viewToPath(state)).toBe(path);
+  },
+);

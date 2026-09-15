@@ -20,43 +20,36 @@ import timber.log.Timber
  *
  * ### Why this exists
  *
- * The interface a launcher tap opens is a *setting* ([Settings.webUiEnabled]), and Android takes
- * that decision from the manifest. The first version of the shell therefore gave each
- * (icon, interface) pair its own `activity-alias` and switched interface by enabling one alias and
- * disabling the other three. That is what made switching land the user on the home screen:
- * `PackageManagerService.cleanupDisabledPackageComponentsLocked` removes every task whose
- * `origActivity` names a component that was just disabled, and the task the user was standing in
- * was rooted at exactly that alias. The freshly started interface was visible for about a second
- * and then went down with the task that had launched it. Reproduced in both directions; dropping
- * the `finish()`, adding `FLAG_ACTIVITY_MULTIPLE_TASK` and flipping the aliases from the arriving
- * activity's `onCreate` all failed, because none of them changes the fact that a component the
- * user is inside gets disabled.
+ * The launcher entry lives on `activity-alias`es so the user can pick an icon colour, and
+ * switching colour means disabling the outgoing alias. `PackageManagerService.
+ * cleanupDisabledPackageComponentsLocked` removes every task whose `origActivity` names a
+ * component that was just disabled -- so a task rooted at an alias goes down with the alias,
+ * and the user lands on the home screen a second after switching. Reproduced with the first
+ * shell release, which had an alias per (icon, interface) pair; dropping the `finish()`,
+ * `FLAG_ACTIVITY_MULTIPLE_TASK` and flipping aliases from the arriving activity all failed,
+ * because none of them changes the fact that a component the user is inside gets disabled.
  *
- * So the aliases no longer name a UI. All of them target this activity, the launcher decision is
- * made here in Kotlin, and **no component is ever disabled while the user is inside it**: the only
- * task rooted at an alias is this one, and it is finished before anything else happens. The task
- * the real UI runs in is created from an explicit component name, so its `origActivity` is null
- * and no alias can ever take it down. The icon-colour switch was quietly exposed to the same
- * hazard -- it disables the outgoing colour alias from a Settings screen inside the alias's own
- * task -- and is fixed by the same move.
+ * So every alias targets this activity and **no component is ever disabled while the user is
+ * inside it**: the only task rooted at an alias is this one, and it is finished before anything
+ * else happens. The task the real UI runs in is created from an explicit component name, so its
+ * `origActivity` is null and no alias can ever take it down.
  *
  * ### What it does
  *
- * Reads the setting, starts [NavigationActivity] or [CapacitorActivity] in the app's own task,
- * hands over the action and extras it was given (a launcher shortcut carries
- * `INTENT_PLAY_RANDOM_SONGS` this way), and finishes. `CLEAR_TOP` rather than `CLEAR_TASK`: a tap
- * on the icon should return to the app where it was, not rebuild it, and with both targets being
- * `singleTask` this delivers `onNewIntent` to the running instance.
+ * Starts [CapacitorActivity] in the app's own task, hands over the action and extras it was
+ * given (a launcher shortcut carries `INTENT_PLAY_RANDOM_SONGS` this way; the Assistant's
+ * `MEDIA_PLAY_FROM_SEARCH` arrives here through the manifest filter), and finishes. `CLEAR_TOP`
+ * rather than `CLEAR_TASK`: a tap on the icon should return to the app where it was, not rebuild
+ * it, and with the target being `singleTask` this delivers `onNewIntent` to the running instance.
  */
 class LauncherActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val target = UiVariant.current()
-        Timber.i("Launcher opening the %s interface", target)
+        Timber.i("Launcher opening the app")
         startActivity(
-            Intent(this, target.activityClass).apply {
+            UiVariant.launchIntent(this).apply {
                 action = intent?.action
                 intent?.extras?.let(::putExtras)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)

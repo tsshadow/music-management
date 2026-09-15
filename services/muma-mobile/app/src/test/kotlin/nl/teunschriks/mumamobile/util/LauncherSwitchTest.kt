@@ -78,8 +78,7 @@ class LauncherSwitchTest {
     }
 
     @Test
-    fun `each interface opens its own activity`() {
-        UiVariant.LEGACY.activityClass.name shouldContain "NavigationActivity"
-        UiVariant.WEB.activityClass.name shouldContain "CapacitorActivity"
+    fun `the entry point is the shell`() {
+        UiVariant.activityClass.name shouldContain "CapacitorActivity"
     }
 }

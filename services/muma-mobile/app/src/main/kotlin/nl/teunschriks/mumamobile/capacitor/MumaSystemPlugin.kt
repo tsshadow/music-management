@@ -25,7 +25,11 @@ import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.ActivityCallback
 import com.getcapacitor.annotation.CapacitorPlugin
-import nl.teunschriks.mumamobile.activity.NavigationActivity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import nl.teunschriks.mumamobile.BuildConfig
 import nl.teunschriks.mumamobile.car.CAR_DEVICE_CLASSES
 import nl.teunschriks.mumamobile.car.CarPresence
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
@@ -34,8 +38,8 @@ import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Storage
-import nl.teunschriks.mumamobile.util.UiVariant
 import nl.teunschriks.mumamobile.util.Util
+import okhttp3.OkHttpClient
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import timber.log.Timber
@@ -50,7 +54,9 @@ import timber.log.Timber
  * | JS contract | here |
  * |---|---|
  * | `isNative` | `isNative()` → `{value: true}` |
- * | `appVersion()` | `appVersion()` → `{version}`, the APK's `versionName` |
+ * | `appVersion()` | `appVersion()` → `{version, versionCode, buildType, packageName, androidVersion, device}`, see [appVersion] |
+ * | `checkForUpdate()` | `checkForUpdate()` → `{available, currentVersionCode, currentVersionName, latestVersionCode, latestVersionName, url}`, rejects when the hoster cannot be asked; see [checkForUpdate] |
+ * | `openUrl({url})` | `openUrl({url})`, an `ACTION_VIEW` to whatever handles it; rejects when nothing does |
  * | `releaseNotes()` | `releaseNotes()` → `{text}`, muma-mobile's own `CHANGELOG.md` |
  * | `serverUrl()` | `serverUrl()` → `{subsonic, mumaApi}` |
  * | `signOut()` | `signOut()` |
@@ -117,7 +123,86 @@ class MumaSystemPlugin :
     @PluginMethod
     fun appVersion(call: PluginCall) {
         val version = safeContext()?.let { Util.getVersionName(it) } ?: ""
-        call.resolve(JSObject().put("version", version))
+        call.resolve(
+            JSObject()
+                .put("version", version)
+                // The rest is what the About page lists and what a bug report is asked for;
+                // `BuildConfig` rather than `PackageManager` because it cannot fail to answer.
+                .put("versionCode", BuildConfig.VERSION_CODE)
+                .put("buildType", BuildConfig.BUILD_TYPE)
+                .put("packageName", BuildConfig.APPLICATION_ID)
+                .put("androidVersion", "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+                .put("device", "${Build.MANUFACTURER} ${Build.MODEL}")
+        )
+    }
+
+    /**
+     * Asks apk-hoster whether a newer build of this series exists -- the check the legacy Kotlin
+     * home screen ran on every start (`util/UpdateChecker.kt`, deleted with that screen) and that
+     * nothing ran since, which is how a phone on build 312 heard nothing about 313.
+     *
+     * The plugin only fetches and compares; the web decides when to ask (once a day on start,
+     * and whenever the About page's button is pressed) and how to tell the listener. A hoster
+     * that cannot be reached or answers with an error *rejects* rather than resolving
+     * `available: false`: "you are up to date" and "I could not check" are different answers,
+     * and the manual button has to show the second one as such.
+     */
+    @PluginMethod
+    fun checkForUpdate(call: PluginCall) {
+        val series = AppUpdate.seriesOf(BuildConfig.DEBUG)
+        val url = AppUpdate.versionUrl(BuildConfig.APK_HOST_URL, series, BuildConfig.APK_HOST_USER)
+        io.launch {
+            val latest = try {
+                AppUpdate.fetchLatest(updateClient, url, BuildConfig.VERSION_NAME, BuildConfig.APK_HOST_PASSWORD)
+            } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
+                Timber.w(all, "Could not check for an update at %s", url)
+                withContext(Dispatchers.Main) { call.reject("update check failed: ${all.message}") }
+                return@launch
+            }
+            val current = BuildConfig.VERSION_CODE
+            withContext(Dispatchers.Main) {
+                call.resolve(
+                    JSObject()
+                        .put("available", AppUpdate.isNewer(latest, current))
+                        .put("currentVersionCode", current)
+                        .put("currentVersionName", BuildConfig.VERSION_NAME)
+                        .put("latestVersionCode", latest.versionCode)
+                        .put("latestVersionName", latest.versionName)
+                        .put("url", AppUpdate.downloadUrl(latest.url))
+                )
+            }
+        }
+    }
+
+    /**
+     * Opens a url outside the WebView -- the download link of a newer build, which the WebView
+     * itself must not navigate to (an APK is not a page). Rejects when no installed app takes
+     * `ACTION_VIEW` for it, so the web can say so instead of nothing happening.
+     */
+    @PluginMethod
+    fun openUrl(call: PluginCall) {
+        val url = call.getString("url")
+        if (url.isNullOrBlank()) {
+            call.reject("openUrl needs a url")
+            return
+        }
+        // The same guard as `setKeepScreenOn`: `activity` throws on an unattached bridge.
+        val activity = try {
+            activity
+        } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
+            null
+        }
+        if (activity == null) {
+            call.reject("no activity to open a url from")
+            return
+        }
+        try {
+            activity.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+            call.resolve()
+        } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
+            Timber.w(all, "Nothing could open %s", url)
+            call.reject("nothing on this device opens that url")
+        }
     }
 
     /**
@@ -128,8 +213,8 @@ class MumaSystemPlugin :
      * `frontend:bundle`'s Docker build context is `services/frontend` alone, so a build-time
      * import reaching into `services/muma-mobile` cannot resolve there even though it resolves
      * fine under a local `vite dev`/`vitest` run against the full checkout. `copyChangelog` in
-     * `app/build.gradle` already stages this exact file into the APK's assets, for the legacy
-     * `Util.showChangelog` -- reading it again here needs no new Gradle wiring.
+     * `app/build.gradle` already stages this exact file into the APK's assets -- reading it
+     * here needs no new Gradle wiring.
      *
      * An empty string is what a missing asset (no bridge attached, or a checkout where
      * `copyChangelog` never ran) answers with; the web side already treats that the same as "no
@@ -158,6 +243,10 @@ class MumaSystemPlugin :
     } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
         null
     }
+
+    /** One client for the update check; the app's Subsonic client is bound to the server, not the hoster. */
+    private val updateClient by lazy { OkHttpClient() }
+    private val io = CoroutineScope(Dispatchers.IO)
 
     /**
      * The two bases every URL in the web player is built on.
@@ -230,7 +319,7 @@ class MumaSystemPlugin :
      * Android Auto and the legacy UI see the same session afterwards. Goes through
      * [ActiveServerProvider.saveCredentials]. `url` is accepted for symmetry with the JS contract
      * but not stored: static mode has exactly one server address (see
-     * `ServerSettingsModel.STATIC_SERVERS`), so there is nowhere on this side to put a different
+     * `StaticServers.STATIC_SERVERS`), so there is nowhere on this side to put a different
      * one.
      */
     @PluginMethod
@@ -238,55 +327,6 @@ class MumaSystemPlugin :
         val username = call.getString("username") ?: ""
         val password = call.getString("password") ?: ""
         activeServerProvider.saveCredentials(username, password)
-        call.resolve()
-    }
-
-    /**
-     * Puts the setting back on the Kotlin app and restarts into it.
-     *
-     * The task is cleared rather than the activity finished: the web UI is the task's root, and
-     * leaving it on the stack would let one back press return to the interface the user just
-     * left. No launcher component is disabled on the way out -- the aliases point at the
-     * trampoline, which reads the setting -- because disabling one takes this very task down with
-     * it. See `activity/LauncherActivity.kt`.
-     */
-    @PluginMethod
-    fun switchToLegacyUi(call: PluginCall) {
-        val activity = activity ?: run {
-            call.reject("no activity")
-            return
-        }
-        Settings.webUiEnabled = false
-        call.resolve()
-        activity.runOnUiThread {
-            activity.startActivity(
-                UiVariant.launchIntent(activity)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            )
-            activity.finish()
-        }
-    }
-
-    /**
-     * Opens the Kotlin settings screen on top of the web UI.
-     *
-     * Phase 1 leaves downloads, cache location, the car and the equalizer configured there; the
-     * web player has no page for them yet, and a second, half-complete settings screen would be
-     * worse than a visible seam.
-     */
-    @PluginMethod
-    fun openLegacySettings(call: PluginCall) {
-        val activity = activity ?: run {
-            call.reject("no activity")
-            return
-        }
-        activity.runOnUiThread {
-            activity.startActivity(
-                Intent(activity, NavigationActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    .putExtra(EXTRA_OPEN_SETTINGS, true)
-            )
-        }
         call.resolve()
     }
 
@@ -380,8 +420,7 @@ class MumaSystemPlugin :
     /**
      * The "Apparaat" settings tab's whole state in one call: every field
      * [DEVICE_SETTING_WHITELIST] can write, plus a few read-only ones the tab only ever shows --
-     * the cache location and how many car-mode devices are paired, both edited from the legacy
-     * screen rather than here (see `openLegacySettings`).
+     * the cache location and how many car-mode devices are paired.
      *
      * `carModeFullScreenGranted` is left out entirely below Android 14 and where
      * [NotificationManager] cannot answer, exactly as the legacy row hides itself in that case --
@@ -488,11 +527,9 @@ class MumaSystemPlugin :
     }
 
     /**
-     * Fires the same system settings screen the legacy row's click listener does
-     * (`SettingsFragment.setupCarModeFullScreen`), so the user can grant the "use full screen
-     * intent" permission car mode raises the screen with. Fire-and-forget, like
-     * `switchToLegacyUi`/`openLegacySettings`: there is no result to wait for, only
-     * `getSettings`'s `carModeFullScreenGranted` on the next read.
+     * Fires the system settings screen where the user can grant the "use full screen intent"
+     * permission car mode raises the screen with. Fire-and-forget: there is no result to wait
+     * for, only `getSettings`'s `carModeFullScreenGranted` on the next read.
      */
     @PluginMethod
     fun requestCarModeFullScreenPermission(call: PluginCall) {
@@ -516,9 +553,9 @@ class MumaSystemPlugin :
     }
 
     /**
-     * Opens the system's directory picker for a custom cache location, the same
-     * `ACTION_OPEN_DOCUMENT_TREE` flow `SelectCacheActivityContract` drives for the legacy screen.
-     * The result comes back through [onCacheLocationPicked]; this only has to start the intent.
+     * Opens the system's directory picker (`ACTION_OPEN_DOCUMENT_TREE`) for a custom cache
+     * location. The result comes back through [onCacheLocationPicked]; this only has to start the
+     * intent.
      */
     @PluginMethod
     fun pickCacheLocation(call: PluginCall) {
@@ -613,9 +650,6 @@ class MumaSystemPlugin :
         const val EVENT_BACK = "back"
         const val EVENT_DEEP_LINK = "deepLink"
         const val EVENT_CAR_CONNECTED = "carConnected"
-
-        /** Tells [NavigationActivity] to open its settings screen; see [openLegacySettings]. */
-        const val EXTRA_OPEN_SETTINGS = "nl.teunschriks.mumamobile.OPEN_SETTINGS"
 
         /** Same flags `SettingsFragment`'s `RW_FLAG` grants the legacy cache-location picker. */
         const val CACHE_LOCATION_RW_FLAG = Intent.FLAG_GRANT_READ_URI_PERMISSION or

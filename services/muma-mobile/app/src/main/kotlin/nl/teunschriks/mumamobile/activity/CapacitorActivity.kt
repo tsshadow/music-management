@@ -9,16 +9,18 @@ package nl.teunschriks.mumamobile.activity
 
 import android.app.SearchManager
 import android.content.Context
-import android.content.ContextWrapper
 import android.content.Intent
 import android.media.AudioManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
+import android.webkit.RenderProcessGoneDetail
+import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
 import androidx.lifecycle.lifecycleScope
 import com.getcapacitor.BridgeActivity
+import com.getcapacitor.WebViewListener
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -40,7 +42,6 @@ import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.LocaleHelper
 import nl.teunschriks.mumamobile.util.Settings
-import nl.teunschriks.mumamobile.util.UiScaleHelper
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.voice.VoiceTileService
 import org.koin.android.ext.android.inject
@@ -126,6 +127,7 @@ class CapacitorActivity : BridgeActivity() {
 
         super.onCreate(savedInstanceState)
 
+        bridge.addWebViewListener(RendererGoneRestart())
         carConnectionWatcher.start()
         volumeControlStream = AudioManager.STREAM_MUSIC
         Util.ensurePermissionToPostNotification(this)
@@ -134,6 +136,27 @@ class CapacitorActivity : BridgeActivity() {
         watchCarPresence()
         migrateBookmarksOnce()
         deliver(intent)
+    }
+
+    /**
+     * Android reclaims the WebView's renderer process of a backgrounded app under memory pressure
+     * (`didCrash() == false`) and tells the app about it the moment the WebView is shown again.
+     * Nobody handled that: Capacitor's `BridgeWebViewClient` asks its listeners and there were
+     * none, so the default applied -- the whole app process is killed on the spot. Reopening the
+     * app after a while then showed a black WebView for a beat and the app was gone, or the
+     * launcher trampoline brought it straight back with nothing in it.
+     *
+     * Recreating the activity is the documented answer: a new WebView, a new renderer, and the
+     * web side boots from the services as after any other WebView loss (`bootstrapShell` reads
+     * the session and the queue back from the native side, so playback is not touched). `true`
+     * tells the WebView the loss is handled, which is what keeps the process alive to do it.
+     */
+    private inner class RendererGoneRestart : WebViewListener() {
+        override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
+            Timber.w("The WebView renderer is gone (crashed=%s); recreating the activity", detail?.didCrash())
+            main.post { if (!isFinishing && !isDestroyed) recreate() }
+            return true
+        }
     }
 
     override fun onResume() {
@@ -155,9 +178,8 @@ class CapacitorActivity : BridgeActivity() {
     }
 
     /**
-     * Apply the customized language settings if needed. Identical to [NavigationActivity]: the
-     * two activities are the same app, and a WebView started from a shortcut must not be in a
-     * different locale or at a different scale than the rest.
+     * Apply the customized language settings if needed, so the shell's own chrome (permission
+     * dialogs, share sheets) is in the language the user picked, not only the WebView's text.
      */
     override fun attachBaseContext(newBase: Context?) {
         val locale = Settings.overrideLanguage
@@ -166,8 +188,7 @@ class CapacitorActivity : BridgeActivity() {
         } else {
             newBase
         }
-        val scaledContext: ContextWrapper = UiScaleHelper.wrap(localizedContext, Settings.uiScalePercent)
-        super.attachBaseContext(scaledContext)
+        super.attachBaseContext(localizedContext)
     }
 
     // ------------------------------------------------------------------- back

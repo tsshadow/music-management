@@ -11,7 +11,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import androidx.annotation.IntRange
-import androidx.fragment.app.Fragment
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -29,8 +28,6 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.capacitor.radioItemMediaId
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.OFFLINE_DB_ID
@@ -40,13 +37,10 @@ import nl.teunschriks.mumamobile.home.PlayHistoryRecorder
 import nl.teunschriks.mumamobile.home.PlaybackSourceHolder
 import nl.teunschriks.mumamobile.log.logAction
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
-import nl.teunschriks.mumamobile.util.DownloadUtil
 import nl.teunschriks.mumamobile.util.MAX_STARS
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Util
-import nl.teunschriks.mumamobile.util.Util.navigateToCurrent
 import nl.teunschriks.mumamobile.util.Util.toast
-import nl.teunschriks.mumamobile.util.launchWithToast
 import nl.teunschriks.mumamobile.util.toMediaItem
 import nl.teunschriks.mumamobile.util.toTrack
 import org.koin.core.component.KoinComponent
@@ -360,10 +354,20 @@ class MediaPlayerManager(
         }
     }
 
+    /**
+     * The index is the timeline (window) index, shuffle or not.
+     *
+     * It used to be the play-order position while shuffle was on, for the Kotlin queue screen
+     * that drew the list in play order. That screen is gone and the only reader left is the
+     * Capacitor plugin's [nl.teunschriks.mumamobile.capacitor.TransportTracker], which compares
+     * this against the window index it asked `seekTo` for. In play-order space the two never
+     * matched under shuffle, so the tracker's expectation stayed pending and every later track
+     * change was swallowed -- the car screen kept showing the first track of the trip.
+     */
     private fun publishPlaybackState() {
         val newState = RxBus.StateWithTrack(
             track = currentMediaItem?.toTrack(),
-            index = if (isShufflePlayEnabled) getCurrentShuffleIndex() else currentMediaItemIndex,
+            index = currentMediaItemIndex,
             isPlaying = isPlaying,
             state = playbackState
         )
@@ -585,76 +589,6 @@ class MediaPlayerManager(
             Timber.w(all, "Failed to record the start of the queue")
         }
     }
-
-    private suspend fun addToPlaylistAsync(
-        songs: List<Track>,
-        autoPlay: Boolean,
-        shuffle: Boolean,
-        insertionMode: InsertionMode
-    ) {
-        withContext(Dispatchers.Main) {
-            addToPlaylist(
-                songs = songs,
-                autoPlay = autoPlay,
-                shuffle = shuffle,
-                insertionMode = insertionMode
-            )
-        }
-    }
-
-    @Suppress("LongParameterList")
-    fun playTracksAndToast(
-        fragment: Fragment,
-        insertionMode: InsertionMode,
-        tracks: List<Track> = listOf(),
-        id: String? = null,
-        name: String? = "",
-        isShare: Boolean = false,
-        isDirectory: Boolean = true,
-        shuffle: Boolean = false,
-        isArtist: Boolean = false
-    ) {
-        fragment.launchWithToast {
-            val list: List<Track> =
-                tracks.ifEmpty {
-                    requireNotNull(id)
-                    DownloadUtil.getTracksFromServerAsync(isArtist, id, isDirectory, name, isShare)
-                }
-
-            addToPlaylistAsync(
-                songs = list,
-                insertionMode = insertionMode,
-                autoPlay = (insertionMode == InsertionMode.CLEAR),
-                shuffle = shuffle
-            )
-
-            if (insertionMode == InsertionMode.CLEAR) {
-                fragment.navigateToCurrent()
-            }
-
-            when (insertionMode) {
-                InsertionMode.AFTER_CURRENT ->
-                    quantize(R.plurals.n_songs_added_after_current, list)
-
-                InsertionMode.APPEND ->
-                    quantize(R.plurals.n_songs_added_to_end, list)
-
-                InsertionMode.CLEAR -> {
-                    if (Settings.shouldTransitionOnPlayback) {
-                        null
-                    } else {
-                        quantize(R.plurals.n_songs_added_play_now, list)
-                    }
-                }
-            }
-        }
-    }
-
-    private fun quantize(resId: Int, tracks: List<Track>): String = UApp.applicationContext().resources.getQuantityString(
-        resId,
-        tracks.size,
-        tracks.size
-    )
 
     @set:Synchronized
     var isShufflePlayEnabled: Boolean
@@ -1022,11 +956,6 @@ class MediaPlayerManager(
     val currentMediaItemIndex: Int
         get() = controller?.currentMediaItemIndex ?: -1
 
-    private fun getCurrentShuffleIndex(): Int {
-        val currentMediaItemIndex = controller?.currentMediaItemIndex ?: return -1
-        return getShuffledIndexOf(currentMediaItemIndex)
-    }
-
     /**
      * Loops over the timeline windows to find the entry which matches the given closure.
      *
@@ -1058,18 +987,6 @@ class MediaPlayerManager(
         }
 
         return C.INDEX_UNSET
-    }
-
-    /**
-     * Returns the index of the shuffled position of the current playback item given its original
-     * position in the unshuffled timeline.
-     *
-     * @param searchPosition The index of the item in the unshuffled timeline to search for
-     * in the shuffled timeline.
-     * @return The index of the item in the shuffled timeline, or [C.INDEX_UNSET] if not found.
-     */
-    private fun getShuffledIndexOf(searchPosition: Int): Int = getWindowIndexWhere(false) { _, windowIndex ->
-        windowIndex == searchPosition
     }
 
     /**

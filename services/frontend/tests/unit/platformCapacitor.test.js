@@ -346,6 +346,82 @@ describe("capacitor system", () => {
     expect(await platform.system.appVersion()).toBe("");
   });
 
+  it("describes the APK for the About page, with every field a string or a number", async () => {
+    const { platform } = nativePlatform({
+      MumaSystem: {
+        appVersion: {
+          version: "6.36.0",
+          versionCode: 313,
+          buildType: "debug",
+          packageName: "nl.teunschriks.mumamobile.debug",
+          androidVersion: "15 (API 35)",
+          device: "Google Pixel 8",
+        },
+      },
+    });
+
+    expect(await platform.system.appInfo()).toEqual({
+      version: "6.36.0",
+      versionCode: 313,
+      buildType: "debug",
+      packageName: "nl.teunschriks.mumamobile.debug",
+      androidVersion: "15 (API 35)",
+      device: "Google Pixel 8",
+    });
+  });
+
+  it("answers null for appInfo when the plugin sends something malformed", async () => {
+    const { platform } = nativePlatform({ MumaSystem: { appVersion: {} } });
+
+    expect(await platform.system.appInfo()).toBeNull();
+  });
+
+  it("passes the hoster's update answer through, normalised", async () => {
+    const { platform } = nativePlatform({
+      MumaSystem: {
+        checkForUpdate: {
+          available: true,
+          currentVersionCode: 312,
+          currentVersionName: "6.36.0",
+          latestVersionCode: "313",
+          latestVersionName: "6.36.0",
+          url: "https://apk.example/dl/313?u=guest&p=guest",
+        },
+      },
+    });
+
+    expect(await platform.system.checkForUpdate()).toEqual({
+      available: true,
+      currentVersionCode: 312,
+      currentVersionName: "6.36.0",
+      latestVersionCode: 313,
+      latestVersionName: "6.36.0",
+      url: "https://apk.example/dl/313?u=guest&p=guest",
+    });
+  });
+
+  it("lets a rejected update check reject: 'could not check' is not 'up to date'", async () => {
+    const { platform } = nativePlatform({
+      MumaSystem: {
+        checkForUpdate: () =>
+          Promise.reject(new Error("update check failed: apk-hoster answered 503")),
+      },
+    });
+
+    await expect(platform.system.checkForUpdate()).rejects.toThrow("503");
+  });
+
+  it("hands a url to the shell to open outside the WebView", async () => {
+    const { platform, plugins } = nativePlatform();
+
+    await platform.system.openUrl("https://apk.example/dl/313");
+
+    expect(plugins.MumaSystem.calls).toContainEqual([
+      "openUrl",
+      { url: "https://apk.example/dl/313" },
+    ]);
+  });
+
   it("reads muma-mobile's own CHANGELOG.md text", async () => {
     const { platform } = nativePlatform({
       MumaSystem: { releaseNotes: { text: "## [6.35.1] - 2026-09-11\n" } },
@@ -476,18 +552,6 @@ describe("capacitor system", () => {
 
     expect(plugins.MumaSystem.calls).toEqual([
       ["setKeepScreenOn", { showWhenLocked: false, turnScreenOn: false }],
-    ]);
-  });
-
-  it("hands the phone back to the Kotlin interface", () => {
-    const { platform, plugins } = nativePlatform();
-
-    platform.system.switchToLegacyUi();
-    platform.system.openLegacySettings();
-
-    expect(plugins.MumaSystem.calls.map(([name]) => name)).toEqual([
-      "switchToLegacyUi",
-      "openLegacySettings",
     ]);
   });
 

@@ -2,13 +2,8 @@
 <resources>
     <string name="setting_key.resume_play_on_headphones_plug" translatable="false">playback.resume_play_on_headphones_plug</string>
     <string name="setting_key.server_instance" translatable="false">serverInstanceId</string>
-    <string name="setting_key.style" translatable="false">style</string>
-    <string name="setting_key.style_spotify" translatable="false">spotify</string>
-    <string name="setting_key.style_muma" translatable="false">muma</string>
     <string name="setting_key.app_icon" translatable="false">appIcon</string>
     <string name="setting_key.app_icon_green" translatable="false">green</string>
-    <string name="setting_key.web_ui" translatable="false">webUiEnabled</string>
-    <string name="setting_key.ui_scale" translatable="false">uiScale</string>
     <string name="setting_key.display_bitrate_with_artist" translatable="false">displayBitrateWithArtist</string>
     <string name="setting_key.show_track_number" translatable="false">showTrackNumber</string>
     <string name="setting_key.track_list_lines" translatable="false">trackListLines</string>
@@ -22,7 +17,6 @@
     <string name="setting_key.parallel_downloads" translatable="false">parallelDownloads</string>
     <string name="setting_key.hide_media" translatable="false">hideMedia</string>
     <string name="setting_key.scrobble" translatable="false">scrobble</string>
-    <string name="setting_key.server_scaling" translatable="false">serverScaling</string>
     <string name="setting_key.wifi_required_for_download" translatable="false">wifiRequiredForDownload</string>
     <string name="setting_key.network_timeout" translatable="false">networkTimeout</string>
     <string name="setting_key_auto_switch_offline" translatable="false">autoSwitchOffline</string>
@@ -62,11 +56,8 @@
     <string name="setting_key.last_synced_version" translatable="false">lastSyncedVersion</string>
     <string name="setting_key.muma_api_key" translatable="false">mumaApiKey</string>
     <string name="setting_key.muma_user_id" translatable="false">mumaUserId</string>
-    <string name="setting_key.share_log" translatable="false">shareLog</string>
-    <string name="setting_key.view_log" translatable="false">viewLog</string>
     <string name="setting_key.static_username" translatable="false">staticUserName</string>
     <string name="setting_key.static_password" translatable="false">staticPassword</string>
     <string name="setting_key.media_device_export" translatable="false">mediaDeviceExportEnabled</string>
-    <string name="setting_key.send_diagnostics" translatable="false">sendDiagnostics</string>
     <string name="setting_key.bookmarks_migrated_to_set_resume" translatable="false">bookmarksMigratedToSetResume</string>
 </resources>

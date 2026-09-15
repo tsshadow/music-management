@@ -9,6 +9,13 @@
     "noTracksHelp": "This album has nothing matching the current track view.",
     "viewOnMusicBrainz": "View on MusicBrainz"
   },
+  "appUpdate": {
+    "available": "New MuMa version: {version}",
+    "checkFailed": "Checking for updates failed.",
+    "download": "Download",
+    "openFailed": "Could not open the download.",
+    "upToDate": "You have the latest version ({version})."
+  },
   "artist": {
     "about": "About {name}",
     "allSets": "All sets",
@@ -271,7 +278,6 @@
   },
   "login": {
     "avatar": "Avatar",
-    "backToLegacyUi": "Back to the old interface",
     "backToLogin": "Back to login",
     "connect": "Connect",
     "createAccount": "Create account",
@@ -846,7 +852,8 @@
     "today": {
       "one": "Today, 1 year ago",
       "other": "Today, {count} years ago"
-    }
+    },
+    "homeSummary": "{years} years • {tracks} tracks today"
   },
   "mobile": {
     "browseAll": "Browse all"
@@ -878,7 +885,9 @@
     "sets": "Sets",
     "songs": "Songs",
     "starred": "Favourites",
-    "years": "Years"
+    "years": "Years",
+    "browse": "Browse",
+    "favorites": "Favorites"
   },
   "news": {
     "couldNotPlay": "Could not play the news",
@@ -964,13 +973,33 @@
   },
   "settings": {
     "about": {
+      "android": "Android",
+      "app": "App",
+      "appName": "Name",
+      "appVersion": "Version",
       "blurb": "Your own music library, wherever you are. Something not working, or a track missing? Let the administrator of this server know.",
+      "buildType": "Build",
+      "builtAt": "built {date}",
+      "bundleVersion": "Web interface",
+      "checkFailed": "The check failed.",
+      "checkForUpdate": "Check for updates",
+      "checking": "Checking…",
+      "device": "Device",
       "howCarModeBody": "Plugging the phone into Android Auto opens the car screen by itself. The \"Car mode\" switch under Device settings is only for driving without a paired car — it switches on by hand everything Android Auto would otherwise have switched on.",
       "howCarModeTitle": "How car mode turns on",
       "howItWorksTitle": "How it works",
+      "lmsVersion": "Music server (LMS)",
+      "mumaVersion": "MuMa API",
       "noReleaseNotes": "No release notes available yet.",
+      "packageName": "Package",
+      "releaseNotesApp": "What's new in the app",
+      "server": "Server",
+      "serverUrl": "Address",
       "subtitle": "Which version you are on, and what changed recently.",
       "title": "About MuMa",
+      "unknown": "unknown",
+      "upToDate": "You have the latest version.",
+      "updateAvailable": "Newer version available: {version}",
       "whatsNew": "What's new"
     },
     "advanced": {
@@ -1022,7 +1051,6 @@
         "car": "Car",
         "diagnostics": "Diagnostics",
         "downloads": "Downloads",
-        "interface": "Interface",
         "playback": "Playback",
         "streaming": "Streaming",
         "other": "Other",
@@ -1053,8 +1081,6 @@
       "sendDiagnostics": "Send diagnostics now",
       "sendDiagnosticsHelp": "Sends the recent action log to help debug a problem.",
       "subtitle": "Downloads, streaming quality and car mode on this phone.",
-      "switchToLegacyUi": "Switch to the classic interface",
-      "switchToLegacyUiHelp": "Leaves this interface and restarts into the original Ultrasonic screens.",
       "title": "Device",
       "wifiOnly": "Wi-Fi only",
       "wifiOnlyHelp": "Wait for Wi-Fi before downloading anything.",
@@ -1213,7 +1239,11 @@
     "versionsOf": "Versions of {title}",
     "bestVersion": "best version",
     "onlyVersion": "This is the only version of this song.",
-    "versionsFailed": "Could not load the versions of this song"
+    "versionsFailed": "Could not load the versions of this song",
+    "details": "Song details",
+    "goToAlbum": "Go to album",
+    "goToArtist": "Go to artist",
+    "browserDownload": "Save a copy"
   },
   "song": {
     "heading": "Song",
@@ -1251,6 +1281,35 @@
     "emptyTitle": "Nothing downloaded here",
     "unavailableHelp": "This screen needs the server. It works again as soon as there is a connection.",
     "unavailableTitle": "Not available without a connection"
+  },
+  "presetBuilder": {
+    "kicker": "Advanced search",
+    "editKicker": "Edit shortcut",
+    "title": "Search on everything, keep it as a shortcut",
+    "intro": "Pick as many genres, artists, labels, festivals and years as you like — within one kind any of them counts, across kinds all of them must match. The list below follows your choice. Saving puts it as a tile on your home screen and in the car under Playlists.",
+    "mode": "Songs or sets",
+    "genres": "Genres",
+    "artists": "Artists",
+    "labels": "Labels",
+    "festivals": "Festivals",
+    "years": "Years",
+    "addPlaceholder": "Type and pick, or Enter",
+    "remove": "Remove {name}",
+    "sort": "Sort",
+    "rating": "Rating",
+    "ratingMin": "from",
+    "ratingMax": "to",
+    "size": "Number of tracks",
+    "name": "Name",
+    "save": "Save as shortcut",
+    "saveChanges": "Save changes",
+    "signInToSave": "Sign in to MuMa to save.",
+    "noFilterHint": "Without a filter this is simply your whole library.",
+    "preview": "Preview",
+    "previewCount": "first {count}",
+    "open": "Advanced search",
+    "new": "New shortcut",
+    "edit": "Edit"
   },
   "presets": {
     "title": "Presets",

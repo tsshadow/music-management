@@ -151,31 +151,80 @@ export function presetQuery(preset, { viewMode, count, offset = 0, seed } = {}) 
 }
 
 /**
- * The `params` JSON for a preset saved from a filtered list.
+ * The `params` JSON for a preset, from a full query: every cluster as a list.
  *
- * Written in the Kotlin tile spelling so the phone's own screens open it too. Anything not
- * filtered on is left out rather than written as an empty list: an empty `genre` reads as "no
- * genre filter" everywhere, but a missing key is what every reader already handles.
+ * Written in the Kotlin tile spelling -- `genre`, `artists`, `label`, `festival`, `year`,
+ * `sortMethod`, `ratingMin`/`ratingMax`, `length`, `size` -- because that is the one the phone's
+ * Android Auto browser opens (`MumaTile.toTileInfo`). Anything not filtered on is left out rather
+ * than written as an empty list: an empty `genre` reads as "no genre filter" everywhere, but a
+ * missing key is what every reader already handles. A rating range of 0..5 is likewise left out,
+ * since it filters nothing.
+ *
+ * @param {{genres?: string[], artists?: string[], labels?: string[], festivals?: string[],
+ *   years?: (string|number)[], sort?: string, minRating?: number, maxRating?: number,
+ *   viewMode: 'songs'|'sets', size?: number}} query
+ * @returns {string}
+ */
+export function presetParams({
+  genres = [],
+  artists = [],
+  labels = [],
+  festivals = [],
+  years = [],
+  sort,
+  minRating = 0,
+  maxRating = 5,
+  viewMode,
+  size = DEFAULT_PRESET_SIZE,
+}) {
+  const params = { pageKey: viewMode === "sets" ? "sets" : "songs" };
+  const clean = (values) => values.map((v) => String(v).trim()).filter(Boolean);
+  if (clean(genres).length) params.genre = clean(genres);
+  if (clean(artists).length) params.artists = clean(artists);
+  if (clean(labels).length) params.label = clean(labels);
+  if (clean(festivals).length) params.festival = clean(festivals);
+  if (clean(years).length) params.year = clean(years);
+  params.sortMethod = SORT_TO_SERVER[sort] ?? SORT_TO_SERVER.recent;
+  const floor = Math.min(5, Math.max(0, Number(minRating) || 0));
+  const ceiling = Math.min(
+    5,
+    Math.max(floor, Number.isFinite(Number(maxRating)) ? Number(maxRating) : 5),
+  );
+  if (floor > 0 || ceiling < 5) {
+    params.ratingMin = floor;
+    params.ratingMax = ceiling;
+  }
+  params.length = viewMode === "sets" ? "long" : "short";
+  params.size = Math.max(1, Number(size) || DEFAULT_PRESET_SIZE);
+  return JSON.stringify(params);
+}
+
+/**
+ * The `params` JSON for a preset saved from a filtered list: the filter bar's one genre, one
+ * label, one year and rating floor, through {@link presetParams}.
  *
  * @param {{genre?: string, label?: string, year?: string, sort?: string, minRating?: string|number,
  *   viewMode: 'songs'|'sets'}} filters The filter bar's state plus the listener's mode.
  * @returns {string}
  */
 export function presetParamsFromFilters({ genre, label, year, sort, minRating, viewMode }) {
-  const params = { pageKey: viewMode === "sets" ? "sets" : "songs" };
-  if (genre) params.genre = [genre];
-  if (label) params.label = [label];
-  if (year) params.year = [String(year)];
-  params.sortMethod = SORT_TO_SERVER[sort] ?? SORT_TO_SERVER.recent;
-  const floor = Number(minRating) || 0;
-  if (floor > 0) {
-    params.ratingMin = floor;
-    params.ratingMax = 5;
-  }
-  params.length = viewMode === "sets" ? "long" : "short";
-  params.size = DEFAULT_PRESET_SIZE;
-  return JSON.stringify(params);
+  return presetParams({
+    genres: genre ? [genre] : [],
+    labels: label ? [label] : [],
+    years: year ? [String(year)] : [],
+    sort,
+    minRating: Number(minRating) || 0,
+    viewMode,
+  });
 }
+
+/**
+ * The sort ids a preset can carry, in the order the builder offers them.
+ * @type {ReadonlyArray<{id: string, labelKey: string}>}
+ */
+export const PRESET_SORTS = Object.freeze(
+  Object.entries(SORT_LABEL_KEYS).map(([id, labelKey]) => ({ id, labelKey })),
+);
 
 /**
  * One line under the tile's name: the sort, then each filter that is set.
@@ -238,6 +287,23 @@ export async function createPreset(userId, { name, params }) {
   if (!response.ok) throw new Error(`MuMa weigerde de preset: ${response.status}`);
   const body = await response.json().catch(() => ({}));
   return normalizePreset({ id: body?.id ?? "", name, params });
+}
+
+/**
+ * Renames and/or re-queries an existing preset. MuMa updates whichever of the two is given.
+ *
+ * @param {number} userId
+ * @param {string} presetId
+ * @param {{name?: string, params?: string}} changes
+ * @returns {Promise<void>}
+ */
+export async function updatePreset(userId, presetId, { name, params }) {
+  const response = await fetch(`${presetsUrl(userId)}/${encodeURIComponent(presetId)}`, {
+    method: "PUT",
+    headers: jsonHeaders(),
+    body: JSON.stringify({ name, params }),
+  });
+  if (!response.ok) throw new Error(`MuMa weigerde de preset te wijzigen: ${response.status}`);
 }
 
 /**

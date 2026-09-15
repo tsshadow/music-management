@@ -143,31 +143,42 @@ id and the native `DownloadService`/`OfflineMusicService` resolve the local file
 
 ### What is deleted from the Kotlin module
 
-Updated 2026-09-14, once every screen the design had not yet mapped was decided (see
-`functional.md`'s "Open Questions" entries for Lyrics, the setup wizard, the manual and the log
-viewer):
+Done (MR after 0.61.0 / muma-mobile 6.36.0, the last release that still carried both interfaces).
+The list below is what went; it is kept so the "what stays" half can be checked against.
 
-- Every fragment under `fragment/`, including the four the design had not covered until now
-  (`LyricsFragment`, `SetupWizardFragment`, `ManualFragment`, `LogViewerFragment`) and the ones
-  already known to have no web equivalent worth keeping: Chat, Shares, the standalone Podcast
-  screens (podcasts live inside the library on the web, not their own fragment), Bookmarks
-  (replaced by set resume), Jukebox (not carried over — see `functional.md`'s open question).
-- `wizard/` and `manual/` in full — the packages behind the two fragments above, not just the
-  fragments themselves (`WizardCatalog`, `UpdateEntry`, `WizardPagerAdapter`, `ManualChapter`,
-  `ManualAdapter`, and the rest).
-- `activity/NavigationActivity.kt` and the rest of `activity/`'s UI parts.
-- `adapters/`, `view/`, `LibraryPagerAdapter`, `FilterButtonBar`.
-- All of `res/layout`, `res/xml/settings.xml`, the nav graph, and both style themes.
+- Every fragment under `fragment/`, including `LyricsFragment`, `SetupWizardFragment`,
+  `ManualFragment`, `LogViewerFragment`, Chat, Shares, the standalone Podcast screens, Bookmarks
+  (replaced by set resume) and Jukebox (not carried over).
+- `wizard/`, `manual/`, `management/`, `model/`, `adapters/`, `view/` in full;
+  `activity/NavigationActivity.kt`; the home screen's own model (`HomeViewModel`,
+  `HomeSectionProvider`, `HomeCardAdapter`, `HomeCardNavigator`, `MemoriesProvider`, and the rest
+  of `home/` that only the Kotlin home read).
+- All of `res/layout` and `res/layout-land` except the three widget layouts, `res/menu`,
+  `res/navigation`, `res/xml/settings.xml`, `res/xml/searchable.xml`, the `UltrasonicTheme.Muma`
+  style, and every string, plural, array, colour, style, drawable and animation that only those
+  referenced -- ~7.000 lines across the locale folders, pruned by running Android Lint's
+  `UnusedResources` to a fixed point.
+- The theming engine's second style, `UiScaleHelper`, `Settings.style`/`uiScalePercent`/
+  `serverScaling`/`webUiEnabled`, `UiVariant`'s enum (now an object naming `CapacitorActivity`),
+  `MumaSystemPlugin.switchToLegacyUi`/`openLegacySettings`, and the Gradle dependencies only the
+  screens pulled in (Navigation + SafeArgs, ViewPager2, SwipeRefresh, ConstraintLayout,
+  RecyclerView fast-scroll, Markwon, MultiType, GridLayout, ColorPickerView, Transition,
+  fragment-ktx).
 
-Roughly 76 files and 95 layouts. What stays: `CapacitorActivity`/`LauncherActivity`, the services,
-Room, the Koin root `single`s, `service/androidauto/`, `core/*` (`core/voice`, `core/domain`,
-`core/subsonic-api`), `capacitor/*` (the plugins, including `MumaSystemPlugin`'s new
-`appVersion()`), `CrashReportManager`, `car/*`, `voice/VoiceTileService`, the widget, and the
-launcher shortcuts.
+What stays: `CapacitorActivity`/`LauncherActivity` (the launcher aliases and the icon-colour
+switch are untouched; the trampoline now also carries the `SEARCH`/`MEDIA_PLAY_FROM_SEARCH`
+filters `NavigationActivity` had), the services, Room, the Koin root `single`s,
+`service/androidauto/`, `core/*`, `capacitor/*`, `CrashReportManager`, `car/*`,
+`voice/VoiceTileService`, the widget, the launcher shortcuts, and the parts of `home/` the
+services read: `RecentActivityStore`, `PlayHistoryRecorder`, `PlaybackSourceHolder`,
+`FavoriteGenres`, `HomeSorts`, `HomeCard` (the persisted shape of a shortcut), `HomeSectionId`
+(named in that shape) and `TileInfo`/`TileStorage`, moved from `fragment/muma` because Android
+Auto's "Afspeellijsten" root still lists the favourite tiles. Nothing writes tiles any more; that
+root keeps showing what the phone had and is the one Auto surface whose content the web cannot
+change -- see `functional.md`'s open questions.
 
-No Kotlin is deleted by the MR that resolved the four screens above — the retirements are recorded
-in `functional.md` and this list is refreshed so the actual deletion MR has one place to check
-against, but the files themselves still exist until that follow-up lands.
+`StaticServers` in `data/` is the companion object of the deleted `ServerSettingsModel`, kept
+because `ActiveServerProvider` resolves the active and sign-in server against it.
 
 ### What is added to the web module
 
@@ -206,7 +217,7 @@ deliberately early and deliberately small.
 | App | Impact |
 |---|---|
 | `services/frontend` | grows by `platform/`, four screens, home sections, set resume; `Player.svelte` restructured; Tailwind tokens unchanged |
-| `services/muma-mobile` | loses its UI; becomes shell + plugins + services; version series continues (7.0.0) under the same package |
+| `services/muma-mobile` | lost its UI (done); shell + plugins + services; version series continues (7.0.0) under the same package |
 | `services/music_manager` | new keys in the frontend settings blob (downloads, car, voice, home sections, set positions); no new endpoint |
 | LMS | none |
 | CI | `frontend:capacitor` build job; `muma-mobile:unit` shrinks to services and plugins; Playwright gains the four screens; the `e2e:scan-to-listen` chain is unaffected |
@@ -306,3 +317,18 @@ because Path A's phase 0 needs the same reconciled token set.
 - [`../../styleguide.md`](../../styleguide.md), [`../../../services/frontend/STYLEGUIDE.md`](../../../services/frontend/STYLEGUIDE.md), [`../../../services/muma-mobile/STYLEGUIDE.md`](../../../services/muma-mobile/STYLEGUIDE.md) — the three style sources to reconcile into one
 - [`../../superpowers/specs/2026-08-18-muma-mobile-style-themes-design.md`](../../superpowers/specs/2026-08-18-muma-mobile-style-themes-design.md) — the MuMa style this design retires
 - [`../url-routing/`](../url-routing/) — the routes the shell's deep links and back button follow
+
+## Phone feedback round 3 — approved request, 2026-09-15
+
+Use shared settings density CSS and a shared quick-access tile. Dashboard maps account modes
+onto existing feeds and getSpotifyTracks (recent/added order), with getStarred2 for favourites. Browse routing
+replaces the library chip layout and owns playlist pages; search remains compatible. FavoritesView
+owns the phone favourites page and its two-column layout, with a top create action and PresetGrid
+rendering only preset tiles. Preset detail/create/edit routes belong to Favorites. PhoneHome no
+longer renders presets; desktop Home keeps PresetGrid. TrackList owns the details sheet
+and reuses its handlers, with trackListLines controlling the extra metadata line.
+
+Bound TransportTracker's pending expectation to three repeated non-null states at the same
+track/index. Settle quietly to preserve queue-replacement loop protection, but emit the changed
+snapshot. Player reconciles durationchange by trackId without directional fallback; car mode
+also adopts the snapshot on mount. No shared API contract changes.

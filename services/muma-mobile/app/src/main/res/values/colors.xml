@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="background_color_black">#000000</color>
-    <color name="selected_menu_dark">#FFFFFF</color>
-    <color name="selected_menu_light">#191414</color>
 
     <!-- The Spotify style's palette. Nothing outside values/themes.xml names these any more:
          every layout and drawable reads the theme attribute instead, which is what lets the
@@ -20,35 +18,19 @@
     <!-- MuMa style. The Spotify style has one dark level under the panel; MuMa has three, so a
          card visibly floats instead of sitting flush. Every contrast measurement behind these
          values is in docs/superpowers/specs/2026-08-18-muma-mobile-style-themes-design.md. -->
-    <color name="muma_deep">#0d0b0b</color>
-    <color name="muma_ground">#191414</color>
-    <color name="muma_hairline">#2a2424</color>
-    <color name="muma_ink_tertiary">#8a8280</color>
     <!-- The Home proposal specifies #5d5654, which measures 2.54:1 on muma_ground. In the app
          this rank colours the field labels in server_edit and share_details - text someone has
          to read to fill in a form - so it is lifted to 3.30:1. -->
-    <color name="muma_ink_quaternary">#6f6764</color>
-    <color name="muma_rating">#e8b62c</color>
 
     <!-- Loading placeholders: one step lighter than a card, so a skeleton reads as "content is
          coming" rather than as an empty card -->
-    <color name="skeleton_block">#2f2f2f</color>
 
     <!-- Status banners (Google auth request states) - mirrors the web frontend's
          bg-*-500/20 text-*-400 Tailwind pattern (docs/styleguide.md semantic colors) -->
-    <color name="status_info_bg">#3329b6f6</color>
-    <color name="status_info_text">#29b6f6</color>
-    <color name="status_success_bg">#331db954</color>
-    <color name="status_success_text">#1db954</color>
-    <color name="status_error_bg">#33e53935</color>
-    <color name="status_error_text">#e53935</color>
 
     <!-- Matches the web frontend's error banner (bg-[#e91429]) -->
     <color name="spotify_error_banner">#e91429</color>
 
     <!-- "Sign in with Google" button, per Google's own branding guidelines
          (light theme, neutral text/border regardless of the app's dark theme) -->
-    <color name="google_button_background">#ffffff</color>
-    <color name="google_button_text">#1f1f1f</color>
-    <color name="google_button_stroke">#747775</color>
 </resources>

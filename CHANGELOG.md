@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.62.0] - 2026-09-15
+
+### Added
+- **Geavanceerd zoeken, en het resultaat bewaren als snelkoppeling.** Nieuw op `/new-preset`
+  (via "+ Nieuwe snelkoppeling" boven de tegels op het startscherm, en op de telefoon bovenaan
+  het tabblad Zoeken): kies zoveel genres, artiesten, labels, festivals en jaren als je wilt —
+  binnen één soort telt elk, ertussen moeten ze allemaal kloppen — plus een ratingbereik,
+  sortering, nummers of sets en een aantal. De lijst eronder volgt de keuze live via dezelfde
+  `getSongs`-clusteraanroep die een tegel afspeelt. Opslaan maakt er een dynamische
+  afspeellijst van in MuMa, in de tegel-spelling die de Kotlin-app leest: een tegel op het
+  startscherm, en sinds Android Auto die lijst van de server leest ook een rij in de auto onder
+  Afspeellijsten. Een bestaande tegel is nu te bewerken via "Bewerken" in het menu van de
+  tegelpagina (`/preset/<id>/edit`); de snelle "opslaan als preset" op een gefilterde lijst
+  blijft bestaan en schrijft dezelfde spelling.
+
+### Changed
+- **De Over-pagina is een versie-overzicht.** Naast de LMS-versie staan nu de MuMa API-versie
+  (`/health`), het serveradres en de git-hash plus bouwtijd van de webinterface
+  (`version.json`); in de app ook versie, build, pakket, Android-versie en toestel, met een knop
+  "Controleren op updates".
+
+- **Telefoon: startscherm, navigatie, details en instellingen na de eerste testrit.** De
+  onderbalk is nu Home | Bladeren | Favorieten: Bladeren houdt het zoekveld en elke categorie,
+  met Artiesten, Afspeellijsten, Albums, Downloads en Favoriete nummers als eerste rij;
+  Favorieten toont alle snelkoppelingen (presets) als blokken met "+ nieuw" bovenaan, en is
+  bedoeld om later meer soorten favorieten te dragen. De chip-rij van het oude tabblad
+  Bibliotheek is weg. Het startscherm volgt eindelijk de Home-instellingen die de
+  instellingenmigratie al opsloeg maar nergens las: Memories, Release radar, Daily mix en
+  Favoriete nummers als één blokje elk in een twee-koloms grid, Recent uitgebracht en Recent
+  toegevoegd als rij, en "uit" verbergt de sectie. Een "⋯" per nummer opent een detailblad
+  met album, genre, datum, duur, plays, rating en elke actie die tot nu toe alleen op de
+  desktop bij hover bestond (versies, lyrics, hierna afspelen, in wachtrij, downloaden). De
+  instelling "2 of 3 regels" werkt: regel drie is "album • datum". Instellingen zijn compact
+  in plaats van de desktop-maat.
+
+### Removed
+- **De webspeler kent geen "Terug naar de klassieke interface" meer.** De knop op het
+  inlogscherm en de rij in Instellingen → Apparaat riepen `switchToLegacyUi` aan op de telefoon;
+  die interface bestaat sinds muma-mobile 7.0.0 niet meer, dus de knop, de rij, de groep
+  "Interface" op de Apparaat-tab en de plug-in-methoden `switchToLegacyUi`/`openLegacySettings`
+  zijn uit de shell-laag gehaald.
+
+### Fixed
+- **Eén LMS-thread gaf op alles 500 zodra de app opnieuw geopend werd.** `getSong`, `stream`,
+  `scrobble`, `getMemories` — alles wat op die thread landde faalde met `Stale object,
+  auth_token`, tot een herstart. Dbo bewaart objecten per sessie en de sessie is per thread:
+  thread A hield jouw token op versie N, thread B stempelde `last_used` naar N+1, en de
+  volgende bump van A schreef op zijn oude kopie. De `catch` in `processAuthToken` ving dat
+  niet — de flush zit in `~WriteTransaction`, buiten elke catch — en het vuile object bleef in
+  de sessie hangen, zodat elke latere write-transactie op die thread hem opnieuw flushte. Nu
+  wordt het token vóór de bump opnieuw gelezen (onder de write-lock), expliciet geflusht
+  binnen de try, en bij een stale write weggegooid.
+
 ## [0.61.0] - 2026-09-14
 
 ### Added
@@ -304,6 +357,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pas stuk in mutagen, als `IsADirectoryError: [Errno 21]`. Dat is vijf `Parse_song failed` per
   nacht op productie (2026-09-10) die nooit minder konden worden: geen enkele volgende ronde
   maakt een map leesbaar als audio. De glob levert nu alleen echte bestanden op.
+
 ## [0.60.2] - 2026-09-11
 
 ### Fixed
@@ -326,6 +380,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Beide syncs lezen nu eerst en schrijven alleen het verschil, in korte transacties: de
   versie-kolommen in batches van honderd, de afbeeldingen per artiest. Na de eerste ronde klopt bijna
   alles al, dus wordt er bijna niets geschreven en is het slot bijna nooit bezet.
+
 ## [0.60.1] - 2026-09-11
 
 ### Fixed
@@ -342,6 +397,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Verliest een verzoek die race alsnog, dan wordt dat genegeerd in plaats van het verzoek af te
   breken. De andere kant heeft dezelfde rij net bijgewerkt; het token was geldig toen we keken, en
   een aanroep laten mislukken over een boekhoudkundige botsing is de ene uitkomst die niet kan.
+
 ## [0.60.0] - 2026-09-11
 
 ### Added
@@ -364,6 +420,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - De dagelijkse mix en de release radar hebben een eigen pagina op de telefoon
   (`trackCollectionFragment` met een `feed`-argument): MuMa's volgorde, geen filters eroverheen,
   niet sorteerbaar en geen paginering.
+
 ## [0.59.0] - 2026-09-11
 
 ### Added
@@ -419,6 +476,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Een mislukte sync liet zijn verbinding open staan.** `sqlite_conn.close()` stond ná de
   `try`-body, dus bij een fout werd hij overgeslagen en bleef de transactie hangen — een slot dat
   niemand meer losliet. Nu in een `finally`.
+
 ## [0.58.0] - 2026-09-10
 
 ### Added
@@ -464,6 +522,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   van de vorige gebruiker — met de track-ids van de vorige server. De cache die overblijft is op
   slug, dag én server gesleuteld, en onthoudt een half opgeloste feed niet meer voor de rest van de
   dag.
+
 ## [0.57.1] - 2026-09-10
 
 ### Fixed
@@ -480,6 +539,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **En de sync draait nu in een lus, niet alleen bij het opstarten.** De versie-worker groepeert
   ongeveer 500 tracks per uur zolang hij achterstand heeft, en wat hij leert bereikte de server pas
   bij de volgende deploy. Elk uur, in te stellen met `LMS_DB_SYNC_SLEEPTIME`.
+
 ## [0.57.0] - 2026-09-10
 
 ### Added
@@ -488,6 +548,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   schema vast, en `tests/ci/test_room_schema_versions.py` vergelijkt. Zo'n wijziging was tot nu toe
   een schone diff in een gegenereerd bestand, en de app merkte het pas op de telefoon van iemand die
   zijn cache al gevuld had.
+
 ## [0.56.0] - 2026-09-10
 
 ### Added
@@ -501,6 +562,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bibliotheek laten verdwijnen zolang de worker zijn achterstand wegwerkt.
 - Een `workId` schakelt het filter uit: alle versies van één nummer opvragen en samenklappen tot één
   ervan zijn tegengestelden, en dat mag niet van de volgorde van parameters afhangen.
+
 ## [0.55.0] - 2026-09-10
 
 ### Added
@@ -524,6 +586,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   best-effort binnen de sync zelf en krijgt hier bewust geen tweede ronde.
 - De logregel zegt nu ook wélke server hij overslaat. Er draaien er twee, een stabiele en een alpha,
   en een regel zonder naam kost je de tijd om dat uit te zoeken.
+
 ## [0.54.0] - 2026-09-09
 
 ### Added
@@ -607,6 +670,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/ci/test_sast_baseline_rationale.py` pint het vast, inclusief een test die de baseline van
   déze repository leest en faalt zodra er weer een alinea in staat die een regeneratie niet kan
   reproduceren.
+
 ## [0.53.0] - 2026-09-09
 
 ### Added
@@ -675,6 +739,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   elke sleutel en meldt deze apart als `long-form`. Voor de scores is er een nieuwe vlag,
   `--rescore-downloads`, die de gelabelde downloads uit hun work haalt zodat de worker ze met de
   gerepareerde test opnieuw beoordeelt. Beide zijn dry-run-baar; draai eerst `--dry-run`.
+
 ## [0.52.0] - 2026-09-08
 
 ### Added
@@ -761,6 +826,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   een geparkeerde dubbele release was als LMS-tracks teruggekomen — het besluit dat de importer net
   had genomen, ongedaan gemaakt door de indexer. De quarantaineroot krijgt nu bij aanmaken een
   `.lmsignore`. Dat gebruikt LMS' eigen mechanisme in plaats van zijn scanner aan te passen.
+
 ## [0.51.0] - 2026-09-07
 
 ### Added
@@ -854,6 +920,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nieuwe worker-image kan hem niet stilletjes missen.
 - Ontwikkelketen: `postcss-selector-parser` naar 7.1.6 (GHSA-w9m9-85wc-3x92, denial of service via
   ongecontroleerde AST-recursie). Dev-dependency van de eslint-keten, komt niet in een image terecht.
+
 ## [0.50.0] - 2026-09-07
 
 ### Added
@@ -878,6 +945,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   niets, dus zonder deze check kon één sleutel ieders luistergeschiedenis lezen.
 - Nieuwe index op `listened_at` in beide scrobble-tabellen (`migrate_v20_listening_indexes.sql`): de
   bestaande unique keys beginnen op `username` en helpen niet voor een vraag zonder gebruikersnaam.
+
 ## [0.49.2] - 2026-09-06
 
 ### Fixed
@@ -893,6 +961,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   meteen opslaat. Alleen het indexeren van de collectie muteerde dus bestanden; een grote rescan
   concentreert dat. Lezen kost niets: `TagCollection._parse_flac` maakt de sleutels bij het lezen
   toch al hoofdletters.
+
 ## [0.49.1] - 2026-09-06
 
 ### Fixed
@@ -903,6 +972,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   de hele site 504's heeft laten geven. De wachtrij vertrekt nu als één verzoek met alle paden
   die er al in stonden, dubbele eruit. Er wordt nergens op gewacht: het punt van die wachtrij is
   dat een verplaatsing nooit blijft hangen op een muziekserver.
+
 ## [0.49.0] - 2026-09-06
 
 ### Added
@@ -946,6 +1016,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   komen nu uit één plek, `services/common/Helpers/LmsEndpoint.py`: de instelling wint, de
   omgeving is de terugval, en als geen van beide iets oplevert zegt het log één keer precies wat
   er ontbreekt in plaats van niets.
+
 ## [0.48.0] - 2026-09-06
 
 ### Added
@@ -1016,6 +1087,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `renovate/*` is nu een vrijstelling zoals `release/*` en de back-merge dat al waren. Een
   dependency-bump die wél een regel verdient, is er een die iemand gelezen heeft, en die kan het
   fragment toevoegen zoals op elke andere branch.
+
 ## [0.47.0] - 2026-09-06
 
 ### Added
@@ -1088,6 +1160,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   liet de pin van de oude work naar hem wijzen, en `recompute_canonicals()` volgde die pin blind —
   waarmee de oude song een canonieke versie kreeg die inmiddels een andere song is. De pin wordt
   bij het splitsen gewist, en een pin die geen lid meer is telt niet meer mee.
+
 ## [0.46.0] - 2026-09-05
 
 ### Added
@@ -1195,6 +1268,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sorteerde: dezelfde track beweerde twee dingen op één scherm. De keuze volgt nu dezelfde regel als
   de Android-app al gebruikte -- neem de originele datum alleen als hij minstens zo precies is -- en
   staat in één gedeelde `trackDate.js` in plaats van twee kopieën van dezelfde datumfunctie.
+
 ## [0.45.0] - 2026-09-04
 
 ### Fixed

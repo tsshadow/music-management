@@ -26,6 +26,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.util.Date
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.guava.future
@@ -42,15 +43,16 @@ import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.Artist
 import nl.teunschriks.mumamobile.domain.ArtistOrIndex
 import nl.teunschriks.mumamobile.domain.Track
-import nl.teunschriks.mumamobile.fragment.muma.TileInfo
-import nl.teunschriks.mumamobile.fragment.muma.TileStorage
 import nl.teunschriks.mumamobile.home.FavoriteGenres
+import nl.teunschriks.mumamobile.home.TileInfo
+import nl.teunschriks.mumamobile.home.toTileInfo
 import nl.teunschriks.mumamobile.provider.AlbumArtContentProvider
 import nl.teunschriks.mumamobile.service.MusicService
 import nl.teunschriks.mumamobile.service.MusicServiceFactory
 import nl.teunschriks.mumamobile.util.FileUtil
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Settings.maxSongs
+import nl.teunschriks.mumamobile.util.TimeLimitedCache
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.buildMediaItem
 import nl.teunschriks.mumamobile.util.toMediaItem
@@ -666,7 +668,7 @@ class MediaLibraryBrowser(
         itemListResult(mediaItems)
     }
 
-    private fun getFavoriteItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+    private fun getFavoriteItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = mainScope.future {
         val mediaItems: MutableList<MediaItem> = ArrayList()
 
         mediaItems.add(R.string.favorites_songs, MEDIA_SONG_STARRED_ID)
@@ -675,13 +677,11 @@ class MediaLibraryBrowser(
             mediaItems.add(R.string.favorites_genres, MEDIA_FAVORITE_GENRES_ID)
         }
 
-        if (favoriteTiles().isNotEmpty()) {
+        if (presets().isNotEmpty()) {
             mediaItems.add(R.string.favorites_playlists, MEDIA_FAVORITE_PLAYLISTS_ID)
         }
 
-        return Futures.immediateFuture(
-            itemListResult(mediaItems)
-        )
+        itemListResult(mediaItems)
     }
 
     /**
@@ -715,31 +715,40 @@ class MediaLibraryBrowser(
      */
     private fun getFavoritePlaylistItems(
         length: String? = null
-    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        val mediaItems: MutableList<MediaItem> = favoriteTiles(length)
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = mainScope.future {
+        val mediaItems: MutableList<MediaItem> = presets(length)
             .map { it.toMediaItem() }
             .toMutableList()
 
-        return Futures.immediateFuture(
-            itemListResult(mediaItems)
-        )
+        itemListResult(mediaItems)
     }
 
     private fun favoriteGenres(): List<String> = FavoriteGenres.current()
 
     /**
-     * The star in the filter modal, which until now was only stored, marks a tile as a favorite.
+     * The listener's presets: the dynamic playlists MuMa keeps per user, which the web home grid
+     * shows as tiles and the Kotlin screens used to mirror into a local `TileStorage`. Those
+     * screens are gone, so the car reads the server directly -- a preset saved on the web is in
+     * the car on the next browse, without the phone ever opening.
      *
-     * [length] filters on [TileInfo.length] when given. A tile already knows its own length --
-     * that is how a car tap on it builds the right "short"/"long" media id in [toMediaItem] -- so
-     * this reuses that field rather than asking which storage page ("song" vs "liveset") it came
-     * from.
+     * Cached for a few minutes because four browse levels ask for the same list back to back and
+     * the car re-requests a level on every scroll. A failed fetch answers the empty list rather
+     * than throwing: the folder disappears, the rest of the tree stays.
+     *
+     * [length] narrows to the tiles saved under that length ("short"/"long"). A tile knows its
+     * own length -- that is how a car tap builds the right media id in [toMediaItem].
      */
-    private fun favoriteTiles(length: String? = null): List<TileInfo> {
-        val context = UApp.applicationContext()
+    private val presetCache = TimeLimitedCache<List<TileInfo>>(PRESET_CACHE_MINUTES, TimeUnit.MINUTES)
 
-        return (TileStorage.loadTiles(context, "song") + TileStorage.loadTiles(context, "liveset"))
-            .filter { it.favorite && (length == null || it.length == length) }
+    private suspend fun presets(length: String? = null): List<TileInfo> {
+        val all = presetCache.get() ?: serviceScope.future {
+            val tiles = callWithErrorHandling { musicService.getMumaTiles() }
+                ?.mapNotNull { it.toTileInfo() }
+                ?: emptyList()
+            presetCache.set(tiles)
+            tiles
+        }.await()
+        return all.filter { length == null || it.length == length }
     }
 
     private fun getLibraryItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
@@ -794,20 +803,18 @@ class MediaLibraryBrowser(
      * branch would be a second, drifting definition of "long" next to the server's own `LENGTH`
      * filter that every other node here goes through.
      */
-    private fun getSetsFavoriteItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+    private fun getSetsFavoriteItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = mainScope.future {
         val mediaItems: MutableList<MediaItem> = ArrayList()
 
         if (favoriteGenres().isNotEmpty()) {
             mediaItems.add(R.string.favorites_genres, MEDIA_FAVORITE_GENRES_SETS_ID)
         }
 
-        if (favoriteTiles(length = "long").isNotEmpty()) {
+        if (presets(length = "long").isNotEmpty()) {
             mediaItems.add(R.string.favorites_playlists, MEDIA_FAVORITE_PLAYLISTS_SETS_ID)
         }
 
-        return Futures.immediateFuture(
-            itemListResult(mediaItems)
-        )
+        itemListResult(mediaItems)
     }
 
     private fun getLastPlayedGenres(length: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
@@ -1039,15 +1046,8 @@ class MediaLibraryBrowser(
         val mediaItems: MutableList<MediaItem> = ArrayList()
 
         return mainScope.future {
-            // Add Tiles first
-            val context = UApp.applicationContext()
-            val songTiles = TileStorage.loadTiles(context, "song")
-            val liveTiles = TileStorage.loadTiles(context, "liveset")
-
-            songTiles.forEach { tile ->
-                mediaItems.add(tile.toMediaItem())
-            }
-            liveTiles.forEach { tile ->
+            // The listener's presets first, then the server's static playlists.
+            presets().forEach { tile ->
                 mediaItems.add(tile.toMediaItem())
             }
 
@@ -1475,6 +1475,7 @@ class MediaLibraryBrowser(
     companion object {
         private const val MAX_PAGE_SIZE = 500
         private const val DEFAULT_PAGE_SIZE = 50
+        private const val PRESET_CACHE_MINUTES = 5L
 
         private const val INDEX_LENGTH = 1
         private const val INDEX_GENRE = 2

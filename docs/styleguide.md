@@ -142,5 +142,13 @@ To maintain clean design governance and prevent ad-hoc style drift:
   existing `default_ripple.xml`/`select_ripple.xml` drawables reference a `?attr/backgroundColor` that isn't
   a standard theme attribute in this app, so wiring one in without being able to visually verify it felt too
   risky for this pass. The rest of the Android UI (track/album cards, player, navigation) also hasn't been
-  brought in line with this style guide's component patterns; see `services/muma-mobile/STYLEGUIDE.md` for the
-  full reference these should eventually follow.
+  brought in line with this style guide's component patterns -- and then, since muma-mobile 7.0.0, the
+  Android UI is the web player itself (`docs/designs/universal-ui/`), so this paragraph is history.
+
+- **Done** — Phone feedback round 3 (2026-09-15). Settings share compact density: p-4/gap-4,
+  text-base section headings, text-sm font-medium row titles, text-xs help. Home quick-access
+  tiles use two columns, a 48px cover/colour block, bold title and truncated subtitle on #282828.
+  Favorites reuses those tiles for presets in its own two-column grid, below the create action;
+  the bottom bar is Home / Browse / Favorites, with Playlists offered in Browse.
+  Track overflow opens the existing BottomSheet with metadata, stars and full-width action rows;
+  three-line track rows retain album links and touch-accessible rating controls.

@@ -45,10 +45,15 @@ const PLAIN_VIEWS = [
   // that one is a specific search's results, this one is the tab a listener
   // lands on before they have typed anything.
   "search",
+  "browse",
+  "favorites",
   // The mic, reached from the Search tab or a car/tile/shortcut deep link (see
   // `shellRoutes.js`). "What MuMa understands" is a panel inside this same
   // view rather than a route of its own, so this stays the only routing change.
   "voice",
+  // Advanced search: every cluster as a list, saved as a preset. `/preset/<id>/edit` is the
+  // same page over an existing one, in ARGUMENT_VIEWS below.
+  "new-preset",
 ];
 
 /**
@@ -92,6 +97,7 @@ const ARGUMENT_VIEWS = [
   // suffixed entries first -- '/genre/Hardcore/edit' has to read as the edit page of
   // 'Hardcore', not as the view of a genre called 'Hardcore/edit'.
   { kind: "artist-edit", segment: "artist", encode: false, suffix: "edit" },
+  { kind: "preset-edit", segment: "preset", encode: false, suffix: "edit" },
   { kind: "label-edit", segment: "label", encode: true, suffix: "edit" },
   { kind: "genre-edit", segment: "genre", encode: true, suffix: "edit" },
 ];
@@ -113,28 +119,33 @@ export function modeForView(view) {
   return view === "songs" || view === "sets" ? view : null;
 }
 
-/**
- * The views the phone's "Bibliotheek" bottom tab cycles through with its own
- * chip row. 'playlists' is the tab's default -- tapping the bottom bar icon
- * itself always lands there; the chips move sideways from it.
- */
+/** Library destinations reached through Browse on the phone. */
 export const LIBRARY_TAB_VIEWS = ["playlists", "artists", "albums", "starred", "downloads"];
 
 /**
- * Which of the phone's three bottom tabs (Home / Search / Library), if any, a
- * view belongs to.
- *
- * Used only to decide when the phone-only mode chips and the library chip row
- * show themselves above the content; the desktop sidebar covers the same
- * ground on its own and never calls this.
- *
- * @param {string} view - The view identifier.
- * @returns {'home'|'search'|'library'|null}
+ * The owning bottom tab, also used to place the phone's mode chips.
+ * @param {string} view - The current destination.
+ * @returns {'home'|'browse'|'favorites'|null}
  */
 export function phoneTabForView(view) {
   if (view === "home") return "home";
-  if (view === "search") return "search";
-  if (LIBRARY_TAB_VIEWS.includes(view)) return "library";
+  if (
+    view === "favorites" ||
+    view === "new-preset" ||
+    view.startsWith("preset:") ||
+    view.startsWith("preset-edit:")
+  )
+    return "favorites";
+  if (view === "playlist-detail" || view.startsWith("playlist:")) return "browse";
+  if (
+    view === "browse" ||
+    view === "search" ||
+    view.startsWith("search:") ||
+    LIBRARY_TAB_VIEWS.includes(view) ||
+    view.startsWith("artist:") ||
+    view.startsWith("album:")
+  )
+    return "browse";
   return null;
 }
 

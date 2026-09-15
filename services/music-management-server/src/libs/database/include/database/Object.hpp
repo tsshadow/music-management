@@ -65,6 +65,14 @@ namespace lms::db
             _obj.remove();
         }
 
+        // Drops this session's cached copy and any unflushed change to it, so the next access
+        // reads the row again. The copy is per session, and sessions are per thread: an object
+        // read on this thread earlier can be a version behind what another thread wrote since.
+        void reread()
+        {
+            _obj.reread();
+        }
+
     private:
         template<typename, typename>
         friend class Object;

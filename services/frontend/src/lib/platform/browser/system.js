@@ -26,6 +26,34 @@ const system = {
   },
 
   /**
+   * No APK, nothing to describe.
+   *
+   * @returns {Promise<null>}
+   */
+  async appInfo() {
+    return null;
+  },
+
+  /**
+   * A browser tab is updated by reloading it; asking apk-hoster would be asking about somebody
+   * else's build. Rejecting (rather than answering "up to date") keeps the About page's button
+   * honest, and the automatic check in `appUpdate.js` never runs here in the first place.
+   *
+   * @returns {Promise<never>}
+   */
+  async checkForUpdate() {
+    throw new Error("a browser tab has no APK to update");
+  },
+
+  /**
+   * @param {string} url
+   * @returns {Promise<void>}
+   */
+  async openUrl(url) {
+    window.open(url, "_blank", "noopener");
+  },
+
+  /**
    * A browser tab has no APK assets to read muma-mobile's `CHANGELOG.md` from. `null` is what
    * keeps `mobileReleaseNotes.js`'s once-per-upgrade modal from ever showing outside the shell.
    *

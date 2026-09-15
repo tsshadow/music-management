@@ -758,7 +758,7 @@
       }));
 
       const moved = trackAfterCommand($playlist, $currentTrack?.id ?? null, {
-          name: command.name,
+          name: engine.trackId != null ? "" : command.name,
           trackId: engine.trackId,
           queueLength: engine.queueLength,
       });
@@ -821,6 +821,16 @@
    * Sets track duration and restores saved progress if available.
    */
   function handleDurationChange(state = platform.player.state()) {
+    // A settled native snapshot can change track without a directional command (shuffle,
+    // recovery, or an index that never matched). Identity is authoritative here.
+    if (nativePlayback) {
+      const moved = trackAfterCommand($playlist, $currentTrack?.id, { trackId: state.trackId });
+      if (moved) {
+        hasScrobbledStarted = false;
+        hasScrobbledFinished = false;
+        currentTrack.set(moved);
+      }
+    }
     playerState.update(s => ({ ...s, duration: currentLength(state) }));
     // Restoring the last position is a browser-only move: there the element is
     // fresh and knows nothing. The platform service kept playing while this

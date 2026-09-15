@@ -1,130 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <string name="background_task.network_error">A network error occurred. Please check the server address or try again later.</string>
-    <string name="background_task.unsupported_api">Server API v%1$s does not support this function.</string>
-    <string name="background_task.no_network">This program requires network access. Please turn on Wi-Fi or mobile network.</string>
-    <string name="background_task.not_found">Resource not found. Please check the server address.</string>
-    <string name="background_task.parse_error">Didn\'t understand the reply. Please check the server address.</string>
-    <string name="background_task.ssl_cert_error">HTTPS certificate error: %1$s.</string>
-    <string name="background_task.ssl_error">SSL connection exception. Please check server certificate.</string>
-    <string name="main.songs">Songs</string>
     <string name="main.sets">Sets</string>
     <string name="main_recently_played">Recently played</string>
     <string name="filter.recent">Recent</string>
-    <string name="filter.favorites">Favorites</string>
     <string name="filter.new">New</string>
     <string name="filter.genres">Genres</string>
     <string name="filter.playlists">Playlists</string>
-    <string name="button_bar.bookmarks">Bookmarks</string>
-    <string name="button_bar.browse">Media Library</string>
-    <string name="button_bar.chat">Chat</string>
-    <string name="button_bar.now_playing">Now Playing</string>
     <string name="buttons.play">Play</string>
-    <string name="buttons.pause">Pause</string>
-    <string name="buttons.repeat">Repeat</string>
-    <string name="buttons.shuffle">Shuffle</string>
-    <string name="buttons.stop">Stop</string>
-    <string name="buttons.next">Next</string>
-    <string name="buttons.previous">Previous</string>
-    <string name="podcasts.label">Podcast</string>
-    <string name="podcasts_channels.empty">No podcasts channels registered</string>
-    <string name="button_bar.podcasts">Podcast</string>
     <string name="button_bar.search">Search</string>
-    <string name="chat.send_a_message">Send a message</string>
-    <string name="chat.send_button">Send</string>
-    <string name="chat.user_avatar">Avatar image</string>
-    <string name="common.album">Album</string>
-    <string name="common.artist">Artist</string>
-    <string name="common.cancel">Cancel</string>
-    <string name="common.comment">Comment</string>
-    <string name="common.confirm">Confirm</string>
-    <string name="common.delete">Delete</string>
-    <string name="common.download">Download</string>
-    <string name="common.info">Details</string>
-    <string name="common.multiple_genres">Multiple Genres</string>
-    <string name="common.name">Name</string>
-    <string name="common.ok">OK</string>
-    <string name="common.pin">Pin</string>
-    <string name="common.play_last">Play Last</string>
-    <string name="common.play_next">Play Next</string>
-    <string name="common.play_now">Play Now</string>
-    <string name="common.play_shuffled">Play Shuffled</string>
-    <string name="common.public">Public</string>
-    <string name="common.save">Save</string>
-    <string name="common.select_all">Select all</string>
-    <string name="common.title">Title</string>
-    <string name="common.unpin">Unpin</string>
-    <string name="common.delete_selection_confirmation">Do you really want to delete the current selection?</string>
-    <string name="common.unpin_selection_confirmation">Do you really want to unpin the current selection?</string>
-    <string name="common.various_artists">Various Artists</string>
-    <string name="delete_playlist">Do you want to delete %1$s</string>
-    <string name="download.bookmark_removed" formatted="false">Bookmark removed.</string>
-    <string name="download.bookmark_set_at_position" formatted="false">Bookmark set at %s.</string>
-    <string name="download.empty">Nothing is downloading</string>
-    <string name="playlist.empty">Playlist is empty</string>
     <string name="download.jukebox_not_authorized">Remote control is not allowed. Please enable jukebox mode in <b>Users &gt; Settings</b> on your Subsonic server.</string>
-    <string name="download.jukebox_off">Turned off remote control. Music is played on phone.</string>
     <string name="download.jukebox_offline">Remote control is not available in offline mode.</string>
-    <string name="download.jukebox_on">Turned on remote control. Music is played on server.</string>
     <string name="download.jukebox_server_too_old">Remote control is not supported. Please upgrade your Subsonic server.</string>
-    <string name="download.menu_equalizer">Equalizer</string>
-    <string name="download.menu_jukebox_off">Jukebox Off</string>
-    <string name="download.menu_jukebox_on">Jukebox On</string>
-    <string name="download.menu_lyrics">Lyrics</string>
-    <string name="download.menu_save">Save Playlist</string>
-    <string name="download.menu_screen_off">Screen Off</string>
-    <string name="download.menu_screen_on">Screen On</string>
-    <string name="download.menu_show_album">Go to Album</string>
-    <string name="download.menu_show_metadata">Show metadata</string>
-    <string name="download.menu_refresh_track">Refresh Track</string>
-    <string name="download.menu_export_to_media_device">Export to Media Device</string>
-    <string name="download.menu_shuffle">Shuffle</string>
-    <string name="download.menu_shuffle_on">Shuffle mode enabled</string>
-    <string name="download.menu_shuffle_off">Shuffle mode disabled</string>
-    <string name="download.playerstate_loading">Buffering …</string>
-    <string name="download.playerstate_playing_shuffle">Playing shuffle</string>
-    <string name="download.playlist_done">Playlist saved.</string>
-    <string name="download.playlist_error">Failed to save playlist, please try later.</string>
-    <string name="download.playlist_name">Enter the playlist name:</string>
-    <string name="download.playlist_saving">Saving playlist \"%s\"…</string>
-    <string name="download.playlist_title">Save Playlist</string>
-    <string name="download.repeat_all">Repeat All</string>
-    <string name="download.repeat_off">Repeat Off</string>
-    <string name="download.repeat_single">Repeat Song</string>
-    <string name="equalizer.enabled">Enabled</string>
-    <string name="equalizer.label">Equalizer</string>
-    <string name="equalizer.preset">Select Preset</string>
-    <string name="error.label">Error</string>
-    <string name="jukebox.is_default">Jukebox By Default</string>
-    <string name="lyrics.nomatch">No lyrics found</string>
-    <string name="track_info.open">Show track info</string>
-    <string name="track_info.versions">Versions</string>
 
-    <string name="track_info.versions_title">Versions of %1$s</string>
-    <string name="track_info.versions_only_one">This is the only version of this song.</string>
-    <string name="track_info.versions_failed">Could not load the versions of this song</string>
-    <string name="track_info.versions_best">best version</string>
-    <string name="track_info.cover_description">Album art</string>
-    <string name="track_info.artist">Artist</string>
-    <string name="track_info.album">Album</string>
-    <string name="track_info.genre">Genre</string>
-    <string name="track_info.label">Label</string>
-    <string name="track_info.mood">Mood</string>
-    <string name="track_info.artists_together">Together: %1$s</string>
-    <string name="track_info.artists_together_counted">Together: %1$s · %2$d tracks</string>
-    <string name="track_info.track_number">Track</string>
-    <string name="track_info.disc">disc %1$d</string>
-    <string name="track_info.released">Released</string>
-    <string name="track_info.duration">Duration</string>
-    <string name="track_info.technical">Technical details</string>
-    <string name="track_info.path_copied">Path copied</string>
-    <string name="track_info.rate_stars">Set rating to %1$d</string>
-    <string name="export.clear_dialog_title">Clear device?</string>
-    <string name="export.clear_dialog_message">Do you want to clear the destination folder before exporting?</string>
-    <string name="export.success">Export successful</string>
-    <string name="export.failed">Export failed: %s</string>
-    <string name="export.progress">Exporting %1$d/%2$d: %3$s</string>
     <string name="language.default">System default</string>
     <string name="language.zh_CN">Chinese (China)</string>
     <string name="language.zh_TW">Chinese (Taiwan)</string>
@@ -142,21 +30,10 @@
     <string name="language.pt">Portuguese</string>
     <string name="language.pt_BR">Portuguese (Brazil)</string>
     <string name="language.ru">Russian</string>
-    <string name="main.albums_alphaByArtist">By Artist</string>
-    <string name="main.albums_alphaByName">By Name</string>
-    <string name="main.albums_frequent">Most played</string>
-    <string name="main.albums_highest">Top Rated</string>
-    <string name="main.albums_newest">Recently added</string>
     <string name="main.albums_random">Random</string>
     <string name="main.albums_recent">Recently played</string>
-    <string name="main.albums_starred">Starred</string>
-    <string name="main.albums_by_year">Chronological</string>
     <string name="main.albums_released">Recently released</string>
     <string name="main.albums_title">Albums</string>
-    <string name="sort_order_track_count">Number of tracks</string>
-    <string name="sort_order_newest_first">Newest first</string>
-    <string name="sort_order_album_count">Number of albums</string>
-    <string name="sort_order_added">Recently added</string>
     <string name="main.artists_title">Artists</string>
     <string name="main.genres_title">Genres</string>
     <string name="main.library_title">Library</string>
@@ -174,8 +51,6 @@
     <string name="main.offline">Offline</string>
     <string name="server_switched_offline">Server unreachable. Switched to offline mode.</string>
     <string name="server_switched_online">Server reachable. Online mode restored.</string>
-    <string name="main.setup_server">%s - Set up Server</string>
-    <string name="main.songs_random">Random</string>
     <string name="main.songs_random_this_year">Random (2025)</string>
     <string name="main.songs_recent">Recent</string>
     <string name="main.livesets_recent">Recent live sets</string>
@@ -188,460 +63,65 @@
     <string name="main.release_radar_title">Release radar</string>
     <string name="main.songs_title">Songs</string>
     <string name="main.livesets_title">Livesets</string>
-    <string name="main.videos">Videos</string>
     <string name="news.button">News</string>
     <string name="main.welcome_text_demo">To use MuMa with your own music you will need your <b>own server</b>. \n\n➤ The LMS servers and a demo server have been pre-configured for you. \n\n➤ You can add or change servers in the <b>settings</b>.</string>
     <string name="main.welcome_title">Welcome to MuMa!</string>
     <string name="main.welcome_cancel">Take me to the settings</string>
-    <string name="menu.about">About</string>
     <string name="menu.common">Common</string>
-    <string name="menu.deleted_playlist">Deleted playlist %s</string>
-    <string name="menu.deleted_playlist_error">Failed to delete playlist %s</string>
-    <string name="menu.downloads">Downloads</string>
-    <string name="menu.exit">Exit</string>
-    <string name="menu.settings">Settings</string>
-    <string name="menu.refresh">Refresh</string>
-    <string name="music_library.label">Media Library</string>
-    <string name="music_library.label_offline">Offline Media</string>
     <string name="playlist.label">Playlists</string>
-    <string name="playlist.update_info">Update Information</string>
-    <string name="playlist.updated_info">Updated playlist information for %s</string>
-    <string name="playlist.updated_info_error">Failed to update playlist information for %s</string>
-    <string name="search.albums">Albums</string>
-    <string name="search.artists">Artists</string>
     <string name="search.more">Show More</string>
-    <string name="search.no_match">No matches, please try again</string>
-    <string name="search.songs">Songs</string>
-    <string name="search.title">Search</string>
-    <string name="select_album.empty">No media found</string>
-    <string name="select_album.n_selected">%d tracks selected</string>
     <string name="select_album.no_network">Warning: No usable network available.\n If you are using mobile data, you may need to allow downloads on metered connections in the settings.</string>
     <string name="select_album.no_sdcard">Error: No SD card available.</string>
     <string name="select_album.play_all">Play All</string>
-    <string name="select_album.all_tracks">All tracks</string>
     <!-- Screen title plus how many tracks match the filter, not how many the page holds. -->
-    <string name="track_collection.total">%1$s · %2$d tracks</string>
     <string name="artist_detail_eps">EPs</string>
     <string name="artist_detail_singles">Singles</string>
-    <string name="select_artist.all_folders">All Folders</string>
-    <string name="select_artist.empty">No artists found</string>
-    <string name="select_artist.folder">Select Folder</string>
-    <string name="select_artist.image_description">Artist image</string>
-    <plurals name="select_artist.subtitle_albums">
-        <item quantity="one">%d album</item>
-        <item quantity="other">%d albums</item>
-    </plurals>
-    <plurals name="select_artist.subtitle_tracks">
-        <item quantity="one">%d track</item>
-        <item quantity="other">%d tracks</item>
-    </plurals>
     <string name="select_genre.empty">No genres found</string>
     <string name="select_mood.empty">No moods found</string>
     <string name="select_year.empty">No years found</string>
-    <string name="select_playlist.empty">No saved playlists on server</string>
-    <string name="settings.appearance_title">Appearance</string>
-    <string name="settings.style_spotify">Spotify</string>
-    <string name="settings.style_muma">MuMa</string>
-    <string name="settings.web_ui_title">New interface (beta)</string>
-    <string name="settings.web_ui_summary">Shows the web player inside the app. The music keeps playing through the same service, so the notification, Bluetooth and Android Auto are unchanged. Switch back here or from the web player itself.</string>
-    <string name="settings.web_ui_changed">The app restarts into the interface you picked.</string>
     <string name="setting_key.canonical_only">canonicalOnly</string>
-    <string name="settings.canonical_only_title">Show one row per song</string>
-    <string name="settings.canonical_only_summary">Leaves out the other copies of a song and keeps the version MuMa rates best. The rest stay reachable under Versions in the track info.</string>
-    <string name="settings.separate_home_history_title">Separate home history per mode</string>
-    <string name="settings.separate_home_history_summary">Keep recently opened items apart for songs and livesets</string>
-    <string name="settings.home_shortcut_count_title">Recently played shortcuts</string>
-    <string name="settings.home_shortcut_count_summary">How many shortcuts the home screen shows. They fill two columns, so only even counts are offered.</string>
-    <string name="settings.home_list_count_title">Tracks per home list</string>
-    <string name="settings.home_list_count_summary">How many rows "Recently released" and "Recently added" show before "Show more"</string>
     <string name="home.shortcuts">Recently played</string>
     <string name="home.recently_released">Recently released</string>
     <string name="home.daily_mix">Daily mix</string>
     <string name="home.release_radar">Release radar</string>
     <string name="home.favorites">Favourites</string>
-    <string name="home.source_favorite">favourite</string>
-    <string name="home.source_shortcut">recently played</string>
-    <string name="home.mode_button">Button</string>
-    <string name="home.mode_overview">Overview</string>
-    <string name="home.mode_off">Off</string>
-    <string name="settings.home_title">Home screen</string>
-    <string name="settings.home_summary">A button opens it from the grid at the top; an overview shows its content below.</string>
-    <string name="settings.home_count_daily_mix_title">Daily mixes shown</string>
-    <string name="settings.home_count_favorites_title">Favourites shown</string>
     <string name="home.recently_added">Recently added</string>
     <string name="home.memories">Memories</string>
-    <string name="home.show_more">Show more</string>
-    <plurals name="home.memories_track_count">
-        <item quantity="one">%1$d track</item>
-        <item quantity="other">%1$d tracks</item>
-    </plurals>
-    <string name="home.memories_summary">%1$s · %2$s</string>
-    <string name="home.card_label">Label</string>
-    <string name="home.card_genre">Genre</string>
-    <string name="memories.today">Today, %1$d years ago</string>
-    <string name="memories.today_one">Today, 1 year ago</string>
-    <string name="memories.this_week">This week, %1$d years ago</string>
-    <string name="memories.this_week_one">This week, 1 year ago</string>
-    <string name="memories.empty">Nothing was released on this day in earlier years</string>
-    <string name="library.label">Library</string>
-    <string name="library.tab_dynamic_playlists">Playlists</string>
-    <string name="library.tab_genres">Genres</string>
     <string name="library.tab_labels">Labels</string>
     <string name="library.tab_artists">Artists</string>
-    <string name="library.tab_static_playlists">Saved</string>
-    <string name="library.tab_albums">Albums</string>
-    <string name="library.tab_years">Years</string>
-    <string name="library.tab_festivals">Festivals</string>
-    <string name="library.tab_podcasts">Podcasts</string>
-    <string name="library.tab_lineups">Lineups</string>
-    <string name="library.tab_ratings">Ratings</string>
-    <string name="library.tab_memories">Memories</string>
-    <string name="library.rating_and_up">%1$d+ stars</string>
-    <string name="browse.track_limit">Tracks per genre</string>
-    <string name="browse.lineup_all">Everything from %1$s</string>
-    <string name="management.label">Management</string>
-    <string name="management.tab_downloaders">Downloaders</string>
-    <string name="management.tab_users">Users</string>
-    <string name="management.tab_requests">Requests</string>
-    <string name="management.status_pending">Pending</string>
-    <string name="management.status_approved">Approved</string>
-    <string name="management.status_rejected">Rejected</string>
-    <string name="management.approve">Approve</string>
-    <string name="management.unapprove">Undo</string>
-    <string name="management.reject">Reject</string>
-    <string name="management.enable">Enable</string>
-    <string name="management.disable">Disable</string>
-    <string name="management.enabled">active</string>
-    <string name="management.disabled">disabled</string>
-    <string name="management.source_soundcloud">SoundCloud</string>
-    <string name="management.source_youtube">YouTube</string>
-    <string name="management.action_failed">Management action failed: %1$s</string>
-    <string name="management.group_collection">Collection</string>
-    <string name="management.group_curation">Curation</string>
-    <string name="management.group_channels">Channels</string>
-    <string name="management.group_access">Access</string>
-    <string name="management.group_system">System</string>
-    <string name="management.group_settings">Settings</string>
-    <string name="management.tab_overview">Overview</string>
-    <string name="management.tab_library">Library</string>
-    <string name="management.tab_scanner">Scanner</string>
-    <string name="management.tab_images">Images</string>
-    <string name="management.tab_playlists">Playlists</string>
-    <string name="management.tab_tagger">Tagger</string>
-    <string name="management.tab_genre_curation">Genre curation</string>
-    <string name="management.tab_label_proposals">Label proposals</string>
-    <string name="management.tab_podcast_curation">Podcasts</string>
-    <string name="management.tab_radio">Radio</string>
-    <string name="management.tab_news">News</string>
-    <string name="management.tab_health">Health</string>
-    <string name="management.tab_events">Log</string>
-    <string name="management.tab_scrobble">Scrobble import</string>
-    <string name="management.tab_libraries">Libraries</string>
-    <string name="management.tab_config">Configuration</string>
-    <string name="management.page_on_the_web">On the web for now</string>
-    <string name="management.system_containers">Containers running: %1$d / %2$d</string>
-    <string name="management.system_all_running">Everything is running</string>
-    <string name="management.system_offline">Offline: %1$s</string>
-    <string name="management.system_version">Version</string>
-    <string name="management.system_version_unknown">unknown</string>
-    <string name="management.system_last_added">Last track added</string>
-    <string name="management.system_no_activity">Nothing added yet</string>
-    <string name="management.logs">Logs</string>
-    <string name="management.logs_title">%1$s</string>
-    <string name="management.logs_empty">No log lines</string>
-    <string name="management.logs_loading">Loading logs\u2026</string>
-    <string name="management.events_all">All</string>
-    <string name="management.events_empty">No events</string>
-    <string name="management.queue_empty">Nothing to decide</string>
-    <string name="management.tagger_busy">Tagging in progress</string>
-    <string name="management.tagger_idle">Tagger idle</string>
-    <string name="management.tagger_run">Run now</string>
-    <plurals name="management.tagger_pending_total">
-        <item quantity="one">%1$d file waiting for a retag</item>
-        <item quantity="other">%1$d files waiting for a retag</item>
-    </plurals>
-    <plurals name="management.tagger_pending_reason">
-        <item quantity="one">%1$d file</item>
-        <item quantity="other">%1$d files</item>
-    </plurals>
-    <plurals name="management.curation_occurrences">
-        <item quantity="one">%1$d track</item>
-        <item quantity="other">%1$d tracks</item>
-    </plurals>
-    <plurals name="management.curation_aliases">
-        <item quantity="one">%1$d spelling</item>
-        <item quantity="other">%1$d spellings</item>
-    </plurals>
-    <string name="management.curation_keep">Keep</string>
-    <string name="management.curation_drop">Drop</string>
-    <string name="management.proposal_confirm">Confirm</string>
-    <string name="management.proposal_reject">Reject</string>
-    <string name="management.proposal_no_label">No label found</string>
-    <string name="management.proposal_label_required">A label is required</string>
-    <string name="favorites.starred_albums">Favorite albums</string>
-    <string name="favorites.starred_artists">Favorite artists</string>
-    <string name="favorites.highly_rated">Highly rated</string>
     <string name="favorites.title">Favorites</string>
     <string name="favorites.songs">Favorite songs</string>
     <string name="favorites.genres">Favorite genres</string>
     <string name="favorites.playlists">Favorite playlists</string>
-    <string name="genre.favorite_add">Add to favorites</string>
-    <string name="genre.favorite_remove">Remove from favorites</string>
-    <string name="genre.favorite_added">%1$s added to favorites</string>
-    <string name="genre.favorite_removed">%1$s removed from favorites</string>
-    <string name="settings.custom_cache_location">Use Custom Cache Location</string>
-    <string name="settings.cache_location">Cache Location</string>
     <string name="settings.cache_location_error">Invalid cache location. Using default.</string>
-    <string name="settings.cache_size">Cache Size</string>
-    <string name="settings.cache_size_100">100 MB</string>
-    <string name="settings.cache_size_1000">1 GB</string>
-    <string name="settings.cache_size_10000">10 GB</string>
-    <string name="settings.cache_size_15000">15 GB</string>
-    <string name="settings.cache_size_200">200 MB</string>
-    <string name="settings.cache_size_2000">2 GB</string>
-    <string name="settings.cache_size_20000">20 GB</string>
-    <string name="settings.cache_size_25000">25 GB</string>
-    <string name="settings.cache_size_3000">3 GB</string>
-    <string name="settings.cache_size_30000">30 GB</string>
-    <string name="settings.cache_size_100000">100 GB</string>
-    <string name="settings.cache_size_250000">250 GB</string>
-    <string name="settings.cache_size_4000">4 GB</string>
-    <string name="settings.cache_size_500">500 MB</string>
-    <string name="settings.cache_size_5000">5 GB</string>
-    <string name="settings.cache_size_6000">6 GB</string>
-    <string name="settings.cache_size_7000">7 GB</string>
-    <string name="settings.cache_size_8000">8 GB</string>
-    <string name="settings.cache_size_9000">9 GB</string>
-    <string name="settings.cache_size_unlimited">Unlimited</string>
-    <string name="settings.cache_title">Music Cache</string>
-    <string name="settings.directory_cache_time">Directory Cache Time</string>
-    <string name="settings.directory_cache_time_0">Disabled</string>
-    <string name="settings.directory_cache_time_1">1 minute</string>
-    <string name="settings.directory_cache_time_10">10 minutes</string>
-    <string name="settings.directory_cache_time_2">2 minutes</string>
-    <string name="settings.directory_cache_time_30">30 minutes</string>
-    <string name="settings.directory_cache_time_5">5 minutes</string>
-    <string name="settings.directory_cache_time_60">1 hour</string>
-    <string name="settings.disc_sort">Sort Songs By Disc</string>
-    <string name="settings.disc_sort_summary">Sort song list by disc number and track number</string>
-    <string name="settings.display_bitrate">Display Bitrate and File Suffix</string>
-    <string name="settings.display_bitrate_summary">Append artist name with bitrate and file suffix</string>
-    <string name="settings.hide_media_summary">Hide music files from other apps.</string>
-    <string name="settings.hide_media_title">Hide From Other</string>
-    <string name="settings.hide_media_toast">Takes effect next time Android scans your phone for music.</string>
-    <string name="settings.genre_track_limit">Genre search limit</string>
-    <string name="settings.genre_track_limit_summary">Maximum number of tracks to fetch when clicking a genre</string>
-    <string name="settings.invalid_url">Please specify a valid URL.</string>
-    <string name="settings.max_bitrate_112">112 Kbps</string>
-    <string name="settings.max_bitrate_128">128 Kbps</string>
-    <string name="settings.max_bitrate_160">160 Kbps</string>
-    <string name="settings.max_bitrate_192">192 Kbps</string>
-    <string name="settings.max_bitrate_256">256 Kbps</string>
-    <string name="settings.max_bitrate_32">32 Kbps</string>
-    <string name="settings.max_bitrate_320">320 Kbps</string>
-    <string name="settings.max_bitrate_64">64 Kbps</string>
-    <string name="settings.max_bitrate_80">80 Kbps</string>
-    <string name="settings.max_bitrate_96">96 Kbps</string>
-    <string name="settings.max_bitrate_mobile">Max Bitrate - Mobile</string>
-    <string name="settings.max_bitrate_unlimited">Unlimited</string>
-    <string name="settings.max_bitrate_wifi">Max Bitrate - Wi-Fi</string>
-    <string name="settings.max_bitrate_pinning">Max Bitrate - When pinning a song permanently</string>
-    <string name="settings.network_timeout">Network Timeout</string>
-    <string name="settings.network_timeout_105000">105 seconds</string>
-    <string name="settings.network_timeout_120000">120 seconds</string>
-    <string name="settings.network_timeout_15000">15 seconds</string>
-    <string name="settings.network_timeout_30000">30 seconds</string>
-    <string name="settings.network_timeout_45000">45 seconds</string>
-    <string name="settings.network_timeout_60000">60 seconds</string>
-    <string name="settings.network_timeout_75000">75 seconds</string>
-    <string name="settings.network_timeout_90000">90 seconds</string>
-    <string name="settings.network_title">Network</string>
-    <string name="settings.other_title">Other Settings</string>
-    <string name="settings.override_language">Override the language</string>
-    <string name="settings.override_language_summary">You need to restart the app after changing the language</string>
-    <string name="settings.playback_control_title">Playback Control Settings</string>
-    <string name="settings.playback.resume_on_bluetooth_device">Resume when a Bluetooth device is connected</string>
-    <string name="settings.playback.pause_on_bluetooth_device">Pause when a Bluetooth device is disconnected</string>
-    <string name="settings.playback.bluetooth_all">All Bluetooth devices</string>
-    <string name="settings.playback.bluetooth_a2dp">Only audio (A2DP) devices</string>
-    <string name="settings.playback.bluetooth_disabled">Disabled</string>
-    <string name="settings.playback.resume_play_on_headphones_plug.title">Resume on headphones insertion</string>
-    <string name="settings.playback.resume_play_on_headphones_plug.summary">App will resume paused playback on wired headphones insertion into device.</string>
-    <string name="settings.preload">Songs To Preload</string>
-    <string name="settings.parallel_downloads">How many song to download in parallel</string>
-    <string name="settings.preload_1">1 song</string>
-    <string name="settings.preload_10">10 songs</string>
-    <string name="settings.preload_2">2 songs</string>
-    <string name="settings.preload_3">3 songs</string>
-    <string name="settings.preload_5">5 songs</string>
-    <string name="settings.preload_50">50 songs</string>
-    <string name="settings.preload_100">100 songs</string>
-    <string name="settings.preload_500">500 songs</string>
-    <string name="settings.preload_1000">1000 songs</string>
-    <string name="settings.preload_10000">10k songs</string>
-    <string name="settings.preload_100000">100k songs</string>
-    <string name="settings.preload_unlimited">Unlimited</string>
-    <string name="settings.scrobble_summary">Remember to set up your user and password in the Scrobble service(s) on the server</string>
-    <string name="settings.scrobble_title">Scrobble my plays</string>
-    <string name="settings.search_1">1</string>
-    <string name="settings.search_10">10</string>
-    <string name="settings.search_100">100</string>
-    <string name="settings.search_15">15</string>
-    <string name="settings.search_20">20</string>
-    <string name="settings.search_25">25</string>
-    <string name="settings.search_250">250</string>
-    <string name="settings.search_3">3</string>
-    <string name="settings.search_30">30</string>
-    <string name="settings.search_40">40</string>
-    <string name="settings.search_5">5</string>
-    <string name="settings.search_50">50</string>
-    <string name="settings.search_500">500</string>
-    <string name="settings.search_1000">1000</string>
-    <string name="settings.search_10000">10k</string>
-    <string name="settings.search_100000">100k</string>
-    <string name="settings.search_75">75</string>
-    <string name="settings.search_title">Search Settings</string>
-    <string name="settings.server_address">Server Address</string>
-    <string name="settings.server_name">Name</string>
-    <string name="settings.server_password">Password</string>
-    <string name="settings.server_apikey">API Key</string>
-    <string name="settings.server_username">Username</string>
-    <string name="settings.server_color">Server color</string>
-    <string name="settings.show_track_number">Show Track Number</string>
-    <string name="settings.show_track_number_summary">Include track number when displaying a song</string>
-    <string name="settings.test_connection_title">Test Connection</string>
-    <string name="settings.track_list_lines">Track List Rows</string>
-    <string name="settings.track_list_lines_summary">How much of a track to show on each row</string>
-    <string name="settings.track_list_lines_two">2 lines (compact)</string>
-    <string name="settings.track_list_lines_three">3 lines (detailed)</string>
-    <string name="settings.title.allow_self_signed_certificate">Allow self-signed HTTPS certificate</string>
-    <string name="settings.title.force_plain_text_password">Force plain password authentication</string>
-    <string name="settings.summary.force_plain_text_password">This forces the app to always send the password unencrypted. Useful if the Subsonic server does not support the new authentication API for the users.</string>
     <string name="main.video" tools:ignore="UnusedResources">Video</string>
-    <string name="settings.wifi_required_summary">Only download media on unmetered connections</string>
-    <string name="settings.wifi_required_title">Download on Wi-Fi only</string>
-    <string name="settings.auto_switch_offline">Auto‑switch server online/offline</string>
-    <string name="settings.auto_switch_offline_summary">Enable automatic switch to offline when the server is unreachable.</string>
-    <string name="song_details.all" translatable="false">%1$s%2$s</string>
-    <string name="song_details.kbps">%d kbps</string>
-    <string name="util.no_time" tools:ignore="TypographyDashes">-:--</string>
-    <string name="util.zero_time">0:00</string>
     <string name="widget.initial_text">Touch to select music</string>
     <string name="widget.sdcard_busy">SD card unavailable</string>
     <string name="widget.sdcard_missing">No SD card</string>
-    <string name="do_not_show_dialog_again">Do not show dialog again</string>
-    <string name="share_set_share_options">Set Share Options</string>
-    <string name="share_on_server">Create share on the server</string>
-    <string name="no_expiration">No Expiration</string>
-    <string name="download.toggle_playlist">Toggle Playlist</string>
-    <string name="download.bookmark_set">Set Bookmark</string>
-    <string name="download.bookmark_delete">Delete Bookmark</string>
-    <string name="download.menu_star">Star</string>
     <string name="download.menu_unstar">Unstar</string>
-    <string name="download.menu_clear_playlist">Clear Playlist</string>
-    <string name="button_bar.shares">Shares</string>
-    <string name="select_share.empty">No shares available on server</string>
-    <string name="menu_deleted_share">Deleted share %s</string>
-    <string name="menu_deleted_share_error">Failed to delete share %s</string>
-    <string name="settings.share_minutes">Minutes</string>
-    <string name="settings.share_hours">Hours</string>
-    <string name="settings.share_days">Days</string>
-    <string name="time_span_disable">Disable</string>
-    <string name="time_span_disabled">Disabled</string>
-    <string name="save_as_defaults">Save as default</string>
-    <string name="share_comment">Comment</string>
-    <string name="settings.share_expiration">Time To Expiration</string>
-    <string name="settings.share_options">Options</string>
-    <string name="download_song_removed">\"%s\" was removed from playlist</string>
-    <string name="download.share_playlist">Share Playlist</string>
-    <string name="download.share_song">Share Current Song</string>
     <string name="share_default_greeting">Check out this music I shared from %s</string>
-    <string name="share_via">Share songs via</string>
-    <string name="menu.share">Share</string>
-    <string name="download.menu_show_artist">Go to Artist</string>
-    <string name="albumArt">Album artwork</string>
-    <string name="common_multiple_years">Multiple Years</string>
-    <string name="settings.show_confirmation_dialog">Show confirmation dialog</string>
-    <string name="settings.show_confirmation_dialog_summary">Displays a confirmation dialog before deleting or unpinning songs</string>
-    <string name="settings.debug.title">Debug options</string>
-    <string name="settings.debug.log_to_file">Write debug log to file</string>
-    <string name="settings.debug.log_path">The log files are available at %1$s/%2$s</string>
-    <string name="settings.debug.log_summary">There are %1$s log files taking up ~%2$s MB space in the %3$s directory. Do you want to keep these?</string>
-    <string name="settings.debug.log_keep">Keep files</string>
-    <string name="settings.debug.log_delete">Delete files</string>
-    <string name="settings.debug.log_deleted">Deleted log files.</string>
-    <string name="settings.debug.share_log">Share debug log</string>
-    <string name="settings.debug.view_log">View debug log</string>
-    <string name="settings.debug.crash_detection">Crash detection</string>
-    <string name="settings.debug.crash_detection_summary">Detect crashes and unclean shutdowns, and offer to share diagnostics on the next start</string>
     <string name="crash_report.dialog_title">Previous session crashed</string>
     <string name="crash_report.dialog_message">MuMa did not shut down cleanly last time. Share diagnostics to help fix this?</string>
     <string name="crash_report.dialog_share">Share</string>
     <string name="crash_report.dialog_dismiss">Dismiss</string>
-    <string name="settings.diagnostics.send_now">Send diagnostics now</string>
-    <string name="settings.diagnostics.send_now_summary">Save the current log to Downloads and upload it to the server</string>
     <string name="crash_report.manual_sent">Diagnostics sent</string>
     <string name="crash_report.manual_upload_failed">Diagnostics saved to Downloads, upload failed</string>
     <string name="crash_report.manual_failed">Failed to save diagnostics</string>
     <string name="notification.downloading_title">Downloading media in the background…</string>
     <string name="notification.permission_required">Notifications are required for media playback. You can grant the permission anytime in the Android settings.</string>
-    <string name="server_selector.label">Configured servers</string>
-    <string name="server_selector.delete_confirmation">Are you sure you want to delete the server?</string>
-    <string name="server_editor.label">Editing server</string>
-    <string name="server_editor.new_label">Add server</string>
-    <string name="server_editor.leave_confirmation">Are you sure you want to leave and lose your changes?</string>
-    <string name="server_editor.required">This field is required</string>
-    <string name="server_menu.edit">Edit</string>
-    <string name="server_menu.delete">Delete</string>
     <string name="server_menu.move_up">Move up</string>
     <string name="server_menu.move_down">Move down</string>
-    <string name="server_editor.authentication">Authentication</string>
-    <string name="server_editor.advanced">Advanced settings</string>
-    <string name="server_editor.disabled_feature">One or more features were disabled because the server doesn\'t support them.\nYou can run this test again anytime.</string>
     <string name="server_menu.demo">Demo Server</string>
     <string name="server_menu.lms">LMS</string>
     <string name="server_menu.lmsalpha">LMS Alpha</string>
     <string name="server_menu.lmsstable">LMS stable</string>
 
-    <string name="about.text">This is a highly custom application, designed to work with the muma/lms stack.\n\nBenefits of this stack include more control over your searches and automatic filters based on genre.</string>
 
     <string name="welcome_morning">Good morning</string>
     <string name="welcome_afternoon">Good afternoon</string>
     <string name="welcome_evening">Good evening</string>
     <string name="welcome_night">Good night</string>
 
-    <plurals name="n_songs">
-        <item quantity="one">%d song</item>
-        <item quantity="other">%d songs</item>
-    </plurals>
-    <plurals name="n_songs_pinned">
-        <item quantity="one">%d song selected to be pinned</item>
-        <item quantity="other">%d songs selected to be pinned</item>
-    </plurals>
-    <plurals name="n_songs_to_be_downloaded">
-        <item quantity="one">%d song selected to be downloaded</item>
-        <item quantity="other">%d songs selected to be downloaded</item>
-    </plurals>
-    <plurals name="n_songs_unpinned">
-        <item quantity="one">%d song unpinned</item>
-        <item quantity="other">%d songs unpinned</item>
-    </plurals>
-    <plurals name="n_songs_deleted">
-        <item quantity="one">%d song deleted</item>
-        <item quantity="other">%d songs deleted</item>
-    </plurals>
-    <plurals name="n_songs_added_play_now">
-        <item quantity="one">%d song added to the play queue</item>
-        <item quantity="other">%d songs added to the play queue</item>
-    </plurals>
-    <plurals name="n_songs_added_to_end">
-        <item quantity="one">%d song added to the end of play queue</item>
-        <item quantity="other">%d songs added to the end of play queue</item>
-    </plurals>
-    <plurals name="n_songs_added_after_current">
-        <item quantity="one">%d song inserted after current song</item>
-        <item quantity="other">%d songs inserted after current song</item>
-    </plurals>
 
     <!-- Subsonic api errors -->
     <string name="api.subsonic.generic">Generic API error: %1$s</string>
@@ -658,12 +138,6 @@
     <string name="api.subsonic.unknown_error">Unknown Subsonic error (code %1$d).</string>
 
     <!-- Subsonic features  -->
-    <string name="settings.use_hw_offload_title">Use hardware playback (experimental)</string>
-    <string name="settings.use_hw_offload_description">Try to play the media using the media decoder chip on your phone. This can improve battery usage. Some users report glitches in playback when they activate this option!</string>
-    <string name="list_view">List</string>
-    <string name="grid_view">Cover</string>
-    <string name="supported_server_features">Supported features</string>
-    <string name="jukebox">Jukebox</string>
     <string name="foreground_exception_title">Playback cannot be resumed</string>
     <string name="foreground_exception_text">Press on the play button on the media notification if it
     is still present, otherwise please open the app to start the playback and re-connect the session
@@ -674,336 +148,50 @@
     <!-- muma -->
     <string name="tile_icon_description">Tile icon</string>
     <string name="genre_name">Genre Name</string>
-    <string name="show_filters">Show Filters ▼</string>
     <string name="hide_filters">Hide Filters ▲</string>
-    <string name="year">Year</string>
-    <string name="rating">Rating</string>
     <string name="from">From</string>
     <string name="to">To</string>
-    <string name="genre">Genre</string>
-    <string name="festival">Festival</string>
-    <string name="label">Label</string>
-    <string name="sort_method">Sort method</string>
     <string name="search_livesets">Search Livesets</string>
-    <string name="save_preset">Save preset</string>
-    <string name="search">Search</string>
 
-    <string name="sort_none">None</string>
-    <string name="sort_random">Random</string>
-    <string name="sort_added_desc">Recently added</string>
-    <string name="sort_date_and_release">Recently released</string>
-    <string name="sort_written_desc">Recently edited</string>
-    <string name="close">close</string>
-    <string name="select_items_placeholder">All</string>
     <string name="tile_title">title</string>
-    <string name="tile_title_hint">Hardstyle by Teun</string>
-    <string name="delete">Delete</string>
-    <string name="update">Update</string>
     <string name="edit_filter_title">Edit filter</string>
     <string name="new_filter_title">New filter</string>
-    <string name="filter_search_hint">Search</string>
-    <string name="result_count_format">Number of tracks: %1$d</string>
-    <string name="filters_title">Filters</string>
-    <string name="result_count">Result count</string>
-    <string name="reset">Reset</string>
-    <string name="add">add</string>
-    <string name="muma_add_format">+ %1$s</string>
-    <string name="muma_select_format">Select %1$s</string>
     <string name="select_items">select items</string>
     <string name="lineup_default">Lineup</string>
-    <string name="festival_lineup">Lineup</string>
-    <string name="favorite">Favorite</string>
-    <string name="update_check">Check for Updates</string>
-    <string name="update_no_new_version">You are using the latest version.</string>
-    <string name="update_check_failed">Failed to check for updates. Please try again later.</string>
-    <string name="changelog_title">What\'s New</string>
-    <string name="changelog_button">Changelog</string>
     <string name="setting_key_last_seen_version" translatable="false">last_seen_version</string>
-    <string name="setting_media_device_export_title">Enable Media Device Export</string>
-    <string name="setting_media_device_export_summary">Show an option to export the current playlist to a connected media device (USB/OpenSwim Pro)</string>
-    <string name="welcome_title">Welcome to MuMa</string>
-    <string name="welcome_login_info">What is your login information?</string>
-    <string name="welcome_username">Name</string>
-    <string name="welcome_password">Password</string>
-    <string name="welcome_fields_required">Username and password are required</string>
-    <string name="welcome_invalid_credentials">Wrong username or password. The server itself was reached, so this is not a connection problem — check your login details, or ask the administrator for an account.</string>
-    <string name="welcome_server_unreachable">Could not reach the server. Check your internet connection or try again later.</string>
-    <string name="welcome_google_signin_failed">Google sign-in failed. Please try again, or sign in with username/password instead.</string>
-    <string name="welcome_google_signin_failed_detail">Google sign-in failed (%1$s). Please try again, or sign in with username/password instead.</string>
-    <string name="welcome_skip_button">Skip login</string>
-    <string name="welcome_skip_confirm_title">Continue without logging in?</string>
-    <string name="welcome_skip_confirm_message">The app will work in a limited, offline mode: only previously downloaded music will be available until you log in again.</string>
-    <string name="welcome_skip_confirm_positive">Continue offline</string>
-    <string name="welcome_skip_confirm_negative">Back to login</string>
-    <string name="welcome_status_checking">Server status: checking…</string>
-    <string name="welcome_status_reachable">Server status: reachable</string>
-    <string name="welcome_status_unreachable">Server status: unreachable</string>
-    <string name="welcome_session_expired">You were signed out: the server rejected your password. It may have been changed on the server — sign in again to continue.</string>
-    <string name="menu.logout">Log out</string>
-    <string name="logout.confirm_title">Log out?</string>
-    <string name="logout.confirm_message">Playback stops and you return to the login screen. Downloaded music stays on this device.</string>
-    <string name="offline_mode_banner">Offline mode — limited functionality. Tap to log in.</string>
-    <string name="welcome_or_divider">OR</string>
-    <string name="settings.muma_sync_title">MuMa Account</string>
-    <string name="settings.muma_user_id_title">MuMa User ID</string>
-    <string name="settings.muma_user_id_summary">Internal user ID for MuMa synchronization</string>
-    <string name="settings.muma_api_key_title">MuMa API Key</string>
-    <string name="settings.muma_api_key_summary">API Key for MuMa authentication</string>
-    <string name="muma_sync.logon_success">Successfully logged on to MuMa</string>
 
-    <string name="google_signin_button">Sign in with Google</string>
-    <string name="google_signin_no_accounts">No Google accounts found on this device.</string>
-    <string name="request_access_title">Request Access</string>
-    <string name="request_access_message">You don\'t have an account yet. Would you like to request access as %1$s (%2$s)?</string>
-    <string name="request_access_button">Request Access</string>
-    <string name="pending_review_title">Request Pending</string>
-    <string name="pending_review_message">Your access request is currently pending review. Please check back later.</string>
-    <string name="rejected_title">Request Rejected</string>
-    <string name="rejected_message">Your access request has been rejected.</string>
-    <string name="try_again_button">Try Again</string>
-    <string name="approved_retry_message">Your request was approved! Please try signing in again.</string>
-    <string name="about.voice">Voice commands</string>
     <string name="muma_voice_title">MuMa Voice</string>
-    <string name="muma_voice_prompt">Tap the microphone and say what to play</string>
-    <string name="muma_voice_listening">Listening…</string>
-    <string name="muma_voice_working">Looking that up…</string>
-    <string name="muma_voice_no_match">Nothing found for “%1$s”</string>
-    <string name="muma_voice_playing">Playing %1$s</string>
-    <string name="muma_voice_ask">Did you mean “%1$s” as a…</string>
-    <string name="muma_voice_no_recogniser">This device has no speech recognition</string>
-    <string name="muma_voice_needs_microphone">MuMa Voice needs the microphone. Type a query instead.</string>
-    <string name="muma_voice_kind_genre">Genre</string>
-    <string name="muma_voice_kind_label">Label</string>
-    <string name="muma_voice_kind_artist">Artist</string>
-    <string name="muma_voice_kind_album">Album</string>
-    <string name="muma_voice_kind_playlist">Playlist</string>
-    <string name="muma_voice_kind_festival">Festival</string>
-    <string name="voice_diagnostics_title">Voice diagnostics</string>
-    <string name="voice_diagnostics_hint">Type a query to test the parser</string>
-    <string name="voice_diagnostics_empty">No voice requests recorded yet. Ask the car for something, or type a query above.</string>
-    <string name="voice_diagnostics_share">Share trace</string>
-    <string name="voice_diagnostics_clear">Clear</string>
 
     <!-- MuMa Voice: the parsed request shown under the microphone -->
-    <string name="voice_explain_heard">heard</string>
-    <string name="voice_explain_genre">genre</string>
-    <string name="voice_explain_label">label</string>
-    <string name="voice_explain_artist">artist</string>
-    <string name="voice_explain_album">album</string>
-    <string name="voice_explain_playlist">playlist</string>
-    <string name="voice_explain_year">year</string>
-    <string name="voice_explain_festival">festival</string>
-    <string name="voice_explain_rating">rating</string>
-    <string name="voice_explain_sets">length</string>
-    <string name="voice_explain_sets_value">whole sets</string>
-    <string name="voice_explain_order">order</string>
-    <string name="voice_explain_order_released">newest release first</string>
-    <string name="voice_explain_order_added">recently added first</string>
-    <string name="voice_explain_order_random">no order</string>
-    <string name="voice_explain_question">asking about</string>
-    <string name="voice_explain_reason">no match</string>
-    <string name="voice_explain_result">result</string>
-    <string name="voice_explain_result_tracks">%1$d tracks</string>
-    <string name="voice_explain_raw_show">\u25b8 Show raw trace</string>
-    <string name="voice_explain_raw_hide">\u25be Hide raw trace</string>
-    <string name="muma_voice_selection">your selection</string>
     <string name="voice.title">Voice commands</string>
     <string name="voice.text"><![CDATA[Ask the Assistant in the car, or use the voice search of the app. Everything below can be combined in one sentence.\n\n<b>A genre</b>\nPlay genre hardstyle\nPlay uptempo hardcore\nPlay drum and bass livesets\n\n<b>An artist</b>\nPlay music by headhunterz\nPlay artist brennan heart\n\n<b>A label</b>\nPlay label art of creation\n\n<b>A set</b>\nPlay a set\nPlay a Defqon set\nPlay the latest set of headhunterz\n\n<b>A year</b>\nPlay hardstyle from 2021\nPlay headhunterz from 2020\n\n<b>An order</b>\nPlay random hardcore\nPlay recent\nPlay recently added\n\n<b>Your favourites</b>\nPlay favourites\nPlay favourites by headhunterz\nPlay favourites from 2021\n\n<b>All of it at once</b>\nPlay random favourites from 2023\nPlay random uptempo hardcore from 2021\n\n<b>Later in the queue</b>\nPlay project one next\nPlay dragonborn after this\n\n<b>An album, a playlist or a title</b>\nPlay album thunderdome\nPlay the playlist zomer\nPlay the track dragonborn\n\n<b>A rating</b>\nPlay hardstyle with at least 4 stars\n\n<b>More than one of a kind</b>\nPlay hardstyle en hardcore\nPlay hardstyle from 2020 en 2021\n\nA name has to be one the library knows. What it cannot place is dropped and the rest of the request still plays; when it can place nothing at all, the ordinary search takes over and looks for the title.\n\nThe microphone in the toolbar opens MuMa Voice, which understands all of the above and can ask which one you meant when a name fits several things. About > Voice diagnostics shows exactly what every request did.]]></string>
 
     <!-- Setup wizard -->
-    <string name="wizard.title">Setup wizard</string>
-    <string name="wizard.badge_new">New</string>
-    <string name="wizard.back">Back</string>
-    <string name="wizard.next">Next</string>
-    <string name="wizard.done">Done</string>
-    <string name="wizard.skip">Skip</string>
-    <string name="wizard.open">Open</string>
-    <string name="wizard.enabled">Enabled</string>
-
-    <string name="wizard.step_server_title">Your server</string>
-    <string name="wizard.step_server_body">Everything you play comes from your own MuMa server. Check that the right one is selected and that it can be reached.</string>
-
-    <string name="wizard.step_style_title">Style</string>
-    <string name="wizard.step_style_body">Two complete looks. Spotify is the darker, familiar one. MuMa uses its own palette, warmer surfaces and rounder cards.</string>
 
 
 
-    <string name="wizard.step_memories_title">Memories on the home screen</string>
-    <string name="wizard.step_memories_body">Shows the carousel of what you were listening to a year ago. The Memories page in the Library tab stays available either way.</string>
-
-    <string name="wizard.step_cache_size_title">How much to keep offline</string>
-    <string name="wizard.step_cache_size_body">The space MuMa may use for downloaded music. When it is full, the tracks you played longest ago are removed first.</string>
-
-    <string name="wizard.step_wifi_download_title">Download on Wi-Fi only</string>
-    <string name="wizard.step_wifi_download_body">Keeps downloads off your mobile data. Streaming is unaffected — this only holds back downloads until you are on Wi-Fi.</string>
 
 
-    <string name="wizard.step_muma_sync_title">MuMa sync</string>
-    <string name="wizard.step_muma_sync_body">Links this phone to your MuMa account so ratings and listens end up on the server. Needs your user id and API key.</string>
-    <string name="wizard.progress_format">%1$d of %2$d</string>
+
+
+
+
     <!-- The in-app manual. Bodies are CDATA and rendered through HtmlCompat, so the markup
          below is what the reader sees. -->
-    <string name="menu.help">Help</string>
-    <string name="manual.intro">Every part of MuMa, in the order you meet them. Tap a chapter to open it, tap a screenshot to enlarge it.</string>
-    <string name="manual.screenshot_description">Screenshot of the screen this chapter describes</string>
 
-    <string name="manual.action_servers">Open servers</string>
-    <string name="manual.action_voice_commands">See every voice command</string>
-    <string name="manual.action_downloads">Open downloads</string>
-    <string name="manual.action_settings">Open settings</string>
-    <string name="manual.action_about">Open About</string>
-    <string name="manual.action_diagnostics">Open voice diagnostics</string>
 
-    <string name="manual.chapter_start_title">Setting up and signing in</string>
-    <string name="manual.chapter_start_body"><![CDATA[MuMa plays from your own server, so the first thing it needs is which one.
 
-<b>Servers</b>
-The overflow menu (the three dots, top right) has <b>Servers</b>. Add one with its address, your user name and your password. You may keep several and switch between them from that same screen.
 
-<b>Signing in with Google</b>
-Without an account yet, ask for access with your Google account. The request lands with the administrator and you are in as soon as it is approved.
 
-<b>Offline</b>
-Picking the offline entry in the server list stops MuMa from talking to the server at all. Only what you downloaded plays, and nothing is looked up while you are away from a network.]]></string>
 
-    <string name="manual.chapter_home_title">The home screen</string>
-    <string name="manual.chapter_home_body"><![CDATA[The first tab of the bottom bar. It is a stack of rows, each answering a different question.
 
-<b>Memories</b>
-A moment out of your own listening history: what you were playing around this time, a year or more ago.
 
-<b>Recently played</b>
-A way back to where you were. It records the <i>place</i> you played from, so a track you started from a genre takes you back to that genre and not to whichever album it happened to sit on.
 
-<b>Recently released</b> and <b>Recently added</b>
-The newest music, by release date and by the date it arrived on the server.
 
-<b>The Sets switch</b>
-The switch in the toolbar shows up on this screen only. Off, the home screen is about songs; on, it is about sets: livesets, festival recordings and long mixes. The accent colour changes with it, so you can see at a glance which of the two you are in.]]></string>
 
-    <string name="manual.chapter_library_title">The library</string>
-    <string name="manual.chapter_library_body"><![CDATA[The second tab of the bottom bar. One strip of tabs, each a different way into the same music: <b>Playlists</b>, <b>Genres</b>, <b>Labels</b>, <b>Artists</b>, <b>Albums</b>, <b>Years</b>, <b>Festivals</b>, <b>Podcasts</b>, <b>Lineups</b>, <b>Ratings</b>, <b>Saved</b> and <b>Memories</b>. Swipe sideways or tap a tab to move between them.
 
-The bar above the list narrows and orders what is under it: by name, by year, by rating, by how often you played it, or shuffled. The button on the right switches between a list and a grid.
 
-Hold a row for what you can do with it: play it now, play it next, add it to the queue, download it, or put it in a playlist.]]></string>
-
-    <string name="manual.chapter_favorites_title">Favourites and ratings</string>
-    <string name="manual.chapter_favorites_body"><![CDATA[The star tab of the bottom bar collects what you marked: starred albums, starred artists and your highest rated tracks.
-
-<b>The stars</b>
-Every track carries a rating from zero to five stars. Set it from the player, from the row itself, or from the star button on the car controls, which cycles through the scale. What you rate anywhere shows up everywhere: the rating goes to the server, not only to this phone.
-
-How you read the middle of the scale is up to you. The one thing fixed everywhere is that five is the top, and a five star track counts as a favourite. A low rating is a label and nothing more, never a reason for MuMa to remove anything.
-
-The rating drives more than the star tab: the Ratings tab in the library, the sort orders, and spoken requests such as <i>play hardstyle with at least 4 stars</i> all read it.]]></string>
-
-    <string name="manual.chapter_search_title">Searching</string>
-    <string name="manual.chapter_search_body"><![CDATA[The magnifying glass in the toolbar searches artists, albums and tracks in one go. Results come back grouped per kind, with <b>Show more</b> under a group that has more than fits.
-
-A search is a starting point, not a dead end: hold a result for the same menu the library rows have, or tap it to open what is behind it.
-
-For anything longer than a name, the microphone next to it is the faster way in. See the MuMa Voice chapter.]]></string>
-
-    <string name="manual.chapter_player_title">Playing and the queue</string>
-    <string name="manual.chapter_player_body"><![CDATA[Tap a track to play it. The bar at the bottom of the screen is what is playing now; tap it to open the full player, or swipe it away to stop.
-
-<b>The queue</b>
-Playing something replaces the queue; <b>Play next</b> and <b>Add to queue</b> from the hold menu put it after the current track instead. The list button in the player toolbar switches between the artwork and the queue, where you can drag rows into another order.
-
-<b>The track itself</b>
-Tap the title block in the player for everything about the playing track: its album, its artist, its rating.
-
-<b>The rest of the player menu</b>
-Save the queue as a playlist, share it, clear it, keep the screen on, or open the <b>equalizer</b>.]]></string>
-
-    <string name="manual.chapter_voice_title">MuMa Voice</string>
-    <string name="manual.chapter_voice_body"><![CDATA[The microphone in the toolbar opens MuMa Voice. Tap it and say what you want to hear.
-
-It takes a good deal more than a title: a genre, an artist, a label, a year, an order, your favourites and a minimum rating, and any combination of those in one sentence. <i>Play random uptempo hardcore from 2021.</i> When a name fits several things at once it asks which one you meant, rather than guessing.
-
-What it cannot place is dropped and the rest of the request still plays. The same parser runs behind the Assistant and behind the car, so a sentence that works here works there.
-
-The button below lists every wording it knows.]]></string>
-
-    <string name="manual.chapter_car_title">In the car</string>
-    <string name="manual.chapter_car_body"><![CDATA[MuMa is an Android Auto app. Plug in the phone and it shows up between the other media apps.
-
-<b>The car home</b>
-A set of tiles, split into songs and livesets: random, recent, starred, search and a tile per genre. They come from the server, so the tiles you see in the car are the ones your library actually has music for.
-
-<b>Radio and news</b>
-A radio folder sits next to the music, and the news button on the controls plays the bulletin of the hour and then puts your music back where it was, to the second.
-
-<b>Rating while driving</b>
-The star button on the controls steps the rating of the playing track through the scale, so the library keeps learning while both hands stay on the wheel.
-
-<b>Talking to it</b>
-The search button inside MuMa runs the same voice parser the app uses. Everything in the MuMa Voice chapter applies here too.]]></string>
-
-    <string name="manual.chapter_offline_title">Downloads and offline</string>
-    <string name="manual.chapter_offline_body"><![CDATA[Anything you hold can be pinned, and a pinned track is kept on the phone until you unpin it.
-
-<b>Downloads</b>
-The overflow menu has <b>Downloads</b>: what is on the phone, what is still coming in, and how much room it takes.
-
-<b>Two kinds of local file</b>
-What you pin stays. What MuMa cached while playing is fair game for the cache limit in the settings, which throws the oldest out once the cache is full.
-
-<b>Going offline</b>
-Pick the offline entry in the server list and MuMa stops asking the server anything at all. The library shrinks to what is on the phone and playback keeps working with no signal.]]></string>
-
-    <string name="manual.chapter_settings_title">Settings</string>
-    <string name="manual.chapter_settings_body"><![CDATA[The overflow menu has <b>Settings</b>, grouped per subject.
-
-<b>Appearance</b>
-The style of the app: <i>Spotify</i>, dark and card shaped, or <i>MuMa</i>, flatter and quieter. Every colour, corner and row treatment moves with it.
-
-<b>Playback</b>
-What the buttons on a headset do, what happens on a Bluetooth connect, how gapless and crossfade behave.
-
-<b>Network and cache</b>
-How much MuMa may keep on the phone, whether it may use mobile data, and at what quality it streams.
-
-<b>Search, notifications, sharing, MuMa sync</b>
-How many results a search brings back, what the notification shows, how a share link is built, and what is synchronised back to the server.]]></string>
-
-    <string name="manual.chapter_update_title">Updates</string>
-    <string name="manual.chapter_update_body"><![CDATA[MuMa is not in the Play Store, so it looks after its own updates.
-
-On start it asks the update host whether a newer build exists and offers it when there is one. Accepting downloads the APK and Android takes over the install from there.
-
-<b>Checking by hand</b>
-<b>About</b> has a check button that does the same on demand. Double tap that button and it opens the download page in the browser instead, which is the way in when an install went wrong and you want the file yourself.
-
-What is new in a build is in <b>About</b> under the changelog button.]]></string>
-
-    <string name="manual.chapter_trouble_title">When something is wrong</string>
-    <string name="manual.chapter_trouble_body"><![CDATA[<b>The log</b>
-<b>About</b> has <b>View log</b>: what the app has been doing, and the error that came out of it. It can be shared straight from there, which is worth more than a description of the symptom.
-
-<b>Voice diagnostics</b>
-When a spoken request played the wrong thing, the diagnostics screen shows exactly what was heard, what was made of it, and what the server was asked. You can also type a query there and watch it being taken apart without playing anything.
-
-<b>Nothing plays at all</b>
-Check which server is selected and whether it says offline. An offline server plays only what is downloaded.
-
-<b>Reporting it</b>
-<b>About</b> has a report link. A log makes the difference between a guess and a fix.]]></string>
     <string name="car_mode.title">Car mode</string>
     <string name="car_mode.notification_text">Open the driving screen</string>
     <string name="car_mode.channel_name">Car mode</string>
-    <string name="car_mode.mix">Mix</string>
-    <string name="car_mode.close">Close car mode</string>
-    <string name="car_mode.settings_category">Car mode</string>
-    <string name="car_mode.manual">Car mode on this trip</string>
-    <string name="car_mode.manual_summary">Treat the phone as being in the car until this is turned off</string>
-    <string name="car_mode.devices">Which devices are my car</string>
-    <string name="car_mode.devices_summary">Only these Bluetooth devices start car mode. Earbuds and headphones should stay unticked.</string>
-    <string name="car_mode.full_screen">Open automatically</string>
-    <string name="car_mode.full_screen_summary">Android only lets some apps put a screen up by itself. Tap to allow it for MuMa.</string>
-    <string name="wizard.step_car_mode_title">Car mode</string>
-    <string name="wizard.step_car_mode_body">A driving screen with large controls: what is playing, the transport, a rating, three places you often go and the microphone. MuMa offers it by itself when your car connects — choose which Bluetooth devices count as the car under Settings, Car mode. Leave earbuds unticked. This switch turns car mode on with no car at all, for as long as you leave it on.</string>
-    <string name="search.read_as_request">Read as a request</string>
-    <string name="search.as_text">Search text</string>
 </resources>

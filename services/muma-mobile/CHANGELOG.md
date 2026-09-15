@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0] - 2026-09-15
+
+### Added
+- **De app meldt weer dat er een nieuwe versie is, en je kunt het zelf controleren.** De
+  updatecontrole verdween samen met het oude Kotlin-startscherm dat hem uitvoerde; een telefoon
+  op build 312 hoorde daardoor niets over 313. De shell vraagt het apk-hoster nu weer
+  (`MumaSystem.checkForUpdate`, dezelfde `/api/version`-vraag als vroeger, debug-builds volgen
+  de debug-reeks), eens per dag bij het starten — stil tenzij er iets nieuws is, dan een
+  melding met "Downloaden" — en op verzoek via "Controleren op updates" op de Over-pagina,
+  die ook zegt dat je de nieuwste hebt en een onbereikbare hoster als fout meldt in plaats
+  van als "up-to-date". De Over-pagina toont verder versie en build van de app, pakket,
+  Android-versie en toestel, de MuMa API- en LMS-versie, het serveradres en de git-hash van
+  de webinterface, en op de telefoon de changelog van de app zelf.
+
+### Changed
+- **Android Auto leest de snelkoppelingen nu van de server.** De map "Afspeellijsten" (en
+  dezelfde map onder Favorieten en onder Sets) toonde de tegels uit een lokale opslag die alleen
+  de oude Kotlin-schermen vulden; sinds die weg zijn kwam er niets meer bij. De auto vraagt nu de
+  dynamische afspeellijsten van de gebruiker rechtstreeks aan MuMa — dezelfde lijst die het
+  startscherm van de webspeler als tegels toont — dus een snelkoppeling die je op de web opslaat
+  staat bij de volgende keer bladeren in de auto. Vijf minuten gecachet; als de server niet
+  antwoordt valt de map weg en blijft de rest van de boom staan.
+
+### Removed
+- **De klassieke Kotlin-interface is uit de app.** Sinds 6.36.0 stonden er twee interfaces in de
+  APK: de oude schermen (fragments, lay-outs, navigatiegraaf, instellingenscherm, wizard,
+  handleiding) en de webshell met de Svelte-speler. De webshell is nu de enige. Het
+  launcher-icoon, een melding, de widget, de snelle-instellingen-tegel en een snelkoppeling openen
+  allemaal dezelfde `CapacitorActivity`; "Terug naar de klassieke interface" en de instelling
+  `webUiEnabled` zijn weg, net als "Alle app-instellingen…". De zoek-intent van de Assistent
+  ("speel X af in MuMa") komt nu via de trampoline binnen en gaat dezelfde route.
+- Wat blijft is alles wat de schermen niet waren: de afspeeldienst, downloads en de Room-cache,
+  Android Auto, automodus, stem, de crashrapporten, de widget en de plug-ins die de webshell
+  aanspreekt. De favoriete tegels die Auto onder "Afspeellijsten" toont worden nog uit de oude
+  tegelopslag gelezen — er is alleen niets meer dat ze schrijft, dus wat op het toestel staat
+  blijft staan en nieuwe komen er niet bij.
+- 141 Kotlin-bronbestanden en 63 testbestanden, 95 lay-outs, 13 menu's en bijna 7.000 regels
+  strings, kleuren en stijlen weg; de Navigation-, ViewPager-, RecyclerView-, Markwon- en
+  ConstraintLayout-afhankelijkheden mee. Dit is een opruiming, geen nieuwe functie — het
+  versienummer van de app maakt de sprong naar 7.0.0 omdat een upgrade een interface kwijtraakt
+  die iemand nog aan kon hebben staan.
+
+### Fixed
+- **Het rijscherm bleef het eerste nummer van de rit tonen.** Met shuffle aan publiceerde
+  `MediaPlayerManager` de positie in de afspeelvolgorde, terwijl de Capacitor-plugin de
+  tijdlijn-index verwachtte die hij zelf aan `seekTo` had gevraagd; die twee kwamen nooit
+  overeen, de verwachting bleef staan en elke latere wissel werd onderdrukt. Zonder shuffle
+  onzichtbaar. De plugin krijgt nu altijd de tijdlijn-index, geeft een verwachting na drie
+  gelijke meldingen op, en het webdeel volgt ook een `durationchange` op track-id
+  (`docs/bug-reports/032`).
+
+- **Zwart scherm na een tijdje wegblijven.** Android ruimt de renderer van een WebView op de
+  achtergrond op; niemand ving `onRenderProcessGone`, dus gold de standaard: het hele proces
+  afgebroken zodra de app weer in beeld kwam. `CapacitorActivity` maakt de activity nu opnieuw
+  aan; de webkant leest sessie en wachtrij terug uit de service, dus afspelen loopt door.
+
 ## [6.36.0] - 2026-09-14
 
 ### Added
@@ -242,6 +298,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   de app las hem, de WebView stond op "altijd toestaan", en Chromium blokkeerde de plaatjes toch.
   De pagina draait nu zelf op `http://localhost`, waarmee het verschil verdwijnt. Een https-server
   werkt onveranderd.
+
 ## [6.35.1] - 2026-09-11
 
 ### Fixed
@@ -250,6 +307,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kent geen clustertype `RATING`, antwoordde "not found" en liet het hele verzoek vallen. Sinds de
   dag dat de code geschreven werd, zonder dat iemand een fout zag: een lege sectie wordt gewoon niet
   getoond.
+
 ## [6.35.0] - 2026-09-11
 
 ### Added
@@ -271,6 +329,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - De dagelijkse mix en de release radar hebben nu ook een eigen pagina op de telefoon, in MuMa's
   volgorde: geen filters eroverheen, niet sorteerbaar en geen paginering, want de feed was al
   gerangschikt toen hij binnenkwam.
+
 ## [6.34.0] - 2026-09-11
 
 ### Added
@@ -282,6 +341,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   twee die minuten na elkaar zijn opgehaald.
 - Een lege feed laat zijn rij weg. Dat is iets anders dan een mislukte ophaalactie, die laat staan
   wat er al stond — "er kwam deze week niets uit" hoort niet de radar van gisteren te laten staan.
+
 ## [6.33.0] - 2026-09-10
 
 ### Added
@@ -309,6 +369,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   twee caches naast elkaar en de tweede kende dag noch server. Die is weg; wat overblijft is
   gesleuteld op feed, dag en server. Een feed die maar half opgelost kon worden — de server was
   bijvoorbeeld midden in een scan — wordt niet meer voor de rest van de dag onthouden.
+
 ## [6.32.1] - 2026-09-10
 
 ### Fixed
@@ -321,6 +382,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   database. De database staat nu op versie 9, met een migratie die de drie kolommen alleen toevoegt
   als ze ontbreken -- versie 8 bestaat in twee vormen in het veld en een `ALTER TABLE` op een kolom
   die er al is breekt de migratie af.
+
 ## [6.32.0] - 2026-09-10
 
 ### Added
@@ -332,6 +394,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Wat MuMa nog niet heeft gegroepeerd blijft gewoon staan. Terwijl de worker zijn achterstand
   wegwerkt draagt een groot deel van de bibliotheek geen groepering, en die verbergen zou de app
   legen van muziek die er wel degelijk is.
+
 ## [6.31.0] - 2026-09-10
 
 ### Added
@@ -346,6 +409,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   knop naar een lege lijst is erger dan geen knop.
 - Voorlopig alleen kijken. Een versie afspelen vanuit die lijst is de volgende stap; eerst moest er
   überhaupt een weg naar de alternatieven zijn.
+
 ## [6.30.1] - 2026-09-08
 
 ### Changed
@@ -362,6 +426,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   één gedeelde cache: anders is Hardstyle oranje in de auto en iets anders op je telefoon. Een kaart
   waar wél een plaat voor is houdt die plaat, en een label, jaar of playlist houdt zijn icoon — een
   strip vol tegels die niets zeggen leest alsof ze iets zeggen.
+
 ## [6.30.0] - 2026-09-07
 
 ### Added
@@ -379,6 +444,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   albumhoezen die de items al droegen simpelweg negeerde. Niveaus zonder cover art blijven een
   lijst — de A–Z-index van artiesten, het hoofdmenu, en alle tracklijsten — omdat een raster van
   lege tegels of van veertig tracks de bestuurder meer blikken kost dan de lijst die het vervangt.
+
 ## [6.29.0] - 2026-09-07
 
 ### Added
@@ -390,6 +456,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vraagt om het label, ook als het voorstel er zelf al een noemt — de server neemt de beslissing
   uit het antwoord en niet uit de rij, en juist de voorstellen die je op je telefoon tegenkomt
   zijn die waar hij niets kon raden.
+
 ## [6.28.4] - 2026-09-06
 
 ### Changed

@@ -9,6 +9,13 @@
     "noTracksHelp": "Dit album bevat geen items die overeenkomen met de huidige nummers weergave.",
     "viewOnMusicBrainz": "Bekijk op MusicBrainz"
   },
+  "appUpdate": {
+    "available": "Nieuwe versie van MuMa: {version}",
+    "checkFailed": "Controleren op updates is niet gelukt.",
+    "download": "Downloaden",
+    "openFailed": "Kon de download niet openen.",
+    "upToDate": "Je hebt de nieuwste versie ({version})."
+  },
   "artist": {
     "about": "Over {name}",
     "allSets": "Alle sets",
@@ -271,7 +278,6 @@
   },
   "login": {
     "avatar": "Avatar",
-    "backToLegacyUi": "Terug naar oude interface",
     "backToLogin": "Terug naar inloggen",
     "connect": "Verbinden",
     "createAccount": "Account Aanmaken",
@@ -846,7 +852,8 @@
     "today": {
       "one": "Vandaag, 1 jaar geleden",
       "other": "Vandaag, {count} jaar geleden"
-    }
+    },
+    "homeSummary": "{years} jaar • {tracks} nummers vandaag"
   },
   "mobile": {
     "browseAll": "Alles doorbladeren"
@@ -878,7 +885,9 @@
     "sets": "Sets",
     "songs": "Nummers",
     "starred": "Favorieten",
-    "years": "Jaren"
+    "years": "Jaren",
+    "browse": "Bladeren",
+    "favorites": "Favorieten"
   },
   "news": {
     "couldNotPlay": "Kon het nieuws niet afspelen",
@@ -964,13 +973,33 @@
   },
   "settings": {
     "about": {
+      "android": "Android",
+      "app": "App",
+      "appName": "Naam",
+      "appVersion": "Versie",
       "blurb": "Je eigen muziekbibliotheek, overal te beluisteren. Loopt er iets niet goed of mis je een nummer? Laat het weten aan de beheerder van deze server.",
+      "buildType": "Build",
+      "builtAt": "gebouwd {date}",
+      "bundleVersion": "Webinterface",
+      "checkFailed": "Controleren is niet gelukt.",
+      "checkForUpdate": "Controleren op updates",
+      "checking": "Controleren…",
+      "device": "Toestel",
       "howCarModeBody": "De telefoon aansluiten op Android Auto opent het autoscherm helemaal zelf. De schakelaar \"Automodus\" onder Apparaatinstellingen is alleen voor rijden zonder gekoppelde auto — die zet handmatig aan wat Android Auto anders zelf had aangezet.",
       "howCarModeTitle": "Hoe de automodus aangaat",
       "howItWorksTitle": "Hoe werkt…",
+      "lmsVersion": "Muziekserver (LMS)",
+      "mumaVersion": "MuMa API",
       "noReleaseNotes": "Nog geen release notes beschikbaar.",
+      "packageName": "Pakket",
+      "releaseNotesApp": "Wat is er nieuw in de app",
+      "server": "Server",
+      "serverUrl": "Adres",
       "subtitle": "Welke versie je gebruikt en wat er onlangs is veranderd.",
       "title": "Over MuMa",
+      "unknown": "onbekend",
+      "upToDate": "Je hebt de nieuwste versie.",
+      "updateAvailable": "Nieuwere versie beschikbaar: {version}",
       "whatsNew": "Wat is er nieuw"
     },
     "advanced": {
@@ -1022,7 +1051,6 @@
         "car": "Auto",
         "diagnostics": "Diagnostiek",
         "downloads": "Downloads",
-        "interface": "Interface",
         "playback": "Afspelen",
         "streaming": "Streaming",
         "other": "Overig",
@@ -1053,8 +1081,6 @@
       "sendDiagnostics": "Diagnostiek nu versturen",
       "sendDiagnosticsHelp": "Verstuurt het recente actielog om een probleem te helpen oplossen.",
       "subtitle": "Downloads, streamingkwaliteit en automodus op deze telefoon.",
-      "switchToLegacyUi": "Terug naar de klassieke interface",
-      "switchToLegacyUiHelp": "Verlaat deze interface en start opnieuw op in de originele Ultrasonic-schermen.",
       "title": "Apparaat",
       "wifiOnly": "Alleen wifi",
       "wifiOnlyHelp": "Wacht op wifi voordat er iets gedownload wordt.",
@@ -1213,7 +1239,11 @@
     "versionsOf": "Versies van {title}",
     "bestVersion": "beste versie",
     "onlyVersion": "Dit is de enige versie van dit nummer.",
-    "versionsFailed": "De versies van dit nummer konden niet worden geladen"
+    "versionsFailed": "De versies van dit nummer konden niet worden geladen",
+    "details": "Nummerdetails",
+    "goToAlbum": "Naar album",
+    "goToArtist": "Naar artiest",
+    "browserDownload": "Kopie opslaan"
   },
   "song": {
     "heading": "Nummer",
@@ -1251,6 +1281,35 @@
     "emptyTitle": "Hier is niets gedownload",
     "unavailableHelp": "Dit scherm heeft de server nodig. Zodra er verbinding is werkt het weer.",
     "unavailableTitle": "Niet beschikbaar zonder verbinding"
+  },
+  "presetBuilder": {
+    "kicker": "Geavanceerd zoeken",
+    "editKicker": "Snelkoppeling bewerken",
+    "title": "Zoek op alles, bewaar het als snelkoppeling",
+    "intro": "Kies zoveel genres, artiesten, labels, festivals en jaren als je wilt — binnen één soort telt elk, ertussen moeten ze allemaal kloppen. De lijst eronder volgt je keuze. Opslaan zet het als tegel op je startscherm en in de auto onder Afspeellijsten.",
+    "mode": "Nummers of sets",
+    "genres": "Genres",
+    "artists": "Artiesten",
+    "labels": "Labels",
+    "festivals": "Festivals",
+    "years": "Jaren",
+    "addPlaceholder": "Typ en kies, of Enter",
+    "remove": "{name} weghalen",
+    "sort": "Sortering",
+    "rating": "Rating",
+    "ratingMin": "van",
+    "ratingMax": "tot",
+    "size": "Aantal nummers",
+    "name": "Naam",
+    "save": "Opslaan als snelkoppeling",
+    "saveChanges": "Wijzigingen opslaan",
+    "signInToSave": "Log in bij MuMa om op te slaan.",
+    "noFilterHint": "Zonder filter is dit gewoon je hele bibliotheek.",
+    "preview": "Voorbeeld",
+    "previewCount": "eerste {count}",
+    "open": "Geavanceerd zoeken",
+    "new": "Nieuwe snelkoppeling",
+    "edit": "Bewerken"
   },
   "presets": {
     "title": "Presets",

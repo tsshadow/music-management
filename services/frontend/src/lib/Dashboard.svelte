@@ -24,10 +24,13 @@
   import Management from './management/Management.svelte';
   import CollectionBar from './CollectionBar.svelte';
   import CollectionGrid from './CollectionGrid.svelte';
+  import FavoritesView from './FavoritesView.svelte';
+  import PhoneHome from './PhoneHome.svelte';
   import HomeShelf from './HomeShelf.svelte';
   import DownloadsView from './DownloadsView.svelte';
   import OfflineNotice from './OfflineNotice.svelte';
   import PresetGrid from './PresetGrid.svelte';
+  import PresetBuilder from './PresetBuilder.svelte';
   import PresetView from './PresetView.svelte';
   import VoiceView from './VoiceView.svelte';
   import { presets, refreshPresets, createPreset, presetParamsFromFilters } from './presets.js';
@@ -782,8 +785,13 @@
     <OfflineNotice kind="unavailable" onnavigate={onnavigate} />
   {:else if activeView === 'downloads'}
     <DownloadsView onnavigate={onnavigate} />
+  {:else if activeView === 'favorites'}
+    <FavoritesView presets={$presets} tints={genreTints} canCreate={Boolean($mumaUser)} {onnavigate} />
   {:else if activeView === 'home'}
-    <PresetGrid presets={$presets} tints={genreTints} onopen={(preset) => onnavigate(`preset:${preset.id}`)} />
+    {#if $isMobile}
+      <PhoneHome {sections} {memoryGroups} {onnavigate} onrecent={(sort) => { currentSort = sort; onnavigate($viewMode); }} />
+    {:else}
+    <PresetGrid presets={$presets} tints={genreTints} canCreate={Boolean($mumaUser)} onopen={(preset) => onnavigate(`preset:${preset.id}`)} oncreate={() => onnavigate('new-preset')} />
     {#if $memoriesOnHomeEnabled && memoryGroups.length > 0}
       <section class="flex flex-col gap-4">
         <div class="flex justify-between items-end mb-4">
@@ -837,6 +845,7 @@
         }}
       />
     {/each}
+    {/if}
   {:else if activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('podcast:') || activeView.startsWith('festival:') || activeView.startsWith('year:') || activeView.startsWith('lineup:')}
     <div class="flex flex-col gap-4 mb-6">
         <h2 class="text-2xl font-bold m-0 flex items-center gap-3">
@@ -1280,6 +1289,17 @@
     <FeedView slug={RELEASE_RADAR} onnavigate={(v) => onnavigate(v)} />
   {:else if activeView === 'daily-mix'}
     <FeedView slug={DAILY_MIX} onnavigate={(v) => onnavigate(v)} />
+  {:else if activeView === 'new-preset'}
+    <PresetBuilder onnavigate={(v) => onnavigate(v)} />
+  {:else if activeView.startsWith('preset-edit:')}
+    {@const preset = $presets.find((p) => p.id === viewArgument(activeView))}
+    {#if preset}
+      {#key preset.id}
+        <PresetBuilder {preset} onnavigate={(v) => onnavigate(v)} />
+      {/key}
+    {:else}
+      <p class="text-[#b3b3b3] p-12 text-center">{$presets.length === 0 && $mumaUser ? $t('common.loading') : $t('presets.notFound')}</p>
+    {/if}
   {:else if activeView.startsWith('preset:')}
     {@const preset = $presets.find((p) => p.id === viewArgument(activeView))}
     {#if preset}

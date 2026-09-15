@@ -459,7 +459,8 @@ class MumaPlayerPlugin :
         // A self-inflicted queue replacement clears the timeline and loads the new list's first
         // item before it reaches the index that was actually asked for; none of that is a move
         // anybody but this plugin decided on, so [TransportTracker] swallows all of it -- no
-        // `durationchange`, no `command`, no `ended` -- until it settles on the requested item.
+        // `durationchange`, no `command`, no `ended` -- until it reaches the requested item or
+        // repeats a stable non-null state. The latter releases an expectation that cannot land.
         if (event.suppressed) return
 
         if (event.trackChanged) {

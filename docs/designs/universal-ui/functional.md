@@ -223,27 +223,34 @@ the matching page, and the Android back button follows the same history the brow
 ## Telefoonlayout
 
 Shipped ahead of the shell rewrite above, directly in `services/frontend`: the existing web player
-now uses Spotify's phone navigation below `md` (`isMobile`); the desktop layout is untouched.
+now uses Spotify's phone navigation below `md` (`isMobile`); desktop navigation and Home keep their layout.
 
-- **Three tabs, not six.** The bottom bar (`MobileNav`) is Home, Search, Library. Songs/Sets is no
-  longer a tab of its own, and Downloads and Management are gone from it too.
-- **Mode chips, not a mode tab.** A Songs/Sets pill pair (`ModeChips`) sits above Home, Search and
-  Library. Tapping a chip only sets `viewMode` — it never navigates — the same thing the desktop
-  sidebar's own toggle has always done; the old bottom tab used to conflate the two, which is what
-  made the "Sets" tab land back on `/songs` when the mode effect corrected it.
-- **Browse lives under Search.** The search box stays exactly where it is, in `TopBar`, shared with
-  every screen. The Search tab adds a two-column tile grid (`BrowseGrid`) over every section the
-  desktop sidebar lists — genres, labels, podcasts, festivals, years, lineups, artists, albums,
-  memories, history, listening, starred — coloured with a fixed palette, for the moment before
-  anything is typed. Typing opens the existing results panel as a floating overlay on top of the
-  grid; no second search box was added.
-- **Library is one screen with chips.** `LibraryChips` (Playlists, Artists, Albums, Favourites, and
-  Downloads where `platform.storage.supported`) picks which existing view renders underneath;
-  `activeView` is the only source of truth, so a chip and a direct link never disagree.
+- **Three tabs.** Home, Browse (Bladeren), Favorites (Favorieten). Browse owns artists, albums,
+  starred tracks, downloads and playlists, including playlist detail pages. Favorites owns presets,
+  the new-preset page and preset detail/edit pages. `/search` stays an alias.
+- **Browse starts with the library.** Artists, Playlists, Albums, Downloads (where storage is
+  supported) and starred tracks lead the two-column category grid. TopBar keeps the shared search
+  box; the microphone
+  and preset builder remain available. The library chip row is gone. Songs/Sets mode chips stay.
+- **Favorites holds the presets.** A new-preset action sits at the top, followed by saved presets
+  as compact tiles in two columns. The page owns the layout so other favourite tile kinds can be
+  added later; for now it shows presets only. Desktop Home keeps its existing preset grid.
+- **Home follows the account.** BUTTON sections share a compact two-column grid:
+  artwork or a coloured block on the left, bold title and one-line subtitle. Memories is one tile
+  with today's year/track counts. OVERVIEW sections get shelves below; OFF sections disappear.
+  Recently released and recently added query the existing track endpoint in release/add order.
+  Shortcuts renders nothing until the web has a recent-places source.
+- **Song details are a sheet.** Every phone row has a visible overflow button. It opens artwork,
+  metadata, rating and the existing versions, lyrics, queue, download and album/artist actions.
+  Opening the sheet never plays the track.
+- **Two or three lines.** The account setting chooses title/artist or title/artist/album and date.
+  The album stays a link and the mobile rating row stays available in either density.
+- **Compact settings.** Shared settings styles use 16px section padding and gaps, 16px headings,
+  14px medium row titles and 12px help, with the existing controls and touch targets.
 - **Profile menu covers the rest.** Settings and Management (admin) open from the profile button, as
   before; once inside either, the existing drawer is still how their own tab list opens on a phone.
-- **Not in this pass.** The full-screen Now Playing sheet and the phone's filter-chip row (`FilterBar`
-  collapsing to a bottom sheet) follow in separate MRs.
+- **Shared sheets.** Song details reuse the BottomSheet already used by phone filters and the queue;
+  Now Playing keeps its existing full-screen presentation.
 
 ## Functional Flows
 
@@ -298,6 +305,15 @@ now uses Spotify's phone navigation below `md` (`isMobile`); the desktop layout 
   phase only if a visible music folder, a tray icon or an unevictable cache turn out to be
   needed; the `platform` adapter makes that one more implementation, not a rebuild. Capacitor
   stays the Android shell; "Tauri for both" is closed.
+- **Android Auto's favourite tiles — decided 2026-09-14: Auto reads the server.** The
+  "Afspeellijsten" root used to list tiles from a local `TileStorage` only the Kotlin home screen
+  wrote. `MediaLibraryBrowser` now asks MuMa for the user's dynamic playlists (`getMumaTiles`,
+  the same rows the web's `presets.js` shows as home tiles), cached five minutes, so a preset
+  saved on the web is in the car on the next browse. The web gets an advanced search page for
+  building one across every cluster (genres, artists, labels, festivals, years, rating, sort,
+  songs/sets) and saving it as a shortcut; the Dashboard's one-filter "save as preset" stays as
+  the quick path. Presets written by the management tab's older spelling (`genres`,
+  `rating_range`) open on the web but read as unfiltered in the car until re-saved.
 - **Jukebox and bookmarks.** Not carried over. Bookmarks are replaced by set resume (functional
   criterion 7). If the jukebox is missed it becomes its own design.
 - **Home sections on the desktop.** This design applies the configurable home to every width. If
@@ -389,6 +405,21 @@ now uses Spotify's phone navigation below `md` (`isMobile`); the desktop layout 
   checkout. `releaseNotes()` reads the exact same asset `copyChangelog` in `app/build.gradle`
   already stages for the legacy `Util.showChangelog`, so nothing new needed wiring into the Gradle
   build, and the text is only asked for once an upgrade is already confirmed, not on every boot.
+- **Update check — decided 2026-09-15: back, in the web.** `util/UpdateChecker.kt` went with the
+  Kotlin home screen that ran it on every start, and nothing asked apk-hoster since — the first
+  phone on build 312 heard nothing about 313. The fetch and the comparison are the shell's
+  again (`MumaSystem.checkForUpdate()`, same `/api/version?apk=<series>` query as before, a
+  debug build asking after the debug series and a release build after the release one), and
+  `MumaSystem.openUrl()` opens the download outside the WebView, an APK not being a page. When
+  to ask and how to tell the listener is `appUpdate.js`: once a day from `App.svelte`'s boot
+  path, quiet unless a newer build exists (a notification with a "Downloaden" action), and on
+  demand from the About page's "Controleren op updates" button, which also says "you have the
+  newest" and reports a hoster that could not be reached as a failure rather than as up to date.
+  `About.svelte` grew into the version overview along the way: `MumaSystem.appVersion()` now also
+  carries the version code, build type, package, Android version and device (`appInfo()` on the
+  web side), and the page lists those next to the MuMa API version (`/health`), the LMS version
+  (`/rest/ping`), the server address and the web bundle's git hash (`version.json`); inside the
+  shell the "what's new" section shows the app's own changelog rather than the LMS server's.
 - **Manual — decided 2026-09-14: retire, with one paragraph moved.** Read every chapter in
   `ManualChapter.kt`. All but one describe a screen the web already has and already reads the
   same way; retiring the manual loses nothing there. The exception: nowhere in the web UI is it

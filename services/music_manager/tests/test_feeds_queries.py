@@ -5,6 +5,8 @@ from services.music_manager.feeds.policy import POLICIES
 from services.music_manager.feeds.queries import (
     candidates_query,
     dominant_genre_query,
+    entity_hardness_query,
+    genre_hardness_query,
     listens_query,
 )
 
@@ -183,6 +185,79 @@ class CandidatesQueryTest(unittest.TestCase):
         self.assertEqual(params[0], 'user')
         self.assertEqual(params[1], 'user')
         self.assertEqual(params[2], POLICIES['release-radar'].max_track_seconds)
+
+
+class EntityFilterTest(unittest.TestCase):
+    """candidates_query's entity_filter: the two rotating daily mixes restrict
+
+    the pool to one artist or one label, everything else about it unchanged.
+    """
+
+    def test_an_artist_filter_adds_a_name_match_on_the_primary_artist(self):
+        sql, params = candidates_query('user', POLICIES['daily-mix-artist'], NOW, entity_filter=('artist', 'Angerfist'))
+        self.assertIn('a.name = %s', sql)
+        self.assertEqual(params[-1], 'Angerfist')
+
+    def test_a_label_filter_adds_an_exists_against_the_track_s_labels(self):
+        sql, params = candidates_query(
+            'user', POLICIES['daily-mix-label'], NOW, entity_filter=('label', 'Neophyte Records')
+        )
+        self.assertIn('library_track_labels', sql)
+        self.assertEqual(params[-1], 'Neophyte Records')
+
+    def test_no_filter_changes_nothing_about_the_statement(self):
+        with_none, _ = candidates_query('user', POLICIES['daily-mix-artist'], NOW, entity_filter=None)
+        without_arg, _ = candidates_query('user', POLICIES['daily-mix-artist'], NOW)
+        self.assertEqual(with_none, without_arg)
+
+    def test_an_unknown_dimension_is_refused(self):
+        with self.assertRaises(ValueError):
+            candidates_query('user', POLICIES['daily-mix-artist'], NOW, entity_filter=('genre', 'Uptempo'))
+
+
+class GenreHardnessQueryTest(unittest.TestCase):
+    def test_bounded_to_the_given_track_ids(self):
+        sql, params = genre_hardness_query([1, 2, 3])
+        self.assertIn('tg.track_id IN (%s, %s, %s)', sql)
+        self.assertEqual(params, [1, 2, 3])
+
+    def test_only_genres_with_a_known_hardness_are_summed(self):
+        sql, _ = genre_hardness_query([1])
+        self.assertIn('rg.hardness IS NOT NULL', sql)
+        self.assertIn("rg.state <> 'black'", sql)
+
+    def test_no_ids_is_refused_rather_than_rendered_as_an_empty_in(self):
+        with self.assertRaises(ValueError):
+            genre_hardness_query([])
+
+
+class EntityHardnessQueryTest(unittest.TestCase):
+    def test_the_label_variant_groups_by_label(self):
+        sql, params = entity_hardness_query('label', ['Neophyte Records'])
+        self.assertIn('library_track_labels', sql)
+        self.assertEqual(params, ['Neophyte Records'])
+
+    def test_the_artist_variant_groups_by_artist(self):
+        sql, params = entity_hardness_query('artist', ['Angerfist'])
+        self.assertIn('primary_artist_id', sql)
+        self.assertEqual(params, ['Angerfist'])
+
+    def test_a_mean_needs_at_least_five_scored_tracks(self):
+        sql, _ = entity_hardness_query('label', ['Neophyte Records'])
+        self.assertIn('HAVING COUNT(DISTINCT tg.track_id) >= 5', sql)
+
+    def test_an_unknown_dimension_is_refused(self):
+        with self.assertRaises(ValueError):
+            entity_hardness_query('genre', ['Uptempo'])
+
+    def test_no_names_is_refused(self):
+        with self.assertRaises(ValueError):
+            entity_hardness_query('label', [])
+
+    def test_a_name_is_never_written_into_the_statement(self):
+        sql, params = entity_hardness_query('artist', ["Angerfist'; DROP TABLE library_tracks--"])
+        self.assertNotIn('Angerfist', sql)
+        self.assertEqual(params, ["Angerfist'; DROP TABLE library_tracks--"])
 
 
 class DominantGenreQueryTest(unittest.TestCase):

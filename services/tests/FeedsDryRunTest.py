@@ -65,3 +65,47 @@ def test_a_limit_of_zero_returns_nothing():
     apart from "given as zero"."""
     tracks = [{'id': 1}, {'id': 2}, {'id': 3}]
     assert dryrun._limited(tracks, 0) == []
+
+
+class _FakeFeed:
+    def __init__(
+        self, hardness_band=None, hardness_source_counts=None, relaxed_to=None, title=None, filled_from_unknown=None
+    ):
+        self.hardness_band = hardness_band
+        self.hardness_source_counts = hardness_source_counts
+        self.relaxed_to = relaxed_to
+        self.title = title
+        self.filled_from_unknown = filled_from_unknown
+
+
+def test_a_feed_with_no_band_prints_nothing(capsys):
+    dryrun.print_hardness(_FakeFeed())
+    assert capsys.readouterr().out == ''
+
+
+def test_a_band_feed_prints_its_edges_source_counts_and_relaxation(capsys):
+    dryrun.print_hardness(
+        _FakeFeed(
+            hardness_band=(40.0, 70.0),
+            hardness_source_counts={'genre': 5, 'tempo': 2, 'none': 1},
+            relaxed_to='none',
+            title='Middenin',
+        )
+    )
+    out = capsys.readouterr().out
+    assert 'Middenin' in out
+    assert '40.0' in out and '70.0' in out
+    assert 'genre' in out
+    assert 'relaxed release window to: none' in out
+
+
+def test_a_band_feed_that_needed_backfill_reports_how_much(capsys):
+    dryrun.print_hardness(_FakeFeed(hardness_band=(40.0, 70.0), title='Middenin', filled_from_unknown=10))
+    out = capsys.readouterr().out
+    assert 'filled from unknown-hardness candidates: 10' in out
+
+
+def test_a_band_feed_that_needed_no_backfill_says_nothing_about_it(capsys):
+    dryrun.print_hardness(_FakeFeed(hardness_band=(40.0, 70.0), title='Middenin', filled_from_unknown=0))
+    out = capsys.readouterr().out
+    assert 'filled from unknown-hardness' not in out

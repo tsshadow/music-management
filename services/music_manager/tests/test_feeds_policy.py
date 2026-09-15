@@ -30,6 +30,57 @@ class PolicyTest(unittest.TestCase):
             POLICIES['release-radar'].size = 5
 
 
+class SpectrumPolicyTest(unittest.TestCase):
+    """The three hardness-band mixes: same daily-mix pool, one third of the
+
+    listener's own spectrum each."""
+
+    def test_the_three_bands_share_the_daily_mix_pool(self):
+        for slug, band in (('daily-mix-soft', 'soft'), ('daily-mix-mid', 'mid'), ('daily-mix-hard', 'hard')):
+            with self.subTest(slug=slug):
+                policy = POLICIES[slug]
+                self.assertEqual(policy.hardness_band, band)
+                self.assertEqual(policy.release_window_days, 90)
+                self.assertEqual(policy.pools, frozenset({'unheard', 'loved'}))
+                self.assertEqual(policy.order, 'daily_sample')
+                self.assertIsNone(policy.rotate)
+
+    def test_plain_daily_mix_is_the_classic_unrestricted_policy(self):
+        """Design correction: 'daily-mix' is not an alias of 'daily-mix-mid' --
+
+        aliasing it meant a track with no resolvable hardness lost its place on
+        the one slug the car and the phone already call, which must never come
+        up empty just because the library's genre coverage is thin. It shares
+        the same pool/order/window as the band mixes (still one ranker, many
+        parameter sets) but carries no hardness_band of its own.
+        """
+        classic, mid = POLICIES['daily-mix'], POLICIES['daily-mix-mid']
+        self.assertIsNone(classic.hardness_band)
+        self.assertIsNone(classic.rotate)
+        self.assertEqual(classic.release_window_days, mid.release_window_days)
+        self.assertEqual(classic.pools, mid.pools)
+        self.assertEqual(classic.order, mid.order)
+        self.assertNotEqual(classic.slug, mid.slug)
+
+
+class RotatingPolicyTest(unittest.TestCase):
+    def test_the_artist_mix_rotates_and_carries_no_band(self):
+        policy = POLICIES['daily-mix-artist']
+        self.assertEqual(policy.rotate, 'artist')
+        self.assertIsNone(policy.hardness_band)
+        self.assertEqual(policy.pools, frozenset({'unheard', 'loved'}))
+
+    def test_the_label_mix_rotates_and_carries_no_band(self):
+        policy = POLICIES['daily-mix-label']
+        self.assertEqual(policy.rotate, 'label')
+        self.assertIsNone(policy.hardness_band)
+
+    def test_release_radar_neither_bands_nor_rotates(self):
+        radar = POLICIES['release-radar']
+        self.assertIsNone(radar.hardness_band)
+        self.assertIsNone(radar.rotate)
+
+
 class StartingGenresTest(unittest.TestCase):
     """The router and the dry run read the same setting, so they parse it in one place."""
 

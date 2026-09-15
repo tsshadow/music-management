@@ -99,6 +99,10 @@ class ParentGenresRequest(BaseModel):
     parents: list[str] = []
 
 
+class HardnessRequest(BaseModel):
+    hardness: int | None = None
+
+
 class RetagRequest(BaseModel):
     scope: Literal['artist', 'label']
     name: str
@@ -589,6 +593,7 @@ def get_genre(name: str, _auth: dict = READ):
                 'state': genre['state'],
                 'editable': genre['state'] == rules.WHITE,
                 'occurrences': genre.get('occurrences'),
+                'hardness': genre.get('hardness'),
                 'parents': parents,
                 'children': children,
             }
@@ -645,6 +650,37 @@ def set_genre_parents(name: str, request: ParentGenresRequest, _auth: dict = WRI
         conn.close()
     rules.refresh(rules.SUBGENRE_HELPER)
     return {'status': 'ok', 'parents': resolved}
+
+
+@router.put('/genres/{name}/hardness')
+def set_genre_hardness(name: str, request: HardnessRequest, _auth: dict = WRITE):
+    """Where this genre sits between soft and hard, 0-100, or null to clear it back
+    to "not scored" -- the statistic the daily mixes' three spectrum feeds bucket a
+    track by (see feeds/hardness.py). Editable exactly where the hierarchy is: an
+    accepted genre only, the same 403 for the same reason -- a rejected genre has
+    nothing here to be a fact about.
+
+    A curator's own value here is never silently overwritten by the startup seed
+    (`feeds.hardness.seed_genre_hardness` only ever fills a row that is still NULL),
+    so setting it back to null is the only way to hand a genre back to that seed's
+    anchor-or-inherited default on the next restart.
+    """
+    hardness = rules.parse_hardness(request.hardness)
+    conn = _connect()
+    try:
+        with conn.cursor() as cursor:
+            genre = rules.find_genre_by_name(cursor, name)
+            if not genre:
+                raise HTTPException(status_code=404, detail='Unknown genre')
+            if genre['state'] != rules.WHITE:
+                raise HTTPException(
+                    status_code=403, detail='Curation has not accepted this genre, so it has no hardness to edit'
+                )
+            cursor.execute('UPDATE rules_genres SET hardness = %s WHERE id = %s', (hardness, genre['id']))
+            conn.commit()
+    finally:
+        conn.close()
+    return {'status': 'ok', 'hardness': hardness}
 
 
 # ----------------------------------------------------------------------------- apply

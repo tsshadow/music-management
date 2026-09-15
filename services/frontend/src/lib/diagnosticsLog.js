@@ -94,17 +94,31 @@ export function logError(error, { action = "js.error" } = {}) {
  *
  * @returns {Promise<void>}
  */
-export async function identifyBundle() {
-  let bundleVersion = null;
+/**
+ * Reads `version.json`, the file `bundleVersionFile` in `vite.config.js` stages next to
+ * `index.html`: the git short hash the bundle was built from and when. Shared by the crash
+ * report's identity line and the About page.
+ *
+ * @returns {Promise<{version: string, builtAt: string|null}|null>} Null on a dev server or a
+ *   build without one -- there is no bundle version to report then, and neither caller minds.
+ */
+export async function fetchBundleVersion() {
   try {
     const response = await fetch(new URL("version.json", document.baseURI));
-    if (response.ok) {
-      const body = await response.json();
-      if (typeof body?.version === "string") bundleVersion = body.version;
-    }
+    if (!response.ok) return null;
+    const body = await response.json();
+    if (typeof body?.version !== "string") return null;
+    return {
+      version: body.version,
+      builtAt: typeof body.builtAt === "string" ? body.builtAt : null,
+    };
   } catch {
-    // No bundle version to report -- a dev server, or a build without one.
+    return null;
   }
+}
+
+export async function identifyBundle() {
+  const bundleVersion = (await fetchBundleVersion())?.version ?? null;
   try {
     platform.diagnostics.identify({
       bundleVersion,

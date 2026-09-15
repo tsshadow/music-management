@@ -50,6 +50,51 @@ export function createCapacitorSystem(plugin) {
     },
 
     /**
+     * The whole `appVersion` answer, for the About page. Same bridge call as {@link appVersion};
+     * the two are separate so every existing caller of the version string stays a string.
+     *
+     * @returns {Promise<import('../index.js').AppInfo|null>}
+     */
+    async appInfo() {
+      const answer = await plugin.appVersion();
+      if (typeof answer?.version !== "string") return null;
+      return {
+        version: answer.version,
+        versionCode: Number(answer.versionCode ?? 0),
+        buildType: String(answer.buildType ?? ""),
+        packageName: String(answer.packageName ?? ""),
+        androidVersion: String(answer.androidVersion ?? ""),
+        device: String(answer.device ?? ""),
+      };
+    },
+
+    /**
+     * See the `PlatformSystem` typedef. The plugin rejects when the hoster could not be asked,
+     * and that rejection is passed on as-is: the caller decides how to report it.
+     *
+     * @returns {Promise<import('../index.js').AppUpdateCheck>}
+     */
+    async checkForUpdate() {
+      const answer = await plugin.checkForUpdate();
+      return {
+        available: answer?.available === true,
+        currentVersionCode: Number(answer?.currentVersionCode ?? 0),
+        currentVersionName: String(answer?.currentVersionName ?? ""),
+        latestVersionCode: Number(answer?.latestVersionCode ?? 0),
+        latestVersionName: String(answer?.latestVersionName ?? ""),
+        url: String(answer?.url ?? ""),
+      };
+    },
+
+    /**
+     * @param {string} url
+     * @returns {Promise<void>}
+     */
+    async openUrl(url) {
+      await plugin.openUrl({ url });
+    },
+
+    /**
      * The text of muma-mobile's own `CHANGELOG.md`, read from the APK's assets. See the
      * `PlatformSystem` typedef for why this travels through the shell rather than a bundled
      * import. An empty string reads the same as no asset at all: both mean nothing to show.

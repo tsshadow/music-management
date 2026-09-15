@@ -234,6 +234,20 @@ describe("browser system", () => {
     await expect(browserSystem.appVersion()).resolves.toBe("");
   });
 
+  it("has no APK to describe or to update", async () => {
+    await expect(browserSystem.appInfo()).resolves.toBeNull();
+    await expect(browserSystem.checkForUpdate()).rejects.toThrow(/no APK/);
+  });
+
+  it("opens a url in a new tab", async () => {
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+
+    await browserSystem.openUrl("https://apk.example/dl/313");
+
+    expect(open).toHaveBeenCalledWith("https://apk.example/dl/313", "_blank", "noopener");
+    open.mockRestore();
+  });
+
   // No APK assets to read muma-mobile's CHANGELOG.md from -- null is what keeps
   // mobileReleaseNotes.js's once-per-upgrade modal from ever showing here.
   it("has no release notes of its own to report", async () => {

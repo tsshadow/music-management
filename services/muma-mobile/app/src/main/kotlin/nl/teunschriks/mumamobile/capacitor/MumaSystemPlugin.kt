@@ -25,6 +25,11 @@ import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.ActivityCallback
 import com.getcapacitor.annotation.CapacitorPlugin
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import nl.teunschriks.mumamobile.BuildConfig
 import nl.teunschriks.mumamobile.car.CAR_DEVICE_CLASSES
 import nl.teunschriks.mumamobile.car.CarPresence
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
@@ -34,6 +39,7 @@ import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Storage
 import nl.teunschriks.mumamobile.util.Util
+import okhttp3.OkHttpClient
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import timber.log.Timber
@@ -48,7 +54,9 @@ import timber.log.Timber
  * | JS contract | here |
  * |---|---|
  * | `isNative` | `isNative()` → `{value: true}` |
- * | `appVersion()` | `appVersion()` → `{version}`, the APK's `versionName` |
+ * | `appVersion()` | `appVersion()` → `{version, versionCode, buildType, packageName, androidVersion, device}`, see [appVersion] |
+ * | `checkForUpdate()` | `checkForUpdate()` → `{available, currentVersionCode, currentVersionName, latestVersionCode, latestVersionName, url}`, rejects when the hoster cannot be asked; see [checkForUpdate] |
+ * | `openUrl({url})` | `openUrl({url})`, an `ACTION_VIEW` to whatever handles it; rejects when nothing does |
  * | `releaseNotes()` | `releaseNotes()` → `{text}`, muma-mobile's own `CHANGELOG.md` |
  * | `serverUrl()` | `serverUrl()` → `{subsonic, mumaApi}` |
  * | `signOut()` | `signOut()` |
@@ -115,7 +123,86 @@ class MumaSystemPlugin :
     @PluginMethod
     fun appVersion(call: PluginCall) {
         val version = safeContext()?.let { Util.getVersionName(it) } ?: ""
-        call.resolve(JSObject().put("version", version))
+        call.resolve(
+            JSObject()
+                .put("version", version)
+                // The rest is what the About page lists and what a bug report is asked for;
+                // `BuildConfig` rather than `PackageManager` because it cannot fail to answer.
+                .put("versionCode", BuildConfig.VERSION_CODE)
+                .put("buildType", BuildConfig.BUILD_TYPE)
+                .put("packageName", BuildConfig.APPLICATION_ID)
+                .put("androidVersion", "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+                .put("device", "${Build.MANUFACTURER} ${Build.MODEL}")
+        )
+    }
+
+    /**
+     * Asks apk-hoster whether a newer build of this series exists -- the check the legacy Kotlin
+     * home screen ran on every start (`util/UpdateChecker.kt`, deleted with that screen) and that
+     * nothing ran since, which is how a phone on build 312 heard nothing about 313.
+     *
+     * The plugin only fetches and compares; the web decides when to ask (once a day on start,
+     * and whenever the About page's button is pressed) and how to tell the listener. A hoster
+     * that cannot be reached or answers with an error *rejects* rather than resolving
+     * `available: false`: "you are up to date" and "I could not check" are different answers,
+     * and the manual button has to show the second one as such.
+     */
+    @PluginMethod
+    fun checkForUpdate(call: PluginCall) {
+        val series = AppUpdate.seriesOf(BuildConfig.DEBUG)
+        val url = AppUpdate.versionUrl(BuildConfig.APK_HOST_URL, series, BuildConfig.APK_HOST_USER)
+        io.launch {
+            val latest = try {
+                AppUpdate.fetchLatest(updateClient, url, BuildConfig.VERSION_NAME, BuildConfig.APK_HOST_PASSWORD)
+            } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
+                Timber.w(all, "Could not check for an update at %s", url)
+                withContext(Dispatchers.Main) { call.reject("update check failed: ${all.message}") }
+                return@launch
+            }
+            val current = BuildConfig.VERSION_CODE
+            withContext(Dispatchers.Main) {
+                call.resolve(
+                    JSObject()
+                        .put("available", AppUpdate.isNewer(latest, current))
+                        .put("currentVersionCode", current)
+                        .put("currentVersionName", BuildConfig.VERSION_NAME)
+                        .put("latestVersionCode", latest.versionCode)
+                        .put("latestVersionName", latest.versionName)
+                        .put("url", AppUpdate.downloadUrl(latest.url))
+                )
+            }
+        }
+    }
+
+    /**
+     * Opens a url outside the WebView -- the download link of a newer build, which the WebView
+     * itself must not navigate to (an APK is not a page). Rejects when no installed app takes
+     * `ACTION_VIEW` for it, so the web can say so instead of nothing happening.
+     */
+    @PluginMethod
+    fun openUrl(call: PluginCall) {
+        val url = call.getString("url")
+        if (url.isNullOrBlank()) {
+            call.reject("openUrl needs a url")
+            return
+        }
+        // The same guard as `setKeepScreenOn`: `activity` throws on an unattached bridge.
+        val activity = try {
+            activity
+        } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
+            null
+        }
+        if (activity == null) {
+            call.reject("no activity to open a url from")
+            return
+        }
+        try {
+            activity.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+            call.resolve()
+        } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
+            Timber.w(all, "Nothing could open %s", url)
+            call.reject("nothing on this device opens that url")
+        }
     }
 
     /**
@@ -156,6 +243,10 @@ class MumaSystemPlugin :
     } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
         null
     }
+
+    /** One client for the update check; the app's Subsonic client is bound to the server, not the hoster. */
+    private val updateClient by lazy { OkHttpClient() }
+    private val io = CoroutineScope(Dispatchers.IO)
 
     /**
      * The two bases every URL in the web player is built on.

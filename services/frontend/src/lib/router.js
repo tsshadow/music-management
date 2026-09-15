@@ -20,6 +20,14 @@ const PLAIN_VIEWS = [
   // says the same word the API does.
   "release-radar",
   "daily-mix",
+  "daily-mix-soft",
+  "daily-mix-mid",
+  "daily-mix-hard",
+  "daily-mix-artist",
+  "daily-mix-label",
+  // The phone's own page listing the five mixes above as cards; the classic 'daily-mix' stays
+  // reachable only at its own route, not as a sixth card here -- see docs/designs/feeds/functional.md.
+  "daily-mixes",
   "songs",
   "sets",
   "albums",

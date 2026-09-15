@@ -170,10 +170,16 @@ abstract class MediaLibraryBase protected constructor() {
         internal const val MEDIA_FEED_ID = "MEDIA_FEED_ID"
         internal const val MEDIA_FEED_ITEM = "MEDIA_FEED_ITEM"
 
-        // The two feeds MuMa serves. Aliased from the repository rather than spelled again: the
-        // phone's home screen names the same two, and a second copy of an API path drifts.
+        // The "Daily mixes" folder: the five spectrum/rotating mixes plus the classic one last,
+        // browsable as "MEDIA_DAILY_MIXES_ID". Each child is still a plain "MEDIA_FEED_ID|<slug>"
+        // leaf, so nothing about playback changes -- only where the car finds them.
+        internal const val MEDIA_DAILY_MIXES_ID = "MEDIA_DAILY_MIXES_ID"
+
+        // The feeds MuMa serves. Aliased from the repository rather than spelled again: the
+        // phone's home screen names the same slugs, and a second copy of an API path drifts.
         internal const val FEED_RELEASE_RADAR = FeedRepository.RELEASE_RADAR
         internal const val FEED_DAILY_MIX = FeedRepository.DAILY_MIX
+        internal val FEED_DAILY_MIXES = FeedRepository.DAILY_MIXES
 
         // Genres -> songs
         internal const val MEDIA_GET_GENRES = "MEDIA_GET_GENRES"

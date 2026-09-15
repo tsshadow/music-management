@@ -107,6 +107,7 @@
   },
   "dashboard": {
     "addFavorite": "Add to favourites",
+    "dailyMixesSubtitle": "Soft, mid, hard, and more",
     "noAlbums": "No albums found",
     "noAlbumsHelp": "No albums match the current filters.",
     "noGenres": "No genres found in your library.",
@@ -144,9 +145,11 @@
     "title": "Equalizer"
   },
   "feed": {
+    "bandRange": "band {lo}–{hi}",
     "empty": "Nothing here right now",
     "emptyMixHelp": "The mix is built from your listening history. Play some music and come back.",
     "emptyRadarHelp": "The radar shows releases from the past week that fit what you listen to.",
+    "filledFromUnknown": "{count} filled in",
     "mixSubtitle": "Picked for you today",
     "radarSubtitle": "Released this week, picked for you"
   },
@@ -865,6 +868,7 @@
     "carMode": "Car mode",
     "closeMenu": "Close menu",
     "dailyMix": "Daily Mix",
+    "dailyMixes": "Daily mixes",
     "downloads": "Downloads",
     "festivals": "Festivals",
     "genres": "Genres",
@@ -1152,7 +1156,7 @@
         "modeButton": "Button",
         "modeOverview": "Overview",
         "releaseRadar": "Release Radar",
-        "dailyMix": "Daily mix",
+        "dailyMix": "Daily mixes",
         "dailyMixCount": "Daily mix count",
         "favorites": "Favorites",
         "favoritesCount": "Favorites count",

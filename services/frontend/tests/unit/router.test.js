@@ -46,6 +46,20 @@ describe("viewToPath", () => {
     expect(viewToPath(state(view))).toBe(path);
   });
 
+  it.each([
+    ["release-radar", "/release-radar"],
+    ["daily-mix", "/daily-mix"],
+    ["daily-mix-soft", "/daily-mix-soft"],
+    ["daily-mix-mid", "/daily-mix-mid"],
+    ["daily-mix-hard", "/daily-mix-hard"],
+    ["daily-mix-artist", "/daily-mix-artist"],
+    ["daily-mix-label", "/daily-mix-label"],
+    ["daily-mixes", "/daily-mixes"],
+  ])("routes the feed page %s to %s and back", (view, path) => {
+    expect(viewToPath(state(view))).toBe(path);
+    expect(pathToState(path)).toEqual({ view });
+  });
+
   it("routes the preset builder, new and over an existing preset", () => {
     expect(viewToPath(state("new-preset"))).toBe("/new-preset");
     expect(pathToState("/new-preset")).toEqual({ view: "new-preset" });

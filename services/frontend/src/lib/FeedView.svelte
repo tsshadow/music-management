@@ -1,7 +1,7 @@
 <script>
   import { t } from './i18n/index.js';
   import { authParams, playlist, currentTrack, playerState } from './store.js';
-  import { loadFeed, RELEASE_RADAR } from './feeds.js';
+  import { loadFeedDetail, RELEASE_RADAR } from './feeds.js';
   import TrackList from './TrackList.svelte';
 
   /**
@@ -14,10 +14,26 @@
 
   let tracks = $state([]);
   let isLoading = $state(true);
+  // Server-supplied title/subtitle and hardness numbers, once the feed's own page answers.
+  // Falling back to the old fixed radar/mix copy keeps release-radar and daily-mix readable even
+  // when the request failed and MuMa never got to say anything.
+  let detail = $state(null);
 
   const isRadar = $derived(slug === RELEASE_RADAR);
-  const title = $derived(isRadar ? $t('nav.releaseRadar') : $t('nav.dailyMix'));
-  const subtitle = $derived(isRadar ? $t('feed.radarSubtitle') : $t('feed.mixSubtitle'));
+  const title = $derived(detail?.title ?? (isRadar ? $t('nav.releaseRadar') : $t('nav.dailyMix')));
+  const subtitle = $derived(detail?.subtitle ?? (isRadar ? $t('feed.radarSubtitle') : $t('feed.mixSubtitle')));
+
+  /**
+   * "band ≤42 hardheid · 3 aangevuld" -- shown only for the three spectrum mixes, which are the
+   * only policies `hardness_band` is ever set for.
+   */
+  const bandLine = $derived.by(() => {
+    if (!detail?.hardnessBand) return null;
+    const [lo, hi] = detail.hardnessBand;
+    const parts = [$t('feed.bandRange', { lo: Math.round(lo), hi: Math.round(hi) })];
+    if (detail.filledFromUnknown) parts.push($t('feed.filledFromUnknown', { count: detail.filledFromUnknown }));
+    return parts.join(' · ');
+  });
 
   $effect(() => {
     const auth = $authParams;
@@ -26,11 +42,15 @@
 
     isLoading = true;
     tracks = [];
-    loadFeed(which, auth)
-      .then((songs) => {
+    detail = null;
+    loadFeedDetail(which, auth)
+      .then((result) => {
         // The feed may have changed while this was in flight -- a click on the other one in the
         // sidebar restarts this effect -- so only the answer to the current question is kept.
-        if (which === slug) tracks = songs;
+        if (which === slug) {
+          tracks = result.tracks;
+          detail = result;
+        }
       })
       .finally(() => {
         if (which === slug) isLoading = false;
@@ -66,6 +86,9 @@
           <span class="text-[#b3b3b3]">• {$t('common.trackCount', { count: tracks.length })}</span>
         {/if}
       </div>
+      {#if bandLine}
+        <div class="text-xs text-[#b3b3b3] mt-1">{bandLine}</div>
+      {/if}
     </div>
   </header>
 

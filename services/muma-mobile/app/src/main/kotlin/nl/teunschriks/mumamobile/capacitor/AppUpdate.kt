@@ -7,7 +7,7 @@
 
 package nl.teunschriks.mumamobile.capacitor
 
-import android.net.Uri
+import androidx.core.net.toUri
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
@@ -31,7 +31,7 @@ object AppUpdate {
     fun seriesOf(debug: Boolean): String = if (debug) "muma-mobile-debug" else "muma-mobile"
 
     /** `${host}/api/version?apk=<series>&user=<user>` -- exactly the query the legacy checker sent. */
-    fun versionUrl(host: String, series: String, user: String): String = Uri.parse(host).buildUpon()
+    fun versionUrl(host: String, series: String, user: String): String = host.toUri().buildUpon()
         .appendEncodedPath("api/version")
         .appendQueryParameter("apk", series)
         .appendQueryParameter("user", user)
@@ -79,7 +79,7 @@ object AppUpdate {
      */
     fun downloadUrl(url: String): String {
         if (url.isBlank()) return ""
-        return Uri.parse(url).buildUpon()
+        return url.toUri().buildUpon()
             .appendQueryParameter("u", "guest")
             .appendQueryParameter("p", "guest")
             .build()

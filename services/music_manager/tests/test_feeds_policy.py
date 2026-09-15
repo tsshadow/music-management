@@ -30,6 +30,48 @@ class PolicyTest(unittest.TestCase):
             POLICIES['release-radar'].size = 5
 
 
+class SpectrumPolicyTest(unittest.TestCase):
+    """The three hardness-band mixes: same daily-mix pool, one third of the
+
+    listener's own spectrum each."""
+
+    def test_the_three_bands_share_the_daily_mix_pool(self):
+        for slug, band in (('daily-mix-soft', 'soft'), ('daily-mix-mid', 'mid'), ('daily-mix-hard', 'hard')):
+            with self.subTest(slug=slug):
+                policy = POLICIES[slug]
+                self.assertEqual(policy.hardness_band, band)
+                self.assertEqual(policy.release_window_days, 90)
+                self.assertEqual(policy.pools, frozenset({'unheard', 'loved'}))
+                self.assertEqual(policy.order, 'daily_sample')
+                self.assertIsNone(policy.rotate)
+
+    def test_plain_daily_mix_is_an_exact_alias_of_the_mid_band(self):
+        alias, mid = POLICIES['daily-mix'], POLICIES['daily-mix-mid']
+        self.assertEqual(alias.hardness_band, mid.hardness_band)
+        self.assertEqual(alias.release_window_days, mid.release_window_days)
+        self.assertEqual(alias.pools, mid.pools)
+        self.assertEqual(alias.order, mid.order)
+        self.assertNotEqual(alias.slug, mid.slug)
+
+
+class RotatingPolicyTest(unittest.TestCase):
+    def test_the_artist_mix_rotates_and_carries_no_band(self):
+        policy = POLICIES['daily-mix-artist']
+        self.assertEqual(policy.rotate, 'artist')
+        self.assertIsNone(policy.hardness_band)
+        self.assertEqual(policy.pools, frozenset({'unheard', 'loved'}))
+
+    def test_the_label_mix_rotates_and_carries_no_band(self):
+        policy = POLICIES['daily-mix-label']
+        self.assertEqual(policy.rotate, 'label')
+        self.assertIsNone(policy.hardness_band)
+
+    def test_release_radar_neither_bands_nor_rotates(self):
+        radar = POLICIES['release-radar']
+        self.assertIsNone(radar.hardness_band)
+        self.assertIsNone(radar.rotate)
+
+
 class StartingGenresTest(unittest.TestCase):
     """The router and the dry run read the same setting, so they parse it in one place."""
 

@@ -69,6 +69,8 @@ export const removeLabelCatid = (name, catid) =>
 
 export const setGenreParents = (name, parents) =>
   write(`/genres/${seg(name)}/parents`, "PUT", { parents });
+export const setGenreHardness = (name, hardness) =>
+  write(`/genres/${seg(name)}/hardness`, "PUT", { hardness });
 
 export const retag = (scope, name) => write("/retag", "POST", { scope, name });
 

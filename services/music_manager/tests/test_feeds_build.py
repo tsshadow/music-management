@@ -8,6 +8,7 @@ modules' own unit tests, which use post-processed shapes (lists, not the raw
 comma-joined strings a real cursor returns).
 """
 
+import dataclasses
 import unittest
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock
@@ -17,6 +18,13 @@ from services.music_manager.feeds.policy import POLICIES
 from services.music_manager.feeds.profile import TAIL
 from services.music_manager.feeds.queries import listens_query
 from services.music_manager.tests.scripted_cursor import ScriptedCursor
+
+# daily-mix (an alias of daily-mix-mid, see policy.py) now carries a hardness_band,
+# which excludes any candidate whose hardness cannot be resolved -- exactly what
+# every fixture below leaves unset, since they predate the hardness statistic
+# entirely. Tests in this file that only want the plain daily_sample ordering
+# behaviour, independent of hardness banding, use this instead.
+PLAIN_DAILY_SAMPLE = dataclasses.replace(POLICIES['daily-mix-mid'], slug='daily-sample-test', hardness_band=None)
 
 NOW = datetime(2026, 9, 5, 12, 0, 0)
 
@@ -40,6 +48,12 @@ _HIERARCHY_FRAGMENT = 'FROM rules_subgenre_hierarchy'
 _EXCLUSIONS_FRAGMENT = 'FROM feeds_profile_exclusions'
 _LABEL_DOMINANT_FRAGMENT = 'GROUP BY l.name, rg.name'
 _ARTIST_DOMINANT_FRAGMENT = 'GROUP BY a.name, rg.name'
+# genre_hardness_query, and the label/artist variants of entity_hardness_query --
+# told apart from the dominant-genre fragments above (which also join
+# library_track_genres/rules_genres) by the aggregate they actually select.
+_GENRE_HARDNESS_FRAGMENT = 'AS weighted_sum'
+_LABEL_HARDNESS_FRAGMENT = 'JOIN library_track_labels tl ON tl.label_id = l.id'
+_ARTIST_HARDNESS_FRAGMENT = 'JOIN library_tracks t ON t.primary_artist_id = a.id'
 
 
 def scripted(
@@ -50,6 +64,9 @@ def scripted(
     exclusions=(),
     label_dominant=(),
     artist_dominant=(),
+    genre_hardness=(),
+    label_hardness=(),
+    artist_hardness=(),
 ):
     """A connection whose cursor answers build_feed's queries from fixed rows."""
     rules = (
@@ -60,6 +77,9 @@ def scripted(
         (_EXCLUSIONS_FRAGMENT, None, list(exclusions)),
         (_LABEL_DOMINANT_FRAGMENT, None, list(label_dominant)),
         (_ARTIST_DOMINANT_FRAGMENT, None, list(artist_dominant)),
+        (_GENRE_HARDNESS_FRAGMENT, None, list(genre_hardness)),
+        (_LABEL_HARDNESS_FRAGMENT, None, list(label_hardness)),
+        (_ARTIST_HARDNESS_FRAGMENT, None, list(artist_hardness)),
     )
     cursor = ScriptedCursor(rules)
     conn = MagicMock()
@@ -96,7 +116,7 @@ UPTEMPO_HEAVY_LISTENS = (
 
 
 def _candidate(
-    id_, artist, genre, label=None, heard=False, rating=None, is_soundcloud=False, release_date='2026-09-01'
+    id_, artist, genre, label=None, heard=False, rating=None, is_soundcloud=False, release_date='2026-09-01', bpm=180
 ):
     return {
         'id': id_,
@@ -108,7 +128,7 @@ def _candidate(
         'has_label': bool(label),
         'genres': genre,
         'file_path': f'/music/{id_}.flac',
-        'bpm': 180,
+        'bpm': bpm,
         'release_year': 2026,
         'release_date': release_date,
         'is_soundcloud': is_soundcloud,
@@ -207,11 +227,9 @@ class BuildFeedTest(unittest.TestCase):
         self.assertFalse(feed.tracks[0]['heard'])
 
     def test_the_daily_mix_returns_the_same_order_twice(self):
-        first = build_feed(
-            scripted(listens=MANY_LISTENS, candidates=MIXED_CANDIDATES), 'user', POLICIES['daily-mix'], NOW
-        )
+        first = build_feed(scripted(listens=MANY_LISTENS, candidates=MIXED_CANDIDATES), 'user', PLAIN_DAILY_SAMPLE, NOW)
         second = build_feed(
-            scripted(listens=MANY_LISTENS, candidates=MIXED_CANDIDATES), 'user', POLICIES['daily-mix'], NOW
+            scripted(listens=MANY_LISTENS, candidates=MIXED_CANDIDATES), 'user', PLAIN_DAILY_SAMPLE, NOW
         )
         self.assertEqual([t['id'] for t in first.tracks], [t['id'] for t in second.tracks])
 
@@ -345,3 +363,117 @@ class ResolveProfileTest(unittest.TestCase):
         conn = scripted(listens=MANY_LISTENS, hierarchy=[{'subgenre': 'Uptempo', 'genre': 'Hardcore'}])
         resolution = resolve_profile(conn, 'user', WINDOW, NOW)
         self.assertEqual(resolution.parents, {'uptempo': {'hardcore'}})
+
+
+# Three candidates, one per band, resolved through the tempo fallback alone: no
+# genre_hardness or entity_hardness fixture is provided, so every candidate falls
+# all the way through track_hardness's chain to its bpm. 130 -> 20 (soft), 165 ->
+# 65 (mid), 205 -> 95 (hard) -- see test_feeds_hardness.py's TempoHardnessTest for
+# the interpolation these numbers come from.
+SOFT_CANDIDATE = _candidate('soft1', None, 'Uptempo', bpm=130)
+MID_CANDIDATE = _candidate('mid1', None, 'Uptempo', bpm=165)
+HARD_CANDIDATE = _candidate('hard1', None, 'Uptempo', bpm=205)
+SPECTRUM_CANDIDATES = [SOFT_CANDIDATE, MID_CANDIDATE, HARD_CANDIDATE]
+
+
+class HardnessBandBuildTest(unittest.TestCase):
+    """MANY_LISTENS resolves no hardness at all (its fixture rows carry no
+
+    `track_id`, so `_annotate_hardness` never even queries for one), which is what
+    makes the fallback band edges (40, 70) deterministic here without a genre or
+    entity hardness fixture for the profile side.
+    """
+
+    def test_the_mid_band_keeps_only_the_middle_candidate(self):
+        conn = scripted(listens=MANY_LISTENS, candidates=SPECTRUM_CANDIDATES)
+        feed = build_feed(conn, 'user', POLICIES['daily-mix-mid'], NOW)
+        self.assertEqual([t['id'] for t in feed.tracks], ['mid1'])
+        self.assertEqual(feed.hardness_band, (40.0, 70.0))
+
+    def test_the_soft_band_keeps_only_the_soft_candidate(self):
+        conn = scripted(listens=MANY_LISTENS, candidates=SPECTRUM_CANDIDATES)
+        feed = build_feed(conn, 'user', POLICIES['daily-mix-soft'], NOW)
+        self.assertEqual([t['id'] for t in feed.tracks], ['soft1'])
+
+    def test_the_hard_band_keeps_only_the_hard_candidate(self):
+        conn = scripted(listens=MANY_LISTENS, candidates=SPECTRUM_CANDIDATES)
+        feed = build_feed(conn, 'user', POLICIES['daily-mix-hard'], NOW)
+        self.assertEqual([t['id'] for t in feed.tracks], ['hard1'])
+
+    def test_daily_mix_the_alias_behaves_exactly_like_the_mid_band(self):
+        conn = scripted(listens=MANY_LISTENS, candidates=SPECTRUM_CANDIDATES)
+        feed = build_feed(conn, 'user', POLICIES['daily-mix'], NOW)
+        self.assertEqual([t['id'] for t in feed.tracks], ['mid1'])
+
+    def test_a_track_with_no_resolvable_hardness_is_excluded_rather_than_guessed(self):
+        no_tempo = _candidate('no-tempo', None, 'Uptempo', bpm=None)
+        conn = scripted(listens=MANY_LISTENS, candidates=[no_tempo])
+        feed = build_feed(conn, 'user', POLICIES['daily-mix-mid'], NOW)
+        self.assertEqual(feed.tracks, [])
+        self.assertEqual(feed.state, 'no_matches')
+
+    def test_a_short_band_relaxes_the_window_all_the_way_and_says_so(self):
+        """Only one candidate ever qualifies for 'mid' here -- nowhere near
+
+        MIN_BAND_CANDIDATES -- so every relaxation step runs out and the last
+        window tried is "no window at all", reported as the literal string
+        'none' rather than a bare None (which already means something else:
+        no relaxation happened at all).
+        """
+        conn = scripted(listens=MANY_LISTENS, candidates=SPECTRUM_CANDIDATES)
+        feed = build_feed(conn, 'user', POLICIES['daily-mix-mid'], NOW)
+        self.assertEqual(feed.relaxed_to, 'none')
+
+    def test_enough_candidates_in_the_band_needs_no_relaxation(self):
+        plenty = [_candidate(f'mid{i}', None, 'Uptempo', bpm=165) for i in range(15)]
+        conn = scripted(listens=MANY_LISTENS, candidates=plenty)
+        feed = build_feed(conn, 'user', POLICIES['daily-mix-mid'], NOW)
+        self.assertIsNone(feed.relaxed_to)
+        self.assertEqual(feed.funnel['candidates'], 15)
+
+    def test_the_source_tally_reports_no_resolvable_listens_here(self):
+        """Every listen in MANY_LISTENS carries a genre with no known hardness and
+
+        no track id to look one up by -- 'none' is the honest tally, not a crash
+        or a silently empty dict.
+        """
+        conn = scripted(listens=MANY_LISTENS, candidates=SPECTRUM_CANDIDATES)
+        feed = build_feed(conn, 'user', POLICIES['daily-mix-mid'], NOW)
+        self.assertEqual(feed.hardness_source_counts, {'none': len(MANY_LISTENS)})
+
+
+def _entity_listen(uid, artist, label, genres, days=1):
+    return {**_listen(uid, artist, genres, days=days), 'labels': label}
+
+
+# 30 distinct tracks, all by the same artist on the same label -- enough to clear
+# both the blend ramp (scope='user') and MIN_TRACKS_PER_ENTITY, and few enough
+# names that the profile's top 10 has exactly one entry apiece. Which name
+# pick_daily_entity lands on is then not a matter of the hash at all (see
+# PickDailyEntityTest.test_a_single_name_always_wins).
+SINGLE_ENTITY_LISTENS = [_entity_listen(f'single-{i}', 'Angerfist', 'Neophyte Records', ['Uptempo']) for i in range(30)]
+
+
+class RotatingMixBuildTest(unittest.TestCase):
+    def test_the_artist_mix_is_titled_and_filtered_by_the_only_top_artist(self):
+        conn = scripted(listens=SINGLE_ENTITY_LISTENS, candidates=MIXED_CANDIDATES)
+        feed = build_feed(conn, 'user', POLICIES['daily-mix-artist'], NOW)
+        self.assertEqual(feed.title, 'angerfist')
+        cursor = conn.cursor.return_value
+        _, params = cursor.statements_matching(_CANDIDATES_FRAGMENT)[0]
+        self.assertEqual(params[-1], 'angerfist')
+
+    def test_the_label_mix_is_titled_and_filtered_by_the_only_top_label(self):
+        conn = scripted(listens=SINGLE_ENTITY_LISTENS, candidates=MIXED_CANDIDATES)
+        feed = build_feed(conn, 'user', POLICIES['daily-mix-label'], NOW)
+        self.assertEqual(feed.title, 'neophyte records')
+        cursor = conn.cursor.return_value
+        _, params = cursor.statements_matching(_CANDIDATES_FRAGMENT)[0]
+        self.assertEqual(params[-1], 'neophyte records')
+
+    def test_a_profile_with_no_artist_affinities_has_nothing_to_rotate_through(self):
+        # MANY_LISTENS carries artists, but every one of them supports only a
+        # single distinct track, which build_profile drops (MIN_TRACKS_PER_ENTITY).
+        conn = scripted(listens=MANY_LISTENS, candidates=MIXED_CANDIDATES)
+        feed = build_feed(conn, 'user', POLICIES['daily-mix-artist'], NOW)
+        self.assertEqual(feed.state, 'not_enough_data')

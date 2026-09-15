@@ -6,7 +6,7 @@ dataclass so that trying a different window is a value change and never a second
 query: the radar and the daily mix are the same ranker with different parameters.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 
 @dataclass(frozen=True)
@@ -25,6 +25,17 @@ class FeedPolicy:
     max_per_artist: int = 3
     label_bonus: float = 0.10
     soundcloud_penalty: float = 0.10
+    # 'soft' | 'mid' | 'hard' | None. Set only on the three spectrum daily mixes:
+    # candidates are restricted to this third of the listener's own hardness
+    # distribution (feeds/hardness.py), and a track with no resolvable hardness is
+    # excluded rather than guessed into a bucket. See build.py's relaxation loop for
+    # what happens when a band comes up short.
+    hardness_band: str | None = None
+    # 'artist' | 'label' | None. Set only on the two rotating daily mixes: candidates
+    # are restricted to one artist or one label, chosen by a stable hash of
+    # (username, date) over the listener's own top ten -- see
+    # scoring.pick_daily_entity and build._ranked_names.
+    rotate: str | None = None
 
 
 #: The runtime setting (services/common/config_store.py, group `Feeds`) holding
@@ -46,13 +57,31 @@ def parse_starting_genres(raw: str | None) -> list[str] | None:
     return genres or None
 
 
+#: What every daily mix -- spectrum or rotating -- has in common: the 90-day window,
+#: unheard-or-loved pools, the daily-stable sample order, no penalty for a track
+#: already heard (the whole point of `unheard`/`loved` is to pick the pool, not to
+#: additionally punish it). One template instance, `replace()`-d per mix below, so
+#: the seven-field agreement between the five mixes is a value every one of them
+#: shares rather than five separate dataclass calls that could drift apart.
+_DAILY_MIX_BASE = FeedPolicy(
+    slug='daily-mix-base',
+    release_window_days=90,
+    pools=frozenset({'unheard', 'loved'}),
+    order='daily_sample',
+    heard_rank_penalty=False,
+)
+
+_daily_mix_mid = replace(_DAILY_MIX_BASE, slug='daily-mix-mid', hardness_band='mid')
+
 POLICIES: dict[str, FeedPolicy] = {
     'release-radar': FeedPolicy(slug='release-radar', release_window_days=7),
-    'daily-mix': FeedPolicy(
-        slug='daily-mix',
-        release_window_days=90,
-        pools=frozenset({'unheard', 'loved'}),
-        order='daily_sample',
-        heard_rank_penalty=False,
-    ),
+    # The car and the phone already call this slug; it stays live as an exact alias
+    # of daily-mix-mid rather than its own, third implementation of "the middle of
+    # the spectrum".
+    'daily-mix': replace(_daily_mix_mid, slug='daily-mix'),
+    'daily-mix-soft': replace(_DAILY_MIX_BASE, slug='daily-mix-soft', hardness_band='soft'),
+    'daily-mix-mid': _daily_mix_mid,
+    'daily-mix-hard': replace(_DAILY_MIX_BASE, slug='daily-mix-hard', hardness_band='hard'),
+    'daily-mix-artist': replace(_DAILY_MIX_BASE, slug='daily-mix-artist', rotate='artist'),
+    'daily-mix-label': replace(_DAILY_MIX_BASE, slug='daily-mix-label', rotate='label'),
 }

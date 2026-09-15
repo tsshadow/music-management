@@ -362,6 +362,55 @@ class GenreHierarchyTest(CurationTestCase):
         self.assertEqual(response.status_code, 400)
 
 
+class GenreHardnessTest(CurationTestCase):
+    rules = (('FROM rules_genres WHERE normalized_name', None, WHITE_GENRE),)
+
+    def test_the_read_side_reports_it(self):
+        response = self.client.get('/api/curation/genres/Hardcore', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        # WHITE_GENRE carries no 'hardness' key at all -- the read side must fall
+        # back to None rather than raising a KeyError on a genre the seed has not
+        # reached yet.
+        self.assertIsNone(response.json()['hardness'])
+
+    def test_a_value_in_range_is_stored(self):
+        response = self.client.put(
+            '/api/curation/genres/Hardcore/hardness', json={'hardness': 70}, headers=self.headers
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'status': 'ok', 'hardness': 70})
+        self.assertEqual(self.statements('UPDATE rules_genres SET hardness')[0][1], (70, 12))
+
+    def test_null_clears_it_back_to_the_seeded_default(self):
+        response = self.client.put(
+            '/api/curation/genres/Hardcore/hardness', json={'hardness': None}, headers=self.headers
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.statements('UPDATE rules_genres SET hardness')[0][1], (None, 12))
+
+    def test_out_of_range_is_refused(self):
+        response = self.client.put(
+            '/api/curation/genres/Hardcore/hardness', json={'hardness': 101}, headers=self.headers
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.statements('UPDATE rules_genres SET hardness'), [])
+
+    def test_negative_is_refused(self):
+        response = self.client.put(
+            '/api/curation/genres/Hardcore/hardness', json={'hardness': -1}, headers=self.headers
+        )
+        self.assertEqual(response.status_code, 400)
+
+
+class RejectedGenreHardnessTest(CurationTestCase):
+    rules = (('FROM rules_genres WHERE normalized_name', None, BLACK_GENRE),)
+
+    def test_a_rejected_genre_has_no_hardness_to_edit(self):
+        response = self.client.put('/api/curation/genres/Arts/hardness', json={'hardness': 50}, headers=self.headers)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(self.statements('UPDATE rules_genres SET hardness'), [])
+
+
 class RejectedGenreSubjectTest(CurationTestCase):
     rules = (('FROM rules_genres WHERE normalized_name', None, BLACK_GENRE),)
 

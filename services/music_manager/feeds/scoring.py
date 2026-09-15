@@ -45,3 +45,20 @@ def daily_sample_key(username: str, feed_date: date, track_uid: str, weight: flo
     digest = hashlib.md5(f'{username}|{feed_date.isoformat()}|{track_uid}'.encode()).hexdigest()
     uniform = (int(digest[:16], 16) + 1) / (16**16 + 1)
     return -math.log(uniform) / max(weight, MIN_SCORE)
+
+
+def pick_daily_entity(username: str, feed_date: date, ranked_names: list[str]) -> str | None:
+    """Which of the listener's top artists (or labels) `daily-mix-artist` (or
+    `-label`) rotates to today.
+
+    The same trick as `daily_sample_key`: a hash of `(username, date)`, not a stored
+    index, so the rotation needs no scheduling to change at midnight and no state to
+    keep consistent across app servers. `ranked_names` is expected to already be the
+    listener's top ten, most affine first (`build._ranked_names`) -- this only picks
+    which one, it does not rank them.
+    """
+    if not ranked_names:
+        return None
+    digest = hashlib.md5(f'{username}|{feed_date.isoformat()}|entity'.encode()).hexdigest()
+    index = int(digest[:8], 16) % len(ranked_names)
+    return ranked_names[index]

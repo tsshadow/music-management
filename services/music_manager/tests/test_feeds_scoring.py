@@ -3,7 +3,7 @@ from datetime import date
 
 from services.music_manager.feeds.policy import POLICIES
 from services.music_manager.feeds.profile import TasteProfile
-from services.music_manager.feeds.scoring import daily_sample_key, score, taste_score
+from services.music_manager.feeds.scoring import daily_sample_key, pick_daily_entity, score, taste_score
 
 PROFILE = TasteProfile(artists={'angerfist': 1.0}, labels={'peacock records': 0.4}, genres={'uptempo': 0.6})
 RADAR = POLICIES['release-radar']
@@ -86,3 +86,39 @@ class DailySampleKeyTest(unittest.TestCase):
             daily_sample_key('user', date(2026, 9, 5), 'uid', 1.0),
             daily_sample_key('someone', date(2026, 9, 5), 'uid', 1.0),
         )
+
+
+class PickDailyEntityTest(unittest.TestCase):
+    NAMES = [f'artist-{i}' for i in range(10)]
+
+    def test_no_names_at_all_is_nothing_to_rotate_through(self):
+        self.assertIsNone(pick_daily_entity('user', date(2026, 9, 5), []))
+
+    def test_a_single_name_always_wins(self):
+        self.assertEqual(pick_daily_entity('user', date(2026, 9, 5), ['only']), 'only')
+
+    def test_stable_within_the_same_day(self):
+        first = pick_daily_entity('user', date(2026, 9, 5), self.NAMES)
+        second = pick_daily_entity('user', date(2026, 9, 5), self.NAMES)
+        self.assertEqual(first, second)
+
+    def test_changes_across_days(self):
+        """Not guaranteed for every possible pair of dates -- a hash can land on
+
+        the same bucket twice -- but true often enough over a week that a test
+        finding no difference at all across seven days would be a real
+        regression, not bad luck.
+        """
+        picks = {pick_daily_entity('user', date(2026, 9, 5 + offset), self.NAMES) for offset in range(7)}
+        self.assertGreater(len(picks), 1)
+
+    def test_two_listeners_do_not_rotate_in_lockstep(self):
+        self.assertNotEqual(
+            pick_daily_entity('user', date(2026, 9, 5), self.NAMES),
+            pick_daily_entity('anna', date(2026, 9, 5), self.NAMES),
+        )
+
+    def test_the_pick_always_comes_from_the_given_names(self):
+        for offset in range(20):
+            chosen = pick_daily_entity('user', date(2026, 9, 5 + offset), self.NAMES)
+            self.assertIn(chosen, self.NAMES)

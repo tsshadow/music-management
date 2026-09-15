@@ -60,6 +60,27 @@ def print_report(shares: dict, funnel: dict, tracks: list[dict]) -> None:
         )
 
 
+def print_hardness(feed) -> None:
+    """The numbers only a hardness-band feed (`daily-mix-soft`/`-mid`/`-hard`)
+
+    carries: the listener's own (soft/mid, mid/hard) edges, how many of their
+    heard tracks resolved a hardness from each source in `track_hardness`'s
+    fallback chain, and whether the release window had to be widened to reach
+    `MIN_BAND_CANDIDATES`. Silent for every other slug -- `feed.hardness_band`
+    is None there, exactly as build.py leaves it.
+    """
+    if feed.hardness_band is None:
+        return
+    lo, hi = feed.hardness_band
+    print(f'-- hardness band ({feed.title}) --')
+    print(f'  edges: {lo:.1f} / {hi:.1f}')
+    if feed.hardness_source_counts:
+        for source, count in sorted(feed.hardness_source_counts.items(), key=lambda item: -item[1]):
+            print(f'  {source:>8}: {count}')
+    if feed.relaxed_to is not None:
+        print(f'  relaxed release window to: {feed.relaxed_to}')
+
+
 def _limited(tracks: list[dict], limit: int | None) -> list[dict]:
     """The first `limit` tracks, or all of them when `limit` is None.
 
@@ -116,7 +137,9 @@ def main(argv=None) -> int:
     finally:
         conn.close()
 
-    print(f'{feed.slug}  username={args.username}  state={feed.state}  scope={feed.scope}')
+    title = f'  title={feed.title!r}' if feed.title else ''
+    print(f'{feed.slug}  username={args.username}  state={feed.state}  scope={feed.scope}{title}')
+    print_hardness(feed)
     print_report(resolution.shares, feed.funnel, _limited(feed.tracks, args.limit))
     return 0
 

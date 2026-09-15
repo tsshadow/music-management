@@ -14,7 +14,7 @@ Read-only against everything that already exists:
 | `library_tracks` | `id`, `track_uid`, `title`, `duration_secs`, `primary_artist_id` |
 | `library_artists` | the artist dimension |
 | `library_track_labels` / `library_labels` | the label dimension, and the label's dominant genre |
-| `library_track_genres` / `rules_genres` | the genre dimension; `state <> 'black'` only |
+| `library_track_genres` / `rules_genres` | the genre dimension; `state <> 'black'` only; `rules_genres.hardness` feeds the three spectrum mixes (see "Daily mixes v2 — hardness" below) |
 | `rules_subgenre_hierarchy` | `(subgenre, genre)`, used to keep only the deepest genre per track |
 | `library_track_audio_features` | `release_date` (partial string), joined on `internal_track_id` |
 | `library_track_channels` / `channels` | the SoundCloud demotion |
@@ -35,6 +35,16 @@ CREATE TABLE IF NOT EXISTS feeds_profile_exclusions (
 
 Created from `feeds.init_db(cursor)`, called from `main.py`'s startup block alongside the other
 `init_db` calls.
+
+One column is added, the way this repository always adds one: `services/common/db_init.py`'s
+idempotent `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, mirrored in a standalone
+`migrate_v25_genre_hardness.sql` for production. A one-shot startup seed
+(`feeds.hardness.seed_genre_hardness`, called from `main.py` next to the other `init_db` calls)
+fills it from the anchor list and the subgenre hierarchy; see "Daily mixes v2 — hardness" below.
+
+```sql
+ALTER TABLE rules_genres ADD COLUMN IF NOT EXISTS hardness TINYINT UNSIGNED NULL;
+```
 
 ### Invariants
 
@@ -81,16 +91,17 @@ is what makes the whole ranker unit-testable without a database.
 
 | File | Responsibility |
 |---|---|
-| `policy.py` | `FeedPolicy` dataclass and the two named policies |
+| `policy.py` | `FeedPolicy` dataclass and the seven named policies |
 | `hierarchy.py` | subgenre graph: ancestors, and reducing a track's tags to its deepest genres |
 | `profile.py` | listen weighting, the three affinity tables, blending, and genre shares |
 | `quota.py` | largest-remainder allocation and redistribution of unfilled shares |
 | `buckets.py` | dominant genre per label/artist, and which share a candidate competes in |
-| `scoring.py` | the per-candidate score `B` and the deterministic daily sample key |
+| `scoring.py` | the per-candidate score `B`, the deterministic daily sample key, and `pick_daily_entity` (the artist/label rotation) |
+| `hardness.py` | anchor list, the tempo mapping, `track_hardness`'s fallback chain, band-edge percentiles, and the startup seed |
 | `queries.py` | every SQL string, as `(sql, params)` builders |
-| `build.py` | orchestration: profile → candidates → buckets → quota → ordered feed |
+| `build.py` | orchestration: profile → candidates → buckets → quota → ordered feed; also `describe_feed` (title/subtitle without the full pipeline) |
 | `routers/feeds.py` | HTTP surface and `init_db` |
-| `scripts/feeds_dryrun.py` | prints the funnel and the top N with the reason per track |
+| `scripts/feeds_dryrun.py` | prints the funnel, the top N with the reason per track, and (for a spectrum mix) the band edges and hardness source tally |
 
 ### Key signatures
 
@@ -110,8 +121,12 @@ class FeedPolicy:
     max_per_artist: int = 3
     label_bonus: float = 0.10
     soundcloud_penalty: float = 0.10
+    hardness_band: str | None = None              # 'soft' | 'mid' | 'hard' | None
+    rotate: str | None = None                     # 'artist' | 'label' | None
 
-POLICIES: dict[str, FeedPolicy]   # 'release-radar', 'daily-mix'
+POLICIES: dict[str, FeedPolicy]
+# 'release-radar', 'daily-mix' (alias of 'daily-mix-mid'), 'daily-mix-soft',
+# 'daily-mix-mid', 'daily-mix-hard', 'daily-mix-artist', 'daily-mix-label'
 
 # hierarchy.py
 def ancestors(genre: str, parents: dict[str, set[str]], max_depth: int = 8) -> set[str]
@@ -149,6 +164,19 @@ def bucket_of(candidate: dict, shares: dict[str, float], label_genre: dict[str, 
 def taste_score(candidate: dict, profile: TasteProfile) -> float
 def score(candidate: dict, profile: TasteProfile, policy: FeedPolicy) -> float
 def daily_sample_key(username: str, feed_date: date, track_uid: str, weight: float) -> float
+def pick_daily_entity(username: str, feed_date: date, ranked_names: list[str]) -> str | None
+    # a hash of (username, feed_date), the same trick as daily_sample_key
+
+# hardness.py
+ANCHOR_HARDNESS: dict[str, int]                # curated genre name (lowercase) -> 0-100
+def tempo_hardness(tempo: float | None) -> float | None
+def track_hardness(genre_weighted_sum: float | None, genre_weight_sum: float | None,
+                   label_mean: float | None, artist_mean: float | None,
+                   tempo: float | None) -> tuple[float | None, str]
+    # returns (hardness, source); source is 'genre' | 'label' | 'artist' | 'tempo' | 'none'
+def hardness_band_edges(weighted_hardness: list[tuple[float, float]]) -> tuple[float, float]
+def classify_band(hardness: float, lo: float, hi: float) -> str   # 'soft' | 'mid' | 'hard'
+def seed_genre_hardness(cursor) -> int         # rows updated; only ever fills hardness IS NULL
 
 # build.py
 @dataclass
@@ -158,6 +186,11 @@ class Feed:
     scope: str
     tracks: list[dict]
     funnel: dict[str, int]
+    title: str | None = None
+    subtitle: str | None = None
+    hardness_band: tuple[float, float] | None = None
+    hardness_source_counts: dict[str, int] | None = None
+    relaxed_to: int | str | None = None   # int, 'none', or None (no relaxation)
 @dataclass(frozen=True)
 class ProfileResolution:
     profile: TasteProfile
@@ -167,6 +200,9 @@ def resolve_profile(conn, username: str, window_days: int, now: datetime,
                     starting_genres: list[str] | None = None) -> ProfileResolution
 def build_feed(conn, username: str, policy: FeedPolicy, now: datetime,
                starting_genres: list[str] | None = None) -> Feed
+def describe_feed(conn, username: str, policy: FeedPolicy, now: datetime,
+                  starting_genres: list[str] | None = None) -> dict
+    # {'title', 'subtitle'} without running the candidate pipeline -- what GET /api/feeds uses
 ```
 
 `resolve_profile` is steps 1–3 below, and it is the **only** implementation of them.
@@ -244,18 +280,108 @@ fallback at all: when neither the listener nor the server has any listening hist
 reports `state = 'not_enough_data'` rather than falling back to anything, and `GET
 /api/feeds/profile` reports `scope = 'empty'`.
 
+## Daily mixes v2 — hardness
+
+Implements functional.md's "Daily mixes v2". Three of `POLICIES`' seven entries carry a
+`hardness_band` and two carry a `rotate`; both are orthogonal to the eight-step algorithm above —
+they change *which* candidates enter step 4 and *what* `describe_feed`/`build_feed` label the
+result, never how steps 5-8 process what comes out of it.
+
+### Genre hardness (the seed)
+
+`feeds.hardness.seed_genre_hardness(cursor)` runs once per startup (`main.py`, next to the other
+`init_db` calls), after `ensure_tables_exist()` has added the column:
+
+1. Read every `rules_genres` row. A row whose `hardness` is already set (an anchor from a previous
+   run, or a curator's own edit) is left alone and its value is remembered as a known point.
+2. For every still-`NULL` row, match `name.lower()` against `ANCHOR_HARDNESS` and fill it in if
+   found — that value also becomes a known point for step 3.
+3. For every row still `NULL` after that, call `hierarchy.nearest_ancestor(name.lower(), parents,
+   known_names)` over the `rules_subgenre_hierarchy` graph. `nearest_ancestor` already walks the
+   whole graph per call (breadth-first, alphabetical tie-break), so a genre two or three hops from
+   its nearest anchor resolves in this same pass — no second startup needed for a longer chain.
+4. Anything with no anchor ancestor at all stays `NULL`.
+
+Idempotent by construction: step 1's "already set, skip" is the only thing that matters for
+re-running it, and it is exactly what makes a curator's manual edit permanent until they clear it
+back to `NULL` themselves (`PUT /api/curation/genres/{name}/hardness` with `hardness: null`).
+
+### Track hardness (the fallback chain)
+
+`feeds.hardness.track_hardness(genre_weighted_sum, genre_weight_sum, label_mean, artist_mean,
+tempo)` is pure: every input is looked up beforehand, bounded to the track ids or names actually in
+play, the same pattern `_dominant_genre_map` already uses for the label/artist bucket lookup:
+
+- `genre_hardness_query(track_ids)` — one row per track, `SUM(weight * hardness)` and `SUM(weight)`
+  over genres that have a `hardness` and are not `black`. A `weight_sum` of zero (no scored genre at
+  all) is what tells `track_hardness` to move to the next step.
+- `entity_hardness_query('label' | 'artist', names)` — a label's or artist's mean hardness over its
+  own tracks with a known hardness, `HAVING COUNT(DISTINCT track_id) >= MIN_TRACKS_FOR_ENTITY_MEAN`
+  (5): one outlier release must not decide what an unrelated track on the same label inherits.
+- `tempo_hardness(tempo)` — piecewise linear between fixed anchor points (140 BPM → 20, ... 200 BPM
+  → 95), clamped outside them.
+
+`build._annotate_hardness` runs these in two passes so a row whose label already answers the
+question never spends a second query on its artist: first every row lacking a resolved genre asks
+its label, then only the rows still unresolved ask their artist. The result is `(hardness,
+source)` on every row, `source` one of `'genre' | 'label' | 'artist' | 'tempo' | 'none'`.
+
+### Band edges and filtering
+
+`build._listener_band_edges(conn, username, window_days, now)` re-reads the same listens
+`build_profile` does (`_load_listens`, same window), annotates each with a hardness the same way a
+candidate is annotated, then reduces to one `(hardness, listen_weight)` pair per *distinct* track —
+weight summed exactly the way `build_profile` sums it, hardness taken from whichever listen row
+resolved one. `hardness_band_edges()` then applies functional.md's rule: fewer than 30 such tracks
+→ the fixed fallback `(40, 70)`; otherwise the weighted 33rd/67th percentile, widened to `median ±
+15` if those two land closer together than that.
+
+`build_feed`, for a `hardness_band` policy, loads candidates, annotates them the same way, and keeps
+only the ones whose `classify_band(hardness, lo, hi)` matches the policy's own band — a candidate
+with no resolvable hardness is dropped, never guessed into a bucket. If fewer than
+`MIN_BAND_CANDIDATES` (15) survive, the loop retries with `release_window_days` widened
+90 → 365 → `None` (`BAND_RELAXATION_WINDOWS`), and `Feed.relaxed_to` reports whichever widened value
+was actually used — the literal string `'none'` for "no window at all", never a bare `None`, which
+already means "no relaxation happened" on the same field.
+
+### Rotation
+
+`daily-mix-artist` / `-label` restrict `candidates_query` to one artist or one label via the new
+`entity_filter` parameter (`('artist' | 'label', name)`) — a plain `a.name = %s` or an `EXISTS`
+against `library_track_labels`, appended after every other `WHERE` clause. Which name is `build.
+_ranked_names(profile.artists | profile.labels)`'s top 10, indexed by `scoring.pick_daily_entity`
+— `int(md5(username|date|'entity')[:8], 16) % len(names)` — the same day-stable-hash trick
+`daily_sample_key` already uses for track ordering, applied once per request instead of once per
+track. A profile with no artist (or label) affinities at all has nothing to rotate through and the
+feed reports `not_enough_data`.
+
+### Titles and subtitles
+
+`build._describe(conn, username, policy, now, profile)` is the one implementation both
+`describe_feed` (cheap — no candidate query, used by `GET /api/feeds` to list every policy at once)
+and `build_feed` (which needs the band edges or the chosen entity anyway, to filter candidates) call.
+`Feed.title`/`Feed.subtitle` and the list endpoint's per-slug `title`/`subtitle` therefore always
+agree: `DUTCH_BAND_TITLE` (`'Zachter' | 'Middenin' | 'Harder'`) for a band policy, the chosen name
+for a rotating one, `'Release Radar'` for the radar, `None` for the alias and anything else.
+
 ## API Contract
 
 All endpoints require the existing `X-API-Key` header (`routers/library.py:verify_api_key`
-semantics: a user key or the system key). A user key resolves the username; the system key must pass
-`?username=` and 400s without it.
+semantics: a user key or the system key). A user key resolves the username; `GET /api/feeds/{slug}`
+and `PUT /api/feeds/profile/exclusions` 400 a system key that passes no `?username=`. `GET
+/api/feeds` is the one exception: `username` is optional even for the system key, since listing
+what exists needs no listener in mind (see "Titles and subtitles" above for what a caller with no
+resolvable username gets instead).
 
 | Endpoint | Request | Response | Error cases |
 |---|---|---|---|
-| `GET /api/feeds` | — | `{"feeds": [{"slug": "release-radar", "size": 30, "window_days": 7}, ...]}` | 401 missing/invalid key |
-| `GET /api/feeds/{slug}` | `limit` (1–100, default from policy), `username` (system key only) | `{"slug", "state", "scope", "generated_at", "tracks": [...], "funnel": {...}}` | 401; 404 unknown slug; 400 system key without `username`; 500 no database |
+| `GET /api/feeds` | `username` (optional, either key) | `{"feeds": [{"slug", "size", "window_days", "title", "subtitle"}, ...]}` — six entries, `daily-mix` excluded (it is `daily-mix-mid`'s alias) | 401 missing/invalid key |
+| `GET /api/feeds/{slug}` | `limit` (1–100, default from policy), `username` (system key only) | `{"slug", "state", "scope", "generated_at", "tracks": [...], "funnel": {...}, "title", "subtitle", "hardness_band": [lo, hi] \| null, "hardness_source_counts": {...} \| null, "relaxed_to"}` | 401; 404 unknown slug; 400 system key without `username`; 500 no database |
 | `GET /api/feeds/profile` | `username` (system key only) | `{"scope", "distinct_tracks", "artists": [{"name","affinity"}], "labels": [...], "genres": [...], "excluded": [...]}` | 401; 400; 500 |
 | `PUT /api/feeds/profile/exclusions` | `{"entity_type": "label", "entity_name": "X", "excluded": true}` | `{"status": "ok"}` | 401; 422 unknown `entity_type`; 500 |
+
+`hardness_band`, `hardness_source_counts` and `relaxed_to` are `null` for every policy except the
+three spectrum mixes — a rotating or plain feed simply never sets them (`Feed`'s own defaults).
 
 `state` is `ok`, `no_matches` (nothing survived the filters) or `not_enough_data` (no profile could
 be built at all). A track object is the shape `/api/library/advanced` already returns — `id`, `title`,
@@ -306,6 +432,12 @@ to the runtime setting first (unset, it reads `feeds_starting_genres` exactly as
 shares it prints come out of the same `resolve_profile` call the feed itself runs, not out of a
 second implementation. This is the tool that answers whether the seven-day window is viable.
 
+For a spectrum slug (`--slug daily-mix-soft`, `-mid` or `-hard`), it additionally prints the
+listener's own band edges, the tally of which fallback source (`genre`/`label`/`artist`/`tempo`/
+`none`) resolved each heard track's hardness, and whether the release window had to be widened to
+reach `MIN_BAND_CANDIDATES` — the numbers "Daily mixes v2"'s open questions (functional.md) need
+measured before the anchors and the percentile split can be trusted.
+
 ## Technical Acceptance Criteria
 
 1. `deepest({'Uptempo', 'Hardcore'}, parents)` returns `{'Uptempo'}`; `deepest({'Hardcore'}, parents)`
@@ -346,6 +478,26 @@ second implementation. This is the tool that answers whether the seven-day windo
     `starting_genres` set it returns `scope='configured'` and shares over exactly those genres;
     with `starting_genres` unset it returns `scope='empty'`; and a listener with a profile of
     their own is never overruled by a configured fallback.
+17. `seed_genre_hardness` fills an anchor name directly, resolves a multi-level subgenre chain to
+    its nearest anchor ancestor in one pass, leaves a genre with no anchor ancestor `NULL`, and
+    never overwrites a row whose `hardness` is already set — including on a second run.
+18. `track_hardness` returns `'genre'` whenever `genre_weight_sum > 0`, regardless of what the
+    label or artist mean would otherwise say; falls through to `'label'`, then `'artist'`, then
+    `'tempo'` only when the step before it had nothing; and returns `(None, 'none')` when every
+    signal is absent.
+19. `hardness_band_edges` returns the fixed `(40, 70)` for fewer than `MIN_TRACKS_FOR_OWN_BAND`
+    (30) weighted observations, and `median ± 15` rather than the raw p33/p67 when those two
+    would otherwise land less than 15 points apart.
+20. A `hardness_band` policy excludes a candidate with no resolvable hardness from its emitted
+    tracks; a policy with too few candidates in its band after filtering relaxes
+    `release_window_days` 90 → 365 → `None` in that order and reports the widened value (`'none'`
+    for no window, never a bare `None`) as `Feed.relaxed_to`.
+21. `pick_daily_entity` is stable for the same `(username, date)` and changes for a different one;
+    two different usernames are not guaranteed to diverge on every date pair, but do so across a
+    handful of them.
+22. `GET /api/feeds` never enumerates the `daily-mix` alias, and reports a title/subtitle for
+    every listed slug that `GET /api/feeds/{slug}` would independently agree with for the same
+    listener (both call `_describe`/`describe_feed`, never a second computation).
 
 ## Deliberately Not In V1
 

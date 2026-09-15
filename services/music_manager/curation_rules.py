@@ -86,9 +86,27 @@ def require_white_genre(cursor, genre_id: int) -> dict:
 
 def find_genre_by_name(cursor, name: str) -> dict | None:
     cursor.execute(
-        'SELECT id, name, state, occurrences FROM rules_genres WHERE normalized_name = %s', (normalize_genre(name),)
+        'SELECT id, name, state, occurrences, hardness FROM rules_genres WHERE normalized_name = %s',
+        (normalize_genre(name),),
     )
     return cursor.fetchone()
+
+
+def parse_hardness(value: int | None) -> int | None:
+    """Validate a hardness value, or None to clear it back to "not scored".
+
+    0-100 inclusive, the same range `rules_genres.hardness` is stored in
+    (`TINYINT UNSIGNED`, but a curator could still type -1 or 1000 on the edit page).
+    A `bool` is rejected before the range check even runs: Python's `bool` is an
+    `int` subtype, so `True` would otherwise sail through as `1`.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise HTTPException(status_code=400, detail='hardness must be a whole number between 0 and 100, or null')
+    if not 0 <= value <= 100:
+        raise HTTPException(status_code=400, detail='hardness must be between 0 and 100')
+    return value
 
 
 def find_artist(cursor, name: str) -> dict | None:

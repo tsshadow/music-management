@@ -261,6 +261,62 @@ Feature: The daily mix is the same ranker with a wider window
 12. Both the web frontend and the mobile app render the same feed content from the same source; they
     do not each compute their own.
 
+## Daily mixes v2 — the spectrum
+
+Teun's request, roughly: five daily mixes that are not all the same — one soft on the spectrum (for
+him, euphoric hardstyle), one in the middle (mainstream or raw hardstyle), one hard, and two free.
+"If soft/hard is hard to determine, give genres a statistic, a kind of hardness."
+
+### The statistic
+
+`rules_genres` gains `hardness`, 0-100, the same kind of curated fact `genre_tint` is for colour and
+`state` is for whether a genre exists at all. It is seeded from a hand-picked anchor list — Deep
+House 10 up to Speedcore/Extratone/Splittercore 100, with Hardstyle at 45 and Hardcore at 70 roughly
+in the middle — and every other curated genre inherits its nearest anchor ancestor through
+`rules_subgenre_hierarchy`, the same graph `deepest()` already walks. A genre with no anchor
+ancestor at all stays unscored. Editable afterwards from the genre edit page, exactly where the
+hierarchy already is, and a curator's own edit is never silently reset by the seed running again.
+
+**Every anchor value is a proposed default, not a measurement.** Nobody has checked, for instance,
+that Uptempo Hardcore at 85 sits where a listener would actually place it by ear next to Zaagtempo
+at 88. The seed exists so the feature ships with *something* consistent rather than nothing; see
+"Open Questions" below for what still needs checking against real reactions.
+
+### A track's own hardness
+
+Most tracks do not carry a scored genre outright — 28% of the library carries any genre at all, and
+coverage is worse on exactly the tracks least likely to be re-tagged soon. A track's hardness is
+therefore a fallback chain: its own genres' hardness (weighted by `library_track_genres.weight`),
+then its label's mean hardness (over that label's other tracks with a known hardness, at least five
+of them so one outlier release cannot decide it), then its primary artist's mean the same way, then
+a straight mapping from tempo (`library_track_audio_features.tempo` or `bpm_tag`) — soft below 140,
+hard at 200 and above, linear in between. A track that resolves nothing at any step is excluded from
+the three spectrum mixes rather than guessed into one; the two free mixes below never filter on
+hardness at all, so they are unaffected either way.
+
+### Three mixes on the spectrum, two free
+
+`daily-mix-soft`, `-mid` and `-hard` are the existing daily mix — the same 90-day pool of unheard
+and highly-rated tracks, the same genre-share bucketing — with the candidate set additionally
+narrowed to one third of *this listener's own* hardness distribution, measured from the same
+listening history their taste profile already comes from. The two edges (soft/mid and mid/hard) are
+that listener's weighted 33rd and 67th percentile; a listener with too little history for that
+measurement to mean anything (under 30 heard tracks with a resolvable hardness) gets fixed edges
+(40/70) instead, and a listener whose own edges come out implausibly close together (within 15
+points) gets their median ± 15 rather than three mixes that all draw from the same five-point sliver.
+
+If a band still has too few candidates once filtered (fewer than 15), the mix widens its own
+90-day window to 365 days, then to no window at all, before giving up — reported so the client can
+say why a mix looks thin rather than pretending it never happened.
+
+`daily-mix-artist` and `daily-mix-label` are the two free slots: the same daily-mix pool, restricted
+to one artist or one label chosen from the listener's own top 10 by a hash of their username and
+today's date, so it visibly rotates day to day without needing a job to pick it.
+
+`daily-mix` — the slug the car and the phone already call — keeps working, as an exact alias of
+`daily-mix-mid`. Nothing already shipped needs to change to get a mix that behaves the same as
+before, on the middle third of a spectrum that did not previously exist.
+
 ## Open Questions / Not Yet Decided
 
 Nothing below blocks agreement on behavior, but all of it blocks the technical design.
@@ -293,6 +349,12 @@ Nothing below blocks agreement on behavior, but all of it blocks the technical d
   curation work with its own review, so it is deliberately out of scope here; the measurement of how
   much it actually costs comes first.
 
+- **The hardness anchors and the band edges are both unmeasured.** The anchor list (Deep House 10,
+  Hardstyle 45, Terror 95, ...) is a proposed ordering nobody has checked against how listeners here
+  actually rank these genres by ear, and the 33rd/67th-percentile band split, the 40/70 cold-start
+  fallback and the 15-point minimum gap are the same kind of guess the seven-day radar window was
+  before it was measured. Both need the same treatment: ship, then look at `scripts/feeds_dryrun.py
+  --slug daily-mix-soft`'s output against real listening history before trusting the numbers.
 - **Playback identity is unproven.** Both clients play through LMS, which does not know a MuMa
   `track_uid`; the existing bridge between the two is the file path, and that path prefix has broken
   this integration before. This must be demonstrated on a sample before any UI work starts.

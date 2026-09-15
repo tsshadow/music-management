@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/svelte";
+import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import ArtistView from "../../src/lib/ArtistView.svelte";
@@ -132,5 +132,45 @@ describe("the genre edit page", () => {
       expect(screen.getByText("Dit genre is niet goedgekeurd door de curatie")).toBeTruthy(),
     );
     expect(screen.queryByText("Valt onder")).toBeNull();
+  });
+
+  it("shows the genre's current hardness", async () => {
+    globalThis.fetch = subsonicFetch(genre({ hardness: 45 }));
+    render(GenreEdit, { name: "Industrial Hardcore", onback: vi.fn() });
+
+    await waitFor(() => expect(screen.getByLabelText("Hardheid")).toBeTruthy());
+    expect(screen.getByLabelText("Hardheid").value).toBe("45");
+  });
+
+  it("refuses to save a hardness value outside 0-100", async () => {
+    globalThis.fetch = subsonicFetch(genre());
+    render(GenreEdit, { name: "Industrial Hardcore", onback: vi.fn() });
+    await waitFor(() => expect(screen.getByLabelText("Hardheid")).toBeTruthy());
+
+    const input = screen.getByLabelText("Hardheid");
+    await fireEvent.input(input, { target: { value: "150" } });
+    await fireEvent.click(screen.getByText("Opslaan"));
+
+    await waitFor(() =>
+      expect(screen.getByText("Moet een geheel getal tussen 0 en 100 zijn, of leeg.")).toBeTruthy(),
+    );
+    const calledUrls = globalThis.fetch.mock.calls.map(([url]) => url);
+    expect(calledUrls.some((url) => url.includes("/hardness"))).toBe(false);
+  });
+
+  it("saves a valid hardness value", async () => {
+    globalThis.fetch = subsonicFetch(genre());
+    render(GenreEdit, { name: "Industrial Hardcore", onback: vi.fn() });
+    await waitFor(() => expect(screen.getByLabelText("Hardheid")).toBeTruthy());
+
+    const input = screen.getByLabelText("Hardheid");
+    await fireEvent.input(input, { target: { value: "80" } });
+    await fireEvent.click(screen.getByText("Opslaan"));
+
+    await waitFor(() => expect(screen.getByText("Hardheid opgeslagen.")).toBeTruthy());
+    const call = globalThis.fetch.mock.calls.find(([url]) => url.includes("/hardness"));
+    expect(call).toBeTruthy();
+    expect(call[1].method).toBe("PUT");
+    expect(JSON.parse(call[1].body)).toEqual({ hardness: 80 });
   });
 });

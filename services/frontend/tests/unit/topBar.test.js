@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import TopBar from "../../src/lib/TopBar.svelte";
-import { activeModal, activeView, credentials } from "../../src/lib/store.js";
+import { activeModal, activeView, credentials, isMobile } from "../../src/lib/store.js";
 
 function subsonic({
   serverVersion = "0.0.57",
@@ -25,12 +25,14 @@ describe("TopBar", () => {
     credentials.set({ url: "", username: "user", password: "pw" });
     activeView.set("home");
     activeModal.set(null);
+    isMobile.set(false);
     window.localStorage.clear();
     globalThis.fetch = subsonic();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    isMobile.set(false);
   });
 
   it("shows the greeting on the home screen", () => {
@@ -41,6 +43,16 @@ describe("TopBar", () => {
 
   it("the greeting stays away on other screens", () => {
     activeView.set("albums");
+
+    render(TopBar, { greeting: "Goedemiddag" });
+
+    expect(screen.queryByText("Goedemiddag")).toBeNull();
+  });
+
+  // The phone's own Home already opens with the quick-access tile grid; the greeting
+  // above it only cost space there, so it is desktop-only (see PhoneHome.svelte).
+  it("the greeting stays away on the phone's home screen", () => {
+    isMobile.set(true);
 
     render(TopBar, { greeting: "Goedemiddag" });
 

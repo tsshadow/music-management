@@ -90,11 +90,13 @@ def listens_query(username: str | None, window_days: int, now: datetime) -> tupl
 
     sql = f"""
         SELECT
+            t.id AS track_id,
             t.track_uid,
             s.listened_at,
             s.match_method,
             s.played_secs,
             a.name AS artist,
+            COALESCE(af.tempo, af.bpm_tag) AS bpm,
             (SELECT GROUP_CONCAT(l.name ORDER BY l.name SEPARATOR ',')
              FROM library_track_labels tl
              JOIN library_labels l ON l.id = tl.label_id
@@ -106,6 +108,7 @@ def listens_query(username: str | None, window_days: int, now: datetime) -> tupl
         FROM scrobble_listens s
         JOIN library_tracks t ON t.id = s.track_id
         LEFT JOIN library_artists a ON a.id = t.primary_artist_id
+        {_AUDIO_FEATURES_SUBQUERY}
         WHERE {' AND '.join(where)}
     """
     return sql, params
@@ -134,7 +137,9 @@ def _pool_clause(username: str, policy: FeedPolicy, params: list) -> str | None:
     return '(' + ' OR '.join(clauses) + ')'
 
 
-def candidates_query(username: str, policy: FeedPolicy, now: datetime) -> tuple[str, list]:
+def candidates_query(
+    username: str, policy: FeedPolicy, now: datetime, entity_filter: tuple[str, str] | None = None
+) -> tuple[str, list]:
     """Everything eligible to appear in `policy`'s feed for `username`.
 
     Mirrors the `/api/library/advanced` track shape, plus the fields specific to
@@ -153,6 +158,10 @@ def candidates_query(username: str, policy: FeedPolicy, now: datetime) -> tuple[
     `ORDER BY` would leave both to the storage engine's mood. Alphabetical is
     not "the right label" -- for a multi-label track there is no such thing --
     but it is the same one on every run, which is what an explanation has to be.
+
+    `entity_filter` is `('artist' | 'label', name)`, for the two rotating daily
+    mixes (`daily-mix-artist`, `daily-mix-label`): everything else about the pool
+    stays the same, only the candidate set narrows to one artist or one label.
     """
     # Positional order follows the %s tokens left to right in the SQL text, not
     # the order they are appended here: `heard`'s EXISTS lives in the SELECT
@@ -184,6 +193,21 @@ def candidates_query(username: str, policy: FeedPolicy, now: datetime) -> tuple[
     pool_clause = _pool_clause(username, policy, params)
     if pool_clause:
         where.append(pool_clause)
+
+    if entity_filter is not None:
+        dimension, name = entity_filter
+        if dimension == 'artist':
+            where.append('a.name = %s')
+            params.append(name)
+        elif dimension == 'label':
+            where.append(
+                'EXISTS (SELECT 1 FROM library_track_labels etl '
+                'JOIN library_labels el ON el.id = etl.label_id '
+                'WHERE etl.track_id = t.id AND el.name = %s)'
+            )
+            params.append(name)
+        else:
+            raise ValueError(f'unknown entity_filter dimension: {dimension!r}')
 
     sql = f"""
         SELECT
@@ -276,3 +300,79 @@ def exclusions_query(username: str) -> tuple[str, list]:
     """The entities this user has excluded from their own profile."""
     sql = 'SELECT entity_type, entity_name FROM feeds_profile_exclusions WHERE username = %s'
     return sql, [username]
+
+
+def genre_hardness_query(track_ids: list[int]) -> tuple[str, list]:
+    """Per-track weighted genre hardness, bounded to one batch of tracks.
+
+    Feeds `feeds.hardness.track_hardness`'s first fallback step: one row per track
+    with `SUM(weight * hardness)` and `SUM(weight)`, restricted to genres that
+    actually carry a `hardness` value -- a genre nobody has scored contributes to
+    neither sum, which is what lets a track fall through to its label's mean instead
+    of silently averaging in a `NULL`. Bounded to `track_ids` for the same reason
+    `dominant_genre_query` is bounded to names: unbounded, this is one weighted
+    average per track in the whole library, to answer a question about the tracks one
+    feed request, or one band-edge computation, actually needs.
+    """
+    if not track_ids:
+        raise ValueError('genre_hardness_query needs at least one track id; skip the query instead')
+    placeholders = ', '.join(['%s'] * len(track_ids))
+    sql = f"""
+        SELECT tg.track_id AS track_id,
+               SUM(tg.weight * rg.hardness) AS weighted_sum,
+               SUM(tg.weight) AS weight_sum
+        FROM library_track_genres tg
+        JOIN rules_genres rg ON rg.id = tg.genre_id
+        WHERE tg.track_id IN ({placeholders}) AND rg.hardness IS NOT NULL AND rg.state <> 'black'
+        GROUP BY tg.track_id
+    """
+    return sql, list(track_ids)
+
+
+_ENTITY_HARDNESS_QUERIES = {
+    'label': """
+        SELECT l.name AS name,
+               SUM(tg.weight * rg.hardness) / SUM(tg.weight) AS mean_hardness,
+               COUNT(DISTINCT tg.track_id) AS track_count
+        FROM library_labels l
+        JOIN library_track_labels tl ON tl.label_id = l.id
+        JOIN library_track_genres tg ON tg.track_id = tl.track_id
+        JOIN rules_genres rg ON rg.id = tg.genre_id
+        WHERE rg.hardness IS NOT NULL AND rg.state <> 'black' AND l.name IN ({placeholders})
+        GROUP BY l.name
+        HAVING COUNT(DISTINCT tg.track_id) >= 5
+    """,
+    'artist': """
+        SELECT a.name AS name,
+               SUM(tg.weight * rg.hardness) / SUM(tg.weight) AS mean_hardness,
+               COUNT(DISTINCT tg.track_id) AS track_count
+        FROM library_artists a
+        JOIN library_tracks t ON t.primary_artist_id = a.id
+        JOIN library_track_genres tg ON tg.track_id = t.id
+        JOIN rules_genres rg ON rg.id = tg.genre_id
+        WHERE rg.hardness IS NOT NULL AND rg.state <> 'black' AND a.name IN ({placeholders})
+        GROUP BY a.name
+        HAVING COUNT(DISTINCT tg.track_id) >= 5
+    """,
+}
+
+
+def entity_hardness_query(dimension: str, names: list[str]) -> tuple[str, list]:
+    """A label's or artist's mean hardness, over the tracks that gave it one.
+
+    The second and third fallback steps in `track_hardness`'s chain. The `HAVING`
+    floor (`feeds.hardness.MIN_TRACKS_FOR_ENTITY_MEAN`, kept in sync by hand since it
+    is baked into the SQL text) means a label or artist with only a handful of scored
+    tracks is not trusted to speak for the tracks that have none -- one outlier
+    release must not decide what an unrelated track on the same label inherits.
+    Bounded to `names` the same way `dominant_genre_query` is, and for the same
+    reason: unbounded, this groups over every label or artist in the library.
+    """
+    try:
+        template = _ENTITY_HARDNESS_QUERIES[dimension]
+    except KeyError:
+        raise ValueError(f'unknown entity_hardness dimension: {dimension!r}') from None
+    if not names:
+        raise ValueError('entity_hardness_query needs at least one name; skip the query instead')
+    placeholders = ', '.join(['%s'] * len(names))
+    return template.format(placeholders=placeholders), list(names)

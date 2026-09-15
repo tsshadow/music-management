@@ -15,9 +15,9 @@
   const { title, tracks = [], noTracksText = '', showAllLabel = '', onshowall, onnavigate } = $props();
 </script>
 
-<section class="flex flex-col gap-4">
+<section class="flex flex-col {$isMobile ? 'gap-3' : 'gap-4'}">
   <div class="flex justify-between items-end mb-4">
-    <h2 class="text-2xl font-bold m-0">{title}</h2>
+    <h2 class="{$isMobile ? 'text-xl' : 'text-2xl'} font-bold m-0">{title}</h2>
     <button
       class="bg-transparent border-none text-[#b3b3b3] text-[12px] font-bold cursor-pointer uppercase tracking-[0.1em] hover:underline"
       onclick={onshowall}

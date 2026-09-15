@@ -2,11 +2,12 @@
   import { t, locale } from './i18n/index.js';
   import { currentTrack, playerState, authParams, playlist, isMobile, trackListLines, highlightedTrackId, mumaApiUrl, restUrl, showConfirmationDialog } from './store.js';
   import ArtistList from './ArtistList.svelte';
-  import BottomSheet from './BottomSheet.svelte';
+  import TrackDetailsSheet from './TrackDetailsSheet.svelte';
   import Modal from './Modal.svelte';
   import { subsonicError } from './utils.js';
   import { notify } from './notifications.js';
   import { releaseDateLabel } from './trackDate.js';
+  import { genreSegments } from './genreSegments.js';
   import { platform as defaultPlatform } from './platform/index.js';
   import { coverArtSrc, localCoverArt, resolveCoverArt } from './coverArt.js';
   import { offline } from './subsonic.js';
@@ -170,22 +171,6 @@
       } finally {
           isLoadingLyrics = false;
       }
-  }
-
-  /**
-   * Splits a genre string into the individual genres and the separators
-   * between them, so "hardstyle,hardcore" becomes two links instead of one
-   * while still reading as the string the backend stored.
-   *
-   * @param {string} genre - The raw genre string from the backend.
-   * @returns {Array<{text: string, name: string|null}>} Segments in order; `name` is null for separators.
-   */
-  function genreSegments(genre) {
-    return (genre || '')
-      .split(/([,;]\s*)/)
-      .filter(part => part !== '')
-      .map(part => /^[,;]/.test(part) ? { text: part, name: null } : { text: part, name: part.trim() })
-      .filter(segment => segment.name !== '');
   }
 
   /**
@@ -720,50 +705,22 @@
 </table>
 
 {#if detailsTrack}
-  <BottomSheet title={$t('track.details')} onclose={() => detailsTrack = null}>
-    <div class="p-4 flex flex-col gap-4" data-testid="song-details">
-      <div class="flex gap-3 items-center">
-        <img src={coverArtSrc(detailsTrack.coverArt, 100, $authParams, $localCoverArt, $offline)} alt="" class="w-20 h-20 rounded object-cover" />
-        <div class="min-w-0">
-          <h3 class="text-base font-bold text-white">{detailsTrack.title}</h3>
-          <ArtistList artist={detailsTrack.artist} artistId={detailsTrack.artistId} artists={detailsTrack.artists} onnavigate={detailsNavigate} />
-          <p class="text-sm text-[#b3b3b3]">{detailsTrack.album || ''}</p>
-        </div>
-      </div>
-      <div class="text-xs text-[#b3b3b3] flex flex-col gap-1">
-        <span>{detailsTrack.genre || ''}</span>
-        <span>{releaseDateLabel(detailsTrack)}</span>
-        <span>{durationCellText(detailsTrack)} • {$t('track.plays')}: {detailsTrack.globalPlayCount ?? detailsTrack.playCount ?? 0}</span>
-        {#if detailsTrack.label || detailsTrack.publisher}<span>{detailsTrack.label || detailsTrack.publisher}</span>{/if}
-      </div>
-      <div class="flex gap-1">
-        {#each [1, 2, 3, 4, 5] as star (star)}
-          <button class="w-10 h-10 border-none bg-transparent text-xl cursor-pointer {ratingOf(detailsTrack) >= star ? 'text-brand' : 'text-[#b3b3b3]'}" aria-label={$t('car.rate', { star })} onclick={(e) => { e.stopPropagation(); updateRating(detailsTrack, star); }}>★</button>
-        {/each}
-      </div>
-      <div class="details-actions flex flex-col">
-        {#if detailsTrack.workId}<button onclick={() => detailsNavigate(`song:${detailsTrack.workId}`)}>{$t('track.versions')}</button>{/if}
-        <button onclick={(e) => { showLyrics(e, detailsTrack); detailsTrack = null; }}>{$t('track.lyrics')}</button>
-        <button onclick={(e) => { addAfterCurrent(e, detailsTrack); detailsTrack = null; }}>{$t('track.playNext')}</button>
-        <button onclick={(e) => { addToEnd(e, detailsTrack); detailsTrack = null; }}>{$t('track.addToQueue')}</button>
-        {#if downloadsSupported}
-          {#if ['none', 'failed'].includes(downloadStateOf(detailsTrack))}
-            <button onclick={(e) => { download(e, detailsTrack); detailsTrack = null; }}>{$t('downloads.download')}</button>
-          {:else}
-            <button onclick={(e) => { removeDownload(e, detailsTrack); detailsTrack = null; }}>{$t('downloads.remove')}</button>
-          {/if}
-        {/if}
-        <a href={restUrl(`/rest/download?id=${detailsTrack.id}&${$authParams}`)} download={`${detailsTrack.artist} - ${detailsTrack.title}.mp3`} onclick={(e) => e.stopPropagation()}>{$t('track.browserDownload')}</a>
-        {#if detailsTrack.albumId}<button onclick={() => detailsNavigate(`album:${detailsTrack.albumId}`)}>{$t('track.goToAlbum')}</button>{/if}
-        {#each detailsTrack.artists?.length ? detailsTrack.artists : (detailsTrack.artistId ? [{ id: detailsTrack.artistId, name: detailsTrack.artist }] : []) as artist (artist.id)}
-          <button onclick={() => detailsNavigate(`artist:${artist.id}`)}>{$t('track.goToArtist')}: {artist.name}</button>
-        {/each}
-        {#if isQueue || playlistId}
-          <button onclick={(e) => { removeTrack(e, detailsIndex); detailsTrack = null; }}>{$t('common.remove')}</button>
-        {/if}
-      </div>
-    </div>
-  </BottomSheet>
+  <TrackDetailsSheet
+    track={detailsTrack}
+    rating={ratingOf(detailsTrack)}
+    onrate={(star) => updateRating(detailsTrack, star)}
+    onclose={() => (detailsTrack = null)}
+    onnavigate={detailsNavigate}
+    durationLabel={durationCellText(detailsTrack)}
+    onlyrics={() => { showLyrics({ stopPropagation() {} }, detailsTrack); detailsTrack = null; }}
+    onplaynext={() => { addAfterCurrent({ stopPropagation() {} }, detailsTrack); detailsTrack = null; }}
+    onaddqueue={() => { addToEnd({ stopPropagation() {} }, detailsTrack); detailsTrack = null; }}
+    onremove={(isQueue || playlistId) ? () => { removeTrack({ stopPropagation() {} }, detailsIndex); detailsTrack = null; } : null}
+    downloadsSupported={downloadsSupported}
+    downloadState={downloadStateOf(detailsTrack)}
+    ondownload={() => { download({ stopPropagation() {} }, detailsTrack); detailsTrack = null; }}
+    onremovedownload={() => { removeDownload({ stopPropagation() {} }, detailsTrack); detailsTrack = null; }}
+  />
 {/if}
 
 {#if pendingSet}
@@ -824,18 +781,3 @@
     </div>
   </Modal>
 {/if}
-
-<style>
-
-  /* One shared touch target for every details action, including the download link. */
-  .details-actions > button, .details-actions > a {
-    min-height: 44px;
-    padding: .75rem 0;
-    text-align: left;
-    background: transparent;
-    border: 0;
-    color: white;
-    font-size: .875rem;
-    cursor: pointer;
-  }
-</style>

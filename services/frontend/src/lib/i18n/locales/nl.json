@@ -1243,7 +1243,13 @@
     "details": "Nummerdetails",
     "goToAlbum": "Naar album",
     "goToArtist": "Naar artiest",
-    "browserDownload": "Kopie opslaan"
+    "browserDownload": "Kopie opslaan",
+    "technical": "Technische details",
+    "format": "Formaat",
+    "path": "Bestandspad",
+    "disc": "schijf {number}",
+    "artistsTogether": "{names} samen",
+    "moods": "Stemmingen"
   },
   "song": {
     "heading": "Nummer",

@@ -3,6 +3,11 @@
   import { fly } from 'svelte/transition';
   import { formatTime, formatClock, progressPercent } from './playerProgress.js';
   import BottomSheet from './BottomSheet.svelte';
+  import ArtistList from './ArtistList.svelte';
+  import TrackDetailsSheet from './TrackDetailsSheet.svelte';
+  import { releaseDateLabel } from './trackDate.js';
+  import { genreNames } from './genreSegments.js';
+  import { playlist } from './store.js';
 
   /**
    * The phone's full-screen "Now Playing" view, opened by a tap on the mini
@@ -47,6 +52,7 @@
     onskip,
     ontoggleEqualizer,
     ontoggleQueue,
+    onnavigate,
   } = $props();
 
   // What the context line reads. A track almost always carries its album; the
@@ -54,8 +60,37 @@
   // empty line.
   const playingFrom = $derived(track?.album || $t('queue.title'));
 
+  /**
+   * The compact facts line under the artist: every genre (each its own tap
+   * target), the release date, and the label -- the same three things the
+   * old Kotlin player printed under the title, just condensed onto one row
+   * since this screen has far less room for them than the info sheet does.
+   */
+  const metaItems = $derived.by(() => {
+    if (!track) return [];
+    const items = genreNames(track.genre).map((genre) => ({ text: genre, view: `genre:${genre}` }));
+    const date = releaseDateLabel(track);
+    if (date) items.push({ text: date, view: null });
+    const label = track.label || track.publisher;
+    if (label) items.push({ text: label, view: `label:${label}` });
+    return items;
+  });
+
   let touchStartY = $state(null);
   let showLyricsSheet = $state(false);
+  let showDetailsSheet = $state(false);
+
+  /**
+   * Every navigation from this screen closes it first -- the chevron's own
+   * `onclose` -- so a tap on a genre chip or the album never leaves the
+   * full-screen player stranded over whatever it just opened.
+   *
+   * @param {string} view
+   */
+  function navigate(view) {
+    onclose?.();
+    onnavigate?.(view);
+  }
 
   function handleTouchStart(e) {
     touchStartY = e.touches?.[0]?.clientY ?? null;
@@ -75,6 +110,27 @@
     const delta = endY - touchStartY;
     touchStartY = null;
     if (delta > 80) onclose?.();
+  }
+
+  /**
+   * The queue actions the details sheet offers. `track` here always is the
+   * playing track, so unlike `TrackList`'s own copy of this logic there is
+   * no id to look up first.
+   */
+  function addAfterCurrent() {
+    if (!track) return;
+    playlist.update((p) => {
+      const newP = [...p];
+      const currentIndex = newP.findIndex((t) => String(t.id) === String(track.id));
+      if (currentIndex === -1) newP.push({ ...track });
+      else newP.splice(currentIndex + 1, 0, { ...track });
+      return newP;
+    });
+  }
+
+  function addToEnd() {
+    if (!track) return;
+    playlist.update((p) => [...p, { ...track }]);
   }
 </script>
 
@@ -100,9 +156,16 @@
           <path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"></path>
         </svg>
       </button>
-      <div class="flex-1 text-center text-[11px] font-bold uppercase tracking-wide text-[#b3b3b3] truncate px-2">
-        {$t('nowPlaying.playingFrom', { name: playingFrom })}
-      </div>
+      {#if track?.albumId}
+        <button
+          class="flex-1 min-w-0 bg-transparent border-none text-center text-[11px] font-bold uppercase tracking-wide text-[#b3b3b3] hover:text-white truncate px-2 cursor-pointer"
+          onclick={() => navigate(`album:${track.albumId}`)}
+        >{$t('nowPlaying.playingFrom', { name: playingFrom })}</button>
+      {:else}
+        <div class="flex-1 text-center text-[11px] font-bold uppercase tracking-wide text-[#b3b3b3] truncate px-2">
+          {$t('nowPlaying.playingFrom', { name: playingFrom })}
+        </div>
+      {/if}
       {#if lyricsLines.length > 0}
         <button
           class="w-8 h-8 flex items-center justify-center text-white bg-transparent border-none cursor-pointer"
@@ -146,10 +209,33 @@
       </div>
 
       {#if track}
-        <div class="min-w-0 mb-4">
+        <div class="min-w-0 mb-2">
           <div class="text-xl font-bold truncate">{track.title}</div>
-          <div class="text-sm text-[#b3b3b3] truncate">{track.artist}</div>
+          <ArtistList artist={track.artist} artistId={track.artistId} artists={track.artists} onnavigate={navigate} />
         </div>
+
+        {#if metaItems.length > 0}
+          <!-- The player screen's own genre/date/label line, condensed onto one
+               row -- the same three facts the Kotlin player printed under the
+               title, kept short here because the full picture (moods, label,
+               technical details) is one tap away in the details sheet. -->
+          <div
+            class="flex flex-wrap items-center gap-x-1.5 text-[11px] text-[#b3b3b3] mb-4 max-h-8 overflow-hidden"
+            data-testid="now-playing-meta"
+          >
+            {#each metaItems as item, i (item.text + i)}
+              {#if i > 0}<span aria-hidden="true">&middot;</span>{/if}
+              {#if item.view}
+                <button
+                  class="bg-transparent border-none p-0 text-inherit hover:text-white hover:underline cursor-pointer"
+                  onclick={() => navigate(item.view)}
+                >{item.text}</button>
+              {:else}
+                <span class="truncate">{item.text}</span>
+              {/if}
+            {/each}
+          </div>
+        {/if}
 
         <div class="flex items-center gap-1 mb-6">
           {#each [1, 2, 3, 4, 5] as star (star)}
@@ -304,6 +390,30 @@
             </svg>
           </button>
         {/if}
+        {#if track?.workId}
+          <button
+            class="bg-transparent border-none p-2 cursor-pointer text-[#b3b3b3] hover:text-white transition-colors"
+            data-testid="now-playing-song"
+            onclick={() => navigate(`song:${track.workId}`)}
+            aria-label={$t('track.versions')}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+              <path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h10v2H4v-2z"></path>
+            </svg>
+          </button>
+        {/if}
+        {#if track}
+          <button
+            class="bg-transparent border-none p-2 cursor-pointer text-[#b3b3b3] hover:text-white transition-colors"
+            data-testid="now-playing-details"
+            onclick={() => (showDetailsSheet = true)}
+            aria-label={$t('track.details')}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+              <path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path>
+            </svg>
+          </button>
+        {/if}
         <button
           class="bg-transparent border-none p-2 cursor-pointer text-[#b3b3b3] hover:text-white transition-colors"
           onclick={ontoggleQueue}
@@ -324,5 +434,18 @@
         {/each}
       </div>
     </BottomSheet>
+  {/if}
+  {#if showDetailsSheet && track}
+    <TrackDetailsSheet
+      {track}
+      {rating}
+      {onrate}
+      onclose={() => (showDetailsSheet = false)}
+      onnavigate={navigate}
+      durationLabel={isSetMode ? formatClock(duration) : formatTime(duration)}
+      onlyrics={() => { showDetailsSheet = false; showLyricsSheet = true; }}
+      onplaynext={() => { addAfterCurrent(); showDetailsSheet = false; }}
+      onaddqueue={() => { addToEnd(); showDetailsSheet = false; }}
+    />
   {/if}
 {/if}

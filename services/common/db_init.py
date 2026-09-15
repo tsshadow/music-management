@@ -185,6 +185,13 @@ def ensure_tables_exist() -> None:
                     # processed, which is why the feeds filtered on it and always came back empty.
                     # See migrate_v24_track_release_date.sql.
                     'ALTER TABLE library_tracks ADD COLUMN IF NOT EXISTS release_date VARCHAR(10) NULL',
+                    # Where a genre sits between soft and hard, 0-100. Seeded from a curated
+                    # anchor list and inherited down rules_subgenre_hierarchy by
+                    # feeds.hardness.seed_genre_hardness (main.py startup), which only ever
+                    # touches a row that is still NULL here -- a curator's own edit is never
+                    # overwritten. See migrate_v25_genre_hardness.sql and
+                    # docs/designs/feeds/functional.md, "Daily mixes v2".
+                    'ALTER TABLE rules_genres ADD COLUMN IF NOT EXISTS hardness TINYINT UNSIGNED NULL',
                 ):
                     try:
                         cursor.execute(column_sql)

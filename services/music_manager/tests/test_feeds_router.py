@@ -85,11 +85,70 @@ class FeedsRouterTest(_FeedsAuthTestCase):
         self.assertEqual(client.get('/api/feeds').status_code, 401)
 
     def test_listing_the_feeds_describes_every_policy(self):
+        """'daily-mix' is listed too -- it is its own policy now (the classic,
+
+        unrestricted mix), not a duplicate of daily-mix-mid, so there is
+        nothing to hide it behind.
+        """
         self._auth({'type': 'system'})
         response = client.get('/api/feeds', headers={'X-API-Key': 'k'})
         self.assertEqual(response.status_code, 200)
         slugs = {feed['slug'] for feed in response.json()['feeds']}
-        self.assertEqual(slugs, {'release-radar', 'daily-mix'})
+        self.assertEqual(
+            slugs,
+            {
+                'release-radar',
+                'daily-mix',
+                'daily-mix-soft',
+                'daily-mix-mid',
+                'daily-mix-hard',
+                'daily-mix-artist',
+                'daily-mix-label',
+            },
+        )
+
+    def test_listing_the_feeds_without_a_username_still_answers(self):
+        """A system key may list feeds with no listener in mind at all -- every
+
+        entry falls back to a generic title rather than the endpoint failing or
+        silently querying a database connection it has no username to ask about.
+        """
+        self._auth({'type': 'system'})
+        response = client.get('/api/feeds', headers={'X-API-Key': 'k'})
+        self.assertEqual(response.status_code, 200)
+        feeds = {feed['slug']: feed for feed in response.json()['feeds']}
+        self.assertEqual(feeds['daily-mix-soft']['title'], 'Zachter')
+        self.assertEqual(feeds['daily-mix']['title'], 'Klassiek')
+
+    def test_listing_the_feeds_calls_describe_feed_per_policy_for_a_known_user(self):
+        """`GET /api/feeds` and `GET /api/feeds/{slug}` must describe a feed the
+
+        same way -- `describe_feed` is the one implementation both go through,
+        the same reason `resolve_profile` exists for steps 1-3.
+        """
+        self._auth({'type': 'system'})
+        conn = _ClosingConnection()
+        with (
+            patch('services.music_manager.routers.feeds.get_db_connection', return_value=conn),
+            patch(
+                'services.music_manager.routers.feeds.describe_feed',
+                return_value={'title': 'Aangepast', 'subtitle': 'Testwaarde'},
+            ) as describe,
+        ):
+            response = client.get('/api/feeds?username=user', headers={'X-API-Key': 'k'})
+        self.assertEqual(response.status_code, 200)
+        feeds = response.json()['feeds']
+        self.assertTrue(feeds)
+        self.assertTrue(all(feed['title'] == 'Aangepast' for feed in feeds))
+        self.assertEqual(describe.call_count, len(feeds))
+        self.assertTrue(conn.closed)
+
+    def test_listing_the_feeds_for_a_user_key_uses_its_own_username(self):
+        self._auth({'type': 'user', 'user': {'username': 'user'}})
+        with patch('services.music_manager.routers.feeds.get_db_connection', return_value=None):
+            response = client.get('/api/feeds', headers={'X-API-Key': 'k'})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['feeds'])
 
     def test_an_unknown_slug_is_a_404(self):
         self._auth({'type': 'system'})
@@ -147,6 +206,48 @@ class FeedsRouterTest(_FeedsAuthTestCase):
         with patch('services.music_manager.routers.feeds.get_db_connection', return_value=None):
             response = client.get('/api/feeds/release-radar?username=user', headers={'X-API-Key': 'k'})
         self.assertEqual(response.status_code, 500)
+
+    def test_a_hardness_band_feed_carries_its_edges_title_and_relaxation(self):
+        banded = Feed(
+            slug='daily-mix-mid',
+            state='ok',
+            scope='user',
+            tracks=[],
+            funnel={'candidates': 3, 'emitted': 3},
+            title='Middenin',
+            subtitle='40–70 hardheid',
+            hardness_band=(40.0, 70.0),
+            hardness_source_counts={'genre': 2, 'none': 1},
+            relaxed_to='none',
+        )
+        self._auth({'type': 'system'})
+        conn = _ClosingConnection()
+        with (
+            patch('services.music_manager.routers.feeds.get_db_connection', return_value=conn),
+            patch('services.music_manager.routers.feeds.build_feed', return_value=banded),
+        ):
+            response = client.get('/api/feeds/daily-mix-mid?username=user', headers={'X-API-Key': 'k'})
+        body = response.json()
+        self.assertEqual(body['title'], 'Middenin')
+        self.assertEqual(body['subtitle'], '40–70 hardheid')
+        self.assertEqual(body['hardness_band'], [40.0, 70.0])
+        self.assertEqual(body['hardness_source_counts'], {'genre': 2, 'none': 1})
+        self.assertEqual(body['relaxed_to'], 'none')
+
+    def test_a_feed_with_no_band_reports_null_rather_than_an_empty_placeholder(self):
+        plain = Feed(slug='release-radar', state='ok', scope='user', tracks=[], funnel={}, title='Release Radar')
+        self._auth({'type': 'system'})
+        conn = _ClosingConnection()
+        with (
+            patch('services.music_manager.routers.feeds.get_db_connection', return_value=conn),
+            patch('services.music_manager.routers.feeds.build_feed', return_value=plain),
+        ):
+            response = client.get('/api/feeds/release-radar?username=user', headers={'X-API-Key': 'k'})
+        body = response.json()
+        self.assertEqual(body['title'], 'Release Radar')
+        self.assertIsNone(body['subtitle'])
+        self.assertIsNone(body['hardness_band'])
+        self.assertIsNone(body['relaxed_to'])
 
     def test_an_ok_feed_carries_the_documented_track_shape_plus_bucket_and_reason(self):
         ok = Feed(

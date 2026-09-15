@@ -72,11 +72,12 @@ function bottomBarTab(label) {
 }
 
 /**
- * One chip of the phone's Songs/Sets mode switch (`ModeChips.svelte`), shown
- * above Home, Search and Library. Unlike the old bottom-bar tabs it replaced,
- * a chip only ever sets `viewMode` -- it never navigates.
+ * One segment of the phone's Songs/Sets mode control (`ModeChips.svelte`),
+ * shown in the phone's top bar next to search and the profile button.
+ * Unlike the old bottom-bar tabs it replaced, a segment only ever sets
+ * `viewMode` -- it never navigates.
  *
- * @param {string} label - The chip's visible label.
+ * @param {string} label - The segment's visible label.
  * @returns {HTMLElement}
  */
 function modeChip(label) {
@@ -94,6 +95,9 @@ describe("App", () => {
     viewMode.set("songs");
     playlist.set([]);
     isMobile.set(false);
+    // App's own onMount re-derives `isMobile` from the real viewport width, which
+    // would otherwise stomp over a test-set store value the instant App mounts.
+    Object.defineProperty(window, "innerWidth", { value: 1024, configurable: true });
     currentPlaylist.set(null);
     searchResultsOpen.set(false);
     activeSettingsTab.set("general");
@@ -161,8 +165,12 @@ describe("App", () => {
 
   // Unlike the old bottom-bar tab it replaced, the mode chip is a switch, not a
   // destination: it changes the brand colour everywhere without moving the
-  // listener off the tab they were already standing on.
+  // listener off the tab they were already standing on. The control itself now
+  // lives in the phone's top bar, so these render on a phone-sized viewport --
+  // setting the `isMobile` store alone would not survive, since App's own
+  // onMount re-derives it from `window.innerWidth` as soon as it mounts.
   it("the Sets chip changes the mode without leaving the tab", async () => {
+    Object.defineProperty(window, "innerWidth", { value: 375, configurable: true });
     render(App);
     await waitFor(() => expect(screen.getAllByText("Afspeellijsten").length).toBeGreaterThan(0));
 
@@ -175,6 +183,7 @@ describe("App", () => {
   });
 
   it("the Nummers chip takes the app back out of set mode", async () => {
+    Object.defineProperty(window, "innerWidth", { value: 375, configurable: true });
     viewMode.set("sets");
     render(App);
     await waitFor(() => expect(screen.getAllByText("Afspeellijsten").length).toBeGreaterThan(0));
@@ -183,6 +192,16 @@ describe("App", () => {
 
     await waitFor(() => expect(get(viewMode)).toBe("songs"));
     expect(document.documentElement.classList.contains("mode-sets")).toBe(false);
+  });
+
+  // The row above the content that used to hold the mode chips is gone -- the
+  // phone's top bar owns the switch now, and a desktop render has no chips at
+  // all (the sidebar has its own toggle).
+  it("no longer shows a chips row above the content on desktop", async () => {
+    render(App);
+    await waitFor(() => expect(screen.getAllByText("Afspeellijsten").length).toBeGreaterThan(0));
+
+    expect(screen.queryByRole("group", { name: "Modus wisselen" })).toBeNull();
   });
 
   it("the bottom bar's three tabs move between home, browse and favorites", async () => {

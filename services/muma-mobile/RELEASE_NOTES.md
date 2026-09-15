@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## Global Version 7.1.0 (2026-09-16)
+
+- Release radar and daily mix load on the phone again.
+
+- The player shows genre, release date and label again, with a details sheet and a Song button.
+
+- Compact coloured Home tiles, Songs/Sets switch in the top bar, denser phone layout.
 ## Global Version 7.0.0 (2026-09-15)
 
 - **Android Auto leest de snelkoppelingen nu van de server.** De map "Afspeellijsten" (en

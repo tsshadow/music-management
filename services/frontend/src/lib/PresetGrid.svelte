@@ -29,15 +29,23 @@
     for (const char of preset.name) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
     return PALETTE[hash % PALETTE.length];
   }
+
+  // The same shuffle icon the desktop grid below draws over a random-sort tile; every
+  // other sort keeps `QuickAccessTile`'s default note icon.
+  const RANDOM_ICON = 'M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z';
+  const NEW_PRESET_COLOR = '#333333';
+  const NEW_PRESET_ICON = 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z';
 </script>
 
 {#if compact}
   <div class="contents" data-testid="preset-grid">
     {#each presets as preset (preset.id)}
-      <QuickAccessTile title={preset.name} subtitle={presetSummary(preset, $t)} color={colorFor(preset)} onclick={() => onopen?.(preset)} />
+      <QuickAccessTile title={preset.name} subtitle={presetSummary(preset, $t)} color={colorFor(preset)}
+        icon={preset.sort === 'random' ? RANDOM_ICON : undefined} onclick={() => onopen?.(preset)} />
     {/each}
     {#if canCreate}
-      <QuickAccessTile title={'+ ' + $t('presetBuilder.new')} subtitle={$t('presets.title')} onclick={() => oncreate?.()} />
+      <QuickAccessTile title={'+ ' + $t('presetBuilder.new')} subtitle={$t('presets.title')}
+        color={NEW_PRESET_COLOR} icon={NEW_PRESET_ICON} onclick={() => oncreate?.()} />
     {/if}
   </div>
 {:else if presets.length > 0 || canCreate}

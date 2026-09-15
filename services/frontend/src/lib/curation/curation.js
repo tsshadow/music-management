@@ -116,3 +116,33 @@ export function affectedLabel(count) {
 export function canEditGenre(genre) {
   return (genre || {}).state === "white";
 }
+
+/**
+ * Whether a value is storable as a genre's hardness: a whole number 0-100, or
+ * empty/null to clear it back to "not scored".
+ *
+ * The daily mixes bucket a track by this number (soft/mid/hard), so a value outside
+ * 0-100 is not a typo to shrug off -- the backend refuses it too
+ * (`curation_rules.parse_hardness`), and this is the same rule stated where the form
+ * can check it before a round trip.
+ *
+ * @param {string|number|null|undefined} value
+ * @returns {boolean}
+ */
+export function isHardness(value) {
+  if (value === null || value === undefined || value === "") return true;
+  const number = Number(value);
+  return Number.isInteger(number) && number >= 0 && number <= 100;
+}
+
+/**
+ * `isHardness`'s value, parsed into what the API expects: an integer, or null for
+ * "not scored". Assumes `isHardness(value)` already returned true.
+ *
+ * @param {string|number|null|undefined} value
+ * @returns {number|null}
+ */
+export function parseHardness(value) {
+  if (value === null || value === undefined || value === "") return null;
+  return Number(value);
+}

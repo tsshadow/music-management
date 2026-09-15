@@ -9,6 +9,13 @@
     "noTracksHelp": "Dit album bevat geen items die overeenkomen met de huidige nummers weergave.",
     "viewOnMusicBrainz": "Bekijk op MusicBrainz"
   },
+  "appUpdate": {
+    "available": "Nieuwe versie van MuMa: {version}",
+    "checkFailed": "Controleren op updates is niet gelukt.",
+    "download": "Downloaden",
+    "openFailed": "Kon de download niet openen.",
+    "upToDate": "Je hebt de nieuwste versie ({version})."
+  },
   "artist": {
     "about": "Over {name}",
     "allSets": "Alle sets",
@@ -966,13 +973,33 @@
   },
   "settings": {
     "about": {
+      "android": "Android",
+      "app": "App",
+      "appName": "Naam",
+      "appVersion": "Versie",
       "blurb": "Je eigen muziekbibliotheek, overal te beluisteren. Loopt er iets niet goed of mis je een nummer? Laat het weten aan de beheerder van deze server.",
+      "buildType": "Build",
+      "builtAt": "gebouwd {date}",
+      "bundleVersion": "Webinterface",
+      "checkFailed": "Controleren is niet gelukt.",
+      "checkForUpdate": "Controleren op updates",
+      "checking": "Controleren…",
+      "device": "Toestel",
       "howCarModeBody": "De telefoon aansluiten op Android Auto opent het autoscherm helemaal zelf. De schakelaar \"Automodus\" onder Apparaatinstellingen is alleen voor rijden zonder gekoppelde auto — die zet handmatig aan wat Android Auto anders zelf had aangezet.",
       "howCarModeTitle": "Hoe de automodus aangaat",
       "howItWorksTitle": "Hoe werkt…",
+      "lmsVersion": "Muziekserver (LMS)",
+      "mumaVersion": "MuMa API",
       "noReleaseNotes": "Nog geen release notes beschikbaar.",
+      "packageName": "Pakket",
+      "releaseNotesApp": "Wat is er nieuw in de app",
+      "server": "Server",
+      "serverUrl": "Adres",
       "subtitle": "Welke versie je gebruikt en wat er onlangs is veranderd.",
       "title": "Over MuMa",
+      "unknown": "onbekend",
+      "upToDate": "Je hebt de nieuwste versie.",
+      "updateAvailable": "Nieuwere versie beschikbaar: {version}",
       "whatsNew": "Wat is er nieuw"
     },
     "advanced": {

@@ -27,6 +27,7 @@
   import { t } from './lib/i18n/index.js';
   import { logAction } from './lib/diagnosticsLog.js';
   import { checkForMobileUpdate } from './lib/mobileReleaseNotes.js';
+  import { checkForAppUpdate } from './lib/appUpdate.js';
 
   const hours = new Date().getHours();
   const greetingKey = hours < 12 ? 'greeting.morning' : hours < 18 ? 'greeting.afternoon' : 'greeting.evening';
@@ -188,6 +189,8 @@
     // No-op in a browser tab, same as the three subscriptions above: a plain
     // `isNative` check inside, so there is no platform branch here either.
     checkForMobileUpdate().catch(() => {});
+    // Looks the other way: whether a newer APK exists. Once a day, quiet unless there is one.
+    checkForAppUpdate().catch(() => {});
 
     return () => {
       for (const unsubscribe of unsubscribes) unsubscribe();

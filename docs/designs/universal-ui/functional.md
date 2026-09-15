@@ -405,6 +405,21 @@ now uses Spotify's phone navigation below `md` (`isMobile`); desktop navigation 
   checkout. `releaseNotes()` reads the exact same asset `copyChangelog` in `app/build.gradle`
   already stages for the legacy `Util.showChangelog`, so nothing new needed wiring into the Gradle
   build, and the text is only asked for once an upgrade is already confirmed, not on every boot.
+- **Update check — decided 2026-09-15: back, in the web.** `util/UpdateChecker.kt` went with the
+  Kotlin home screen that ran it on every start, and nothing asked apk-hoster since — the first
+  phone on build 312 heard nothing about 313. The fetch and the comparison are the shell's
+  again (`MumaSystem.checkForUpdate()`, same `/api/version?apk=<series>` query as before, a
+  debug build asking after the debug series and a release build after the release one), and
+  `MumaSystem.openUrl()` opens the download outside the WebView, an APK not being a page. When
+  to ask and how to tell the listener is `appUpdate.js`: once a day from `App.svelte`'s boot
+  path, quiet unless a newer build exists (a notification with a "Downloaden" action), and on
+  demand from the About page's "Controleren op updates" button, which also says "you have the
+  newest" and reports a hoster that could not be reached as a failure rather than as up to date.
+  `About.svelte` grew into the version overview along the way: `MumaSystem.appVersion()` now also
+  carries the version code, build type, package, Android version and device (`appInfo()` on the
+  web side), and the page lists those next to the MuMa API version (`/health`), the LMS version
+  (`/rest/ping`), the server address and the web bundle's git hash (`version.json`); inside the
+  shell the "what's new" section shows the app's own changelog rather than the LMS server's.
 - **Manual — decided 2026-09-14: retire, with one paragraph moved.** Read every chapter in
   `ManualChapter.kt`. All but one describe a screen the web already has and already reads the
   same way; retiring the manual loses nothing there. The exception: nowhere in the web UI is it

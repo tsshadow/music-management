@@ -26,29 +26,37 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("#username")).toHaveCount(0, { timeout: 15_000 });
 });
 
-test("the phone's three bottom tabs move between Home, Search and Library", async ({ page }) => {
+test("the phone's three bottom tabs move between Home, Browse and Favourites", async ({ page }) => {
   const bottomBar = page.getByRole("navigation", { name: "Navigatiebalk" });
   await expect(bottomBar).toBeVisible();
 
-  await bottomBar.getByRole("button", { name: "Zoeken" }).click();
-  await expect(page).toHaveURL(/\/search$/);
+  await bottomBar.getByRole("button", { name: "Bladeren" }).click();
+  await expect(page).toHaveURL(/\/browse$/);
   await expect(page.getByText("Alles doorbladeren")).toBeVisible();
 
-  await bottomBar.getByRole("button", { name: "Bieb" }).click();
-  await expect(page).toHaveURL(/\/playlists$/);
+  await bottomBar.getByRole("button", { name: "Favorieten" }).click();
+  await expect(page).toHaveURL(/\/favorites$/);
+  await expect(page.getByTestId("favorites-view")).toBeVisible();
 
   await bottomBar.getByRole("button", { name: "Home" }).click();
   await expect(page).toHaveURL(/\/$/);
 });
 
-test("a browse tile under Search opens the section it stands for", async ({ page }) => {
+test("a browse tile opens the section it stands for", async ({ page }) => {
   await page
     .getByRole("navigation", { name: "Navigatiebalk" })
-    .getByRole("button", { name: "Zoeken" })
+    .getByRole("button", { name: "Bladeren" })
     .click();
 
   await page.getByRole("button", { name: "Genres" }).click();
 
   await expect(page).toHaveURL(/\/genres$/);
   await expect(page.getByRole("heading", { name: "Genres" })).toBeVisible();
+});
+
+// `/search` was the tab's URL before it became Browse; a bookmark or a shared link
+// from then must still land on the grid rather than on nothing.
+test("the old /search URL still opens the browse grid", async ({ page }) => {
+  await page.goto("/search");
+  await expect(page.getByText("Alles doorbladeren")).toBeVisible();
 });

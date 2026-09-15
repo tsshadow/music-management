@@ -1718,6 +1718,7 @@
       onskip={skip}
       ontoggleEqualizer={() => (showEqualizer = !showEqualizer)}
       {ontoggleQueue}
+      {onnavigate}
     />
   {:else}
     <!-- Desktop Player -->

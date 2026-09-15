@@ -27,6 +27,7 @@ function renderNowPlaying(props = {}) {
     onseek: vi.fn(),
     ontoggleEqualizer: vi.fn(),
     ontoggleQueue: vi.fn(),
+    onnavigate: vi.fn(),
     ...props,
   });
 }
@@ -188,6 +189,91 @@ describe("NowPlaying", () => {
 
     expect(screen.getByText("Raise your fist")).toBeTruthy();
     expect(screen.getByText("in the air")).toBeTruthy();
+  });
+});
+
+describe("NowPlaying track info", () => {
+  it("shows every artist through ArtistList and navigates to one that has an id", async () => {
+    const onclose = vi.fn();
+    const onnavigate = vi.fn();
+    renderNowPlaying({
+      track: { ...TRACK, artists: [{ id: "ar1", name: "Angerfist" }] },
+      onclose,
+      onnavigate,
+    });
+
+    await fireEvent.click(screen.getByText("Angerfist"));
+
+    // Now Playing closes itself before handing the tap on to the router --
+    // otherwise the full-screen player would be left stranded over the
+    // artist page it just opened.
+    expect(onclose).toHaveBeenCalled();
+    expect(onnavigate).toHaveBeenCalledWith("artist:ar1");
+  });
+
+  it("makes the album line a link to the album, and closes first", async () => {
+    const onclose = vi.fn();
+    const onnavigate = vi.fn();
+    renderNowPlaying({ track: { ...TRACK, albumId: "al1" }, onclose, onnavigate });
+
+    await fireEvent.click(screen.getByText("Afspelen uit: Bad Blood"));
+
+    expect(onclose).toHaveBeenCalled();
+    expect(onnavigate).toHaveBeenCalledWith("album:al1");
+  });
+
+  it("does not make the album line a link without an album id", () => {
+    renderNowPlaying({ track: { ...TRACK, albumId: null } });
+
+    const label = screen.getByText("Afspelen uit: Bad Blood");
+    expect(label.tagName).not.toBe("BUTTON");
+  });
+
+  it("shows genre chips under the artist and navigates through one", async () => {
+    const onclose = vi.fn();
+    const onnavigate = vi.fn();
+    renderNowPlaying({ track: { ...TRACK, genre: "hardstyle,hardcore" }, onclose, onnavigate });
+
+    expect(screen.getByTestId("now-playing-meta")).toBeTruthy();
+    await fireEvent.click(screen.getByText("hardstyle"));
+
+    expect(onclose).toHaveBeenCalled();
+    expect(onnavigate).toHaveBeenCalledWith("genre:hardstyle");
+  });
+
+  it("shows no meta line for a track with no genre, date or label", () => {
+    renderNowPlaying({ track: TRACK });
+    expect(screen.queryByTestId("now-playing-meta")).toBeNull();
+  });
+
+  it("offers the song page only when the track has a workId", () => {
+    renderNowPlaying({ track: { ...TRACK, workId: 42 } });
+    expect(screen.getByTestId("now-playing-song")).toBeTruthy();
+  });
+
+  it("hides the song button without a workId", () => {
+    renderNowPlaying({ track: { ...TRACK, workId: null } });
+    expect(screen.queryByTestId("now-playing-song")).toBeNull();
+  });
+
+  it("navigates to the song page and closes first", async () => {
+    const onclose = vi.fn();
+    const onnavigate = vi.fn();
+    renderNowPlaying({ track: { ...TRACK, workId: 42 }, onclose, onnavigate });
+
+    await fireEvent.click(screen.getByTestId("now-playing-song"));
+
+    expect(onclose).toHaveBeenCalled();
+    expect(onnavigate).toHaveBeenCalledWith("song:42");
+  });
+
+  it("opens the details sheet for the current track", async () => {
+    renderNowPlaying({ track: { ...TRACK, genre: "hardstyle" } });
+
+    await fireEvent.click(screen.getByTestId("now-playing-details"));
+
+    expect(screen.getByTestId("song-details")).toBeTruthy();
+    expect(screen.getAllByText("Raise Your Fist").length).toBeGreaterThan(0);
   });
 });
 

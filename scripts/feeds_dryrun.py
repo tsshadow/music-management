@@ -79,6 +79,8 @@ def print_hardness(feed) -> None:
             print(f'  {source:>8}: {count}')
     if feed.relaxed_to is not None:
         print(f'  relaxed release window to: {feed.relaxed_to}')
+    if feed.filled_from_unknown:
+        print(f'  filled from unknown-hardness candidates: {feed.filled_from_unknown}')
 
 
 def _limited(tracks: list[dict], limit: int | None) -> list[dict]:

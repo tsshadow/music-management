@@ -17,7 +17,13 @@ from pydantic import BaseModel
 from services.common.config_store import ConfigStore as Settings
 from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
-from services.music_manager.feeds.build import DUTCH_BAND_TITLE, build_feed, describe_feed, resolve_profile
+from services.music_manager.feeds.build import (
+    CLASSIC_TITLE,
+    DUTCH_BAND_TITLE,
+    build_feed,
+    describe_feed,
+    resolve_profile,
+)
 from services.music_manager.feeds.policy import POLICIES, STARTING_GENRES_SETTING, parse_starting_genres
 from services.music_manager.feeds.queries import exclusions_query
 from services.music_manager.library_paths import relative_path
@@ -118,18 +124,19 @@ def _affinities(values: dict[str, float]) -> list[dict]:
     ]
 
 
-#: The alias for daily-mix-mid is not offered here, so a client discovering feeds
-#: never sees the same mix described twice under two names -- it stays reachable
-#: at /api/feeds/daily-mix because the car and the phone already hardcode that slug.
-_LISTED_SLUGS = [slug for slug in POLICIES if slug != 'daily-mix']
+#: Every policy is listed, including the classic 'daily-mix' -- it is its own
+#: policy now, not a duplicate of daily-mix-mid, so there is nothing to hide it
+#: behind. Clients that already hardcode the slug need not read this list at all.
+_LISTED_SLUGS = list(POLICIES)
 
 
 def _fallback_title(policy) -> str:
     """A name for a feed with no listener in mind at all.
 
     Reached only when the caller is a system key that named no `username` -- there
-    is no profile to resolve, so nothing here calls `describe_feed`, but the three
-    spectrum mixes' Dutch names are static and do not need one either.
+    is no profile to resolve, so nothing here calls `describe_feed`, but the
+    spectrum mixes' and the classic mix's Dutch names are static and do not need
+    one either.
     """
     if policy.hardness_band:
         return DUTCH_BAND_TITLE.get(policy.hardness_band, policy.slug)
@@ -139,6 +146,8 @@ def _fallback_title(policy) -> str:
         return 'Labelmix'
     if policy.slug == 'release-radar':
         return 'Release Radar'
+    if policy.slug == 'daily-mix':
+        return CLASSIC_TITLE
     return policy.slug
 
 
@@ -279,4 +288,5 @@ def get_feed(
         'hardness_band': list(feed.hardness_band) if feed.hardness_band else None,
         'hardness_source_counts': feed.hardness_source_counts,
         'relaxed_to': feed.relaxed_to,
+        'filled_from_unknown': feed.filled_from_unknown,
     }

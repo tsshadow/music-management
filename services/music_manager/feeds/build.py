@@ -40,6 +40,11 @@ RAMP_TRACKS = 30
 #: and the detail response can never disagree about what a band is called.
 DUTCH_BAND_TITLE = {'soft': 'Zachter', 'mid': 'Middenin', 'hard': 'Harder'}
 
+#: The classic, unrestricted 'daily-mix' slug's title -- distinct from the three
+#: spectrum mixes so a client listing all six knows which one is the one it has
+#: always called, with no hardness filter to come up short on a thin library.
+CLASSIC_TITLE = 'Klassiek'
+
 #: `release_window_days` 90 -> 365 -> None, tried in order until a hardness band
 #: has enough candidates (`MIN_BAND_CANDIDATES`) or there is nothing left to relax.
 #: Fixed rather than derived from the policy's own window because the three band
@@ -58,7 +63,7 @@ class Feed:
     tracks: list[dict]
     funnel: dict[str, int]
     # Dutch, client-facing: what the home screen shows for this feed. None for
-    # release-radar and the alias 'daily-mix', which have no per-request identity
+    # release-radar and the classic 'daily-mix', which have no per-request identity
     # of their own to describe.
     title: str | None = None
     subtitle: str | None = None
@@ -76,6 +81,12 @@ class Feed:
     # be ambiguous between those last two -- release_window_days=None already means
     # "no window" everywhere else in this package.
     relaxed_to: int | str | None = None
+    # Only set for a hardness_band policy: how many places, after the full
+    # relaxation ladder still left the band short of `policy.size`, were filled
+    # from candidates with no resolvable hardness rather than left empty. `0` when
+    # the band filled the mix on its own; `None` for every other policy, which
+    # never runs this fallback at all.
+    filled_from_unknown: int | None = None
 
 
 @dataclass(frozen=True)
@@ -328,6 +339,8 @@ def _describe(conn, username: str, policy: FeedPolicy, now: datetime, profile: T
         }
     if policy.slug == 'release-radar':
         return {**empty, 'title': 'Release Radar'}
+    if policy.slug == 'daily-mix':
+        return {**empty, 'title': CLASSIC_TITLE, 'subtitle': 'De originele daily mix, ongefilterd op hardheid'}
     return empty
 
 
@@ -345,6 +358,91 @@ def describe_feed(
     resolution = resolve_profile(conn, username, policy.profile_window_days, now, starting_genres)
     info = _describe(conn, username, policy, now, resolution.profile)
     return {'title': info['title'], 'subtitle': info['subtitle']}
+
+
+def _load_band_candidates(
+    conn, username: str, policy: FeedPolicy, now: datetime, info: dict
+) -> tuple[list[dict], int | str | None]:
+    """Step 4, plus the hardness-band relaxation ladder.
+
+    For a plain policy (release-radar, the classic daily-mix, the two rotating
+    mixes) this is one query at `policy.release_window_days`, exactly as before
+    this feature existed. For a `hardness_band` policy, `release_window_days` is
+    tried at 90, then 365, then not at all, stopping as soon as `MIN_BAND_CANDIDATES`
+    is reached or the ladder runs out -- returning whichever window it stopped at,
+    reported back as `relaxed_to` ('none' for "no window at all", never a bare
+    `None`, which already means "no relaxation was needed" on that same field).
+    """
+    if not policy.hardness_band:
+        plain_candidates = _load_candidates(conn, username, policy, now, entity_filter=info['entity_filter'])
+        return plain_candidates, None
+
+    lo, hi = info['band_edges']
+    relaxed_to: int | str | None = None
+    candidates: list[dict] = []
+    for window in BAND_RELAXATION_WINDOWS:
+        trial_policy = policy if window == policy.release_window_days else replace(policy, release_window_days=window)
+        loaded = _load_candidates(conn, username, trial_policy, now, entity_filter=info['entity_filter'])
+        _annotate_hardness(conn, loaded, id_field='id')
+        candidates = [
+            candidate
+            for candidate in loaded
+            if candidate.get('hardness') is not None
+            and classify_band(candidate['hardness'], lo, hi) == policy.hardness_band
+        ]
+        if len(candidates) >= MIN_BAND_CANDIDATES or window == BAND_RELAXATION_WINDOWS[-1]:
+            if window != policy.release_window_days:
+                relaxed_to = 'none' if window is None else window
+            break
+    return candidates, relaxed_to
+
+
+def _backfill_from_unknown(
+    conn,
+    username: str,
+    policy: FeedPolicy,
+    now: datetime,
+    info: dict,
+    emitted: list[dict],
+    order_key,
+) -> tuple[list[dict], int]:
+    """A hardness_band mix's last resort, once steps 4-8 have run.
+
+    The relaxation ladder above already tried every window looking for enough
+    candidates *in this band*; if the result is still short of `policy.size`, a
+    thin library is better served by a fuller mix of unknown hardness than by an
+    honestly short (or empty) one. This is the one place any hardness_band feed
+    emits a track whose hardness could not be resolved -- everywhere else it was
+    excluded, not guessed into a bucket.
+
+    Always re-fetches at `release_window_days=None` rather than reusing the
+    relaxation ladder's own last candidate set: that ladder may have already
+    stopped at window=90 because the band itself had enough candidates, and never
+    collected an unknown-hardness pool wider than whichever window it settled on.
+    The extra query only runs in the (rare) case a mix is still short after step 8,
+    not on every hardness_band request.
+    """
+    if len(emitted) >= policy.size:
+        return emitted, 0
+
+    widest_policy = replace(policy, release_window_days=None)
+    widest_candidates = _load_candidates(conn, username, widest_policy, now, entity_filter=info['entity_filter'])
+    _annotate_hardness(conn, widest_candidates, id_field='id')
+    already_emitted = {track['id'] for track in emitted}
+    unknown_candidates = [
+        candidate
+        for candidate in widest_candidates
+        if candidate.get('hardness') is None and candidate['id'] not in already_emitted
+    ]
+    if not unknown_candidates:
+        return emitted, 0
+
+    ordered_unknown = sorted(unknown_candidates, key=order_key)
+    for candidate in ordered_unknown:
+        candidate['bucket'] = '__unknown__'
+        candidate['reason'] = 'unknown_hardness'
+    combined = _cap_per_artist(emitted + ordered_unknown, policy.max_per_artist)[: policy.size]
+    return combined, len(combined) - len(emitted)
 
 
 def _dominant_genre_map(conn, dimension: str, names: list[str]) -> dict[str, str]:
@@ -530,25 +628,7 @@ def build_feed(
     # for release-radar or a rotating mix, and an empty result is never backfilled.
     # A hardness-band mix is the one exception: its release window may be relaxed
     # below, in Python, once the band filter has had a chance to run against it.
-    relaxed_to = None
-    windows = BAND_RELAXATION_WINDOWS if policy.hardness_band else (policy.release_window_days,)
-    candidates: list[dict] = []
-    for window in windows:
-        trial_policy = policy if window == policy.release_window_days else replace(policy, release_window_days=window)
-        candidates = _load_candidates(conn, username, trial_policy, now, entity_filter=info['entity_filter'])
-        if policy.hardness_band:
-            _annotate_hardness(conn, candidates, id_field='id')
-            lo, hi = info['band_edges']
-            candidates = [
-                candidate
-                for candidate in candidates
-                if candidate.get('hardness') is not None
-                and classify_band(candidate['hardness'], lo, hi) == policy.hardness_band
-            ]
-        if not policy.hardness_band or len(candidates) >= MIN_BAND_CANDIDATES or window == windows[-1]:
-            if policy.hardness_band and window != policy.release_window_days:
-                relaxed_to = 'none' if window is None else window
-            break
+    candidates, relaxed_to = _load_band_candidates(conn, username, policy, now, info)
     funnel = {'candidates': len(candidates)}
 
     # Step 5: which share each candidate competes in. The two dominant-genre
@@ -564,61 +644,67 @@ def build_feed(
     ]
     funnel['bucketed'] = len(bucketed)
 
-    if not bucketed:
-        funnel.update(allocated=0, capped=0, emitted=0)
-        return Feed(
-            slug=policy.slug,
-            state='no_matches',
-            scope=profile.scope,
-            tracks=[],
-            funnel=funnel,
-            title=info['title'],
-            subtitle=info['subtitle'],
-            hardness_band=info['band_edges'],
-            hardness_source_counts=info['hardness_source_counts'],
-            relaxed_to=relaxed_to,
-        )
-
-    # Step 6: how many places each share gets, capped by what is available.
-    available = Counter(track['bucket'] for track in bucketed)
-    allocation = redistribute(allocate(shares, policy.size), dict(available))
-    funnel['allocated'] = sum(allocation.values())
-
-    # Step 7: order within each share, then take that share's places.
-    by_bucket: dict[str, list[dict]] = defaultdict(list)
-    for track in bucketed:
-        by_bucket[track['bucket']].append(track)
-
     order_key = _order_key_fn(policy, profile, username, now.date())
-    selected = []
-    for bucket, count in allocation.items():
-        if count <= 0:
-            continue
-        ordered = sorted(by_bucket.get(bucket, []), key=order_key)
-        selected.extend(ordered[:count])
-    # Sorted twice on purpose. The per-bucket sort decides *which* tracks win
-    # their share's places; this one decides what the listener reads first, over
-    # the whole list -- newest release first for the radar, the daily draw for
-    # the mix. Without it the feed comes out grouped by bucket, in the arbitrary
-    # order the allocation dict happens to have.
-    selected.sort(key=order_key)
 
-    # Step 8: cap per artist, then the global size. The cap *removes* tracks
-    # after their share was already allocated and filled, and the freed places
-    # are not handed back to anyone -- so a feed can legitimately come out
-    # shorter than policy.size. That is the honest outcome and the funnel says
-    # so: `capped` below `allocated` is exactly this, and nothing is
-    # backfilled with an unrelated track to hide it.
-    capped = _cap_per_artist(selected, policy.max_per_artist)
-    funnel['capped'] = len(capped)
-    # A guard, not a working limit: `allocate` hands out at most policy.size
-    # places, `redistribute` never raises that total, the per-bucket take is
-    # bounded by it and the artist cap only shrinks the list, so `capped` is
-    # already no longer than policy.size. Kept because it is the one line that
-    # makes "the API never returns more than it asked for" independent of the
-    # quota's arithmetic staying correct.
-    emitted = capped[: policy.size]
+    if bucketed:
+        # Step 6: how many places each share gets, capped by what is available.
+        available = Counter(track['bucket'] for track in bucketed)
+        allocation = redistribute(allocate(shares, policy.size), dict(available))
+        funnel['allocated'] = sum(allocation.values())
+
+        # Step 7: order within each share, then take that share's places.
+        by_bucket: dict[str, list[dict]] = defaultdict(list)
+        for track in bucketed:
+            by_bucket[track['bucket']].append(track)
+
+        selected = []
+        for bucket, count in allocation.items():
+            if count <= 0:
+                continue
+            ordered = sorted(by_bucket.get(bucket, []), key=order_key)
+            selected.extend(ordered[:count])
+        # Sorted twice on purpose. The per-bucket sort decides *which* tracks win
+        # their share's places; this one decides what the listener reads first,
+        # over the whole list -- newest release first for the radar, the daily
+        # draw for the mix. Without it the feed comes out grouped by bucket, in
+        # the arbitrary order the allocation dict happens to have.
+        selected.sort(key=order_key)
+
+        # Step 8: cap per artist, then the global size. The cap *removes*
+        # tracks after their share was already allocated and filled, and the
+        # freed places are not handed back to anyone -- so a feed can
+        # legitimately come out shorter than policy.size. For release-radar and
+        # the two rotating mixes that is the honest final answer: `capped`
+        # below `allocated` in the funnel is exactly this, and nothing here is
+        # backfilled with an unrelated track to hide it. A hardness_band policy
+        # gets one more chance below, from candidates this pipeline never
+        # considered at all.
+        capped = _cap_per_artist(selected, policy.max_per_artist)
+        funnel['capped'] = len(capped)
+        # A guard, not a working limit: `allocate` hands out at most
+        # policy.size places, `redistribute` never raises that total, the
+        # per-bucket take is bounded by it and the artist cap only shrinks the
+        # list, so `capped` is already no longer than policy.size. Kept
+        # because it is the one line that makes "the API never returns more
+        # than it asked for" independent of the quota's arithmetic staying
+        # correct.
+        emitted = capped[: policy.size]
+    else:
+        funnel.update(allocated=0, capped=0)
+        emitted = []
     funnel['emitted'] = len(emitted)
+
+    # A hardness_band mix's last resort: the relaxation loop above already tried
+    # every window looking for enough candidates *in this band*; if the result is
+    # still short of policy.size, a thin library is better served by a fuller mix
+    # of unknown hardness than by an honestly short (or empty) one. This is the
+    # one place any hardness_band feed emits a track whose hardness could not be
+    # resolved -- everywhere else in this function such a track was excluded, not
+    # guessed into a bucket.
+    filled_from_unknown = None
+    if policy.hardness_band:
+        emitted, filled_from_unknown = _backfill_from_unknown(conn, username, policy, now, info, emitted, order_key)
+        funnel['emitted'] = len(emitted)
 
     if not emitted:
         return Feed(
@@ -632,6 +718,7 @@ def build_feed(
             hardness_band=info['band_edges'],
             hardness_source_counts=info['hardness_source_counts'],
             relaxed_to=relaxed_to,
+            filled_from_unknown=filled_from_unknown,
         )
 
     return Feed(
@@ -645,4 +732,5 @@ def build_feed(
         hardness_band=info['band_edges'],
         hardness_source_counts=info['hardness_source_counts'],
         relaxed_to=relaxed_to,
+        filled_from_unknown=filled_from_unknown,
     )

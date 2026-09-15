@@ -71,16 +71,18 @@ _DAILY_MIX_BASE = FeedPolicy(
     heard_rank_penalty=False,
 )
 
-_daily_mix_mid = replace(_DAILY_MIX_BASE, slug='daily-mix-mid', hardness_band='mid')
-
 POLICIES: dict[str, FeedPolicy] = {
     'release-radar': FeedPolicy(slug='release-radar', release_window_days=7),
-    # The car and the phone already call this slug; it stays live as an exact alias
-    # of daily-mix-mid rather than its own, third implementation of "the middle of
-    # the spectrum".
-    'daily-mix': replace(_daily_mix_mid, slug='daily-mix'),
+    # The classic, unrestricted daily mix -- byte-for-byte the policy this slug has
+    # always had, and *not* an alias of daily-mix-mid: the car and the phone already
+    # call it, and it must never lose a track to a missing hardness value the way a
+    # hardness_band mix deliberately does. A design correction after MR !798's first
+    # pipeline: aliasing it to daily-mix-mid meant a library with thin genre coverage
+    # (the integration schema's fixtures, and any real one before the tagger catches
+    # up) answered 'no_matches' for a slug that used to always find something.
+    'daily-mix': replace(_DAILY_MIX_BASE, slug='daily-mix'),
     'daily-mix-soft': replace(_DAILY_MIX_BASE, slug='daily-mix-soft', hardness_band='soft'),
-    'daily-mix-mid': _daily_mix_mid,
+    'daily-mix-mid': replace(_DAILY_MIX_BASE, slug='daily-mix-mid', hardness_band='mid'),
     'daily-mix-hard': replace(_DAILY_MIX_BASE, slug='daily-mix-hard', hardness_band='hard'),
     'daily-mix-artist': replace(_DAILY_MIX_BASE, slug='daily-mix-artist', rotate='artist'),
     'daily-mix-label': replace(_DAILY_MIX_BASE, slug='daily-mix-label', rotate='label'),

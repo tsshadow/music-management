@@ -306,16 +306,29 @@ measurement to mean anything (under 30 heard tracks with a resolvable hardness) 
 points) gets their median ± 15 rather than three mixes that all draw from the same five-point sliver.
 
 If a band still has too few candidates once filtered (fewer than 15), the mix widens its own
-90-day window to 365 days, then to no window at all, before giving up — reported so the client can
-say why a mix looks thin rather than pretending it never happened.
+90-day window to 365 days, then to no window at all, before giving up on the band as such —
+reported so the client can say why a mix looks thin rather than pretending it never happened. If,
+even after that, the mix would still come up short of its 30 places, the remaining places are
+filled from candidates whose hardness could not be resolved at all, rather than leaving the mix
+short or empty: a library with thin genre coverage still gets a full mix, and the response says how
+many places were filled this way (`filled_from_unknown`). This is a deliberate second line of
+defence, decided after the first version of this shipped and lost tracks on exactly the schema a
+CI test seeds: a band that excludes every unscored track can go empty long before "no more window
+to widen" is the real problem — genre coverage is 28% of the library, so most tracks start with no
+hardness at all.
 
 `daily-mix-artist` and `daily-mix-label` are the two free slots: the same daily-mix pool, restricted
 to one artist or one label chosen from the listener's own top 10 by a hash of their username and
 today's date, so it visibly rotates day to day without needing a job to pick it.
 
-`daily-mix` — the slug the car and the phone already call — keeps working, as an exact alias of
-`daily-mix-mid`. Nothing already shipped needs to change to get a mix that behaves the same as
-before, on the middle third of a spectrum that did not previously exist.
+`daily-mix` — the slug the car and the phone already call — keeps working exactly as it always has:
+the same, unrestricted policy, filtered on nothing about hardness. It is **not** one of the three
+spectrum mixes and not an alias of any of them; an early version of this feature aliased it to
+`daily-mix-mid` and that meant a track with no scored genre could lose its place on the one slug
+already shipped to production, on a server whose tagger has not caught up yet. `GET /api/feeds`
+lists it alongside the five new slugs, titled "Klassiek", so a client discovering feeds sees all six
+and can explain the difference; nothing already shipped needs to change either way, since the slug's
+behaviour has not.
 
 ## Open Questions / Not Yet Decided
 

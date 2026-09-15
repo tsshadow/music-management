@@ -45,13 +45,22 @@ class SpectrumPolicyTest(unittest.TestCase):
                 self.assertEqual(policy.order, 'daily_sample')
                 self.assertIsNone(policy.rotate)
 
-    def test_plain_daily_mix_is_an_exact_alias_of_the_mid_band(self):
-        alias, mid = POLICIES['daily-mix'], POLICIES['daily-mix-mid']
-        self.assertEqual(alias.hardness_band, mid.hardness_band)
-        self.assertEqual(alias.release_window_days, mid.release_window_days)
-        self.assertEqual(alias.pools, mid.pools)
-        self.assertEqual(alias.order, mid.order)
-        self.assertNotEqual(alias.slug, mid.slug)
+    def test_plain_daily_mix_is_the_classic_unrestricted_policy(self):
+        """Design correction: 'daily-mix' is not an alias of 'daily-mix-mid' --
+
+        aliasing it meant a track with no resolvable hardness lost its place on
+        the one slug the car and the phone already call, which must never come
+        up empty just because the library's genre coverage is thin. It shares
+        the same pool/order/window as the band mixes (still one ranker, many
+        parameter sets) but carries no hardness_band of its own.
+        """
+        classic, mid = POLICIES['daily-mix'], POLICIES['daily-mix-mid']
+        self.assertIsNone(classic.hardness_band)
+        self.assertIsNone(classic.rotate)
+        self.assertEqual(classic.release_window_days, mid.release_window_days)
+        self.assertEqual(classic.pools, mid.pools)
+        self.assertEqual(classic.order, mid.order)
+        self.assertNotEqual(classic.slug, mid.slug)
 
 
 class RotatingPolicyTest(unittest.TestCase):

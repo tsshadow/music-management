@@ -125,8 +125,9 @@ class FeedPolicy:
     rotate: str | None = None                     # 'artist' | 'label' | None
 
 POLICIES: dict[str, FeedPolicy]
-# 'release-radar', 'daily-mix' (alias of 'daily-mix-mid'), 'daily-mix-soft',
-# 'daily-mix-mid', 'daily-mix-hard', 'daily-mix-artist', 'daily-mix-label'
+# 'release-radar', 'daily-mix' (classic, unrestricted -- not an alias of any
+# band), 'daily-mix-soft', 'daily-mix-mid', 'daily-mix-hard', 'daily-mix-artist',
+# 'daily-mix-label'
 
 # hierarchy.py
 def ancestors(genre: str, parents: dict[str, set[str]], max_depth: int = 8) -> set[str]
@@ -191,6 +192,7 @@ class Feed:
     hardness_band: tuple[float, float] | None = None
     hardness_source_counts: dict[str, int] | None = None
     relaxed_to: int | str | None = None   # int, 'none', or None (no relaxation)
+    filled_from_unknown: int | None = None   # hardness_band only; None elsewhere
 @dataclass(frozen=True)
 class ProfileResolution:
     profile: TasteProfile
@@ -336,13 +338,30 @@ resolved one. `hardness_band_edges()` then applies functional.md's rule: fewer t
 → the fixed fallback `(40, 70)`; otherwise the weighted 33rd/67th percentile, widened to `median ±
 15` if those two land closer together than that.
 
-`build_feed`, for a `hardness_band` policy, loads candidates, annotates them the same way, and keeps
-only the ones whose `classify_band(hardness, lo, hi)` matches the policy's own band — a candidate
-with no resolvable hardness is dropped, never guessed into a bucket. If fewer than
-`MIN_BAND_CANDIDATES` (15) survive, the loop retries with `release_window_days` widened
-90 → 365 → `None` (`BAND_RELAXATION_WINDOWS`), and `Feed.relaxed_to` reports whichever widened value
-was actually used — the literal string `'none'` for "no window at all", never a bare `None`, which
-already means "no relaxation happened" on the same field.
+`build._load_band_candidates`, for a `hardness_band` policy, loads candidates, annotates them the
+same way, and keeps only the ones whose `classify_band(hardness, lo, hi)` matches the policy's own
+band — a candidate with no resolvable hardness is dropped at this step, never guessed into a bucket
+here. If fewer than `MIN_BAND_CANDIDATES` (15) survive, the loop retries with `release_window_days`
+widened 90 → 365 → `None` (`BAND_RELAXATION_WINDOWS`), and `Feed.relaxed_to` reports whichever
+widened value was actually used — the literal string `'none'` for "no window at all", never a bare
+`None`, which already means "no relaxation happened" on the same field. Steps 5-8 then run on this
+banded set exactly as for any other policy.
+
+**Backfill from unknown hardness.** A design correction made after this shipped once already:
+aliasing `daily-mix` to `daily-mix-mid` meant a track with no scored genre lost its place on the one
+slug already in production, and the same failure mode applies to the three band mixes themselves on
+a library whose tagger has not caught up — 28% genre coverage means most tracks start with no
+hardness at all, so "not enough candidates in the band" is the common case, not the edge case. After
+steps 5-8 run on the banded set, `build._backfill_from_unknown` checks whether `emitted` is still
+short of `policy.size`; if so, it re-fetches candidates at `release_window_days=None` (a second
+query, only when needed), keeps the ones with no resolvable hardness that are not already emitted,
+orders them with the same `order_key` steps 5-8 used, and fills the remaining places — capped by
+`max_per_artist` against the combined list, so a backfilled track still cannot flood one artist past
+the cap. Every backfilled track carries `bucket='__unknown__'`, `reason='unknown_hardness'`, and the
+count actually added is `Feed.filled_from_unknown` (an int for every `hardness_band` policy, `None`
+for every other one — `0` when the band filled the mix on its own). A hardness_band mix therefore
+never reports `no_matches` unless there is truly nothing in the library to offer it at all, both
+banded and unbanded.
 
 ### Rotation
 
@@ -362,7 +381,7 @@ feed reports `not_enough_data`.
 and `build_feed` (which needs the band edges or the chosen entity anyway, to filter candidates) call.
 `Feed.title`/`Feed.subtitle` and the list endpoint's per-slug `title`/`subtitle` therefore always
 agree: `DUTCH_BAND_TITLE` (`'Zachter' | 'Middenin' | 'Harder'`) for a band policy, the chosen name
-for a rotating one, `'Release Radar'` for the radar, `None` for the alias and anything else.
+for a rotating one, `'Release Radar'` for the radar, `CLASSIC_TITLE` (`'Klassiek'`) for `daily-mix`.
 
 ## API Contract
 
@@ -375,13 +394,15 @@ resolvable username gets instead).
 
 | Endpoint | Request | Response | Error cases |
 |---|---|---|---|
-| `GET /api/feeds` | `username` (optional, either key) | `{"feeds": [{"slug", "size", "window_days", "title", "subtitle"}, ...]}` — six entries, `daily-mix` excluded (it is `daily-mix-mid`'s alias) | 401 missing/invalid key |
-| `GET /api/feeds/{slug}` | `limit` (1–100, default from policy), `username` (system key only) | `{"slug", "state", "scope", "generated_at", "tracks": [...], "funnel": {...}, "title", "subtitle", "hardness_band": [lo, hi] \| null, "hardness_source_counts": {...} \| null, "relaxed_to"}` | 401; 404 unknown slug; 400 system key without `username`; 500 no database |
+| `GET /api/feeds` | `username` (optional, either key) | `{"feeds": [{"slug", "size", "window_days", "title", "subtitle"}, ...]}` — all seven policies, including the classic `daily-mix` | 401 missing/invalid key |
+| `GET /api/feeds/{slug}` | `limit` (1–100, default from policy), `username` (system key only) | `{"slug", "state", "scope", "generated_at", "tracks": [...], "funnel": {...}, "title", "subtitle", "hardness_band": [lo, hi] \| null, "hardness_source_counts": {...} \| null, "relaxed_to", "filled_from_unknown"}` | 401; 404 unknown slug; 400 system key without `username`; 500 no database |
 | `GET /api/feeds/profile` | `username` (system key only) | `{"scope", "distinct_tracks", "artists": [{"name","affinity"}], "labels": [...], "genres": [...], "excluded": [...]}` | 401; 400; 500 |
 | `PUT /api/feeds/profile/exclusions` | `{"entity_type": "label", "entity_name": "X", "excluded": true}` | `{"status": "ok"}` | 401; 422 unknown `entity_type`; 500 |
 
-`hardness_band`, `hardness_source_counts` and `relaxed_to` are `null` for every policy except the
-three spectrum mixes — a rotating or plain feed simply never sets them (`Feed`'s own defaults).
+`hardness_band`, `hardness_source_counts`, `relaxed_to` and `filled_from_unknown` are `null` for
+every policy except the three spectrum mixes — a rotating or classic feed simply never sets them
+(`Feed`'s own defaults). `filled_from_unknown` is `0`, not `null`, whenever a spectrum mix's own
+band filled `policy.size` without needing the backfill in "Band edges and filtering" above.
 
 `state` is `ok`, `no_matches` (nothing survived the filters) or `not_enough_data` (no profile could
 be built at all). A track object is the shape `/api/library/advanced` already returns — `id`, `title`,
@@ -488,16 +509,26 @@ measured before the anchors and the percentile split can be trusted.
 19. `hardness_band_edges` returns the fixed `(40, 70)` for fewer than `MIN_TRACKS_FOR_OWN_BAND`
     (30) weighted observations, and `median ± 15` rather than the raw p33/p67 when those two
     would otherwise land less than 15 points apart.
-20. A `hardness_band` policy excludes a candidate with no resolvable hardness from its emitted
-    tracks; a policy with too few candidates in its band after filtering relaxes
+20. A `hardness_band` policy excludes a candidate with no resolvable hardness from the band-matching
+    step (`funnel.bucketed`); a policy with too few candidates in its band after filtering relaxes
     `release_window_days` 90 → 365 → `None` in that order and reports the widened value (`'none'`
     for no window, never a bare `None`) as `Feed.relaxed_to`.
 21. `pick_daily_entity` is stable for the same `(username, date)` and changes for a different one;
     two different usernames are not guaranteed to diverge on every date pair, but do so across a
     handful of them.
-22. `GET /api/feeds` never enumerates the `daily-mix` alias, and reports a title/subtitle for
-    every listed slug that `GET /api/feeds/{slug}` would independently agree with for the same
-    listener (both call `_describe`/`describe_feed`, never a second computation).
+22. `GET /api/feeds` lists all seven policies including the classic `daily-mix`, and reports a
+    title/subtitle for every listed slug that `GET /api/feeds/{slug}` would independently agree
+    with for the same listener (both call `_describe`/`describe_feed`, never a second computation).
+23. `daily-mix` never excludes a candidate for lacking a resolvable hardness -- it carries no
+    `hardness_band` at all, and a track with no scored genre competes for a place exactly as it did
+    before this feature existed.
+24. When a `hardness_band` policy's emitted tracks are still short of `policy.size` after the full
+    relaxation ladder, `_backfill_from_unknown` fills the remainder from candidates with no
+    resolvable hardness, tagged `bucket='__unknown__'`, `reason='unknown_hardness'`, capped by
+    `max_per_artist` against the combined list; `Feed.filled_from_unknown` reports the count added
+    (`0` when the band already filled the mix, `None` for every non-`hardness_band` policy). A
+    `hardness_band` mix with any eligible candidates at all -- banded or not -- never reports
+    `no_matches`.
 
 ## Deliberately Not In V1
 

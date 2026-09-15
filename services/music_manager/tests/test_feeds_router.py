@@ -84,11 +84,11 @@ class FeedsRouterTest(_FeedsAuthTestCase):
     def test_listing_the_feeds_needs_a_key(self):
         self.assertEqual(client.get('/api/feeds').status_code, 401)
 
-    def test_listing_the_feeds_describes_every_policy_except_the_alias(self):
-        """'daily-mix' stays reachable at /api/feeds/daily-mix (the car and the phone
+    def test_listing_the_feeds_describes_every_policy(self):
+        """'daily-mix' is listed too -- it is its own policy now (the classic,
 
-        already hardcode it) but is not offered here, so a client discovering feeds
-        never sees the same mix -- daily-mix-mid -- described twice under two names.
+        unrestricted mix), not a duplicate of daily-mix-mid, so there is
+        nothing to hide it behind.
         """
         self._auth({'type': 'system'})
         response = client.get('/api/feeds', headers={'X-API-Key': 'k'})
@@ -98,6 +98,7 @@ class FeedsRouterTest(_FeedsAuthTestCase):
             slugs,
             {
                 'release-radar',
+                'daily-mix',
                 'daily-mix-soft',
                 'daily-mix-mid',
                 'daily-mix-hard',
@@ -115,8 +116,9 @@ class FeedsRouterTest(_FeedsAuthTestCase):
         self._auth({'type': 'system'})
         response = client.get('/api/feeds', headers={'X-API-Key': 'k'})
         self.assertEqual(response.status_code, 200)
-        soft = next(feed for feed in response.json()['feeds'] if feed['slug'] == 'daily-mix-soft')
-        self.assertEqual(soft['title'], 'Zachter')
+        feeds = {feed['slug']: feed for feed in response.json()['feeds']}
+        self.assertEqual(feeds['daily-mix-soft']['title'], 'Zachter')
+        self.assertEqual(feeds['daily-mix']['title'], 'Klassiek')
 
     def test_listing_the_feeds_calls_describe_feed_per_policy_for_a_known_user(self):
         """`GET /api/feeds` and `GET /api/feeds/{slug}` must describe a feed the

@@ -400,17 +400,67 @@ class HardnessBandBuildTest(unittest.TestCase):
         feed = build_feed(conn, 'user', POLICIES['daily-mix-hard'], NOW)
         self.assertEqual([t['id'] for t in feed.tracks], ['hard1'])
 
-    def test_daily_mix_the_alias_behaves_exactly_like_the_mid_band(self):
+    def test_daily_mix_is_the_classic_unrestricted_policy_not_a_band_alias(self):
+        """Design correction after MR !798's first pipeline: 'daily-mix' is its
+
+        own, unbanded policy again -- all three candidates come back regardless
+        of their hardness, because 'daily-mix' never filters on it at all. The
+        car and the phone must never lose a track to a missing hardness value on
+        this slug.
+        """
         conn = scripted(listens=MANY_LISTENS, candidates=SPECTRUM_CANDIDATES)
         feed = build_feed(conn, 'user', POLICIES['daily-mix'], NOW)
-        self.assertEqual([t['id'] for t in feed.tracks], ['mid1'])
+        self.assertEqual(sorted(t['id'] for t in feed.tracks), ['hard1', 'mid1', 'soft1'])
+        self.assertIsNone(feed.hardness_band)
+        self.assertIsNone(feed.filled_from_unknown)
 
-    def test_a_track_with_no_resolvable_hardness_is_excluded_rather_than_guessed(self):
+    def test_unknown_hardness_never_enters_the_band_directly(self):
+        """A candidate with no resolvable hardness is not bucketed into any
+
+        genre share -- the band-matching step (`bucketed`) never sees it.
+        """
         no_tempo = _candidate('no-tempo', None, 'Uptempo', bpm=None)
         conn = scripted(listens=MANY_LISTENS, candidates=[no_tempo])
         feed = build_feed(conn, 'user', POLICIES['daily-mix-mid'], NOW)
-        self.assertEqual(feed.tracks, [])
-        self.assertEqual(feed.state, 'no_matches')
+        self.assertEqual(feed.funnel['bucketed'], 0)
+
+    def test_unknown_hardness_is_still_offered_as_a_last_resort_filler(self):
+        """Design correction after MR !798's first pipeline: excluding an
+
+        unknown-hardness track from the band is not the same as excluding it
+        from the mix -- a thin library must still get a full mix rather than
+        an honestly empty one.
+        """
+        no_tempo = _candidate('no-tempo', None, 'Uptempo', bpm=None)
+        conn = scripted(listens=MANY_LISTENS, candidates=[no_tempo])
+        feed = build_feed(conn, 'user', POLICIES['daily-mix-mid'], NOW)
+        self.assertEqual(feed.state, 'ok')
+        self.assertEqual([t['id'] for t in feed.tracks], ['no-tempo'])
+        self.assertEqual(feed.tracks[0]['bucket'], '__unknown__')
+        self.assertEqual(feed.tracks[0]['reason'], 'unknown_hardness')
+        self.assertEqual(feed.filled_from_unknown, 1)
+
+    def test_a_full_band_never_reaches_for_unknown_hardness_filler(self):
+        plenty = [_candidate(f'mid{i}', None, 'Uptempo', bpm=165) for i in range(30)]
+        unknowns = [_candidate(f'unk{i}', None, 'Uptempo', bpm=None) for i in range(5)]
+        conn = scripted(listens=MANY_LISTENS, candidates=plenty + unknowns)
+        feed = build_feed(conn, 'user', POLICIES['daily-mix-mid'], NOW)
+        self.assertEqual(feed.filled_from_unknown, 0)
+        self.assertTrue(all(track['reason'] != 'unknown_hardness' for track in feed.tracks))
+
+    def test_a_thin_band_relaxes_then_backfills_from_unknown_to_reach_size(self):
+        """Both correction pieces at once: the relaxation ladder runs out
+
+        first (never enough 'mid' candidates at any window), and only then are
+        the remaining places filled from unknown-hardness candidates.
+        """
+        thin_mid = [_candidate(f'mid{i}', None, 'Uptempo', bpm=165) for i in range(5)]
+        unknowns = [_candidate(f'unk{i}', None, 'Uptempo', bpm=None) for i in range(10)]
+        conn = scripted(listens=MANY_LISTENS, candidates=thin_mid + unknowns)
+        feed = build_feed(conn, 'user', POLICIES['daily-mix-mid'], NOW)
+        self.assertEqual(feed.relaxed_to, 'none')
+        self.assertEqual(feed.filled_from_unknown, 10)
+        self.assertEqual(len(feed.tracks), 15)
 
     def test_a_short_band_relaxes_the_window_all_the_way_and_says_so(self):
         """Only one candidate ever qualifies for 'mid' here -- nowhere near

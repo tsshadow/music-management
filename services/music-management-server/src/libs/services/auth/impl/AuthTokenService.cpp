@@ -144,6 +144,12 @@ namespace lms::auth
 
         if (countMatters || stampIsStale)
         {
+            // The pointer is this thread's cached copy -- Dbo keeps objects per session, and the
+            // session is per thread (Db::getTLSSession) -- so it may date from an earlier request
+            // on this thread, at a version another thread has since moved on. Writing on top of
+            // that copy is the stale write below. Rereading here, under the process-wide write
+            // lock, makes the bump land on what the row holds now.
+            authToken.reread();
             try
             {
                 const std::size_t tokenUseCount{ authToken.modify()->incUseCount() };
@@ -154,13 +160,25 @@ namespace lms::auth
                     if (*maxUseCount >= tokenUseCount)
                         authToken.remove();
                 }
+
+                // Flushed here, inside the try. The transaction's own flush runs from
+                // WriteTransaction's destructor at the end of this function, outside every catch,
+                // which is how a StaleObjectException reached handleRequest as "Uncaught exception".
+                session.getDboSession()->flush();
             }
             catch (const Wt::Dbo::StaleObjectException&)
             {
-                // A concurrent request bumped the same row first. Its bump is as good as
-                // ours; the token was valid when we looked, and failing the caller over a
-                // bookkeeping race is the one outcome that cannot be right.
-                LMS_LOG(UI, DEBUG, "Auth token bump lost a race with a concurrent request; ignoring");
+                // A concurrent writer got there first; its bump is as good as ours, the token was
+                // valid when we looked, and failing the caller over bookkeeping cannot be right.
+                //
+                // The copy has to go, not only the exception: a failed flush leaves the object
+                // dirty and stale in this thread's session (Transaction::rollback does not reread),
+                // and Session::flush flushes every dirty object, so the *next* write transaction
+                // on this thread -- a scrobble, a stream, whatever -- would throw the same stale
+                // write again, until the process restarts. That is what poisoned one HTTP thread
+                // with "Stale object, auth_token, id = 4, version = 2392" on every request it got.
+                authToken.reread();
+                LMS_LOG(UI, WARNING, "Auth token bump lost a race with a concurrent writer; dropped");
             }
         }
 

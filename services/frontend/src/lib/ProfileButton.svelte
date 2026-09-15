@@ -90,18 +90,18 @@
 
 <div class="relative profile-menu-container">
   <button
-    class="flex items-center gap-2 bg-black/70 hover:bg-[#282828] rounded-full p-0.5 pr-2 transition-colors cursor-pointer border-none text-white"
+    class="flex items-center gap-2 bg-black/70 hover:bg-[#282828] rounded-full p-0.5 md:pr-2 transition-colors cursor-pointer border-none text-white"
     onclick={toggleDropdown}
     aria-haspopup="true"
     aria-expanded={isOpen}
   >
-    <div class="w-7 h-7 bg-[#535353] rounded-full flex items-center justify-center overflow-hidden">
+    <div class="w-8 h-8 md:w-7 md:h-7 bg-[#535353] rounded-full flex items-center justify-center overflow-hidden">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
         <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"></path>
       </svg>
     </div>
     <span class="text-sm font-bold hidden md:inline">{displayUsername}</span>
-    <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" class="transition-transform {isOpen ? 'rotate-180' : ''}">
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" class="hidden md:block transition-transform {isOpen ? 'rotate-180' : ''}">
       <path d="M4 6l4 4 4-4"></path>
     </svg>
   </button>

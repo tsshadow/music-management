@@ -38,7 +38,7 @@ ktlintGradle           = "14.2.0"
 detekt                 = "1.23.8"
 documentFile           = "1.1.0"
 preferences            = "1.2.1"
-media3                 = "1.11.0"
+media3                 = "1.11.1"
 # Capacitor 9 does not exist as a release: npm carries 9.0.0-alpha.6 under the `next`
 # tag and Maven Central has nothing above 8.5.2 for com.capacitorjs:core. 8.5.2 is the
 # current stable, and the web side must install @capacitor/core and @capacitor/cli at the

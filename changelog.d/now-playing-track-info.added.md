@@ -1,0 +1,1 @@
+- The phone's full-screen player again shows genre, release date and label under the track, and a new details button opens a track info sheet (cover, chips for genre/label/festival/mood, technical details, artist/album navigation) matching what the retired Kotlin player offered -- plus a "Song" button that jumps straight to every version of the current track.

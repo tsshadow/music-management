@@ -1243,7 +1243,13 @@
     "details": "Song details",
     "goToAlbum": "Go to album",
     "goToArtist": "Go to artist",
-    "browserDownload": "Save a copy"
+    "browserDownload": "Save a copy",
+    "technical": "Technical details",
+    "format": "Format",
+    "path": "File path",
+    "disc": "disc {number}",
+    "artistsTogether": "{names} together",
+    "moods": "Moods"
   },
   "song": {
     "heading": "Song",

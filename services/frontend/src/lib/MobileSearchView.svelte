@@ -4,7 +4,7 @@
   import BrowseGrid from './BrowseGrid.svelte';
 
   /**
-   * The content of the phone's "Zoeken" tab. The search box itself already
+   * The content of the phone's "Bladeren" tab. The search box itself already
    * sits above this, in `TopBar`, shared with every other view; typing into
    * it opens the existing results panel as a floating overlay that covers
    * this grid, which is what "zolang er niet gezocht wordt" means here --
@@ -50,5 +50,5 @@
       <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path>
     </svg>
   </button>
-  <BrowseGrid {onnavigate} />
+  <BrowseGrid {onnavigate} {platform} />
 </div>

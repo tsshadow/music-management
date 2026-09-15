@@ -317,3 +317,18 @@ because Path A's phase 0 needs the same reconciled token set.
 - [`../../styleguide.md`](../../styleguide.md), [`../../../services/frontend/STYLEGUIDE.md`](../../../services/frontend/STYLEGUIDE.md), [`../../../services/muma-mobile/STYLEGUIDE.md`](../../../services/muma-mobile/STYLEGUIDE.md) — the three style sources to reconcile into one
 - [`../../superpowers/specs/2026-08-18-muma-mobile-style-themes-design.md`](../../superpowers/specs/2026-08-18-muma-mobile-style-themes-design.md) — the MuMa style this design retires
 - [`../url-routing/`](../url-routing/) — the routes the shell's deep links and back button follow
+
+## Phone feedback round 3 — approved request, 2026-09-15
+
+Use shared settings density CSS and a shared quick-access tile. Dashboard maps account modes
+onto existing feeds and getSpotifyTracks (recent/added order), with getStarred2 for favourites. Browse routing
+replaces the library chip layout and owns playlist pages; search remains compatible. FavoritesView
+owns the phone favourites page and its two-column layout, with a top create action and PresetGrid
+rendering only preset tiles. Preset detail/create/edit routes belong to Favorites. PhoneHome no
+longer renders presets; desktop Home keeps PresetGrid. TrackList owns the details sheet
+and reuses its handlers, with trackListLines controlling the extra metadata line.
+
+Bound TransportTracker's pending expectation to three repeated non-null states at the same
+track/index. Settle quietly to preserve queue-replacement loop protection, but emit the changed
+snapshot. Player reconciles durationchange by trackId without directional fallback; car mode
+also adopts the snapshot on mount. No shared API contract changes.

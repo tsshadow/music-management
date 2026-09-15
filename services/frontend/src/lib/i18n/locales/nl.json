@@ -845,7 +845,8 @@
     "today": {
       "one": "Vandaag, 1 jaar geleden",
       "other": "Vandaag, {count} jaar geleden"
-    }
+    },
+    "homeSummary": "{years} jaar • {tracks} nummers vandaag"
   },
   "mobile": {
     "browseAll": "Alles doorbladeren"
@@ -877,7 +878,9 @@
     "sets": "Sets",
     "songs": "Nummers",
     "starred": "Favorieten",
-    "years": "Jaren"
+    "years": "Jaren",
+    "browse": "Bladeren",
+    "favorites": "Favorieten"
   },
   "news": {
     "couldNotPlay": "Kon het nieuws niet afspelen",
@@ -1209,7 +1212,11 @@
     "versionsOf": "Versies van {title}",
     "bestVersion": "beste versie",
     "onlyVersion": "Dit is de enige versie van dit nummer.",
-    "versionsFailed": "De versies van dit nummer konden niet worden geladen"
+    "versionsFailed": "De versies van dit nummer konden niet worden geladen",
+    "details": "Nummerdetails",
+    "goToAlbum": "Naar album",
+    "goToArtist": "Naar artiest",
+    "browserDownload": "Kopie opslaan"
   },
   "song": {
     "heading": "Nummer",

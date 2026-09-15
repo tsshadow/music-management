@@ -1,4 +1,5 @@
 <script>
+  import "./density.css";
   import { t } from '../i18n/index.js';
   import { onMount } from 'svelte';
   import { SvelteURLSearchParams } from 'svelte/reactivity';
@@ -216,7 +217,7 @@
   }
 </script>
 
-<div class="p-8 max-w-4xl mx-auto pb-24">
+<div class="settings-density p-0 max-w-4xl mx-auto pb-24">
   <header class="mb-8 flex justify-between items-end gap-4">
     <div class="min-w-0">
       <h1 class="text-3xl font-bold mb-2">{$t('settings.general.title')}</h1>

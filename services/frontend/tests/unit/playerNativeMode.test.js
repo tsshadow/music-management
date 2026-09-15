@@ -168,6 +168,17 @@ describe("Player on the native shell", () => {
     expect(get(currentTrack)).toEqual(SECOND);
   });
 
+  it("adopts durationchange without a command and does not advance twice on the following command", async () => {
+    const third = { ...SECOND, id: "song-3" };
+    playlist.set([FIRST, SECOND, third]);
+    renderPlayer();
+    playerPlugin.fire("durationchange", { status: "playing", trackId: SECOND.id, duration: 200 });
+    await waitFor(() => expect(get(currentTrack).id).toBe(SECOND.id));
+    playerPlugin.fire("command", { name: "next" });
+    await Promise.resolve();
+    expect(get(currentTrack).id).toBe(SECOND.id);
+  });
+
   // Radio and the news, once the service streams and syncs either instead of
   // this component's own `<audio>` element: `Player.svelte` hands off through
   // the plugin's `startRadio`/`stopRadio`/`toggleNews` and reads the result

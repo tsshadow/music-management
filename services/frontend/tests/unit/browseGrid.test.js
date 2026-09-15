@@ -58,3 +58,18 @@ describe("BrowseGrid", () => {
     expect(onnavigate).toHaveBeenCalledWith("genres");
   });
 });
+
+it.each([true, false])("leads with library tiles and gates downloads (%s)", (supported) => {
+  render(BrowseGrid, { onnavigate: vi.fn(), platform: { storage: { supported } } });
+  const labels = screen.getAllByRole("button").map((button) => button.textContent.trim());
+  expect(labels.slice(0, 3)).toEqual(["Artiesten", "Afspeellijsten", "Albums"]);
+  expect(labels.includes("Downloads")).toBe(supported);
+  if (supported) expect(labels[3]).toBe("Downloads");
+});
+
+it("opens playlists from a library tile", async () => {
+  const onnavigate = vi.fn();
+  render(BrowseGrid, { onnavigate });
+  await fireEvent.click(screen.getByRole("button", { name: "Afspeellijsten" }));
+  expect(onnavigate).toHaveBeenCalledWith("playlists");
+});

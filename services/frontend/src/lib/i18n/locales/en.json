@@ -845,7 +845,8 @@
     "today": {
       "one": "Today, 1 year ago",
       "other": "Today, {count} years ago"
-    }
+    },
+    "homeSummary": "{years} years • {tracks} tracks today"
   },
   "mobile": {
     "browseAll": "Browse all"
@@ -877,7 +878,9 @@
     "sets": "Sets",
     "songs": "Songs",
     "starred": "Favourites",
-    "years": "Years"
+    "years": "Years",
+    "browse": "Browse",
+    "favorites": "Favorites"
   },
   "news": {
     "couldNotPlay": "Could not play the news",
@@ -1209,7 +1212,11 @@
     "versionsOf": "Versions of {title}",
     "bestVersion": "best version",
     "onlyVersion": "This is the only version of this song.",
-    "versionsFailed": "Could not load the versions of this song"
+    "versionsFailed": "Could not load the versions of this song",
+    "details": "Song details",
+    "goToAlbum": "Go to album",
+    "goToArtist": "Go to artist",
+    "browserDownload": "Save a copy"
   },
   "song": {
     "heading": "Song",

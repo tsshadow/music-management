@@ -25,13 +25,19 @@ package nl.teunschriks.mumamobile.capacitor
  * The fix mirrors [MumaPlayerPlugin]'s own `selfSeekAt`: before touching the player, [expect] what
  * the plugin is about to make it show. Every state that arrives before the player gets there is
  * swallowed outright -- no `command`, no `durationchange`, no `ended` -- and the one that finally
- * matches settles quietly, updating the baseline without reporting a move. Only a state that
+ * matches (or repeats a stable non-null track three times) settles quietly, updating the baseline without reporting a move. Only a state that
  * differs from the last *settled* one, with no expectation pending, is a move nobody but the
  * service decided on, and that is the only kind this reports.
  */
 internal class TransportTracker {
 
-    private data class PendingMove(val index: Int)
+    /** Three identical non-null reports are stable enough to abandon an unreachable index. */
+    private data class PendingMove(
+        val index: Int,
+        var reportedTrack: String? = null,
+        var reportedIndex: Int = -1,
+        var stableReports: Int = 0
+    )
 
     private var pendingMove: PendingMove? = null
 
@@ -68,7 +74,16 @@ internal class TransportTracker {
     fun accept(trackId: String?, index: Int): TransportEvent {
         val pending = pendingMove
         if (pending != null) {
-            if (trackId != null && index == pending.index) {
+            if (trackId != null && trackId == pending.reportedTrack && index == pending.reportedIndex) {
+                pending.stableReports++
+            } else {
+                pending.reportedTrack = trackId
+                pending.reportedIndex = index
+                pending.stableReports = if (trackId == null) 0 else 1
+            }
+            // An invalid index or a racing service move may never match. Publish the stable
+            // snapshot quietly: synthesising a next/previous here would replay our own move.
+            if (trackId != null && (index == pending.index || pending.stableReports >= 3)) {
                 pendingMove = null
                 val trackChanged = trackId != lastTrackId
                 lastTrackId = trackId

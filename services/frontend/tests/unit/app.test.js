@@ -185,18 +185,29 @@ describe("App", () => {
     expect(document.documentElement.classList.contains("mode-sets")).toBe(false);
   });
 
-  it("the bottom bar's three tabs move between home, search and library", async () => {
+  it("the bottom bar's three tabs move between home, browse and favorites", async () => {
     render(App);
     await waitFor(() => expect(screen.getAllByText("Afspeellijsten").length).toBeGreaterThan(0));
 
-    await fireEvent.click(bottomBarTab("Zoeken"));
-    await waitFor(() => expect(get(activeView)).toBe("search"));
-    expect(window.location.pathname).toBe("/search");
+    await fireEvent.click(bottomBarTab("Bladeren"));
+    await waitFor(() => expect(get(activeView)).toBe("browse"));
+    expect(window.location.pathname).toBe("/browse");
     expect(screen.getByText("Alles doorbladeren")).toBeTruthy();
 
-    await fireEvent.click(bottomBarTab("Bieb"));
+    await fireEvent.click(bottomBarTab("Favorieten"));
+    await waitFor(() => expect(get(activeView)).toBe("favorites"));
+    expect(window.location.pathname).toBe("/favorites");
+    expect(screen.getByTestId("favorites-view")).toBeTruthy();
+
+    await fireEvent.click(bottomBarTab("Bladeren"));
+    await fireEvent.click(
+      within(screen.getByLabelText("Alles doorbladeren")).getByRole("button", {
+        name: "Afspeellijsten",
+      }),
+    );
     await waitFor(() => expect(get(activeView)).toBe("playlists"));
     expect(window.location.pathname).toBe("/playlists");
+    expect(bottomBarTab("Bladeren")).toHaveClass("text-white");
   });
 
   // The mirror exists so the shell's Android back handler can close a search

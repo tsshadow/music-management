@@ -6,6 +6,7 @@
   import { restUrl, authParams, currentTrack, playlist, playerState, favoriteGenres } from './store.js';
   import { listOf, subsonicJson } from './subsonic.js';
   import { subsonicError } from './utils.js';
+  import { trackAfterCommand } from './nativeQueue.js';
   import { notify } from './notifications.js';
 
   /**
@@ -22,7 +23,8 @@
    * `CarModeFragment` made on `MediaPlayerManager` -- rather than re-deciding the next track in
    * JS, which would be a second, competing queue owner. `Player.svelte`'s existing
    * `on('command', ...)` handling (already there for a head-unit or notification press) is what
-   * mirrors the move back into `currentTrack`; nothing new is needed there.
+   * mirrors the move back into `currentTrack`. Duration snapshots and the mount snapshot also
+   * reconcile identity, since a recovered service state need not carry a directional command.
    */
 
   const { onclose, onmicrophone } = $props();
@@ -44,8 +46,9 @@
   );
 
   onMount(() => {
-    playing = platform.player.state().status === 'playing';
+    adoptSnapshot(platform.player.state());
     const unsubscribes = [
+      platform.player.on('durationchange', adoptSnapshot),
       platform.player.on('play', (state) => { playing = state.status === 'playing'; }),
       platform.player.on('pause', (state) => { playing = state.status === 'playing'; }),
       platform.player.on('timeupdate', (state) => { playing = state.status === 'playing'; }),
@@ -65,6 +68,13 @@
       platform.system.setKeepScreenOn({ showWhenLocked: false, turnScreenOn: false }).catch(() => {});
     };
   });
+
+  /** Adopt the service's identity when opening after the WebView missed a move. */
+  function adoptSnapshot(state) {
+    playing = state.status === 'playing';
+    const moved = trackAfterCommand(get(playlist), get(currentTrack)?.id, { trackId: state.trackId });
+    if (moved) currentTrack.set(moved);
+  }
 
   /**
    * A handful of the account's own genres, favourites first -- the same source the genre browse

@@ -1,0 +1,30 @@
+/* Shared settings density; controls keep their own sizes and behaviour. */
+.settings-density section {
+  padding: 1rem;
+}
+.settings-density h1 {
+  font-size: 1.25rem;
+}
+.settings-density h2 {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+.settings-density h3 {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.settings-density p {
+  font-size: 0.75rem;
+}
+.settings-density .gap-6,
+.settings-density .gap-8 {
+  gap: 1rem;
+}
+.settings-density .mb-6,
+.settings-density .mb-8 {
+  margin-bottom: 1rem;
+}
+.settings-density .text-lg {
+  font-size: 0.875rem;
+  font-weight: 500;
+}

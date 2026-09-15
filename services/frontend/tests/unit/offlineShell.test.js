@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import OfflineNotice from "../../src/lib/OfflineNotice.svelte";
 import Sidebar from "../../src/lib/Sidebar.svelte";
 import MobileNav from "../../src/lib/MobileNav.svelte";
-import LibraryChips from "../../src/lib/LibraryChips.svelte";
+import BrowseGrid from "../../src/lib/BrowseGrid.svelte";
 import { pathToState, viewToPath } from "../../src/lib/router.js";
 import platformModule from "../../src/lib/platform/index.js";
 import { credentials, favoriteGenres, viewMode } from "../../src/lib/store.js";
@@ -74,14 +74,14 @@ describe("the Downloads entry in the navigation", () => {
   it("the phone's bottom bar has no tab of its own for it either", () => {
     render(MobileNav, { activeView: "home", onnavigate: vi.fn() });
 
-    expect(screen.getByText("Bieb")).toBeTruthy();
+    expect(screen.getByText("Favorieten")).toBeTruthy();
     expect(screen.queryByText("Downloads")).toBeNull();
   });
 
-  it("is absent from the phone's library chip row in a browser", () => {
-    render(LibraryChips, { activeView: "playlists", onnavigate: vi.fn() });
+  it("is absent from the phone's browse grid in a browser", () => {
+    render(BrowseGrid, { activeView: "playlists", onnavigate: vi.fn() });
 
-    expect(screen.getByText("Afspeellijsten")).toBeTruthy();
+    expect(screen.getByText("Albums")).toBeTruthy();
     expect(screen.queryByText("Downloads")).toBeNull();
   });
 });

@@ -178,7 +178,7 @@
   }
 </script>
 
-<div class="relative flex-grow max-w-md mx-4">
+<div class="relative min-w-0 flex-1 md:flex-grow md:max-w-md md:mx-4">
   <div class="relative group">
     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
       <svg class="h-5 w-5 text-[#b3b3b3] group-focus-within:text-white transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -193,7 +193,7 @@
       onfocus={() => showResults = query.length > 0}
       onblur={handleBlur}
       placeholder={$viewMode === 'sets' ? $t('search.placeholderSets') : $t('search.placeholder')}
-      class="block w-full pl-10 pr-3 py-2 bg-[#242424] border-none rounded-full text-sm text-white placeholder-[#b3b3b3] focus:ring-2 focus:ring-white transition-all hover:bg-[#2a2a2a]"
+      class="block w-full pl-10 pr-3 py-1.5 md:py-2 bg-[#242424] border-none rounded-full text-sm text-white placeholder-[#b3b3b3] focus:ring-2 focus:ring-white transition-all hover:bg-[#2a2a2a]"
     />
   </div>
 

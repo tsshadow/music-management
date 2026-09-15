@@ -8,7 +8,6 @@
   import TopBar from './lib/TopBar.svelte';
   import TrackList from './lib/TrackList.svelte';
   import MobileNav from './lib/MobileNav.svelte';
-  import ModeChips from './lib/ModeChips.svelte';
   import MobileSearchView from './lib/MobileSearchView.svelte';
   import SettingsSidebar from './lib/SettingsSidebar.svelte';
   import ManagementSidebar from './lib/management/ManagementSidebar.svelte';
@@ -19,7 +18,7 @@
   import { notify } from './lib/notifications.js';
   import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, currentTrack, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive, pushedHistoryEntries, sidebarDrawerOpen, searchResultsOpen, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying } from './lib/store.js';
   import { get } from 'svelte/store';
-  import { modeForView, pathToState, viewToPath, phoneTabForView } from './lib/router.js';
+  import { modeForView, pathToState, viewToPath } from './lib/router.js';
   import { platform } from './lib/platform/index.js';
   import { watchConnectivity } from './lib/subsonic.js';
   import { deepLinkAction, randomTracksUrl } from './lib/shellRoutes.js';
@@ -70,9 +69,6 @@
   $effect(() => {
     if (!hasDrawer) sidebarDrawerOpen.set(false);
   });
-
-  // The current tab controls the phone-only mode chips; detail pages retain their owning tab.
-  const phoneTab = $derived(phoneTabForView($activeView));
 
   // The search results panel is SearchBar's own state, mirrored into the store
   // so the shell's back handler can close it; leaving the Search tab any other
@@ -425,15 +421,11 @@
     {/if}
   </div>
 
-  <div class="bg-linear-to-b from-[#121212] to-[#121212] row-start-1 row-end-2 col-start-1 md:col-start-2 col-end-2 md:col-end-3 overflow-y-auto p-4 md:p-8 relative min-h-0 min-w-0">
+  <div class="bg-linear-to-b from-[#121212] to-[#121212] row-start-1 row-end-2 col-start-1 md:col-start-2 col-end-2 md:col-end-3 overflow-y-auto p-3 md:p-8 relative min-h-0 min-w-0">
     <TopBar greeting={greeting} />
     <div class="content-area">
-      <!-- The desktop sidebar already offers the mode switch; phone tabs keep it above content. -->
-      {#if phoneTab}
-        <div class="md:hidden flex flex-col gap-3 mb-4">
-          <ModeChips />
-        </div>
-      {/if}
+      <!-- The desktop sidebar already offers the mode switch; on the phone it now lives in
+           TopBar's own top bar, next to search and the profile button, instead of a row here. -->
 
       {#if $activeView === 'search' || $activeView === 'browse'}
         <div class="md:hidden">

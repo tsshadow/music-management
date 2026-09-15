@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import TopBar from "../../src/lib/TopBar.svelte";
-import { activeModal, activeView, credentials, isMobile } from "../../src/lib/store.js";
+import { activeModal, activeView, credentials, isMobile, viewMode } from "../../src/lib/store.js";
 
 function subsonic({
   serverVersion = "0.0.57",
@@ -122,5 +122,58 @@ describe("TopBar", () => {
     render(TopBar, { greeting: "Goedemiddag" });
 
     await waitFor(() => expect(screen.getByText("Goedemiddag")).toBeTruthy());
+  });
+});
+
+// The phone's one-line bar: search, then the Songs/Sets mode control, then the
+// profile button -- replacing the separate row `App.svelte` used to render above
+// the content.
+describe("TopBar on the phone", () => {
+  beforeEach(() => {
+    credentials.set({ url: "", username: "user", password: "pw" });
+    activeModal.set(null);
+    isMobile.set(true);
+    viewMode.set("songs");
+    window.localStorage.clear();
+    globalThis.fetch = subsonic();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    isMobile.set(false);
+  });
+
+  it("shows the mode control on a phone tab", () => {
+    activeView.set("home");
+
+    render(TopBar, { greeting: "" });
+
+    expect(screen.getByRole("group", { name: "Modus wisselen" })).toBeTruthy();
+  });
+
+  it("keeps the mode control away from settings, which has no tab of its own", () => {
+    activeView.set("settings");
+
+    render(TopBar, { greeting: "" });
+
+    expect(screen.queryByRole("group", { name: "Modus wisselen" })).toBeNull();
+  });
+
+  it("orders the bar search, then the mode control, then the profile button", () => {
+    activeView.set("home");
+
+    const { container } = render(TopBar, { greeting: "" });
+
+    const search = screen.getByPlaceholderText("Wat wil je luisteren?");
+    const modeControl = screen.getByRole("group", { name: "Modus wisselen" });
+    const profile = container.querySelector('button[aria-haspopup="true"]');
+
+    expect(profile).toBeTruthy();
+    expect(
+      search.compareDocumentPosition(modeControl) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      modeControl.compareDocumentPosition(profile) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });

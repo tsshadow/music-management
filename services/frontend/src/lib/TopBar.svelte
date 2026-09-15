@@ -2,8 +2,10 @@
   import { onMount } from 'svelte';
   import ProfileButton from './ProfileButton.svelte';
   import SearchBar from './SearchBar.svelte';
+  import ModeChips from './ModeChips.svelte';
   import ReleaseNotesModal from './ReleaseNotesModal.svelte';
   import { activeView, authParams, activeModal, sidebarDrawerOpen, searchResultsOpen, restUrl, isMobile } from './store.js';
+  import { phoneTabForView } from './router.js';
   import { t } from './i18n/index.js';
   import { Menu } from '@lucide/svelte';
   import { get } from 'svelte/store';
@@ -14,6 +16,11 @@
   // settings and management tabs -- those only live in the sidebar, which is
   // hidden below `md`. So on those two views the top bar carries the opener.
   const hasDrawer = $derived($activeView === 'settings' || $activeView === 'management');
+
+  // The phone's top bar carries the Songs/Sets mode control on the same tabs that used to
+  // show it as its own row above the content -- Home, Bladeren and Favorieten -- using the
+  // same helper MobileNav uses to keep a detail page's owning tab active.
+  const phoneTab = $derived(phoneTabForView($activeView));
 
   async function checkVersion() {
       try {
@@ -69,11 +76,18 @@
 
 </script>
 
-<div class="flex items-center justify-between mb-6 sticky top-0 z-30 py-2 bg-[#121212]/90 backdrop-blur-md px-4 -mx-4">
-  <div class="flex items-center gap-4 flex-grow">
+{#if $isMobile}
+  <!-- Phone: one line -- search, then the Songs/Sets mode control, then the profile
+       button. The mode control replaces the row `App.svelte` used to render above the
+       content; it stays gated by `phoneTab` the same way that row was, so detail pages
+       (an album, an artist) that have no tab of their own keep it hidden. Gated by
+       `$isMobile` rather than the wider `md:hidden` alone -- see the same choice on
+       `HomeShelf.svelte` -- with `md:hidden` kept alongside it as the CSS backstop the
+       app's other phone/desktop forks (the queue panel below) also carry. -->
+  <div class="md:hidden flex items-center gap-2 h-12 px-3 -mx-3 sticky top-0 z-30 mb-3 bg-[#121212]/90 backdrop-blur-md">
     {#if hasDrawer}
       <button
-        class="md:hidden flex items-center justify-center w-9 h-9 shrink-0 rounded-full bg-transparent border-none text-white hover:bg-[#282828] transition-colors cursor-pointer"
+        class="flex items-center justify-center w-9 h-9 shrink-0 rounded-full bg-transparent border-none text-white hover:bg-[#282828] transition-colors cursor-pointer"
         aria-label={$t('nav.openMenu')}
         onclick={() => sidebarDrawerOpen.set(true)}
       >
@@ -81,20 +95,32 @@
       </button>
     {/if}
 
-    {#if $activeView === 'home' && !$isMobile}
-        <!-- The phone Home already opens with its own quick-access grid; a "Goedemorgen"
-             line above it only ate space the tiles could use, so the greeting stays
-             desktop-only. -->
-        <h1 class="text-xl md:text-3xl font-bold ml-2 whitespace-nowrap">{greeting}</h1>
-    {/if}
-    
     <SearchBar bind:showResults={$searchResultsOpen} />
-  </div>
 
-  <div class="flex items-center gap-4">
+    {#if phoneTab}
+      <ModeChips />
+    {/if}
+
     <ProfileButton onNavigate={handleNavigate} />
   </div>
-</div>
+{:else}
+  <div class="hidden md:flex items-center justify-between mb-6 sticky top-0 z-30 py-2 bg-[#121212]/90 backdrop-blur-md px-4 -mx-4">
+    <div class="flex items-center gap-4 flex-grow">
+      {#if $activeView === 'home'}
+          <!-- The phone Home already opens with its own quick-access grid; a "Goedemorgen"
+               line above it only ate space the tiles could use, so the greeting stays
+               desktop-only (this branch already is). -->
+          <h1 class="text-xl md:text-3xl font-bold ml-2 whitespace-nowrap">{greeting}</h1>
+      {/if}
+
+      <SearchBar bind:showResults={$searchResultsOpen} />
+    </div>
+
+    <div class="flex items-center gap-4">
+      <ProfileButton onNavigate={handleNavigate} />
+    </div>
+  </div>
+{/if}
 
 {#if $activeModal?.type === 'release-notes'}
     <ReleaseNotesModal releases={$activeModal.data.releases} />

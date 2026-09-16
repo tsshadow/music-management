@@ -405,6 +405,22 @@ now uses Spotify's phone navigation below `md` (`isMobile`); desktop navigation 
   checkout. `releaseNotes()` reads the exact same asset `copyChangelog` in `app/build.gradle`
   already stages for the legacy `Util.showChangelog`, so nothing new needed wiring into the Gradle
   build, and the text is only asked for once an upgrade is already confirmed, not on every boot.
+- **Setup tour and manual — decided 2026-09-16: a tour is back, in the web, per account.**
+  The 2026-09-14 decision retired the Kotlin wizard, not the need it served: a new account
+  still landed on defaults it never saw, and a setting added in a release was invisible
+  until someone found it under Instellingen. `lib/setup.js` lists the tour's steps (language,
+  songs/sets, Home sections, display, downloads on the phone, and a pointer to the manual);
+  `SetupWizard.svelte` renders them one per screen at `/setup`, every control bound to the
+  same store the settings pages write. The account remembers the step ids it has been through
+  (`setupStepsSeen`, an account setting like the Home ones), so a first run walks every step,
+  an update that added a step walks only the new one badged "Nieuw", and a second phone or the
+  web does not start over. Skipping records the steps too: the tour never nags. `App.svelte`
+  opens it once per session, only after `accountSettingsSynced` says the account's own record
+  has been read, and never over the login, car or voice screens. The manual is a settings tab
+  (`/settings/help`, `lib/help.js` + `settings/Help.svelte`), in the profile menu on both
+  shells, one section per feature with a "go there" button and a "walk the tour again" button
+  at the top. The mobile release-notes modal stays as it is: it says what changed, the tour
+  says what to decide.
 - **Update check — decided 2026-09-15: back, in the web.** `util/UpdateChecker.kt` went with the
   Kotlin home screen that ran it on every start, and nothing asked apk-hoster since — the first
   phone on build 312 heard nothing about 313. The fetch and the comparison are the shell's

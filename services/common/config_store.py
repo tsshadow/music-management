@@ -411,6 +411,15 @@ def _config_fields() -> list[ConfigField]:
             description='Comma-separated genres a feed falls back to when nobody on the server has any '
             'listening history yet. Empty means no configured fallback -- the feed reports not_enough_data.',
         ),
+        ConfigField(
+            key='feeds_hardness_edges',
+            type='string',
+            default='',
+            env='FEEDS_HARDNESS_EDGES',
+            group='Feeds',
+            description='Two comma-separated hardness values, "<soft/mid>,<mid/hard>", e.g. "50,75", fixing '
+            'where the three spectrum daily mixes split. Empty or unparsable falls back to 50,75.',
+        ),
     ]
 
 

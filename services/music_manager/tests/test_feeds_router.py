@@ -215,9 +215,11 @@ class FeedsRouterTest(_FeedsAuthTestCase):
             tracks=[],
             funnel={'candidates': 3, 'emitted': 3},
             title='Middenin',
-            subtitle='40–70 hardheid',
-            hardness_band=(40.0, 70.0),
+            subtitle='50–75 hardheid',
+            hardness_band=(50.0, 75.0),
+            hardness_edges_source='default',
             hardness_source_counts={'genre': 2, 'none': 1},
+            hardness_percentiles={'p33': 40.0, 'p50': 55.0, 'p67': 70.0},
             relaxed_to='none',
         )
         self._auth({'type': 'system'})
@@ -229,9 +231,11 @@ class FeedsRouterTest(_FeedsAuthTestCase):
             response = client.get('/api/feeds/daily-mix-mid?username=user', headers={'X-API-Key': 'k'})
         body = response.json()
         self.assertEqual(body['title'], 'Middenin')
-        self.assertEqual(body['subtitle'], '40–70 hardheid')
-        self.assertEqual(body['hardness_band'], [40.0, 70.0])
+        self.assertEqual(body['subtitle'], '50–75 hardheid')
+        self.assertEqual(body['hardness_band'], [50.0, 75.0])
+        self.assertEqual(body['hardness_edges_source'], 'default')
         self.assertEqual(body['hardness_source_counts'], {'genre': 2, 'none': 1})
+        self.assertEqual(body['hardness_percentiles'], {'p33': 40.0, 'p50': 55.0, 'p67': 70.0})
         self.assertEqual(body['relaxed_to'], 'none')
 
     def test_a_feed_with_no_band_reports_null_rather_than_an_empty_placeholder(self):
@@ -247,6 +251,8 @@ class FeedsRouterTest(_FeedsAuthTestCase):
         self.assertEqual(body['title'], 'Release Radar')
         self.assertIsNone(body['subtitle'])
         self.assertIsNone(body['hardness_band'])
+        self.assertIsNone(body['hardness_edges_source'])
+        self.assertIsNone(body['hardness_percentiles'])
         self.assertIsNone(body['relaxed_to'])
 
     def test_an_ok_feed_carries_the_documented_track_shape_plus_bucket_and_reason(self):

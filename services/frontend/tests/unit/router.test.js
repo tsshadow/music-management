@@ -46,6 +46,20 @@ describe("viewToPath", () => {
     expect(viewToPath(state(view))).toBe(path);
   });
 
+  it.each([
+    ["release-radar", "/release-radar"],
+    ["daily-mix", "/daily-mix"],
+    ["daily-mix-soft", "/daily-mix-soft"],
+    ["daily-mix-mid", "/daily-mix-mid"],
+    ["daily-mix-hard", "/daily-mix-hard"],
+    ["daily-mix-artist", "/daily-mix-artist"],
+    ["daily-mix-label", "/daily-mix-label"],
+    ["daily-mixes", "/daily-mixes"],
+  ])("routes the feed page %s to %s and back", (view, path) => {
+    expect(viewToPath(state(view))).toBe(path);
+    expect(pathToState(path)).toEqual({ view });
+  });
+
   it("routes the preset builder, new and over an existing preset", () => {
     expect(viewToPath(state("new-preset"))).toBe("/new-preset");
     expect(pathToState("/new-preset")).toEqual({ view: "new-preset" });
@@ -434,8 +448,25 @@ describe("phoneTabForView", () => {
     }
   });
 
-  it("names no tab for a pushed detail page", () => {
-    for (const view of ["genre:Hardcore", "songs", "sets", "settings", "management"]) {
+  it("names Browse for the songs and sets lists, which are its first tile", () => {
+    expect(phoneTabForView("songs")).toBe("browse");
+    expect(phoneTabForView("sets")).toBe("browse");
+  });
+
+  it("names Browse for a page opened from one of its tiles", () => {
+    for (const view of [
+      "genre:Hardcore",
+      "label:Q-dance",
+      "year:2024",
+      "memories:2025",
+      "lineups:Defqon.1",
+    ]) {
+      expect(phoneTabForView(view)).toBe("browse");
+    }
+  });
+
+  it("names no tab for a page that lives outside the three", () => {
+    for (const view of ["settings", "management", "car", "voice", "song:42"]) {
       expect(phoneTabForView(view)).toBeNull();
     }
   });
@@ -453,6 +484,12 @@ it.each(["playlists", "playlist-detail", "playlist:42"])("%s activates Browse", 
 it("roundtrips the Browse route", () => {
   expect(viewToPath({ view: "browse" })).toBe("/browse");
   expect(pathToState("/browse")).toEqual({ view: "browse" });
+});
+it("roundtrips the setup tour and the manual tab", () => {
+  expect(viewToPath({ view: "setup" })).toBe("/setup");
+  expect(pathToState("/setup")).toEqual({ view: "setup" });
+  expect(viewToPath({ view: "settings", settingsTab: "help" })).toBe("/settings/help");
+  expect(pathToState("/settings/help")).toEqual({ view: "settings", settingsTab: "help" });
 });
 
 it.each(["favorites", "new-preset", "preset:42", "preset-edit:42"])(

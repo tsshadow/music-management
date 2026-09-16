@@ -97,7 +97,7 @@ is what makes the whole ranker unit-testable without a database.
 | `quota.py` | largest-remainder allocation and redistribution of unfilled shares |
 | `buckets.py` | dominant genre per label/artist, and which share a candidate competes in |
 | `scoring.py` | the per-candidate score `B`, the deterministic daily sample key, and `pick_daily_entity` (the artist/label rotation) |
-| `hardness.py` | anchor list, the tempo mapping, `track_hardness`'s fallback chain, band-edge percentiles, and the startup seed |
+| `hardness.py` | anchor list, the tempo mapping, `track_hardness`'s fallback chain, the fixed default band edges, the (now informational) band-edge percentiles, and the startup seed |
 | `queries.py` | every SQL string, as `(sql, params)` builders |
 | `build.py` | orchestration: profile → candidates → buckets → quota → ordered feed; also `describe_feed` (title/subtitle without the full pipeline) |
 | `routers/feeds.py` | HTTP surface and `init_db` |
@@ -170,14 +170,21 @@ def pick_daily_entity(username: str, feed_date: date, ranked_names: list[str]) -
 
 # hardness.py
 ANCHOR_HARDNESS: dict[str, int]                # curated genre name (lowercase) -> 0-100
+DEFAULT_BAND_EDGES: tuple[float, float]        # (50.0, 75.0); used unless feeds_hardness_edges overrides it
 def tempo_hardness(tempo: float | None) -> float | None
 def track_hardness(genre_weighted_sum: float | None, genre_weight_sum: float | None,
                    label_mean: float | None, artist_mean: float | None,
                    tempo: float | None) -> tuple[float | None, str]
     # returns (hardness, source); source is 'genre' | 'label' | 'artist' | 'tempo' | 'none'
-def hardness_band_edges(weighted_hardness: list[tuple[float, float]]) -> tuple[float, float]
+def hardness_percentiles(weighted_hardness: list[tuple[float, float]]) -> dict[str, float] | None
+    # {'p33', 'p50', 'p67'}, or None with no data -- informational, does not decide the band edges
 def classify_band(hardness: float, lo: float, hi: float) -> str   # 'soft' | 'mid' | 'hard'
 def seed_genre_hardness(cursor) -> int         # rows updated; only ever fills hardness IS NULL
+
+# policy.py (continued)
+HARDNESS_EDGES_SETTING = 'feeds_hardness_edges'
+def parse_hardness_edges(raw: str | None) -> tuple[tuple[float, float], str]
+    # (edges, 'setting' | 'default'); garbage or unset resolves to (DEFAULT_BAND_EDGES, 'default')
 
 # build.py
 @dataclass
@@ -190,7 +197,9 @@ class Feed:
     title: str | None = None
     subtitle: str | None = None
     hardness_band: tuple[float, float] | None = None
+    hardness_edges_source: str | None = None       # 'setting' | 'default'; hardness_band policies only
     hardness_source_counts: dict[str, int] | None = None
+    hardness_percentiles: dict[str, float] | None = None   # informational; hardness_band policies only
     relaxed_to: int | str | None = None   # int, 'none', or None (no relaxation)
     filled_from_unknown: int | None = None   # hardness_band only; None elsewhere
 @dataclass(frozen=True)
@@ -201,9 +210,13 @@ class ProfileResolution:
 def resolve_profile(conn, username: str, window_days: int, now: datetime,
                     starting_genres: list[str] | None = None) -> ProfileResolution
 def build_feed(conn, username: str, policy: FeedPolicy, now: datetime,
-               starting_genres: list[str] | None = None) -> Feed
+               starting_genres: list[str] | None = None,
+               hardness_edges: tuple[float, float] | None = None,
+               hardness_edges_source: str = 'default') -> Feed
 def describe_feed(conn, username: str, policy: FeedPolicy, now: datetime,
-                  starting_genres: list[str] | None = None) -> dict
+                  starting_genres: list[str] | None = None,
+                  hardness_edges: tuple[float, float] | None = None,
+                  hardness_edges_source: str = 'default') -> dict
     # {'title', 'subtitle'} without running the candidate pipeline -- what GET /api/feeds uses
 ```
 
@@ -282,6 +295,13 @@ fallback at all: when neither the listener nor the server has any listening hist
 reports `state = 'not_enough_data'` rather than falling back to anything, and `GET
 /api/feeds/profile` reports `scope = 'empty'`.
 
+The three spectrum mixes' band edges come from a second runtime setting in the same group,
+`feeds_hardness_edges` — `"<soft/mid>,<mid/hard>"`, e.g. `"50,75"`. Read once per request
+(`routers/feeds.py:_hardness_edges()`, `policy.parse_hardness_edges`) and passed to `build_feed`/
+`describe_feed` as `hardness_edges`; unset or unparsable resolves to `hardness.DEFAULT_BAND_EDGES`
+(`50.0, 75.0`) rather than raising, exactly like `starting_genres`'s own "garbage becomes no
+override" contract. See "Daily mixes v2 — hardness" below for why the edges are fixed at all.
+
 ## Daily mixes v2 — hardness
 
 Implements functional.md's "Daily mixes v2". Three of `POLICIES`' seven entries carry a
@@ -330,13 +350,29 @@ source)` on every row, `source` one of `'genre' | 'label' | 'artist' | 'tempo' |
 
 ### Band edges and filtering
 
-`build._listener_band_edges(conn, username, window_days, now)` re-reads the same listens
-`build_profile` does (`_load_listens`, same window), annotates each with a hardness the same way a
-candidate is annotated, then reduces to one `(hardness, listen_weight)` pair per *distinct* track —
-weight summed exactly the way `build_profile` sums it, hardness taken from whichever listen row
-resolved one. `hardness_band_edges()` then applies functional.md's rule: fewer than 30 such tracks
-→ the fixed fallback `(40, 70)`; otherwise the weighted 33rd/67th percentile, widened to `median ±
-15` if those two land closer together than that.
+The edges are **fixed**, not measured from the listener asking: `hardness.DEFAULT_BAND_EDGES`
+(`50.0, 75.0`) unless `feeds_hardness_edges` overrides them (see the runtime-setting paragraph
+above). `build._describe` resolves them once — `hardness_edges if hardness_edges is not None else
+DEFAULT_BAND_EDGES` — and that same pair is what both `describe_feed`'s title/subtitle and
+`build_feed`'s candidate filter use, so the number a listener reads is always the number applied.
+`Feed.hardness_edges_source` reports which one won, `'setting'` or `'default'`.
+
+This replaced an earlier version that derived the two edges from *this listener's own* weighted
+hardness distribution — their weighted 33rd/67th percentile, a fixed `(40, 70)` fallback below 30
+heard tracks with a resolvable hardness, widened to `median ± 15` when those two percentiles landed
+within 15 points of each other. Measured on production right after that version shipped (0.63.0), a
+listener whose own history skewed uptempo saw their own edges come out at 62.5/92.5, which meant
+"Zachter" filtered down to raw hardstyle, techno and mainstream hardstyle, "Middenin" to uptempo
+hardcore, bouncy uptempo and zaagtempo, and "Harder" shrank to only terror and speedcore. A
+listener's own history is exactly the wrong input for where a band starts:
+whoever plays the most of one style is the person for whom that style should least be allowed to
+redefine "the middle". `build._listener_hardness_stats(conn, username, window_days, now)` still
+computes this distribution the same way — re-reading the same listens `build_profile` does
+(`_load_listens`, same window), annotating each with a hardness the same way a candidate is
+annotated, reducing to one `(hardness, listen_weight)` pair per *distinct* track — and
+`hardness.hardness_percentiles()` still turns it into `{'p33', 'p50', 'p67'}`, but only to *report*
+on the profile view and in the dry run (`Feed.hardness_percentiles`, `None` when nothing resolved a
+hardness at all). Nothing reads it to decide a boundary any more.
 
 `build._load_band_candidates`, for a `hardness_band` policy, loads candidates, annotates them the
 same way, and keeps only the ones whose `classify_band(hardness, lo, hi)` matches the policy's own
@@ -376,9 +412,10 @@ feed reports `not_enough_data`.
 
 ### Titles and subtitles
 
-`build._describe(conn, username, policy, now, profile)` is the one implementation both
-`describe_feed` (cheap — no candidate query, used by `GET /api/feeds` to list every policy at once)
-and `build_feed` (which needs the band edges or the chosen entity anyway, to filter candidates) call.
+`build._describe(conn, username, policy, now, profile, hardness_edges, hardness_edges_source)` is
+the one implementation both `describe_feed` (cheap — no candidate query, used by `GET /api/feeds` to
+list every policy at once) and `build_feed` (which needs the band edges or the chosen entity anyway,
+to filter candidates) call.
 `Feed.title`/`Feed.subtitle` and the list endpoint's per-slug `title`/`subtitle` therefore always
 agree: `DUTCH_BAND_TITLE` (`'Zachter' | 'Middenin' | 'Harder'`) for a band policy, the chosen name
 for a rotating one, `'Release Radar'` for the radar, `CLASSIC_TITLE` (`'Klassiek'`) for `daily-mix`.
@@ -395,14 +432,17 @@ resolvable username gets instead).
 | Endpoint | Request | Response | Error cases |
 |---|---|---|---|
 | `GET /api/feeds` | `username` (optional, either key) | `{"feeds": [{"slug", "size", "window_days", "title", "subtitle"}, ...]}` — all seven policies, including the classic `daily-mix` | 401 missing/invalid key |
-| `GET /api/feeds/{slug}` | `limit` (1–100, default from policy), `username` (system key only) | `{"slug", "state", "scope", "generated_at", "tracks": [...], "funnel": {...}, "title", "subtitle", "hardness_band": [lo, hi] \| null, "hardness_source_counts": {...} \| null, "relaxed_to", "filled_from_unknown"}` | 401; 404 unknown slug; 400 system key without `username`; 500 no database |
+| `GET /api/feeds/{slug}` | `limit` (1–100, default from policy), `username` (system key only) | `{"slug", "state", "scope", "generated_at", "tracks": [...], "funnel": {...}, "title", "subtitle", "hardness_band": [lo, hi] \| null, "hardness_edges_source": "setting" \| "default" \| null, "hardness_source_counts": {...} \| null, "hardness_percentiles": {"p33", "p50", "p67"} \| null, "relaxed_to", "filled_from_unknown"}` | 401; 404 unknown slug; 400 system key without `username`; 500 no database |
 | `GET /api/feeds/profile` | `username` (system key only) | `{"scope", "distinct_tracks", "artists": [{"name","affinity"}], "labels": [...], "genres": [...], "excluded": [...]}` | 401; 400; 500 |
 | `PUT /api/feeds/profile/exclusions` | `{"entity_type": "label", "entity_name": "X", "excluded": true}` | `{"status": "ok"}` | 401; 422 unknown `entity_type`; 500 |
 
-`hardness_band`, `hardness_source_counts`, `relaxed_to` and `filled_from_unknown` are `null` for
-every policy except the three spectrum mixes — a rotating or classic feed simply never sets them
-(`Feed`'s own defaults). `filled_from_unknown` is `0`, not `null`, whenever a spectrum mix's own
-band filled `policy.size` without needing the backfill in "Band edges and filtering" above.
+`hardness_band`, `hardness_edges_source`, `hardness_source_counts`, `hardness_percentiles`,
+`relaxed_to` and `filled_from_unknown` are `null` for every policy except the three spectrum mixes —
+a rotating or classic feed simply never sets them (`Feed`'s own defaults). `filled_from_unknown` is
+`0`, not `null`, whenever a spectrum mix's own band filled `policy.size` without needing the
+backfill in "Band edges and filtering" above. `hardness_percentiles` is `null` for a spectrum mix
+too when nothing in the listener's history resolved a hardness at all — it never decides
+`hardness_band`, so its absence changes nothing about which tracks the mix returns.
 
 `state` is `ok`, `no_matches` (nothing survived the filters) or `not_enough_data` (no profile could
 be built at all). A track object is the shape `/api/library/advanced` already returns — `id`, `title`,
@@ -448,16 +488,19 @@ feed.
 the funnel per stage (candidates after the window, after the pool, after bucketing, after quota,
 after the artist cap), the computed shares, and the resulting tracks with their bucket and reason.
 It takes `--window`, `--size` and `--max-seconds` overrides so a policy can be tuned against real
-data without editing code, and `--starting-genres` to try a configured fallback without writing it
-to the runtime setting first (unset, it reads `feeds_starting_genres` exactly as the API does). The
-shares it prints come out of the same `resolve_profile` call the feed itself runs, not out of a
+data without editing code, `--starting-genres` to try a configured fallback without writing it to
+the runtime setting first (unset, it reads `feeds_starting_genres` exactly as the API does), and
+`--hardness-edges` for the same trick with `feeds_hardness_edges` (unset, it reads that setting).
+The shares it prints come out of the same `resolve_profile` call the feed itself runs, not out of a
 second implementation. This is the tool that answers whether the seven-day window is viable.
 
-For a spectrum slug (`--slug daily-mix-soft`, `-mid` or `-hard`), it additionally prints the
-listener's own band edges, the tally of which fallback source (`genre`/`label`/`artist`/`tempo`/
-`none`) resolved each heard track's hardness, and whether the release window had to be widened to
-reach `MIN_BAND_CANDIDATES` — the numbers "Daily mixes v2"'s open questions (functional.md) need
-measured before the anchors and the percentile split can be trusted.
+For a spectrum slug (`--slug daily-mix-soft`, `-mid` or `-hard`), it additionally prints the edges
+actually applied and whether the setting or the default supplied them, the tally of which fallback
+source (`genre`/`label`/`artist`/`tempo`/`none`) resolved each heard track's hardness, the
+listener's own weighted p33/p50/p67 (informational — it no longer decides the edges), and whether
+the release window had to be widened to reach `MIN_BAND_CANDIDATES` — the anchor list is still an
+unmeasured guess (functional.md, Open Questions), and this is the tool for judging it against real
+listening history.
 
 ## Technical Acceptance Criteria
 
@@ -506,9 +549,13 @@ measured before the anchors and the percentile split can be trusted.
     label or artist mean would otherwise say; falls through to `'label'`, then `'artist'`, then
     `'tempo'` only when the step before it had nothing; and returns `(None, 'none')` when every
     signal is absent.
-19. `hardness_band_edges` returns the fixed `(40, 70)` for fewer than `MIN_TRACKS_FOR_OWN_BAND`
-    (30) weighted observations, and `median ± 15` rather than the raw p33/p67 when those two
-    would otherwise land less than 15 points apart.
+19. A `hardness_band` policy's edges are `hardness.DEFAULT_BAND_EDGES` (`50.0, 75.0`) regardless of
+    the listener's own history, unless `feeds_hardness_edges` is set to two ascending values inside
+    0–100, in which case those win; `Feed.hardness_edges_source` reports which one applied
+    (`'default'` or `'setting'`). An unset, malformed, non-ascending or out-of-range setting value
+    falls back to the default rather than raising. `hardness_percentiles` still reports the
+    listener's own weighted p33/p50/p67 (or `None` with no resolvable history) alongside the edges,
+    but nothing reads it to decide `hardness_band`.
 20. A `hardness_band` policy excludes a candidate with no resolvable hardness from the band-matching
     step (`funnel.bucketed`); a policy with too few candidates in its band after filtering relaxes
     `release_window_days` 90 → 365 → `None` in that order and reports the widened value (`'none'`

@@ -11,6 +11,8 @@
  * alongside it in the state object rather than being crammed into that string.
  */
 
+import { browseSections } from "./navigation.js";
+
 /** Sidebar and top-level pages that map straight onto a path of the same name. */
 const PLAIN_VIEWS = [
   // The driving screen. Reached from the overflow menu, the car-mode notification, and
@@ -20,6 +22,14 @@ const PLAIN_VIEWS = [
   // says the same word the API does.
   "release-radar",
   "daily-mix",
+  "daily-mix-soft",
+  "daily-mix-mid",
+  "daily-mix-hard",
+  "daily-mix-artist",
+  "daily-mix-label",
+  // The phone's own page listing the five mixes above as cards; the classic 'daily-mix' stays
+  // reachable only at its own route, not as a sixth card here -- see docs/designs/feeds/functional.md.
+  "daily-mixes",
   "songs",
   "sets",
   "albums",
@@ -54,6 +64,10 @@ const PLAIN_VIEWS = [
   // Advanced search: every cluster as a list, saved as a preset. `/preset/<id>/edit` is the
   // same page over an existing one, in ARGUMENT_VIEWS below.
   "new-preset",
+  // The setup tour (`SetupWizard.svelte`): opened on its own on a first run and after an
+  // update that brought a new step, and by hand from the manual. A route of its own so a
+  // refresh mid-tour lands back in it rather than on Home with the tour half-recorded.
+  "setup",
 ];
 
 /**
@@ -119,8 +133,37 @@ export function modeForView(view) {
   return view === "songs" || view === "sets" ? view : null;
 }
 
-/** Library destinations reached through Browse on the phone. */
-export const LIBRARY_TAB_VIEWS = ["playlists", "artists", "albums", "starred", "downloads"];
+/**
+ * Library destinations reached through Browse on the phone: every tile the grid
+ * offers in either mode and on either platform, taken from the same list the
+ * sidebar renders so a section added there is owned by Browse without a second
+ * edit here.
+ */
+export const LIBRARY_TAB_VIEWS = [
+  ...new Set(
+    [
+      ...browseSections("songs", { storage: { supported: true } }),
+      ...browseSections("sets", { storage: { supported: true } }),
+    ].map((section) => section.id),
+  ),
+];
+
+/**
+ * The argument views that open from a Browse tile -- one genre, one label, one
+ * memories year -- and so keep that tab lit, like an artist or album page does.
+ */
+const LIBRARY_TAB_PREFIXES = [
+  "artist:",
+  "album:",
+  "genre:",
+  "label:",
+  "podcast:",
+  "festival:",
+  "year:",
+  "lineup:",
+  "lineups:",
+  "memories:",
+];
 
 /**
  * The owning bottom tab, also used to place the phone's mode chips.
@@ -142,8 +185,7 @@ export function phoneTabForView(view) {
     view === "search" ||
     view.startsWith("search:") ||
     LIBRARY_TAB_VIEWS.includes(view) ||
-    view.startsWith("artist:") ||
-    view.startsWith("album:")
+    LIBRARY_TAB_PREFIXES.some((prefix) => view.startsWith(prefix))
   )
     return "browse";
   return null;
@@ -156,7 +198,7 @@ export function phoneTabForView(view) {
  * "native", and a browser tab that lands on `/settings/device` anyway (a stale bookmark, a
  * link shared from the phone) falls back to General in `Settings.svelte` rather than here.
  */
-export const SETTINGS_TABS = ["general", "advanced", "about", "device"];
+export const SETTINGS_TABS = ["general", "advanced", "about", "help", "device"];
 
 /** The management tabs, in sidebar order. */
 export const MANAGEMENT_TABS = [
@@ -167,8 +209,12 @@ export const MANAGEMENT_TABS = [
   "playlists",
   "tagger",
   "genre-curation",
+  "artist-curation",
+  "labels",
   "label-proposals",
   "podcast-curation",
+  "festivals",
+  "lineups",
   "downloaders",
   "radio",
   "news",
@@ -202,7 +248,20 @@ export const MANAGEMENT_GROUPS = [
   {
     id: "curation",
     labelKey: "management.groups.curation",
-    pages: ["tagger", "genre-curation", "label-proposals", "podcast-curation"],
+    // Every input the tagger reads from a rule table, one page each, in the order a
+    // library is curated: what a track is (genre, artist, label), then the recordings
+    // (podcast, festival) and who played (lineup). The tagger page holds the
+    // cross-cutting rules (artist->genre, label->genre, redirects) that fit no single one.
+    pages: [
+      "tagger",
+      "genre-curation",
+      "artist-curation",
+      "labels",
+      "label-proposals",
+      "podcast-curation",
+      "festivals",
+      "lineups",
+    ],
   },
   { id: "downloaders", labelKey: null, pages: ["downloaders"] },
   { id: "channels", labelKey: "management.groups.channels", pages: ["radio", "news"] },

@@ -15,6 +15,14 @@ primary artist's, then a straight tempo mapping, in that order. It is deliberate
 pure function over numbers a caller has already looked up (`feeds/queries.py` has the
 bounded SQL for that), so it can be tested and read without a database, the same
 contract as every other module in this package except `build.py`.
+
+The three spectrum mixes' band edges (`DEFAULT_BAND_EDGES`) are fixed on these same
+anchors, not derived from any one listener's own percentiles -- an earlier version
+measured a listener's own weighted p33/p67 instead, and on production that meant a
+listener whose history skewed uptempo saw "Middenin" become uptempo hardcore and
+"Harder" shrink to terror and speedcore alone. That distribution is still computed
+and reported (`hardness_percentiles`), just no longer used to decide where a band
+starts; see `feeds/policy.py`'s `parse_hardness_edges` for the runtime override.
 """
 
 from collections import Counter
@@ -84,13 +92,22 @@ _TEMPO_POINTS: list[tuple[float, float]] = [
     (200.0, 95.0),
 ]
 
-#: The band edges a cold-start listener (fewer than this many heard tracks with a
-#: known hardness) gets instead of their own, unmeasured percentiles.
-MIN_TRACKS_FOR_OWN_BAND = 30
-FALLBACK_BAND = (40.0, 70.0)
-#: Below this gap, a listener's own p33/p67 are too close together to make three
-#: meaningfully different mixes -- median +/- this becomes the band instead.
-MIN_BAND_GAP = 15.0
+#: The (soft/mid, mid/hard) edges every listener gets unless `feeds_hardness_edges`
+#: (services/common/config_store.py, group `Feeds`; parsing lives in
+#: `feeds/policy.py`'s `parse_hardness_edges`) overrides them. Fixed on the genre
+#: anchors above, not derived from any one listener's own history: measured on
+#: production right after the percentile version shipped (MR !798), a listener who
+#: mostly plays uptempo (85) pulled their own p33/p67 up to 62.5/92.5, which made
+#: "Middenin" mean uptempo hardcore and left "Harder" with only terror and speedcore
+#: -- 71 candidates, a 365-day window and 13 places filled from unknown hardness. A
+#: listener who plays a lot of one style must not see that style redefine what
+#: "the middle" means; the spectrum describes the music, and 50/75 is the split
+#: that keeps hardstyle and mainstream hardstyle (both 45) soft, raw hardstyle (65),
+#: hardcore and mainstream hardcore (both 70) mid, and gabber (75, `classify_band`'s
+#: `>= hi` is inclusive toward hard at the exact boundary) and up in the hard band,
+#: regardless of who is asking. The quota ranker already gives a listener's own
+#: taste its say in *which* tracks fill a band, not in where the band starts.
+DEFAULT_BAND_EDGES: tuple[float, float] = (50.0, 75.0)
 
 #: A label or artist needs at least this many tracks with a known hardness before its
 #: mean is trusted as another track's fallback -- one outlier release must not decide
@@ -152,7 +169,7 @@ def _weighted_percentile(values: list[tuple[float, float]], q: float) -> float:
 
     Sorted by value, walking the cumulative weight until it crosses `q` of the total
     -- the standard "weighted median" construction, generalised to any quantile.
-    `values` must be non-empty; the caller (`hardness_band_edges`) is the one place
+    `values` must be non-empty; the caller (`hardness_percentiles`) is the one place
     that decides when there is not enough data to ask this at all.
     """
     ordered = sorted(values, key=lambda item: item[0])
@@ -168,25 +185,25 @@ def _weighted_percentile(values: list[tuple[float, float]], q: float) -> float:
     return ordered[-1][0]
 
 
-def hardness_band_edges(weighted_hardness: list[tuple[float, float]]) -> tuple[float, float]:
-    """The (soft/mid, mid/hard) edges for one listener's own hardness distribution.
+def hardness_percentiles(weighted_hardness: list[tuple[float, float]]) -> dict[str, float] | None:
+    """This listener's own weighted p33/p50/p67 hardness -- information only.
 
     `weighted_hardness` is one `(hardness, listen_weight)` pair per *distinct* track
     they heard in the profile window that resolved to a known hardness -- the same
-    listens `build_profile` reads, weighted the same way. Below
-    `MIN_TRACKS_FOR_OWN_BAND` tracks, their own percentiles are not a measurement
-    worth acting on, so a cold-start listener gets the same fixed edges everyone else
-    without enough history gets, rather than one erratic pair of numbers derived from
-    a handful of listens.
+    listens `build_profile` reads, weighted the same way. These numbers no longer
+    decide the band edges (see `DEFAULT_BAND_EDGES`): a listener whose own taste
+    skews hard must not see "hard" redefined as "what they already play". They are
+    still worth showing -- on the profile view and in the dry run -- as the honest
+    answer to "where does my own listening actually sit". `None` when nothing
+    resolved a hardness at all, rather than a percentile computed over an empty list.
     """
-    if len(weighted_hardness) < MIN_TRACKS_FOR_OWN_BAND:
-        return FALLBACK_BAND
-    lo = _weighted_percentile(weighted_hardness, 0.33)
-    hi = _weighted_percentile(weighted_hardness, 0.67)
-    if hi - lo < MIN_BAND_GAP:
-        median = _weighted_percentile(weighted_hardness, 0.5)
-        return median - MIN_BAND_GAP, median + MIN_BAND_GAP
-    return lo, hi
+    if not weighted_hardness:
+        return None
+    return {
+        'p33': _weighted_percentile(weighted_hardness, 0.33),
+        'p50': _weighted_percentile(weighted_hardness, 0.5),
+        'p67': _weighted_percentile(weighted_hardness, 0.67),
+    }
 
 
 def classify_band(hardness: float, lo: float, hi: float) -> str:

@@ -314,41 +314,6 @@ services:
     networks:
       - music-management_db
 
-  soundcloud_worker_full_once:
-    security_opt:
-      - no-new-privileges:true
-    image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest
-    container_name: muma-soundcloud-worker-full-once
-    # Runs without --repeat, so it exits after one sweep by design. Restarting it
-    # turned that single sweep into a container that respawns every minute forever.
-    restart: "no"
-    depends_on:
-      - db
-    command:
-      [
-        "python",
-        "services/downloader/downloader_service.py",
-        "--step",
-        "soundcloud",
-        "--no-break-on-existing"
-      ]
-    environment:
-      <<: [*environment-db, *environment-downloader, *environment-paths]
-      NOTIFY_URL: ${NOTIFY_URL}
-      PYTHONPATH: /app
-      debug: "${debug}"
-      dryrun: "False"
-      rescan: "True"
-      delimiter: "${delimiter}"
-      soundcloud_cookies: "firefox:/firefox-config/profile"
-    volumes:
-      - ${HOST_DATA_PATH}/importer:/app/data
-      - ${HOST_MUSIC_PATH}:/mnt/music
-      - ${HOST_DATA_PATH}/shared:/shared
-      - ${HOST_DATA_PATH}/firefox:/firefox-config:ro
-    networks:
-      - music-management_db
-
   telegram_worker:
     security_opt:
       - no-new-privileges:true

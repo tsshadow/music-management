@@ -35,6 +35,7 @@ describe("player settings navigation", () => {
     expect(screen.getByText("Algemeen")).toBeTruthy();
     expect(screen.getByText("Geavanceerd")).toBeTruthy();
     expect(screen.getByText("Over")).toBeTruthy();
+    expect(screen.getByText("Handleiding")).toBeTruthy();
 
     for (const gone of ["Bibliotheken", "Scan Instellingen", "Scanner", "Gebruikers"]) {
       expect(screen.queryByText(gone)).toBeNull();

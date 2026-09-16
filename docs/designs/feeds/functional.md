@@ -298,12 +298,24 @@ hardness at all, so they are unaffected either way.
 
 `daily-mix-soft`, `-mid` and `-hard` are the existing daily mix — the same 90-day pool of unheard
 and highly-rated tracks, the same genre-share bucketing — with the candidate set additionally
-narrowed to one third of *this listener's own* hardness distribution, measured from the same
-listening history their taste profile already comes from. The two edges (soft/mid and mid/hard) are
-that listener's weighted 33rd and 67th percentile; a listener with too little history for that
-measurement to mean anything (under 30 heard tracks with a resolvable hardness) gets fixed edges
-(40/70) instead, and a listener whose own edges come out implausibly close together (within 15
-points) gets their median ± 15 rather than three mixes that all draw from the same five-point sliver.
+narrowed to one third of the hardness spectrum. The two edges (soft/mid and mid/hard) are **fixed
+on the genre anchors**, the same 50/75 for every listener, not measured from any one listener's own
+history. An earlier version derived them from that listener's own weighted 33rd/67th percentile
+instead (with a 40/70 cold-start fallback and a median ± 15 widening below a 15-point gap); measured
+on production for Teun right after that version shipped (0.63.0), his own listening put those edges
+at 62.5/92.5 — "Zachter" ended up meaning raw hardstyle, techno and mainstream hardstyle (800
+candidates), "Middenin" meant uptempo hardcore, bouncy uptempo and zaagtempo (579), and "Harder"
+shrank to only terror and speedcore (71 candidates, the release window relaxed to 365 days, 13
+places filled from unknown hardness). That is backwards: a listener who plays a lot of one style
+must not see that style redefine what "hard" means, because then the person whose taste needs the
+spectrum split the least (they already only hear their own style) is exactly the one for whom the
+split stops working. Soft/mid/hard describe the music, not the listener; the listener's own taste
+still decides *which* tracks within a band a mix picks (`profile.py`'s shares, unchanged), just not
+where a band starts. The two edges are exposed as a runtime setting
+(`feeds_hardness_edges`, `services/common/config_store.py`) for retuning without a deploy; garbage
+or an unset value falls back to 50/75. The listener's own weighted percentiles are still computed
+and shown (on the profile view, and in `scripts/feeds_dryrun.py`'s output) as information about
+where their own taste sits — they simply no longer decide anything.
 
 If a band still has too few candidates once filtered (fewer than 15), the mix widens its own
 90-day window to 365 days, then to no window at all, before giving up on the band as such —
@@ -362,12 +374,12 @@ Nothing below blocks agreement on behavior, but all of it blocks the technical d
   curation work with its own review, so it is deliberately out of scope here; the measurement of how
   much it actually costs comes first.
 
-- **The hardness anchors and the band edges are both unmeasured.** The anchor list (Deep House 10,
-  Hardstyle 45, Terror 95, ...) is a proposed ordering nobody has checked against how listeners here
-  actually rank these genres by ear, and the 33rd/67th-percentile band split, the 40/70 cold-start
-  fallback and the 15-point minimum gap are the same kind of guess the seven-day radar window was
-  before it was measured. Both need the same treatment: ship, then look at `scripts/feeds_dryrun.py
-  --slug daily-mix-soft`'s output against real listening history before trusting the numbers.
+- **The hardness anchors are still unmeasured.** The anchor list (Deep House 10, Hardstyle 45,
+  Terror 95, ...) is a proposed ordering nobody has checked against how listeners here actually rank
+  these genres by ear. The band split itself is no longer a per-listener guess — it is fixed at
+  50/75 on those same anchors, adjustable via the `feeds_hardness_edges` setting — but the anchors
+  underneath it are: `scripts/feeds_dryrun.py --slug daily-mix-soft` is still the tool for judging
+  whether a given anchor sits where a listener would place it by ear.
 - **Playback identity is unproven.** Both clients play through LMS, which does not know a MuMa
   `track_uid`; the existing bridge between the two is the file path, and that path prefix has broken
   this integration before. This must be demonstrated on a sample before any UI work starts.

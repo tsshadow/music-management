@@ -10,6 +10,7 @@ package nl.teunschriks.mumamobile.service
 import java.time.LocalDate
 import java.util.concurrent.ConcurrentHashMap
 import nl.teunschriks.mumamobile.api.muma.MumaAPIDefinition
+import nl.teunschriks.mumamobile.api.muma.MumaFeedInfo
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.Track
 import timber.log.Timber
@@ -43,11 +44,13 @@ class FeedRepository(
     private val serverId: () -> Int = { ActiveServerProvider.getActiveServerId() }
 ) {
     private data class Key(val slug: String, val day: String, val server: Int)
+    private data class ListKey(val day: String, val server: Int)
 
     // Concurrent because the browser reaches it from a coroutine on the service scope while a
     // tap can arrive on the session callback thread. Two simultaneous misses cost two requests,
     // which is wasteful but never wrong; a plain map could corrupt.
     private val cache = ConcurrentHashMap<Key, List<Track>>()
+    private val feedsCache = ConcurrentHashMap<ListKey, List<MumaFeedInfo>>()
 
     /**
      * The feed's tracks, or an empty list when there is nothing to play.
@@ -69,14 +72,53 @@ class FeedRepository(
         return outcome.tracks
     }
 
+    /**
+     * Every feed this account may ask for, titled by the server -- what the car's "Daily mixes"
+     * folder lists. An empty answer is not remembered, the same reasoning as [tracksFor]: a
+     * folder opened while MuMa was briefly unreachable must not stay titleless for the rest of
+     * the day.
+     */
+    fun listFeeds(): List<MumaFeedInfo> {
+        val key = ListKey(today(), serverId())
+        feedsCache[key]?.let { return it }
+
+        val feeds = try {
+            mumaApiProvider().getFeeds().execute().body()?.feeds ?: emptyList()
+        } catch (all: Exception) {
+            Timber.w(all, "Could not list feeds")
+            emptyList()
+        }
+        if (feeds.isNotEmpty()) feedsCache[key] = feeds
+        return feeds
+    }
+
     /** Drop what was remembered, so the next visit rebuilds it. */
-    fun clear() = cache.clear()
+    fun clear() {
+        cache.clear()
+        feedsCache.clear()
+    }
 
     companion object {
         // The slugs MuMa's API spells, kept here because the car's browse tree, the car's playback
-        // callbacks and the phone's home screen all name the same two feeds.
+        // callbacks and the phone's home screen all name the same feeds.
         const val RELEASE_RADAR = "release-radar"
+
+        // The classic, unrestricted daily mix -- not one of the three spectrum bands below and
+        // not their alias. The car and the phone already called this slug before the spectrum
+        // existed, and it must keep working exactly as it always has.
         const val DAILY_MIX = "daily-mix"
+        const val DAILY_MIX_SOFT = "daily-mix-soft"
+        const val DAILY_MIX_MID = "daily-mix-mid"
+        const val DAILY_MIX_HARD = "daily-mix-hard"
+        const val DAILY_MIX_ARTIST = "daily-mix-artist"
+        const val DAILY_MIX_LABEL = "daily-mix-label"
+
+        /**
+         * The five daily mixes on the hardness spectrum plus the day's artist and label, soft to
+         * hard then the two rotating ones -- the order the car's "Daily mixes" folder lists them
+         * in, before the classic [DAILY_MIX] appended last.
+         */
+        val DAILY_MIXES = listOf(DAILY_MIX_SOFT, DAILY_MIX_MID, DAILY_MIX_HARD, DAILY_MIX_ARTIST, DAILY_MIX_LABEL)
     }
 
     /** What one attempt produced, and whether it is the whole feed or only what survived. */

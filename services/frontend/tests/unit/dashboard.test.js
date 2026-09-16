@@ -138,13 +138,24 @@ describe("Dashboard", () => {
     expect(urlsFor("/rest/getSpotifyPlaylist")).toHaveLength(2);
   });
 
-  it("asks MuMa for the two personalized feeds", async () => {
+  it("asks MuMa for the release radar and the daily-mix spectrum, never the lone classic slug", async () => {
+    // The single "Daily mix" row is gone from Home -- DailyMixesShelf takes its place and asks
+    // for the three spectrum bands instead (the rotating artist/label cards need no feed
+    // request of their own, only `GET /api/feeds` for their title).
     render(Dashboard, { activeView: "home" });
 
-    await waitFor(() => expect(urlsFor("/api/feeds/").length).toBeGreaterThan(0));
-
-    const asked = urlsFor("/api/feeds/").map((url) => url.split("/api/feeds/")[1].split("?")[0]);
-    expect(asked.sort()).toEqual(["daily-mix", "release-radar"]);
+    await waitFor(() => {
+      const asked = urlsFor("/api/feeds/").map((url) => url.split("/api/feeds/")[1].split("?")[0]);
+      expect(asked).toEqual(
+        expect.arrayContaining([
+          "release-radar",
+          "daily-mix-soft",
+          "daily-mix-mid",
+          "daily-mix-hard",
+        ]),
+      );
+      expect(asked).not.toContain("daily-mix");
+    });
   });
 
   it("leaves a feed row off the screen when the feed is empty", async () => {

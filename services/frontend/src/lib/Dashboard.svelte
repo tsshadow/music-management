@@ -17,6 +17,8 @@
   import StarredView from './StarredView.svelte';
   import MemoriesView from './MemoriesView.svelte';
   import FeedView from './FeedView.svelte';
+  import DailyMixesShelf from './DailyMixesShelf.svelte';
+  import DailyMixesPage from './DailyMixesPage.svelte';
   import MemoriesYearView from './MemoriesYearView.svelte';
   import ArtistEdit from './curation/ArtistEdit.svelte';
   import LabelEdit from './curation/LabelEdit.svelte';
@@ -41,7 +43,7 @@
   import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
   import { defaultCollectionState, durationParts, lineupLevel, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
   import { loadIndexedTags } from './scanTags.js';
-  import { loadFeed, DAILY_MIX, RELEASE_RADAR } from './feeds.js';
+  import { loadFeed, DAILY_MIX, DAILY_MIXES, RELEASE_RADAR } from './feeds.js';
   import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, hasPermission, isMobile, restUrl, mumaUser } from './store.js';
 
   // Navigation that has to survive a refresh goes through onnavigate, which App turns into a URL.
@@ -53,8 +55,10 @@
   // The row that used to sit at the top was `spotify:release_radar`, which is the whole library
   // under ten minutes sorted by release date -- the same list for every listener, personalized in
   // name only. The real radar knows what this account plays, so it takes the name and the place.
+  // The daily mixes used to be one more entry here (`feed:daily-mix`), rendered by HomeShelf like
+  // every other row. Five differently-coloured mixes are not tracks with a cover, so they get
+  // their own component (DailyMixesShelf) instead, rendered in this same first slot below.
   let sections = $state([
-    { titleKey: 'nav.dailyMix', id: `feed:${DAILY_MIX}`, tracks: [] },
     { titleKey: 'nav.releaseRadar', id: `feed:${RELEASE_RADAR}`, tracks: [] },
     { titleKey: 'nav.songs', id: 'spotify:songs', tracks: [] },
     { titleKey: 'nav.sets', id: 'spotify:sets', tracks: [] }
@@ -825,6 +829,7 @@
         </div>
       </section>
     {/if}
+    <DailyMixesShelf onnavigate={(v) => activeView = v} />
     {#each sections.filter((s) => !s.id.startsWith('feed:') || s.tracks.length > 0) as section (section.id)}
       <HomeShelf
         title={$t(section.titleKey)}
@@ -1276,7 +1281,7 @@
       {/if}
     </div>
   {:else if activeView === 'settings'}
-    <Settings />
+    <Settings onnavigate={onnavigate} />
   {:else if activeView === 'management'}
     <Management />
   {:else if activeView === 'history'}
@@ -1289,6 +1294,10 @@
     <FeedView slug={RELEASE_RADAR} onnavigate={(v) => onnavigate(v)} />
   {:else if activeView === 'daily-mix'}
     <FeedView slug={DAILY_MIX} onnavigate={(v) => onnavigate(v)} />
+  {:else if DAILY_MIXES.includes(activeView)}
+    <FeedView slug={activeView} onnavigate={(v) => onnavigate(v)} />
+  {:else if activeView === 'daily-mixes'}
+    <DailyMixesPage onnavigate={(v) => onnavigate(v)} />
   {:else if activeView === 'new-preset'}
     <PresetBuilder onnavigate={(v) => onnavigate(v)} />
   {:else if activeView.startsWith('preset-edit:')}

@@ -18,9 +18,22 @@ const SONGS = [
   { id: "song-2", title: "Second", artist: "Someone", suffix: "mp3" },
 ];
 
+function detailOf(tracks, extra = {}) {
+  return {
+    state: "ok",
+    title: null,
+    subtitle: null,
+    hardnessBand: null,
+    relaxedTo: null,
+    filledFromUnknown: null,
+    tracks,
+    ...extra,
+  };
+}
+
 vi.mock("../../src/lib/feeds.js", async (importOriginal) => {
   const actual = await importOriginal();
-  return { ...actual, loadFeed: (...args) => globalThis.__loadFeed(...args) };
+  return { ...actual, loadFeedDetail: (...args) => globalThis.__loadFeedDetail(...args) };
 });
 
 describe("FeedView", () => {
@@ -29,7 +42,7 @@ describe("FeedView", () => {
     playlist.set([]);
     currentTrack.set(null);
     playerState.set({ playing: false });
-    globalThis.__loadFeed = vi.fn(async () => SONGS);
+    globalThis.__loadFeedDetail = vi.fn(async () => detailOf(SONGS));
     globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({}) }));
   });
 
@@ -41,14 +54,21 @@ describe("FeedView", () => {
     render(FeedView, { slug: "release-radar", onnavigate: vi.fn() });
 
     await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
-    expect(globalThis.__loadFeed.mock.calls[0][0]).toBe("release-radar");
+    expect(globalThis.__loadFeedDetail.mock.calls[0][0]).toBe("release-radar");
   });
 
   it("the daily mix asks for the daily mix", async () => {
     render(FeedView, { slug: "daily-mix", onnavigate: vi.fn() });
 
-    await waitFor(() => expect(globalThis.__loadFeed).toHaveBeenCalled());
-    expect(globalThis.__loadFeed.mock.calls[0][0]).toBe("daily-mix");
+    await waitFor(() => expect(globalThis.__loadFeedDetail).toHaveBeenCalled());
+    expect(globalThis.__loadFeedDetail.mock.calls[0][0]).toBe("daily-mix");
+  });
+
+  it("shows a spectrum mix's own slug when asked for one", async () => {
+    render(FeedView, { slug: "daily-mix-soft", onnavigate: vi.fn() });
+
+    await waitFor(() => expect(globalThis.__loadFeedDetail).toHaveBeenCalled());
+    expect(globalThis.__loadFeedDetail.mock.calls[0][0]).toBe("daily-mix-soft");
   });
 
   it("queues the feed in MuMa's order and starts it", async () => {
@@ -63,7 +83,7 @@ describe("FeedView", () => {
   });
 
   it("says so when the feed is empty rather than showing an empty list", async () => {
-    globalThis.__loadFeed = vi.fn(async () => []);
+    globalThis.__loadFeedDetail = vi.fn(async () => detailOf([]));
 
     render(FeedView, { slug: "release-radar", onnavigate: vi.fn() });
 
@@ -75,5 +95,45 @@ describe("FeedView", () => {
     render(FeedView, { slug: "release-radar", onnavigate: vi.fn() });
 
     await waitFor(() => expect(screen.getByText(/2 nummers/)).toBeTruthy());
+  });
+
+  it("shows the server's title and subtitle when it has one", async () => {
+    globalThis.__loadFeedDetail = vi.fn(async () =>
+      detailOf(SONGS, { title: "Zachter", subtitle: "≤ 42 hardheid" }),
+    );
+
+    render(FeedView, { slug: "daily-mix-soft", onnavigate: vi.fn() });
+
+    await waitFor(() => expect(screen.getByText("Zachter")).toBeTruthy());
+    expect(screen.getByText("≤ 42 hardheid")).toBeTruthy();
+  });
+
+  it("shows the band and how many places were filled from unknown hardness", async () => {
+    globalThis.__loadFeedDetail = vi.fn(async () =>
+      detailOf(SONGS, { hardnessBand: [10, 42], filledFromUnknown: 3 }),
+    );
+
+    render(FeedView, { slug: "daily-mix-soft", onnavigate: vi.fn() });
+
+    await waitFor(() => expect(screen.getByText(/band 10–42/)).toBeTruthy());
+    expect(screen.getByText(/3 aangevuld/)).toBeTruthy();
+  });
+
+  it("shows only the band when nothing needed to be filled in", async () => {
+    globalThis.__loadFeedDetail = vi.fn(async () =>
+      detailOf(SONGS, { hardnessBand: [42, 70], filledFromUnknown: 0 }),
+    );
+
+    render(FeedView, { slug: "daily-mix-mid", onnavigate: vi.fn() });
+
+    await waitFor(() => expect(screen.getByText(/band 42–70/)).toBeTruthy());
+    expect(screen.queryByText(/aangevuld/)).toBeNull();
+  });
+
+  it("shows no band line for a feed that never carries one", async () => {
+    render(FeedView, { slug: "release-radar", onnavigate: vi.fn() });
+
+    await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
+    expect(screen.queryByText(/band/)).toBeNull();
   });
 });

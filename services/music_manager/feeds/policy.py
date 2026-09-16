@@ -8,6 +8,8 @@ query: the radar and the daily mix are the same ranker with different parameters
 
 from dataclasses import dataclass, replace
 
+from services.music_manager.feeds.hardness import DEFAULT_BAND_EDGES
+
 
 @dataclass(frozen=True)
 class FeedPolicy:
@@ -55,6 +57,37 @@ def parse_starting_genres(raw: str | None) -> list[str] | None:
     """
     genres = [genre.strip() for genre in (raw or '').split(',') if genre.strip()]
     return genres or None
+
+
+#: The runtime setting (services/common/config_store.py, group `Feeds`) holding the
+#: two fixed hardness band edges as "<soft/mid>,<mid/hard>", e.g. "50,75". See
+#: `feeds/hardness.py`'s `DEFAULT_BAND_EDGES` for what a listener gets when this is
+#: unset or unparsable, and its docstring for why the edges are fixed at all rather
+#: than measured per listener.
+HARDNESS_EDGES_SETTING = 'feeds_hardness_edges'
+
+
+def parse_hardness_edges(raw: str | None) -> tuple[tuple[float, float], str]:
+    """The two band edges this setting configures, and whether it actually supplied
+    them -- `'setting'` or `'default'`.
+
+    Mirrors `parse_starting_genres`'s contract: the router and the dry run must
+    resolve the same edges the same way, or a dry run measures a different feed
+    than the one shipped. Garbage falls back to `DEFAULT_BAND_EDGES` rather than
+    raising -- not exactly two comma-separated numbers, not parseable as floats, not
+    ascending, or outside the 0-100 range a curated genre's own `hardness` lives in.
+    """
+    if raw:
+        parts = raw.split(',')
+        if len(parts) == 2:
+            try:
+                lo, hi = float(parts[0].strip()), float(parts[1].strip())
+            except ValueError:
+                pass
+            else:
+                if 0 <= lo < hi <= 100:
+                    return (lo, hi), 'setting'
+    return DEFAULT_BAND_EDGES, 'default'
 
 
 #: What every daily mix -- spectrum or rotating -- has in common: the 90-day window,

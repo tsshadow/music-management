@@ -1,8 +1,8 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
-  import { Settings2, CarFront } from '@lucide/svelte';
-  import { credentials, isAdmin, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser, defaultSubsonicUrl } from './store.js';
+  import { Settings2, CarFront, CircleHelp } from '@lucide/svelte';
+  import { credentials, isAdmin, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser, defaultSubsonicUrl, activeSettingsTab } from './store.js';
   import { platform } from './platform/index.js';
   import { logAction } from './diagnosticsLog.js';
 
@@ -126,6 +126,16 @@
           <CarFront size={16} />
         </button>
       {/if}
+      <!-- The manual is a settings tab; opening it from here is the settings view with
+           that tab already picked, so the phone (no sidebar) lands on the text, not on
+           General. -->
+      <button
+        class="w-full text-left px-4 py-3 text-sm hover:bg-[#3e3e3e] transition-colors border-none bg-transparent text-white cursor-pointer flex justify-between items-center"
+        onclick={() => { isOpen = false; activeSettingsTab.set('help'); onNavigate('settings'); }}
+      >
+        {$t('nav.help')}
+        <CircleHelp size={16} />
+      </button>
       <button
         class="w-full text-left px-4 py-3 text-sm hover:bg-[#3e3e3e] transition-colors border-none bg-transparent text-white cursor-pointer flex justify-between items-center"
         onclick={() => { isOpen = false; onNavigate('settings'); }}

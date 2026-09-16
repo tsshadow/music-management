@@ -7,9 +7,24 @@
  * server look the same to the caller on purpose, because both mean there is nothing to show.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DAILY_MIX, RELEASE_RADAR, loadFeed } from "../../src/lib/feeds.js";
+import {
+  DAILY_MIX,
+  DAILY_MIX_ARTIST,
+  DAILY_MIX_HARD,
+  DAILY_MIX_LABEL,
+  DAILY_MIX_MID,
+  DAILY_MIX_SOFT,
+  DAILY_MIXES,
+  RELEASE_RADAR,
+  feedPaths,
+  fetchFeed,
+  listFeeds,
+  loadFeed,
+  loadFeedDetail,
+  resetFeedsCache,
+} from "../../src/lib/feeds.js";
 
 vi.mock("../../src/lib/mumaApi.js", () => ({
   apiBase: () => "http://muma",
@@ -158,5 +173,157 @@ describe("loadFeed", () => {
     await loadFeed(RELEASE_RADAR, AUTH);
 
     expect(globalThis.fetch.mock.calls[0][1].body.getAll("path")).toEqual(["a.mp3"]);
+  });
+});
+
+describe("the five daily mixes are real slugs", () => {
+  it("lists soft, mid, hard, artist and label, and never the classic mix", () => {
+    expect(DAILY_MIXES).toEqual([
+      DAILY_MIX_SOFT,
+      DAILY_MIX_MID,
+      DAILY_MIX_HARD,
+      DAILY_MIX_ARTIST,
+      DAILY_MIX_LABEL,
+    ]);
+    expect(DAILY_MIXES).not.toContain(DAILY_MIX);
+  });
+});
+
+describe("listFeeds", () => {
+  afterEach(() => resetFeedsCache());
+
+  it("asks MuMa for every feed, with the user's key", async () => {
+    globalThis.__fetchMumaJson.mockResolvedValue({
+      feeds: [{ slug: DAILY_MIX, title: "Klassiek", subtitle: null }],
+    });
+
+    const feeds = await listFeeds();
+
+    expect(feeds).toEqual([{ slug: DAILY_MIX, title: "Klassiek", subtitle: null }]);
+    expect(globalThis.__fetchMumaJson).toHaveBeenCalledWith("http://muma/api/feeds", {
+      headers: { "X-API-Key": "the-users-key" },
+    });
+  });
+
+  it("asks only once per session -- a second call reuses the first answer", async () => {
+    globalThis.__fetchMumaJson.mockResolvedValue({ feeds: [] });
+
+    await listFeeds();
+    await listFeeds();
+
+    expect(globalThis.__fetchMumaJson).toHaveBeenCalledTimes(1);
+  });
+
+  it("is an empty list rather than a crash when MuMa is unreachable", async () => {
+    globalThis.__fetchMumaJson.mockRejectedValue(new Error("gate refused"));
+
+    expect(await listFeeds()).toEqual([]);
+  });
+
+  it("retries the next time after a failure -- the cache does not remember an error", async () => {
+    globalThis.__fetchMumaJson.mockRejectedValueOnce(new Error("gate refused"));
+    await listFeeds();
+
+    globalThis.__fetchMumaJson.mockResolvedValue({ feeds: [{ slug: DAILY_MIX }] });
+    expect(await listFeeds()).toEqual([{ slug: DAILY_MIX }]);
+  });
+});
+
+describe("fetchFeed", () => {
+  it("carries the title, subtitle and hardness fields through untouched", async () => {
+    globalThis.__fetchMumaJson.mockResolvedValue({
+      slug: DAILY_MIX_SOFT,
+      state: "ok",
+      tracks: [],
+      title: "Zachter",
+      subtitle: "≤ 42 hardheid",
+      hardness_band: [10, 42],
+      relaxed_to: "none",
+      filled_from_unknown: 3,
+    });
+
+    const feed = await fetchFeed(DAILY_MIX_SOFT, 10);
+
+    expect(feed.title).toBe("Zachter");
+    expect(feed.hardness_band).toEqual([10, 42]);
+    expect(feed.filled_from_unknown).toBe(3);
+  });
+
+  it("answers a safe, empty shape when MuMa cannot be reached", async () => {
+    globalThis.__fetchMumaJson.mockRejectedValue(new Error("gate refused"));
+
+    const feed = await fetchFeed(DAILY_MIX_SOFT);
+
+    expect(feed).toEqual({
+      slug: DAILY_MIX_SOFT,
+      state: "error",
+      tracks: [],
+      title: null,
+      subtitle: null,
+      hardness_band: null,
+      relaxed_to: null,
+      filled_from_unknown: null,
+    });
+  });
+});
+
+describe("feedPaths", () => {
+  it("works for any slug, not only the original two", async () => {
+    globalThis.__fetchMumaJson.mockResolvedValue({
+      slug: DAILY_MIX_LABEL,
+      state: "ok",
+      tracks: [{ library_path: "EPs/Label/01.mp3" }],
+    });
+
+    const paths = await feedPaths(DAILY_MIX_LABEL, 5);
+
+    expect(paths).toEqual(["EPs/Label/01.mp3"]);
+    expect(globalThis.__fetchMumaJson).toHaveBeenCalledWith(
+      "http://muma/api/feeds/daily-mix-label?limit=5",
+      { headers: { "X-API-Key": "the-users-key" } },
+    );
+  });
+});
+
+describe("loadFeedDetail", () => {
+  it("resolves the feed's own tracks and carries the server's title/subtitle", async () => {
+    globalThis.__fetchMumaJson.mockResolvedValue({
+      slug: DAILY_MIX_MID,
+      state: "ok",
+      tracks: [{ library_path: "a.mp3" }],
+      title: "Middenin",
+      subtitle: "42–70 hardheid",
+      hardness_band: [42, 70],
+      relaxed_to: null,
+      filled_from_unknown: 0,
+    });
+    globalThis.fetch.mockResolvedValue(songsResponse("1"));
+
+    const detail = await loadFeedDetail(DAILY_MIX_MID, AUTH);
+
+    expect(detail.title).toBe("Middenin");
+    expect(detail.subtitle).toBe("42–70 hardheid");
+    expect(detail.hardnessBand).toEqual([42, 70]);
+    expect(detail.filledFromUnknown).toBe(0);
+    expect(detail.tracks.map((t) => t.id)).toEqual(["1"]);
+  });
+
+  it("carries a null hardness band for a feed that never sets one", async () => {
+    globalThis.__fetchMumaJson.mockResolvedValue(feedOf("a.mp3"));
+    globalThis.fetch.mockResolvedValue(songsResponse("1"));
+
+    const detail = await loadFeedDetail(RELEASE_RADAR, AUTH);
+
+    expect(detail.hardnessBand).toBeNull();
+    expect(detail.filledFromUnknown).toBeNull();
+  });
+
+  it("has no tracks to resolve without credentials", async () => {
+    globalThis.__fetchMumaJson.mockResolvedValue(feedOf("a.mp3"));
+
+    const detail = await loadFeedDetail(RELEASE_RADAR, "");
+
+    expect(detail.tracks).toEqual([]);
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 });

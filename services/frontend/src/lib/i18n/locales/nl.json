@@ -107,6 +107,7 @@
   },
   "dashboard": {
     "addFavorite": "Toevoegen aan favorieten",
+    "dailyMixesSubtitle": "Zacht, midden, hard, en meer",
     "noAlbums": "Geen albums gevonden",
     "noAlbumsHelp": "Er zijn geen albums gevonden die overeenkomen met de huidige filters.",
     "noGenres": "Geen genres gevonden in je bibliotheek.",
@@ -144,9 +145,11 @@
     "title": "Equalizer"
   },
   "feed": {
+    "bandRange": "band {lo}–{hi}",
     "empty": "Hier staat nu niets",
     "emptyMixHelp": "De mix wordt gebouwd uit je luistergeschiedenis. Draai wat muziek en kom terug.",
     "emptyRadarHelp": "De radar toont releases van de afgelopen week die bij je luistergedrag passen.",
+    "filledFromUnknown": "{count} aangevuld",
     "mixSubtitle": "Vandaag voor jou gekozen",
     "radarSubtitle": "Deze week uitgebracht, voor jou gekozen"
   },
@@ -229,7 +232,7 @@
     "topLabels": "Top labels"
   },
   "listening": {
-    "title": "Luisteren",
+    "title": "Luisterstatistieken",
     "subtitle": "Wat je hebt gedraaid, wanneer, en hoe vaak.",
     "loading": "Je luistergeschiedenis wordt geladen…",
     "unavailable": "Luisterstatistieken zijn nu niet beschikbaar.",
@@ -748,7 +751,11 @@
       "scrobble": "Scrobble Import",
       "tagger": "Tagger",
       "userRequests": "Toegangsverzoeken",
-      "users": "Gebruikers"
+      "users": "Gebruikers",
+      "artistCuration": "Artiestcuratie",
+      "labels": "Labels",
+      "festivals": "Festivals",
+      "lineups": "Lineups"
     },
     "tagger": {
       "active": "Actief",
@@ -834,6 +841,159 @@
       "tokenPlaceholder": "Token",
       "tokenRevoked": "Subsonic token ingetrokken.",
       "tokenSaveFailed": "Kon Subsonic token niet opslaan."
+    },
+    "artists": {
+      "subtitle": "Welke namen in de bibliotheek écht artiesten zijn. De scanner slaat elke artiestnaam op die een taggerregel ooit maakte; hier beslis je wat blijft, wat weg mag en wat een andere spelling is.",
+      "filterUnknown": "Te beoordelen",
+      "filterWhite": "Goedgekeurd",
+      "filterBlack": "Afgekeurd",
+      "filterAll": "Alles",
+      "ofInLibrary": "van {count} namen in de bibliotheek",
+      "proposals": "Advies",
+      "proposalCounts": "{reject}× verwijderen · {rewrite}× samenvoegen",
+      "proposalAny": "Alle",
+      "proposalReject": "Advies: verwijderen",
+      "proposalRewrite": "Advies: samenvoegen",
+      "proposalNone": "Geen advies",
+      "analyse": "Analyseren",
+      "analysing": "Bezig met analyseren…",
+      "analysedAt": "Laatste analyse: {when}",
+      "neverAnalysed": "Nog geen advies — de analyse start vanzelf bij het eerste bezoek.",
+      "analysisDone": "Analyse klaar: advies voor {count} namen.",
+      "analysisFailed": "De analyse is mislukt.",
+      "searchPlaceholder": "Zoek een naam…",
+      "searchLabel": "Zoek artiestnaam",
+      "tracks": "Nummers",
+      "proposal": "Advies",
+      "outcome": "Wat de tagger doet",
+      "actions": "Acties",
+      "approve": "Goedkeuren",
+      "reject": "Afkeuren",
+      "correct": "Corrigeren",
+      "undo": "Beslissing over {name} ongedaan maken",
+      "selectAll": "Alles op deze pagina selecteren",
+      "selectName": "{name} selecteren",
+      "selectedCount": "{count} geselecteerd",
+      "applyProposals": "Advies opvolgen ({count})",
+      "clearSelection": "Selectie wissen",
+      "proposeReject": "Advies: verwijderen",
+      "proposeRewrite": "Advies: samenvoegen met {target}",
+      "proposeNothing": "Geen advies",
+      "outcomeKeep": "Blijft staan",
+      "outcomeDrop": "Wordt uit de tag verwijderd",
+      "outcomeRewrite": "Wordt vervangen door {target}",
+      "outcomeUndecided": "Nog niet beoordeeld — blijft zoals het is",
+      "decidedByAt": "{when} door {by}",
+      "approved": "{name} goedgekeurd.",
+      "rejected": "{name} afgekeurd.",
+      "approvedMany": "{count} namen goedgekeurd.",
+      "rejectedMany": "{count} namen afgekeurd.",
+      "corrected": "{name} wordt voortaan vervangen door {target}.",
+      "undone": "Beslissing over {name} ongedaan gemaakt.",
+      "appliedProposals": "{count} adviezen opgevolgd, {skipped} overgeslagen zonder advies.",
+      "nothingToApply": "Geen van de geselecteerde namen heeft een advies.",
+      "correctionHelp": "Vervang deze naam overal door een andere spelling. De doelnaam wordt daarmee goedgekeurd.",
+      "correctTo": "Vervangen door",
+      "correctionPlaceholder": "Juiste spelling…",
+      "targetApproved": "de doelnaam wordt goedgekeurd.",
+      "noneForSearch": "Geen naam gevonden voor '{search}'.",
+      "queueEmpty": "Niets te beoordelen. Alle namen hebben een beslissing.",
+      "listEmpty": "Geen namen in deze lijst.",
+      "page": "Pagina {page} van {pages}",
+      "previousPage": "Vorige pagina",
+      "nextPage": "Volgende pagina",
+      "loadFailed": "Kon artiesten niet ophalen.",
+      "loadNetworkError": "Netwerkfout bij ophalen artiesten.",
+      "saveFailed": "Opslaan mislukt.",
+      "saveNetworkError": "Netwerkfout bij opslaan.",
+      "errorNoNames": "Geen namen geselecteerd.",
+      "errorState": "Ongeldige status.",
+      "errorApproveWithCorrection": "Een goedgekeurde naam houdt zijn eigen spelling; een correctie keurt af.",
+      "errorSelfCorrection": "Een naam kan niet naar zichzelf corrigeren."
+    },
+    "labels": {
+      "subtitle": "Elk label in de bibliotheek, met wat de tagger erover weet: catalogusnummers, genreregels, moederlabel. Bewerken opent de labelpagina.",
+      "searchPlaceholder": "Zoek een label…",
+      "searchLabel": "Zoek label",
+      "tracks": "Nummers",
+      "catids": "Catalogus-id's",
+      "genreRules": "Genreregels",
+      "parent": "Moederlabel",
+      "noGenreRule": "geen",
+      "edit": "{name} bewerken",
+      "noneForSearch": "Geen label gevonden voor '{search}'.",
+      "empty": "Geen labels in de bibliotheek.",
+      "loadFailed": "Kon labels niet ophalen.",
+      "loadNetworkError": "Netwerkfout bij ophalen labels."
+    },
+    "festivals": {
+      "subtitle": "De festivals die de tagger herkent: de naam, de spellingen waaronder ze voorkomen, en de datum per editie.",
+      "new": "Nieuw festival",
+      "editTitle": "Festival bewerken",
+      "name": "Naam",
+      "aliases": "Spellingen",
+      "aliasesHelp": "Eén per regel. Matcht op hele woorden: 'Rise' matcht 'Sunrise' niet. De naam zelf hoeft er niet bij.",
+      "editions": "Edities",
+      "editionsHelp": "Jaar en datum. De datum gaat mee in de tag als de titel of map dat jaar noemt.",
+      "year": "Jaar",
+      "date": "Datum",
+      "addEdition": "Editie toevoegen",
+      "removeEdition": "Editie verwijderen",
+      "activeHelp": "Actief — de tagger herkent dit festival",
+      "inactive": "Inactief",
+      "nameOnly": "alleen de naam",
+      "probeTitle": "Test een tekst",
+      "probeHelp": "Plak een titel of mapnaam en zie wat de tagger erin herkent, met de regels zoals ze nu zijn opgeslagen.",
+      "probePlaceholder": "Angerfist @ Intents Karnaval Festival 2025",
+      "probeRun": "Herkennen",
+      "probeNone": "Geen festival herkend.",
+      "searchPlaceholder": "Zoek een festival…",
+      "searchLabel": "Zoek festival",
+      "noneForSearch": "Geen festival gevonden voor '{search}'.",
+      "empty": "Nog geen festivals. Voeg er een toe.",
+      "edit": "{name} bewerken",
+      "delete": "{name} verwijderen",
+      "confirmDelete": "{name} verwijderen? Zet het festival op inactief om het te bewaren zonder dat de tagger het herkent.",
+      "saved": "{name} opgeslagen.",
+      "deleted": "{name} verwijderd.",
+      "loadFailed": "Kon festivals niet ophalen.",
+      "loadNetworkError": "Netwerkfout bij ophalen festivals.",
+      "saveFailed": "Opslaan mislukt.",
+      "saveNetworkError": "Netwerkfout bij opslaan.",
+      "errorName": "Een festival heeft een naam nodig.",
+      "errorYear": "Een editiejaar moet tussen 1980 en 2049 liggen.",
+      "errorDate": "Een editiedatum is JJJJ-MM-DD.",
+      "errorDuplicateYear": "Elk jaar één editie."
+    },
+    "lineups": {
+      "subtitle": "Wie er speelde, als tekstbestand per editie (of per stage): één artiest per regel. De bladerpagina's filteren erop met de hele artiestnaam, dus een andere spelling matcht niets — controleer voor je opslaat.",
+      "new": "Nieuwe lineup",
+      "files": "Lineups",
+      "empty": "Nog geen lineups. Plak een line-up van de festivalsite en sla hem op.",
+      "wholeFestival": "hele festival",
+      "festival": "Festival",
+      "year": "Jaar",
+      "stage": "Stage",
+      "pathHelp": "Zonder jaar is het bestand het festival zelf; met jaar één editie; met stage één podium binnen die editie. Een map is de som van alles eronder.",
+      "bill": "Line-up",
+      "billPlaceholder": "Angerfist\nMiss K8\nD-Block & S-te-Fan\n…",
+      "check": "Controleren",
+      "checking": "Bezig…",
+      "reportSummary": "{matched} van {total} namen matcht de bibliotheek",
+      "allMatched": "Alles matcht.",
+      "noSuggestion": "geen suggestie",
+      "saved": "{id} opgeslagen: {matched} van {total} namen matchen.",
+      "deleted": "{id} verwijderd.",
+      "delete": "{id} verwijderen",
+      "confirmDelete": "Lineup {id} verwijderen?",
+      "loadFailed": "Kon lineups niet ophalen.",
+      "loadNetworkError": "Netwerkfout bij ophalen lineups.",
+      "saveFailed": "Opslaan mislukt.",
+      "saveNetworkError": "Netwerkfout bij opslaan.",
+      "errorFestival": "Een lineup heeft een festival nodig.",
+      "errorYear": "Een jaar is vier cijfers.",
+      "errorStageWithoutYear": "Een stage hoort bij een editie: vul ook een jaar in.",
+      "errorEmpty": "Plak eerst een line-up."
     }
   },
   "memories": {
@@ -865,6 +1025,7 @@
     "carMode": "Carmodus",
     "closeMenu": "Menu sluiten",
     "dailyMix": "Dagelijkse mix",
+    "dailyMixes": "Dagelijkse mixen",
     "downloads": "Downloads",
     "festivals": "Festivals",
     "genres": "Genres",
@@ -873,7 +1034,7 @@
     "labels": "Labels",
     "library": "Bieb",
     "lineups": "Lineups",
-    "listening": "Luisteren",
+    "listening": "Luisterstatistieken",
     "management": "Beheer",
     "memories": "Memories",
     "menu": "Menu",
@@ -887,7 +1048,8 @@
     "starred": "Favorieten",
     "years": "Jaren",
     "browse": "Bladeren",
-    "favorites": "Favorieten"
+    "favorites": "Favorieten",
+    "help": "Handleiding"
   },
   "news": {
     "couldNotPlay": "Kon het nieuws niet afspelen",
@@ -1152,7 +1314,7 @@
         "modeButton": "Knop",
         "modeOverview": "Overzicht",
         "releaseRadar": "Release Radar",
-        "dailyMix": "Dagelijkse mix",
+        "dailyMix": "Dagelijkse mixen",
         "dailyMixCount": "Aantal in dagelijkse mix",
         "favorites": "Favorieten",
         "favoritesCount": "Aantal favorieten",
@@ -1189,7 +1351,8 @@
       "about": "Over",
       "advanced": "Geavanceerd",
       "device": "Apparaat",
-      "general": "Algemeen"
+      "general": "Algemeen",
+      "help": "Handleiding"
     }
   },
   "sidebar": {
@@ -1363,5 +1526,112 @@
     "back": "Terug",
     "diagnosticsTitle": "Diagnose",
     "diagnosticsEmpty": "Nog geen spraakopdrachten."
+  },
+  "setup": {
+    "welcome": "Welkom bij MuMa",
+    "updateIntro": "Nieuw sinds je laatste bezoek",
+    "new": "Nieuw",
+    "skip": "Overslaan",
+    "back": "Terug",
+    "next": "Volgende",
+    "done": "Klaar",
+    "progress": "Stap {current} van {total}",
+    "nothingTitle": "Alles is al ingesteld",
+    "nothingBody": "Er is geen instelling die je nog niet gezien hebt. Vanuit de handleiding kun je de rondleiding altijd opnieuw doorlopen.",
+    "steps": {
+      "language": {
+        "title": "In welke taal?",
+        "body": "MuMa spreekt Nederlands, Engels en twee dialecten. De keuze wordt bij je account bewaard, dus op je telefoon en op de website zie je dezelfde taal."
+      },
+      "mode": {
+        "title": "Nummers of sets?",
+        "body": "Alles in de bibliotheek is óf een nummer óf een set: een opname van tien minuten of langer, zoals een festivalset of een podcast. Je kiest hier waar je meestal in bladert; wisselen kan altijd, boven in het scherm.",
+        "hint": "In setmodus zie je Festivals en Podcasts; in nummermodus Labels en Lineups. De rest is in beide te vinden."
+      },
+      "home": {
+        "title": "Wat staat er op Home?",
+        "body": "Home bestaat uit secties. 'Knop' zet een sectie als tegel bovenaan, 'Overzicht' geeft hem een eigen rij met nummers, 'Uit' verbergt hem. Memories — releases van vandaag in eerdere jaren — hebben een eigen schakelaar."
+      },
+      "display": {
+        "title": "Hoe zien lijsten eruit?",
+        "body": "Dezelfde track staat vaak meerdere keren in de bibliotheek (een release, een compilatie, een radio-edit). Deduplicatie toont er één. De regels per rij bepalen hoeveel je per nummer ziet, en de bevestiging voorkomt dat één tik een set van drie uur begint te downloaden."
+      },
+      "downloads": {
+        "title": "Downloaden op mobiele data?",
+        "body": "Downloads blijven op je telefoon staan, ook zonder verbinding. Sets zijn groot; met 'alleen wifi' aan wacht een download tot je thuis bent."
+      },
+      "guide": {
+        "title": "Zo, dat was het",
+        "body": "Alles wat je hier koos staat ook in Instellingen. De handleiding legt de rest uit: zoeken, presets, de dagelijkse mixen, memories, luisterstatistieken en wat er verder te vinden is.",
+        "open": "Handleiding openen"
+      }
+    }
+  },
+  "help": {
+    "title": "Handleiding",
+    "subtitle": "Wat er in MuMa zit en waar je het vindt.",
+    "contents": "Inhoud",
+    "goThere": "Naar {place}",
+    "tour": {
+      "title": "Rondleiding",
+      "body": "De korte rondleiding langs de belangrijkste instellingen, dezelfde als bij je eerste bezoek.",
+      "start": "Opnieuw doorlopen"
+    },
+    "home": {
+      "title": "Home",
+      "body": "Home is je startpunt: tegels bovenaan voor de plekken waar je vaak komt, daaronder rijen met nummers. Welke secties je ziet en of ze een tegel of een rij zijn, bepaal je zelf onder Instellingen › Algemeen › Home.\n\nOp de website staan je presets (opgeslagen zoekopdrachten) ook op Home; op de telefoon hebben die een eigen tab, Favorieten."
+    },
+    "mode": {
+      "title": "Nummers en sets",
+      "body": "De bibliotheek kent twee soorten opnames. Een nummer is korter dan tien minuten; alles daarboven is een set: een festivalopname, een podcast, een mix. De schakelaar Nummers/Sets — links in de zijbalk, op de telefoon boven in het scherm — bepaalt wat je overal ziet.\n\nSommige ingangen bestaan maar in één modus. Labels en Lineups horen bij nummers; Festivals en Podcasts bij sets. Artiesten, albums, genres en jaren zijn er in beide."
+    },
+    "browse": {
+      "title": "Bladeren",
+      "body": "De bibliotheek is te doorbladeren op artiest, album, genre, label, podcast, festival, jaar en lineup. Op de website staan die in de zijbalk onder Bibliotheek; op de telefoon als tegels onder Bladeren. Beide lijsten zijn hetzelfde.\n\nEen genre- of labelpagina toont alles wat die tag draagt, met filters en sorteringen bovenaan. De zijbalk toont daarnaast je favoriete genres, of — zolang je er geen hebt gekozen — de grootste."
+    },
+    "search": {
+      "title": "Zoeken en presets",
+      "body": "Het zoekveld bovenin zoekt in titels, artiesten en albums. Wil je meer, dan is er geavanceerd zoeken: elk kenmerk (genre, label, jaar, rating, lengte, festival…) als lijst, te combineren.\n\nZo'n zoekopdracht kun je opslaan als preset. Een preset is een dynamische afspeellijst: hij vult zichzelf opnieuw op elk moment dat je hem opent, dus nieuwe nummers die aan de voorwaarden voldoen staan er vanzelf in."
+    },
+    "favorites": {
+      "title": "Favorieten en ratings",
+      "body": "Een hart bij een nummer zet het bij je favorieten; de lijst Favorieten (in de bibliotheek) verzamelt ze. Daarnaast kun je sterren geven, één tot vijf. Vijf is 'dit is een favoriet'; één betekent 'niet mijn ding' en nooit 'weg ermee' — een rating verwijdert nooit iets.\n\nRatings gaan mee in geavanceerd zoeken en in de dagelijkse mixen, die hoog gewaardeerde nummers vaker terug laten komen."
+    },
+    "feeds": {
+      "title": "Release Radar en dagelijkse mixen",
+      "body": "Release Radar toont wat er deze week is uitgekomen in de stijlen die jij draait — ook de kleine aandelen in je smaak, zodat de lijst niet één genre wordt.\n\nDe dagelijkse mixen zijn vijf selecties per dag: zacht, midden en hard (op hardheid van het genre), plus de artiest en het label van de dag. Ze leunen op wat je nog nooit gedraaid hebt en op wat je hoog beoordeelde. Een lege feed betekent dat er niets paste, niet dat er iets kapot is."
+    },
+    "memories": {
+      "title": "Memories",
+      "body": "Memories zijn releases die vandaag jarig zijn: uitgebracht op deze dag in een eerder jaar. Per jaar een tegel; open er een en je hoort wat er toen uitkwam. Ze verschijnen zodra de bibliotheek nummers met een volledige releasedatum heeft, en op Home als je dat aanzet."
+    },
+    "stats": {
+      "title": "Geschiedenis en luisterstatistieken",
+      "body": "Geschiedenis is de lijst van wat je afspeelde, nieuwste bovenaan. Luisterstatistieken tellen dat op: hoeveel, wanneer op de dag en in de week, en je meest gedraaide nummers, artiesten en labels over 30 dagen, 12 maanden of alles.\n\nDe pagina zegt eerlijk wat hij niet weet: luisterbeurten die aan geen nummer in de bibliotheek te koppelen zijn tellen wel mee in het totaal, maar staan in geen ranglijst."
+    },
+    "queue": {
+      "title": "Afspelen en wachtrij",
+      "body": "Een tik op een nummer speelt het en zet de lijst eromheen in de wachtrij. De wachtrij (de knop naast de speler) laat zien wat er komt; je kunt hem schudden, leegmaken of opslaan als afspeellijst.\n\nOp de telefoon opent een tik op de minispeler het volledige Now Playing-scherm, met songtekst als die er is. De equalizer zit in het speler-menu en onthoudt je instelling."
+    },
+    "downloads": {
+      "title": "Downloads en offline",
+      "body": "Nummers en sets die je downloadt blijven op je telefoon en zijn zonder verbinding te spelen; je vindt ze onder Downloads. Met 'alleen via wifi' aan wacht een download tot er wifi is.\n\nValt de verbinding weg, dan zie je alleen wat je gedownload hebt. Zoeken en bladeren op de server werken dan even niet."
+    },
+    "car": {
+      "title": "Carmodus",
+      "body": "Carmodus is een scherm met grote knoppen voor onderweg: spelen, volgende, vorige, willekeurig, en de microfoon. Hij opent vanzelf als de telefoon met een auto verbindt, of met de hand vanuit het profielmenu."
+    },
+    "voice": {
+      "title": "Spraak",
+      "body": "De microfoon (onder Bladeren en in carmodus) verstaat gewone zinnen: 'speel hardstyle', 'sets van Defqon', 'iets van Angerfist', 'volgende'. Het scherm laat zien wat MuMa verstaan heeft en biedt een lijst met wat je allemaal kunt zeggen."
+    },
+    "settings": {
+      "title": "Instellingen",
+      "body": "Algemeen: taal, Home-secties, weergave en wat je bij je account bewaart. Geavanceerd: wachtwoord en welke sorteringen je ziet. Over: versies, wat er nieuw is en de updatecontrole. Apparaat (alleen op de telefoon): cache, bitrates, downloads, auto en diagnose.\n\nInstellingen worden bij je account bewaard, dus telefoon en website blijven gelijk."
+    },
+    "management": {
+      "title": "Beheer",
+      "body": "Als beheerder heb je onder Beheer (profielmenu) de serverkant: scannen, de tagger en curatie van artiesten, genres, labels en podcasts, de downloaders, radio en nieuws, gebruikers en hun verzoeken, gezondheid en het logboek. Deze handleiding gaat over luisteren; Beheer heeft per pagina zijn eigen uitleg."
+    }
   }
 }

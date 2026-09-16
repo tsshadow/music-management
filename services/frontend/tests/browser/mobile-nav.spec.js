@@ -24,6 +24,22 @@ test.beforeEach(async ({ page }) => {
   await page.locator("#password").fill(PASSWORD);
   await page.getByRole("button", { name: /Verbinden|Account Aanmaken/ }).click();
   await expect(page.locator("#username")).toHaveCount(0, { timeout: 15_000 });
+
+  // A fresh account is walked through the setup tour first (`SetupWizard.svelte`); the
+  // stack here is created per job, so the first test to log in meets it. Skipping records
+  // it on the account, but the save is debounced and a later test may still catch it, so
+  // every test dismisses it rather than only the first. The tour itself is covered in
+  // app.test.js; this file is about the bottom bar underneath it.
+  const skipTour = page.getByRole("button", { name: "Overslaan" });
+  if (
+    await skipTour.waitFor({ state: "visible", timeout: 3_000 }).then(
+      () => true,
+      () => false,
+    )
+  ) {
+    await skipTour.click();
+    await expect(page.getByTestId("setup-wizard")).toHaveCount(0);
+  }
 });
 
 test("the phone's three bottom tabs move between Home, Browse and Favourites", async ({ page }) => {

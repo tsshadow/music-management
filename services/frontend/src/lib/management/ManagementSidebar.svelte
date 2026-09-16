@@ -43,6 +43,7 @@
     'playlists': { labelKey: 'management.tabs.playlists', icon: ListMusic },
     'tagger': { labelKey: 'management.tabs.tagger', icon: Tags },
     'genre-curation': { labelKey: 'management.tabs.genreCuration', icon: ListChecks },
+    'artist-curation': { labelKey: 'management.tabs.artistCuration', icon: Users },
     'label-proposals': { labelKey: 'management.tabs.labelProposals', icon: Tags },
     'podcast-curation': { labelKey: 'management.tabs.podcastCuration', icon: Podcast },
     'downloaders': { labelKey: 'management.tabs.downloaders', icon: Download },

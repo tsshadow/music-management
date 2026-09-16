@@ -44,6 +44,12 @@ class ScriptedCursor:
                 self._result = result
                 break
 
+    def executemany(self, sql, seq_of_params):
+        """A batch write: recorded as one statement carrying the whole parameter list."""
+        statement = normalize(sql)
+        self.executed.append((statement, list(seq_of_params)))
+        self._result = None
+
     def fetchone(self):
         if isinstance(self._result, list):
             return self._result[0] if self._result else None

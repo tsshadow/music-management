@@ -174,6 +174,7 @@ def api(db, monkeypatch):
         'services.music_manager.routers.users',
         'services.music_manager.routers.library',
         'services.music_manager.routers.management',
+        'services.music_manager.routers.artist_curation',
         'services.music_manager.routers.artist_images',
         'services.music_manager.routers.scrobbler',
         'services.music_manager.routers.events',

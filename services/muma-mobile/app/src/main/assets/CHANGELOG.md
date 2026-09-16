@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.2.0] - 2026-09-16
+
+### Added
+- **De auto kent nu vijf dagelijkse mixen, niet één.** De "Dagelijkse mix"-rij op de rootmap is
+  vervangen door een map "Dagelijkse mixen" met de drie hardheidsbanden, de artiest en het label
+  van de dag, en de klassieke, ongefilterde mix als laatste item. Titels komen rechtstreeks van
+  `GET /api/feeds`, dezelfde tekst als op telefoon en web, zodat "Zachter" en "Middenin" niet
+  opnieuw in de app getypt hoefden te worden. Elk item speelt direct af, net als voorheen; alleen
+  de plek in de mappenstructuur is veranderd.
 ## [7.1.0] - 2026-09-16
 
 ### Added

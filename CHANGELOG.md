@@ -7,6 +7,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.64.0] - 2026-09-16
+
+### Added
+- **Artiestcuratie in Beheer.** `library_artists` vult zichzelf — de scanner slaat elke naam op die
+  een taggerregel ooit maakte — en zo'n een op tien is een echte artiest. Er is nu een wachtrij,
+  in de vorm van Genre Curatie: per naam goedkeuren, afkeuren of corrigeren naar een andere
+  spelling, in bulk per pagina. Elke beslissing gaat naar `rules_ignored_artists`, dus de tagger
+  handelt ernaar zonder nieuwe regelcode; de 2.658 bestaande redirects staan als afgekeurd
+  voorgesorteerd. Naast elke naam staat een **advies** uit de analyse van 0.0.54, nu eindelijk
+  ergens aan vastgemaakt: "verwijderen" voor wat geen naam kan zijn (`Premiere`, `OUT NOW`,
+  `***`), "samenvoegen met X" voor spellingvarianten en een losse `DJ`/`MC` (`Dr.Peacock` →
+  `Dr. Peacock`, `DJ Angerfist` → `Angerfist`), met de reden erbij. Het woordenboek van de
+  analyse zijn uitsluitend de goedgekeurde namen — geen bootstrap uit de data zelf, want die gaf
+  `Rbr → RBR ©` — en een herschrijving naar een spelling met mínder nummers wordt niet
+  geadviseerd. Een advies doet nooit iets uit zichzelf; "Advies opvolgen" is de knop.
+
+- **Alle taggerinput onder Beheer › Curatie, elk op een eigen pagina.** Naast Genres, Artiesten
+  en Podcasts nu ook **Labels** (elk label met nummers, catalogus-id's, genreregels en
+  moederlabel; Bewerken opent de labelpagina), **Festivals** (naam, spellingen, editiedatums en
+  actief — de drie tabellen die `FestivalHelper` leest en die tot nu alleen via SQL te vullen
+  waren, met een "test een tekst"-vak dat de echte matcher over een titel laat lopen vóór je
+  opslaat) en **Lineups** (de tekstbestanden onder `metadata/festival-lineups`: plak een line-up,
+  "Controleren" zegt welke namen de bieb matcht en biedt de dichtstbijzijnde spelling voor de
+  rest, opslaan schrijft de bieb-spelling). Nieuwe endpoints: `/api/rules/festivals` (+ `/probe`),
+  `/api/rules/lineups` (+ `/match`), `GET /api/curation/labels`. Volgorde van de groep: Tagger,
+  Genres, Artiesten, Labels, Labelvoorstellen, Podcasts, Festivals, Lineups.
+
+- **De vijf daily mixes zijn nu ook te zien, niet alleen op te vragen.** Web-Home toont een
+  "Dagelijkse mixen"-rij met vijf tegels (Zachter/Middenin/Harder plus de artiest en het label van
+  de dag) in plaats van de ene "Dagelijkse mix"-rij; elke tegel krijgt de titel/subtitel die de
+  server al berekende, een kleur (het genre-tintje van de meest voorkomende genre in de mix, anders
+  een vaste groen→blauw→rood-schaal op bandpositie; de artiest-tegel probeert eerst een
+  artiestfoto, anders een kleur op basis van de naam) en een eigen afspeelknop. De klassieke
+  `daily-mix` blijft bereikbaar via zijn eigen `/daily-mix`-route, maar is geen zesde tegel. Op de
+  telefoon wordt dit één tegel "Dagelijkse mixen" (Knop) of dezelfde vijf-tegelrij (Overzicht),
+  via de bestaande Home-instelling voor de dagelijkse mix — geen nieuwe instelling. De feedpagina
+  zelf toont nu ook een regel met de hardheidsband en hoeveel plekken zijn aangevuld vanuit tracks
+  zonder bekende hardheid, wanneer van toepassing.
+
+- **Een rondleiding bij het eerste bezoek en een handleiding in de app.** Wie voor het eerst
+  inlogt krijgt zes korte stappen: taal, nummers of sets, wat er op Home staat, hoe lijsten
+  eruitzien, (op de telefoon) downloaden op mobiele data, en een verwijzing naar de handleiding.
+  Elke stap schrijft dezelfde instelling als de instellingenpagina, dus er is geen tweede kopie.
+  Het account onthoudt welke stappen het gezien heeft; komt er in een latere release een
+  instelling bij, dan verschijnt alleen die ene stap, met een "Nieuw"-label. Overslaan telt ook
+  als gezien — de rondleiding blijft niet terugkomen. De handleiding staat als tabblad onder
+  Instellingen en in het profielmenu: per onderdeel wat het is, waar het zit, en een knop
+  erheen; bovenaan een knop om de rondleiding opnieuw te doorlopen.
+
+### Changed
+- **Web-sidebar en telefoon-Bladeren zijn nu één lijst.** `Sidebar.svelte` en `BrowseGrid.svelte`
+  hadden elk een eigen kopie van de bibliotheeksecties, met eigen volgorde en deels andere iconen;
+  beide lezen nu `navigation.js`, en een test houdt de gerenderde sidebar en het gerenderde grid aan
+  dezelfde set. Wat er anders wordt: de telefoon krijgt "Nummers" (of "Sets", naar de actieve modus)
+  als eerste tegel — de volledige lijst was daar alleen via de Home-tegels bereikbaar — en de tegels
+  staan in de volgorde van de sidebar. "Luisteren" heet in beide "Luisterstatistieken", zodat de
+  luisterpagina herkenbaar is als de statistieken die het zijn. Op de telefoon blijft "Bladeren" ook
+  actief op de pagina van één genre, label, jaar of lineup en op de nummers/sets-lijst, zoals dat al
+  voor een artiest of album gold.
+
+- **De drie spectrum-dagelijkse-mixen namen de luisteraar zijn eigen smaak als meetlat voor "hard".**
+  MR !798 leidde de zacht/midden/hard-grens af uit iemands eigen gewogen 33e/67e percentiel. Gemeten
+  op productie voor Teun, direct na 0.63.0: die grens kwam uit op 62,5/92,5, met hardheidsbronnen
+  genre 1601 / artiest 613 / label 160 / tempo 3 / geen 186. Resultaat: "Zachter" werd ruwe
+  hardstyle + techno + mainstream hardstyle (800 kandidaten), "Middenin" werd uptempo hardcore /
+  bouncy uptempo / zaagtempo (579), en "Harder" bleef over met alleen terror/speedcore — 71
+  kandidaten, het releasevenster opgerekt naar 365 dagen en 13 plekken aangevuld vanuit tracks
+  zonder bekende hardheid. Wie veel uptempo draait, mag niet zien dat uptempo daardoor "het midden"
+  wordt: het spectrum gaat over de muziek, niet over wie er net naar luistert. De grenzen liggen nu
+  vast op 50/75 (op dezelfde genre-ankers: hardstyle en mainstream hardstyle blijven zacht, raw
+  hardstyle/hardcore/mainstream hardcore midden, gabber en zwaarder hard), instelbaar zonder deploy
+  via `feeds_hardness_edges`. De eigen gewogen p33/p50/p67 van de luisteraar worden nog steeds
+  getoond (profielweergave, dry run) — ze bepalen alleen niet langer de grens.
+
+### Removed
+- **`muma-soundcloud-worker-full-once` is uit de stack.** De eenmalige volledige SoundCloud-sweep
+  (`--no-break-on-existing`, zonder `--repeat`) stond sinds 0.27.0 voor niets: de downloader doet
+  zelf elke `deep_sweep_days` een deep pass, en juist het uitzetten van break-on-existing was wat
+  de 429's opleverde. De container stond als "offline" op het Beheer-overzicht en als vaste
+  uitzondering in de nachtelijke check; beide zijn weg. `--remove-orphans` bij de volgende deploy
+  ruimt hem op prod op.
 ## [0.63.0] - 2026-09-16
 
 ### Added

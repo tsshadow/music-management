@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## Global Version 7.2.0 (2026-09-16)
+
+- De auto toont nu vijf dagelijkse mixen (zacht/midden/hard, plus de artiest en het label van de
+  dag) in een map "Dagelijkse mixen", in plaats van één mix op de rootmap.
 ## Global Version 7.1.0 (2026-09-16)
 
 - Release radar and daily mix load on the phone again.

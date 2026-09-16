@@ -12,6 +12,15 @@ import {
   viewMode,
 } from "../../src/lib/store.js";
 
+// DailyMixesShelf (rendered when the daily-mix section is "Overzicht") builds its five cards
+// from these two modules; stubbed here so a phone-home test never reaches MuMa for them.
+vi.mock("../../src/lib/dailyMixes.js", () => ({
+  loadDailyMixCards: async () => [],
+}));
+vi.mock("../../src/lib/genreTints.js", () => ({
+  fetchGenreTints: async () => ({}),
+}));
+
 /** Each account mode controls placement, independent of whether a source is empty. */
 describe("phone home modes", () => {
   beforeEach(() => {
@@ -68,5 +77,31 @@ describe("phone home modes", () => {
     render(PhoneHome, { onnavigate: vi.fn(), onrecent });
     await fireEvent.click(screen.getByText("Recent toegevoegd"));
     expect(onrecent).toHaveBeenCalledWith("added");
+  });
+
+  it("opens the daily mixes page from its own tile, not a single feed", async () => {
+    const onnavigate = vi.fn();
+    render(PhoneHome, { onnavigate });
+
+    await fireEvent.click(screen.getByText("Dagelijkse mixen"));
+
+    expect(onnavigate).toHaveBeenCalledWith("daily-mixes");
+  });
+
+  it("shows the daily mixes shelf, not a track shelf, in Overzicht mode", () => {
+    homeModeReleaseRadar.set("OFF");
+    homeModeDailyMix.set("OVERVIEW");
+
+    render(PhoneHome, { onnavigate: vi.fn() });
+
+    expect(screen.getByRole("heading", { name: "Dagelijkse mixen" })).toBeTruthy();
+  });
+
+  it("shows nothing for the daily mixes section when its mode is off", () => {
+    homeModeDailyMix.set("OFF");
+
+    render(PhoneHome, { onnavigate: vi.fn() });
+
+    expect(screen.queryByText("Dagelijkse mixen")).toBeNull();
   });
 });

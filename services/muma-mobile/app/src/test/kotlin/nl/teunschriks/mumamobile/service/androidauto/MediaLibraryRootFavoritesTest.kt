@@ -64,24 +64,25 @@ class MediaLibraryRootFavoritesTest {
     }
 
     @Test
-    fun `both personalized feeds are at the root`() {
-        // The point of the whole feature: starting the daily mix or the radar in the car must
-        // not mean walking down into the library first.
+    fun `the radar and the daily mixes folder are both at the root`() {
+        // The point of the whole feature: starting a daily mix or the radar in the car must not
+        // mean walking down into the library first. The daily mix used to be a single feed item
+        // here; it is now a folder holding all five (plus the classic mix) -- see
+        // MediaLibraryDailyMixesTest for what is inside it.
         val root = childIds(MediaLibraryBase.MEDIA_ROOT_ID)
 
-        root `should contain` "${MediaLibraryBase.MEDIA_FEED_ID}|${MediaLibraryBase.FEED_DAILY_MIX}"
+        root `should contain` MediaLibraryBase.MEDIA_DAILY_MIXES_ID
         root `should contain` "${MediaLibraryBase.MEDIA_FEED_ID}|${MediaLibraryBase.FEED_RELEASE_RADAR}"
     }
 
     @Test
-    fun `a feed carries its slug in the media id`() {
+    fun `the radar carries its slug in the media id`() {
         // Android Auto hands back a media id and nothing else on a tap -- a command's own extras
         // never survive the trip -- so the slug has to be part of the id itself.
         val feeds = childIds(MediaLibraryBase.MEDIA_ROOT_ID)
             .filter { it.startsWith(MediaLibraryBase.MEDIA_FEED_ID) }
 
-        feeds.map { it.split('|').getOrNull(1) } `should be equal to`
-            listOf(MediaLibraryBase.FEED_DAILY_MIX, MediaLibraryBase.FEED_RELEASE_RADAR)
+        feeds.map { it.split('|').getOrNull(1) } `should be equal to` listOf(MediaLibraryBase.FEED_RELEASE_RADAR)
     }
 
     @Test

@@ -314,6 +314,7 @@ class MediaLibraryBrowser(
                     emptyResult("Missing feed slug in $parentId")
                 }
             }
+            MEDIA_DAILY_MIXES_ID -> getDailyMixesFolderItems()
             MEDIA_LIBRARY_ID -> getLibraryItems()
             MEDIA_FAVORITES_ID -> getFavoriteItems()
             MEDIA_FAVORITE_GENRES_ID -> getFavoriteGenreItems()
@@ -546,11 +547,14 @@ class MediaLibraryBrowser(
             mediaType = MEDIA_TYPE_FOLDER_MIXED
         )
 
-        // The two personalized feeds, above Radio: they are the reason to open the app in the
-        // car, and a driver should not have to scroll past the whole library to start one.
+        // The personalized feeds, above Radio: they are the reason to open the app in the car,
+        // and a driver should not have to scroll past the whole library to start one. Daily mixes
+        // used to be a single row here (one slug, the classic mix); it is now a folder of five
+        // mixes on the hardness spectrum plus the day's artist and label, with the classic mix
+        // still inside it as the last entry -- see getDailyMixesFolderItems.
         mediaItems.add(
-            R.string.main_daily_mix_title,
-            listOf(MEDIA_FEED_ID, FEED_DAILY_MIX).joinToString("|"),
+            R.string.main_daily_mixes_title,
+            MEDIA_DAILY_MIXES_ID,
             imageUri = "android.resource://$packageName/${R.drawable.media_shuffle}".toUri(),
             isBrowsable = true,
             mediaType = MEDIA_TYPE_FOLDER_MIXED
@@ -663,6 +667,34 @@ class MediaLibraryBrowser(
                 track.toMediaItem(
                     listOf(MEDIA_FEED_ITEM, slug, track.id).joinToString("|")
                 )
+            )
+        }
+        itemListResult(mediaItems)
+    }
+
+    /**
+     * The "Daily mixes" folder: the three spectrum bands, the day's artist and the day's label,
+     * then the classic, unrestricted mix last.
+     *
+     * Titles come from [FeedRepository.listFeeds] -- the same `describe_feed` the phone and web
+     * read -- so a car update never needs its own copy of "Zachter" or "Middenin" typed into this
+     * app, and a listener without an artist/label affinity yet still sees a name rather than a
+     * blank row (the server's own fallback title, e.g. "Artiestmix").
+     *
+     * Every child is a plain `MEDIA_FEED_ID|<slug>` leaf -- the same media id [getFeedItems]
+     * already answers for `release-radar` and the classic mix -- so nothing about playback
+     * changes, only where the car finds them.
+     */
+    private fun getDailyMixesFolderItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceScope.future {
+        val mediaItems: MutableList<MediaItem> = ArrayList()
+        val feeds = dataProvider.feeds.listFeeds().associateBy { it.slug }
+
+        for (slug in FEED_DAILY_MIXES + FEED_DAILY_MIX) {
+            mediaItems.add(
+                title = feeds[slug]?.title ?: slug,
+                mediaId = listOf(MEDIA_FEED_ID, slug).joinToString("|"),
+                isBrowsable = false,
+                mediaType = MEDIA_TYPE_PLAYLIST
             )
         }
         itemListResult(mediaItems)

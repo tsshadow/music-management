@@ -107,6 +107,7 @@
   },
   "dashboard": {
     "addFavorite": "Toevoegen aan favorieten",
+    "dailyMixesSubtitle": "Zacht, midden, hard, en meer",
     "noAlbums": "Geen albums gevonden",
     "noAlbumsHelp": "Er zijn geen albums gevonden die overeenkomen met de huidige filters.",
     "noGenres": "Geen genres gevonden in je bibliotheek.",
@@ -144,9 +145,11 @@
     "title": "Equalizer"
   },
   "feed": {
+    "bandRange": "band {lo}–{hi}",
     "empty": "Hier staat nu niets",
     "emptyMixHelp": "De mix wordt gebouwd uit je luistergeschiedenis. Draai wat muziek en kom terug.",
     "emptyRadarHelp": "De radar toont releases van de afgelopen week die bij je luistergedrag passen.",
+    "filledFromUnknown": "{count} aangevuld",
     "mixSubtitle": "Vandaag voor jou gekozen",
     "radarSubtitle": "Deze week uitgebracht, voor jou gekozen"
   },
@@ -865,6 +868,7 @@
     "carMode": "Carmodus",
     "closeMenu": "Menu sluiten",
     "dailyMix": "Dagelijkse mix",
+    "dailyMixes": "Dagelijkse mixen",
     "downloads": "Downloads",
     "festivals": "Festivals",
     "genres": "Genres",
@@ -1152,7 +1156,7 @@
         "modeButton": "Knop",
         "modeOverview": "Overzicht",
         "releaseRadar": "Release Radar",
-        "dailyMix": "Dagelijkse mix",
+        "dailyMix": "Dagelijkse mixen",
         "dailyMixCount": "Aantal in dagelijkse mix",
         "favorites": "Favorieten",
         "favoritesCount": "Aantal favorieten",

@@ -262,7 +262,16 @@ interface MumaAPIDefinition {
     // --- Personalized feeds. The ranking is the server's; the client only plays it. ---
 
     /**
-     * One feed for the calling user: `release-radar` or `daily-mix`.
+     * Every feed this account may ask for: the radar, the classic daily mix, and the five newer
+     * ones on the hardness spectrum plus the day's artist and label. Titles/subtitles come from
+     * the server (`describe_feed`), so the car's "Daily mixes" folder never needs its own copy
+     * of "Zachter" or "Middenin" typed into this app.
+     */
+    @GET("api/feeds")
+    fun getFeeds(): Call<MumaFeedList>
+
+    /**
+     * One feed for the calling user, by slug -- any of the ones [getFeeds] lists.
      *
      * The username is never sent. A user key resolves its own account server-side and a
      * `username` parameter from a user key is ignored rather than honoured, so asking for
@@ -296,6 +305,24 @@ data class MumaFeedTrack(
     // `file_path` beside it in the response is music-manager's own mount and names a file
     // the streaming server does not have.
     @SerializedName("library_path") val libraryPath: String? = null
+)
+
+/** `GET /api/feeds`'s envelope: every policy this account may ask for. */
+data class MumaFeedList(
+    @SerializedName("feeds") val feeds: List<MumaFeedInfo> = emptyList()
+)
+
+/**
+ * One entry of [MumaFeedList] -- everything `GET /api/feeds` says about a feed before it has
+ * been built: `title`/`subtitle` are already the same `describe_feed` call `GET
+ * /api/feeds/{slug}` uses, so a caller that only needs a name never has to ask for the tracks.
+ */
+data class MumaFeedInfo(
+    @SerializedName("slug") val slug: String = "",
+    @SerializedName("size") val size: Int = 0,
+    @SerializedName("window_days") val windowDays: Int? = null,
+    @SerializedName("title") val title: String? = null,
+    @SerializedName("subtitle") val subtitle: String? = null
 )
 
 data class MumaTile(

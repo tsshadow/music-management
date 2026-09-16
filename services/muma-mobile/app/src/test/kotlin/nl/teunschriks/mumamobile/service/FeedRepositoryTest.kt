@@ -12,6 +12,8 @@ import io.mockk.mockk
 import io.mockk.verify
 import nl.teunschriks.mumamobile.api.muma.MumaAPIDefinition
 import nl.teunschriks.mumamobile.api.muma.MumaFeed
+import nl.teunschriks.mumamobile.api.muma.MumaFeedInfo
+import nl.teunschriks.mumamobile.api.muma.MumaFeedList
 import nl.teunschriks.mumamobile.api.muma.MumaFeedTrack
 import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.Track
@@ -181,5 +183,60 @@ class FeedRepositoryTest {
         repository.tracksFor("daily-mix")
 
         verify(exactly = 2) { api.getFeed(any(), any()) }
+    }
+
+    private fun answeringFeedList(feeds: List<MumaFeedInfo>?) {
+        val call: Call<MumaFeedList> = mockk()
+        every { call.execute() } returns Response.success(feeds?.let { MumaFeedList(it) })
+        every { api.getFeeds() } returns call
+    }
+
+    @Test
+    fun `every feed's title comes back from the list call`() {
+        answeringFeedList(
+            listOf(
+                MumaFeedInfo(slug = "daily-mix-soft", title = "Zachter"),
+                MumaFeedInfo(slug = "daily-mix-artist", title = "Angerfist")
+            )
+        )
+
+        repository.listFeeds().map { it.slug } `should be equal to` listOf("daily-mix-soft", "daily-mix-artist")
+    }
+
+    @Test
+    fun `an unreachable server lists no feeds rather than crashing`() {
+        every { api.getFeeds() } throws RuntimeException("no network")
+
+        repository.listFeeds().`should be empty`()
+    }
+
+    @Test
+    fun `the list is asked for once per day and server, like a single feed`() {
+        answeringFeedList(listOf(MumaFeedInfo(slug = "daily-mix")))
+
+        repository.listFeeds()
+        repository.listFeeds()
+
+        verify(exactly = 1) { api.getFeeds() }
+    }
+
+    @Test
+    fun `a failed list is not remembered as empty`() {
+        every { api.getFeeds() } throws RuntimeException("no network")
+        repository.listFeeds().`should be empty`()
+
+        answeringFeedList(listOf(MumaFeedInfo(slug = "daily-mix")))
+        repository.listFeeds().map { it.slug } `should be equal to` listOf("daily-mix")
+    }
+
+    @Test
+    fun `a new day re-lists the feeds`() {
+        answeringFeedList(listOf(MumaFeedInfo(slug = "daily-mix")))
+        repository.listFeeds()
+
+        day = "2026-09-11"
+        repository.listFeeds()
+
+        verify(exactly = 2) { api.getFeeds() }
     }
 }

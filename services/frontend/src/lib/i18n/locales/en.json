@@ -232,7 +232,7 @@
     "topLabels": "Top labels"
   },
   "listening": {
-    "title": "Listening",
+    "title": "Listening stats",
     "subtitle": "What you played, when, and how often.",
     "loading": "Loading your listening history…",
     "unavailable": "Listening statistics are unavailable right now.",
@@ -877,7 +877,7 @@
     "labels": "Labels",
     "library": "Library",
     "lineups": "Lineups",
-    "listening": "Listening",
+    "listening": "Listening stats",
     "management": "Management",
     "memories": "Memories",
     "menu": "Menu",

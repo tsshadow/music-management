@@ -448,8 +448,25 @@ describe("phoneTabForView", () => {
     }
   });
 
-  it("names no tab for a pushed detail page", () => {
-    for (const view of ["genre:Hardcore", "songs", "sets", "settings", "management"]) {
+  it("names Browse for the songs and sets lists, which are its first tile", () => {
+    expect(phoneTabForView("songs")).toBe("browse");
+    expect(phoneTabForView("sets")).toBe("browse");
+  });
+
+  it("names Browse for a page opened from one of its tiles", () => {
+    for (const view of [
+      "genre:Hardcore",
+      "label:Q-dance",
+      "year:2024",
+      "memories:2025",
+      "lineups:Defqon.1",
+    ]) {
+      expect(phoneTabForView(view)).toBe("browse");
+    }
+  });
+
+  it("names no tab for a page that lives outside the three", () => {
+    for (const view of ["settings", "management", "car", "voice", "song:42"]) {
       expect(phoneTabForView(view)).toBeNull();
     }
   });

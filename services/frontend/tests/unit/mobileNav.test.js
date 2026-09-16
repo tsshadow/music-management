@@ -51,8 +51,14 @@ describe("MobileNav", () => {
     },
   );
 
-  it("marks no tab active on a pushed detail page", () => {
+  it("keeps Browse lit on a page opened from one of its tiles", () => {
     render(MobileNav, { activeView: "genre:Hardcore", onnavigate: vi.fn() });
+
+    expect(bar().getByRole("button", { name: "Bladeren" })).toHaveClass("text-white");
+  });
+
+  it("marks no tab active on a page outside the three", () => {
+    render(MobileNav, { activeView: "settings", onnavigate: vi.fn() });
 
     for (const label of ["Home", "Bladeren", "Favorieten"]) {
       expect(bar().getByRole("button", { name: label })).not.toHaveClass("text-white");

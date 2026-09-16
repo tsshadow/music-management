@@ -377,18 +377,30 @@ SPECTRUM_CANDIDATES = [SOFT_CANDIDATE, MID_CANDIDATE, HARD_CANDIDATE]
 
 
 class HardnessBandBuildTest(unittest.TestCase):
-    """MANY_LISTENS resolves no hardness at all (its fixture rows carry no
+    """The band edges are fixed at (50, 75) (`hardness.DEFAULT_BAND_EDGES`) by
 
-    `track_id`, so `_annotate_hardness` never even queries for one), which is what
-    makes the fallback band edges (40, 70) deterministic here without a genre or
-    entity hardness fixture for the profile side.
+    default, regardless of this listener's own history -- MANY_LISTENS resolves
+    no hardness at all (its fixture rows carry no `track_id`, so
+    `_annotate_hardness` never even queries for one), which is exactly the point:
+    nothing about this listener's profile is what decides the edges any more.
     """
 
     def test_the_mid_band_keeps_only_the_middle_candidate(self):
         conn = scripted(listens=MANY_LISTENS, candidates=SPECTRUM_CANDIDATES)
         feed = build_feed(conn, 'user', POLICIES['daily-mix-mid'], NOW)
         self.assertEqual([t['id'] for t in feed.tracks], ['mid1'])
-        self.assertEqual(feed.hardness_band, (40.0, 70.0))
+        self.assertEqual(feed.hardness_band, (50.0, 75.0))
+        self.assertEqual(feed.hardness_edges_source, 'default')
+
+    def test_a_configured_setting_overrides_the_default_edges(self):
+        conn = scripted(listens=MANY_LISTENS, candidates=SPECTRUM_CANDIDATES)
+        feed = build_feed(
+            conn, 'user', POLICIES['daily-mix-mid'], NOW, hardness_edges=(30.0, 60.0), hardness_edges_source='setting'
+        )
+        # 65 (MID_CANDIDATE's tempo hardness) is now >= the hard edge, so it
+        # reclassifies out of 'mid' under the overridden edges.
+        self.assertEqual(feed.hardness_band, (30.0, 60.0))
+        self.assertEqual(feed.hardness_edges_source, 'setting')
 
     def test_the_soft_band_keeps_only_the_soft_candidate(self):
         conn = scripted(listens=MANY_LISTENS, candidates=SPECTRUM_CANDIDATES)
@@ -490,6 +502,7 @@ class HardnessBandBuildTest(unittest.TestCase):
         conn = scripted(listens=MANY_LISTENS, candidates=SPECTRUM_CANDIDATES)
         feed = build_feed(conn, 'user', POLICIES['daily-mix-mid'], NOW)
         self.assertEqual(feed.hardness_source_counts, {'none': len(MANY_LISTENS)})
+        self.assertIsNone(feed.hardness_percentiles)
 
 
 def _entity_listen(uid, artist, label, genres, days=1):

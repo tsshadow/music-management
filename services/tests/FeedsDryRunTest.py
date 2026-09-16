@@ -69,10 +69,19 @@ def test_a_limit_of_zero_returns_nothing():
 
 class _FakeFeed:
     def __init__(
-        self, hardness_band=None, hardness_source_counts=None, relaxed_to=None, title=None, filled_from_unknown=None
+        self,
+        hardness_band=None,
+        hardness_edges_source=None,
+        hardness_source_counts=None,
+        hardness_percentiles=None,
+        relaxed_to=None,
+        title=None,
+        filled_from_unknown=None,
     ):
         self.hardness_band = hardness_band
+        self.hardness_edges_source = hardness_edges_source
         self.hardness_source_counts = hardness_source_counts
+        self.hardness_percentiles = hardness_percentiles
         self.relaxed_to = relaxed_to
         self.title = title
         self.filled_from_unknown = filled_from_unknown
@@ -87,6 +96,7 @@ def test_a_band_feed_prints_its_edges_source_counts_and_relaxation(capsys):
     dryrun.print_hardness(
         _FakeFeed(
             hardness_band=(40.0, 70.0),
+            hardness_edges_source='setting',
             hardness_source_counts={'genre': 5, 'tempo': 2, 'none': 1},
             relaxed_to='none',
             title='Middenin',
@@ -95,8 +105,33 @@ def test_a_band_feed_prints_its_edges_source_counts_and_relaxation(capsys):
     out = capsys.readouterr().out
     assert 'Middenin' in out
     assert '40.0' in out and '70.0' in out
+    assert '(setting)' in out
     assert 'genre' in out
     assert 'relaxed release window to: none' in out
+
+
+def test_a_band_feed_with_no_edges_source_prints_no_suffix(capsys):
+    dryrun.print_hardness(_FakeFeed(hardness_band=(50.0, 75.0), title='Middenin'))
+    out = capsys.readouterr().out
+    assert '  edges: 50.0 / 75.0\n' in out
+
+
+def test_a_band_feed_prints_the_listeners_own_percentiles(capsys):
+    dryrun.print_hardness(
+        _FakeFeed(
+            hardness_band=(50.0, 75.0),
+            hardness_percentiles={'p33': 30.0, 'p50': 45.0, 'p67': 60.0},
+            title='Middenin',
+        )
+    )
+    out = capsys.readouterr().out
+    assert '30.0' in out and '45.0' in out and '60.0' in out
+
+
+def test_a_band_feed_with_no_percentiles_says_nothing_about_them(capsys):
+    dryrun.print_hardness(_FakeFeed(hardness_band=(50.0, 75.0), title='Middenin'))
+    out = capsys.readouterr().out
+    assert "listener's own" not in out
 
 
 def test_a_band_feed_that_needed_backfill_reports_how_much(capsys):

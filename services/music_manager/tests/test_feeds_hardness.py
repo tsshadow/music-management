@@ -2,8 +2,9 @@ import unittest
 
 from services.music_manager.feeds.hardness import (
     ANCHOR_HARDNESS,
+    DEFAULT_BAND_EDGES,
     classify_band,
-    hardness_band_edges,
+    hardness_percentiles,
     seed_genre_hardness,
     tempo_hardness,
     track_hardness,
@@ -167,33 +168,56 @@ class TrackHardnessTest(unittest.TestCase):
         self.assertEqual(source, 'none')
 
 
-class HardnessBandEdgesTest(unittest.TestCase):
-    def test_a_narrow_taste_still_gets_two_distinct_edges(self):
-        """A listener whose whole 30+ tracks sit around one hardness value would
+class DefaultBandEdgesTest(unittest.TestCase):
+    """The band edges are fixed on the genre anchors now, not derived from any one
 
-        otherwise get a soft/hard edge closer than 15 points apart -- three
-        mixes drawing from a five-point-wide slice each are not three
-        different mixes. The median +/- 15 fallback is what keeps them apart.
-        """
+    listener's history -- see hardness.py's module docstring for why: a listener
+    whose own listening skews hard must not see "hard" redefined as "what they
+    already play". 50 keeps hardstyle and mainstream hardstyle (both 45) soft; 75
+    keeps raw hardstyle/hardcore/mainstream hardcore (65/70/70) mid and puts gabber
+    (75, exactly on the edge, `classify_band`'s `>= hi` favouring hard) and up in
+    the hard band.
+    """
+
+    def test_the_default_matches_the_genre_anchors(self):
+        self.assertEqual(DEFAULT_BAND_EDGES, (50.0, 75.0))
+
+    def test_the_soft_mid_split_keeps_hardstyle_soft_and_raw_hardstyle_mid(self):
+        lo, hi = DEFAULT_BAND_EDGES
+        self.assertEqual(classify_band(ANCHOR_HARDNESS['euphoric hardstyle'], lo, hi), 'soft')
+        self.assertEqual(classify_band(ANCHOR_HARDNESS['hardstyle'], lo, hi), 'soft')
+        self.assertEqual(classify_band(ANCHOR_HARDNESS['mainstream hardstyle'], lo, hi), 'soft')
+        self.assertEqual(classify_band(ANCHOR_HARDNESS['raw hardstyle'], lo, hi), 'mid')
+
+    def test_the_mid_hard_split_keeps_hardcore_mid_and_gabber_and_up_hard(self):
+        lo, hi = DEFAULT_BAND_EDGES
+        self.assertEqual(classify_band(ANCHOR_HARDNESS['hardcore'], lo, hi), 'mid')
+        self.assertEqual(classify_band(ANCHOR_HARDNESS['mainstream hardcore'], lo, hi), 'mid')
+        self.assertEqual(classify_band(ANCHOR_HARDNESS['gabber'], lo, hi), 'hard')
+        self.assertEqual(classify_band(ANCHOR_HARDNESS['uptempo hardcore'], lo, hi), 'hard')
+        self.assertEqual(classify_band(ANCHOR_HARDNESS['terror'], lo, hi), 'hard')
+
+
+class HardnessPercentilesTest(unittest.TestCase):
+    """Purely informational now -- see DefaultBandEdgesTest above for what decides
+
+    the band. Still worth getting right: it is what a listener sees when they ask
+    where their own taste actually sits.
+    """
+
+    def test_no_history_at_all_reports_nothing(self):
+        self.assertIsNone(hardness_percentiles([]))
+
+    def test_a_single_uniform_value_is_every_percentile(self):
         weighted = [(50.0, 1.0)] * 40
-        lo, hi = hardness_band_edges(weighted)
-        self.assertEqual((lo, hi), (35.0, 65.0))
+        self.assertEqual(hardness_percentiles(weighted), {'p33': 50.0, 'p50': 50.0, 'p67': 50.0})
 
-    def test_a_cold_start_listener_gets_the_fixed_fallback(self):
-        weighted = [(50.0, 1.0)] * 10  # below MIN_TRACKS_FOR_OWN_BAND
-        self.assertEqual(hardness_band_edges(weighted), (40.0, 70.0))
-
-    def test_no_history_at_all_is_the_same_fixed_fallback(self):
-        self.assertEqual(hardness_band_edges([]), (40.0, 70.0))
-
-    def test_a_spread_out_taste_uses_its_own_percentiles(self):
-        # 30 tracks evenly spread 10..100 in steps of 3: p33 and p67 are comfortably
-        # more than 15 points apart, so the listener's own numbers are used as-is.
+    def test_a_spread_out_taste_reports_distinct_percentiles(self):
+        # 30 tracks evenly spread 10..100 in steps of 3.
         weighted = [(10.0 + 3.0 * i, 1.0) for i in range(30)]
-        lo, hi = hardness_band_edges(weighted)
-        self.assertGreater(hi - lo, 15.0)
-        self.assertLess(lo, 50.0)
-        self.assertGreater(hi, 50.0)
+        percentiles = hardness_percentiles(weighted)
+        self.assertLess(percentiles['p33'], percentiles['p50'])
+        self.assertLess(percentiles['p50'], percentiles['p67'])
 
     def test_recency_and_confidence_can_outweigh_raw_track_count(self):
         """The distribution is weighted, not a plain count -- a handful of
@@ -203,10 +227,10 @@ class HardnessBandEdgesTest(unittest.TestCase):
         """
         heavy_soft = [(20.0, 3.0)] * 20
         light_hard = [(90.0, 0.01)] * 20
-        lo, hi = hardness_band_edges(heavy_soft + light_hard)
+        percentiles = hardness_percentiles(heavy_soft + light_hard)
         # The soft cluster dominates the weighted mass, so even p67 should land
         # far below the hard cluster's value.
-        self.assertLess(hi, 90.0)
+        self.assertLess(percentiles['p67'], 90.0)
 
 
 class ClassifyBandTest(unittest.TestCase):

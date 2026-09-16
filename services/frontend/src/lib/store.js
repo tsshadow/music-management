@@ -496,6 +496,9 @@ let syncedUserId = null;
 // stores, so those writes don't get echoed straight back to the server.
 let applyingAccountSettings = false;
 let localeSaveTimer = null;
+// The language change waiting for its debounce to elapse, so `flushLocaleSave`
+// can push it now instead: `{ userId, code }` while a save is armed, else null.
+let pendingLocaleSave = null;
 
 // The favorite lists that follow the account, as `settings key -> store`. They
 // are handled as a group so that adding one (labels, playlists) is a one-line
@@ -682,10 +685,31 @@ for (const [key, store] of Object.entries(syncedFavoriteLists)) {
 
 locale.subscribe(($locale) => {
   if (applyingAccountSettings || !syncedUserId) return;
-  const userId = syncedUserId;
   clearTimeout(localeSaveTimer);
-  localeSaveTimer = setTimeout(() => saveFrontendSetting(userId, "language", $locale), 400);
+  pendingLocaleSave = { userId: syncedUserId, code: $locale };
+  localeSaveTimer = setTimeout(flushLocaleSave, 400);
 });
+
+/**
+ * Saves a language change that is still waiting on its debounce right now,
+ * and resolves once the account has it. Nothing pending resolves at once.
+ *
+ * The mobile shell recreates its activity to apply a new language, which
+ * reloads the WebView and kills a debounce timer with it; the account then
+ * still holds the previous language and `applyAccountSettings` puts it back on
+ * the reload, so the pick appears to do nothing but refresh the screen.
+ * `LanguageSetting` awaits this before telling the shell.
+ *
+ * @returns {Promise<void>}
+ */
+export async function flushLocaleSave() {
+  clearTimeout(localeSaveTimer);
+  localeSaveTimer = null;
+  const pending = pendingLocaleSave;
+  pendingLocaleSave = null;
+  if (!pending) return;
+  await saveFrontendSetting(pending.userId, "language", pending.code);
+}
 
 let pageSizeSaveTimer = null;
 trackPageSize.subscribe(($size) => {

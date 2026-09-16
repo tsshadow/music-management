@@ -11,6 +11,7 @@ import {
   favoriteGenres,
   loadFrontendSettings,
   saveFrontendSetting,
+  flushLocaleSave,
   hydrateMumaUserFromApiKey,
   restUrl,
 } from "../../src/lib/store";
@@ -320,6 +321,33 @@ describe("store - language account sync", () => {
     const postCalls = fetch.mock.calls.filter(([, opts]) => opts?.method === "POST");
     expect(postCalls).toHaveLength(1);
     expect(JSON.parse(JSON.parse(postCalls[0][1].body).settings).language).toBe("en");
+  });
+
+  it("flushes a pending language save on request, and only once", async () => {
+    vi.useFakeTimers();
+    mumaUser.set({ id: 3 });
+    await vi.advanceTimersByTimeAsync(500);
+    fetch.mockClear();
+
+    locale.set("nl");
+    await flushLocaleSave();
+
+    const posts = () => fetch.mock.calls.filter(([, opts]) => opts?.method === "POST");
+    expect(posts()).toHaveLength(1);
+    expect(JSON.parse(JSON.parse(posts()[0][1].body).settings).language).toBe("nl");
+
+    // The debounce that was armed for the same change must not fire a second save.
+    await vi.advanceTimersByTimeAsync(400);
+    expect(posts()).toHaveLength(1);
+  });
+
+  it("flushing with nothing pending does not touch the backend", async () => {
+    mumaUser.set({ id: 3 });
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+    fetch.mockClear();
+
+    await flushLocaleSave();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("does not touch the backend while logged out", async () => {

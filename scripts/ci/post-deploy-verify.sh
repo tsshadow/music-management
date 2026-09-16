@@ -62,9 +62,9 @@ echo "--- Verifying container state on $REMOTE_HOST ---"
 # are AND'ed by the Docker CLI, not OR'ed, so one combined filter for two
 # different project names always returns nothing.
 # Inspected rather than string-matched on `docker ps` output, because the
-# distinction that matters is not in that output: muma-soundcloud-worker-full-once
-# runs one sweep and exits by design (restart: "no" in docker-compose.yml), so a
-# grep for "Exited" would fail every single deploy. Restart policy is what
+# distinction that matters is not in that output: a one-shot container with
+# restart: "no" (the old soundcloud full sweep was one) exits by design, so a grep
+# for "Exited" would fail every deploy that has one. Restart policy is what
 # separates "finished its job" from "died".
 failed=0
 for project in music-management lms; do

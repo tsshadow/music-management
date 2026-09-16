@@ -66,7 +66,7 @@
 
 ### downloader (soundcloud/youtube/telegram)
 - Test: `services/downloader/soundcloud/tests/` (8 files), youtube/telegram tests live in `services/tests/` (root-level: `TelegramDownloaderTest.py`, `YoutubeArchiveTest.py`, `YoutubeDownloaderTest.py`, `YoutubeSongProcessorTest.py`, `YoutubeSongTest.py`)
-- Dockerfile: `docker/Dockerfile.downloader`; compose services: `youtube_worker`, `soundcloud_worker`, `soundcloud_worker_full_once`, `telegram_worker` (telegram uses `docker/Dockerfile.telegram`)
+- Dockerfile: `docker/Dockerfile.downloader`; compose services: `youtube_worker`, `soundcloud_worker`, `telegram_worker` (telegram uses `docker/Dockerfile.telegram`)
 - Some download tests may make real `yt-dlp`/SoundCloud calls — still needs to be verified whether these are mocked for CI (Phase 3.2 concern)
 
 ### ml-analyzer
@@ -132,7 +132,7 @@
 
 File: `docker/docker-compose.yml` (533 lines, main compose) + `docker-compose.core.yml`, `.dev.yml`, `.full.yml`, `.tools.yml`, `.workers.yml`
 
-Services found: `db` (MariaDB 10.6), `phpmyadmin`, `music-manager`, `music-management-server`, `importer_worker`, `youtube_worker`, `soundcloud_worker`, `soundcloud_worker_full_once`, `telegram_worker`, `soundcloud-fetcher`, `genre-processor`, `firefox`. Several services (control-center, tagger, scanner, ml-analyzer, rating-system, scrobble-service, user-service, stats-service, artist-image-fetcher) are **commented out**, ready for future decomposition.
+Services found: `db` (MariaDB 10.6), `phpmyadmin`, `music-manager`, `music-management-server`, `importer_worker`, `youtube_worker`, `soundcloud_worker`, `telegram_worker`, `soundcloud-fetcher`, `genre-processor`, `firefox`. Several services (control-center, tagger, scanner, ml-analyzer, rating-system, scrobble-service, user-service, stats-service, artist-image-fetcher) are **commented out**, ready for future decomposition.
 
 Phase 1.2 checklist — status:
 

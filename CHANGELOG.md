@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.63.0] - 2026-09-16
+
+### Added
+- **Vijf daily mixes in plaats van één.** `rules_genres` kreeg een `hardness`-kolom (0-100,
+  bewerkbaar op de genre-edit-pagina naast de hiërarchie): geseed met een handmatige lijst
+  ankers (Deep House 10 tot Speedcore 100) en overgeërfd via `rules_subgenre_hierarchy` voor
+  elk genre zonder eigen anker. Een track leent, als hij zelf geen gescoord genre draagt, de
+  hardheid van zijn label, dan van zijn artiest, dan van zijn tempo. `GET /api/feeds` somt nu
+  zes tegels op met titel en subtitel: `daily-mix-soft`/`-mid`/`-hard` verdelen de eigen
+  luistergeschiedenis in drie tertielen (Zachter, Middenin, Harder), `daily-mix-artist` en
+  `daily-mix-label` draaien dagelijks door de top 10 artiesten/labels — welke van de tien het
+  wordt, bepaalt een hash van gebruikersnaam en datum, niet een toevalsgenerator. `daily-mix`
+  blijft de klassieke, ongefilterde mix — geen band, dus een track zonder gescoord genre verliest
+  er nooit zijn plek door — zodat auto en telefoon niets hoeven te wijzigen. Een band die na het
+  verruimen van het releasevenster (90 → 365 dagen → geen venster) nog te weinig kandidaten heeft,
+  vult de resterende plekken aan met tracks zonder bekende hardheid in plaats van leeg te blijven;
+  het aantal zo aangevulde plekken staat in de respons (`filled_from_unknown`).
+
+- The phone's full-screen player again shows genre, release date and label under the track, and a new details button opens a track info sheet (cover, chips for genre/label/festival/mood, technical details, artist/album navigation) matching what the retired Kotlin player offered -- plus a "Song" button that jumps straight to every version of the current track.
+
+### Changed
+- **De tegels op Home en in het Favorieten-tabblad kregen weer het strakke Bladeren-uiterlijk.**
+  `QuickAccessTile` was een grijze rij met een klein vierkant; hij is nu de compacte versie van de
+  gekleurde Bladeren-tegel — effen kleur, een geroteerd icoon en een dikgedrukte titel — met een
+  cover als achtergrondfoto zodra er een beschikbaar is. Home en Bladeren delen nu ook kleur en
+  icoon per sectie (Memories, Favorieten). De "Goedemorgen/Goedenavond"-groet boven Home is op de
+  telefoon verdwenen; die kostte alleen ruimte boven de tegels en staat nu alleen nog op desktop.
+
+- **De schakelaar tussen Nummers en Sets op de telefoon verhuisde naar de bovenbalk.** De losse rij
+  pillen boven Home, Bladeren en Favorieten is vervangen door een compacte segmented control
+  ("Nummers | Sets") in één lijn met het zoekveld en de profielknop — precies zoals de
+  desktop-sidebar het al deed. De telefoon-UI werd daarnaast zo'n 10% compacter: de bovenbalk,
+  de inhoud, de Home-shelves en de onderste navigatiebalk kregen ieder een kleinere marge of
+  padding, zonder de tikdoelen onder de 44px te duwen. Desktop is ongewijzigd.
+
+### Fixed
+- **Release Radar en Daily Mix laadden niet in de shell (telefoon/tablet), wel op desktop.**
+  `feeds.js` haalde `/api/feeds/release-radar` en `/api/feeds/daily-mix` op zonder de
+  `X-API-Key`-header mee te sturen — elke andere `/api/*`-aanroep in de app (curatie,
+  genre-regels, presets) doet dat wel. De server wijst een feed-aanvraag zonder key af met
+  401, want een feed is per account: de systeemsleutel mag nooit iemands eigen aanbevelingen
+  opvragen. Beide feeds sturen de sleutel nu net als de rest van de app.
 ## [0.62.0] - 2026-09-15
 
 ### Added

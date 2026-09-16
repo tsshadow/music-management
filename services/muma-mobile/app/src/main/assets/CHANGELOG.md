@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.1.0] - 2026-09-16
+
+### Added
+- The full-screen player shows genre, release date and label under the track again, artists and the album are tappable, a details button opens the track info sheet (chips, technical details, navigation) and a "Song" button jumps to every version of the track.
+
+### Changed
+- Home tiles and presets use the Bladeren tile look in a compact size, the greeting is gone, the Songs/Sets switch sits in the top bar as "Nummers | Sets" next to search and profile, and the phone layout is about 10% denser.
+
+### Fixed
+- Release radar and daily mix load on the phone again: the feed requests were the only API calls sent without the user's key, so the server answered 401 and the rows silently stayed empty.
 ## [7.0.0] - 2026-09-15
 
 ### Added

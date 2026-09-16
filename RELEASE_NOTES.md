@@ -11,6 +11,32 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.63.0 (2026-09-16)
+
+- **Vijf daily mixes in plaats van één.** `rules_genres` kreeg een `hardness`-kolom (0-100,
+  bewerkbaar op de genre-edit-pagina naast de hiërarchie): geseed met een handmatige lijst
+  ankers (Deep House 10 tot Speedcore 100) en overgeërfd via `rules_subgenre_hierarchy` voor
+  elk genre zonder eigen anker. Een track leent, als hij zelf geen gescoord genre draagt, de
+  hardheid van zijn label, dan van zijn artiest, dan van zijn tempo. `GET /api/feeds` somt nu
+  zes tegels op met titel en subtitel: `daily-mix-soft`/`-mid`/`-hard` verdelen de eigen
+  luistergeschiedenis in drie tertielen (Zachter, Middenin, Harder), `daily-mix-artist` en
+  `daily-mix-label` draaien dagelijks door de top 10 artiesten/labels — welke van de tien het
+  wordt, bepaalt een hash van gebruikersnaam en datum, niet een toevalsgenerator. `daily-mix`
+  blijft de klassieke, ongefilterde mix — geen band, dus een track zonder gescoord genre verliest
+  er nooit zijn plek door — zodat auto en telefoon niets hoeven te wijzigen. Een band die na het
+  verruimen van het releasevenster (90 → 365 dagen → geen venster) nog te weinig kandidaten heeft,
+  vult de resterende plekken aan met tracks zonder bekende hardheid in plaats van leeg te blijven;
+  het aantal zo aangevulde plekken staat in de respons (`filled_from_unknown`).
+
+- De tegels op Home en Favorieten zien er weer strak en gekleurd uit, zoals in Bladeren. De groet
+  boven Home is op de telefoon weg.
+
+- The phone's full-screen player again shows genre, release date and label under the track, and a new details button opens a track info sheet (cover, chips for genre/label/festival/mood, technical details, artist/album navigation) matching what the retired Kotlin player offered -- plus a "Song" button that jumps straight to every version of the current track.
+
+- De Nummers/Sets-schakelaar op de telefoon staat nu in de bovenbalk, naast zoeken en je profiel.
+  De telefoon-schermen zijn ook wat compacter geworden.
+
+- Release Radar en Daily Mix laden nu weer op alle apparaten.
 ## Global Version 0.62.0 (2026-09-15)
 
 - **Over-pagina toont nu alle versies**: server, API en webinterface.

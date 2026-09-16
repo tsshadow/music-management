@@ -62,6 +62,8 @@
   let correctionTarget = $state('');
 
   const paging = $derived(pageOf(total, offset));
+  /** A count for display; a summary from an older server may lack a field, which is 0 here. */
+  const n = (value) => Number(value ?? 0).toLocaleString('nl-NL');
   const allVisibleSelected = $derived(rows.length > 0 && rows.every((row) => selected.includes(row.name)));
   const selectedRows = $derived(rows.filter((row) => selected.includes(row.name)));
   const plan = $derived(planFromProposals(selectedRows));
@@ -129,7 +131,10 @@
   async function fetchSummary() {
     try {
       const res = await fetch(`${API_BASE}/api/rules/artists/summary`, { headers: getHeaders() });
-      if (res.ok) summary = await res.json();
+      if (res.ok) {
+        const body = await res.json();
+        summary = body && typeof body === 'object' && !Array.isArray(body) ? body : null;
+      }
     } catch (err) {
       console.error('Kon samenvatting artiestcuratie niet ophalen:', err);
     }
@@ -330,23 +335,23 @@
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="artist-summary">
       <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 p-4">
         <p class="text-[10px] uppercase tracking-wider text-muma-spotify-text m-0">{$t('management.artists.filterUnknown')}</p>
-        <p class="text-2xl font-extrabold m-0">{summary.unknown.toLocaleString('nl-NL')}</p>
-        <p class="text-xs text-muma-spotify-text m-0">{$t('management.artists.ofInLibrary', { count: summary.in_library.toLocaleString('nl-NL') })}</p>
+        <p class="text-2xl font-extrabold m-0">{n(summary.unknown)}</p>
+        <p class="text-xs text-muma-spotify-text m-0">{$t('management.artists.ofInLibrary', { count: n(summary.in_library) })}</p>
       </div>
       <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 p-4">
         <p class="text-[10px] uppercase tracking-wider text-muma-spotify-text m-0">{$t('management.artists.filterWhite')}</p>
-        <p class="text-2xl font-extrabold m-0 text-brand">{summary.white.toLocaleString('nl-NL')}</p>
+        <p class="text-2xl font-extrabold m-0 text-brand">{n(summary.white)}</p>
       </div>
       <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 p-4">
         <p class="text-[10px] uppercase tracking-wider text-muma-spotify-text m-0">{$t('management.artists.filterBlack')}</p>
-        <p class="text-2xl font-extrabold m-0 text-red-400">{summary.black.toLocaleString('nl-NL')}</p>
+        <p class="text-2xl font-extrabold m-0 text-red-400">{n(summary.black)}</p>
       </div>
       <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 p-4 flex flex-col gap-2">
         <p class="text-[10px] uppercase tracking-wider text-muma-spotify-text m-0">{$t('management.artists.proposals')}</p>
         <p class="text-sm m-0">
           {$t('management.artists.proposalCounts', {
-            reject: (summary.proposals?.reject ?? 0).toLocaleString('nl-NL'),
-            rewrite: ((summary.proposals?.rewrite ?? 0) + (summary.proposals?.split ?? 0)).toLocaleString('nl-NL')
+            reject: n(summary.proposals?.reject),
+            rewrite: n((summary.proposals?.rewrite ?? 0) + (summary.proposals?.split ?? 0))
           })}
         </p>
         <button
@@ -371,7 +376,7 @@
         {#if stateFilter === WHITE}<CircleCheck size={20} class="text-brand" />{/if}
         {#if stateFilter === BLACK}<CircleSlash size={20} class="text-red-500" />{/if}
         {$t(STATE_FILTERS.find((f) => f.id === stateFilter)?.labelKey)}
-        <span class="text-muma-spotify-text text-sm font-normal">({total.toLocaleString('nl-NL')})</span>
+        <span class="text-muma-spotify-text text-sm font-normal">({n(total)})</span>
       </h3>
 
       <div class="flex items-center gap-3 flex-wrap">
@@ -500,7 +505,7 @@
                       </span>
                     {/if}
                   </td>
-                  <td class="p-4 text-muma-spotify-text">{(row.track_count ?? 0).toLocaleString('nl-NL')}</td>
+                  <td class="p-4 text-muma-spotify-text">{n(row.track_count)}</td>
                   <td class="p-4">
                     {#if proposal}
                       <div class="font-medium {row.proposal_kind === 'reject' ? 'text-red-400' : 'text-brand'}">{$t(proposal.key, proposal.vars)}</div>

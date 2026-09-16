@@ -205,6 +205,16 @@ describe("ArtistCurationTab", () => {
     ).toBe(false);
   });
 
+  // What the shared Management test mocks: every request answers with the same generic
+  // body. The tab must not throw on that, or the whole management view test suite goes.
+  it("survives a summary that is not a summary", async () => {
+    globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => [] }));
+    render(ArtistCurationTab, props());
+
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByTestId("artist-summary")).toBeNull());
+  });
+
   it("undoes a decision on a decided row", async () => {
     globalThis.fetch = mockApi({
       rows: [

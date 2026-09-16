@@ -210,8 +210,11 @@ export const MANAGEMENT_TABS = [
   "tagger",
   "genre-curation",
   "artist-curation",
+  "labels",
   "label-proposals",
   "podcast-curation",
+  "festivals",
+  "lineups",
   "downloaders",
   "radio",
   "news",
@@ -245,7 +248,20 @@ export const MANAGEMENT_GROUPS = [
   {
     id: "curation",
     labelKey: "management.groups.curation",
-    pages: ["tagger", "genre-curation", "artist-curation", "label-proposals", "podcast-curation"],
+    // Every input the tagger reads from a rule table, one page each, in the order a
+    // library is curated: what a track is (genre, artist, label), then the recordings
+    // (podcast, festival) and who played (lineup). The tagger page holds the
+    // cross-cutting rules (artist->genre, label->genre, redirects) that fit no single one.
+    pages: [
+      "tagger",
+      "genre-curation",
+      "artist-curation",
+      "labels",
+      "label-proposals",
+      "podcast-curation",
+      "festivals",
+      "lineups",
+    ],
   },
   { id: "downloaders", labelKey: null, pages: ["downloaders"] },
   { id: "channels", labelKey: "management.groups.channels", pages: ["radio", "news"] },

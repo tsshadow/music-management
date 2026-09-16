@@ -14,6 +14,9 @@
   import TaggerTab from './tabs/TaggerTab.svelte';
   import GenreCurationTab from './tabs/GenreCurationTab.svelte';
   import ArtistCurationTab from './tabs/ArtistCurationTab.svelte';
+  import LabelsTab from './tabs/LabelsTab.svelte';
+  import FestivalsTab from './tabs/FestivalsTab.svelte';
+  import LineupsTab from './tabs/LineupsTab.svelte';
   import LabelProposalsTab from './tabs/LabelProposalsTab.svelte';
   import PodcastCurationTab from './tabs/PodcastCurationTab.svelte';
   import RadioTab from './tabs/RadioTab.svelte';
@@ -482,6 +485,24 @@
         />
       {:else if $activeManagementTab === 'artist-curation'}
         <ArtistCurationTab
+          {API_BASE} getHeaders={getHeaders}
+          onMessage={(m) => message = m}
+          onError={(e) => error = e}
+        />
+      {:else if $activeManagementTab === 'labels'}
+        <LabelsTab
+          {API_BASE} getHeaders={getHeaders}
+          onMessage={(m) => message = m}
+          onError={(e) => error = e}
+        />
+      {:else if $activeManagementTab === 'festivals'}
+        <FestivalsTab
+          {API_BASE} getHeaders={getHeaders}
+          onMessage={(m) => message = m}
+          onError={(e) => error = e}
+        />
+      {:else if $activeManagementTab === 'lineups'}
+        <LineupsTab
           {API_BASE} getHeaders={getHeaders}
           onMessage={(m) => message = m}
           onError={(e) => error = e}

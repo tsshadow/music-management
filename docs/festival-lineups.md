@@ -5,6 +5,15 @@ lists them, `getSongs?festivalLineup=` and `getSpotifyTracks?lineup=` filter on 
 and phone browse pages show them. This document says where the names come from, because that turns
 out to be the hard part.
 
+## Where to edit one
+
+Beheer → Curatie → Lineups (`routers/lineups.py`, `LineupsTab.svelte`): the files listed per
+festival, an editor that takes a pasted bill, a "Controleren" that reports which lines the
+library matches and offers the closest display names for the rest, and a save that writes the
+matched names in the library's own spelling. The festivals the tagger *recognises* (names,
+aliases, edition dates) are a separate page, Beheer → Curatie → Festivals (`routers/festivals.py`).
+`scripts/import_festival_lineup.py` remains the shell route to the same file.
+
 ## The file, and what its path means
 
 A lineup's id is the path to its file without the extension, so `Defqon.1/2014/RED` is the RED

@@ -22,7 +22,11 @@
     Users,
     UserPlus,
     ScrollText,
-    SlidersHorizontal
+    SlidersHorizontal,
+    Tag,
+    Inbox,
+    Tent,
+    ListTree
   } from '@lucide/svelte';
 
   // `onselect` lets the mobile drawer close itself once a tab was picked; on
@@ -44,8 +48,11 @@
     'tagger': { labelKey: 'management.tabs.tagger', icon: Tags },
     'genre-curation': { labelKey: 'management.tabs.genreCuration', icon: ListChecks },
     'artist-curation': { labelKey: 'management.tabs.artistCuration', icon: Users },
-    'label-proposals': { labelKey: 'management.tabs.labelProposals', icon: Tags },
+    'labels': { labelKey: 'management.tabs.labels', icon: Tag },
+    'label-proposals': { labelKey: 'management.tabs.labelProposals', icon: Inbox },
     'podcast-curation': { labelKey: 'management.tabs.podcastCuration', icon: Podcast },
+    'festivals': { labelKey: 'management.tabs.festivals', icon: Tent },
+    'lineups': { labelKey: 'management.tabs.lineups', icon: ListTree },
     'downloaders': { labelKey: 'management.tabs.downloaders', icon: Download },
     'radio': { labelKey: 'management.tabs.radio', icon: Radio, permission: 'radio.manage' },
     'news': { labelKey: 'management.tabs.news', icon: Newspaper, permission: 'news.manage' },

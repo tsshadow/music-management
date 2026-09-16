@@ -207,6 +207,7 @@ cb5422922dbdf5b2 x1  # sqlalchemy-execute-raw-query services/downloader/rate_sta
 f35f52870209024a x1  # sqlalchemy-execute-raw-query services/music_manager/artist_image_fetcher/cli.py
 e518aee4780aeb3c x2  # sqlalchemy-execute-raw-query services/music_manager/routers/artist_curation.py
 5799c7eeef5cb448 x4  # sqlalchemy-execute-raw-query services/music_manager/routers/artist_images.py
+f1e5984caea1ad23 x2  # sqlalchemy-execute-raw-query services/music_manager/routers/curation.py
 4faa55e16d5bb155 x3  # sqlalchemy-execute-raw-query services/music_manager/routers/events.py
 52d582652d6f5d81 x2  # sqlalchemy-execute-raw-query services/music_manager/routers/library.py
 434ba6b05f27e354 x2  # sqlalchemy-execute-raw-query services/music_manager/routers/management.py

@@ -353,6 +353,53 @@ def delete_artist_genre(name: str, genre_id: int, _auth: dict = WRITE):
 # ---------------------------------------------------------------------------- labels
 
 
+#: One page of the label list at most. The list is a few thousand rows; the page pages.
+LABEL_PAGE_MAX = 500
+
+
+@router.get('/labels')
+def list_labels(q: str | None = None, limit: int = 200, offset: int = 0, _auth: dict = READ):
+    """Every label the library holds, most tracks first, with what the tagger knows about it.
+
+    The Beheer overview of labels: how many tracks carry it, how many catalogue-id
+    prefixes and genre rules point at it, and its parent. The row is the way into
+    the edit page; nothing is edited here.
+    """
+    limit = max(1, min(int(limit), LABEL_PAGE_MAX))
+    offset = max(0, int(offset))
+    where = ''
+    params: list = []
+    if q:
+        where = ' WHERE l.name LIKE %s'
+        params.append(f'%{q}%')
+    conn = _connect()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(f'SELECT COUNT(*) AS total FROM library_labels l{where}', params)
+            total = cursor.fetchone()['total']
+            cursor.execute(
+                f'''
+                SELECT l.id, l.name, l.mbid, p.name AS parent_name,
+                       COALESCE(tc.track_count, 0) AS track_count,
+                       (SELECT COUNT(*) FROM rules_catid_label c WHERE c.label = l.name) AS catid_count,
+                       (SELECT COUNT(*) FROM rules_label_genres g WHERE g.label_name = l.name) AS genre_count
+                FROM library_labels l
+                LEFT JOIN library_labels p ON p.id = l.parent_label_id
+                LEFT JOIN (
+                    SELECT label_id, COUNT(DISTINCT track_id) AS track_count
+                    FROM library_track_labels GROUP BY label_id
+                ) tc ON tc.label_id = l.id
+                {where}
+                ORDER BY track_count DESC, l.name
+                LIMIT %s OFFSET %s
+                ''',
+                params + [limit, offset],
+            )
+            return {'total': total, 'rows': list(cursor.fetchall()), 'limit': limit, 'offset': offset}
+    finally:
+        conn.close()
+
+
 @router.get('/labels/{name}')
 def get_label(name: str, _auth: dict = READ):
     conn = _connect()

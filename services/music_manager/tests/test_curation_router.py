@@ -88,6 +88,42 @@ class ArtistReadTest(CurationTestCase):
         self.assertEqual(self.reloaded_helpers(), [])
 
 
+class LabelListTest(CurationTestCase):
+    rules = (
+        ('SELECT COUNT(*) AS total FROM library_labels', None, {'total': 1}),
+        (
+            'FROM library_labels l',
+            None,
+            [
+                {
+                    'id': 3,
+                    'name': 'Masters of Hardcore',
+                    'mbid': None,
+                    'parent_name': None,
+                    'track_count': 812,
+                    'catid_count': 2,
+                    'genre_count': 1,
+                }
+            ],
+        ),
+    )
+
+    def test_lists_labels_with_what_the_tagger_knows_about_them(self):
+        response = self.client.get('/api/curation/labels?q=hardcore', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['total'], 1)
+        self.assertEqual(body['rows'][0]['name'], 'Masters of Hardcore')
+        self.assertEqual(body['rows'][0]['catid_count'], 2)
+        _sql, params = self.statements('FROM library_labels l')[-1]
+        self.assertEqual(params[0], '%hardcore%')
+
+    def test_the_page_size_is_capped(self):
+        self.client.get('/api/curation/labels?limit=99999', headers=self.headers)
+        _sql, params = self.statements('LIMIT %s OFFSET %s')[-1]
+        self.assertEqual(params[-2], curation_router.LABEL_PAGE_MAX)
+
+
 class UnknownArtistTest(CurationTestCase):
     rules = (('COUNT(DISTINCT', None, {'affected': 0}),)
 

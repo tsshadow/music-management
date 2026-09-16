@@ -5,6 +5,7 @@
 // the unit tests (mobileNav.test.js, browseGrid.test.js, app.test.js) cover the
 // component and store logic in isolation.
 import { test, expect } from "@playwright/test";
+import { SETUP_STEPS } from "../../src/lib/setup.js";
 
 const USERNAME = "ci-contract-admin";
 const PASSWORD = "ci-contract-password";
@@ -15,31 +16,23 @@ test.use({ viewport: { width: 412, height: 915 } });
 // English and the assertions below -- written against the Dutch the app is
 // actually used in -- would fail for the wrong reason.
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem("muma_locale", JSON.stringify("nl"));
-  });
+  // The stack here is created per job, so this login is a first run and would land in the
+  // setup tour (`SetupWizard.svelte`) -- whenever the account's settings finish loading,
+  // which can be after any of the clicks below. Mark every step seen up front instead;
+  // the tour itself is covered in app.test.js, this file is about the bottom bar.
+  await page.addInitScript(
+    (seen) => {
+      localStorage.setItem("muma_locale", JSON.stringify("nl"));
+      localStorage.setItem("lms_setupStepsSeen", JSON.stringify(seen));
+    },
+    SETUP_STEPS.map((step) => step.id),
+  );
 
   await page.goto("/");
   await page.locator("#username").fill(USERNAME);
   await page.locator("#password").fill(PASSWORD);
   await page.getByRole("button", { name: /Verbinden|Account Aanmaken/ }).click();
   await expect(page.locator("#username")).toHaveCount(0, { timeout: 15_000 });
-
-  // A fresh account is walked through the setup tour first (`SetupWizard.svelte`); the
-  // stack here is created per job, so the first test to log in meets it. Skipping records
-  // it on the account, but the save is debounced and a later test may still catch it, so
-  // every test dismisses it rather than only the first. The tour itself is covered in
-  // app.test.js; this file is about the bottom bar underneath it.
-  const skipTour = page.getByRole("button", { name: "Overslaan" });
-  if (
-    await skipTour.waitFor({ state: "visible", timeout: 3_000 }).then(
-      () => true,
-      () => false,
-    )
-  ) {
-    await skipTour.click();
-    await expect(page.getByTestId("setup-wizard")).toHaveCount(0);
-  }
 });
 
 test("the phone's three bottom tabs move between Home, Browse and Favourites", async ({ page }) => {

@@ -18,7 +18,14 @@ import sys
 from datetime import datetime
 
 from services.music_manager.feeds.build import build_feed, resolve_profile
-from services.music_manager.feeds.policy import POLICIES, STARTING_GENRES_SETTING, FeedPolicy, parse_starting_genres
+from services.music_manager.feeds.policy import (
+    HARDNESS_EDGES_SETTING,
+    POLICIES,
+    STARTING_GENRES_SETTING,
+    FeedPolicy,
+    parse_hardness_edges,
+    parse_starting_genres,
+)
 
 FUNNEL_STAGES = ('candidates', 'bucketed', 'allocated', 'capped', 'emitted')
 
@@ -63,20 +70,28 @@ def print_report(shares: dict, funnel: dict, tracks: list[dict]) -> None:
 def print_hardness(feed) -> None:
     """The numbers only a hardness-band feed (`daily-mix-soft`/`-mid`/`-hard`)
 
-    carries: the listener's own (soft/mid, mid/hard) edges, how many of their
-    heard tracks resolved a hardness from each source in `track_hardness`'s
-    fallback chain, and whether the release window had to be widened to reach
+    carries: the edges actually applied (and whether `feeds_hardness_edges` or the
+    default set them), how many of the listener's heard tracks resolved a hardness
+    from each source in `track_hardness`'s fallback chain, their own weighted
+    p33/p50/p67 (informational only -- it no longer decides the edges, see
+    feeds/hardness.py), and whether the release window had to be widened to reach
     `MIN_BAND_CANDIDATES`. Silent for every other slug -- `feed.hardness_band`
     is None there, exactly as build.py leaves it.
     """
     if feed.hardness_band is None:
         return
     lo, hi = feed.hardness_band
+    suffix = f' ({feed.hardness_edges_source})' if feed.hardness_edges_source else ''
     print(f'-- hardness band ({feed.title}) --')
-    print(f'  edges: {lo:.1f} / {hi:.1f}')
+    print(f'  edges: {lo:.1f} / {hi:.1f}{suffix}')
+    percentiles = feed.hardness_percentiles
+    if percentiles:
+        print(
+            f"  listener's own p33/p50/p67: {percentiles['p33']:.1f} / {percentiles['p50']:.1f} / {percentiles['p67']:.1f}"
+        )
     if feed.hardness_source_counts:
-        for source, count in sorted(feed.hardness_source_counts.items(), key=lambda item: -item[1]):
-            print(f'  {source:>8}: {count}')
+        for source_name, count in sorted(feed.hardness_source_counts.items(), key=lambda item: -item[1]):
+            print(f'  {source_name:>8}: {count}')
     if feed.relaxed_to is not None:
         print(f'  relaxed release window to: {feed.relaxed_to}')
     if feed.filled_from_unknown:
@@ -109,6 +124,14 @@ def main(argv=None) -> int:
             f'the listener nor the server has any history; defaults to the {STARTING_GENRES_SETTING} setting.'
         ),
     )
+    parser.add_argument(
+        '--hardness-edges',
+        default=None,
+        help=(
+            'override the spectrum mixes\' band edges, "<soft/mid>,<mid/hard>" e.g. "50,75". Only '
+            f'read for daily-mix-soft/-mid/-hard; defaults to the {HARDNESS_EDGES_SETTING} setting.'
+        ),
+    )
     args = parser.parse_args(argv)
 
     policy = policy_for(args.slug, args.window, args.size, args.max_seconds)
@@ -126,6 +149,11 @@ def main(argv=None) -> int:
     else:
         starting_genres = parse_starting_genres(ConfigStore().get(STARTING_GENRES_SETTING))
 
+    if args.hardness_edges is not None:
+        edges, edges_source = parse_hardness_edges(args.hardness_edges)
+    else:
+        edges, edges_source = parse_hardness_edges(ConfigStore().get(HARDNESS_EDGES_SETTING))
+
     conn = get_db_connection()
     if not conn:
         sys.exit('Could not open a database connection.')
@@ -135,7 +163,15 @@ def main(argv=None) -> int:
         # old hand copy of these steps silently left out, so the one path this tool exists to
         # measure was the one it could not show.
         resolution = resolve_profile(conn, args.username, policy.profile_window_days, now, starting_genres)
-        feed = build_feed(conn, args.username, policy, now, starting_genres=starting_genres)
+        feed = build_feed(
+            conn,
+            args.username,
+            policy,
+            now,
+            starting_genres=starting_genres,
+            hardness_edges=edges,
+            hardness_edges_source=edges_source,
+        )
     finally:
         conn.close()
 

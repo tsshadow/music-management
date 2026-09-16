@@ -13,7 +13,12 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 
 from services.music_manager.feeds.buckets import bucket_of, dominant_genre
-from services.music_manager.feeds.hardness import classify_band, hardness_band_edges, track_hardness
+from services.music_manager.feeds.hardness import (
+    DEFAULT_BAND_EDGES,
+    classify_band,
+    hardness_percentiles,
+    track_hardness,
+)
 from services.music_manager.feeds.policy import FeedPolicy
 from services.music_manager.feeds.profile import TasteProfile, blend, build_profile, genre_shares, listen_weight
 from services.music_manager.feeds.queries import (
@@ -68,12 +73,23 @@ class Feed:
     title: str | None = None
     subtitle: str | None = None
     # Only set for a hardness_band policy: the (soft/mid, mid/hard) edges this
-    # listener's own build actually filtered against.
+    # build actually filtered against -- fixed on the genre anchors
+    # (hardness.DEFAULT_BAND_EDGES) unless the feeds_hardness_edges setting
+    # overrides them; never derived from this listener's own history.
     hardness_band: tuple[float, float] | None = None
+    # Only set for a hardness_band policy: 'setting' when feeds_hardness_edges
+    # supplied the edges above, 'default' when hardness_band fell back to
+    # DEFAULT_BAND_EDGES.
+    hardness_edges_source: str | None = None
     # Only set for a hardness_band policy: how many of this listener's heard tracks
     # resolved their hardness from each source ('genre', 'label', 'artist', 'tempo',
     # 'none'), for the dry run and for judging how much the fallback chain matters.
     hardness_source_counts: dict[str, int] | None = None
+    # Only set for a hardness_band policy, and only when this listener has at least
+    # one heard track with a resolvable hardness: their own weighted p33/p50/p67 --
+    # informational since the edges above stopped being derived from it (see
+    # hardness.hardness_percentiles). None when there is nothing to report.
+    hardness_percentiles: dict[str, float] | None = None
     # Only set when a hardness band came up short and release_window_days was
     # widened to reach MIN_BAND_CANDIDATES: the number of days it was widened to,
     # the literal string 'none' when it was widened all the way to no window at
@@ -245,15 +261,17 @@ def _annotate_hardness(conn, rows: list[dict], id_field: str) -> None:
         row['hardness_source'] = source
 
 
-def _listener_band_edges(
+def _listener_hardness_stats(
     conn, username: str, window_days: int, now: datetime
-) -> tuple[tuple[float, float], dict[str, int]]:
-    """This listener's own (soft/mid, mid/hard) hardness edges, and the source tally.
+) -> tuple[dict[str, float] | None, dict[str, int]]:
+    """This listener's own weighted p33/p50/p67 hardness (or None), and the source
+    tally -- informational, no longer what decides the band edges (see
+    `hardness.DEFAULT_BAND_EDGES`).
 
     Reads the same listens `build_profile` does (`_load_listens`, same window), so
-    the number a listener sees on the daily mix ("<= 42 hardheid") is measured from
-    exactly the history their profile is built from, never a second, differently
-    windowed read of `scrobble_listens`.
+    the percentiles a listener sees are measured from exactly the history their
+    profile is built from, never a second, differently windowed read of
+    `scrobble_listens`.
     """
     rows = _load_listens(conn, username, window_days, now)
     for row in rows:
@@ -277,7 +295,7 @@ def _listener_band_edges(
             source_counts['none'] += 1
 
     weighted = [(hardness, per_track_weight[uid]) for uid, hardness in per_track_hardness.items()]
-    return hardness_band_edges(weighted), dict(source_counts)
+    return hardness_percentiles(weighted), dict(source_counts)
 
 
 def _ranked_names(affinities: dict[str, float], limit: int = 10) -> list[str]:
@@ -298,7 +316,15 @@ def _band_subtitle(lo: float, hi: float, band: str) -> str:
     return f'{round(lo)}–{round(hi)} hardheid'
 
 
-def _describe(conn, username: str, policy: FeedPolicy, now: datetime, profile: TasteProfile) -> dict:
+def _describe(
+    conn,
+    username: str,
+    policy: FeedPolicy,
+    now: datetime,
+    profile: TasteProfile,
+    hardness_edges: tuple[float, float] | None = None,
+    hardness_edges_source: str = 'default',
+) -> dict:
     """title/subtitle/entity_filter/band_edges/hardness_source_counts for one policy.
 
     The one place both `describe_feed` (the cheap version `GET /api/feeds` uses to
@@ -306,13 +332,23 @@ def _describe(conn, username: str, policy: FeedPolicy, now: datetime, profile: T
     to actually filter candidates) compute a feed's identity -- so the edges a
     listener is told about are always the edges that were applied, never a second,
     possibly different pass over the same profile.
+
+    `hardness_edges`/`hardness_edges_source` are the already-resolved
+    `feeds_hardness_edges` setting (or its absence) -- resolved once by the caller
+    (`routers/feeds.py`, `scripts/feeds_dryrun.py`) exactly the way
+    `starting_genres` already is, so the router and the dry run can never measure a
+    different band than the one shipped. `hardness_edges=None` means "no override",
+    resolved here to `DEFAULT_BAND_EDGES`.
     """
+    edges = hardness_edges if hardness_edges is not None else DEFAULT_BAND_EDGES
     empty = {
         'title': policy.slug,
         'subtitle': None,
         'entity_filter': None,
         'band_edges': None,
+        'hardness_edges_source': None,
         'hardness_source_counts': None,
+        'hardness_percentiles': None,
     }
     if policy.rotate:
         names = _ranked_names(profile.artists if policy.rotate == 'artist' else profile.labels)
@@ -328,14 +364,16 @@ def _describe(conn, username: str, policy: FeedPolicy, now: datetime, profile: T
     if policy.hardness_band:
         title = DUTCH_BAND_TITLE.get(policy.hardness_band, policy.slug)
         if profile.scope == 'empty':
-            return {**empty, 'title': title}
-        edges, counts = _listener_band_edges(conn, username, policy.profile_window_days, now)
+            return {**empty, 'title': title, 'band_edges': edges, 'hardness_edges_source': hardness_edges_source}
+        percentiles, counts = _listener_hardness_stats(conn, username, policy.profile_window_days, now)
         return {
             **empty,
             'title': title,
             'subtitle': _band_subtitle(edges[0], edges[1], policy.hardness_band),
             'band_edges': edges,
+            'hardness_edges_source': hardness_edges_source,
             'hardness_source_counts': counts,
+            'hardness_percentiles': percentiles,
         }
     if policy.slug == 'release-radar':
         return {**empty, 'title': 'Release Radar'}
@@ -345,7 +383,13 @@ def _describe(conn, username: str, policy: FeedPolicy, now: datetime, profile: T
 
 
 def describe_feed(
-    conn, username: str, policy: FeedPolicy, now: datetime, starting_genres: list[str] | None = None
+    conn,
+    username: str,
+    policy: FeedPolicy,
+    now: datetime,
+    starting_genres: list[str] | None = None,
+    hardness_edges: tuple[float, float] | None = None,
+    hardness_edges_source: str = 'default',
 ) -> dict:
     """`{'title', 'subtitle'}` for one policy, without running the candidate pipeline.
 
@@ -356,7 +400,7 @@ def describe_feed(
     get.
     """
     resolution = resolve_profile(conn, username, policy.profile_window_days, now, starting_genres)
-    info = _describe(conn, username, policy, now, resolution.profile)
+    info = _describe(conn, username, policy, now, resolution.profile, hardness_edges, hardness_edges_source)
     return {'title': info['title'], 'subtitle': info['subtitle']}
 
 
@@ -576,7 +620,13 @@ def resolve_profile(
 
 
 def build_feed(
-    conn, username: str, policy: FeedPolicy, now: datetime, starting_genres: list[str] | None = None
+    conn,
+    username: str,
+    policy: FeedPolicy,
+    now: datetime,
+    starting_genres: list[str] | None = None,
+    hardness_edges: tuple[float, float] | None = None,
+    hardness_edges_source: str = 'default',
 ) -> Feed:
     """The eight steps of technical.md's algorithm, in order.
 
@@ -589,12 +639,16 @@ def build_feed(
     blocklist of what may appear in it. Both readings satisfy the criterion as
     written; if a listener ever needs the other one, it is a candidate-query
     filter and a second, differently-named control.
+
+    `hardness_edges`/`hardness_edges_source` are the already-resolved
+    `feeds_hardness_edges` setting -- see `_describe`'s docstring; `None` means "no
+    override, use `hardness.DEFAULT_BAND_EDGES`".
     """
     resolution = resolve_profile(conn, username, policy.profile_window_days, now, starting_genres)
     profile, shares, parents = resolution.profile, resolution.shares, resolution.parents
 
     if profile.scope == 'empty':
-        info = _describe(conn, username, policy, now, profile)
+        info = _describe(conn, username, policy, now, profile, hardness_edges, hardness_edges_source)
         return Feed(
             slug=policy.slug,
             state='not_enough_data',
@@ -603,6 +657,8 @@ def build_feed(
             funnel=dict(EMPTY_FUNNEL),
             title=info['title'],
             subtitle=info['subtitle'],
+            hardness_band=info['band_edges'],
+            hardness_edges_source=info['hardness_edges_source'],
         )
 
     # Which title/subtitle this response carries, and -- for the two rotating mixes
@@ -610,7 +666,7 @@ def build_feed(
     # spectrum mixes, the band edges the candidate filter below actually applies.
     # One computation, shared with GET /api/feeds's cheap listing (`describe_feed`),
     # so the number on the home screen is always the number that was applied.
-    info = _describe(conn, username, policy, now, profile)
+    info = _describe(conn, username, policy, now, profile, hardness_edges, hardness_edges_source)
     if policy.rotate and info['entity_filter'] is None:
         # A profile with no artist (or label) affinities at all -- nothing to
         # rotate through today.
@@ -716,7 +772,9 @@ def build_feed(
             title=info['title'],
             subtitle=info['subtitle'],
             hardness_band=info['band_edges'],
+            hardness_edges_source=info['hardness_edges_source'],
             hardness_source_counts=info['hardness_source_counts'],
+            hardness_percentiles=info['hardness_percentiles'],
             relaxed_to=relaxed_to,
             filled_from_unknown=filled_from_unknown,
         )
@@ -730,7 +788,9 @@ def build_feed(
         title=info['title'],
         subtitle=info['subtitle'],
         hardness_band=info['band_edges'],
+        hardness_edges_source=info['hardness_edges_source'],
         hardness_source_counts=info['hardness_source_counts'],
+        hardness_percentiles=info['hardness_percentiles'],
         relaxed_to=relaxed_to,
         filled_from_unknown=filled_from_unknown,
     )

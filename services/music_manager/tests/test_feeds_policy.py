@@ -1,7 +1,8 @@
 import dataclasses
 import unittest
 
-from services.music_manager.feeds.policy import POLICIES, parse_starting_genres
+from services.music_manager.feeds.hardness import DEFAULT_BAND_EDGES
+from services.music_manager.feeds.policy import POLICIES, parse_hardness_edges, parse_starting_genres
 
 
 class PolicyTest(unittest.TestCase):
@@ -95,3 +96,34 @@ class StartingGenresTest(unittest.TestCase):
         self.assertIsNone(parse_starting_genres(''))
         self.assertIsNone(parse_starting_genres(None))
         self.assertIsNone(parse_starting_genres(' , , '))
+
+
+class HardnessEdgesSettingTest(unittest.TestCase):
+    """The router and the dry run read the same setting, so they parse it in one
+
+    place -- the same contract StartingGenresTest above exercises for its own
+    setting.
+    """
+
+    def test_a_well_formed_setting_is_used_and_reported_as_such(self):
+        self.assertEqual(parse_hardness_edges('50,75'), ((50.0, 75.0), 'setting'))
+
+    def test_whitespace_around_the_numbers_is_trimmed(self):
+        self.assertEqual(parse_hardness_edges(' 40 , 70 '), ((40.0, 70.0), 'setting'))
+
+    def test_nothing_configured_falls_back_to_the_default(self):
+        self.assertEqual(parse_hardness_edges(''), (DEFAULT_BAND_EDGES, 'default'))
+        self.assertEqual(parse_hardness_edges(None), (DEFAULT_BAND_EDGES, 'default'))
+
+    def test_edges_that_are_not_ascending_fall_back_to_the_default(self):
+        self.assertEqual(parse_hardness_edges('75,50'), (DEFAULT_BAND_EDGES, 'default'))
+        self.assertEqual(parse_hardness_edges('50,50'), (DEFAULT_BAND_EDGES, 'default'))
+
+    def test_edges_outside_zero_to_a_hundred_fall_back_to_the_default(self):
+        self.assertEqual(parse_hardness_edges('-5,75'), (DEFAULT_BAND_EDGES, 'default'))
+        self.assertEqual(parse_hardness_edges('50,150'), (DEFAULT_BAND_EDGES, 'default'))
+
+    def test_unparsable_garbage_falls_back_to_the_default(self):
+        self.assertEqual(parse_hardness_edges('nope'), (DEFAULT_BAND_EDGES, 'default'))
+        self.assertEqual(parse_hardness_edges('50,75,90'), (DEFAULT_BAND_EDGES, 'default'))
+        self.assertEqual(parse_hardness_edges('fifty,seventyfive'), (DEFAULT_BAND_EDGES, 'default'))

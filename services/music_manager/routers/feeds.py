@@ -24,7 +24,13 @@ from services.music_manager.feeds.build import (
     describe_feed,
     resolve_profile,
 )
-from services.music_manager.feeds.policy import POLICIES, STARTING_GENRES_SETTING, parse_starting_genres
+from services.music_manager.feeds.policy import (
+    HARDNESS_EDGES_SETTING,
+    POLICIES,
+    STARTING_GENRES_SETTING,
+    parse_hardness_edges,
+    parse_starting_genres,
+)
 from services.music_manager.feeds.queries import exclusions_query
 from services.music_manager.library_paths import relative_path
 
@@ -93,6 +99,12 @@ def _resolve_username(auth: dict, username: str | None) -> str:
 def _starting_genres() -> list[str] | None:
     """The configured fallback genres, or None when nothing is configured."""
     return parse_starting_genres(settings.get(STARTING_GENRES_SETTING))
+
+
+def _hardness_edges() -> tuple[tuple[float, float], str]:
+    """The configured (soft/mid, mid/hard) band edges, and 'setting'|'default' for
+    whether `feeds_hardness_edges` actually supplied them."""
+    return parse_hardness_edges(settings.get(HARDNESS_EDGES_SETTING))
 
 
 def _track_view(track: dict) -> dict:
@@ -167,13 +179,22 @@ def list_feeds(username: str | None = None, auth: dict = Depends(verify_api_key)
 
     conn = get_db_connection() if resolved else None
     starting_genres = _starting_genres()
+    edges, edges_source = _hardness_edges()
     now = datetime.now()
     feeds = []
     try:
         for slug in _LISTED_SLUGS:
             policy = POLICIES[slug]
             if conn:
-                info = describe_feed(conn, resolved, policy, now, starting_genres)
+                info = describe_feed(
+                    conn,
+                    resolved,
+                    policy,
+                    now,
+                    starting_genres,
+                    hardness_edges=edges,
+                    hardness_edges_source=edges_source,
+                )
             else:
                 info = {'title': _fallback_title(policy), 'subtitle': None}
             feeds.append(
@@ -270,6 +291,10 @@ def get_feed(
         starting_genres = _starting_genres()
         if starting_genres:
             kwargs['starting_genres'] = starting_genres
+        if policy.hardness_band:
+            edges, edges_source = _hardness_edges()
+            kwargs['hardness_edges'] = edges
+            kwargs['hardness_edges_source'] = edges_source
 
         now = datetime.now()
         feed = build_feed(conn, resolved, policy, now, **kwargs)
@@ -286,7 +311,9 @@ def get_feed(
         'title': feed.title,
         'subtitle': feed.subtitle,
         'hardness_band': list(feed.hardness_band) if feed.hardness_band else None,
+        'hardness_edges_source': feed.hardness_edges_source,
         'hardness_source_counts': feed.hardness_source_counts,
+        'hardness_percentiles': feed.hardness_percentiles,
         'relaxed_to': feed.relaxed_to,
         'filled_from_unknown': feed.filled_from_unknown,
     }

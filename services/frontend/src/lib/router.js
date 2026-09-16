@@ -11,6 +11,8 @@
  * alongside it in the state object rather than being crammed into that string.
  */
 
+import { browseSections } from "./navigation.js";
+
 /** Sidebar and top-level pages that map straight onto a path of the same name. */
 const PLAIN_VIEWS = [
   // The driving screen. Reached from the overflow menu, the car-mode notification, and
@@ -127,8 +129,37 @@ export function modeForView(view) {
   return view === "songs" || view === "sets" ? view : null;
 }
 
-/** Library destinations reached through Browse on the phone. */
-export const LIBRARY_TAB_VIEWS = ["playlists", "artists", "albums", "starred", "downloads"];
+/**
+ * Library destinations reached through Browse on the phone: every tile the grid
+ * offers in either mode and on either platform, taken from the same list the
+ * sidebar renders so a section added there is owned by Browse without a second
+ * edit here.
+ */
+export const LIBRARY_TAB_VIEWS = [
+  ...new Set(
+    [
+      ...browseSections("songs", { storage: { supported: true } }),
+      ...browseSections("sets", { storage: { supported: true } }),
+    ].map((section) => section.id),
+  ),
+];
+
+/**
+ * The argument views that open from a Browse tile -- one genre, one label, one
+ * memories year -- and so keep that tab lit, like an artist or album page does.
+ */
+const LIBRARY_TAB_PREFIXES = [
+  "artist:",
+  "album:",
+  "genre:",
+  "label:",
+  "podcast:",
+  "festival:",
+  "year:",
+  "lineup:",
+  "lineups:",
+  "memories:",
+];
 
 /**
  * The owning bottom tab, also used to place the phone's mode chips.
@@ -150,8 +181,7 @@ export function phoneTabForView(view) {
     view === "search" ||
     view.startsWith("search:") ||
     LIBRARY_TAB_VIEWS.includes(view) ||
-    view.startsWith("artist:") ||
-    view.startsWith("album:")
+    LIBRARY_TAB_PREFIXES.some((prefix) => view.startsWith(prefix))
   )
     return "browse";
   return null;

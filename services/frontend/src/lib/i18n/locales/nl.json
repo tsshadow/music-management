@@ -232,7 +232,7 @@
     "topLabels": "Top labels"
   },
   "listening": {
-    "title": "Luisteren",
+    "title": "Luisterstatistieken",
     "subtitle": "Wat je hebt gedraaid, wanneer, en hoe vaak.",
     "loading": "Je luistergeschiedenis wordt geladen…",
     "unavailable": "Luisterstatistieken zijn nu niet beschikbaar.",
@@ -877,7 +877,7 @@
     "labels": "Labels",
     "library": "Bieb",
     "lineups": "Lineups",
-    "listening": "Luisteren",
+    "listening": "Luisterstatistieken",
     "management": "Beheer",
     "memories": "Memories",
     "menu": "Menu",

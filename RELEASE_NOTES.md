@@ -11,6 +11,35 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.64.0 (2026-09-16)
+
+- Web en telefoon bieden dezelfde bibliotheekingangen in dezelfde volgorde; de telefoon heeft er
+  "Nummers"/"Sets" bij en "Luisteren" heet nu "Luisterstatistieken".
+
+- Beheer heeft nu Artiestcuratie: per naam goedkeuren, afkeuren of samenvoegen, met een advies
+  erbij ("verwijderen", "samenvoegen met Angerfist") en een knop om dat advies per pagina op te
+  volgen.
+
+- Beheer › Curatie heeft nu een pagina per soort taggerinput: Labels, Festivals (met
+  spellingen en editiedatums) en Lineups (plakken, controleren, opslaan) zijn erbij.
+
+- De drie spectrum-dagelijkse-mixen (Zachter/Middenin/Harder) gebruiken nu een vaste hardheidsgrens
+  in plaats van de eigen luistergeschiedenis, zodat veel uptempo draaien "het midden" niet meer
+  verschuift.
+
+- Home toont nu vijf dagelijkse mixen naast elkaar (zacht/midden/hard, plus de artiest en het
+  label van de dag) in plaats van één.
+
+- **`muma-soundcloud-worker-full-once` is uit de stack.** De eenmalige volledige SoundCloud-sweep
+  (`--no-break-on-existing`, zonder `--repeat`) stond sinds 0.27.0 voor niets: de downloader doet
+  zelf elke `deep_sweep_days` een deep pass, en juist het uitzetten van break-on-existing was wat
+  de 429's opleverde. De container stond als "offline" op het Beheer-overzicht en als vaste
+  uitzondering in de nachtelijke check; beide zijn weg. `--remove-orphans` bij de volgende deploy
+  ruimt hem op prod op.
+
+- Bij je eerste bezoek loopt MuMa met je door de belangrijkste instellingen; komt er later een
+  instelling bij, dan zie je alleen die. De handleiding staat onder Instellingen en in het
+  profielmenu.
 ## Global Version 0.63.0 (2026-09-16)
 
 - **Vijf daily mixes in plaats van één.** `rules_genres` kreeg een `hardness`-kolom (0-100,

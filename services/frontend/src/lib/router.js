@@ -209,6 +209,7 @@ export const MANAGEMENT_TABS = [
   "playlists",
   "tagger",
   "genre-curation",
+  "artist-curation",
   "label-proposals",
   "podcast-curation",
   "downloaders",
@@ -244,7 +245,7 @@ export const MANAGEMENT_GROUPS = [
   {
     id: "curation",
     labelKey: "management.groups.curation",
-    pages: ["tagger", "genre-curation", "label-proposals", "podcast-curation"],
+    pages: ["tagger", "genre-curation", "artist-curation", "label-proposals", "podcast-curation"],
   },
   { id: "downloaders", labelKey: null, pages: ["downloaders"] },
   { id: "channels", labelKey: "management.groups.channels", pages: ["radio", "news"] },

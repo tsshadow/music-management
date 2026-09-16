@@ -211,6 +211,18 @@ describe("Management", () => {
     );
   });
 
+  it("the artist curation tab is reachable", async () => {
+    activeManagementTab.set("artist-curation");
+
+    render(Management);
+
+    await waitFor(() =>
+      expect(globalThis.fetch.mock.calls.some(([url]) => url.includes("/api/rules/artists"))).toBe(
+        true,
+      ),
+    );
+  });
+
   it("survives a server it cannot reach at all", async () => {
     globalThis.fetch = vi.fn(async () => {
       throw new Error("network down");

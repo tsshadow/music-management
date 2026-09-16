@@ -22,6 +22,7 @@ from services.music_manager.events_retention import run_events_retention
 from services.music_manager.feeds.hardness import seed_genre_hardness
 from services.music_manager.routers import (
     analytics,
+    artist_curation,
     artist_images,
     config,
     curation,
@@ -85,6 +86,7 @@ app.include_router(radio.router, prefix="/api/radio")
 app.include_router(news.router, prefix="/api/news")
 app.include_router(diagnostics.router, prefix="/api/diagnostics")
 app.include_router(curation.router, prefix="/api/curation")
+app.include_router(artist_curation.router, prefix="/api/rules/artists")
 app.include_router(songs.router, prefix="/api/songs")
 app.include_router(feeds.router, prefix="/api/feeds")
 

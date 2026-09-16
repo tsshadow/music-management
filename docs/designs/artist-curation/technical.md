@@ -4,9 +4,25 @@ Implements [`functional.md`](functional.md).
 
 ## What this change delivers
 
-The analysis engine and a dry-run report, and nothing else. No schema change, no tagger rule, no API, no UI.
-Thresholds cannot be chosen in the abstract, so the first deliverable is the thing that lets them be chosen
-by looking at the real library.
+The first cut (0.0.54) was the analysis engine and a dry-run report, and nothing else: no schema
+change, no tagger rule, no API, no UI. Thresholds cannot be chosen in the abstract, so the first
+deliverable was the thing that lets them be chosen by looking at the real library.
+
+The second cut (2026-09-16, `routers/artist_curation.py` + Beheer → Artiestcuratie) is the queue
+itself, in the genre-curation shape:
+
+| Component | Responsibility |
+|---|---|
+| `rules_artists` | The human decision per name: `white` keeps it, `black` drops it, `black` + `canonical_name` rewrites it. `decided_by`/`decided_at`, never written by an analysis run. |
+| `rules_ignored_artists` | Unchanged, still what the ten tagger rules read. Every decision is mirrored into it by the API, so the tagger needed no new table. `migrate_v26` seeds `rules_artists` from its 2.658 rows as `legacy-redirect` decisions. |
+| `rules_artist_proposals` | What the last analysis run advised per undecided name -- kind, target, evidence in words, confidence. Rewritten whole on every run. |
+| `POST /api/rules/artists/analyze` | Runs `ArtistNameAnalyzer` over every undecided name with the **approved names as its dictionary** -- no bootstrap seed, which is what produced `Rbr -> RBR ©`. Adds two passes the analyzer does not have: normalised-name collisions (`Dr. Peacock` / `Dr.Peacock`) and a leading `DJ`/`MC` (`DJ Angerfist` / `Angerfist`) resolve to the spelling with the most tracks; a rewrite whose target has fewer tracks than the name is downgraded to a queue entry with that said in the evidence. |
+| `POST /api/rules/artists/decide` | Names in bulk, one state, optionally one correction. A correction approves its target in the same call and refuses a rejected one. Refreshes the tagger's preloaded helper and marks a rejected name's files for retag. |
+| `ArtistCurationTab.svelte` | The queue, most tracks first, with an **Advies** column per name; filter by advice kind, select a page, "Advies opvolgen" turns the page's advice into decisions. The first visit starts the analysis on its own; after that it is a button. |
+
+The scanner's unguarded `INSERT IGNORE INTO library_artists` is still in place: a black name that a
+tagger run has not yet stripped from a file re-enters the table on the next scan, but it re-enters
+as *black* -- the decision is keyed by name and outlives the row -- so it stays out of the queue.
 
 ## Components
 

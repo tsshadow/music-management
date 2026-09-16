@@ -1281,7 +1281,7 @@
       {/if}
     </div>
   {:else if activeView === 'settings'}
-    <Settings />
+    <Settings onnavigate={onnavigate} />
   {:else if activeView === 'management'}
     <Management />
   {:else if activeView === 'history'}

@@ -11,8 +11,10 @@ import {
   isMobile,
   mumaSessionActive,
   mumaUser,
+  setupStepsSeen,
   sidebarDrawerOpen,
 } from "../../src/lib/store.js";
+import { SETUP_STEPS } from "../../src/lib/setup.js";
 
 /** Answers everything the shell asks for while the management view boots. */
 function subsonic() {
@@ -61,6 +63,8 @@ describe("mobile sidebar drawer", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
     mumaSessionActive.set(false);
+    // Every step seen, or the setup tour opens over the drawer under test.
+    setupStepsSeen.set(SETUP_STEPS.map((step) => step.id));
     mumaUser.set({ id: 1, username: "user", is_admin: true });
     activeView.set("home");
     activeManagementTab.set("overview");

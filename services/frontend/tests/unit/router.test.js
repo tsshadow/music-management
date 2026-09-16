@@ -485,6 +485,12 @@ it("roundtrips the Browse route", () => {
   expect(viewToPath({ view: "browse" })).toBe("/browse");
   expect(pathToState("/browse")).toEqual({ view: "browse" });
 });
+it("roundtrips the setup tour and the manual tab", () => {
+  expect(viewToPath({ view: "setup" })).toBe("/setup");
+  expect(pathToState("/setup")).toEqual({ view: "setup" });
+  expect(viewToPath({ view: "settings", settingsTab: "help" })).toBe("/settings/help");
+  expect(pathToState("/settings/help")).toEqual({ view: "settings", settingsTab: "help" });
+});
 
 it.each(["favorites", "new-preset", "preset:42", "preset-edit:42"])(
   "%s activates Favorites",

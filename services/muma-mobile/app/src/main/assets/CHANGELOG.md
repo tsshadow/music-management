@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.2.1] - 2026-09-16
+
+### Fixed
+- **Een andere taal kiezen ververste het scherm en veranderde niets.** Het account had de
+  nieuwe taal nog niet toen de shell de activity opnieuw aanmaakte, en de herladen pagina nam
+  de oude taal van het account over. De keuze wordt nu eerst opgeslagen en daarna toegepast.
 ## [7.2.0] - 2026-09-16
 
 ### Added

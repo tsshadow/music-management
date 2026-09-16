@@ -11,6 +11,10 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.64.1 (2026-09-16)
+
+- **Een andere taal kiezen werkt weer in de app** — het scherm ververst en komt in de gekozen
+  taal terug, in plaats van in de oude.
 ## Global Version 0.64.0 (2026-09-16)
 
 - Web en telefoon bieden dezelfde bibliotheekingangen in dezelfde volgorde; de telefoon heeft er

@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+## Global Version 7.2.1 (2026-09-16)
+
+- **Een andere taal kiezen werkt weer** — het scherm komt in de gekozen taal terug.
 ## Global Version 7.2.0 (2026-09-16)
 
 - De auto toont nu vijf dagelijkse mixen (zacht/midden/hard, plus de artiest en het label van de

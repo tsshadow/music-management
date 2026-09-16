@@ -15,8 +15,9 @@
   import BottomSheet from './lib/BottomSheet.svelte';
   import Toaster from './lib/Toaster.svelte';
   import CarModeView from './lib/CarModeView.svelte';
+  import SetupWizard from './lib/SetupWizard.svelte';
   import { notify } from './lib/notifications.js';
-  import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, currentTrack, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive, pushedHistoryEntries, sidebarDrawerOpen, searchResultsOpen, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying } from './lib/store.js';
+  import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, currentTrack, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive, pushedHistoryEntries, sidebarDrawerOpen, searchResultsOpen, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, setupStepsSeen, accountSettingsSynced, mumaUserHydrated } from './lib/store.js';
   import { get } from 'svelte/store';
   import { modeForView, pathToState, viewToPath } from './lib/router.js';
   import { platform } from './lib/platform/index.js';
@@ -27,6 +28,7 @@
   import { logAction } from './lib/diagnosticsLog.js';
   import { checkForMobileUpdate } from './lib/mobileReleaseNotes.js';
   import { checkForAppUpdate } from './lib/appUpdate.js';
+  import { allSteps, isUpdateRun, pendingSteps } from './lib/setup.js';
 
   const hours = new Date().getHours();
   const greetingKey = hours < 12 ? 'greeting.morning' : hours < 18 ? 'greeting.afternoon' : 'greeting.evening';
@@ -51,6 +53,39 @@
         if ($activeView === 'sets') activeView.set('songs');
     }
   });
+
+  // The setup tour. Opens on its own once the account's settings are known -- not
+  // before, or an account that finished the tour on another device would be walked
+  // through it again on every new one -- when a step is pending: every step on a first
+  // run, the new ones after an update that added a step (see `lib/setup.js`). Once per
+  // session at most: finishing or skipping records the steps, so a second offer would
+  // only ever be a bug reopening the same screen. By hand (the manual's "run the tour
+  // again") the same view walks every step, badged as nothing.
+  let setupOffered = false;
+  let setupReturnView = 'home';
+  const setupPending = $derived(pendingSteps($setupStepsSeen, platform));
+  const setupSteps = $derived(setupPending.length > 0 ? setupPending : allSteps(platform));
+  const setupIsUpdate = $derived(setupPending.length > 0 && isUpdateRun($setupStepsSeen));
+  $effect(() => {
+    if (setupOffered || !isMounted) return;
+    if (!$mumaUserHydrated || !$accountSettingsSynced) return;
+    if (!$credentials.username && !$mumaSessionActive) return;
+    if (['login', 'setup', 'car', 'voice'].includes($activeView)) return;
+    if (setupPending.length === 0) return;
+    setupOffered = true;
+    setupReturnView = $activeView;
+    activeView.set('setup');
+  });
+
+  /** The tour is over: back to where the listener was, or on to the manual it pointed at. */
+  function handleSetupClose(destination) {
+    if (destination === 'help') {
+      activeSettingsTab.set('help');
+      activeView.set('settings');
+      return;
+    }
+    activeView.set(setupReturnView === 'setup' ? 'home' : setupReturnView);
+  }
 
   // Non-admins have no management UI at all: bounce them back home if they
   // land on '/management' (e.g. a stale persisted view, or a direct URL).
@@ -526,6 +561,12 @@
        this screen is that music keeps going while it is up. -->
   {#if $activeView === 'car'}
     <CarModeView onclose={handleCarClose} onmicrophone={() => handleNavigate('voice')} />
+  {/if}
+
+  <!-- Same layer as the car screen: a full-screen sheet over the app, player still mounted
+       underneath. -->
+  {#if $activeView === 'setup'}
+    <SetupWizard steps={setupSteps} update={setupIsUpdate} {platform} onclose={handleSetupClose} />
   {/if}
 </main>
 {/if}

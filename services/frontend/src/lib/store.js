@@ -579,6 +579,20 @@ export const genreTrackLimit = accountSetting("genreTrackLimit", 100);
 // that off for every existing user the first time this ships.
 export const showConfirmationDialog = accountSetting("showConfirmationDialog", true);
 
+// The setup steps (`setup.js`) this account has been walked through, by id. Empty means a
+// first run; a step id missing from it means the step was added after the last walk-through,
+// which is what makes the wizard reopen once after an update that brought a new setting.
+// Kept on the account rather than the device so a second phone or the web does not start
+// the tour over -- and reset on logout below so the next account on this browser gets its
+// own first run.
+export const setupStepsSeen = accountSetting("setupStepsSeen", []);
+
+// True once the signed-in account's settings have been read into the stores above (or
+// once it is known there is no account to read: a Subsonic-only session, a logout). The
+// setup wizard waits for this before deciding it has never been shown: judging from the
+// local default alone would reopen it on every new device an account signs in to.
+export const accountSettingsSynced = writable(false);
+
 /**
  * Applies `userId`'s account settings to the local stores. Anything the
  * account doesn't have yet is uploaded from the local value instead, so a
@@ -636,17 +650,24 @@ mumaUser.subscribe(($user) => {
       syncedUserId = null;
       applyingAccountSettings = true;
       for (const store of Object.values(syncedFavoriteLists)) store.set([]);
+      setupStepsSeen.set([]);
       resetLocaleToBrowser();
       applyingAccountSettings = false;
     }
+    accountSettingsSynced.set(true);
     return;
   }
   // No `id` means an anonymous/system-key session (e.g. the shared admin
   // key used in Management.svelte) rather than a specific account -- leave
   // whatever is currently shown untouched.
-  if (!$user.id || $user.id === syncedUserId) return;
+  if (!$user.id) {
+    accountSettingsSynced.set(true);
+    return;
+  }
+  if ($user.id === syncedUserId) return;
   syncedUserId = $user.id;
-  applyAccountSettings($user.id);
+  accountSettingsSynced.set(false);
+  applyAccountSettings($user.id).finally(() => accountSettingsSynced.set(true));
 });
 
 for (const [key, store] of Object.entries(syncedFavoriteLists)) {

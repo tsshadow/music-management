@@ -3,9 +3,14 @@
   import Advanced from './settings/Advanced.svelte';
   import About from './settings/About.svelte';
   import DeviceSettings from './settings/DeviceSettings.svelte';
-  import { activeSettingsTab } from './store.js';
+  import Help from './settings/Help.svelte';
+  import { activeSettingsTab, activeView } from './store.js';
   import { SETTINGS_TABS } from './router.js';
   import { platform } from './platform/index.js';
+
+  // Only the manual navigates: its "go there" buttons open the view a section is about,
+  // and the tour it can start is a view too. Dashboard passes App's own handler.
+  const { onnavigate = (view) => activeView.set(view) } = $props();
 
   // The active tab is persisted and can also arrive from the URL, so an
   // account that still has one of the removed admin tabs ('libraries',
@@ -26,6 +31,8 @@
       <About />
     {:else if $activeSettingsTab === 'device' && platform.system.isNative}
       <DeviceSettings />
+    {:else if $activeSettingsTab === 'help'}
+      <Help {onnavigate} />
     {:else}
       <General />
     {/if}

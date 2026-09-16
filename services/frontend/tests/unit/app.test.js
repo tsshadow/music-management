@@ -14,8 +14,10 @@ import {
   mumaUser,
   playlist,
   searchResultsOpen,
+  setupStepsSeen,
   viewMode,
 } from "../../src/lib/store.js";
+import { SETUP_STEPS } from "../../src/lib/setup.js";
 import { setLocaleFromAccount } from "../../src/lib/i18n/index.js";
 import { platform } from "../../src/lib/platform/index.js";
 
@@ -102,6 +104,9 @@ describe("App", () => {
     searchResultsOpen.set(false);
     activeSettingsTab.set("general");
     activeManagementTab.set("overview");
+    // Every step seen: the setup tour would otherwise open over every test here. Its own
+    // tests below clear this.
+    setupStepsSeen.set(SETUP_STEPS.map((step) => step.id));
     // Not mumaUser.set(null): store.js reads that as a logout and resets the
     // language to the browser's, which in jsdom is English -- every assertion
     // on a Dutch label in this file would then fail.
@@ -132,6 +137,53 @@ describe("App", () => {
     render(App);
 
     await waitFor(() => expect(screen.queryByLabelText("Gebruikersnaam")).toBeNull());
+  });
+
+  it("opens the setup tour once on a first run and records it when done", async () => {
+    setupStepsSeen.set([]);
+
+    render(App);
+
+    await waitFor(() => expect(screen.getByTestId("setup-wizard")).toBeTruthy());
+    expect(get(activeView)).toBe("setup");
+    expect(screen.getByText("Welkom bij MuMa")).toBeTruthy();
+
+    await fireEvent.click(screen.getByRole("button", { name: "Overslaan" }));
+
+    await waitFor(() => expect(screen.queryByTestId("setup-wizard")).toBeNull());
+    expect(get(activeView)).toBe("home");
+    expect(get(setupStepsSeen)).toEqual(SETUP_STEPS.filter((s) => !s.native).map((s) => s.id));
+  });
+
+  it("opens only the new steps after an update, badged as new", async () => {
+    setupStepsSeen.set(SETUP_STEPS.map((s) => s.id).filter((id) => id !== "display"));
+
+    render(App);
+
+    await waitFor(() => expect(screen.getByTestId("setup-step-display")).toBeTruthy());
+    expect(screen.getByText("Nieuw sinds je laatste bezoek")).toBeTruthy();
+    expect(screen.getByText("Stap 1 van 1")).toBeTruthy();
+  });
+
+  it("leaves a listener who has seen every step alone", async () => {
+    render(App);
+
+    await waitFor(() => expect(screen.queryByLabelText("Gebruikersnaam")).toBeNull());
+    expect(screen.queryByTestId("setup-wizard")).toBeNull();
+    expect(get(activeView)).toBe("home");
+  });
+
+  it("walks every step again when the manual asks for the tour", async () => {
+    render(App);
+    await waitFor(() => expect(screen.queryByLabelText("Gebruikersnaam")).toBeNull());
+
+    activeView.set("setup");
+
+    await waitFor(() => expect(screen.getByTestId("setup-wizard")).toBeTruthy());
+    expect(
+      screen.getByText(`Stap 1 van ${SETUP_STEPS.filter((s) => !s.native).length}`),
+    ).toBeTruthy();
+    expect(screen.queryByText("Nieuw")).toBeNull();
   });
 
   it("shows the app once there are credentials", async () => {

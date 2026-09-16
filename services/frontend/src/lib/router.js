@@ -64,6 +64,10 @@ const PLAIN_VIEWS = [
   // Advanced search: every cluster as a list, saved as a preset. `/preset/<id>/edit` is the
   // same page over an existing one, in ARGUMENT_VIEWS below.
   "new-preset",
+  // The setup tour (`SetupWizard.svelte`): opened on its own on a first run and after an
+  // update that brought a new step, and by hand from the manual. A route of its own so a
+  // refresh mid-tour lands back in it rather than on Home with the tour half-recorded.
+  "setup",
 ];
 
 /**
@@ -194,7 +198,7 @@ export function phoneTabForView(view) {
  * "native", and a browser tab that lands on `/settings/device` anyway (a stale bookmark, a
  * link shared from the phone) falls back to General in `Settings.svelte` rather than here.
  */
-export const SETTINGS_TABS = ["general", "advanced", "about", "device"];
+export const SETTINGS_TABS = ["general", "advanced", "about", "help", "device"];
 
 /** The management tabs, in sidebar order. */
 export const MANAGEMENT_TABS = [

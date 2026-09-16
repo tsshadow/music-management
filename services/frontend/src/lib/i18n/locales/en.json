@@ -891,7 +891,8 @@
     "starred": "Favourites",
     "years": "Years",
     "browse": "Browse",
-    "favorites": "Favorites"
+    "favorites": "Favorites",
+    "help": "Manual"
   },
   "news": {
     "couldNotPlay": "Could not play the news",
@@ -1193,7 +1194,8 @@
       "about": "About",
       "advanced": "Advanced",
       "device": "Device",
-      "general": "General"
+      "general": "General",
+      "help": "Manual"
     }
   },
   "sidebar": {
@@ -1367,5 +1369,112 @@
     "back": "Back",
     "diagnosticsTitle": "Diagnostics",
     "diagnosticsEmpty": "No voice requests yet."
+  },
+  "setup": {
+    "welcome": "Welcome to MuMa",
+    "updateIntro": "New since your last visit",
+    "new": "New",
+    "skip": "Skip",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "progress": "Step {current} of {total}",
+    "nothingTitle": "Everything is set up",
+    "nothingBody": "There is no setting you have not seen yet. You can walk the tour again from the manual at any time.",
+    "steps": {
+      "language": {
+        "title": "Which language?",
+        "body": "MuMa speaks Dutch, English and two dialects. The choice is kept on your account, so your phone and the website show the same language."
+      },
+      "mode": {
+        "title": "Songs or sets?",
+        "body": "Everything in the library is either a song or a set: a recording of ten minutes or longer, such as a festival set or a podcast. Pick what you browse most; you can switch at any time at the top of the screen.",
+        "hint": "Set mode shows Festivals and Podcasts; song mode shows Labels and Lineups. Everything else is in both."
+      },
+      "home": {
+        "title": "What goes on Home?",
+        "body": "Home is made of sections. 'Button' puts a section as a tile at the top, 'Overview' gives it a row of tracks of its own, 'Off' hides it. Memories — today's releases from earlier years — have a switch of their own."
+      },
+      "display": {
+        "title": "How should lists look?",
+        "body": "The same track often exists several times in the library (a release, a compilation, a radio edit). Deduplication shows one. Lines per row decide how much you see per track, and the confirmation keeps one tap from downloading a three-hour set."
+      },
+      "downloads": {
+        "title": "Download over mobile data?",
+        "body": "Downloads stay on your phone, connection or not. Sets are big; with 'wifi only' on, a download waits until you are home."
+      },
+      "guide": {
+        "title": "That is it",
+        "body": "Everything you chose here is also in Settings. The manual explains the rest: search, presets, the daily mixes, memories, listening stats and whatever else there is to find.",
+        "open": "Open the manual"
+      }
+    }
+  },
+  "help": {
+    "title": "Manual",
+    "subtitle": "What is in MuMa and where to find it.",
+    "contents": "Contents",
+    "goThere": "Go to {place}",
+    "tour": {
+      "title": "Tour",
+      "body": "The short tour of the settings that matter most, the same one your first visit opened.",
+      "start": "Walk it again"
+    },
+    "home": {
+      "title": "Home",
+      "body": "Home is where you start: tiles at the top for the places you visit often, rows of tracks below. Which sections you see, and whether each is a tile or a row, is yours to set under Settings › General › Home.\n\nOn the website your presets (saved searches) sit on Home too; on the phone they have a tab of their own, Favorites."
+    },
+    "mode": {
+      "title": "Songs and sets",
+      "body": "The library holds two kinds of recording. A song is under ten minutes; anything longer is a set: a festival recording, a podcast, a mix. The Songs/Sets switch — in the sidebar on the left, at the top of the screen on the phone — decides what you see everywhere.\n\nSome entries only exist in one mode. Labels and Lineups belong to songs; Festivals and Podcasts to sets. Artists, albums, genres and years are in both."
+    },
+    "browse": {
+      "title": "Browse",
+      "body": "The library can be browsed by artist, album, genre, label, podcast, festival, year and lineup. On the website those sit in the sidebar under Library; on the phone as tiles under Browse. The two lists are the same.\n\nA genre or label page shows everything carrying that tag, with filters and sorting at the top. The sidebar also lists your favourite genres, or — until you have picked any — the biggest ones."
+    },
+    "search": {
+      "title": "Search and presets",
+      "body": "The search box at the top searches titles, artists and albums. For more there is advanced search: every attribute (genre, label, year, rating, length, festival…) as a list, to combine.\n\nSuch a search can be saved as a preset. A preset is a dynamic playlist: it refills itself every time you open it, so new tracks that match are in it by themselves."
+    },
+    "favorites": {
+      "title": "Favourites and ratings",
+      "body": "A heart on a track puts it among your favourites; the Favourites list (in the library) collects them. You can also give stars, one to five. Five means 'this is a favourite'; one means 'not my thing' and never 'get rid of it' — a rating never removes anything.\n\nRatings feed advanced search and the daily mixes, which bring highly rated tracks back more often."
+    },
+    "feeds": {
+      "title": "Release Radar and daily mixes",
+      "body": "Release Radar shows what came out this week in the styles you play — the small shares of your taste included, so the list does not collapse into one genre.\n\nThe daily mixes are five selections a day: soft, mid and hard (by the genre's hardness), plus the artist and the label of the day. They lean on what you have never played and on what you rated highly. An empty feed means nothing matched, not that something broke."
+    },
+    "memories": {
+      "title": "Memories",
+      "body": "Memories are releases with a birthday today: released on this day in an earlier year. One tile per year; open one and hear what came out then. They appear once the library has tracks with a full release date, and on Home when you switch that on."
+    },
+    "stats": {
+      "title": "History and listening stats",
+      "body": "History is the list of what you played, newest first. Listening stats add it up: how much, when in the day and the week, and your most played tracks, artists and labels over 30 days, 12 months or all time.\n\nThe page is honest about what it does not know: plays that match no track in the library count in the total but appear in no ranking."
+    },
+    "queue": {
+      "title": "Playback and queue",
+      "body": "Tapping a track plays it and puts the list around it in the queue. The queue (the button next to the player) shows what is coming; you can shuffle it, clear it or save it as a playlist.\n\nOn the phone a tap on the mini player opens the full Now Playing screen, with lyrics when there are any. The equalizer lives in the player menu and remembers your setting."
+    },
+    "downloads": {
+      "title": "Downloads and offline",
+      "body": "Tracks and sets you download stay on your phone and play without a connection; you find them under Downloads. With 'wifi only' on, a download waits until there is wifi.\n\nWhen the connection drops you see only what you downloaded. Searching and browsing the server pause until it is back."
+    },
+    "car": {
+      "title": "Car mode",
+      "body": "Car mode is a screen with big buttons for the road: play, next, previous, shuffle, and the microphone. It opens by itself when the phone connects to a car, or by hand from the profile menu."
+    },
+    "voice": {
+      "title": "Voice",
+      "body": "The microphone (under Browse and in car mode) understands ordinary sentences: 'play hardstyle', 'sets from Defqon', 'something by Angerfist', 'next'. The screen shows what MuMa understood and lists everything you can say."
+    },
+    "settings": {
+      "title": "Settings",
+      "body": "General: language, Home sections, display and what is kept on your account. Advanced: password and which sort options you see. About: versions, what is new and the update check. Device (phone only): cache, bitrates, downloads, car and diagnostics.\n\nSettings are kept on your account, so phone and website stay the same."
+    },
+    "management": {
+      "title": "Management",
+      "body": "As an administrator, Management (profile menu) holds the server side: scanning, the tagger and curation of genres, labels and podcasts, the downloaders, radio and news, users and their requests, health and the log. This manual is about listening; Management explains itself page by page."
+    }
   }
 }

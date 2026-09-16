@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.64.1] - 2026-09-16
+
+### Fixed
+- **Een andere taal kiezen in de app ververste het scherm en veranderde niets.** De taalkeuze
+  zette de webkant meteen om en liet de shell de activity opnieuw aanmaken, maar het opslaan
+  naar het account hing achter een debounce van 400 ms — die timer stierf mee met de WebView.
+  Na het herladen kwam de taal uit `localStorage` wél goed op, waarna `applyAccountSettings`
+  de oude taal van het account er weer overheen zette. `LanguageSetting` wacht nu tot het
+  account de nieuwe taal heeft (`flushLocaleSave`) voordat hij `setAppLocale` aanroept; in een
+  browsertab verandert er niets, daar herlaadt niets.
 ## [0.64.0] - 2026-09-16
 
 ### Added

@@ -108,6 +108,13 @@
   "dashboard": {
     "addFavorite": "Add to favourites",
     "dailyMixesSubtitle": "Soft, mid, hard, and more",
+    "empty": {
+      "recentlyAdded": "What just came in",
+      "recentlyReleased": "The newest releases in your library",
+      "releaseRadar": "Discover new releases",
+      "starred": "Nothing starred yet"
+    },
+    "loadFailed": "Could not load",
     "noAlbums": "No albums found",
     "noAlbumsHelp": "No albums match the current filters.",
     "noGenres": "No genres found in your library.",

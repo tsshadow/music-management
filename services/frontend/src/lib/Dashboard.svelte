@@ -43,7 +43,7 @@
   import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
   import { defaultCollectionState, durationParts, lineupLevel, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
   import { loadIndexedTags } from './scanTags.js';
-  import { loadFeed, DAILY_MIX, DAILY_MIXES, RELEASE_RADAR } from './feeds.js';
+  import { loadFeedDetail, DAILY_MIX, DAILY_MIXES, RELEASE_RADAR } from './feeds.js';
   import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, hasPermission, isMobile, restUrl, mumaUser } from './store.js';
 
   // Navigation that has to survive a refresh goes through onnavigate, which App turns into a URL.
@@ -156,18 +156,15 @@
   let artistsController;
 
   /**
-   * Fetches tracks for a specific curated playlist.
+   * Fetches tracks for a specific curated playlist. `feed:` ids never reach here -- `fetchSection`
+   * below routes those through `loadFeedDetail` instead, so this only ever sees a Subsonic
+   * playlist id.
    *
    * @param {string} id - The Subsonic ID of the curated playlist.
    * @returns {Promise<Object[]>} A promise that resolves to an array of tracks.
    */
   async function fetchTracks(id) {
     if (!$authParams) return [];
-
-    // A personalized feed is two calls against two services, not one Subsonic playlist.
-    if (id.startsWith('feed:')) {
-      return loadFeed(id.slice('feed:'.length), $authParams, HOME_FEED_ROWS);
-    }
 
     console.log(`Fetching tracks for curated playlist: ${id}`);
     try {
@@ -669,12 +666,29 @@
   }
 
   /**
+   * One curated section's tracks, plus whether it actually loaded. A `feed:` section goes
+   * through `loadFeedDetail` instead of the plain `fetchTracks`/`loadFeed` path, because that
+   * is the only one of the two that still carries MuMa's `state` -- `loadFeed` swallows every
+   * kind of nothing (an unbuilt taste profile, an unreachable server) into the same empty
+   * array, and `PhoneHome.svelte`'s failed-tile copy needs to tell those apart from a feed
+   * that genuinely has nothing to show this week.
+   */
+  async function fetchSection(section) {
+    if (section.id.startsWith('feed:')) {
+      const detail = await loadFeedDetail(section.id.slice('feed:'.length), $authParams, HOME_FEED_ROWS);
+      return { tracks: detail.tracks, failed: detail.state === 'error' };
+    }
+    return { tracks: await fetchTracks(section.id), failed: false };
+  }
+
+  /**
    * Loads all curated sections (Release Radar, Songs, Sets) for the home view.
    */
   async function loadCurated() {
-    const results = await Promise.all(sections.map(section => fetchTracks(section.id)));
+    const results = await Promise.all(sections.map(fetchSection));
     sections = sections.map((section, index) => {
-      section.tracks = results[index];
+      section.tracks = results[index].tracks;
+      section.failed = results[index].failed;
       return section;
     });
   }

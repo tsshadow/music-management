@@ -108,6 +108,13 @@
   "dashboard": {
     "addFavorite": "Toevoegen aan favorieten",
     "dailyMixesSubtitle": "Zacht, midden, hard, en meer",
+    "empty": {
+      "recentlyAdded": "Wat er net is bijgekomen",
+      "recentlyReleased": "De nieuwste releases in je bibliotheek",
+      "releaseRadar": "Ontdek nieuwe releases",
+      "starred": "Nog niets met een ster"
+    },
+    "loadFailed": "Kon niet laden",
     "noAlbums": "Geen albums gevonden",
     "noAlbumsHelp": "Er zijn geen albums gevonden die overeenkomen met de huidige filters.",
     "noGenres": "Geen genres gevonden in je bibliotheek.",

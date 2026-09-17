@@ -51,17 +51,17 @@
   {#each tiles as tile (tile.id)}
     <button
       type="button"
-      class="relative overflow-hidden rounded-lg h-24 p-3 border-none cursor-pointer text-left"
+      class="relative overflow-hidden rounded-lg h-[68px] px-3 py-2 border-none cursor-pointer text-left"
       style="background-color: {TILE_COLORS[tile.id]}"
       onclick={() => navigate(tile.id)}
     >
       <span class="relative z-10 text-white font-bold text-sm">{$t(tile.labelKey)}</span>
       <svg
         viewBox="0 0 24 24"
-        width="56"
-        height="56"
+        width="36"
+        height="36"
         fill="white"
-        class="absolute -right-3 -bottom-3 rotate-12 opacity-40"
+        class="absolute -right-2 -bottom-2 rotate-12 opacity-40"
       >
         <path d={tile.icon}></path>
       </svg>

@@ -68,7 +68,10 @@ test.beforeEach(async ({ page }) => {
 
 for (const { path, name, only } of ROUTES) {
   test(`${path} renders as before`, async ({ page }, testInfo) => {
-    test.skip(Boolean(only) && only !== testInfo.project.name, `${path} only exists in the ${only} layout`);
+    test.skip(
+      Boolean(only) && only !== testInfo.project.name,
+      `${path} only exists in the ${only} layout`,
+    );
 
     await page.goto(path);
     await expect(page.locator("#app")).toBeVisible({ timeout: 15_000 });

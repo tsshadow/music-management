@@ -211,3 +211,96 @@ describe("phone home recent shelves", () => {
     await vi.waitFor(() => expect(screen.getAllByTestId("track-row-compact")).toHaveLength(2));
   });
 });
+
+// Below the destination shelves, Home shows one tile per memories year -- reusing the same
+// `MemoryYearCard` the full Memories page renders in a grid.
+describe("phone home memories row", () => {
+  const groups = [
+    { year: 2016, yearsAgo: 8, exact: true, songs: [{ id: "s1", title: "Track A" }] },
+    { year: 2018, yearsAgo: 6, exact: false, songs: [{ id: "s2", title: "Track B" }] },
+  ];
+
+  beforeEach(() => {
+    credentials.set({ url: "", username: "", password: "" });
+    homeModeReleaseRadar.set("OFF");
+    homeModeDailyMix.set("OFF");
+    homeModeFavorites.set("OFF");
+    homeModeRecentlyReleased.set("OFF");
+    homeModeRecentlyAdded.set("OFF");
+  });
+
+  it("renders one card per year and opens that year on tap", async () => {
+    memoriesOnHomeEnabled.set(true);
+    const onnavigate = vi.fn();
+    render(PhoneHome, { onnavigate, memoryGroups: groups });
+
+    const row = within(screen.getByTestId("home-memories-row"));
+    expect(row.getAllByRole("button", { name: /openen$/ })).toHaveLength(2);
+
+    await fireEvent.click(screen.getByRole("button", { name: "2016 openen" }));
+    expect(onnavigate).toHaveBeenCalledWith("memories:2016");
+  });
+
+  it("is hidden when memories on Home is disabled", () => {
+    memoriesOnHomeEnabled.set(false);
+    render(PhoneHome, { onnavigate: vi.fn(), memoryGroups: groups });
+    expect(screen.queryByTestId("home-memories-row")).toBeNull();
+  });
+
+  it("is hidden when there are no memory groups", () => {
+    memoriesOnHomeEnabled.set(true);
+    render(PhoneHome, { onnavigate: vi.fn(), memoryGroups: [] });
+    expect(screen.queryByTestId("home-memories-row")).toBeNull();
+  });
+});
+
+// Songs and sets each fall back to one "recent" shelf when neither of their two destinations is
+// already set to draw a shelf of its own, so Home always has something to play beneath the tiles.
+describe("phone home fallback recent shelf", () => {
+  beforeEach(() => {
+    memoriesOnHomeEnabled.set(false);
+    homeModeReleaseRadar.set("OFF");
+    homeModeDailyMix.set("OFF");
+    homeModeFavorites.set("OFF");
+    credentials.set({ url: "https://lms.example", username: "test", password: "test" });
+    globalThis.fetch = vi.fn(async (url) => {
+      const parsed = new URL(url);
+      const sort = parsed.searchParams.get("sort");
+      const track = { id: `song-${sort}`, title: `Track ${sort}`, artist: "Angerfist" };
+      return {
+        ok: true,
+        json: async () => ({ "subsonic-response": { tracks: { track: [track] } } }),
+      };
+    });
+  });
+
+  it("shows recently added in songs mode when both recent destinations are tiles", async () => {
+    viewMode.set("songs");
+    homeModeRecentlyReleased.set("BUTTON");
+    homeModeRecentlyAdded.set("BUTTON");
+    render(PhoneHome, { onnavigate: vi.fn() });
+
+    await vi.waitFor(() => expect(screen.getAllByTestId("track-row-compact")).toHaveLength(1));
+    expect(screen.getByRole("heading", { name: "Recent toegevoegd" })).toBeTruthy();
+  });
+
+  it("shows recently released in sets mode when both recent destinations are tiles", async () => {
+    viewMode.set("sets");
+    homeModeRecentlyReleased.set("BUTTON");
+    homeModeRecentlyAdded.set("BUTTON");
+    render(PhoneHome, { onnavigate: vi.fn() });
+
+    await vi.waitFor(() => expect(screen.getAllByTestId("track-row-compact")).toHaveLength(1));
+    expect(screen.getByRole("heading", { name: "Recent uitgebracht" })).toBeTruthy();
+  });
+
+  it("does not duplicate the shelf when recently-added already renders as its own overview shelf", async () => {
+    viewMode.set("songs");
+    homeModeRecentlyAdded.set("OVERVIEW");
+    homeModeRecentlyReleased.set("BUTTON");
+    render(PhoneHome, { onnavigate: vi.fn() });
+
+    await vi.waitFor(() => expect(screen.getAllByTestId("track-row-compact")).toHaveLength(1));
+    expect(screen.getAllByRole("heading", { name: "Recent toegevoegd" })).toHaveLength(1);
+  });
+});

@@ -3,11 +3,12 @@
   import { t } from './i18n/index.js';
   import { authParams, restUrl, viewMode, memoriesOnHomeEnabled, homeModeReleaseRadar, homeModeDailyMix,
     homeModeFavorites, homeModeRecentlyReleased, homeModeRecentlyAdded } from './store.js';
-  import { memoryCount } from './memories.js';
+  import { memoryCount, playMemoryYear, yearTiles } from './memories.js';
   import { listOf, subsonicJson } from './subsonic.js';
   import QuickAccessTile from './QuickAccessTile.svelte';
   import HomeShelf from './HomeShelf.svelte';
   import DailyMixesShelf from './DailyMixesShelf.svelte';
+  import MemoryYearCard from './MemoryYearCard.svelte';
 
   /** Phone home maps the account's section modes to tiles or shelves over existing sources. */
   const { sections = [], memoryGroups = [], onnavigate, onrecent = null } = $props();
@@ -70,6 +71,23 @@
     { id: 'recently-added', sort: 'added', view: $viewMode, key: 'settings.general.home.recentlyAdded', mode: $homeModeRecentlyAdded, tracks: recentlyAdded, state: recentlyAddedState },
   ]);
   // SHORTCUTS has no recent-places store in the web UI. Its saved mode intentionally renders nothing.
+
+  /** The Memories year row's tiles: one per year with songs, the same shape the Memories grid uses. */
+  const memoryTiles = $derived(yearTiles(memoryGroups));
+
+  /**
+   * Home's fallback "something to play" shelf. When both `recently-added` and `recently-released`
+   * are BUTTON or OFF, neither renders as its own OVERVIEW shelf above, and Home would show nothing
+   * below the shortcuts; this picks the one destination matching the current view mode instead, so
+   * the screen never ends at the tile grid. Never used when the matching destination is already an
+   * OVERVIEW shelf, so it is never drawn twice.
+   */
+  const fallbackRecentSection = $derived.by(() => {
+    const added = destinations.find(section => section.id === 'recently-added');
+    const released = destinations.find(section => section.id === 'recently-released');
+    if (added?.mode === 'OVERVIEW' || released?.mode === 'OVERVIEW') return null;
+    return $viewMode === 'sets' ? released : added;
+  });
 
   /**
    * The quick-access tiles, in render order: the memories tile (when enabled) first, then
@@ -203,3 +221,28 @@
       {onnavigate} onshowall={() => openSection(section)} />
   {/if}
 {/each}
+{#if $memoriesOnHomeEnabled && memoryTiles.length > 0}
+  <section class="flex flex-col gap-3" data-testid="home-memories-row">
+    <div class="flex justify-between items-end mb-4">
+      <h2 class="text-xl font-bold m-0">{$t('memories.title')}</h2>
+      <button
+        class="bg-transparent border-none text-[#b3b3b3] text-[13px] font-bold cursor-pointer hover:underline"
+        onclick={() => onnavigate('memories')}
+      >{$t('dashboard.showAll')}</button>
+    </div>
+    <div class="flex gap-3 overflow-x-auto snap-x scrollbar-hide -mx-4 px-4 pb-1">
+      {#each memoryTiles as tile (tile.year)}
+        <div class="w-[140px] shrink-0">
+          <MemoryYearCard {tile}
+            onopen={(year) => onnavigate(`memories:${year}`)}
+            onplay={(year) => playMemoryYear(year, memoryGroups, $authParams)} />
+        </div>
+      {/each}
+    </div>
+  </section>
+{/if}
+{#if fallbackRecentSection && fallbackRecentSection.tracks.length > 0}
+  <HomeShelf title={$t(fallbackRecentSection.key)} tracks={fallbackRecentSection.tracks.slice(0, 6)}
+    layout="rows" showAllLabel={$t('dashboard.showAll')}
+    {onnavigate} onshowall={() => openSection(fallbackRecentSection)} />
+{/if}

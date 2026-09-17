@@ -244,8 +244,10 @@ describe("MemoriesView", () => {
   it("shows one tile per year, with the year and its size", async () => {
     render(MemoriesView, { onnavigate: vi.fn() });
 
-    await waitFor(() => expect(screen.getByText("2024")).toBeTruthy());
-    expect(screen.getByText("2023")).toBeTruthy();
+    // A coverless year shows its number twice: once in the tinted Artwork panel, once in the
+    // card's own overlay -- both tiles here have no cover art.
+    await waitFor(() => expect(screen.getAllByText("2024")).toHaveLength(2));
+    expect(screen.getAllByText("2023")).toHaveLength(2);
     expect(screen.getAllByText("1 nummer")).toHaveLength(2);
   });
 
@@ -288,7 +290,7 @@ describe("MemoriesView", () => {
     const onnavigate = vi.fn();
     render(MemoriesView, { onnavigate });
 
-    await waitFor(() => expect(screen.getByText("2024")).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByText("2024")).toHaveLength(2));
     await fireEvent.click(screen.getByLabelText("2024 openen"));
 
     expect(onnavigate).toHaveBeenCalledWith("memories:2024");

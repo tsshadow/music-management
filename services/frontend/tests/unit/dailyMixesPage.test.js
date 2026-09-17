@@ -56,7 +56,7 @@ vi.mock("../../src/lib/genreTints.js", () => ({
 describe("DailyMixesPage", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
-    globalThis.__loadDailyMixCards = vi.fn(async () => CARDS);
+    globalThis.__loadDailyMixCards = vi.fn(async () => ({ cards: CARDS, refine: vi.fn() }));
   });
 
   it("shows a loading state before the cards answer", () => {
@@ -72,6 +72,22 @@ describe("DailyMixesPage", () => {
 
     await waitFor(() => expect(screen.getByText("Zachter")).toBeTruthy());
     for (const card of CARDS) expect(screen.getByText(card.title)).toBeTruthy();
+  });
+
+  it("renders cards while refinements wait and replaces a card when one arrives", async () => {
+    let publish;
+    globalThis.__loadDailyMixCards = vi.fn(async () => ({
+      cards: CARDS,
+      refine: (onRefine) => {
+        publish = onRefine;
+        return new Promise(() => {});
+      },
+    }));
+    render(DailyMixesPage, { onnavigate: vi.fn() });
+    await waitFor(() => expect(screen.getByText("Zachter")).toBeTruthy());
+    publish({ ...CARDS[0], title: "Refined mix", color: "#FF00AA" });
+    await waitFor(() => expect(screen.getByText("Refined mix")).toBeTruthy());
+    expect(screen.queryByText("Zachter")).toBeNull();
   });
 
   it("opens a mix's own page when tapped", async () => {

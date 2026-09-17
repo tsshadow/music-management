@@ -17,12 +17,18 @@
 
   $effect(() => {
     const auth = $authParams;
+    let active = true;
     fetchGenreTints()
       .then((tints) => loadDailyMixCards(tints, auth))
       .then((built) => {
-        cards = built;
+        if (!active) return;
+        cards = built.cards;
         loaded = true;
+        void built.refine((updated) => {
+          if (active) cards = cards.map((card) => card.slug === updated.slug ? updated : card);
+        });
       });
+    return () => { active = false; };
   });
 </script>
 

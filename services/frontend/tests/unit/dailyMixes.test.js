@@ -88,7 +88,7 @@ describe("loadDailyMixCards", () => {
   });
 
   it("builds one card per mix, in soft/mid/hard/artist/label order", async () => {
-    const cards = await loadDailyMixCards({}, AUTH);
+    const { cards } = await loadDailyMixCards({}, AUTH);
 
     expect(cards.map((c) => c.slug)).toEqual([
       DAILY_MIX_SOFT,
@@ -107,7 +107,10 @@ describe("loadDailyMixCards", () => {
   });
 
   it("colours a band by the ramp when its tracks carry no genre a tint answers for", async () => {
-    const cards = await loadDailyMixCards({}, AUTH);
+    const { cards, refine } = await loadDailyMixCards({}, AUTH);
+    const updated = vi.fn();
+    await refine(updated);
+    expect(updated).not.toHaveBeenCalled();
     const [soft, mid, hard] = cards;
 
     expect(soft.color).toBe("#1DB954");
@@ -123,16 +126,21 @@ describe("loadDailyMixCards", () => {
         : { tracks: [] },
     );
 
-    const cards = await loadDailyMixCards({ "euphoric hardstyle": "#FF00AA" }, AUTH);
+    const { cards, refine } = await loadDailyMixCards({ "euphoric hardstyle": "#FF00AA" }, AUTH);
 
-    expect(cards[0].color).toBe("#FF00AA");
+    expect(cards[0].color).toBe("#1DB954");
+    const updates = [];
+    await refine((card) => updates.push(card));
+    expect(updates[0].color).toBe("#FF00AA");
   });
 
   it("gives the artist card its photo when one loads", async () => {
     globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200 }));
 
-    const cards = await loadDailyMixCards({}, AUTH);
-    const artist = cards.find((c) => c.slug === DAILY_MIX_ARTIST);
+    const { refine } = await loadDailyMixCards({}, AUTH);
+    const updates = [];
+    await refine((card) => updates.push(card));
+    const artist = updates.find((c) => c.slug === DAILY_MIX_ARTIST);
 
     expect(artist.cover).toBe(
       `http://muma/api/artists/${encodeURIComponent("Angerfist")}/image?${AUTH}`,
@@ -140,7 +148,10 @@ describe("loadDailyMixCards", () => {
   });
 
   it("falls back to a name-based colour for the artist when there is no photo", async () => {
-    const cards = await loadDailyMixCards({}, AUTH);
+    const { cards, refine } = await loadDailyMixCards({}, AUTH);
+    const updated = vi.fn();
+    await refine(updated);
+    expect(updated).not.toHaveBeenCalled();
     const artist = cards.find((c) => c.slug === DAILY_MIX_ARTIST);
 
     expect(artist.cover).toBeNull();
@@ -148,7 +159,10 @@ describe("loadDailyMixCards", () => {
   });
 
   it("never tries a photo for the label -- there is no label-image endpoint", async () => {
-    const cards = await loadDailyMixCards({}, AUTH);
+    const { cards, refine } = await loadDailyMixCards({}, AUTH);
+    const updated = vi.fn();
+    await refine(updated);
+    expect(updated).not.toHaveBeenCalled();
     const label = cards.find((c) => c.slug === DAILY_MIX_LABEL);
 
     expect(label.cover).toBeNull();
@@ -158,14 +172,44 @@ describe("loadDailyMixCards", () => {
   it("still builds every card when MuMa never answers the list at all", async () => {
     globalThis.__listFeeds = vi.fn(async () => []);
 
-    const cards = await loadDailyMixCards({}, AUTH);
+    const { cards } = await loadDailyMixCards({}, AUTH);
 
     expect(cards).toHaveLength(5);
     expect(cards.every((c) => typeof c.color === "string")).toBe(true);
   });
 
+  it("publishes all cards before any band feed resolves", async () => {
+    const releases = [];
+    globalThis.__fetchFeed = vi.fn(() => new Promise((resolve) => releases.push(resolve)));
+    const { cards, refine } = await loadDailyMixCards({}, "");
+    expect(cards).toHaveLength(5);
+    expect(globalThis.__fetchFeed).not.toHaveBeenCalled();
+    const updated = vi.fn();
+    const pending = refine(updated);
+    expect(releases).toHaveLength(3);
+    expect(updated).not.toHaveBeenCalled();
+    releases.forEach((resolve) => resolve({ tracks: [] }));
+    await pending;
+    expect(updated).not.toHaveBeenCalled();
+  });
+
+  it("keeps the ramp when a band refinement throws or returns nothing", async () => {
+    globalThis.__fetchFeed = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue(undefined);
+    const { cards, refine } = await loadDailyMixCards({}, "");
+    const updated = vi.fn();
+    await refine(updated);
+    expect(cards.slice(0, 3).map((card) => card.color)).toEqual(["#1DB954", "#2D5AFC", "#E23744"]);
+    expect(updated).not.toHaveBeenCalled();
+  });
+
   it("skips the artist-image check without credentials", async () => {
-    const cards = await loadDailyMixCards({}, "");
+    const { cards, refine } = await loadDailyMixCards({}, "");
+    const updated = vi.fn();
+    await refine(updated);
+    expect(updated).not.toHaveBeenCalled();
     const artist = cards.find((c) => c.slug === DAILY_MIX_ARTIST);
 
     expect(artist.cover).toBeNull();

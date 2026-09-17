@@ -1,6 +1,5 @@
 """Coverage for the RBAC helpers and the schema bootstrap in services/music_manager/rbac.py."""
 
-import asyncio
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
@@ -136,11 +135,11 @@ class PermissionCheckTest(unittest.TestCase):
 
 class DependencyTest(unittest.TestCase):
     def resolve(self, dependency, auth):
-        async def fake_verify(_key):
+        def fake_verify(_key):
             return auth
 
         with patch.object(users_router, 'verify_api_key', fake_verify):
-            return asyncio.run(dependency('a-key'))
+            return dependency('a-key')
 
     def test_a_caller_holding_the_permission_is_let_through(self):
         auth = {'type': 'user', 'user': {'permissions': ['music.play']}}

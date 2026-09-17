@@ -13,7 +13,7 @@ import unittest
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
-from services.music_manager.feeds.build import build_feed, resolve_profile
+from services.music_manager.feeds.build import build_feed, describe_feed, resolve_profile
 from services.music_manager.feeds.policy import POLICIES
 from services.music_manager.feeds.profile import TAIL
 from services.music_manager.feeds.queries import listens_query
@@ -363,6 +363,61 @@ class ResolveProfileTest(unittest.TestCase):
         conn = scripted(listens=MANY_LISTENS, hierarchy=[{'subgenre': 'Uptempo', 'genre': 'Hardcore'}])
         resolution = resolve_profile(conn, 'user', WINDOW, NOW)
         self.assertEqual(resolution.parents, {'uptempo': {'hardcore'}})
+
+    def test_the_listens_come_back_with_the_profile(self):
+        """The band mixes' hardness percentiles are measured over the listener's own
+        listens; carrying them on the resolution is what lets that happen without a
+        second read of scrobble_listens."""
+        resolution = resolve_profile(scripted(listens=MANY_LISTENS), 'user', WINDOW, NOW)
+        self.assertEqual(len(resolution.listens), len(MANY_LISTENS))
+        self.assertEqual(resolution.listens[0]['genres'], ['Uptempo'])
+
+
+class DescribeOnceTest(unittest.TestCase):
+    """docs/designs/feeds/home-load.md, step 2: one resolution serves every describe.
+
+    `GET /api/feeds` used to resolve the profile once per policy -- seven reads of the
+    same 90-day history, plus one more per band mix for its percentiles. Eleven of
+    the fourteen listens queries behind one Home load were this.
+    """
+
+    def _listens_queries(self, conn):
+        return conn.cursor.return_value.statements_matching(_LISTENS_FRAGMENT)
+
+    def test_describing_every_policy_off_one_resolution_reads_the_listens_once(self):
+        conn = scripted(listens=MANY_LISTENS)
+        resolution = resolve_profile(conn, 'user', WINDOW, NOW)
+        for policy in POLICIES.values():
+            describe_feed(conn, 'user', policy, NOW, resolution=resolution)
+        self.assertEqual(len(self._listens_queries(conn)), 1)
+
+    def test_describing_without_a_resolution_still_resolves_on_its_own(self):
+        """The single-policy callers keep working unchanged."""
+        conn = scripted(listens=MANY_LISTENS)
+        info = describe_feed(conn, 'user', POLICIES['daily-mix-mid'], NOW)
+        self.assertEqual(info['title'], 'Middenin')
+        self.assertEqual(len(self._listens_queries(conn)), 1)
+
+    def test_the_hardness_stats_are_measured_once_and_shared_by_the_three_bands(self):
+        conn = scripted(listens=MANY_LISTENS)
+        resolution = resolve_profile(conn, 'user', WINDOW, NOW)
+        cursor = conn.cursor.return_value
+        for slug in ('daily-mix-soft', 'daily-mix-mid', 'daily-mix-hard'):
+            describe_feed(conn, 'user', POLICIES[slug], NOW, resolution=resolution)
+        # The fixture listens carry artists and no labels or track ids, so the one
+        # hardness lookup that actually runs is the artist mean -- once, for the first
+        # band; the other two read the memo.
+        self.assertEqual(len(cursor.statements_matching(_ARTIST_HARDNESS_FRAGMENT)), 1)
+        self.assertIn('hardness_stats', resolution.memo)
+
+    def test_the_shared_rows_are_not_mutated_by_the_hardness_pass(self):
+        """`_listener_hardness_stats` rewrites `label` and adds `hardness` on the rows it
+        works on; the resolution's own rows must stay what build_profile saw."""
+        conn = scripted(listens=MANY_LISTENS)
+        resolution = resolve_profile(conn, 'user', WINDOW, NOW)
+        describe_feed(conn, 'user', POLICIES['daily-mix-mid'], NOW, resolution=resolution)
+        self.assertNotIn('hardness', resolution.listens[0])
+        self.assertNotIn('label', resolution.listens[0])
 
 
 # Three candidates, one per band, resolved through the tempo fallback alone: no

@@ -69,6 +69,9 @@ class BackgroundWorkersEnabledTest(unittest.TestCase):
                 # A loop rather than a one-off since 0.57: the version worker keeps grouping
                 # tracks, and what it learns has to reach the server without a restart.
                 'lms-db-sync',
+                # Keeps every active listener's feeds built ahead of the read
+                # (docs/designs/feeds/home-load.md).
+                'feeds-refresh',
             },
             registered,
         )

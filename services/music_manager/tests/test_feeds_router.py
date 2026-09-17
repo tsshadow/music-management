@@ -38,7 +38,28 @@ class _ClosingConnection:
         self.closed = True
 
 
-class _FeedsAuthTestCase(unittest.TestCase):
+def _serve_live(conn, username, slug, now, params_key, build):
+    """`serve_snapshot` with the table taken out: always builds, never reads or writes.
+
+    The tests below are about the router's shape -- auth, status codes, the body --
+    against connections that have no cursor at all. What the snapshot does with a
+    cursor is test_feeds_snapshot.py's subject; FeedsSnapshotRouterTest covers the
+    one seam between the two.
+    """
+    return build(), 'live'
+
+
+class _LiveFeedsMixin:
+    """Bypasses the snapshot table for the duration of each test."""
+
+    def setUp(self):
+        super().setUp()
+        patcher = patch('services.music_manager.routers.feeds.serve_snapshot', side_effect=_serve_live)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+
+class _FeedsAuthTestCase(_LiveFeedsMixin, unittest.TestCase):
     """Base class for anything that needs to stand in for verify_api_key."""
 
     def tearDown(self):
@@ -49,7 +70,7 @@ class _FeedsAuthTestCase(unittest.TestCase):
         app.dependency_overrides[feeds_router.verify_api_key] = lambda: auth
 
 
-class FeedsRealAuthTest(unittest.TestCase):
+class FeedsRealAuthTest(_LiveFeedsMixin, unittest.TestCase):
     """Exercises the real `verify_api_key` body, not a dependency override.
 
     Every other test class here replaces the dependency wholesale, which never
@@ -124,12 +145,17 @@ class FeedsRouterTest(_FeedsAuthTestCase):
         """`GET /api/feeds` and `GET /api/feeds/{slug}` must describe a feed the
 
         same way -- `describe_feed` is the one implementation both go through,
-        the same reason `resolve_profile` exists for steps 1-3.
+        the same reason `resolve_profile` exists for steps 1-3. But the profile is
+        resolved once for the whole listing and handed to every describe: seven
+        resolutions of the same 90-day history were most of what opening Home
+        cost (docs/designs/feeds/home-load.md).
         """
         self._auth({'type': 'system'})
         conn = _ClosingConnection()
+        resolution = object()
         with (
             patch('services.music_manager.routers.feeds.get_db_connection', return_value=conn),
+            patch('services.music_manager.routers.feeds.resolve_profile', return_value=resolution) as resolve,
             patch(
                 'services.music_manager.routers.feeds.describe_feed',
                 return_value={'title': 'Aangepast', 'subtitle': 'Testwaarde'},
@@ -141,6 +167,8 @@ class FeedsRouterTest(_FeedsAuthTestCase):
         self.assertTrue(feeds)
         self.assertTrue(all(feed['title'] == 'Aangepast' for feed in feeds))
         self.assertEqual(describe.call_count, len(feeds))
+        self.assertEqual(resolve.call_count, 1)
+        self.assertTrue(all(call.kwargs['resolution'] is resolution for call in describe.call_args_list))
         self.assertTrue(conn.closed)
 
     def test_listing_the_feeds_for_a_user_key_uses_its_own_username(self):
@@ -383,10 +411,28 @@ class FeedsExclusionsRouterTest(_FeedsAuthTestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {'status': 'ok'})
-        statement, params = self.cursor.execute.call_args.args
+        statement, params = self._exclusion_statement()
         self.assertIn('INSERT', statement)
         self.assertEqual(params, ('user', 'label', 'neophyte records'))
         self.assertTrue(self.conn.close.called, 'the connection update_exclusion opened was never closed')
+
+    def test_changing_an_exclusion_drops_the_listener_s_snapshots(self):
+        """The snapshots were built from a profile the exclusion has just changed;
+        serving them on would keep the excluded entity's influence for the rest of
+        the day."""
+        self._auth({'type': 'system'})
+        client.put(
+            '/api/feeds/profile/exclusions?username=user',
+            json={'entity_type': 'label', 'entity_name': 'x', 'excluded': True},
+            headers={'X-API-Key': 'k'},
+        )
+        statements = [call.args for call in self.cursor.execute.call_args_list]
+        self.assertIn(('DELETE FROM feeds_snapshot WHERE username = %s', ('user',)), statements)
+
+    def _exclusion_statement(self):
+        calls = [call.args for call in self.cursor.execute.call_args_list if 'feeds_profile_exclusions' in call.args[0]]
+        self.assertTrue(calls, 'no statement touched feeds_profile_exclusions')
+        return calls[-1]
 
     def test_un_excluding_deletes_the_row(self):
         self._auth({'type': 'system'})
@@ -396,7 +442,7 @@ class FeedsExclusionsRouterTest(_FeedsAuthTestCase):
             headers={'X-API-Key': 'k'},
         )
         self.assertEqual(response.status_code, 200)
-        statement, params = self.cursor.execute.call_args.args
+        statement, params = self._exclusion_statement()
         self.assertIn('DELETE', statement)
         self.assertEqual(params, ('user', 'artist', 'radium'))
 
@@ -407,8 +453,112 @@ class FeedsExclusionsRouterTest(_FeedsAuthTestCase):
             json={'entity_type': 'genre', 'entity_name': 'uptempo', 'excluded': True},
             headers={'X-API-Key': 'k'},
         )
-        _, params = self.cursor.execute.call_args.args
+        _, params = self._exclusion_statement()
         self.assertEqual(params, ('user', 'genre', 'uptempo'))
+
+
+class FeedsSnapshotRouterTest(unittest.TestCase):
+    """The one seam between the router and the snapshot: what the router asks
+    `serve_snapshot` for, and what it does with the answer. The snapshot's own
+    freshness and locking live in test_feeds_snapshot.py."""
+
+    def setUp(self):
+        app.dependency_overrides[feeds_router.verify_api_key] = lambda: {'type': 'system'}
+        self.conn = _ClosingConnection()
+        patcher = patch('services.music_manager.routers.feeds.get_db_connection', return_value=self.conn)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def tearDown(self):
+        app.dependency_overrides.pop(feeds_router.verify_api_key, None)
+
+    def _stored(self, tracks):
+        return {
+            'slug': 'daily-mix-mid',
+            'state': 'ok',
+            'scope': 'user',
+            'generated_at': '2026-09-18T00:05:00',
+            'tracks': tracks,
+            'funnel': {},
+            'title': 'Middenin',
+            'subtitle': None,
+            'hardness_band': [50.0, 75.0],
+            'hardness_edges_source': 'default',
+            'hardness_source_counts': None,
+            'hardness_percentiles': None,
+            'relaxed_to': None,
+            'filled_from_unknown': None,
+        }
+
+    def test_a_fresh_snapshot_answers_without_a_build(self):
+        stored = self._stored([{'id': n} for n in range(30)])
+        with (
+            patch('services.music_manager.routers.feeds.serve_snapshot', return_value=(stored, 'snapshot')) as serve,
+            patch('services.music_manager.routers.feeds.build_feed') as build,
+        ):
+            response = client.get('/api/feeds/daily-mix-mid?username=user', headers={'X-API-Key': 'k'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['X-MuMa-Feed-Source'], 'snapshot')
+        self.assertEqual(len(response.json()['tracks']), 30)
+        build.assert_not_called()
+        conn, username, slug = serve.call_args.args[:3]
+        self.assertIs(conn, self.conn)
+        self.assertEqual((username, slug), ('user', 'daily-mix-mid'))
+        self.assertTrue(self.conn.closed)
+
+    def test_a_smaller_limit_is_the_head_of_the_snapshot(self):
+        """The Home row shows the top of the page it links to -- the same
+        ranking cut shorter, not a second allocation over ten places."""
+        stored = self._stored([{'id': n} for n in range(30)])
+        with patch('services.music_manager.routers.feeds.serve_snapshot', return_value=(stored, 'snapshot')):
+            response = client.get('/api/feeds/daily-mix-mid?username=user&limit=10', headers={'X-API-Key': 'k'})
+        self.assertEqual([track['id'] for track in response.json()['tracks']], list(range(10)))
+
+    def test_a_larger_limit_is_built_live_and_not_stored(self):
+        bigger = Feed(slug='daily-mix-mid', state='ok', scope='user', tracks=[], funnel={}, title='Middenin')
+        with (
+            patch('services.music_manager.routers.feeds.serve_snapshot') as serve,
+            patch('services.music_manager.routers.feeds.build_feed', return_value=bigger) as build,
+        ):
+            response = client.get('/api/feeds/daily-mix-mid?username=user&limit=60', headers={'X-API-Key': 'k'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['X-MuMa-Feed-Source'], 'live')
+        serve.assert_not_called()
+        self.assertEqual(build.call_args.args[2].size, 60)
+
+    def test_the_listing_is_served_from_its_own_snapshot_row(self):
+        stored = {
+            'feeds': [
+                {'slug': 'release-radar', 'size': 30, 'window_days': 7, 'title': 'Release Radar', 'subtitle': None}
+            ]
+        }
+        with (
+            patch('services.music_manager.routers.feeds.serve_snapshot', return_value=(stored, 'snapshot')) as serve,
+            patch('services.music_manager.routers.feeds.resolve_profile') as resolve,
+        ):
+            response = client.get('/api/feeds?username=user', headers={'X-API-Key': 'k'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), stored)
+        self.assertEqual(serve.call_args.args[2], feeds_router.LIST_SLUG)
+        resolve.assert_not_called()
+
+    def test_a_miss_builds_through_the_callable_the_router_hands_over(self):
+        """`serve_snapshot` is given a closure, not a body: a hit must cost no build."""
+        plain = Feed(slug='release-radar', state='ok', scope='user', tracks=[], funnel={}, title='Release Radar')
+
+        def serve(conn, username, slug, now, params_key, build):
+            self.assertEqual(slug, 'release-radar')
+            self.assertIsInstance(params_key, str)
+            return build(), 'live'
+
+        with (
+            patch('services.music_manager.routers.feeds.serve_snapshot', side_effect=serve),
+            patch('services.music_manager.routers.feeds.build_feed', return_value=plain) as build,
+        ):
+            response = client.get('/api/feeds/release-radar?username=user', headers={'X-API-Key': 'k'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['X-MuMa-Feed-Source'], 'live')
+        build.assert_called_once()
 
 
 if __name__ == '__main__':

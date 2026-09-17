@@ -128,6 +128,49 @@ describe("Dashboard", () => {
     isMobile.set(false);
   });
 
+  it("publishes songs while the sets request is still pending", async () => {
+    const fallback = subsonic();
+    let finish;
+    let calls = 0;
+    globalThis.fetch = vi.fn((url, options) => {
+      if (url.includes("/rest/getSpotifyPlaylist") && ++calls === 2) {
+        return new Promise((resolve) => {
+          finish = resolve;
+        });
+      }
+      return fallback(url, options);
+    });
+    render(Dashboard, { activeView: "home" });
+    await waitFor(() => expect(screen.getAllByText("Raise Your Fist").length).toBeGreaterThan(0));
+    finish({ ok: true, json: async () => ({ "subsonic-response": { playlist: { entry: [] } } }) });
+  });
+
+  it("ignores an old curated result after Home is re-entered", async () => {
+    const fallback = subsonic();
+    const releases = [];
+    globalThis.fetch = vi.fn((url, options) => {
+      if (url.includes("/rest/getSpotifyPlaylist")) {
+        return new Promise((resolve) => releases.push(resolve));
+      }
+      return fallback(url, options);
+    });
+    const { rerender } = render(Dashboard, { activeView: "home" });
+    await waitFor(() => expect(releases).toHaveLength(2));
+    await rerender({ activeView: "songs" });
+    await rerender({ activeView: "home" });
+    await waitFor(() => expect(releases).toHaveLength(4));
+    const answer = (title) => ({
+      ok: true,
+      json: async () => ({ "subsonic-response": { playlist: { entry: [{ ...TRACK, title }] } } }),
+    });
+    releases.slice(2).forEach((resolve) => resolve(answer("New result")));
+    await waitFor(() => expect(screen.getAllByText("New result").length).toBeGreaterThan(0));
+    releases.slice(0, 2).forEach((resolve) => resolve(answer("Stale result")));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.queryByText("Stale result")).toBeNull();
+    expect(screen.getAllByText("New result").length).toBeGreaterThan(0);
+  });
+
   it("shows the curated rows on the home screen", async () => {
     render(Dashboard, { activeView: "home" });
 

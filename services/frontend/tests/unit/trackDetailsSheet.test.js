@@ -167,6 +167,16 @@ describe("TrackDetailsSheet rating and actions", () => {
     expect(screen.queryByText("Verwijderen")).toBeNull();
   });
 
+  it("shows the lyrics row by default, for callers that never checked", () => {
+    renderSheet();
+    expect(screen.getByText("Lyrics")).toBeTruthy();
+  });
+
+  it("hides the lyrics row when the caller says there are none", () => {
+    renderSheet({ hasLyrics: false });
+    expect(screen.queryByText("Lyrics")).toBeNull();
+  });
+
   it("navigates to the album and each artist", async () => {
     const onnavigate = vi.fn();
     renderSheet({

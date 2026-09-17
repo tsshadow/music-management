@@ -1075,9 +1075,10 @@
   },
   "nowPlaying": {
     "close": "Sluiten",
+    "more": "Meer",
     "pause": "Pauze",
     "play": "Afspelen",
-    "playingFrom": "Afspelen uit: {name}"
+    "playingFromLabel": "Afspelen vanuit"
   },
   "player": {
     "next": "Volgende",

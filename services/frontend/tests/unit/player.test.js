@@ -309,14 +309,19 @@ describe("Player", () => {
     });
 
     it("offers lyrics from the phone's Now Playing sheet once LMS answers with some", async () => {
+      // Lyrics moved off the Now Playing header and into its ⋮ details sheet
+      // in increment B, so this now opens that sheet first, the same as a
+      // listener would.
       globalThis.fetch = lyricsApi(["One line only"]);
       isMobile.set(true);
       renderPlayer();
       await fireEvent.click(screen.getByText("Raise Your Fist"));
       expect(screen.getByTestId("now-playing")).toBeTruthy();
 
-      await waitFor(() => expect(screen.queryByLabelText("Lyrics")).toBeTruthy());
-      await fireEvent.click(screen.getByLabelText("Lyrics"));
+      await waitFor(() => expect(screen.getByTestId("now-playing-details")).toBeTruthy());
+      await fireEvent.click(screen.getByTestId("now-playing-details"));
+      await waitFor(() => expect(screen.queryByText("Lyrics")).toBeTruthy());
+      await fireEvent.click(screen.getByText("Lyrics"));
 
       expect(screen.getByText("One line only")).toBeTruthy();
     });

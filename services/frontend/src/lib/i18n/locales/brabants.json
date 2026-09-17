@@ -150,9 +150,10 @@
   },
   "nowPlaying": {
     "close": "Dichtdoen",
+    "more": "Meer",
     "pause": "Pauze",
     "play": "Afspele",
-    "playingFrom": "Speult uit: {name}"
+    "playingFromLabel": "Speult uit"
   },
   "player": {
     "next": "Volgende",

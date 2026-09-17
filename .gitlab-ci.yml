@@ -267,6 +267,24 @@ muma:shellcheck:
   script:
     - ./scripts/shellcheck.sh
 
+# The frontend reverse proxy decides which /muma paths LMS still owns and which
+# go straight to MuMa. Nothing else exercises that config: the e2e stacks talk
+# to LMS and MuMa directly. A wrong regex there looks fine everywhere but prod.
+muma:proxy-routing:
+  stage: quality
+  timeout: 10m
+  retry: !reference [.infra_retry, retry]
+  tags: !reference [.fast_runner, tags]
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.release_rule, rules]
+    - changes:
+        - services/music-management-server/nginx/**/*
+        - scripts/test/reverse-proxy-routing.sh
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/test/reverse-proxy-routing.sh
+
 # Every merge request brings a changelog fragment, or says why not with a
 # `no-changelog` label. The fragments exist because editing the shared
 # `[Unreleased]` block merges cleanly *and wrongly* -- see changelog.d/README.md

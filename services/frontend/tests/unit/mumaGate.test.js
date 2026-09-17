@@ -136,6 +136,31 @@ describe("the MuMa call gate", () => {
     expect(globalThis.fetch).toHaveBeenCalledTimes(GATE_RETRY_DELAYS_MS.length + 1);
   });
 
+  it("waits as long as a refusal's Retry-After says, not the ladder", async () => {
+    // The proxy's own refusals say when to come back; a 503 from further
+    // upstream carries no header and gets the ladder.
+    let calls = 0;
+    globalThis.fetch = vi.fn(async () => {
+      calls += 1;
+      if (calls === 1) {
+        return { ok: false, status: 503, headers: new Headers({ "Retry-After": "2" }) };
+      }
+      return { ok: true, status: 200, headers: new Headers(), json: async () => ({}) };
+    });
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    const pending = gatedFetch("https://muma.example/api/thing");
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(calls).toBe(1);
+    await vi.advanceTimersByTimeAsync(1);
+    const response = await pending;
+    vi.useRealTimers();
+
+    expect(response.status).toBe(200);
+    expect(calls).toBe(2);
+  });
+
   it("takes the boot-time calls through the same gate", async () => {
     // The session check, the account settings and the genre tints used to be
     // bare `fetch` calls beside the feeds, so the home screen's first burst

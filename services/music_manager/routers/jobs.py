@@ -5,8 +5,16 @@ from collections import defaultdict, deque
 from typing import Any
 
 try:
-    from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+    from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+
+    from services.music_manager.routers.users import verify_api_key
 except Exception:
+
+    def Depends(_dependency: Any) -> None:  # noqa: N802 - mirrors the FastAPI name
+        return None
+
+    def verify_api_key() -> None:
+        return None
 
     class WebSocket:
         async def accept(self) -> None:
@@ -118,8 +126,12 @@ async def job_updates(websocket: WebSocket, job_id: str):
         job_manager.disconnect(job_id, websocket)
 
 
+# The three HTTP routes take a key. The workers that register here already
+# send one (services/common/job_manager.py), and the reverse proxy now hands
+# /muma/api/ to MuMa without LMS's own credential check in front of it, so
+# an open route here would be open to the internet.
 @router.post("/register/{job_id}")
-async def register_external_job(job_id: str, payload: dict[str, Any]):
+async def register_external_job(job_id: str, payload: dict[str, Any], _auth: dict = Depends(verify_api_key)):
     """Allow external workers to register their job status."""
     job_manager.jobs[job_id] = payload
     if payload.get('status') in ('finished', 'completed', 'done', 'failed', 'error'):
@@ -131,10 +143,10 @@ async def register_external_job(job_id: str, payload: dict[str, Any]):
 
 
 @router.get("/active")
-async def list_active_jobs():
+async def list_active_jobs(_auth: dict = Depends(verify_api_key)):
     return {"jobs": job_manager.jobs}
 
 
 @router.get("/history")
-async def list_job_history():
+async def list_job_history(_auth: dict = Depends(verify_api_key)):
     return {"history": job_manager.recent()}

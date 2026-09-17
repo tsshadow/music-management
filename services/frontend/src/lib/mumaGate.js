@@ -79,6 +79,21 @@ function jittered(ms) {
 }
 
 /**
+ * How long a refusal asked us to wait, when it said: the LMS proxy sends
+ * `Retry-After` in seconds on its own gate refusals. Anything unparseable, or a
+ * 503 from further upstream that carries no header, falls back to the ladder.
+ *
+ * @param {Response} response
+ * @param {number} attempt
+ * @returns {number} milliseconds
+ */
+function retryDelay(response, attempt) {
+  const header = Number(response?.headers?.get?.("Retry-After"));
+  if (Number.isFinite(header) && header > 0) return jittered(header * 1000);
+  return jittered(GATE_RETRY_DELAYS_MS[attempt]);
+}
+
+/**
  * `fetch`, but through the gate, and retrying a 503 -- what the proxy returns when its
  * gate is full anyway. The slot is released between attempts so the calls ahead of this
  * one can finish and make room.
@@ -93,7 +108,7 @@ export async function gatedFetch(url, options = {}) {
   for (let attempt = 0; ; attempt++) {
     const response = await withMumaGate(() => fetch(url, options));
     if (response?.status !== 503 || attempt >= GATE_RETRY_DELAYS_MS.length) return response;
-    await new Promise((resolve) => setTimeout(resolve, jittered(GATE_RETRY_DELAYS_MS[attempt])));
+    await new Promise((resolve) => setTimeout(resolve, retryDelay(response, attempt)));
   }
 }
 

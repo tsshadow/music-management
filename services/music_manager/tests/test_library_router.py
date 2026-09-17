@@ -547,34 +547,44 @@ class JobManagerTest(unittest.TestCase):
 class JobEndpointTest(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
+        self.headers = {'x-api-key': API_KEY}
         jobs_router.job_manager.jobs.clear()
         jobs_router.job_manager.results.clear()
         jobs_router.job_manager.history.clear()
 
+    def test_the_job_routes_take_a_key(self):
+        # These sat behind LMS's own credential check until the reverse proxy
+        # started handing /muma/api/ to MuMa directly; open, "register" would
+        # let anyone on the internet write into the job table.
+        self.assertEqual(self.client.post('/api/jobs/register/ext-0', json={'status': 'running'}).status_code, 401)
+        self.assertEqual(self.client.get('/api/jobs/active').status_code, 401)
+        self.assertEqual(self.client.get('/api/jobs/history').status_code, 401)
+        self.assertNotIn('ext-0', jobs_router.job_manager.jobs)
+
     def test_a_running_external_job_is_registered_but_not_archived(self):
-        response = self.client.post('/api/jobs/register/ext-1', json={'status': 'running'})
+        response = self.client.post('/api/jobs/register/ext-1', json={'status': 'running'}, headers=self.headers)
         self.assertEqual(response.json(), {'status': 'ok'})
         self.assertIn('ext-1', jobs_router.job_manager.jobs)
         self.assertNotIn('ext-1', jobs_router.job_manager.results)
 
     def test_a_finished_external_job_lands_in_the_history(self):
-        self.client.post('/api/jobs/register/ext-2', json={'status': 'finished'})
+        self.client.post('/api/jobs/register/ext-2', json={'status': 'finished'}, headers=self.headers)
         self.assertIn('ext-2', jobs_router.job_manager.results)
         self.assertIn('ext-2', jobs_router.job_manager.history)
 
     def test_the_same_finished_job_is_not_archived_twice(self):
-        self.client.post('/api/jobs/register/ext-3', json={'status': 'finished'})
-        self.client.post('/api/jobs/register/ext-3', json={'status': 'finished'})
+        self.client.post('/api/jobs/register/ext-3', json={'status': 'finished'}, headers=self.headers)
+        self.client.post('/api/jobs/register/ext-3', json={'status': 'finished'}, headers=self.headers)
         self.assertEqual(list(jobs_router.job_manager.history).count('ext-3'), 1)
 
     def test_the_active_jobs_are_listed(self):
-        self.client.post('/api/jobs/register/ext-4', json={'status': 'running'})
-        response = self.client.get('/api/jobs/active')
+        self.client.post('/api/jobs/register/ext-4', json={'status': 'running'}, headers=self.headers)
+        response = self.client.get('/api/jobs/active', headers=self.headers)
         self.assertIn('ext-4', response.json()['jobs'])
 
     def test_the_job_history_is_listed(self):
-        self.client.post('/api/jobs/register/ext-5', json={'status': 'completed'})
-        response = self.client.get('/api/jobs/history')
+        self.client.post('/api/jobs/register/ext-5', json={'status': 'completed'}, headers=self.headers)
+        response = self.client.get('/api/jobs/history', headers=self.headers)
         self.assertEqual(len(response.json()['history']), 1)
 
     def test_a_websocket_listener_receives_the_job_state(self):

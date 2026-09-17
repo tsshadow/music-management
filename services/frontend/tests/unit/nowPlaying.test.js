@@ -142,7 +142,7 @@ describe("NowPlaying", () => {
     const onclose = vi.fn();
     renderNowPlaying({ onclose });
 
-    const cover = screen.getByAltText("Raise Your Fist").parentElement;
+    const cover = screen.getByTestId("now-playing-artwork");
     await fireEvent.touchStart(cover, { touches: [{ clientY: 100 }] });
     await fireEvent.touchEnd(cover, { changedTouches: [{ clientY: 220 }] });
 
@@ -153,7 +153,7 @@ describe("NowPlaying", () => {
     const onclose = vi.fn();
     renderNowPlaying({ onclose });
 
-    const cover = screen.getByAltText("Raise Your Fist").parentElement;
+    const cover = screen.getByTestId("now-playing-artwork");
     await fireEvent.touchStart(cover, { touches: [{ clientY: 100 }] });
     await fireEvent.touchEnd(cover, { changedTouches: [{ clientY: 110 }] });
 
@@ -189,6 +189,38 @@ describe("NowPlaying", () => {
 
     expect(screen.getByText("Raise your fist")).toBeTruthy();
     expect(screen.getByText("in the air")).toBeTruthy();
+  });
+});
+
+describe("NowPlaying artwork and background", () => {
+  it("renders exactly one artwork slot for the track", () => {
+    renderNowPlaying({ coverUrl: "https://example.test/cover.jpg" });
+
+    const slot = screen.getByTestId("now-playing-artwork");
+    const images = slot.querySelectorAll("img");
+    const panels = slot.querySelectorAll('[data-testid="artwork-panel"]');
+    expect(images.length + panels.length).toBe(1);
+  });
+
+  it("tints the background with the track's genre colour", () => {
+    renderNowPlaying({ tint: "#ff4d00" });
+
+    const root = screen.getByTestId("now-playing");
+    expect(root).toHaveAttribute("data-tint", "#ff4d00");
+    // jsdom re-serialises the hex colours it parsed out of the `style`
+    // attribute as `rgb(...)`, so the assertion follows that rather than the
+    // literal string this component wrote.
+    expect(root.getAttribute("style")).toContain("linear-gradient");
+    expect(root.getAttribute("style")).toContain("color-mix(in srgb, rgb(255, 77, 0) 55%");
+  });
+
+  it("keeps the plain dark background without a tint", () => {
+    renderNowPlaying({ tint: null });
+
+    const root = screen.getByTestId("now-playing");
+    expect(root).not.toHaveAttribute("data-tint");
+    expect(root.getAttribute("style")).toContain("background-color: rgb(18, 18, 18)");
+    expect(root.getAttribute("style")).not.toContain("linear-gradient");
   });
 });
 

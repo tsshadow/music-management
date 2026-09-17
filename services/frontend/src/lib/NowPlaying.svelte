@@ -4,6 +4,7 @@
   import { formatTime, formatClock, progressPercent } from './playerProgress.js';
   import BottomSheet from './BottomSheet.svelte';
   import ArtistList from './ArtistList.svelte';
+  import Artwork from './Artwork.svelte';
   import TrackDetailsSheet from './TrackDetailsSheet.svelte';
   import { releaseDateLabel } from './trackDate.js';
   import { genreNames } from './genreSegments.js';
@@ -36,7 +37,9 @@
     shuffleMode = false,
     repeatMode = 'none',
     transportLocked = false,
-    coverUrl = '/images/spotify-fallback.svg',
+    coverUrl = null,
+    artistUrl = null,
+    tint = null,
     equalizerSupported = false,
     isSetMode = false,
     lyricsLines = [],
@@ -59,6 +62,20 @@
   // rare case without one (radio, a bulletin) reads as the queue instead of an
   // empty line.
   const playingFrom = $derived(track?.album || $t('queue.title'));
+
+  /**
+   * The screen is never flat black: a vertical gradient fades from 55% of the
+   * playing track's genre tint at the top into the standard dark background
+   * by 60% of the way down, so the tint reads as "this screen" rather than a
+   * bar of colour behind the artwork. No tint (no genre, or none the server
+   * has a colour for) is the plain neutral surface, same as before this
+   * existed.
+   */
+  const backgroundStyle = $derived(
+    tint
+      ? `background: linear-gradient(to bottom, color-mix(in srgb, ${tint} 55%, #121212) 0%, #121212 60%)`
+      : 'background-color: #121212',
+  );
 
   /**
    * The compact facts line under the artist: every genre (each its own tap
@@ -142,8 +159,10 @@
     close in a test -- closing for real users, just not observably so there.
   -->
   <div
-    class="fixed inset-0 z-40 bg-[#121212] flex flex-col text-white"
+    class="fixed inset-0 z-40 flex flex-col text-white"
     data-testid="now-playing"
+    data-tint={tint}
+    style={backgroundStyle}
     in:fly={{ y: 600, duration: 250 }}
   >
     <header class="flex items-center justify-between px-2 pt-[max(1rem,env(safe-area-inset-top))] pb-2 shrink-0">
@@ -191,20 +210,23 @@
       <div
         class="w-full aspect-square mb-6"
         role="presentation"
+        data-testid="now-playing-artwork"
         ontouchstart={handleTouchStart}
         ontouchend={handleTouchEnd}
       >
         {#if track}
-          <img
-            src={coverUrl}
+          <Artwork
+            class="w-full aspect-square shadow-2xl"
+            rounded="rounded-lg"
+            large
+            {coverUrl}
+            {artistUrl}
+            {tint}
+            title={track.title}
             alt={track.title}
-            class="w-full h-full rounded-lg shadow-2xl object-cover"
-            onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
           />
         {:else}
-          <div class="w-full h-full rounded-lg bg-white/5 flex items-center justify-center">
-            <img src="/images/spotify-fallback.svg" alt="" class="w-1/2 h-1/2 opacity-30" />
-          </div>
+          <div class="w-full h-full rounded-lg bg-white/5 flex items-center justify-center"></div>
         {/if}
       </div>
 

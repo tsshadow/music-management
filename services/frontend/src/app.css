@@ -50,6 +50,10 @@ body {
  * `object-cover` it reads as a giant, blinding blank tile on a phone, where a shelf can show a
  * dozen of them at once. Below Tailwind's `md` breakpoint only -- desktop, where a placeholder is
  * one tile among a normal-density grid, is untouched.
+ *
+ * The player no longer relies on this rule: `Artwork.svelte` never renders this file at all, a
+ * tinted title panel instead (see docs/designs/phone-ui-polish/technical.md, "A"). It still
+ * applies to the shelves and lists that show this mark full-width.
  */
 @media (max-width: 767px) {
   /* Fluid tiles only (`w-full`): the percentage padding resolves against the containing block,

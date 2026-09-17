@@ -240,6 +240,31 @@ describe("Player", () => {
     });
   });
 
+  describe("mini player artwork", () => {
+    it("renders exactly one image and no separate artist avatar", () => {
+      isMobile.set(true);
+      const { container } = renderPlayer();
+
+      // Angerfist has no coverArt on FIRST, so the fallback chain lands on the
+      // artist image -- still a single `<img>`, not a cover plus a second,
+      // 16px round avatar next to the artist name the way the mini player
+      // used to render it.
+      expect(container.querySelectorAll("img").length).toBe(1);
+      expect(container.querySelector("img").getAttribute("alt")).toBe("Raise Your Fist");
+    });
+
+    it("falls all the way to the tinted panel with no cover and no artist to fall back to", () => {
+      isMobile.set(true);
+      // No `artist` string at all -- `primaryArtist` resolves to null, so there is
+      // no artist image to try either; the chain has nothing left but the panel.
+      currentTrack.set({ ...FIRST, artist: "", artistId: null });
+      const { container } = renderPlayer();
+
+      expect(container.querySelectorAll("img").length).toBe(0);
+      expect(screen.getByTestId("artwork-panel")).toBeTruthy();
+    });
+  });
+
   describe("lyrics", () => {
     /** Answers `getLyricsBySongId` with structured lyrics, everything else as usual. */
     function lyricsApi(lines) {

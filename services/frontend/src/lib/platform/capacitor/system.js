@@ -316,7 +316,58 @@ export function createCapacitorSystem(plugin) {
     setAppLocale(locale) {
       fireAndForget("setAppLocale", plugin.setAppLocale({ locale }));
     },
+
+    /**
+     * The output media plays through, as the Kotlin side named it. See the `PlatformSystem`
+     * typedef for how the phone decides. An answer without a name or a type -- the plugin
+     * resolves an empty object while it has no context to read its strings from -- is `null`,
+     * the same "nothing to show" a browser tab answers.
+     *
+     * @returns {Promise<import('../index.js').OutputRoute|null>}
+     */
+    async outputRoute() {
+      return outputRouteOf(await plugin.outputRoute());
+    },
+
+    /**
+     * The `outputRouteChanged` event, fed by an `AudioDeviceCallback` on the Kotlin side. A
+     * malformed payload is dropped rather than handed on as a route with no name.
+     *
+     * @param {function(import('../index.js').OutputRoute): void} handler
+     * @returns {function(): void} Unsubscribes.
+     */
+    onOutputRouteChanged(handler) {
+      return listen(plugin, "outputRouteChanged", (event) => {
+        const route = outputRouteOf(event);
+        if (route) handler(route);
+      });
+    },
+
+    /**
+     * The system output switcher, or Bluetooth settings on a build without one. Awaited rather
+     * than fire-and-forget so a rejection -- neither screen exists -- reaches the caller.
+     *
+     * @returns {Promise<void>}
+     */
+    async openOutputPicker() {
+      await plugin.openOutputPicker();
+    },
   };
+}
+
+/** The type words the Kotlin `OutputRouteType` enum can send; anything else is not a route. */
+const OUTPUT_ROUTE_TYPES = new Set(["bluetooth", "wired", "speaker", "usb", "other"]);
+
+/**
+ * @param {any} answer - A plugin answer or event payload.
+ * @returns {import('../index.js').OutputRoute|null} The route, or `null` when the payload is not
+ *   one -- an empty object from a plugin without a context, or a message from a build whose
+ *   type words this bundle does not know.
+ */
+function outputRouteOf(answer) {
+  if (typeof answer?.name !== "string" || answer.name === "") return null;
+  if (!OUTPUT_ROUTE_TYPES.has(answer.type)) return null;
+  return { name: answer.name, type: answer.type };
 }
 
 /**

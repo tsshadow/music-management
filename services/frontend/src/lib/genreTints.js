@@ -10,6 +10,7 @@
  * used before this existed.
  */
 import { apiBase, getHeaders } from "./mumaApi";
+import { genreNames } from "./genreSegments.js";
 
 /**
  * The in-flight or resolved fetch, so a page with three genre lists asks once.
@@ -63,6 +64,24 @@ export function withTints(items, tints) {
     const tint = tintFor(tints, item?.value);
     return tint ? { ...item, tint } : item;
   });
+}
+
+/**
+ * The colour a track's artwork panel and player background use: the first of its genres
+ * (in the order they were tagged) that the server has a tint for, or `null` when none of
+ * them do -- a track with several genres does not average or blend them, it just defers to
+ * whichever one the server actually recognises.
+ *
+ * @param {{genre?: string}|null|undefined} track
+ * @param {Object<string, string>} tints
+ * @returns {string|null}
+ */
+export function trackTint(track, tints) {
+  for (const name of genreNames(track?.genre)) {
+    const tint = tintFor(tints, name);
+    if (tint) return tint;
+  }
+  return null;
 }
 
 /** Forgets what was fetched. Tests use this; nothing in the app does. */

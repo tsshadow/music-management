@@ -1,13 +1,22 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { get } from "svelte/store";
 
 import {
   localDateString,
   memoriesUrl,
   memoryHeading,
   parseMemoryGroups,
+  playMemoryYear,
   rankSongs,
   yearTiles,
 } from "../../src/lib/memories.js";
+import {
+  authParams,
+  credentials,
+  currentTrack,
+  playerState,
+  playlist,
+} from "../../src/lib/store.js";
 
 describe("localDateString", () => {
   it("formats a date as yyyy-MM-dd with padding", () => {
@@ -279,5 +288,57 @@ describe("yearTiles", () => {
 
   it("drops a year that has no songs at all", () => {
     expect(yearTiles([group(2025, [])])).toEqual([]);
+  });
+});
+
+// Shared by MemoriesView's grid and PhoneHome's home-screen year row: both hold only a short
+// summary page per year and need the whole year fetched before queueing it.
+describe("playMemoryYear", () => {
+  const summaryGroups = [{ year: 2018, songs: [{ id: "fallback-1", title: "Old page" }] }];
+
+  beforeEach(() => {
+    credentials.set({ url: "https://lms.example", username: "user", password: "pw" });
+    playlist.set([]);
+    currentTrack.set(null);
+    playerState.set({ playing: false });
+  });
+
+  it("fetches the whole year and queues it in the server's order", async () => {
+    globalThis.fetch = vi.fn(async (url) => {
+      expect(String(url)).toContain("year=2018");
+      return {
+        ok: true,
+        json: async () => ({
+          "subsonic-response": {
+            memories: { memory: { year: 2018, song: [{ id: "a" }, { id: "b" }] } },
+          },
+        }),
+      };
+    });
+
+    await playMemoryYear(2018, summaryGroups, get(authParams));
+
+    expect(get(playlist).map((s) => s.id)).toEqual(["a", "b"]);
+    expect(get(currentTrack).id).toBe("a");
+    expect(get(playerState).playing).toBe(true);
+  });
+
+  it("falls back to the summary already in memory when the fetch fails", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      throw new Error("offline");
+    });
+
+    await playMemoryYear(2018, summaryGroups, get(authParams));
+
+    expect(get(playlist).map((s) => s.id)).toEqual(["fallback-1"]);
+  });
+
+  it("does nothing when neither source has songs for the requested year", async () => {
+    globalThis.fetch = vi.fn(async () => ({ ok: false }));
+
+    await playMemoryYear(1999, summaryGroups, get(authParams));
+
+    expect(get(playlist)).toEqual([]);
+    expect(get(currentTrack)).toBeNull();
   });
 });

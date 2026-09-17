@@ -2,6 +2,7 @@
   import { t } from './i18n/index.js';
   import { authParams, restUrl } from './store.js';
   import { memoryHeading } from './memories.js';
+  import Artwork from './Artwork.svelte';
 
   const { tile, onopen, onplay } = $props();
 
@@ -33,7 +34,9 @@
   >
     <div class="relative aspect-square">
       {#if shown.length === 0}
-        <img src="/images/spotify-fallback.svg" alt="" class="w-full h-full object-cover" />
+        <!-- No cover at all for this year: a tinted panel with the year reads as designed rather
+             than as a missing image, matching the player's own no-artwork fallback. -->
+        <Artwork coverUrl={null} title={String(tile.year)} class="w-full h-full" rounded="" large />
       {:else}
         <div class="grid {mosaic ? 'grid-cols-2 grid-rows-2' : 'grid-cols-1'} w-full h-full">
           <!-- Keyed by position, not by cover id: the same sleeve can legitimately appear twice, and

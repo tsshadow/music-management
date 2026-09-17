@@ -59,6 +59,13 @@
   },
   "dashboard": {
     "addFavorite": "Bij de favorietjes doen",
+    "empty": {
+      "recentlyAdded": "Wa der net bij is gekomme",
+      "recentlyReleased": "De nuujste releases in oew bieb",
+      "releaseRadar": "Ontdek nuuj releases",
+      "starred": "Nog niks met en sterretje"
+    },
+    "loadFailed": "Kos niet laoje",
     "noAlbums": "Gin albums gevonde",
     "noGenres": "Gin soorte in oew bieb.",
     "noLabels": "Gin labels in oew bieb.",
@@ -122,7 +129,8 @@
     }
   },
   "mobile": {
-    "browseAll": "Alles deurbladere"
+    "browseAll": "Alles deurbladere",
+    "recent": "Recent"
   },
   "nav": {
     "albums": "Albums",
@@ -150,9 +158,14 @@
   },
   "nowPlaying": {
     "close": "Dichtdoen",
+    "more": "Meer",
+    "moreFrom": "Meer van {name}",
+    "nextUp": "Hierna",
+    "outputPicker": "Kies audio-uitvoer",
     "pause": "Pauze",
     "play": "Afspele",
-    "playingFrom": "Speult uit: {name}"
+    "playingFromLabel": "Speult uit",
+    "shuffleOn": "Shuffle stao aan — 't volgende nummerke is een verrassing"
   },
   "player": {
     "next": "Volgende",

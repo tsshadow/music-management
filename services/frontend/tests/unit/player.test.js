@@ -13,6 +13,7 @@ import {
   syncMode,
 } from "../../src/lib/store.js";
 import { notify, dismissAll } from "../../src/lib/notifications.js";
+import { platform } from "../../src/lib/platform/index.js";
 
 const FIRST = {
   id: "song-1",
@@ -238,6 +239,46 @@ describe("Player", () => {
       expect(screen.queryByTestId("now-playing")).toBeNull();
       expect(get(nowPlayingOpen)).toBe(false);
     });
+
+    // Increment H: the output label is native only. A browser tab neither shows it nor asks
+    // the platform about it -- the native half is in playerNativeMode.test.js.
+    it("shows no audio-output label in a browser and never subscribes to route changes", async () => {
+      const subscribe = vi.spyOn(platform.system, "onOutputRouteChanged");
+      const read = vi.spyOn(platform.system, "outputRoute");
+      isMobile.set(true);
+      renderPlayer();
+      await fireEvent.click(screen.getByText("Raise Your Fist"));
+
+      expect(screen.getByTestId("now-playing")).toBeTruthy();
+      expect(screen.queryByTestId("now-playing-output")).toBeNull();
+      expect(subscribe).not.toHaveBeenCalled();
+      expect(read).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("mini player artwork", () => {
+    it("renders exactly one image and no separate artist avatar", () => {
+      isMobile.set(true);
+      const { container } = renderPlayer();
+
+      // Angerfist has no coverArt on FIRST, so the fallback chain lands on the
+      // artist image -- still a single `<img>`, not a cover plus a second,
+      // 16px round avatar next to the artist name the way the mini player
+      // used to render it.
+      expect(container.querySelectorAll("img").length).toBe(1);
+      expect(container.querySelector("img").getAttribute("alt")).toBe("Raise Your Fist");
+    });
+
+    it("falls all the way to the tinted panel with no cover and no artist to fall back to", () => {
+      isMobile.set(true);
+      // No `artist` string at all -- `primaryArtist` resolves to null, so there is
+      // no artist image to try either; the chain has nothing left but the panel.
+      currentTrack.set({ ...FIRST, artist: "", artistId: null });
+      const { container } = renderPlayer();
+
+      expect(container.querySelectorAll("img").length).toBe(0);
+      expect(screen.getByTestId("artwork-panel")).toBeTruthy();
+    });
   });
 
   describe("lyrics", () => {
@@ -284,14 +325,19 @@ describe("Player", () => {
     });
 
     it("offers lyrics from the phone's Now Playing sheet once LMS answers with some", async () => {
+      // Lyrics moved off the Now Playing header and into its ⋮ details sheet
+      // in increment B, so this now opens that sheet first, the same as a
+      // listener would.
       globalThis.fetch = lyricsApi(["One line only"]);
       isMobile.set(true);
       renderPlayer();
       await fireEvent.click(screen.getByText("Raise Your Fist"));
       expect(screen.getByTestId("now-playing")).toBeTruthy();
 
-      await waitFor(() => expect(screen.queryByLabelText("Lyrics")).toBeTruthy());
-      await fireEvent.click(screen.getByLabelText("Lyrics"));
+      await waitFor(() => expect(screen.getByTestId("now-playing-details")).toBeTruthy());
+      await fireEvent.click(screen.getByTestId("now-playing-details"));
+      await waitFor(() => expect(screen.queryByText("Lyrics")).toBeTruthy());
+      await fireEvent.click(screen.getByText("Lyrics"));
 
       expect(screen.getByText("One line only")).toBeTruthy();
     });

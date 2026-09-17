@@ -431,6 +431,32 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   so the WebView reloads -- expected for a rare, deliberate settings change, not something to
  *   call on every boot. A browser tab resolves without doing anything; the web UI's own `locale`
  *   store is what it reads instead.
+ * @property {function(): Promise<OutputRoute|null>} outputRoute The device audio currently
+ *   plays through -- "Bose QC35 II", "Phone speaker" -- for the label on the player screen.
+ *   `null` in a browser tab, which is also what hides the label there. The native answer is
+ *   derived from the *available* outputs rather than a routing session (Android has no public
+ *   "current media output" short of `MediaRouter2`), in the order Android itself prefers them:
+ *   a connected Bluetooth device wins, then wired, then USB, else the built-in speaker. Never
+ *   rejects on the phone: a device list that came back empty is answered with the speaker.
+ * @property {function(function(OutputRoute): void): function(): void} onOutputRouteChanged
+ *   Fires with the new route when an output connects or disconnects -- a headset pairing, a jack
+ *   pulled. Returns an unsubscribe. Never fires in a browser tab.
+ * @property {function(): Promise<void>} openOutputPicker Opens the system output switcher (the
+ *   panel every major player's output button opens on Android 11+), or the Bluetooth settings
+ *   screen on a build without one. Resolves once one of them started -- the switch itself
+ *   arrives as `onOutputRouteChanged`; rejects only when neither screen exists. A browser tab
+ *   resolves without doing anything.
+ */
+
+/**
+ * @typedef {object} OutputRoute What `outputRoute()` answers.
+ * @property {string} name What the player screen shows: the device's own product name for a
+ *   Bluetooth or USB device, a localised "Wired headphones"/"Phone speaker" for the outputs
+ *   that have no name of their own (the shell's own string resources, so the label follows
+ *   the app language).
+ * @property {'bluetooth'|'wired'|'speaker'|'usb'|'other'} type Which glyph goes with it.
+ *   `other` is reserved for a shell that can name an output outside the four; the Android
+ *   shell never answers it today.
  */
 
 /**

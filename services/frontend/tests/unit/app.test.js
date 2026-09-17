@@ -17,6 +17,7 @@ import {
   setupStepsSeen,
   viewMode,
 } from "../../src/lib/store.js";
+import { recentPlaces, clearRecentPlaces } from "../../src/lib/recentPlaces.js";
 import { SETUP_STEPS } from "../../src/lib/setup.js";
 import { setLocaleFromAccount } from "../../src/lib/i18n/index.js";
 import { platform } from "../../src/lib/platform/index.js";
@@ -115,6 +116,7 @@ describe("App", () => {
     // would otherwise put this one back on the login screen.
     window.history.replaceState({}, "", "/");
     globalThis.fetch = subsonic();
+    clearRecentPlaces();
   });
 
   afterEach(() => {
@@ -254,6 +256,26 @@ describe("App", () => {
     await waitFor(() => expect(screen.getAllByText("Afspeellijsten").length).toBeGreaterThan(0));
 
     expect(screen.queryByRole("group", { name: "Modus wisselen" })).toBeNull();
+  });
+
+  // E: handleNavigate is the one spot every navigation passes through, and the one place
+  // that records a recent place -- but only for the kinds recentPlaces.js actually tracks.
+  it("records a recent place for a genre but not for a plain screen like playlists", async () => {
+    render(App);
+    await waitFor(() => expect(screen.getByText("Hardcore")).toBeTruthy());
+
+    await fireEvent.click(screen.getByText("Hardcore"));
+    await waitFor(() => expect(get(activeView)).toBe("genre:Hardcore"));
+    expect(get(recentPlaces).map((p) => p.view)).toEqual(["genre:Hardcore"]);
+
+    await fireEvent.click(bottomBarTab("Bladeren"));
+    await fireEvent.click(
+      within(screen.getByLabelText("Alles doorbladeren")).getByRole("button", {
+        name: "Afspeellijsten",
+      }),
+    );
+    await waitFor(() => expect(get(activeView)).toBe("playlists"));
+    expect(get(recentPlaces).map((p) => p.view)).toEqual(["genre:Hardcore"]);
   });
 
   it("the bottom bar's three tabs move between home, browse and favorites", async () => {

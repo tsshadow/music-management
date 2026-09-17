@@ -1,8 +1,9 @@
 <script>
   import { t } from './i18n/index.js';
-  import { authParams, playlist, currentTrack, playerState } from './store.js';
+  import { authParams, currentTrack, playerState } from './store.js';
   import { loadFeedDetail, RELEASE_RADAR } from './feeds.js';
   import TrackList from './TrackList.svelte';
+  import { startQueue } from './queue.js';
 
   /**
    * One personalized feed, whole: everything MuMa picked, in its order, with a play button.
@@ -60,7 +61,7 @@
   /** Queues the whole feed, in MuMa's order, and starts it. */
   function playAll() {
     if (tracks.length === 0) return;
-    playlist.set(tracks);
+    startQueue(tracks, { name: title });
     currentTrack.set(tracks[0]);
     playerState.update((s) => ({ ...s, playing: true }));
   }

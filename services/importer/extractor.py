@@ -21,6 +21,20 @@ from services.common.Helpers import Quarantine
 # prompt, while its unar command carries no overwrite flag at all.
 FALLBACK_PROGRAMS: Final = ('unar', '7z')
 
+# Suffixes a downloader appends while it is still writing the file: Chrome/Chromium
+# (`.crdownload`), Firefox and curl/wget (`.part`), and the generic `.tmp`/`.partial`.
+# The muma-firefox container downloads straight into the import folder, so the extract
+# step regularly lists a file its writer still owns. patool identifies by *content*, not
+# by extension, so a half-written `.rar.crdownload` that already carries a readable RAR
+# header extracts truncated and the source is then Quarantine.put out from under the
+# writer. The name can also vanish mid-cycle: on 2026-09-16 the run that listed
+# `HC-2026-WEEK-37-FLAC.rar.crdownload` at 15:00:08 spent three minutes on an earlier
+# entry, and by 15:03:09 the browser had renamed it, so every backend reported `was not
+# found`. Skipping these costs nothing -- the next cycle (29-53 min) picks the file up
+# under its final name, which is how all four of that evening's archives landed anyway.
+# `news.py:180` follows the same convention for the bulletins it writes itself.
+IN_FLIGHT_SUFFIXES: Final = ('.crdownload', '.part', '.partial', '.tmp')
+
 
 class Extractor:
     def __init__(self):
@@ -56,11 +70,15 @@ class Extractor:
     def run(self, dry_run=False):
         logging.info('Starting Extract Step')
         try:
-            only_files = [
+            entries = [
                 f
                 for f in listdir(self.settings.import_folder_path)
                 if isfile(join(self.settings.import_folder_path, f))
             ]
+            only_files = [f for f in entries if not f.endswith(IN_FLIGHT_SUFFIXES)]
+            in_flight = [f for f in entries if f.endswith(IN_FLIGHT_SUFFIXES)]
+            if in_flight:
+                logging.info(f'Skipping {len(in_flight)} download(s) still in flight: {in_flight}')
             logging.info(f'Found {len(only_files)} files: {only_files}')
         except Exception as e:
             logging.error(f'Failed to list files: {e}')

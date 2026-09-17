@@ -119,6 +119,48 @@ To maintain clean design governance and prevent ad-hoc style drift:
 
 ### Design Backlog
 
+- **Pending** — Phone UI polish (2026-09-17, `docs/designs/phone-ui-polish/`), one item per increment:
+  - A (done): artwork fallback chain cover → artist image → tinted title panel (`Artwork.svelte`); the
+    full-screen player background is a vertical gradient from the track's genre tint (55% mix with
+    `#121212`) to `#121212` at 60%; the mini player shows one square image.
+  - B (done): player header is two lines (caption `11px #B3B3B3`, name `14px bold white`, sentence case);
+    genres and label are chips (the details-sheet chip); stars are 44px targets with a 24px glyph;
+    transport and bottom-row icons at 24px, shuffle/repeat included.
+  - C (done): Home "show all" in sentence case at 13px; odd tile counts span the last tile; recent-track
+    shelves are compact rows (48px thumbnail); Browse tiles 68px high with a 36px icon; the advanced
+    search entry is a filter icon beside the search field.
+  - D (done): a Memories year row on phone Home (`MemoryYearCard`, unchanged) below the destination
+    shelves, and one fallback "recent" `HomeShelf layout="rows"` (songs → recently added, sets → recently
+    released) when neither of those two destinations already draws its own shelf.
+  - E (done): a "Recent" row (`RecentPlacesRow.svelte`) above Browse's category grid, one
+    `QuickAccessTile` per artist/album/genre/label/festival/playlist/preset/year/memories opened on
+    this device and account (`recentPlaces.js`, `localStorage`, capped at 12, newest first); the
+    player header names the place the queue actually started from (`queue.js`'s `startQueue`,
+    `store.js`'s `queueSource`) instead of always the current track's album.
+  - F (done): three sections below the full-screen player's bottom icon row, each hidden with
+    nothing to show: "Next up" (`nowPlaying.nextUp`, the three entries after `Player.svelte`'s
+    `queueIndex` in `$playlist`, or one line when shuffle is on), "More from {artist}"
+    (`nowPlaying.moreFrom`, six tracks lazily fetched once per `artistId` and cached across a
+    close/reopen), and "Other versions" (`track.versions`, via the shared `loadVersions()` in the
+    new `versions.js`, also used by `SongView.svelte`'s own page). Rows are `TrackRowCompact`; an
+    `onplay` override makes a "next up" tap jump within the playing queue while the other two
+    sections start a fresh one (`queue.js`'s `startQueue`). `addAfterCurrent` inserts at
+    `queueIndex + 1` instead of searching `$playlist` for the track's id, which used to land on
+    the wrong copy when the same track appeared twice in the queue. The screen now actually
+    scrolls, so the swipe-to-close gesture only fires with the container scrolled to the top.
+  - G (done): two horizontal `QuickAccessTile` strips below the fallback recent shelf on phone
+    Home, "Jouw artiesten deze maand" and "Jouw labels" (`homeRankings.js` over
+    `/api/listening/top-artists`/`top-labels`), each with a "Alles tonen" to the listening-stats
+    page; hidden together with no fetch at all when the account has no MuMa key, and per-row when
+    its ranking is empty. An artist tile resolves the LMS `artist:<id>` via `search3` before
+    navigating (MuMa's own `artist_id` is a different id space) and falls back to `search:<name>`
+    when nothing matches; a label tile opens `label:<name>` directly, same as `RecentPlacesRow`.
+  - H (done): the output the phone plays through ("Bose QC35 II", "Bedrade koptelefoon",
+    "Telefoonluidspreker") as a `text-brand` 13px bold line with an 18px glyph per kind
+    (Bluetooth / headset / speaker) directly above the full-screen player's bottom icon row;
+    tapping opens Android's output switcher, or Bluetooth settings without one. Native only:
+    `platform.system.outputRoute()` is `null` in a browser and the line is not rendered.
+
 - **Done** — Android login/welcome screens brought in line with the web's `LoginPage.svelte`: filled/rounded
   dark inputs (`MuMa Mobile.TextInputLayout`), a solid-green pill CTA
   (`MuMa Mobile.Button.Primary`), a branded white "Sign in with Google" pill button with the real

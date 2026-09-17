@@ -1,9 +1,10 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
-  import { authParams, playlist, currentTrack, playerState, restUrl } from './store.js';
+  import { authParams, currentTrack, playerState, restUrl } from './store.js';
   import TrackList from './TrackList.svelte';
   import { memoriesUrl, memoryCount, memoryHeading, parseMemoryGroups } from './memories.js';
+  import { startQueue } from './queue.js';
 
   const { year, onnavigate } = $props();
 
@@ -53,7 +54,7 @@
   function playYear() {
     if (songs.length === 0) return;
 
-    playlist.set(songs);
+    startQueue(songs, { name: heading ? $t(heading.key, heading.vars) : String(year) });
     currentTrack.set(songs[0]);
     playerState.update((s) => ({ ...s, playing: true }));
   }

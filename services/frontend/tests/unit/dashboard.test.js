@@ -167,6 +167,30 @@ describe("Dashboard", () => {
     expect(screen.queryByText("Release Radar")).toBeNull();
   });
 
+  // An empty feed and a broken one must not look the same: only the second is
+  // `loadFeedDetail`'s `state: "error"`, which becomes `section.failed` here and reaches
+  // PhoneHome's tile as the designed "could not load" copy instead of the empty-tile one.
+  it("marks the release radar section failed when the feed request itself breaks", async () => {
+    isMobile.set(true);
+    const baseline = subsonic();
+    globalThis.fetch = vi.fn(async (url, options) => {
+      if (url.includes("/api/feeds/release-radar")) {
+        return {
+          ok: false,
+          status: 500,
+          json: async () => {
+            throw new Error("bad json");
+          },
+        };
+      }
+      return baseline(url, options);
+    });
+
+    render(Dashboard, { activeView: "home" });
+
+    await waitFor(() => expect(screen.getByText("Kon niet laden")).toBeTruthy());
+  });
+
   it("the memories row stays away when it is switched off", async () => {
     render(Dashboard, { activeView: "home" });
 

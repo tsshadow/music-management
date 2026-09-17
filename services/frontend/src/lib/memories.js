@@ -5,6 +5,9 @@
  * way, so the parsing and the heading rule live here rather than in either component.
  */
 
+import { restUrl, currentTrack, playerState } from "./store.js";
+import { startQueue } from "./queue.js";
+
 /**
  * Today as `YYYY-MM-DD` in the browser's own time zone.
  *
@@ -168,4 +171,45 @@ export function yearTiles(groups) {
         covers: [...new Set(coverIds.filter(Boolean))].slice(0, TILE_COVER_COUNT),
       };
     });
+}
+
+/**
+ * Plays one year of memories, in the order the server sent it.
+ *
+ * A tile only holds a short summary page (`MEMORIES_TILE_SONGS`), so playing a year fetches the
+ * whole year first: pressing play on 2024 should queue 2024, not the handful of tracks that
+ * happened to fit the tile. Falls back to the summary already in memory when that fetch fails, so
+ * the play button never does nothing. Shared by `MemoriesView.svelte`'s grid and `PhoneHome.svelte`'s
+ * home-screen year row, which each hold their own copy of the summary groups.
+ *
+ * @param {number|string} year - The year to play.
+ * @param {Array<{year: number, songs: Object[]}>} groups - The summary groups currently in memory,
+ *   used only as a fallback.
+ * @param {string} authParams - The query string that carries the session.
+ * @returns {Promise<void>}
+ */
+export async function playMemoryYear(year, groups, authParams) {
+  let songs = [];
+  try {
+    const response = await fetch(restUrl(memoriesUrl(authParams, { year })));
+    if (response.ok) {
+      const data = await response.json();
+      songs = parseMemoryGroups(data).find((g) => String(g.year) === String(year))?.songs ?? [];
+    }
+  } catch (e) {
+    console.error("Failed to load a year of memories:", e);
+  }
+
+  // A failed fetch still has the summary's own page to fall back on, which is better than a play
+  // button that does nothing.
+  if (songs.length === 0) {
+    songs = groups.find((candidate) => candidate.year === year)?.songs ?? [];
+  }
+  if (songs.length === 0) return;
+
+  // The full heading ("Vandaag, 3 jaar geleden") needs the exact summary group this helper does
+  // not always have on hand (a fetch that used the fallback); the year on its own is always true.
+  startQueue(songs, { name: String(year) });
+  currentTrack.set(songs[0]);
+  playerState.update((s) => ({ ...s, playing: true }));
 }

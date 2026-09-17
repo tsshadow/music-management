@@ -372,6 +372,19 @@ def test_junit_artifacts_are_uploaded_even_when_the_job_fails():
         assert ci[name]["artifacts"]["when"] == "always"
 
 
+def test_screenshot_diffs_soften_the_browser_job_only_through_exit_42():
+    """frontend-browser.sh exits 42 when nothing but the screenshot suite
+    differs from its references (docs/frontend-screenshots.md). That, and only
+    that, may turn the job orange: a blanket `allow_failure: true` would also
+    wave through a failing login or a route that never rendered. The
+    references themselves ride along as an artifact, because a refreshed set
+    (MUMA_UPDATE_SNAPSHOTS=1) has no other way back into the tree."""
+    ci = load_ci()
+    job = ci["frontend:e2e"]
+    assert job["allow_failure"] == {"exit_codes": [42]}
+    assert "services/frontend/tests/browser/__screenshots__/" in job["artifacts"]["paths"]
+
+
 def test_secret_scanning_is_not_allowed_to_fail():
     """Unlike the dependency audit it needs no third-party service, so a
     failure here is a finding rather than an outage."""

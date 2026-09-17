@@ -20,6 +20,7 @@ import {
   mumaUser,
   playerState,
   playlist,
+  queueSource,
   viewMode,
 } from "../../src/lib/store.js";
 
@@ -169,6 +170,8 @@ describe("PresetView", () => {
     expect(get(playlist).map((track) => track.id)).toEqual(["song-1", "song-2"]);
     expect(get(currentTrack).id).toBe("song-1");
     expect(get(playerState).playing).toBe(true);
+    // The navigable place, not the internal view the preset happens to render in.
+    expect(get(queueSource)).toEqual({ view: "preset:15", name: "Random Uptempo" });
   });
 
   it("says so when the query matches nothing", async () => {

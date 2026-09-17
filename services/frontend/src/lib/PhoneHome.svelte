@@ -1,13 +1,16 @@
 <script>
   import { onMount } from 'svelte';
   import { t } from './i18n/index.js';
-  import { authParams, restUrl, viewMode, memoriesOnHomeEnabled, homeModeReleaseRadar, homeModeDailyMix,
+  import { authParams, restUrl, viewMode, mumaApiKey, memoriesOnHomeEnabled, homeModeReleaseRadar, homeModeDailyMix,
     homeModeFavorites, homeModeRecentlyReleased, homeModeRecentlyAdded } from './store.js';
-  import { memoryCount } from './memories.js';
+  import { memoryCount, playMemoryYear, yearTiles } from './memories.js';
   import { listOf, subsonicJson } from './subsonic.js';
+  import { loadTopArtists, loadTopLabels, resolveArtistView } from './homeRankings.js';
+  import { TILE_COLORS as BROWSE_TILE_COLORS } from './browseColors.js';
   import QuickAccessTile from './QuickAccessTile.svelte';
   import HomeShelf from './HomeShelf.svelte';
   import DailyMixesShelf from './DailyMixesShelf.svelte';
+  import MemoryYearCard from './MemoryYearCard.svelte';
 
   /** Phone home maps the account's section modes to tiles or shelves over existing sources. */
   const { sections = [], memoryGroups = [], onnavigate, onrecent = null } = $props();
@@ -37,19 +40,74 @@
     'recently-released': 'M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14v10zM5 8V6h14v2H5z',
     'recently-added': 'M12 16l6-6h-4V2h-4v8H6l6 6zM4 18v4h16v-4H4z',
   };
+  /**
+   * The i18n key for a destination's designed empty copy, keyed the same way `TILE_COLORS`
+   * and `TILE_ICONS` are. A generic "no tracks in this category" line reads as broken on a
+   * tile that is *always* pointing at a real place -- Release Radar has no tracks until MuMa
+   * has a taste profile, Favourites has none until something is starred -- so each of the four
+   * gets a line that explains what the tile is for instead.
+   */
+  const EMPTY_COPY_KEYS = {
+    'release-radar': 'dashboard.empty.releaseRadar',
+    starred: 'dashboard.empty.starred',
+    'recently-released': 'dashboard.empty.recentlyReleased',
+    'recently-added': 'dashboard.empty.recentlyAdded',
+  };
+
+  /** An ellipsis, not a translated string: "still loading" needs no wording, in any language. */
+  const LOADING_SUBTITLE = '…';
+
   let favorites = $state([]);
+  let favoritesState = $state('loading');
+  // Home's two ranking strips ("Jouw artiesten deze maand", "Jouw labels"); empty until the
+  // account has a MuMa API key and the load below resolves, which is also what keeps both
+  // strips hidden -- there is nothing to distinguish "not loaded yet" from "no listens" for
+  // a row this far down the page, and both read fine as simply absent.
+  let topArtists = $state([]);
+  let topLabels = $state([]);
   let recentlyReleased = $state([]);
+  let recentlyReleasedState = $state('loading');
   let recentlyAdded = $state([]);
+  let recentlyAddedState = $state('loading');
   const destinations = $derived([
-    { id: 'release-radar', key: 'nav.releaseRadar', mode: $homeModeReleaseRadar, tracks: source('feed:release-radar') },
+    { id: 'release-radar', key: 'nav.releaseRadar', mode: $homeModeReleaseRadar, tracks: source('feed:release-radar'), state: sourceState('feed:release-radar') },
     // The five daily mixes are not a track list -- each is its own colour and its own page -- so
     // this entry only carries the mode; DailyMixesShelf/QuickAccessTile below render it specially.
     { id: 'daily-mixes', kind: 'mixes', key: 'nav.dailyMixes', mode: $homeModeDailyMix },
-    { id: 'starred', key: 'nav.starred', mode: $homeModeFavorites, tracks: favorites },
-    { id: 'recently-released', sort: 'recent', view: $viewMode, key: 'settings.general.home.recentlyReleased', mode: $homeModeRecentlyReleased, tracks: recentlyReleased },
-    { id: 'recently-added', sort: 'added', view: $viewMode, key: 'settings.general.home.recentlyAdded', mode: $homeModeRecentlyAdded, tracks: recentlyAdded },
+    { id: 'starred', key: 'nav.starred', mode: $homeModeFavorites, tracks: favorites, state: favoritesState },
+    { id: 'recently-released', sort: 'recent', view: $viewMode, key: 'settings.general.home.recentlyReleased', mode: $homeModeRecentlyReleased, tracks: recentlyReleased, state: recentlyReleasedState },
+    { id: 'recently-added', sort: 'added', view: $viewMode, key: 'settings.general.home.recentlyAdded', mode: $homeModeRecentlyAdded, tracks: recentlyAdded, state: recentlyAddedState },
   ]);
   // SHORTCUTS has no recent-places store in the web UI. Its saved mode intentionally renders nothing.
+
+  /** The Memories year row's tiles: one per year with songs, the same shape the Memories grid uses. */
+  const memoryTiles = $derived(yearTiles(memoryGroups));
+
+  /**
+   * Home's fallback "something to play" shelf. When both `recently-added` and `recently-released`
+   * are BUTTON or OFF, neither renders as its own OVERVIEW shelf above, and Home would show nothing
+   * below the shortcuts; this picks the one destination matching the current view mode instead, so
+   * the screen never ends at the tile grid. Never used when the matching destination is already an
+   * OVERVIEW shelf, so it is never drawn twice.
+   */
+  const fallbackRecentSection = $derived.by(() => {
+    const added = destinations.find(section => section.id === 'recently-added');
+    const released = destinations.find(section => section.id === 'recently-released');
+    if (added?.mode === 'OVERVIEW' || released?.mode === 'OVERVIEW') return null;
+    return $viewMode === 'sets' ? released : added;
+  });
+
+  /**
+   * The quick-access tiles, in render order: the memories tile (when enabled) first, then
+   * every BUTTON-mode destination. A single list rather than the two separate template blocks
+   * this used to be, because giving the *last* tile `col-span-2` on an odd count needs one
+   * combined index -- otherwise a lone memories tile and a lone destination tile would each
+   * think they were "the last of one" and both stretch.
+   */
+  const tiles = $derived([
+    ...($memoriesOnHomeEnabled ? [{ id: 'memories', kind: 'memories' }] : []),
+    ...destinations.filter(section => section.mode === 'BUTTON'),
+  ]);
 
   /** Opening a recent shelf keeps its ordering in the full track list. */
   function openSection(section) {
@@ -61,18 +119,35 @@
   function source(id) { return sections.find(section => section.id === id)?.tracks ?? []; }
 
   /**
+   * `Dashboard.svelte` owns the `feed:` sources and does not expose a loading flag for them
+   * (they are fetched once, up front, before Home ever mounts) -- only whether the load ended
+   * in `state: "error"` (see `loadFeedDetail` in `feeds.js`), carried here as `section.failed`.
+   * So a feed source is never "loading" from this component's point of view, only "ready" (with
+   * or without tracks) or "failed".
+   */
+  function sourceState(id) {
+    return sections.find(section => section.id === id)?.failed ? 'failed' : 'ready';
+  }
+
+  /**
    * The line under a tile's title. A feed's home copy is capped (`HOME_FEED_ROWS` in
    * Dashboard) and the recent lists ask for six, so a count there would read "10 nummers"
    * on every tile whatever the feed holds; the first track says something true instead.
    * Favourites is the one list fetched whole, so its count is real.
    *
+   * A failed load and a still-loading one both take priority over that: neither has a
+   * meaningful first track to describe, and both need to look different from "empty" -- a
+   * source stuck on the designed empty copy forever would never announce it had failed.
+   *
    * @param {object} section
    * @returns {string}
    */
   function subtitle(section) {
+    if (section.state === 'failed') return $t('dashboard.loadFailed');
+    if (section.state === 'loading') return LOADING_SUBTITLE;
+    if (section.tracks.length === 0) return $t(EMPTY_COPY_KEYS[section.id] ?? 'dashboard.noTracksInSection');
     if (section.id === 'starred') return $t('common.trackCount', { count: section.tracks.length });
     const first = section.tracks[0];
-    if (!first) return $t('dashboard.noTracksInSection');
     return first.artist ? `${first.artist} – ${first.title}` : first.title;
   }
 
@@ -85,44 +160,94 @@
   // order instead, using the same ten-minute boundary as Dashboard's full track lists.
   $effect(() => {
     const duration = $viewMode === 'sets' ? { minDuration: 10 } : { maxDuration: 10 };
-    if (!$authParams) return;
+    if (!$authParams) {
+      recentlyReleasedState = 'ready';
+      recentlyAddedState = 'ready';
+      return;
+    }
     let stale = false;
-    Promise.all(['recent', 'added'].map(sort => subsonicJson('getSpotifyTracks', {
-      sort, count: 6, offset: 0, ...duration,
-    }).then(data => listOf(data, 'tracks.track')).catch(error => {
-      console.warn('Could not load recent home tracks', error);
-      return [];
-    }))).then(([released, added]) => {
+    // A mode switch reruns this; the tiles must pulse again rather than keep
+    // showing the previous mode's "could not load" until the new answer lands.
+    recentlyReleasedState = 'loading';
+    recentlyAddedState = 'loading';
+    /** One of the two lists, tagged with whether it actually arrived. */
+    function loadRecent(sort) {
+      return subsonicJson('getSpotifyTracks', { sort, count: 6, offset: 0, ...duration })
+        .then(data => ({ tracks: listOf(data, 'tracks.track'), state: 'ready' }))
+        .catch(error => {
+          console.warn('Could not load recent home tracks', sort, error);
+          return { tracks: [], state: 'failed' };
+        });
+    }
+    Promise.all([loadRecent('recent'), loadRecent('added')]).then(([released, added]) => {
       if (stale) return;
-      recentlyReleased = released;
-      recentlyAdded = added;
+      recentlyReleased = released.tracks;
+      recentlyReleasedState = released.state;
+      recentlyAdded = added.tracks;
+      recentlyAddedState = added.state;
     });
     return () => { stale = true; };
   });
 
   onMount(async () => {
-    if (!$authParams) return;
-    try { favorites = listOf(await subsonicJson('getStarred2'), 'starred2.song'); }
-    catch (error) { console.warn('Could not load home favourites', error); }
+    if (!$authParams) { favoritesState = 'ready'; return; }
+    try {
+      favorites = listOf(await subsonicJson('getStarred2'), 'starred2.song');
+      favoritesState = 'ready';
+    } catch (error) {
+      console.warn('Could not load home favourites', error);
+      favoritesState = 'failed';
+    }
   });
+
+  // The listening endpoints need the MuMa key, not the Subsonic credentials `$authParams`
+  // gates on above -- an account can have one without the other -- so this loads once on
+  // mount, only when that key is present, and never retries on its own; `stale` only
+  // matters for the (test-only, in practice) case of the component unmounting mid-request.
+  onMount(() => {
+    if (!$mumaApiKey) return;
+    let stale = false;
+    Promise.all([loadTopArtists(), loadTopLabels()]).then(([artists, labels]) => {
+      if (stale) return;
+      topArtists = artists;
+      topLabels = labels;
+    });
+    return () => { stale = true; };
+  });
+
+  /**
+   * A tapped artist ranking resolves to the library's LMS artist id first, since the
+   * MuMa id the ranking itself carries is not one `onnavigate` can use. A name with no
+   * match (an artist MuMa knows only from scrobbles, not the library) still opens
+   * somewhere useful: the same search results a manual search for that name would give.
+   *
+   * @param {string} name
+   */
+  async function openArtistRanking(name) {
+    const view = await resolveArtistView(name);
+    onnavigate(view ?? `search:${name}`);
+  }
 </script>
 
 <div class="grid grid-cols-2 gap-2" data-testid="home-quick-access">
-  {#if $memoriesOnHomeEnabled}
-    <QuickAccessTile title={$t('memories.title')}
-      subtitle={$t('memories.homeSummary', { years: memoryGroups.length, tracks: memoryGroups.reduce((count, group) => count + memoryCount(group), 0) })}
-      cover={cover(memoryGroups[0]?.songs[0])} color={TILE_COLORS.memories} icon={TILE_ICONS.memories}
-      onclick={() => onnavigate('memories')} />
-  {/if}
-  {#each destinations.filter(section => section.mode === 'BUTTON') as section (section.id)}
-    {#if section.kind === 'mixes'}
-      <QuickAccessTile title={$t(section.key)} subtitle={$t('dashboard.dailyMixesSubtitle')}
-        color={TILE_COLORS[section.id]} icon={TILE_ICONS[section.id]}
+  {#each tiles as tile, index (tile.id)}
+    {@const lastOdd = index === tiles.length - 1 && tiles.length % 2 === 1}
+    {#if tile.kind === 'memories'}
+      <QuickAccessTile title={$t('memories.title')}
+        subtitle={$t('memories.homeSummary', { years: memoryGroups.length, tracks: memoryGroups.reduce((count, group) => count + memoryCount(group), 0) })}
+        cover={cover(memoryGroups[0]?.songs[0])} color={TILE_COLORS.memories} icon={TILE_ICONS.memories}
+        class={lastOdd ? 'col-span-2' : ''}
+        onclick={() => onnavigate('memories')} />
+    {:else if tile.kind === 'mixes'}
+      <QuickAccessTile title={$t(tile.key)} subtitle={$t('dashboard.dailyMixesSubtitle')}
+        color={TILE_COLORS[tile.id]} icon={TILE_ICONS[tile.id]}
+        class={lastOdd ? 'col-span-2' : ''}
         onclick={() => onnavigate('daily-mixes')} />
     {:else}
-      <QuickAccessTile title={$t(section.key)} subtitle={subtitle(section)}
-        cover={cover(section.tracks[0])} color={TILE_COLORS[section.id]} icon={TILE_ICONS[section.id]}
-        onclick={() => openSection(section)} />
+      <QuickAccessTile title={$t(tile.key)} subtitle={subtitle(tile)}
+        cover={cover(tile.tracks[0])} color={TILE_COLORS[tile.id]} icon={TILE_ICONS[tile.id]}
+        loading={tile.state === 'loading'} class={lastOdd ? 'col-span-2' : ''}
+        onclick={() => openSection(tile)} />
     {/if}
   {/each}
 </div>
@@ -131,7 +256,77 @@
     <DailyMixesShelf {onnavigate} />
   {:else}
     <HomeShelf title={$t(section.key)} tracks={section.tracks.slice(0, 6)}
-      noTracksText={$t('dashboard.noTracksInSection')} showAllLabel={$t('dashboard.showAll')}
+      layout={section.id === 'recently-released' || section.id === 'recently-added' ? 'rows' : 'cards'}
+      noTracksText={$t(EMPTY_COPY_KEYS[section.id] ?? 'dashboard.noTracksInSection')} showAllLabel={$t('dashboard.showAll')}
       {onnavigate} onshowall={() => openSection(section)} />
   {/if}
 {/each}
+{#if $memoriesOnHomeEnabled && memoryTiles.length > 0}
+  <section class="flex flex-col gap-3" data-testid="home-memories-row">
+    <div class="flex justify-between items-end mb-4">
+      <h2 class="text-xl font-bold m-0">{$t('memories.title')}</h2>
+      <button
+        class="bg-transparent border-none text-[#b3b3b3] text-[13px] font-bold cursor-pointer hover:underline"
+        onclick={() => onnavigate('memories')}
+      >{$t('dashboard.showAll')}</button>
+    </div>
+    <div class="flex gap-3 overflow-x-auto snap-x scrollbar-hide -mx-4 px-4 pb-1">
+      {#each memoryTiles as tile (tile.year)}
+        <div class="w-[140px] shrink-0">
+          <MemoryYearCard {tile}
+            onopen={(year) => onnavigate(`memories:${year}`)}
+            onplay={(year) => playMemoryYear(year, memoryGroups, $authParams)} />
+        </div>
+      {/each}
+    </div>
+  </section>
+{/if}
+{#if fallbackRecentSection && fallbackRecentSection.tracks.length > 0}
+  <HomeShelf title={$t(fallbackRecentSection.key)} tracks={fallbackRecentSection.tracks.slice(0, 6)}
+    layout="rows" showAllLabel={$t('dashboard.showAll')}
+    {onnavigate} onshowall={() => openSection(fallbackRecentSection)} />
+{/if}
+{#if topArtists.length > 0}
+  <section class="flex flex-col gap-3" data-testid="home-top-artists">
+    <div class="flex justify-between items-end mb-4">
+      <h2 class="text-xl font-bold m-0">{$t('dashboard.topArtists')}</h2>
+      <button
+        class="bg-transparent border-none text-[#b3b3b3] text-[13px] font-bold cursor-pointer hover:underline"
+        onclick={() => onnavigate('listening')}
+      >{$t('dashboard.showAll')}</button>
+    </div>
+    <div class="flex gap-3 overflow-x-auto snap-x scrollbar-hide -mx-4 px-4 pb-1">
+      {#each topArtists as artist (artist.name)}
+        <QuickAccessTile
+          class="w-[150px] shrink-0"
+          title={artist.name}
+          subtitle={$t('common.listenCount', { count: artist.listens })}
+          color={BROWSE_TILE_COLORS.artists}
+          onclick={() => openArtistRanking(artist.name)}
+        />
+      {/each}
+    </div>
+  </section>
+{/if}
+{#if topLabels.length > 0}
+  <section class="flex flex-col gap-3" data-testid="home-top-labels">
+    <div class="flex justify-between items-end mb-4">
+      <h2 class="text-xl font-bold m-0">{$t('dashboard.topLabels')}</h2>
+      <button
+        class="bg-transparent border-none text-[#b3b3b3] text-[13px] font-bold cursor-pointer hover:underline"
+        onclick={() => onnavigate('listening')}
+      >{$t('dashboard.showAll')}</button>
+    </div>
+    <div class="flex gap-3 overflow-x-auto snap-x scrollbar-hide -mx-4 px-4 pb-1">
+      {#each topLabels as label (label.name)}
+        <QuickAccessTile
+          class="w-[150px] shrink-0"
+          title={label.name}
+          subtitle={$t('common.listenCount', { count: label.listens })}
+          color={BROWSE_TILE_COLORS.labels}
+          onclick={() => onnavigate(`label:${label.name}`)}
+        />
+      {/each}
+    </div>
+  </section>
+{/if}

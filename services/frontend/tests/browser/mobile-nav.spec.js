@@ -1,16 +1,14 @@
 // Spotify-style phone navigation (see docs/designs/universal-ui/functional.md,
-// "Telefoonlayout"). There is no mobile viewport project in playwright.config.js
-// yet, so this file sets its own -- 412x915, a common Android phone size -- and
-// is the one place that exercises the bottom bar and the browse grid end to end;
-// the unit tests (mobileNav.test.js, browseGrid.test.js, app.test.js) cover the
-// component and store logic in isolation.
+// "Telefoonlayout"). Runs in the `phone` project only (playwright.config.js
+// sets the 412x915 viewport) and is the one place that exercises the bottom bar
+// and the browse grid end to end; the unit tests (mobileNav.test.js,
+// browseGrid.test.js, app.test.js) cover the component and store logic in
+// isolation.
 import { test, expect } from "@playwright/test";
 import { SETUP_STEPS } from "../../src/lib/setup.js";
 
 const USERNAME = "ci-contract-admin";
 const PASSWORD = "ci-contract-password";
-
-test.use({ viewport: { width: 412, height: 915 } });
 
 // Chromium runs as en-US, so without this the interface would come up in
 // English and the assertions below -- written against the Dutch the app is

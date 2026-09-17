@@ -1,9 +1,9 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
-  import { authParams, playlist, currentTrack, playerState, restUrl } from './store.js';
+  import { authParams, restUrl } from './store.js';
   import MemoryYearCard from './MemoryYearCard.svelte';
-  import { memoriesUrl, parseMemoryGroups, yearTiles } from './memories.js';
+  import { memoriesUrl, parseMemoryGroups, playMemoryYear, yearTiles } from './memories.js';
 
   const { onnavigate } = $props();
 
@@ -40,34 +40,9 @@
 
   onMount(loadMemories);
 
-  /**
-   * Plays one year, in the order the server sent it.
-   *
-   * The tile holds a short page of its year, so the whole year is fetched first: pressing play on
-   * 2024 should queue 2024, not the four tracks that happened to fit on the tile.
-   */
-  async function playYear(year) {
-    let songs = [];
-    try {
-      const response = await fetch(restUrl(memoriesUrl($authParams, { year })));
-      if (response.ok) {
-        const data = await response.json();
-        songs = parseMemoryGroups(data).find((g) => String(g.year) === String(year))?.songs ?? [];
-      }
-    } catch (e) {
-      console.error('Failed to load a year of memories:', e);
-    }
-
-    // A failed fetch still has the tile's own page to fall back on, which is better than a play
-    // button that does nothing.
-    if (songs.length === 0) {
-      songs = groups.find((candidate) => candidate.year === year)?.songs ?? [];
-    }
-    if (songs.length === 0) return;
-
-    playlist.set(songs);
-    currentTrack.set(songs[0]);
-    playerState.update((s) => ({ ...s, playing: true }));
+  /** Plays one year, in the order the server sent it. See `playMemoryYear` for the fetch/fallback rule. */
+  function playYear(year) {
+    return playMemoryYear(year, groups, $authParams);
   }
 
   /** Opens one year's own page. */

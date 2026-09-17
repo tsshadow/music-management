@@ -10,6 +10,7 @@ import {
   playlist,
   viewMode,
 } from "../../src/lib/store.js";
+import { recentPlaces, clearRecentPlaces } from "../../src/lib/recentPlaces.js";
 
 const OWN_ALBUM = {
   id: "album-1",
@@ -81,6 +82,7 @@ describe("ArtistView", () => {
     currentTrack.set(null);
     playerState.set({ playing: false });
     globalThis.fetch = subsonic();
+    clearRecentPlaces();
   });
 
   afterEach(() => {
@@ -261,5 +263,15 @@ describe("ArtistView", () => {
     render(ArtistView, { artistId: "artist-1", onnavigate: vi.fn() });
 
     await waitFor(() => expect(screen.queryByText("Laden...")).toBeNull());
+  });
+
+  // E: the place is opened by id before its name is known; this is the load that backfills it.
+  it("records the recent place once the artist's name has loaded", async () => {
+    await renderLoaded();
+
+    await waitFor(() => {
+      const place = get(recentPlaces).find((p) => p.view === "artist:artist-1");
+      expect(place?.title).toBe("Angerfist");
+    });
   });
 });

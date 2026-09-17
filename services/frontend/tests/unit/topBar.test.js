@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/svelte";
+import { render, screen, waitFor, fireEvent } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import TopBar from "../../src/lib/TopBar.svelte";
 import { activeModal, activeView, credentials, isMobile, viewMode } from "../../src/lib/store.js";
@@ -175,5 +175,26 @@ describe("TopBar on the phone", () => {
     expect(
       modeControl.compareDocumentPosition(profile) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+
+  // The advanced-search card left the top of Bladeren; a filter icon beside the search field
+  // is the only way back into it now, so it has to exist exactly on that tab.
+  it("offers the filter icon on the browse tab and opens the preset builder", async () => {
+    activeView.set("browse");
+
+    render(TopBar, { greeting: "" });
+
+    const filterButton = screen.getByLabelText("Geavanceerd zoeken");
+    await fireEvent.click(filterButton);
+
+    expect(get(activeView)).toBe("new-preset");
+  });
+
+  it("keeps the filter icon off tabs that are not browse", () => {
+    activeView.set("home");
+
+    render(TopBar, { greeting: "" });
+
+    expect(screen.queryByLabelText("Geavanceerd zoeken")).toBeNull();
   });
 });

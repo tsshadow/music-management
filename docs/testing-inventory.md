@@ -48,8 +48,10 @@
 - Build: `npm run build` (Vite)
 - Start (dev): `npm run dev` (port 5173, proxy to `/api`→8000, `/rest`+`/muma`→5082, targets overridable via `VITE_API_TARGET`/`VITE_LMS_TARGET`)
 - Test: Vitest (jsdom) via `npm run test:unit` / `npm run coverage`, sources in `tests/unit/` (`store`,
-  `downloaderTiming`, `genreCuration`); browser smoke test in `tests/browser/` via Playwright. Run in CI by
-  `scripts/test/frontend-unit.sh` (lint + `svelte-check` + coverage) and `scripts/test/frontend-browser.sh`.
+  `downloaderTiming`, `genreCuration`); browser tests in `tests/browser/` via Playwright, in a `desktop`
+  and a `phone` project, including a screenshot per route against committed references
+  (`docs/frontend-screenshots.md`). Run in CI by `scripts/test/frontend-unit.sh` (lint +
+  `svelte-check` + coverage) and `scripts/test/frontend-browser.sh`.
   Component rendering is covered for a handful of screens (`generalSettings`, `librariesTab`,
   `scannerTab`, `artistImagesTab`, `usersTabSubsonicToken`, `aboutSettings`); the rest of the unit
   tests target the plain-JS modules the components delegate to

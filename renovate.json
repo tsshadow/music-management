@@ -93,6 +93,17 @@
       "automerge": true
     },
     {
+      "description": "@playwright/test brings its own Chromium, and a new Chromium renders text a hair differently: the screenshot suite (docs/frontend-screenshots.md) goes orange on every route, which the soft gate would let through with stale references. Kept out of the group so the bump is one MR that refreshes the references before it merges.",
+      "matchManagers": [
+        "npm"
+      ],
+      "matchPackageNames": [
+        "@playwright/test"
+      ],
+      "groupName": "playwright",
+      "automerge": false
+    },
+    {
       "description": "Frontend runtime dependencies are covered by the same gates as the dev ones -- vitest, typecheck, lint and frontend:browser all run against the built app, so a break here is a red pipeline rather than a bad deploy.",
       "matchManagers": [
         "npm"

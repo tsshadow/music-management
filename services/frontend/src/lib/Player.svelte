@@ -18,6 +18,7 @@
   import { resolveDuration, progressPercent, formatTime, formatClock } from './playerProgress.js';
   import { describeFilter } from './management/radioChannels.js';
   import { snapshotOf, restoreTarget, bulletinStreamUrl } from './newsQueue.js';
+  import { startQueue } from './queue.js';
   import { startTrail, stepBack, stepForward } from './shuffleHistory.js';
   import { releaseDateLabel } from './trackDate.js';
   import { isSet } from './downloads.js';
@@ -28,9 +29,13 @@
     saveSetResumePosition,
   } from './setResume.js';
   import ArtistList from './ArtistList.svelte';
+  import Artwork from './Artwork.svelte';
   import { getArtistImageUrl, subsonicError } from './utils.js';
   import { getHeaders } from './mumaApi.js';
   import { notify } from './notifications.js';
+  import { coverArtSrc, FALLBACK, localCoverArt, resolveCoverArt } from './coverArt.js';
+  import { offline } from './subsonic.js';
+  import { fetchGenreTints, trackTint } from './genreTints.js';
 
   const { onnavigate, ontoggleQueue } = $props();
 
@@ -50,6 +55,11 @@
   const nativePlayback = platform.player.ownsQueue;
   /** @type {ReturnType<typeof createNativeQueue>|null} */
   let nativeQueue = null;
+  // Bumped whenever an `adopt()`/`sync()` on `nativeQueue` settles, so `queueIndex` below --
+  // a plain function call into a variable Svelte's reactivity does not see on its own --
+  // recomputes after the native side's position actually changes rather than only when
+  // `$playlist` or `$currentTrack` do (see `queueIndex`'s own comment).
+  let nativeQueuePositionTick = $state(0);
   let muted = $state(false);
   let lastVolume = $state(50);
   let lastSyncTime = null;
@@ -70,6 +80,39 @@
   let showEqualizer = $state(false);
   let equalizerPanelEl = $state(null);
   const equalizerSupported = equalizer.isSupported();
+
+  // Genre tints for the artwork panel and the full player's background
+  // gradient (see `trackTint` in genreTints.js). Fetched once here rather
+  // than by `NowPlaying` itself, the same reasoning as `lyricsLines` below --
+  // one fetch, two renderings (mini player background is untinted, the
+  // full-screen one is not).
+  let genreTints = $state({});
+  onMount(() => {
+    fetchGenreTints().then((t) => (genreTints = t));
+  });
+
+  // The output the phone plays through, for the label on the full-screen player (increment H,
+  // technical.md). Native only: a browser answers null and never fires the event, and null is
+  // what hides the label. Read once on mount rather than waited for, since the event only
+  // reaches a subscriber that was already listening when the headset connected; then kept
+  // current by the subscription until this component goes away.
+  let outputRoute = $state(null);
+  onMount(() => {
+    if (!platform.system.isNative) return;
+    platform.system.outputRoute().then((route) => (outputRoute = route));
+    return platform.system.onOutputRouteChanged((route) => (outputRoute = route));
+  });
+
+  /**
+   * A rejection here means neither the system output switcher nor the Bluetooth settings screen
+   * exists on this build -- nothing the player can do about it, so it is logged rather than
+   * surfaced, and never left as an unhandled rejection from a click handler.
+   */
+  function openOutputPicker() {
+    platform.system
+      .openOutputPicker()
+      .catch((error) => console.warn('Could not open the output picker', error));
+  }
 
   // The current track's lyrics, or an empty array once LMS has answered and
   // found none -- most tracks. Computed here rather than inside `NowPlaying`
@@ -466,9 +509,11 @@
           if (playQueue.entry) {
             const tracks = Array.isArray(playQueue.entry) ? playQueue.entry : [playQueue.entry];
 
-            // Sync playlist
+            // Sync playlist. A jam sync restores a queue, it does not start one -- the
+            // 'view: null' here clears queueSource instead of attributing the synced
+            // tracks to whatever screen happens to be open on this device right now.
             if (JSON.stringify(tracks.map(t => t.id)) !== JSON.stringify($playlist.map(t => t.id))) {
-                playlist.set(tracks);
+                startQueue(tracks, { view: null });
             }
 
             // Sync current track
@@ -1161,6 +1206,26 @@
   const volume = $derived($playerState.volume);
   const repeatMode = $derived($playerState.repeat);
   const shuffleMode = $derived($playerState.shuffle);
+
+  /**
+   * Where `track` sits in the queue, for `NowPlaying.svelte`'s continuation sections (increment
+   * F, "next up" and `addAfterCurrent`) -- -1 when there is nothing to point at.
+   *
+   * Native: the position `nativeQueue` last pushed or adopted, since the service is the one
+   * actually walking the queue and this component only mirrors it (see `nativeQueue.js`'s
+   * `currentIndex`). `nativeQueuePositionTick` is read only to give this a reason to
+   * recompute after that position changes -- `nativeQueue` itself is a plain variable, not a
+   * store, so Svelte would otherwise never know to look again.
+   * Browser: a lookup by id, the same thing `playNext`/`playPrev` already do to find where they
+   * are -- there is no second, independent position to mirror.
+   */
+  const queueIndex = $derived.by(() => {
+    if (nativePlayback) {
+      void nativeQueuePositionTick;
+      return nativeQueue?.currentIndex() ?? -1;
+    }
+    return $playlist.findIndex((t) => String(t.id) === String($currentTrack?.id));
+  });
   const syncColor = $derived(
     $syncMode === 'host' ? '#1db954' : 
     ($syncMode === 'follower-jam' ? '#3d91ff' : 
@@ -1177,7 +1242,36 @@
   // Radio listeners cannot steer the stream, exactly like a follower-radio client.
   const transportLocked = $derived($syncMode === 'follower-radio' || isRadioActive);
   const releaseDate = $derived(track ? releaseDateLabel(track) : '');
-  const coverUrl = $derived(track?.coverArt ? restUrl(`/rest/getCoverArt?id=${track.coverArt}&size=100&${$authParams}`) : '/images/spotify-fallback.svg');
+  // `coverArtSrc` is the one place that knows whether this device has a local,
+  // offline copy of the art; going through it here means the mini player and
+  // the full-screen one no longer build `/rest/getCoverArt` URLs by hand and
+  // agree with every other list in the app about what "offline" shows.
+  // `coverArtSrc` answers a missing id with `FALLBACK` (the MuMa mark svg),
+  // but `Artwork` needs `null` for "no cover" so it can fall through to the
+  // artist image instead of rendering that mark as if it were the cover.
+  const coverUrl = $derived.by(() => {
+    const src = coverArtSrc(track?.coverArt, 100, $authParams, $localCoverArt, $offline);
+    return src === FALLBACK ? null : src;
+  });
+  const fullCoverUrl = $derived.by(() => {
+    const src = coverArtSrc(track?.coverArt, 512, $authParams, $localCoverArt, $offline);
+    return src === FALLBACK ? null : src;
+  });
+  // `getArtistImageUrl` answers "no image" with `/images/unknown-artist.svg`
+  // rather than throwing or returning null, so that has to be recognised here
+  // too -- otherwise `Artwork` would treat a placeholder path as a real image
+  // and never fall through to the tinted panel.
+  const artistUrl = $derived.by(() => {
+    if (!primaryArtist) return null;
+    const url = getArtistImageUrl(primaryArtist, $authParams);
+    return url === '/images/unknown-artist.svg' ? null : url;
+  });
+  const tint = $derived(trackTint(track, genreTints));
+  // Offline, the art lives on disk and `coverArtSrc` only knows that once the
+  // shell has been asked; a no-op online, so the player pays nothing there.
+  $effect(() => {
+    if (track?.coverArt) resolveCoverArt([track.coverArt]);
+  });
   const streamUrl = $derived(track?.id ? restUrl(`/rest/stream?id=${track.id}&${$authParams}`) : '');
 
   // What the notification, the lock screen and a car head unit show. The engine
@@ -1355,7 +1449,9 @@
     // means the rehydrate found nothing to restore, which is no reason to stop
     // music that is playing.
     if (!autoplay && queue.length === 0) return;
-    nativeQueue.sync(queue, wanted, { autoplay });
+    // See `queueIndex`: this is the only thing that gives it a reason to look at
+    // `nativeQueue.currentIndex()` again once this settles.
+    nativeQueue.sync(queue, wanted, { autoplay }).then(() => nativeQueuePositionTick++);
   });
 
   $effect(() => {
@@ -1433,7 +1529,9 @@
           : ''),
         onError: (e) => console.error('Could not hand the queue to the player service', e),
       });
-      nativeQueue.adopt();
+      // See `queueIndex`: the adopted position is otherwise invisible to it until something
+      // else happens to touch `nativeQueuePositionTick`.
+      nativeQueue.adopt().then(() => nativeQueuePositionTick++);
     } else {
       platform.player.setVolume(volume / 100);
     }
@@ -1589,25 +1687,22 @@
       onkeydown={(e) => e.key === 'Enter' && handleMiniPlayerTap(e)}
     >
       {#if track}
-        <!-- Boxed, so the phone's placeholder padding (app.css, `padding: 18%`) resolves against
-             these 44px and not against the whole bar: a bare `w-11` img with a wide containing
-             block grew to ~150px and stretched the mini player to three times its height. -->
-        <div class="w-11 h-11 shrink-0 rounded shadow-lg overflow-hidden">
-          <img src={coverUrl} alt={track.title} class="w-full h-full object-cover" onerror={(e) => e.target.src = '/images/spotify-fallback.svg'} />
-        </div>
+        <!-- One square slot, cover -> artist image -> tinted panel (`Artwork.svelte`); the
+             separate round artist avatar that used to sit next to the artist name is gone,
+             its job absorbed into this same fallback chain. `shrink-0` keeps it 44px
+             regardless of how tight the row gets on a narrow phone. -->
+        <Artwork
+          class="w-11 h-11 shrink-0 shadow-lg"
+          rounded="rounded"
+          {coverUrl}
+          {artistUrl}
+          {tint}
+          title={track.title}
+          alt={track.title}
+        />
         <div class="flex-1 min-w-0">
           <div class="text-[13px] font-bold text-white truncate">{track.title}</div>
-          <div class="flex items-center gap-1.5 min-w-0">
-            {#if primaryArtist}
-              <img
-                src={getArtistImageUrl(primaryArtist, $authParams)}
-                alt={primaryArtist.name}
-                class="w-4 h-4 rounded-full object-cover flex-shrink-0"
-                onerror={(e) => e.target.src = '/images/unknown-artist.svg'}
-              />
-            {/if}
-            <div class="text-[11px] text-[#b3b3b3] truncate">{track.artist}</div>
-          </div>
+          <div class="text-[11px] text-[#b3b3b3] truncate">{track.artist}</div>
         </div>
         <div class="flex items-center gap-0.5 flex-shrink-0">
           {#each [1, 2, 3, 4, 5] as star (star)}
@@ -1701,9 +1796,13 @@
       rating={currentRating}
       {shuffleMode}
       {repeatMode}
+      {queueIndex}
       {transportLocked}
-      {coverUrl}
+      coverUrl={fullCoverUrl}
+      {artistUrl}
+      {tint}
       {equalizerSupported}
+      {outputRoute}
       {isSetMode}
       {lyricsLines}
       onclose={closeNowPlaying}
@@ -1718,13 +1817,18 @@
       onskip={skip}
       ontoggleEqualizer={() => (showEqualizer = !showEqualizer)}
       {ontoggleQueue}
+      onopenOutputPicker={openOutputPicker}
       {onnavigate}
     />
   {:else}
     <!-- Desktop Player -->
     <div class="w-[30%] hidden md:flex items-center gap-3">
       {#if track}
-        <img src={coverUrl} alt={track.title} class="w-14 h-14 rounded" onerror={(e) => e.target.src = '/images/spotify-fallback.svg'} />
+        <!-- Desktop keeps its own plain `<img>`: `coverUrl` is `null` for "no cover" now that
+             `Artwork.svelte` (the mobile mini player and the full-screen view) owns the
+             cover -> artist -> panel fallback, so this one substitutes the MuMa mark itself
+             rather than rendering a broken image. -->
+        <img src={coverUrl ?? FALLBACK} alt={track.title} class="w-14 h-14 rounded" onerror={(e) => e.target.src = FALLBACK} />
         <div class="track-info min-w-0">
           <div
             role="button"

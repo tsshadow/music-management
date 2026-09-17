@@ -646,6 +646,63 @@ describe("capacitor system", () => {
 
     expect(plugins.MumaSystem.calls).toEqual([["setAppLocale", { locale: "nl" }]]);
   });
+
+  it("answers the output route the plugin named", async () => {
+    const { platform } = nativePlatform({
+      MumaSystem: { outputRoute: { name: "Bose QC35 II", type: "bluetooth" } },
+    });
+
+    expect(await platform.system.outputRoute()).toEqual({
+      name: "Bose QC35 II",
+      type: "bluetooth",
+    });
+  });
+
+  // The plugin resolves {} while it has no context to read its strings from; that is "nothing
+  // to show", the same as a browser tab, not a route called "undefined".
+  it("reads an empty, nameless or unknown-typed outputRoute answer as null", async () => {
+    const { platform: empty } = nativePlatform({ MumaSystem: { outputRoute: {} } });
+    const { platform: nameless } = nativePlatform({
+      MumaSystem: { outputRoute: { name: "", type: "speaker" } },
+    });
+    const { platform: unknown } = nativePlatform({
+      MumaSystem: { outputRoute: { name: "Dock", type: "hdmi" } },
+    });
+
+    expect(await empty.system.outputRoute()).toBeNull();
+    expect(await nameless.system.outputRoute()).toBeNull();
+    expect(await unknown.system.outputRoute()).toBeNull();
+  });
+
+  it("hands outputRouteChanged events on, dropping a malformed one", () => {
+    const { platform, plugins } = nativePlatform();
+    const seen = [];
+    const unsubscribe = platform.system.onOutputRouteChanged((route) => seen.push(route));
+
+    plugins.MumaSystem.emit("outputRouteChanged", { name: "Phone speaker", type: "speaker" });
+    plugins.MumaSystem.emit("outputRouteChanged", {});
+    plugins.MumaSystem.emit("outputRouteChanged", { name: "Pixel Buds", type: "bluetooth" });
+
+    expect(seen).toEqual([
+      { name: "Phone speaker", type: "speaker" },
+      { name: "Pixel Buds", type: "bluetooth" },
+    ]);
+    expect(typeof unsubscribe).toBe("function");
+  });
+
+  it("awaits openOutputPicker so a rejection reaches the caller", async () => {
+    const { platform, plugins } = nativePlatform();
+    await platform.system.openOutputPicker();
+    expect(plugins.MumaSystem.calls.map(([name]) => name)).toEqual(["openOutputPicker"]);
+
+    const { platform: refused } = nativePlatform({
+      MumaSystem: {
+        openOutputPicker: () =>
+          Promise.reject(new Error("nothing on this device opens an output picker")),
+      },
+    });
+    await expect(refused.system.openOutputPicker()).rejects.toThrow(/output picker/);
+  });
 });
 
 describe("capacitor storage", () => {

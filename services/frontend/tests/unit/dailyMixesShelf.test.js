@@ -57,7 +57,7 @@ vi.mock("../../src/lib/genreTints.js", () => ({
 describe("DailyMixesShelf", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
-    globalThis.__loadDailyMixCards = vi.fn(async () => CARDS);
+    globalThis.__loadDailyMixCards = vi.fn(async () => ({ cards: CARDS, refine: vi.fn() }));
   });
 
   it("shows the heading and the five cards", async () => {
@@ -74,6 +74,22 @@ describe("DailyMixesShelf", () => {
     render(DailyMixesShelf, { onnavigate: vi.fn() });
 
     expect(screen.getByRole("heading", { name: "Dagelijkse mixen" })).toBeTruthy();
+  });
+
+  it("renders cards while refinements wait and replaces a card when one arrives", async () => {
+    let publish;
+    globalThis.__loadDailyMixCards = vi.fn(async () => ({
+      cards: CARDS,
+      refine: (onRefine) => {
+        publish = onRefine;
+        return new Promise(() => {});
+      },
+    }));
+    render(DailyMixesShelf, { onnavigate: vi.fn() });
+    await waitFor(() => expect(screen.getByText("Zachter")).toBeTruthy());
+    publish({ ...CARDS[0], title: "Refined mix", color: "#FF00AA" });
+    await waitFor(() => expect(screen.getByText("Refined mix")).toBeTruthy());
+    expect(screen.queryByText("Zachter")).toBeNull();
   });
 
   it("opens the mix that was tapped", async () => {

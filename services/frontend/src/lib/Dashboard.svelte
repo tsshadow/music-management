@@ -681,16 +681,21 @@
     return { tracks: await fetchTracks(section.id), failed: false };
   }
 
-  /**
-   * Loads all curated sections (Release Radar, Songs, Sets) for the home view.
-   */
+  let curatedLoad = 0;
+
+  /** Publishes each Home section independently; older loads cannot replace newer results. */
   async function loadCurated() {
-    const results = await Promise.all(sections.map(fetchSection));
-    sections = sections.map((section, index) => {
-      section.tracks = results[index].tracks;
-      section.failed = results[index].failed;
-      return section;
-    });
+    const load = ++curatedLoad;
+    await Promise.all(sections.map(async (section) => {
+      let result;
+      try {
+        result = await fetchSection(section);
+      } catch {
+        result = { tracks: [], failed: true };
+      }
+      if (load !== curatedLoad) return;
+      sections = sections.map((current) => current.id === section.id ? { ...current, ...result } : current);
+    }));
   }
 
   /**

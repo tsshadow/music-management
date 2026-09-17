@@ -22,6 +22,7 @@
 #include <boost/asio/read_until.hpp>
 #include <boost/asio/streambuf.hpp>
 #include <boost/asio/write.hpp>
+#include <boost/system/system_error.hpp>
 
 #include "core/String.hpp"
 #include "core/http/IClient.hpp"
@@ -49,14 +50,25 @@ namespace lms::core::http::tests
             explicit LoopbackServer(std::size_t expectedRequestCount)
                 : _acceptor{ _ioContext, tcp::endpoint{ asio::ip::address_v4::loopback(), 0 } }
                 , _thread{ [this, expectedRequestCount] {
-                    for (std::size_t i{}; i < expectedRequestCount; ++i)
-                        serveOne();
+                    try
+                    {
+                        for (std::size_t i{}; i < expectedRequestCount; ++i)
+                            serveOne();
+                    }
+                    catch (const boost::system::system_error&)
+                    {
+                        // The acceptor was closed under us (see the destructor): stop serving.
+                    }
                 } }
             {
             }
 
             ~LoopbackServer()
             {
+                // A failed test may leave the thread blocked in accept(); closing the acceptor
+                // makes that accept throw, so the test fails instead of hanging the job.
+                boost::system::error_code ec;
+                _acceptor.close(ec);
                 _thread.join();
             }
 

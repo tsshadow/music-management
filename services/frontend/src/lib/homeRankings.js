@@ -12,6 +12,8 @@
 import { listeningUrl, periodRange } from "./listeningStats.js";
 import { getHeaders } from "./mumaApi.js";
 import { listOf, subsonicJson } from "./subsonic.js";
+import { get } from "svelte/store";
+import { credentials } from "./store.js";
 
 /** How many rows a Home strip shows -- enough to fill a horizontal scroll without asking
  * MuMa for a whole top-20 list nobody will scroll to. */
@@ -94,9 +96,12 @@ const resolvedArtistViews = new Map();
  * @returns {Promise<string|null>}
  */
 export function resolveArtistView(name) {
-  if (resolvedArtistViews.has(name)) return resolvedArtistViews.get(name);
+  // Keyed by server as well: an LMS id resolved against one library means nothing on
+  // another, and the module outlives a sign-out.
+  const key = `${get(credentials)?.url ?? ""}\n${name}`;
+  if (resolvedArtistViews.has(key)) return resolvedArtistViews.get(key);
   const promise = lookupArtistView(name);
-  resolvedArtistViews.set(name, promise);
+  resolvedArtistViews.set(key, promise);
   return promise;
 }
 

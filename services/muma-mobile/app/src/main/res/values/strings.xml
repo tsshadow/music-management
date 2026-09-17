@@ -194,4 +194,10 @@
     <string name="car_mode.title">Car mode</string>
     <string name="car_mode.notification_text">Open the driving screen</string>
     <string name="car_mode.channel_name">Car mode</string>
+
+    <!-- The audio-output label on the web player screen (MumaSystemPlugin.outputRoute). A
+         Bluetooth or USB device carries its own product name; these two are for the outputs
+         that have none. -->
+    <string name="audio_output.wired">Wired headphones</string>
+    <string name="audio_output.speaker">Phone speaker</string>
 </resources>

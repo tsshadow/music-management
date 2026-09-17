@@ -13,6 +13,7 @@ import {
   syncMode,
 } from "../../src/lib/store.js";
 import { notify, dismissAll } from "../../src/lib/notifications.js";
+import { platform } from "../../src/lib/platform/index.js";
 
 const FIRST = {
   id: "song-1",
@@ -237,6 +238,21 @@ describe("Player", () => {
 
       expect(screen.queryByTestId("now-playing")).toBeNull();
       expect(get(nowPlayingOpen)).toBe(false);
+    });
+
+    // Increment H: the output label is native only. A browser tab neither shows it nor asks
+    // the platform about it -- the native half is in playerNativeMode.test.js.
+    it("shows no audio-output label in a browser and never subscribes to route changes", async () => {
+      const subscribe = vi.spyOn(platform.system, "onOutputRouteChanged");
+      const read = vi.spyOn(platform.system, "outputRoute");
+      isMobile.set(true);
+      renderPlayer();
+      await fireEvent.click(screen.getByText("Raise Your Fist"));
+
+      expect(screen.getByTestId("now-playing")).toBeTruthy();
+      expect(screen.queryByTestId("now-playing-output")).toBeNull();
+      expect(subscribe).not.toHaveBeenCalled();
+      expect(read).not.toHaveBeenCalled();
     });
   });
 

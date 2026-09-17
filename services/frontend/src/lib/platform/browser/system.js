@@ -196,6 +196,27 @@ const system = {
    * @param {string} _locale
    */
   setAppLocale(_locale) {},
+
+  /**
+   * A browser tab does not know where its audio goes -- there is no `AudioContext.sinkId` worth
+   * naming for an `<audio>` element -- and `null` is what hides the label on the player screen.
+   *
+   * @returns {Promise<null>}
+   */
+  async outputRoute() {
+    return null;
+  },
+
+  /**
+   * @param {function(import('../index.js').OutputRoute): void} _handler
+   * @returns {function(): void} Unsubscribes. Never fires here.
+   */
+  onOutputRouteChanged(_handler) {
+    return () => {};
+  },
+
+  /** A browser has no output switcher to open; the label that would open it is not shown either. */
+  async openOutputPicker() {},
 };
 
 export default system;

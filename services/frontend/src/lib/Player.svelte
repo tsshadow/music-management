@@ -91,6 +91,29 @@
     fetchGenreTints().then((t) => (genreTints = t));
   });
 
+  // The output the phone plays through, for the label on the full-screen player (increment H,
+  // technical.md). Native only: a browser answers null and never fires the event, and null is
+  // what hides the label. Read once on mount rather than waited for, since the event only
+  // reaches a subscriber that was already listening when the headset connected; then kept
+  // current by the subscription until this component goes away.
+  let outputRoute = $state(null);
+  onMount(() => {
+    if (!platform.system.isNative) return;
+    platform.system.outputRoute().then((route) => (outputRoute = route));
+    return platform.system.onOutputRouteChanged((route) => (outputRoute = route));
+  });
+
+  /**
+   * A rejection here means neither the system output switcher nor the Bluetooth settings screen
+   * exists on this build -- nothing the player can do about it, so it is logged rather than
+   * surfaced, and never left as an unhandled rejection from a click handler.
+   */
+  function openOutputPicker() {
+    platform.system
+      .openOutputPicker()
+      .catch((error) => console.warn('Could not open the output picker', error));
+  }
+
   // The current track's lyrics, or an empty array once LMS has answered and
   // found none -- most tracks. Computed here rather than inside `NowPlaying`
   // (or a second copy on the desktop panel below) for the same reason
@@ -1779,6 +1802,7 @@
       {artistUrl}
       {tint}
       {equalizerSupported}
+      {outputRoute}
       {isSetMode}
       {lyricsLines}
       onclose={closeNowPlaying}
@@ -1793,6 +1817,7 @@
       onskip={skip}
       ontoggleEqualizer={() => (showEqualizer = !showEqualizer)}
       {ontoggleQueue}
+      onopenOutputPicker={openOutputPicker}
       {onnavigate}
     />
   {:else}

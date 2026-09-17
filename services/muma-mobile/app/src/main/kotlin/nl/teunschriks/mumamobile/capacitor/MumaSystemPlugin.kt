@@ -11,6 +11,7 @@ import android.Manifest
 import android.app.Activity
 import android.app.NotificationManager
 import android.bluetooth.BluetoothManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -68,6 +69,9 @@ import timber.log.Timber
  * | `setKeepScreenOn({showWhenLocked, turnScreenOn})` | [setKeepScreenOn] |
  * | `getSettings()` | a snapshot of the device-settings tab's fields, see [getSettings] |
  * | `setSetting({key, value})` | [DEVICE_SETTING_WHITELIST], see [setSetting] |
+ * | `outputRoute()` | `outputRoute()` → `{name, type}`, see [outputRoute] |
+ * | `onOutputRouteChanged(fn)` | listener on the `outputRouteChanged` event, fed by an [OutputRouteMonitor] |
+ * | `openOutputPicker()` | `openOutputPicker()`, the system output switcher, see [openOutputPicker] |
  *
  * ### The back protocol
  *
@@ -96,13 +100,26 @@ class MumaSystemPlugin :
     /** Set by [CapacitorActivity] so a claim can cancel the pending finish. */
     var onBackClaimed: ((Long) -> Unit)? = null
 
+    /**
+     * Started in [load] rather than lazily on the first `onOutputRouteChanged` subscription: the
+     * web UI subscribes from a component's mount, and Capacitor has no hook for "a listener was
+     * added", so the only place the registration can be paired with a teardown is the plugin's
+     * own lifetime.
+     */
+    private var outputRoutes: OutputRouteMonitor? = null
+
     override fun load() {
         instance = this
+        outputRoutes = safeContext?.let { context ->
+            OutputRouteMonitor(context) { route -> notifyListeners(EVENT_OUTPUT_ROUTE_CHANGED, route.asJs()) }
+        }?.also { it.start() }
     }
 
     override fun handleOnDestroy() {
         if (instance === this) instance = null
         onBackClaimed = null
+        outputRoutes?.stop()
+        outputRoutes = null
     }
 
     @PluginMethod
@@ -122,7 +139,7 @@ class MumaSystemPlugin :
      */
     @PluginMethod
     fun appVersion(call: PluginCall) {
-        val version = safeContext()?.let { Util.getVersionName(it) } ?: ""
+        val version = safeContext?.let { Util.getVersionName(it) } ?: ""
         call.resolve(
             JSObject()
                 .put("version", version)
@@ -186,12 +203,7 @@ class MumaSystemPlugin :
             call.reject("openUrl needs a url")
             return
         }
-        // The same guard as `setKeepScreenOn`: `activity` throws on an unattached bridge.
-        val activity = try {
-            activity
-        } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
-            null
-        }
+        val activity = runningActivity
         if (activity == null) {
             call.reject("no activity to open a url from")
             return
@@ -222,7 +234,7 @@ class MumaSystemPlugin :
      */
     @PluginMethod
     fun releaseNotes(call: PluginCall) {
-        val text = safeContext()?.let {
+        val text = safeContext?.let {
             try {
                 it.assets.open(CHANGELOG_ASSET).bufferedReader().use { reader -> reader.readText() }
             } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
@@ -234,15 +246,29 @@ class MumaSystemPlugin :
 
     /**
      * `context`, not `activity`: [appVersion] and [releaseNotes] only need a `PackageManager`/
-     * `AssetManager`, and unlike `activity` (see `setKeepScreenOn`'s comment on the same
-     * distinction) `context` throws rather than answers null when the bridge is not attached --
-     * true for a bare-constructed plugin in a test, never in production.
+     * `AssetManager`, and unlike `activity` (see [runningActivity]) `context` throws rather than
+     * answers null when the bridge is not attached -- true for a bare-constructed plugin in a
+     * test, never in production.
      */
-    private fun safeContext() = try {
-        context
-    } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
-        null
-    }
+    private val safeContext: Context?
+        get() = try {
+            context
+        } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
+            null
+        }
+
+    /**
+     * `Plugin.getActivity()` reads `bridge.getActivity()` with no null check of its own, so an
+     * unattached bridge throws rather than answering null -- true only outside a running app (a
+     * bare-constructed plugin in a test), but caught here so every "no activity" reject in this
+     * class is reachable at all rather than only ever NPE-ing.
+     */
+    private val runningActivity: Activity?
+        get() = try {
+            activity
+        } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
+            null
+        }
 
     /** One client for the update check; the app's Subsonic client is bound to the server, not the hoster. */
     private val updateClient by lazy { OkHttpClient() }
@@ -376,25 +402,16 @@ class MumaSystemPlugin :
      */
     @PluginMethod
     fun setKeepScreenOn(call: PluginCall) {
-        // `Plugin.getActivity()` reads `bridge.getActivity()` with no null check of its own, so an
-        // unattached bridge throws rather than answering null -- true only outside a running app
-        // (a bare-constructed plugin in a test), but caught here so this branch is reachable at
-        // all rather than only ever NPE-ing where the other "no activity" rejects in this class
-        // never get exercised either.
-        val runningActivity = try {
-            activity
-        } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
-            null
-        }
-        if (runningActivity == null) {
+        val running = runningActivity
+        if (running == null) {
             call.reject("no activity")
             return
         }
         val showWhenLocked = call.getBoolean("showWhenLocked") ?: false
         val turnScreenOn = call.getBoolean("turnScreenOn") ?: false
-        runningActivity.runOnUiThread {
-            runningActivity.setShowWhenLocked(showWhenLocked)
-            runningActivity.setTurnScreenOn(turnScreenOn)
+        running.runOnUiThread {
+            running.setShowWhenLocked(showWhenLocked)
+            running.setTurnScreenOn(turnScreenOn)
         }
         call.resolve()
     }
@@ -553,6 +570,46 @@ class MumaSystemPlugin :
     }
 
     /**
+     * Which output media plays through right now, for the label on the player screen:
+     * `{name, type}`, with `type` one of [OutputRouteType]'s wire words. The route is computed in
+     * [currentOutputRoute] and the choice explained at [outputRouteOf] -- in short, the
+     * *available* outputs are listed and the one Android would pick is named, which for a phone
+     * is the same thing. Never rejects: a phone with no listed devices is answered with the
+     * speaker. The one answer that is not a route is an empty object, for a plugin with no
+     * bridge attached yet; the web side reads that as "nothing to show", the same as a browser.
+     */
+    @PluginMethod
+    fun outputRoute(call: PluginCall) {
+        val context = safeContext
+        if (context == null) {
+            call.resolve(JSObject())
+            return
+        }
+        call.resolve(currentOutputRoute(context).asJs())
+    }
+
+    /**
+     * Opens the system output switcher -- the same panel Spotify's and YouTube Music's own
+     * output buttons open -- or, on a build without one, the Bluetooth settings screen; see
+     * [outputPickerIntents]. Resolves as soon as one of them started, since there is no result
+     * to wait for: the switch itself arrives as an `outputRouteChanged` event. Rejects only when
+     * neither intent resolves, so the web can say so instead of nothing happening. Started
+     * from this thread rather than `runOnUiThread` on purpose: `ActivityNotFoundException` has
+     * to be caught *here* to try the fallback, and a post to the main looper would throw it
+     * there instead.
+     */
+    @PluginMethod
+    fun openOutputPicker(call: PluginCall) {
+        val activity = runningActivity
+        if (activity == null) {
+            call.reject("no activity to open the output picker from")
+            return
+        }
+        val started = startFirstResolvable(outputPickerIntents(activity.packageName)) { activity.startActivity(it) }
+        if (started) call.resolve() else call.reject("nothing on this device opens an output picker")
+    }
+
+    /**
      * Opens the system's directory picker (`ACTION_OPEN_DOCUMENT_TREE`) for a custom cache
      * location. The result comes back through [onCacheLocationPicked]; this only has to start the
      * intent.
@@ -632,24 +689,11 @@ class MumaSystemPlugin :
         }
     }
 
-    /** `-1` is the on-disk sentinel for "no limit"; both preferences answer [Int.MAX_VALUE] for it. */
-    private fun sentinelToUnlimited(value: Int): Int = if (value == Int.MAX_VALUE) -1 else value
-
-    /**
-     * `PluginCall.getArray` hands back a `JSArray` (a `org.json.JSONArray`), not a `Set<String>`;
-     * this is the one conversion [setSetting] needs for [DeviceSettingType.STRING_SET]. Anything
-     * that is not a string is dropped rather than failing the whole call -- the bridge serialises a
-     * JS array of strings faithfully, so a non-string entry would mean a caller bug, not a user
-     * mistake worth rejecting the write for.
-     */
-    private fun jsArrayToStringSet(array: JSArray): Set<String> = buildSet {
-        for (i in 0 until array.length()) (array.opt(i) as? String)?.let { add(it) }
-    }
-
     companion object {
         const val EVENT_BACK = "back"
         const val EVENT_DEEP_LINK = "deepLink"
         const val EVENT_CAR_CONNECTED = "carConnected"
+        const val EVENT_OUTPUT_ROUTE_CHANGED = "outputRouteChanged"
 
         /** Same flags `SettingsFragment`'s `RW_FLAG` grants the legacy cache-location picker. */
         const val CACHE_LOCATION_RW_FLAG = Intent.FLAG_GRANT_READ_URI_PERMISSION or
@@ -676,4 +720,22 @@ class MumaSystemPlugin :
             }
         }
     }
+}
+
+// The two pure helpers below live outside the class on purpose: every `platform.system` member
+// has to be a method of the plugin, and detekt's per-class function ceiling (`TooManyFunctions`,
+// 30) is what the plugin would otherwise run into first.
+
+/** `-1` is the on-disk sentinel for "no limit"; both preferences answer [Int.MAX_VALUE] for it. */
+private fun sentinelToUnlimited(value: Int): Int = if (value == Int.MAX_VALUE) -1 else value
+
+/**
+ * `PluginCall.getArray` hands back a `JSArray` (a `org.json.JSONArray`), not a `Set<String>`;
+ * this is the one conversion [MumaSystemPlugin.setSetting] needs for
+ * [DeviceSettingType.STRING_SET]. Anything that is not a string is dropped rather than failing
+ * the whole call -- the bridge serialises a JS array of strings faithfully, so a non-string entry
+ * would mean a caller bug, not a user mistake worth rejecting the write for.
+ */
+private fun jsArrayToStringSet(array: JSArray): Set<String> = buildSet {
+    for (i in 0 until array.length()) (array.opt(i) as? String)?.let { add(it) }
 }

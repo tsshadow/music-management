@@ -26,9 +26,12 @@ import { ADMIN_STORAGE_STATE } from "../../playwright.config.js";
 
 test.use({ storageState: ADMIN_STORAGE_STATE });
 
-// A Monday in summer, before noon: memories and greetings are date and time
-// bound. Change it and every reference needs refreshing.
-const FIXED_TIME = new Date("2026-06-15T10:00:00");
+// A Monday in summer, just past noon in the browser's own timezone
+// (Europe/Amsterdam, playwright.config.js), so the greeting is the afternoon
+// one: memories and greetings are date and time bound. The offset is spelled
+// out because a bare timestamp is read in the runner's timezone, which is UTC.
+// Change it and every reference needs refreshing.
+const FIXED_TIME = new Date("2026-06-15T12:00:00+02:00");
 
 // Routes from src/lib/router.js worth a picture. Deliberately not every view:
 // the management tabs that show live data (overview's version, health's

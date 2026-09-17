@@ -63,7 +63,7 @@ the fixture set does not promise and are left out for the same reason. The stack
 fixture track, so most lists render their empty or near-empty state; the layout is what is checked,
 not the content.
 
-The clock is pinned to 2026-06-15 10:00 inside the browser so date-driven views (memories, the
+The clock is pinned to 2026-06-15 12:00 Amsterdam time inside the browser so date-driven views (memories, the
 greeting) render the same day every run. The browser locale is `nl-NL` and the
 timezone Europe/Amsterdam. Animations are disabled and the text caret hidden; a difference of up to
 0,5 % of the pixels is tolerated on top of Playwright's per-pixel colour threshold.

@@ -67,8 +67,10 @@ dd45bf5b5d0df701 x1  # detected-ssh-password scripts/deploy.sh
 
 # --- dynamic-proxy-host --- [r:5b197157]
 # The proxy target is the configured LMS or Subsonic server, read from this
-# deployment's own settings rather than from a request.
-215b7d436a195271 x3  # dynamic-proxy-host services/music-management-server/nginx/reverse-proxy.conf
+# deployment's own settings rather than from a request. Five locations since
+# /muma/api/ started going to music-manager directly: the variable is what
+# makes nginx re-resolve the container name (see the resolver comment there).
+215b7d436a195271 x5  # dynamic-proxy-host services/music-management-server/nginx/reverse-proxy.conf
 
 # --- dynamic-urllib-use-detected --- [r:72dea572]
 # The ntfy notify call in the crash-triage listener builds its URL from
@@ -146,7 +148,7 @@ fae11ff959a398dc x1  # github-actions-mutable-action-tag services/music-manageme
 
 # --- missing-internal --- [r:fa952df5]
 # Android exported components again -- the same set as exported_activity.
-1fd8fafb6bb958f7 x3  # missing-internal services/music-management-server/nginx/reverse-proxy.conf
+1fd8fafb6bb958f7 x5  # missing-internal services/music-management-server/nginx/reverse-proxy.conf
 
 # --- missing-user --- [r:d27d6a3e]
 # Images that still run as root. Changing that means getting volume

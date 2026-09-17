@@ -1,7 +1,7 @@
 <script>
   import { t } from './i18n/index.js';
   import TrackList from './TrackList.svelte';
-  import { listOf, subsonicJson } from './subsonic.js';
+  import { loadVersions as fetchVersions } from './versions.js';
 
   /**
    * One song and every file of it.
@@ -24,13 +24,9 @@
   //: holds the latest.
   let loadToken = 0;
 
-  //: One page of versions. A work holding more than this is not something this library
-  //: has (the largest is 16), but a silent truncation is invisible afterwards, so the
-  //: loader follows the server's moreResults instead of assuming one page is all of it.
-  const PAGE_SIZE = 100;
-
-  //: Where following those pages stops regardless. A work this large is a grouping fault,
-  //: not a song, and fetching forever would hang the page rather than show the fault.
+  //: Where following the server's pages stops regardless. A work holding more than this is
+  //: not something this library has (the largest is 16) -- it is a grouping fault, not a
+  //: song -- and fetching forever would hang the page rather than show the fault.
   const MAX_VERSIONS = 500;
 
   const canonical = $derived(
@@ -44,7 +40,13 @@
   });
 
   /**
-   * Loads every version of one song.
+   * Loads every version of one song and writes it into this page's own state.
+   *
+   * A thin wrapper around the shared `loadVersions` in `versions.js` -- increment F reused
+   * that loop for the player's "other versions" section, so the paging and the "Subsonic's
+   * failures are HTTP 200" check live there now. This page keeps only what is its own
+   * concern: the loading/failure flags and the staleness guard against a slow answer landing
+   * under the next song's title after the back button already moved on.
    *
    * @param {string|number} id - The work id.
    */
@@ -52,30 +54,10 @@
     const token = ++loadToken;
     isLoading = true;
     failed = false;
-    const collected = [];
-    let offset = 0;
     try {
-      while (collected.length < MAX_VERSIONS) {
-        const data = await subsonicJson('getSpotifyTracks', {
-          workId: id,
-          count: PAGE_SIZE,
-          offset
-        });
-        // Subsonic answers its own failures with HTTP 200 and an error in the body, so the
-        // status in the body is the only thing that says this worked.
-        const payload = data?.['subsonic-response'];
-        if (payload?.status !== 'ok') {
-          throw new Error(payload?.error?.message || 'failed');
-        }
-        const result = listOf(data, 'tracks.track');
-        collected.push(...result);
-
-        const more = payload.tracks?.moreResults;
-        if (!(more === true || more === 'true') || result.length === 0) break;
-        offset = Number(payload.tracks?.nextOffset ?? offset + PAGE_SIZE);
-      }
+      const result = await fetchVersions(id, { max: MAX_VERSIONS });
       if (token !== loadToken) return;
-      versions = collected;
+      versions = result;
     } catch (e) {
       if (token !== loadToken) return;
       console.error('Failed to load song versions:', e);

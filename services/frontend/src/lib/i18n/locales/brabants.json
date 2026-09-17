@@ -159,9 +159,12 @@
   "nowPlaying": {
     "close": "Dichtdoen",
     "more": "Meer",
+    "moreFrom": "Meer van {name}",
+    "nextUp": "Hierna",
     "pause": "Pauze",
     "play": "Afspele",
-    "playingFromLabel": "Speult uit"
+    "playingFromLabel": "Speult uit",
+    "shuffleOn": "Shuffle stao aan — 't volgende nummerke is een verrassing"
   },
   "player": {
     "next": "Volgende",

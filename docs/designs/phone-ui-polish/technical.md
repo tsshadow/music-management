@@ -169,13 +169,51 @@ No new endpoints. Existing calls used, per increment:
 
 ### F — continuation sections
 
-- `NowPlaying.svelte` gets a `sections` block below the bottom row: `NextUp` (from `playlist` and the
-  current index by *position*, respecting `shuffleMode` order when `player.ownsQueue` exposes it,
-  otherwise the linear order), `MoreFromArtist` (lazy fetch on open, keyed by `track.artistId`,
-  stale-guarded), `OtherVersions` (lazy, only when `track.workId`).
-- `handleTouchEnd` closes only when the scroll container's `scrollTop === 0`.
-- `addAfterCurrent()` uses the current queue position (from `playerState`/native snapshot) instead of
-  `findIndex` by id.
+- `Player.svelte` derives `queueIndex`, the one number the whole increment is built on: native
+  (`nativePlayback`) reads `nativeQueue.currentIndex()` (new getter on `createNativeQueue`,
+  returning its private `pushedIndex`); browser is `$playlist.findIndex(t => String(t.id) ===
+  String($currentTrack?.id))`, the same lookup `playNext`/`playPrev` already did. `pushedIndex` is
+  kept current in three places: `adopt()` (unchanged), a successful `push()` (unchanged), and the
+  guard branch that used to return early with nothing sent because the service already reached
+  that position by itself (a `command`, or its own advance) -- that branch now sets `pushedIndex =
+  index` before returning, or a self-inflicted move would leave it pointing at the position of the
+  *previous* edit forever. Because `nativeQueue` is a plain variable and not a store, `queueIndex`'s
+  `$derived.by` also reads a `nativeQueuePositionTick` `$state` counter that `Player.svelte` bumps
+  in a `.then()` after every `adopt()`/`sync()` settles, purely to give the derived a reason to look
+  at `currentIndex()` again.
+- `queueIndex` is passed to `<NowPlaying queueIndex>` as a prop (default `-1`).
+- `NowPlaying.svelte` renders three sections in a `flex flex-col gap-6 mt-8` block after the bottom
+  icon row, each independently hidden with nothing to show:
+  - **Next up** (`nowPlaying.nextUp`): `shuffleMode` true → empty list, and the section shows one
+    line (`nowPlaying.shuffleOn`) instead of rows. Otherwise the three entries after `queueIndex` in
+    `$playlist` *by position* (`list[queueIndex + step]`), not by id -- a duplicate id elsewhere in
+    the queue must not make this land on the wrong copy. Wraps to the start of the queue only when
+    `repeatMode === 'all'`; otherwise the preview simply runs out short. Hidden when the list is
+    empty and shuffle is off.
+  - **More from artist** (`nowPlaying.moreFrom`, `{name}` = the first artist's name, matching
+    `artistId`): fetched only while `open` and `track.artistId` is set, via
+    `subsonicJson('getSpotifyTracks', {artistId, count: 7})` → `listOf(data, 'tracks.track')`,
+    current track id dropped, capped at 6. Cached per `artistId` (a plain `fetchedArtistId`
+    closure variable, not `$state`) so reopening the player for the same artist does not refetch; a
+    track with no `artistId`, or a different one, clears the cache instead of leaving it to leak
+    under an unrelated track. A "show all" link navigates to `artist:<id>`.
+  - **Other versions** (`track.versions`): only when `track.workId`, via the paging loop pulled out
+    of `SongView.svelte` into new `versions.js`'s `loadVersions(workId, {max = 500})` -- `SongView`
+    keeps its true count (`max` left at the default), this section asks for `{max: 6}` so the
+    request itself stays small. Current track id dropped; hidden when the remainder is empty.
+  - All three use `TrackRowCompact` with its new optional `onplay` prop (`(onplay ??
+    playTrack)(track)` on tap): a "next up" row calls `playTrack(entry)` -- a jump within the
+    playing queue, `$playlist` untouched -- while "more from artist" and "other versions" rows call
+    `startQueue(list, {name, view})` (`queue.js`) first, so tapping either starts a fresh queue of
+    that section's own list before playing the row picked.
+- `addAfterCurrent()` (in `NowPlaying.svelte`, the details sheet's "play next") inserts at
+  `queueIndex + 1` when `queueIndex >= 0`, else appends -- not `findIndex` by the track's id, which
+  used to land the insert next to the *first* copy of a repeated id rather than the one actually
+  playing.
+- The scroll container (`px-6 pb-6 overflow-y-auto`, previously just tall enough for the artwork and
+  transport) is now bound (`bind:this`); `handleTouchEnd`'s swipe-to-close only fires when
+  `scrollContainerEl.scrollTop === 0`, since the continuation sections gave the screen something to
+  scroll through that a downward drag must be allowed to reach.
 
 ### G — rankings
 
@@ -218,7 +256,8 @@ No new endpoints. Existing calls used, per increment:
 6. `recentPlaces.js`: records newest first, dedupes by `view`, caps at 12, isolates by key, and
    survives a throwing `localStorage`.
 7. `queueSource` is set when play-all runs from a genre view and the header shows that name.
-8. `NextUp` lists the three entries after the current *position* with duplicate ids in the queue.
+8. `NowPlaying`'s "next up" preview lists the three entries after `queueIndex` by *position*, correct
+   even with a duplicate id elsewhere in the queue.
 9. `platformPlayer.test.js`: browser `outputRoute()` is `null`; the capacitor adapter forwards it.
 10. Coverage floors in `vite.config.js` hold (82/65/79/81) after every increment.
 

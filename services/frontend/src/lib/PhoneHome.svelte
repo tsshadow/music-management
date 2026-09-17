@@ -158,6 +158,10 @@
       return;
     }
     let stale = false;
+    // A mode switch reruns this; the tiles must pulse again rather than keep
+    // showing the previous mode's "could not load" until the new answer lands.
+    recentlyReleasedState = 'loading';
+    recentlyAddedState = 'loading';
     /** One of the two lists, tagged with whether it actually arrived. */
     function loadRecent(sort) {
       return subsonicJson('getSpotifyTracks', { sort, count: 6, offset: 0, ...duration })

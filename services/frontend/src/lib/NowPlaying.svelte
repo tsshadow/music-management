@@ -7,10 +7,14 @@
   import Artwork from './Artwork.svelte';
   import MetaChips from './MetaChips.svelte';
   import TrackDetailsSheet from './TrackDetailsSheet.svelte';
+  import TrackRowCompact from './TrackRowCompact.svelte';
   import { genreNames } from './genreSegments.js';
   import { playlist, queueSource } from './store.js';
   import { placeTitle, PLACE_PREFIXES } from './recentPlaces.js';
-  import { viewLabel } from './queue.js';
+  import { viewLabel, startQueue } from './queue.js';
+  import { playTrack } from './playTrack.js';
+  import { listOf, subsonicJson } from './subsonic.js';
+  import { loadVersions } from './versions.js';
 
   /**
    * The phone's full-screen "Now Playing" view, opened by a tap on the mini
@@ -38,6 +42,11 @@
     rating = 0,
     shuffleMode = false,
     repeatMode = 'none',
+    // Where `track` sits in `$playlist`, as `Player.svelte` computed it (native queue index
+    // when the platform owns playback, a lookup by id otherwise) -- see technical.md section F.
+    // -1 when there is nothing to point at, same as everywhere else in the app that reads a
+    // queue position.
+    queueIndex = -1,
     transportLocked = false,
     coverUrl = null,
     artistUrl = null,
@@ -111,9 +120,168 @@
     return items;
   });
 
+  /**
+   * The player's own preview of what plays after this track (increment F).
+   *
+   * Shuffle empties it: the service (native) or `Player.svelte`'s own draw (browser) decides
+   * the next track only when it is asked for one, so there is nothing honest to preview and
+   * the section shows a line explaining that instead. Otherwise it is the three entries
+   * *after* `queueIndex` by position, not by searching for the track again -- `$playlist` can
+   * hold the same id twice (an album played back to back with itself, "play next" on a track
+   * already queued later), and a lookup by id would always land on the first copy regardless
+   * of which one is actually playing next. Wrapping to the start of the queue only happens
+   * with `repeatMode === 'all'`; otherwise the preview simply runs out before three.
+   */
+  const nextUp = $derived.by(() => {
+    if (shuffleMode) return [];
+    const list = $playlist;
+    if (queueIndex < 0 || list.length < 2) return [];
+    const preview = [];
+    for (let step = 1; step <= 3; step++) {
+      let index = queueIndex + step;
+      if (index >= list.length) {
+        if (repeatMode !== 'all') break;
+        index %= list.length;
+      }
+      preview.push(list[index]);
+    }
+    return preview;
+  });
+
+  /**
+   * Jumps to a "next up" row within the queue that is already playing, rather than starting a
+   * new one -- passed to `TrackRowCompact` as `onplay` so tapping a preview row does not
+   * replace `$playlist`, only where `currentTrack` points into it.
+   *
+   * @param {object} entry
+   */
+  function playQueueEntry(entry) {
+    playTrack(entry);
+  }
+
+  //: The artist tracks last fetched, and for which artist -- kept across an open/close so
+  //: reopening the player on the same artist (the common case: skipping through their songs)
+  //: does not ask the server again. `null` until the first fetch settles.
+  let artistTracksRaw = $state([]);
+  let fetchedArtistId = null;
+  let artistFetchToken = 0;
+
+  /**
+   * "More from artist" (increment F): fetched only while the sheet is open and only for an
+   * artist this has not already fetched, via the same `getSpotifyTracks` call `SongView.svelte`
+   * uses for a work id, keyed by `artistId` instead. Lazy because it is the one continuation
+   * section with a real network cost, and every other screen with a "more like this" already
+   * defers its fetch the same way.
+   */
+  $effect(() => {
+    const artistId = track?.artistId;
+    if (!open) return; // Closed: leave any cached list alone for a reopen on the same artist.
+    if (!artistId) {
+      // A track (or radio) with no artist id is not "this artist, nothing found yet" -- it is
+      // a different track the cached list must not leak under.
+      if (fetchedArtistId !== null) {
+        fetchedArtistId = null;
+        artistTracksRaw = [];
+      }
+      return;
+    }
+    if (artistId === fetchedArtistId) return;
+    fetchedArtistId = artistId;
+    artistTracksRaw = []; // Clear the previous artist's list rather than showing it under this one while the new fetch is in flight.
+    const requestToken = ++artistFetchToken;
+    subsonicJson('getSpotifyTracks', { artistId, count: 7 })
+      .then((data) => {
+        if (requestToken !== artistFetchToken) return;
+        artistTracksRaw = listOf(data, 'tracks.track');
+      })
+      .catch(() => {
+        if (requestToken !== artistFetchToken) return;
+        artistTracksRaw = [];
+      });
+  });
+
+  // The current track never belongs in its own "more from" list; kept as a derived filter
+  // over the raw fetch (rather than filtering once at fetch time) so a jump to a different
+  // track by the same artist -- a next-up tap, one of these rows itself -- re-excludes
+  // correctly without a second request.
+  const moreFromArtist = $derived(
+    track ? artistTracksRaw.filter((t) => String(t.id) !== String(track.id)).slice(0, 6) : [],
+  );
+
+  // The name the "more from {name}" heading uses. `track.artist` is joined text for a
+  // multi-artist track ("A, B"), but the fetch above is keyed on `artistId`, which names one
+  // of them -- the same "first artist" `Player.svelte`'s own `primaryArtist` picks, so the
+  // heading names the artist the list is actually about rather than everyone on the credit.
+  const artistName = $derived.by(() => {
+    if (!track) return '';
+    if (track.artists?.[0]?.name) return track.artists[0].name;
+    return track.artist ? track.artist.split(', ')[0] : '';
+  });
+
+  /**
+   * Starts a fresh queue of the artist's tracks and plays the one tapped -- unlike a "next up"
+   * row, this is not a jump within the current queue, it replaces it.
+   *
+   * @param {object} entry
+   */
+  function playFromArtist(entry) {
+    startQueue(moreFromArtist, { name: track.artist, view: `artist:${track.artistId}` });
+    playTrack(entry);
+  }
+
+  //: Every version last fetched, for `otherVersions` below. Not cached across artists/works the
+  //: way `artistTracksRaw` is: a song's version list is small and cheap (`max: 6`, one request),
+  //: unlike an artist's full catalogue.
+  let versionsList = $state([]);
+  let versionsFetchToken = 0;
+
+  /**
+   * "Other versions" (increment F): the same `loadVersions` `SongView.svelte`'s full page uses,
+   * capped at a handful rather than the true count -- this is a taste, not the song page.
+   * Lazy for the same reason as the artist section: only worth asking for while the sheet the
+   * listener can see it in is open.
+   */
+  $effect(() => {
+    const workId = track?.workId;
+    if (!open || !workId) {
+      versionsList = [];
+      return;
+    }
+    const requestToken = ++versionsFetchToken;
+    loadVersions(workId, { max: 6 })
+      .then((result) => {
+        if (requestToken !== versionsFetchToken) return;
+        versionsList = result;
+      })
+      .catch(() => {
+        if (requestToken !== versionsFetchToken) return;
+        versionsList = [];
+      });
+  });
+
+  // The current version never belongs among its own alternatives.
+  const otherVersions = $derived(
+    track ? versionsList.filter((v) => String(v.id) !== String(track.id)) : [],
+  );
+
+  /**
+   * Starts a queue of this song's versions and plays the one tapped.
+   *
+   * @param {object} entry
+   */
+  function playVersion(entry) {
+    startQueue(versionsList, { name: track.title, view: `song:${track.workId}` });
+    playTrack(entry);
+  }
+
   let touchStartY = $state(null);
   let showLyricsSheet = $state(false);
   let showDetailsSheet = $state(false);
+  // The scroll container the continuation sections (increment F) made this screen actually
+  // scroll -- bound so `handleTouchEnd` can tell a swipe-to-close drag from the start of an
+  // ordinary scroll through those sections. `$state` (not a plain `let`) because `bind:this`
+  // writes to it after the first render, same as `Player.svelte`'s `audioElement`.
+  let scrollContainerEl = $state(null);
 
   /**
    * Every navigation from this screen closes it first -- the chevron's own
@@ -132,10 +300,11 @@
   }
 
   /**
-   * A firm downward drag on the cover closes the view, the same gesture
-   * Spotify uses. 80px is well past an accidental brush or the start of a
-   * vertical scroll -- there is nothing to scroll here, but the threshold
-   * still keeps a short, undecided touch from closing the screen.
+   * A firm downward drag on the cover closes the view, the same gesture Spotify uses. 80px is
+   * well past an accidental brush or the start of a vertical scroll. Since the continuation
+   * sections (increment F) made the screen scroll, the gesture only fires when the container
+   * is already scrolled to the top -- otherwise a drag meant to scroll back up to the artwork
+   * would close the screen instead of scrolling.
    *
    * @param {TouchEvent} e
    */
@@ -144,21 +313,21 @@
     const endY = e.changedTouches?.[0]?.clientY ?? touchStartY;
     const delta = endY - touchStartY;
     touchStartY = null;
-    if (delta > 80) onclose?.();
+    if (delta > 80 && (scrollContainerEl?.scrollTop ?? 0) === 0) onclose?.();
   }
 
   /**
-   * The queue actions the details sheet offers. `track` here always is the
-   * playing track, so unlike `TrackList`'s own copy of this logic there is
-   * no id to look up first.
+   * The queue actions the details sheet offers. Inserted by position (`queueIndex`, as
+   * `Player.svelte` computed it) rather than by searching `$playlist` for the track's id: the
+   * same id can appear more than once in the queue, and a search would always land on the
+   * first copy regardless of which one is actually playing.
    */
   function addAfterCurrent() {
     if (!track) return;
     playlist.update((p) => {
       const newP = [...p];
-      const currentIndex = newP.findIndex((t) => String(t.id) === String(track.id));
-      if (currentIndex === -1) newP.push({ ...track });
-      else newP.splice(currentIndex + 1, 0, { ...track });
+      const insertAt = queueIndex >= 0 ? queueIndex + 1 : newP.length;
+      newP.splice(insertAt, 0, { ...track });
       return newP;
     });
   }
@@ -225,7 +394,7 @@
       </button>
     </header>
 
-    <div class="flex-1 flex flex-col px-6 pb-6 min-h-0 overflow-y-auto">
+    <div class="flex-1 flex flex-col px-6 pb-6 min-h-0 overflow-y-auto" bind:this={scrollContainerEl}>
       <!-- `role="presentation"`: the swipe-to-close gesture is a bonus on top
            of the chevron button above, which is the one thing assistive tech
            and keyboard users need -- this element carries no interactive
@@ -447,6 +616,57 @@
             <path d="M15 15H3v-1.5h12V15zm0-4.5H3V9h12v1.5zm0-4.5H3V4.5h12V6zm7 12l-4.5-4.5L13 18h9z"></path>
           </svg>
         </button>
+      </div>
+
+      <!-- The continuation sections (increment F): what plays after this, more from the same
+           artist, and this song's other files. Each is independently hidden when it has
+           nothing to show, so a track with no `workId` and no queue after it renders none of
+           this at all rather than three empty headings. -->
+      <div class="flex flex-col gap-6 mt-8">
+        {#if shuffleMode || nextUp.length > 0}
+          <section>
+            <h3 class="text-base font-bold mb-3">{$t('nowPlaying.nextUp')}</h3>
+            {#if shuffleMode}
+              <p class="text-sm text-[#b3b3b3]">{$t('nowPlaying.shuffleOn')}</p>
+            {:else}
+              <div class="flex flex-col gap-1">
+                {#each nextUp as entry, i (i)}
+                  <TrackRowCompact track={entry} {onnavigate} onplay={() => playQueueEntry(entry)} />
+                {/each}
+              </div>
+            {/if}
+          </section>
+        {/if}
+
+        {#if moreFromArtist.length > 0}
+          <section>
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-base font-bold">{$t('nowPlaying.moreFrom', { name: artistName })}</h3>
+              <button
+                class="bg-transparent border-none p-0 text-sm text-[#b3b3b3] hover:text-white hover:underline cursor-pointer"
+                onclick={() => navigate(`artist:${track.artistId}`)}
+              >
+                {$t('dashboard.showAll')}
+              </button>
+            </div>
+            <div class="flex flex-col gap-1">
+              {#each moreFromArtist as entry (entry.id)}
+                <TrackRowCompact track={entry} {onnavigate} onplay={() => playFromArtist(entry)} />
+              {/each}
+            </div>
+          </section>
+        {/if}
+
+        {#if otherVersions.length > 0}
+          <section>
+            <h3 class="text-base font-bold mb-3">{$t('track.versions')}</h3>
+            <div class="flex flex-col gap-1">
+              {#each otherVersions as entry (entry.id)}
+                <TrackRowCompact track={entry} {onnavigate} onplay={() => playVersion(entry)} />
+              {/each}
+            </div>
+          </section>
+        {/if}
       </div>
     </div>
   </div>

@@ -82,9 +82,23 @@ namespace lms::core::http
         std::vector<Wt::Http::Message::Header> headers;
     };
 
-    struct ClientPOSTRequestParameters final : public ClientRequestParameters
+    // POST, PUT and DELETE all travel as a Wt message (headers plus body); only the
+    // verb on the wire differs, and the verb is the type of the parameters.
+    struct ClientRequestWithBodyParameters : public ClientRequestParameters
     {
         Wt::Http::Message message;
+    };
+
+    struct ClientPOSTRequestParameters final : public ClientRequestWithBodyParameters
+    {
+    };
+
+    struct ClientPUTRequestParameters final : public ClientRequestWithBodyParameters
+    {
+    };
+
+    struct ClientDELETERequestParameters final : public ClientRequestWithBodyParameters
+    {
     };
 
 } // namespace lms::core::http

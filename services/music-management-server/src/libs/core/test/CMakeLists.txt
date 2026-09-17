@@ -3,6 +3,7 @@ include(GoogleTest)
 add_executable(test-core
 	ConcurrencyGate.cpp
 	EnumSet.cpp
+	HttpClient.cpp
 	JobScheduler.cpp
 	LiteralString.cpp
 	PartialDateTime.cpp

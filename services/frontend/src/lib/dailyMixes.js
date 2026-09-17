@@ -5,6 +5,7 @@
  */
 import { DAILY_MIXES, DAILY_MIX_ARTIST, DAILY_MIX_BANDS, fetchFeed, listFeeds } from "./feeds.js";
 import { apiBase } from "./mumaApi.js";
+import { gatedFetch } from "./mumaGate.js";
 import { tintFor } from "./genreTints.js";
 
 /** soft green, mid brand blue, hard red -- the fixed ramp for when no genre tint answers. */
@@ -38,16 +39,22 @@ export function hashColor(name) {
 /**
  * Whether an image actually loads, rather than 404ing -- an artist may have no photo at all.
  *
+ * Asked with `fetch` rather than an `Image`: the artist-image endpoint sits behind the same
+ * LMS proxy gate as every other MuMa call, and a refusal there is a 503 an `Image` can only
+ * report as "failed to load". Going through `gatedFetch` takes a slot like the rest, retries
+ * a refusal, and holds nothing open when the answer never comes. The browser keeps the body
+ * in its HTTP cache, so the `<img>` drawn afterwards from the same URL does not fetch twice.
+ *
  * @param {string} url
  * @returns {Promise<boolean>}
  */
-export function imageLoads(url) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve(true);
-    img.onerror = () => resolve(false);
-    img.src = url;
-  });
+export async function imageLoads(url) {
+  try {
+    const response = await gatedFetch(url);
+    return Boolean(response?.ok);
+  } catch {
+    return false;
+  }
 }
 
 function genreNames(track) {

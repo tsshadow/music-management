@@ -65,11 +65,11 @@ dd45bf5b5d0df701 x1  # detected-ssh-password scripts/deploy.sh
 3b0566b82aa1e739 x2  # detected-ssh-password services/muma-mobile/scripts/deploy.sh
 80650e10e4eea55c x1  # detected-ssh-password services/music-management-server/scripts/deploy-stack.sh
 
-# --- dynamic-proxy-host --- [r:5b197157]
+# --- dynamic-proxy-host --- [r:2da0bb74]
 # The proxy target is the configured LMS or Subsonic server, read from this
-# deployment's own settings rather than from a request. Five locations since
-# /muma/api/ started going to music-manager directly: the variable is what
-# makes nginx re-resolve the container name (see the resolver comment there).
+# deployment's own settings rather than from a request. In
+# reverse-proxy.conf the variable is what makes nginx re-resolve the
+# container name on every connection (see the resolver comment there).
 215b7d436a195271 x5  # dynamic-proxy-host services/music-management-server/nginx/reverse-proxy.conf
 
 # --- dynamic-urllib-use-detected --- [r:72dea572]

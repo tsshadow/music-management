@@ -149,7 +149,9 @@ REASONS = {
     ),
     'dynamic-proxy-host': (
         'The proxy target is the configured LMS or Subsonic server, read from '
-        'this deployment\'s own settings rather than from a request.'
+        'this deployment\'s own settings rather than from a request. In '
+        'reverse-proxy.conf the variable is what makes nginx re-resolve the '
+        'container name on every connection (see the resolver comment there).'
     ),
     'missing-internal': (
         'Android exported components again -- the same set as exported_activity.'

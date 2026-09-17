@@ -95,6 +95,17 @@ namespace lms::api::muma
             };
         }
 
+        // A refusal is over in milliseconds: the calls holding the gate are round trips.
+        // Say when to come back rather than leave the client guessing. Only these local
+        // refusals carry the header -- an upstream 503 is forwarded verbatim and says
+        // nothing about whether a retry is safe.
+        void refuseAsBusy(Wt::Http::Response& response, std::string_view body)
+        {
+            response.addHeader("Retry-After", "1");
+            response.setStatus(503);
+            response.out() << body;
+        }
+
         // At most half the HTTP thread pool may be waiting on MuMa, so the other half is always
         // there to serve everything else. Mirrors getThreadCount() in main.cpp, which is what sets
         // the pool size Wt actually runs with.
@@ -556,8 +567,7 @@ namespace lms::api::muma
                 if (!mumaCallLease)
                 {
                     LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: artist image refused, " << _mumaCallGate.getInUseCount() << " of " << _mumaCallGate.getMaxConcurrent() << " calls to MuMa already in flight");
-                    response.setStatus(503);
-                    response.out() << "Too many requests to MuMa in flight";
+                    refuseAsBusy(response, "Too many requests to MuMa in flight");
                     return;
                 }
 
@@ -715,8 +725,7 @@ namespace lms::api::muma
             if (!mumaCallLease)
             {
                 LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: track refresh refused, " << _mumaCallGate.getInUseCount() << " of " << _mumaCallGate.getMaxConcurrent() << " calls to MuMa already in flight");
-                response.setStatus(503);
-                response.out() << "{\"status\":\"error\", \"detail\": \"Too many requests to MuMa in flight\"}";
+                refuseAsBusy(response, "{\"status\":\"error\", \"detail\": \"Too many requests to MuMa in flight\"}");
                 return;
             }
 
@@ -818,8 +827,7 @@ namespace lms::api::muma
                     if (!mumaCallLease)
                     {
                         LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: settings read refused, " << _mumaCallGate.getInUseCount() << " of " << _mumaCallGate.getMaxConcurrent() << " calls to MuMa already in flight");
-                        response.setStatus(503);
-                        response.out() << "{\"settings\": null}";
+                        refuseAsBusy(response, "{\"settings\": null}");
                         return;
                     }
 
@@ -869,8 +877,7 @@ namespace lms::api::muma
                     if (!mumaCallLease)
                     {
                         LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: settings write refused, " << _mumaCallGate.getInUseCount() << " of " << _mumaCallGate.getMaxConcurrent() << " calls to MuMa already in flight");
-                        response.setStatus(503);
-                        response.out() << "{\"status\":\"error\"}";
+                        refuseAsBusy(response, "{\"status\":\"error\"}");
                         return;
                     }
 
@@ -903,8 +910,7 @@ namespace lms::api::muma
             if (!mumaCallLease)
             {
                 LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: generic proxy call refused, " << _mumaCallGate.getInUseCount() << " of " << _mumaCallGate.getMaxConcurrent() << " calls to MuMa already in flight");
-                response.setStatus(503);
-                response.out() << "Too many requests to MuMa in flight";
+                refuseAsBusy(response, "Too many requests to MuMa in flight");
                 return;
             }
 

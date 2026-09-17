@@ -7,6 +7,7 @@ import {
   EQ_PRESETS,
   CUSTOM_PRESET,
 } from "./equalizerPresets.js";
+import { gatedFetch } from "./mumaGate.js";
 
 // Helper to persist store to localStorage
 /**
@@ -413,7 +414,7 @@ export async function hydrateMumaUserFromApiKey() {
   const key = get(mumaApiKey);
   if (!key) return;
   try {
-    const res = await fetch(`${get(mumaApiUrl)}/api/auth/verify`, {
+    const res = await gatedFetch(`${get(mumaApiUrl)}/api/auth/verify`, {
       headers: { "X-API-Key": key },
     });
     if (!res.ok && (res.status === 401 || res.status === 403)) {
@@ -467,7 +468,7 @@ const frontendSettingsUrl = (userId) => `${get(mumaApiUrl)}/api/users/${userId}/
  */
 export async function loadFrontendSettings(userId) {
   try {
-    const res = await fetch(frontendSettingsUrl(userId), {
+    const res = await gatedFetch(frontendSettingsUrl(userId), {
       headers: { "X-API-Key": get(mumaApiKey) },
     });
     if (!res.ok) return null;
@@ -492,7 +493,7 @@ export async function saveFrontendSetting(userId, key, value) {
   try {
     const settings = (await loadFrontendSettings(userId)) || {};
     settings[key] = value;
-    await fetch(frontendSettingsUrl(userId), {
+    await gatedFetch(frontendSettingsUrl(userId), {
       method: "POST",
       headers: { "X-API-Key": get(mumaApiKey), "Content-Type": "application/json" },
       body: JSON.stringify({ settings: JSON.stringify(settings) }),

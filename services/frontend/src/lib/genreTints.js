@@ -9,7 +9,7 @@
  * A missing colour is not an error: the card falls back to the brand accent, which is what it
  * used before this existed.
  */
-import { apiBase, getHeaders } from "./mumaApi";
+import { apiBase, gatedFetch, getHeaders } from "./mumaApi";
 import { genreNames } from "./genreSegments.js";
 
 /**
@@ -25,7 +25,7 @@ export async function fetchGenreTints() {
   if (pending) return pending;
 
   pending = (async () => {
-    const response = await fetch(`${apiBase()}/api/library/genres`, { headers: getHeaders() });
+    const response = await gatedFetch(`${apiBase()}/api/library/genres`, { headers: getHeaders() });
     if (!response.ok) throw new Error(`Genre tints unavailable (${response.status})`);
     const rows = await response.json();
     const tints = {};

@@ -108,13 +108,20 @@ describe("loadSetResumePositions / saveSetResumePosition", () => {
   });
 
   it("never stores a position of zero or less", async () => {
-    global.fetch = vi.fn();
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({}) }));
 
     await saveSetResumePosition("work:1", 0);
     await saveSetResumePosition("work:1", -5);
     await saveSetResumePosition("work:1", NaN);
 
-    expect(global.fetch).not.toHaveBeenCalled();
+    // Counted by content rather than by call: signing in above also arms the
+    // store's own debounced account saves (the language, for one), and which
+    // test those land in depends on nothing this test controls.
+    const stored = global.fetch.mock.calls
+      .filter(([, options]) => options?.body)
+      .map(([, options]) => JSON.parse(JSON.parse(options.body).settings)[SET_RESUME_KEY] ?? {});
+    const positions = stored.flatMap((map) => Object.values(map).map((entry) => entry.position));
+    expect(positions.every((position) => position > 0)).toBe(true);
   });
 
   it("caps the stored map to the most recently updated entries", async () => {

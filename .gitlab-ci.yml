@@ -122,6 +122,14 @@ stages:
 # of wall clock. A release commit that changes actual code trips their
 # `changes:` rules like any other commit. The list of jobs that must reference
 # this anchor is pinned in tests/ci/test_gitlab_ci_policy.py (GATING_JOBS).
+#
+# That skip only holds if the release branch already exists on the remote when
+# the stabilize commit is pushed. On the *first* push of a new branch GitLab
+# has no CI_COMMIT_BEFORE_SHA and evaluates every `changes:` rule as true, so
+# a release cut-and-push in one go ran muma:images, server:lint and all of the
+# above anyway (release/0.65.2, pipeline 3211: ~24 job minutes on the two
+# biggest alone). The muma-release skill therefore pushes the empty branch
+# first with `-o ci.skip` and the stabilize commit second.
 .release_rule:
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'

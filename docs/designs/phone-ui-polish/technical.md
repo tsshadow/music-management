@@ -1,0 +1,167 @@
+# Phone UI polish — Technical Design
+
+Implements [`functional.md`](functional.md). All paths are under `services/frontend/src/lib/` unless
+stated otherwise. The phone UI is the Svelte bundle that `prepareWebBundle` stages into the Android
+app, so nearly all of this is frontend work; only increment H touches Kotlin.
+
+## Data Model
+
+No schema change anywhere. Two new client-side stores, both device-local:
+
+- **Recent places** (E): `localStorage` key `muma.recentPlaces.<serverUrl>.<username>`, a JSON array
+  of `{view, title, kind, at}` (newest first, max 12). `view` is the navigation string the app already
+  uses (`artist:<id>`, `album:<id>`, `genre:<name>`, `label:<name>`, `festival:<name>`,
+  `playlist:<id>`, `year:<n>`), `kind` its prefix, `at` epoch ms. Keyed per server and account so a
+  second login never shows another library's places.
+- **Queue source** (E): a Svelte store `queueSource` in `store.js`, `{kind, name, view} | null`, set
+  by every code path that replaces `playlist` with a list from a view, cleared when the queue is
+  replaced from somewhere without a view (search result, deep link). Not persisted; the native queue
+  survives a WebView restart but the caption then falls back to the track's album, as today.
+
+## API Contract
+
+No new endpoints. Existing calls used, per increment:
+
+| Increment | Call | Notes |
+|---|---|---|
+| A | `GET /rest/getCoverArt?id&size=512` | Full-screen artwork; the mini player keeps `size=100`. |
+| A | `getArtistImageUrl(artist)` (`utils.js`) | 404 when MuMa has no image, so `<img onerror>` is a reliable "no artist image" signal. |
+| A | `fetchGenreTints()` (`genreTints.js`) → `/api/library/genres` | Per-genre tint, server-owned. Never compute a colour client-side. |
+| D | `getSpotifyTracks` `sort=recent|added`, `min/maxDuration=10` | Already fetched by `PhoneHome.svelte`; the shelf reuses those arrays. |
+| D | `memoryGroups` prop | Already loaded by `Dashboard.svelte`. |
+| F | `getSpotifyTracks?artistId=` | More from this artist, `count=6`. |
+| F | `getSpotifyTracks?workId=` | Other versions (the same call `SongView.svelte` makes). Never play a MuMa song-version id; only LMS track ids from this call. |
+| G | `/api/listening/top-artists`, `/api/listening/top-labels` | Returns MuMa artist ids; resolve to LMS artists by name via `search3` before linking, or link to `artist-name:<name>` if such a view exists. |
+| H | `MumaPlayer` Capacitor plugin, new method `outputRoute()` + event `outputRouteChanged` | See Cross-App Impact. |
+
+## Design decisions
+
+### A — artwork and tint
+
+- New component `Artwork.svelte` (props: `coverUrl`, `artistUrl`, `tint`, `title`, `size` class)
+  owning the fallback chain as explicit state `cover | artist | panel`, advanced by `onerror`.
+  Reset to `cover` whenever `coverUrl` changes (a stale error from the previous track must not skip
+  the new track's cover). Guard async: the state belongs to the URL it was computed for.
+- Offline artwork goes through `coverArtSrc()` from `coverArt.js`, so the player and Home no longer
+  build `/rest/getCoverArt` URLs by hand.
+- Tint: `trackTint(track, tints)` in `genreTints.js` returns the tint of the first genre in
+  `genreNames(track.genre)` that has one, else `null`. Background in `NowPlaying.svelte`:
+  `linear-gradient(to bottom, color-mix(in srgb, <tint> 55%, #121212) 0%, #121212 60%)`; `null`
+  renders the plain `#121212`. `Player.svelte` fetches tints once (`fetchGenreTints()`) and passes
+  `tint` as a prop, same as it passes `coverUrl`.
+- The panel fallback is a `div` in the tint (or `#282828` without one) with the title in
+  `text-2xl font-bold` centred and `line-clamp-3`; text colour white with a `bg-black/25` wash, the
+  same readability rule `QuickAccessTile.svelte` uses.
+- `app.css`'s `img.w-full[src="/images/spotify-fallback.svg"]` rule stops applying to the player
+  because the player no longer renders that file at full width; the rule stays for shelves.
+- Mini player: the 44px slot becomes `<Artwork size="w-11 h-11">`; the 16px artist avatar and its
+  `getArtistImageUrl` call are removed from the mini player.
+
+### B — header, chips, targets
+
+- Header: `nowPlaying.playingFrom` split into two i18n keys, `nowPlaying.playingFromLabel` (caption,
+  `text-[11px] text-[#b3b3b3]`) and the name (`text-sm font-bold text-white truncate`). Until E
+  lands the name is still `track.album || queue.title`.
+- ⋮ opens the existing `TrackDetailsSheet` (it already has artist, album, play next, add to queue,
+  lyrics); the lyrics header button is folded into it. The bottom-row `(i)` button is removed as a
+  duplicate; the EQ, versions and queue buttons stay.
+- Genre/label chips: extract the chip markup of `TrackDetailsSheet.svelte` into `MetaChips.svelte`
+  and use it in both. Drop `max-h-8 overflow-hidden`; drop the date item from `metaItems`.
+- `ArtistList.svelte` gains a `size="lg"` variant: `py-2`, chevron after the last name.
+- Stars: `w-11 h-11` buttons with a 24px glyph in the full player. Rating still flows through the
+  `onrate` prop into `Player.svelte`'s `updateRating()`.
+- Icons: shuffle/repeat at 24px, bottom row 24px, all `fill="currentColor"`; the EQ icon becomes a
+  filled glyph. No new icon library.
+
+### C — Home and Browse layout
+
+- `PhoneHome.svelte`: `subtitle()` gains a per-destination empty string (`dashboard.empty.<id>` i18n
+  keys) and a `state` per shelf (`loading | ready | failed`) driven by the existing effects; a
+  failed load shows `dashboard.loadFailed`. Tile grid: when the rendered tile count is odd the last
+  tile gets `col-span-2`.
+- `HomeShelf.svelte`: "show all" loses `uppercase tracking-[0.1em]`, becomes `text-[13px]`.
+  New prop `layout="cards" | "rows"`; `rows` renders `TrackRow`-style compact rows (48px thumbnail,
+  title, artist) and is what Home's recent shelves use.
+- `MobileSearchView.svelte`: the advanced-search card moves out; `TopBar.svelte` on the Browse route
+  gets a filter icon button beside the search field that navigates to `new-preset`.
+- `BrowseGrid.svelte`: `h-24` → `h-[68px]`, icon 32px.
+
+### D — Home rows
+
+- `PhoneHome.svelte` renders, below the destination shelves: `MemoryYearShelf` (one tile per
+  `memoryGroups` entry via the existing `MemoryYearCard.svelte`, tap → `memories:<year>` or the
+  existing memories view with the year selected) and a `HomeShelf layout="rows"` of
+  `recentlyAdded` (songs) / `recentlyReleased` (sets), hidden when empty. No extra requests.
+
+### E — recent places and queue source
+
+- New `recentPlaces.js`: `recordPlace(view, title)`, `recentPlaces` readable store, `clear()`. Key
+  from `$credentials.url` + `$credentials.username` in `store.js`. A `localStorage` failure (private mode)
+  is swallowed; the store then lives for the session only.
+- Recording happens in `Dashboard.svelte`'s navigation handler when the target view's prefix is one
+  of the kinds listed in Data Model; the title is the resolved name once the view has loaded.
+- `MobileSearchView.svelte` renders `RecentPlacesRow.svelte` above the grid.
+- `queueSource` is set in the places that assign `playlist` from a view (`TrackList.svelte` play-all,
+  `SongView`, `DailyMixesShelf`, `HomeShelf`); `NowPlaying.svelte` reads it for the header name.
+
+### F — continuation sections
+
+- `NowPlaying.svelte` gets a `sections` block below the bottom row: `NextUp` (from `playlist` and the
+  current index by *position*, respecting `shuffleMode` order when `player.ownsQueue` exposes it,
+  otherwise the linear order), `MoreFromArtist` (lazy fetch on open, keyed by `track.artistId`,
+  stale-guarded), `OtherVersions` (lazy, only when `track.workId`).
+- `handleTouchEnd` closes only when the scroll container's `scrollTop === 0`.
+- `addAfterCurrent()` uses the current queue position (from `playerState`/native snapshot) instead of
+  `findIndex` by id.
+
+### G — rankings
+
+- `listeningStats.js` already wraps the endpoints; a small `rankingToView()` maps a MuMa artist name
+  to `artist:<lmsId>` through `search3` (cached per session). Rows hidden without data or when the
+  resolution fails.
+
+### H — audio output (Kotlin)
+
+- `MumaPlayerPlugin.kt`: method `outputRoute()` → `{name, type}` from
+  `AudioManager.getDevices(GET_DEVICES_OUTPUTS)` preferring the active Bluetooth A2DP device's
+  `productName`, else the built-in speaker; `AudioDeviceCallback` emits `outputRouteChanged`.
+  Method `openOutputPicker()` fires the `com.android.settings.panel.action.MEDIA_OUTPUT` intent with
+  `EXTRA_PACKAGE_NAME`; on `ActivityNotFoundException` falls back to
+  `Settings.ACTION_BLUETOOTH_SETTINGS`. Both are plain Activity intents, not `MediaController`
+  commands, so the empty command-grant set does not apply.
+- `platform/index.js` contract gains optional `player.outputRoute()` / `player.openOutputPicker()`;
+  the browser implementation returns `null` and the UI hides the control.
+
+## Cross-App Impact
+
+- **Web (desktop)**: `Artwork.svelte`, `HomeShelf` and chip changes are shared components; desktop
+  keeps its layouts. Visual snapshots in `tests/browser/__screenshots__/` will change for the phone
+  project and must be refreshed (`MUMA_UPDATE_SNAPSHOTS=1`, see `docs/frontend-screenshots.md`).
+- **Android**: only H adds native code; A–G ship through the web bundle. A `MumaPlayer` plugin
+  method is additive; an older bundle simply never calls it.
+- **Backend**: none.
+
+## Technical Acceptance Criteria
+
+1. `Artwork.svelte` unit tests: cover error → artist shown; artist error → panel with title; new
+   `coverUrl` resets to cover; panel uses the given tint and `#282828` without one.
+2. `trackTint()` picks the first genre with a tint; returns `null` for no genres and for genres the
+   server did not list.
+3. `NowPlaying` renders `background-image` with the tint and none without; header has no
+   `uppercase` class and a button labelled by `nowPlaying.more`.
+4. `metaItems` contains no date; every genre and the label render as chips.
+5. `PhoneHome` shows the destination copy for an empty feed and `col-span-2` on the last of an odd
+   tile count; `HomeShelf layout="rows"` renders rows, not cards.
+6. `recentPlaces.js`: records newest first, dedupes by `view`, caps at 12, isolates by key, and
+   survives a throwing `localStorage`.
+7. `queueSource` is set when play-all runs from a genre view and the header shows that name.
+8. `NextUp` lists the three entries after the current *position* with duplicate ids in the queue.
+9. `platformPlayer.test.js`: browser `outputRoute()` is `null`; the capacitor adapter forwards it.
+10. Coverage floors in `vite.config.js` hold (82/65/79/81) after every increment.
+
+## Related Docs
+
+- [`universal-ui/`](../universal-ui/technical.md) — the shell these screens run in.
+- [`mobile-cover-art/`](../mobile-cover-art/technical.md) — the genre-tint contract reused here.
+- [`home-sections/`](../home-sections/) — the section modes `PhoneHome.svelte` renders.
+- [`docs/styleguide.md`](../../styleguide.md) — the design backlog entry for this work.

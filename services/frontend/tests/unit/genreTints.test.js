@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fetchGenreTints, tintFor, withTints, resetGenreTints } from "../../src/lib/genreTints.js";
+import {
+  fetchGenreTints,
+  tintFor,
+  withTints,
+  trackTint,
+  resetGenreTints,
+} from "../../src/lib/genreTints.js";
 
 /**
  * The colour a genre is drawn in comes from the server, not from a table in here.
@@ -95,5 +101,27 @@ describe("genreTints", () => {
     const tints = await fetchGenreTints();
 
     expect(tintFor(tints, "Hardstyle")).toBe("#ff4d00");
+  });
+});
+
+describe("trackTint", () => {
+  const TINTS = { hardstyle: "#ff4d00", techno: "#00e0c7" };
+
+  it("picks the first genre with a tint", () => {
+    expect(trackTint({ genre: "hardstyle,techno" }, TINTS)).toBe("#ff4d00");
+  });
+
+  it("skips a genre the server did not list and uses the next one", () => {
+    expect(trackTint({ genre: "frenchcore,techno" }, TINTS)).toBe("#00e0c7");
+  });
+
+  it("returns null when no genre has a tint", () => {
+    expect(trackTint({ genre: "frenchcore" }, TINTS)).toBe(null);
+  });
+
+  it("returns null for a track with no genres", () => {
+    expect(trackTint({ genre: "" }, TINTS)).toBe(null);
+    expect(trackTint(null, TINTS)).toBe(null);
+    expect(trackTint(undefined, TINTS)).toBe(null);
   });
 });

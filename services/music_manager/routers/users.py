@@ -28,7 +28,11 @@ MUMA_SERVER_SUBSONIC_API_KEY = os.getenv('MUMA_SERVER_SUBSONIC_API_KEY') or os.g
 MUMA_SERVER_HOSTS = os.getenv('MUMA_SERVER_HOSTS', 'music-management-server:5082')
 
 
-async def verify_api_key(x_api_key: str = Header(None)):
+def verify_api_key(x_api_key: str = Header(None)):
+    # A plain `def`, not `async def`: `verify_token` is a database round trip, and an
+    # async dependency that calls it directly holds the event loop for its duration --
+    # every request in flight waited on each presets or settings read. FastAPI runs a
+    # sync dependency in its threadpool, as it already does feeds.verify_api_key.
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
     if is_system_api_key(x_api_key):

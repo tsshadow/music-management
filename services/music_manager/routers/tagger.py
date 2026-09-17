@@ -14,7 +14,7 @@ router = APIRouter(tags=['tagger'])
 logger = logging.getLogger('music-manager.tagger')
 
 
-async def verify_api_key(x_api_key: str | None = Header(None)):
+def verify_api_key(x_api_key: str | None = Header(None)):
     """Same system-or-user API key check the other routers use.
 
     Delegates rather than re-implementing it (as library.py/management.py do) so there is one
@@ -23,7 +23,7 @@ async def verify_api_key(x_api_key: str | None = Header(None)):
     """
     from services.music_manager.routers.users import verify_api_key as _verify
 
-    return await _verify(x_api_key)
+    return _verify(x_api_key)
 
 
 class TaggerManager:

@@ -9,8 +9,9 @@ it", in order, recording the funnel after each stage that can shrink the set:
 """
 
 from collections import Counter, defaultdict
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime
+from typing import Any
 
 from services.music_manager.feeds.buckets import bucket_of, dominant_genre
 from services.music_manager.feeds.hardness import (
@@ -119,6 +120,16 @@ class ProfileResolution:
     profile: TasteProfile
     shares: dict[str, float]
     parents: dict[str, set[str]]
+    # The listener's own listens the profile was built from, so a caller that needs
+    # them again (the band mixes' hardness percentiles) reads the rows already in
+    # hand instead of running the listens query a second time. Empty when the
+    # profile came from the server-wide history or the configured fallback.
+    listens: list[dict] = field(default_factory=list)
+    # Memo for what is derived from `listens` and asked for more than once per
+    # resolution: `GET /api/feeds` describes seven policies off one resolution, and
+    # three of them want the same hardness percentiles. A dict on a frozen
+    # dataclass is still mutable inside, which is exactly the point.
+    memo: dict[str, Any] = field(default_factory=dict, compare=False, repr=False)
 
     @property
     def scope(self) -> str:
@@ -262,18 +273,22 @@ def _annotate_hardness(conn, rows: list[dict], id_field: str) -> None:
 
 
 def _listener_hardness_stats(
-    conn, username: str, window_days: int, now: datetime
+    conn, resolution: ProfileResolution, now: datetime
 ) -> tuple[dict[str, float] | None, dict[str, int]]:
     """This listener's own weighted p33/p50/p67 hardness (or None), and the source
     tally -- informational, no longer what decides the band edges (see
     `hardness.DEFAULT_BAND_EDGES`).
 
-    Reads the same listens `build_profile` does (`_load_listens`, same window), so
-    the percentiles a listener sees are measured from exactly the history their
-    profile is built from, never a second, differently windowed read of
-    `scrobble_listens`.
+    Measured over `resolution.listens`: the very rows `build_profile` ran on, so the
+    percentiles a listener sees come from exactly the history their profile is
+    built from, never a second, differently windowed read of `scrobble_listens`.
+    Memoised on the resolution, because `GET /api/feeds` describes the three band
+    policies off one resolution and the answer is the same for all three.
     """
-    rows = _load_listens(conn, username, window_days, now)
+    memoised: tuple[dict[str, float] | None, dict[str, int]] | None = resolution.memo.get('hardness_stats')
+    if memoised is not None:
+        return memoised
+    rows = [dict(row) for row in resolution.listens]
     for row in rows:
         row['label'] = (row.get('labels') or [None])[0]
     _annotate_hardness(conn, rows, id_field='track_id')
@@ -295,7 +310,9 @@ def _listener_hardness_stats(
             source_counts['none'] += 1
 
     weighted = [(hardness, per_track_weight[uid]) for uid, hardness in per_track_hardness.items()]
-    return hardness_percentiles(weighted), dict(source_counts)
+    stats = (hardness_percentiles(weighted), dict(source_counts))
+    resolution.memo['hardness_stats'] = stats
+    return stats
 
 
 def _ranked_names(affinities: dict[str, float], limit: int = 10) -> list[str]:
@@ -321,7 +338,7 @@ def _describe(
     username: str,
     policy: FeedPolicy,
     now: datetime,
-    profile: TasteProfile,
+    resolution: ProfileResolution,
     hardness_edges: tuple[float, float] | None = None,
     hardness_edges_source: str = 'default',
 ) -> dict:
@@ -340,6 +357,7 @@ def _describe(
     different band than the one shipped. `hardness_edges=None` means "no override",
     resolved here to `DEFAULT_BAND_EDGES`.
     """
+    profile = resolution.profile
     edges = hardness_edges if hardness_edges is not None else DEFAULT_BAND_EDGES
     empty = {
         'title': policy.slug,
@@ -365,7 +383,7 @@ def _describe(
         title = DUTCH_BAND_TITLE.get(policy.hardness_band, policy.slug)
         if profile.scope == 'empty':
             return {**empty, 'title': title, 'band_edges': edges, 'hardness_edges_source': hardness_edges_source}
-        percentiles, counts = _listener_hardness_stats(conn, username, policy.profile_window_days, now)
+        percentiles, counts = _listener_hardness_stats(conn, resolution, now)
         return {
             **empty,
             'title': title,
@@ -390,17 +408,21 @@ def describe_feed(
     starting_genres: list[str] | None = None,
     hardness_edges: tuple[float, float] | None = None,
     hardness_edges_source: str = 'default',
+    resolution: ProfileResolution | None = None,
 ) -> dict:
     """`{'title', 'subtitle'}` for one policy, without running the candidate pipeline.
 
     `GET /api/feeds` needs this for every policy at once; running `build_feed` for
     each just to describe it would mean a full candidate query per policy on every
-    listing. Still calls `resolve_profile`, the one implementation of steps 1-3, so
-    the description is never a guess independent of what the listener would actually
-    get.
+    listing. Still goes through `resolve_profile`, the one implementation of steps
+    1-3, so the description is never a guess independent of what the listener would
+    actually get -- but a caller describing several policies passes the one
+    `resolution` it already has, since every policy shares `profile_window_days`
+    and resolving it seven times was most of what a listing cost.
     """
-    resolution = resolve_profile(conn, username, policy.profile_window_days, now, starting_genres)
-    info = _describe(conn, username, policy, now, resolution.profile, hardness_edges, hardness_edges_source)
+    if resolution is None:
+        resolution = resolve_profile(conn, username, policy.profile_window_days, now, starting_genres)
+    info = _describe(conn, username, policy, now, resolution, hardness_edges, hardness_edges_source)
     return {'title': info['title'], 'subtitle': info['subtitle']}
 
 
@@ -616,7 +638,7 @@ def resolve_profile(
         )
 
     # Step 3: the shares this feed's places are divided over.
-    return ProfileResolution(profile=profile, shares=genre_shares(profile, parents), parents=parents)
+    return ProfileResolution(profile=profile, shares=genre_shares(profile, parents), parents=parents, listens=user_rows)
 
 
 def build_feed(
@@ -648,7 +670,7 @@ def build_feed(
     profile, shares, parents = resolution.profile, resolution.shares, resolution.parents
 
     if profile.scope == 'empty':
-        info = _describe(conn, username, policy, now, profile, hardness_edges, hardness_edges_source)
+        info = _describe(conn, username, policy, now, resolution, hardness_edges, hardness_edges_source)
         return Feed(
             slug=policy.slug,
             state='not_enough_data',
@@ -666,7 +688,7 @@ def build_feed(
     # spectrum mixes, the band edges the candidate filter below actually applies.
     # One computation, shared with GET /api/feeds's cheap listing (`describe_feed`),
     # so the number on the home screen is always the number that was applied.
-    info = _describe(conn, username, policy, now, profile, hardness_edges, hardness_edges_source)
+    info = _describe(conn, username, policy, now, resolution, hardness_edges, hardness_edges_source)
     if policy.rotate and info['entity_filter'] is None:
         # A profile with no artist (or label) affinities at all -- nothing to
         # rotate through today.

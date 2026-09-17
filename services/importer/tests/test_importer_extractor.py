@@ -57,6 +57,31 @@ class ExtractorTest(unittest.TestCase):
             self.extractor.run()
         patool.extract_archive.assert_not_called()
 
+    def test_a_download_still_in_flight_is_not_opened(self):
+        """The 2026-09-16 case: five `.rar.crdownload` files the browser still owned.
+
+        patool identifies by content, so a partial RAR that already has a readable
+        header would extract truncated and the source would be quarantined out from
+        under the writer. Every one of those archives imported fine on the next cycle
+        under its final name.
+        """
+        patool, remove = self.run_with(['HC-2026-WEEK-37-FLAC.rar.crdownload'])
+        patool.extract_archive.assert_not_called()
+        remove.assert_not_called()
+
+    def test_every_in_flight_suffix_is_skipped_and_nothing_else_is(self):
+        patool, _ = self.run_with(['a.crdownload', 'b.part', 'c.partial', 'd.tmp', 'keep.rar', 'also.crdownload.rar'])
+        opened = [call.args[0] for call in patool.extract_archive.call_args_list]
+        self.assertEqual(opened, ['/import/keep.rar', '/import/also.crdownload.rar'])
+
+    def test_a_skipped_download_is_reported_without_an_error(self):
+        with self.assertLogs(level='INFO') as logs:
+            self.run_with(['pack.rar.crdownload', 'keep.rar'])
+        message = '\n'.join(logs.output)
+        self.assertIn('still in flight', message)
+        self.assertIn('pack.rar.crdownload', message)
+        self.assertNotIn('ERROR', message)
+
     def test_an_unreadable_import_folder_ends_the_step_quietly(self):
         with (
             patch.object(extractor, 'listdir', side_effect=OSError('no such folder')),

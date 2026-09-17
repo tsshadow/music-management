@@ -126,11 +126,14 @@ def get_fetch_progress(_auth: dict = Depends(verify_api_key)):
 # --- Artist image manager -------------------------------------------------
 #
 # The manager UI talks to MuMa through LMS's `MumaResource` proxy (`/muma/api/...`),
-# which imposes two constraints on the routes below:
+# which shaped the routes below:
 #   * every path ending in exactly "/image" is intercepted by the proxy and turned
 #     into a GET of the artist-image file, so mutations live on deeper sub-paths
 #     ("/image/url", "/image/upload", "/image/clear", "/image/select/{id}");
-#   * DELETE is forwarded to MuMa as a POST, so mutations are POST-only.
+#   * the mutations are POST-only because, when they were written, the proxy
+#     forwarded every DELETE to MuMa as a POST. The proxy now forwards the real
+#     verb (PUT and DELETE included); these routes stay POST so existing clients
+#     keep working.
 
 
 class ArtistImageUrlRequest(BaseModel):

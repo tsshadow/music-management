@@ -36,6 +36,8 @@ namespace lms::core::http
 
         virtual void sendGETRequest(ClientGETRequestParameters&& request) = 0;
         virtual void sendPOSTRequest(ClientPOSTRequestParameters&& request) = 0;
+        virtual void sendPUTRequest(ClientPUTRequestParameters&& request) = 0;
+        virtual void sendDELETERequest(ClientDELETERequestParameters&& request) = 0;
 
         virtual void abortAllRequests() = 0;
     };

@@ -33,6 +33,10 @@ namespace lms::core::http
             : _parameters{ std::move(GETParams) } {}
         ClientRequest(ClientPOSTRequestParameters&& POSTParams)
             : _parameters{ std::move(POSTParams) } {}
+        ClientRequest(ClientPUTRequestParameters&& PUTParams)
+            : _parameters{ std::move(PUTParams) } {}
+        ClientRequest(ClientDELETERequestParameters&& DELETEParams)
+            : _parameters{ std::move(DELETEParams) } {}
 
         std::size_t retryCount{};
 
@@ -51,14 +55,19 @@ namespace lms::core::http
         enum class Type
         {
             GET,
-            POST
+            POST,
+            PUT,
+            DELETE,
         };
         Type getType() const
         {
             if (std::holds_alternative<ClientGETRequestParameters>(_parameters))
                 return Type::GET;
-            else
-                return Type::POST;
+            if (std::holds_alternative<ClientPUTRequestParameters>(_parameters))
+                return Type::PUT;
+            if (std::holds_alternative<ClientDELETERequestParameters>(_parameters))
+                return Type::DELETE;
+            return Type::POST;
         }
 
         const ClientGETRequestParameters& getGETParameters() const
@@ -71,7 +80,17 @@ namespace lms::core::http
             return std::get<ClientPOSTRequestParameters>(_parameters);
         }
 
+        const ClientPUTRequestParameters& getPUTParameters() const
+        {
+            return std::get<ClientPUTRequestParameters>(_parameters);
+        }
+
+        const ClientDELETERequestParameters& getDELETEParameters() const
+        {
+            return std::get<ClientDELETERequestParameters>(_parameters);
+        }
+
     private:
-        std::variant<ClientGETRequestParameters, ClientPOSTRequestParameters> _parameters;
+        std::variant<ClientGETRequestParameters, ClientPOSTRequestParameters, ClientPUTRequestParameters, ClientDELETERequestParameters> _parameters;
     };
 } // namespace lms::core::http

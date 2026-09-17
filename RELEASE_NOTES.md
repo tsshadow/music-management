@@ -11,6 +11,10 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.65.1 (2026-09-17)
+
+- **Een radiokanaal bewerken of verwijderen in Beheer gaf een 405.** De proxy tussen de webkant
+  en MuMa maakte van elke PUT en DELETE een POST. Hij stuurt nu het echte werkwoord door.
 ## Global Version 0.65.0 (2026-09-17)
 
 - De speler in de app laat zien via welke uitvoer je luistert en opent met één tik de

@@ -33,6 +33,7 @@ TIMEOUT = 10
 #   genre_decision   needs the scan genre_curation triggered, keeps the genre
 #   playlist_unrated needs a scanned library
 #   rating_roundtrip rates the fixture as the admin
+#   radio_channel_edit makes and removes a channel of its own; nothing reads it
 #   scan_to_listen   pins the listen counter at zero, then moves it
 #   subsonic_scrobble moves it again
 #   unmatched_listen pins the *unmatched* counter at zero
@@ -49,6 +50,7 @@ FEATURE_ORDER = [
     'test_genre_decision_steps',
     'test_playlist_unrated_steps',
     'test_rating_roundtrip_steps',
+    'test_radio_channel_edit_steps',
     'test_scan_to_listen_steps',
     'test_subsonic_scrobble_steps',
     'test_unmatched_listen_steps',

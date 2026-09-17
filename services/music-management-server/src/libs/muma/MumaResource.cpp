@@ -954,50 +954,48 @@ namespace lms::api::muma
             }
             else if (request.method() == "POST" || request.method() == "PUT" || request.method() == "DELETE")
             {
-                core::http::ClientPOSTRequestParameters postParams;
+                core::http::ClientRequestWithBodyParameters bodyParams;
                 // See the matching comment in the GET branch above: pathInfo is decoded.
-                postParams.relativeUrl = encodeProxyPath(pathInfo);
+                bodyParams.relativeUrl = encodeProxyPath(pathInfo);
                 std::string query = request.queryString();
                 if (!query.empty())
-                    postParams.relativeUrl += "?" + query;
+                    bodyParams.relativeUrl += "?" + query;
 
                 // See the matching comment in the GET branch above: prefer the
                 // caller's own key over the system key.
                 if (!xApiKeyHeader.empty())
-                    postParams.message.addHeader("X-API-Key", xApiKeyHeader);
+                    bodyParams.message.addHeader("X-API-Key", xApiKeyHeader);
                 else if (!_mumaApiKey.empty())
-                    postParams.message.addHeader("X-API-Key", _mumaApiKey);
+                    bodyParams.message.addHeader("X-API-Key", _mumaApiKey);
 
                 std::string contentType = request.headerValue("Content-Type");
                 if (!contentType.empty())
-                    postParams.message.addHeader("Content-Type", contentType);
+                    bodyParams.message.addHeader("Content-Type", contentType);
 
                 std::string jsonStr((std::istreambuf_iterator<char>(request.in())), std::istreambuf_iterator<char>());
-                postParams.message.addBodyText(jsonStr);
+                bodyParams.message.addBodyText(jsonStr);
 
                 // See the matching comment in the GET branch above: forward MuMa's
                 // real status/body verbatim instead of collapsing it into a 502.
-                postParams.treatAnyStatusAsSuccess = true;
-                postParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
+                bodyParams.treatAnyStatusAsSuccess = true;
+                bodyParams.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
                     const std::string* responseType{ msg.getHeader("Content-Type") };
                     resultPromise->set_value({ msg.status(), responseType ? *responseType : std::string{}, msg.body() });
                 };
-                postParams.onFailureFunc = [resultPromise]() {
+                bodyParams.onFailureFunc = [resultPromise]() {
                     resultPromise->set_value({ 502, std::string{}, "Bad Gateway" });
                 };
 
-                if (request.method() == "POST")
-                    _httpClient->sendPOSTRequest(std::move(postParams));
-                else if (request.method() == "PUT")
-                {
-                    // Wt doesn't have a direct PUT helper in our wrapper maybe?
-                    // Let's assume sendPOSTRequest handles it or we use generic sendRequest
-                    _httpClient->sendPOSTRequest(std::move(postParams));
-                }
+                // The verb travels with the request. Every PUT and DELETE used to leave here
+                // as a POST, so MuMa answered 405 for a route that only takes the real verb
+                // (editing or removing a radio channel) and the caller saw a method error
+                // for a request it never sent.
+                if (request.method() == "PUT")
+                    _httpClient->sendPUTRequest(core::http::ClientPUTRequestParameters{ std::move(bodyParams) });
                 else if (request.method() == "DELETE")
-                {
-                    _httpClient->sendPOSTRequest(std::move(postParams)); // Our wrapper might need update for DELETE
-                }
+                    _httpClient->sendDELETERequest(core::http::ClientDELETERequestParameters{ std::move(bodyParams) });
+                else
+                    _httpClient->sendPOSTRequest(core::http::ClientPOSTRequestParameters{ std::move(bodyParams) });
             }
 
             if (resultFuture.wait_for(std::chrono::seconds(30)) == std::future_status::ready)

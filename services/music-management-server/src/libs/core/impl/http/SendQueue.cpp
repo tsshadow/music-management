@@ -64,6 +64,23 @@ namespace lms::core::http
 
             return res;
         }
+
+        const char* toString(ClientRequest::Type type)
+        {
+            switch (type)
+            {
+            case ClientRequest::Type::GET:
+                return "GET";
+            case ClientRequest::Type::POST:
+                return "POST";
+            case ClientRequest::Type::PUT:
+                return "PUT";
+            case ClientRequest::Type::DELETE:
+                return "DELETE";
+            }
+
+            return "?";
+        }
     } // namespace
 
     SendQueue::SendQueue(boost::asio::io_context& ioContext, std::string_view baseUrl)
@@ -197,7 +214,7 @@ namespace lms::core::http
         LMS_SCOPED_TRACE_DETAILED("SendQueue", "SendRequest");
 
         const std::string url{ _baseUrl + request.getParameters().relativeUrl };
-        LOG(DEBUG, "Sending " << (request.getType() == ClientRequest::Type::GET ? "GET" : "POST") << " request to url '" << url << "'");
+        LOG(DEBUG, "Sending " << toString(request.getType()) << " request to url '" << url << "'");
 
         _client.setMaximumResponseSize(request.getParameters().onChunkReceived ? 0 : request.getParameters().responseBufferSize);
         _forwardBodyChunks.store(static_cast<bool>(request.getParameters().onChunkReceived), std::memory_order_relaxed);
@@ -211,6 +228,14 @@ namespace lms::core::http
 
         case ClientRequest::Type::POST:
             res = _client.post(url, request.getPOSTParameters().message);
+            break;
+
+        case ClientRequest::Type::PUT:
+            res = _client.put(url, request.getPUTParameters().message);
+            break;
+
+        case ClientRequest::Type::DELETE:
+            res = _client.deleteRequest(url, request.getDELETEParameters().message);
             break;
         }
 

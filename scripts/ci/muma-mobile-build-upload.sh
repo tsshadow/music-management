@@ -106,6 +106,7 @@ fi
 
 # Project-owned Android SDK image, same as scripts/test/muma-mobile-unit.sh.
 docker run --rm \
+    --label "ci.job=${CI_JOB_ID:-local}" \
     -u "$(id -u):$(id -g)" \
     -v "$ROOT_DIR:/workspace" \
     -v "$GRADLE_HOME_DIR:/gradle_home" \

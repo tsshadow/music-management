@@ -7,6 +7,108 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.65.0] - 2026-09-17
+
+### Added
+- **De speler op de telefoon vertelt nu waar het geluid heen gaat.** Onder de bedieningsknoppen
+  staat de huidige uitvoer — "Bose QC35 II", "Bedrade koptelefoon", "Telefoonluidspreker" — in
+  de accentkleur; een tik opent de uitvoerkiezer van Android (of de Bluetooth-instellingen op een
+  toestel zonder kiezer). Het label volgt een koptelefoon die verbindt of een stekker die eruit
+  gaat zonder de speler te heropenen. Alleen in de app: de browser weet niet waar zijn geluid
+  naartoe gaat en toont niets. Het `platform.system`-contract kreeg `outputRoute()`,
+  `onOutputRouteChanged()` en `openOutputPicker()`; de browser antwoordt `null` en doet niets.
+
+- **De web-UI wordt nu per merge request op desktop én telefoon gerenderd en vergeleken.**
+  `frontend:e2e` draait de browsersuite voortaan in twee Playwright-projecten (`desktop`
+  1280×800, `phone` 412×915) en maakt van negentien routes een screenshot die tegen de referenties
+  in `services/frontend/tests/browser/__screenshots__/` wordt gelegd. Een afwijking kleurt de job
+  oranje (exit 42, `allow_failure`) en laat het verschil als artifact achter; een functionele
+  fout blijft rood. De referenties zijn tegelijk de schermafbeeldingen van de app —
+  zie `docs/frontend-screenshots.md` voor verversen na een bedoelde wijziging
+  (`MUMA_UPDATE_SNAPSHOTS=1` en `scripts/test/frontend-screenshots-pull.sh`).
+
+- **Home op de telefoon liet je luistergeschiedenis links liggen.** Onder de bestaande
+  rijen staan nu "Jouw artiesten deze maand" en "Jouw labels", opgebouwd uit dezelfde
+  `/api/listening`-rankings als de statistiekenpagina, met een "Alles tonen" naar die
+  pagina. Beide rijen blijven verborgen zonder MuMa-sleutel of zonder luisterbeurten,
+  en vragen dan ook niets aan MuMa. Tikken op een artiest zoekt eerst het echte
+  LMS-artiestrecord op (MuMa's eigen artiest-id is daar niet voor bruikbaar) en valt
+  terug op een zoekopdracht als niets matcht; een label opent direct op naam.
+
+- **Onder de tegels op het startscherm van de telefoon hield het op.** Er staat nu een
+  "Memories"-rij met één tegel per jaar (dezelfde kaart als de volledige Memories-pagina); tikken
+  opent dat jaar, afspelen haalt eerst het hele jaar op in plaats van alleen de paar nummers die op
+  de tegel pasten. Staan "onlangs toegevoegd" en "onlangs uitgebracht" allebei als knop of uit, dan
+  toont het scherm nu toch één "onlangs"-rij die bij de huidige weergave hoort (nummers → onlangs
+  toegevoegd, sets → onlangs uitgebracht), zonder extra verzoek aan de server. Een Memories-jaar
+  zonder omslagfoto krijgt nu hetzelfde getinte paneel als de speler in plaats van het generieke
+  Spotify-plaatje.
+
+- **De speler op de telefoon toonde bij een track zonder cover altijd hetzelfde platte MuMa-merk,
+  en de mini-speler had een aparte ronde artiestenfoto naast de naam die nergens anders in de app
+  voorkwam.** Een bibliotheek die grotendeels zonder covers zit oogde daardoor stuk in plaats van
+  gewoon ongedecoreerd. `Artwork.svelte` kent nu een expliciete val-door-keten cover → artiestfoto
+  → getint paneel met de titel, gedeeld door de mini-speler (44px) en het volledige scherm; een
+  nieuw nummer reset altijd terug naar de cover, zodat een oude 404 nooit de cover van het
+  volgende nummer overslaat. De achtergrond van het volledige scherm is een verticaal verloop van
+  de genre-tint van het spelende nummer (`trackTint()` in `genreTints.js`, dezelfde
+  server-geleverde kleur als de genregrid) naar het neutrale `#121212`, in plaats van vlak zwart.
+
+- **Het volledige-scherm-speler eindigde bij de sterren en de knoppenrij; wat erna kwam, wie er
+  nog meer van dezelfde artiest was of welke andere versie van hetzelfde nummer bestond, was
+  alleen via de wachtrij-sheet of de songpagina te zien.** Onder de bestaande knoppen staan nu
+  drie secties, elk verborgen zodra er niets te tonen is: "Hierna" (de eerstvolgende drie
+  nummers in de wachtrij, of één regel zodra shuffle aanstaat), "Meer van {artiest}" (zes
+  nummers, lui opgehaald en één keer per artiest) en "Versies" (de andere bestanden van hetzelfde
+  werk, via dezelfde `getSpotifyTracks`-paginering als de songpagina, nu gedeeld in `versions.js`).
+  Tikken op een "Hierna"-rij springt binnen de lopende wachtrij; de andere twee starten een
+  nieuwe. "Hierna afspelen" uit het detail-menu voegt nu in op de echte wachtrijpositie in plaats
+  van op het eerste nummer met hetzelfde id, wat een dubbel gebooked nummer op de verkeerde plek
+  zette. Het scherm scrolt nu ook echt, dus de swipe-omlaag-om-te-sluiten reageert alleen nog
+  boven aan de sectie.
+
+- **Bladeren onthield niets: elke keer terug naar de vaste categorietegels.** Een artiest, album,
+  genre, label, festival, afspeellijst, snelkoppeling of Memories-jaar dat je opent staat nu, per
+  toestel en account, in een "Recent"-rij boven het rooster, nieuwste eerst en maximaal twaalf. De
+  speler wist ook niet altijd waar de wachtrij vandaan kwam en viel dan terug op het album van het
+  huidige nummer, ook bij een genre of afspeellijst; "Afspelen vanuit" noemt nu de plek waar de
+  wachtrij is gestart, en tikken erop opent die plek in plaats van altijd het album.
+
+### Changed
+- **Een lege startschermtegel zei altijd "geen tracks gevonden in deze categorie", een mislukte
+  laadbeurt zag er identiek uit, en een oneven aantal tegels liet de laatste half leeg staan.**
+  Elke tegel heeft nu eigen tekst voor leeg ("Ontdek nieuwe releases", "Nog niets met een ster",
+  …), een mislukte laadbeurt toont "Kon niet laden" en een laadbeurt in gang een puls op "…"; de
+  laatste tegel van een oneven grid spant nu twee kolommen. De "alles tonen"-knop is niet meer in
+  hoofdletters. De rijen "onlangs uitgebracht"/"onlangs toegevoegd" tonen compacte regels
+  (`TrackRowCompact`) in plaats van kaarten met een placeholder, en elke kaart/regel gebruikt nu
+  hetzelfde artwork-met-tint-fallback als de speler. Bladeren opent weer meteen op het
+  categorierooster; geavanceerd zoeken zit voortaan achter een filterknop naast het zoekveld, en de
+  categorietegels zijn een stuk lager.
+
+- **De koptekst van de telefoonspeler stond in hoofdletters (`AFSPELEN UIT: NAAM`), genres en
+  label waren platte tekst die na één regel afkapte, en "meer info" zat achter twee knoppen: een
+  `(i)` onderaan en een aparte lyrics-knop bovenaan.** De koptekst is nu twee regels — een klein
+  "Afspelen vanuit" boven de vetgedrukte naam — en blijft een knop naar het album. Rechtsboven
+  staat één ⋮-knop die het bestaande `TrackDetailsSheet` opent (artiest, album, hierna afspelen,
+  wachtrij, songtekst als die er is, details); de `(i)`-knop is weg. Genres en label zijn dezelfde
+  tikbare pillen als in de sheet (nieuw gedeeld `MetaChips.svelte`) en wikkelen door in plaats van
+  af te kappen; de releasedatum stond al in de sheet en verdwijnt uit deze rij. De artiestenregel
+  (`ArtistList` `size="lg"`) is 44px hoog met een chevron, de sterren zijn 44×44px tikdoelen met een
+  24px ster, en shuffle, herhalen en de onderste rij iconen staan allemaal op 24px.
+
+### Fixed
+- **De importer pakte downloads uit die de browser nog aan het schrijven was.** De extractiestap
+  gaf elk bestand in de importmap aan patool, ook de `.crdownload` die Firefox nog vasthield.
+  patool kijkt naar de inhoud en niet naar de extensie, dus een half geschreven `.rar.crdownload`
+  met een al leesbare RAR-header werd afgekapt uitgepakt en het bronbestand daarna onder de
+  schrijver vandaan gequarantainiseerd. Op 16-09 liep het zichtbaar mis: de ronde die om 15:00:08
+  `HC-2026-WEEK-37-FLAC.rar.crdownload` in de lijst zette, was om 15:03:09 bij dat bestand
+  aanbeland en toen had de browser het al hernoemd — alle drie de backends meldden `was not
+  found`. Vijf archieven, zes ERROR-regels, en geen ervan was een echt probleem: alle vier de
+  voltooide archieven kwamen een ronde later gewoon binnen. Bestanden met een `.crdownload`,
+  `.part`, `.partial` of `.tmp` worden nu overgeslagen tot ze hun definitieve naam hebben, de
+  conventie die `news.py` intern al volgde.
 ## [0.64.1] - 2026-09-16
 
 ### Fixed

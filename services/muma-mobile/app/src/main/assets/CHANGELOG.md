@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.3.0] - 2026-09-17
+
+### Added
+- **De speler benoemt de audio-uitvoer en opent de uitvoerkiezer.** `MumaSystem` kreeg
+  `outputRoute()` (de aangesloten Bluetooth-, bedrade of USB-uitvoer, anders de luidspreker, uit
+  `AudioManager.getDevices`), het event `outputRouteChanged` (een `AudioDeviceCallback` die
+  meeloopt met de plugin) en `openOutputPicker()` (het MEDIA_OUTPUT-paneel van Android 11+, met de
+  Bluetooth-instellingen als terugval). Twee nieuwe strings, `audio_output.wired` en
+  `audio_output.speaker`, in het Engels en Nederlands.
 ## [7.2.1] - 2026-09-16
 
 ### Fixed

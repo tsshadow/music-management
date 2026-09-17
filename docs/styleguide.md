@@ -129,8 +129,11 @@ To maintain clean design governance and prevent ad-hoc style drift:
   - C (done): Home "show all" in sentence case at 13px; odd tile counts span the last tile; recent-track
     shelves are compact rows (48px thumbnail); Browse tiles 68px high with a 36px icon; the advanced
     search entry is a filter icon beside the search field.
-  - D–G: additional Home rows (Memories years, recent, listening rankings), a "Recent" row on Browse,
-    player continuation sections — all reuse the shelf, tile and row components above.
+  - D (done): a Memories year row on phone Home (`MemoryYearCard`, unchanged) below the destination
+    shelves, and one fallback "recent" `HomeShelf layout="rows"` (songs → recently added, sets → recently
+    released) when neither of those two destinations already draws its own shelf.
+  - E–G: recent Browse places, player continuation sections, listening rankings — all reuse the
+    shelf, tile and row components above.
   - H: audio-output label in the player's bottom row in the accent colour, native only.
 
 - **Done** — Android login/welcome screens brought in line with the web's `LoginPage.svelte`: filled/rounded

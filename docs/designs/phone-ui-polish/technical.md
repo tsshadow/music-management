@@ -88,10 +88,21 @@ No new endpoints. Existing calls used, per increment:
 
 ### D — Home rows
 
-- `PhoneHome.svelte` renders, below the destination shelves: `MemoryYearShelf` (one tile per
-  `memoryGroups` entry via the existing `MemoryYearCard.svelte`, tap → `memories:<year>` or the
-  existing memories view with the year selected) and a `HomeShelf layout="rows"` of
-  `recentlyAdded` (songs) / `recentlyReleased` (sets), hidden when empty. No extra requests.
+- `PhoneHome.svelte` renders, below the destination shelves: a Memories year row (a plain `<section>`,
+  not a new `MemoryYearShelf` component) with one `MemoryYearCard.svelte` per `yearTiles(memoryGroups)`
+  entry in a horizontally-scrolling strip (`w-[140px]` tiles, matching `HomeShelf`'s mobile card
+  layout), shown when `memoriesOnHomeEnabled` and the year list is non-empty; `onopen` navigates to
+  `memories:<year>`, `onplay` calls the new `playMemoryYear(year, groups, authParams)` helper in
+  `memories.js`, shared with `MemoriesView.svelte`'s own play button so the fetch-the-whole-year-then-
+  fall-back-to-the-summary rule lives in one place.
+- Below that, one fallback `HomeShelf layout="rows"` for whichever of `recentlyAdded` (songs) /
+  `recentlyReleased` (sets) matches `$viewMode` -- but only when *neither* of the two "recent"
+  destinations is already in `OVERVIEW` mode, so the shelf a destination's own mode already draws is
+  never repeated. Both rows reuse the arrays `PhoneHome` already fetches for its tiles; no extra
+  requests.
+- `MemoryYearCard.svelte`'s no-cover branch (`shown.length === 0`) now renders `Artwork.svelte` with
+  `coverUrl={null}` and the year as `title`, instead of the generic `/images/spotify-fallback.svg`
+  image, so a yearless cover reads as designed rather than as a missing image.
 
 ### E — recent places and queue source
 

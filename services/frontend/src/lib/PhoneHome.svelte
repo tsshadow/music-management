@@ -1,10 +1,12 @@
 <script>
   import { onMount } from 'svelte';
   import { t } from './i18n/index.js';
-  import { authParams, restUrl, viewMode, memoriesOnHomeEnabled, homeModeReleaseRadar, homeModeDailyMix,
+  import { authParams, restUrl, viewMode, mumaApiKey, memoriesOnHomeEnabled, homeModeReleaseRadar, homeModeDailyMix,
     homeModeFavorites, homeModeRecentlyReleased, homeModeRecentlyAdded } from './store.js';
   import { memoryCount, playMemoryYear, yearTiles } from './memories.js';
   import { listOf, subsonicJson } from './subsonic.js';
+  import { loadTopArtists, loadTopLabels, resolveArtistView } from './homeRankings.js';
+  import { TILE_COLORS as BROWSE_TILE_COLORS } from './browseColors.js';
   import QuickAccessTile from './QuickAccessTile.svelte';
   import HomeShelf from './HomeShelf.svelte';
   import DailyMixesShelf from './DailyMixesShelf.svelte';
@@ -57,6 +59,12 @@
 
   let favorites = $state([]);
   let favoritesState = $state('loading');
+  // Home's two ranking strips ("Jouw artiesten deze maand", "Jouw labels"); empty until the
+  // account has a MuMa API key and the load below resolves, which is also what keeps both
+  // strips hidden -- there is nothing to distinguish "not loaded yet" from "no listens" for
+  // a row this far down the page, and both read fine as simply absent.
+  let topArtists = $state([]);
+  let topLabels = $state([]);
   let recentlyReleased = $state([]);
   let recentlyReleasedState = $state('loading');
   let recentlyAdded = $state([]);
@@ -191,6 +199,34 @@
       favoritesState = 'failed';
     }
   });
+
+  // The listening endpoints need the MuMa key, not the Subsonic credentials `$authParams`
+  // gates on above -- an account can have one without the other -- so this loads once on
+  // mount, only when that key is present, and never retries on its own; `stale` only
+  // matters for the (test-only, in practice) case of the component unmounting mid-request.
+  onMount(() => {
+    if (!$mumaApiKey) return;
+    let stale = false;
+    Promise.all([loadTopArtists(), loadTopLabels()]).then(([artists, labels]) => {
+      if (stale) return;
+      topArtists = artists;
+      topLabels = labels;
+    });
+    return () => { stale = true; };
+  });
+
+  /**
+   * A tapped artist ranking resolves to the library's LMS artist id first, since the
+   * MuMa id the ranking itself carries is not one `onnavigate` can use. A name with no
+   * match (an artist MuMa knows only from scrobbles, not the library) still opens
+   * somewhere useful: the same search results a manual search for that name would give.
+   *
+   * @param {string} name
+   */
+  async function openArtistRanking(name) {
+    const view = await resolveArtistView(name);
+    onnavigate(view ?? `search:${name}`);
+  }
 </script>
 
 <div class="grid grid-cols-2 gap-2" data-testid="home-quick-access">
@@ -249,4 +285,48 @@
   <HomeShelf title={$t(fallbackRecentSection.key)} tracks={fallbackRecentSection.tracks.slice(0, 6)}
     layout="rows" showAllLabel={$t('dashboard.showAll')}
     {onnavigate} onshowall={() => openSection(fallbackRecentSection)} />
+{/if}
+{#if topArtists.length > 0}
+  <section class="flex flex-col gap-3" data-testid="home-top-artists">
+    <div class="flex justify-between items-end mb-4">
+      <h2 class="text-xl font-bold m-0">{$t('dashboard.topArtists')}</h2>
+      <button
+        class="bg-transparent border-none text-[#b3b3b3] text-[13px] font-bold cursor-pointer hover:underline"
+        onclick={() => onnavigate('listening')}
+      >{$t('dashboard.showAll')}</button>
+    </div>
+    <div class="flex gap-3 overflow-x-auto snap-x scrollbar-hide -mx-4 px-4 pb-1">
+      {#each topArtists as artist (artist.name)}
+        <QuickAccessTile
+          class="w-[150px] shrink-0"
+          title={artist.name}
+          subtitle={$t('common.listenCount', { count: artist.listens })}
+          color={BROWSE_TILE_COLORS.artists}
+          onclick={() => openArtistRanking(artist.name)}
+        />
+      {/each}
+    </div>
+  </section>
+{/if}
+{#if topLabels.length > 0}
+  <section class="flex flex-col gap-3" data-testid="home-top-labels">
+    <div class="flex justify-between items-end mb-4">
+      <h2 class="text-xl font-bold m-0">{$t('dashboard.topLabels')}</h2>
+      <button
+        class="bg-transparent border-none text-[#b3b3b3] text-[13px] font-bold cursor-pointer hover:underline"
+        onclick={() => onnavigate('listening')}
+      >{$t('dashboard.showAll')}</button>
+    </div>
+    <div class="flex gap-3 overflow-x-auto snap-x scrollbar-hide -mx-4 px-4 pb-1">
+      {#each topLabels as label (label.name)}
+        <QuickAccessTile
+          class="w-[150px] shrink-0"
+          title={label.name}
+          subtitle={$t('common.listenCount', { count: label.listens })}
+          color={BROWSE_TILE_COLORS.labels}
+          onclick={() => onnavigate(`label:${label.name}`)}
+        />
+      {/each}
+    </div>
+  </section>
 {/if}

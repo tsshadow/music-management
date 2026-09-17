@@ -46,7 +46,9 @@
    */
   function playAll() {
     if (tracks.length > 0) {
-      startQueue(tracks, { name: $currentPlaylist?.name });
+      // The queue names 'playlist:<id>', not 'playlist-detail': only the former is a place
+      // the header can navigate back to (see App.svelte's handleNavigate).
+      startQueue(tracks, { name: $currentPlaylist?.name, view: `playlist:${$currentPlaylist?.id}` });
       currentTrack.set(tracks[0]);
       playerState.update(s => ({ ...s, playing: true }));
     }

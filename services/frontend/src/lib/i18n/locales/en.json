@@ -84,6 +84,10 @@
     "download": "Download",
     "edit": "Edit",
     "gotIt": "Got it",
+    "listenCount": {
+      "one": "{count} listen",
+      "other": "{count} listens"
+    },
     "loadMore": "Load more",
     "loading": "Loading…",
     "logout": "Log out",
@@ -130,7 +134,9 @@
     "searchResultsSets": "Search results for \"{query}\" (sets)",
     "searchResultsTracks": "Search results for \"{query}\" (tracks)",
     "showAll": "Show all",
-    "toggleFavorite": "Toggle favourite"
+    "toggleFavorite": "Toggle favourite",
+    "topArtists": "Your artists this month",
+    "topLabels": "Your labels"
   },
   "equalizer": {
     "band": "{freq} band",

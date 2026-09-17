@@ -9,8 +9,10 @@ import {
   homeModeRecentlyReleased,
   homeModeRecentlyAdded,
   credentials,
+  mumaApiKey,
   viewMode,
 } from "../../src/lib/store.js";
+import { loadTopArtists, loadTopLabels, resolveArtistView } from "../../src/lib/homeRankings.js";
 
 // DailyMixesShelf (rendered when the daily-mix section is "Overzicht") builds its five cards
 // from these two modules; stubbed here so a phone-home test never reaches MuMa for them.
@@ -19,6 +21,13 @@ vi.mock("../../src/lib/dailyMixes.js", () => ({
 }));
 vi.mock("../../src/lib/genreTints.js", () => ({
   fetchGenreTints: async () => ({}),
+}));
+// The ranking rows are network calls in their own right (see homeRankings.test.js for those);
+// here only the wiring -- fetched on the right condition, rendered, tapped -- is under test.
+vi.mock("../../src/lib/homeRankings.js", () => ({
+  loadTopArtists: vi.fn(async () => []),
+  loadTopLabels: vi.fn(async () => []),
+  resolveArtistView: vi.fn(async () => null),
 }));
 
 /** Each account mode controls placement, independent of whether a source is empty. */
@@ -302,5 +311,107 @@ describe("phone home fallback recent shelf", () => {
 
     await vi.waitFor(() => expect(screen.getAllByTestId("track-row-compact")).toHaveLength(1));
     expect(screen.getAllByRole("heading", { name: "Recent toegevoegd" })).toHaveLength(1);
+  });
+});
+
+// The two ranking strips below the fallback shelf: "Jouw artiesten deze maand" and "Jouw
+// labels", drawn from /api/listening (mocked at the module level above) and gated on the
+// MuMa key rather than the Subsonic credentials every other section here uses.
+describe("phone home ranking rows", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    loadTopArtists.mockResolvedValue([]);
+    loadTopLabels.mockResolvedValue([]);
+    resolveArtistView.mockResolvedValue(null);
+    credentials.set({ url: "", username: "", password: "" });
+    mumaApiKey.set("");
+    memoriesOnHomeEnabled.set(false);
+    homeModeReleaseRadar.set("OFF");
+    homeModeDailyMix.set("OFF");
+    homeModeFavorites.set("OFF");
+    homeModeRecentlyReleased.set("OFF");
+    homeModeRecentlyAdded.set("OFF");
+  });
+
+  it("never asks MuMa for a ranking when the account has no MuMa key", () => {
+    render(PhoneHome, { onnavigate: vi.fn() });
+
+    expect(loadTopArtists).not.toHaveBeenCalled();
+    expect(loadTopLabels).not.toHaveBeenCalled();
+    expect(screen.queryByText("Jouw artiesten deze maand")).toBeNull();
+    expect(screen.queryByText("Jouw labels")).toBeNull();
+  });
+
+  it("hides both rows when the key is set but neither ranking has anything", async () => {
+    mumaApiKey.set("secret");
+    render(PhoneHome, { onnavigate: vi.fn() });
+
+    await vi.waitFor(() => expect(loadTopArtists).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText("Jouw artiesten deze maand")).toBeNull();
+    expect(screen.queryByText("Jouw labels")).toBeNull();
+  });
+
+  it("renders one tile per artist and label the loaders return", async () => {
+    mumaApiKey.set("secret");
+    loadTopArtists.mockResolvedValue([{ name: "Angerfist", listens: 12 }]);
+    loadTopLabels.mockResolvedValue([{ name: "Art of Creation", listens: 5 }]);
+
+    render(PhoneHome, { onnavigate: vi.fn() });
+
+    expect(await screen.findByText("Jouw artiesten deze maand")).toBeTruthy();
+    expect(screen.getByText("Angerfist")).toBeTruthy();
+    expect(screen.getByText("Jouw labels")).toBeTruthy();
+    expect(screen.getByText("Art of Creation")).toBeTruthy();
+    expect(screen.getAllByText(/keer geluisterd/).length).toBeGreaterThan(0);
+  });
+
+  it("resolves an artist tap to its LMS view before navigating", async () => {
+    mumaApiKey.set("secret");
+    loadTopArtists.mockResolvedValue([{ name: "Angerfist", listens: 12 }]);
+    resolveArtistView.mockResolvedValue("artist:99");
+    const onnavigate = vi.fn();
+
+    render(PhoneHome, { onnavigate });
+    await fireEvent.click(await screen.findByText("Angerfist"));
+
+    expect(resolveArtistView).toHaveBeenCalledWith("Angerfist");
+    await vi.waitFor(() => expect(onnavigate).toHaveBeenCalledWith("artist:99"));
+  });
+
+  it("falls back to a search view when the artist name does not resolve", async () => {
+    mumaApiKey.set("secret");
+    loadTopArtists.mockResolvedValue([{ name: "Unknown Artist", listens: 3 }]);
+    resolveArtistView.mockResolvedValue(null);
+    const onnavigate = vi.fn();
+
+    render(PhoneHome, { onnavigate });
+    await fireEvent.click(await screen.findByText("Unknown Artist"));
+
+    await vi.waitFor(() => expect(onnavigate).toHaveBeenCalledWith("search:Unknown Artist"));
+  });
+
+  it("navigates a label tap straight to label:<name>, no resolution involved", async () => {
+    mumaApiKey.set("secret");
+    loadTopLabels.mockResolvedValue([{ name: "Art of Creation", listens: 5 }]);
+    const onnavigate = vi.fn();
+
+    render(PhoneHome, { onnavigate });
+    await fireEvent.click(await screen.findByText("Art of Creation"));
+
+    expect(onnavigate).toHaveBeenCalledWith("label:Art of Creation");
+    expect(resolveArtistView).not.toHaveBeenCalled();
+  });
+
+  it('opens the listening stats page from a row\'s own "show all"', async () => {
+    mumaApiKey.set("secret");
+    loadTopArtists.mockResolvedValue([{ name: "Angerfist", listens: 12 }]);
+    const onnavigate = vi.fn();
+
+    render(PhoneHome, { onnavigate });
+    await screen.findByText("Jouw artiesten deze maand");
+    const artistsRow = within(screen.getByTestId("home-top-artists"));
+    await fireEvent.click(artistsRow.getByText("Alles tonen"));
+
+    expect(onnavigate).toHaveBeenCalledWith("listening");
   });
 });

@@ -45,28 +45,28 @@ describe("hashColor", () => {
 });
 
 describe("imageLoads", () => {
-  const realImage = globalThis.Image;
+  const realFetch = globalThis.fetch;
 
   afterEach(() => {
-    globalThis.Image = realImage;
+    globalThis.fetch = realFetch;
   });
 
   it("resolves true when the image loads", async () => {
-    globalThis.Image = class {
-      set src(_url) {
-        this.onload?.();
-      }
-    };
+    globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200 }));
 
     expect(await imageLoads("https://muma.example/exists.jpg")).toBe(true);
   });
 
   it("resolves false when the image 404s", async () => {
-    globalThis.Image = class {
-      set src(_url) {
-        this.onerror?.();
-      }
-    };
+    globalThis.fetch = vi.fn(async () => ({ ok: false, status: 404 }));
+
+    expect(await imageLoads("https://muma.example/missing.jpg")).toBe(false);
+  });
+
+  it("resolves false when the request itself fails, rather than throwing", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      throw new Error("network down");
+    });
 
     expect(await imageLoads("https://muma.example/missing.jpg")).toBe(false);
   });
@@ -84,11 +84,7 @@ describe("loadDailyMixCards", () => {
       { slug: DAILY_MIX_LABEL, title: "Neophyte Records", subtitle: "Een label uit jouw top 10" },
     ]);
     globalThis.__fetchFeed = vi.fn(async () => ({ tracks: [] }));
-    globalThis.Image = class {
-      set src(_url) {
-        this.onerror?.();
-      }
-    };
+    globalThis.fetch = vi.fn(async () => ({ ok: false, status: 404 }));
   });
 
   it("builds one card per mix, in soft/mid/hard/artist/label order", async () => {
@@ -133,11 +129,7 @@ describe("loadDailyMixCards", () => {
   });
 
   it("gives the artist card its photo when one loads", async () => {
-    globalThis.Image = class {
-      set src(_url) {
-        this.onload?.();
-      }
-    };
+    globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200 }));
 
     const cards = await loadDailyMixCards({}, AUTH);
     const artist = cards.find((c) => c.slug === DAILY_MIX_ARTIST);

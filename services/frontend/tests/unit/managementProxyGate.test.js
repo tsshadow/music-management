@@ -87,8 +87,9 @@ describe("Management behind the LMS proxy gate", () => {
   });
 
   it("loads every panel without tripping the gate", async () => {
-    // The proxy allows half the LMS http thread pool, ten calls on production
-    // hardware. Opening the screen used to fire eleven at once, so the last one
+    // The proxy allows half the LMS http thread pool -- four calls on the
+    // eight cores production had before the pool was pinned to sixteen.
+    // Opening the screen used to fire eleven at once, so the last one
     // came back as a 503 the screen then tried to parse as JSON -- one banner
     // reading "Kon gegevens niet ophalen", and no data at all behind it.
     const { fetchMock, refusalCount } = gatedApi(10);

@@ -10,6 +10,7 @@
 import { get } from "svelte/store";
 
 import { mumaApiKey, mumaApiUrl } from "./store";
+import { MAX_PARALLEL_MUMA_CALLS, gatedFetch } from "./mumaGate.js";
 
 // `restUrl` builds on `credentials`, which lives in `store.js`; re-exported
 // here so a module that already reaches for `apiBase`/`getHeaders` does not
@@ -45,27 +46,22 @@ export function jsonHeaders() {
   return getHeaders({ "Content-Type": "application/json" });
 }
 
-/**
- * How many MuMa calls this client keeps in flight at once.
- *
- * Every `/api/...` call reaches MuMa through the LMS proxy
- * (services/music-management-server/src/libs/muma/MumaResource.cpp), which holds
- * one http server thread for the whole round trip and refuses anything past half
- * the pool rather than queueing it -- ten calls on production hardware. That
- * allowance is shared with whatever the player is doing at the same time
- * (artist images, most of all), so a screen may not spend all of it.
- *
- * A refusal is a 503 carrying the bare line "Too many requests to MuMa in
- * flight", which is not JSON: parsing it throws, and a screen that loads its
- * panels in one batch loses every panel to the one that was refused.
- */
-export const MAX_PARALLEL_MUMA_CALLS = 4;
+// The cap on calls in flight lives in `mumaGate.js`, below every caller, so
+// that `store.js` (which this module imports) can go through it too.
+export {
+  GATE_RETRY_DELAYS_MS,
+  MAX_PARALLEL_MUMA_CALLS,
+  gatedFetch,
+  withMumaGate,
+} from "./mumaGate.js";
 
 /**
  * `items.map(worker)`, but with at most `limit` running at once.
  *
  * Results come back in the order of `items`, like `Promise.all`, so callers can
- * destructure a batch of requests exactly as they did before.
+ * destructure a batch of requests exactly as they did before. The gate already
+ * caps everything that goes through `fetchMumaJson`; this keeps a screen from
+ * queueing its whole batch at once ahead of whatever else the user does next.
  *
  * @template T, R
  * @param {T[]} items
@@ -88,17 +84,6 @@ export async function mapWithLimit(items, worker, limit = MAX_PARALLEL_MUMA_CALL
 }
 
 /**
- * How long to wait before asking again after the proxy refused a call.
- *
- * A refusal means the gate was full at that instant, not that anything is
- * wrong: the calls holding it are round trips that finish in milliseconds, and
- * the allowance is shared with whatever else is talking to MuMa right then.
- * Staying under MAX_PARALLEL_MUMA_CALLS therefore lowers the odds of a refusal
- * without ruling one out, so a refusal is waited out rather than reported.
- */
-export const GATE_RETRY_DELAYS_MS = [100, 300, 700];
-
-/**
  * GET a MuMa endpoint and parse its answer.
  *
  * Retries a 503 -- what the LMS proxy returns when its concurrency gate is full
@@ -112,16 +97,10 @@ export const GATE_RETRY_DELAYS_MS = [100, 300, 700];
  * @returns {Promise<any>} The parsed body.
  */
 export async function fetchMumaJson(url, options = {}) {
-  for (let attempt = 0; ; attempt++) {
-    const response = await fetch(url, options);
-    if (response.status === 503 && attempt < GATE_RETRY_DELAYS_MS.length) {
-      await new Promise((resolve) => setTimeout(resolve, GATE_RETRY_DELAYS_MS[attempt]));
-      continue;
-    }
-    try {
-      return await response.json();
-    } catch (err) {
-      throw new Error(`MuMa antwoordde met status ${response.status} en geen JSON`, { cause: err });
-    }
+  const response = await gatedFetch(url, options);
+  try {
+    return await response.json();
+  } catch (err) {
+    throw new Error(`MuMa antwoordde met status ${response.status} en geen JSON`, { cause: err });
   }
 }

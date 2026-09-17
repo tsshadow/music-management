@@ -1,5 +1,6 @@
 <script>
-  import { authParams, offline } from './store.js';
+  import { authParams } from './store.js';
+  import { offline } from './subsonic.js';
   import { coverArtSrc, FALLBACK, localCoverArt } from './coverArt.js';
   import { playTrack } from './playTrack.js';
   import Artwork from './Artwork.svelte';

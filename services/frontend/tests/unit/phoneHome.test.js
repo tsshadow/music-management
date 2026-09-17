@@ -105,3 +105,109 @@ describe("phone home modes", () => {
     expect(screen.queryByText("Dagelijkse mixen")).toBeNull();
   });
 });
+
+// A tile with nothing to show is not "broken" -- it is a destination that has not answered
+// yet, and each one gets a line explaining what it is for instead of a generic "no tracks".
+describe("phone home empty, loading and failed copy", () => {
+  beforeEach(() => {
+    credentials.set({ url: "", username: "", password: "" });
+    memoriesOnHomeEnabled.set(false);
+    homeModeReleaseRadar.set("BUTTON");
+    homeModeDailyMix.set("OFF");
+    homeModeFavorites.set("BUTTON");
+    homeModeRecentlyReleased.set("BUTTON");
+    homeModeRecentlyAdded.set("BUTTON");
+  });
+
+  it("shows the destination's own copy for an empty tile, not the generic line", async () => {
+    render(PhoneHome, { onnavigate: vi.fn() });
+
+    expect(await screen.findByText("Ontdek nieuwe releases")).toBeTruthy();
+    expect(await screen.findByText("Nog niets met een ster")).toBeTruthy();
+    expect(await screen.findByText("De nieuwste releases in je bibliotheek")).toBeTruthy();
+    expect(await screen.findByText("Wat er net is bijgekomen")).toBeTruthy();
+  });
+
+  it("shows the failed copy when the favourites request breaks", async () => {
+    credentials.set({ url: "https://lms.example", username: "test", password: "test" });
+    globalThis.fetch = vi.fn(async (url) => {
+      if (String(url).includes("getStarred2")) throw new Error("network down");
+      return { ok: true, json: async () => ({ "subsonic-response": { tracks: { track: [] } } }) };
+    });
+
+    render(PhoneHome, { onnavigate: vi.fn() });
+
+    expect(await screen.findByText("Kon niet laden")).toBeTruthy();
+  });
+
+  it("marks a feed section from Dashboard as failed via its own subtitle", async () => {
+    render(PhoneHome, {
+      onnavigate: vi.fn(),
+      sections: [{ id: "feed:release-radar", tracks: [], failed: true }],
+    });
+
+    expect(await screen.findByText("Kon niet laden")).toBeTruthy();
+  });
+});
+
+describe("phone home quick-access tile count", () => {
+  beforeEach(() => {
+    credentials.set({ url: "", username: "", password: "" });
+    memoriesOnHomeEnabled.set(true);
+    homeModeReleaseRadar.set("BUTTON");
+    homeModeDailyMix.set("BUTTON");
+    homeModeFavorites.set("OFF");
+    homeModeRecentlyReleased.set("OFF");
+    homeModeRecentlyAdded.set("OFF");
+  });
+
+  it("stretches the last tile across the row when the count is odd", () => {
+    // Memories + release radar + daily mixes: three tiles, an orphan half-row without this.
+    render(PhoneHome, { onnavigate: vi.fn() });
+
+    const grid = within(screen.getByTestId("home-quick-access"));
+    const buttons = grid.getAllByRole("button");
+    expect(buttons).toHaveLength(3);
+    expect(buttons.at(-1).className).toContain("col-span-2");
+    expect(buttons[0].className).not.toContain("col-span-2");
+    expect(buttons[1].className).not.toContain("col-span-2");
+  });
+
+  it("leaves every tile at its normal width when the count is even", () => {
+    homeModeFavorites.set("BUTTON");
+
+    render(PhoneHome, { onnavigate: vi.fn() });
+
+    const grid = within(screen.getByTestId("home-quick-access"));
+    const buttons = grid.getAllByRole("button");
+    expect(buttons).toHaveLength(4);
+    for (const button of buttons) expect(button.className).not.toContain("col-span-2");
+  });
+});
+
+// PhoneHome's own recent shelves show compact rows, not another grid of mostly-placeholder
+// cards -- see `HomeShelf.svelte`'s `layout="rows"`.
+describe("phone home recent shelves", () => {
+  it("renders the recently released and recently added shelves as rows", async () => {
+    credentials.set({ url: "https://lms.example", username: "test", password: "test" });
+    memoriesOnHomeEnabled.set(false);
+    homeModeReleaseRadar.set("OFF");
+    homeModeDailyMix.set("OFF");
+    homeModeFavorites.set("OFF");
+    homeModeRecentlyReleased.set("OVERVIEW");
+    homeModeRecentlyAdded.set("OVERVIEW");
+    globalThis.fetch = vi.fn(async (url) => {
+      const parsed = new URL(url);
+      const sort = parsed.searchParams.get("sort");
+      const track = { id: `song-${sort}`, title: `Track ${sort}`, artist: "Angerfist" };
+      return {
+        ok: true,
+        json: async () => ({ "subsonic-response": { tracks: { track: [track] } } }),
+      };
+    });
+
+    render(PhoneHome, { onnavigate: vi.fn() });
+
+    await vi.waitFor(() => expect(screen.getAllByTestId("track-row-compact")).toHaveLength(2));
+  });
+});

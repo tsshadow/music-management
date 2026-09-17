@@ -16,13 +16,20 @@
     cover = null,
     color = '#503750',
     icon = 'M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z',
+    // A source still loading its first answer shows an ellipsis in place of the subtitle;
+    // this is the only visible sign of that, so it also carries the skeleton pulse.
+    loading = false,
+    // Appended to the button's own class list -- `PhoneHome.svelte` uses it to stretch the
+    // last tile of an odd-sized grid to `col-span-2` rather than leaving an orphan half-row.
+    // Aliased because `class` alone cannot be a destructured binding name.
+    class: extraClass = '',
     onclick,
   } = $props();
 </script>
 
 <button
   type="button"
-  class="relative overflow-hidden rounded-lg h-16 p-2.5 border-none cursor-pointer text-left flex flex-col justify-between hover:brightness-110 active:scale-[0.98] transition"
+  class="relative overflow-hidden rounded-lg h-16 p-2.5 border-none cursor-pointer text-left flex flex-col justify-between hover:brightness-110 active:scale-[0.98] transition {extraClass}"
   style={cover
     ? `background-image: url("${cover}"); background-size: cover; background-position: center;`
     : `background-color: ${color};`}
@@ -32,7 +39,7 @@
        green. Either way the wash keeps white text readable. -->
   <span class="absolute inset-0 {cover ? 'bg-black/45' : 'bg-black/25'}" aria-hidden="true"></span>
   <span class="relative z-10 text-white font-bold text-sm leading-tight line-clamp-1">{title}</span>
-  <span class="relative z-10 text-white/70 text-[11px] truncate">{subtitle}</span>
+  <span class="relative z-10 text-white/70 text-[11px] truncate {loading ? 'animate-pulse' : ''}">{subtitle}</span>
   {#if !cover}
     <svg
       viewBox="0 0 24 24"

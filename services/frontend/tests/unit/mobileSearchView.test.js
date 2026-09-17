@@ -21,6 +21,14 @@ describe("MobileSearchView", () => {
     expect(screen.getByText("Artiesten")).toBeTruthy();
   });
 
+  // The advanced-search card used to sit above the grid; it moved to a filter icon beside
+  // the search field in `TopBar.svelte`, so this screen opens straight on the category grid.
+  it("no longer offers the advanced-search card", () => {
+    render(MobileSearchView, { onnavigate: vi.fn() });
+
+    expect(screen.queryByText("Geavanceerd zoeken")).toBeNull();
+  });
+
   it("hands a tile tap straight up to the app", async () => {
     const onnavigate = vi.fn();
     render(MobileSearchView, { onnavigate });

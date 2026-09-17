@@ -59,6 +59,13 @@
   },
   "dashboard": {
     "addFavorite": "Bie de favorieten doon",
+    "empty": {
+      "recentlyAdded": "Wat der net bie ekomn is",
+      "recentlyReleased": "De nieje releases in oew bieb",
+      "releaseRadar": "Ontdek nieje releases",
+      "starred": "Nog niks met n sterretjen"
+    },
+    "loadFailed": "Kos niet loadn",
     "noAlbums": "Gin albums evondn",
     "noGenres": "Gin soortn in oew bieb.",
     "noLabels": "Gin labels in oew bieb.",

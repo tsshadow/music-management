@@ -14,6 +14,10 @@
    * `platform.speech.supported`, so a browser tab -- which has no recogniser
    * and no `core/voice` behind it -- never shows a button that would only ever
    * reject.
+   *
+   * The advanced-search card used to open here, at the top of the grid; it now lives behind
+   * the filter icon `TopBar.svelte` renders beside the search field on this tab, so the grid
+   * is the first thing this screen shows again.
    */
   const { onnavigate, platform = defaultPlatform } = $props();
 
@@ -37,18 +41,5 @@
       </button>
     {/if}
   </div>
-  <button
-    type="button"
-    class="w-full text-left bg-[#181818] hover:bg-[#282828] rounded-lg px-4 py-3 border border-white/5 cursor-pointer flex items-center justify-between gap-4"
-    onclick={() => onnavigate('new-preset')}
-  >
-    <span class="flex flex-col gap-0.5">
-      <span class="text-white font-bold">{$t('presetBuilder.open')}</span>
-      <span class="text-[#b3b3b3] text-sm">{$t('presetBuilder.title')}</span>
-    </span>
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" class="text-[#b3b3b3] shrink-0" aria-hidden="true">
-      <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path>
-    </svg>
-  </button>
   <BrowseGrid {onnavigate} {platform} />
 </div>

@@ -7,7 +7,7 @@
   import { activeView, authParams, activeModal, sidebarDrawerOpen, searchResultsOpen, restUrl, isMobile } from './store.js';
   import { phoneTabForView } from './router.js';
   import { t } from './i18n/index.js';
-  import { Menu } from '@lucide/svelte';
+  import { Menu, SlidersHorizontal } from '@lucide/svelte';
   import { get } from 'svelte/store';
 
   const { greeting = "" } = $props();
@@ -96,6 +96,19 @@
     {/if}
 
     <SearchBar bind:showResults={$searchResultsOpen} />
+
+    {#if phoneTab === 'browse'}
+      <!-- The advanced-search entry used to be its own card at the top of Bladeren; a filter
+           icon beside the search field puts it one tap away without spending a whole row on it. -->
+      <button
+        type="button"
+        class="flex items-center justify-center w-9 h-9 shrink-0 rounded-full bg-transparent border-none text-white hover:bg-[#282828] transition-colors cursor-pointer"
+        aria-label={$t('presetBuilder.open')}
+        onclick={() => handleNavigate('new-preset')}
+      >
+        <SlidersHorizontal size={20} />
+      </button>
+    {/if}
 
     {#if phoneTab}
       <ModeChips />

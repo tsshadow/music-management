@@ -1084,9 +1084,12 @@
   "nowPlaying": {
     "close": "Sluiten",
     "more": "Meer",
+    "moreFrom": "Meer van {name}",
+    "nextUp": "Hierna",
     "pause": "Pauze",
     "play": "Afspelen",
-    "playingFromLabel": "Afspelen vanuit"
+    "playingFromLabel": "Afspelen vanuit",
+    "shuffleOn": "Shuffle staat aan — het volgende nummer is een verrassing"
   },
   "player": {
     "next": "Volgende",

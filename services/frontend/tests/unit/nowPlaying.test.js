@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/svelte";
+import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
+import { get } from "svelte/store";
 import NowPlaying from "../../src/lib/NowPlaying.svelte";
-import { queueSource } from "../../src/lib/store.js";
+import { queueSource, playlist, currentTrack } from "../../src/lib/store.js";
 
 const TRACK = {
   id: "song-1",
@@ -462,5 +463,231 @@ describe("NowPlaying queue source", () => {
 
     expect(onclose).toHaveBeenCalled();
     expect(onnavigate).toHaveBeenCalledWith("genre:Hardcore");
+  });
+});
+
+// A track with no cover shows its title twice -- once as the row's real title, once inside
+// `Artwork`'s tinted fallback panel (see `TrackRowCompact.svelte`'s own tests) -- so the
+// genuine title line is always the last match for a title that appears only once elsewhere.
+function titleText(text) {
+  return screen.getAllByText(text).pop();
+}
+
+// F: "next up" -- a preview of the queue after the currently playing position, built from
+// `Player.svelte`'s `queueIndex` prop rather than a lookup, so a repeated id in the queue does
+// not confuse it.
+describe("NowPlaying next up", () => {
+  beforeEach(() => {
+    playlist.set([]);
+    currentTrack.set(null);
+  });
+
+  afterEach(() => {
+    playlist.set([]);
+    currentTrack.set(null);
+  });
+
+  it("shows the three entries after queueIndex by position, even when an id repeats in the queue", () => {
+    playlist.set([
+      { id: "song-1", title: "First", artist: "Angerfist" },
+      { id: "song-2", title: "Second", artist: "Angerfist" },
+      { id: "song-1", title: "First Again", artist: "Angerfist" },
+      { id: "song-3", title: "Third", artist: "Angerfist" },
+      { id: "song-4", title: "Fourth", artist: "Angerfist" },
+    ]);
+
+    renderNowPlaying({ queueIndex: 0 });
+
+    expect(screen.getByText("Hierna")).toBeTruthy();
+    expect(titleText("Second")).toBeTruthy();
+    expect(titleText("First Again")).toBeTruthy();
+    expect(titleText("Third")).toBeTruthy();
+    expect(screen.queryByText("Fourth")).toBeNull();
+  });
+
+  it("hides the section when nothing follows and repeat is not set to all", () => {
+    playlist.set([
+      { id: "1", title: "One", artist: "A" },
+      { id: "2", title: "Two", artist: "A" },
+      { id: "3", title: "Three", artist: "A" },
+    ]);
+
+    renderNowPlaying({ queueIndex: 2, repeatMode: "none" });
+
+    expect(screen.queryByText("Hierna")).toBeNull();
+  });
+
+  it("wraps to the start of the queue when repeat is set to all", () => {
+    playlist.set([
+      { id: "1", title: "Alpha", artist: "A" },
+      { id: "2", title: "Bravo", artist: "A" },
+      { id: "3", title: "Charlie", artist: "A" },
+      { id: "4", title: "Delta", artist: "A" },
+    ]);
+
+    renderNowPlaying({ queueIndex: 3, repeatMode: "all" });
+
+    expect(titleText("Alpha")).toBeTruthy();
+    expect(titleText("Bravo")).toBeTruthy();
+    expect(titleText("Charlie")).toBeTruthy();
+  });
+
+  it("shows the shuffle line instead of a preview, and hides it once shuffle is off with nothing to preview", () => {
+    playlist.set([
+      { id: "1", title: "One", artist: "A" },
+      { id: "2", title: "Two", artist: "A" },
+    ]);
+
+    renderNowPlaying({ queueIndex: 0, shuffleMode: true });
+
+    expect(screen.getByText("Hierna")).toBeTruthy();
+    expect(screen.getByText(/Shuffle staat aan/)).toBeTruthy();
+    expect(screen.queryByText("Two")).toBeNull();
+  });
+
+  it("jumps within the queue on tap, without replacing the playlist", async () => {
+    const queue = [
+      { id: "1", title: "One", artist: "A" },
+      { id: "2", title: "Two", artist: "A" },
+    ];
+    playlist.set(queue);
+    currentTrack.set(queue[0]);
+
+    renderNowPlaying({ track: queue[0], queueIndex: 0 });
+
+    await fireEvent.click(titleText("Two"));
+
+    expect(get(currentTrack)?.id).toBe("2");
+    expect(get(playlist)).toEqual(queue);
+  });
+});
+
+// F: "more from artist" -- fetched lazily, once per artist, excluding the track playing now.
+describe("NowPlaying more from artist", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const artistTrack = { ...TRACK, artistId: "artist-1" };
+
+  const props = (overrides = {}) => ({
+    open: true,
+    track: artistTrack,
+    playing: false,
+    progress: 30,
+    duration: 240,
+    rating: 0,
+    onclose: vi.fn(),
+    ontogglePlay: vi.fn(),
+    onnext: vi.fn(),
+    onprev: vi.fn(),
+    onrate: vi.fn(),
+    ontoggleShuffle: vi.fn(),
+    ontoggleRepeat: vi.fn(),
+    onseek: vi.fn(),
+    ontoggleEqualizer: vi.fn(),
+    ontoggleQueue: vi.fn(),
+    onnavigate: vi.fn(),
+    ...overrides,
+  });
+
+  it("fetches once per artistId and excludes the currently playing track", async () => {
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        "subsonic-response": {
+          status: "ok",
+          tracks: {
+            track: [
+              { id: artistTrack.id, title: artistTrack.title, artist: artistTrack.artist },
+              { id: "song-2", title: "Second", artist: artistTrack.artist },
+              { id: "song-3", title: "Third", artist: artistTrack.artist },
+            ],
+          },
+        },
+      }),
+    }));
+
+    const { rerender } = render(NowPlaying, props());
+
+    await waitFor(() => expect(titleText("Second")).toBeTruthy());
+    // Two rows, not three: the fetch answered with the currently playing track too, and it
+    // was filtered out of the "more from" list rather than shown among its own alternatives.
+    expect(screen.getAllByTestId("track-row-compact")).toHaveLength(2);
+    expect(titleText("Third")).toBeTruthy();
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+    // Re-rendering with the same artistId (a queue position change, a rating, ...) must not
+    // ask the server again.
+    await rerender(props({ queueIndex: 4 }));
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+// F: "other versions" -- only for a track with a workId, via the shared `loadVersions`.
+describe("NowPlaying other versions", () => {
+  it("hides the section without a workId", () => {
+    renderNowPlaying({ track: { ...TRACK, workId: null } });
+
+    expect(screen.queryByText("Versies")).toBeNull();
+  });
+});
+
+// F: queue actions insert by position, not by searching for the id, so a repeated id in the
+// queue does not land the "play next" insert on the wrong copy of the track.
+describe("NowPlaying addAfterCurrent", () => {
+  afterEach(() => {
+    playlist.set([]);
+  });
+
+  it("inserts right after queueIndex even when the track's id repeats elsewhere in the queue", async () => {
+    playlist.set([
+      { id: "song-1", title: "First copy", artist: "Angerfist" },
+      { id: "song-1", title: "Second copy", artist: "Angerfist" },
+      { id: "song-2", title: "Other", artist: "Angerfist" },
+    ]);
+
+    renderNowPlaying({ queueIndex: 1 });
+
+    await fireEvent.click(screen.getByTestId("now-playing-details"));
+    await fireEvent.click(screen.getByText("Hierna afspelen"));
+
+    expect(get(playlist).map((t) => t.title)).toEqual([
+      "First copy",
+      "Second copy",
+      "Raise Your Fist",
+      "Other",
+    ]);
+  });
+
+  it("appends when there is no queue position to insert after", async () => {
+    playlist.set([{ id: "song-2", title: "Other", artist: "Angerfist" }]);
+
+    renderNowPlaying({ queueIndex: -1 });
+
+    await fireEvent.click(screen.getByTestId("now-playing-details"));
+    await fireEvent.click(screen.getByText("Hierna afspelen"));
+
+    expect(get(playlist).map((t) => t.title)).toEqual(["Other", "Raise Your Fist"]);
+  });
+});
+
+// F: the sections made the screen scroll, so the swipe-to-close gesture on the artwork must
+// yield to an ordinary scroll rather than closing the player underneath it.
+describe("NowPlaying swipe-to-close and scrolling", () => {
+  it("ignores the gesture once the sheet has been scrolled away from the top", async () => {
+    const onclose = vi.fn();
+    renderNowPlaying({ onclose });
+
+    const cover = screen.getByTestId("now-playing-artwork");
+    const scrollContainer = cover.parentElement;
+    Object.defineProperty(scrollContainer, "scrollTop", { value: 50, configurable: true });
+
+    await fireEvent.touchStart(cover, { touches: [{ clientY: 100 }] });
+    await fireEvent.touchEnd(cover, { changedTouches: [{ clientY: 220 }] });
+
+    expect(onclose).not.toHaveBeenCalled();
   });
 });

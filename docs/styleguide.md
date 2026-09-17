@@ -137,8 +137,18 @@ To maintain clean design governance and prevent ad-hoc style drift:
     this device and account (`recentPlaces.js`, `localStorage`, capped at 12, newest first); the
     player header names the place the queue actually started from (`queue.js`'s `startQueue`,
     `store.js`'s `queueSource`) instead of always the current track's album.
-  - F–G: player continuation sections, listening rankings — reuse the shelf, tile and row
-    components above.
+  - F (done): three sections below the full-screen player's bottom icon row, each hidden with
+    nothing to show: "Next up" (`nowPlaying.nextUp`, the three entries after `Player.svelte`'s
+    `queueIndex` in `$playlist`, or one line when shuffle is on), "More from {artist}"
+    (`nowPlaying.moreFrom`, six tracks lazily fetched once per `artistId` and cached across a
+    close/reopen), and "Other versions" (`track.versions`, via the shared `loadVersions()` in the
+    new `versions.js`, also used by `SongView.svelte`'s own page). Rows are `TrackRowCompact`; an
+    `onplay` override makes a "next up" tap jump within the playing queue while the other two
+    sections start a fresh one (`queue.js`'s `startQueue`). `addAfterCurrent` inserts at
+    `queueIndex + 1` instead of searching `$playlist` for the track's id, which used to land on
+    the wrong copy when the same track appeared twice in the queue. The screen now actually
+    scrolls, so the swipe-to-close gesture only fires with the container scrolled to the top.
+  - G: listening rankings — reuse the shelf, tile and row components above.
   - H: audio-output label in the player's bottom row in the accent colour, native only.
 
 - **Done** — Android login/welcome screens brought in line with the web's `LoginPage.svelte`: filled/rounded

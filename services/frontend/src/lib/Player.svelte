@@ -55,6 +55,11 @@
   const nativePlayback = platform.player.ownsQueue;
   /** @type {ReturnType<typeof createNativeQueue>|null} */
   let nativeQueue = null;
+  // Bumped whenever an `adopt()`/`sync()` on `nativeQueue` settles, so `queueIndex` below --
+  // a plain function call into a variable Svelte's reactivity does not see on its own --
+  // recomputes after the native side's position actually changes rather than only when
+  // `$playlist` or `$currentTrack` do (see `queueIndex`'s own comment).
+  let nativeQueuePositionTick = $state(0);
   let muted = $state(false);
   let lastVolume = $state(50);
   let lastSyncTime = null;
@@ -1178,6 +1183,26 @@
   const volume = $derived($playerState.volume);
   const repeatMode = $derived($playerState.repeat);
   const shuffleMode = $derived($playerState.shuffle);
+
+  /**
+   * Where `track` sits in the queue, for `NowPlaying.svelte`'s continuation sections (increment
+   * F, "next up" and `addAfterCurrent`) -- -1 when there is nothing to point at.
+   *
+   * Native: the position `nativeQueue` last pushed or adopted, since the service is the one
+   * actually walking the queue and this component only mirrors it (see `nativeQueue.js`'s
+   * `currentIndex`). `nativeQueuePositionTick` is read only to give this a reason to
+   * recompute after that position changes -- `nativeQueue` itself is a plain variable, not a
+   * store, so Svelte would otherwise never know to look again.
+   * Browser: a lookup by id, the same thing `playNext`/`playPrev` already do to find where they
+   * are -- there is no second, independent position to mirror.
+   */
+  const queueIndex = $derived.by(() => {
+    if (nativePlayback) {
+      void nativeQueuePositionTick;
+      return nativeQueue?.currentIndex() ?? -1;
+    }
+    return $playlist.findIndex((t) => String(t.id) === String($currentTrack?.id));
+  });
   const syncColor = $derived(
     $syncMode === 'host' ? '#1db954' : 
     ($syncMode === 'follower-jam' ? '#3d91ff' : 
@@ -1401,7 +1426,9 @@
     // means the rehydrate found nothing to restore, which is no reason to stop
     // music that is playing.
     if (!autoplay && queue.length === 0) return;
-    nativeQueue.sync(queue, wanted, { autoplay });
+    // See `queueIndex`: this is the only thing that gives it a reason to look at
+    // `nativeQueue.currentIndex()` again once this settles.
+    nativeQueue.sync(queue, wanted, { autoplay }).then(() => nativeQueuePositionTick++);
   });
 
   $effect(() => {
@@ -1479,7 +1506,9 @@
           : ''),
         onError: (e) => console.error('Could not hand the queue to the player service', e),
       });
-      nativeQueue.adopt();
+      // See `queueIndex`: the adopted position is otherwise invisible to it until something
+      // else happens to touch `nativeQueuePositionTick`.
+      nativeQueue.adopt().then(() => nativeQueuePositionTick++);
     } else {
       platform.player.setVolume(volume / 100);
     }
@@ -1744,6 +1773,7 @@
       rating={currentRating}
       {shuffleMode}
       {repeatMode}
+      {queueIndex}
       {transportLocked}
       coverUrl={fullCoverUrl}
       {artistUrl}

@@ -271,6 +271,38 @@ describe("createNativeQueue", () => {
     expect(player.calls).toEqual([]);
   });
 
+  // Increment F: `Player.svelte`'s `queueIndex` reads this to place the player's "next up"
+  // and "add after current" against the native side's actual position.
+  it("reports the adopted position through currentIndex", async () => {
+    player = fakePlayer({ queue: { index: 2, length: 3, trackIds: ["1", "2", "3"] } });
+    queue = createNativeQueue(player, { artworkUrlFor, onError });
+
+    expect(queue.currentIndex()).toBe(-1);
+    await queue.adopt();
+
+    expect(queue.currentIndex()).toBe(2);
+  });
+
+  it("reports the position of the last push through currentIndex", async () => {
+    await queue.sync(TRACKS, TRACKS[2]);
+
+    expect(queue.currentIndex()).toBe(2);
+  });
+
+  // The service moved by itself (a command, or its own plugin-driven advance) and the sync this
+  // triggers asks for nothing because the far side is already there -- but `currentIndex()` still
+  // has to catch up, or "next up" would keep previewing from the position of the last edit this
+  // side made rather than from where playback actually is.
+  it("catches currentIndex up to a move the service made by itself, even though nothing is pushed", async () => {
+    await queue.sync(TRACKS, TRACKS[0]);
+    player.nowPlaying("3");
+
+    await queue.sync(TRACKS, TRACKS[2]);
+
+    expect(player.calls).toHaveLength(1); // Only the first sync's setQueue.
+    expect(queue.currentIndex()).toBe(2);
+  });
+
   it("reports a failed hand-off instead of leaving a dead chain behind", async () => {
     player.setQueue = () => Promise.reject(new Error("no service"));
 

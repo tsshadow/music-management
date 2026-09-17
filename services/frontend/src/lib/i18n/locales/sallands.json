@@ -159,9 +159,12 @@
   "nowPlaying": {
     "close": "Dichtdoun",
     "more": "Meer",
+    "moreFrom": "Meer van {name}",
+    "nextUp": "Hierna",
     "pause": "Pauze",
     "play": "Ofspölen",
-    "playingFromLabel": "Speult van"
+    "playingFromLabel": "Speult van",
+    "shuffleOn": "Shuffle staot an — 't volgende leedje is een verrassing"
   },
   "player": {
     "next": "Volgende",

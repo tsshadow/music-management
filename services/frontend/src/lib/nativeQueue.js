@@ -157,7 +157,8 @@ export function trackAfterCommand(
  *          onError?: function(Error): void}} options
  * @returns {{adopt: function(): Promise<string[]>,
  *            sync: function(Array<object>, object|null, {autoplay?: boolean}=): Promise<void>,
- *            pushedIds: function(): string[]|null}}
+ *            pushedIds: function(): string[]|null,
+ *            currentIndex: function(): number}}
  */
 export function createNativeQueue(player, { artworkUrlFor, onError = () => {} }) {
   /** The ids last known to be on the far side; null until `adopt` or a push. */
@@ -225,7 +226,15 @@ export function createNativeQueue(player, { artworkUrlFor, onError = () => {} })
     // never actually reached (a stale mirror of a transient event) would ask for a real move.
     if (same && index === pushedIndex) return;
     if (same && index < 0) return;
-    if (same && String(player.state().trackId) === ids[index]) return;
+    if (same && String(player.state().trackId) === ids[index]) {
+      // The service moved by itself (a command, or a plugin-driven advance) and the UI is only
+      // mirroring that into `currentTrack`; no call is needed, but `pushedIndex` still has to catch
+      // up to the position the service actually reached -- otherwise `currentIndex()` (what "now
+      // playing" and "next up" are built from) would keep reporting the position of the last edit
+      // this side made rather than where playback actually is.
+      pushedIndex = index;
+      return;
+    }
 
     logAction("queue.replace", { length: ids.length, index: Math.max(index, 0) });
 
@@ -245,5 +254,13 @@ export function createNativeQueue(player, { artworkUrlFor, onError = () => {} })
     pushedIndex = index;
   }
 
-  return { adopt, sync, pushedIds: () => (pushed === null ? null : pushed.slice()) };
+  return {
+    adopt,
+    sync,
+    pushedIds: () => (pushed === null ? null : pushed.slice()),
+    // Where the service is now, for `Player.svelte`'s `queueIndex` (what "now playing" and the
+    // continuation sections in `NowPlaying.svelte` are built from). -1 before the first
+    // `adopt`/push, same as `pushedIndex` itself.
+    currentIndex: () => pushedIndex,
+  };
 }

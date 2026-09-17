@@ -1084,9 +1084,12 @@
   "nowPlaying": {
     "close": "Close",
     "more": "More",
+    "moreFrom": "More from {name}",
+    "nextUp": "Next up",
     "pause": "Pause",
     "play": "Play",
-    "playingFromLabel": "Playing from"
+    "playingFromLabel": "Playing from",
+    "shuffleOn": "Shuffle is on — next is a surprise"
   },
   "player": {
     "next": "Next",

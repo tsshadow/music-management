@@ -121,4 +121,59 @@ echo "--- Running Playwright browser tests ---"
 # Must point at the dynamic ports picked above (find_free_port), not fixed
 # ones - otherwise the frontend dev server proxies to the wrong/unbound
 # ports and every API call (login, search, ...) fails with ECONNREFUSED.
-VITE_API_TARGET="http://localhost:$MUMA_TEST_PORT_MANAGER" VITE_LMS_TARGET="http://localhost:$MUMA_TEST_PORT_LMS" npx playwright test
+export VITE_API_TARGET="http://localhost:$MUMA_TEST_PORT_MANAGER"
+export VITE_LMS_TARGET="http://localhost:$MUMA_TEST_PORT_LMS"
+
+# One invocation for the functional specs and the screenshot suite
+# (tests/browser/screenshots.spec.js): the production build in
+# playwright.config.js's webServer is the slow part of this job, and a second
+# `npx playwright test` would pay for it again.
+#
+# MUMA_UPDATE_SNAPSHOTS=1 rewrites the reference screenshots instead of
+# comparing against them -- the way to refresh them after an intended layout
+# change, since the build this suite renders is impractical on a workstation.
+# The rewritten references land in the job's artifacts; see
+# docs/frontend-screenshots.md for getting them back into the tree.
+PLAYWRIGHT_ARGS=()
+if [ "${MUMA_UPDATE_SNAPSHOTS:-}" = "1" ]; then
+    echo "--- MUMA_UPDATE_SNAPSHOTS=1: rewriting the reference screenshots ---"
+    PLAYWRIGHT_ARGS+=(--update-snapshots)
+fi
+
+set +e
+npx playwright test "${PLAYWRIGHT_ARGS[@]}"
+PLAYWRIGHT_EXIT=$?
+set -e
+[ "$PLAYWRIGHT_EXIT" -eq 0 ] && exit 0
+
+# A differing screenshot is a warning, not a failed job (.gitlab-ci.yml allows
+# exit code 42): the diff has to be looked at, and the first run after a route
+# is added has no reference yet and fails by design. Everything else -- a
+# functional spec, the login in auth.setup.js, a route in the screenshot suite
+# that never rendered -- stays a failure. The junit report carries each
+# failure's message; only its first line is judged, because the body below it
+# lists the attachments of any failed test and one of them is always called
+# "screenshot".
+python3 - <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+root = ET.parse("test-results/junit-browser.xml").getroot()
+hard = 0
+visual = 0
+for case in root.iter("testcase"):
+    for problem in list(case.iter("failure")) + list(case.iter("error")):
+        message = problem.get("message") or ""
+        # "expect(page).toHaveScreenshot(expected) failed" for a diff,
+        # "A snapshot doesn't exist at ..." for a route without a reference.
+        if "toHaveScreenshot" in message or "snapshot doesn't exist" in message:
+            visual += 1
+        else:
+            hard += 1
+            print(f"--- failed: {case.get('classname')} > {case.get('name')} ---")
+if hard or not visual:
+    print(f"--- {hard} failure(s) that are not a screenshot comparison: the job fails ---")
+    sys.exit(1)
+print(f"--- {visual} screenshot(s) differ from their reference; see the artifacts ---")
+sys.exit(42)
+PY

@@ -1006,6 +1006,9 @@ frontend:e2e:
   rules:
     - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    # A pipeline started by hand to refresh the reference screenshots
+    # (docs/frontend-screenshots.md) has no changed files to match on.
+    - if: '$MUMA_UPDATE_SNAPSHOTS == "1"'
     - changes:
         - services/frontend/**/*
         - docker/compose.test.yml
@@ -1015,11 +1018,23 @@ frontend:e2e:
         - scripts/test/frontend-browser.sh
   script:
     - ./scripts/test/frontend-browser.sh
+  # 42 is the script's own code for "only the screenshot suite differs from
+  # its references" (tests/browser/screenshots.spec.js): the job turns orange,
+  # the pipeline goes on, and the diff sits in the artifacts to be judged. A
+  # functional failure still exits 1 and blocks. Deliberately soft for now --
+  # the suite is new and the flake rate on this runner unknown; drop this
+  # once a few releases have gone by without a false diff.
+  allow_failure:
+    exit_codes: [42]
   artifacts:
     when: always
     expire_in: 14 days
     paths:
       - services/frontend/test-results/
+      # The reference screenshots, as taken by this run: after
+      # MUMA_UPDATE_SNAPSHOTS=1 this is where the refreshed set comes from,
+      # and on a first run for a new route the only copy of its reference.
+      - services/frontend/tests/browser/__screenshots__/
     # Without this, a Playwright failure is only visible by scrolling the raw
     # log -- every other suite here already reports into the GitLab test tab.
     reports:

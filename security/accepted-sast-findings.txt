@@ -168,7 +168,7 @@ fae11ff959a398dc x1  # github-actions-mutable-action-tag services/music-manageme
 # wants the key repeated on every entry; Renovate does not need that -- a
 # later rule that omits the key does not unset it -- so the remaining hits
 # are the rule being stricter than the tool.
-b6758acb30b1330e x6  # renovate-missing-minimum-release-age renovate.json
+b6758acb30b1330e x7  # renovate-missing-minimum-release-age renovate.json
 
 # --- request-with-http --- [r:8a821446]
 # Plain HTTP to a service on this LAN that speaks no TLS, reachable only

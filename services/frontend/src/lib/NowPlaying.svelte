@@ -8,7 +8,9 @@
   import MetaChips from './MetaChips.svelte';
   import TrackDetailsSheet from './TrackDetailsSheet.svelte';
   import { genreNames } from './genreSegments.js';
-  import { playlist } from './store.js';
+  import { playlist, queueSource } from './store.js';
+  import { placeTitle, PLACE_PREFIXES } from './recentPlaces.js';
+  import { viewLabel } from './queue.js';
 
   /**
    * The phone's full-screen "Now Playing" view, opened by a tap on the mini
@@ -58,10 +60,26 @@
     onnavigate,
   } = $props();
 
-  // What the context line reads. A track almost always carries its album; the
-  // rare case without one (radio, a bulletin) reads as the queue instead of an
-  // empty line.
-  const playingFrom = $derived(track?.album || $t('queue.title'));
+  // What the context line reads: the place the current queue was started from
+  // (a genre, a playlist, an artist, ...), when `startQueue` (queue.js)
+  // recorded one -- see `store.js`'s `queueSource` and
+  // `docs/designs/phone-ui-polish/technical.md`, section E. Falls back to the
+  // track's own album, and from there to the generic "Queue" caption, exactly
+  // as before this existed.
+  const playingFrom = $derived(
+    $queueSource?.name ?? placeTitle({ view: $queueSource?.view }) ?? viewLabel($queueSource?.view) ?? track?.album ?? $t('queue.title'),
+  );
+
+  // The header's own tap target: the source's view when it is one of the
+  // navigable kinds `recentPlaces.js` tracks (so tapping "Playing from Hardstyle"
+  // opens that genre), else the track's album, same as before `queueSource` existed.
+  const headerTarget = $derived(
+    $queueSource?.view && PLACE_PREFIXES.some((prefix) => $queueSource.view.startsWith(prefix))
+      ? $queueSource.view
+      : track?.albumId
+        ? `album:${track.albumId}`
+        : null,
+  );
 
   /**
    * The screen is never flat black: a vertical gradient fades from 55% of the
@@ -175,10 +193,10 @@
           <path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"></path>
         </svg>
       </button>
-      {#if track?.albumId}
+      {#if headerTarget}
         <button
           class="flex-1 min-w-0 bg-transparent border-none text-center px-2 cursor-pointer"
-          onclick={() => navigate(`album:${track.albumId}`)}
+          onclick={() => navigate(headerTarget)}
         >
           <span class="block text-[11px] text-[#b3b3b3]">{$t('nowPlaying.playingFromLabel')}</span>
           <span class="block text-sm font-bold text-white truncate">{playingFrom}</span>

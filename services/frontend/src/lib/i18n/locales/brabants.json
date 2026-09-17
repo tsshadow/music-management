@@ -129,7 +129,8 @@
     }
   },
   "mobile": {
-    "browseAll": "Alles deurbladere"
+    "browseAll": "Alles deurbladere",
+    "recent": "Recent"
   },
   "nav": {
     "albums": "Albums",

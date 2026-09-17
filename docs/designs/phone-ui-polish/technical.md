@@ -10,13 +10,23 @@ No schema change anywhere. Two new client-side stores, both device-local:
 
 - **Recent places** (E): `localStorage` key `muma.recentPlaces.<serverUrl>.<username>`, a JSON array
   of `{view, title, kind, at}` (newest first, max 12). `view` is the navigation string the app already
-  uses (`artist:<id>`, `album:<id>`, `genre:<name>`, `label:<name>`, `festival:<name>`,
-  `playlist:<id>`, `year:<n>`), `kind` its prefix, `at` epoch ms. Keyed per server and account so a
-  second login never shows another library's places.
-- **Queue source** (E): a Svelte store `queueSource` in `store.js`, `{kind, name, view} | null`, set
-  by every code path that replaces `playlist` with a list from a view, cleared when the queue is
-  replaced from somewhere without a view (search result, deep link). Not persisted; the native queue
-  survives a WebView restart but the caption then falls back to the track's album, as today.
+  uses for eight of the nine kinds (`artist:<id>`, `album:<id>`, `genre:<name>`, `label:<name>`,
+  `festival:<name>`, `preset:<id>`, `year:<n>`, `memories:<year>`); `playlist:<id>` is the one
+  exception -- a playlist is not itself a real `activeView` (it opens as `'playlist-detail'` with the
+  id in the separate `currentPlaylist` store, see `router.js`), so `App.svelte`'s `handleNavigate`
+  translates `playlist:<id>` to that mechanism and back, and it is only ever a recent-places
+  identifier. `kind` is the prefix without its colon, `at` is epoch ms. Keyed per server and account
+  so a second login never shows another library's places; a place whose title never resolved (an
+  id-based place that only ever got the bare `recordPlace(view)` from `handleNavigate`) stays in
+  storage but is skipped by `RecentPlacesRow.svelte`.
+- **Queue source** (E): a Svelte store `queueSource` in `store.js`, `{view, name} | null`, set by
+  `queue.js`'s `startQueue(tracks, {name, view})` -- the one function every code path that used to
+  call `playlist.set(...)` from a view now calls instead, so `queueSource` can never lag behind the
+  playlist it describes. `view` defaults to the current `activeView`; a restore rather than a new
+  start (the jam sync in `Player.svelte`, session rehydration in `nativeSession.js`) passes
+  `view: null` explicitly, which `startQueue` turns into `queueSource.set(null)` rather than
+  attributing the restored queue to whatever view happens to be open. Not persisted, so a WebView
+  restart falls back to the track's own album, as before this existed.
 
 ## API Contract
 
@@ -106,14 +116,56 @@ No new endpoints. Existing calls used, per increment:
 
 ### E — recent places and queue source
 
-- New `recentPlaces.js`: `recordPlace(view, title)`, `recentPlaces` readable store, `clear()`. Key
-  from `$credentials.url` + `$credentials.username` in `store.js`. A `localStorage` failure (private mode)
-  is swallowed; the store then lives for the session only.
-- Recording happens in `Dashboard.svelte`'s navigation handler when the target view's prefix is one
-  of the kinds listed in Data Model; the title is the resolved name once the view has loaded.
-- `MobileSearchView.svelte` renders `RecentPlacesRow.svelte` above the grid.
-- `queueSource` is set in the places that assign `playlist` from a view (`TrackList.svelte` play-all,
-  `SongView`, `DailyMixesShelf`, `HomeShelf`); `NowPlaying.svelte` reads it for the header name.
+- New `recentPlaces.js`: `PLACE_PREFIXES` (the nine tracked kinds, each written with its trailing
+  colon so a prefix check is a plain `startsWith`), `recordPlace(view, title = null)`,
+  `recentPlaces` writable store, `placeTitle(place)`, `clearRecentPlaces()`. A module-level
+  `credentials.subscribe` recomputes the `localStorage` key and reloads the list whenever the
+  server or account changes; an empty username clears the store and blocks every write, so a
+  browser nobody has signed into never renders (or persists) a place. Every `localStorage` call is
+  wrapped in try/catch -- a private-mode failure leaves `recentPlaces` working in memory only for
+  the rest of the session. `placeTitle` returns the stored title, else the argument itself for
+  `genre:`/`label:`/`festival:`/`year:`/`memories:` (a year reads as the year), else `null` for an
+  id-based place (artist, album, playlist, preset) that has not resolved a name yet.
+- Recording happens in two places, not one: `App.svelte`'s `handleNavigate(view)` -- the single
+  function every navigation in the app passes through -- calls `recordPlace(view)` right after
+  moving `activeView`, which is enough on its own for the five argument-based kinds (genre, label,
+  festival, year, memories: `placeTitle` reads the name straight out of the view string). The four
+  id-based kinds (artist, album, playlist, preset) are opened by id, so their own view --
+  `ArtistView.svelte`, `AlbumView.svelte`, `PlaylistView.svelte`, `PresetView.svelte` -- calls
+  `recordPlace(view, name)` again once its load resolves, backfilling the title on the same entry
+  `recordPlace` already deduped by `view`. `handleNavigate` also special-cases `playlist:<id>`: it
+  is not a real `activeView` (see Data Model), so this is the one spot that translates it into
+  `currentPlaylist.set({id})` + `activeView.set('playlist-detail')` before recording it, so a tap on
+  a recent playlist tile works the same as opening one from a card.
+- `browseColors.js` holds `TILE_COLORS`, pulled out of `BrowseGrid.svelte` (which now imports it)
+  so `RecentPlacesRow.svelte` can colour a recent place the same as its category tile from one
+  table instead of two that could drift; a preset borrows the `starred` colour and the
+  `nav.playlists` label, since neither table has an entry of its own for it.
+- `RecentPlacesRow.svelte` renders nothing when no recorded place has a resolved `placeTitle`;
+  otherwise a `mobile.recent` heading and a horizontally-scrolling strip of `QuickAccessTile`s (title
+  = `placeTitle`, subtitle = the kind's `nav.*` label, colour = `browseColors.js`). Tapping a tile
+  calls `onnavigate(place.view)`. `MobileSearchView.svelte` renders it between the heading and
+  `BrowseGrid`.
+- New `queue.js`: `startQueue(tracks, {name = null, view = get(activeView)} = {})` sets
+  `queueSource` (`{view, name}`, or `null` when `view` is `null`) and then `playlist`, in that order,
+  so a subscriber to `playlist` never briefly sees a queue with the previous source still attached.
+  Every call site that used to do `playlist.set(...)` from a view -- `ArtistView`, `AlbumView`,
+  `PlaylistView`, `PresetView`, `FeedView`, `DailyMixCard`, `MemoriesYearView`/`memories.js`,
+  `StarredView`, `DownloadsView`, `VoiceView`, `CarModeView`, `TrackList`, plus `App.svelte`'s
+  `clearQueue` (`startQueue([], {view: null})`) -- calls `startQueue` instead, passing a human name
+  where one is already at hand and leaving it `null` (so the header falls back to `placeTitle`/
+  `viewLabel`) where the caller only has a view. `Player.svelte`'s jam sync and
+  `nativeSession.js`'s `rehydrateQueue` are restores, not starts, so both pass `view: null`
+  explicitly rather than letting the current view be credited with someone else's queue. `queue.js`
+  also exports `viewLabel(view)`, which names a whole view with no id/name argument of its own
+  (`songs`, `sets`, `starred`, `home`, `downloads`, `daily-mixes`, `memories`, and `search:<q>` as
+  the literal query) through the `nav.*`/`memories.title` key that already exists for it, resolved
+  with `get(t)` since this is a plain module, not a component.
+- `NowPlaying.svelte` reads `queueSource` for both the header text and its tap target:
+  `playingFrom` is `$queueSource?.name ?? placeTitle({view: $queueSource?.view}) ??
+  viewLabel($queueSource?.view) ?? track?.album ?? $t('queue.title')`; the header button navigates
+  to `queueSource.view` when it is one of `PLACE_PREFIXES` (so "Playing from Hardstyle" opens that
+  genre), else to the track's album as before `queueSource` existed.
 
 ### F — continuation sections
 

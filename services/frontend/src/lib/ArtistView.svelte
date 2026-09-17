@@ -2,13 +2,15 @@
   import { t } from './i18n/index.js';
   import { untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
-  import { authParams, viewMode, deduplicateEnabled, mumaApiUrl, currentTrack, playlist, playerState, hasPermission, restUrl } from './store.js';
+  import { authParams, viewMode, deduplicateEnabled, mumaApiUrl, currentTrack, playerState, hasPermission, restUrl } from './store.js';
   import { getArtistImageUrl } from './utils.js';
   import { getHeaders } from './mumaApi.js';
   import { Pencil } from '@lucide/svelte';
   import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
   import TrackList from './TrackList.svelte';
   import { listOf, subsonicJson } from './subsonic.js';
+  import { recordPlace } from './recentPlaces.js';
+  import { startQueue } from './queue.js';
 
   const { artistId, onnavigate } = $props();
 
@@ -58,6 +60,9 @@
       const artistData = data['subsonic-response']?.artist;
       if (artistData) {
         artist = artistData;
+        // The place is opened before this resolves (App's handleNavigate records the bare
+        // 'artist:<id>'); this backfills the name once it is known.
+        recordPlace(`artist:${artistId}`, artistData.name);
         const allAlbums = Array.isArray(artistData.album) ? artistData.album : (artistData.album ? [artistData.album] : []);
 
         const groups = {};
@@ -259,7 +264,7 @@
              onclick={() => {
                 if (allTracks.length > 0) {
                   currentTrack.set(allTracks[0]);
-                  playlist.set(allTracks);
+                  startQueue(allTracks, { name: artist.name });
                   playerState.update(s => ({ ...s, playing: true }));
                 }
              }}
@@ -276,7 +281,7 @@
                 if (allTracks.length > 0) {
                   const shuffled = [...allTracks].sort(() => Math.random() - 0.5);
                   currentTrack.set(shuffled[0]);
-                  playlist.set(shuffled);
+                  startQueue(shuffled, { name: artist.name });
                   playerState.update(s => ({ ...s, playing: true, shuffle: true }));
                 }
              }}

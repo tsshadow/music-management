@@ -1,6 +1,7 @@
 <script>
   import { t, locale } from './i18n/index.js';
   import { currentTrack, playerState, authParams, playlist, isMobile, trackListLines, highlightedTrackId, mumaApiUrl, restUrl, showConfirmationDialog } from './store.js';
+  import { startQueue } from './queue.js';
   import ArtistList from './ArtistList.svelte';
   import TrackDetailsSheet from './TrackDetailsSheet.svelte';
   import Modal from './Modal.svelte';
@@ -241,12 +242,16 @@
    * Sets the current track and starts playback.
    * If not in queue mode, also updates the global playlist.
    *
+   * No name is given: whatever page rendered this list (a genre, an artist, a
+   * playlist, ...) is already the current view, and `startQueue`'s default
+   * `view` picks that up on its own -- see `queue.js`.
+   *
    * @param {Object} track - The track object to play.
    */
   function playTrack(track) {
     currentTrack.set(track);
     if (!isQueue) {
-        playlist.set(tracks);
+        startQueue(tracks);
     }
     playerState.update(s => ({ ...s, playing: true }));
   }

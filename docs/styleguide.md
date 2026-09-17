@@ -132,8 +132,13 @@ To maintain clean design governance and prevent ad-hoc style drift:
   - D (done): a Memories year row on phone Home (`MemoryYearCard`, unchanged) below the destination
     shelves, and one fallback "recent" `HomeShelf layout="rows"` (songs → recently added, sets → recently
     released) when neither of those two destinations already draws its own shelf.
-  - E–G: recent Browse places, player continuation sections, listening rankings — all reuse the
-    shelf, tile and row components above.
+  - E (done): a "Recent" row (`RecentPlacesRow.svelte`) above Browse's category grid, one
+    `QuickAccessTile` per artist/album/genre/label/festival/playlist/preset/year/memories opened on
+    this device and account (`recentPlaces.js`, `localStorage`, capped at 12, newest first); the
+    player header names the place the queue actually started from (`queue.js`'s `startQueue`,
+    `store.js`'s `queueSource`) instead of always the current track's album.
+  - F–G: player continuation sections, listening rankings — reuse the shelf, tile and row
+    components above.
   - H: audio-output label in the player's bottom row in the accent colour, native only.
 
 - **Done** — Android login/welcome screens brought in line with the web's `LoginPage.svelte`: filled/rounded

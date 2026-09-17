@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/svelte";
 import NowPlaying from "../../src/lib/NowPlaying.svelte";
+import { queueSource } from "../../src/lib/store.js";
 
 const TRACK = {
   id: "song-1",
@@ -404,5 +405,62 @@ describe("NowPlaying in sets mode", () => {
 
     expect(onskip).toHaveBeenCalledWith(30);
     expect(onskip).toHaveBeenCalledWith(-30);
+  });
+});
+
+// E: the header names the queue's own source rather than always the track's album.
+describe("NowPlaying queue source", () => {
+  beforeEach(() => {
+    queueSource.set(null);
+  });
+
+  afterEach(() => {
+    queueSource.set(null);
+  });
+
+  it("shows the queue source's own name over the track's album", () => {
+    queueSource.set({ view: "playlist:pl1", name: "Thunderdome Essentials" });
+
+    renderNowPlaying();
+
+    const caption = screen.getByText("Afspelen vanuit");
+    expect(caption.nextElementSibling.textContent).toBe("Thunderdome Essentials");
+    expect(screen.queryByText("Bad Blood")).toBeNull();
+  });
+
+  it("names an argument-based place from its view when no name was given", () => {
+    queueSource.set({ view: "genre:Hardcore", name: null });
+
+    renderNowPlaying();
+
+    expect(screen.getByText("Hardcore")).toBeTruthy();
+  });
+
+  it("names a whole view (no name, no argument) through viewLabel", () => {
+    queueSource.set({ view: "starred", name: null });
+
+    renderNowPlaying();
+
+    expect(screen.getByText("Favorieten")).toBeTruthy();
+  });
+
+  it("falls back to the track's album when the source names nothing printable", () => {
+    queueSource.set({ view: "voice", name: null });
+
+    renderNowPlaying();
+
+    expect(screen.getByText("Bad Blood")).toBeTruthy();
+  });
+
+  it("prefers navigating to the queue source's place over the track's album", async () => {
+    const onclose = vi.fn();
+    const onnavigate = vi.fn();
+    queueSource.set({ view: "genre:Hardcore", name: "Hardcore" });
+
+    renderNowPlaying({ track: { ...TRACK, albumId: "al1" }, onclose, onnavigate });
+    await fireEvent.click(screen.getByText("Hardcore"));
+
+    expect(onclose).toHaveBeenCalled();
+    expect(onnavigate).toHaveBeenCalledWith("genre:Hardcore");
   });
 });

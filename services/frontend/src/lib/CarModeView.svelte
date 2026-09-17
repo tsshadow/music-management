@@ -8,6 +8,7 @@
   import { subsonicError } from './utils.js';
   import { trackAfterCommand } from './nativeQueue.js';
   import { notify } from './notifications.js';
+  import { startQueue } from './queue.js';
 
   /**
    * The driving screen, ported from the Kotlin `CarModeFragment`: everything at arm's length,
@@ -162,7 +163,9 @@
         notify.error($t('notify.noRandomTracks'));
         return;
       }
-      playlist.set(tracks);
+      // No human name to give this one; the mix has no place of its own, so the header falls
+      // back to the track's own album, same as before car mode existed.
+      startQueue(tracks);
       currentTrack.set(tracks[0]);
       playerState.update((s) => ({ ...s, playing: true }));
     } catch (error) {

@@ -1,9 +1,11 @@
 <script>
   import { t } from './i18n/index.js';
   import { untrack } from 'svelte';
-  import { currentPlaylist, authParams, playlist, currentTrack, playerState, restUrl } from './store.js';
+  import { currentPlaylist, authParams, currentTrack, playerState, restUrl } from './store.js';
   import { listOf, subsonicJson } from './subsonic.js';
   import TrackList from './TrackList.svelte';
+  import { recordPlace } from './recentPlaces.js';
+  import { startQueue } from './queue.js';
 
   const { onnavigate } = $props();
   let tracks = $state([]);
@@ -20,8 +22,12 @@
       const playlistData = data['subsonic-response']?.playlist;
       tracks = listOf(data, 'playlist.entry');
 
-      if (playlistData && (!$currentPlaylist.name || $currentPlaylist.id !== playlistData.id)) {
-        currentPlaylist.set(playlistData);
+      if (playlistData) {
+        // Backfills the name for the 'playlist:<id>' place App's handleNavigate recorded bare.
+        recordPlace(`playlist:${id}`, playlistData.name);
+        if (!$currentPlaylist.name || $currentPlaylist.id !== playlistData.id) {
+          currentPlaylist.set(playlistData);
+        }
       }
     } catch (e) {
       console.error("Failed to fetch tracks", e);
@@ -40,7 +46,7 @@
    */
   function playAll() {
     if (tracks.length > 0) {
-      playlist.set(tracks);
+      startQueue(tracks, { name: $currentPlaylist?.name });
       currentTrack.set(tracks[0]);
       playerState.update(s => ({ ...s, playing: true }));
     }

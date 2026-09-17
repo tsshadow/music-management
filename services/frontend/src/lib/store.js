@@ -111,6 +111,17 @@ persist("lms_current_track", currentTrack);
 export const playlist = writable([]);
 persist("lms_playlist", playlist);
 
+/**
+ * Where the current queue came from -- `{view, name} | null`, set by
+ * `queue.js`'s `startQueue()`, never written to directly. Not persisted: a
+ * restored queue (jam sync, session rehydration on launch) is not a new
+ * start, and `startQueue` clears this rather than guessing a source for it,
+ * so a reload always falls back to the track's own album until the listener
+ * starts something new. See `docs/designs/phone-ui-polish/technical.md`,
+ * section E.
+ */
+export const queueSource = writable(null);
+
 export const playerState = writable({
   playing: false,
   volume: 50,

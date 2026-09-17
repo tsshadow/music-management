@@ -5,7 +5,8 @@
  * way, so the parsing and the heading rule live here rather than in either component.
  */
 
-import { restUrl, playlist, currentTrack, playerState } from "./store.js";
+import { restUrl, currentTrack, playerState } from "./store.js";
+import { startQueue } from "./queue.js";
 
 /**
  * Today as `YYYY-MM-DD` in the browser's own time zone.
@@ -206,7 +207,9 @@ export async function playMemoryYear(year, groups, authParams) {
   }
   if (songs.length === 0) return;
 
-  playlist.set(songs);
+  // The full heading ("Vandaag, 3 jaar geleden") needs the exact summary group this helper does
+  // not always have on hand (a fetch that used the fallback); the year on its own is always true.
+  startQueue(songs, { name: String(year) });
   currentTrack.set(songs[0]);
   playerState.update((s) => ({ ...s, playing: true }));
 }

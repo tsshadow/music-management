@@ -5,8 +5,8 @@
   import BottomSheet from './BottomSheet.svelte';
   import ArtistList from './ArtistList.svelte';
   import Artwork from './Artwork.svelte';
+  import MetaChips from './MetaChips.svelte';
   import TrackDetailsSheet from './TrackDetailsSheet.svelte';
-  import { releaseDateLabel } from './trackDate.js';
   import { genreNames } from './genreSegments.js';
   import { playlist } from './store.js';
 
@@ -78,16 +78,16 @@
   );
 
   /**
-   * The compact facts line under the artist: every genre (each its own tap
-   * target), the release date, and the label -- the same three things the
-   * old Kotlin player printed under the title, just condensed onto one row
-   * since this screen has far less room for them than the info sheet does.
+   * The chip row under the artist: every genre (each its own tap target) and
+   * the label -- the same two things the details sheet already renders as
+   * chips, just condensed onto the player screen since it has far less room
+   * than the sheet does. The release date used to sit here too; it moved
+   * into the details sheet in increment B, one tap away rather than clipped
+   * on a screen with no room to show it in full.
    */
   const metaItems = $derived.by(() => {
     if (!track) return [];
     const items = genreNames(track.genre).map((genre) => ({ text: genre, view: `genre:${genre}` }));
-    const date = releaseDateLabel(track);
-    if (date) items.push({ text: date, view: null });
     const label = track.label || track.publisher;
     if (label) items.push({ text: label, view: `label:${label}` });
     return items;
@@ -177,29 +177,34 @@
       </button>
       {#if track?.albumId}
         <button
-          class="flex-1 min-w-0 bg-transparent border-none text-center text-[11px] font-bold uppercase tracking-wide text-[#b3b3b3] hover:text-white truncate px-2 cursor-pointer"
+          class="flex-1 min-w-0 bg-transparent border-none text-center px-2 cursor-pointer"
           onclick={() => navigate(`album:${track.albumId}`)}
-        >{$t('nowPlaying.playingFrom', { name: playingFrom })}</button>
-      {:else}
-        <div class="flex-1 text-center text-[11px] font-bold uppercase tracking-wide text-[#b3b3b3] truncate px-2">
-          {$t('nowPlaying.playingFrom', { name: playingFrom })}
-        </div>
-      {/if}
-      {#if lyricsLines.length > 0}
-        <button
-          class="w-8 h-8 flex items-center justify-center text-white bg-transparent border-none cursor-pointer"
-          onclick={() => (showLyricsSheet = true)}
-          aria-label={$t('track.lyrics')}
         >
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
-            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"></path>
-          </svg>
+          <span class="block text-[11px] text-[#b3b3b3]">{$t('nowPlaying.playingFromLabel')}</span>
+          <span class="block text-sm font-bold text-white truncate">{playingFrom}</span>
         </button>
       {:else}
-        <!-- No lyrics for this track: the spacer keeps the title centered
-             rather than shifting it once one shows up on the next track. -->
-        <div class="w-8 h-8" aria-hidden="true"></div>
+        <div class="flex-1 min-w-0 text-center px-2">
+          <span class="block text-[11px] text-[#b3b3b3]">{$t('nowPlaying.playingFromLabel')}</span>
+          <span class="block text-sm font-bold text-white truncate">{playingFrom}</span>
+        </div>
       {/if}
+      <!-- The one entry point to everything else the sheet offers -- artist,
+           album, play next, add to queue, lyrics (when there are any) and
+           details -- replacing the lyrics-only button this header used to
+           carry on its own. `now-playing-details` used to name the bottom
+           row's now-removed `(i)` button; it moves here so existing tests
+           and any external tooling keep the same handle on "open details". -->
+      <button
+        class="w-8 h-8 flex items-center justify-center text-white bg-transparent border-none cursor-pointer"
+        data-testid="now-playing-details"
+        onclick={() => (showDetailsSheet = true)}
+        aria-label={$t('nowPlaying.more')}
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+          <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"></path>
+        </svg>
+      </button>
     </header>
 
     <div class="flex-1 flex flex-col px-6 pb-6 min-h-0 overflow-y-auto">
@@ -233,29 +238,16 @@
       {#if track}
         <div class="min-w-0 mb-2">
           <div class="text-xl font-bold truncate">{track.title}</div>
-          <ArtistList artist={track.artist} artistId={track.artistId} artists={track.artists} onnavigate={navigate} />
+          <ArtistList artist={track.artist} artistId={track.artistId} artists={track.artists} onnavigate={navigate} size="lg" />
         </div>
 
         {#if metaItems.length > 0}
-          <!-- The player screen's own genre/date/label line, condensed onto one
-               row -- the same three facts the Kotlin player printed under the
-               title, kept short here because the full picture (moods, label,
-               technical details) is one tap away in the details sheet. -->
-          <div
-            class="flex flex-wrap items-center gap-x-1.5 text-[11px] text-[#b3b3b3] mb-4 max-h-8 overflow-hidden"
-            data-testid="now-playing-meta"
-          >
-            {#each metaItems as item, i (item.text + i)}
-              {#if i > 0}<span aria-hidden="true">&middot;</span>{/if}
-              {#if item.view}
-                <button
-                  class="bg-transparent border-none p-0 text-inherit hover:text-white hover:underline cursor-pointer"
-                  onclick={() => navigate(item.view)}
-                >{item.text}</button>
-              {:else}
-                <span class="truncate">{item.text}</span>
-              {/if}
-            {/each}
+          <!-- The player screen's own genre/label chips -- the same chips the
+               details sheet renders, wrapping onto as many rows as the
+               genres need rather than the single clipped line this used to
+               be. -->
+          <div class="mb-4">
+            <MetaChips items={metaItems} onnavigate={navigate} testid="now-playing-meta" />
           </div>
         {/if}
 
@@ -263,10 +255,10 @@
           {#each [1, 2, 3, 4, 5] as star (star)}
             <button
               aria-label="{star} sterren"
-              class="bg-transparent border-none p-0.5 cursor-pointer transition-colors { rating >= star ? 'text-brand' : 'text-white/10' }"
+              class="w-11 h-11 flex items-center justify-center bg-transparent border-none cursor-pointer transition-colors { rating >= star ? 'text-brand' : 'text-white/10' }"
               onclick={() => onrate?.(star)}
             >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
                 <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
               </svg>
             </button>
@@ -319,7 +311,7 @@
           aria-label={$t('queue.shuffle')}
           aria-pressed={shuffleMode}
         >
-          <svg viewBox="0 0 16 16" width="20" height="20" fill="currentColor">
+          <svg viewBox="0 0 16 16" width="24" height="24" fill="currentColor">
             <path d="M13.151.922a.75.75 0 1 0-1.06 1.06L13.109 3H10.3a5 5 0 0 0-4.054 2.115L2.615 10H1.25a.75.75 0 0 0 0 1.5h2.185a5 5 0 0 0 4.054-2.115L11.121 5H13.11l-1.019 1.017a.75.75 0 1 0 1.06 1.06L15.424 4.8a.75.75 0 0 0 0-1.06L13.15 1.472a.75.75 0 0 0-.001-.55zM13.151 9.922a.75.75 0 1 0-1.06 1.06L13.109 12H11.12l-1.144-1.636a.75.75 0 1 0-1.232.862l1.378 1.968A5 5 0 0 0 14.176 13.5h.194l-1.269 1.271a.75.75 0 1 0 1.06 1.06L16.43 13.56a.75.75 0 0 0 0-1.06l-2.274-2.273a.75.75 0 0 0-1.005-.305zM5.185 3.5h1.077L7.406 5.137a.75.75 0 0 0 1.232-.863l-1.378-1.967A5 5 0 0 0 3.235 1.5H1.25a.75.75 0 0 0 0 1.5h2.185a3.5 3.5 0 0 1 2.838 1.48L5.185 3.5z"></path>
           </svg>
         </button>
@@ -390,7 +382,7 @@
           onclick={ontoggleRepeat}
           aria-label={$t('player.repeat')}
         >
-          <svg viewBox="0 0 16 16" width="20" height="20" fill="currentColor">
+          <svg viewBox="0 0 16 16" width="24" height="24" fill="currentColor">
             <path d="M0 4.75A3.75 3.75 0 0 1 3.75 1h8.5A3.75 3.75 0 0 1 16 4.75v5a3.75 3.75 0 0 1-3.75 3.75H9.81l1.018 1.018a.75.75 0 1 1-1.06 1.06L6.939 12.75l2.829-2.828a.75.75 0 1 1 1.06 1.06L9.811 12h2.439a2.25 2.25 0 0 0 2.25-2.25v-5a2.25 2.25 0 0 0-2.25-2.25h-8.5A2.25 2.25 0 0 0 1.5 4.75v5A2.25 2.25 0 0 0 3.75 12H5v1.5H3.75A3.75 3.75 0 0 1 0 9.75v-5z"></path>
           </svg>
           {#if repeatMode === 'one'}
@@ -407,8 +399,12 @@
             onclick={ontoggleEqualizer}
             aria-label={$t('equalizer.title')}
           >
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-              <path d="M4 20V14M4 10V4M12 20V12M12 8V4M20 20V16M20 12V4M1 14h6M9 8h6M17 16h6"></path>
+            <!-- A filled bar-chart glyph, not the stroked one this button used
+                 before increment B -- it now sits next to solid icons
+                 (versions, queue) at the same 24px, and a stroke read as a
+                 lighter weight than either. -->
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+              <path d="M10 20h4V4h-4v16zm-6 0h4v-8H4v8zm12-11v11h4V9h-4z"></path>
             </svg>
           </button>
         {/if}
@@ -419,20 +415,8 @@
             onclick={() => navigate(`song:${track.workId}`)}
             aria-label={$t('track.versions')}
           >
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
               <path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h10v2H4v-2z"></path>
-            </svg>
-          </button>
-        {/if}
-        {#if track}
-          <button
-            class="bg-transparent border-none p-2 cursor-pointer text-[#b3b3b3] hover:text-white transition-colors"
-            data-testid="now-playing-details"
-            onclick={() => (showDetailsSheet = true)}
-            aria-label={$t('track.details')}
-          >
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
-              <path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path>
             </svg>
           </button>
         {/if}
@@ -441,7 +425,7 @@
           onclick={ontoggleQueue}
           aria-label={$t('queue.title')}
         >
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
             <path d="M15 15H3v-1.5h12V15zm0-4.5H3V9h12v1.5zm0-4.5H3V4.5h12V6zm7 12l-4.5-4.5L13 18h9z"></path>
           </svg>
         </button>
@@ -462,6 +446,7 @@
       {track}
       {rating}
       {onrate}
+      hasLyrics={lyricsLines.length > 0}
       onclose={() => (showDetailsSheet = false)}
       onnavigate={navigate}
       durationLabel={isSetMode ? formatClock(duration) : formatTime(duration)}

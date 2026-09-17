@@ -150,9 +150,10 @@
   },
   "nowPlaying": {
     "close": "Dichtdoun",
+    "more": "Meer",
     "pause": "Pauze",
     "play": "Ofspölen",
-    "playingFrom": "Speult van: {name}"
+    "playingFromLabel": "Speult van"
   },
   "player": {
     "next": "Volgende",

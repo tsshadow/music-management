@@ -1075,9 +1075,10 @@
   },
   "nowPlaying": {
     "close": "Close",
+    "more": "More",
     "pause": "Pause",
     "play": "Play",
-    "playingFrom": "Playing from: {name}"
+    "playingFromLabel": "Playing from"
   },
   "player": {
     "next": "Next",

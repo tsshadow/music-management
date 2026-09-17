@@ -3,6 +3,7 @@
   import { authParams, restUrl } from './store.js';
   import ArtistList from './ArtistList.svelte';
   import BottomSheet from './BottomSheet.svelte';
+  import MetaChips from './MetaChips.svelte';
   import { coverArtSrc, localCoverArt } from './coverArt.js';
   import { offline } from './subsonic.js';
   import { releaseDateLabel, preferredReleaseDate } from './trackDate.js';
@@ -33,6 +34,7 @@
    * @property {function(): void} onclose
    * @property {function(string): void} [onnavigate]
    * @property {string} [durationLabel] - Pre-formatted duration (the caller knows whether this is a song or a set).
+   * @property {boolean} [hasLyrics] - Whether the lyrics row should render. Defaults to true so `TrackList`, which never checked, keeps showing it; `NowPlaying` (increment B) passes the real answer since it already fetched the lyrics.
    * @property {function(): void} [onlyrics]
    * @property {function(): void} [onplaynext]
    * @property {function(): void} [onaddqueue]
@@ -51,6 +53,7 @@
     onclose,
     onnavigate,
     durationLabel = '',
+    hasLyrics = true,
     onlyrics,
     onplaynext,
     onaddqueue,
@@ -143,30 +146,20 @@
     {#if genres.length}
       <div class="flex flex-col gap-1">
         <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-[#727272]">{$t('nav.genres')}</span>
-        <div class="flex flex-wrap gap-1.5">
-          {#each genres as genre (genre)}
-            <button
-              class="px-3 py-1.5 rounded-full text-[13px] font-bold bg-[#282828] text-[#b3b3b3] hover:text-white hover:bg-[#333] border-none cursor-pointer"
-              data-testid="genre-chip"
-              onclick={() => navigate(`genre:${genre}`)}
-            >{genre}</button>
-          {/each}
-        </div>
+        <MetaChips
+          items={genres.map((genre) => ({ text: genre, view: `genre:${genre}`, testid: 'genre-chip' }))}
+          onnavigate={navigate}
+        />
       </div>
     {/if}
 
     {#if labels.length}
       <div class="flex flex-col gap-1">
         <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-[#727272]">{$t('nav.labels')}</span>
-        <div class="flex flex-wrap gap-1.5">
-          {#each labels as label (label)}
-            <button
-              class="px-3 py-1.5 rounded-full text-[13px] font-bold bg-[#282828] text-[#b3b3b3] hover:text-white hover:bg-[#333] border-none cursor-pointer"
-              data-testid="label-chip"
-              onclick={() => navigate(`label:${label}`)}
-            >{label}</button>
-          {/each}
-        </div>
+        <MetaChips
+          items={labels.map((label) => ({ text: label, view: `label:${label}`, testid: 'label-chip' }))}
+          onnavigate={navigate}
+        />
       </div>
     {/if}
 
@@ -233,7 +226,7 @@
 
     <div class="details-actions flex flex-col">
       {#if track.workId}<button onclick={() => navigate(`song:${track.workId}`)}>{$t('track.versions')}</button>{/if}
-      <button onclick={() => onlyrics?.()}>{$t('track.lyrics')}</button>
+      {#if hasLyrics}<button onclick={() => onlyrics?.()}>{$t('track.lyrics')}</button>{/if}
       <button onclick={() => onplaynext?.()}>{$t('track.playNext')}</button>
       <button onclick={() => onaddqueue?.()}>{$t('track.addToQueue')}</button>
       {#if downloadsSupported}

@@ -51,16 +51,27 @@ describe("NowPlaying", () => {
     );
   });
 
-  it("reads the album as the playing-from context", () => {
+  it("reads the album as the playing-from context, under a caption", () => {
     renderNowPlaying();
 
-    expect(screen.getByText("Afspelen uit: Bad Blood")).toBeTruthy();
+    expect(screen.getByText("Afspelen vanuit")).toBeTruthy();
+    expect(screen.getByText("Bad Blood")).toBeTruthy();
   });
 
   it("falls back to the queue when the track has no album", () => {
     renderNowPlaying({ track: { ...TRACK, album: null } });
 
-    expect(screen.getByText("Afspelen uit: Wachtrij")).toBeTruthy();
+    expect(screen.getByText("Wachtrij")).toBeTruthy();
+  });
+
+  it("renders the header without the old all-caps treatment", () => {
+    renderNowPlaying();
+
+    const name = screen.getByText("Bad Blood");
+    expect(name.className).not.toMatch(/uppercase/);
+    expect(name.className).toMatch(/font-bold/);
+    const caption = screen.getByText("Afspelen vanuit");
+    expect(caption.className).not.toMatch(/uppercase/);
   });
 
   it("calls back to the player for play/pause", async () => {
@@ -97,6 +108,14 @@ describe("NowPlaying", () => {
     await fireEvent.click(screen.getAllByLabelText("4 sterren")[0]);
 
     expect(onrate).toHaveBeenCalledWith(4);
+  });
+
+  it("gives each star a 44px tap target", () => {
+    renderNowPlaying();
+
+    const star = screen.getAllByLabelText("4 sterren")[0];
+    expect(star.className).toContain("w-11");
+    expect(star.className).toContain("h-11");
   });
 
   it("toggles shuffle and repeat", async () => {
@@ -176,16 +195,28 @@ describe("NowPlaying", () => {
     expect(screen.getByText("4:00")).toBeTruthy();
   });
 
-  it("has no lyrics button when the player found none for the track", () => {
-    renderNowPlaying({ lyricsLines: [] });
+  it("opens the details sheet from the header's overflow button", async () => {
+    renderNowPlaying();
 
-    expect(screen.queryByLabelText("Lyrics")).toBeNull();
+    await fireEvent.click(screen.getByTestId("now-playing-details"));
+
+    expect(screen.getByTestId("song-details")).toBeTruthy();
+    expect(screen.getByLabelText("Meer")).toBeTruthy();
   });
 
-  it("opens a sheet with the lyrics Player.svelte already fetched", async () => {
+  it("hides the sheet's lyrics row when the player found none for the track", async () => {
+    renderNowPlaying({ lyricsLines: [] });
+
+    await fireEvent.click(screen.getByTestId("now-playing-details"));
+
+    expect(screen.queryByText("Lyrics")).toBeNull();
+  });
+
+  it("opens a sheet with the lyrics Player.svelte already fetched, from the details sheet's own row", async () => {
     renderNowPlaying({ lyricsLines: ["Raise your fist", "in the air"] });
 
-    await fireEvent.click(screen.getByLabelText("Lyrics"));
+    await fireEvent.click(screen.getByTestId("now-playing-details"));
+    await fireEvent.click(screen.getByText("Lyrics"));
 
     expect(screen.getByText("Raise your fist")).toBeTruthy();
     expect(screen.getByText("in the air")).toBeTruthy();
@@ -248,7 +279,7 @@ describe("NowPlaying track info", () => {
     const onnavigate = vi.fn();
     renderNowPlaying({ track: { ...TRACK, albumId: "al1" }, onclose, onnavigate });
 
-    await fireEvent.click(screen.getByText("Afspelen uit: Bad Blood"));
+    await fireEvent.click(screen.getByText("Bad Blood"));
 
     expect(onclose).toHaveBeenCalled();
     expect(onnavigate).toHaveBeenCalledWith("album:al1");
@@ -257,17 +288,22 @@ describe("NowPlaying track info", () => {
   it("does not make the album line a link without an album id", () => {
     renderNowPlaying({ track: { ...TRACK, albumId: null } });
 
-    const label = screen.getByText("Afspelen uit: Bad Blood");
-    expect(label.tagName).not.toBe("BUTTON");
+    const name = screen.getByText("Bad Blood");
+    expect(name.closest("button")).toBeNull();
   });
 
-  it("shows genre chips under the artist and navigates through one", async () => {
+  it("shows every genre as its own chip button and navigates through one", async () => {
     const onclose = vi.fn();
     const onnavigate = vi.fn();
     renderNowPlaying({ track: { ...TRACK, genre: "hardstyle,hardcore" }, onclose, onnavigate });
 
     expect(screen.getByTestId("now-playing-meta")).toBeTruthy();
-    await fireEvent.click(screen.getByText("hardstyle"));
+    const hardstyle = screen.getByText("hardstyle");
+    const hardcore = screen.getByText("hardcore");
+    expect(hardstyle.tagName).toBe("BUTTON");
+    expect(hardcore.tagName).toBe("BUTTON");
+
+    await fireEvent.click(hardstyle);
 
     expect(onclose).toHaveBeenCalled();
     expect(onnavigate).toHaveBeenCalledWith("genre:hardstyle");
@@ -276,6 +312,16 @@ describe("NowPlaying track info", () => {
   it("shows no meta line for a track with no genre, date or label", () => {
     renderNowPlaying({ track: TRACK });
     expect(screen.queryByTestId("now-playing-meta")).toBeNull();
+  });
+
+  it("does not put the release date among the meta chips", () => {
+    // A date with no genre and no label used to still show as the sole meta
+    // item; now the row does not render at all for it, since the date moved
+    // to the details sheet.
+    renderNowPlaying({ track: { ...TRACK, originalDate: "2026-01-05" } });
+
+    expect(screen.queryByTestId("now-playing-meta")).toBeNull();
+    expect(screen.queryByText("05-01-2026")).toBeNull();
   });
 
   it("offers the song page only when the track has a workId", () => {

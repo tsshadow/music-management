@@ -123,7 +123,7 @@ To maintain clean design governance and prevent ad-hoc style drift:
   - A (done): artwork fallback chain cover → artist image → tinted title panel (`Artwork.svelte`); the
     full-screen player background is a vertical gradient from the track's genre tint (55% mix with
     `#121212`) to `#121212` at 60%; the mini player shows one square image.
-  - B: player header is two lines (caption `11px #B3B3B3`, name `14px bold white`, sentence case);
+  - B (done): player header is two lines (caption `11px #B3B3B3`, name `14px bold white`, sentence case);
     genres and label are chips (the details-sheet chip); stars are 44px targets with a 24px glyph;
     transport and bottom-row icons at 24px, shuffle/repeat included.
   - C: Home "show all" in sentence case at 13px; odd tile counts span the last tile; recent-track

@@ -52,6 +52,10 @@
     artistUrl = null,
     tint = null,
     equalizerSupported = false,
+    // The output the phone plays through (`platform.system.outputRoute()`, see technical.md
+    // section H), or null -- a browser tab, or a shell that has not answered yet -- which hides
+    // the label entirely. Same native-only pattern as `equalizerSupported`.
+    outputRoute = null,
     isSetMode = false,
     lyricsLines = [],
     onclose,
@@ -66,8 +70,27 @@
     onskip,
     ontoggleEqualizer,
     ontoggleQueue,
+    onopenOutputPicker,
     onnavigate,
   } = $props();
+
+  /**
+   * One glyph per kind of output, so a glance tells a headset from the speaker before the name
+   * is read. Wired and USB share the headset glyph -- both are something plugged in -- and
+   * `other` falls back to the speaker's, the honest "some output" icon.
+   */
+  const HEADSET_ICON =
+    'M12 1c-4.97 0-9 4.03-9 9v7c0 1.66 1.34 3 3 3h3v-8H5v-2c0-3.87 3.13-7 7-7s7 3.13 7 7v2h-4v8h3c1.66 0 3-1.34 3-3v-7c0-4.97-4.03-9-9-9z';
+  const SPEAKER_ICON =
+    'M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z';
+  const OUTPUT_ICONS = {
+    bluetooth:
+      'M17.71 7.71 12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71-4.3-4.29 4.3-4.29zM13 5.83l1.88 1.88L13 9.59V5.83zm1.88 10.46L13 18.17v-3.76l1.88 1.88z',
+    wired: HEADSET_ICON,
+    usb: HEADSET_ICON,
+    speaker: SPEAKER_ICON,
+    other: SPEAKER_ICON,
+  };
 
   // What the context line reads: the place the current queue was started from
   // (a genre, a playlist, an artist, ...), when `startQueue` (queue.js)
@@ -244,6 +267,9 @@
   $effect(() => {
     const workId = track?.workId;
     if (!open || !workId) {
+      // Bumping the token here too: a fetch still in flight when the view closed
+      // must not land in the emptied list and show up on the next open.
+      versionsFetchToken++;
       versionsList = [];
       return;
     }
@@ -578,7 +604,25 @@
         </button>
       </div>
 
-      <div class="flex items-center justify-center gap-10 mt-auto">
+      <!-- Increment H: the output the phone plays through, native only (`outputRoute` is null in
+           a browser). Its own line above the icon row rather than a fifth icon in it: a device
+           name is text, and the row's centred `gap-10` has no room for one. Takes the `mt-auto`
+           the icon row otherwise has, so the two stay together at the bottom. -->
+      {#if outputRoute}
+        <button
+          class="flex items-center justify-center gap-2 mx-auto mt-auto mb-1 max-w-full bg-transparent border-none px-2 py-1 cursor-pointer text-brand text-[13px] font-bold"
+          data-testid="now-playing-output"
+          onclick={onopenOutputPicker}
+          aria-label={$t('nowPlaying.outputPicker')}
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+            <path d={OUTPUT_ICONS[outputRoute.type] ?? OUTPUT_ICONS.speaker}></path>
+          </svg>
+          <span class="truncate">{outputRoute.name}</span>
+        </button>
+      {/if}
+
+      <div class="flex items-center justify-center gap-10 {outputRoute ? 'mt-2' : 'mt-auto'}">
         {#if equalizerSupported}
           <button
             data-eq-toggle

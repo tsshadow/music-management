@@ -310,4 +310,13 @@ describe("browser system", () => {
       browserSystem.setSetting({ key: "wifiOnly", value: true }),
     ).resolves.toBeUndefined();
   });
+
+  // Technical criterion 9 of phone-ui-polish: null is what hides the output label in a tab.
+  it("has no audio output to name, no route events, and no picker to open", async () => {
+    await expect(browserSystem.outputRoute()).resolves.toBeNull();
+    const handler = vi.fn();
+    browserSystem.onOutputRouteChanged(handler)();
+    expect(handler).not.toHaveBeenCalled();
+    await expect(browserSystem.openOutputPicker()).resolves.toBeUndefined();
+  });
 });

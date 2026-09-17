@@ -1092,6 +1092,7 @@
     "more": "Meer",
     "moreFrom": "Meer van {name}",
     "nextUp": "Hierna",
+    "outputPicker": "Kies audio-uitvoer",
     "pause": "Pauze",
     "play": "Afspelen",
     "playingFromLabel": "Afspelen vanuit",

@@ -142,7 +142,7 @@ class MumaSystemPluginSettingsTest {
     }
 
     /**
-     * `releaseNotes` reads through the same `safeContext()` seam as `appVersion`, for the same
+     * `releaseNotes` reads through the same `safeContext` seam as `appVersion`, for the same
      * reason: a bare plugin with no bridge attached has nothing to open `CHANGELOG.md` from.
      * Reading the real asset needs a context Robolectric can resolve `assets/` against, which
      * nothing else in this class sets up -- the contract this test protects is "never throws and

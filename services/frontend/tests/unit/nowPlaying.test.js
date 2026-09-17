@@ -150,6 +150,44 @@ describe("NowPlaying", () => {
     expect(screen.queryByLabelText("Equalizer")).toBeNull();
   });
 
+  // Increment H: the output label, native only -- a null route (every browser) renders nothing.
+  it("names the audio output and opens the picker from it", async () => {
+    const onopenOutputPicker = vi.fn();
+    renderNowPlaying({
+      outputRoute: { name: "Bose QC35 II", type: "bluetooth" },
+      onopenOutputPicker,
+    });
+
+    const label = screen.getByLabelText("Kies audio-uitvoer");
+    expect(label.textContent).toContain("Bose QC35 II");
+    expect(label.className).toContain("text-brand");
+
+    await fireEvent.click(label);
+
+    expect(onopenOutputPicker).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows no output label without a route", () => {
+    renderNowPlaying({ outputRoute: null });
+
+    expect(screen.queryByTestId("now-playing-output")).toBeNull();
+    expect(screen.queryByLabelText("Kies audio-uitvoer")).toBeNull();
+  });
+
+  it("picks a glyph per output type and falls back to the speaker's for an unknown one", () => {
+    const pathFor = (type) => {
+      const { unmount } = renderNowPlaying({ outputRoute: { name: "x", type } });
+      const d = screen.getByTestId("now-playing-output").querySelector("path").getAttribute("d");
+      unmount();
+      return d;
+    };
+
+    expect(pathFor("bluetooth")).not.toBe(pathFor("speaker"));
+    expect(pathFor("wired")).toBe(pathFor("usb"));
+    expect(pathFor("other")).toBe(pathFor("speaker"));
+    expect(pathFor("hdmi")).toBe(pathFor("speaker"));
+  });
+
   it("closes on the chevron", async () => {
     const onclose = vi.fn();
     renderNowPlaying({ onclose });

@@ -140,6 +140,11 @@ id and the native `DownloadService`/`OfflineMusicService` resolve the local file
   real and writable — deliberately not hardcoded — because the theming engine and its tests still
   branch on more than the default; everything else that is retired and still read by other Kotlin
   code is hardcoded there instead of deleted.
+- **Audio output** (phone-ui-polish increment H): `platform.system` also carries
+  `outputRoute()` (`{name, type}` of the output media plays through, `null` in a browser),
+  `onOutputRouteChanged(fn)` (an `AudioDeviceCallback` on the Kotlin side, never fires in a
+  browser) and `openOutputPicker()` (Android's output switcher, Bluetooth settings as fallback).
+  Details in [`phone-ui-polish/technical.md`](../phone-ui-polish/technical.md), section H.
 
 ### What is deleted from the Kotlin module
 

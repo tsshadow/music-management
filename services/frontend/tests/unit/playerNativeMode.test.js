@@ -53,12 +53,19 @@ const playerPlugin = fakePlugin({
   pause: vi.fn(async () => ({})),
 });
 
+// The output the phone plays through (increment H of phone-ui-polish), answered once on mount
+// and then pushed through `outputRouteChanged`.
+const systemPlugin = fakePlugin({
+  outputRoute: vi.fn(async () => ({ name: "Bose QC35 II", type: "bluetooth" })),
+  openOutputPicker: vi.fn(async () => ({})),
+});
+
 const plugins = {
   MumaPlayer: playerPlugin,
   MumaStorage: fakePlugin(),
   MumaSpeech: fakePlugin(),
   MumaDiagnostics: fakePlugin(),
-  MumaSystem: fakePlugin(),
+  MumaSystem: systemPlugin,
 };
 
 vi.mock("@capacitor/core", () => ({
@@ -93,6 +100,8 @@ describe("Player on the native shell", () => {
     playerPlugin.stopRadio.mockClear();
     playerPlugin.toggleNews.mockClear();
     playerPlugin.pause.mockClear();
+    systemPlugin.outputRoute.mockClear();
+    systemPlugin.openOutputPicker.mockClear();
     global.fetch = vi.fn();
   });
 
@@ -183,6 +192,53 @@ describe("Player on the native shell", () => {
   // this component's own `<audio>` element: `Player.svelte` hands off through
   // the plugin's `startRadio`/`stopRadio`/`toggleNews` and reads the result
   // back from `state()` rather than owning any of it itself.
+  describe("audio output", () => {
+    async function openNowPlaying() {
+      isMobile.set(true);
+      renderPlayer();
+      await fireEvent.click(screen.getByText("Raise Your Fist"));
+      return screen.getByTestId("now-playing");
+    }
+
+    it("reads the route once on mount and names it on the player screen", async () => {
+      await openNowPlaying();
+
+      await waitFor(() =>
+        expect(screen.getByTestId("now-playing-output").textContent).toContain("Bose QC35 II"),
+      );
+      expect(systemPlugin.outputRoute).toHaveBeenCalledTimes(1);
+    });
+
+    it("follows an outputRouteChanged event", async () => {
+      await openNowPlaying();
+      await waitFor(() => screen.getByTestId("now-playing-output"));
+
+      systemPlugin.fire("outputRouteChanged", { name: "Phone speaker", type: "speaker" });
+
+      await waitFor(() =>
+        expect(screen.getByTestId("now-playing-output").textContent).toContain("Phone speaker"),
+      );
+    });
+
+    it("opens the system picker from the label", async () => {
+      await openNowPlaying();
+      const label = await waitFor(() => screen.getByTestId("now-playing-output"));
+
+      await fireEvent.click(label);
+
+      expect(systemPlugin.openOutputPicker).toHaveBeenCalledTimes(1);
+    });
+
+    it("hides the label while the shell has not named a route", async () => {
+      systemPlugin.outputRoute.mockResolvedValueOnce({});
+      await openNowPlaying();
+      // Let the resolved (empty) answer land before asserting on its absence.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(screen.queryByTestId("now-playing-output")).toBeNull();
+    });
+  });
+
   describe("radio and the news", () => {
     // `createCapacitorPlayer`'s snapshot is a module-level singleton shared by every test in this
     // file, and none of the tests above reset `radioChannel`/`newsPlaying` on it -- only the

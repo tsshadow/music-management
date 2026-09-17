@@ -1092,6 +1092,7 @@
     "more": "More",
     "moreFrom": "More from {name}",
     "nextUp": "Next up",
+    "outputPicker": "Choose audio output",
     "pause": "Pause",
     "play": "Play",
     "playingFromLabel": "Playing from",

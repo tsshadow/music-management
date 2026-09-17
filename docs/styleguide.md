@@ -155,7 +155,11 @@ To maintain clean design governance and prevent ad-hoc style drift:
     its ranking is empty. An artist tile resolves the LMS `artist:<id>` via `search3` before
     navigating (MuMa's own `artist_id` is a different id space) and falls back to `search:<name>`
     when nothing matches; a label tile opens `label:<name>` directly, same as `RecentPlacesRow`.
-  - H: audio-output label in the player's bottom row in the accent colour, native only.
+  - H (done): the output the phone plays through ("Bose QC35 II", "Bedrade koptelefoon",
+    "Telefoonluidspreker") as a `text-brand` 13px bold line with an 18px glyph per kind
+    (Bluetooth / headset / speaker) directly above the full-screen player's bottom icon row;
+    tapping opens Android's output switcher, or Bluetooth settings without one. Native only:
+    `platform.system.outputRoute()` is `null` in a browser and the line is not rendered.
 
 - **Done** — Android login/welcome screens brought in line with the web's `LoginPage.svelte`: filled/rounded
   dark inputs (`MuMa Mobile.TextInputLayout`), a solid-green pill CTA

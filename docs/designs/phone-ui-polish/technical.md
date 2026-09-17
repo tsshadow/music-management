@@ -42,7 +42,7 @@ No new endpoints. Existing calls used, per increment:
 | F | `getSpotifyTracks?artistId=` | More from this artist, `count=6`. |
 | F | `getSpotifyTracks?workId=` | Other versions (the same call `SongView.svelte` makes). Never play a MuMa song-version id; only LMS track ids from this call. |
 | G | `/api/listening/top-artists`, `/api/listening/top-labels` | Returns MuMa artist ids; resolve to LMS artists by name via `search3` before linking, or link to `artist-name:<name>` if such a view exists. |
-| H | `MumaPlayer` Capacitor plugin, new method `outputRoute()` + event `outputRouteChanged` | See Cross-App Impact. |
+| H | `MumaSystem` Capacitor plugin: methods `outputRoute()`, `openOutputPicker()`; event `outputRouteChanged` | `platform.system`, not `platform.player`: the system plugin already owns Bluetooth (`listBondedDevices`). See section H and Cross-App Impact. |
 
 ## Design decisions
 
@@ -245,23 +245,60 @@ No new endpoints. Existing calls used, per increment:
 
 ### H — audio output (Kotlin)
 
-- `MumaPlayerPlugin.kt`: method `outputRoute()` → `{name, type}` from
-  `AudioManager.getDevices(GET_DEVICES_OUTPUTS)` preferring the active Bluetooth A2DP device's
-  `productName`, else the built-in speaker; `AudioDeviceCallback` emits `outputRouteChanged`.
-  Method `openOutputPicker()` fires the `com.android.settings.panel.action.MEDIA_OUTPUT` intent with
-  `EXTRA_PACKAGE_NAME`; on `ActivityNotFoundException` falls back to
-  `Settings.ACTION_BLUETOOTH_SETTINGS`. Both are plain Activity intents, not `MediaController`
+- Contract (`platform/index.js`, `PlatformSystem` — on `system`, not `player`, since the system
+  plugin already owns Bluetooth): `outputRoute(): Promise<OutputRoute|null>`,
+  `onOutputRouteChanged(handler): unsubscribe`, `openOutputPicker(): Promise<void>`, with
+  `OutputRoute = {name: string, type: 'bluetooth'|'wired'|'speaker'|'usb'|'other'}`. The browser
+  (`platform/browser/system.js`) answers `null`, a no-op unsubscribe, and resolves; the Capacitor
+  adapter (`platform/capacitor/system.js`) forwards to the plugin and reads an answer or event
+  without a non-empty `name` and a known `type` as `null`/dropped — the plugin resolves `{}` while
+  it has no bridge context to read its strings from, and that must read as "nothing to show",
+  not as a route called `undefined`. `other` is in the union for a shell that can name something
+  outside the four; the Android shell never sends it.
+- `MumaSystemPlugin.kt` (`services/muma-mobile/.../capacitor/`), with the pure parts in the new
+  `AudioOutput.kt`: `outputRoute()` → `{name, type}` from `AudioManager.getDevices(GET_DEVICES_OUTPUTS)`
+  through `outputRouteOf(devices, wiredName, speakerName)`: the first Bluetooth device
+  (`TYPE_BLUETOOTH_A2DP`/`BLE_HEADSET`/`BLE_SPEAKER`/`BLE_BROADCAST`/`BLUETOOTH_SCO`/`HEARING_AID`)
+  wins with its `productName` ("Bluetooth" when blank), then wired
+  (`WIRED_HEADPHONES`/`WIRED_HEADSET`/`LINE_ANALOG`, named by `R.string.audio_output_wired`), then
+  USB (`USB_HEADSET`/`USB_DEVICE`, `productName` or "USB"), else the speaker
+  (`R.string.audio_output_speaker`) — also for an empty list, so the method never rejects.
+  `getDevices` lists the *available* outputs, not the active one; Android has no public current
+  media output short of `MediaRouter2`, and the order above is the order its own policy routes
+  in, so the two agree for every case a phone user meets. Documented in the KDoc as a known
+  limit. Strings are the app's own resources (`values/`, `values-nl/`), so the label follows the
+  app language the same way the rest of the shell chrome does.
+- `OutputRouteMonitor` (in `AudioOutput.kt`) registers an `AudioDeviceCallback` in the plugin's
+  `load()` and unregisters it in `handleOnDestroy()`; every add/remove recomputes the whole route
+  and emits `outputRouteChanged` with the same `{name, type}`. Started in `load()` rather than on
+  first subscription because Capacitor has no "listener added" hook to pair a teardown with.
+- `openOutputPicker()` tries `outputPickerIntents(packageName)` in order —
+  `com.android.settings.panel.action.MEDIA_OUTPUT` with
+  `com.android.settings.panel.extra.PACKAGE_NAME` (Android 11+'s output switcher; neither string is
+  a public constant), then `Settings.ACTION_BLUETOOTH_SETTINGS` — through `startFirstResolvable`,
+  which moves to the next only on `ActivityNotFoundException`. Resolves once one started, rejects
+  when neither does. Started from the plugin thread, not `runOnUiThread`, so the exception is
+  catchable where the fallback lives. Both are plain Activity intents, not `MediaController`
   commands, so the empty command-grant set does not apply.
-- `platform/index.js` contract gains optional `player.outputRoute()` / `player.openOutputPicker()`;
-  the browser implementation returns `null` and the UI hides the control.
+- `MumaSystemPlugin` sits under detekt's `TooManyFunctions` ceiling (30) by keeping the watcher in
+  its own class and the two pure `setSetting` helpers at file level; `safeContext`/`runningActivity`
+  are properties, which the rule does not count.
+- UI: `NowPlaying.svelte` props `outputRoute` and `onopenOutputPicker`; with a route it renders a
+  `text-brand` button (`data-testid="now-playing-output"`, `aria-label` `nowPlaying.outputPicker`)
+  with a glyph per `type` (wired/usb share the headset glyph, other/unknown fall back to the
+  speaker's) on its own line above the bottom icon row, taking that row's `mt-auto`.
+  `Player.svelte` reads `platform.system.outputRoute()` once on mount when `isNative`, subscribes
+  with `onOutputRouteChanged` and unsubscribes on destroy; a picker rejection is logged, never an
+  unhandled rejection from a click.
 
 ## Cross-App Impact
 
 - **Web (desktop)**: `Artwork.svelte`, `HomeShelf` and chip changes are shared components; desktop
   keeps its layouts. Visual snapshots in `tests/browser/__screenshots__/` will change for the phone
   project and must be refreshed (`MUMA_UPDATE_SNAPSHOTS=1`, see `docs/frontend-screenshots.md`).
-- **Android**: only H adds native code; A–G ship through the web bundle. A `MumaPlayer` plugin
-  method is additive; an older bundle simply never calls it.
+- **Android**: only H adds native code; A–G ship through the web bundle. The `MumaSystem` plugin
+  methods are additive; an older bundle simply never calls them, and a newer bundle on an older
+  APK gets a rejected call, which `Player.svelte` swallows into a `null` route.
 - **Backend**: none.
 
 ## Technical Acceptance Criteria
@@ -280,7 +317,13 @@ No new endpoints. Existing calls used, per increment:
 7. `queueSource` is set when play-all runs from a genre view and the header shows that name.
 8. `NowPlaying`'s "next up" preview lists the three entries after `queueIndex` by *position*, correct
    even with a duplicate id elsewhere in the queue.
-9. `platformPlayer.test.js`: browser `outputRoute()` is `null`; the capacitor adapter forwards it.
+9. `platform.test.js`: browser `system.outputRoute()` is `null`, `onOutputRouteChanged` never
+   fires, `openOutputPicker` resolves; `platformCapacitor.test.js`: the adapter forwards all
+   three and reads an empty/nameless/unknown-typed answer as `null`. Kotlin
+   `MumaSystemPluginOutputTest`: Bluetooth beats speaker and wired, wired beats USB, blank
+   `productName` becomes "Bluetooth", empty list is the speaker, the monitor emits on a device
+   the shadow adds and not after `stop()`, the picker falls back to Bluetooth settings on
+   `ActivityNotFoundException` and rejects when neither resolves.
 10. Coverage floors in `vite.config.js` hold (82/65/79/81) after every increment.
 
 ## Related Docs

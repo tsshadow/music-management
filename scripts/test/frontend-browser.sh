@@ -150,9 +150,10 @@ set -e
 # exit code 42): the diff has to be looked at, and the first run after a route
 # is added has no reference yet and fails by design. Everything else -- a
 # functional spec, the login in auth.setup.js, a route in the screenshot suite
-# that never rendered -- stays a failure. The junit report carries the failure
-# text per test; a comparison failure talks about the screenshot or the
-# missing snapshot, anything else is a broken test.
+# that never rendered -- stays a failure. The junit report carries each
+# failure's message; only its first line is judged, because the body below it
+# lists the attachments of any failed test and one of them is always called
+# "screenshot".
 python3 - <<'PY'
 import sys
 import xml.etree.ElementTree as ET
@@ -162,10 +163,10 @@ hard = 0
 visual = 0
 for case in root.iter("testcase"):
     for problem in list(case.iter("failure")) + list(case.iter("error")):
-        text = (problem.get("message") or "") + (problem.text or "")
-        # "Screenshot comparison failed" for a diff, "A snapshot doesn't exist"
-        # for a route without a reference yet.
-        if "screenshot" in text.lower() or "snapshot" in text.lower():
+        message = problem.get("message") or ""
+        # "expect(page).toHaveScreenshot(expected) failed" for a diff,
+        # "A snapshot doesn't exist at ..." for a route without a reference.
+        if "toHaveScreenshot" in message or "snapshot doesn't exist" in message:
             visual += 1
         else:
             hard += 1

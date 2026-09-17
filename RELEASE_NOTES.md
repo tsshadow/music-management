@@ -11,6 +11,41 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.65.0 (2026-09-17)
+
+- De speler in de app laat zien via welke uitvoer je luistert en opent met één tik de
+  uitvoerkiezer van Android.
+
+- De web-UI wordt bij elke wijziging op desktop en telefoon gerenderd en vergeleken met een vaste
+  set schermafbeeldingen, zodat een kapotte layout opvalt voordat hij live staat.
+
+- Startscherm-tegels tonen nu wat er te zien is (leeg, mislukt of nog aan het laden) in plaats van
+  altijd dezelfde lege tekst, en een oneven aantal tegels laat geen halve rij meer over. De
+  "onlangs"-rijen zijn compacte lijstjes geworden. Bladeren opent op het rooster; geavanceerd
+  zoeken zit achter een filterknopje naast het zoekveld.
+
+- Home toont nu "Jouw artiesten deze maand" en "Jouw labels", gebaseerd op je
+  luistergeschiedenis van de afgelopen maand.
+
+- Het startscherm van de telefoon toont nu een "Memories"-rij per jaar en, als er verder niets te
+  zien was, één rij met recente nummers of sets.
+
+- **De importer blijft van downloads af die nog bezig zijn.** Een bestand dat de browser nog
+  schrijft wordt overgeslagen tot het af is, in plaats van half uitgepakt te worden.
+
+- De speler toont bij een track zonder cover nu de artiestfoto of anders de titel op een gekleurd
+  vlak in plaats van altijd hetzelfde logo, en het scherm krijgt een vleugje van de genre-kleur in
+  plaats van vlak zwart.
+
+- De speler op de telefoon toont nu wat hierna komt, meer van dezelfde artiest en andere versies
+  van hetzelfde nummer, direct onder de bedieningsknoppen.
+
+- De speler op de telefoon heeft een opgeruimde koptekst zonder hoofdletters, genres en label als
+  tikbare pilletjes die niet meer afkappen, één ⋮-menu voor artiest/album/wachtrij/songtekst/
+  details, en grotere sterren en iconen.
+
+- Bladeren toont nu een "Recent"-rij met de laatst geopende artiesten, genres, labels en meer; de
+  speler noemt de echte bron van de wachtrij in plaats van steeds het album.
 ## Global Version 0.64.1 (2026-09-16)
 
 - **Een andere taal kiezen werkt weer in de app** — het scherm ververst en komt in de gekozen

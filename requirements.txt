@@ -54,7 +54,7 @@ Pillow~=12.3
 # SoundCloud or YouTube had changed in the meantime. See
 # scripts/ci/refresh-downloader-image.sh, which rebuilds this weekly.
 yt-dlp>=2026.7.4
-telethon~=1.44.0
+telethon~=1.45.0
 patool~=4.0
 
 # --- Misc --------------------------------------------------------------------

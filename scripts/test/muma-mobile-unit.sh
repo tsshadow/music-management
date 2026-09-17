@@ -19,6 +19,7 @@ source "$ROOT_DIR/scripts/ci/android-gradle-home.sh"
 source "$ROOT_DIR/scripts/ci/android-image.sh"
 
 docker run --rm \
+    --label "ci.job=${CI_JOB_ID:-local}" \
     -u "$(id -u):$(id -g)" \
     -v "$ROOT_DIR:/workspace" \
     -v "$GRADLE_HOME_DIR:/gradle_home" \

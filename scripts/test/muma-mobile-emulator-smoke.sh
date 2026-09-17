@@ -46,6 +46,7 @@ source "$ROOT_DIR/scripts/ci/android-image.sh"
 # everyone else waiting on its mutex. A sane limit turns a multi-hour loop
 # into a millisecond one.
 docker run --rm \
+    --label "ci.job=${CI_JOB_ID:-local}" \
     -u "$(id -u):$(id -g)" \
     --group-add "$(stat -c %g /dev/kvm)" \
     --device /dev/kvm \

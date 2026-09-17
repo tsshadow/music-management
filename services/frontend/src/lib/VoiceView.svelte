@@ -2,7 +2,8 @@
   import { t } from './i18n/index.js';
   import { onMount, onDestroy } from 'svelte';
   import { platform as defaultPlatform } from './platform/index.js';
-  import { playlist, currentTrack, playerState } from './store.js';
+  import { currentTrack, playerState } from './store.js';
+  import { startQueue } from './queue.js';
   import { listOf, subsonicJson } from './subsonic.js';
 
   /**
@@ -12,7 +13,7 @@
    * -- the genre, the artist, the year, "did you mean the album or the playlist" -- is decided by
    * `core/voice` on the Kotlin side, through `MumaSpeechPlugin.interpret`; this component only ever
    * renders what came back and, for a clear command, plays it through the same path a preset or a
-   * Home card uses (`subsonicJson` + the `playlist`/`currentTrack` stores). It never asks the
+   * Home card uses (`subsonicJson` + `queue.js`'s `startQueue`). It never asks the
    * platform to play anything itself.
    *
    * Reachable from the phone's Search tab (a microphone button, hidden when `platform.speech` is
@@ -179,7 +180,9 @@
       return;
     }
 
-    playlist.set(tracks);
+    // No human name to give this one; startQueue still records the 'voice' view itself, which
+    // resolves to nothing printable, so the header falls back to the track's own album.
+    startQueue(tracks);
     currentTrack.set(tracks[0]);
     playerState.update((s) => ({ ...s, playing: true }));
     phase = 'play';

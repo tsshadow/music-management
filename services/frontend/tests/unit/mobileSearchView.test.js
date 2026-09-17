@@ -1,11 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/svelte";
 import MobileSearchView from "../../src/lib/MobileSearchView.svelte";
-import { viewMode } from "../../src/lib/store.js";
+import { credentials, viewMode } from "../../src/lib/store.js";
+import { recordPlace, clearRecentPlaces } from "../../src/lib/recentPlaces.js";
 
 describe("MobileSearchView", () => {
   beforeEach(() => {
     viewMode.set("songs");
+    localStorage.clear();
+    credentials.set({ url: "https://muma.test", username: "user", password: "pw" });
+    clearRecentPlaces();
   });
 
   it("invites the listener to browse before they have typed anything", () => {
@@ -57,5 +61,24 @@ describe("MobileSearchView", () => {
     await fireEvent.click(screen.getByLabelText("Microfoon"));
 
     expect(onnavigate).toHaveBeenCalledWith("voice");
+  });
+
+  // The Recent row (E) sits between the heading and the category grid.
+  it("shows no Recent row before anything has been opened", () => {
+    render(MobileSearchView, { onnavigate: vi.fn() });
+
+    expect(screen.queryByText("Recent")).toBeNull();
+  });
+
+  it("shows a Recent row above the grid once a place has been opened", async () => {
+    recordPlace("genre:Hardcore", "Hardcore");
+    const onnavigate = vi.fn();
+
+    render(MobileSearchView, { onnavigate });
+
+    expect(screen.getByText("Recent")).toBeTruthy();
+
+    await fireEvent.click(screen.getByText("Hardcore"));
+    expect(onnavigate).toHaveBeenCalledWith("genre:Hardcore");
   });
 });

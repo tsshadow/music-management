@@ -1,15 +1,9 @@
 import { get } from "svelte/store";
 import { platform as defaultPlatform } from "./platform/index.js";
-import {
-  credentials,
-  currentTrack,
-  mumaApiKey,
-  mumaApiUrl,
-  playerState,
-  playlist,
-} from "./store.js";
+import { credentials, currentTrack, mumaApiKey, mumaApiUrl, playerState } from "./store.js";
 import { subsonicJson } from "./subsonic.js";
 import { signIn } from "./login.js";
+import { startQueue } from "./queue.js";
 
 /**
  * What the web player has to do before it renders anything, but only inside the
@@ -139,7 +133,9 @@ export async function rehydrateQueue(platform, fetchImpl = undefined) {
   const index =
     byPlayingId >= 0 ? byPlayingId : Math.min(Math.max(queue.index, 0), tracks.length - 1);
 
-  playlist.set(tracks);
+  // This restores a queue the native side already had, it does not start one -- 'view: null'
+  // clears queueSource rather than crediting the restore to whatever view loads first.
+  startQueue(tracks, { view: null });
   currentTrack.set(tracks[index]);
   playerState.update((current) => ({
     ...current,

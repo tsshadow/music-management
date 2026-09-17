@@ -18,6 +18,7 @@
   import { resolveDuration, progressPercent, formatTime, formatClock } from './playerProgress.js';
   import { describeFilter } from './management/radioChannels.js';
   import { snapshotOf, restoreTarget, bulletinStreamUrl } from './newsQueue.js';
+  import { startQueue } from './queue.js';
   import { startTrail, stepBack, stepForward } from './shuffleHistory.js';
   import { releaseDateLabel } from './trackDate.js';
   import { isSet } from './downloads.js';
@@ -480,9 +481,11 @@
           if (playQueue.entry) {
             const tracks = Array.isArray(playQueue.entry) ? playQueue.entry : [playQueue.entry];
 
-            // Sync playlist
+            // Sync playlist. A jam sync restores a queue, it does not start one -- the
+            // 'view: null' here clears queueSource instead of attributing the synced
+            // tracks to whatever screen happens to be open on this device right now.
             if (JSON.stringify(tracks.map(t => t.id)) !== JSON.stringify($playlist.map(t => t.id))) {
-                playlist.set(tracks);
+                startQueue(tracks, { view: null });
             }
 
             // Sync current track

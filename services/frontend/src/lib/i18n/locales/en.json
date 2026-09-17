@@ -1023,7 +1023,8 @@
     "homeSummary": "{years} years • {tracks} tracks today"
   },
   "mobile": {
-    "browseAll": "Browse all"
+    "browseAll": "Browse all",
+    "recent": "Recent"
   },
   "nav": {
     "albums": "Albums",

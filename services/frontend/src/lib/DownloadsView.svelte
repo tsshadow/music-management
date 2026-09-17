@@ -19,8 +19,9 @@
   import { platform as defaultPlatform } from './platform/index.js';
   import { formatBytes, groupDownloads, groupProgress, groupState } from './downloads.js';
   import { logAction } from './diagnosticsLog.js';
-  import { currentTrack, playerState, playlist } from './store.js';
+  import { currentTrack, playerState } from './store.js';
   import { notify } from './notifications.js';
+  import { startQueue } from './queue.js';
 
   const { platform = defaultPlatform, onnavigate = null } = $props();
 
@@ -78,7 +79,7 @@
    */
   function playGroup(group) {
     if (!group.items.length) return;
-    playlist.set(group.items);
+    startQueue(group.items, { name: group.title });
     currentTrack.set(group.items[0]);
     playerState.update((state) => ({ ...state, playing: true }));
   }

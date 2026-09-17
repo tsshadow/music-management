@@ -1,10 +1,12 @@
 <script>
   import { t, locale } from './i18n/index.js';
   import { untrack } from 'svelte';
-  import { authParams, viewMode, currentTrack, playlist, playerState, restUrl } from './store.js';
+  import { authParams, viewMode, currentTrack, playerState, restUrl } from './store.js';
   import TrackList from './TrackList.svelte';
   import ArtistList from './ArtistList.svelte';
   import { listOf, subsonicJson } from './subsonic.js';
+  import { recordPlace } from './recentPlaces.js';
+  import { startQueue } from './queue.js';
 
   const { albumId, onnavigate } = $props();
 
@@ -84,6 +86,8 @@
       if (albumData) {
         album = albumData;
         allTracks = listOf(data, 'album.song');
+        // The place is opened before this resolves; this backfills the name once it is known.
+        recordPlace(`album:${albumId}`, albumData.name);
 
         loadAlbumInfo();
       }
@@ -137,7 +141,7 @@
              onclick={() => {
                 if (allTracks.length > 0) {
                   currentTrack.set(allTracks[0]);
-                  playlist.set(allTracks);
+                  startQueue(allTracks, { name: album.name });
                   playerState.update(s => ({ ...s, playing: true }));
                 }
              }}
@@ -154,7 +158,7 @@
                 if (allTracks.length > 0) {
                   const shuffled = [...allTracks].sort(() => Math.random() - 0.5);
                   currentTrack.set(shuffled[0]);
-                  playlist.set(shuffled);
+                  startQueue(shuffled, { name: album.name });
                   playerState.update(s => ({ ...s, playing: true, shuffle: true }));
                 }
              }}

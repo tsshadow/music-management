@@ -1,9 +1,10 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
-  import { authParams, playlist, currentTrack, playerState, mumaApiUrl, restUrl } from './store.js';
+  import { authParams, currentTrack, playerState, mumaApiUrl, restUrl } from './store.js';
   import TrackList from './TrackList.svelte';
   import { listOf, subsonicJson } from './subsonic.js';
+  import { startQueue } from './queue.js';
 
   const { onnavigate } = $props();
   let tracks = $state([]);
@@ -36,7 +37,7 @@
    */
   function playAll() {
     if (tracks.length > 0) {
-      playlist.set(tracks);
+      startQueue(tracks, { name: $t('nav.starred') });
       currentTrack.set(tracks[0]);
       playerState.update(s => ({ ...s, playing: true }));
     }

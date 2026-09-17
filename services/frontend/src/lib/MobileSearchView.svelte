@@ -2,6 +2,7 @@
   import { t } from './i18n/index.js';
   import { platform as defaultPlatform } from './platform/index.js';
   import BrowseGrid from './BrowseGrid.svelte';
+  import RecentPlacesRow from './RecentPlacesRow.svelte';
 
   /**
    * The content of the phone's "Bladeren" tab. The search box itself already
@@ -41,5 +42,6 @@
       </button>
     {/if}
   </div>
+  <RecentPlacesRow {onnavigate} />
   <BrowseGrid {onnavigate} {platform} />
 </div>

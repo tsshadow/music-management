@@ -1,10 +1,12 @@
 <script>
   import { t } from './i18n/index.js';
-  import { authParams, playlist, currentTrack, playerState, viewMode, mumaUser } from './store.js';
+  import { authParams, currentTrack, playerState, viewMode, mumaUser } from './store.js';
   import { listOf, subsonicJson } from './subsonic.js';
   import { presetQuery, presetSummary, deletePreset, refreshPresets } from './presets.js';
   import { notify } from './notifications.js';
   import TrackList from './TrackList.svelte';
+  import { recordPlace } from './recentPlaces.js';
+  import { startQueue } from './queue.js';
 
   /**
    * One preset, whole: the tracks its saved query answers with, a play button, and the way to
@@ -24,6 +26,12 @@
   let menuOpen = $state(false);
 
   const subtitle = $derived(presetSummary(preset, $t));
+
+  $effect(() => {
+    // A preset arrives with its name already known -- no separate load to backfill it from --
+    // so this records the place as soon as one is open, unlike the id-based views.
+    if (preset?.id) recordPlace(`preset:${preset.id}`, preset.name);
+  });
 
   $effect(() => {
     const auth = $authParams;
@@ -62,7 +70,7 @@
   /** Queues the whole list in its order and starts it. */
   function playAll() {
     if (tracks.length === 0) return;
-    playlist.set(tracks);
+    startQueue(tracks, { name: preset.name });
     currentTrack.set(tracks[0]);
     playerState.update((s) => ({ ...s, playing: true }));
   }

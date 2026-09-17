@@ -29,6 +29,8 @@
   import { checkForMobileUpdate } from './lib/mobileReleaseNotes.js';
   import { checkForAppUpdate } from './lib/appUpdate.js';
   import { allSteps, isUpdateRun, pendingSteps } from './lib/setup.js';
+  import { recordPlace } from './lib/recentPlaces.js';
+  import { startQueue } from './lib/queue.js';
 
   const hours = new Date().getHours();
   const greetingKey = hours < 12 ? 'greeting.morning' : hours < 18 ? 'greeting.afternoon' : 'greeting.evening';
@@ -398,6 +400,19 @@
       enterCarMode();
       return;
     }
+    // 'playlist:<id>' is not itself a real `activeView`: a playlist opens as
+    // 'playlist-detail' with the id living in the separate `currentPlaylist`
+    // store instead (see router.js's own comment on the same quirk, and
+    // `Dashboard.svelte`'s `openPlaylist`). The string exists only so recent
+    // places has one navigable identifier per kind, like every other place;
+    // this is the one spot every navigation passes through, so it is where
+    // that string is translated back into the real mechanism.
+    if (view.startsWith('playlist:')) {
+      currentPlaylist.set({ id: view.slice('playlist:'.length) });
+      activeView.set('playlist-detail');
+      recordPlace(view);
+      return;
+    }
     // The mode first, then the view: the effect above reads both and corrects
     // whichever is behind, and it runs after this handler returns. Moving the
     // view alone to 'sets' while the mode still said 'songs' is what made the
@@ -405,6 +420,9 @@
     const mode = modeForView(view);
     if (mode) viewMode.set(mode);
     activeView.set(view);
+    // Only views listed in `PLACE_PREFIXES` (recentPlaces.js) are actually kept;
+    // recordPlace is a no-op for everything else (settings, 'home', ...).
+    recordPlace(view);
   }
 
   async function saveQueueAsPlaylist() {
@@ -425,7 +443,9 @@
   }
 
   function clearQueue() {
-      playlist.set([]);
+      // Clearing the queue also clears where it came from: an emptied queue
+      // has no "playing from" to speak of.
+      startQueue([], { view: null });
   }
 
   function shuffleQueue() {

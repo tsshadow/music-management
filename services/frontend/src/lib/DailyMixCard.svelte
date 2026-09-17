@@ -1,7 +1,8 @@
 <script>
   import { t } from './i18n/index.js';
-  import { authParams, currentTrack, playlist, playerState } from './store.js';
+  import { authParams, currentTrack, playerState } from './store.js';
   import { loadFeed } from './feeds.js';
+  import { startQueue } from './queue.js';
 
   /**
    * One daily mix, as a compact tile: a colour or a cover, the title and subtitle MuMa already
@@ -24,7 +25,7 @@
     try {
       const tracks = await loadFeed(slug, $authParams);
       if (tracks.length === 0) return;
-      playlist.set(tracks);
+      startQueue(tracks, { name: title });
       currentTrack.set(tracks[0]);
       playerState.update((s) => ({ ...s, playing: true }));
     } finally {

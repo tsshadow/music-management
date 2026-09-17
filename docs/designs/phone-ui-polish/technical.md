@@ -217,9 +217,31 @@ No new endpoints. Existing calls used, per increment:
 
 ### G — rankings
 
-- `listeningStats.js` already wraps the endpoints; a small `rankingToView()` maps a MuMa artist name
-  to `artist:<lmsId>` through `search3` (cached per session). Rows hidden without data or when the
-  resolution fails.
+- New `homeRankings.js`: `loadTopArtists(fetcher)`/`loadTopLabels(fetcher)` GET
+  `listeningUrl('top-artists'|'top-labels', { ...periodRange('30d'), limit: 8 })` with
+  `getHeaders()` from `mumaApi.js` (the listening endpoints need the MuMa key, not the Subsonic
+  credentials); each resolves to `[]` on any failure or non-OK response, same soft-fail contract as
+  `loadListening`'s own `get()`. Rows are mapped down to `{name, listens}` (`artist`/`label` field
+  from the router's response, never the row's own `artist_id`/`label_id`).
+- `resolveArtistView(name)` calls `subsonicJson('search3', { query: name, artistCount: 3,
+  albumCount: 0, songCount: 0 })`, reads `listOf(data, 'searchResult3.artist')`, and returns
+  `artist:<id>` for the entry whose name matches case-insensitively, else the first entry, else
+  `null`. Memoised in a module `Map<name, Promise<view|null>>` keyed by name -- storing the promise
+  itself, not just its result, is what makes two concurrent lookups for the same name share one
+  request instead of firing a second. Wrapped in try/catch, so any failure resolves to `null`. MuMa's
+  own `artist_id` (carried by `/api/listening/top-artists`) is never used for navigation: it names a
+  row in MuMa's own artist table, not an LMS entity.
+- `PhoneHome.svelte`: two `QuickAccessTile` strips after the fallback recent shelf, one per ranking,
+  each with its own `data-testid` and a "Alles tonen" (`dashboard.showAll`) to the `listening` view.
+  Loaded once `onMount`, stale-guarded, only when `$mumaApiKey` is set -- no request at all otherwise.
+  Colours reuse `browseColors.js`'s `TILE_COLORS.artists`/`.labels`, the same table
+  `RecentPlacesRow.svelte` draws from. An artist tap awaits `resolveArtistView(name)` and navigates
+  to the result, or to `search:<name>` when it resolves to `null`; a label tap navigates straight to
+  `label:<name>` (label views already take the name, no id involved). Both rows hidden together
+  without the key, and each hidden on its own when its ranking is empty.
+- New i18n: `dashboard.topArtists`/`dashboard.topLabels` (en/nl only, following `dailyMixesSubtitle`'s
+  precedent of not backfilling the two dialects for a brand-new dashboard row) and
+  `common.listenCount` (en/nl, ICU one/other plural, mirroring `common.trackCount`).
 
 ### H — audio output (Kotlin)
 

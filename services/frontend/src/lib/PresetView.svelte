@@ -70,7 +70,9 @@
   /** Queues the whole list in its order and starts it. */
   function playAll() {
     if (tracks.length === 0) return;
-    startQueue(tracks, { name: preset.name });
+    // 'preset:<id>' rather than the current view: that is the navigable string the
+    // player header and the Browse "Recent" row both understand.
+    startQueue(tracks, { name: preset.name, view: `preset:${preset.id}` });
     currentTrack.set(tracks[0]);
     playerState.update((s) => ({ ...s, playing: true }));
   }

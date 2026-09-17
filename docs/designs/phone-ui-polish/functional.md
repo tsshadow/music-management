@@ -88,7 +88,7 @@ increments may refine earlier ones, but nothing in an earlier increment depends 
 
 | Situation | Observable outcome |
 |---|---|
-| Listening data exists | Rows "Your artists this week" and "Your labels" from the listening statistics; tapping opens the artist or label. Hidden without data. |
+| Listening data exists | Rows "Your artists this month" and "Your labels" from the listening statistics; tapping opens the artist or label. Hidden without data. |
 
 ### H — Audio output
 

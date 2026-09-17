@@ -84,6 +84,10 @@
     "download": "Downloaden",
     "edit": "Bewerken",
     "gotIt": "Duidelijk",
+    "listenCount": {
+      "one": "{count} keer geluisterd",
+      "other": "{count} keer geluisterd"
+    },
     "loadMore": "Meer laden",
     "loading": "Laden...",
     "logout": "Uitloggen",
@@ -130,7 +134,9 @@
     "searchResultsSets": "Zoekresultaten voor \"{query}\" (sets)",
     "searchResultsTracks": "Zoekresultaten voor \"{query}\" (nummers)",
     "showAll": "Alles tonen",
-    "toggleFavorite": "Favoriet toggelen"
+    "toggleFavorite": "Favoriet toggelen",
+    "topArtists": "Jouw artiesten deze maand",
+    "topLabels": "Jouw labels"
   },
   "equalizer": {
     "band": "Band {freq}",

@@ -148,7 +148,13 @@ To maintain clean design governance and prevent ad-hoc style drift:
     `queueIndex + 1` instead of searching `$playlist` for the track's id, which used to land on
     the wrong copy when the same track appeared twice in the queue. The screen now actually
     scrolls, so the swipe-to-close gesture only fires with the container scrolled to the top.
-  - G: listening rankings — reuse the shelf, tile and row components above.
+  - G (done): two horizontal `QuickAccessTile` strips below the fallback recent shelf on phone
+    Home, "Jouw artiesten deze maand" and "Jouw labels" (`homeRankings.js` over
+    `/api/listening/top-artists`/`top-labels`), each with a "Alles tonen" to the listening-stats
+    page; hidden together with no fetch at all when the account has no MuMa key, and per-row when
+    its ranking is empty. An artist tile resolves the LMS `artist:<id>` via `search3` before
+    navigating (MuMa's own `artist_id` is a different id space) and falls back to `search:<name>`
+    when nothing matches; a label tile opens `label:<name>` directly, same as `RecentPlacesRow`.
   - H: audio-output label in the player's bottom row in the accent colour, native only.
 
 - **Done** — Android login/welcome screens brought in line with the web's `LoginPage.svelte`: filled/rounded

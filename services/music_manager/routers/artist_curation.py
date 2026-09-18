@@ -312,9 +312,11 @@ def decide(request: DecisionRequest, auth: dict = WRITE):
     curation_rules.refresh(curation_rules.ARTIST_REDIRECT_HELPER)
     if request.state == BLACK:
         # Only a rejection changes what a file should carry; an approval leaves the
-        # tag as it is, so there is nothing to retag for.
+        # tag as it is, so there is nothing to retag for. Exact: the files that change
+        # are the ones carrying the name today. The wide match the rule endpoints use
+        # would turn a rejected '001' into a retag of every path with a catalogue number.
         for name in names:
-            invalidate_quietly(name, 'artist_decision')
+            invalidate_quietly(name, 'artist_decision', exact=True)
     return {'status': 'ok', 'decided': len(names), 'canonical_name': canonical}
 
 

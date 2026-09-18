@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.65.3] - 2026-09-18
+
+### Changed
+- CI runs what a push actually touched. A feature branch no longer gets a branch pipeline: its
+  first push — the one before the MR exists — ran the entire file (66 job minutes for an 11-file
+  frontend change) because a new branch has no commit to diff against, and the MR pipeline that
+  followed seconds later ran the 13 jobs that mattered. A push to master, whose tree is identical
+  to the release tip that just passed, now runs only the `release:*` sequence instead of re-testing
+  backend and server first; the tag and the back-merge no longer wait twenty minutes for that.
+- A mobile job that times out no longer leaves its Gradle container running. The runner killed the
+  job's shell but not its `docker run`, and the orphan's daemon held the shared Gradle lock, so
+  every mobile job on that runner died in sixty seconds with "Timeout waiting to lock journal
+  cache" for the next hour. Containers carry a `ci.job` label and `after_script` removes them,
+  with `RUNNER_SCRIPT_TIMEOUT` set so that step also runs on a timeout.
+
+- **De startpagina laadde seconden en de onderdelen hielden elkaar op.** Release radar, de
+  vijf daily mixes en de presets kwamen pas tegelijk in beeld, en elk van de feeds kostte de
+  server seconden. Twee oorzaken (`docs/designs/feeds/home-load.md`). Aan de serverkant rekende
+  elke feed-aanroep alles opnieuw uit: `GET /api/feeds` loste het luisterprofiel zeven keer op
+  (één keer per policy, telkens dezelfde 90 dagen `scrobble_listens`), en de drie
+  band-mixes bouwden voor een kaartkleur een volledige feed, tot en met de hele bibliotheek als
+  kandidaat wanneer het venster verruimd werd. Eén startpagina was elf profiel-berekeningen.
+  Aan de clientkant wachtten songs en sets op de radar (`Promise.all`), de mix-kaarten op alle
+  drie de band-feeds én de artiestfoto, en zaten sessiecheck, instellingen en presets in
+  dezelfde wachtrij van drie achter een feed-build — de wachtrij was gemaakt voor de LMS-proxy,
+  waar deze aanroepen sinds 0.65.1 niet meer langs komen. Nu: het profiel wordt per aanroep één
+  keer opgelost; elke feed en de feedlijst worden per luisteraar per dag opgeslagen in
+  `feeds_snapshot` (de daily mixes zijn per ontwerp dag-stabiel, de radar wordt elk uur ververst,
+  een gewijzigde instelling maakt alles direct oud) en een achtergrondlus `feeds-refresh` houdt
+  ze voor iedereen met een luisterbeurt in de laatste dertig dagen alvast warm; een uitsluiting
+  wist de snapshots van die luisteraar. `?limit=10` is voortaan de kop van dezelfde ranking als
+  de pagina waar de rij naartoe linkt, niet een tweede verdeling over tien plaatsen. De client
+  toont elke rij zodra die er is, tekent de mix-kaarten meteen uit de feedlijst met de vaste
+  kleuren en vult genretint en artiestfoto later los in, en houdt twee wachtrijen: drie plekken
+  voor wat nog via de LMS-proxy loopt, acht voor wat rechtstreeks naar MuMa gaat.
+  `X-MuMa-Feed-Source` op een feed-antwoord zegt of het uit de snapshot kwam of live gebouwd is.
+- **`verify_api_key` in `routers/users.py` blokkeerde de event loop.** De dependency was
+  `async def` en riep de synchrone `verify_token` (een databaseronde) rechtstreeks aan, dus elke
+  presets- of instellingen-aanroep hield alle andere verzoeken op tot de sleutelcheck klaar was.
+  Nu een gewone `def`, zoals `feeds.verify_api_key` al was; de rbac-, scanner- en
+  tagger-wrappers gaan mee.
+
+- A release is cut in two pushes: the empty branch first with `-o ci.skip`, the stabilize commit
+  second. GitLab evaluates every `changes:` rule as true on the first push of a new branch, so
+  cutting and stabilizing in one push ran `muma:images`, `server:lint`, the integration and e2e
+  jobs on a commit that touched only VERSION and the changelogs — the very jobs the CI comment
+  claimed a release skipped. Nothing in the pipeline changed; the runbook and the comment now
+  describe what actually happens.
 ## [0.65.2] - 2026-09-18
 
 ### Fixed

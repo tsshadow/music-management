@@ -257,10 +257,12 @@ def is_admin_auth(auth: dict) -> bool:
 def require_permission(permission: str):
     """Reusable FastAPI dependency: RequirePermission("music.play")."""
 
-    async def _dependency(x_api_key: str = Header(None)):
+    def _dependency(x_api_key: str = Header(None)):
+        # Sync on purpose, like users.verify_api_key it delegates to: the key check is
+        # a database round trip, and an `async def` here would run it on the event loop.
         from services.music_manager.routers.users import verify_api_key as _verify
 
-        auth = await _verify(x_api_key)
+        auth = _verify(x_api_key)
         if not has_permission(auth, permission):
             raise HTTPException(status_code=403, detail=f"Missing permission: {permission}")
         return auth
@@ -274,10 +276,10 @@ def require_admin():
     Resolves access through the role system rather than a hardcoded identity.
     """
 
-    async def _dependency(x_api_key: str = Header(None)):
+    def _dependency(x_api_key: str = Header(None)):
         from services.music_manager.routers.users import verify_api_key as _verify
 
-        auth = await _verify(x_api_key)
+        auth = _verify(x_api_key)
         if not is_admin_auth(auth):
             raise HTTPException(status_code=403, detail='Admin role required')
         return auth

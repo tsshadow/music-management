@@ -582,7 +582,10 @@ listening history.
 - **No snapshot table and no nightly job.** The daily mix is stable because its order is a hash of
   `(username, date, track_uid)`, not because it is stored. The radar is filtered by a window first,
   so its candidate set is small. Materialisation buys nothing until a measurement shows the live
-  query is slow.
+  query is slow. *Superseded 2026-09-18:* the measurement arrived as the web Home taking seconds
+  per feed, and the band mixes' relaxation ladder (added after this was written) can widen a
+  candidate set to the whole library. [`home-load.md`](home-load.md) adds `feeds_snapshot` and
+  the `feeds-refresh` thread; the ranking itself is unchanged.
 - **No client work.** See Cross-App Impact.
 - **No new genre inference, no BPM or audio-feature matching, no collaborative filtering, no
   listener-adjustable weights, no set feed.**

@@ -77,7 +77,7 @@ class RadioChannelsTest(unittest.TestCase):
     def test_include_disabled_needs_the_manage_permission(self):
         with patch('services.music_manager.routers.users.verify_api_key') as mock_verify:
 
-            async def _listener(_x_api_key=None):
+            def _listener(_x_api_key=None):
                 return {'type': 'user', 'user': {'id': 5, 'permissions': ['music.play'], 'role_name': 'user'}}
 
             mock_verify.side_effect = _listener
@@ -492,7 +492,7 @@ class ChannelAdminTest(unittest.TestCase):
     def test_managing_channels_needs_more_than_being_logged_in(self):
         with patch('services.music_manager.routers.users.verify_api_key') as mock_verify:
 
-            async def _listener(_x_api_key=None):
+            def _listener(_x_api_key=None):
                 return {'type': 'user', 'user': {'id': 5, 'permissions': ['music.play'], 'role_name': 'user'}}
 
             mock_verify.side_effect = _listener

@@ -39,8 +39,8 @@ export function hashColor(name) {
 /**
  * Whether an image actually loads, rather than 404ing -- an artist may have no photo at all.
  *
- * Asked with `fetch` rather than an `Image`: the artist-image endpoint sits behind the same
- * LMS proxy gate as every other MuMa call, and a refusal there is a 503 an `Image` can only
+ * Asked with `fetch` rather than an `Image`: the artist-image endpoint sits behind the LMS proxy
+ * gate alongside the other LMS-owned routes, and a refusal there is a 503 an `Image` can only
  * report as "failed to load". Going through `gatedFetch` takes a slot like the rest, retries
  * a refusal, and holds nothing open when the answer never comes. The browser keeps the body
  * in its HTTP cache, so the `<img>` drawn afterwards from the same URL does not fetch twice.
@@ -79,59 +79,47 @@ function topGenre(tracks) {
 }
 
 /**
- * The one card for a spectrum band: the genre tint of its own most common genre when one is
- * playing there, else the fixed soft/mid/hard ramp by the band's position.
+ * Builds cards from the listing alone. Call `refine(onRefine)` after publishing them;
+ * each successful refinement emits a replacement card independently, keyed by slug.
+ * Failures and missing tints/images leave the original card untouched.
  *
- * @param {string} slug
- * @param {Object} info - `{title, subtitle}` from `listFeeds()`, or a fallback when absent.
  * @param {Object<string,string>} tints
- * @returns {Promise<Object>}
- */
-async function bandCard(slug, info, tints) {
-  const detail = await fetchFeed(slug, 10);
-  const genre = topGenre(detail.tracks);
-  const position = DAILY_MIX_BANDS.indexOf(slug);
-  const color = tintFor(tints, genre) ?? BAND_RAMP[position === -1 ? 0 : position];
-  return { slug, title: info.title, subtitle: info.subtitle, color, cover: null };
-}
-
-/**
- * The card for a rotating mix (the day's artist or label): its own image when the name has one
- * (artist only -- there is no label-image endpoint), else a colour from its name.
- *
- * @param {string} slug
- * @param {Object} info
  * @param {string} authParams
- * @returns {Promise<Object>}
- */
-async function rotatingCard(slug, info, authParams) {
-  const color = hashColor(info.title);
-  if (slug !== DAILY_MIX_ARTIST || !info.title || !authParams) {
-    return { slug, title: info.title, subtitle: info.subtitle, color, cover: null };
-  }
-  const url = `${apiBase()}/api/artists/${encodeURIComponent(info.title)}/image?${authParams}`;
-  const cover = (await imageLoads(url)) ? url : null;
-  return { slug, title: info.title, subtitle: info.subtitle, color, cover };
-}
-
-/**
- * Builds the five daily-mix cards, in display order: soft, mid, hard, the day's artist, the
- * day's label.
- *
- * @param {Object<string,string>} tints - genre name (lowercased) -> colour, already fetched.
- * @param {string} authParams - Subsonic credentials, for the artist-image check.
- * @returns {Promise<Object[]>} `{slug, title, subtitle, color, cover}`, one per mix.
+ * @returns {Promise<{cards: Object[], refine: (onRefine: (card: Object) => void) => Promise<void>}>}
  */
 export async function loadDailyMixCards(tints, authParams) {
   const feeds = await listFeeds();
   const bySlug = new Map(feeds.map((feed) => [feed.slug, feed]));
+  const cards = DAILY_MIXES.map((slug) => {
+    const info = bySlug.get(slug) ?? { title: slug, subtitle: null };
+    const position = DAILY_MIX_BANDS.indexOf(slug);
+    return {
+      slug,
+      title: info.title,
+      subtitle: info.subtitle,
+      color: position >= 0 ? BAND_RAMP[position] : hashColor(info.title),
+      cover: null,
+    };
+  });
 
-  return Promise.all(
-    DAILY_MIXES.map((slug) => {
-      const info = bySlug.get(slug) ?? { slug, title: slug, subtitle: null };
-      return DAILY_MIX_BANDS.includes(slug)
-        ? bandCard(slug, info, tints)
-        : rotatingCard(slug, info, authParams);
-    }),
-  );
+  /** Runs optional colour and image lookups without delaying the initial cards. */
+  async function refine(onRefine) {
+    await Promise.all(
+      cards.map(async (card) => {
+        try {
+          if (DAILY_MIX_BANDS.includes(card.slug)) {
+            const detail = await fetchFeed(card.slug, 10);
+            const color = tintFor(tints, topGenre(detail?.tracks));
+            if (color != null) onRefine({ ...card, color });
+          } else if (card.slug === DAILY_MIX_ARTIST && card.title && authParams) {
+            const cover = `${apiBase()}/api/artists/${encodeURIComponent(card.title)}/image?${authParams}`;
+            if (await imageLoads(cover)) onRefine({ ...card, cover });
+          }
+        } catch {
+          // Optional decoration must never hide an otherwise playable card.
+        }
+      }),
+    );
+  }
+  return { cards, refine };
 }

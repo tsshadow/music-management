@@ -35,6 +35,17 @@ default:
 # the same commit and runs the entire suite twice. The workaround for the
 # resulting Gradle cache collision is still visible in
 # scripts/test/muma-mobile-unit.sh.
+#
+# Feature branches get merge request pipelines only. A branch pipeline for
+# them used to be allowed as long as no MR was open yet -- which is exactly
+# the state of every branch's *first* push, seconds before `glab mr create`.
+# On that first push GitLab has no CI_COMMIT_BEFORE_SHA, evaluates every
+# `changes:` rule as true, and runs the entire file: muma:images, server:lint,
+# mobile:smoke, everything (feature/muma-gate-queue, pipeline 3203: 27 jobs, 66
+# job minutes for an 11-file frontend change). The MR pipeline that followed
+# ran the 13 jobs the diff actually touched. Eleven of the sixty pipelines
+# before this change were such first pushes. A push to a feature branch that
+# has no MR now runs nothing; opening the MR is what starts CI.
 workflow:
   rules:
     # Release and hotfix branches always get their own branch pipeline, even
@@ -54,13 +65,13 @@ workflow:
       when: never
     # Scheduled pipelines (security:dependency-audit) always run.
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
-    # Prefer the merge request pipeline...
+    # Merge request pipelines: the only way a feature branch is tested.
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    # ...and drop the redundant branch pipeline while an MR is open for it.
-    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS && $CI_PIPELINE_SOURCE == "push"'
-      when: never
-    # Branches without an open MR (develop, master).
-    - if: '$CI_COMMIT_BRANCH'
+    # A pipeline started by hand (Run pipeline, or the API) on any branch,
+    # e.g. MUMA_UPDATE_SNAPSHOTS=1 to refresh the frontend:e2e references.
+    - if: '$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"'
+    # The two long-lived branches. Nothing else gets a branch pipeline.
+    - if: '$CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "master"'
 
 stages:
   - quality
@@ -122,6 +133,14 @@ stages:
 # of wall clock. A release commit that changes actual code trips their
 # `changes:` rules like any other commit. The list of jobs that must reference
 # this anchor is pinned in tests/ci/test_gitlab_ci_policy.py (GATING_JOBS).
+#
+# That skip only holds if the release branch already exists on the remote when
+# the stabilize commit is pushed. On the *first* push of a new branch GitLab
+# has no CI_COMMIT_BEFORE_SHA and evaluates every `changes:` rule as true, so
+# a release cut-and-push in one go ran muma:images, server:lint and all of the
+# above anyway (release/0.65.2, pipeline 3211: ~24 job minutes on the two
+# biggest alone). The muma-release skill therefore pushes the empty branch
+# first with `-o ci.skip` and the stabilize commit second.
 .release_rule:
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
@@ -143,6 +162,21 @@ stages:
 .dedicated_schedule_guard:
   rules:
     - if: '$RENOVATE == "true" || $REFRESH_DOWNLOADER == "true" || $DISK_JANITOR == "true"'
+      when: never
+
+# Referenced by every job that is not part of the release sequence.
+#
+# A push to master is the merge of a release/hotfix branch whose tip already
+# passed the full gated pipeline, and the merge commit's tree is identical to
+# that tip: master receives nothing else. Yet the `changes:` rules see the
+# whole release as the diff and re-ran backend:*, server:*, backend:integration
+# and muma:contracts on it (pipeline 3200: 20 job minutes) -- and because
+# release:tag sits in a later stage, the tag and the back-merge waited for all
+# of it. On master only release:* runs. Scoped to push pipelines so the
+# scheduled jobs that live on master (muma:refresh-downloader) are unaffected.
+.not_on_master:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master" && $CI_PIPELINE_SOURCE == "push"'
       when: never
 
 # Retried only where the code under test never got a fair run. Retrying a
@@ -232,6 +266,7 @@ backend:format:
   tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     - changes: *backend_paths
   script:
@@ -245,6 +280,7 @@ backend:lint:
   tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     - changes: *backend_paths
   script:
@@ -260,6 +296,7 @@ muma:shellcheck:
   tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     - changes:
         - "**/*.sh"
@@ -277,6 +314,7 @@ muma:proxy-routing:
   tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     - changes:
         - services/music-management-server/nginx/**/*
@@ -296,6 +334,7 @@ muma:changelog:
   tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   script:
     - ./scripts/ci/changelog-fragment-check.sh
@@ -316,6 +355,7 @@ server:format:
   tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     - changes:
         - services/music-management-server/src/**/*
@@ -345,6 +385,7 @@ server:lint:
   tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     - changes:
         - services/music-management-server/src/**/*
@@ -370,6 +411,7 @@ backend:typecheck:
   tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     - changes:
         - services/**/*.py
@@ -412,6 +454,7 @@ security:dependency-audit:
   retry: !reference [.infra_retry, retry]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     # $RENOVATE excludes the renovate schedule: that pipeline exists to run one
     # job, and every schedule-triggered job would otherwise ride along with it.
     - if: '$CI_PIPELINE_SOURCE == "schedule" && $RENOVATE != "true"'
@@ -440,6 +483,7 @@ security:sast:
   tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     - changes:
         - services/**/*
@@ -473,6 +517,7 @@ security:secret-scan:
   tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     # See security:dependency-audit for why the renovate schedule is excluded.
     - if: '$CI_PIPELINE_SOURCE == "schedule" && $RENOVATE != "true"'
@@ -556,6 +601,7 @@ backend:unit:
   retry: !reference [.infra_retry, retry]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     - changes:
         - services/music_manager/**/*
@@ -600,6 +646,7 @@ server:unit:
   tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     - changes:
         - services/music-management-server/**/*
@@ -631,6 +678,7 @@ frontend:format:
   cache: !reference [.npm_cache, cache]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     - changes: *frontend_paths
   script:
@@ -643,6 +691,7 @@ frontend:lint:
   cache: !reference [.npm_cache, cache]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     - changes: *frontend_paths
   script:
@@ -655,6 +704,7 @@ frontend:typecheck:
   cache: !reference [.npm_cache, cache]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     - changes: *frontend_paths
   script:
@@ -667,6 +717,7 @@ frontend:unit:
   cache: !reference [.npm_cache, cache]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     - changes: *frontend_paths
   script:
@@ -704,6 +755,7 @@ frontend:bundle:
   cache: !reference [.npm_cache, cache]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - changes:
@@ -740,18 +792,41 @@ frontend:bundle:
         - scripts/ci/android-image.sh
         - .gitlab-ci.yml
 
+# The resource group above only holds while the job's container dies with the
+# job. It did not: on a shell executor the runner kills the job's shell, and a
+# foreground `docker run` left behind keeps running -- with a Gradle daemon
+# holding /gradle_home/caches/journal-1/journal-1.lock. Job 30995 (mobile:unit,
+# release/0.65.2) timed out at 22:46, its container ran on for an hour, and
+# every mobile job that landed on that runner meanwhile died in 60 seconds
+# with "Timeout waiting to lock journal cache": four jobs in three pipelines,
+# none of them at fault.
+#
+# Every mobile script therefore labels its container `ci.job=$CI_JOB_ID`, and
+# this after_script removes whatever still carries the label. after_script
+# runs on cancel by default; on *timeout* it only runs if the runner stopped
+# the script itself first, which is what RUNNER_SCRIPT_TIMEOUT (must be below
+# the job's timeout) and RUNNER_AFTER_SCRIPT_TIMEOUT arrange.
+.mobile_container:
+  after_script:
+    - docker ps -q --filter "label=ci.job=$CI_JOB_ID" | xargs -r docker rm -f
+
 mobile:format:
   stage: quality
   resource_group: muma-mobile
   timeout: 20m
+  variables:
+    RUNNER_SCRIPT_TIMEOUT: 18m
+    RUNNER_AFTER_SCRIPT_TIMEOUT: 1m
   retry: !reference [.infra_retry, retry]
   tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     - changes: *mobile_paths
   script:
     - ./scripts/test/muma-mobile-ktlint.sh
+  after_script: !reference [.mobile_container, after_script]
 
 # detekt and Android Lint together: both are linters, they share a Gradle
 # invocation cost, and neither has a fix-it-for-me command the way ktlint does.
@@ -759,10 +834,14 @@ mobile:lint:
   stage: quality
   resource_group: muma-mobile
   timeout: 20m
+  variables:
+    RUNNER_SCRIPT_TIMEOUT: 18m
+    RUNNER_AFTER_SCRIPT_TIMEOUT: 1m
   retry: !reference [.infra_retry, retry]
   tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     - changes: *mobile_paths
   script:
@@ -770,6 +849,7 @@ mobile:lint:
     # Android Lint sees manifest/resource/API-level problems detekt cannot.
     # Baselined like detekt: green on the day it was wired, red on new findings.
     - ./scripts/test/muma-mobile-lint.sh
+  after_script: !reference [.mobile_container, after_script]
 
 mobile:unit:
   stage: unit
@@ -780,14 +860,19 @@ mobile:unit:
   # before .infra_retry could react. Queue time waiting for the resource group
   # does not count against this.
   timeout: 20m
+  variables:
+    RUNNER_SCRIPT_TIMEOUT: 18m
+    RUNNER_AFTER_SCRIPT_TIMEOUT: 1m
   retry: !reference [.infra_retry, retry]
   tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     - changes: *mobile_paths
   script:
     - ./scripts/test/muma-mobile-unit.sh
+  after_script: !reference [.mobile_container, after_script]
   coverage: '/Total.*?(\d+(?:\.\d+)?\%)/'
   artifacts:
     when: always
@@ -837,6 +922,7 @@ backend:integration:
       optional: true
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - changes:
         - services/music_manager/**/*
@@ -867,6 +953,7 @@ muma:contracts:
       optional: true
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - changes:
         - services/music-management-server/**/*
@@ -900,6 +987,7 @@ muma:smoke:
   needs: []
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     # One rule, no `if`: it matches every branch, so a separate default-branch
     # variant of the same `changes:` list was a strict subset and never decided
     # anything.
@@ -923,6 +1011,7 @@ muma:images:
     PUSH_IMAGES: "false"
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     # Deliberately not gated on .gitlab-ci.yml: this is the most expensive job
     # in the file, and every edit to this file would otherwise trigger a full
     # seven-image build for a change that cannot affect one.
@@ -969,6 +1058,7 @@ muma:e2e:
     - ./scripts/test/core-e2e.sh
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - when: on_success
 
 # Boots the R8-minified release APK on a headless ATD emulator (KVM) and
@@ -985,6 +1075,9 @@ mobile:smoke:
   stage: e2e
   resource_group: muma-mobile
   timeout: 30m
+  variables:
+    RUNNER_SCRIPT_TIMEOUT: 28m
+    RUNNER_AFTER_SCRIPT_TIMEOUT: 1m
   # Needs nothing from the host but Docker, git and /dev/kvm - and both `fast`
   # hosts have KVM (the LXC via the 2026-08-22 passthrough, the workstation
   # natively, where this script was developed). The emulator boot is among the
@@ -1003,6 +1096,7 @@ mobile:smoke:
       optional: true
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - !reference [.release_rule, rules]
     - changes:
         - services/muma-mobile/**/*
@@ -1012,6 +1106,7 @@ mobile:smoke:
         - scripts/test/muma-mobile-emulator-smoke-inner.sh
   script:
     - ./scripts/test/muma-mobile-emulator-smoke.sh
+  after_script: !reference [.mobile_container, after_script]
 
 frontend:e2e:
   stage: e2e
@@ -1023,6 +1118,7 @@ frontend:e2e:
       optional: true
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     # A pipeline started by hand to refresh the reference screenshots
     # (docs/frontend-screenshots.md) has no changed files to match on.
@@ -1113,10 +1209,14 @@ mobile:build-debug:
   stage: release
   resource_group: muma-mobile
   timeout: 45m
+  variables:
+    RUNNER_SCRIPT_TIMEOUT: 43m
+    RUNNER_AFTER_SCRIPT_TIMEOUT: 1m
   retry: !reference [.infra_retry, retry]
   tags: !reference [.fast_runner, tags]
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     # Manual on develop too: the universal-UI (Capacitor) work touches
     # services/muma-mobile/** on nearly every commit while it's in flight, and
     # an automatic build here would spend the ~45m Gradle/Docker build and push
@@ -1144,11 +1244,15 @@ mobile:build-debug:
       allow_failure: true
   script:
     - ./scripts/ci/muma-mobile-build-upload.sh debug
+  after_script: !reference [.mobile_container, after_script]
 
 mobile:build-release:
   stage: release
   resource_group: muma-mobile
   timeout: 45m
+  variables:
+    RUNNER_SCRIPT_TIMEOUT: 43m
+    RUNNER_AFTER_SCRIPT_TIMEOUT: 1m
   # A new push to the release branch must not cancel an APK upload halfway;
   # every other job that publishes something already carries this.
   interruptible: false
@@ -1178,9 +1282,11 @@ mobile:build-release:
       optional: true
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\// && $APK_HOSTER_URL && $SIGNING_STORE_FILE'
   script:
     - ./scripts/ci/muma-mobile-build-upload.sh release
+  after_script: !reference [.mobile_container, after_script]
   # The shipped APK is R8-minified; this mapping is the only way to read a
   # stacktrace it produces. Kept without expiry because a crash report can
   # arrive long after the next release replaced the APK on the hoster.
@@ -1209,6 +1315,7 @@ muma:deploy:
     url: $PROD_URL
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
   script:
     - ./scripts/ci-deploy.sh
@@ -1232,6 +1339,7 @@ muma:verify:
     action: verify
   rules:
     - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
   script:
     - ./scripts/ci/post-deploy-verify.sh

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   GATE_RETRY_DELAYS_MS,
   MAX_PARALLEL_MUMA_CALLS,
+  MAX_PARALLEL_DIRECT_CALLS,
   gatedFetch,
   mumaCallsInFlight,
   resetMumaGate,
@@ -70,7 +71,9 @@ describe("the MuMa call gate", () => {
     globalThis.fetch = api.fetchMock;
 
     const bodies = await Promise.all(
-      Array.from({ length: 12 }, (_, i) => fetchMumaJson(`https://muma.example/api/thing/${i}`)),
+      Array.from({ length: 12 }, (_, i) =>
+        fetchMumaJson(`https://muma.example/api/admin/thing/${i}`),
+      ),
     );
 
     expect(bodies).toHaveLength(12);
@@ -116,7 +119,7 @@ describe("the MuMa call gate", () => {
     globalThis.fetch = api.fetchMock;
 
     const bodies = await Promise.all(
-      Array.from({ length: 3 }, () => fetchMumaJson("https://muma.example/api/thing")),
+      Array.from({ length: 3 }, () => fetchMumaJson("https://muma.example/api/admin/thing")),
     );
 
     expect(bodies).toEqual([{ fine: true }, { fine: true }, { fine: true }]);
@@ -127,7 +130,7 @@ describe("the MuMa call gate", () => {
     globalThis.fetch = vi.fn(async () => ({ ok: false, status: 503, json: async () => ({}) }));
     vi.useFakeTimers();
 
-    const pending = gatedFetch("https://muma.example/api/thing");
+    const pending = gatedFetch("https://muma.example/api/admin/thing");
     await vi.runAllTimersAsync();
     const response = await pending;
     vi.useRealTimers();
@@ -150,7 +153,7 @@ describe("the MuMa call gate", () => {
     vi.useFakeTimers();
     vi.spyOn(Math, "random").mockReturnValue(0);
 
-    const pending = gatedFetch("https://muma.example/api/thing");
+    const pending = gatedFetch("https://muma.example/api/admin/thing");
     await vi.advanceTimersByTimeAsync(1999);
     expect(calls).toBe(1);
     await vi.advanceTimersByTimeAsync(1);
@@ -161,12 +164,50 @@ describe("the MuMa call gate", () => {
     expect(calls).toBe(2);
   });
 
+  it.each([
+    "/muma/api/auth/login",
+    "/muma/api/admin/settings",
+    "/muma/api/artists/name/image?auth=x",
+    "/custom/base/api/artists/artist-123",
+    "/api/artists/123",
+    "/muma/api/tracks/track-1/refresh",
+    "https://example.test/custom/users/1",
+  ])("keeps LMS-owned route %s in the proxy lane", async (url) => {
+    const api = gatedApi(4);
+    globalThis.fetch = api.fetchMock;
+    await Promise.all(Array.from({ length: 6 }, () => gatedFetch(url)));
+    expect(api.peak()).toBe(MAX_PARALLEL_MUMA_CALLS);
+    expect(api.refusals()).toBe(0);
+  });
+
+  it("does not hold direct requests behind a full proxy lane", async () => {
+    const releases = [];
+    const held = Array.from({ length: 3 }, () =>
+      withMumaGate(() => new Promise((resolve) => releases.push(resolve))),
+    );
+    globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200 }));
+    await expect(gatedFetch("/muma/api/feeds")).resolves.toMatchObject({ ok: true });
+    releases.forEach((resolve) => resolve());
+    await Promise.all(held);
+  });
+
+  it("caps the direct lane at eight calls", async () => {
+    const api = gatedApi(8);
+    globalThis.fetch = api.fetchMock;
+    await Promise.all(
+      Array.from({ length: 20 }, () => gatedFetch("/configured/base/api/feeds/daily-mix-soft")),
+    );
+    expect(api.peak()).toBe(MAX_PARALLEL_DIRECT_CALLS);
+    expect(api.refusals()).toBe(0);
+    expect(mumaCallsInFlight()).toBe(0);
+  });
+
   it("takes the boot-time calls through the same gate", async () => {
     // The session check, the account settings and the genre tints used to be
     // bare `fetch` calls beside the feeds, so the home screen's first burst
     // counted past the cap however careful the feed loaders were.
     mumaApiKey.set("key-1");
-    const api = gatedApi(4, { type: "user", user: { id: 1, username: "user" }, settings: null });
+    const api = gatedApi(9, { type: "user", user: { id: 1, username: "user" }, settings: null });
     globalThis.fetch = api.fetchMock;
 
     await Promise.all([
@@ -177,7 +218,7 @@ describe("the MuMa call gate", () => {
       ...Array.from({ length: 6 }, (_, i) => fetchMumaJson(`https://muma.example/api/feeds/${i}`)),
     ]);
 
-    expect(api.peak()).toBeLessThanOrEqual(MAX_PARALLEL_MUMA_CALLS);
+    expect(api.peak()).toBeLessThanOrEqual(MAX_PARALLEL_DIRECT_CALLS + 1);
     expect(api.refusals()).toBe(0);
   });
 });

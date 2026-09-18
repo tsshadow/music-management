@@ -7,11 +7,12 @@ whose feed it is asking for. See docs/designs/feeds/technical.md, "API
 Contract", for the binding shape of every response below.
 """
 
+import hashlib
 from dataclasses import replace
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from pydantic import BaseModel
 
 from services.common.config_store import ConfigStore as Settings
@@ -32,6 +33,15 @@ from services.music_manager.feeds.policy import (
     parse_starting_genres,
 )
 from services.music_manager.feeds.queries import exclusions_query
+from services.music_manager.feeds.snapshot import (
+    LIST_SLUG,
+)
+from services.music_manager.feeds.snapshot import (
+    delete_user as delete_user_snapshots,
+)
+from services.music_manager.feeds.snapshot import (
+    serve as serve_snapshot,
+)
 from services.music_manager.library_paths import relative_path
 
 router = APIRouter(tags=['feeds'])
@@ -40,6 +50,12 @@ settings = Settings()
 # Every policy currently agrees on this window (FeedPolicy's own default); the
 # standalone profile view has no per-feed policy of its own to read it from.
 PROFILE_WINDOW_DAYS = POLICIES['release-radar'].profile_window_days
+# `list_body` resolves the profile once for every policy on the strength of that
+# agreement; a policy that ever wanted its own window would silently be described
+# from the wrong one, so the assumption fails at import rather than in a listing.
+_disagreeing = [slug for slug, policy in POLICIES.items() if policy.profile_window_days != PROFILE_WINDOW_DAYS]
+if _disagreeing:
+    raise RuntimeError(f'feeds policies disagree on profile_window_days: {_disagreeing}')
 
 # The fields /api/library/advanced already returns for a track, in the order
 # the API Contract table documents them, plus the two fields a feed adds.
@@ -107,6 +123,18 @@ def _hardness_edges() -> tuple[tuple[float, float], str]:
     return parse_hardness_edges(settings.get(HARDNESS_EDGES_SETTING))
 
 
+def params_key() -> str:
+    """A digest of every setting a feed is built under, stored beside each snapshot.
+
+    A snapshot whose key differs from the current one is stale whatever its age --
+    an admin who moves the hardness edges or the starting genres sees the change on
+    the next read, not tomorrow. Anything new that shapes a build belongs in here.
+    """
+    edges, edges_source = _hardness_edges()
+    material = repr((sorted(_starting_genres() or []), edges, edges_source))
+    return hashlib.sha256(material.encode('utf-8')).hexdigest()[:32]
+
+
 def _track_view(track: dict) -> dict:
     view = {field: track.get(field) for field in _TRACK_FIELDS}
     # What a client hands to LMS's getSongsByPath to turn this into something playable. The
@@ -163,9 +191,94 @@ def _fallback_title(policy) -> str:
     return policy.slug
 
 
+def list_body(conn, username: str | None, now: datetime) -> dict:
+    """The `GET /api/feeds` body: every policy with a title and subtitle.
+
+    One `resolve_profile` for all seven -- every policy shares `profile_window_days`,
+    and resolving it per policy was most of what this listing cost. `conn` may be
+    None only when there is no listener (`username` None): the titles then fall
+    back to their generic spellings rather than the endpoint failing.
+    """
+    starting_genres = _starting_genres()
+    edges, edges_source = _hardness_edges()
+    resolution = None
+    if conn and username:
+        resolution = resolve_profile(conn, username, PROFILE_WINDOW_DAYS, now, starting_genres)
+    feeds = []
+    for slug in _LISTED_SLUGS:
+        policy = POLICIES[slug]
+        if resolution is not None:
+            info = describe_feed(
+                conn,
+                username,
+                policy,
+                now,
+                starting_genres,
+                hardness_edges=edges,
+                hardness_edges_source=edges_source,
+                resolution=resolution,
+            )
+        else:
+            info = {'title': _fallback_title(policy), 'subtitle': None}
+        feeds.append(
+            {
+                'slug': policy.slug,
+                'size': policy.size,
+                'window_days': policy.release_window_days,
+                'title': info['title'],
+                'subtitle': info['subtitle'],
+            }
+        )
+    return {'feeds': feeds}
+
+
+def feed_body(conn, username: str, policy, now: datetime) -> dict:
+    """The `GET /api/feeds/{slug}` body for one policy, built live."""
+    kwargs = {}
+    starting_genres = _starting_genres()
+    if starting_genres:
+        kwargs['starting_genres'] = starting_genres
+    if policy.hardness_band:
+        edges, edges_source = _hardness_edges()
+        kwargs['hardness_edges'] = edges
+        kwargs['hardness_edges_source'] = edges_source
+
+    feed = build_feed(conn, username, policy, now, **kwargs)
+    return {
+        'slug': feed.slug,
+        'state': feed.state,
+        'scope': feed.scope,
+        'generated_at': now.isoformat(),
+        'tracks': [_track_view(track) for track in feed.tracks] if feed.state == 'ok' else [],
+        'funnel': feed.funnel,
+        'title': feed.title,
+        'subtitle': feed.subtitle,
+        'hardness_band': list(feed.hardness_band) if feed.hardness_band else None,
+        'hardness_edges_source': feed.hardness_edges_source,
+        'hardness_source_counts': feed.hardness_source_counts,
+        'hardness_percentiles': feed.hardness_percentiles,
+        'relaxed_to': feed.relaxed_to,
+        'filled_from_unknown': feed.filled_from_unknown,
+    }
+
+
+def snapshot_body(conn, username: str, slug: str) -> dict:
+    """What the `feeds-refresh` thread stores for one key: the listing for
+    `LIST_SLUG`, the full-size feed for a policy slug. Same functions the request
+    path uses, so a warm row and a live answer can never differ."""
+    now = datetime.now()
+    if slug == LIST_SLUG:
+        return list_body(conn, username, now)
+    return feed_body(conn, username, POLICIES[slug], now)
+
+
+#: Every key the refresh thread keeps warm per listener.
+SNAPSHOT_SLUGS = [LIST_SLUG, *_LISTED_SLUGS]
+
+
 @router.get('')
 @router.get('/')
-def list_feeds(username: str | None = None, auth: dict = Depends(verify_api_key)):
+def list_feeds(response: Response, username: str | None = None, auth: dict = Depends(verify_api_key)):
     """Every feed slug this caller may ask for, with a title and subtitle to show
     before it has even been built.
 
@@ -174,42 +287,26 @@ def list_feeds(username: str | None = None, auth: dict = Depends(verify_api_key)
     (or for a user key, always its own) the title/subtitle for the personalised
     slugs -- the rotating artist/label mixes, the spectrum's actual hardness numbers
     -- fall back to a generic description rather than failing the whole listing.
+
+    Answered from the day's snapshot when there is one; `X-MuMa-Feed-Source` says
+    which it was.
     """
     resolved = username if auth.get('type') == 'system' else auth['user']['username']
 
     conn = get_db_connection() if resolved else None
-    starting_genres = _starting_genres()
-    edges, edges_source = _hardness_edges()
     now = datetime.now()
-    feeds = []
     try:
-        for slug in _LISTED_SLUGS:
-            policy = POLICIES[slug]
-            if conn:
-                info = describe_feed(
-                    conn,
-                    resolved,
-                    policy,
-                    now,
-                    starting_genres,
-                    hardness_edges=edges,
-                    hardness_edges_source=edges_source,
-                )
-            else:
-                info = {'title': _fallback_title(policy), 'subtitle': None}
-            feeds.append(
-                {
-                    'slug': policy.slug,
-                    'size': policy.size,
-                    'window_days': policy.release_window_days,
-                    'title': info['title'],
-                    'subtitle': info['subtitle'],
-                }
+        if not conn:
+            body, source = list_body(None, None, now), 'live'
+        else:
+            body, source = serve_snapshot(
+                conn, resolved, LIST_SLUG, now, params_key(), lambda: list_body(conn, resolved, now)
             )
     finally:
         if conn:
             conn.close()
-    return {'feeds': feeds}
+    response.headers['X-MuMa-Feed-Source'] = source
+    return body
 
 
 @router.get('/profile')
@@ -263,6 +360,9 @@ def update_exclusion(payload: ExclusionUpdate, username: str | None = None, auth
                     (resolved, payload.entity_type, entity_name),
                 )
         conn.commit()
+        # The snapshots were built from a profile this exclusion has just changed;
+        # the next read rebuilds rather than serving a mix the entity still shapes.
+        delete_user_snapshots(conn, resolved)
     finally:
         conn.close()
     return {'status': 'ok'}
@@ -271,10 +371,18 @@ def update_exclusion(payload: ExclusionUpdate, username: str | None = None, auth
 @router.get('/{slug}')
 def get_feed(
     slug: str,
+    response: Response,
     limit: int | None = Query(None, ge=1, le=100),
     username: str | None = None,
     auth: dict = Depends(verify_api_key),
 ):
+    """One feed, from the day's snapshot when it is fresh, built live when it is not.
+
+    `limit` smaller than the policy's size is the head of the snapshot -- the Home
+    row is literally the top of the page it links to. A `limit` *larger* than the
+    policy's size is a different feed (the quota is allocated over more places), so
+    that one is built live and not stored; nothing in the apps asks for it.
+    """
     policy = POLICIES.get(slug)
     if policy is None:
         raise HTTPException(status_code=404, detail='Unknown feed')
@@ -283,37 +391,18 @@ def get_feed(
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')
 
+    now = datetime.now()
     try:
-        if limit is not None and limit != policy.size:
-            policy = replace(policy, size=limit)
-
-        kwargs = {}
-        starting_genres = _starting_genres()
-        if starting_genres:
-            kwargs['starting_genres'] = starting_genres
-        if policy.hardness_band:
-            edges, edges_source = _hardness_edges()
-            kwargs['hardness_edges'] = edges
-            kwargs['hardness_edges_source'] = edges_source
-
-        now = datetime.now()
-        feed = build_feed(conn, resolved, policy, now, **kwargs)
+        if limit is not None and limit > policy.size:
+            body, source = feed_body(conn, resolved, replace(policy, size=limit), now), 'live'
+        else:
+            body, source = serve_snapshot(
+                conn, resolved, slug, now, params_key(), lambda: feed_body(conn, resolved, policy, now)
+            )
     finally:
         conn.close()
 
-    return {
-        'slug': feed.slug,
-        'state': feed.state,
-        'scope': feed.scope,
-        'generated_at': now.isoformat(),
-        'tracks': [_track_view(track) for track in feed.tracks] if feed.state == 'ok' else [],
-        'funnel': feed.funnel,
-        'title': feed.title,
-        'subtitle': feed.subtitle,
-        'hardness_band': list(feed.hardness_band) if feed.hardness_band else None,
-        'hardness_edges_source': feed.hardness_edges_source,
-        'hardness_source_counts': feed.hardness_source_counts,
-        'hardness_percentiles': feed.hardness_percentiles,
-        'relaxed_to': feed.relaxed_to,
-        'filled_from_unknown': feed.filled_from_unknown,
-    }
+    if limit is not None and len(body.get('tracks') or []) > limit:
+        body = {**body, 'tracks': body['tracks'][:limit]}
+    response.headers['X-MuMa-Feed-Source'] = source
+    return body

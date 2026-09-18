@@ -19,6 +19,7 @@ from services.common.version_helper import get_version
 from services.music_manager.cors import ALLOWED_METHODS, allowed_origins
 from services.music_manager.database import get_db_connection
 from services.music_manager.events_retention import run_events_retention
+from services.music_manager.feeds import snapshot as feeds_snapshot
 from services.music_manager.feeds.hardness import seed_genre_hardness
 from services.music_manager.routers import (
     analytics,
@@ -128,6 +129,7 @@ def startup_event():
                 diagnostics.init_db(cursor)
                 events.init_db(cursor)
                 feeds.init_db(cursor)
+                feeds_snapshot.init_db(cursor)
                 # Idempotent: only ever fills a genre whose hardness is still NULL, so a
                 # curator's own edit from the genre edit page is never overwritten. Cheap
                 # on every later restart -- almost every row already has a value after
@@ -154,6 +156,14 @@ def startup_event():
         start_thread('events-retention', run_events_retention)
         start_thread('scrobble-rematch', run_scrobble_rematch)
         start_thread('song-versions', run_song_version_grouping)
+        # Keeps every active listener's feeds built ahead of the read, so opening
+        # Home reads rows instead of running four profile builds. See
+        # docs/designs/feeds/home-load.md.
+        start_thread(
+            'feeds-refresh',
+            feeds_snapshot.run_feeds_refresh,
+            (feeds.SNAPSHOT_SLUGS, feeds.params_key, feeds.snapshot_body),
+        )
 
 
 @app.get('/health')

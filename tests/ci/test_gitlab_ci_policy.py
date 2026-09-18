@@ -119,6 +119,56 @@ def test_the_guard_covers_every_schedule_variable():
     assert ci[".dedicated_schedule_guard"]["rules"][0]["when"] == "never"
 
 
+MASTER_GUARD = [".not_on_master", "rules"]
+
+
+def test_master_runs_the_release_sequence_and_nothing_else():
+    """A push to master is the merge of a release/hotfix tip that already
+    passed the full gated pipeline, and master receives nothing else -- but
+    the `changes:` rules see the whole release as the diff and re-ran the
+    backend, server and integration jobs on an identical tree (pipeline 3200:
+    20 job minutes), with release:tag waiting behind them in a later stage."""
+    ci = load_ci()
+    unguarded = [
+        name
+        for name in job_names(ci)
+        if not name.startswith("release:")
+        and name not in SCHEDULE_OWNED_JOBS
+        and MASTER_GUARD not in ci[name].get("rules", [])
+    ]
+    assert unguarded == [], f"these jobs would re-test master's identical tree: {unguarded}"
+    guarded_release_jobs = [
+        name for name in job_names(ci) if name.startswith("release:") and MASTER_GUARD in ci[name].get("rules", [])
+    ]
+    assert guarded_release_jobs == [], f"the release sequence must run on master: {guarded_release_jobs}"
+
+
+def test_the_master_guard_only_covers_push_pipelines():
+    """muma:refresh-downloader is a schedule that lives on master. A guard on
+    $CI_COMMIT_BRANCH alone would step aside for it too."""
+    ci = load_ci()
+    rule = ci[".not_on_master"]["rules"][0]
+    assert rule["when"] == "never"
+    assert '$CI_COMMIT_BRANCH == "master"' in rule["if"]
+    assert '$CI_PIPELINE_SOURCE == "push"' in rule["if"]
+
+
+def test_the_master_guard_precedes_every_positive_rule():
+    """Rules are evaluated in order and the first match wins."""
+    ci = load_ci()
+    late = []
+    for name in job_names(ci):
+        rules = ci[name].get("rules", [])
+        if MASTER_GUARD not in rules:
+            continue
+        for rule in rules[: rules.index(MASTER_GUARD)]:
+            if rule == GUARD or (isinstance(rule, dict) and rule.get("when") == "never"):
+                continue
+            late.append(name)
+            break
+    assert late == [], f"a positive rule is evaluated before the master guard on: {late}"
+
+
 # Every job is `<scope>:<what>`. The scope is a source component -- what you
 # edited -- or `muma` when the job spans them, or a concern that belongs to no
 # component. Adding one here is a deliberate act: three competing schemes at
@@ -258,15 +308,39 @@ def test_deploy_prod_declares_its_environment():
     assert environment["url"] == "$PROD_URL"
 
 
-def test_workflow_rules_prevent_duplicate_pipelines():
-    """Jobs with `changes:`-only rules also match merge_request_event, so a
-    push to a branch with an open MR runs the whole suite twice."""
+def test_feature_branches_get_no_branch_pipeline():
+    """A feature branch's first push has no CI_COMMIT_BEFORE_SHA, so every
+    `changes:` rule is true and the branch pipeline runs the entire file --
+    seconds before the MR pipeline runs the jobs the diff actually touched
+    (pipeline 3203 vs 3204: 66 job minutes against 21). The old dedupe keyed on
+    $CI_OPEN_MERGE_REQUESTS, which is unset at exactly that moment. Branch
+    pipelines exist for release/hotfix, develop and master only; a feature
+    branch is tested through its merge request."""
     ci = load_ci()
-    rules = ci["workflow"]["rules"]
-    duplicate_guard = [
-        rule for rule in rules if rule.get("when") == "never" and "$CI_OPEN_MERGE_REQUESTS" in rule.get("if", "")
+    admitted = [
+        rule["if"]
+        for rule in ci["workflow"]["rules"]
+        if rule.get("when") != "never" and "$CI_COMMIT_BRANCH" in rule.get("if", "")
     ]
-    assert duplicate_guard, "no rule dropping the branch pipeline when an MR is open"
+    assert admitted, "no workflow rule admits any branch pipeline"
+    for condition in admitted:
+        assert re.search(r'\$CI_COMMIT_BRANCH\s*(=~|==)', condition), (
+            f"a bare $CI_COMMIT_BRANCH admits every feature branch's first push: {condition}"
+        )
+        assert "$CI_OPEN_MERGE_REQUESTS" not in condition
+    branches = " ".join(admitted)
+    assert "release" in branches and "hotfix" in branches
+    assert '"develop"' in branches and '"master"' in branches
+
+
+def test_hand_started_pipelines_still_run_on_any_branch():
+    """MUMA_UPDATE_SNAPSHOTS=1 is a Run-pipeline on whatever branch needs new
+    references. Restricting branch pipelines to develop/master must not take
+    that away."""
+    ci = load_ci()
+    sources = " ".join(rule.get("if", "") for rule in ci["workflow"]["rules"] if rule.get("when") != "never")
+    assert '$CI_PIPELINE_SOURCE == "web"' in sources
+    assert '$CI_PIPELINE_SOURCE == "merge_request_event"' in sources
 
 
 def test_release_branches_do_not_get_a_merge_request_pipeline():
@@ -318,6 +392,56 @@ def test_every_job_has_a_timeout():
     ci = load_ci()
     missing = [name for name in job_names(ci) if "timeout" not in ci[name]]
     assert missing == [], f"jobs without an explicit timeout: {missing}"
+
+
+def _minutes(value: str) -> int:
+    match = re.fullmatch(r"(\d+)m", value)
+    assert match, f"expected a plain minute value, got {value!r}"
+    return int(match.group(1))
+
+
+def test_mobile_jobs_remove_their_container_on_timeout():
+    """The muma-mobile resource group only serialises the *jobs*. When job
+    30995 timed out, the runner killed its shell and the foreground
+    `docker run` lived on for an hour with a Gradle daemon holding
+    journal-1.lock, so every mobile job that landed on that runner meanwhile
+    died in 60 seconds through no fault of its own. after_script removes the
+    container by its ci.job label -- and on a timeout after_script only runs
+    if the runner stopped the script itself, which needs RUNNER_SCRIPT_TIMEOUT
+    below the job timeout."""
+    ci = load_ci()
+    mobile_jobs = [name for name in job_names(ci) if name.startswith("mobile:")]
+    assert mobile_jobs
+    cleanup = ci[".mobile_container"]["after_script"]
+    assert any("label=ci.job=$CI_JOB_ID" in line and "docker rm -f" in line for line in cleanup)
+    for name in mobile_jobs:
+        job = ci[name]
+        assert job.get("after_script") == [".mobile_container", "after_script"], f"{name} leaves its container behind"
+        variables = job.get("variables", {})
+        assert "RUNNER_AFTER_SCRIPT_TIMEOUT" in variables, f"{name} has no after_script budget"
+        script_budget = variables.get("RUNNER_SCRIPT_TIMEOUT")
+        assert script_budget, f"{name}: without RUNNER_SCRIPT_TIMEOUT after_script does not run on timeout"
+        assert _minutes(script_budget) < _minutes(job["timeout"]), (
+            f"{name}: RUNNER_SCRIPT_TIMEOUT must be below the job timeout or the job dies first"
+        )
+
+
+def test_every_mobile_container_carries_the_job_label():
+    """The after_script above finds containers by label. A mobile script that
+    starts one without it is back to the orphan."""
+    scripts = [
+        "scripts/test/muma-mobile-unit.sh",
+        "scripts/test/muma-mobile-ktlint.sh",
+        "scripts/test/muma-mobile-detekt.sh",
+        "scripts/test/muma-mobile-lint.sh",
+        "scripts/test/muma-mobile-emulator-smoke.sh",
+        "scripts/ci/muma-mobile-build-upload.sh",
+    ]
+    for script in scripts:
+        text = (REPO_ROOT / script).read_text(encoding="utf-8")
+        runs = text.count("\ndocker run ")
+        labelled = text.count('--label "ci.job=${CI_JOB_ID:-local}"')
+        assert runs and runs == labelled, f"{script}: {runs} docker run, {labelled} with the ci.job label"
 
 
 def test_retries_are_limited_to_infrastructure_failures():

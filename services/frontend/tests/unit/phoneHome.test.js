@@ -17,7 +17,7 @@ import { loadTopArtists, loadTopLabels, resolveArtistView } from "../../src/lib/
 // DailyMixesShelf (rendered when the daily-mix section is "Overzicht") builds its five cards
 // from these two modules; stubbed here so a phone-home test never reaches MuMa for them.
 vi.mock("../../src/lib/dailyMixes.js", () => ({
-  loadDailyMixCards: async () => [],
+  loadDailyMixCards: async () => ({ cards: [], refine: async () => {} }),
 }));
 vi.mock("../../src/lib/genreTints.js", () => ({
   fetchGenreTints: async () => ({}),

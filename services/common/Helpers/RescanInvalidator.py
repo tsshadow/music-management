@@ -13,9 +13,13 @@ class RescanInvalidator:
     the title or the path. That also catches the rules that infer an artist out of a
     title, which no join could find.
 
-    The width has one guard. A term shorter than MIN_TERM_LENGTH skips the substring
-    half and matches on the artist name alone, because an artist called 'D' would
-    otherwise drag in most of the library.
+    The width has two guards, both of which fall back to matching the artist name
+    alone. A term shorter than MIN_TERM_LENGTH, because an artist called 'D' would
+    otherwise drag in most of the library. And a term without a single letter, because
+    '001', '2026' or '#1' are catalogue numbers, years and track numbers in nearly every
+    path: blacklisting a hundred of those junk artists at once marked 149.213 files for a
+    retag of which 6.168 actually carried one of the names, and the tagger spent a day
+    walking the other 143.000 instead of the genre decisions queued behind them.
 
     Files the scanner has never indexed are not in library_media_files and are
     therefore invisible here. That is what invalidate_all is for.
@@ -54,7 +58,7 @@ class RescanInvalidator:
         if not term:
             return 0
         base = '\n            SELECT DISTINCT mf.file_path\n            FROM library_media_files mf\n            LEFT JOIN library_tracks t         ON t.id = mf.track_id\n            LEFT JOIN library_track_artists ta ON ta.track_id = t.id\n            LEFT JOIN library_artists a        ON a.id = ta.artist_id\n        '
-        if len(term) >= self.MIN_TERM_LENGTH:
+        if self._substring_worthy(term):
             like = f'%{self._escape_like(term)}%'
             query = base + ' WHERE a.name = %s OR t.title LIKE %s OR mf.file_path LIKE %s'
             args = (term, like, like)
@@ -62,6 +66,31 @@ class RescanInvalidator:
             query = base + ' WHERE a.name = %s'
             args = (term,)
         return self.invalidate_paths(self._select_paths(query, args), reason)
+
+    @classmethod
+    def _substring_worthy(cls, term: str) -> bool:
+        return len(term) >= cls.MIN_TERM_LENGTH and any(c.isalpha() for c in term)
+
+    def invalidate_by_artist(self, name: str, reason: str) -> int:
+        """Mark only the files whose artist tag carries this exact name.
+
+        The narrow match is for a rejection. After one the tagger drops the name, so
+        the only files that change are the ones carrying it today -- a file where the
+        name merely appears in the title or the path was never going to be written
+        differently, and with junk names like '001' that substring half is most of the
+        library.
+        """
+        name = (name or '').strip()
+        if not name:
+            return 0
+        query = '''
+            SELECT DISTINCT mf.file_path
+            FROM library_media_files mf
+            JOIN library_track_artists ta ON ta.track_id = mf.track_id
+            JOIN library_artists a        ON a.id = ta.artist_id
+            WHERE a.name = %s
+        '''
+        return self.invalidate_paths(self._select_paths(query, (name,)), reason)
 
     def invalidate_paths(self, paths: list[str], reason: str) -> int:
         """Mark an explicit set of paths. Returns how many were marked."""
@@ -96,7 +125,7 @@ class RescanInvalidator:
 rescan_invalidator = RescanInvalidator()
 
 
-def invalidate_quietly(term: str, reason: str) -> int:
+def invalidate_quietly(term: str, reason: str, exact: bool = False) -> int:
     """Mark the files a changed rule touches, without letting that fail the edit.
 
     The rule is already committed by the time this runs. A rule that saved but did not
@@ -109,6 +138,8 @@ def invalidate_quietly(term: str, reason: str) -> int:
     added there sat unapplied behind whatever the tagger happened to walk into next.
     """
     try:
+        if exact:
+            return rescan_invalidator.invalidate_by_artist(term, reason)
         return rescan_invalidator.invalidate_by_term(term, reason)
     except Exception as e:
         logging.warning('Rule saved but marking files for retag failed (%s): %s', reason, e)

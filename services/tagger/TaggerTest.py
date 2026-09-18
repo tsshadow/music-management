@@ -243,13 +243,41 @@ class PendingPassTest(TaggerTestCase):
         try_parse.assert_not_called()
         self.processed.forget.assert_called_once_with(str(gone))
 
-    def test_the_folders_touched_are_handed_to_lms_once_each(self):
+    def test_the_folders_written_are_handed_to_lms_once_each(self):
         a = self.make_song(self.music / 'Soundcloud' / 'artist', 'a.mp3')
         b = self.make_song(self.music / 'Soundcloud' / 'artist', 'b.mp3')
         self.queue([a, b])
-        with patch.object(self.tagger, '_try_parse'), patch.object(tagger_module, 'lms_scan_trigger') as trigger:
+        with (
+            patch.object(self.tagger, '_try_parse', return_value=True),
+            patch.object(tagger_module, 'lms_scan_trigger') as trigger,
+        ):
             self.tagger._process_pending()
         trigger.notify.assert_called_once_with([str(a.parent)])
+
+    def test_a_folder_where_nothing_was_written_is_not_handed_to_lms(self):
+        a = self.make_song(self.music / 'Soundcloud' / 'artist', 'a.mp3')
+        b = self.make_song(self.music / 'Soundcloud' / 'other', 'b.mp3')
+        self.queue([a, b])
+        with (
+            patch.object(self.tagger, '_try_parse', side_effect=lambda path, *_: path == b),
+            patch.object(tagger_module, 'lms_scan_trigger') as trigger,
+        ):
+            self.tagger._process_pending()
+        trigger.notify.assert_called_once_with([str(b.parent)])
+
+    def test_the_parallel_path_hands_lms_only_the_folder_of_a_saved_file(self):
+        self.tagger.parallel = True
+        a = self.make_song(self.music / 'Soundcloud' / 'artist', 'a.mp3')
+        b = self.make_song(self.music / 'Soundcloud' / 'other', 'b.mp3')
+        self.queue([a, b])
+        with (
+            patch.object(
+                Tagger, '_parse_worker', side_effect=lambda file, *_: (file, 'SAVED' if file == str(b) else 'OK')
+            ),
+            patch.object(tagger_module, 'lms_scan_trigger') as trigger,
+        ):
+            self.tagger._process_pending()
+        trigger.notify.assert_called_once_with([str(b.parent)])
 
     def test_a_stop_request_ends_the_pass_between_files(self):
         a = self.make_song(self.music / 'Soundcloud' / 'artist', 'a.mp3')
@@ -428,8 +456,59 @@ class ParseFolderTest(TaggerTestCase):
             self.tagger.parse_folder(folder, SongTypeEnum.SOUNDCLOUD)
         self.assertEqual(worker.call_count, 2)
 
+    def test_lms_hears_about_a_folder_only_when_a_file_in_it_was_written(self):
+        """A full run visits every folder and leaves nearly all of them as they were.
+
+        Every one of those used to be a scan request anyway: 13.798 in three hours on
+        2026-09-18 against 7 files saved, and LMS re-read ~1.000 files from the NAS per
+        request, back to back, for hours. A folder nothing touched is not news.
+        """
+        folder = self.music / 'Soundcloud' / 'artist'
+        self.make_song(folder)
+        with (
+            patch.object(self.tagger, '_try_parse', return_value=False),
+            patch.object(tagger_module, 'lms_scan_trigger') as trigger,
+        ):
+            self.tagger.parse_folder(folder, SongTypeEnum.SOUNDCLOUD)
+        trigger.notify.assert_not_called()
+
+        with (
+            patch.object(self.tagger, '_try_parse', return_value=True),
+            patch.object(tagger_module, 'lms_scan_trigger') as trigger,
+        ):
+            self.tagger.parse_folder(folder, SongTypeEnum.SOUNDCLOUD)
+        trigger.notify.assert_called_once_with([str(folder)])
+
+    def test_the_parallel_path_tells_lms_only_about_a_saved_file(self):
+        folder = self.music / 'Soundcloud' / 'artist'
+        for name in ('a.mp3', 'b.mp3'):
+            self.make_song(folder, name)
+        self.tagger.parallel = True
+        with (
+            patch.object(Tagger, '_parse_worker', return_value=('x', 'OK')),
+            patch.object(tagger_module, 'lms_scan_trigger') as trigger,
+        ):
+            self.tagger.parse_folder(folder, SongTypeEnum.SOUNDCLOUD)
+        trigger.notify.assert_not_called()
+
+        with (
+            patch.object(Tagger, '_parse_worker', side_effect=[('a', 'OK'), ('b', 'SAVED')]),
+            patch.object(tagger_module, 'lms_scan_trigger') as trigger,
+        ):
+            self.tagger.parse_folder(folder, SongTypeEnum.SOUNDCLOUD)
+        trigger.notify.assert_called_once_with([str(folder)])
+
 
 class TryParseTest(TaggerTestCase):
+    def test_reports_whether_the_file_was_written(self):
+        song = self.make_song(self.music / 'Soundcloud' / 'artist')
+        with patch.object(Tagger, 'parse_song', return_value=MagicMock(saved=True)):
+            self.assertTrue(self.tagger._try_parse(song, SongTypeEnum.SOUNDCLOUD))
+        with patch.object(Tagger, 'parse_song', return_value=MagicMock(saved=False)):
+            self.assertFalse(self.tagger._try_parse(song, SongTypeEnum.SOUNDCLOUD))
+        self.processed.needs_processing.return_value = False
+        self.assertFalse(self.tagger._try_parse(song, SongTypeEnum.SOUNDCLOUD))
+
     def test_a_file_that_did_not_change_is_skipped(self):
         song = self.make_song(self.music / 'Soundcloud' / 'artist')
         self.processed.needs_processing.return_value = False
@@ -523,6 +602,13 @@ class ParseWorkerTest(TaggerTestCase):
         with patch.object(Tagger, 'parse_song'):
             self.assertEqual(Tagger._parse_worker(str(song), 'SOUNDCLOUD')[1], 'OK')
         self.processed.mark_processed.assert_called_once()
+
+    def test_a_written_file_is_reported_as_saved(self):
+        song = self.make_song(self.music / 'Soundcloud' / 'artist')
+        with patch.object(Tagger, 'parse_song', return_value=MagicMock(saved=True)):
+            self.assertEqual(Tagger._parse_worker(str(song), 'SOUNDCLOUD')[1], 'SAVED')
+        with patch.object(Tagger, 'parse_song', return_value=MagicMock(saved=False)):
+            self.assertEqual(Tagger._parse_worker(str(song), 'SOUNDCLOUD')[1], 'OK')
 
     def test_a_failure_is_reported_back_instead_of_raised(self):
         song = self.make_song(self.music / 'Soundcloud' / 'artist')

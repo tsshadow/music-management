@@ -32,6 +32,7 @@ from services.music_manager.routers import (
     events,
     feeds,
     festivals,
+    genre_curation,
     jobs,
     library,
     lineups,
@@ -90,6 +91,7 @@ app.include_router(news.router, prefix="/api/news")
 app.include_router(diagnostics.router, prefix="/api/diagnostics")
 app.include_router(curation.router, prefix="/api/curation")
 app.include_router(artist_curation.router, prefix="/api/rules/artists")
+app.include_router(genre_curation.router, prefix="/api/rules/genres")
 app.include_router(festivals.router, prefix="/api/rules/festivals")
 app.include_router(lineups.router, prefix="/api/rules/lineups")
 app.include_router(songs.router, prefix="/api/songs")

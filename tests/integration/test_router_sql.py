@@ -390,6 +390,72 @@ class GenreCurationTest:
         assert upterror['decided_by'] == 'system'
         assert [target['name'] for target in upterror['canonical_targets']] == ['Uptempo Hardcore', 'Terror']
 
+    def test_an_analysis_run_writes_advice_the_queue_carries(self, api, headers, db):
+        """Every query behind the advice, against the real schema: the dictionary
+        loads (approved genres with track counts, expansions, rejected names,
+        artists with their tagger links, labels), the proposals land with ids, and
+        the queue endpoint joins and filters on them."""
+        with db.cursor() as cursor:
+            cursor.executemany(
+                'INSERT INTO rules_genres (name, normalized_name, state) VALUES (%s, %s, %s)',
+                [
+                    ('Uptempo Hardcore', 'uptempo hardcore', 'white'),
+                    ('Terror', 'terror', 'white'),
+                    ('Frenchcore', 'frenchcore', 'white'),
+                    ('uptempo', 'uptempo', 'black'),
+                    ('HEARTBREAK', 'heartbreak', 'black'),
+                    ('Upterror', 'upterror', 'unknown'),
+                    ('Frenchcore/Terror', 'frenchcore terror', 'unknown'),
+                    ('dr peacock', 'dr peacock', 'unknown'),
+                    ('Tafelpoot', 'tafelpoot', 'unknown'),
+                ],
+            )
+            cursor.execute('SELECT id, name FROM rules_genres')
+            ids = {row['name']: row['id'] for row in cursor.fetchall()}
+            cursor.execute(
+                'INSERT INTO rules_genre_expansions (genre_id, target_id, position) VALUES (%s, %s, 0)',
+                (ids['uptempo'], ids['Uptempo Hardcore']),
+            )
+            cursor.execute("INSERT INTO library_artists (name) VALUES ('Dr Peacock')")
+            cursor.execute(
+                "INSERT INTO rules_artist_genres (artist_name, genre_id) VALUES ('Dr Peacock', %s)",
+                (ids['Frenchcore'],),
+            )
+
+        started = api.post('/api/rules/genres/analyze', headers=headers)
+        assert started.status_code == 202, started.text
+        status = api.get(f"/api/rules/genres/analyze/{started.json()['job_id']}", headers=headers).json()
+        assert status['status'] == 'finished', status
+        assert status['summary'] == {'keep': 0, 'rewrite': 1, 'split': 2, 'reject': 1, 'unknown': 0}
+
+        queue = {row['name']: row for row in api.get('/api/rules/genres?state=unknown', headers=headers).json()}
+        assert [t['name'] for t in queue['Upterror']['proposal']['targets']] == ['Uptempo Hardcore', 'Terror']
+        assert queue['Upterror']['proposal']['targets'][0]['id'] == ids['Uptempo Hardcore']
+        assert queue['dr peacock']['proposal']['kind'] == 'rewrite'
+        assert queue['dr peacock']['proposal']['targets'][0]['name'] == 'Frenchcore'
+        assert queue['Tafelpoot']['proposal']['kind'] == 'reject'
+        rejects = api.get('/api/rules/genres?state=unknown&proposal=reject', headers=headers).json()
+        assert [row['name'] for row in rejects] == ['Tafelpoot']
+
+        summary = api.get('/api/rules/genres/summary', headers=headers).json()
+        assert summary['unknown'] == 4
+        assert summary['proposals'] == {'rewrite': 1, 'split': 2, 'reject': 1}
+        assert summary['analyzed_at']
+
+        # A decision on an advised genre leaves the others' advice in place and the
+        # tagger page's list approved-only.
+        decided = api.post(
+            f"/api/rules/genres/{ids['Upterror']}/decide",
+            headers=headers,
+            json={'state': 'black', 'canonical_ids': [t['id'] for t in queue['Upterror']['proposal']['targets']]},
+        )
+        assert decided.status_code == 200, decided.text
+        assert {g['name'] for g in api.get('/api/rules', headers=headers).json()['genres']} == {
+            'Uptempo Hardcore',
+            'Terror',
+            'Frenchcore',
+        }
+
     def test_the_curation_queue_can_be_filtered_by_state(self, api, headers, db):
         with db.cursor() as cursor:
             cursor.executemany(

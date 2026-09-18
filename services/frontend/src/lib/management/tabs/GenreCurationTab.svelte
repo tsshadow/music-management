@@ -84,9 +84,10 @@
   async function fetchGenres() {
     loading = true;
     try {
-      const params = ['limit=500'];
+      const params = [];
       if (stateFilter !== 'all') params.push(`state=${stateFilter}`);
       if (stateFilter === UNKNOWN && proposalFilter) params.push(`proposal=${proposalFilter}`);
+      params.push('limit=500');
       const res = await fetch(`${API_BASE}/api/rules/genres?${params.join('&')}`, {
         headers: getHeaders()
       });

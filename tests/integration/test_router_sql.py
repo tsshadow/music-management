@@ -34,6 +34,7 @@ READ_ENDPOINTS = [
     ('/api/library/genres', 200),
     ('/api/rules', 200),
     ('/api/rules/genres', 200),
+    ('/api/rules/genres/summary', 200),
     ('/api/rules/artists', 200),
     ('/api/rules/artists?state=white', 200),
     ('/api/rules/artists?state=all&q=a&proposal=reject&sort=name', 200),

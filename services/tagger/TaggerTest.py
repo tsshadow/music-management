@@ -177,6 +177,29 @@ class RunTest(TaggerTestCase):
             self.tagger.run()
         reload_rule_caches.assert_called_once()
 
+    def test_a_run_holds_the_processed_snapshot_for_the_walk_only(self):
+        # Loaded after the pending pass (so it already reflects that work) and dropped
+        # after the walk, also when the walk raises.
+        order = []
+        self.processed.load_snapshot.side_effect = lambda: order.append('load')
+        self.processed.drop_snapshot.side_effect = lambda: order.append('drop')
+        with (
+            patch.object(self.tagger, '_process_pending', side_effect=lambda: order.append('pending')),
+            patch.object(self.tagger, '_parse_label_folders', side_effect=lambda: order.append('walk')),
+            patch.object(self.tagger, '_parse_channel_folders'),
+            patch.object(self.tagger, '_parse_generic_folders'),
+        ):
+            self.tagger.run()
+        self.assertEqual(order, ['pending', 'load', 'walk', 'drop'])
+
+    def test_the_snapshot_is_dropped_even_when_the_walk_raises(self):
+        with (
+            patch.object(self.tagger, '_parse_label_folders', side_effect=RuntimeError('share gone')),
+            self.assertRaises(RuntimeError),
+        ):
+            self.tagger.run()
+        self.processed.drop_snapshot.assert_called_once()
+
     def test_a_run_asks_lms_to_pick_up_what_changed(self):
         with (
             patch.object(self.tagger, '_parse_label_folders'),

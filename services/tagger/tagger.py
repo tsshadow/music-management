@@ -61,6 +61,22 @@ class Tagger:
         # decisions made that morning sat behind it. Whatever this pass finishes stays
         # finished across a restart, because a tagged file is no longer queued.
         self._process_pending()
+        # After the pending pass, so the snapshot already shows those files as done.
+        # Held for the walk only: the loop sleeps between rounds and there is no reason
+        # to keep 327k rows in memory while it does.
+        processed_files_helper.load_snapshot()
+        try:
+            self._walk(parse_labels, parse_soundcloud, parse_youtube, parse_generic, parse_telegram)
+        finally:
+            processed_files_helper.drop_snapshot()
+        if self.stop_requested:
+            logging.info('Tagging process was interrupted by user')
+        # One scan per run, not per file: LMS only reprocesses what changed, so this is
+        # cheap, and it is what makes a new or corrected tag show up in the app without
+        # waiting for LMS's own schedule. Best effort -- it never raises.
+        lms_scan_trigger.trigger()
+
+    def _walk(self, parse_labels, parse_soundcloud, parse_youtube, parse_generic, parse_telegram):
         logging.info(
             'Starting Tag Step with options: %s, %s, %s, %s, %s',
             parse_labels,
@@ -79,12 +95,6 @@ class Tagger:
             self._parse_channel_folders('Telegram', SongTypeEnum.TELEGRAM)
         if parse_generic and (not self.stop_requested):
             self._parse_generic_folders()
-        if self.stop_requested:
-            logging.info('Tagging process was interrupted by user')
-        # One scan per run, not per file: LMS only reprocesses what changed, so this is
-        # cheap, and it is what makes a new or corrected tag show up in the app without
-        # waiting for LMS's own schedule. Best effort -- it never raises.
-        lms_scan_trigger.trigger()
 
     #: Rows read from the queue per page. One page is one thread pool: large enough for
     #: the pool to matter, small enough that a stop request is honoured within seconds.

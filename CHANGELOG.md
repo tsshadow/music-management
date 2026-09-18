@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.66.1] - 2026-09-18
+
+### Changed
+- **De Python-tooling in CI installeert niet meer bij elke job opnieuw.** `backend:format`,
+  `backend:lint` en `backend:typecheck` draaien in een `python:3.14-slim`-container en deden elk
+  een verse `pip install -r requirements-dev.txt` naar een weggooi-`/tmp`; drie keer dezelfde
+  wheels per pipeline, en op 2026-09-18 — PyPI leverde een uur lang 80–260 KB/s — liep elk van de
+  drie tegen de 10-minutengrens van de job, op beide runners, twee pipelines achter elkaar. De
+  installatie landt nu in `~/.cache/muma-python-tooling/<sleutel>` op de runner (sleutel = hash van
+  `requirements-dev.txt` plus het image), als bind mount in de container; alleen de eerste job na
+  een requirements-bump praat nog met PyPI, de rest vindt de tools klaarstaan. Drie jobs die
+  tegelijk starten delen de map onder een `flock`; een afgebroken installatie laat geen
+  `.complete`-marker achter en wordt gewoon opnieuw gedaan. Sleutels die een maand niet zijn
+  aangeraakt worden opgeruimd. `PYTHON_TOOLING_CACHE=none` zet het uit. Gemeten: eerste run 14 s
+  voor drie gelijktijdige jobs, warme run 1 s.
+
+- **De startpagina haalt van geen enkele feed meer tracks op.** Na 0.65.3 vroeg Home nog steeds
+  tien tracks per band-mix op voor een genretint, en een rij van tien voor de Release Radar —
+  vier feed-builds voor een scherm waar niemand die tracks leest. Een kaart is een deur; wat
+  erachter zit laadt pas als je hem opent. De Release Radar is nu de eerste kaart in dezelfde rij
+  als de vijf daily mixes, onder de kop "Voor jou"; de band-kaarten houden hun vaste kleuren, de
+  artiestkaart haalt alleen nog zijn foto. Op de telefoon rendert "Overzicht" voor radar en/of
+  mixen die ene kaartenrij, en de radar-tegel beschrijft zichzelf met zijn eigen tekst in plaats
+  van zijn eerste track. De enige `/api/feeds`-aanroep die Home nog doet is de lijst zelf.
+
+- **De tagger doet de retag-wachtrij nu eerst, rechtstreeks uit de tabel.** Een ronde liep de
+  mappen af in de volgorde EPs, Soundcloud, Youtube, Telegram, overig en begon bij elke herstart
+  bovenaan; met vijf deploys in één nacht en 213.789 gemarkeerde bestanden was Youtube (50.384
+  in de wachtrij, 0 klaar) in zestien dagen niet bereikt en stonden de genrebeslissingen van die
+  ochtend achter alles. `Tagger._process_pending` leest de rijen met `needs_rescan` per 500 op
+  primaire sleutel, tagt ze met het brontype dat hun pad geeft, en gooit de rij weg van een
+  bestand dat niet meer bestaat. Wat klaar is blijft klaar over een herstart heen. Nieuwe index
+  `(needs_rescan, filepath)` via `migrate_v28`; de mapwalk daarna vindt alleen nog nieuwe en
+  gewijzigde bestanden.
+
+### Fixed
+- **Een afgekeurde "artiest" als `001` zette bijna de hele bibliotheek in de retag-wachtrij.**
+  Een regelwijziging vertaalt naar bestanden via een brede match: artiestnaam, titel *of pad*
+  bevat de term. Voor een catalogusnummer of jaartal is dat elk pad. Het afkeuren van ~480
+  cijfer-artiesten op 17 september markeerde 149.213 bestanden, waarvan er 6.168 die naam
+  daadwerkelijk als artiest droegen; de tagger liep een dag door bestanden waar niets aan te
+  veranderen viel en de genrebeslissingen die erachter stonden kwamen niet aan bod. Een
+  afkeuring markeert nu alleen de bestanden die de naam vandaag als artiest hebben, en een
+  term zonder één letter doet nergens meer een substring-match. Het herstelscript voor de
+  bestaande wachtrij staat in `scripts/prod/clear-spurious-artist-retag-marks.sh`.
 ## [0.66.0] - 2026-09-18
 
 ### Added

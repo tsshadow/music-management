@@ -111,7 +111,9 @@ describe("TaggerTab", () => {
       expect(screen.queryByTestId("retag-pending")).toBeNull();
     });
 
-    it("starts the retag and clears the block", async () => {
+    it("starts the retag and keeps the count on screen", async () => {
+      // The count is the progress bar: it drops as the queue is worked off, so it
+      // must not vanish the moment the button is pressed.
       withPending({ total: 12, by_reason: [{ reason: "artist_genre_rule", count: 12 }] });
       const onMessage = vi.fn();
 
@@ -122,7 +124,23 @@ describe("TaggerTab", () => {
 
       await waitFor(() => expect(onMessage).toHaveBeenCalledWith("Retag gestart."));
       expect(actionCalls()[0][0]).toBe("http://muma/api/tagger/retag/run");
-      expect(screen.queryByTestId("retag-pending")).toBeNull();
+      expect(screen.getByTestId("retag-pending")).toBeTruthy();
+      expect(screen.getByText("12")).toBeTruthy();
+    });
+
+    it("polls the count while the page is open", async () => {
+      vi.useFakeTimers();
+      try {
+        withPending({ total: 12, by_reason: [] });
+        render(TaggerTab, props());
+        const before = globalThis.fetch.mock.calls.length;
+
+        await vi.advanceTimersByTimeAsync(5000);
+
+        expect(globalThis.fetch.mock.calls.length).toBe(before + 1);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("says so when the tagger is already running", async () => {
@@ -141,6 +159,64 @@ describe("TaggerTab", () => {
 
       await waitFor(() => expect(onError).toHaveBeenCalledWith("De tagger is al bezig."));
       expect(screen.getByTestId("retag-pending")).toBeTruthy();
+    });
+
+    it("shows stop and start-over instead of retag while a round runs", async () => {
+      withPending({ total: 40, by_reason: [], busy: true, stopping: false });
+
+      render(TaggerTab, props());
+
+      await waitFor(() => expect(screen.getByTestId("tagger-state")).toBeTruthy());
+      expect(screen.getByText("STOP")).toBeTruthy();
+      expect(screen.getByText("OPNIEUW VAN VOREN")).toBeTruthy();
+      expect(screen.queryByText("NU RETAGGEN")).toBeNull();
+    });
+
+    it("is visible for a walk with an empty queue, so it can be stopped", async () => {
+      withPending({ total: 0, by_reason: [], busy: true, stopping: false });
+
+      render(TaggerTab, props());
+
+      await waitFor(() => expect(screen.getByTestId("retag-pending")).toBeTruthy());
+      expect(screen.getByText("STOP")).toBeTruthy();
+    });
+
+    it("a stop is sent to the tagger", async () => {
+      withPending({ total: 40, by_reason: [], busy: true, stopping: false });
+      const onMessage = vi.fn();
+
+      render(TaggerTab, props({ onMessage }));
+
+      await waitFor(() => expect(screen.getByText("STOP")).toBeTruthy());
+      await fireEvent.click(screen.getByText("STOP"));
+
+      await waitFor(() => expect(onMessage).toHaveBeenCalledWith("Stopverzoek verstuurd."));
+      expect(actionCalls()[0][0]).toBe("http://muma/api/tagger/tag/stop");
+      expect(actionCalls()[0][1].method).toBe("POST");
+    });
+
+    it("a start-over asks for the restart, not a plain run", async () => {
+      withPending({ total: 40, by_reason: [], busy: true, stopping: false });
+      const onMessage = vi.fn();
+
+      render(TaggerTab, props({ onMessage }));
+
+      await waitFor(() => expect(screen.getByText("OPNIEUW VAN VOREN")).toBeTruthy());
+      await fireEvent.click(screen.getByText("OPNIEUW VAN VOREN"));
+
+      await waitFor(() => expect(onMessage).toHaveBeenCalled());
+      expect(actionCalls()[0][0]).toBe("http://muma/api/tagger/retag/restart");
+    });
+
+    it("disables both buttons once a stop is under way", async () => {
+      withPending({ total: 40, by_reason: [], busy: true, stopping: true });
+
+      render(TaggerTab, props());
+
+      await waitFor(() => expect(screen.getByTestId("tagger-state")).toBeTruthy());
+      expect(screen.getByTestId("tagger-state").textContent).toContain("stopt");
+      expect(screen.getByText("STOP").closest("button").disabled).toBe(true);
+      expect(screen.getByText("OPNIEUW VAN VOREN").closest("button").disabled).toBe(true);
     });
 
     it("stays hidden when the count cannot be fetched", async () => {

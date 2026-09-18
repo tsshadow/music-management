@@ -1,6 +1,7 @@
 """Coverage for the scanner/tagger routers."""
 
 import sys
+import threading
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -502,6 +503,76 @@ class RetagEndpointsTest(unittest.TestCase):
         with patch.object(tagger_router.tagger_manager, '_lock', MagicMock(locked=lambda: True)):
             response = self.client.post('/api/tagger/retag/run', headers=self.headers)
         self.assertEqual(response.status_code, 409)
+
+    def test_the_pending_summary_carries_the_tagger_state(self):
+        # The page polls this one endpoint, so the state rides along with the count.
+        with patch.object(tagger_router, 'ProcessedFilesHelper') as helper:
+            helper.return_value.pending_summary.return_value = {'total': 0, 'by_reason': []}
+            idle = self.client.get('/api/tagger/retag/pending', headers=self.headers).json()
+            with (
+                patch.object(tagger_router.tagger_manager, '_lock', MagicMock(locked=lambda: True)),
+                patch.object(tagger_router.tagger_manager.tagger, 'stop_requested', True),
+            ):
+                halting = self.client.get('/api/tagger/retag/pending', headers=self.headers).json()
+        self.assertEqual((idle['busy'], idle['stopping']), (False, False))
+        self.assertEqual((halting['busy'], halting['stopping']), (True, True))
+
+    def test_a_restart_is_accepted_while_the_tagger_is_busy(self):
+        # Being busy is the whole reason to ask for one, so no 409 here.
+        with (
+            patch.object(tagger_router.tagger_manager, '_lock', MagicMock(locked=lambda: True)),
+            patch.object(tagger_router, 'restart_retag') as restart_retag,
+        ):
+            response = self.client.post('/api/tagger/retag/restart', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        restart_retag.assert_called_once()
+
+    def test_a_restart_cuts_the_round_short_and_starts_over(self):
+        manager = tagger_router.TaggerManager.__new__(tagger_router.TaggerManager)
+        manager.tagger = MagicMock(stop_requested=False)
+        manager._lock = threading.Lock()
+        rounds = []
+        started = threading.Event()
+
+        def a_round_that_waits_for_the_stop():
+            rounds.append('first')
+            started.set()
+            while not manager.tagger.stop_requested:
+                pass
+            rounds.append('first stopped')
+
+        def a_fresh_round():
+            rounds.append('second')
+
+        manager.tagger.run.side_effect = a_round_that_waits_for_the_stop
+        first = threading.Thread(target=manager.run_full)
+        first.start()
+        # Wait for the round itself, not for the lock: the lock is taken a moment before
+        # run() is entered, and swapping the side effect in that moment fakes a restart.
+        self.assertTrue(started.wait(timeout=5))
+
+        manager.tagger.run.side_effect = a_fresh_round
+        manager.restart()
+        first.join(timeout=5)
+
+        self.assertEqual(rounds, ['first', 'first stopped', 'second'])
+
+    def test_a_restart_gives_up_when_the_round_never_lets_go(self):
+        manager = tagger_router.TaggerManager.__new__(tagger_router.TaggerManager)
+        manager.tagger = MagicMock(stop_requested=False)
+        manager._lock = MagicMock(locked=lambda: True)
+        with patch.object(tagger_router.TaggerManager, 'RESTART_WAIT_SECONDS', 0):
+            manager.restart()
+        manager.tagger.run.assert_not_called()
+
+    def test_a_restart_retag_restarts_and_then_indexes(self):
+        with (
+            patch.object(tagger_router.tagger_manager, 'restart') as restart,
+            patch.object(scanner_router.scanner_manager, 'run_full') as scan_full,
+        ):
+            tagger_router.restart_retag()
+        restart.assert_called_once()
+        scan_full.assert_called_once()
 
     def test_a_retag_run_tags_and_then_indexes(self):
         # No dedicated execution path: Tagger.run skips unmarked files by itself, so a

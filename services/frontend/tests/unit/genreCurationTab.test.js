@@ -88,6 +88,40 @@ function mockApi({
     }
     if (options.method === "POST") return { ok: decisionOk, json: async () => ({ detail }) };
     if (url.includes("state=white&limit=1000")) return { ok: true, json: async () => white };
+    if (url.includes("/api/rules/artist-genres")) {
+      return {
+        ok: true,
+        json: async () => [
+          {
+            id: 1,
+            artist_name: "Angerfist",
+            genre_name: "Hardcore",
+            genre_id: 10,
+            artist_id: 9,
+            track_count: 3,
+          },
+        ],
+      };
+    }
+    if (url.includes("/api/rules/label-genres")) return { ok: true, json: async () => [] };
+    if (url.includes("/api/curation/genres")) {
+      return {
+        ok: true,
+        json: async () => ({
+          total: 1,
+          rows: [
+            {
+              id: 10,
+              name: "Hardcore",
+              track_count: 5,
+              parents: [],
+              artist_rule_count: 1,
+              label_rule_count: 0,
+            },
+          ],
+        }),
+      };
+    }
     return { ok: true, json: async () => rows };
   });
 }
@@ -414,5 +448,36 @@ describe("GenreCurationTab", () => {
     await waitFor(() =>
       expect(onMessage).toHaveBeenCalledWith("Analyse klaar: advies voor 1 genres."),
     );
+  });
+
+  it("opens on the queue and switches to the approved genres and the rule panels", async () => {
+    await renderLoaded();
+    expect(screen.getByRole("button", { name: "Wachtrij" }).getAttribute("aria-current")).toBe(
+      "page",
+    );
+
+    await fireEvent.click(screen.getByRole("button", { name: "Genres" }));
+    await waitFor(() => expect(screen.getByTestId("genre-overview")).toBeTruthy());
+    expect(screen.queryByText("Tribecore")).toBeNull();
+    expect(screen.getByText("Goedgekeurde genres")).toBeTruthy();
+
+    await fireEvent.click(screen.getByRole("button", { name: "Artiest → genre" }));
+    await waitFor(() => expect(screen.getByTestId("genre-rules-artist")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Angerfist")).toBeTruthy());
+
+    await fireEvent.click(screen.getByRole("button", { name: "Label → genre" }));
+    await waitFor(() => expect(screen.getByTestId("genre-rules-label")).toBeTruthy());
+
+    await fireEvent.click(screen.getByRole("button", { name: "Wachtrij" }));
+    await waitFor(() => expect(screen.getByText("Tribecore")).toBeTruthy());
+  });
+
+  it("hides the queue's state filter outside the queue", async () => {
+    await renderLoaded();
+    expect(screen.getByRole("button", { name: "Afgekeurd" })).toBeTruthy();
+
+    await fireEvent.click(screen.getByRole("button", { name: "Genres" }));
+
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Afgekeurd" })).toBeNull());
   });
 });

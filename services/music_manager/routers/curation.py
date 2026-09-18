@@ -611,6 +611,60 @@ def delete_label_genre(name: str, genre_id: int, _auth: dict = WRITE):
 # ---------------------------------------------------------------------------- genres
 
 
+#: One overview request never returns more than this; the approved list is a few hundred.
+GENRE_PAGE_MAX = 1000
+
+
+@router.get('/genres')
+def list_genres(q: str | None = None, limit: int = 500, offset: int = 0, _auth: dict = READ):
+    """Every approved genre, most tracks first, with what the tagger knows about it.
+
+    The Beheer overview of genres: how many tracks carry it, its hardness, the
+    genres it rolls up into, and how many artist and label rules point at it. The
+    row is the way into the edit page; nothing is edited here. Only approved
+    genres: whether a genre exists at all is the curation queue's question.
+    """
+    limit = max(1, min(int(limit), GENRE_PAGE_MAX))
+    offset = max(0, int(offset))
+    where = "WHERE g.state = 'white'"
+    params: list = []
+    if q:
+        where += ' AND g.name LIKE %s'
+        params.append(f'%{q}%')
+    conn = _connect()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(f'SELECT COUNT(*) AS total FROM rules_genres g {where}', params)
+            total = cursor.fetchone()['total']
+            cursor.execute(
+                f'''
+                SELECT g.id, g.name, g.hardness, g.occurrences,
+                       COALESCE(tc.track_count, 0) AS track_count,
+                       (SELECT COUNT(*) FROM rules_artist_genres r WHERE r.genre_id = g.id) AS artist_rule_count,
+                       (SELECT COUNT(*) FROM rules_label_genres r WHERE r.genre_id = g.id) AS label_rule_count,
+                       (SELECT GROUP_CONCAT(h.genre ORDER BY h.genre SEPARATOR ';')
+                        FROM rules_subgenre_hierarchy h WHERE LOWER(h.subgenre) = LOWER(g.name)) AS parents
+                FROM rules_genres g
+                LEFT JOIN (
+                    SELECT genre_id, COUNT(DISTINCT track_id) AS track_count
+                    FROM library_track_genres GROUP BY genre_id
+                ) tc ON tc.genre_id = g.id
+                {where}
+                ORDER BY track_count DESC, g.name
+                LIMIT %s OFFSET %s
+                ''',
+                params + [limit, offset],
+            )
+            rows = []
+            for row in cursor.fetchall():
+                row = dict(row)
+                row['parents'] = [part for part in (row.get('parents') or '').split(';') if part]
+                rows.append(row)
+            return {'total': total, 'rows': rows, 'limit': limit, 'offset': offset}
+    finally:
+        conn.close()
+
+
 @router.get('/genres/{name}')
 def get_genre(name: str, _auth: dict = READ):
     """Where this genre sits in the hierarchy, and whether it may be edited at all.

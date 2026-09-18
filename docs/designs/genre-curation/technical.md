@@ -210,3 +210,32 @@ refreshes the tagger's rules, and a burst of those is what the LMS proxy refuses
 24. `GET /api/rules` returns approved genres only.
 25. `decisionFromProposal` maps split/rewrite to black with the target ids, reject to black, keep to white
     and unknown to null; `planFromProposals` applies nothing under the floor.
+
+## The page since the rules moved in
+
+Curatie › Genres carries four sections (`SECTIONS` in `management/genreRules.js`): the queue with
+its advice, the approved-genre overview, and one rule panel each for artist → genre and
+label → genre. The tagger page (`TaggerTab.svelte`) is the tagger itself — rescan and the retag
+pile — and points here; its "Genre Overzicht" and "Genre Koppelingen" sub-tabs are gone. The old
+overview listed every row of `rules_genres`, rejected and queued included, and the artist/label
+picker offered those as link targets.
+
+- `GenreOverviewPanel.svelte` reads `GET /api/curation/genres` (approved only; `q`, `limit` ≤
+  1000): id, name, hardness, occurrences, `track_count`, `artist_rule_count`,
+  `label_rule_count`, `parents` (from `rules_subgenre_hierarchy`). The row opens `genre-edit:<name>`.
+- `GenreRulesPanel.svelte` serves both rule kinds; `RULE_KINDS` in `genreRules.js` holds what
+  differs (endpoint, name column, how to open the subject). `GET /api/rules/artist-genres` and
+  `label-genres` now join the library row for `artist_id`/`label_id` and `track_count`, and carry
+  `created_at`/`created_by`. A rule whose name has left the library is shown as such rather than
+  hidden. The whole list is loaded once (480 + 49 rules on prod) and filtered client-side on name
+  *or* genre with the same key as the queue's search box.
+- `buildRule` refuses an empty name, a missing genre and a pair that already exists (the API
+  would upsert and only re-stamp `created_by`), so the button and the request agree.
+- Management.svelte no longer fetches `/api/rules`, `/api/artists` and `/api/labels` on open —
+  ten calls instead of eleven behind the proxy gate.
+
+Acceptance: 26. `GET /api/curation/genres` lists white genres only with the counts above and turns
+`parents` into a list. 27. Both rule list endpoints carry the library id, track count and
+provenance. 28. `buildRule` refuses a duplicate ignoring case; `sortRules` never mutates.
+29. The tagger page renders neither "Genre Overzicht" nor "Genre Koppelingen" and its link opens
+`genre-curation`. 30. The queue's state filter is hidden outside the queue section.

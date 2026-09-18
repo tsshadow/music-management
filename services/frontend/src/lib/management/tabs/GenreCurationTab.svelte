@@ -30,8 +30,17 @@
     buildDecision,
     correctionTargets
   } from '../genreCuration.js';
+  import { SECTIONS } from '../genreRules.js';
+  import GenreRulesPanel from '../GenreRulesPanel.svelte';
+  import GenreOverviewPanel from '../GenreOverviewPanel.svelte';
 
   let { API_BASE, getHeaders, onMessage, onError } = $props();
+
+  // Which part of the page is open: the queue with its advice, the approved genres,
+  // or one of the two rule tables. The queue's own state filter lives inside it.
+  let section = $state('queue');
+  // Bumped when a rule panel changes something, so the overview's counts follow.
+  let rulesVersion = $state(0);
 
   let rows = $state([]);
   let whiteGenres = $state([]);
@@ -276,19 +285,45 @@
       </p>
     </div>
 
-    <div class="flex bg-muma-spotify-panel p-1 rounded-full border border-white/5">
-      {#each STATE_FILTERS as filter (filter.id)}
-        <button
-          class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors {stateFilter === filter.id ? 'bg-white text-black' : 'text-muma-spotify-text hover:text-white'}"
-          onclick={() => (stateFilter = filter.id)}
-        >
-          {filter.label}
-        </button>
-      {/each}
-    </div>
+    {#if section === 'queue'}
+      <div class="flex bg-muma-spotify-panel p-1 rounded-full border border-white/5">
+        {#each STATE_FILTERS as filter (filter.id)}
+          <button
+            class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors {stateFilter === filter.id ? 'bg-white text-black' : 'text-muma-spotify-text hover:text-white'}"
+            onclick={() => (stateFilter = filter.id)}
+          >
+            {filter.label}
+          </button>
+        {/each}
+      </div>
+    {/if}
   </header>
 
-  {#if summary}
+  <nav class="flex gap-6 border-b border-white/10" aria-label={$t('management.genres.sections')}>
+    {#each SECTIONS as item (item.id)}
+      <button
+        type="button"
+        class="pb-4 font-bold text-sm transition-colors relative {section === item.id ? 'text-white' : 'text-muma-spotify-text hover:text-white'}"
+        aria-current={section === item.id ? 'page' : undefined}
+        onclick={() => (section = item.id)}
+      >
+        {$t(item.labelKey)}
+        {#if section === item.id}
+          <div class="absolute bottom-0 left-0 right-0 h-1 bg-brand rounded-full animate-in fade-in duration-300"></div>
+        {/if}
+      </button>
+    {/each}
+  </nav>
+
+  {#if section === 'overview'}
+    <GenreOverviewPanel {API_BASE} {getHeaders} {onError} refreshKey={rulesVersion} />
+  {:else if section === 'artist-rules'}
+    <GenreRulesPanel {API_BASE} {getHeaders} {onMessage} {onError} kind="artist" {whiteGenres} onchange={() => (rulesVersion += 1)} />
+  {:else if section === 'label-rules'}
+    <GenreRulesPanel {API_BASE} {getHeaders} {onMessage} {onError} kind="label" {whiteGenres} onchange={() => (rulesVersion += 1)} />
+  {/if}
+
+  {#if section === 'queue' && summary}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 p-4">
         <p class="text-[10px] uppercase tracking-wider text-muma-spotify-text m-0">{$t('management.genres.queue')}</p>
@@ -325,6 +360,7 @@
     </div>
   {/if}
 
+  {#if section === 'queue'}
   <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 overflow-hidden">
     <div class="p-6 bg-black/20 flex justify-between items-center gap-4 flex-wrap">
       <h3 class="text-xl font-bold flex items-center gap-2">
@@ -492,6 +528,7 @@
       {/if}
     </div>
   </div>
+  {/if}
 </section>
 
 {#if deciding}

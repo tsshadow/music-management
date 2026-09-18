@@ -23,7 +23,7 @@ it; the downloader and importer workers run in other containers and do not.
 |---|------|-----------------|-------------|-------|
 | D1 | SoundCloud download | `SoundcloudSongProcessor` → `Tagger.parse_song`, in `muma-soundcloud-worker` | none | The file is tagged once here and **again** by the next walk, because the worker never writes the table. The second pass is what picks up rules that changed since. |
 | D2 | YouTube download | `YoutubeSongProcessor` → `Tagger.parse_song`, in `muma-youtube-worker` | none | Same as D1. Info dict is stored by `download_info` so the retag can see it. |
-| D3 | Telegram download | `telegram.py` → `TelegramSong` | none | Same as D1. |
+| D3 | Telegram download | **nobody** — `telegram.py` never constructs a `TelegramSong` | none | The file waits for the walk to reach `Telegram/`, which on 0.66.1 is after EPs, Soundcloud and Youtube. |
 | D4 | Importer (label release) | `mover.py` → `LabelSong.parse()`, in `muma-importer-worker` | none | Same as D1. |
 | D5 | File placed by hand / other tool | nothing until the walk | the walk sees a path not in the table | Only the walk finds it. On 0.66.1 the walk restarts at EPs on every deploy, so a file dropped in Youtube can wait days. |
 | D6 | LMS "rerun parse" (web + app) | `library.rerun_parse[_path]` → `mark_for_rescan` + `tag_single` + `scan_single` | flag set, cleared by the tag | **Blocks on the lock.** With a round running for hours the request waits, then the LMS thread waits with it (see the LMS thread-pool starvation note in memory). |
@@ -158,7 +158,7 @@ Reviewed with Codex (2026-09-18); its corrections are folded in.
 7. **Deep run and "rescan all" get a reason.** `deep_run` and `rescan_all`, so the page and
    the order can tell them apart from a decision.
 8. **Downloader and importer write `mark_processed` for the final path, after their own
-   `parse_song` and after any move.** Removes the second full tag of every new file. A rule
+   `parse_song` and after any move; Telegram tags its file at all.** Removes the second full tag of every new file. A rule
    change still reaches it through the deep run; R1–R4 cannot, because the scanner has not
    indexed it yet.
 9. **A rule edit during a parse is lost.** The invalidators do not take the manager lock, so

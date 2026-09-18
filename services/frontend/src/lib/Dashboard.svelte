@@ -43,29 +43,26 @@
   import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
   import { defaultCollectionState, durationParts, lineupLevel, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
   import { loadIndexedTags } from './scanTags.js';
-  import { loadFeedDetail, DAILY_MIX, DAILY_MIXES, RELEASE_RADAR } from './feeds.js';
+  import { DAILY_MIX, DAILY_MIXES, RELEASE_RADAR } from './feeds.js';
   import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, hasPermission, isMobile, restUrl, mumaUser } from './store.js';
 
   // Navigation that has to survive a refresh goes through onnavigate, which App turns into a URL.
   // The local assignment stays the fallback for the many places that only switch the screen.
   let { activeView = $bindable('home'), onnavigate = (view) => (activeView = view) } = $props();
 
-  // The first two are MuMa's personalized feeds; the rest are LMS's own curated lists.
+  // LMS's own curated lists, as rows of tracks.
   //
-  // The row that used to sit at the top was `spotify:release_radar`, which is the whole library
-  // under ten minutes sorted by release date -- the same list for every listener, personalized in
-  // name only. The real radar knows what this account plays, so it takes the name and the place.
-  // The daily mixes used to be one more entry here (`feed:daily-mix`), rendered by HomeShelf like
-  // every other row. Five differently-coloured mixes are not tracks with a cover, so they get
-  // their own component (DailyMixesShelf) instead, rendered in this same first slot below.
+  // MuMa's personalised feeds are not among them any more. The release radar and the daily
+  // mixes used to be `feed:` entries here, each fetched for its tracks on every Home load --
+  // seconds of server work per row, for a row whose tracks nobody reads on Home. They are cards
+  // now (DailyMixesShelf, rendered in the first slot below), drawn from the feed listing alone;
+  // a feed's tracks load when its card is opened. The row that used to sit at the top before
+  // that was `spotify:release_radar`, the whole library under ten minutes by release date, the
+  // same for every listener.
   let sections = $state([
-    { titleKey: 'nav.releaseRadar', id: `feed:${RELEASE_RADAR}`, tracks: [] },
     { titleKey: 'nav.songs', id: 'spotify:songs', tracks: [] },
     { titleKey: 'nav.sets', id: 'spotify:sets', tracks: [] }
   ]);
-
-  /** How much of a feed a home row shows. The whole thing lives on the feed's own page. */
-  const HOME_FEED_ROWS = 10;
 
   let memoryGroups = $state([]);
 
@@ -156,9 +153,7 @@
   let artistsController;
 
   /**
-   * Fetches tracks for a specific curated playlist. `feed:` ids never reach here -- `fetchSection`
-   * below routes those through `loadFeedDetail` instead, so this only ever sees a Subsonic
-   * playlist id.
+   * Fetches tracks for a specific curated playlist, by its Subsonic playlist id.
    *
    * @param {string} id - The Subsonic ID of the curated playlist.
    * @returns {Promise<Object[]>} A promise that resolves to an array of tracks.
@@ -665,19 +660,8 @@
       }
   }
 
-  /**
-   * One curated section's tracks, plus whether it actually loaded. A `feed:` section goes
-   * through `loadFeedDetail` instead of the plain `fetchTracks`/`loadFeed` path, because that
-   * is the only one of the two that still carries MuMa's `state` -- `loadFeed` swallows every
-   * kind of nothing (an unbuilt taste profile, an unreachable server) into the same empty
-   * array, and `PhoneHome.svelte`'s failed-tile copy needs to tell those apart from a feed
-   * that genuinely has nothing to show this week.
-   */
+  /** One curated section's tracks, plus whether it actually loaded. */
   async function fetchSection(section) {
-    if (section.id.startsWith('feed:')) {
-      const detail = await loadFeedDetail(section.id.slice('feed:'.length), $authParams, HOME_FEED_ROWS);
-      return { tracks: detail.tracks, failed: detail.state === 'error' };
-    }
     return { tracks: await fetchTracks(section.id), failed: false };
   }
 
@@ -812,7 +796,7 @@
     <FavoritesView presets={$presets} tints={genreTints} canCreate={Boolean($mumaUser)} {onnavigate} />
   {:else if activeView === 'home'}
     {#if $isMobile}
-      <PhoneHome {sections} {memoryGroups} {onnavigate} onrecent={(sort) => { currentSort = sort; onnavigate($viewMode); }} />
+      <PhoneHome {memoryGroups} {onnavigate} onrecent={(sort) => { currentSort = sort; onnavigate($viewMode); }} />
     {:else}
     <PresetGrid presets={$presets} tints={genreTints} canCreate={Boolean($mumaUser)} onopen={(preset) => onnavigate(`preset:${preset.id}`)} oncreate={() => onnavigate('new-preset')} />
     {#if $memoriesOnHomeEnabled && memoryGroups.length > 0}
@@ -848,8 +832,8 @@
         </div>
       </section>
     {/if}
-    <DailyMixesShelf onnavigate={(v) => activeView = v} />
-    {#each sections.filter((s) => !s.id.startsWith('feed:') || s.tracks.length > 0) as section (section.id)}
+    <DailyMixesShelf radar onnavigate={(v) => activeView = v} />
+    {#each sections as section (section.id)}
       <HomeShelf
         title={$t(section.titleKey)}
         tracks={section.tracks.slice(0, 6)}
@@ -857,9 +841,7 @@
         showAllLabel={$t('dashboard.showAll')}
         onnavigate={(v) => activeView = v}
         onshowall={() => {
-          if (section.id.startsWith('feed:')) {
-            onnavigate(section.id.slice('feed:'.length));
-          } else if (section.id === 'spotify:songs') {
+          if (section.id === 'spotify:songs') {
             viewMode.set('songs');
             activeView = 'songs';
           } else if (section.id === 'spotify:sets') {

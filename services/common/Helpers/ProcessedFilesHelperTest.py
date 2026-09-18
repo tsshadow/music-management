@@ -36,6 +36,8 @@ class CreateTableTest(ProcessedFilesHelperTestCase):
     def test_the_table_is_created_if_it_is_missing(self):
         self.helper.create_table()
         self.assertIn('CREATE TABLE IF NOT EXISTS tagger_processed_files', self.executed()[0])
+        self.assertIn('CREATE INDEX IF NOT EXISTS', self.executed()[1])
+        self.assertIn('(needs_rescan, filepath)', self.executed()[1])
         self.connection.commit.assert_called_once()
         self.connection.close.assert_called_once()
 
@@ -139,6 +141,42 @@ class CountStaleTest(ProcessedFilesHelperTestCase):
     def test_a_failure_reports_nothing_waiting(self):
         self.cursor.execute.side_effect = RuntimeError('database gone')
         self.assertEqual(self.helper.count_stale(30), 0)
+        self.connection.close.assert_called_once()
+
+
+class PendingPathsTest(ProcessedFilesHelperTestCase):
+    def test_a_page_of_queued_paths_is_read_in_key_order_past_the_cursor(self):
+        self.cursor.fetchall.return_value = [('/music/b.mp3',), ('/music/c.mp3',)]
+        paths = self.helper.pending_paths(2, after='/music/a.mp3')
+        self.assertEqual(paths, ['/music/b.mp3', '/music/c.mp3'])
+        query, args = self.cursor.execute.call_args.args
+        self.assertIn('needs_rescan = TRUE AND filepath > %s', query)
+        self.assertIn('ORDER BY filepath LIMIT %s', query)
+        self.assertEqual(args, ('/music/a.mp3', 2))
+        self.connection.close.assert_called_once()
+
+    def test_the_first_page_starts_before_every_path(self):
+        self.cursor.fetchall.return_value = []
+        self.helper.pending_paths(500)
+        self.assertEqual(self.cursor.execute.call_args.args[1], ('', 500))
+
+    def test_a_failure_reads_as_an_empty_queue_and_still_closes_the_connection(self):
+        self.cursor.execute.side_effect = RuntimeError('database gone')
+        self.assertEqual(self.helper.pending_paths(500), [])
+        self.connection.close.assert_called_once()
+
+
+class ForgetTest(ProcessedFilesHelperTestCase):
+    def test_the_row_of_a_vanished_file_is_deleted(self):
+        self.helper.forget('/music/gone.mp3')
+        query, args = self.cursor.execute.call_args.args
+        self.assertIn('DELETE FROM tagger_processed_files WHERE filepath = %s', query)
+        self.assertEqual(args, ('/music/gone.mp3',))
+        self.connection.commit.assert_called_once()
+
+    def test_a_failure_still_closes_the_connection(self):
+        self.cursor.execute.side_effect = RuntimeError('database gone')
+        self.helper.forget('/music/gone.mp3')
         self.connection.close.assert_called_once()
 
 

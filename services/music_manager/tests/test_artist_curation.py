@@ -214,6 +214,8 @@ class RejectTest(ArtistCurationTestCase):
         self.assertEqual([params for _sql, params in mirrored], [('Premiere', None), ('OUT NOW', None)])
         self.assertEqual(self.reloaded_helpers(), ['rules_ignored_artists'])
         self.assertEqual([call.args[0] for call in self.invalidate.call_args_list], ['Premiere', 'OUT NOW'])
+        # Exact, not the wide term match: a rejected '001' must not retag every catalogue number.
+        self.assertTrue(all(call.kwargs.get('exact') for call in self.invalidate.call_args_list))
 
     def test_who_decided_is_recorded(self):
         self.client.post(

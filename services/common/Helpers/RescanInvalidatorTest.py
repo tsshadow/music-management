@@ -57,6 +57,17 @@ class InvalidateByTermTest(RescanInvalidatorTestCase):
         self.assertNotIn('LIKE', query)
         self.assertEqual(args, ('D',))
 
+    def test_a_term_without_letters_only_matches_the_artist_name(self):
+        # '001' is in every catalogue number and '2026' in every release folder of the
+        # year: a substring match on those is a retag of the whole library.
+        for term in ('001', '2026', '#1', '01)', "'86"):
+            self.cursor.execute.reset_mock()
+            self.cursor.fetchall.return_value = []
+            self.invalidator.invalidate_by_term(term, 'artist_genre_rule')
+            query, args = self.cursor.execute.call_args.args
+            self.assertNotIn('LIKE', query, term)
+            self.assertEqual(args, (term,))
+
     def test_like_wildcards_in_the_term_are_escaped(self):
         self.cursor.fetchall.return_value = []
         self.invalidator.invalidate_by_term('50%_off', 'artist_genre_rule')
@@ -77,6 +88,39 @@ class InvalidateByTermTest(RescanInvalidatorTestCase):
     def test_a_database_error_returns_zero_instead_of_raising(self):
         self.cursor.execute.side_effect = RuntimeError('database gone')
         self.assertEqual(self.invalidator.invalidate_by_term('Ran-D', 'artist_genre_rule'), 0)
+
+
+class InvalidateByArtistTest(RescanInvalidatorTestCase):
+    def test_only_files_carrying_the_exact_name_are_marked(self):
+        self.cursor.fetchall.return_value = [('/music/a.mp3',)]
+        count = self.invalidator.invalidate_by_artist('Ran-D', 'artist_decision')
+        self.assertEqual(count, 1)
+        query, args = self.cursor.execute.call_args.args
+        self.assertNotIn('LIKE', query)
+        self.assertIn('library_track_artists', query)
+        self.assertEqual(args, ('Ran-D',))
+        self.processed.mark_paths_for_rescan.assert_called_once_with(['/music/a.mp3'], 'artist_decision')
+
+    def test_an_empty_name_does_nothing(self):
+        self.assertEqual(self.invalidator.invalidate_by_artist('  ', 'artist_decision'), 0)
+        self.cursor.execute.assert_not_called()
+
+
+class InvalidateQuietlyTest(RescanInvalidatorTestCase):
+    def test_exact_goes_to_the_artist_match_and_default_to_the_term_match(self):
+        with (
+            patch.object(self.module.rescan_invalidator, 'invalidate_by_artist', return_value=3) as by_artist,
+            patch.object(self.module.rescan_invalidator, 'invalidate_by_term', return_value=5) as by_term,
+        ):
+            self.assertEqual(self.module.invalidate_quietly('001', 'artist_decision', exact=True), 3)
+            by_artist.assert_called_once_with('001', 'artist_decision')
+            by_term.assert_not_called()
+            self.assertEqual(self.module.invalidate_quietly('Ran-D', 'artist_genre_rule'), 5)
+            by_term.assert_called_once_with('Ran-D', 'artist_genre_rule')
+
+    def test_a_failure_is_logged_and_returns_zero(self):
+        with patch.object(self.module.rescan_invalidator, 'invalidate_by_artist', side_effect=RuntimeError('gone')):
+            self.assertEqual(self.module.invalidate_quietly('001', 'artist_decision', exact=True), 0)
 
 
 class InvalidateByGenreTest(RescanInvalidatorTestCase):

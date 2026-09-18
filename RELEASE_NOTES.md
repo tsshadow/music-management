@@ -11,6 +11,36 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.66.1 (2026-09-18)
+
+- **De Python-tooling in CI installeert niet meer bij elke job opnieuw.** `backend:format`,
+  `backend:lint` en `backend:typecheck` draaien in een `python:3.14-slim`-container en deden elk
+  een verse `pip install -r requirements-dev.txt` naar een weggooi-`/tmp`; drie keer dezelfde
+  wheels per pipeline, en op 2026-09-18 — PyPI leverde een uur lang 80–260 KB/s — liep elk van de
+  drie tegen de 10-minutengrens van de job, op beide runners, twee pipelines achter elkaar. De
+  installatie landt nu in `~/.cache/muma-python-tooling/<sleutel>` op de runner (sleutel = hash van
+  `requirements-dev.txt` plus het image), als bind mount in de container; alleen de eerste job na
+  een requirements-bump praat nog met PyPI, de rest vindt de tools klaarstaan. Drie jobs die
+  tegelijk starten delen de map onder een `flock`; een afgebroken installatie laat geen
+  `.complete`-marker achter en wordt gewoon opnieuw gedaan. Sleutels die een maand niet zijn
+  aangeraakt worden opgeruimd. `PYTHON_TOOLING_CACHE=none` zet het uit. Gemeten: eerste run 14 s
+  voor drie gelijktijdige jobs, warme run 1 s.
+
+- **De startpagina haalt van geen enkele feed meer tracks op.** Na 0.65.3 vroeg Home nog steeds
+  tien tracks per band-mix op voor een genretint, en een rij van tien voor de Release Radar —
+  vier feed-builds voor een scherm waar niemand die tracks leest. Een kaart is een deur; wat
+  erachter zit laadt pas als je hem opent. De Release Radar is nu de eerste kaart in dezelfde rij
+  als de vijf daily mixes, onder de kop "Voor jou"; de band-kaarten houden hun vaste kleuren, de
+  artiestkaart haalt alleen nog zijn foto. Op de telefoon rendert "Overzicht" voor radar en/of
+  mixen die ene kaartenrij, en de radar-tegel beschrijft zichzelf met zijn eigen tekst in plaats
+  van zijn eerste track. De enige `/api/feeds`-aanroep die Home nog doet is de lijst zelf.
+
+- **Een afgekeurde "artiest" als `001` zette bijna de hele bibliotheek in de retag-wachtrij.**
+  Een afkeuring raakt nu alleen de nummers die die naam echt als artiest hebben, in plaats van
+  elk bestand met dat cijfer ergens in het pad.
+
+- **Een regelwijziging wordt nu eerst verwerkt, niet pas als de tagger toevallig langs die map
+  komt.** Een herstart of deploy zet de wachtrij niet meer terug naar het begin.
 ## Global Version 0.66.0 (2026-09-18)
 
 - **Advies bij Genre Curatie.** De wachtrij stond op 821 genres, en het meeste daarvan is

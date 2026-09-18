@@ -94,9 +94,10 @@ async def api_retag_pending(_auth: dict = Depends(verify_api_key)):
 def run_retag():
     """Tag the marked files, index the result, then let LMS catch up.
 
-    No dedicated execution path is needed: Tagger.run walks the folders and asks
-    needs_processing per file, so the marked files are picked up and the rest is
-    skipped. Walking is cheap; tagging is not.
+    Tagger.run reads the queue first (Tagger._process_pending) and only then walks
+    the folders, so the marked files are done before a single folder is listed and a
+    round cut short by a restart resumes with what is left. The five-minute loop does
+    the same on every round; this endpoint exists for not wanting to wait for it.
     """
     tagger_manager.run_full()
     from services.music_manager.routers.scanner import scanner_manager

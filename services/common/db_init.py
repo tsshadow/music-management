@@ -184,6 +184,10 @@ def ensure_tables_exist() -> None:
                     # tagger reads; this is only so the UI can say what queued the work.
                     # See migrate_v16_rescan_reason.sql.
                     'ALTER TABLE tagger_processed_files ADD COLUMN IF NOT EXISTS rescan_reason VARCHAR(64) NULL',
+                    # The pending pass pages the queue by (flag, path); see
+                    # migrate_v28_pending_rescan_index.sql.
+                    'CREATE INDEX IF NOT EXISTS idx_tagger_processed_files_pending '
+                    'ON tagger_processed_files (needs_rescan, filepath)',
                     # The artist string as read off the file before CleanTagsRule split "feat"/"vs"/
                     # "&" into separate values, for display only -- never re-parsed or matched
                     # against library_artists. NULL until a file goes through a tag-write pass that

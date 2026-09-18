@@ -89,7 +89,7 @@ There is no cache at any layer: no server-side snapshot, no `Cache-Control`, and
 | A bundled `GET /api/home` | No. Solves the same thing as the snapshot but couples Home's composition to the server; the phone Home has different sections. |
 | Raise the client gate / two lanes | Do it, after the snapshot. Direct-to-Python routes do not need the LMS proxy's cap; the LMS-owned routes keep it. |
 | Render sections independently | Do it. The barriers are explicit `Promise.all` assignments; publishing per section is the smaller change. |
-| Drop the band builds from the card path | Do it. Cards render from `GET /api/feeds` with the ramp colour; the genre tint is a refinement that arrives later or from the snapshot. |
+| Drop the band builds from the card path | Do it. Cards render from `GET /api/feeds` with the ramp colour. (First shipped as "tint arrives later"; then dropped entirely — Home fetches no feed's tracks, see step 1.) |
 | `--workers 2` / separate scanner container | Not now. Every uvicorn worker would start the scanner, tagger and radio loops; the background jobs need to move first. Separate work. |
 | Browser `Cache-Control` / ETag | Not now. Auth is a header, not a cookie, so browser caching per account is unreliable, and an ETag computed after the build saves bytes, not seconds. |
 
@@ -103,11 +103,18 @@ blocking on its own.
 - `Dashboard.svelte`: `loadCurated` publishes each section as its own fetch resolves. Songs and
   sets appear in the time LMS takes; the radar row fills in when it arrives.
 - `dailyMixes.js` / `DailyMixesShelf.svelte` / `DailyMixesPage.svelte`: `loadDailyMixCards`
-  builds the five cards from `listFeeds()` alone — title, subtitle, the soft/mid/hard ramp for
-  the bands, the name-hash colour for artist and label — and returns `{cards, refine}`. The
-  shelf publishes `cards` and then calls `refine(onRefine)`, which, without blocking, fetches the
-  band tint from a `fetchFeed(slug, 10)` and the artist cover from the image probe and hands
-  each updated card back by slug. A refinement that fails leaves the card as it was.
+  builds the cards from `listFeeds()` alone — title, subtitle, the soft/mid/hard ramp for the
+  bands, the name-hash colour for artist and label, the radar's own blue — and returns
+  `{cards, refine}`. The shelf publishes `cards` and then calls `refine(onRefine)`, which,
+  without blocking, probes the day's artist for a photo and hands the updated card back by
+  slug. A refinement that fails leaves the card as it was.
+- **Home fetches no feed's tracks at all** (decided 2026-09-18, after the first version of this
+  step still fetched ten tracks per band for a genre tint): a card is a door, and what is
+  behind it loads when it is opened. The release radar leaves `sections` in `Dashboard.svelte`
+  and becomes the first card of the same row, under a "Voor jou" heading; on the phone,
+  "Overzicht" for the radar and/or the mixes renders that one card row in the slot of the first
+  of them, and the radar's BUTTON tile describes itself with its own copy rather than its first
+  track. The only `/api/feeds/*` call a Home load makes is the listing.
 - `mumaGate.js`: two lanes. Calls to the LMS-owned routes (the regex in
   `reverse-proxy.conf`: `auth/login`, `admin/`, `artists/<name>/image`, `artists/<id>`,
   `tracks/*/refresh`, `users/`) keep the cap of 3. Everything else under `/api/` is a direct

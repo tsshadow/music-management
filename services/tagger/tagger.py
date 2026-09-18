@@ -54,6 +54,13 @@ class Tagger:
         # rule added today would only take effect after a restart.
         reload_rule_caches()
         self.stop_requested = False
+        # What a rule change queued comes first, straight from the table, before any
+        # folder is walked. The walk goes EPs, Soundcloud, Youtube, Telegram, generic and
+        # starts over at the top on every restart; with five deploys in a night and a
+        # queue of 200k, Youtube was not reached for sixteen days while the genre
+        # decisions made that morning sat behind it. Whatever this pass finishes stays
+        # finished across a restart, because a tagged file is no longer queued.
+        self._process_pending()
         logging.info(
             'Starting Tag Step with options: %s, %s, %s, %s, %s',
             parse_labels,
@@ -78,6 +85,49 @@ class Tagger:
         # cheap, and it is what makes a new or corrected tag show up in the app without
         # waiting for LMS's own schedule. Best effort -- it never raises.
         lms_scan_trigger.trigger()
+
+    #: Rows read from the queue per page. One page is one thread pool: large enough for
+    #: the pool to matter, small enough that a stop request is honoured within seconds.
+    PENDING_BATCH = 500
+
+    def _process_pending(self):
+        """Tag the files a rule change queued, without walking a folder for them."""
+        after = ''
+        total = 0
+        while not self.stop_requested:
+            paths = processed_files_helper.pending_paths(self.PENDING_BATCH, after)
+            if not paths:
+                break
+            after = paths[-1]
+            present = []
+            for raw in paths:
+                path = Path(raw)
+                if path.is_file():
+                    present.append(path)
+                else:
+                    processed_files_helper.forget(raw)
+            if self.parallel and present:
+                with ThreadPoolExecutor(max_workers=16) as executor:
+                    futures = [
+                        executor.submit(Tagger._parse_worker, str(path), detect_song_type(path).name)
+                        for path in present
+                    ]
+                    for future in as_completed(futures):
+                        if self.stop_requested:
+                            executor.shutdown(wait=False, cancel_futures=True)
+                            break
+                        _ = future.result()
+            else:
+                for path in present:
+                    if self.stop_requested:
+                        break
+                    self._try_parse(path, detect_song_type(path))
+            total += len(present)
+            # One notify per folder, as the walk does; the trigger's queue merges them.
+            for folder in dict.fromkeys(str(path.parent) for path in present):
+                lms_scan_trigger.notify([folder])
+        if total:
+            logging.info('Pending pass handed %d queued file(s) to the tagger', total)
 
     def _parse_label_folders(self):
         """
@@ -269,17 +319,13 @@ class Tagger:
             return (file, f'{type(e).__name__}: {e}')
 
 
-def TagSingleFile(path: str | Path, extra_info=None):
-    """
-    Automatically detects the source type of a music file based on its location
-    and applies the appropriate tagging rules (SoundCloud, YouTube, Label, etc).
+def detect_song_type(path: Path) -> SongTypeEnum:
+    """The source type a file gets from where it lives, the same answer the folder walk gives.
 
-    @param path: Absolute or relative path to the music file.
-    @param extra_info: Optional metadata dictionary (e.g., from downloader).
+    A label release under the EPs root is LABEL unless its label folder starts with an
+    underscore (the import queue), the three platform folders map to their own type, and
+    everything else -- Livesets, Podcasts, Top 100, Warm Up Mixes -- is GENERIC.
     """
-    print('Tagging single file"', path)
-    if isinstance(path, str):
-        path = Path(path)
     try:
         path_obj = path.resolve()
     except (FileNotFoundError, RuntimeError):
@@ -300,14 +346,27 @@ def TagSingleFile(path: str | Path, extra_info=None):
             song_type = SongTypeEnum.YOUTUBE
         elif path_str.startswith(str(music_root / 'Telegram')):
             song_type = SongTypeEnum.TELEGRAM
-        else:
-            generic_subfolders = ['Livesets', 'Podcasts', 'Top 100', 'Warm Up Mixes']
-            for gf in generic_subfolders:
-                if path_str.startswith(str(music_root / gf)):
-                    song_type = SongTypeEnum.GENERIC
-                    break
     except (ValueError, RuntimeError):
         pass
+    return song_type
+
+
+def TagSingleFile(path: str | Path, extra_info=None):
+    """
+    Automatically detects the source type of a music file based on its location
+    and applies the appropriate tagging rules (SoundCloud, YouTube, Label, etc).
+
+    @param path: Absolute or relative path to the music file.
+    @param extra_info: Optional metadata dictionary (e.g., from downloader).
+    """
+    print('Tagging single file"', path)
+    if isinstance(path, str):
+        path = Path(path)
+    try:
+        path_obj = path.resolve()
+    except (FileNotFoundError, RuntimeError):
+        path_obj = path.absolute()
+    song_type = detect_song_type(path_obj)
     logging.info("Auto-detected song type for '%s': %s", path_obj, song_type.name)
     song = Tagger.parse_song(path_obj, song_type, extra_info=extra_info)
     try:

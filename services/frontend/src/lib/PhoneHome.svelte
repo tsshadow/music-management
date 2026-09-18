@@ -12,8 +12,8 @@
   import DailyMixesShelf from './DailyMixesShelf.svelte';
   import MemoryYearCard from './MemoryYearCard.svelte';
 
-  /** Phone home maps the account's section modes to tiles or shelves over existing sources. */
-  const { sections = [], memoryGroups = [], onnavigate, onrecent = null } = $props();
+  /** Phone home maps the account's section modes to tiles or shelves over its own sources. */
+  const { memoryGroups = [], onnavigate, onrecent = null } = $props();
 
   /**
    * Colour and icon per quick-access tile. `memories` and `starred` share the id (and
@@ -70,10 +70,11 @@
   let recentlyAdded = $state([]);
   let recentlyAddedState = $state('loading');
   const destinations = $derived([
-    { id: 'release-radar', key: 'nav.releaseRadar', mode: $homeModeReleaseRadar, tracks: source('feed:release-radar'), state: sourceState('feed:release-radar') },
-    // The five daily mixes are not a track list -- each is its own colour and its own page -- so
-    // this entry only carries the mode; DailyMixesShelf/QuickAccessTile below render it specially.
-    { id: 'daily-mixes', kind: 'mixes', key: 'nav.dailyMixes', mode: $homeModeDailyMix },
+    // The two personalised feeds are not track lists on Home -- each is a card (or a tile) that
+    // opens its own page, and no tracks are fetched for either until then. `kind: 'feed'` is what
+    // routes them to DailyMixesShelf below instead of a HomeShelf of tracks.
+    { id: 'release-radar', kind: 'feed', key: 'nav.releaseRadar', mode: $homeModeReleaseRadar, tracks: [], state: 'ready' },
+    { id: 'daily-mixes', kind: 'feed', key: 'nav.dailyMixes', mode: $homeModeDailyMix },
     { id: 'starred', key: 'nav.starred', mode: $homeModeFavorites, tracks: favorites, state: favoritesState },
     { id: 'recently-released', sort: 'recent', view: $viewMode, key: 'settings.general.home.recentlyReleased', mode: $homeModeRecentlyReleased, tracks: recentlyReleased, state: recentlyReleasedState },
     { id: 'recently-added', sort: 'added', view: $viewMode, key: 'settings.general.home.recentlyAdded', mode: $homeModeRecentlyAdded, tracks: recentlyAdded, state: recentlyAddedState },
@@ -115,19 +116,20 @@
     else onnavigate(section.view ?? section.id);
   }
 
-  /** Read an already-loaded home source without starting another request. */
-  function source(id) { return sections.find(section => section.id === id)?.tracks ?? []; }
-
   /**
-   * `Dashboard.svelte` owns the `feed:` sources and does not expose a loading flag for them
-   * (they are fetched once, up front, before Home ever mounts) -- only whether the load ended
-   * in `state: "error"` (see `loadFeedDetail` in `feeds.js`), carried here as `section.failed`.
-   * So a feed source is never "loading" from this component's point of view, only "ready" (with
-   * or without tracks) or "failed".
+   * The one card row for whichever of the two feeds the account shows as "Overzicht", rendered
+   * in the slot of the first of them so the two never become two rows of cards. `null` when
+   * neither is an overview.
    */
-  function sourceState(id) {
-    return sections.find(section => section.id === id)?.failed ? 'failed' : 'ready';
-  }
+  const feedOverview = $derived.by(() => {
+    const overview = destinations.filter(section => section.kind === 'feed' && section.mode === 'OVERVIEW');
+    if (overview.length === 0) return null;
+    return {
+      at: overview[0].id,
+      radar: overview.some(section => section.id === 'release-radar'),
+      mixes: overview.some(section => section.id === 'daily-mixes'),
+    };
+  });
 
   /**
    * The line under a tile's title. A feed's home copy is capped (`HOME_FEED_ROWS` in
@@ -238,7 +240,7 @@
         cover={cover(memoryGroups[0]?.songs[0])} color={TILE_COLORS.memories} icon={TILE_ICONS.memories}
         class={lastOdd ? 'col-span-2' : ''}
         onclick={() => onnavigate('memories')} />
-    {:else if tile.kind === 'mixes'}
+    {:else if tile.id === 'daily-mixes'}
       <QuickAccessTile title={$t(tile.key)} subtitle={$t('dashboard.dailyMixesSubtitle')}
         color={TILE_COLORS[tile.id]} icon={TILE_ICONS[tile.id]}
         class={lastOdd ? 'col-span-2' : ''}
@@ -252,8 +254,10 @@
   {/each}
 </div>
 {#each destinations.filter(section => section.mode === 'OVERVIEW') as section (section.id)}
-  {#if section.kind === 'mixes'}
-    <DailyMixesShelf {onnavigate} />
+  {#if section.kind === 'feed'}
+    {#if feedOverview?.at === section.id}
+      <DailyMixesShelf radar={feedOverview.radar} mixes={feedOverview.mixes} {onnavigate} />
+    {/if}
   {:else}
     <HomeShelf title={$t(section.key)} tracks={section.tracks.slice(0, 6)}
       layout={section.id === 'recently-released' || section.id === 'recently-added' ? 'rows' : 'cards'}

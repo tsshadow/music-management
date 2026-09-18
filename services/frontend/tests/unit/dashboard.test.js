@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+import { resetFeedsCache } from "../../src/lib/feeds.js";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import Dashboard from "../../src/lib/Dashboard.svelte";
@@ -45,6 +47,17 @@ function subsonic({
   memories = null,
 } = {}) {
   return vi.fn(async (url) => {
+    if (url.endsWith("/api/feeds")) {
+      return {
+        ok: true,
+        json: async () => ({
+          feeds: [
+            { slug: "release-radar", title: "Release Radar", subtitle: null },
+            { slug: "daily-mix-soft", title: "Zachter", subtitle: "≤ 42 hardheid" },
+          ],
+        }),
+      };
+    }
     if (url.includes("/rest/getSpotifyPlaylist")) {
       return {
         ok: true,
@@ -120,6 +133,9 @@ describe("Dashboard", () => {
     deduplicateEnabled.set(false);
     favoriteGenres.set([]);
     memoriesOnHomeEnabled.set(false);
+    // The feed listing is fetched once per session and remembered; a test that counts
+    // that request must start without the previous test's answer.
+    resetFeedsCache();
     globalThis.fetch = subsonic();
   });
 
@@ -181,57 +197,22 @@ describe("Dashboard", () => {
     expect(urlsFor("/rest/getSpotifyPlaylist")).toHaveLength(2);
   });
 
-  it("asks MuMa for the release radar and the daily-mix spectrum, never the lone classic slug", async () => {
-    // The single "Daily mix" row is gone from Home -- DailyMixesShelf takes its place and asks
-    // for the three spectrum bands instead (the rotating artist/label cards need no feed
-    // request of their own, only `GET /api/feeds` for their title).
+  it("asks MuMa for the feed listing only -- never a feed's tracks -- on Home", async () => {
+    // The radar and the five mixes are cards on Home (DailyMixesShelf), drawn from
+    // `GET /api/feeds` alone. A feed's tracks load when its card is opened; fetching them
+    // here was four full feed builds per Home load (docs/designs/feeds/home-load.md).
     render(Dashboard, { activeView: "home" });
 
-    await waitFor(() => {
-      const asked = urlsFor("/api/feeds/").map((url) => url.split("/api/feeds/")[1].split("?")[0]);
-      expect(asked).toEqual(
-        expect.arrayContaining([
-          "release-radar",
-          "daily-mix-soft",
-          "daily-mix-mid",
-          "daily-mix-hard",
-        ]),
-      );
-      expect(asked).not.toContain("daily-mix");
-    });
-  });
-
-  it("leaves a feed row off the screen when the feed is empty", async () => {
-    // An empty feed is a real answer -- nothing was released this week -- and a header above
-    // nothing reads as a broken screen rather than as an answer.
-    render(Dashboard, { activeView: "home" });
-
+    await waitFor(() => expect(urlsFor("/api/feeds").length).toBeGreaterThan(0));
     await waitFor(() => expect(screen.getAllByText("Raise Your Fist").length).toBeGreaterThan(0));
-    expect(screen.queryByText("Release Radar")).toBeNull();
+    expect(urlsFor("/api/feeds/")).toHaveLength(0);
   });
 
-  // An empty feed and a broken one must not look the same: only the second is
-  // `loadFeedDetail`'s `state: "error"`, which becomes `section.failed` here and reaches
-  // PhoneHome's tile as the designed "could not load" copy instead of the empty-tile one.
-  it("marks the release radar section failed when the feed request itself breaks", async () => {
-    isMobile.set(true);
-    const baseline = subsonic();
-    globalThis.fetch = vi.fn(async (url, options) => {
-      if (url.includes("/api/feeds/release-radar")) {
-        return {
-          ok: false,
-          status: 500,
-          json: async () => {
-            throw new Error("bad json");
-          },
-        };
-      }
-      return baseline(url, options);
-    });
-
+  it("shows the release radar as a card in the 'Voor jou' row, not as a row of tracks", async () => {
     render(Dashboard, { activeView: "home" });
 
-    await waitFor(() => expect(screen.getByText("Kon niet laden")).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Voor jou" })).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByText("Release Radar").length).toBeGreaterThan(0));
   });
 
   it("the memories row stays away when it is switched off", async () => {

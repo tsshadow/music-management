@@ -8,13 +8,14 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { hashColor, imageLoads, loadDailyMixCards } from "../../src/lib/dailyMixes.js";
+import { RADAR_COLOR, hashColor, imageLoads, loadDailyMixCards } from "../../src/lib/dailyMixes.js";
 import {
   DAILY_MIX_ARTIST,
   DAILY_MIX_HARD,
   DAILY_MIX_LABEL,
   DAILY_MIX_MID,
   DAILY_MIX_SOFT,
+  RELEASE_RADAR,
 } from "../../src/lib/feeds.js";
 
 vi.mock("../../src/lib/feeds.js", async (importOriginal) => {
@@ -29,10 +30,6 @@ vi.mock("../../src/lib/feeds.js", async (importOriginal) => {
 vi.mock("../../src/lib/mumaApi.js", () => ({
   apiBase: () => "http://muma",
 }));
-
-function trackOf(...genres) {
-  return { genres };
-}
 
 describe("hashColor", () => {
   it("is stable for the same name", () => {
@@ -88,7 +85,7 @@ describe("loadDailyMixCards", () => {
   });
 
   it("builds one card per mix, in soft/mid/hard/artist/label order", async () => {
-    const { cards } = await loadDailyMixCards({}, AUTH);
+    const { cards } = await loadDailyMixCards(AUTH);
 
     expect(cards.map((c) => c.slug)).toEqual([
       DAILY_MIX_SOFT,
@@ -107,7 +104,7 @@ describe("loadDailyMixCards", () => {
   });
 
   it("colours a band by the ramp when its tracks carry no genre a tint answers for", async () => {
-    const { cards, refine } = await loadDailyMixCards({}, AUTH);
+    const { cards, refine } = await loadDailyMixCards(AUTH);
     const updated = vi.fn();
     await refine(updated);
     expect(updated).not.toHaveBeenCalled();
@@ -119,25 +116,40 @@ describe("loadDailyMixCards", () => {
     expect(soft.cover).toBeNull();
   });
 
-  it("colours a band by its own top genre's tint when one is known", async () => {
-    globalThis.__fetchFeed = vi.fn(async (slug) =>
-      slug === DAILY_MIX_SOFT
-        ? { tracks: [trackOf("Euphoric Hardstyle"), trackOf("Euphoric Hardstyle")] }
-        : { tracks: [] },
-    );
+  it("never fetches a feed for a card -- Home does not read tracks", async () => {
+    const { cards, refine } = await loadDailyMixCards(AUTH);
+    await refine(vi.fn());
+    expect(cards).toHaveLength(5);
+    expect(globalThis.__fetchFeed).not.toHaveBeenCalled();
+  });
 
-    const { cards, refine } = await loadDailyMixCards({ "euphoric hardstyle": "#FF00AA" }, AUTH);
-
-    expect(cards[0].color).toBe("#1DB954");
-    const updates = [];
-    await refine((card) => updates.push(card));
-    expect(updates[0].color).toBe("#FF00AA");
+  it("leads with the release radar when asked, in its own blue", async () => {
+    globalThis.__listFeeds = vi.fn(async () => [
+      { slug: RELEASE_RADAR, title: "Release Radar", subtitle: null },
+      { slug: DAILY_MIX_SOFT, title: "Zachter", subtitle: "≤ 42 hardheid" },
+    ]);
+    const { cards } = await loadDailyMixCards(AUTH, { radar: true });
+    expect(cards.map((c) => c.slug)).toEqual([
+      RELEASE_RADAR,
+      DAILY_MIX_SOFT,
+      DAILY_MIX_MID,
+      DAILY_MIX_HARD,
+      DAILY_MIX_ARTIST,
+      DAILY_MIX_LABEL,
+    ]);
+    expect(cards[0]).toMatchObject({
+      title: "Release Radar",
+      subtitle: null,
+      color: RADAR_COLOR,
+      cover: null,
+    });
+    expect(globalThis.__fetchFeed).not.toHaveBeenCalled();
   });
 
   it("gives the artist card its photo when one loads", async () => {
     globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200 }));
 
-    const { refine } = await loadDailyMixCards({}, AUTH);
+    const { refine } = await loadDailyMixCards(AUTH);
     const updates = [];
     await refine((card) => updates.push(card));
     const artist = updates.find((c) => c.slug === DAILY_MIX_ARTIST);
@@ -148,7 +160,7 @@ describe("loadDailyMixCards", () => {
   });
 
   it("falls back to a name-based colour for the artist when there is no photo", async () => {
-    const { cards, refine } = await loadDailyMixCards({}, AUTH);
+    const { cards, refine } = await loadDailyMixCards(AUTH);
     const updated = vi.fn();
     await refine(updated);
     expect(updated).not.toHaveBeenCalled();
@@ -159,7 +171,7 @@ describe("loadDailyMixCards", () => {
   });
 
   it("never tries a photo for the label -- there is no label-image endpoint", async () => {
-    const { cards, refine } = await loadDailyMixCards({}, AUTH);
+    const { cards, refine } = await loadDailyMixCards(AUTH);
     const updated = vi.fn();
     await refine(updated);
     expect(updated).not.toHaveBeenCalled();
@@ -172,41 +184,25 @@ describe("loadDailyMixCards", () => {
   it("still builds every card when MuMa never answers the list at all", async () => {
     globalThis.__listFeeds = vi.fn(async () => []);
 
-    const { cards } = await loadDailyMixCards({}, AUTH);
+    const { cards } = await loadDailyMixCards(AUTH);
 
     expect(cards).toHaveLength(5);
     expect(cards.every((c) => typeof c.color === "string")).toBe(true);
   });
 
-  it("publishes all cards before any band feed resolves", async () => {
-    const releases = [];
-    globalThis.__fetchFeed = vi.fn(() => new Promise((resolve) => releases.push(resolve)));
-    const { cards, refine } = await loadDailyMixCards({}, "");
-    expect(cards).toHaveLength(5);
-    expect(globalThis.__fetchFeed).not.toHaveBeenCalled();
-    const updated = vi.fn();
-    const pending = refine(updated);
-    expect(releases).toHaveLength(3);
-    expect(updated).not.toHaveBeenCalled();
-    releases.forEach((resolve) => resolve({ tracks: [] }));
-    await pending;
-    expect(updated).not.toHaveBeenCalled();
-  });
-
-  it("keeps the ramp when a band refinement throws or returns nothing", async () => {
-    globalThis.__fetchFeed = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("offline"))
-      .mockResolvedValue(undefined);
-    const { cards, refine } = await loadDailyMixCards({}, "");
+  it("keeps the card when the photo probe throws", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    const { cards, refine } = await loadDailyMixCards(AUTH);
     const updated = vi.fn();
     await refine(updated);
-    expect(cards.slice(0, 3).map((card) => card.color)).toEqual(["#1DB954", "#2D5AFC", "#E23744"]);
     expect(updated).not.toHaveBeenCalled();
+    expect(cards.find((c) => c.slug === DAILY_MIX_ARTIST).cover).toBeNull();
   });
 
   it("skips the artist-image check without credentials", async () => {
-    const { cards, refine } = await loadDailyMixCards({}, "");
+    const { cards, refine } = await loadDailyMixCards("");
     const updated = vi.fn();
     await refine(updated);
     expect(updated).not.toHaveBeenCalled();

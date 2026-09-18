@@ -106,6 +106,26 @@ describe("phone home modes", () => {
     expect(screen.getByRole("heading", { name: "Dagelijkse mixen" })).toBeTruthy();
   });
 
+  it("merges the radar and the mixes into one 'Voor jou' card row when both are Overzicht", () => {
+    homeModeReleaseRadar.set("OVERVIEW");
+    homeModeDailyMix.set("OVERVIEW");
+
+    render(PhoneHome, { onnavigate: vi.fn() });
+
+    expect(screen.getByRole("heading", { name: "Voor jou" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Dagelijkse mixen" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Release Radar" })).toBeNull();
+  });
+
+  it("shows the radar alone as a card row when only it is Overzicht", () => {
+    homeModeReleaseRadar.set("OVERVIEW");
+    homeModeDailyMix.set("OFF");
+
+    render(PhoneHome, { onnavigate: vi.fn() });
+
+    expect(screen.getByRole("heading", { name: "Release Radar" })).toBeTruthy();
+  });
+
   it("shows nothing for the daily mixes section when its mode is off", () => {
     homeModeDailyMix.set("OFF");
 
@@ -149,13 +169,11 @@ describe("phone home empty, loading and failed copy", () => {
     expect(await screen.findByText("Kon niet laden")).toBeTruthy();
   });
 
-  it("marks a feed section from Dashboard as failed via its own subtitle", async () => {
-    render(PhoneHome, {
-      onnavigate: vi.fn(),
-      sections: [{ id: "feed:release-radar", tracks: [], failed: true }],
-    });
+  it("describes the radar tile with its own copy -- no tracks are fetched for it", async () => {
+    homeModeReleaseRadar.set("BUTTON");
+    render(PhoneHome, { onnavigate: vi.fn() });
 
-    expect(await screen.findByText("Kon niet laden")).toBeTruthy();
+    expect(await screen.findByText("Ontdek nieuwe releases")).toBeTruthy();
   });
 });
 

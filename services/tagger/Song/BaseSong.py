@@ -84,6 +84,8 @@ class BaseSong:
         #: InferArtistFromTitleRule and written -- or discarded -- by
         #: CaptureDisplayArtistRule once the artist list has settled.
         self.display_artist_candidate: str | None = None
+        #: Whether parse() wrote the file. Read by the tagger to decide if LMS has to look.
+        self.saved: bool = False
         paths = path.rsplit(s.delimiter, 2)
         self._path: str = path
         self._filename = str(paths[-1])
@@ -131,10 +133,11 @@ class BaseSong:
         if s.analyze_bpm:
             self.rules.append(AnalyzeBpmRule())
 
-    def parse(self):
-        """Run all rules and persist any changes."""
+    def parse(self) -> bool:
+        """Run all rules and persist any changes. True when the file on disk was written."""
         self.run_all_rules()
-        self.save_file()
+        self.saved = self.save_file()
+        return self.saved
 
     def delete_tag(self, tag):
         """Removes a tag from both the tag collection and file if present."""
@@ -182,9 +185,14 @@ class BaseSong:
             changed = True
         return changed
 
-    def save_file(self):
+    def save_file(self) -> bool:
+        """Writes the file when a rule changed a tag. Returns whether it did.
+
+        The caller needs the answer: the tagger tells LMS about a folder after tagging it,
+        and a folder where nothing was written has nothing for LMS to re-read.
+        """
         if not hasattr(self, 'tag_collection'):
-            return
+            return False
         changes = self.normalize_custom_atoms()
         for tag in list(self.tag_collection.get().values()):
             if isinstance(tag, Tag) and tag.has_changes():
@@ -206,6 +214,7 @@ class BaseSong:
             # logged 17356 "File saved" lines for 8885 files it actually wrote.
             self.music_file.save()
             logging.info(f'File saved: {self.path()}')
+        return changes
 
     def set_tag(self, tag: Tag):
         """Sets a tag on the underlying music file based on type."""

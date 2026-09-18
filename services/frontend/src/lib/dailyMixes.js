@@ -1,12 +1,26 @@
 /**
- * The five daily mixes, turned into cards: a colour, an optional cover, and the title/subtitle
- * MuMa already computed. Worked out once here so the desktop shelf, the phone's overview shelf
- * and the phone's own "Daily mixes" page draw the same five cards.
+ * The Home cards for the personalised feeds: the release radar and the five daily mixes, each a
+ * colour, an optional cover, and the title/subtitle MuMa already computed. Worked out once here
+ * so the desktop shelf, the phone's overview shelf and the phone's own "Daily mixes" page draw
+ * the same cards.
+ *
+ * Built from `GET /api/feeds` alone. Home never asks for a feed's tracks: a card is a door, and
+ * what is behind it is fetched when it is opened (`FeedView`). The three band cards used to fetch
+ * ten tracks each to pick a genre tint, which was three full feed builds per Home load for three
+ * hex values -- docs/designs/feeds/home-load.md. The ramp is the colour now.
  */
-import { DAILY_MIXES, DAILY_MIX_ARTIST, DAILY_MIX_BANDS, fetchFeed, listFeeds } from "./feeds.js";
+import {
+  DAILY_MIXES,
+  DAILY_MIX_ARTIST,
+  DAILY_MIX_BANDS,
+  RELEASE_RADAR,
+  listFeeds,
+} from "./feeds.js";
 import { apiBase } from "./mumaApi.js";
 import { gatedFetch } from "./mumaGate.js";
-import { tintFor } from "./genreTints.js";
+
+/** The radar's own blue -- the same one the phone's quick-access tile has always used. */
+export const RADAR_COLOR = "#0D73EC";
 
 /** soft green, mid brand blue, hard red -- the fixed ramp for when no genre tint answers. */
 const BAND_RAMP = ["#1DB954", "#2D5AFC", "#E23744"];
@@ -57,69 +71,41 @@ export async function imageLoads(url) {
   }
 }
 
-function genreNames(track) {
-  return Array.isArray(track?.genres) ? track.genres.filter(Boolean) : [];
-}
-
-/** The genre named most often across a mix's own tracks, or null when none carry one. */
-function topGenre(tracks) {
-  const counts = new Map();
-  for (const track of tracks ?? []) {
-    for (const genre of genreNames(track)) counts.set(genre, (counts.get(genre) ?? 0) + 1);
-  }
-  let best = null;
-  let bestCount = 0;
-  for (const [genre, count] of counts) {
-    if (count > bestCount) {
-      best = genre;
-      bestCount = count;
-    }
-  }
-  return best;
-}
-
 /**
- * Builds cards from the listing alone. Call `refine(onRefine)` after publishing them;
- * each successful refinement emits a replacement card independently, keyed by slug.
- * Failures and missing tints/images leave the original card untouched.
+ * The cards, in display order: the radar first when asked for, then soft, mid, hard, the day's
+ * artist and the day's label. Publish `cards` at once; then call `refine(onRefine)`, which hands
+ * back a replacement card (keyed by slug) for the one decoration that arrives later.
  *
- * @param {Object<string,string>} tints
- * @param {string} authParams
+ * @param {string} authParams - Subsonic credentials, for the artist-image probe.
+ * @param {{radar?: boolean}} [options] - Whether the release radar leads the row.
  * @returns {Promise<{cards: Object[], refine: (onRefine: (card: Object) => void) => Promise<void>}>}
  */
-export async function loadDailyMixCards(tints, authParams) {
+export async function loadDailyMixCards(authParams, { radar = false } = {}) {
   const feeds = await listFeeds();
   const bySlug = new Map(feeds.map((feed) => [feed.slug, feed]));
-  const cards = DAILY_MIXES.map((slug) => {
+  const slugs = radar ? [RELEASE_RADAR, ...DAILY_MIXES] : DAILY_MIXES;
+  const cards = slugs.map((slug) => {
     const info = bySlug.get(slug) ?? { title: slug, subtitle: null };
     const position = DAILY_MIX_BANDS.indexOf(slug);
-    return {
-      slug,
-      title: info.title,
-      subtitle: info.subtitle,
-      color: position >= 0 ? BAND_RAMP[position] : hashColor(info.title),
-      cover: null,
-    };
+    let color = hashColor(info.title);
+    if (slug === RELEASE_RADAR) color = RADAR_COLOR;
+    else if (position >= 0) color = BAND_RAMP[position];
+    return { slug, title: info.title, subtitle: info.subtitle, color, cover: null };
   });
 
-  /** Runs optional colour and image lookups without delaying the initial cards. */
+  /**
+   * The one lookup a card still makes after it is on screen: the day's artist may have a photo.
+   * Never a feed, never tracks. A failed probe leaves the card as it was.
+   */
   async function refine(onRefine) {
-    await Promise.all(
-      cards.map(async (card) => {
-        try {
-          if (DAILY_MIX_BANDS.includes(card.slug)) {
-            const detail = await fetchFeed(card.slug, 10);
-            const color = tintFor(tints, topGenre(detail?.tracks));
-            if (color != null) onRefine({ ...card, color });
-          } else if (card.slug === DAILY_MIX_ARTIST && card.title && authParams) {
-            const cover = `${apiBase()}/api/artists/${encodeURIComponent(card.title)}/image?${authParams}`;
-            if (await imageLoads(cover)) onRefine({ ...card, cover });
-          }
-        } catch {
-          // Optional decoration must never hide an otherwise playable card.
-        }
-      }),
-    );
+    const artist = cards.find((card) => card.slug === DAILY_MIX_ARTIST);
+    if (!artist || !artist.title || !authParams) return;
+    try {
+      const cover = `${apiBase()}/api/artists/${encodeURIComponent(artist.title)}/image?${authParams}`;
+      if (await imageLoads(cover)) onRefine({ ...artist, cover });
+    } catch {
+      // Optional decoration must never hide an otherwise playable card.
+    }
   }
   return { cards, refine };
 }

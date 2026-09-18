@@ -1,7 +1,6 @@
 <script>
   import { t } from './i18n/index.js';
   import { authParams } from './store.js';
-  import { fetchGenreTints } from './genreTints.js';
   import { loadDailyMixCards } from './dailyMixes.js';
   import DailyMixCard from './DailyMixCard.svelte';
 
@@ -18,16 +17,14 @@
   $effect(() => {
     const auth = $authParams;
     let active = true;
-    fetchGenreTints()
-      .then((tints) => loadDailyMixCards(tints, auth))
-      .then((built) => {
-        if (!active) return;
-        cards = built.cards;
-        loaded = true;
-        void built.refine((updated) => {
-          if (active) cards = cards.map((card) => card.slug === updated.slug ? updated : card);
-        });
+    loadDailyMixCards(auth).then((built) => {
+      if (!active) return;
+      cards = built.cards;
+      loaded = true;
+      void built.refine((updated) => {
+        if (active) cards = cards.map((card) => (card.slug === updated.slug ? updated : card));
       });
+    });
     return () => { active = false; };
   });
 </script>

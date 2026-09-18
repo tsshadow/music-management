@@ -44,6 +44,32 @@ class TaggerManager:
         logger.info('Requesting to stop tagging operation')
         self.tagger.stop_requested = True
 
+    @property
+    def stopping(self) -> bool:
+        return self._lock.locked() and self.tagger.stop_requested
+
+    #: How long restart() waits for the running round to let go. A stop lands within one
+    #: folder's thread pool, so this is far more than it needs; it only keeps a stuck NFS
+    #: mount from parking the background task forever.
+    RESTART_WAIT_SECONDS = 900
+
+    def restart(self):
+        """Cut the running round short and start a fresh one from the front.
+
+        A round does the retag queue before it walks a single folder, so this is how the
+        decisions made just now get their files tagged without waiting for a walk that may
+        take hours. The wait is for the lock, not for a thread: if the five-minute loop
+        wakes first and takes it, that round is the fresh one and run_full simply skips.
+        """
+        self.stop()
+        deadline = time.monotonic() + self.RESTART_WAIT_SECONDS
+        while self._lock.locked():
+            if time.monotonic() > deadline:
+                logger.warning('Tagger did not stop within %ds, not restarting', self.RESTART_WAIT_SECONDS)
+                return
+            time.sleep(0.5)
+        self.run_full()
+
     def tag_single(self, path: str | Path, extra_info=None):
         with self._lock:
             logger.info('Processing single file tag request: %s', path)
@@ -87,8 +113,15 @@ async def api_tag_file(path: str = Query(...), _auth: dict = Depends(verify_api_
 
 @router.get('/retag/pending')
 async def api_retag_pending(_auth: dict = Depends(verify_api_key)):
-    """How many files a rule change has queued up, and which change did it."""
-    return ProcessedFilesHelper().pending_summary()
+    """How many files a rule change has queued up, and which change did it.
+
+    Carries the tagger's state as well, so the page that polls this can tell a pile that
+    is being worked off from one that is waiting for a walk to finish.
+    """
+    summary = ProcessedFilesHelper().pending_summary()
+    summary['busy'] = tagger_manager._lock.locked()
+    summary['stopping'] = tagger_manager.stopping
+    return summary
 
 
 def run_retag():
@@ -111,6 +144,24 @@ async def api_retag_run(background_tasks: BackgroundTasks, _auth: dict = Depends
         raise HTTPException(status_code=409, detail='Tagging already in progress')
     background_tasks.add_task(run_retag)
     return {'status': 'ok', 'message': 'Retag started'}
+
+
+def restart_retag():
+    """run_retag, but first cutting short whatever round is running."""
+    tagger_manager.restart()
+    from services.music_manager.routers.scanner import scanner_manager
+
+    scanner_manager.run_full()
+
+
+@router.post('/retag/restart')
+async def api_retag_restart(background_tasks: BackgroundTasks, _auth: dict = Depends(verify_api_key)):
+    """Stop the running round and start over from the front, queue first.
+
+    Unlike /retag/run this is never refused: being busy is the reason to call it.
+    """
+    background_tasks.add_task(restart_retag)
+    return {'status': 'ok', 'message': 'Retag restart requested'}
 
 
 def _queue_deep_run():

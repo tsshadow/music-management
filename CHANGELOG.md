@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.66.0] - 2026-09-18
+
+### Added
+- **Advies bij Genre Curatie.** De wachtrij stond op 821 genres, en het meeste daarvan is
+  mechanisch te herkennen: twee genres met een schuine streep ertussen (`Frenchcore/Terror`,
+  ook `\` en `,`), aan elkaar geplakt (`Jungleterror`), samengetrokken (`Upterror` is het begin
+  van `Uptempo Hardcore` plus heel `Terror`; `Frenchtempo`), verkeerd gespeld (`Harddcore`,
+  `Oldksool Rave`), met ruis erbij (`Hardstyle 2018`, `Happy Hardcore Classics`, `Add "uptempo"`),
+  of helemaal geen genre — een artiest, een label, een woord (`Tafelpoot`). Naast elke naam in de
+  wachtrij staat nu een **advies** met de redenering en een zekerheid: "vervangen door Uptempo
+  Hardcore + Terror", "verwijderen", of niets, want `Energycore` leest als een genre en matcht
+  nergens op, en dat blijft mensenwerk. Het woordenboek is je eigen eerdere werk: de goedgekeurde
+  genres, elke correctie die al gemaakt is (`Vocal Trance → Trance` leert dat `vocal` een
+  bijvoeglijk woord is dat je weglaat), de afgekeurde namen, en de artiest- en labelkoppelingen
+  van de taggerpagina — `Dr Peacock` in het genreveld is een artiest die aan Frenchcore hangt,
+  dus dat is het advies; een artiest zonder koppeling wordt "verwijderen, koppel hem op de
+  taggerpagina". "Overnemen" per rij, "Advies opvolgen" per pagina voor alles met minstens 60%
+  zekerheid; een advies doet nooit iets uit zichzelf, en een analyse raakt geen enkele beslissing.
+  Droog gedraaid op de echte wachtrij: 126 vervangingen, 172 splitsingen, 372 verwijderingen,
+  151 zonder advies. `POST /api/rules/genres/analyze`, `GET /api/rules/genres/summary`,
+  `rules_genre_proposals` (`migrate_v27`), drempels onder `genre_curation_analyzer` in de config.
+- **De genrelijst op de taggerpagina toont alleen goedgekeurde genres.** `GET /api/rules` gaf
+  de hele `rules_genres`-tabel terug, dus het Genre Overzicht telde 1.767 rijen en de keuzelijst
+  bij "artiest/label koppelen aan genre" bood ook afgekeurde en nog te beoordelen genres aan.
+  Nu alleen `white`; de playlist-genrefilter gebruikt dezelfde lijst en gaat mee.
+
+### Changed
+- **Genre Curatie is nu de plek voor alles rond genres; het Genre Overzicht van de taggerpagina is
+  weg.** De pagina onder Curatie › Genres heeft vier onderdelen: de **wachtrij** (met het advies
+  van hierboven), **Genres** (elk goedgekeurd genre met aantal nummers, hardheid, waar het onder
+  valt en hoeveel artiest- en labelregels erop wijzen; Bewerken opent de genrepagina), en twee
+  regelpanelen **Artiest → genre** en **Label → genre**: zoeken op naam óf genre, sorteren op
+  bereik, toevoegen met een naam uit de bibliotheek en een goedgekeurd genre (een dubbele regel
+  wordt geweigerd vóór de knop), verwijderen, en per rij wie de regel maakte en hoeveel nummers
+  hij raakt; een regel voor een naam die niet meer in de bibliotheek staat krijgt een label. De
+  taggerpagina houdt alleen nog wat van de tagger is — rescan en retag — en wijst naar Genres.
+  Het oude "Genre Overzicht" toonde de hele `rules_genres`-tabel, afgekeurde en nog te beoordelen
+  genres incluis, en de koppelkeuzelijst bood die ook aan. `GET /api/rules/artist-genres` en
+  `label-genres` geven per regel nu ook `artist_id`/`label_id`, `track_count`, `created_at` en
+  `created_by`; `GET /api/curation/genres` is nieuw en levert het overzicht.
 ## [0.65.3] - 2026-09-18
 
 ### Changed

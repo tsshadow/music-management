@@ -38,6 +38,69 @@
 # itself needs >=3.12. Move this with docker/Dockerfile.*, not on its own.
 TOOLING_IMAGE="${PYTHON_TOOLING_IMAGE:-python:3.14-slim}"
 
+# Where the installed tooling survives between runs on this host. Every job
+# used to `pip install -r requirements-dev.txt` into a throwaway /tmp, so three
+# quality jobs per pipeline each pulled the same wheels from PyPI -- and on a
+# slow PyPI day (2026-09-18: 80-260 KB/s for an hour) each of them hit the
+# ten-minute job timeout. The install now lands in a directory keyed on the
+# requirements file and the image, mounted into the container, so only the
+# first job after a requirements bump talks to PyPI. The runners are shell
+# executors, so $HOME is the runner user's and the cache outlives the job.
+# Set PYTHON_TOOLING_CACHE to move it; set it to "none" to install afresh.
+TOOLING_CACHE_ROOT="${PYTHON_TOOLING_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/muma-python-tooling}"
+
+# tooling_cache_key
+# Sixteen hex characters that change when the requirements or the image do.
+tooling_cache_key() {
+    { echo "$TOOLING_IMAGE"; cat "$ROOT_DIR/requirements-dev.txt"; } | sha256sum | cut -c1-16
+}
+
+# tooling_mounts
+# Prints the `-v` arguments for the tooling and pip-cache directories, one per
+# line, or nothing when the cache is off or the host directory cannot be made.
+# In the latter case the container falls back to its own /tmp, exactly as before.
+tooling_mounts() {
+    if [ "$TOOLING_CACHE_ROOT" = "none" ]; then
+        return 0
+    fi
+    local key dir
+    key="$(tooling_cache_key)"
+    dir="$TOOLING_CACHE_ROOT/$key"
+    if ! mkdir -p "$dir" "$TOOLING_CACHE_ROOT/pip-cache" 2>/dev/null; then
+        echo "--- Tooling cache $TOOLING_CACHE_ROOT is not writable; installing into the container ---" >&2
+        return 0
+    fi
+    # Every requirements bump (Renovate does one most months) leaves the previous
+    # key behind, ~100 MB each. Drop the ones nothing has touched in a month; the
+    # name pattern keeps this away from anything that is not a key directory.
+    find "$TOOLING_CACHE_ROOT" -mindepth 1 -maxdepth 1 -type d -regextype posix-extended \
+        -regex '.*/[0-9a-f]{16}' ! -name "$key" -mtime +30 -exec rm -rf {} + 2>/dev/null || true
+    printf -- '-v\n%s:/tmp/tooling\n-v\n%s:/tmp/pip-cache\n' "$dir" "$TOOLING_CACHE_ROOT/pip-cache"
+}
+
+# tooling_container <bash -c command>
+# Runs one command inside the tooling container with the tools installed (or
+# found in the cache) first. The repository is mounted at /repo and the
+# container runs as the host user, so nothing root-owned is left behind.
+tooling_container() {
+    local mounts=()
+    while IFS= read -r line; do
+        [ -n "$line" ] && mounts+=("$line")
+    done < <(tooling_mounts)
+    docker run --rm \
+        --user "$(id -u):$(id -g)" \
+        -v "$ROOT_DIR:/repo" \
+        "${mounts[@]}" \
+        -w /repo \
+        -e HOME=/tmp \
+        -e PYTHONUSERBASE=/tmp/tooling \
+        -e PIP_CACHE_DIR=/tmp/pip-cache \
+        -e PATH=/tmp/tooling/bin:/usr/local/bin:/usr/bin:/bin \
+        -e PYTHON_TOOLING_CONTAINER=1 \
+        "$TOOLING_IMAGE" \
+        bash -c "bash scripts/lib/python-tooling-install.sh && $1"
+}
+
 # rerun_in_container <script-relative-path> [args...]
 # Re-executes the calling script inside the tooling container. Never returns.
 rerun_in_container() {
@@ -51,17 +114,8 @@ rerun_in_container() {
     fi
 
     echo "--- Tooling not on PATH; running $script inside $TOOLING_IMAGE ---"
-    exec docker run --rm \
-        --user "$(id -u):$(id -g)" \
-        -v "$ROOT_DIR:/repo" \
-        -w /repo \
-        -e HOME=/tmp \
-        -e PYTHONUSERBASE=/tmp/tooling \
-        -e PIP_CACHE_DIR=/tmp/pip-cache \
-        -e PATH=/tmp/tooling/bin:/usr/local/bin:/usr/bin:/bin \
-        -e PYTHON_TOOLING_CONTAINER=1 \
-        "$TOOLING_IMAGE" \
-        bash -c "pip install --user --quiet --disable-pip-version-check -r requirements-dev.txt && $script $*"
+    tooling_container "$script $*"
+    exit $?
 }
 
 # have_tool <module-or-binary>
@@ -82,14 +136,5 @@ run_python_tool() {
         echo "$1 is missing and Docker is not available." >&2
         return 127
     fi
-    docker run --rm \
-        --user "$(id -u):$(id -g)" \
-        -v "$ROOT_DIR:/repo" \
-        -w /repo \
-        -e HOME=/tmp \
-        -e PYTHONUSERBASE=/tmp/tooling \
-        -e PIP_CACHE_DIR=/tmp/pip-cache \
-        -e PATH=/tmp/tooling/bin:/usr/local/bin:/usr/bin:/bin \
-        "$TOOLING_IMAGE" \
-        bash -c "pip install --user --quiet --disable-pip-version-check -r requirements-dev.txt >/dev/null && $(printf '%q ' "$@")"
+    tooling_container "$(printf '%q ' "$@")"
 }

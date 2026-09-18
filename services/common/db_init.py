@@ -43,6 +43,7 @@ REQUIRED_TABLES = [
     'rules_subgenre_hierarchy',
     'rules_genre_backlog',
     'rules_genre_expansions',
+    'rules_genre_proposals',
     'rules_scene_group_date_format',
     # Same ordering constraint as rules_genres above: the alias table points at
     # rules_podcasts.
@@ -105,6 +106,12 @@ def ensure_tables_exist() -> None:
         'rules_artists': "\n            CREATE TABLE IF NOT EXISTS rules_artists (\n                name VARCHAR(255) NOT NULL PRIMARY KEY,\n                state ENUM('white', 'black') NOT NULL,\n                canonical_name VARCHAR(255) NULL,\n                decided_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                decided_by VARCHAR(64) NULL,\n                INDEX(state)\n            )\n        ",
         'rules_artist_proposals': "\n            CREATE TABLE IF NOT EXISTS rules_artist_proposals (\n                name VARCHAR(255) NOT NULL PRIMARY KEY,\n                kind ENUM('keep', 'rewrite', 'split', 'reject', 'unknown') NOT NULL,\n                target VARCHAR(512) NULL,\n                evidence TEXT NULL,\n                confidence INT NOT NULL DEFAULT 0,\n                junk_score INT NOT NULL DEFAULT 0,\n                analyzed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                INDEX(kind)\n            )\n        ",
         'rules_ignored_genres': '\n            CREATE TABLE IF NOT EXISTS rules_ignored_genres (\n                name VARCHAR(255) PRIMARY KEY\n            )\n        ',
+        # Genre curation advice (routers/genre_curation.py): what the last analysis run
+        # proposed for each queued genre. Rewritten whole on every run; the decision
+        # itself is the state on rules_genres plus rules_genre_expansions, never this.
+        # Targets are stored as JSON `[{id, name}]` so the page can post the decision
+        # without a second lookup.
+        'rules_genre_proposals': "\n            CREATE TABLE IF NOT EXISTS rules_genre_proposals (\n                genre_id INT NOT NULL PRIMARY KEY,\n                kind ENUM('keep', 'rewrite', 'split', 'reject', 'unknown') NOT NULL,\n                targets TEXT NULL,\n                evidence TEXT NULL,\n                confidence INT NOT NULL DEFAULT 0,\n                analyzed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                INDEX(kind),\n                FOREIGN KEY (genre_id) REFERENCES rules_genres(id) ON DELETE CASCADE\n            )\n        ",
         'rules_label_genre': '\n            CREATE VIEW IF NOT EXISTS rules_label_genre AS\n            SELECT r.label_name AS label, g.name AS genre\n            FROM rules_label_genres r\n            JOIN rules_genres g ON r.genre_id = g.id\n        ',
         'rules_subgenre_hierarchy': '\n            CREATE TABLE IF NOT EXISTS rules_subgenre_hierarchy (\n                subgenre VARCHAR(255) NOT NULL,\n                genre VARCHAR(255) NOT NULL,\n                PRIMARY KEY (subgenre, genre)\n            )\n        ',
         'rules_genre_backlog': '\n            CREATE TABLE IF NOT EXISTS rules_genre_backlog (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                genre VARCHAR(255) UNIQUE,\n                detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n            )\n        ',

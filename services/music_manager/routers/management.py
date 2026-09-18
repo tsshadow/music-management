@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from typing import Any
@@ -9,6 +10,7 @@ from pydantic import BaseModel
 
 import docker
 from services.common.config_store import ConfigStore as Settings
+from services.common.Helpers.GenreNameAnalyzer import KINDS as PROPOSAL_KINDS
 from services.common.Helpers.GenreRulesHelper import BLACK, VALID_STATES, WHITE
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.PodcastHelper import normalize as normalize_show_name
@@ -122,7 +124,10 @@ def get_genre_rules(_auth: dict = Depends(verify_api_key)):
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT id, name, corrected_genre FROM rules_genres ORDER BY name')
+            # Approved genres only: this list feeds the tagger page's artist and
+            # label links and the playlist filters, and linking an artist to a
+            # genre that is rejected or still in the curation queue is never right.
+            cursor.execute("SELECT id, name, corrected_genre FROM rules_genres WHERE state = 'white' ORDER BY name")
             genres = cursor.fetchall()
             cursor.execute("SHOW TABLES LIKE 'rules_ignored_genres'")
             ignored = []
@@ -501,29 +506,72 @@ def delete_youtube_account(name: str, download_type: str = '', _auth: dict = Dep
         conn.close()
 
 
+def _parse_proposal(row: dict) -> dict:
+    """Fold the joined proposal columns into one `proposal` object, or None without a run."""
+    row = dict(row)
+    kind = row.pop('proposal_kind', None)
+    targets_raw = row.pop('proposal_targets', None)
+    evidence_raw = row.pop('proposal_evidence', None)
+    confidence = row.pop('proposal_confidence', None)
+    if not kind:
+        row['proposal'] = None
+        return row
+    try:
+        targets = json.loads(targets_raw) if targets_raw else []
+    except (TypeError, ValueError):
+        targets = []
+    try:
+        evidence = json.loads(evidence_raw) if evidence_raw else []
+    except (TypeError, ValueError):
+        evidence = [str(evidence_raw)]
+    row['proposal'] = {'kind': kind, 'targets': targets, 'evidence': evidence, 'confidence': int(confidence or 0)}
+    return row
+
+
 @router.get('/rules/genres')
-def get_genre_curation_queue(state: str | None = None, limit: int = 200, _auth: dict = Depends(verify_api_key)):
+def get_genre_curation_queue(
+    state: str | None = None, proposal: str | None = None, limit: int = 200, _auth: dict = Depends(verify_api_key)
+):
     """Genres by curation state, most frequently seen first.
 
     Called without a state this returns the whole table; `state=unknown` is the
     curation queue, ordered so the genres that touch most tracks come first.
+    Every row carries what the last analysis run proposed for it (`proposal`,
+    null before the first run), and `proposal=<kind>` narrows the list to one
+    kind of advice so a curator can work through a class at a time.
     """
     if state is not None and state not in VALID_STATES:
         raise HTTPException(status_code=400, detail=f"Invalid state, expected one of {', '.join(VALID_STATES)}")
+    if proposal is not None and proposal not in PROPOSAL_KINDS:
+        raise HTTPException(status_code=400, detail=f"Invalid proposal, expected one of {', '.join(PROPOSAL_KINDS)}")
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
-            query = "\n                SELECT g.id, g.name, g.state, g.occurrences,\n                       CAST(g.detected_at AS CHAR) AS detected_at,\n                       CAST(g.decided_at AS CHAR) AS decided_at, g.decided_by\n                FROM rules_genres g\n            "
+            query = """
+                SELECT g.id, g.name, g.state, g.occurrences,
+                       CAST(g.detected_at AS CHAR) AS detected_at,
+                       CAST(g.decided_at AS CHAR) AS decided_at, g.decided_by,
+                       p.kind AS proposal_kind, p.targets AS proposal_targets,
+                       p.evidence AS proposal_evidence, p.confidence AS proposal_confidence
+                FROM rules_genres g
+                LEFT JOIN rules_genre_proposals p ON p.genre_id = g.id
+            """
+            where = []
             params: list = []
             if state:
-                query += ' WHERE g.state = %s'
+                where.append('g.state = %s')
                 params.append(state)
+            if proposal:
+                where.append('p.kind = %s')
+                params.append(proposal)
+            if where:
+                query += ' WHERE ' + ' AND '.join(where)
             query += ' ORDER BY g.occurrences DESC, g.name LIMIT %s'
             params.append(limit)
             cursor.execute(query, params)
-            rows = cursor.fetchall()
+            rows = [_parse_proposal(row) for row in cursor.fetchall()]
             # Targets come from a second query rather than a join: a genre can now
             # expand into several, so joining would multiply the rows the page shows.
             ids = [row['id'] for row in rows]

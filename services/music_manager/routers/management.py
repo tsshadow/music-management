@@ -901,13 +901,32 @@ def delete_podcast_alias(podcast_id: int, alias: str, _auth: dict = Depends(veri
 
 @router.get('/rules/artist-genres')
 def get_artist_genre_rules(_auth: dict = Depends(verify_api_key)):
+    """Every artist -> genre rule, with what it touches and who made it.
+
+    `artist_id` and `track_count` come from the library row of the same name, so the
+    page can open the artist and show how many tracks a rule reaches; both are
+    null/zero for a rule whose artist has since left the library, which is worth
+    seeing rather than hiding.
+    """
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute(
-                '\n                SELECT r.id, r.artist_name, g.name as genre_name, r.genre_id\n                FROM rules_artist_genres r\n                JOIN rules_genres g ON r.genre_id = g.id\n                ORDER BY r.artist_name\n            '
+                '''
+                SELECT r.id, r.artist_name, g.name AS genre_name, r.genre_id,
+                       a.id AS artist_id, COALESCE(tc.track_count, 0) AS track_count,
+                       CAST(r.created_at AS CHAR) AS created_at, r.created_by
+                FROM rules_artist_genres r
+                JOIN rules_genres g ON r.genre_id = g.id
+                LEFT JOIN library_artists a ON a.name = r.artist_name
+                LEFT JOIN (
+                    SELECT artist_id, COUNT(DISTINCT track_id) AS track_count
+                    FROM library_track_artists GROUP BY artist_id
+                ) tc ON tc.artist_id = a.id
+                ORDER BY r.artist_name, g.name
+                '''
             )
             return cursor.fetchall()
     finally:
@@ -955,13 +974,26 @@ def delete_artist_genre_rule(rule_id: int, _auth: dict = Depends(verify_api_key)
 
 @router.get('/rules/label-genres')
 def get_label_genre_rules(_auth: dict = Depends(verify_api_key)):
+    """Every label -> genre rule, with its track count and provenance (see the artist twin)."""
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
             cursor.execute(
-                '\n                SELECT r.id, r.label_name, g.name as genre_name, r.genre_id\n                FROM rules_label_genres r\n                JOIN rules_genres g ON r.genre_id = g.id\n                ORDER BY r.label_name\n            '
+                '''
+                SELECT r.id, r.label_name, g.name AS genre_name, r.genre_id,
+                       l.id AS label_id, COALESCE(tc.track_count, 0) AS track_count,
+                       CAST(r.created_at AS CHAR) AS created_at, r.created_by
+                FROM rules_label_genres r
+                JOIN rules_genres g ON r.genre_id = g.id
+                LEFT JOIN library_labels l ON l.name = r.label_name
+                LEFT JOIN (
+                    SELECT label_id, COUNT(DISTINCT track_id) AS track_count
+                    FROM library_track_labels GROUP BY label_id
+                ) tc ON tc.label_id = l.id
+                ORDER BY r.label_name, g.name
+                '''
             )
             return cursor.fetchall()
     finally:

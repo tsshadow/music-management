@@ -44,6 +44,8 @@ READ_ENDPOINTS = [
     ('/api/curation/labels?q=a', 200),
     ('/api/rules/lineups', 200),
     ('/api/rules/artist-genres', 200),
+    ('/api/curation/genres', 200),
+    ('/api/curation/genres?q=hard', 200),
     ('/api/rules/label-genres', 200),
     ('/api/rules/artist-redirects', 200),
     ('/api/tagger/retag/pending', 200),

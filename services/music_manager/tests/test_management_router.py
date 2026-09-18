@@ -371,6 +371,25 @@ class ArtistAndLabelRulesTest(ManagementTestCase):
         response = self.client.get('/api/rules/artist-genres', headers=self.headers)
         self.assertEqual(response.json()[0]['artist_name'], 'Angerfist')
 
+    def test_a_rule_row_carries_the_library_artist_its_track_count_and_who_made_it(self):
+        """The rules page opens the artist and shows the reach, so the list joins the library."""
+        self.client.get('/api/rules/artist-genres', headers=self.headers)
+        statement = self.statements()[0]
+        for fragment in (
+            'a.id AS artist_id',
+            'track_count',
+            'created_at',
+            'r.created_by',
+            'LEFT JOIN library_artists a',
+        ):
+            self.assertIn(fragment, statement)
+
+    def test_a_label_rule_row_carries_the_same_provenance(self):
+        self.client.get('/api/rules/label-genres', headers=self.headers)
+        statement = self.statements()[0]
+        for fragment in ('l.id AS label_id', 'track_count', 'created_at', 'LEFT JOIN library_labels l'):
+            self.assertIn(fragment, statement)
+
     def test_an_artist_genre_rule_can_be_added(self):
         response = self.client.post(
             '/api/rules/artist-genres', headers=self.headers, json={'artist_name': 'Angerfist', 'genre_id': 3}

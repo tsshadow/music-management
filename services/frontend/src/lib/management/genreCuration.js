@@ -111,3 +111,98 @@ export function describeDecision(row) {
   const when = new Date(row.decided_at.replace(" ", "T")).toLocaleString("nl-NL");
   return row.decided_by ? `${when} door ${row.decided_by}` : when;
 }
+
+/**
+ * What the last analysis proposed, as a filter over the queue. `null` is
+ * "everything". `keep` exists in the analyzer but never reaches the queue: a
+ * kept name is one that is already approved.
+ */
+export const PROPOSAL_FILTERS = [
+  { id: null, labelKey: "management.genres.proposalAny" },
+  { id: "rewrite", labelKey: "management.genres.proposalRewrite" },
+  { id: "split", labelKey: "management.genres.proposalSplit" },
+  { id: "reject", labelKey: "management.genres.proposalReject" },
+  { id: "unknown", labelKey: "management.genres.proposalNone" },
+];
+
+/**
+ * Advice below this confidence is shown but not applied in bulk: a name that
+ * merely "resembles no known genre" (50) is a hunch, and a page of hunches
+ * applied with one click is how a real genre ends up rejected.
+ */
+export const BULK_CONFIDENCE_FLOOR = 60;
+
+/**
+ * The proposal on a row, in words -- the i18n key and its variables -- or null
+ * when the analysis had nothing to say (no run yet, or a name it could not place).
+ *
+ * @param {Object} row
+ * @returns {{key: string, vars?: Object}|null}
+ */
+export function describeProposal(row) {
+  const proposal = row?.proposal;
+  if (!proposal) return null;
+  const targets = (proposal.targets || []).map((target) => target.name).join(" + ");
+  switch (proposal.kind) {
+    case "reject":
+      return { key: "management.genres.proposeReject" };
+    case "rewrite":
+    case "split":
+      return targets
+        ? { key: "management.genres.proposeRewrite", vars: { target: targets } }
+        : null;
+    case "keep":
+      return { key: "management.genres.proposeKeep" };
+    default:
+      return null;
+  }
+}
+
+/**
+ * The decision a proposal amounts to, in the shape `buildDecision` takes, or null
+ * when there is nothing to apply. A rewrite or split is a rejection with targets,
+ * which is the same thing the page's "corrigeren" dialog produces; a rejection is
+ * a plain rejection; a keep is an approval.
+ *
+ * @param {Object} row
+ * @returns {{genreId: number, state: string, canonicalIds: number[]}|null}
+ */
+export function decisionFromProposal(row) {
+  const proposal = row?.proposal;
+  if (!proposal) return null;
+  const ids = (proposal.targets || []).map((target) => Number(target.id));
+  switch (proposal.kind) {
+    case "reject":
+      return { genreId: row.id, state: BLACK, canonicalIds: [] };
+    case "rewrite":
+    case "split":
+      return ids.length ? { genreId: row.id, state: BLACK, canonicalIds: ids } : null;
+    case "keep":
+      return { genreId: row.id, state: WHITE, canonicalIds: [] };
+    default:
+      return null;
+  }
+}
+
+/**
+ * Which rows on a page the bulk button would apply: those with a usable
+ * proposal at or above the confidence floor. The rest are reported, so the page
+ * can say "12 applied, 3 left alone" rather than silently doing less.
+ *
+ * @param {Object[]} rows
+ * @param {number} [floor]
+ * @returns {{applicable: Object[], skipped: Object[]}}
+ */
+export function planFromProposals(rows, floor = BULK_CONFIDENCE_FLOOR) {
+  const applicable = [];
+  const skipped = [];
+  for (const row of rows || []) {
+    const decision = decisionFromProposal(row);
+    if (decision && (row.proposal?.confidence ?? 0) >= floor) {
+      applicable.push(row);
+    } else {
+      skipped.push(row);
+    }
+  }
+  return { applicable, skipped };
+}

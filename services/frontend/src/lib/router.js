@@ -250,8 +250,9 @@ export const MANAGEMENT_GROUPS = [
     labelKey: "management.groups.curation",
     // Every input the tagger reads from a rule table, one page each, in the order a
     // library is curated: what a track is (genre, artist, label), then the recordings
-    // (podcast, festival) and who played (lineup). The tagger page holds the
-    // cross-cutting rules (artist->genre, label->genre, redirects) that fit no single one.
+    // (podcast, festival) and who played (lineup). The genre page also carries the
+    // artist->genre and label->genre rules; the tagger page is the tagger itself
+    // (rescan, retag).
     pages: [
       "tagger",
       "genre-curation",

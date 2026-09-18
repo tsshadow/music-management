@@ -10,6 +10,10 @@ import {
   describeDecision,
   buildDecision,
   correctionTargets,
+  describeProposal,
+  decisionFromProposal,
+  planFromProposals,
+  BULK_CONFIDENCE_FLOOR,
 } from "../../src/lib/management/genreCuration";
 
 const row = (over = {}) => ({
@@ -193,5 +197,113 @@ describe("describeDecision", () => {
   it("names who decided", () => {
     const decided = row({ decided_at: "2026-08-01 12:00:00", decided_by: "user" });
     expect(describeDecision(decided)).toContain("door user");
+  });
+});
+
+describe("describeProposal", () => {
+  const proposalRow = (proposal) =>
+    row({ id: 7, name: "Frenchcore/Terror", state: UNKNOWN, proposal });
+
+  it("is silent without a proposal", () => {
+    expect(describeProposal(row({ proposal: null }))).toBeNull();
+    expect(
+      describeProposal(row({ proposal: { kind: "unknown", targets: [], confidence: 0 } })),
+    ).toBeNull();
+  });
+
+  it("names every target of a split", () => {
+    const described = describeProposal(
+      proposalRow({
+        kind: "split",
+        targets: [
+          { id: 1, name: "Frenchcore" },
+          { id: 2, name: "Terror" },
+        ],
+        confidence: 90,
+      }),
+    );
+    expect(described).toEqual({
+      key: "management.genres.proposeRewrite",
+      vars: { target: "Frenchcore + Terror" },
+    });
+  });
+
+  it("describes a rejection and a keep", () => {
+    expect(describeProposal(proposalRow({ kind: "reject", targets: [] })).key).toBe(
+      "management.genres.proposeReject",
+    );
+    expect(describeProposal(proposalRow({ kind: "keep", targets: [] })).key).toBe(
+      "management.genres.proposeKeep",
+    );
+  });
+
+  it("has nothing to say about a rewrite whose targets went missing", () => {
+    expect(describeProposal(proposalRow({ kind: "rewrite", targets: [] }))).toBeNull();
+  });
+});
+
+describe("decisionFromProposal", () => {
+  it("turns a split into a rejection with the targets, as the dialog would", () => {
+    const decision = decisionFromProposal(
+      row({
+        id: 7,
+        proposal: {
+          kind: "split",
+          targets: [
+            { id: "3", name: "Uptempo Hardcore" },
+            { id: 2, name: "Terror" },
+          ],
+        },
+      }),
+    );
+    expect(decision).toEqual({ genreId: 7, state: BLACK, canonicalIds: [3, 2] });
+    expect(buildDecision(decision).valid).toBe(true);
+  });
+
+  it("turns a rejection into a plain rejection and a keep into an approval", () => {
+    expect(decisionFromProposal(row({ id: 7, proposal: { kind: "reject", targets: [] } }))).toEqual(
+      {
+        genreId: 7,
+        state: BLACK,
+        canonicalIds: [],
+      },
+    );
+    expect(
+      decisionFromProposal(row({ id: 7, proposal: { kind: "keep", targets: [] } })).state,
+    ).toBe(WHITE);
+  });
+
+  it("has nothing to apply for unknown advice or no advice", () => {
+    expect(decisionFromProposal(row({ proposal: { kind: "unknown", targets: [] } }))).toBeNull();
+    expect(decisionFromProposal(row({ proposal: null }))).toBeNull();
+    expect(decisionFromProposal(row({ proposal: { kind: "rewrite", targets: [] } }))).toBeNull();
+  });
+});
+
+describe("planFromProposals", () => {
+  const rows = [
+    row({
+      id: 1,
+      proposal: { kind: "split", targets: [{ id: 9, name: "Terror" }], confidence: 90 },
+    }),
+    row({ id: 2, proposal: { kind: "reject", targets: [], confidence: 50 } }),
+    row({ id: 3, proposal: { kind: "unknown", targets: [], confidence: 0 } }),
+    row({ id: 4, proposal: null }),
+    row({ id: 5, proposal: { kind: "reject", targets: [], confidence: 85 } }),
+  ];
+
+  it("applies confident advice and leaves hunches alone", () => {
+    const plan = planFromProposals(rows);
+    expect(plan.applicable.map((r) => r.id)).toEqual([1, 5]);
+    expect(plan.skipped.map((r) => r.id)).toEqual([2, 3, 4]);
+  });
+
+  it("takes a different floor", () => {
+    expect(planFromProposals(rows, 0).applicable.map((r) => r.id)).toEqual([1, 2, 5]);
+    expect(BULK_CONFIDENCE_FLOOR).toBe(60);
+  });
+
+  it("copes with no rows", () => {
+    expect(planFromProposals(undefined)).toEqual({ applicable: [], skipped: [] });
   });
 });

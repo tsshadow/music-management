@@ -48,14 +48,9 @@
   // Data State
   let config = $state({ version: '...', phpmyadmin_url: '#' });
   let notes = $state({ release_notes: '', changelog: '' });
-  let rules = $state({ genres: [], ignored_genres: [] });
   let allNotes = $state({});
   let accounts = $state([]);
   let youtubeAccounts = $state([]);
-  let artists = $state([]);
-  let labels = $state([]);
-  let artistGenreRules = $state([]);
-  let labelGenreRules = $state([]);
   let latestImports = $state([]);
   let users = $state([]);
   let roles = $state([]);
@@ -80,8 +75,6 @@
   let currentUser = $state(null);
   let lbUsername = $state('');
   let selectedServiceNotes = $state('control-center');
-  let artistSearch = $state('');
-  let labelSearch = $state('');
   let fetchProgress = $state({ active: false, total: 0, current: 0, last_artist: null, status: 'idle' });
   let imageStats = $state({ total_artists: 0, artists_with_images: 0, artists_without_images: 0 });
   let importMumaUser = $state('');
@@ -99,14 +92,13 @@
     loading = true;
     const headers = getHeaders();
     try {
-      // Fired a few at a time rather than all eleven at once: they all reach MuMa
-      // through the LMS proxy, which refuses the eleventh with a 503 instead of
+      // Fired a few at a time rather than all ten at once: they all reach MuMa
+      // through the LMS proxy, which refuses a burst with a 503 instead of
       // queueing it. See MAX_PARALLEL_MUMA_CALLS in lib/mumaApi.js.
-      const [configBody, notesBody, rulesBody, accountsBody, youtubeBody, allNotesBody, importsBody, usersBody, containersBody, activityBody, statsBody] = await mapWithLimit(
+      const [configBody, notesBody, accountsBody, youtubeBody, allNotesBody, importsBody, usersBody, containersBody, activityBody, statsBody] = await mapWithLimit(
         [
           '/api/config',
           '/api/notes',
-          '/api/rules',
           '/api/soundcloud',
           '/api/youtube',
           '/api/all-notes',
@@ -124,7 +116,6 @@
       // tab have always rendered empty.
       config = configBody?.config ?? configBody ?? {};
       notes = notesBody;
-      rules = rulesBody;
       accounts = accountsBody;
       youtubeAccounts = youtubeBody;
       allNotes = allNotesBody;
@@ -134,43 +125,11 @@
       activity = activityBody;
       stats = statsBody;
 
-      fetchRules();
-      searchArtists();
-      searchLabels();
     } catch (err) {
       error = "Kon gegevens niet ophalen van de Management API.";
       console.error(err);
     } finally {
       loading = false;
-    }
-  }
-
-  async function fetchRules() {
-    try {
-      const [artistRules, labelRules] = await Promise.all([
-        fetchMumaJson(`${$mumaApiUrl}/api/rules/artist-genres`, { headers: getHeaders() }),
-        fetchMumaJson(`${$mumaApiUrl}/api/rules/label-genres`, { headers: getHeaders() })
-      ]);
-      artistGenreRules = artistRules;
-      labelGenreRules = labelRules;
-    } catch (err) {
-      console.error("Fout bij ophalen regels:", err);
-    }
-  }
-
-  async function searchArtists() {
-    try {
-      artists = await fetchMumaJson(`${$mumaApiUrl}/api/artists?q=${artistSearch}`, { headers: getHeaders() });
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async function searchLabels() {
-    try {
-      labels = await fetchMumaJson(`${$mumaApiUrl}/api/labels?q=${labelSearch}`, { headers: getHeaders() });
-    } catch (err) {
-      console.error(err);
     }
   }
 
@@ -469,13 +428,10 @@
           onError={(e) => error = e} 
         />
       {:else if $activeManagementTab === 'tagger'}
-        <TaggerTab 
-          {API_BASE} getHeaders={getHeaders} 
-          bind:artistSearch bind:labelSearch 
-          {artists} {labels} {rules} {artistGenreRules} {labelGenreRules} 
-          {fetchRules} {searchArtists} {searchLabels} 
-          onMessage={(m) => message = m} 
-          onError={(e) => error = e} 
+        <TaggerTab
+          {API_BASE} getHeaders={getHeaders}
+          onMessage={(m) => message = m}
+          onError={(e) => error = e}
         />
       {:else if $activeManagementTab === 'genre-curation'}
         <GenreCurationTab

@@ -351,6 +351,51 @@ class LabelCatidTest(CurationTestCase):
         self.assertEqual(self.statements('INSERT INTO rules_catid_label')[0][1], ('MOH', 'Masters of Hardcore'))
 
 
+class GenreListTest(CurationTestCase):
+    rules = (
+        ('SELECT COUNT(*) AS total FROM rules_genres g', None, {'total': 1}),
+        (
+            'FROM rules_genres g LEFT JOIN',
+            None,
+            [
+                {
+                    'id': 90,
+                    'name': 'Industrial Hardcore',
+                    'hardness': 80,
+                    'occurrences': 0,
+                    'track_count': 1514,
+                    'artist_rule_count': 3,
+                    'label_rule_count': 1,
+                    'parents': 'Hardcore;Industrial',
+                }
+            ],
+        ),
+    )
+
+    def test_lists_approved_genres_with_what_the_tagger_knows_about_them(self):
+        response = self.client.get('/api/curation/genres?q=indus', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['total'], 1)
+        row = body['rows'][0]
+        self.assertEqual(row['name'], 'Industrial Hardcore')
+        self.assertEqual(row['parents'], ['Hardcore', 'Industrial'])
+        self.assertEqual(row['artist_rule_count'], 3)
+        sql, params = self.statements('FROM rules_genres g LEFT JOIN')[-1]
+        self.assertIn("g.state = 'white'", sql)
+        self.assertEqual(params[0], '%indus%')
+
+    def test_the_page_size_is_capped_and_a_genre_without_parents_has_an_empty_list(self):
+        self.cursor.rules = [
+            ('SELECT COUNT(*) AS total FROM rules_genres g', None, {'total': 1}),
+            ('FROM rules_genres g LEFT JOIN', None, [{'id': 1, 'name': 'Hardcore', 'parents': None}]),
+        ]
+        body = self.client.get('/api/curation/genres?limit=99999', headers=self.headers).json()
+        self.assertEqual(body['rows'][0]['parents'], [])
+        _sql, params = self.statements('LIMIT %s OFFSET %s')[-1]
+        self.assertEqual(params[-2], curation_router.GENRE_PAGE_MAX)
+
+
 class GenreReadTest(CurationTestCase):
     rules = (
         ('FROM rules_genres WHERE normalized_name', None, WHITE_GENRE),

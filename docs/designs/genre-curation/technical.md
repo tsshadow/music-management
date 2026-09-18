@@ -118,3 +118,124 @@ LMS are untouched.
 
 - [docs/database-design.md](../../database-design.md) — table inventory
 - [docs/designs/tagger/technical.md](../tagger/technical.md) — the rule pipeline this plugs into
+
+## Advice: `GenreNameAnalyzer`
+
+The queue reached 821 genres, and the tagger's "one name at a time" page did not scale to that. The same
+shape as artist curation (`docs/designs/artist-curation/technical.md`) sits next to the queue:
+a pure analyzer in `services/common/Helpers/GenreNameAnalyzer.py`, a run that rewrites
+`rules_genre_proposals` whole, and advice shown per row that a human applies or ignores.
+
+### Three things stay separate
+
+| Thing | Where | Written by |
+|---|---|---|
+| The raw genre | `rules_genres`, state `unknown` | the tagger (`record_unknown`) |
+| The proposal | `rules_genre_proposals` (`genre_id` PK, `kind`, `targets` JSON `[{id, name}]`, `evidence` JSON, `confidence`, `analyzed_at`) | `POST /api/rules/genres/analyze`, rewritten whole per run, `ON DELETE CASCADE` from the genre |
+| The decision | `rules_genres.state` + `rules_genre_expansions` | `POST /api/rules/genres/{id}/decide`, never by a run |
+
+Targets are stored with their id at analysis time so the page can post a decision without a second lookup;
+a target that has since been rejected still has a valid id, and the next run replaces the advice.
+
+### The dictionary is the curator's own past work
+
+`build_dictionary` takes, in `routers/genre_curation.py`'s `load_dictionary`:
+
+- approved genres with their track count (`library_track_genres`), used to rank blends;
+- every correction already made (`rules_genre_expansions`, white *and* black), as aliases resolved to
+  approved names -- an approved genre that itself has a correction (`RAW` → `Raw Hardstyle`) is an alias,
+  not a target, because the tagger never writes it; a `;`-joined legacy target name resolves to its parts;
+- black genres without a correction, for "looks like something you rejected";
+- artists (`rules_artist_genres` plus `library_artists` with at least `MIN_ARTIST_TRACKS`) and labels
+  (`library_labels`) with the genre the tagger page links them to, if any.
+
+There is no external knowledge and no bootstrap from the queue itself. `Tafelpoot` is not rejected because
+the analyzer knows Dutch furniture; it is proposed for rejection at confidence 50 because it resembles no
+approved genre and has no genre-like part (no word of an approved genre inside it, no `-core`/`-style`/
+`-tempo` ending). `Energycore` has one, so it stays a queue entry with "reads as a genre, but matches
+nothing approved".
+
+### Passes, in order
+
+1. Exact or space-insensitive match on an approved name or alias (`Uptempohardcore`, `Up Tempo`,
+   `D&B` via `&` → `n`) — rewrite 95.
+2. Artist or label by name: linked to a genre → rewrite 90; unlinked → reject 85, unless the name also
+   reads as a genre (`Melodic`, `Future`), in which case the collision is a footnote on whatever follows.
+3. Separators (`/ \ , | & + and en vs`): every part resolved → split 90; some dropped → split 60; a dropped
+   part that reads as a genre blocks the advice (unknown); more dropped than resolved → no split.
+4. Noise stripped (`2018`, `Classics`, `Mainstage`, `Add "…"`, `Toevoegen`) and the remainder resolved → rewrite 85.
+5. Label words (`records`, `recordings`, …) and promo words (`podcast`, `weekly`, `sample pack`, …) → reject 80.
+6. Whole-string fuzzy match ≥ 0.88 against approved names and aliases → rewrite at the ratio, minus 10 for
+   keys under 8 characters (`Mental` / `Metal` is a different word as often as a typo).
+7. Token segmentation: fewest known phrases covering the words, a phrase may be one typo off with the same
+   word count. All covered → split/rewrite 85. A leftover word that an existing correction already dropped
+   (`Vocal Trance → Trance` teaches `vocal`) → 70 with the lesson in the evidence; an unknown leftover
+   (`dutch`) → 60; a leftover that reads as a genre (`melodic`, `phonk`) → unknown, the human decides.
+8. Single words: glued known names (`Jungleterror`, longest piece first so `hardcore` is never
+   `hard`+`core`) → split 80; a blend of the start of one genre and the whole of another (`Upterror`,
+   `Euphoraw`) → split 65 with the runners-up in the evidence; two fragments of at least five characters
+   (`Frenchtempo`) → split 55.
+9. Fuzzy ≥ 0.9 against a rejected name → reject 75; two characters or fewer → reject 70; nothing
+   genre-like → reject 50; otherwise unknown.
+
+Every threshold and word list lives in `GenreAnalyzerConfig`, overridable through the
+`genre_curation_analyzer` config key. Dry-run against production on 2026-09-18 (821 queued): 126 rewrite,
+172 split, 372 reject, 151 unknown, in 0.5 s.
+
+### Frontend
+
+`GenreCurationTab.svelte` gains the summary strip (queue, approved, rejected, advice counts plus the
+Analyse button), a proposal filter on the queue, an "Advies" column with the evidence and confidence, an
+"Overnemen" button per row and "Advies opvolgen" per page. The pure parts are in `genreCuration.js`:
+`describeProposal`, `decisionFromProposal` (a rewrite or split becomes black-with-targets, exactly what the
+correction dialog produces; a reject becomes black; unknown becomes nothing) and `planFromProposals`,
+which applies only advice at or above `BULK_CONFIDENCE_FLOOR` (60) and reports what it left alone. The
+first visit without a run starts the analysis on its own; after that it is the button, because a run
+rewrites every proposal. Bulk decisions are posted one at a time: each marks files for a retag and
+refreshes the tagger's rules, and a burst of those is what the LMS proxy refuses.
+
+### Technical Acceptance Criteria (advice)
+
+19. `build_dictionary` turns an approved genre with a correction into an alias, resolves a `;`-joined
+    target to its parts, and drops an alias whose target is not approved.
+20. `propose` on `Frenchcore/Terror`, `Jungleterror`, `Upterror`, `Harddcore`, `Hardstyle 2018` and
+    `Vocal Hardcore` yields the targets named above with the stated confidence; `Tafelpoot` is a reject at
+    50 and `Energycore` is unknown.
+21. An artist linked on the tagger page becomes its genre; an unlinked artist is a reject; an artist that
+    reads as a genre is only a footnote.
+22. A run deletes and rewrites `rules_genre_proposals` with targets carrying ids, and issues no `UPDATE`
+    on `rules_genres` and no insert into `rules_genre_expansions`.
+23. `GET /api/rules/genres` carries `proposal` per row (null before the first run), accepts
+    `proposal=<kind>` and rejects an unknown kind with 400.
+24. `GET /api/rules` returns approved genres only.
+25. `decisionFromProposal` maps split/rewrite to black with the target ids, reject to black, keep to white
+    and unknown to null; `planFromProposals` applies nothing under the floor.
+
+## The page since the rules moved in
+
+Curatie › Genres carries four sections (`SECTIONS` in `management/genreRules.js`): the queue with
+its advice, the approved-genre overview, and one rule panel each for artist → genre and
+label → genre. The tagger page (`TaggerTab.svelte`) is the tagger itself — rescan and the retag
+pile — and points here; its "Genre Overzicht" and "Genre Koppelingen" sub-tabs are gone. The old
+overview listed every row of `rules_genres`, rejected and queued included, and the artist/label
+picker offered those as link targets.
+
+- `GenreOverviewPanel.svelte` reads `GET /api/curation/genres` (approved only; `q`, `limit` ≤
+  1000): id, name, hardness, occurrences, `track_count`, `artist_rule_count`,
+  `label_rule_count`, `parents` (from `rules_subgenre_hierarchy`). The row opens `genre-edit:<name>`.
+- `GenreRulesPanel.svelte` serves both rule kinds; `RULE_KINDS` in `genreRules.js` holds what
+  differs (endpoint, name column, how to open the subject). `GET /api/rules/artist-genres` and
+  `label-genres` now join the library row for `artist_id`/`label_id` and `track_count`, and carry
+  `created_at`/`created_by`. A rule whose name has left the library is shown as such rather than
+  hidden. The whole list is loaded once (480 + 49 rules on prod) and filtered client-side on name
+  *or* genre with the same key as the queue's search box.
+- `buildRule` refuses an empty name, a missing genre and a pair that already exists (the API
+  would upsert and only re-stamp `created_by`), so the button and the request agree.
+- Management.svelte no longer fetches `/api/rules`, `/api/artists` and `/api/labels` on open —
+  ten calls instead of eleven behind the proxy gate.
+
+Acceptance: 26. `GET /api/curation/genres` lists white genres only with the counts above and turns
+`parents` into a list. 27. Both rule list endpoints carry the library id, track count and
+provenance. 28. `buildRule` refuses a duplicate ignoring case; `sortRules` never mutates.
+29. The tagger page renders neither "Genre Overzicht" nor "Genre Koppelingen" and its link opens
+`genre-curation`. 30. The queue's state filter is hidden outside the queue section.

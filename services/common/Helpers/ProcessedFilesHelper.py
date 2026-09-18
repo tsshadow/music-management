@@ -20,10 +20,16 @@ class ProcessedFilesHelper:
     def create_table(self):
         """Creates the table if it doesn't exist."""
         query = f'\n            CREATE TABLE IF NOT EXISTS {self.table_name} (\n                filepath VARCHAR(767) PRIMARY KEY,\n                mtime FLOAT,\n                last_processed TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n                needs_rescan BOOLEAN DEFAULT FALSE,\n                rescan_reason VARCHAR(64) NULL\n            )\n        '
+        # pending_paths pages through the queued rows by primary key; without this the
+        # table is scanned once per page, and there are 260k rows on production.
+        index = (
+            f'CREATE INDEX IF NOT EXISTS idx_{self.table_name}_pending ON {self.table_name} (needs_rescan, filepath)'
+        )
         connection = self.db_connector.connect()
         try:
             with connection.cursor() as cursor:
                 cursor.execute(query)
+                cursor.execute(index)
             connection.commit()
         except Exception as e:
             logging.error(f'Error creating {self.table_name}: {e}')
@@ -152,6 +158,46 @@ class ProcessedFilesHelper:
         finally:
             connection.close()
         return marked
+
+    def pending_paths(self, limit: int, after: str = '') -> list[str]:
+        """The next page of files queued for a retag, in primary-key order.
+
+        Keyed on the path rather than offset so that a file which fails to clear its
+        flag -- unreadable, gone between the SELECT and the stat -- is not handed out
+        again on the very next page. A round that is cut short by a restart resumes
+        where it was for free: what it tagged is no longer queued.
+        """
+        query = (
+            f'SELECT filepath FROM {self.table_name} WHERE needs_rescan = TRUE AND filepath > %s '
+            f'ORDER BY filepath LIMIT %s'
+        )
+        connection = self.db_connector.connect()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query, (after, int(limit)))
+                return [str(row[0]) for row in cursor.fetchall() if row and row[0]]
+        except Exception as e:
+            logging.error(f'Error reading the pending rescan queue: {e}')
+            return []
+        finally:
+            connection.close()
+
+    def forget(self, song_path: str) -> None:
+        """Drop the row of a file that is no longer on disk.
+
+        A queued row whose file was moved or deleted would otherwise stay queued for
+        ever: nothing walks into it to mark it processed, and the pending count keeps
+        promising work that cannot be done.
+        """
+        connection = self.db_connector.connect()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(f'DELETE FROM {self.table_name} WHERE filepath = %s', (song_path,))
+            connection.commit()
+        except Exception as e:
+            logging.error(f'Error forgetting a vanished file: {e}')
+        finally:
+            connection.close()
 
     def pending_summary(self) -> dict:
         """How many files are waiting for a retag, grouped by why."""

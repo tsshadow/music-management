@@ -75,6 +75,54 @@ class NeedsProcessingTest(ProcessedFilesHelperTestCase):
         self.connection.close.assert_called_once()
 
 
+class SnapshotTest(ProcessedFilesHelperTestCase):
+    """One SELECT per round instead of one connection per file."""
+
+    def test_the_whole_table_is_read_in_one_query(self):
+        self.cursor.fetchall.return_value = [('/music/a.mp3', 100.0, 0), ('/music/b.mp3', 200.0, 1)]
+        self.assertTrue(self.helper.load_snapshot())
+        self.assertEqual(self.executed(), ['SELECT filepath, mtime, needs_rescan FROM tagger_processed_files'])
+        self.connection.close.assert_called_once()
+
+    def test_with_a_snapshot_needs_processing_asks_the_database_nothing(self):
+        self.cursor.fetchall.return_value = [('/music/a.mp3', 100.0, 0), ('/music/b.mp3', 200.0, 1)]
+        self.helper.load_snapshot()
+        self.cursor.execute.reset_mock()
+        self.assertFalse(self.helper.needs_processing('/music/a.mp3', 100.0))  # unchanged
+        self.assertTrue(self.helper.needs_processing('/music/a.mp3', 101.0))  # changed on disk
+        self.assertTrue(self.helper.needs_processing('/music/b.mp3', 200.0))  # flagged
+        self.assertTrue(self.helper.needs_processing('/music/new.mp3', 5.0))  # never seen
+        self.cursor.execute.assert_not_called()
+
+    def test_marking_a_file_processed_keeps_the_snapshot_current(self):
+        self.cursor.fetchall.return_value = [('/music/b.mp3', 200.0, 1)]
+        self.helper.load_snapshot()
+        self.helper.mark_processed('/music/b.mp3', 200.0)
+        self.helper.mark_processed('/music/new.mp3', 5.0)
+        self.cursor.execute.reset_mock()
+        self.assertFalse(self.helper.needs_processing('/music/b.mp3', 200.0))
+        self.assertFalse(self.helper.needs_processing('/music/new.mp3', 5.0))
+        self.cursor.execute.assert_not_called()
+
+    def test_dropping_the_snapshot_returns_to_per_file_queries(self):
+        self.cursor.fetchall.return_value = [('/music/a.mp3', 100.0, 0)]
+        self.helper.load_snapshot()
+        self.helper.drop_snapshot()
+        self.cursor.execute.reset_mock()
+        self.cursor.fetchone.return_value = (100.0, 0)
+        self.assertFalse(self.helper.needs_processing('/music/a.mp3', 100.0))
+        self.assertIn('WHERE filepath = %s', self.executed()[0])
+
+    def test_a_failed_load_falls_back_to_per_file_queries(self):
+        self.cursor.execute.side_effect = RuntimeError('database gone')
+        self.assertFalse(self.helper.load_snapshot())
+        self.connection.close.assert_called_once()
+        self.cursor.execute.side_effect = None
+        self.cursor.fetchone.return_value = None
+        self.assertTrue(self.helper.needs_processing('/music/a.mp3', 1.0))
+        self.assertIn('WHERE filepath = %s', self.executed()[-1])
+
+
 class MarkProcessedTest(ProcessedFilesHelperTestCase):
     def test_the_song_and_its_mtime_are_stored(self):
         self.helper.mark_processed('/music/a.mp3', 123.0)

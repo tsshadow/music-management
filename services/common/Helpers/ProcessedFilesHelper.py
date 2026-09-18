@@ -13,9 +13,16 @@ class ProcessedFilesHelper:
     #: chunked rather than handed to the database in one statement of unbounded size.
     BATCH_SIZE = 500
 
+    #: Marker in the snapshot for a row flagged for rescan: it needs processing whatever
+    #: the file's mtime says, so no real mtime is kept for it.
+    FLAGGED = -1.0
+
     def __init__(self, table_name='tagger_processed_files'):
         self.table_name = table_name
         self.db_connector = DatabaseConnector()
+        # filepath -> mtime (or FLAGGED) for the whole table, while a tagging round holds
+        # one. None means every needs_processing goes to the database.
+        self._snapshot: dict[str, float] | None = None
 
     def create_table(self):
         """Creates the table if it doesn't exist."""
@@ -36,12 +43,52 @@ class ProcessedFilesHelper:
         finally:
             connection.close()
 
+    def load_snapshot(self) -> bool:
+        """Read the whole table once, so the round that follows asks it nothing per file.
+
+        A tagging round walks every file in the library and asked this table about each
+        one on a fresh connection: measured on production, 14 ms per file of which
+        0.1 ms was the query, over 327k files -- 75 minutes of connecting per round,
+        with nothing to tag. The same 327k rows come back in one SELECT in 1.4 s and
+        fit in about 100 MB. The walk reads the dict, mark_processed keeps it current,
+        and drop_snapshot ends the round. A file flagged for rescan *after* the load is
+        missed by this round's walk and picked up by the next round's pending pass.
+
+        Returns False when the table could not be read; the round then falls back to
+        per-file queries rather than tagging nothing.
+        """
+        query = f'SELECT filepath, mtime, needs_rescan FROM {self.table_name}'
+        connection = self.db_connector.connect()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query)
+                snapshot: dict[str, float] = {}
+                for filepath, db_mtime, needs_rescan in cursor.fetchall():
+                    snapshot[str(filepath)] = self.FLAGGED if needs_rescan else float(db_mtime or 0)
+            self._snapshot = snapshot
+            return True
+        except Exception as e:
+            logging.error(f'Error loading the processed files snapshot: {e}')
+            self._snapshot = None
+            return False
+        finally:
+            connection.close()
+
+    def drop_snapshot(self) -> None:
+        self._snapshot = None
+
     def needs_processing(self, song_path: str, mtime: float) -> bool:
         """
         Checks if a song needs to be processed.
         Returns True if the song is not in the database, its mtime has changed,
         or it has been explicitly marked for rescan.
         """
+        snapshot = self._snapshot
+        if snapshot is not None:
+            known = snapshot.get(song_path)
+            if known is None or known == self.FLAGGED:
+                return True
+            return mtime > known
         query = f'SELECT mtime, needs_rescan FROM {self.table_name} WHERE filepath = %s'
         connection = self.db_connector.connect()
         try:
@@ -68,6 +115,9 @@ class ProcessedFilesHelper:
             with connection.cursor() as cursor:
                 cursor.execute(query, (song_path, mtime))
             connection.commit()
+            snapshot = self._snapshot
+            if snapshot is not None:
+                snapshot[song_path] = mtime
         except Exception as e:
             logging.error(f'Error marking song as processed: {e}')
         finally:

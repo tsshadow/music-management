@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="buttons.play">Reproducir</string>
-    <string name="button_bar.search">Buscar</string>
     <string name="language.en">Inglés</string>
     <string name="download.jukebox_not_authorized">Non está permitido o control remoto. Activa o modo jukebox en <b>Usuarias &gt; Axustes</b> no teu servidor Subsonic.</string>
     <string name="language.fr">Francés</string>
@@ -20,10 +19,7 @@
     <string name="main.albums_title">Álbums</string>
     <string name="language.pt_BR">Portugués (Brasil)</string>
     <string name="language.cs">Checo</string>
-    <string name="main.albums_random">Ao chou</string>
     <string name="language.it">Italiano</string>
     <string name="main.offline">Sen conexión</string>
-    <string name="main.songs_starred">Con estrela</string>
     <string name="language.default">Seguir ao sistema</string>
-    <string name="main.albums_recent">Reproducido recente</string>
 </resources>

@@ -362,6 +362,19 @@ class MediaLibrarySessionCallback :
             trace.outcome("PLAY_NOW, handed to the ordinary play path")
             VoiceTraceLog.record(trace)
         }
+
+        // A tap on one track in a browsed list. The car sends the one media id and nothing else,
+        // and the default path answers with the one item, so playback used to stop after it.
+        // Resolved here rather than in onAddMediaItems because only this callback can say where
+        // in the returned list to start.
+        val tapped = mediaItems.singleOrNull()
+            ?.takeIf { it.requestMetadata.searchQuery == null && it.requestMetadata.mediaUri == null }
+        if (tapped != null && isTrackInList(tapped.mediaId)) {
+            return queueFromTap(mediaSession, tapped.mediaId) {
+                super.onSetMediaItems(mediaSession, controller, mediaItems, startIndex, startPositionMs)
+            }
+        }
+
         return super.onSetMediaItems(
             mediaSession,
             controller,
@@ -369,6 +382,49 @@ class MediaLibrarySessionCallback :
             startIndex,
             startPositionMs
         )
+    }
+
+    private fun isTrackInList(mediaId: String): Boolean = TRACK_IN_LIST_IDS.any { mediaId.startsWith("$it|") }
+
+    /**
+     * The browsed list from the tapped track onwards. The list may have to be refetched (a car
+     * that remembered the id from before the cache was lost), so it is resolved off the main
+     * thread; a list that no longer holds the track falls back to [fallback], the old one-item
+     * path, rather than playing nothing.
+     */
+    @OptIn(UnstableApi::class)
+    private fun queueFromTap(
+        mediaSession: MediaSession,
+        mediaId: String,
+        fallback: () -> ListenableFuture<MediaSession.MediaItemsWithStartPosition>
+    ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+        stopRadioIfRunning(mediaSession)
+        playbackSourceHolder.startQueue()
+        commandHandler.clearShuffleForNewCarQueue(mediaSession.player)
+
+        val result = SettableFuture.create<MediaSession.MediaItemsWithStartPosition>()
+        mainScope.launch {
+            val queue = try {
+                withContext(Dispatchers.IO) { playbackController.queueForTap(mediaId) }
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                Timber.e(e, "Could not resolve the list behind %s", mediaId)
+                null
+            }
+            if (queue == null) {
+                Timber.i("No list behind %s, playing the one track", mediaId)
+                result.setFuture(fallback())
+                return@launch
+            }
+            Timber.i("Playing %d tracks from index %d for %s", queue.tracks.size, queue.startIndex, mediaId)
+            result.set(
+                MediaSession.MediaItemsWithStartPosition(
+                    queue.tracks.map { it.toMediaItem() },
+                    queue.startIndex,
+                    0L
+                )
+            )
+        }
+        return result
     }
 
     /**
@@ -758,5 +814,15 @@ class MediaLibrarySessionCallback :
     companion object {
         /** Radio always transcodes, so it needs an explicit ceiling. */
         private const val RADIO_MAX_BITRATE = 320
+
+        /** The song-level media ids: one track inside a list the car browsed. */
+        private val TRACK_IN_LIST_IDS = listOf(
+            MEDIA_PLAYLIST_SONG_ITEM,
+            MEDIA_ALBUM_SONG_ITEM,
+            MEDIA_SONG_STARRED_ITEM,
+            MEDIA_SONG_RANDOM_ITEM,
+            MEDIA_SEARCH_SONG_ITEM,
+            MEDIA_FEED_ITEM
+        )
     }
 }

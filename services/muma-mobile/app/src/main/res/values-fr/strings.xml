@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="buttons.play">Lecture</string>
-    <string name="button_bar.search">Recherche</string>
     <string name="download.jukebox_not_authorized">La télécommande n\'est pas autorisée. Veuillez activer le mode jukebox dans <b>Utilisateurs &gt; Paramètres</b> à partir de votre serveur Subsonic.</string>
     <string name="download.jukebox_offline">Le mode jukebox n\'est pas disponible en mode déconnecté.</string>
     <string name="download.jukebox_server_too_old">Le mode jukebox n\'est pas pris en charge. Mise à jour du serveur Subsonic requise.</string>
@@ -20,13 +19,10 @@
     <string name="language.pt">Portugais</string>
     <string name="language.pt_BR">Portugais (Brésil)</string>
     <string name="language.ru">Russe</string>
-    <string name="main.albums_random">Aléatoire</string>
-    <string name="main.albums_recent">Récemment écoutés</string>
     <string name="main.albums_title">Albums</string>
     <string name="main.artists_title">Artistes</string>
     <string name="main.genres_title">Genres</string>
     <string name="main.offline">Hors-ligne</string>
-    <string name="main.songs_starred">Favoris</string>
     <string name="main.songs_title">Titres</string>
     <string name="main.welcome_text_demo">Pour utiliser MuMa avec votre propre musique vous allez avoir besoin de <b>votre propre serveur</b>. \n\n➤ Si vous souhaitez essayer l’application d’abord, il est possible d’ajouter un serveur de démo dès maintenant. \n\n➤ Autrement, vous pouvez configurer votre serveur dans les <b>paramètres</b>.</string>
     <string name="main.welcome_title">Bienvenue sur MuMa !</string>

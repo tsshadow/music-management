@@ -7,15 +7,19 @@
 
 package nl.teunschriks.mumamobile.service.androidauto
 
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.guava.future
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.SearchResult
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.home.TileInfo
+import nl.teunschriks.mumamobile.home.toTileInfo
 import nl.teunschriks.mumamobile.service.FeedRepository
 import nl.teunschriks.mumamobile.service.MusicService
 import nl.teunschriks.mumamobile.service.MusicServiceFactory
+import nl.teunschriks.mumamobile.util.TimeLimitedCache
 import org.koin.java.KoinJavaComponent
 import timber.log.Timber
 
@@ -100,10 +104,10 @@ class MediaLibraryDataProvider(
                 mediaIdParts[INDEX_NAME]
             )
             MEDIA_BOOKMARK_ITEM -> playbackController.playBookmark(mediaIdParts[INDEX_ID])
-            MEDIA_PODCAST_ITEM -> playbackController.playPodcast(mediaIdParts[INDEX_ID])
-            MEDIA_PODCAST_EPISODE_ITEM -> playbackController.playPodcastEpisode(
+            MEDIA_TAG_PLAY -> playbackController.playTagQuery(mediaIdParts)
+            MEDIA_PRESET_PLAY -> playbackController.playPreset(
                 mediaIdParts[INDEX_ID],
-                mediaIdParts[INDEX_NAME]
+                mediaIdParts.getOrNull(INDEX_SORT)
             )
 
             MEDIA_SEARCH_SONG_ITEM -> playbackController.playSearch(mediaIdParts[INDEX_ID])
@@ -117,6 +121,56 @@ class MediaLibraryDataProvider(
             }
         }
     }
+
+    /**
+     * The tracks one [BrowseQuery] stands for, as `getSongs` answers them. Blocking, like the
+     * other list calls here: callers already sit on a background future. The answer becomes the
+     * random-songs cache, which is what a tap on one of the rows plays from.
+     */
+    fun tracksFor(query: BrowseQuery, page: Int, pageSize: Int): List<Track>? {
+        val songs = callWithErrorHandling {
+            musicService.getSongs(
+                filters = query.toFilters(),
+                ratingMin = query.ratingMin,
+                ratingMax = query.ratingMax,
+                count = minOf(pageSize, query.count),
+                offset = page * pageSize,
+                sortMethod = query.sortMethod,
+                festivalLineup = query.festivalLineup,
+                minDuration = query.minDuration,
+                maxDuration = query.maxDuration
+            )
+        } ?: return null
+        val tracks = songs.getTracks()
+        randomSongsCache = tracks
+        return tracks
+    }
+
+    /**
+     * The listener's presets: the dynamic playlists MuMa keeps per user, which the web home grid
+     * shows as tiles. The car reads the server directly -- a preset saved on the web is in the
+     * car on the next browse, without the phone ever opening.
+     *
+     * Cached for a few minutes because several browse levels ask for the same list back to back
+     * and the car re-requests a level on every scroll. A failed fetch answers the empty list
+     * rather than throwing: the folder is empty, the rest of the tree stays. [length] narrows to
+     * the tiles saved under that length ("short"/"long").
+     */
+    private val presetCache = TimeLimitedCache<List<TileInfo>>(PRESET_CACHE_MINUTES, TimeUnit.MINUTES)
+
+    fun presets(length: String? = null): List<TileInfo> {
+        val all = presetCache.get() ?: run {
+            val tiles = callWithErrorHandling { musicService.getMumaTiles() }
+                ?.mapNotNull { it.toTileInfo() }
+                ?: emptyList()
+            presetCache.set(tiles)
+            tiles
+        }
+        return all.filter { length == null || it.length == length }
+    }
+
+    /** One preset by its server id, or null when the server does not (or no longer) list it. */
+    fun preset(id: String): TileInfo? = presets().firstOrNull { it.id == id }
 
     fun listSongsInMusicService(id: String, name: String?): MusicDirectory? = serviceScope.future {
         if (ActiveServerProvider.shouldUseId3Tags()) {
@@ -133,4 +187,8 @@ class MediaLibraryDataProvider(
             callWithErrorHandling { musicService.getStarred() }
         }
     }.get()
+
+    private companion object {
+        const val PRESET_CACHE_MINUTES = 5L
+    }
 }

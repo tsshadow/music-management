@@ -11,6 +11,13 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.68.0 (2026-09-19)
+
+- **Artiesten worden goedgekeurd op extern bewijs.** Een script vraagt Deezer, iTunes en
+  MusicBrainz of de nummers van een naam daar op die naam staan; wat niet te bewijzen is
+  blijft in de wachtrij.
+
+- **De tagger draaide elke ronde rondjes om 768 verdwenen bestanden.** Gestopt.
 ## Global Version 0.67.0 (2026-09-19)
 
 - **LMS scant niet meer de hele nacht door achter een tagger-ronde aan** die niets veranderde.

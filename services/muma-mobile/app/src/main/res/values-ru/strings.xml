@@ -2,7 +2,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
     <string name="buttons.play">Воспроизведение</string>
-    <string name="button_bar.search">Поиск</string>
     <string name="download.jukebox_not_authorized">Пульт дистанционного управления не допускается. Пожалуйста, включите режим музыкального автомата в <b> Пользователи &gt; Настройки </b>на вашем Subsonic сервере.</string>
     <string name="download.jukebox_offline">Пульт дистанционного управления недоступен в автономном режиме.</string>
     <string name="download.jukebox_server_too_old">Пульт дистанционного управления не поддерживается. Пожалуйста, обновите ваш дозвуковой сервер.</string>
@@ -16,13 +15,10 @@
     <string name="language.pt">Португальский</string>
     <string name="language.pt_BR">Португальский (Бразилия)</string>
     <string name="language.ru">Русский</string>
-    <string name="main.albums_random">Случайный</string>
-    <string name="main.albums_recent">Недавно играло</string>
     <string name="main.albums_title">Альбомы</string>
     <string name="main.artists_title">Исполнители</string>
     <string name="main.genres_title">Жанры</string>
     <string name="main.offline">Не в сети</string>
-    <string name="main.songs_starred">Отмеченные</string>
     <string name="main.songs_title">Песни</string>
     <string name="main.welcome_text_demo">Чтобы использовать MuMa с вашей собственной музыкой, вам понадобится <b>собственный сервер</b>. \n\n➤ Если вы хотите сначала опробовать приложение, вы можете добавить демо-сервер прямо сейчас. \n\n➤ В противном случае вы можете настроить свой сервер в <b>настройках</b>.</string>
     <string name="main.welcome_title">Добро пожаловать в MuMa!</string>

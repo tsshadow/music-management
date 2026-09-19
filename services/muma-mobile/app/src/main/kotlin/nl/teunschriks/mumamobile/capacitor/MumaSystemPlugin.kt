@@ -56,7 +56,7 @@ import timber.log.Timber
  * |---|---|
  * | `isNative` | `isNative()` → `{value: true}` |
  * | `appVersion()` | `appVersion()` → `{version, versionCode, buildType, packageName, androidVersion, device}`, see [appVersion] |
- * | `checkForUpdate()` | `checkForUpdate()` → `{available, currentVersionCode, currentVersionName, latestVersionCode, latestVersionName, url}`, rejects when the hoster cannot be asked; see [checkForUpdate] |
+ * | `checkForUpdate()` | `checkForUpdate()` → `{available, currentVersionCode, currentVersionName, currentSeries, latestVersionCode, latestVersionName, latestSeries, url}`, rejects when the hoster cannot be asked; see [checkForUpdate] |
  * | `openUrl({url})` | `openUrl({url})`, an `ACTION_VIEW` to whatever handles it; rejects when nothing does |
  * | `releaseNotes()` | `releaseNotes()` → `{text}`, muma-mobile's own `CHANGELOG.md` |
  * | `serverUrl()` | `serverUrl()` → `{subsonic, mumaApi}` |
@@ -154,26 +154,48 @@ class MumaSystemPlugin :
     }
 
     /**
-     * Asks apk-hoster whether a newer build of this series exists -- the check the legacy Kotlin
-     * home screen ran on every start (`util/UpdateChecker.kt`, deleted with that screen) and that
-     * nothing ran since, which is how a phone on build 312 heard nothing about 313.
+     * Asks apk-hoster whether a newer build exists -- the check the legacy Kotlin home screen
+     * ran on every start (`util/UpdateChecker.kt`, deleted with that screen) and that nothing
+     * ran since, which is how a phone on build 312 heard nothing about 313.
+     *
+     * A release build asks after its own series; a debug build asks after its own *and* the
+     * release series and is told about the newer of the two ([AppUpdate.seriesToAsk]), so a
+     * debug phone hears that a release outran it even when nobody pressed `mobile:build-debug`.
+     * The answer names the series the newest build came from (`latestSeries`) next to this
+     * build's own (`currentSeries`); the web words a cross-series answer differently, since the
+     * release APK installs beside the debug one rather than over it.
      *
      * The plugin only fetches and compares; the web decides when to ask (once a day on start,
      * and whenever the About page's button is pressed) and how to tell the listener. A hoster
      * that cannot be reached or answers with an error *rejects* rather than resolving
      * `available: false`: "you are up to date" and "I could not check" are different answers,
-     * and the manual button has to show the second one as such.
+     * and the manual button has to show the second one as such. With two series asked, one
+     * answer is enough: the check only rejects when neither series could be read.
      */
     @PluginMethod
     fun checkForUpdate(call: PluginCall) {
-        val series = AppUpdate.seriesOf(BuildConfig.DEBUG)
-        val url = AppUpdate.versionUrl(BuildConfig.APK_HOST_URL, series, BuildConfig.APK_HOST_USER)
+        val ownSeries = AppUpdate.seriesOf(BuildConfig.DEBUG)
         io.launch {
-            val latest = try {
-                AppUpdate.fetchLatest(updateClient, url, BuildConfig.VERSION_NAME, BuildConfig.APK_HOST_PASSWORD)
-            } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
-                Timber.w(all, "Could not check for an update at %s", url)
-                withContext(Dispatchers.Main) { call.reject("update check failed: ${all.message}") }
+            val answers = mutableListOf<AppUpdate.Latest>()
+            var firstFailure: Throwable? = null
+            for (series in AppUpdate.seriesToAsk(BuildConfig.DEBUG)) {
+                val url = AppUpdate.versionUrl(BuildConfig.APK_HOST_URL, series, BuildConfig.APK_HOST_USER)
+                try {
+                    answers += AppUpdate.fetchLatest(
+                        updateClient,
+                        url,
+                        BuildConfig.VERSION_NAME,
+                        BuildConfig.APK_HOST_PASSWORD,
+                        series
+                    )
+                } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
+                    Timber.w(all, "Could not check for an update at %s", url)
+                    if (firstFailure == null) firstFailure = all
+                }
+            }
+            val latest = AppUpdate.newest(answers)
+            if (latest == null) {
+                withContext(Dispatchers.Main) { call.reject("update check failed: ${firstFailure?.message}") }
                 return@launch
             }
             val current = BuildConfig.VERSION_CODE
@@ -183,8 +205,10 @@ class MumaSystemPlugin :
                         .put("available", AppUpdate.isNewer(latest, current))
                         .put("currentVersionCode", current)
                         .put("currentVersionName", BuildConfig.VERSION_NAME)
+                        .put("currentSeries", ownSeries)
                         .put("latestVersionCode", latest.versionCode)
                         .put("latestVersionName", latest.versionName)
+                        .put("latestSeries", latest.series)
                         .put("url", AppUpdate.downloadUrl(latest.url))
                 )
             }

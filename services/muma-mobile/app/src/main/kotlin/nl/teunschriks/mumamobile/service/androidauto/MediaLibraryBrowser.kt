@@ -23,10 +23,7 @@ import androidx.media3.session.SessionError
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import java.util.Date
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.guava.future
@@ -45,14 +42,11 @@ import nl.teunschriks.mumamobile.domain.ArtistOrIndex
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.home.FavoriteGenres
 import nl.teunschriks.mumamobile.home.TileInfo
-import nl.teunschriks.mumamobile.home.toTileInfo
 import nl.teunschriks.mumamobile.provider.AlbumArtContentProvider
 import nl.teunschriks.mumamobile.service.MusicService
 import nl.teunschriks.mumamobile.service.MusicServiceFactory
 import nl.teunschriks.mumamobile.util.FileUtil
-import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Settings.maxSongs
-import nl.teunschriks.mumamobile.util.TimeLimitedCache
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.buildMediaItem
 import nl.teunschriks.mumamobile.util.toMediaItem
@@ -125,14 +119,6 @@ class MediaLibraryBrowser(
     // Radio talks to the MuMa backend rather than the Subsonic API, so it needs
     // the client that owns the /muma base URL and the API-key interceptor.
     private val subsonicAPIClient: SubsonicAPIClient by inject(SubsonicAPIClient::class.java)
-
-    /**
-     * The cover the app draws for a genre, or null when there is nothing to draw.
-     *
-     * A genre carries no artwork of its own, so without this the car keeps the level a text list
-     * however the content style is set.
-     */
-    private fun genreArt(name: String): Uri? = BrowseArtwork.forGenre(name, genreTints.tintFor(name))
 
     /**
      * The artist's portrait, or initials on the colour of the genre they are filed under.
@@ -304,6 +290,7 @@ class MediaLibraryBrowser(
 
         return when (action) {
             MEDIA_ROOT_ID -> getRootItems()
+            MEDIA_START_ID -> getStartItems()
             MEDIA_RADIO_ID -> getRadioChannelItems()
             MEDIA_NEWS_ID -> getNewsBulletinItems()
             MEDIA_FEED_ID -> {
@@ -320,13 +307,9 @@ class MediaLibraryBrowser(
             MEDIA_FAVORITE_GENRES_ID -> getFavoriteGenreItems()
             MEDIA_FAVORITE_PLAYLISTS_ID -> getFavoritePlaylistItems()
             MEDIA_SONGS_ID -> getSongsTabItems()
-            MEDIA_LIVESETS_ID -> getLiveSetsTabItems()
             MEDIA_SETS_ID -> getSetsTabItems()
-            MEDIA_SETS_FAVORITES_ID -> getSetsFavoriteItems()
             MEDIA_FAVORITE_GENRES_SETS_ID -> getFavoriteGenreItems(length = "long")
             MEDIA_FAVORITE_PLAYLISTS_SETS_ID -> getFavoritePlaylistItems(length = "long")
-            MEDIA_LAST_PLAYED_GENRES_SONGS -> getLastPlayedGenres("short")
-            MEDIA_LAST_PLAYED_GENRES_LIVESETS -> getLastPlayedGenres("long")
             MEDIA_ARTIST_ID -> getArtists()
             MEDIA_ARTIST_SECTION -> {
                 val section = parts.getOrNull(INDEX_ID)
@@ -377,80 +360,41 @@ class MediaLibraryBrowser(
                 }
             }
 
-            MEDIA_GET_GENRES -> {
-                val length = parts.getOrNull(INDEX_LENGTH)
-                if (length !=
-                    null
-                ) {
-                    getGenres(length)
+            MEDIA_TAG_LIST -> {
+                val query = TagQuery.parse(parts)
+                if (query != null && query.type.isNotBlank()) {
+                    getTagList(query.length, query.type)
+                } else {
+                    emptyResult("Missing length or type in $parentId")
+                }
+            }
+
+            MEDIA_TAG_YEARS -> {
+                val query = TagQuery.parse(parts)
+                if (query != null) getTagYears(query) else emptyResult("Missing length in $parentId")
+            }
+
+            MEDIA_TAG_TRACKS -> {
+                val query = TagQuery.parse(parts)
+                if (query != null) {
+                    getTagFolder(query, safePage, safePageSize)
                 } else {
                     emptyResult("Missing length in $parentId")
                 }
             }
 
-            MEDIA_GET_YEARS -> {
+            MEDIA_LINEUP_LIST -> {
                 val length = parts.getOrNull(INDEX_LENGTH)
-                val genre = parts.getOrNull(INDEX_GENRE)
-                if (length != null && genre != null) {
-                    getYears(length, genre)
-                } else {
-                    emptyResult("Missing length or genre in $parentId")
-                }
+                if (length != null) getLineupList(length) else emptyResult("Missing length in $parentId")
             }
 
-            MEDIA_GET_SORT_METHOD -> {
-                val length = parts.getOrNull(INDEX_LENGTH)
-                val genre = parts.getOrNull(INDEX_GENRE)
-                val year = parts.getOrNull(INDEX_YEAR)
-                if (length != null && genre != null && year != null) {
-                    getSortMethod(
-                        length,
-                        genre,
-                        year
-                    )
-                } else {
-                    emptyResult("Missing sort params in $parentId")
-                }
-            }
-
-            MEDIA_GET_SONGS_BY_GENRE -> {
-                val length = parts.getOrNull(INDEX_LENGTH)
-                val genreList = parts.getOrNull(INDEX_GENRE)
-                    ?.takeIf { it.isNotBlank() }
-                    ?.split(",")
-                    ?: emptyList()
-
-                val yearList = parts.getOrNull(INDEX_YEAR)
-                    ?.takeIf { it.isNotBlank() }
-                    ?.split(",")
-                    ?.mapNotNull { it.toIntOrNull() }
-                    ?: emptyList()
-
-                val sortMethod = parts.getOrNull(INDEX_SORT_METHOD)
-                val festivalLineup = parts.getOrNull(INDEX_FESTIVAL_LINEUP)
-                val ratingMin = parts.getOrNull(INDEX_RATING_MIN)?.toIntOrNull() ?: 0
-                val ratingMax = parts.getOrNull(INDEX_RATING_MAX)?.toIntOrNull() ?: 5
-
-                if (length != null && sortMethod != null) {
-                    getGenre(
-                        length = length,
-                        genres = genreList,
-                        years = yearList,
-                        sortMethod = sortMethod,
-                        page = safePage,
-                        pageSize = safePageSize,
-                        festivalLineup = festivalLineup,
-                        ratingMin = ratingMin,
-                        ratingMax = ratingMax
-                    )
-                } else {
-                    emptyResult("Invalid genre/song filter in $parentId")
-                }
+            MEDIA_PRESET -> {
+                val id = parts.getOrNull(INDEX_ID)
+                if (id != null) getPresetFolder(id) else emptyResult("Missing preset id in $parentId")
             }
 
             MEDIA_SHARE_ID -> getShares()
             MEDIA_BOOKMARK_ID -> getBookmarks()
-            MEDIA_PODCAST_ID -> getPodcasts()
             MEDIA_PLAYLIST_ITEM -> {
                 val playlistId = parts.getOrNull(INDEX_ID)
                 val name = parts.getOrNull(INDEX_NAME)
@@ -490,116 +434,67 @@ class MediaLibraryBrowser(
                 }
             }
 
-            MEDIA_PODCAST_ITEM -> {
-                val podcastId = parts.getOrNull(INDEX_ID)
-                if (podcastId != null) {
-                    getPodcastEpisodes(podcastId)
-                } else {
-                    emptyResult("Missing podcastId in $parentId")
-                }
-            }
-
             else -> emptyResult("Unknown action in $parentId")
         }
     }
 
+    /**
+     * The four tabs. Android Auto draws the root's children as tabs and shows at most four; a
+     * fifth and everything after it disappear behind a "More" tab, which is where the daily
+     * mixes, the radar, radio, news and Favorites all lived while the root had nine entries.
+     *
+     * Start is what the car opens the app for; Songs and Sets mirror the phone's Browse grid in
+     * each mode; Library is what does not depend on the mode.
+     *
+     * toUri rather than Uri.parse: an identical Uri.parse string anywhere in this file can
+     * consume a lint baseline entry that belongs to a different row, which then fails the build
+     * for code nobody touched.
+     */
     private fun getRootItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val mediaItems: MutableList<MediaItem> = ArrayList()
-        val context = UApp.applicationContext()
-        val packageName = context.packageName
 
-        mediaItems.add(
-            R.string.main_library_title,
-            MEDIA_LIBRARY_ID,
-            imageUri = Uri.parse("android.resource://$packageName/${R.drawable.ic_menu_playlists}"),
-            isBrowsable = true,
-            mediaType = MEDIA_TYPE_FOLDER_MIXED
-        )
+        mediaItems.add(R.string.auto_start, MEDIA_START_ID, imageUri = resourceArt(R.drawable.media_shuffle))
+        mediaItems.add(R.string.main_songs_title, MEDIA_SONGS_ID, imageUri = resourceArt(R.drawable.ic_menu_search))
+        mediaItems.add(R.string.main_sets, MEDIA_SETS_ID, imageUri = resourceArt(R.drawable.ic_menu_podcasts))
+        mediaItems.add(R.string.main_library_title, MEDIA_LIBRARY_ID, imageUri = resourceArt(R.drawable.ic_menu_playlists))
 
-        mediaItems.add(
-            R.string.main_songs_title,
-            MEDIA_SONGS_ID,
-            imageUri = Uri.parse("android.resource://$packageName/${R.drawable.ic_menu_search}"),
-            isBrowsable = true,
-            mediaType = MEDIA_TYPE_FOLDER_MIXED
-        )
+        return Futures.immediateFuture(itemListResult(mediaItems))
+    }
 
-        mediaItems.add(
-            R.string.main_livesets_title,
-            MEDIA_LIVESETS_ID,
-            imageUri = Uri.parse("android.resource://$packageName/${R.drawable.ic_menu_podcasts}"),
-            isBrowsable = true,
-            mediaType = MEDIA_TYPE_FOLDER_MIXED
-        )
+    private fun resourceArt(drawable: Int): Uri {
+        val packageName = UApp.applicationContext().packageName
+        return "android.resource://$packageName/$drawable".toUri()
+    }
 
-        // The Sets root: always here next to Songs and Livesets, regardless of the phone's
-        // sets-mode setting -- a driver picks songs or sets by tapping a folder, not by whatever
-        // was last selected on the phone.
-        //
-        // toUri rather than Uri.parse, same reason as the Release Radar row below: an identical
-        // Uri.parse string anywhere in this file can consume a lint baseline entry that belongs
-        // to a different row further down, which then fails the build for code nobody touched.
-        mediaItems.add(
-            R.string.main_sets,
-            MEDIA_SETS_ID,
-            imageUri = "android.resource://$packageName/${R.drawable.ic_menu_podcasts}".toUri(),
-            isBrowsable = true,
-            mediaType = MEDIA_TYPE_FOLDER_MIXED
-        )
+    /**
+     * The Start tab: the personalized feeds, the favourites, and the two live sources, under
+     * group headings so the car draws them as sections rather than one long list.
+     *
+     * Every row here is static. The presets row used to hide itself when the server listed
+     * none, which cost a server round trip before the first tab could draw; it now always shows
+     * and is simply empty on a fresh account. Favorite genres come from local settings and stay
+     * conditional. The old `MEDIA_FAVORITES_ID` folder still answers, for a car that cached it.
+     */
+    private fun getStartItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val mediaItems: MutableList<MediaItem> = ArrayList()
 
-        // The personalized feeds, above Radio: they are the reason to open the app in the car,
-        // and a driver should not have to scroll past the whole library to start one. Daily mixes
-        // used to be a single row here (one slug, the classic mix); it is now a folder of five
-        // mixes on the hardness spectrum plus the day's artist and label, with the classic mix
-        // still inside it as the last entry -- see getDailyMixesFolderItems.
-        mediaItems.add(
-            R.string.main_daily_mixes_title,
-            MEDIA_DAILY_MIXES_ID,
-            imageUri = "android.resource://$packageName/${R.drawable.media_shuffle}".toUri(),
-            isBrowsable = true,
-            mediaType = MEDIA_TYPE_FOLDER_MIXED
-        )
-
+        mediaItems.add(R.string.main_daily_mixes_title, MEDIA_DAILY_MIXES_ID, R.string.auto_group_for_you)
         mediaItems.add(
             R.string.main_release_radar_title,
             listOf(MEDIA_FEED_ID, FEED_RELEASE_RADAR).joinToString("|"),
-            // toUri rather than Uri.parse, and not only because lint prefers it: an identical
-            // Uri.parse string here consumes the lint baseline entry belonging to the Favorites
-            // row further down, which then fails the build for code nobody touched.
-            imageUri = "android.resource://$packageName/${R.drawable.ic_star_full}".toUri(),
-            isBrowsable = true,
-            mediaType = MEDIA_TYPE_FOLDER_MIXED
+            R.string.auto_group_for_you
         )
 
-        mediaItems.add(
-            R.string.main_radio_title,
-            MEDIA_RADIO_ID,
-            imageUri = Uri.parse("android.resource://$packageName/${R.drawable.ic_menu_podcasts}"),
-            isBrowsable = true,
-            mediaType = MEDIA_TYPE_FOLDER_MIXED
-        )
+        mediaItems.add(R.string.favorites_songs, MEDIA_SONG_STARRED_ID, R.string.favorites_title)
+        if (favoriteGenres().isNotEmpty()) {
+            mediaItems.add(R.string.favorites_genres, MEDIA_FAVORITE_GENRES_ID, R.string.favorites_title)
+        }
+        mediaItems.add(R.string.auto_presets, MEDIA_FAVORITE_PLAYLISTS_ID, R.string.favorites_title)
 
-        mediaItems.add(
-            R.string.main_news_title,
-            MEDIA_NEWS_ID,
-            imageUri = Uri.parse("android.resource://$packageName/${R.drawable.ic_menu_podcasts}"),
-            isBrowsable = true,
-            mediaType = MEDIA_TYPE_FOLDER_MIXED
-        )
+        mediaItems.add(R.string.main_radio_title, MEDIA_RADIO_ID, R.string.auto_group_live)
+        mediaItems.add(R.string.main_news_title, MEDIA_NEWS_ID, R.string.auto_group_live)
 
-        // One Favorites entry at the root: starred songs used to sit next to this folder under the
-        // same Dutch label, so they now live inside it together with the favorite genres and tiles.
-        mediaItems.add(
-            R.string.favorites_title,
-            MEDIA_FAVORITES_ID,
-            imageUri = Uri.parse("android.resource://$packageName/${R.drawable.ic_star_full}"),
-            isBrowsable = true,
-            mediaType = MEDIA_TYPE_FOLDER_MIXED
-        )
-
-        return Futures.immediateFuture(
-            itemListResult(mediaItems)
-        )
+        return Futures.immediateFuture(itemListResult(mediaItems))
     }
 
     /**
@@ -717,9 +612,8 @@ class MediaLibraryBrowser(
     }
 
     /**
-     * One tap from the folder to the music: this skips the year and sort-method levels the Genres
-     * browse chain has. [length] used to be fixed at "short" -- Livesets stayed reachable through
-     * the Livesets tab regardless -- but the Sets root needs the same shortcut for "long".
+     * One tap from the folder to the music. Each favourite genre is the same tag folder the
+     * Genres list leads to, so a favourite and a browsed genre behave identically in the car.
      */
     private fun getFavoriteGenreItems(
         length: String = "short"
@@ -729,10 +623,10 @@ class MediaLibraryBrowser(
         favoriteGenres().forEach { genre ->
             mediaItems.add(
                 genre,
-                "$MEDIA_GET_SONGS_BY_GENRE|$length|$genre||AddedDesc",
+                TagQuery(length, BrowseQuery.CLUSTER_GENRE, genre).mediaId(MEDIA_TAG_TRACKS),
                 isBrowsable = true,
                 mediaType = MEDIA_TYPE_PLAYLIST,
-                imageUri = genreArt(genre)
+                imageUri = tagArt(BrowseQuery.CLUSTER_GENRE, genre)
             )
         }
 
@@ -742,8 +636,8 @@ class MediaLibraryBrowser(
     }
 
     /**
-     * [length] narrows to the tiles saved under that length; `null` (the original call, still used
-     * by the songs/mixed Favorites folder) keeps every favourited tile regardless of length.
+     * [length] narrows to the tiles saved under that length; `null` (the Start tab's presets row)
+     * keeps every preset regardless of length.
      */
     private fun getFavoritePlaylistItems(
         length: String? = null
@@ -758,117 +652,85 @@ class MediaLibraryBrowser(
     private fun favoriteGenres(): List<String> = FavoriteGenres.current()
 
     /**
-     * The listener's presets: the dynamic playlists MuMa keeps per user, which the web home grid
-     * shows as tiles and the Kotlin screens used to mirror into a local `TileStorage`. Those
-     * screens are gone, so the car reads the server directly -- a preset saved on the web is in
-     * the car on the next browse, without the phone ever opening.
-     *
-     * Cached for a few minutes because four browse levels ask for the same list back to back and
-     * the car re-requests a level on every scroll. A failed fetch answers the empty list rather
-     * than throwing: the folder disappears, the rest of the tree stays.
-     *
-     * [length] narrows to the tiles saved under that length ("short"/"long"). A tile knows its
-     * own length -- that is how a car tap builds the right media id in [toMediaItem].
+     * The listener's presets: the dynamic playlists MuMa keeps per user. Read from the server
+     * through [MediaLibraryDataProvider.presets], which the playback side shares -- a tap on a
+     * preset row has to find the same tile the list was built from.
      */
-    private val presetCache = TimeLimitedCache<List<TileInfo>>(PRESET_CACHE_MINUTES, TimeUnit.MINUTES)
-
-    private suspend fun presets(length: String? = null): List<TileInfo> {
-        val all = presetCache.get() ?: serviceScope.future {
-            val tiles = callWithErrorHandling { musicService.getMumaTiles() }
-                ?.mapNotNull { it.toTileInfo() }
-                ?: emptyList()
-            presetCache.set(tiles)
-            tiles
-        }.await()
-        return all.filter { length == null || it.length == length }
-    }
+    private suspend fun presets(length: String? = null): List<TileInfo> = serviceScope.future {
+        dataProvider.presets(length)
+    }.await()
 
     private fun getLibraryItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val mediaItems: MutableList<MediaItem> = ArrayList()
-        mediaItems.add(R.string.main_songs_recent, "$MEDIA_SONG_RECENT|short")
-        mediaItems.add(R.string.main_livesets_recent, "$MEDIA_SONG_RECENT|long")
         mediaItems.add(R.string.playlist_label, MEDIA_PLAYLIST_ID)
         mediaItems.add(R.string.main_artists_title, MEDIA_ARTIST_ID)
         mediaItems.add(R.string.main_albums_title, MEDIA_ALBUM_ID)
         return Futures.immediateFuture(itemListResult(mediaItems))
     }
 
-    private fun getSongsTabItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        val mediaItems: MutableList<MediaItem> = ArrayList()
-        mediaItems.add(R.string.button_bar_search, "$MEDIA_GET_GENRES|short")
-        mediaItems.add(R.string.main_songs_recent_added, "$MEDIA_SONG_RECENT|short|AddedDesc")
-        mediaItems.add(R.string.main_albums_released, "$MEDIA_SONG_RECENT|short|DateDescAndRelease")
-        mediaItems.add(R.string.main_last_played_genres, MEDIA_LAST_PLAYED_GENRES_SONGS)
-        return Futures.immediateFuture(itemListResult(mediaItems))
-    }
-
-    private fun getLiveSetsTabItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        val mediaItems: MutableList<MediaItem> = ArrayList()
-        mediaItems.add(R.string.button_bar_search, "$MEDIA_GET_GENRES|long")
-        mediaItems.add(R.string.main_songs_recent_added, "$MEDIA_SONG_RECENT|long|AddedDesc")
-        mediaItems.add(R.string.main_albums_released, "$MEDIA_SONG_RECENT|long|DateDescAndRelease")
-        mediaItems.add(R.string.main_last_played_genres, MEDIA_LAST_PLAYED_GENRES_LIVESETS)
-        return Futures.immediateFuture(itemListResult(mediaItems))
-    }
+    private fun getSongsTabItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = Futures.immediateFuture(itemListResult(browseTabItems("short")))
 
     /**
-     * The Sets root's own tree. Every entry reuses a child media id [getLiveSetsTabItems] already
-     * produces for "long" -- genres, recently added, recently released, last played genres -- so
-     * two different parents lead into the exact same, already-tested nodes rather than a second
-     * definition of them. The one thing Livesets never got is [MEDIA_SETS_FAVORITES_ID]: its own
-     * folder hardcoded "short" everywhere, so a favourite genre or playlist saved for sets had no
-     * way back into the car at all.
+     * The Sets tab is the Songs tab for "long", plus the favourites saved for sets. Both the
+     * favourite-genre and the presets row are static: a folder that is empty on open is better
+     * than a tab that waits on the server before it can draw at all.
      */
     private fun getSetsTabItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        val mediaItems: MutableList<MediaItem> = ArrayList()
-        mediaItems.add(R.string.button_bar_search, "$MEDIA_GET_GENRES|long")
-        mediaItems.add(R.string.main_songs_recent_added, "$MEDIA_SONG_RECENT|long|AddedDesc")
-        mediaItems.add(R.string.main_albums_released, "$MEDIA_SONG_RECENT|long|DateDescAndRelease")
-        mediaItems.add(R.string.main_last_played_genres, MEDIA_LAST_PLAYED_GENRES_LIVESETS)
-        mediaItems.add(R.string.favorites_title, MEDIA_SETS_FAVORITES_ID)
+        val mediaItems = browseTabItems("long")
+        if (favoriteGenres().isNotEmpty()) {
+            mediaItems.add(R.string.favorites_genres, MEDIA_FAVORITE_GENRES_SETS_ID, R.string.favorites_title)
+        }
+        mediaItems.add(R.string.auto_presets, MEDIA_FAVORITE_PLAYLISTS_SETS_ID, R.string.favorites_title)
         return Futures.immediateFuture(itemListResult(mediaItems))
     }
 
     /**
-     * Favourites, filtered to sets. There is no starred-sets row: `getStarred2` has no length
-     * filter on the server, and inventing a client-side duration threshold just for this one
-     * branch would be a second, drifting definition of "long" next to the server's own `LENGTH`
-     * filter that every other node here goes through.
+     * The phone's Browse grid for one mode, as two groups: the tag lists you browse through, and
+     * the lists you just play. Labels and lineups only exist for songs, podcasts and festivals
+     * only for sets -- the same split `collections.js` applies on the web and the phone, for the
+     * same reason: the tagger writes neither tag below ten minutes, and a label describes a
+     * release.
      */
-    private fun getSetsFavoriteItems(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = mainScope.future {
+    private fun browseTabItems(length: String): MutableList<MediaItem> {
         val mediaItems: MutableList<MediaItem> = ArrayList()
+        val browse = R.string.auto_group_browse
 
-        if (favoriteGenres().isNotEmpty()) {
-            mediaItems.add(R.string.favorites_genres, MEDIA_FAVORITE_GENRES_SETS_ID)
+        mediaItems.add(R.string.main_genres_title, tagListId(length, BrowseQuery.CLUSTER_GENRE), browse)
+        if (length == "long") {
+            mediaItems.add(R.string.auto_podcasts, tagListId(length, BrowseQuery.CLUSTER_PODCAST), browse)
+            mediaItems.add(R.string.auto_festivals, tagListId(length, BrowseQuery.CLUSTER_FESTIVAL), browse)
+        } else {
+            mediaItems.add(R.string.library_tab_labels, tagListId(length, BrowseQuery.CLUSTER_LABEL), browse)
+        }
+        mediaItems.add(R.string.main_years_title, tagListId(length, BrowseQuery.CLUSTER_YEAR), browse)
+        if (length == "short") {
+            mediaItems.add(R.string.auto_lineups, "$MEDIA_LINEUP_LIST|$length", browse)
         }
 
-        if (presets(length = "long").isNotEmpty()) {
-            mediaItems.add(R.string.favorites_playlists, MEDIA_FAVORITE_PLAYLISTS_SETS_ID)
-        }
-
-        itemListResult(mediaItems)
+        val play = R.string.auto_group_play
+        mediaItems.add(
+            R.string.auto_random_play,
+            TagQuery(length, sortMethod = BrowseQuery.SORT_RANDOM).mediaId(MEDIA_TAG_PLAY),
+            play,
+            isBrowsable = false,
+            mediaType = MEDIA_TYPE_PLAYLIST
+        )
+        mediaItems.add(R.string.main_songs_recent_added, "$MEDIA_SONG_RECENT|$length|${BrowseQuery.SORT_ADDED}", play)
+        mediaItems.add(R.string.main_albums_released, "$MEDIA_SONG_RECENT|$length|${BrowseQuery.SORT_RELEASE}", play)
+        return mediaItems
     }
 
-    private fun getLastPlayedGenres(length: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        val mediaItems: MutableList<MediaItem> = ArrayList()
-        val genresJson = if (length == "long") Settings.lastPlayedLiveGenres else Settings.lastPlayedGenres
-        val type = object : TypeToken<List<String>>() {}.type
-        val genres: List<String> = Gson().fromJson(genresJson, type)
+    private fun tagListId(length: String, type: String): String = listOf(MEDIA_TAG_LIST, length, type).joinToString("|")
 
-        genres.flatMap { it.split(';', ',', '/') }
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .distinct()
-            .forEach { genre ->
-                mediaItems.add(
-                    genre,
-                    "$MEDIA_GET_SONGS_BY_GENRE|$length|$genre||AddedDesc",
-                    isBrowsable = true,
-                    mediaType = MEDIA_TYPE_PLAYLIST,
-                    imageUri = genreArt(genre)
-                )
-            }
-        return Futures.immediateFuture(itemListResult(mediaItems))
+    /**
+     * The cover a tag row gets. A festival has its own look; everything else is drawn the way a
+     * genre is -- the name on a colour -- so labels and podcasts end up in the same grid genres
+     * already had rather than a text list next to it. Years stay a list: a number is not a cover.
+     */
+    private fun tagArt(type: String, name: String): Uri? = when (type) {
+        BrowseQuery.CLUSTER_YEAR -> null
+        BrowseQuery.CLUSTER_FESTIVAL -> BrowseArtwork.forFestival(name, genreTints.tintFor(null))
+        else -> BrowseArtwork.forGenre(name, genreTints.tintFor(name))
     }
 
     private fun getArtists(
@@ -1185,69 +1047,102 @@ class MediaLibraryBrowser(
         }
     }
 
-    private fun getGenres(
+    /**
+     * The tags of one type for one length: genres, labels, podcasts, festivals or years. Every
+     * row is the same tag folder, [getTagFolder], whatever the type -- which is what makes a
+     * label browsable in the car with no code of its own.
+     *
+     * Ordered by how much there is to hear, most first, because a car list is scrolled with one
+     * finger at a red light. Years are the exception and read newest first.
+     */
+    private fun getTagList(
+        length: String,
+        type: String
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val mediaItems: MutableList<MediaItem> = ArrayList()
+
+        Timber.i("getTagList: type=$type length=$length")
+        return mainScope.future {
+            val tags: List<Pair<String, Int>>? = serviceScope.future {
+                callWithErrorHandling {
+                    if (type == BrowseQuery.CLUSTER_GENRE) {
+                        musicService.getGenres(true, null, length).map { it.name to it.songCount }
+                    } else {
+                        musicService.getTags(true, type, null, length).map { it.name to it.songCount }
+                    }
+                }
+            }.await()
+
+            val ordered = if (type == BrowseQuery.CLUSTER_YEAR) {
+                tags?.sortedByDescending { it.first }
+            } else {
+                tags?.sortedByDescending { it.second }
+            }
+
+            ordered?.forEach { (name, _) ->
+                mediaItems.add(
+                    name,
+                    TagQuery(length, type, name).mediaId(MEDIA_TAG_TRACKS),
+                    isBrowsable = true,
+                    mediaType = MEDIA_TYPE_PLAYLIST,
+                    imageUri = tagArt(type, name)
+                )
+            }
+            return@future itemListResult(mediaItems)
+        }
+    }
+
+    /**
+     * The festival lineups. A lineup is not a tag on the files but a list of booked artists, so
+     * it has its own list call; the row it leads to is still a tag folder, of the pseudo type
+     * [BrowseQuery.TAG_LINEUP], which `getSongs` takes as `festivalLineup`.
+     */
+    private fun getLineupList(
         length: String
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val mediaItems: MutableList<MediaItem> = ArrayList()
 
-        Timber.i("getGenres:length=$length")
         return mainScope.future {
-            var genres = serviceScope.future {
-                callWithErrorHandling { musicService.getGenres(true, null, length) }
+            val lineups = serviceScope.future {
+                callWithErrorHandling { musicService.getLineups(true) }
             }.await()
 
-            if (genres != null) {
-                genres = genres.sortedByDescending { genre -> genre.songCount }
-            }
-
-            genres?.forEach {
+            lineups?.sortedByDescending { it.name }?.forEach { lineup ->
                 mediaItems.add(
-                    it.name,
-                    "$MEDIA_GET_YEARS|$length|${it.name}",
-                    R.string.main_genres_title,
+                    lineup.name,
+                    TagQuery(length, BrowseQuery.TAG_LINEUP, lineup.name).mediaId(MEDIA_TAG_TRACKS),
                     isBrowsable = true,
                     mediaType = MEDIA_TYPE_PLAYLIST,
-                    imageUri = genreArt(it.name)
+                    imageUri = BrowseArtwork.forFestival(lineup.name, genreTints.tintFor(null))
                 )
             }
             return@future itemListResult(mediaItems)
         }
     }
 
-    private fun getYears(
-        length: String,
-        genre: String?
+    /**
+     * The years under one tag, each leading to the same folder narrowed to that year.
+     *
+     * The server's year list is per length, not per tag: a year with nothing in it for this genre
+     * opens an empty folder. That was already so in the old genre chain, where the year level was
+     * mandatory; here it is one optional row down.
+     */
+    private fun getTagYears(
+        query: TagQuery
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val mediaItems: MutableList<MediaItem> = ArrayList()
 
-        Timber.i("getYears: genre=$genre length=$length")
         return mainScope.future {
-            var years = serviceScope.future {
+            val years = serviceScope.future {
                 callWithErrorHandling {
-                    musicService.getTags(
-                        true,
-                        "YEAR",
-                        year = null,
-                        length = length
-                    )
+                    musicService.getTags(true, BrowseQuery.CLUSTER_YEAR, year = null, length = query.length)
                 }
             }.await()
 
-            if (years != null) {
-                years = years.sortedByDescending { y -> y.name }
-            }
-            mediaItems.add(
-                "All",
-                "$MEDIA_GET_SORT_METHOD|$length|$genre|",
-                R.string.main_genres_title,
-                isBrowsable = true,
-                mediaType = MEDIA_TYPE_PLAYLIST
-            )
-            years?.forEach {
+            years?.sortedByDescending { it.name }?.forEach {
                 mediaItems.add(
                     it.name,
-                    "$MEDIA_GET_SORT_METHOD|$length|$genre|${it.name}",
-                    R.string.main_genres_title,
+                    query.copy(year = it.name).mediaId(MEDIA_TAG_TRACKS),
                     isBrowsable = true,
                     mediaType = MEDIA_TYPE_PLAYLIST
                 )
@@ -1256,100 +1151,105 @@ class MediaLibraryBrowser(
         }
     }
 
-    private fun getSortMethod(
-        length: String?,
-        genre: String?,
-        year: String?
-    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        val mediaItems: MutableList<MediaItem> = ArrayList()
-
-        Timber.i("getSortMethod: genre=$genre length=$length year=$year")
-        return mainScope.future {
-            val sortMethods = mapOf(
-                "Willekeurig" to "Random",
-                "Release datum" to "DateDescAndRelease",
-                "Recent toegevoegd" to "AddedDesc",
-                "Recent aangepast" to "LastWrittenDesc"
-            )
-
-            sortMethods.forEach { (name, value) ->
-                mediaItems.add(
-                    name,
-                    "$MEDIA_GET_SONGS_BY_GENRE|$length|$genre|$year|$value",
-                    R.string.main_genres_title,
-                    isBrowsable = true,
-                    mediaType = MEDIA_TYPE_PLAYLIST
-                )
-            }
-
-            return@future itemListResult(mediaItems)
-        }
-    }
-
-    private fun getGenre(
-        length: String,
-        genres: List<String>,
-        years: List<Int>,
-        sortMethod: String,
-        festivalLineup: String? = null,
+    /**
+     * One tag's folder: the way into the music the old chain spread over three levels.
+     *
+     * The old tree went genre, then a year (or "All"), then one of four sort orders, and only
+     * then a list -- three taps before anything could play, and no way to see the tracks without
+     * committing to an order first. Here the first page opens on the tracks themselves, newest
+     * release first, with the two orders worth a row of their own as playable rows above them
+     * and the year narrowing as a folder. A later page carries tracks only.
+     */
+    private fun getTagFolder(
+        query: TagQuery,
         page: Int,
-        pageSize: Int,
-        ratingMin: Int? = 0,
-        ratingMax: Int? = 5
+        pageSize: Int
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val mediaItems: MutableList<MediaItem> = ArrayList()
-        Timber.i(
-            "getGenre: genres=$genres years=$years length=$length page=$page pageSize=$pageSize"
-        )
+
+        if (page == 0) {
+            val play = R.string.auto_group_play
+            mediaItems.add(
+                R.string.select_album_play_all,
+                query.mediaId(MEDIA_TAG_PLAY),
+                play,
+                isBrowsable = false,
+                mediaType = MEDIA_TYPE_PLAYLIST
+            )
+            mediaItems.add(
+                R.string.auto_random_play,
+                query.copy(sortMethod = BrowseQuery.SORT_RANDOM).mediaId(MEDIA_TAG_PLAY),
+                play,
+                isBrowsable = false,
+                mediaType = MEDIA_TYPE_PLAYLIST
+            )
+            mediaItems.add(
+                R.string.main_songs_recent_added,
+                query.copy(sortMethod = BrowseQuery.SORT_ADDED).mediaId(MEDIA_TAG_PLAY),
+                play,
+                isBrowsable = false,
+                mediaType = MEDIA_TYPE_PLAYLIST
+            )
+            val hasYearLevel = query.year.isBlank() &&
+                query.type != BrowseQuery.CLUSTER_YEAR &&
+                query.type.isNotBlank()
+            if (hasYearLevel) {
+                mediaItems.add(R.string.auto_by_year, query.mediaId(MEDIA_TAG_YEARS), R.string.auto_group_browse)
+            }
+        }
 
         return mainScope.future {
-            val songs = serviceScope.future {
-                val filters = Filters()
-
-                if (genres.isNotEmpty()) {
-                    filters.add(Filter("GENRE", genres))
-                }
-
-                filters.add(Filter("LENGTH", length))
-
-                if (years.isNotEmpty()) {
-                    filters.add(Filter("YEAR", years))
-                }
-
-                val offset = page * pageSize
-
-                callWithErrorHandling {
-                    musicService.getSongs(
-                        filters = filters,
-                        ratingMin = ratingMin,
-                        ratingMax = ratingMax,
-                        count = pageSize,
-                        offset = offset,
-                        sortMethod = sortMethod,
-                        festivalLineup = festivalLineup,
-                        minDuration = null,
-                        maxDuration = null
-                    )
-                }
+            val tracks = serviceScope.future {
+                dataProvider.tracksFor(query.toBrowseQuery(), page, pageSize)
             }.await()
 
-            if (songs != null) {
-                if (songs.size > 1 && page == 0) {
-                    mediaItems.addPlayAllItem(
-                        listOf(MEDIA_SONG_RANDOM_ID).joinToString("|")
-                    )
-                }
-                val items = songs.getTracks()
-                dataProvider.randomSongsCache = items
-                items.map { song ->
-                    mediaItems.add(
-                        song.toMediaItem(
-                            listOf(MEDIA_SONG_RANDOM_ITEM, song.id).joinToString("|")
-                        )
-                    )
-                }
+            tracks?.forEach { song ->
+                mediaItems.add(
+                    song.toMediaItem(listOf(MEDIA_SONG_RANDOM_ITEM, song.id).joinToString("|"))
+                )
             }
+            return@future itemListResult(mediaItems)
+        }
+    }
 
+    /**
+     * A preset's folder: play it as saved, play it shuffled, then its tracks. The tile is looked
+     * up by id, so every filter it carries -- label, festival, artists, duration -- reaches the
+     * server; the old id only had room for genre and year.
+     */
+    private fun getPresetFolder(
+        id: String
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val mediaItems: MutableList<MediaItem> = ArrayList()
+
+        return mainScope.future {
+            val tile = serviceScope.future { dataProvider.preset(id) }.await()
+                ?: return@future itemListResult(mediaItems)
+
+            val play = R.string.auto_group_play
+            mediaItems.add(
+                R.string.select_album_play_all,
+                listOf(MEDIA_PRESET_PLAY, id).joinToString("|"),
+                play,
+                isBrowsable = false,
+                mediaType = MEDIA_TYPE_PLAYLIST
+            )
+            mediaItems.add(
+                R.string.auto_random_play,
+                listOf(MEDIA_PRESET_PLAY, id, BrowseQuery.SORT_RANDOM).joinToString("|"),
+                play,
+                isBrowsable = false,
+                mediaType = MEDIA_TYPE_PLAYLIST
+            )
+
+            val tracks = serviceScope.future {
+                dataProvider.tracksFor(BrowseQuery.fromTile(tile), page = 0, pageSize = DISPLAY_LIMIT)
+            }.await()
+            tracks?.forEach { song ->
+                mediaItems.add(
+                    song.toMediaItem(listOf(MEDIA_SONG_RANDOM_ITEM, song.id).joinToString("|"))
+                )
+            }
             return@future itemListResult(mediaItems)
         }
     }
@@ -1377,54 +1277,6 @@ class MediaLibraryBrowser(
                         )
                     )
                 }
-            }
-            return@future itemListResult(mediaItems)
-        }
-    }
-
-    private fun getPodcastEpisodes(
-        id: String
-    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        Timber.d("getPodcastEpisodes")
-        val mediaItems: MutableList<MediaItem> = ArrayList()
-        return mainScope.future {
-            val episodes = serviceScope.future {
-                callWithErrorHandling { musicService.getPodcastEpisodes(id) }
-            }.await()
-
-            if (episodes != null) {
-                if (episodes.getTracks().count() > 1) {
-                    mediaItems.addPlayAllItem(listOf(MEDIA_PODCAST_ITEM, id).joinToString("|"))
-                }
-
-                episodes.getTracks().map { episode ->
-                    mediaItems.add(
-                        episode.toMediaItem(
-                            listOf(MEDIA_PODCAST_EPISODE_ITEM, id, episode.id)
-                                .joinToString("|")
-                        )
-                    )
-                }
-            }
-            return@future itemListResult(mediaItems)
-        }
-    }
-
-    private fun getPodcasts(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        Timber.d("getPodcasts")
-        val mediaItems: MutableList<MediaItem> = ArrayList()
-
-        return mainScope.future {
-            val podcasts = serviceScope.future {
-                callWithErrorHandling { musicService.getPodcastsChannels(false) }
-            }.await()
-
-            podcasts?.map { podcast ->
-                mediaItems.add(
-                    title = podcast.title ?: "",
-                    mediaId = listOf(MEDIA_PODCAST_ITEM, podcast.id).joinToString("|"),
-                    mediaType = MEDIA_TYPE_FOLDER_MIXED
-                )
             }
             return@future itemListResult(mediaItems)
         }
@@ -1459,43 +1311,17 @@ class MediaLibraryBrowser(
 
     private fun TileInfo.toMediaItem(): MediaItem {
         val context = UApp.applicationContext()
-
-        // Avoid passing empty genre/year lists
-        val genreValue = genre?.takeIf { it.isNotEmpty() }?.joinToString(",") ?: ""
-        val yearValue = year?.takeIf { it.isNotEmpty() }?.joinToString(",") ?: ""
-
-        val recentTitle = context.getString(R.string.main_albums_recent)
-        val starredTitle = context.getString(R.string.main_songs_starred)
-        val searchTitle = context.getString(R.string.button_bar_search)
-        val randomTitle = context.getString(R.string.main_albums_random)
-
-        val mediaId = when {
-            title.equals("Random", ignoreCase = true) || title == randomTitle -> "$MEDIA_SONG_RANDOM_ID|$length"
-            title.equals("Recent", ignoreCase = true) || title == recentTitle -> "$MEDIA_SONG_RECENT|$length"
-            title.equals("Starred", ignoreCase = true) || title == starredTitle -> "$MEDIA_SONG_STARRED_ID|$length"
-            title.equals("Search", ignoreCase = true) || title == searchTitle -> "$MEDIA_GET_GENRES|$length"
-            else -> "$MEDIA_GET_SONGS_BY_GENRE|$length|$genreValue|$yearValue|$sortMethod|$festivalLineup|$ratingMin|$ratingMax"
-        }
-
         val groupName = context.getString(
             if (length == "long") {
-                R.string.main_livesets_title
+                R.string.main_sets
             } else {
                 R.string.main_songs_title
             }
         )
 
-        val icon = when {
-            title.equals("Random", ignoreCase = true) || title == randomTitle -> R.drawable.ic_menu_refresh
-            title.equals("Recent", ignoreCase = true) || title == recentTitle -> R.drawable.ic_baseline_info
-            title.equals("Starred", ignoreCase = true) || title == starredTitle -> R.drawable.ic_star_full
-            title.equals("Search", ignoreCase = true) || title == searchTitle -> R.drawable.ic_menu_search
-            else -> R.drawable.ic_menu_playlists
-        }
-
         return buildMediaItem(
             title = this.title,
-            mediaId = mediaId,
+            mediaId = listOf(MEDIA_PRESET, id).joinToString("|"),
             isPlayable = false,
             isBrowsable = true,
             mediaType = MEDIA_TYPE_PLAYLIST,
@@ -1507,16 +1333,6 @@ class MediaLibraryBrowser(
     companion object {
         private const val MAX_PAGE_SIZE = 500
         private const val DEFAULT_PAGE_SIZE = 50
-        private const val PRESET_CACHE_MINUTES = 5L
-
-        private const val INDEX_LENGTH = 1
-        private const val INDEX_GENRE = 2
-        private const val INDEX_YEAR = 3
-        private const val INDEX_SORT_METHOD = 4
-        private const val INDEX_FESTIVAL_LINEUP = 5
-        private const val INDEX_RATING_MIN = 6
-        private const val INDEX_RATING_MAX = 7
-
         private const val INDEX_ID = 1
         private const val INDEX_NAME = 2
     }

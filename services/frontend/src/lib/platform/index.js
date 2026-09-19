@@ -334,11 +334,17 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
 
 /**
  * @typedef {object} AppUpdateCheck The hoster's answer, reduced to what the UI needs.
- * @property {boolean} available A build with a higher `versionCode` exists in this series.
+ * @property {boolean} available A build with a higher `versionCode` exists -- in this build's
+ *   own series, or (for a debug build, which asks after both) in the release series.
  * @property {number} currentVersionCode
  * @property {string} currentVersionName
+ * @property {string} currentSeries The hoster's name for this build's series
+ *   (`muma-mobile` or `muma-mobile-debug`).
  * @property {number} latestVersionCode
  * @property {string} latestVersionName
+ * @property {string} latestSeries The series the newest build came from. Differs from
+ *   `currentSeries` only on a debug phone that a release has outrun; that APK installs
+ *   beside the debug one, not over it, and is announced as such.
  * @property {string} url Where to download it; already carries the hoster's guest credentials.
  */
 
@@ -354,7 +360,9 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   the APK: `appVersion` plus the version code, the build type, the package and the phone it
  *   runs on. A browser tab answers `null` -- there is no APK to describe.
  * @property {function(): Promise<AppUpdateCheck>} checkForUpdate Asks apk-hoster whether a
- *   newer build of this APK's series exists. Rejects when the hoster could not be asked (no
+ *   newer build exists -- of this APK's series, and for a debug build of the release series
+ *   too, since the debug series only moves when somebody runs the manual build job. Rejects
+ *   when the hoster could not be asked (no
  *   network, an error status), so "up to date" and "could not check" stay distinguishable --
  *   `appUpdate.js` shows them differently. A browser tab rejects too: it has nothing to update.
  * @property {function(string): Promise<void>} openUrl Opens a url outside the WebView -- the

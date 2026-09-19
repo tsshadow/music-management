@@ -78,6 +78,10 @@ class DecisionRequest(BaseModel):
     names: list[str]
     state: str
     canonical_name: str | None = None
+    #: Who to record as the decider. Only honoured for the system key: a script that
+    #: approves on external evidence (tools/artist_auto_approve.py) signs its rows so
+    #: the page shows `auto-external` rather than `system`, and an undo can find them.
+    decided_by: str | None = None
 
 
 def _connect():
@@ -87,10 +91,12 @@ def _connect():
     return conn
 
 
-def _decided_by(auth: dict) -> str:
+def _decided_by(auth: dict, requested: str | None = None) -> str:
     user = auth.get('user')
     if isinstance(user, dict) and user.get('username'):
         return str(user['username'])[:64]
+    if requested and auth.get('type') == 'system':
+        return requested.strip()[:64]
     return str(auth.get('type', 'human'))[:64]
 
 
@@ -288,7 +294,7 @@ def decide(request: DecisionRequest, auth: dict = WRITE):
     if canonical and canonical.lower() in {name.lower() for name in names}:
         raise HTTPException(status_code=400, detail='A name cannot be its own correction')
 
-    decided_by = _decided_by(auth)
+    decided_by = _decided_by(auth, request.decided_by)
     conn = _connect()
     try:
         with conn.cursor() as cursor:

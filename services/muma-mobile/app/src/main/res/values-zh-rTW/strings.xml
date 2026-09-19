@@ -1,14 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="buttons.play">播放</string>
-    <string name="button_bar.search">搜尋</string>
-    <string name="main.albums_random">隨機</string>
-    <string name="main.albums_recent">最近播放</string>
     <string name="main.albums_title">專輯</string>
     <string name="main.artists_title">歌手</string>
     <string name="main.genres_title">類型</string>
     <string name="main.offline">離線</string>
-    <string name="main.songs_starred">已加星號</string>
     <string name="menu.common">一般</string>
     <string name="playlist.label">播放清單</string>
     <string name="select_genre.empty">無符合類型</string>

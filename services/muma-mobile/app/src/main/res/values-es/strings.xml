@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="buttons.play">Reproducir</string>
-    <string name="button_bar.search">Buscar</string>
     <string name="download.jukebox_not_authorized">El control remoto no esta habilitado. Por favor habilita el modo gramola (jukebox) en <b>Configuración &gt; Usuarios</b> en tu servidor de Subsonic.</string>
     <string name="download.jukebox_offline">Control remoto no disponible en modo fuera de línea.</string>
     <string name="download.jukebox_server_too_old">Control remoto no soportado. Por favor actualiza tu servidor de Subsonic.</string>
@@ -20,13 +19,10 @@
     <string name="language.pt">Portugués</string>
     <string name="language.pt_BR">Portugués (Brasil)</string>
     <string name="language.ru">Ruso</string>
-    <string name="main.albums_random">Aleatorio</string>
-    <string name="main.albums_recent">Reproducidas recientemente</string>
     <string name="main.albums_title">Álbumes</string>
     <string name="main.artists_title">Artistas</string>
     <string name="main.genres_title">Géneros</string>
     <string name="main.offline">Sin conexión</string>
-    <string name="main.songs_starred">Me gusta</string>
     <string name="main.songs_title">Canciones</string>
     <string name="main.welcome_text_demo">Para utilizar MuMa con tu música necesitas un <b>servidor propio</b>. \n\n➤ En caso de que quieras probar la aplicación primero, se puede añadir ahora un servidor de demostración. \n\n➤ En caso contrario, puedes configurar tu servidor personal en la <b>configuración</b>.</string>
     <string name="main.welcome_title">¡Bienvenido a MuMa!</string>

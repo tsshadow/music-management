@@ -13,6 +13,7 @@ from services.common.Helpers.NotificationService import notification_service
 from services.importer.label_proposal_store import LabelProposalStore
 from services.importer.label_resolver import resolve
 from services.importer.release_compare import is_same_release
+from services.tagger.announce import announce
 from services.tagger.Song.LabelSong import LabelSong
 
 
@@ -101,6 +102,9 @@ def post_processing_songs(folder_path):
                     logging.info(f'Processing file with LabelSong: {full_path}')
                     s = LabelSong(str(full_path))
                     s.parse()
+                    # The walk would otherwise tag the release a second time on its next
+                    # pass; and the scanner learns of it now rather than on the hour.
+                    announce(full_path)
                     notification_service.notify(str(s), title='Import Complete')
                 except Exception as e:
                     logging.error(f'Failed to process {full_path} with LabelSong: {e}')

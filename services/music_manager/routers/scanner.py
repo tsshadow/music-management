@@ -292,7 +292,10 @@ async def api_scan_all(background_tasks: BackgroundTasks, force: bool = False, _
 
 
 @router.post('/scan/file')
-async def api_scan_file(path: str = Query(...), force: bool = False, _auth: dict = Depends(verify_api_key)):
+def api_scan_file(path: str = Query(...), force: bool = False, _auth: dict = Depends(verify_api_key)):
+    # Plain `def`, so FastAPI runs it in the thread pool: the scan reads the file and writes
+    # rows, and the workers call this for every file they tag -- an `async def` here parked
+    # the whole event loop for the duration of each one.
     scanner_manager.scan_single(path, force=force)
     return {'message': f'Scan for {path} completed'}
 

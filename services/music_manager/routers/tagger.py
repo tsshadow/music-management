@@ -106,7 +106,9 @@ async def api_tag_stop(_auth: dict = Depends(verify_api_key)):
 
 
 @router.post('/tag/file')
-async def api_tag_file(path: str = Query(...), _auth: dict = Depends(verify_api_key)):
+def api_tag_file(path: str = Query(...), _auth: dict = Depends(verify_api_key)):
+    # Plain `def`: tag_single waits for the tagger lock, which a running round can hold for
+    # a long time, and an `async def` waiting on a threading.Lock stalls every other request.
     tagger_manager.tag_single(path)
     return {'message': f'Tagging for {path} completed'}
 

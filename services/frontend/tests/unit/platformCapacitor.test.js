@@ -383,8 +383,10 @@ describe("capacitor system", () => {
           available: true,
           currentVersionCode: 312,
           currentVersionName: "6.36.0",
+          currentSeries: "muma-mobile-debug",
           latestVersionCode: "313",
           latestVersionName: "6.36.0",
+          latestSeries: "muma-mobile",
           url: "https://apk.example/dl/313?u=guest&p=guest",
         },
       },
@@ -394,8 +396,10 @@ describe("capacitor system", () => {
       available: true,
       currentVersionCode: 312,
       currentVersionName: "6.36.0",
+      currentSeries: "muma-mobile-debug",
       latestVersionCode: 313,
       latestVersionName: "6.36.0",
+      latestSeries: "muma-mobile",
       url: "https://apk.example/dl/313?u=guest&p=guest",
     });
   });

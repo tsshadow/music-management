@@ -43,16 +43,38 @@ export function isCheckDue(storage, now = Date.now()) {
 }
 
 /**
+ * Whether the newest build sits in another series than this one: a debug phone that a release
+ * has outrun. The shell asks after both series for a debug build (`AppUpdate.seriesToAsk`),
+ * because the debug series only moves when somebody runs the manual build job.
+ *
+ * @param {import('./platform/index.js').AppUpdateCheck} update
+ * @returns {boolean}
+ */
+export function isOtherSeries(update) {
+  return Boolean(update.latestSeries) && update.latestSeries !== update.currentSeries;
+}
+
+/**
  * Tells the listener a newer build exists, with the download as the notification's action. The
  * link is an APK, so it goes to the shell rather than to the WebView -- `openUrl`, not a
  * navigation.
+ *
+ * A release that outran a debug build is worded as that rather than as "new version": the
+ * release APK is another package and installs beside the debug one, so "update" would
+ * promise something the download does not do.
  *
  * @param {import('./platform/index.js').AppUpdateCheck} update
  * @param {import('./platform/index.js').Platform} platform
  */
 function announce(update, platform) {
   const translate = get(t);
-  notify.info(translate("appUpdate.available", { version: update.latestVersionName }), {
+  const message = isOtherSeries(update)
+    ? translate("appUpdate.releaseAhead", {
+        version: update.latestVersionName,
+        current: update.currentVersionName,
+      })
+    : translate("appUpdate.available", { version: update.latestVersionName });
+  notify.info(message, {
     action: {
       label: translate("appUpdate.download"),
       onClick: () => {

@@ -209,4 +209,3 @@ def test_the_tagger_stores_the_mtime_it_read(database):
             ('tagger_processed_files', 'mtime'),
         )
         assert cursor.fetchone()['data_type'] == 'double'
-

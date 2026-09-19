@@ -32,6 +32,31 @@ class ProcessedFilesHelperTestCase(unittest.TestCase):
         return [call.args[0] for call in self.cursor.execute.call_args_list]
 
 
+class ChangedOnDiskTest(unittest.TestCase):
+    """The stored mtime came out of a FLOAT column for two years; see migrate_v29."""
+
+    def setUp(self):
+        self.changed = load_module().changed_on_disk
+
+    def test_a_newer_file_changed(self):
+        self.assertTrue(self.changed(1782688928.32, 1782600000.5))
+
+    def test_an_older_or_equal_file_did_not(self):
+        self.assertFalse(self.changed(1782688928.32, 1782688928.32))
+        self.assertFalse(self.changed(1782688928.32, 1782690000.0))
+
+    def test_a_float32_rounded_stored_value_within_one_step_is_the_old_column_not_an_edit(self):
+        # Real prod row: MOTZ/5 O'clock.mp3, mtime 1782688928.32, stored 1782688896.0.
+        self.assertFalse(self.changed(1782688928.32, 1782688896.0))
+
+    def test_an_exact_stored_value_still_sees_a_small_edit(self):
+        # Once the exact mtime is stored, any later write counts, however soon.
+        self.assertTrue(self.changed(1782688930.0, 1782688928.32))
+
+    def test_a_float32_rounded_value_more_than_a_step_behind_is_an_edit(self):
+        self.assertTrue(self.changed(1782688896.0 + 129.0, 1782688896.0))
+
+
 class CreateTableTest(ProcessedFilesHelperTestCase):
     def test_the_table_is_created_if_it_is_missing(self):
         self.helper.create_table()

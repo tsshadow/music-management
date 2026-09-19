@@ -272,7 +272,9 @@ class Tagger:
             if not processed_files_helper.needs_processing(str(file), mtime):
                 return False
             song = self.parse_song(file, song_type, extra_info)
-            processed_files_helper.mark_processed(str(file), mtime)
+            # The mtime *after* the save: a file the tagger itself just wrote has a newer one
+            # than the stat above, and storing the old value made it "changed" on the next walk.
+            processed_files_helper.mark_processed(str(file), file.stat().st_mtime)
             return Tagger._was_written(song)
         except KeyboardInterrupt:
             logging.info('KeyboardInterrupt')
@@ -337,7 +339,8 @@ class Tagger:
                 return (file, 'SKIPPED')
             song_type = SongTypeEnum[song_type_str]
             song = Tagger.parse_song(path, song_type, manual_tags, extra_info)
-            processed_files_helper.mark_processed(file, mtime)
+            # After the save, for the same reason as in _try_parse.
+            processed_files_helper.mark_processed(file, path.stat().st_mtime)
             # 'SAVED' when the rules changed a tag and the file was written; 'OK' when the
             # rules ran and found nothing to change. Only the first is news to LMS.
             return (file, 'SAVED' if Tagger._was_written(song) else 'OK')

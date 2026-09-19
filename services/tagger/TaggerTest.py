@@ -1,5 +1,6 @@
 """Coverage for services/tagger/tagger.py: folder walking, dispatch and auto-detection."""
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -544,6 +545,25 @@ class TryParseTest(TaggerTestCase):
         with patch.object(Tagger, 'parse_song'):
             self.tagger._try_parse(song, SongTypeEnum.SOUNDCLOUD)
         self.processed.mark_processed.assert_called_once()
+
+    def test_the_mtime_stored_is_the_one_after_the_save(self):
+        # A written file has a newer mtime than the stat before parse_song; storing the old
+        # one made every file the tagger wrote read as "changed" on the next walk.
+        song = self.make_song(self.music / 'Soundcloud' / 'artist')
+        os.utime(song, (1000.0, 1000.0))
+
+        def write_the_file(*_):
+            os.utime(song, (2000.0, 2000.0))
+            return MagicMock(saved=True)
+
+        with patch.object(Tagger, 'parse_song', side_effect=write_the_file):
+            self.tagger._try_parse(song, SongTypeEnum.SOUNDCLOUD)
+        self.assertEqual(self.processed.mark_processed.call_args.args[1], 2000.0)
+        self.processed.reset_mock()
+        os.utime(song, (1000.0, 1000.0))
+        with patch.object(Tagger, 'parse_song', side_effect=write_the_file):
+            Tagger._parse_worker(str(song), 'SOUNDCLOUD')
+        self.assertEqual(self.processed.mark_processed.call_args.args[1], 2000.0)
 
     def test_an_unreadable_file_is_recorded_as_broken(self):
         song = self.make_song(self.music / 'Soundcloud' / 'artist')

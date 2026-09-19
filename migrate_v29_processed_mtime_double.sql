@@ -1,0 +1,15 @@
+-- The tagger's "did this file change" answer was wrong for 70% of the library.
+--
+-- tagger_processed_files.mtime was a FLOAT: single precision, 24-bit mantissa, which at
+-- today's epoch (1.78e9) represents one value every 128 seconds. The mtime written back by
+-- mark_processed was therefore the real one rounded to the nearest step, and the walk's
+-- `mtime > stored` read 70% of all files as newer than the tagger last saw them, on every
+-- round, forever -- measured on 1.200 production files on 2026-09-18 (841 retagged each
+-- walk, 359 hiding an edit, 0 exact).
+--
+-- DOUBLE keeps the full nanosecond-scale mtime. The rows already in the table keep their
+-- rounded value; ProcessedFilesHelper.changed_on_disk recognises a stored value that is
+-- float32-exact and within one step of the file as that artefact rather than an edit, and
+-- every row is rewritten exactly the next time its file is tagged for any reason.
+-- Idempotent: MODIFY to the type a column already has is a no-op.
+ALTER TABLE tagger_processed_files MODIFY COLUMN mtime DOUBLE;

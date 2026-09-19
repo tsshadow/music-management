@@ -224,6 +224,15 @@ class RejectTest(ArtistCurationTestCase):
         params = self.statements('INSERT INTO rules_artists')[0][1]
         self.assertEqual(params[3], 'system')
 
+    def test_the_system_key_may_sign_as_a_script(self):
+        self.client.post(
+            '/api/rules/artists/decide',
+            json={'names': ['Premiere'], 'state': 'black', 'decided_by': 'auto-external'},
+            headers=self.headers,
+        )
+        params = self.statements('INSERT INTO rules_artists')[0][1]
+        self.assertEqual(params[3], 'auto-external')
+
 
 class ApproveTest(ArtistCurationTestCase):
     rules = (('SELECT id FROM rules_ignored_artists', None, {'id': 4}),)

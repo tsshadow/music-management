@@ -386,7 +386,7 @@ LEGACY_RULES_SQL = 'SELECT name FROM rules_ignored_artists'
 
 def titles_hash(titles: list[str]) -> str:
     """Changes when the library's titles for a name change, which makes a verdict stale."""
-    return hashlib.sha1(json.dumps(sorted(set(titles))).encode()).hexdigest()[:16]
+    return hashlib.sha256(json.dumps(sorted(set(titles))).encode()).hexdigest()[:16]
 
 
 def snapshot(conn: sqlite3.Connection) -> int:

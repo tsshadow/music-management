@@ -1,5 +1,7 @@
 import logging
+import os
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -29,6 +31,31 @@ parse_wav = False
 parse_aac = False
 broken_song_helper = BrokenSongHelper()
 processed_files_helper = ProcessedFilesHelper()
+
+
+def _env_number(name: str, default: float, cast=float) -> float:
+    """An env override, or the default when it is unset, empty or not a number."""
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == '':
+        return default
+    try:
+        return cast(raw)
+    except ValueError:
+        logging.warning('%s=%r is not a number, using %s', name, raw, default)
+        return default
+
+
+#: Worker threads per slice. The tagger runs inside the music-manager process, so these
+#: threads share the GIL with uvicorn's event loop. Sixteen CPU-bound workers left the loop
+#: with practically no turns: a 32.000-file queue after the 0.67.0 deploy had /health and
+#: /api/auth/login timing out for over an hour while LMS answered in milliseconds. Twelve
+#: keeps most of the throughput; the pause below is what actually gives the API its turn.
+TAGGER_WORKERS = max(1, _env_number('TAGGER_WORKERS', 12, int))
+
+#: Seconds the tagger idles between slices of tagged files, once the pool has drained.
+#: With every worker thread parked the event loop owns the GIL and serves whatever queued
+#: up. Charged per slice in which a worker parsed something, so an unchanged walk pays nothing.
+TAGGER_BATCH_PAUSE = max(0.0, _env_number('TAGGER_BATCH_PAUSE', 0.5))
 
 
 class Tagger:
@@ -158,17 +185,7 @@ class Tagger:
                     processed_files_helper.forget(raw)
             written: list[Path] = []
             if self.parallel and present:
-                with ThreadPoolExecutor(max_workers=16) as executor:
-                    futures = {
-                        executor.submit(Tagger._parse_worker, str(path), detect_song_type(path).name): path
-                        for path in present
-                    }
-                    for future in as_completed(futures):
-                        if self.stop_requested:
-                            executor.shutdown(wait=False, cancel_futures=True)
-                            break
-                        if future.result()[1] == 'SAVED':
-                            written.append(futures[future])
+                written = self._tag_in_parallel(present, lambda path: detect_song_type(path).name)
             else:
                 for path in present:
                     if self.stop_requested:
@@ -181,6 +198,50 @@ class Tagger:
             for folder in dict.fromkeys(str(path.parent) for path in written):
                 lms_scan_trigger.notify([folder])
         return total
+
+    #: Files handed to the pool between two pauses. Two per worker keeps every thread busy
+    #: for the slice; at the observed ~7 files/s that is a few seconds of tagging, then the
+    #: API gets its turn. A whole 500-file page between pauses left it waiting over a minute.
+    PARALLEL_SLICE = TAGGER_WORKERS * 2
+
+    def _tag_in_parallel(self, files: list[Path], song_type_name, extra_info=None) -> list[Path]:
+        """Tag the files a slice at a time and return the ones that were written.
+
+        `song_type_name` maps a file to the SongTypeEnum *name* the worker expects. After
+        each slice in which a worker actually parsed something the tagger pauses, so the
+        rules never hold the process for more than a slice at a stretch.
+        """
+        written: list[Path] = []
+        for start in range(0, len(files), self.PARALLEL_SLICE):
+            if self.stop_requested:
+                break
+            chunk = files[start : start + self.PARALLEL_SLICE]
+            parsed = False
+            with ThreadPoolExecutor(max_workers=TAGGER_WORKERS) as executor:
+                futures = {
+                    executor.submit(Tagger._parse_worker, str(file), song_type_name(file), None, extra_info): file
+                    for file in chunk
+                }
+                for future in as_completed(futures):
+                    if self.stop_requested:
+                        executor.shutdown(wait=False, cancel_futures=True)
+                        break
+                    status = future.result()[1]
+                    parsed = parsed or status != 'SKIPPED'
+                    if status == 'SAVED':
+                        written.append(futures[future])
+            self._breathe(parsed)
+        return written
+
+    def _breathe(self, parsed: bool) -> None:
+        """Let the API have the process for a moment after a slice of real work.
+
+        The pool has drained by the time this runs, so nothing but uvicorn's loop wants
+        the GIL during the pause. Skipped when every file in the slice was up to date and
+        on a stop request, so an unchanged walk and a shutdown are not slowed down.
+        """
+        if parsed and TAGGER_BATCH_PAUSE > 0 and not self.stop_requested:
+            time.sleep(TAGGER_BATCH_PAUSE)
 
     def _parse_label_folders(self):
         """
@@ -272,16 +333,7 @@ class Tagger:
                     files.extend(f for f in folder.glob(f'*.{ext}') if f.is_file())
             written = False
             if self.parallel and files:
-                with ThreadPoolExecutor(max_workers=16) as executor:
-                    futures = [
-                        executor.submit(Tagger._parse_worker, str(file), song_type.name, None, extra_info)
-                        for file in files
-                    ]
-                    for future in as_completed(futures):
-                        if self.stop_requested:
-                            executor.shutdown(wait=False, cancel_futures=True)
-                            break
-                        written = future.result()[1] == 'SAVED' or written
+                written = bool(self._tag_in_parallel(files, lambda _: song_type.name, extra_info))
             else:
                 for file in files:
                     if self.stop_requested:

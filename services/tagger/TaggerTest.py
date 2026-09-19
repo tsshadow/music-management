@@ -4,7 +4,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 from services.tagger import tagger as tagger_module
 from services.tagger.constants import SongTypeEnum
@@ -377,9 +377,55 @@ class PendingPassTest(TaggerTestCase):
         with patch.object(Tagger, '_parse_worker', return_value=('x', 'OK')) as worker:
             self.tagger._process_pending()
         self.assertEqual(
-            sorted(call.args for call in worker.call_args_list),
+            sorted(call.args[:2] for call in worker.call_args_list),
             sorted([(str(a), 'YOUTUBE'), (str(b), 'LABEL')]),
         )
+
+    def test_the_parallel_path_pauses_after_a_slice_that_did_work(self):
+        """The tagger shares the GIL with the API. After 0.67.0 a 32.000-file queue ran
+        on sixteen threads without a break and /health timed out for over an hour. Every
+        slice that parsed something ends with a pause so the event loop gets a turn."""
+        self.tagger.parallel = True
+        songs = [self.make_song(self.music / 'Youtube' / 'channel', f'{i}.mp3') for i in range(5)]
+        self.queue(songs)
+        with (
+            patch.object(Tagger, 'PARALLEL_SLICE', 2),
+            patch.object(tagger_module, 'TAGGER_BATCH_PAUSE', 0.25),
+            patch.object(Tagger, '_parse_worker', return_value=('x', 'OK')),
+            patch.object(tagger_module.time, 'sleep') as sleep,
+        ):
+            self.tagger._process_pending()
+        # Five files in slices of two: three slices, three pauses.
+        self.assertEqual(sleep.call_args_list, [call(0.25)] * 3)
+
+    def test_a_slice_of_up_to_date_files_costs_no_pause(self):
+        self.tagger.parallel = True
+        self.queue([self.make_song(self.music / 'Youtube' / 'channel', 'a.mp3')])
+        with (
+            patch.object(Tagger, '_parse_worker', return_value=('x', 'SKIPPED')),
+            patch.object(tagger_module.time, 'sleep') as sleep,
+        ):
+            self.tagger._process_pending()
+        sleep.assert_not_called()
+
+    def test_a_stop_request_ends_the_parallel_pass_between_slices(self):
+        self.tagger.parallel = True
+        songs = [self.make_song(self.music / 'Youtube' / 'channel', f'{i}.mp3') for i in range(4)]
+        self.queue(songs)
+
+        def stop(*_):
+            self.tagger.stop_requested = True
+            return ('x', 'OK')
+
+        with (
+            patch.object(Tagger, 'PARALLEL_SLICE', 2),
+            patch.object(Tagger, '_parse_worker', side_effect=stop) as worker,
+            patch.object(tagger_module.time, 'sleep') as sleep,
+        ):
+            self.tagger._process_pending()
+        # The first slice may run to completion; the second is never handed out.
+        self.assertLessEqual(worker.call_count, 2)
+        sleep.assert_not_called()
 
     def test_an_empty_queue_walks_nothing_and_asks_once(self):
         self.tagger._process_pending()
@@ -537,6 +583,23 @@ class ParseFolderTest(TaggerTestCase):
         with patch.object(Tagger, '_parse_worker', return_value=('x', 'OK')) as worker:
             self.tagger.parse_folder(folder, SongTypeEnum.SOUNDCLOUD)
         self.assertEqual(worker.call_count, 2)
+
+    def test_the_walk_pauses_only_after_a_slice_that_parsed_something(self):
+        """A full walk visits 300.000 files of which nearly all are up to date. A pause
+        per slice of those would add hours to a round that changes nothing; only a slice
+        in which a worker actually ran the rules costs the API-turn."""
+        folder = self.music / 'Soundcloud' / 'artist'
+        for name in ('a.mp3', 'b.mp3', 'c.mp3'):
+            self.make_song(folder, name)
+        self.tagger.parallel = True
+        statuses = iter(['SKIPPED', 'SKIPPED', 'OK'])
+        with (
+            patch.object(Tagger, 'PARALLEL_SLICE', 2),
+            patch.object(Tagger, '_parse_worker', side_effect=lambda *_: ('x', next(statuses))),
+            patch.object(tagger_module.time, 'sleep') as sleep,
+        ):
+            self.tagger.parse_folder(folder, SongTypeEnum.SOUNDCLOUD)
+        sleep.assert_called_once_with(tagger_module.TAGGER_BATCH_PAUSE)
 
     def test_lms_hears_about_a_folder_only_when_a_file_in_it_was_written(self):
         """A full run visits every folder and leaves nearly all of them as they were.
@@ -802,3 +865,22 @@ class TagSingleFileTest(TaggerTestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class EnvNumberTest(unittest.TestCase):
+    """`TAGGER_WORKERS` and `TAGGER_BATCH_PAUSE` are read once at import, through this."""
+
+    def test_unset_and_blank_fall_back_to_the_default(self):
+        with patch.dict(os.environ, {'TAGGER_WORKERS': ''}, clear=False):
+            self.assertEqual(tagger_module._env_number('TAGGER_WORKERS', 12, int), 12)
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(tagger_module._env_number('TAGGER_WORKERS', 12, int), 12)
+
+    def test_a_value_is_cast(self):
+        with patch.dict(os.environ, {'TAGGER_WORKERS': '4', 'TAGGER_BATCH_PAUSE': '0.1'}):
+            self.assertEqual(tagger_module._env_number('TAGGER_WORKERS', 12, int), 4)
+            self.assertEqual(tagger_module._env_number('TAGGER_BATCH_PAUSE', 0.5), 0.1)
+
+    def test_garbage_is_logged_and_ignored(self):
+        with patch.dict(os.environ, {'TAGGER_WORKERS': 'lots'}), self.assertLogs(level='WARNING'):
+            self.assertEqual(tagger_module._env_number('TAGGER_WORKERS', 12, int), 12)

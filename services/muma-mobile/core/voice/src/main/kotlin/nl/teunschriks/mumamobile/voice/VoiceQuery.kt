@@ -8,6 +8,7 @@
 package nl.teunschriks.mumamobile.voice
 
 import kotlin.math.abs
+import nl.teunschriks.mumamobile.api.subsonic.models.QualityTier
 
 /**
  * @class VoiceQuery
@@ -118,6 +119,22 @@ object VoiceQuery {
      * headhunterz"), so which one it is depends entirely on what comes next.
      */
     private val YEAR_PREPOSITIONS = setOf("uit", "van", "in", "from", "of", "sinds", "since")
+
+    /**
+     * One word that names the top tier on its own. "Flac" is what the request for a car stereo
+     * test actually sounds like; "wav" is the other lossless format the library holds.
+     */
+    private val LOSSLESS_WORDS = setOf("flac", "lossless", "wav")
+
+    /** One word for "320 and better". */
+    private val HIGH_QUALITY_WORDS = setOf("hq", "320")
+
+    /** The noun of "hoge kwaliteit" and "high quality"; only a quality word when an adjective precedes it. */
+    private val QUALITY_NOUNS = setOf("kwaliteit", "quality", "resolutie", "resolution", "res")
+    private val HIGH_ADJECTIVES = setOf("hoge", "hoog", "high", "goede", "goed", "good", "beste", "best", "hi")
+
+    /** Dropped when it introduces a quality phrase: "hardstyle in hoge kwaliteit". */
+    private val QUALITY_PREPOSITIONS = setOf("in", "op", "als")
     private val ARTICLE_WORDS = setOf("het", "de", "the", "een", "a", "an")
     private val SET_WORDS = setOf("set", "sets", "liveset", "livesets", "djset", "djsets")
     private val SET_QUALIFIERS = setOf("live", "dj")
@@ -139,7 +156,7 @@ object VoiceQuery {
     private val KEYWORDS: Set<String> by lazy {
         GENRE_WORDS + LABEL_WORDS + ARTIST_WORDS + ALBUM_WORDS + PLAYLIST_WORDS + TITLE_WORDS +
             RANDOM_WORDS + ADDED_WORDS + RELEASED_WORDS + FAVORITE_WORDS + RATING_WORDS +
-            YEAR_PREPOSITIONS + AND_WORDS + SET_WORDS
+            YEAR_PREPOSITIONS + AND_WORDS + SET_WORDS + LOSSLESS_WORDS + HIGH_QUALITY_WORDS
     }
 
     /**
@@ -175,6 +192,9 @@ object VoiceQuery {
         tokens = tokens.filterNot { it in NOISE_WORDS }
         tokens = dropTitleWordsThatNameNothing(tokens, trace)
         tokens = dropArticlesAroundKeywords(tokens)
+
+        val (withoutQuality, minQuality) = takeQuality(tokens, trace)
+        tokens = withoutQuality
 
         // Whether a set word found here would flip the intent, or is simply what a track is
         // titled. "Speel het nummer live set af" asks for the track named "Live Set"; nothing
@@ -325,7 +345,8 @@ object VoiceQuery {
             },
             favorites = favorites,
             ratingMin = floor,
-            ratingMax = floor?.let { FAVORITE_RATING }
+            ratingMax = floor?.let { FAVORITE_RATING },
+            minQuality = minQuality
         )
 
         if (request.isEmpty()) {
@@ -341,6 +362,43 @@ object VoiceQuery {
 
     /** The one value a single-valued slot holds, or null when nothing was spoken into it. */
     private fun Map<Slot, List<List<String>>>.value(slot: Slot): String? = values(slot).joinToString(" ").ifEmpty { null }
+
+    /**
+     * Takes the quality floor out of the utterance, so the words that spelled it never reach the
+     * free term.
+     *
+     * Two shapes. A single word -- "flac", "lossless", "hq" -- names a tier on its own. A phrase
+     * -- "hoge kwaliteit", "high quality" -- needs its adjective: "kwaliteit" alone could be a
+     * track title, and is left alone. The preposition in front of either ("in hoge kwaliteit")
+     * is part of the phrase and goes with it; "in" is otherwise a year preposition, and without
+     * a year after it would land in the free term.
+     *
+     * @return the remaining tokens and the tier, or null when nothing about quality was said
+     */
+    private fun takeQuality(tokens: List<String>, trace: QueryTrace?): Pair<List<String>, String?> {
+        var tier: String? = null
+        val drop = mutableSetOf<Int>()
+
+        tokens.forEachIndexed { index, token ->
+            var start = index
+            val spelled = when {
+                token in LOSSLESS_WORDS -> QualityTier.LOSSLESS
+                token in HIGH_QUALITY_WORDS -> QualityTier.KBPS_320
+                token in QUALITY_NOUNS && tokens.getOrNull(index - 1) in HIGH_ADJECTIVES -> {
+                    start = index - 1
+                    QualityTier.KBPS_320
+                }
+                else -> return@forEachIndexed
+            }
+            if (tokens.getOrNull(start - 1) in QUALITY_PREPOSITIONS) start -= 1
+            drop.addAll(start..index)
+            // The first tier spoken wins; "flac of 320" is not a request this reads.
+            if (tier == null) tier = spelled
+            trace?.rule("\"$token\" asks for quality \"$spelled\" or better")
+        }
+
+        return if (tier == null) tokens to null else tokens.filterIndexed { index, _ -> index !in drop } to tier
+    }
 
     /**
      * Drops a title word that names nothing.

@@ -9,6 +9,7 @@ package nl.teunschriks.mumamobile.service.androidauto
 
 import nl.teunschriks.mumamobile.api.subsonic.models.Filter
 import nl.teunschriks.mumamobile.api.subsonic.models.Filters
+import nl.teunschriks.mumamobile.api.subsonic.models.QualityTier
 import nl.teunschriks.mumamobile.home.TileInfo
 import nl.teunschriks.mumamobile.util.Settings.maxSongs
 
@@ -63,6 +64,7 @@ data class BrowseQuery(
         const val CLUSTER_FESTIVAL = "FESTIVAL"
         const val CLUSTER_ARTIST = "ARTIST"
         const val CLUSTER_LENGTH = "LENGTH"
+        const val CLUSTER_QUALITY = QualityTier.CLUSTER
 
         /**
          * Not a cluster: the pseudo tag type a lineup row carries. A lineup narrows by the
@@ -89,6 +91,9 @@ data class BrowseQuery(
             put(CLUSTER_ARTIST, tile.artists)
             put(CLUSTER_LABEL, tile.label)
             put(CLUSTER_FESTIVAL, tile.festival)
+            // A floor, so the list is every tier from the top down to it. A tile saved on the
+            // web to test a car stereo with lossless files is exactly what this carries.
+            put(CLUSTER_QUALITY, QualityTier.atLeast(tile.minQuality))
 
             return BrowseQuery(
                 length = tile.length.ifBlank { "short" },

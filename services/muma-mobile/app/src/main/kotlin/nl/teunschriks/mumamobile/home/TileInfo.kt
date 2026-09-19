@@ -3,6 +3,7 @@ package nl.teunschriks.mumamobile.home
 import androidx.core.graphics.toColorInt
 import com.google.gson.Gson
 import nl.teunschriks.mumamobile.R
+import nl.teunschriks.mumamobile.api.subsonic.models.QualityTier
 import nl.teunschriks.mumamobile.util.Settings.maxSongs
 
 val tileInfoColors = listOf(
@@ -31,6 +32,9 @@ val genreIconMap: Map<String, Int> = mapOf(
     "Zaagtempo" to R.drawable.baseline_bolt_24
 )
 
+// One constructor parameter per key of the tile JSON the web and this app both write; Gson
+// reads it by field name, so there is nothing to group without changing that JSON.
+@Suppress("LongParameterList")
 class TileInfo(
     var id: String? = null,
     var pageKey: String = "",
@@ -49,7 +53,9 @@ class TileInfo(
     val sortMethod: String = "AddedDesc",
     val minDuration: Int? = null,
     val maxDuration: Int? = null,
-    val favorite: Boolean = false
+    val favorite: Boolean = false,
+    /** A floor on the QUALITY cluster, one of [QualityTier.TIERS]; null filters nothing. */
+    val minQuality: String? = null
 ) {
     init {
         if (title == "") title = createDefaultTitle()
@@ -91,6 +97,7 @@ fun TileInfo.toSmartParamsJson(): String {
     map["festivalLineup"] = festivalLineup?.takeIf { it.isNotBlank() }
     map["favorite"] = favorite
     map["length"] = length.takeIf { it.isNotBlank() }
+    map["minQuality"] = minQuality?.takeIf { it.isNotBlank() }
     return Gson().toJson(map.filterValues { it != null })
 }
 

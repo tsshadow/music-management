@@ -3,6 +3,7 @@
 
   import { authParams, visibleSortOptions, allSortOptions, isMobile } from './store.js';
   import { listOf, subsonicJson } from './subsonic.js';
+  import { QUALITY_FLOORS, QUALITY_LABEL_KEYS } from './quality.js';
   import BottomSheet from './BottomSheet.svelte';
 
   let {
@@ -12,6 +13,9 @@
     search = $bindable(''),
     minRating = $bindable('0'),
     includeUnrated = $bindable(true),
+    // A floor on the QUALITY cluster, '' for no floor. Rarely touched -- it exists for
+    // trying a new car stereo on lossless files -- so it sits after the rating.
+    minQuality = $bindable(''),
     role = $bindable('all'),
     view = 'songs',
     showGenre = true,
@@ -87,7 +91,7 @@
    * Notifies the parent component of filter/sort changes.
    */
   function handleChange() {
-    if (onchange) onchange({ genre, sort, year, search, role, minRating, includeUnrated });
+    if (onchange) onchange({ genre, sort, year, search, role, minRating, includeUnrated, minQuality });
   }
 
   let searchTimeout;
@@ -116,6 +120,7 @@
         : $t('filter.starsMin', { count: Number(minRating) })
   );
   const unratedActive = $derived(!includeUnrated);
+  const currentQualityLabel = $derived(minQuality ? $t(QUALITY_LABEL_KEYS[minQuality]) : '');
 
   function selectGenre(value) {
     genre = value;
@@ -134,6 +139,11 @@
   }
   function selectRating(value) {
     minRating = value;
+    openSheet = null;
+    handleChange();
+  }
+  function selectQuality(value) {
+    minQuality = value;
     openSheet = null;
     handleChange();
   }
@@ -160,6 +170,10 @@
   }
   function clearRating() {
     minRating = '0';
+    handleChange();
+  }
+  function clearQuality() {
+    minQuality = '';
     handleChange();
   }
 
@@ -286,6 +300,7 @@
 
       {#if view === 'songs'}
         {@render filterChip('rating', $t('filter.rating'), currentRatingLabel, () => (openSheet = 'rating'), clearRating)}
+        {@render filterChip('quality', $t('filter.quality.label'), currentQualityLabel, () => (openSheet = 'quality'), clearQuality)}
       {/if}
 
       {@render filterChip('sort', $t('filter.sortBy'), currentSortLabel, () => (openSheet = 'sort'), null)}
@@ -351,6 +366,15 @@
           {@render sheetOption($t('filter.starsMin', { count: star }), minRating === String(star), () => selectRating(String(star)))}
         {/each}
         {@render sheetOption($t('filter.starsExactly', { count: 5 }), minRating === '5', () => selectRating('5'))}
+      </div>
+    </BottomSheet>
+  {:else if openSheet === 'quality'}
+    <BottomSheet title={$t('filter.quality.label')} onclose={() => (openSheet = null)}>
+      <div role="listbox" aria-label={$t('filter.quality.label')}>
+        {@render sheetOption($t('filter.quality.any'), minQuality === '', () => selectQuality(''))}
+        {#each QUALITY_FLOORS as tier (tier)}
+          {@render sheetOption($t(QUALITY_LABEL_KEYS[tier]), minQuality === tier, () => selectQuality(tier))}
+        {/each}
       </div>
     </BottomSheet>
   {:else if openSheet === 'sort'}
@@ -423,6 +447,16 @@
               <option value="3">{$t('filter.starsMin', { count: 3 })}</option>
               <option value="4">{$t('filter.starsMin', { count: 4 })}</option>
               <option value="5">{$t('filter.starsExactly', { count: 5 })}</option>
+            </select>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <label for="minQuality" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('filter.quality.label')}</label>
+            <select id="minQuality" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={minQuality} onchange={handleChange}>
+              <option value="">{$t('filter.quality.any')}</option>
+              {#each QUALITY_FLOORS as tier (tier)}
+                <option value={tier}>{$t(QUALITY_LABEL_KEYS[tier])}</option>
+              {/each}
             </select>
           </div>
 

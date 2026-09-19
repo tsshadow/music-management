@@ -97,6 +97,7 @@
   let currentTrackSearch = $state('');
   let currentMinRating = $state('2');
   let includeUnrated = $state(true);
+  let currentMinQuality = $state('');
   let currentSeed = $state(Math.floor(Math.random() * 1000000));
   let sentinel = $state(null);
 
@@ -220,6 +221,7 @@
           year: currentYear || (activeView.startsWith('year:') ? argument : undefined),
           minRating: currentMinRating !== '0' ? currentMinRating : undefined,
           includeUnrated: includeUnrated ? 'true' : undefined,
+          minQuality: currentMinQuality || undefined,
           // Minutes on this endpoint, not seconds; the offline library reads them
           // the same way. Ten is the songs/sets boundary the whole app uses.
           ...($viewMode === 'sets' ? { minDuration: 10 } : { maxDuration: 10 })
@@ -403,6 +405,7 @@
           year: currentYear || (activeView.startsWith('year:') ? argument : ''),
           sort: currentSort,
           minRating: currentMinRating,
+          minQuality: currentMinQuality,
           viewMode: $viewMode,
         }),
       });
@@ -637,7 +640,7 @@
    * @param {Object} params - The filter and sort parameters.
    */
   function handleFilterChange(params) {
-      const { genre, sort, year, search, role, minRating, includeUnrated: incUnrated } = params;
+      const { genre, sort, year, search, role, minRating, includeUnrated: incUnrated, minQuality } = params;
       currentSeed = Math.floor(Math.random() * 1000000);
       if (activeView === 'artists') {
           currentArtistSort = sort;
@@ -656,6 +659,7 @@
           currentTrackSearch = search;
           currentMinRating = minRating || '0';
           includeUnrated = incUnrated !== undefined ? incUnrated : true;
+          currentMinQuality = minQuality || '';
           loadAllTracks();
       }
   }
@@ -908,7 +912,7 @@
               </button>
             {/if}
         </h2>
-        <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} showGenre={!activeView.startsWith('genre:') && !activeView.startsWith('label:') && !activeView.startsWith('podcast:')} showYear={!activeView.startsWith('year:')} onchange={handleFilterChange} />
+        <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} bind:minQuality={currentMinQuality} showGenre={!activeView.startsWith('genre:') && !activeView.startsWith('label:') && !activeView.startsWith('podcast:')} showYear={!activeView.startsWith('year:')} onchange={handleFilterChange} />
     </div>
     {#if isLoading && tracks.length === 0}
         <p>{$t('common.loading')}</p>

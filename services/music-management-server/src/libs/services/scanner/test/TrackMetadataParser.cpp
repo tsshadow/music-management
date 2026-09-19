@@ -174,6 +174,55 @@ namespace lms::scanner::tests
         }
     }
 
+    TEST(TrackMetadataParser, noQualityWithoutAudioProperties)
+    {
+        const TestTagReader testTags{ {} };
+
+        const Track track{ TrackMetadataParser{}.parseTrackMetaData(testTags) };
+
+        EXPECT_FALSE(track.userExtraTags.contains("QUALITY"));
+    }
+
+    TEST(TrackMetadataParser, qualityTier)
+    {
+        struct Case
+        {
+            core::media::Codec codec;
+            unsigned bitrate;
+            const char* expected;
+        };
+        // Mirrors format_tier() in muma's song_versions.py, tier for tier.
+        const Case cases[]{
+            { core::media::Codec::FLAC, 900'000, "lossless" },
+            { core::media::Codec::ALAC, 700'000, "lossless" },
+            { core::media::Codec::PCM, 1'411'000, "lossless" },
+            { core::media::Codec::MP3, 320'000, "320" },
+            { core::media::Codec::MP3, 300'000, "320" },
+            { core::media::Codec::AAC, 320'000, "320" },
+            { core::media::Codec::AAC, 256'000, "aac" },
+            { core::media::Codec::Opus, 128'000, "aac" },
+            { core::media::Codec::Vorbis, 96'000, "aac" },
+            { core::media::Codec::MP3, 256'000, "192" },
+            { core::media::Codec::MP3, 192'000, "192" },
+            { core::media::Codec::MP3, 180'000, "192" },
+            { core::media::Codec::MP3, 128'000, "low" },
+            { core::media::Codec::MP3, 0, "low" },
+        };
+
+        const TestTagReader testTags{ {} };
+        for (const Case& c : cases)
+        {
+            audio::AudioProperties props{};
+            props.codec = c.codec;
+            props.bitrate = c.bitrate;
+
+            const Track track{ TrackMetadataParser{}.parseTrackMetaData(testTags, &props) };
+
+            ASSERT_TRUE(track.userExtraTags.contains("QUALITY"));
+            EXPECT_EQ(track.userExtraTags.at("QUALITY").front(), c.expected) << "codec " << static_cast<int>(c.codec) << " at " << c.bitrate;
+        }
+    }
+
     TEST(TrackMetadataParser, trim)
     {
         const TestTagReader testTags{
@@ -975,7 +1024,7 @@ namespace lms::scanner::tests
         TestTagReader testTags{ {} };
 
         {
-            AudioProperties props;
+            AudioProperties props{};
             props.duration = std::chrono::minutes(5);
             const Track track{ TrackMetadataParser{}.parseTrackMetaData(testTags, &props) };
             ASSERT_TRUE(track.userExtraTags.contains("LENGTH"));
@@ -983,7 +1032,7 @@ namespace lms::scanner::tests
         }
 
         {
-            AudioProperties props;
+            AudioProperties props{};
             props.duration = std::chrono::minutes(15);
             const Track track{ TrackMetadataParser{}.parseTrackMetaData(testTags, &props) };
             ASSERT_TRUE(track.userExtraTags.contains("LENGTH"));

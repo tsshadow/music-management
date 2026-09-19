@@ -37,6 +37,9 @@ object VoiceExplanation {
         /** The star range asked for, as "5", "4-5" or "4+". */
         RATING,
 
+        /** The lowest quality tier asked for, as the server spells it: "lossless", "320". */
+        QUALITY,
+
         /** Present only when the request asked for sets rather than tracks; the value is empty. */
         SETS,
 
@@ -117,6 +120,9 @@ object VoiceExplanation {
                 // The tag is only a fallback: the range is the wider truth, and the two are set
                 // together for the same request.
                 QueryResolver.FILTER_RATING -> ratingTag = value
+                // The filter lists every tier down to the floor; the floor is the last of them
+                // and the only one worth saying.
+                QueryResolver.FILTER_QUALITY -> floorOf(filter.value)?.let { rows.add(Row(Field.QUALITY, it)) }
                 else -> Unit
             }
         }
@@ -134,6 +140,12 @@ object VoiceExplanation {
         is String -> value.trim()
         is Collection<*> -> value.filterNotNull().joinToString(" / ") { it.toString() }
         else -> value.toString()
+    }
+
+    private fun floorOf(value: Any): String? = when (value) {
+        is String -> value.trim().ifEmpty { null }
+        is Collection<*> -> value.lastOrNull()?.toString()
+        else -> null
     }
 
     private fun rating(target: Target.Filtered, tag: String?): String? {

@@ -21,6 +21,7 @@
 import { writable } from "svelte/store";
 
 import { apiBase, fetchMumaJson, getHeaders, jsonHeaders } from "./mumaApi.js";
+import { QUALITY_LABEL_KEYS, qualityAtLeast } from "./quality.js";
 
 /**
  * The signed-in user's presets, as the home grid shows them. Filled by {@link refreshPresets}
@@ -79,6 +80,7 @@ const SORT_LABEL_KEYS = Object.freeze({
  * @property {'recent'|'added'|'random'|'starred'|'alpha'} sort
  * @property {number} minRating 0 means no floor.
  * @property {number} maxRating 5 means no ceiling.
+ * @property {string|null} minQuality A floor on the QUALITY cluster, null for none.
  * @property {'short'|'long'|null} length Songs, sets, or whatever mode the listener is in.
  * @property {number} size
  */
@@ -108,6 +110,8 @@ export function normalizePreset(row) {
     sort: SERVER_TO_SORT[sortKey] ?? "recent",
     minRating: ratingRange ? ratingToStars(ratingRange[0]) : numberOr(raw.ratingMin, 0),
     maxRating: ratingRange ? ratingToStars(ratingRange[1]) : numberOr(raw.ratingMax, 5),
+    minQuality:
+      typeof raw.minQuality === "string" && raw.minQuality.trim() ? raw.minQuality.trim() : null,
     length: lengthOf(raw),
     size: numberOr(raw.size, DEFAULT_PRESET_SIZE),
   };
@@ -132,6 +136,9 @@ export function presetQuery(preset, { viewMode, count, offset = 0, seed } = {}) 
   if (preset.artists.length) clusters.push({ name: "ARTIST", value: preset.artists });
   if (preset.labels.length) clusters.push({ name: "PUBLISHER", value: preset.labels });
   if (preset.festivals.length) clusters.push({ name: "FESTIVAL", value: preset.festivals });
+  // A floor, as the list of tiers down to it; a floor this app does not know sends nothing.
+  const quality = qualityAtLeast(preset.minQuality);
+  if (quality) clusters.push({ name: "QUALITY", value: quality });
   clusters.push({
     name: "LENGTH",
     value: preset.length ?? (viewMode === "sets" ? "long" : "short"),
@@ -162,7 +169,7 @@ export function presetQuery(preset, { viewMode, count, offset = 0, seed } = {}) 
  *
  * @param {{genres?: string[], artists?: string[], labels?: string[], festivals?: string[],
  *   years?: (string|number)[], sort?: string, minRating?: number, maxRating?: number,
- *   viewMode: 'songs'|'sets', size?: number}} query
+ *   minQuality?: string|null, viewMode: 'songs'|'sets', size?: number}} query
  * @returns {string}
  */
 export function presetParams({
@@ -174,6 +181,7 @@ export function presetParams({
   sort,
   minRating = 0,
   maxRating = 5,
+  minQuality = null,
   viewMode,
   size = DEFAULT_PRESET_SIZE,
 }) {
@@ -194,6 +202,8 @@ export function presetParams({
     params.ratingMin = floor;
     params.ratingMax = ceiling;
   }
+  // Only a tier the server has; anything else is left out, as an empty list would be.
+  if (qualityAtLeast(minQuality)) params.minQuality = String(minQuality).trim().toLowerCase();
   params.length = viewMode === "sets" ? "long" : "short";
   params.size = Math.max(1, Number(size) || DEFAULT_PRESET_SIZE);
   return JSON.stringify(params);
@@ -204,16 +214,26 @@ export function presetParams({
  * label, one year and rating floor, through {@link presetParams}.
  *
  * @param {{genre?: string, label?: string, year?: string, sort?: string, minRating?: string|number,
- *   viewMode: 'songs'|'sets'}} filters The filter bar's state plus the listener's mode.
+ *   minQuality?: string, viewMode: 'songs'|'sets'}} filters The filter bar's state plus the
+ *   listener's mode.
  * @returns {string}
  */
-export function presetParamsFromFilters({ genre, label, year, sort, minRating, viewMode }) {
+export function presetParamsFromFilters({
+  genre,
+  label,
+  year,
+  sort,
+  minRating,
+  minQuality,
+  viewMode,
+}) {
   return presetParams({
     genres: genre ? [genre] : [],
     labels: label ? [label] : [],
     years: year ? [String(year)] : [],
     sort,
     minRating: Number(minRating) || 0,
+    minQuality: minQuality || null,
     viewMode,
   });
 }
@@ -239,6 +259,8 @@ export function presetSummary(preset, t) {
   if (filters.length) parts.push(filters.join(", "));
   if (preset.years.length) parts.push(preset.years.join(", "));
   if (preset.minRating > 0) parts.push(t("filter.starsMin", { count: preset.minRating }));
+  if (preset.minQuality && QUALITY_LABEL_KEYS[preset.minQuality])
+    parts.push(t(QUALITY_LABEL_KEYS[preset.minQuality]));
   if (parts.length === 1) parts.push(t("presets.everything"));
   return parts.join(" · ");
 }

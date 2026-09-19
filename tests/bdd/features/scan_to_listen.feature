@@ -21,6 +21,15 @@ Feature: A track on disk becomes a listen
     When the mobile app searches for the track over the Subsonic API
     Then the Subsonic search returns the track
 
+    # The fixture is a 33 kbps mp3, the lowest of the five quality tiers. A
+    # floor it clears has to list it and a floor it does not has to leave it
+    # out: the first proves the scanner filed the track under a tier at all,
+    # the second that the filter reads that tier rather than falling open.
+    When the mobile app browses tracks of at least "low" quality
+    Then the fixture track is listed
+    When the mobile app browses tracks of at least "lossless" quality
+    Then the fixture track is not listed
+
     When the mobile app streams the track
     Then the audio comes back whole and unconverted
     # Seeking, which is the only reason a player asks for part of a file. Worth

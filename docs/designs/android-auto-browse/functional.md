@@ -1,8 +1,8 @@
 # Android Auto Browse Parity — Functional Design
 
 > Status: decided with Teun on 2026-09-19 after a walk through the car tree against the phone's
-> Browse grid. Part 1 (the tree) ships with this document; part 2 (playback of a tapped row) is
-> listed under "Next" and is a separate merge request.
+> Browse grid. Part 1 (the tree) shipped with this document; part 2 (a tapped track plays the
+> list from there) followed in its own merge request.
 
 ## What was wrong
 
@@ -65,11 +65,16 @@ was never in the tree.
 - Tag lists sort by how much there is to hear, most first; years newest first. A car list is
   scrolled with one finger at a red light.
 
+## A tapped track plays the list from there
+
+Every song-level media id used to hand the car a queue of one, so a track tapped in any browsed
+list played and then stopped. `onSetMediaItems` now resolves a tap to the list it was tapped in
+plus a start index (`MediaLibraryPlaybackController.queueForTap`), off the main thread. A list
+that no longer holds the track — a car that remembered an id from before the service restarted —
+falls back to the old one-track path rather than playing nothing.
+
 ## Not in this change
 
-- **A tapped track plays alone.** In every browsed list a tap on a track hands the car a queue of
-  one; the phone plays the list from that track. This is the next merge request
-  (`onSetMediaItems` returning the full list with a start index).
 - Downloads/offline, Geschiedenis, Memories and Luisterstatistieken in the car: other data sources
   (Room, the muma API), a separate design.
 - Group headings on the tracks themselves. The play rows and the year folder carry a group; the

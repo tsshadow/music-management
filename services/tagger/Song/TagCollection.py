@@ -176,7 +176,9 @@ class TagCollection:
             value (Any): The new value to assign to the tag.
         """
         if value is not None:
-            if self.tags.get(mp3tag):
+            # `in`, not truthiness: an existing Tag with no values is falsy through __len__,
+            # and replacing it loses the baseline has_changes compares against.
+            if mp3tag in self.tags:
                 self.tags[mp3tag].set(value)
             else:
                 self.tags[mp3tag] = Tag(mp3tag, '')

@@ -30,6 +30,23 @@ class TestTag(unittest.TestCase):
         self.assertEqual(tag.to_array(), ['Foo', 'Bar'])
         self.assertFalse(tag.has_changes())
 
+    def test_a_round_trip_back_to_the_starting_value_is_no_change(self):
+        # [A, B] -> [A] -> [A, B]: what the artist rules did to every MOTZ Premiere file,
+        # and what used to rewrite the file on every pass.
+        tag = Tag('artist', 'MOTZ Premiere;Ignatowski')
+        tag.set('MOTZ Premiere')
+        tag.add('Ignatowski')
+        self.assertFalse(tag.has_changes())
+
+    def test_the_baseline_moves_only_when_changes_are_cleared(self):
+        tag = Tag('artist', 'A')
+        tag.set('B')
+        self.assertTrue(tag.has_changes())
+        tag.clear_changes()
+        self.assertFalse(tag.has_changes())
+        tag.set('A')
+        self.assertTrue(tag.has_changes())
+
     def test_remove_value(self):
         tag = Tag('artist', 'A;B;C')
         tag.remove('B')

@@ -25,6 +25,9 @@ object BrowseArtwork {
     /** A genre never has a picture of its own, so it is always drawn. */
     fun forGenre(name: String, @ColorInt tint: Int): Uri? = GeneratedArtContentProvider.artUri(PlaylistArtKind.GENRE, name, tint)
 
+    /** A festival or lineup row: the same drawn cover the phone's festival cards use. */
+    fun forFestival(name: String, @ColorInt tint: Int): Uri? = GeneratedArtContentProvider.artUri(PlaylistArtKind.FESTIVAL, name, tint)
+
     /**
      * The artist's portrait when MuMa has one, initials on the genre's colour otherwise.
      *

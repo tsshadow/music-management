@@ -29,7 +29,7 @@ import org.robolectric.RobolectricTestRunner
  * text row with a generic icon. Giving it a cover the app renders itself is what turns that level
  * into the grid the content-style rule is already willing to ask for.
  *
- * The last-played genres are the level to walk here: they come out of settings rather than off the
+ * The favorite genres are the level to walk here: they come out of settings rather than off the
  * server, so the whole path runs without a network stub.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -50,19 +50,19 @@ class GenreCoverArtTest {
     )
 
     @Before
-    fun givenTwoGenresWerePlayed() {
+    fun givenTwoFavoriteGenres() {
         // Assigned through the property: SettingsDelegate pins its store to the first UApp
         // Robolectric made, so writing SharedPreferences from a test changes nothing.
-        Settings.lastPlayedGenres = """["Hardstyle","Frenchcore"]"""
+        Settings.favoriteGenres = """["Hardstyle","Frenchcore"]"""
     }
 
-    private fun lastPlayedGenres() = browser
-        .getChildren(session, controller, MediaLibraryBase.MEDIA_LAST_PLAYED_GENRES_SONGS, 0, 50, null)
+    private fun favoriteGenres() = browser
+        .getChildren(session, controller, MediaLibraryBase.MEDIA_FAVORITE_GENRES_ID, 0, 50, null)
         .get()
 
     @Test
     fun `a genre entry carries a cover the app drew for it`() {
-        val items = lastPlayedGenres().value!!
+        val items = favoriteGenres().value!!
 
         items.first().mediaMetadata.artworkUri.`should not be null`()
     }
@@ -71,7 +71,7 @@ class GenreCoverArtTest {
     fun `the cover is served from this app rather than fetched over the network`() {
         // The car opens artwork through the content resolver, in its own process. A http URL here
         // would be an image the car cannot load and MuMa cannot serve without the API key.
-        val art = lastPlayedGenres().value!!.first().mediaMetadata.artworkUri!!
+        val art = favoriteGenres().value!!.first().mediaMetadata.artworkUri!!
 
         art.scheme `should be equal to` ContentResolver.SCHEME_CONTENT
         art.authority!!.endsWith("GeneratedArtContentProvider") `should be equal to` true
@@ -79,7 +79,7 @@ class GenreCoverArtTest {
 
     @Test
     fun `each genre gets its own cover rather than a shared one`() {
-        val items = lastPlayedGenres().value!!
+        val items = favoriteGenres().value!!
 
         (items[0].mediaMetadata.artworkUri == items[1].mediaMetadata.artworkUri) `should be equal to` false
     }
@@ -88,7 +88,7 @@ class GenreCoverArtTest {
     fun `the level asks for a grid now that its entries have something to show`() {
         // This is the point of the whole change: without artwork the content-style rule keeps the
         // level a list, whatever else is done to it.
-        val params = lastPlayedGenres().params!!
+        val params = favoriteGenres().params!!
 
         params.extras.getInt(CONTENT_STYLE_BROWSABLE_HINT) `should be equal to` CONTENT_STYLE_GRID_ITEM
     }

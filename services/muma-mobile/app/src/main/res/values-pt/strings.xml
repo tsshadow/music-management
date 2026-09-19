@@ -1,16 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="button_bar.search">Pesquisa</string>
     <string name="download.jukebox_not_authorized">Controle remoto não está permitido. Habilite o modo jukebox em <b>Usuário &gt; Configurações</b> no seu servidor Subsonic.</string>
     <string name="download.jukebox_offline">Controle remoto não está disponível no modo offline.</string>
     <string name="download.jukebox_server_too_old">Controle remoto não suportado. Atualize seu servidor Subsonic.</string>
-    <string name="main.albums_random">Aleatórios</string>
-    <string name="main.albums_recent">Recentemente Tocados</string>
     <string name="main.albums_title">Álbuns</string>
     <string name="main.artists_title">Artistas</string>
     <string name="main.genres_title">Gêneros</string>
     <string name="main.offline">Offline</string>
-    <string name="main.songs_starred">Favoritas</string>
     <string name="main.songs_title">Músicas</string>
     <string name="main.welcome_title">Bem-vindo!</string>
     <string name="menu.common">Comum</string>

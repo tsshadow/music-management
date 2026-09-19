@@ -88,12 +88,7 @@ abstract class MediaLibraryBase protected constructor() {
         internal const val INDEX_PLAYLIST_ID = 1
         internal const val INDEX_PLAYLIST_NAME = 2
         internal const val INDEX_LENGTH = 1
-        internal const val INDEX_GENRE = 2
-        internal const val INDEX_YEAR = 3
-        internal const val INDEX_SORT_METHOD = 4
-        internal const val INDEX_FESTIVAL_LINEUP = 5
-        internal const val INDEX_RATING_MIN = 6
-        internal const val INDEX_RATING_MAX = 7
+        internal const val INDEX_SORT = 2
 
         fun Player.setNextRepeatMode() {
             repeatMode =
@@ -118,28 +113,25 @@ abstract class MediaLibraryBase protected constructor() {
         internal const val MEDIA_SONG_STARRED_ID = "MEDIA_SONG_STARRED_ID"
         internal const val MEDIA_ARTIST_ID = "MEDIA_ARTIST_ID"
         internal const val MEDIA_LIBRARY_ID = "MEDIA_LIBRARY_ID"
-        internal const val MEDIA_SONGS_ID = "MEDIA_SONGS_ID"
-        internal const val MEDIA_LIVESETS_ID = "MEDIA_LIVESETS_ID"
 
-        // The Sets root: same tree shape as Songs/Livesets already had, plus the favourites reach
-        // Favorites never gave sets (it hardcoded the "short" length). Added next to the existing
-        // roots rather than folded into Livesets, so the tree everything above diffs against stays
-        // byte-for-byte the same -- this is the one addition.
+        // The four root tabs. Android Auto draws at most four; everything past the fourth used
+        // to end up behind a "More" tab, which is where the daily mixes, the radar, radio, news
+        // and Favorites all sat while the root had nine entries. Start holds what the car opens
+        // the app for; Songs and Sets are the phone's Browse grid per mode; Library is the part
+        // that does not depend on the mode.
+        internal const val MEDIA_START_ID = "MEDIA_START_ID"
+        internal const val MEDIA_SONGS_ID = "MEDIA_SONGS_ID"
         internal const val MEDIA_SETS_ID = "MEDIA_SETS_ID"
-        internal const val MEDIA_SETS_FAVORITES_ID = "MEDIA_SETS_FAVORITES_ID"
         internal const val MEDIA_FAVORITE_GENRES_SETS_ID = "MEDIA_FAVORITE_GENRES_SETS_ID"
         internal const val MEDIA_FAVORITE_PLAYLISTS_SETS_ID = "MEDIA_FAVORITE_PLAYLISTS_SETS_ID"
 
         internal const val MEDIA_FAVORITES_ID = "MEDIA_FAVORITES_ID"
         internal const val MEDIA_FAVORITE_GENRES_ID = "MEDIA_FAVORITE_GENRES_ID"
         internal const val MEDIA_FAVORITE_PLAYLISTS_ID = "MEDIA_FAVORITE_PLAYLISTS_ID"
-        internal const val MEDIA_LAST_PLAYED_GENRES_SONGS = "MEDIA_LAST_PLAYED_GENRES_SONGS"
-        internal const val MEDIA_LAST_PLAYED_GENRES_LIVESETS = "MEDIA_LAST_PLAYED_GENRES_LIVESETS"
         internal const val MEDIA_ALBUM_BY_YEAR_ID = "MEDIA_ALBUM_BY_YEAR_ID"
         internal const val MEDIA_PLAYLIST_ID = "MEDIA_PLAYLIST_ID"
         internal const val MEDIA_SHARE_ID = "MEDIA_SHARE_ID"
         internal const val MEDIA_BOOKMARK_ID = "MEDIA_BOOKMARK_ID"
-        internal const val MEDIA_PODCAST_ID = "MEDIA_PODCAST_ID"
         internal const val MEDIA_ALBUM_ITEM = "MEDIA_ALBUM_ITEM"
         internal const val MEDIA_PLAYLIST_SONG_ITEM = "MEDIA_PLAYLIST_SONG_ITEM"
         internal const val MEDIA_PLAYLIST_ITEM = "MEDIA_PLAYLIST_ITEM"
@@ -151,8 +143,6 @@ abstract class MediaLibraryBase protected constructor() {
         internal const val MEDIA_SHARE_ITEM = "MEDIA_SHARE_ITEM"
         internal const val MEDIA_SHARE_SONG_ITEM = "MEDIA_SHARE_SONG_ITEM"
         internal const val MEDIA_BOOKMARK_ITEM = "MEDIA_BOOKMARK_ITEM"
-        internal const val MEDIA_PODCAST_ITEM = "MEDIA_PODCAST_ITEM"
-        internal const val MEDIA_PODCAST_EPISODE_ITEM = "MEDIA_PODCAST_EPISODE_ITEM"
         internal const val MEDIA_SEARCH_SONG_ITEM = "MEDIA_SEARCH_SONG_ITEM"
 
         // Radio (beta): a browsable list of channels, each of which is playable.
@@ -181,11 +171,24 @@ abstract class MediaLibraryBase protected constructor() {
         internal const val FEED_DAILY_MIX = FeedRepository.DAILY_MIX
         internal val FEED_DAILY_MIXES = FeedRepository.DAILY_MIXES
 
-        // Genres -> songs
-        internal const val MEDIA_GET_GENRES = "MEDIA_GET_GENRES"
-        internal const val MEDIA_GET_YEARS = "MEDIA_GET_YEARS"
-        internal const val MEDIA_GET_SORT_METHOD = "MEDIA_GET_SORT_METHOD"
-        internal const val MEDIA_GET_SONGS_BY_GENRE = "MEDIA_GENRE_SONGS"
+        // Tag browsing, one shape for every kind of tag. See [TagQuery] for the id grammar:
+        // "<action>|<length>|<type>|<value>|<year>|<sort>".
+        //   MEDIA_TAG_LIST|<length>|<type>          the tags of one type (genres, labels, ...)
+        //   MEDIA_TAG_TRACKS|...                     one tag's folder: play rows, years, tracks
+        //   MEDIA_TAG_YEARS|<length>|<type>|<value>  the years under one tag
+        //   MEDIA_TAG_PLAY|...                       playable: the whole list, fetched on tap
+        //   MEDIA_LINEUP_LIST|<length>               the festival lineups; rows are tag folders
+        //                                            of type LINEUP
+        internal const val MEDIA_TAG_LIST = "MEDIA_TAG_LIST"
+        internal const val MEDIA_TAG_TRACKS = "MEDIA_TAG_TRACKS"
+        internal const val MEDIA_TAG_YEARS = "MEDIA_TAG_YEARS"
+        internal const val MEDIA_TAG_PLAY = "MEDIA_TAG_PLAY"
+        internal const val MEDIA_LINEUP_LIST = "MEDIA_LINEUP_LIST"
+
+        // A preset (MuMa dynamic playlist) by its server id: "MEDIA_PRESET|<id>" is the folder,
+        // "MEDIA_PRESET_PLAY|<id>|<sort>" plays it whole, in its own order or a given one.
+        internal const val MEDIA_PRESET = "MEDIA_PRESET"
+        internal const val MEDIA_PRESET_PLAY = "MEDIA_PRESET_PLAY"
 
         // Currently the display limit for long lists is 100 items
         internal const val DISPLAY_LIMIT = 100

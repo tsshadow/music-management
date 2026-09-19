@@ -1,17 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <string name="button_bar.search">Hledat</string>
     <string name="download.jukebox_not_authorized">Vzdálené ovládání není povoleno. Povolte jukebox mód v <b>Uživatelském &gt; Nastavení</b> na Subsonic serveru.</string>
     <string name="download.jukebox_offline">Vzdálené ovládání není dostupné v offline módu.</string>
     <string name="download.jukebox_server_too_old">Vzdálené ovládání není podporováno. Aktualizujte svůj Subsonic server.</string>
-    <string name="main.albums_random">Náhodné</string>
-    <string name="main.albums_recent">Nedávno přehrávané</string>
     <string name="main.albums_title">Alba</string>
     <string name="main.artists_title">Umělci</string>
     <string name="main.genres_title">Žánry</string>
     <string name="main.offline">Bez připojení</string>
-    <string name="main.songs_starred">Označené hvězdičkou</string>
     <string name="main.songs_title">Skladby</string>
     <string name="main.welcome_title">Vítejte!</string>
     <string name="menu.common">Další</string>

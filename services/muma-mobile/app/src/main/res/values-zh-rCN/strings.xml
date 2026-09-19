@@ -1,18 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="buttons.play">播放</string>
-    <string name="button_bar.search">搜索</string>
     <string name="download.jukebox_not_authorized">不允许远程控制. 请在您 Subsonic 服务器上的 <b>用户 &gt; 设置</b> 中打开点唱机模式。</string>
     <string name="download.jukebox_offline">离线模式不支持远程控制。</string>
     <string name="download.jukebox_server_too_old">远程控制不支持，请升级您的 Subsonic 服务器。</string>
     <string name="language.default">系统默认</string>
-    <string name="main.albums_random">随机</string>
-    <string name="main.albums_recent">最近播放</string>
     <string name="main.albums_title">专辑</string>
     <string name="main.artists_title">艺术家</string>
     <string name="main.genres_title">流派</string>
     <string name="main.offline">离线</string>
-    <string name="main.songs_starred">收藏夹</string>
     <string name="main.songs_title">歌曲</string>
     <string name="main.welcome_text_demo">使用 MuMa 来播放您的音乐，需要您自己的 <b>服务器</b>。
 \n

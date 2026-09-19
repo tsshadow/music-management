@@ -60,27 +60,35 @@ class MediaLibraryCommandHandler {
 
     private lateinit var newsButton: CommandButton
 
+    // Every car button names one of media3's `CommandButton.ICON_*` constants next to its own
+    // drawable. Media3 puts the constant in the legacy custom action's extras
+    // (`EXTRAS_KEY_COMMAND_BUTTON_ICON_COMPAT`), which is what Android Auto reads since its 17.6
+    // media player: an action without a known icon is not drawn at all, so the star, shuffle,
+    // repeat and news buttons vanished from the car while the notification kept showing them. The
+    // drawable stays the icon of the notification and the fallback for anything that does not
+    // know the constant (`DefaultMediaNotificationProvider` reads `iconResId`).
+
     /**
      * The news button carries no extras on purpose: Android Auto strips them
      * when the tap comes from the car, so the handler resolves the bulletin.
      */
-    private fun getNewsCommandButton(sessionCommand: SessionCommand) = CommandButton.Builder()
+    private fun getNewsCommandButton(sessionCommand: SessionCommand) = CommandButton.Builder(CommandButton.ICON_FEED)
         .setDisplayName(UApp.applicationContext().getString(R.string.news_button))
-        .setIconResId(R.drawable.ic_menu_podcasts)
+        .setCustomIconResId(R.drawable.ic_menu_podcasts)
         .setSessionCommand(sessionCommand)
         .setEnabled(true)
         .build()
 
-    private fun getShuffleCommandButton(sessionCommand: SessionCommand) = CommandButton.Builder()
+    private fun getShuffleCommandButton(sessionCommand: SessionCommand) = CommandButton.Builder(CommandButton.ICON_SHUFFLE_ON)
         .setDisplayName("Shuffle")
-        .setIconResId(R.drawable.media_shuffle)
+        .setCustomIconResId(R.drawable.media_shuffle)
         .setSessionCommand(sessionCommand)
         .setEnabled(true)
         .build()
 
-    private fun getPlaceholderButton() = CommandButton.Builder()
+    private fun getPlaceholderButton() = CommandButton.Builder(CommandButton.ICON_UNDEFINED)
         .setDisplayName("Placeholder")
-        .setIconResId(android.R.color.transparent)
+        .setCustomIconResId(android.R.color.transparent)
         .setSessionCommand(
             SessionCommand(
                 PlaybackService.CUSTOM_COMMAND_PLACEHOLDER,
@@ -90,7 +98,13 @@ class MediaLibraryCommandHandler {
         .setEnabled(false)
         .build()
 
-    private fun getRepeatModeButton(sessionCommand: SessionCommand, repeatMode: Int) = CommandButton.Builder()
+    private fun getRepeatModeButton(sessionCommand: SessionCommand, repeatMode: Int) = CommandButton.Builder(
+        when (repeatMode) {
+            Player.REPEAT_MODE_ONE -> CommandButton.ICON_REPEAT_ONE
+            Player.REPEAT_MODE_ALL -> CommandButton.ICON_REPEAT_ALL
+            else -> CommandButton.ICON_REPEAT_OFF
+        }
+    )
         .setDisplayName(
             when (repeatMode) {
                 Player.REPEAT_MODE_ONE -> "Repeat One"
@@ -98,7 +112,7 @@ class MediaLibraryCommandHandler {
                 else -> "Repeat None"
             }
         )
-        .setIconResId(
+        .setCustomIconResId(
             when (repeatMode) {
                 Player.REPEAT_MODE_ONE -> R.drawable.media_repeat_one
                 Player.REPEAT_MODE_ALL -> R.drawable.media_repeat_all
@@ -109,7 +123,7 @@ class MediaLibraryCommandHandler {
         .setEnabled(true)
         .build()
 
-    private fun getRatingCommandButton(rating: Int) = CommandButton.Builder()
+    private fun getRatingCommandButton(rating: Int) = CommandButton.Builder(carRatingIcon(rating))
         .setDisplayName(
             when (rating) {
                 0 -> "No rating"
@@ -117,7 +131,7 @@ class MediaLibraryCommandHandler {
                 else -> "$rating stars"
             }
         )
-        .setIconResId(ratingIcons[rating])
+        .setCustomIconResId(ratingIcons[rating])
         .setSessionCommand(
             SessionCommand(
                 PlaybackService.CUSTOM_COMMAND_CYCLE_RATING,
@@ -313,6 +327,17 @@ class MediaLibraryCommandHandler {
             R.drawable.ic_car_rating_4,
             R.drawable.ic_car_rating_5
         )
+
+        /**
+         * The media3 icon the car draws for a rating. Media3 has no numbered stars, so the six
+         * states collapse to three: nothing, rated, and favourite -- five stars is what the app
+         * treats as a favourite. The numbered drawables in [ratingIcons] stay for the notification.
+         */
+        fun carRatingIcon(rating: Int): Int = when (rating.coerceIn(0, PlaybackService.MAX_RATING)) {
+            0 -> CommandButton.ICON_STAR_UNFILLED
+            PlaybackService.MAX_RATING -> CommandButton.ICON_HEART_FILLED
+            else -> CommandButton.ICON_STAR_FILLED
+        }
 
         /**
          * The rating a tap moves to: one higher, wrapping from the highest back to none.

@@ -194,6 +194,7 @@ class BaseSong:
         if not hasattr(self, 'tag_collection'):
             return False
         changes = self.normalize_custom_atoms()
+        written: list[Tag] = []
         for tag in list(self.tag_collection.get().values()):
             if isinstance(tag, Tag) and tag.has_changes():
                 try:
@@ -206,13 +207,17 @@ class BaseSong:
                     # podcast rule look like it was never running.
                     logging.error(f'Could not write tag {tag.tag} on {self.path()}: {e}')
                     continue
-                tag.clear_changes()
+                written.append(tag)
                 changes = True
         if changes:
             # Logged after the write, not before it. A read-only file raises here, and announcing
             # the save first made a denied write read as a success: the backfill over the library
             # logged 17356 "File saved" lines for 8885 files it actually wrote.
             self.music_file.save()
+            # Baselines move only once the bytes are on disk; a save that raised leaves every
+            # tag still reporting its change, so the next attempt writes it again.
+            for tag in written:
+                tag.clear_changes()
             logging.info(f'File saved: {self.path()}')
         return changes
 

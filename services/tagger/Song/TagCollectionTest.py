@@ -12,6 +12,15 @@ from services.tagger.Song.TagCollection import TagCollection, UnsupportedExtensi
 
 
 class TagCollectionTest(unittest.TestCase):
+    def test_an_empty_tag_keeps_its_baseline_when_a_value_is_added(self):
+        # [A] -> [] -> [A] is no change; replacing the emptied Tag object would have lost
+        # the value it started with and reported the round trip as a write.
+        collection = TagCollection(None)
+        collection.tags = {ARTIST: Tag(ARTIST, 'Angerfist')}
+        collection.tags[ARTIST].set('')
+        collection.add(ARTIST, 'Angerfist')
+        self.assertFalse(collection.tags[ARTIST].has_changes())
+
     def test_mp3_tags_mapped_correctly(self):
         tags = EasyID3()
         tags['artist'] = ['Test Artist']

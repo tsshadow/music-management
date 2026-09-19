@@ -1,9 +1,13 @@
+import random
+import string
 import unittest
+from difflib import get_close_matches
 from unittest.mock import MagicMock
 
 from services.tagger.constants import ARTIST, ORIGINAL_TITLE, TITLE
 from services.tagger.Song.rules.InferArtistFromTitleRule import (
     InferArtistFromTitleRule,
+    has_close_artist,
     set_cleaned_artist,
 )
 
@@ -452,3 +456,29 @@ class DisplayArtistCandidateTest(unittest.TestCase):
         ignored.get_all.return_value = []
         InferArtistFromTitleRule(artist_db=self.artist_db, genre_db=genres, ignored_db=ignored).apply(song)
         self.assertEqual('Angerfist & Miss K8', song.display_artist_candidate)
+
+
+class HasCloseArtistTest(unittest.TestCase):
+    """has_close_artist must answer exactly what get_close_matches answered, only sooner."""
+
+    def test_agrees_with_difflib_on_random_names(self):
+        rng = random.Random(7)
+        alphabet = string.ascii_lowercase + '  '
+        names = {''.join(rng.choice(alphabet) for _ in range(rng.randint(3, 12))) for _ in range(400)}
+        names |= {'angerfist', 'miss k8', 'motz', 'dr. peacock', 'the freaky bastard'}
+        probes = [''.join(rng.choice(alphabet) for _ in range(rng.randint(3, 12))) for _ in range(300)]
+        probes += ['angerfist', 'angerfits', 'potz', 'mot', 'miss k', 'dr peacock', 'freaky bastard']
+        for cutoff in (0.6, 0.7, 0.75):
+            for probe in probes:
+                self.assertEqual(
+                    has_close_artist(probe, names, cutoff),
+                    bool(get_close_matches(probe, names, n=1, cutoff=cutoff)),
+                    (probe, cutoff),
+                )
+
+    def test_an_exact_hit_needs_no_scan(self):
+        class Unscannable(frozenset):
+            def __iter__(self):
+                raise AssertionError('scanned')
+
+        self.assertTrue(has_close_artist('motz', Unscannable({'motz'}), 0.7))

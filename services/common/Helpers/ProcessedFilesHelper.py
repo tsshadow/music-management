@@ -1,6 +1,34 @@
 import logging
+import math
+import struct
 
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+
+
+def _float32(value: float) -> float:
+    return struct.unpack('f', struct.pack('f', value))[0]
+
+
+def _float32_step(value: float) -> float:
+    """The spacing between neighbouring float32 values at this magnitude: 128 s at today's epoch."""
+    return math.ldexp(1.0, math.frexp(value)[1] - 24) if value else 0.0
+
+
+def changed_on_disk(mtime: float, stored: float) -> bool:
+    """Whether the file's mtime says it was written after the tagger last saw it.
+
+    `stored` used to live in a FLOAT column, which at today's epoch has a step of 128 s: the
+    value written back was the real mtime rounded to the nearest step, so 70 % of the library
+    compared as "newer than stored" on every walk and was retagged for nothing, round after
+    round. The column is DOUBLE now (migrate_v29) but the rounded values are still in it. A
+    stored value that is exactly float32-representable and within one float32 step of the
+    mtime is that artefact, not an edit; an edit lands a real mtime outside the step. Rows
+    heal as they are tagged for other reasons, which stores the exact value from then on.
+    """
+    if mtime <= stored:
+        return False
+    rounded_by_the_old_column = stored == _float32(stored) and mtime - stored <= _float32_step(stored)
+    return not rounded_by_the_old_column
 
 
 class ProcessedFilesHelper:
@@ -26,7 +54,7 @@ class ProcessedFilesHelper:
 
     def create_table(self):
         """Creates the table if it doesn't exist."""
-        query = f'\n            CREATE TABLE IF NOT EXISTS {self.table_name} (\n                filepath VARCHAR(767) PRIMARY KEY,\n                mtime FLOAT,\n                last_processed TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n                needs_rescan BOOLEAN DEFAULT FALSE,\n                rescan_reason VARCHAR(64) NULL\n            )\n        '
+        query = f'\n            CREATE TABLE IF NOT EXISTS {self.table_name} (\n                filepath VARCHAR(767) PRIMARY KEY,\n                mtime DOUBLE,\n                last_processed TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n                needs_rescan BOOLEAN DEFAULT FALSE,\n                rescan_reason VARCHAR(64) NULL\n            )\n        '
         # pending_paths pages through the queued rows by primary key; without this the
         # table is scanned once per page, and there are 260k rows on production.
         index = (
@@ -88,7 +116,7 @@ class ProcessedFilesHelper:
             known = snapshot.get(song_path)
             if known is None or known == self.FLAGGED:
                 return True
-            return mtime > known
+            return changed_on_disk(mtime, known)
         query = f'SELECT mtime, needs_rescan FROM {self.table_name} WHERE filepath = %s'
         connection = self.db_connector.connect()
         try:
@@ -100,7 +128,7 @@ class ProcessedFilesHelper:
                 db_mtime, needs_rescan = result
                 if needs_rescan:
                     return True
-                return mtime > db_mtime
+                return changed_on_disk(mtime, float(db_mtime))
         except Exception as e:
             logging.error(f'Error checking if song needs processing: {e}')
             return True

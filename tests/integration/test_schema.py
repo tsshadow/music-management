@@ -197,3 +197,15 @@ def test_a_genre_name_is_unique_after_normalization(db):
         cursor.execute("INSERT INTO rules_genres (name, normalized_name) VALUES ('Hardcore', 'hardcore')")
         with pytest.raises(pymysql.err.IntegrityError):
             cursor.execute("INSERT INTO rules_genres (name, normalized_name) VALUES ('HARDCORE', 'hardcore')")
+
+
+def test_the_tagger_stores_the_mtime_it_read(database):
+    """migrate_v29: a FLOAT mtime has a 128 s step at today's epoch, so the value written
+    back was never the real one and 70% of the library read as changed on every walk."""
+    with database.cursor() as cursor:
+        cursor.execute(
+            'SELECT data_type FROM information_schema.columns '
+            'WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s',
+            ('tagger_processed_files', 'mtime'),
+        )
+        assert cursor.fetchone()['data_type'] == 'double'

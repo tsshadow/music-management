@@ -45,6 +45,56 @@ class VoiceQuerySlotsTest {
     }
 
     @Test
+    fun `flac asks for the lossless tier and leaves the genre alone`() {
+        val parsed = parse("speel flac hardstyle af")
+        parsed.minQuality `should be equal to` "lossless"
+        parsed.free `should be equal to` "hardstyle"
+    }
+
+    @Test
+    fun `lossless and wav name the same tier as flac`() {
+        parse("speel lossless hardcore af").minQuality `should be equal to` "lossless"
+        parse("play wav hardcore").minQuality `should be equal to` "lossless"
+    }
+
+    @Test
+    fun `hoge kwaliteit asks for 320 and better and takes its adjective and preposition with it`() {
+        val parsed = parse("speel hardstyle in hoge kwaliteit af")
+        parsed.minQuality `should be equal to` "320"
+        parsed.free `should be equal to` "hardstyle"
+    }
+
+    @Test
+    fun `high quality in English reads the same`() {
+        val parsed = parse("play high quality hardcore")
+        parsed.minQuality `should be equal to` "320"
+        parsed.free `should be equal to` "hardcore"
+    }
+
+    @Test
+    fun `kwaliteit without an adjective is a word like any other`() {
+        val parsed = parse("speel het nummer kwaliteit af")
+        parsed.minQuality.`should be null`()
+        parsed.title `should be equal to` "kwaliteit"
+    }
+
+    @Test
+    fun `a bare request for flac is a request`() {
+        val parsed = parse("speel flac af")
+        parsed.minQuality `should be equal to` "lossless"
+        parsed.free.`should be null`()
+    }
+
+    @Test
+    fun `the quality survives beside a year and an order`() {
+        val parsed = parse("speel random flac hardstyle uit 2021 af")
+        parsed.minQuality `should be equal to` "lossless"
+        parsed.years `should be equal to` listOf("2021")
+        parsed.sort `should be equal to` ParsedQuery.Sort.RANDOM
+        parsed.free `should be equal to` "hardstyle"
+    }
+
+    @Test
     fun `reads a written rating floor`() {
         val parsed = parse("speel hardstyle met minstens 4 sterren af")
         parsed.ratingMin `should be equal to` 4

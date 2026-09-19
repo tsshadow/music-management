@@ -141,6 +141,27 @@ class QueryResolverTest {
     }
 
     @Test
+    fun `a lossless request carries the top tier alone`() {
+        resolve("speel flac hardstyle af")!!.filters.toString() `should contain`
+            """{"name":"QUALITY","value":["lossless"]}"""
+    }
+
+    @Test
+    fun `a 320 floor carries every tier down to it`() {
+        resolve("speel hardstyle in hoge kwaliteit af")!!.filters.toString() `should contain`
+            """{"name":"QUALITY","value":["lossless", "320"]}"""
+    }
+
+    @Test
+    fun `a quality floor with nothing named still plays rather than reporting no match`() {
+        val resolved = resolve("speel flac af")
+
+        resolved.`should not be null`()
+        resolved!!.filters.toString() `should be equal to`
+            """[{"name":"QUALITY","value":["lossless"]}, {"name":"LENGTH","value":"short"}]"""
+    }
+
+    @Test
     fun `resolves nothing when the utterance named nothing at all`() {
         resolve("speel muziek af").`should be null`()
     }

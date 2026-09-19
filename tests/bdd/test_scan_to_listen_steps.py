@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import pytest
 import requests
-from pytest_bdd import given, scenarios, then, when
+from pytest_bdd import given, parsers, scenarios, then, when
 
 from .conftest import TRACK_FILE, TRACK_TITLE, stats, wait_for_fixture_track
 
@@ -104,6 +104,41 @@ def _subsonic_search_returns_the_track(context):
     # LMS's own id for the track, which is not music-manager's. The streaming
     # steps need it, and it only exists once LMS has scanned.
     context['song'] = next(song for song in songs if song.get('title') == TRACK_TITLE)
+
+
+@when(parsers.parse('the mobile app browses tracks of at least "{tier}" quality'))
+def _browse_at_least(lms, subsonic_auth, context, tier):
+    # getSpotifyTracks is what the web and the phone browse through; `query`
+    # narrows it to the fixture so the assertion below is about this one file
+    # and not about whatever else the shared stack has scanned.
+    context['browse'] = requests.get(
+        f'{lms}/rest/getSpotifyTracks',
+        params={'query': TRACK_TITLE, 'minQuality': tier, **subsonic_auth},
+        timeout=TIMEOUT,
+    )
+
+
+def _browsed_titles(context) -> list[str]:
+    browse = context['browse']
+    assert browse.status_code == 200, browse.text
+    body = browse.json()['subsonic-response']
+    assert body['status'] == 'ok', f'LMS refused the browse: {body.get("error")}'
+    tracks = body.get('tracks', {}).get('track', [])
+    if isinstance(tracks, dict):
+        tracks = [tracks]
+    return [track.get('title') for track in tracks]
+
+
+@then('the fixture track is listed')
+def _fixture_track_is_listed(context):
+    titles = _browsed_titles(context)
+    assert TRACK_TITLE in titles, f'the quality floor the fixture clears left it out; LMS returned {titles!r}'
+
+
+@then('the fixture track is not listed')
+def _fixture_track_is_not_listed(context):
+    titles = _browsed_titles(context)
+    assert TRACK_TITLE not in titles, f'a 33 kbps mp3 came back as lossless: {titles!r}'
 
 
 @when('the mobile app streams the track')

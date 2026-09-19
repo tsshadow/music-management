@@ -35,6 +35,8 @@ package nl.teunschriks.mumamobile.voice
  * @property ratingMax the rating ceiling. Always set when [ratingMin] is: the server widens a lone
  *           minimum to include every unrated track, so a floor without a ceiling answers with the
  *           whole library.
+ * @property minQuality the lowest quality tier asked for, one of `QualityTier.TIERS`: "flac" and
+ *           "lossless" ask for the top tier, "hoge kwaliteit" for 320 and better
  */
 data class ParsedQuery(
     val genres: List<String> = emptyList(),
@@ -49,7 +51,8 @@ data class ParsedQuery(
     val sort: Sort? = null,
     val favorites: Boolean = false,
     val ratingMin: Int? = null,
-    val ratingMax: Int? = null
+    val ratingMax: Int? = null,
+    val minQuality: String? = null
 ) {
 
     /** The single spoken genre, for the paths that only ever deal with one. */

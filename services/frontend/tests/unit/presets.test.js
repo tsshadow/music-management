@@ -45,6 +45,7 @@ describe("normalizePreset", () => {
       sort: "random",
       minRating: 3,
       maxRating: 5,
+      minQuality: null,
       length: "short",
       size: 200,
     });
@@ -146,6 +147,27 @@ describe("presetQuery", () => {
     expect(params.offset).toBe(50);
   });
 
+  it("sends a quality floor as every tier down to it", () => {
+    const lossless = { ...base, minQuality: "lossless" };
+    const kbps320 = { ...base, minQuality: "320" };
+    expect(JSON.parse(presetQuery(lossless, { viewMode: "songs" }).params.clusters)).toContainEqual(
+      {
+        name: "QUALITY",
+        value: ["lossless"],
+      },
+    );
+    expect(JSON.parse(presetQuery(kbps320, { viewMode: "songs" }).params.clusters)).toContainEqual({
+      name: "QUALITY",
+      value: ["lossless", "320"],
+    });
+  });
+
+  it("sends no quality cluster for a floor it does not know", () => {
+    const odd = { ...base, minQuality: "hifi" };
+    const clusters = JSON.parse(presetQuery(odd, { viewMode: "songs" }).params.clusters);
+    expect(clusters.some((c) => c.name === "QUALITY")).toBe(false);
+  });
+
   it("omits a rating floor of zero", () => {
     const { params } = presetQuery({ ...base, minRating: 0 }, { viewMode: "songs" });
     expect(params.ratingMin).toBeUndefined();
@@ -200,6 +222,7 @@ describe("presetParamsFromFilters", () => {
       year: "",
       sort: "added",
       minRating: "4",
+      minQuality: "320",
       viewMode: "songs",
     });
     const preset = normalizePreset({ id: 5, name: "n", params });
@@ -207,6 +230,17 @@ describe("presetParamsFromFilters", () => {
     expect(preset.labels).toEqual(["Scantraxx"]);
     expect(preset.sort).toBe("added");
     expect(preset.minRating).toBe(4);
+    expect(preset.minQuality).toBe("320");
+  });
+
+  it("writes no quality key when the filter bar had no floor", () => {
+    const params = JSON.parse(
+      presetParamsFromFilters({ sort: "recent", minQuality: "", viewMode: "songs" }),
+    );
+    expect(params.minQuality).toBeUndefined();
+    expect(
+      normalizePreset({ id: 1, name: "n", params: JSON.stringify(params) }).minQuality,
+    ).toBeNull();
   });
 });
 

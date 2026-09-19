@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Every track is filed under a `QUALITY` cluster, and `getSpotifyTracks` takes a floor on it.**
+  `lossless` / `320` / `aac` / `192` / `low`, the five tiers muma's `format_tier()` ranks the
+  versions of a song by, derived from the codec and the bitrate the scanner already reads.
+  Lossless is a codec decision (an ALAC `.m4a` is lossless, PCM counts although the codec table
+  does not flag it) and the AAC family sits above a 192 mp3 at the same bitrate. Migration V118
+  backfills the existing library from the bitrate and path on the track row -- no rescan, as with
+  V116 and V117 -- and leaves the cluster counts at zero for `hasOutdatedStats()` to recompute on
+  the next scan. `minQuality=320` on `getSpotifyTracks` means 320 and lossless; an unknown tier is
+  an error rather than a filter that falls open, and a library without the cluster type answers
+  with nothing rather than everything. `getSongs` needs no change: `QUALITY` is a cluster like
+  any other in its `clusters` JSON.
 - **`startScan` accepts a `path` parameter and scans only that subtree.** MuMa moves and retags
   files continuously and had no way to say so: the library-wide incremental scan takes the better
   part of an hour here, and it starts an hour after the previous one finished, so a change waited

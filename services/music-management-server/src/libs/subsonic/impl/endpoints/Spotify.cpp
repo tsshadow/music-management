@@ -35,12 +35,54 @@
 #include "responses/Song.hpp"
 #include "services/scrobbling/IScrobblingService.hpp"
 
+#include <algorithm>
+#include <array>
+#include <map>
+#include <optional>
+#include <set>
+#include <string>
+#include <string_view>
 #include <unordered_map>
 
 namespace lms::api::subsonic
 {
     namespace
     {
+        // Best first. The QUALITY cluster the scanner writes (TrackMetadataParser::qualityTier)
+        // has exactly these values, and a minimum is "this tier and every tier above it".
+        constexpr std::array<std::string_view, 5> qualityTiers{ "lossless", "320", "aac", "192", "low" };
+
+        // A floor on the QUALITY cluster: "320" means 320 and lossless, "lossless" means
+        // lossless alone. One parameter rather than a repeatable one because the web filter
+        // bar sends scalars, and "at least this good" is the only question a car stereo
+        // test asks. An unknown tier is an error, where the sibling filters in
+        // handleGetSpotifyTracks fall open when their cluster is missing: the values here
+        // are a closed set, and silently listing every 128 kbps file under "lossless" is
+        // the one answer this filter exists to prevent.
+        void applyQualityFloor(RequestContext& ctx, std::map<std::string, std::set<db::ClusterId>>& clusterGroups)
+        {
+            const std::optional<std::string> minQuality{ getParameterAs<std::string>(ctx.getParameters(), "minQuality") };
+            if (!minQuality)
+                return;
+            if (std::find(qualityTiers.begin(), qualityTiers.end(), *minQuality) == qualityTiers.end())
+                throw RequestedDataNotFoundError{};
+
+            // Left empty when the cluster type does not exist yet (a library scanned before
+            // this tier existed and not migrated): an empty IN () matches no track.
+            std::set<db::ClusterId>& wanted{ clusterGroups["QUALITY"] };
+            const db::ClusterType::pointer qualityType{ db::ClusterType::find(ctx.getDbSession(), "QUALITY") };
+            if (!qualityType)
+                return;
+
+            for (const std::string_view tier : qualityTiers)
+            {
+                if (const db::Cluster::pointer cluster{ qualityType->getCluster(std::string{ tier }) })
+                    wanted.insert(cluster->getId());
+                if (tier == *minQuality)
+                    break;
+            }
+        }
+
         // One key per song, decided by muma and synced into work_id (migration 118). What
         // this replaces guessed at it from a normalised artist and title, and summed its
         // score, so a 320kbps SoundCloud rip beat an official 192kbps radio edit -- the exact
@@ -349,6 +391,8 @@ namespace lms::api::subsonic
                 }
             }
         }
+
+        applyQualityFloor(ctx, clusterGroups);
 
         // A festival lineup is a text file of artist names under
         // /music/metadata/festival-lineups; the same source handleGetSongs already uses for

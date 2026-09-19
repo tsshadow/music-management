@@ -9,6 +9,7 @@ package nl.teunschriks.mumamobile.voice
 
 import nl.teunschriks.mumamobile.api.subsonic.models.Filter
 import nl.teunschriks.mumamobile.api.subsonic.models.Filters
+import nl.teunschriks.mumamobile.api.subsonic.models.QualityTier
 
 /**
  * @brief Turns the parser's slots into the filters the library understands.
@@ -101,8 +102,9 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
         }
 
         val asksForARating = parsed.ratingMin != null
+        val quality = QualityTier.atLeast(parsed.minQuality)
         val named = namedGenres + listOfNotNull(artist, label, festival) + years
-        val namesNothing = named.isEmpty() && !asksForARating && parsed.sort == null
+        val namesNothing = named.isEmpty() && !asksForARating && parsed.sort == null && quality == null
         // "Play a set" alone names none of the above, and it is still a request worth running:
         // the length filter is an answer on its own -- any liveset -- rather than nothing.
         val asksForASet = parsed.length == VoiceQuery.LENGTH_LONG
@@ -124,6 +126,9 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
                 else -> add(Filter(FILTER_YEAR, years))
             }
             favoriteRatingTag(parsed)?.let { add(Filter(FILTER_RATING, it)) }
+            // A floor, spelled as every tier from the top down to it: "flac" is one value, "hoge
+            // kwaliteit" is two, and the array is the OR the engine reads.
+            quality?.let { add(Filter(FILTER_QUALITY, it)) }
             add(Filter(FILTER_LENGTH, parsed.length))
         }
 
@@ -497,6 +502,7 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
         const val FILTER_RATING = "RATING"
         const val FILTER_LENGTH = "LENGTH"
         const val FILTER_FESTIVAL = "FESTIVAL"
+        const val FILTER_QUALITY = QualityTier.CLUSTER
 
         /** What an exact match on the library's own spelling is worth. */
         const val EXACT = 100

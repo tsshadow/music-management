@@ -112,6 +112,14 @@ class VoiceExplanationTest {
     }
 
     @Test
+    fun `a quality floor is one row naming the floor rather than every tier above it`() {
+        val rows = explain("speel hardstyle in hoge kwaliteit af")
+
+        valueOf(rows, VoiceExplanation.Field.QUALITY) `should be equal to` "320"
+        rows.map { it.value } `should not contain` "lossless / 320"
+    }
+
+    @Test
     fun `a request that named nothing carries the resolver's own reason`() {
         val rows = explain("speel zwabberkore af")
 

@@ -259,6 +259,19 @@ describe("Dashboard", () => {
     );
   });
 
+  it("a quality floor picked in the filter bar reaches the server as minQuality", async () => {
+    render(Dashboard, { activeView: "songs" });
+    await waitFor(() => expect(urlsFor("/rest/getSpotifyTracks").length).toBeGreaterThan(0));
+
+    await fireEvent.change(screen.getByLabelText("Kwaliteit"), { target: { value: "lossless" } });
+
+    await waitFor(() =>
+      expect(
+        urlsFor("/rest/getSpotifyTracks").some((url) => url.includes("minQuality=lossless")),
+      ).toBe(true),
+    );
+  });
+
   it("a genre view filters on that genre", async () => {
     render(Dashboard, { activeView: "genre:Hardcore" });
 

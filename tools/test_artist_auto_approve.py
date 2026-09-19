@@ -57,6 +57,10 @@ class NormaliseTitleTest(unittest.TestCase):
 
     def test_unknown_brackets_stay(self):
         self.assertEqual(normalise_title('Chichovite (Reloaded)'), 'chichovite reloaded')
+        # Containing a packaging word is not being packaging.
+        self.assertEqual(normalise_title('Love (Music Is Everything)'), 'love music is everything')
+        self.assertEqual(normalise_title('Love (Free Your Mind)'), 'love free your mind')
+        self.assertEqual(normalise_title('Dream Premiere Night'), 'dream premiere night')
 
     def test_accents_and_ampersands_fold(self):
         self.assertEqual(normalise_artist('Milo & Otis'), 'milo and otis')
@@ -69,6 +73,13 @@ class SetDetectionTest(unittest.TestCase):
         self.assertTrue(looks_like_a_set('Defqon.1 | ORANGE | Friday'))
         self.assertTrue(looks_like_a_set('Q-dance presents: Scantraxx 15 Years | Chapter 3 Mix'))
         self.assertTrue(looks_like_a_set('Andhim Super-House DJ Set Live From DJ Mag HQ'))
+
+    def test_compilations_and_mixes_are_sets(self):
+        # A label is credited with these on the stores; two of them approved Monstercat.
+        self.assertTrue(looks_like_a_set('Uncaged Vol. 8 (Album Mix)'))
+        self.assertTrue(looks_like_a_set('Best of DnB & Drumstep Mix'))
+        self.assertTrue(looks_like_a_set('Riot Tour Mix'))
+        self.assertFalse(looks_like_a_set('Mixtape Massacre'))
 
     def test_a_year_inside_the_packaging_does_not_make_a_set(self):
         self.assertFalse(looks_like_a_set('Cobra 6 (Official BKJN vs. Partyraiser 2026 Anthem) (Edit)'))
@@ -98,11 +109,15 @@ class ScoreArtistTest(unittest.TestCase):
         verdict = score_artist('Offensv', self.local, [act(DEEZER, ['Hardcore War'])])
         self.assertEqual(verdict.verdict, UNRESOLVED)
 
-    def test_two_namesakes_with_one_title_each_do_not_pool_into_rule_one(self):
-        candidates = [act(ITUNES, ['Run Mf'], '1'), act(ITUNES, ['Cops'], '2')]
-        verdict = score_artist('Offensv', self.local + ['COPS'], candidates)
-        # Neither title is distinctive, so rule 2 does not rescue it either.
-        self.assertEqual(verdict.verdict, UNRESOLVED)
+    def test_two_namesakes_on_one_store_are_not_two_sources(self):
+        candidates = [act(ITUNES, ['Hardcore War'], '1'), act(ITUNES, ['Feel The Electricity'], '2')]
+        self.assertEqual(score_artist('Offensv', self.local, candidates).verdict, UNRESOLVED)
+
+    def test_a_compilation_on_the_external_side_never_matches(self):
+        # A label is credited with `(Continuous Mix)` versions of everything on its compilations.
+        local = ['Sunrise (Extended Mix)', 'Midnight (Extended Mix)']
+        label = act(DEEZER, ['Sunrise (Continuous Mix)', 'Midnight (Album Mix)'])
+        self.assertEqual(score_artist('Somelabel', local, [label]).verdict, UNRESOLVED)
 
     def test_two_titles_across_sources_approve_when_one_is_distinctive(self):
         candidates = [act(DEEZER, ['Hardcore War']), act(MUSICBRAINZ, ['Feel the Electricity (extended mix)'])]
@@ -130,6 +145,16 @@ class ScoreArtistTest(unittest.TestCase):
     def test_brands_are_skipped_whatever_the_evidence(self):
         verdict = score_artist('Q-Dance', ['Ignite', 'Hatred'], [act(DEEZER, ['Ignite', 'Hatred'])])
         self.assertEqual((verdict.verdict, verdict.rule), (SKIPPED, 'brand'))
+
+    def test_a_name_shaped_like_a_brand_is_skipped(self):
+        # Deezer credits a festival with its anthems; this one was approved on two of them.
+        titles = ['Legends Are Created (Extended Mix)', 'Renaissance (Extended Mix)']
+        verdict = score_artist('DediKted Festival', titles, [act(DEEZER, ['Legends Are Created', 'Renaissance'])])
+        self.assertEqual((verdict.verdict, verdict.rule), (SKIPPED, 'brand-shape'))
+        self.assertEqual(
+            score_artist('Thunderdome 2025', ['Ignite', 'Hatred'], [act(DEEZER, ['Ignite', 'Hatred'])]).rule,
+            'brand-shape',
+        )
 
     def test_a_name_with_only_set_titles_is_skipped(self):
         verdict = score_artist('Naadt', ['Defqon.1 | ORANGE | Friday'], [])

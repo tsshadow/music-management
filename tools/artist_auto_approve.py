@@ -23,8 +23,11 @@ Approve when one of
   (3) one distinctive title matches on MusicBrainz, where the artist is a Person or
       Group, *and* on Deezer or iTunes.
 Deezer and iTunes together do not count as two sources for one title: their metadata
-comes from the same distributors. Nothing is ever rejected automatically -- absence
-from a catalogue is not evidence of noise in a SoundCloud-heavy hardcore library.
+comes from the same distributors. Titles that are sets, compilations or mixes count on
+neither side, and a name shaped like a brand (`... Festival`, `... Records`, a year)
+is never approved: the stores credit a festival with its anthems and a label with its
+compilations. Nothing is ever rejected automatically -- absence from a catalogue is
+not evidence of noise in a SoundCloud-heavy hardcore library.
 
 Four steps, each resumable through one sqlite file:
 
@@ -36,12 +39,15 @@ Four steps, each resumable through one sqlite file:
 `snapshot` reads the database the way the other tools do (`DB_HOST`, `DB_PORT`,
 `DB_USER`, `DB_PASS`, `DB_DB`); a read-only account is enough. `run` can be stopped
 at any time: every response is cached, every verdict stored, and a restart skips what
-is done. `apply` posts approvals through `POST /api/rules/artists/decide` in batches,
-signed `auto-external`, and `undo` reverses exactly the names this file applied.
+is done -- except names a source failed to answer for, which are asked again. `apply`
+posts approvals through `POST /api/rules/artists/decide` in batches signed
+`auto-external`, skipping anything a human decided since the snapshot; `undo`
+reverses the names this file applied that are still signed that way.
 """
 
 import argparse
 import csv
+import hashlib
 import json
 import logging
 import os
@@ -50,6 +56,7 @@ import sqlite3
 import sys
 import time
 import unicodedata
+from collections import defaultdict
 from dataclasses import dataclass, field
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
@@ -74,6 +81,9 @@ COMMERCIAL = {DEEZER, ITUNES}
 APPROVE = 'approve'
 UNRESOLVED = 'unresolved'
 SKIPPED = 'skipped'
+#: A source did not answer (quota, 503, network) so the evidence is partial; the next
+#: run asks again instead of treating silence as "not found".
+INCOMPLETE = 'incomplete'
 
 #: Rules 1 and 2: this many different local titles found outside.
 MIN_TITLES = 2
@@ -97,6 +107,9 @@ BRAND_BLOCKLIST = {
     'dj mag',
     'sick events',
     'the boom room',
+    'various artists',
+    'various',
+    'monstercat',
     'defqon.1',
     'thunderdome',
     'masters of hardcore',
@@ -107,8 +120,17 @@ BRAND_BLOCKLIST = {
     'b2s',
     'bkjn',
     'mixmash',
-    'partyraiser',
 }
+
+#: A name shaped like a brand rather than an act. The stores credit a festival with its
+#: anthems and a label with its compilations, so evidence would approve `DediKted
+#: Festival` (it did); such a name stays in the queue for a human.
+BRAND_SHAPE = re.compile(
+    r"\b(?:festival|events?|records|recordings|recordz|music|tv|radio|podcast|exclusives?|premieres?|presents|"
+    r"sessions?|mag|magazine|official|channel|network|label|agency|bookings|promo(?:tions?)?|store|shop)\b|"
+    r"\b(?:19|20)\d\d\b",
+    re.IGNORECASE,
+)
 
 #: Per-source minimum interval between requests, seconds. MusicBrainz says one per
 #: second and answers 503 above it; iTunes documents ~20 per minute; Deezer is
@@ -121,20 +143,46 @@ DECIDE_BATCH = 100
 
 # ----------------------------------------------------------------------------- normalisation
 
-_MIX_SUFFIX = re.compile(
-    r"\s*[\(\[]\s*(?:[^()\[\]]*\b(?:remix|mix|edit|bootleg|mashup|mash-up|rework|remake|refix|"
-    r"flip|vip|version|instrumental|acapella|dub|cut|anthem|theme|radio|extended|original|"
-    r"official|free|download|out now|preview|snippet|premiere|hq|hd|lyrics?|video|audio|"
-    r"visualizer|feat\.?|ft\.?)\b[^()\[\]]*|(?-i:[A-Z]{1,8}[\- ]?\d{1,4}[A-Z]{0,2})|"
-    r"[^()\[\]]*\brecords?\b[^()\[\]]*|[^()\[\]]*\bmusic\b[^()\[\]]*)\s*[\)\]]",
+#: A bracket that ends in a mix-type word: `(Extended Mix)`, `(Hard Remix)`, `(Official
+#: BKJN vs Partyraiser 2026 Anthem)`, `(Album Intro Edit)`. Ending, not containing: `(Free
+#: Your Mind)` and `(Music Is Everything)` are the song.
+_MIX_BRACKET = re.compile(
+    r"\s*[\(\[]\s*[^()\[\]]*?\b(?:remix|rmx|mix|edit|bootleg|mashup|mash-up|rework|remake|refix|flip|vip|"
+    r"version|instrumental|acapella|dub|cut|anthem|theme|extended|original|radio|reprise|explicit|clean)\s*[\)\]]",
     re.IGNORECASE,
 )
+#: A bracket that is packaging, wherever the word sits: `[OUT NOW ON OWSLA!]`, `(jeuj...
+#: free download)`, `(Official Videoclip)`, `(HQ Preview)`.
+_PROMO_BRACKET = re.compile(
+    r"\s*[\(\[]\s*[^()\[\]]*\b(?:free\s*(?:\w+\s*)?(?:dl|download)|out now|official\s*(?:video|audio|videoclip|music video)?|"
+    r"videoclip|preview|snippet|premiere|hq|hd|lyrics?|visualizer)\b[^()\[\]]*[\)\]]",
+    re.IGNORECASE,
+)
+#: A catalogue id (`[TX023]`, `[ FR002 ]`, `(DEM050)`), a label (`[Silk Music]`, `(Napalm
+#: Records)`) or a feature (`(feat. Layna)`).
+_TAG_BRACKET = re.compile(
+    r"\s*[\(\[]\s*(?:(?-i:[A-Z]{1,8}[\- ]?\d{1,4}[A-Z]{0,2})|[^()\[\]]*\b(?:records?|recordings|music)|"
+    r"(?:feat\.?|ft\.?|featuring)\b[^()\[\]]*)\s*[\)\]]",
+    re.IGNORECASE,
+)
+#: Packaging at the very end of the title, after brackets are gone: `... FREE DOWNLOAD`,
+#: `... - Napalm Records`, `...hardtunes only`. Anchored, so `Dream Premiere Night` keeps
+#: its name.
 _TRAILING_NOISE = re.compile(
-    r"\s*(?:-\s*)?(?:\bfree\s*(?:dl|download)\b|\bout now\b|\bofficial\s*(?:video|audio|music video)\b|"
-    r"\bhq\b|\bhd\b|\bpreview\b|\bsnippet\b|\bpremiere\b|\bhardtunes only\b|-\s*[^-]*\brecords\b).*$",
+    r"\s*(?:[-|–]\s*)?(?:free\s*(?:dl|download)|out now|official\s*(?:video|audio|music video)|hq|hd|preview|"
+    r"snippet|premiere|hardtunes only|[^-|–]*\brecords)\W*(?:[\(\[][^()\[\]]*[\)\]]\W*)*$",
     re.IGNORECASE,
 )
 _FEAT = re.compile(r"\s+(?:feat\.?|ft\.?|featuring)\s+.*$", re.IGNORECASE)
+#: What a label or an event is credited with on the stores: sets, compilations, mixes.
+#: Checked on the raw title, before `(Album Mix)` and `(Continuous Mix)` are stripped.
+_COMPILATION_MARKERS = re.compile(
+    r"\bbest of\b|\bvol(?:ume)?\.?\s*\d|\bchapter\s*\d|\bmegamix\b|\b(?:album|continuous|full|dj|live|yearmix|year)\s*mix\b|"
+    r"\bmix\s*$",
+    re.IGNORECASE,
+)
+#: What a set or a show is called, judged after the packaging is gone so that a year
+#: in `(Official ... 2026 Anthem)` does not condemn the song.
 _SET_MARKERS = re.compile(
     r"\|| @ |\blive (?:from|at|set)\b|\bdj[- ]?set\b|\bpodcast\b|\bepisode\b|\bwarm-?up\b|"
     r"\b(?:19|20)\d\d\b|\bpresents\b|\bpres\.",
@@ -156,11 +204,12 @@ def normalise_artist(name: str) -> str:
 
 def strip_packaging(title: str) -> str:
     """The song under the packaging: no mix suffix, catalogue id, label, promo tail or feature."""
-    value = _TRAILING_NOISE.sub('', title or '')
+    value = title or ''
     previous = None
     while previous != value:
         previous = value
-        value = _MIX_SUFFIX.sub('', value)
+        for pattern in (_MIX_BRACKET, _PROMO_BRACKET, _TAG_BRACKET, _TRAILING_NOISE):
+            value = pattern.sub('', value)
     return _FEAT.sub('', value).strip()
 
 
@@ -169,12 +218,12 @@ def normalise_title(title: str) -> str:
 
 
 def looks_like_a_set(title: str) -> bool:
-    """`Defqon.1 | ORANGE | Friday`, `Q-dance presents: ... Chapter 3 Mix`: not a song, never queried.
+    """`Defqon.1 | ORANGE | Friday`, `Uncaged Vol. 8 (Album Mix)`: not a song, never matched.
 
-    Judged after the packaging is gone, so the year in `(Official ... 2026 Anthem)` does
-    not make a song a set.
+    Sets, compilations and mixes are what a *label* is credited with on the stores, so
+    they count on neither side -- Monstercat was approved on two of them.
     """
-    return bool(_SET_MARKERS.search(strip_packaging(title)))
+    return bool(_COMPILATION_MARKERS.search(title or '')) or bool(_SET_MARKERS.search(strip_packaging(title)))
 
 
 def letters(value: str) -> int:
@@ -222,6 +271,8 @@ def match_titles(local: dict[str, str], external: ExternalArtist) -> dict[str, s
     """Local normalised titles found in the external tracklist, with the external raw title."""
     seen = {}
     for raw in external.titles:
+        if looks_like_a_set(raw):
+            continue
         key = normalise_title(raw)
         if key in local and key not in seen:
             seen[key] = raw
@@ -235,6 +286,8 @@ def score_artist(name: str, titles: list[str], candidates: list[ExternalArtist])
     """
     if normalise_artist(name) in {fold(brand) for brand in BRAND_BLOCKLIST}:
         return Verdict(SKIPPED, 'brand', {'reason': 'on the label/channel blocklist'})
+    if BRAND_SHAPE.search(name):
+        return Verdict(SKIPPED, 'brand-shape', {'reason': 'named like a label, channel or event'})
     local = usable_titles(titles)
     if not local:
         return Verdict(SKIPPED, 'no-titles', {'reason': 'no title survives normalisation'})
@@ -264,9 +317,18 @@ def score_artist(name: str, titles: list[str], candidates: list[ExternalArtist])
     if any(len(hit['matched']) >= MIN_TITLES for hit in acts):
         return Verdict(APPROVE, 'two-titles-one-act', evidence)
 
-    # Rule 2: two titles in total, one of them distinctive.
-    matched_keys = {key for hit in acts for key in hit['matched']}
-    if len(matched_keys) >= MIN_TITLES and any(is_distinctive(key) for key in matched_keys):
+    # Rule 2: two titles from two sources, one of them distinctive. Two namesakes on
+    # one store with a title each are not two sources.
+    by_source: dict[str, set[str]] = defaultdict(set)
+    for hit in acts:
+        by_source[hit['source']].update(hit['matched'])
+    matched_keys = set().union(*by_source.values()) if by_source else set()
+    if (
+        len(by_source) >= 2
+        and len(matched_keys) >= MIN_TITLES
+        and any(len(matched_keys - keys) >= 1 for keys in by_source.values())
+        and any(is_distinctive(key) for key in matched_keys)
+    ):
         return Verdict(APPROVE, 'two-titles-two-sources', evidence)
 
     # Rule 3: one distinctive title on MusicBrainz (an act) and on a store.
@@ -282,18 +344,20 @@ def score_artist(name: str, titles: list[str], candidates: list[ExternalArtist])
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS candidates (
-    name TEXT PRIMARY KEY, track_count INTEGER NOT NULL, titles TEXT NOT NULL
+    name TEXT PRIMARY KEY, track_count INTEGER NOT NULL, titles TEXT NOT NULL, titles_hash TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS responses (
     source TEXT NOT NULL, url TEXT NOT NULL, status INTEGER, body TEXT, fetched_at REAL NOT NULL,
     PRIMARY KEY (source, url)
 );
 CREATE TABLE IF NOT EXISTS verdicts (
-    name TEXT PRIMARY KEY, policy TEXT NOT NULL, verdict TEXT NOT NULL, rule TEXT,
+    name TEXT PRIMARY KEY, policy TEXT NOT NULL, titles_hash TEXT NOT NULL, verdict TEXT NOT NULL, rule TEXT,
     evidence TEXT NOT NULL, decided_at REAL NOT NULL
 );
+-- Written *before* the POST: a batch the server took but the reply for which never
+-- arrived is still here for undo. confirmed_at is the reply.
 CREATE TABLE IF NOT EXISTS applied (
-    name TEXT PRIMARY KEY, applied_at REAL NOT NULL, undone_at REAL
+    name TEXT PRIMARY KEY, applied_at REAL NOT NULL, confirmed_at REAL, undone_at REAL
 );
 """
 
@@ -320,6 +384,11 @@ SNAPSHOT_SQL = """
 LEGACY_RULES_SQL = 'SELECT name FROM rules_ignored_artists'
 
 
+def titles_hash(titles: list[str]) -> str:
+    """Changes when the library's titles for a name change, which makes a verdict stale."""
+    return hashlib.sha1(json.dumps(sorted(set(titles))).encode()).hexdigest()[:16]
+
+
 def snapshot(conn: sqlite3.Connection) -> int:
     from services.common.Helpers.DatabaseConnector import DatabaseConnector
 
@@ -334,9 +403,9 @@ def snapshot(conn: sqlite3.Connection) -> int:
                 titles.setdefault(name, []).append(title or '')
     finally:
         db.close()
-    rows = [(name, len(ts), json.dumps(ts)) for name, ts in titles.items() if fold(name) not in legacy]
+    rows = [(name, len(ts), json.dumps(ts), titles_hash(ts)) for name, ts in titles.items() if fold(name) not in legacy]
     conn.execute('DELETE FROM candidates')
-    conn.executemany('INSERT INTO candidates (name, track_count, titles) VALUES (?, ?, ?)', rows)
+    conn.executemany('INSERT INTO candidates (name, track_count, titles, titles_hash) VALUES (?, ?, ?, ?)', rows)
     conn.commit()
     return len(rows)
 
@@ -356,23 +425,35 @@ class Fetcher:
         self.session.headers['User-Agent'] = USER_AGENT
         self.last_call = dict.fromkeys(SOURCES, 0.0)
         self.fetched = 0
+        self.failed = 0
 
     def get(self, source: str, url: str) -> dict | None:
+        """The parsed body, or None when the source did not answer (counted in `failed`)."""
         row = self.conn.execute(
             'SELECT status, body FROM responses WHERE source = ? AND url = ?', (source, url)
         ).fetchone()
         if row is not None and row['status'] == 200:
             return json.loads(row['body'])
         if self.offline:
+            self.failed += 1
             return None
         status, body = self._fetch(source, url)
-        self.conn.execute(
-            'INSERT OR REPLACE INTO responses (source, url, status, body, fetched_at) VALUES (?, ?, ?, ?, ?)',
-            (source, url, status, body, time.time()),
-        )
-        self.conn.commit()
-        self.fetched += 1
-        return json.loads(body) if status == 200 and body else None
+        parsed = None
+        if status == 200:
+            try:
+                parsed = json.loads(body)
+            except ValueError:
+                status = 0  # a 200 that is not JSON is not an answer; do not cache it as one
+        if status == 200 and isinstance(parsed, dict):
+            self.conn.execute(
+                'INSERT OR REPLACE INTO responses (source, url, status, body, fetched_at) VALUES (?, ?, ?, ?, ?)',
+                (source, url, status, body, time.time()),
+            )
+            self.conn.commit()
+            self.fetched += 1
+            return parsed
+        self.failed += 1
+        return None
 
     def _fetch(self, source: str, url: str) -> tuple[int, str]:
         for attempt in range(RETRIES):
@@ -387,15 +468,22 @@ class Fetcher:
                 time.sleep(2**attempt)
                 continue
             status, body = response.status_code, response.text
-            # Deezer reports its quota as a 200 with an error object.
-            if source == DEEZER and status == 200 and '"error"' in body[:40]:
+            if source == DEEZER and status == 200 and _deezer_error(body):
                 status = 429
             if status in (429, 503):
-                retry_after = response.headers.get('Retry-After')
-                time.sleep(float(retry_after) if retry_after and retry_after.isdigit() else 2 ** (attempt + 1))
+                retry_after = response.headers.get('Retry-After', '')
+                time.sleep(float(retry_after) if retry_after.isdigit() else 2 ** (attempt + 1))
                 continue
             return status, body
         return 0, ''
+
+
+def _deezer_error(body: str) -> bool:
+    """Deezer reports its quota (and most other refusals) as a 200 with an error object."""
+    try:
+        return isinstance(json.loads(body), dict) and 'error' in json.loads(body)
+    except ValueError:
+        return True
 
 
 def _q(value: str) -> str:
@@ -478,29 +566,33 @@ def resolve(fetcher: Fetcher, name: str, titles: list[str], sources: tuple[str, 
     verdict = score_artist(name, titles, candidates)
     if verdict.verdict == SKIPPED:
         return verdict
+    failed_before = fetcher.failed
     for source in sources:
         candidates.extend(LOOKUPS[source](fetcher, name))
         verdict = score_artist(name, titles, candidates)
         if verdict.verdict == APPROVE:
             break
+    if verdict.verdict != APPROVE and fetcher.failed > failed_before:
+        verdict = Verdict(INCOMPLETE, None, dict(verdict.evidence, failed_requests=fetcher.failed - failed_before))
+    verdict.evidence['sources'] = list(sources)
     return verdict
 
 
 def run(conn: sqlite3.Connection, args) -> None:
     fetcher = Fetcher(conn, offline=args.offline)
-    where = 'WHERE c.track_count >= ?'
-    params: list = [args.min_tracks]
+    where = 'WHERE c.track_count BETWEEN ? AND ?'
+    params: list = [args.min_tracks, args.max_tracks]
     if not args.recompute:
-        where += ' AND (v.name IS NULL OR v.policy != ?)'
-        params.append(POLICY)
+        where += ' AND (v.name IS NULL OR v.policy != ? OR v.titles_hash != c.titles_hash OR v.verdict = ?)'
+        params += [POLICY, INCOMPLETE]
     rows = conn.execute(
-        f'SELECT c.name, c.titles FROM candidates c LEFT JOIN verdicts v ON v.name = c.name {where} '
+        f'SELECT c.name, c.titles, c.titles_hash FROM candidates c LEFT JOIN verdicts v ON v.name = c.name {where} '
         'ORDER BY c.track_count DESC, c.name LIMIT ?',
         params + [args.limit],
     ).fetchall()
     logger.info('%d names to resolve', len(rows))
     started = time.monotonic()
-    counts = {APPROVE: 0, UNRESOLVED: 0, SKIPPED: 0}
+    counts = {APPROVE: 0, UNRESOLVED: 0, SKIPPED: 0, INCOMPLETE: 0}
     for index, row in enumerate(rows, 1):
         titles = json.loads(row['titles'])
         try:
@@ -512,8 +604,17 @@ def run(conn: sqlite3.Connection, args) -> None:
             continue
         counts[verdict.verdict] += 1
         conn.execute(
-            'INSERT OR REPLACE INTO verdicts (name, policy, verdict, rule, evidence, decided_at) VALUES (?, ?, ?, ?, ?, ?)',
-            (row['name'], POLICY, verdict.verdict, verdict.rule, json.dumps(verdict.evidence), time.time()),
+            'INSERT OR REPLACE INTO verdicts (name, policy, titles_hash, verdict, rule, evidence, decided_at) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?)',
+            (
+                row['name'],
+                POLICY,
+                row['titles_hash'],
+                verdict.verdict,
+                verdict.rule,
+                json.dumps(verdict.evidence),
+                time.time(),
+            ),
         )
         conn.commit()
         if index % 25 == 0 or index == len(rows):
@@ -563,65 +664,121 @@ def summary(conn: sqlite3.Connection) -> dict:
     for row in conn.execute('SELECT verdict, COUNT(*) AS n FROM verdicts GROUP BY verdict'):
         out[row['verdict']] = row['n']
     out['applied'] = conn.execute('SELECT COUNT(*) FROM applied WHERE undone_at IS NULL').fetchone()[0]
+    out['unconfirmed'] = conn.execute(
+        'SELECT COUNT(*) FROM applied WHERE confirmed_at IS NULL AND undone_at IS NULL'
+    ).fetchone()[0]
     return out
 
 
-def apply(conn: sqlite3.Connection, args) -> None:
+def decided_on_server(base_url: str, headers: dict) -> dict[str, dict]:
+    """Every decided name on the server, so a human's decision made since the snapshot wins."""
     import requests
 
+    decided: dict[str, dict] = {}
+    for state in ('white', 'black'):
+        offset = 0
+        while True:
+            response = requests.get(
+                f'{base_url}/api/rules/artists',
+                params={'state': state, 'limit': 500, 'offset': offset},
+                headers=headers,
+                timeout=60,
+            )
+            response.raise_for_status()
+            page = response.json()
+            for row in page['rows']:
+                decided[row['name']] = row
+            offset += len(page['rows'])
+            if not page['rows'] or offset >= page['total']:
+                break
+    return decided
+
+
+def apply(conn: sqlite3.Connection, args) -> int:
+    import requests
+
+    base_url = args.base_url.rstrip('/')
+    headers = {'X-API-Key': args.api_key}
+    # Only names in the *current* snapshot: a refreshed snapshot drops names that were
+    # decided or rebuilt away, and their old verdict must not be applied.
     names = [
         row['name']
         for row in conn.execute(
-            'SELECT v.name FROM verdicts v LEFT JOIN applied a ON a.name = v.name '
+            'SELECT v.name FROM verdicts v JOIN candidates c ON c.name = v.name AND c.titles_hash = v.titles_hash '
+            'LEFT JOIN applied a ON a.name = v.name '
             'WHERE v.verdict = ? AND v.policy = ? AND (a.name IS NULL OR a.undone_at IS NOT NULL) ORDER BY v.name',
             (APPROVE, POLICY),
         )
     ]
     if args.limit:
         names = names[: args.limit]
-    logger.info('%d approvals to apply', len(names))
+    decided = decided_on_server(base_url, headers)
+    already = [name for name in names if name in decided]
+    names = [name for name in names if name not in decided]
+    logger.info('%d approvals to apply (%d already decided on the server, left alone)', len(names), len(already))
     if not args.yes:
         logger.info('dry run: pass --yes to post them')
-        return
-    headers = {'X-API-Key': args.api_key}
+        return 0
     for start in range(0, len(names), DECIDE_BATCH):
         batch = names[start : start + DECIDE_BATCH]
-        response = requests.post(
-            f'{args.base_url.rstrip("/")}/api/rules/artists/decide',
-            json={'names': batch, 'state': 'white', 'decided_by': DECIDED_BY},
-            headers=headers,
-            timeout=120,
-        )
-        if response.status_code != 200:
-            logger.error('batch at %d refused: %s %s', start, response.status_code, response.text[:200])
-            return
         now = time.time()
         conn.executemany(
-            'INSERT OR REPLACE INTO applied (name, applied_at, undone_at) VALUES (?, ?, NULL)',
+            'INSERT OR REPLACE INTO applied (name, applied_at, confirmed_at, undone_at) VALUES (?, ?, NULL, NULL)',
             [(n, now) for n in batch],
         )
         conn.commit()
+        try:
+            response = requests.post(
+                f'{base_url}/api/rules/artists/decide',
+                json={'names': batch, 'state': 'white', 'decided_by': DECIDED_BY},
+                headers=headers,
+                timeout=120,
+            )
+        except requests.RequestException as error:
+            logger.error('batch at %d: no reply (%s); it stays journalled as unconfirmed for undo', start, error)
+            return 1
+        if response.status_code != 200:
+            logger.error('batch at %d refused: %s %s', start, response.status_code, response.text[:200])
+            conn.execute('DELETE FROM applied WHERE applied_at = ? AND confirmed_at IS NULL', (now,))
+            conn.commit()
+            return 1
+        conn.execute('UPDATE applied SET confirmed_at = ? WHERE applied_at = ?', (time.time(), now))
+        conn.commit()
         logger.info('applied %d/%d', min(start + DECIDE_BATCH, len(names)), len(names))
+    return 0
 
 
-def undo(conn: sqlite3.Connection, args) -> None:
+def undo(conn: sqlite3.Connection, args) -> int:
+    """Forget the approvals this file made -- and only those still signed `auto-external`.
+
+    A name a human has since re-decided keeps that decision; an unconfirmed batch is
+    checked against the server rather than assumed either way.
+    """
     import requests
 
-    names = [row['name'] for row in conn.execute('SELECT name FROM applied WHERE undone_at IS NULL ORDER BY name')]
-    logger.info('%d applied approvals to undo', len(names))
+    base_url = args.base_url.rstrip('/')
+    headers = {'X-API-Key': args.api_key}
+    journalled = [row['name'] for row in conn.execute('SELECT name FROM applied WHERE undone_at IS NULL ORDER BY name')]
+    decided = decided_on_server(base_url, headers)
+    ours = [n for n in journalled if n in decided and decided[n].get('decided_by') == DECIDED_BY]
+    logger.info('%d journalled, %d still ours on the server', len(journalled), len(ours))
     if not args.yes:
         logger.info('dry run: pass --yes to delete them')
-        return
-    headers = {'X-API-Key': args.api_key}
-    for name in names:
-        response = requests.delete(
-            f'{args.base_url.rstrip("/")}/api/rules/artists/{_q(name)}', headers=headers, timeout=30
-        )
+        return 0
+    failures = 0
+    for name in ours:
+        response = requests.delete(f'{base_url}/api/rules/artists/{_q(name)}', headers=headers, timeout=30)
         if response.status_code not in (200, 404):
             logger.error('%s: %s %s', name, response.status_code, response.text[:200])
+            failures += 1
             continue
         conn.execute('UPDATE applied SET undone_at = ? WHERE name = ?', (time.time(), name))
         conn.commit()
+    gone = [n for n in journalled if n not in decided]
+    if gone:
+        conn.executemany('UPDATE applied SET undone_at = ? WHERE name = ?', [(time.time(), n) for n in gone])
+        conn.commit()
+    return 1 if failures else 0
 
 
 # ----------------------------------------------------------------------------- cli
@@ -634,6 +791,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser('snapshot', help='read the queue and its titles from the database')
     p_run = sub.add_parser('run', help='look every name up and store a verdict')
     p_run.add_argument('--min-tracks', type=int, default=1)
+    p_run.add_argument('--max-tracks', type=int, default=10**9)
     p_run.add_argument('--limit', type=int, default=10**9)
     p_run.add_argument('--sources', nargs='+', choices=SOURCES, default=list(SOURCES))
     p_run.add_argument('--offline', action='store_true', help='only the cache; no requests')
@@ -671,7 +829,7 @@ def main(argv=None) -> int:
         if not args.api_key:
             logger.error('no API key: pass --api-key or set MUMA_API_KEY')
             return 2
-        (apply if args.command == 'apply' else undo)(conn, args)
+        return (apply if args.command == 'apply' else undo)(conn, args)
     return 0
 
 

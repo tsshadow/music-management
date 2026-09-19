@@ -184,7 +184,7 @@ def rerun_parse(track_id: int, _auth: dict = Depends(verify_api_key)):
                 raise HTTPException(status_code=404, detail='Track file not found')
             filepath = row['file_path']
             helper = ProcessedFilesHelper()
-            helper.mark_for_rescan(filepath)
+            helper.mark_for_rescan(filepath, reason='rerun_parse')
             try:
                 from services.music_manager.routers.scanner import scanner_manager
                 from services.music_manager.routers.tagger import tagger_manager
@@ -208,7 +208,7 @@ def rerun_parse_path(path: str = Query(...), _auth: dict = Depends(verify_api_ke
     """
     filepath = path
     helper = ProcessedFilesHelper()
-    helper.mark_for_rescan(filepath)
+    helper.mark_for_rescan(filepath, reason='rerun_parse')
     try:
         from services.music_manager.routers.scanner import scanner_manager
         from services.music_manager.routers.tagger import tagger_manager

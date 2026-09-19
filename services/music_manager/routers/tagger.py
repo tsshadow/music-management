@@ -5,10 +5,12 @@ from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
 
+from services.common.config_store import ConfigStore
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 from services.tagger.deep_run import deep_run_tick
 from services.tagger.tagger import Tagger, TagSingleFile
+from services.tagger.walk_schedule import WalkSchedule
 
 router = APIRouter(tags=['tagger'])
 logger = logging.getLogger('music-manager.tagger')
@@ -31,14 +33,24 @@ class TaggerManager:
         self.tagger = Tagger()
         self._lock = threading.Lock()
 
-    def run_full(self):
+    def run_full(self, walk: bool | None = None):
+        """One round: the queue, and the folder walk when asked or when it is due.
+
+        `walk=None` leaves it to the schedule (`tagger_walk_interval_hours`), which is what
+        the loop does; the endpoints say what they mean.
+        """
         if self._lock.locked():
             logger.warning('Tagging already in progress, skipping full run')
             return
         with self._lock:
-            logger.info('Starting full tagging run')
-            self.tagger.run()
-            logger.info('Full tagging run completed (interrupted: %s)', self.tagger.stop_requested)
+            schedule = WalkSchedule(ConfigStore().get('tagger_walk_interval_hours'))
+            if walk is None:
+                walk = schedule.due()
+            logger.info('Starting tagging round (walk: %s)', walk)
+            self.tagger.run(walk=walk)
+            if walk and not self.tagger.stop_requested:
+                schedule.record()
+            logger.info('Tagging round completed (interrupted: %s)', self.tagger.stop_requested)
 
     def stop(self):
         logger.info('Requesting to stop tagging operation')
@@ -68,7 +80,7 @@ class TaggerManager:
                 logger.warning('Tagger did not stop within %ds, not restarting', self.RESTART_WAIT_SECONDS)
                 return
             time.sleep(0.5)
-        self.run_full()
+        self.run_full(walk=False)
 
     def tag_single(self, path: str | Path, extra_info=None):
         with self._lock:
@@ -93,7 +105,7 @@ async def health():
 async def api_tag_all(background_tasks: BackgroundTasks, _auth: dict = Depends(verify_api_key)):
     if tagger_manager._lock.locked():
         raise HTTPException(status_code=409, detail='A tagging operation is already in progress')
-    background_tasks.add_task(tagger_manager.run_full)
+    background_tasks.add_task(tagger_manager.run_full, True)
     return {'message': 'Full tagging run started in background'}
 
 
@@ -129,12 +141,12 @@ async def api_retag_pending(_auth: dict = Depends(verify_api_key)):
 def run_retag():
     """Tag the marked files, index the result, then let LMS catch up.
 
-    Tagger.run reads the queue first (Tagger._process_pending) and only then walks
-    the folders, so the marked files are done before a single folder is listed and a
-    round cut short by a restart resumes with what is left. The five-minute loop does
-    the same on every round; this endpoint exists for not wanting to wait for it.
+    The queue only, no folder walk: a retag is what a decision queued, and the walk
+    is a daily safety net with nothing to do with it. A round cut short by a restart
+    resumes with what is left. The five-minute loop serves the same queue; this
+    endpoint exists for not wanting to wait for it.
     """
-    tagger_manager.run_full()
+    tagger_manager.run_full(walk=False)
     from services.music_manager.routers.scanner import scanner_manager
 
     scanner_manager.run_full()

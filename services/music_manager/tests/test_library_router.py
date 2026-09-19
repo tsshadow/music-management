@@ -156,7 +156,7 @@ class RerunParseTest(RouterTestCase):
         ):
             response = self.client.post('/api/library/tracks/1/rerun-parse', headers=self.headers)
         self.assertEqual(response.json()['status'], 'ok')
-        helper.return_value.mark_for_rescan.assert_called_once_with('/music/a.mp3')
+        helper.return_value.mark_for_rescan.assert_called_once_with('/music/a.mp3', reason='rerun_parse')
         tagger.tag_single.assert_called_once_with('/music/a.mp3')
         scanner.scan_single.assert_called_once_with('/music/a.mp3')
 
@@ -185,7 +185,7 @@ class RerunParseTest(RouterTestCase):
         ):
             response = self.client.post('/api/library/tracks/rerun-parse-path?path=/music/b.mp3', headers=self.headers)
         self.assertEqual(response.json()['status'], 'ok')
-        helper.return_value.mark_for_rescan.assert_called_once_with('/music/b.mp3')
+        helper.return_value.mark_for_rescan.assert_called_once_with('/music/b.mp3', reason='rerun_parse')
         tagger.tag_single.assert_called_once_with('/music/b.mp3')
         scanner.scan_single.assert_called_once_with('/music/b.mp3')
 

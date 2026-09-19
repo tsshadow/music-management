@@ -141,6 +141,14 @@ def _config_fields() -> list[ConfigField]:
             description='Estimate BPM with librosa while tagging. Only runs for files without a BPM tag, but the first pass still decodes every file. Do not switch this on at the same time as a full rescan.',
         ),
         ConfigField(
+            key='tagger_walk_interval_hours',
+            type='integer',
+            default=24,
+            env='TAGGER_WALK_INTERVAL_HOURS',
+            group='Tagger',
+            description='How often the tagger walks every folder looking for files nobody announced. The five-minute round serves the queue (decisions, downloads, imports, files the scanner found) without a walk; 0 walks every round, as before 0.67.',
+        ),
+        ConfigField(
             key='tagger_deep_run_batch',
             type='integer',
             default=200,

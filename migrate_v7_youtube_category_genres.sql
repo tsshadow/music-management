@@ -20,7 +20,12 @@
 -- A category that somebody has already ruled on is left alone -- only rows still
 -- sitting at 'unknown' are decided here.
 --
--- Safe to re-run.
+-- Safe to re-run, and since 0.68.1 cheap to re-run: scripts/deploy.sh applies every
+-- migrate_*.sql on every deploy, and step 3 used to mark the whole YouTube tree for a
+-- rescan each time -- 32.000 files, over an hour of tagging, on every deploy since this
+-- file shipped. With the 0.67.0 queue model the tagger works that queue at full speed
+-- right after start-up, and on 2026-09-19 that starved the API of the GIL until logins
+-- timed out. Step 3 now only fires on the run that actually changed a category row.
 
 CREATE TEMPORARY TABLE IF NOT EXISTS tmp_youtube_categories (
     name VARCHAR(255) NOT NULL,
@@ -69,6 +74,10 @@ INSERT IGNORE INTO rules_genres (name, normalized_name, state, decided_by, decid
 SELECT name, normalized_name, 'black', 'migration', NOW()
 FROM tmp_youtube_categories;
 
+-- Rows this run really inserted. INSERT IGNORE reports only the ones that were new, so
+-- on every deploy after the first this is 0.
+SET @youtube_categories_inserted = ROW_COUNT();
+
 -- 2. Categories already in the curation queue.
 
 UPDATE rules_genres g
@@ -77,6 +86,8 @@ SET g.state = 'black',
     g.decided_by = COALESCE(g.decided_by, 'migration'),
     g.decided_at = COALESCE(g.decided_at, NOW())
 WHERE g.state = 'unknown';
+
+SET @youtube_categories_decided = ROW_COUNT();
 
 DROP TEMPORARY TABLE IF EXISTS tmp_youtube_categories;
 
@@ -89,7 +100,9 @@ DROP TEMPORARY TABLE IF EXISTS tmp_youtube_categories;
 -- would apply to new downloads only.
 --
 -- Scoped to the YouTube tree rather than using the 'rescan everything' button in
--- management, because nothing outside it changed.
+-- management, because nothing outside it changed. And only on a run in which step 1
+-- or 2 decided a category: a deploy that changed no row has given the tagger nothing
+-- new to write, so re-reading the tree would only cost the hour.
 --
 -- The table is normally created by Tagger.__init__ rather than db_init, so it is
 -- ensured here first: on a database where the tagger has never run the UPDATE
@@ -105,4 +118,5 @@ CREATE TABLE IF NOT EXISTS tagger_processed_files (
 
 UPDATE tagger_processed_files
 SET needs_rescan = TRUE
-WHERE filepath LIKE '%/Youtube/%';
+WHERE filepath LIKE '%/Youtube/%'
+  AND (@youtube_categories_inserted > 0 OR @youtube_categories_decided > 0);

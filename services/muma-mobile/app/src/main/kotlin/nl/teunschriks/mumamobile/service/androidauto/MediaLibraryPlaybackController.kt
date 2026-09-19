@@ -212,11 +212,8 @@ class MediaLibraryPlaybackController(
             MEDIA_SHARE_ITEM -> playShare(mediaIdParts[INDEX_ID])
             MEDIA_SHARE_SONG_ITEM -> playShareSong(mediaIdParts[INDEX_ID], mediaIdParts[INDEX_NAME])
             MEDIA_BOOKMARK_ITEM -> playBookmark(mediaIdParts[INDEX_ID])
-            MEDIA_PODCAST_ITEM -> playPodcast(mediaIdParts[INDEX_ID])
-            MEDIA_PODCAST_EPISODE_ITEM -> playPodcastEpisode(
-                mediaIdParts[INDEX_ID],
-                mediaIdParts[INDEX_NAME]
-            )
+            MEDIA_TAG_PLAY -> playTagQuery(mediaIdParts)
+            MEDIA_PRESET_PLAY -> playPreset(mediaIdParts[INDEX_ID], mediaIdParts.getOrNull(INDEX_SORT))
 
             MEDIA_SEARCH_SONG_ITEM -> playSearch(mediaIdParts[INDEX_ID])
             MEDIA_FEED_ID -> playFeed(mediaIdParts[INDEX_ID])
@@ -449,29 +446,28 @@ class MediaLibraryPlaybackController(
         return songs.getTracks().takeIf { it.isNotEmpty() }
     }
 
-    fun playPodcast(id: String): List<Track>? {
-        Timber.d("playPodcast")
-        val episodes = serviceScope.future {
-            callWithErrorHandling { musicService.getPodcastEpisodes(id) }
-        }.get()
-        if (episodes != null) {
-            return episodes.getTracks()
-        }
-        return null
+    /**
+     * A playable tag row: "everything of this tag, in this order", fetched on the tap itself.
+     * Nothing here depends on a list having been browsed first, which is what lets the Random
+     * row at the top of a tab play without the car ever opening the tracks below it.
+     */
+    fun playTagQuery(mediaIdParts: List<String>): List<Track>? {
+        val query = TagQuery.parse(mediaIdParts) ?: return null
+        Timber.d("playTagQuery %s", query)
+        return serviceScope.future {
+            dataProvider.tracksFor(query.toBrowseQuery(), page = 0, pageSize = DISPLAY_LIMIT)
+        }.get()?.takeIf { it.isNotEmpty() }
     }
 
-    fun playPodcastEpisode(id: String, episodeId: String): List<Track>? {
-        Timber.d("playPodcastEpisode")
-        val episodes = serviceScope.future {
-            callWithErrorHandling { musicService.getPodcastEpisodes(id) }
-        }.get()
-        if (episodes != null) {
-            val selectedEpisode = episodes
-                .getTracks()
-                .firstOrNull { episode -> episode.id == episodeId }
-            if (selectedEpisode != null) return listOf(selectedEpisode)
-        }
-        return null
+    /** A preset, in its saved order or -- when [sortMethod] says so -- shuffled by the server. */
+    fun playPreset(id: String, sortMethod: String?): List<Track>? {
+        Timber.d("playPreset %s %s", id, sortMethod)
+        return serviceScope.future {
+            val tile = dataProvider.preset(id) ?: return@future null
+            var query = BrowseQuery.fromTile(tile)
+            if (!sortMethod.isNullOrBlank()) query = query.withSort(sortMethod)
+            dataProvider.tracksFor(query, page = 0, pageSize = DISPLAY_LIMIT)
+        }.get()?.takeIf { it.isNotEmpty() }
     }
 
     fun playBookmark(id: String): List<Track>? {

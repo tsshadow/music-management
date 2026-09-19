@@ -1,16 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="button_bar.search">Cerca</string>
     <string name="download.jukebox_not_authorized">Il controllo remoto non è consentito. Per favore abilita la modalità jukebox nelle <b> Impostazioni &gt; Utente </b> nel server Airsonic.</string>
     <string name="download.jukebox_offline">Il controllo remoto non è disponibile nella modalità offline. </string>
     <string name="download.jukebox_server_too_old">Il controllo remoto non è supportato. Per favore aggiorna la versione del server Airsonic.</string>
-    <string name="main.albums_random">Casuale</string>
-    <string name="main.albums_recent">Riprodotti recentemente</string>
     <string name="main.albums_title">Album</string>
     <string name="main.artists_title">Artisti</string>
     <string name="main.genres_title">Generi</string>
     <string name="main.offline">Disconnesso</string>
-    <string name="main.songs_starred">Preferiti</string>
     <string name="main.songs_title">Canzoni</string>
     <string name="main.welcome_title">Benvenuto!</string>
     <string name="menu.common">Comune</string>

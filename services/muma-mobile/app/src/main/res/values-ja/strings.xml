@@ -18,13 +18,10 @@
     <string name="language.pt">ポルトガル語</string>
     <string name="language.pt_BR">ポルトガル語 (ブラジル)</string>
     <string name="language.ru">ロシア語</string>
-    <string name="main.albums_random">ランダム</string>
-    <string name="main.albums_recent">最近の再生</string>
     <string name="main.albums_title">アルバム</string>
     <string name="main.artists_title">アーティスト</string>
     <string name="main.genres_title">ジャンル</string>
     <string name="main.offline">オフライン</string>
-    <string name="main.songs_starred">スター付き</string>
     <string name="main.welcome_text_demo">自分の曲をMuMaで再生するには <b>自身のサーバー</b> が必要です。
 \n
 \n➤ アプリを試したい場合、デモサーバーを追加できます。
@@ -56,7 +53,6 @@
     <string name="api.subsonic.upgrade_server">互換性のないバージョンです。Subsonicサーバーをバージョンアップしてください。</string>
     <string name="foreground_exception_title">再生を再開できません</string>
     <string name="buttons.play">再生</string>
-    <string name="button_bar.search">検索</string>
     <string name="main.songs_title">曲</string>
     <string name="main.welcome_cancel">設定に移動</string>
     <string name="playlist.label">プレイリスト</string>

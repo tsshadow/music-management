@@ -2,17 +2,13 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
     <string name="buttons.play">Lejátszás</string>
-    <string name="button_bar.search">Keresés</string>
     <string name="download.jukebox_not_authorized">A távvezérlés nem áll rendelkezésre. Kérjük, engedélyezze a Jukebox módot a <b>Felhasználók &gt; Beállítások</b> menüpontban, az Ön Subsonic kiszolgálóján!</string>
     <string name="download.jukebox_offline">A távvezérlés nem lehetséges kapcsolat nélküli módban!</string>
     <string name="download.jukebox_server_too_old">A távvezérlés nem támogatott. Kérjük, frissítse a Subsonic kiszolgálót!</string>
-    <string name="main.albums_random">Véletlenszerű</string>
-    <string name="main.albums_recent">Utoljára lejátszott</string>
     <string name="main.albums_title">Albumok</string>
     <string name="main.artists_title">Előadók</string>
     <string name="main.genres_title">Műfajok</string>
     <string name="main.offline">Kapcsolat nélküli</string>
-    <string name="main.songs_starred">Csillaggal megjelölt</string>
     <string name="main.songs_title">Dalok</string>
     <string name="main.welcome_title">Üdvözlet!</string>
     <string name="menu.common">Általános</string>

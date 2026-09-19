@@ -2,7 +2,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
     <string name="buttons.play">Afspelen</string>
-    <string name="button_bar.search">Zoeken</string>
     <string name="download.jukebox_not_authorized">Afstandsbediening wordt niet ondersteund. Schakel jukebox-modus in op je Subsonic-server via <b>Gebruikers &gt; Instellingen</b>.</string>
     <string name="download.jukebox_offline">Afstandsbediening is niet beschikbaar in offline-modus.</string>
     <string name="download.jukebox_server_too_old">Afstandsbediening wordt niet ondersteund. Werk je Subsonic-server bij.</string>
@@ -23,13 +22,10 @@
     <string name="language.pt">Portugees</string>
     <string name="language.pt_BR">Portugees (Brazilië)</string>
     <string name="language.ru">Russisch</string>
-    <string name="main.albums_random">Willekeurig</string>
-    <string name="main.albums_recent">Recent afgespeeld</string>
     <string name="main.albums_title">Albums</string>
     <string name="main.artists_title">Artiesten</string>
     <string name="main.genres_title">Genres</string>
     <string name="main.offline">Offline</string>
-    <string name="main.songs_starred">Favorieten</string>
     <string name="main.songs_title">Nummers</string>
     <string name="main.welcome_text_demo">Om in MuMa naar je eigen muziek te luisteren, heb je je <b>eigen server</b> nodig. \n\n➤ Maar als je de app eerst wilt uitproberen, dan kun je voorlopig de demoserver gebruiken. \n\n➤ In de <b>instellingen</b> kun je je eigen server instellen.</string>
     <string name="main.welcome_title">Welkom!</string>
@@ -93,7 +89,6 @@
     <string name="filter.playlists">Playlists</string>
     <string name="main.albums_released">Recent uitgebracht</string>
     <string name="main.library_title">Bibliotheek</string>
-    <string name="main.last_played_genres">Recent afgespeelde genres</string>
     <string name="main.moods_title">Stemmingen</string>
     <string name="main.years_title">Jaren</string>
     <string name="main.title_all_songs">Alles (nummers)</string>
@@ -107,8 +102,6 @@
     <string name="server_switched_offline">Server onbereikbaar. Overgeschakeld naar offline modus.</string>
     <string name="server_switched_online">Server bereikbaar. Online modus hersteld.</string>
     <string name="main.songs_random_this_year">Willekeurig (2025)</string>
-    <string name="main.songs_recent">Recent</string>
-    <string name="main.livesets_recent">Recente livesets</string>
     <string name="main.songs_recent_added">Recent toegevoegd</string>
     <string name="main.songs_recent_modified">Recent gewijzigd</string>
     <string name="main.radio_title">Radio</string>
@@ -116,7 +109,6 @@
     <string name="main.daily_mixes_title">Dagelijkse mixen</string>
     <string name="main.release_radar_title">Release radar</string>
     <string name="news.button">Nieuws</string>
-    <string name="main.livesets_title">Livesets</string>
     <string name="artist_detail_eps">EP\'s</string>
     <string name="artist_detail_singles">Singles</string>
     <string name="select_mood.empty">Geen stemmingen gevonden</string>
@@ -133,6 +125,17 @@
     <string name="favorites.songs">Favoriete nummers</string>
     <string name="favorites.genres">Favoriete genres</string>
     <string name="favorites.playlists">Favoriete playlists</string>
+    <string name="auto.start">Start</string>
+    <string name="auto.presets">Presets</string>
+    <string name="auto.podcasts">Podcasts</string>
+    <string name="auto.festivals">Festivals</string>
+    <string name="auto.lineups">Lineups</string>
+    <string name="auto.by_year">Per jaar</string>
+    <string name="auto.random_play">Willekeurig</string>
+    <string name="auto.group_for_you">Voor jou</string>
+    <string name="auto.group_live">Live</string>
+    <string name="auto.group_browse">Bladeren</string>
+    <string name="auto.group_play">Afspelen</string>
     <string name="download.menu_unstar">Ster verwijderen</string>
     <string name="crash_report.dialog_title">Vorige sessie is gecrasht</string>
     <string name="crash_report.dialog_message">MuMa is de vorige keer niet netjes afgesloten. Diagnostiek delen om dit te helpen oplossen?</string>

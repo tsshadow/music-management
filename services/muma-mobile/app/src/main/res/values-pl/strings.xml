@@ -1,16 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="button_bar.search">Szukaj</string>
     <string name="download.jukebox_not_authorized">Kontrola pilotem jest niedostępna. Proszę uruchomić tryb jukebox w <b>Użytkownicy &gt; Ustawienia</b> na serwerze Subsonic.</string>
     <string name="download.jukebox_offline">Pilot jest niedostępny w trybie offline.</string>
     <string name="download.jukebox_server_too_old">Tryb pilota jest niedostępny. Proszę uaktualnić serwer Subsonic.</string>
-    <string name="main.albums_random">Losowe</string>
-    <string name="main.albums_recent">Ostatnio odtwarzane</string>
     <string name="main.albums_title">Albumy</string>
     <string name="main.artists_title">Wykonawcy</string>
     <string name="main.genres_title">Gatunki</string>
     <string name="main.offline">Offline</string>
-    <string name="main.songs_starred">Ulubione</string>
     <string name="main.songs_title">Utwory</string>
     <string name="main.welcome_title">Witaj!</string>
     <string name="menu.common">Wspólne</string>

@@ -9,7 +9,6 @@
     <string name="filter.genres">Genres</string>
     <string name="filter.playlists">Playlists</string>
     <string name="buttons.play">Speulen</string>
-    <string name="button_bar.search">Zeuken</string>
     <string name="download.jukebox_not_authorized">Aofstandsbediening mag neet. Zet de jukebox-modus an op oe Subsonic-server bi\'j <b>Gebruikers &gt; Instellingen</b>.</string>
     <string name="download.jukebox_offline">Aofstandsbediening dut \'t neet in offline-modus.</string>
     <string name="download.jukebox_server_too_old">Aofstandsbediening kan neet. Wark oe Subsonic-server bi\'j.</string>
@@ -30,14 +29,11 @@
     <string name="language.pt">Portugees</string>
     <string name="language.pt_BR">Portugees (Brazilië)</string>
     <string name="language.ru">Russisch</string>
-    <string name="main.albums_random">Deur mekaar</string>
-    <string name="main.albums_recent">Krek espeuld</string>
     <string name="main.albums_released">Krek uutebracht</string>
     <string name="main.albums_title">Albums</string>
     <string name="main.artists_title">Artiesten</string>
     <string name="main.genres_title">Genres</string>
     <string name="main.library_title">Bibliotheek</string>
-    <string name="main.last_played_genres">Krek espeulde genres</string>
     <string name="main.moods_title">Stemmingen</string>
     <string name="main.years_title">Jaoren</string>
     <string name="main.title_all_songs">Alles (nummers)</string>
@@ -52,14 +48,10 @@
     <string name="server_switched_offline">Server neet te bereiken. Aoverestapt naor offline-modus.</string>
     <string name="server_switched_online">Server is d\'r weer. Online-modus trugge.</string>
     <string name="main.songs_random_this_year">Deur mekaar (2025)</string>
-    <string name="main.songs_recent">Krek espeuld</string>
-    <string name="main.livesets_recent">Verse livesets</string>
     <string name="main.songs_recent_added">Krek d\'r bi\'j</string>
     <string name="main.songs_recent_modified">Krek verandurd</string>
-    <string name="main.songs_starred">Favorieten</string>
     <string name="main.radio_title">Radio</string>
     <string name="main.songs_title">Nummers</string>
-    <string name="main.livesets_title">Livesets</string>
     <string name="main.welcome_text_demo">Um in MuMa naor oe eigen muziek te luustern he\'j \'n <b>eigen server</b> neudig. \n\n➤ Mer wi\'j de app eerst \'s prebeern, dan ku\'j veurlopig de demoserver nemen. \n\n➤ Bi\'j de <b>instellingen</b> zet iej oe eigen server d\'r in.</string>
     <string name="main.welcome_title">Welkom!</string>
     <string name="main.welcome_cancel">Doo de instellingen eupen</string>

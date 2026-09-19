@@ -9,7 +9,6 @@
     <string name="filter.genres">Genres</string>
     <string name="filter.playlists">Playlists</string>
     <string name="buttons.play">Afspele</string>
-    <string name="button_bar.search">Zoeke</string>
     <string name="download.jukebox_not_authorized">Afstandsbediening mag nie. Zet de jukebox-modus aon op oewe Subsonic-server via <b>Gebruikers &gt; Instellinge</b>.</string>
     <string name="download.jukebox_offline">Afstandsbediening doet \'t nie in offline-modus.</string>
     <string name="download.jukebox_server_too_old">Afstandsbediening kan nie. Werk oewe Subsonic-server bij.</string>
@@ -30,14 +29,11 @@
     <string name="language.pt">Portugees</string>
     <string name="language.pt_BR">Portugees (Brazilië)</string>
     <string name="language.ru">Russisch</string>
-    <string name="main.albums_random">Deur mekaor</string>
-    <string name="main.albums_recent">Net afgespeeld</string>
     <string name="main.albums_released">Net uitgekome</string>
     <string name="main.albums_title">Albums</string>
     <string name="main.artists_title">Artieste</string>
     <string name="main.genres_title">Genres</string>
     <string name="main.library_title">Bibliotheek</string>
-    <string name="main.last_played_genres">Net afgespeelde genres</string>
     <string name="main.moods_title">Stemminge</string>
     <string name="main.years_title">Jaore</string>
     <string name="main.title_all_songs">Ammel (nummerkes)</string>
@@ -52,14 +48,10 @@
     <string name="server_switched_offline">Server nie te bereike. Overgegaon naor offline-modus.</string>
     <string name="server_switched_online">Server is d\'r weer. Online-modus terug.</string>
     <string name="main.songs_random_this_year">Deur mekaor (2025)</string>
-    <string name="main.songs_recent">Net afgespeeld</string>
-    <string name="main.livesets_recent">Verse livesets</string>
     <string name="main.songs_recent_added">Net d\'r bij</string>
     <string name="main.songs_recent_modified">Net veranderd</string>
-    <string name="main.songs_starred">Favorietjes</string>
     <string name="main.radio_title">Radio</string>
     <string name="main.songs_title">Nummerkes</string>
-    <string name="main.livesets_title">Livesets</string>
     <string name="main.welcome_text_demo">Om in MuMa naor oew eige muziek te luistere hedde \'n <b>eige server</b> nodig. \n\n➤ Maor wilde de app eerst efkes probere, dan kunde vurlopig de demoserver pakke. \n\n➤ Bij de <b>instellinge</b> zet ge oew eige server erin.</string>
     <string name="main.welcome_title">Welkom!</string>
     <string name="main.welcome_cancel">Doe de instellinge open</string>

@@ -359,20 +359,33 @@ class ProcessedFilesHelper:
         finally:
             connection.close()
 
+    #: The reason left on the row of a file that was queued but is not on disk.
+    MISSING = 'missing'
+
     def forget(self, song_path: str) -> None:
-        """Drop the row of a file that is no longer on disk.
+        """Take a file that is no longer on disk off the queue, and remember that it is gone.
 
         A queued row whose file was moved or deleted would otherwise stay queued for
         ever: nothing walks into it to mark it processed, and the pending count keeps
-        promising work that cannot be done.
+        promising work that cannot be done. The row is kept, not deleted, as a tombstone
+        with reason `missing` and no mtime: the scanner's own table keeps rows for files
+        it has not seen since (768 on production the day this shipped, __TODO releases
+        that the importer moved), and deleting ours let queue_new_library_files re-add
+        every one of them each round. Should the file come back, its mtime is newer than
+        0 and the next walk tags it; the deep run hands the row back after its window and
+        this runs again, which is cheap.
         """
+        query = (
+            f'INSERT INTO {self.table_name} (filepath, mtime, needs_rescan, rescan_reason) VALUES (%s, 0, FALSE, %s) '
+            'ON DUPLICATE KEY UPDATE needs_rescan = FALSE, rescan_reason = VALUES(rescan_reason)'
+        )
         connection = self.db_connector.connect()
         try:
             with connection.cursor() as cursor:
-                cursor.execute(f'DELETE FROM {self.table_name} WHERE filepath = %s', (song_path,))
+                cursor.execute(query, (song_path, self.MISSING))
             connection.commit()
         except Exception as e:
-            logging.error(f'Error forgetting a vanished file: {e}')
+            logging.error(f'Error marking a vanished file as missing: {e}')
         finally:
             connection.close()
 

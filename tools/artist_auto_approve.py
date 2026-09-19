@@ -127,7 +127,7 @@ BRAND_BLOCKLIST = {
 #: Festival` (it did); such a name stays in the queue for a human.
 BRAND_SHAPE = re.compile(
     r"\b(?:festival|events?|records|recordings|recordz|music|tv|radio|podcast|exclusives?|premieres?|presents|"
-    r"sessions?|mag|magazine|official|channel|network|label|agency|bookings|promo(?:tions?)?|store|shop)\b|"
+    r"sessions?|mag|magazine|official|channel|network|label|agency|bookings|promotions?|store|shop)\b|"
     r"\b(?:19|20)\d\d\b",
     re.IGNORECASE,
 )

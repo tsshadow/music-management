@@ -19,5 +19,5 @@ python-dotenv~=1.2.2
 mutagen~=1.48.1
 tqdm~=4.68
 fastapi~=0.141.1
-uvicorn~=0.52.4
+uvicorn~=0.53.0
 markdown~=3.10

@@ -59,4 +59,4 @@ def test_the_debug_foreground_stays_inside_the_launcher_mask():
 def test_the_release_foreground_carries_no_badge():
     foreground = render_icons.render_launcher_foreground(render_icons.GREEN)
     assert foreground.count("<path") == 1 + 5
-    assert "strokeLineJoin" not in foreground
+    assert "evenOdd" not in foreground

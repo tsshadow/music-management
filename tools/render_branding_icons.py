@@ -83,23 +83,32 @@ A{radius:.1f},{radius:.1f} 0 1,1 {cx - 0.1:.1f},{cy - radius:.1f} Z"/>"""
 
 
 def _debug_badge(disc_hex: str) -> str:
-    """A D in the lower right of the disc, inside the safe zone so no mask crops it."""
+    """A D in the lower right of the disc, inside the safe zone so no mask crops it.
+
+    The glyph is a filled even-odd outline rather than a stroked stem-plus-arc: a stroke
+    path that arcs back onto its own start renders as a filled bowl on Android.
+    """
     centre = _scaled(BADGE_CENTRE)
     stem = centre + BADGE_GLYPH_STEM * SAFE_ZONE
-    top = centre - BADGE_GLYPH_HALF_HEIGHT * SAFE_ZONE
-    bottom = centre + BADGE_GLYPH_HALF_HEIGHT * SAFE_ZONE
-    bowl = BADGE_GLYPH_HALF_HEIGHT * SAFE_ZONE
+    half = BADGE_GLYPH_HALF_HEIGHT * SAFE_ZONE
+    width = BADGE_STROKE * SAFE_ZONE / 2
+
+    def d_outline(inset: float) -> str:
+        radius = half - inset
+        return (
+            f"M{stem - inset:.1f},{centre - radius:.1f} H{stem:.1f} "
+            f"A{radius:.1f},{radius:.1f} 0 0,1 {stem:.1f},{centre + radius:.1f} "
+            f"H{stem - inset:.1f} Z"
+        )
+
     return "\n".join(
         [
             _circle_path(disc_hex, centre, centre, BADGE_RING_RADIUS * SAFE_ZONE),
             _circle_path(BACKDROP, centre, centre, BADGE_RADIUS * SAFE_ZONE),
             f"""    <path
-        android:strokeColor="{disc_hex}"
-        android:strokeWidth="{BADGE_STROKE * SAFE_ZONE:.1f}"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M{stem:.1f} {top:.1f} V{bottom:.1f} \
-A{bowl:.1f},{bowl:.1f} 0 0,0 {stem:.1f} {top:.1f}"/>""",
+        android:fillColor="{disc_hex}"
+        android:fillType="evenOdd"
+        android:pathData="{d_outline(-width)} {d_outline(width)}"/>""",
         ]
     )
 

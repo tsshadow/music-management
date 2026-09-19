@@ -106,8 +106,28 @@ class BaseSongTest(unittest.TestCase):
         tag_collection = MagicMock()
         tag_collection.get.return_value = {ARTIST: tag}
         song.tag_collection = tag_collection
-        song.save_file()
+        self.assertTrue(song.save_file())
         song.music_file.save.assert_called_once()
+
+    def test_save_file_says_so_when_nothing_changed(self):
+        """The tagger tells LMS about a folder on this answer, so 'nothing written' has to be
+        a real False -- a full run comes back with that for nearly every file it visits."""
+        tag = Tag(tag=ARTIST, value='Original Artist')
+        song = BaseSong.__new__(BaseSong)
+        song.music_file = MagicMock()
+        song.type = MusicFileType.MP3
+        tag_collection = MagicMock()
+        tag_collection.get.return_value = {ARTIST: tag}
+        song.tag_collection = tag_collection
+        self.assertFalse(song.save_file())
+        song.music_file.save.assert_not_called()
+
+    def test_parse_remembers_whether_the_file_was_written(self):
+        song = BaseSong.__new__(BaseSong)
+        song.run_all_rules = MagicMock()
+        song.save_file = MagicMock(return_value=True)
+        self.assertTrue(song.parse())
+        self.assertTrue(song.saved)
 
     @patch('services.tagger.Song.BaseSong.logging')
     def test_save_file_does_not_announce_a_write_that_failed(self, mock_logging):
@@ -125,6 +145,24 @@ class BaseSongTest(unittest.TestCase):
             song.save_file()
         announced = [c for c in mock_logging.info.call_args_list if 'File saved' in str(c)]
         self.assertEqual([], announced)
+        # The change is still pending: the next attempt has to write it again.
+        self.assertTrue(tag.has_changes())
+
+    @patch('services.tagger.Song.BaseSong.logging')
+    def test_a_tag_that_ends_where_it_started_is_not_written(self, _mock_logging):
+        """The artist rules did [A, B] -> [A] -> [A, B] on every MOTZ Premiere file; the
+        sticky change flag then rewrote the file, and LMS re-read it, on every pass."""
+        tag = Tag(tag=ARTIST, value='MOTZ Premiere;Ignatowski')
+        tag.set('MOTZ Premiere')
+        tag.add('Ignatowski')
+        song = BaseSong.__new__(BaseSong)
+        song.music_file = MagicMock()
+        song.type = MusicFileType.MP3
+        tag_collection = MagicMock()
+        tag_collection.get.return_value = {ARTIST: tag}
+        song.tag_collection = tag_collection
+        self.assertFalse(song.save_file())
+        song.music_file.save.assert_not_called()
 
     @patch('services.tagger.Song.BaseSong.logging')
     def test_a_tag_mutagen_refuses_does_not_take_the_other_tags_down(self, mock_logging):

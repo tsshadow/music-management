@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 from yt_dlp.postprocessor import PostProcessor
 
 from services.common.Helpers.NotificationService import notification_service
+from services.tagger.announce import announce
 from services.tagger.constants import SongTypeEnum
 from services.tagger.tagger import Tagger
 
@@ -38,6 +39,7 @@ class SoundcloudSongProcessor(PostProcessor):
         if not enriched_info:
             song = Tagger.parse_song(Path(path), SongTypeEnum.SOUNDCLOUD)
             if song:
+                announce(path)
                 notification_service.notify(str(song), title='SoundCloud Download Complete')
             return ([], info)
         info.update(enriched_info)
@@ -64,6 +66,9 @@ class SoundcloudSongProcessor(PostProcessor):
             )
         song = Tagger.parse_song(Path(path), SongTypeEnum.SOUNDCLOUD, extra_info=enriched_info)
         if song:
+            # Bookkeeping, LMS and the scanner -- the file is tagged, now make it exist
+            # for everyone else without waiting for the walk.
+            announce(path)
             notification_service.notify(str(song), title='SoundCloud Download Complete')
         return ([], info)
 

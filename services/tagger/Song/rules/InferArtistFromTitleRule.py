@@ -12,6 +12,37 @@ YEAR_SUFFIX_PATTERN = re.compile(r'\b(19[89]\d|20[0-4]\d)\s*$')
 PIPE_CHARACTERS = ('｜', '|')
 
 
+def artist_index(artist_db) -> dict[str, str]:
+    """lower-cased name -> name as stored, for every known artist.
+
+    Built once per file by three different rules, and until 0.66.1 each build was a full
+    read of library_artists (57k rows) -- 1.6 s of the 2.2 s a Soundcloud file cost. A
+    caching TableHelper hands out its own snapshot; anything else (the test doubles) is
+    read the old way.
+    """
+    if isinstance(artist_db, TableHelper):
+        return artist_db.lowercase_map()
+    return {name.lower(): name for name in artist_db.get_all_values() if name}
+
+
+def has_close_artist(word: str, names, cutoff: float) -> bool:
+    """Whether any known name is at least `cutoff` similar to `word`.
+
+    The same answer as `bool(get_close_matches(word, names, n=1, cutoff))` -- same matcher,
+    same three ratio gates in the same order -- but an exact hit is a set lookup and a
+    fuzzy hit returns at the first name that passes instead of scoring all 37k. Only a
+    miss still costs the full scan.
+    """
+    if word in names:
+        return True
+    matcher = SequenceMatcher(None, '', word)
+    for name in names:
+        matcher.set_seq1(name)
+        if matcher.real_quick_ratio() >= cutoff and matcher.quick_ratio() >= cutoff and matcher.ratio() >= cutoff:
+            return True
+    return False
+
+
 def extract_artists_from_string(part: str) -> list[str]:
     return [a.strip() for a in re.split(ARTIST_REGEX_NON_CAPTURING, part) if a.strip()]
 
@@ -115,7 +146,7 @@ def set_cleaned_artist(song, library_artists: str | list[str], artist_db=None, s
         'b2 ',
     }
     artist_db = artist_db or TableHelper('library_artists', 'name')
-    all_artists = {name.lower(): name for name in artist_db.get_all_values() if name}
+    all_artists = artist_index(artist_db)
     cleaned = []
     for a in library_artists:
         raw = a.strip()
@@ -147,8 +178,7 @@ class InferArtistFromTitleRule(TagRule):
 
         self.artist_db = artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
         self.festival_helper = festival_helper or databaseHelpers.get('festivalHelper')
-        all_names = self.artist_db.get_all_values()
-        artist_names = {name.lower() for name in all_names if name}
+        artist_names = set(artist_index(self.artist_db))
         self.genre_db = genre_db or databaseHelpers.get('rules_genres')
         if self.genre_db:
             all_genres = self.genre_db.get_all()
@@ -241,7 +271,7 @@ class InferArtistFromEventPrefixRule(TagRule):
             return False
         if any(c.lower() in self.artist_names for c in candidates):
             return True
-        if any(get_close_matches(c.lower(), self.artist_names, n=1, cutoff=0.75) for c in candidates):
+        if any(has_close_artist(c.lower(), self.artist_names, cutoff=0.75) for c in candidates):
             return True
         # "Akimbo vs. Barber" split in two: the separator itself says these are
         # performers, which is what lets a brand new name through the first time.
@@ -349,12 +379,12 @@ class InferArtistFromTitleSingleDashRule(TagRule):
         fuzzy_match_left = (
             []
             if left_is_event
-            else [a for a in fuzzy_left if get_close_matches(a.lower(), self.artist_names, n=1, cutoff=0.75)]
+            else [a for a in fuzzy_left if has_close_artist(a.lower(), self.artist_names, cutoff=0.75)]
         )
         fuzzy_match_right = (
             []
             if right_is_event
-            else [a for a in fuzzy_right if get_close_matches(a.lower(), self.artist_names, n=1, cutoff=0.75)]
+            else [a for a in fuzzy_right if has_close_artist(a.lower(), self.artist_names, cutoff=0.75)]
         )
         if fuzzy_match_left:
             set_cleaned_artist(song, fuzzy_match_left, self.artist_db, source=left)
@@ -494,7 +524,7 @@ class InferArtistFromTitleFallbackRule(TagRule):
 class InferArtistFromPresentsOrColonRule(TagRule):
     def __init__(self, artist_db):
         self.artist_db = artist_db
-        self.artist_names = {name.lower() for name in artist_db.get_all_values() if name}
+        self.artist_names = frozenset(artist_index(artist_db))
 
     def apply(self, song):
         title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
@@ -503,7 +533,7 @@ class InferArtistFromPresentsOrColonRule(TagRule):
         match = re.search('\\b([A-Za-z0-9 &\\-_]+?)\\s*(presents:|presents\\b|:)', title, flags=re.IGNORECASE)
         if match:
             candidate = match.group(1).strip()
-            if get_close_matches(candidate.lower(), self.artist_names, n=1, cutoff=0.7):
+            if has_close_artist(candidate.lower(), self.artist_names, cutoff=0.7):
                 set_cleaned_artist(song, candidate, self.artist_db, source=candidate)
                 new_title = title[match.end() :].strip()
                 song.tag_collection.set_item(TITLE, new_title)

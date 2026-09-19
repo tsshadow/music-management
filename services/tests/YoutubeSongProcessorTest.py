@@ -101,9 +101,15 @@ class YoutubeSongProcessorTest(unittest.TestCase):
         expected_info = dict(info)
         expected_info['title'] = 'Noiseflow | Defqon.1 2025'
         expected_path = processor._downloader.prepare_filename(expected_info)
-        with patch('services.downloader.youtube.YoutubeSongProcessor.Tagger') as mock_tagger:
+        with (
+            patch('services.downloader.youtube.YoutubeSongProcessor.Tagger') as mock_tagger,
+            patch('services.downloader.youtube.YoutubeSongProcessor.announce') as mock_announce,
+        ):
             processor.run(info)
             mock_tagger.parse_song.assert_called_with(Path(info['filepath']), SongTypeEnum.YOUTUBE, extra_info=info)
+            # Tagged, then announced under the corrected path: the row, LMS and the scanner
+            # all see the file the tag pass wrote, not the placeholder name.
+            mock_announce.assert_called_once_with(info['filepath'])
         self.assertEqual(info['title'], 'Noiseflow | Defqon.1 2025')
         self.assertEqual(info['fulltitle'], 'Noiseflow | Defqon.1 2025')
         self.assertEqual(os.path.normpath(info['filepath']), os.path.normpath(expected_path))

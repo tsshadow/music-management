@@ -34,6 +34,11 @@ class Tag:
                 # which is indistinguishable from nothing having happened at all.
                 logging.warning('Could not split %s value %r: %s', tag, value, exc)
         self.changed = False
+        # The value as it came off the file, after the constructor's own splitting. A rule
+        # chain that goes [A, B] -> [A] -> [A, B] used to leave `changed` set and the file was
+        # rewritten -- and LMS re-read -- for a tag that ended where it started. That was every
+        # MOTZ Premiere file on production, on every pass. What counts is the net difference.
+        self._initial = list(self.value)
 
     def __str__(self):
         """
@@ -205,18 +210,19 @@ class Tag:
 
     def has_changes(self):
         """
-        Returns whether the tag was modified since initialization.
+        Returns whether the tag differs from what it was at initialization.
 
         Returns:
-            bool: True if modified.
+            bool: True if the value on the file would differ after a save.
         """
-        return self.changed
+        return self.value != self._initial
 
     def clear_changes(self):
         """
-        Resets the changed flag to False.
+        Takes the current value as the new baseline, after a save wrote it.
         """
         self.changed = False
+        self._initial = list(self.value)
 
     def log(self):
         """

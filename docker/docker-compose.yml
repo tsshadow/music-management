@@ -40,6 +40,17 @@ x-environment-paths: &environment-paths
   eps_folder_path: ${eps_folder_path}
   music_folder_path: ${music_folder_path}
 
+# Where LMS is and how to talk to it. music-manager needed this from the start; the
+# workers need it since they announce the files they tag themselves (services/tagger/
+# announce.py) instead of leaving them for the next folder walk. "lms" is the
+# container_name in the separate lms stack, reachable over the shared network. The two
+# key names are both passed as-is because compose has no nested "${A:-${B}}" default;
+# the fallback between them happens in Python (services/common/Helpers/LmsEndpoint.py).
+x-environment-lms: &environment-lms
+  MUMA_SERVER_HOSTS: "lms:5082"
+  MUMA_SERVER_SUBSONIC_API_KEY: ${MUMA_SERVER_SUBSONIC_API_KEY:-}
+  LMS_SUBSONIC_API_KEY: ${LMS_SUBSONIC_API_KEY:-}
+
 services:
   db:
     security_opt:
@@ -98,25 +109,15 @@ services:
     depends_on:
       - db
     environment:
-      <<: [*environment-db, *environment-paths]
+      <<: [*environment-db, *environment-paths, *environment-lms]
       MUMA_SERVER_DB_ROOT: /app/data
       STORAGE_PATH: /mnt/music/artists
       PYTHONPATH: /app
       API_KEY: ${API_KEY:-}
       MUMA_API_KEY: ${MUMA_API_KEY:-}
-      # "lms" is the container_name of the LMS service defined in the separate
-      # "lms" stack (services/music-management-server/docker-compose.yml),
-      # which shares the "music-management_db" network with this stack. See
+      # LMS host and keys come from the environment-lms anchor above. See
       # docs/deployment.md for why LMS is deployed as its own stack instead of
       # an inline service here.
-      MUMA_SERVER_HOSTS: "lms:5082"
-      # Both are passed through as-is and the fallback happens in Python
-      # (services/music_manager/lms_subsonic.py). Compose does NOT support a
-      # nested "${A:-${B}}" default: it stops the default at the first "}", so
-      # that form resolved to the literal string "${LMS_SUBSONIC_API_KEY}",
-      # which LMS then rejected with "Invalid API key." on every radio poll.
-      MUMA_SERVER_SUBSONIC_API_KEY: ${MUMA_SERVER_SUBSONIC_API_KEY:-}
-      LMS_SUBSONIC_API_KEY: ${LMS_SUBSONIC_API_KEY:-}
       NOTIFY_URL: ${NOTIFY_URL}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       # Where the hourly news bulletins are written. Set NEWS_DATA_PATH in the
@@ -232,7 +233,7 @@ services:
         "300"
       ]
     environment:
-      <<: [*environment-db, *environment-paths]
+      <<: [*environment-db, *environment-paths, *environment-lms]
       NOTIFY_URL: ${NOTIFY_URL}
       PYTHONPATH: /app
       debug: "${debug}"
@@ -264,7 +265,7 @@ services:
         "--break-on-existing"
       ]
     environment:
-      <<: [*environment-db, *environment-downloader, *environment-paths]
+      <<: [*environment-db, *environment-downloader, *environment-paths, *environment-lms]
       NOTIFY_URL: ${NOTIFY_URL}
       PYTHONPATH: /app
       debug: "${debug}"
@@ -298,7 +299,7 @@ services:
         "--break-on-existing"
       ]
     environment:
-      <<: [*environment-db, *environment-downloader, *environment-paths]
+      <<: [*environment-db, *environment-downloader, *environment-paths, *environment-lms]
       NOTIFY_URL: ${NOTIFY_URL}
       PYTHONPATH: /app
       debug: "${debug}"
@@ -331,7 +332,7 @@ services:
         "--repeat",
       ]
     environment:
-      <<: [*environment-db, *environment-telegram]
+      <<: [*environment-db, *environment-telegram, *environment-paths, *environment-lms]
       NOTIFY_URL: ${NOTIFY_URL}
       PYTHONPATH: /app
       debug: "${debug}"

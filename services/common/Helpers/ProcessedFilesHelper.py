@@ -1,6 +1,39 @@
 import logging
+import math
+import struct
 
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+
+
+def _escape_like(text: str) -> str:
+    """A path as a literal inside a LIKE pattern: '_' and '%' are wildcards there."""
+    return text.replace('\\', '\\\\').replace('%', r'\%').replace('_', r'\_')
+
+
+def _float32(value: float) -> float:
+    return struct.unpack('f', struct.pack('f', value))[0]
+
+
+def _float32_step(value: float) -> float:
+    """The spacing between neighbouring float32 values at this magnitude: 128 s at today's epoch."""
+    return math.ldexp(1.0, math.frexp(value)[1] - 24) if value else 0.0
+
+
+def changed_on_disk(mtime: float, stored: float) -> bool:
+    """Whether the file's mtime says it was written after the tagger last saw it.
+
+    `stored` used to live in a FLOAT column, which at today's epoch has a step of 128 s: the
+    value written back was the real mtime rounded to the nearest step, so 70 % of the library
+    compared as "newer than stored" on every walk and was retagged for nothing, round after
+    round. The column is DOUBLE now (migrate_v29) but the rounded values are still in it. A
+    stored value that is exactly float32-representable and within one float32 step of the
+    mtime is that artefact, not an edit; an edit lands a real mtime outside the step. Rows
+    heal as they are tagged for other reasons, which stores the exact value from then on.
+    """
+    if mtime <= stored:
+        return False
+    rounded_by_the_old_column = stored == _float32(stored) and mtime - stored <= _float32_step(stored)
+    return not rounded_by_the_old_column
 
 
 class ProcessedFilesHelper:
@@ -13,15 +46,36 @@ class ProcessedFilesHelper:
     #: chunked rather than handed to the database in one statement of unbounded size.
     BATCH_SIZE = 500
 
+    #: Marker in the snapshot for a row flagged for rescan: it needs processing whatever
+    #: the file's mtime says, so no real mtime is kept for it.
+    FLAGGED = -1.0
+
+    #: Reasons that queue the library wholesale rather than because somebody decided
+    #: something about these files. They are served after every other reason, so a genre
+    #: decision made this morning is not parked behind a month-old "rescan all". A row
+    #: without a reason predates reasons being recorded and is treated the same way.
+    BULK_REASONS = ('rescan_all', 'deep_run')
+    #: The reason a file gets when the scanner has indexed it and the tagger has never
+    #: seen it -- a file somebody dropped into the library by hand.
+    NEW_IN_LIBRARY = 'new_in_library'
+
     def __init__(self, table_name='tagger_processed_files'):
         self.table_name = table_name
         self.db_connector = DatabaseConnector()
+        # filepath -> mtime (or FLAGGED) for the whole table, while a tagging round holds
+        # one. None means every needs_processing goes to the database.
+        self._snapshot: dict[str, float] | None = None
 
     def create_table(self):
         """Creates the table if it doesn't exist."""
-        query = f'\n            CREATE TABLE IF NOT EXISTS {self.table_name} (\n                filepath VARCHAR(767) PRIMARY KEY,\n                mtime FLOAT,\n                last_processed TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n                needs_rescan BOOLEAN DEFAULT FALSE,\n                rescan_reason VARCHAR(64) NULL\n            )\n        '
+        query = f'\n            CREATE TABLE IF NOT EXISTS {self.table_name} (\n                filepath VARCHAR(767) PRIMARY KEY,\n                mtime DOUBLE,\n                last_processed TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n                needs_rescan BOOLEAN DEFAULT FALSE,\n                rescan_reason VARCHAR(64) NULL\n            )\n        '
         # pending_paths pages through the queued rows by primary key; without this the
-        # table is scanned once per page, and there are 260k rows on production.
+        # table is scanned once per page, and there are 327k rows on production. The
+        # reason is not in the key on purpose: filepath is VARCHAR(767) in utf8mb4, 3068
+        # of the 3072 bytes a key may have, so nothing wider than a flag fits beside it.
+        # A per-reason page filters on the reason while it walks this index, and because
+        # the cursor only ever moves forward, one reason's pages together read each
+        # queued row once.
         index = (
             f'CREATE INDEX IF NOT EXISTS idx_{self.table_name}_pending ON {self.table_name} (needs_rescan, filepath)'
         )
@@ -36,12 +90,52 @@ class ProcessedFilesHelper:
         finally:
             connection.close()
 
+    def load_snapshot(self) -> bool:
+        """Read the whole table once, so the round that follows asks it nothing per file.
+
+        A tagging round walks every file in the library and asked this table about each
+        one on a fresh connection: measured on production, 14 ms per file of which
+        0.1 ms was the query, over 327k files -- 75 minutes of connecting per round,
+        with nothing to tag. The same 327k rows come back in one SELECT in 1.4 s and
+        fit in about 100 MB. The walk reads the dict, mark_processed keeps it current,
+        and drop_snapshot ends the round. A file flagged for rescan *after* the load is
+        missed by this round's walk and picked up by the next round's pending pass.
+
+        Returns False when the table could not be read; the round then falls back to
+        per-file queries rather than tagging nothing.
+        """
+        query = f'SELECT filepath, mtime, needs_rescan FROM {self.table_name}'
+        connection = self.db_connector.connect()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query)
+                snapshot: dict[str, float] = {}
+                for filepath, db_mtime, needs_rescan in cursor.fetchall():
+                    snapshot[str(filepath)] = self.FLAGGED if needs_rescan else float(db_mtime or 0)
+            self._snapshot = snapshot
+            return True
+        except Exception as e:
+            logging.error(f'Error loading the processed files snapshot: {e}')
+            self._snapshot = None
+            return False
+        finally:
+            connection.close()
+
+    def drop_snapshot(self) -> None:
+        self._snapshot = None
+
     def needs_processing(self, song_path: str, mtime: float) -> bool:
         """
         Checks if a song needs to be processed.
         Returns True if the song is not in the database, its mtime has changed,
         or it has been explicitly marked for rescan.
         """
+        snapshot = self._snapshot
+        if snapshot is not None:
+            known = snapshot.get(song_path)
+            if known is None or known == self.FLAGGED:
+                return True
+            return changed_on_disk(mtime, known)
         query = f'SELECT mtime, needs_rescan FROM {self.table_name} WHERE filepath = %s'
         connection = self.db_connector.connect()
         try:
@@ -53,7 +147,7 @@ class ProcessedFilesHelper:
                 db_mtime, needs_rescan = result
                 if needs_rescan:
                     return True
-                return mtime > db_mtime
+                return changed_on_disk(mtime, float(db_mtime))
         except Exception as e:
             logging.error(f'Error checking if song needs processing: {e}')
             return True
@@ -68,6 +162,9 @@ class ProcessedFilesHelper:
             with connection.cursor() as cursor:
                 cursor.execute(query, (song_path, mtime))
             connection.commit()
+            snapshot = self._snapshot
+            if snapshot is not None:
+                snapshot[song_path] = mtime
         except Exception as e:
             logging.error(f'Error marking song as processed: {e}')
         finally:
@@ -81,11 +178,15 @@ class ProcessedFilesHelper:
         mark_processed, which is what makes the whole library cycle past the current
         rules once every `older_than_days`.
         """
-        query = f'\n            UPDATE {self.table_name} SET needs_rescan = TRUE\n            WHERE needs_rescan = FALSE AND last_processed < NOW() - INTERVAL %s DAY\n            ORDER BY last_processed\n            LIMIT %s\n        '
+        query = (
+            f'UPDATE {self.table_name} SET needs_rescan = TRUE, rescan_reason = %s '
+            'WHERE needs_rescan = FALSE AND last_processed < NOW() - INTERVAL %s DAY '
+            'ORDER BY last_processed LIMIT %s'
+        )
         connection = self.db_connector.connect()
         try:
             with connection.cursor() as cursor:
-                cursor.execute(query, (older_than_days, limit))
+                cursor.execute(query, ('deep_run', older_than_days, limit))
                 marked = cursor.rowcount
             connection.commit()
             return marked
@@ -159,26 +260,102 @@ class ProcessedFilesHelper:
             connection.close()
         return marked
 
-    def pending_paths(self, limit: int, after: str = '') -> list[str]:
-        """The next page of files queued for a retag, in primary-key order.
+    def pending_reasons(self) -> list[str | None]:
+        """The reasons with queued files, in the order the queue is served.
+
+        Decisions first -- a genre or artist decision, a rule, a hand-picked file -- then
+        files the scanner found that the tagger never saw, then the bulk reasons, then
+        rows from before reasons were recorded. Within a class, alphabetical, which is
+        stable and good enough: the point is that "rescan all" never buries a decision.
+        """
+        query = f'SELECT DISTINCT rescan_reason FROM {self.table_name} WHERE needs_rescan = TRUE'
+        connection = self.db_connector.connect()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query)
+                reasons = [row[0] for row in cursor.fetchall()]
+        except Exception as e:
+            logging.error(f'Error reading the pending rescan reasons: {e}')
+            return []
+        finally:
+            connection.close()
+
+        def rank(reason):
+            if reason is None:
+                return (3, '')
+            if reason in self.BULK_REASONS:
+                return (2, reason)
+            if reason == self.NEW_IN_LIBRARY:
+                return (1, reason)
+            return (0, reason)
+
+        return sorted(reasons, key=rank)
+
+    def pending_paths(self, limit: int, after: str = '', reason: str | None = None) -> list[str]:
+        """The next page of files queued for one reason, in primary-key order.
 
         Keyed on the path rather than offset so that a file which fails to clear its
         flag -- unreadable, gone between the SELECT and the stat -- is not handed out
         again on the very next page. A round that is cut short by a restart resumes
-        where it was for free: what it tagged is no longer queued.
+        where it was for free: what it tagged is no longer queued. One reason per call,
+        which is what lets a decision go first; see create_table for why the reason is a
+        filter on the (flag, path) index rather than part of it.
         """
+        reason_sql = 'rescan_reason IS NULL' if reason is None else 'rescan_reason = %s'
         query = (
-            f'SELECT filepath FROM {self.table_name} WHERE needs_rescan = TRUE AND filepath > %s '
+            f'SELECT filepath FROM {self.table_name} WHERE needs_rescan = TRUE AND {reason_sql} AND filepath > %s '
             f'ORDER BY filepath LIMIT %s'
         )
+        args = (after, int(limit)) if reason is None else (reason, after, int(limit))
         connection = self.db_connector.connect()
         try:
             with connection.cursor() as cursor:
-                cursor.execute(query, (after, int(limit)))
+                cursor.execute(query, args)
                 return [str(row[0]) for row in cursor.fetchall() if row and row[0]]
         except Exception as e:
             logging.error(f'Error reading the pending rescan queue: {e}')
             return []
+        finally:
+            connection.close()
+
+    def queue_new_library_files(self, roots: list[str], extensions: tuple[str, ...]) -> int:
+        """Queue every file the scanner has indexed that this table has never seen.
+
+        A file dropped into the library by hand is found by nobody until a folder walk
+        reaches it; the scanner, which walks on its own schedule, has usually seen it
+        long before. The anti-join is that list. Limited to the roots and extensions the
+        tagger would walk itself (the scanner also indexes Lidarr, Hitzone and .opus,
+        which the tagger has no rules for), so this never queues what a walk would skip.
+        Returns how many rows were added.
+        """
+        if not roots or not extensions:
+            return 0
+        root_sql = ' OR '.join(['mf.file_path LIKE %s'] * len(roots))
+        ext_sql = ' OR '.join(['mf.file_path LIKE %s'] * len(extensions))
+        query = (
+            f'INSERT IGNORE INTO {self.table_name} (filepath, mtime, needs_rescan, rescan_reason) '
+            f'SELECT mf.file_path, 0, TRUE, %s FROM library_media_files mf '
+            f'LEFT JOIN {self.table_name} t ON t.filepath = mf.file_path '
+            f'WHERE t.filepath IS NULL AND ({root_sql}) AND ({ext_sql})'
+        )
+        # LIKE is case-insensitive under the table's collation, so '.mp3' also finds the
+        # '.MP3' files the walk's case-sensitive glob never did; BaseSong lower-cases the
+        # extension and reads them fine.
+        args = (
+            self.NEW_IN_LIBRARY,
+            *(f'{_escape_like(root.rstrip("/"))}/%' for root in roots),
+            *(f'%.{_escape_like(ext)}' for ext in extensions),
+        )
+        connection = self.db_connector.connect()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query, args)
+                added = cursor.rowcount
+            connection.commit()
+            return max(added, 0)
+        except Exception as e:
+            logging.error(f'Error queueing files the scanner found: {e}')
+            return 0
         finally:
             connection.close()
 

@@ -1,5 +1,6 @@
 """Coverage for services/tagger/tagger.py: folder walking, dispatch and auto-detection."""
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -35,8 +36,10 @@ class TaggerTestCase(unittest.TestCase):
         self.processed = tagger_module.processed_files_helper
         self.processed.needs_processing.return_value = True
         # An empty queue by default: a MagicMock is truthy and would keep the pending
-        # pass paging for ever.
+        # pass paging for ever. One reason, so the pass asks for pages at all.
         self.processed.pending_paths.return_value = []
+        self.processed.pending_reasons.return_value = ['genre_decision']
+        self.processed.queue_new_library_files.return_value = 0
         self.tagger = Tagger()
         self.tagger.parallel = False
 
@@ -177,6 +180,29 @@ class RunTest(TaggerTestCase):
             self.tagger.run()
         reload_rule_caches.assert_called_once()
 
+    def test_a_run_holds_the_processed_snapshot_for_the_walk_only(self):
+        # Loaded after the pending pass (so it already reflects that work) and dropped
+        # after the walk, also when the walk raises.
+        order = []
+        self.processed.load_snapshot.side_effect = lambda: order.append('load')
+        self.processed.drop_snapshot.side_effect = lambda: order.append('drop')
+        with (
+            patch.object(self.tagger, '_process_pending', side_effect=lambda: order.append('pending')),
+            patch.object(self.tagger, '_parse_label_folders', side_effect=lambda: order.append('walk')),
+            patch.object(self.tagger, '_parse_channel_folders'),
+            patch.object(self.tagger, '_parse_generic_folders'),
+        ):
+            self.tagger.run()
+        self.assertEqual(order, ['pending', 'load', 'walk', 'drop'])
+
+    def test_the_snapshot_is_dropped_even_when_the_walk_raises(self):
+        with (
+            patch.object(self.tagger, '_parse_label_folders', side_effect=RuntimeError('share gone')),
+            self.assertRaises(RuntimeError),
+        ):
+            self.tagger.run()
+        self.processed.drop_snapshot.assert_called_once()
+
     def test_a_run_asks_lms_to_pick_up_what_changed(self):
         with (
             patch.object(self.tagger, '_parse_label_folders'),
@@ -232,8 +258,59 @@ class PendingPassTest(TaggerTestCase):
             self.tagger._process_pending()
         self.assertEqual(
             [call.args for call in self.processed.pending_paths.call_args_list],
-            [(Tagger.PENDING_BATCH, ''), (Tagger.PENDING_BATCH, str(first)), (Tagger.PENDING_BATCH, str(second))],
+            [
+                (Tagger.PENDING_BATCH, '', 'genre_decision'),
+                (Tagger.PENDING_BATCH, str(first), 'genre_decision'),
+                (Tagger.PENDING_BATCH, str(second), 'genre_decision'),
+            ],
         )
+
+    def test_the_queue_is_served_reason_by_reason_in_the_helpers_order(self):
+        # The helper decides the order (decisions before bulk); the pass pages each reason
+        # from the start of the key range, so a decision's page is never behind bulk's.
+        decision = self.make_song(self.music / 'Youtube' / 'z')
+        bulk = self.make_song(self.music / 'Soundcloud' / 'a')
+        self.processed.pending_reasons.return_value = ['genre_decision', None]
+        self.processed.pending_paths.side_effect = [[str(decision)], [], [str(bulk)], []]
+        with patch.object(self.tagger, '_try_parse') as try_parse:
+            self.tagger._process_pending()
+        self.assertEqual([call.args[0] for call in try_parse.call_args_list], [decision, bulk])
+        self.assertEqual(
+            [call.args for call in self.processed.pending_paths.call_args_list],
+            [
+                (Tagger.PENDING_BATCH, '', 'genre_decision'),
+                (Tagger.PENDING_BATCH, str(decision), 'genre_decision'),
+                (Tagger.PENDING_BATCH, '', None),
+                (Tagger.PENDING_BATCH, str(bulk), None),
+            ],
+        )
+
+    def test_a_stop_request_ends_the_pass_between_reasons(self):
+        self.processed.pending_reasons.return_value = ['genre_decision', 'rescan_all']
+        self.tagger.stop_requested = True
+        self.tagger._process_pending()
+        self.processed.pending_paths.assert_not_called()
+
+    def test_files_the_scanner_knows_and_the_tagger_never_saw_are_queued_first(self):
+        # Every walk root plus the EPs root, and only the extensions the walk enables.
+        self.processed.queue_new_library_files.return_value = 3
+        with patch.object(self.tagger, '_walk'):
+            self.tagger.run(walk=False)
+        roots, extensions = self.processed.queue_new_library_files.call_args.args
+        self.assertEqual(roots[0], str(self.eps))
+        self.assertIn(str(self.music / 'Youtube'), roots)
+        self.assertIn(str(self.music / 'Warm Up Mixes'), roots)
+        self.assertEqual(extensions, ('mp3', 'flac', 'm4a'))
+
+    def test_a_run_without_the_walk_serves_the_queue_and_touches_no_folder(self):
+        order = []
+        with (
+            patch.object(self.tagger, '_process_pending', side_effect=lambda: order.append('pending')),
+            patch.object(self.tagger, '_walk', side_effect=lambda *a: order.append('walk')),
+        ):
+            self.tagger.run(walk=False)
+        self.assertEqual(order, ['pending'])
+        self.processed.load_snapshot.assert_not_called()
 
     def test_a_queued_file_that_is_gone_is_forgotten_rather_than_retried_forever(self):
         gone = self.music / 'Youtube' / 'channel' / 'gone.mp3'
@@ -243,13 +320,41 @@ class PendingPassTest(TaggerTestCase):
         try_parse.assert_not_called()
         self.processed.forget.assert_called_once_with(str(gone))
 
-    def test_the_folders_touched_are_handed_to_lms_once_each(self):
+    def test_the_folders_written_are_handed_to_lms_once_each(self):
         a = self.make_song(self.music / 'Soundcloud' / 'artist', 'a.mp3')
         b = self.make_song(self.music / 'Soundcloud' / 'artist', 'b.mp3')
         self.queue([a, b])
-        with patch.object(self.tagger, '_try_parse'), patch.object(tagger_module, 'lms_scan_trigger') as trigger:
+        with (
+            patch.object(self.tagger, '_try_parse', return_value=True),
+            patch.object(tagger_module, 'lms_scan_trigger') as trigger,
+        ):
             self.tagger._process_pending()
         trigger.notify.assert_called_once_with([str(a.parent)])
+
+    def test_a_folder_where_nothing_was_written_is_not_handed_to_lms(self):
+        a = self.make_song(self.music / 'Soundcloud' / 'artist', 'a.mp3')
+        b = self.make_song(self.music / 'Soundcloud' / 'other', 'b.mp3')
+        self.queue([a, b])
+        with (
+            patch.object(self.tagger, '_try_parse', side_effect=lambda path, *_: path == b),
+            patch.object(tagger_module, 'lms_scan_trigger') as trigger,
+        ):
+            self.tagger._process_pending()
+        trigger.notify.assert_called_once_with([str(b.parent)])
+
+    def test_the_parallel_path_hands_lms_only_the_folder_of_a_saved_file(self):
+        self.tagger.parallel = True
+        a = self.make_song(self.music / 'Soundcloud' / 'artist', 'a.mp3')
+        b = self.make_song(self.music / 'Soundcloud' / 'other', 'b.mp3')
+        self.queue([a, b])
+        with (
+            patch.object(
+                Tagger, '_parse_worker', side_effect=lambda file, *_: (file, 'SAVED' if file == str(b) else 'OK')
+            ),
+            patch.object(tagger_module, 'lms_scan_trigger') as trigger,
+        ):
+            self.tagger._process_pending()
+        trigger.notify.assert_called_once_with([str(b.parent)])
 
     def test_a_stop_request_ends_the_pass_between_files(self):
         a = self.make_song(self.music / 'Soundcloud' / 'artist', 'a.mp3')
@@ -278,7 +383,12 @@ class PendingPassTest(TaggerTestCase):
 
     def test_an_empty_queue_walks_nothing_and_asks_once(self):
         self.tagger._process_pending()
-        self.processed.pending_paths.assert_called_once_with(Tagger.PENDING_BATCH, '')
+        self.processed.pending_paths.assert_called_once_with(Tagger.PENDING_BATCH, '', 'genre_decision')
+
+    def test_no_queued_reason_means_no_page_is_asked_for(self):
+        self.processed.pending_reasons.return_value = []
+        self.tagger._process_pending()
+        self.processed.pending_paths.assert_not_called()
 
 
 class FolderWalkTest(TaggerTestCase):
@@ -428,8 +538,59 @@ class ParseFolderTest(TaggerTestCase):
             self.tagger.parse_folder(folder, SongTypeEnum.SOUNDCLOUD)
         self.assertEqual(worker.call_count, 2)
 
+    def test_lms_hears_about_a_folder_only_when_a_file_in_it_was_written(self):
+        """A full run visits every folder and leaves nearly all of them as they were.
+
+        Every one of those used to be a scan request anyway: 13.798 in three hours on
+        2026-09-18 against 7 files saved, and LMS re-read ~1.000 files from the NAS per
+        request, back to back, for hours. A folder nothing touched is not news.
+        """
+        folder = self.music / 'Soundcloud' / 'artist'
+        self.make_song(folder)
+        with (
+            patch.object(self.tagger, '_try_parse', return_value=False),
+            patch.object(tagger_module, 'lms_scan_trigger') as trigger,
+        ):
+            self.tagger.parse_folder(folder, SongTypeEnum.SOUNDCLOUD)
+        trigger.notify.assert_not_called()
+
+        with (
+            patch.object(self.tagger, '_try_parse', return_value=True),
+            patch.object(tagger_module, 'lms_scan_trigger') as trigger,
+        ):
+            self.tagger.parse_folder(folder, SongTypeEnum.SOUNDCLOUD)
+        trigger.notify.assert_called_once_with([str(folder)])
+
+    def test_the_parallel_path_tells_lms_only_about_a_saved_file(self):
+        folder = self.music / 'Soundcloud' / 'artist'
+        for name in ('a.mp3', 'b.mp3'):
+            self.make_song(folder, name)
+        self.tagger.parallel = True
+        with (
+            patch.object(Tagger, '_parse_worker', return_value=('x', 'OK')),
+            patch.object(tagger_module, 'lms_scan_trigger') as trigger,
+        ):
+            self.tagger.parse_folder(folder, SongTypeEnum.SOUNDCLOUD)
+        trigger.notify.assert_not_called()
+
+        with (
+            patch.object(Tagger, '_parse_worker', side_effect=[('a', 'OK'), ('b', 'SAVED')]),
+            patch.object(tagger_module, 'lms_scan_trigger') as trigger,
+        ):
+            self.tagger.parse_folder(folder, SongTypeEnum.SOUNDCLOUD)
+        trigger.notify.assert_called_once_with([str(folder)])
+
 
 class TryParseTest(TaggerTestCase):
+    def test_reports_whether_the_file_was_written(self):
+        song = self.make_song(self.music / 'Soundcloud' / 'artist')
+        with patch.object(Tagger, 'parse_song', return_value=MagicMock(saved=True)):
+            self.assertTrue(self.tagger._try_parse(song, SongTypeEnum.SOUNDCLOUD))
+        with patch.object(Tagger, 'parse_song', return_value=MagicMock(saved=False)):
+            self.assertFalse(self.tagger._try_parse(song, SongTypeEnum.SOUNDCLOUD))
+        self.processed.needs_processing.return_value = False
+        self.assertFalse(self.tagger._try_parse(song, SongTypeEnum.SOUNDCLOUD))
+
     def test_a_file_that_did_not_change_is_skipped(self):
         song = self.make_song(self.music / 'Soundcloud' / 'artist')
         self.processed.needs_processing.return_value = False
@@ -442,6 +603,25 @@ class TryParseTest(TaggerTestCase):
         with patch.object(Tagger, 'parse_song'):
             self.tagger._try_parse(song, SongTypeEnum.SOUNDCLOUD)
         self.processed.mark_processed.assert_called_once()
+
+    def test_the_mtime_stored_is_the_one_after_the_save(self):
+        # A written file has a newer mtime than the stat before parse_song; storing the old
+        # one made every file the tagger wrote read as "changed" on the next walk.
+        song = self.make_song(self.music / 'Soundcloud' / 'artist')
+        os.utime(song, (1000.0, 1000.0))
+
+        def write_the_file(*_):
+            os.utime(song, (2000.0, 2000.0))
+            return MagicMock(saved=True)
+
+        with patch.object(Tagger, 'parse_song', side_effect=write_the_file):
+            self.tagger._try_parse(song, SongTypeEnum.SOUNDCLOUD)
+        self.assertEqual(self.processed.mark_processed.call_args.args[1], 2000.0)
+        self.processed.reset_mock()
+        os.utime(song, (1000.0, 1000.0))
+        with patch.object(Tagger, 'parse_song', side_effect=write_the_file):
+            Tagger._parse_worker(str(song), 'SOUNDCLOUD')
+        self.assertEqual(self.processed.mark_processed.call_args.args[1], 2000.0)
 
     def test_an_unreadable_file_is_recorded_as_broken(self):
         song = self.make_song(self.music / 'Soundcloud' / 'artist')
@@ -523,6 +703,13 @@ class ParseWorkerTest(TaggerTestCase):
         with patch.object(Tagger, 'parse_song'):
             self.assertEqual(Tagger._parse_worker(str(song), 'SOUNDCLOUD')[1], 'OK')
         self.processed.mark_processed.assert_called_once()
+
+    def test_a_written_file_is_reported_as_saved(self):
+        song = self.make_song(self.music / 'Soundcloud' / 'artist')
+        with patch.object(Tagger, 'parse_song', return_value=MagicMock(saved=True)):
+            self.assertEqual(Tagger._parse_worker(str(song), 'SOUNDCLOUD')[1], 'SAVED')
+        with patch.object(Tagger, 'parse_song', return_value=MagicMock(saved=False)):
+            self.assertEqual(Tagger._parse_worker(str(song), 'SOUNDCLOUD')[1], 'OK')
 
     def test_a_failure_is_reported_back_instead_of_raised(self):
         song = self.make_song(self.music / 'Soundcloud' / 'artist')

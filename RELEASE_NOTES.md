@@ -11,6 +11,32 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.67.0 (2026-09-19)
+
+- **LMS scant niet meer de hele nacht door achter een tagger-ronde aan** die niets veranderde.
+  Een map komt alleen nog bij LMS terecht als er echt een tag in is herschreven.
+
+- **De tagger las per bestand drie keer de hele artiestenlijst uit de database.** Nu één
+  keer per minuut; een Soundcloud-bestand kost een fractie van wat het kostte.
+
+- **De tagger dacht elke ronde dat 70 % van de bieb was gewijzigd.** Afrondingsfout in de
+  opgeslagen bestandstijd; een walk zonder werk is nu ook echt een walk zonder werk.
+
+- **Bestanden werden herschreven terwijl er niets veranderde.** De tagger schrijft nu alleen
+  als de tag écht anders is dan hij was.
+
+- **Een tagger-ronde zonder werk kostte ruim een uur aan databaseverbindingen.** De tagger
+  leest zijn eigen administratie nu één keer per ronde in plaats van per bestand.
+
+- **De tagger werkt alleen nog de wachtrij af en loopt de mappen één keer per dag.** Een
+  beslissing in Curatie gaat nu vóór een "rescan all" van een maand geleden, en een bestand
+  dat je met de hand neerzet wordt gevonden zodra de scanner het kent.
+
+- **De tagger is vanaf Beheer › Tagger te stoppen en opnieuw van voren te starten.** De teller
+  van wachtende bestanden blijft in beeld en zakt terwijl de wachtrij wordt weggewerkt.
+
+- **Een download of import staat direct in de app.** De worker die het bestand tagt meldt
+  het zelf bij LMS en de scanner; Telegram-downloads worden nu ook getagd.
 ## Global Version 0.66.1 (2026-09-18)
 
 - **De Python-tooling in CI installeert niet meer bij elke job opnieuw.** `backend:format`,

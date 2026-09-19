@@ -7,6 +7,9 @@ from telethon import TelegramClient
 
 from services.common.config_store import ConfigStore
 from services.downloader.sweep import SweepPolicy
+from services.tagger.announce import announce
+from services.tagger.constants import SongTypeEnum
+from services.tagger.tagger import Tagger
 
 SOURCE = 'telegram'
 
@@ -19,6 +22,21 @@ def _is_flood_wait(error: Exception) -> bool:
     tests install.
     """
     return 'floodwait' in type(error).__name__.lower() or hasattr(error, 'seconds')
+
+
+def tag_downloaded_file(path: str) -> None:
+    """Tag a file this worker just downloaded, then announce it.
+
+    Until 0.67 nobody tagged a Telegram download: the file sat untagged until the
+    folder walk in music-manager reached `Telegram/`, which comes after EPs, Soundcloud
+    and Youtube -- days, with a queue in front of it. Same shape as the SoundCloud and
+    YouTube postprocessors. Never raises: a download that landed is a download.
+    """
+    try:
+        if Tagger.parse_song(Path(path), SongTypeEnum.TELEGRAM):
+            announce(path)
+    except Exception as e:
+        logging.error(f'Telegram: could not tag {path}: {e}')
 
 
 class TelegramDownloader:
@@ -78,6 +96,10 @@ class TelegramDownloader:
                 await client.download_media(msg, file=safe_path)
             except Exception as e:
                 print(f'❌ Fout bij downloaden van {safe_path}: {e}')
+                return
+        if self._is_audio(msg):
+            # Off the event loop: the rules are CPU work and the tag pass writes the file.
+            await asyncio.to_thread(tag_downloaded_file, safe_path)
 
     async def _download_channel(self, client, channel: str, limit: int | None = None):
         channel_folder = os.path.join(self.output_folder, channel)

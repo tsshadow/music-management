@@ -184,6 +184,10 @@ def ensure_tables_exist() -> None:
                     # tagger reads; this is only so the UI can say what queued the work.
                     # See migrate_v16_rescan_reason.sql.
                     'ALTER TABLE tagger_processed_files ADD COLUMN IF NOT EXISTS rescan_reason VARCHAR(64) NULL',
+                    # FLOAT has a 128 s step at today's epoch, so the stored mtime was never the
+                    # real one and 70% of the library read as changed on every walk. See
+                    # migrate_v29_processed_mtime_double.sql.
+                    'ALTER TABLE tagger_processed_files MODIFY COLUMN mtime DOUBLE',
                     # The pending pass pages the queue by (flag, path); see
                     # migrate_v28_pending_rescan_index.sql.
                     'CREATE INDEX IF NOT EXISTS idx_tagger_processed_files_pending '

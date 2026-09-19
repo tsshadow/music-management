@@ -7,6 +7,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.67.0] - 2026-09-19
+
+### Added
+- **De tagger is vanaf Beheer › Tagger te stoppen en opnieuw van voren te starten.** Een ronde
+  doet sinds 0.66.1 eerst de retag-wachtrij en loopt daarna uren door de mappen; wie in de
+  tussentijd genres of artiesten besliste, zag de teller staan en `NU RETAGGEN` een 409 geven.
+  De pagina pollt nu elke vijf seconden `GET /api/tagger/retag/pending`, dat naast de teller
+  `busy` en `stopping` meegeeft. Zolang de tagger loopt staan er `STOP` (`POST /tag/stop`) en
+  `OPNIEUW VAN VOREN` (`POST /api/tagger/retag/restart`, nieuw): die laatste breekt de lopende
+  ronde af, wacht tot het slot vrij is en start een verse ronde die de wachtrij als eerste
+  wegwerkt. De teller blijft staan en zakt terwijl dat gebeurt; hij verdween eerder bij het
+  indrukken van de knop, wat een tagger die niets deed onzichtbaar maakte.
+
+- **Een download of import is meteen zichtbaar: de worker die het bestand tagt meldt het
+  ook.** De SoundCloud-, YouTube- en importer-workers tagden hun bestanden al zelf, maar
+  schreven niets in de administratie van de tagger, dus de eerstvolgende mapwalk in
+  music-manager tagde elk nieuw bestand nog een keer; LMS hoorde ervan bij zijn eigen
+  geplande scan en de muma-scanner op zijn uurronde. Telegram-downloads werden helemaal
+  niet getagd tot de walk `Telegram/` bereikte, ná EPs, Soundcloud en Youtube. Na de
+  tag-pass doet elke worker nu `announce`: de rij in `tagger_processed_files` met de mtime
+  van ná het schrijven, een LMS-scan van de map, en `POST /api/scanner/scan/file` voor de
+  bibliotheektabellen. Daarvoor krijgen de workers via het nieuwe `environment-lms`-anker
+  in `docker/docker-compose.yml` de LMS-host en -sleutel mee die music-manager al had.
+  Elke stap is best effort: een gelukte download faalt nooit op een trage server.
+  `POST /api/scanner/scan/file` en `POST /api/tagger/tag/file` draaien nu in de threadpool
+  in plaats van op de event loop, want ze blokkeren.
+
+### Changed
+- **Elk Soundcloud-bestand kostte de tagger 2,2 s, waarvan 1,6 s het drie keer inlezen van
+  `library_artists`.** De artiestregels bouwen per bestand een index van alle 57k namen, en
+  `TableHelper.get_all_values()` ging daarvoor drie keer per bestand naar de database, terwijl
+  de helper diezelfde namen al in het geheugen had. De helper levert nu zijn eigen snapshot
+  (nooit gemuteerd, vervangen bij een wijziging, per minuut ververst zodat de download- en
+  importcontainers een nieuwe artiest ook zien), `exists()` is een dict-lookup in plaats van
+  een scan over 57k namen, en de vier plekken die alleen wilden weten óf er een lijkende
+  artiest bestaat stoppen bij de eerste treffer in plaats van alle namen te scoren.
+
+- **Een tagger-ronde zonder werk kostte ruim een uur aan databaseverbindingen.** De mapwalk
+  vroeg per bestand op een verse verbinding of het al getagd was: gemeten op prod 14 ms per
+  bestand, waarvan 0,1 ms de query zelf, over 327k bestanden. Dezelfde 327k rijen komen in
+  één SELECT in 1,4 s terug en passen in ~100 MB. Een ronde laadt de tabel nu één keer, na
+  de wachtrij-pass en alleen voor de duur van de walk; `mark_processed` houdt het snapshot
+  bij, en als de tabel niet te lezen is valt de ronde terug op de oude query per bestand.
+  Een bestand dat ná het laden gemarkeerd wordt, mist deze walk en pakt de volgende ronde
+  in de wachtrij-pass op.
+
+- **De tagger is een wachtrij-consument; de mapwalk is een dagelijks vangnet.** Elke
+  vijf-minutenronde deed tot nu toe de wachtrij én daarna een walk over alle 327k
+  bestanden, en die walk begon na elke deploy opnieuw bij EPs. De ronde doet nu alleen de
+  wachtrij; de walk draait als de vorige ouder is dan `tagger_walk_interval_hours`
+  (standaard 24, `0` is het oude gedrag), en het moment van de laatste walk staat op schijf
+  zodat een deploy hem niet opnieuw start. `NU RETAGGEN` en `OPNIEUW VAN VOREN` doen alleen
+  de wachtrij; `FORCEER VOLLEDIGE RESCAN` en `POST /api/tagger/tag/all` ook de mappen.
+- **De wachtrij bedient beslissingen vóór bulk.** Genre- en artiestbeslissingen, regels en
+  handmatige retags gaan eerst, dan bestanden die de scanner kent maar de tagger nooit zag,
+  dan `rescan_all` en `deep_run`, dan rijen zonder reden. De deep run, de knop "rescan all",
+  rerun-parse en de handmatige file-retag schrijven nu allemaal hun reden mee. De reden
+  is een filter op de bestaande `(needs_rescan, filepath)`-index: `filepath` is 3068 van
+  de 3072 bytes die een sleutel mag zijn, dus er past niets naast, en omdat de cursor
+  alleen vooruit loopt leest één reden zijn rijen samen toch maar één keer.
+- **Een bestand dat iemand met de hand neerzet wordt gevonden zonder walk.** Elke ronde
+  zet de anti-join `library_media_files` minus `tagger_processed_files` in de wachtrij
+  (reden `new_in_library`), beperkt tot de mappen en extensies die de walk zelf doet.
+  Bijvangst: de 1.402 EPs-bestanden met `.MP3` in hoofdletters, die de hoofdlettergevoelige
+  glob van de walk nooit zag, worden zo alsnog getagd.
+
+### Fixed
+- **De tagger meldt een map alleen nog aan LMS als er echt een bestand in geschreven is.** Een
+  volledige ronde loopt elke map af en laat vrijwel alles zoals het was, maar meldde elke map
+  toch: LMS logde op 2026-09-18 13.798 scanverzoeken in drie uur tegenover 7 opgeslagen
+  bestanden, en las per verzoek ~1.000 bestanden van de NAS opnieuw, urenlang achter elkaar.
+  `BaseSong.save_file()` zegt nu of het geschreven heeft, `_parse_worker` geeft `SAVED` naast
+  `OK` en `SKIPPED` terug, en zowel de mapwalk als de retag-wachtrij melden alleen mappen met
+  een geschreven bestand. Wat wel geschreven is komt net zo snel in de app als eerst.
+
+- **70 % van de bieb gold élke tagger-ronde als "gewijzigd".** `tagger_processed_files.mtime`
+  was een `FLOAT`: bij de huidige epoch ligt er 128 s tussen twee opeenvolgende waarden, dus
+  de tagger schreef een afgeronde mtime terug en las bij de volgende walk `mtime > opgeslagen`
+  voor elk bestand dat naar beneden was afgerond. Gemeten op 1.200 prod-bestanden: 841 elke
+  ronde opnieuw getagd, 359 met een verborgen wijziging, 0 exact. De kolom is nu `DOUBLE`
+  (`migrate_v29`), de tagger slaat de mtime van ná zijn eigen schrijfactie op in plaats van
+  die van ervoor, en een opgeslagen waarde die nog float32-afgerond is en binnen één stap
+  van het bestand ligt telt niet als wijziging -- die rijen genezen zodra het bestand om een
+  andere reden wordt getagd.
+
+- **Een bestand waarvan de tags netto niet veranderden werd toch elke ronde herschreven.**
+  `Tag.has_changes()` was een plakkende vlag: elke mutatie zette hem aan en alleen een save
+  zette hem uit. De artiestregels doen op elk "MOTZ Premiere"-bestand `[A, B] → [A] → [A, B]`,
+  dus het bestand werd elke pass opnieuw geschreven en LMS las het elke pass opnieuw in, voor
+  een tag die eindigde waar hij begon. De vlag is nu een vergelijking met de waarde bij het
+  inlezen; de basislijn schuift pas op nadat de save is gelukt, en een geleegde tag houdt
+  zijn basislijn als er weer een waarde in komt.
 ## [0.66.1] - 2026-09-18
 
 ### Changed

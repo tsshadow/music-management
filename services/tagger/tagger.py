@@ -43,17 +43,30 @@ class Tagger:
         processed_files_helper.create_table()
 
     def run(
-        self, parse_labels=True, parse_soundcloud=True, parse_youtube=True, parse_generic=True, parse_telegram=True
+        self,
+        parse_labels=True,
+        parse_soundcloud=True,
+        parse_youtube=True,
+        parse_generic=True,
+        parse_telegram=True,
+        walk=True,
     ):
         """
         Entrypoint for the tagging process.
-        Scans various music directories (library_labels, YouTube, SoundCloud, generic) and applies appropriate tag parsing.
+
+        The queue first, then -- when `walk` is set -- the folders. The queue is where
+        everything that announces itself ends up: a decision, a rule, a download the
+        worker tagged, a file the scanner found. The walk is the safety net for what
+        nobody announced, and the loop runs it once a day rather than every round.
         """
         # A run started after a rule change must honour it. The helpers in Cache.py
         # preload at import and this process is a long-lived loop, so without this a
         # rule added today would only take effect after a restart.
         reload_rule_caches()
         self.stop_requested = False
+        # What the scanner has indexed and this table has never seen: a file dropped in
+        # by hand. Queued with its own reason so it goes after the decisions.
+        self._queue_new_library_files()
         # What a rule change queued comes first, straight from the table, before any
         # folder is walked. The walk goes EPs, Soundcloud, Youtube, Telegram, generic and
         # starts over at the top on every restart; with five deploys in a night and a
@@ -61,6 +74,23 @@ class Tagger:
         # decisions made that morning sat behind it. Whatever this pass finishes stays
         # finished across a restart, because a tagged file is no longer queued.
         self._process_pending()
+        if walk:
+            # After the pending pass, so the snapshot already shows those files as done.
+            # Held for the walk only: the loop sleeps between rounds and there is no reason
+            # to keep 327k rows in memory while it does.
+            processed_files_helper.load_snapshot()
+            try:
+                self._walk(parse_labels, parse_soundcloud, parse_youtube, parse_generic, parse_telegram)
+            finally:
+                processed_files_helper.drop_snapshot()
+        if self.stop_requested:
+            logging.info('Tagging process was interrupted by user')
+        # One scan per run, not per file: LMS only reprocesses what changed, so this is
+        # cheap, and it is what makes a new or corrected tag show up in the app without
+        # waiting for LMS's own schedule. Best effort -- it never raises.
+        lms_scan_trigger.trigger()
+
+    def _walk(self, parse_labels, parse_soundcloud, parse_youtube, parse_generic, parse_telegram):
         logging.info(
             'Starting Tag Step with options: %s, %s, %s, %s, %s',
             parse_labels,
@@ -79,23 +109,43 @@ class Tagger:
             self._parse_channel_folders('Telegram', SongTypeEnum.TELEGRAM)
         if parse_generic and (not self.stop_requested):
             self._parse_generic_folders()
-        if self.stop_requested:
-            logging.info('Tagging process was interrupted by user')
-        # One scan per run, not per file: LMS only reprocesses what changed, so this is
-        # cheap, and it is what makes a new or corrected tag show up in the app without
-        # waiting for LMS's own schedule. Best effort -- it never raises.
-        lms_scan_trigger.trigger()
 
     #: Rows read from the queue per page. One page is one thread pool: large enough for
     #: the pool to matter, small enough that a stop request is honoured within seconds.
     PENDING_BATCH = 500
 
+    #: The roots and extensions the walk covers, which is also what the anti-join
+    #: against the scanner's table may queue: the scanner indexes Lidarr, Hitzone and
+    #: .opus too, and the tagger has no rules for those.
+    WALK_FOLDERS = ('Soundcloud', 'Youtube', 'Telegram', 'Livesets', 'Podcasts', 'Top 100', 'Warm Up Mixes')
+
+    def _queue_new_library_files(self) -> int:
+        roots = [str(s.eps_folder_path)] + [str(Path(s.music_folder_path) / folder) for folder in self.WALK_FOLDERS]
+        extensions = tuple(
+            ext
+            for ext, enabled in (('mp3', parse_mp3), ('flac', parse_flac), ('m4a', parse_m4a), ('wav', parse_wav))
+            if enabled
+        )
+        added = processed_files_helper.queue_new_library_files(roots, extensions)
+        if added:
+            logging.info('Queued %d file(s) the scanner knows and the tagger never saw', added)
+        return added
+
     def _process_pending(self):
-        """Tag the files a rule change queued, without walking a folder for them."""
+        """Tag the queued files, reason by reason, without walking a folder for them."""
+        total = 0
+        for reason in processed_files_helper.pending_reasons():
+            if self.stop_requested:
+                break
+            total += self._process_pending_reason(reason)
+        if total:
+            logging.info('Pending pass handed %d queued file(s) to the tagger', total)
+
+    def _process_pending_reason(self, reason: str | None) -> int:
         after = ''
         total = 0
         while not self.stop_requested:
-            paths = processed_files_helper.pending_paths(self.PENDING_BATCH, after)
+            paths = processed_files_helper.pending_paths(self.PENDING_BATCH, after, reason)
             if not paths:
                 break
             after = paths[-1]
@@ -106,28 +156,31 @@ class Tagger:
                     present.append(path)
                 else:
                     processed_files_helper.forget(raw)
+            written: list[Path] = []
             if self.parallel and present:
                 with ThreadPoolExecutor(max_workers=16) as executor:
-                    futures = [
-                        executor.submit(Tagger._parse_worker, str(path), detect_song_type(path).name)
+                    futures = {
+                        executor.submit(Tagger._parse_worker, str(path), detect_song_type(path).name): path
                         for path in present
-                    ]
+                    }
                     for future in as_completed(futures):
                         if self.stop_requested:
                             executor.shutdown(wait=False, cancel_futures=True)
                             break
-                        _ = future.result()
+                        if future.result()[1] == 'SAVED':
+                            written.append(futures[future])
             else:
                 for path in present:
                     if self.stop_requested:
                         break
-                    self._try_parse(path, detect_song_type(path))
+                    if self._try_parse(path, detect_song_type(path)):
+                        written.append(path)
             total += len(present)
-            # One notify per folder, as the walk does; the trigger's queue merges them.
-            for folder in dict.fromkeys(str(path.parent) for path in present):
+            # One notify per folder that actually changed, as the walk does; the trigger's
+            # queue merges them.
+            for folder in dict.fromkeys(str(path.parent) for path in written):
                 lms_scan_trigger.notify([folder])
-        if total:
-            logging.info('Pending pass handed %d queued file(s) to the tagger', total)
+        return total
 
     def _parse_label_folders(self):
         """
@@ -217,6 +270,7 @@ class Tagger:
                     # `Parse_song failed` per pass, forever, because no tagger run can ever
                     # make a directory readable as audio.
                     files.extend(f for f in folder.glob(f'*.{ext}') if f.is_file())
+            written = False
             if self.parallel and files:
                 with ThreadPoolExecutor(max_workers=16) as executor:
                     futures = [
@@ -227,15 +281,19 @@ class Tagger:
                         if self.stop_requested:
                             executor.shutdown(wait=False, cancel_futures=True)
                             break
-                        _ = future.result()
+                        written = future.result()[1] == 'SAVED' or written
             else:
                 for file in files:
                     if self.stop_requested:
                         break
-                    self._try_parse(file, song_type, extra_info)
-            if files:
-                # One notify per folder, not per file: everything in here just had its tags
-                # rewritten, and LMS reads a directory at a time anyway.
+                    written = bool(self._try_parse(file, song_type, extra_info)) or written
+            if written:
+                # One notify per folder, not per file, and only for a folder where a file was
+                # actually written. A full run walks every folder and nearly all of them come
+                # back unchanged -- this notified each of those anyway, so LMS logged 13.798
+                # scan requests in three hours against 7 files saved, and re-read ~1.000 files
+                # from the NAS per scan, back to back, for hours. LMS reads a directory at a
+                # time, so the folder is the unit, and a folder nothing touched is not news.
                 lms_scan_trigger.notify([str(folder)])
             if self.stop_requested:
                 return
@@ -246,13 +304,17 @@ class Tagger:
         except Exception as e:
             logging.error(f'Error parsing folder {folder}: {e}', exc_info=True)
 
-    def _try_parse(self, file: Path, song_type: SongTypeEnum, extra_info=None):
+    def _try_parse(self, file: Path, song_type: SongTypeEnum, extra_info=None) -> bool:
+        """Tags one file when it needs it. True only when the file on disk was written."""
         try:
             mtime = file.stat().st_mtime
             if not processed_files_helper.needs_processing(str(file), mtime):
-                return
-            self.parse_song(file, song_type, extra_info)
-            processed_files_helper.mark_processed(str(file), mtime)
+                return False
+            song = self.parse_song(file, song_type, extra_info)
+            # The mtime *after* the save: a file the tagger itself just wrote has a newer one
+            # than the stat above, and storing the old value made it "changed" on the next walk.
+            processed_files_helper.mark_processed(str(file), file.stat().st_mtime)
+            return Tagger._was_written(song)
         except KeyboardInterrupt:
             logging.info('KeyboardInterrupt')
             sys.exit(1)
@@ -261,6 +323,13 @@ class Tagger:
             broken_song_helper.add(str(file), type(e).__name__)
         except Exception as e:
             logging.error(f'Parse_song failed: {e} -> {file}', exc_info=True)
+        return False
+
+    @staticmethod
+    def _was_written(song) -> bool:
+        # `is True`, not truthiness: the answer decides whether LMS gets a scan request, and
+        # anything that is not a real "yes" from save_file() must count as "no".
+        return getattr(song, 'saved', False) is True
 
     @staticmethod
     def parse_song(path: Path, song_type: SongTypeEnum, manual_tags: dict[str, str] | None = None, extra_info=None):
@@ -297,7 +366,7 @@ class Tagger:
             if manual_tags:
                 for tag, value in manual_tags.items():
                     song.tag_collection.add(tag, value)
-                song.save_file()
+                song.saved = song.save_file() or song.saved
         return song
 
     @staticmethod
@@ -308,9 +377,12 @@ class Tagger:
             if not processed_files_helper.needs_processing(file, mtime):
                 return (file, 'SKIPPED')
             song_type = SongTypeEnum[song_type_str]
-            Tagger.parse_song(path, song_type, manual_tags, extra_info)
-            processed_files_helper.mark_processed(file, mtime)
-            return (file, 'OK')
+            song = Tagger.parse_song(path, song_type, manual_tags, extra_info)
+            # After the save, for the same reason as in _try_parse.
+            processed_files_helper.mark_processed(file, path.stat().st_mtime)
+            # 'SAVED' when the rules changed a tag and the file was written; 'OK' when the
+            # rules ran and found nothing to change. Only the first is news to LMS.
+            return (file, 'SAVED' if Tagger._was_written(song) else 'OK')
         except Exception as e:
             # `parse_folder` throws this return value away, and the parallel path is the one
             # production runs -- so without the log line a file that failed every single round

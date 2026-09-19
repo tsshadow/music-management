@@ -42,3 +42,21 @@ def test_the_safe_zone_scale_reproduces_the_committed_green_icon():
 
 def test_every_committed_file_matches_the_generator():
     assert render_icons.main(["--check"]) == 0, "run python3 tools/render_branding_icons.py"
+
+
+def test_the_debug_foreground_stays_inside_the_launcher_mask():
+    """A launcher shows the middle 72 of 108dp; a badge that crosses that edge gets cropped."""
+    mask_radius = 512 * 36 / 108
+    badge_offset = (render_icons.BADGE_CENTRE - render_icons.CENTRE) * render_icons.SAFE_ZONE
+    badge_reach = (badge_offset**2 * 2) ** 0.5 + render_icons.BADGE_RING_RADIUS * render_icons.SAFE_ZONE
+    assert badge_reach < mask_radius
+
+    foreground = render_icons.render_launcher_foreground(render_icons.DEBUG_GREY, debug=True)
+    assert foreground.count("<path") == 1 + 5 + 3, "disc, five bars, ring, badge, D"
+    assert render_icons.GREEN not in foreground and render_icons.INDIGO not in foreground
+
+
+def test_the_release_foreground_carries_no_badge():
+    foreground = render_icons.render_launcher_foreground(render_icons.GREEN)
+    assert foreground.count("<path") == 1 + 5
+    assert "evenOdd" not in foreground

@@ -15,6 +15,11 @@ import org.robolectric.annotation.GraphicsMode
  * The two launcher variants must differ only in the disc colour. Sampling a point inside
  * the disc but above the bars catches both a wrong colour and a foreground that was copied
  * without being recoloured.
+ *
+ * Unit tests run against the debug variant, and the debug source set overlays both
+ * foregrounds with a grey disc and a D badge so a debug install can be told from the release
+ * one on a phone or in Android Auto. So the colours asserted here are the debug greys; the
+ * release foregrounds are pinned by tools/test_render_branding_icons.py instead.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = nl.teunschriks.mumamobile.app.UApp::class)
@@ -34,14 +39,31 @@ class LauncherIconVariantTest {
         return bitmap.getPixel(size / 2, (size * 0.30).toInt())
     }
 
-    @Test
-    fun `the green launcher foreground draws a green disc`() {
-        discColorOf(R.drawable.ic_launcher_foreground) `should be equal to` 0xFF1DB954.toInt()
+    private fun badgeColorOf(resId: Int): Int {
+        val context = RuntimeEnvironment.getApplication()
+        val drawable = ContextCompat.getDrawable(context, resId)!!
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        drawable.setBounds(0, 0, size, size)
+        drawable.draw(Canvas(bitmap))
+        // The badge centre is at 329 of 512 on both axes, inside the counter of the D and clear of
+        // its outline, so the pixel there is the badge disc, not the glyph.
+        return bitmap.getPixel((size * 329 / 512.0).toInt(), (size * 329 / 512.0).toInt())
     }
 
     @Test
-    fun `the blue launcher foreground draws the ultrasonic indigo disc`() {
-        discColorOf(R.drawable.ic_launcher_foreground_blue) `should be equal to` 0xFF3F51B5.toInt()
+    fun `the debug green launcher foreground draws a grey disc`() {
+        discColorOf(R.drawable.ic_launcher_foreground) `should be equal to` 0xFF9E9E9E.toInt()
+    }
+
+    @Test
+    fun `the debug blue launcher foreground draws a blue-grey disc`() {
+        discColorOf(R.drawable.ic_launcher_foreground_blue) `should be equal to` 0xFF78909C.toInt()
+    }
+
+    @Test
+    fun `both debug foregrounds carry the D badge`() {
+        badgeColorOf(R.drawable.ic_launcher_foreground) `should be equal to` 0xFF121212.toInt()
+        badgeColorOf(R.drawable.ic_launcher_foreground_blue) `should be equal to` 0xFF121212.toInt()
     }
 
     @Test

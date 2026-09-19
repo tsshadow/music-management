@@ -8,8 +8,10 @@
 - **De wachtrij bedient beslissingen vóór bulk.** Genre- en artiestbeslissingen, regels en
   handmatige retags gaan eerst, dan bestanden die de scanner kent maar de tagger nooit zag,
   dan `rescan_all` en `deep_run`, dan rijen zonder reden. De deep run, de knop "rescan all",
-  rerun-parse en de handmatige file-retag schrijven nu allemaal hun reden mee. Index
-  `(needs_rescan, rescan_reason, filepath)` (`migrate_v30`) vervangt die van v28.
+  rerun-parse en de handmatige file-retag schrijven nu allemaal hun reden mee. De reden
+  is een filter op de bestaande `(needs_rescan, filepath)`-index: `filepath` is 3068 van
+  de 3072 bytes die een sleutel mag zijn, dus er past niets naast, en omdat de cursor
+  alleen vooruit loopt leest één reden zijn rijen samen toch maar één keer.
 - **Een bestand dat iemand met de hand neerzet wordt gevonden zonder walk.** Elke ronde
   zet de anti-join `library_media_files` minus `tagger_processed_files` in de wachtrij
   (reden `new_in_library`), beperkt tot de mappen en extensies die de walk zelf doet.

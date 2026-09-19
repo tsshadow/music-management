@@ -188,12 +188,10 @@ def ensure_tables_exist() -> None:
                     # real one and 70% of the library read as changed on every walk. See
                     # migrate_v29_processed_mtime_double.sql.
                     'ALTER TABLE tagger_processed_files MODIFY COLUMN mtime DOUBLE',
-                    # The pending pass pages the queue per reason by (flag, reason, path); see
-                    # migrate_v30_pending_by_reason_index.sql, which replaced the (flag, path)
-                    # index of migrate_v28.
-                    'CREATE INDEX IF NOT EXISTS idx_tagger_processed_files_pending_reason '
-                    'ON tagger_processed_files (needs_rescan, rescan_reason, filepath)',
-                    'DROP INDEX IF EXISTS idx_tagger_processed_files_pending ON tagger_processed_files',
+                    # The pending pass pages the queue by (flag, path); see
+                    # migrate_v28_pending_rescan_index.sql.
+                    'CREATE INDEX IF NOT EXISTS idx_tagger_processed_files_pending '
+                    'ON tagger_processed_files (needs_rescan, filepath)',
                     # The artist string as read off the file before CleanTagsRule split "feat"/"vs"/
                     # "&" into separate values, for display only -- never re-parsed or matched
                     # against library_artists. NULL until a file goes through a tag-write pass that

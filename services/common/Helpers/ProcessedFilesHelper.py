@@ -69,12 +69,15 @@ class ProcessedFilesHelper:
     def create_table(self):
         """Creates the table if it doesn't exist."""
         query = f'\n            CREATE TABLE IF NOT EXISTS {self.table_name} (\n                filepath VARCHAR(767) PRIMARY KEY,\n                mtime DOUBLE,\n                last_processed TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n                needs_rescan BOOLEAN DEFAULT FALSE,\n                rescan_reason VARCHAR(64) NULL\n            )\n        '
-        # pending_paths pages through the queued rows of one reason by primary key; without
-        # this the table is scanned once per page, and there are 327k rows on production.
-        # See migrate_v30_pending_by_reason_index.sql.
+        # pending_paths pages through the queued rows by primary key; without this the
+        # table is scanned once per page, and there are 327k rows on production. The
+        # reason is not in the key on purpose: filepath is VARCHAR(767) in utf8mb4, 3068
+        # of the 3072 bytes a key may have, so nothing wider than a flag fits beside it.
+        # A per-reason page filters on the reason while it walks this index, and because
+        # the cursor only ever moves forward, one reason's pages together read each
+        # queued row once.
         index = (
-            f'CREATE INDEX IF NOT EXISTS idx_{self.table_name}_pending_reason '
-            f'ON {self.table_name} (needs_rescan, rescan_reason, filepath)'
+            f'CREATE INDEX IF NOT EXISTS idx_{self.table_name}_pending ON {self.table_name} (needs_rescan, filepath)'
         )
         connection = self.db_connector.connect()
         try:
@@ -295,7 +298,8 @@ class ProcessedFilesHelper:
         flag -- unreadable, gone between the SELECT and the stat -- is not handed out
         again on the very next page. A round that is cut short by a restart resumes
         where it was for free: what it tagged is no longer queued. One reason per call,
-        because that is what the index covers and what lets a decision go first.
+        which is what lets a decision go first; see create_table for why the reason is a
+        filter on the (flag, path) index rather than part of it.
         """
         reason_sql = 'rescan_reason IS NULL' if reason is None else 'rescan_reason = %s'
         query = (

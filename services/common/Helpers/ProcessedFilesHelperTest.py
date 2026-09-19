@@ -62,7 +62,7 @@ class CreateTableTest(ProcessedFilesHelperTestCase):
         self.helper.create_table()
         self.assertIn('CREATE TABLE IF NOT EXISTS tagger_processed_files', self.executed()[0])
         self.assertIn('CREATE INDEX IF NOT EXISTS', self.executed()[1])
-        self.assertIn('(needs_rescan, rescan_reason, filepath)', self.executed()[1])
+        self.assertIn('(needs_rescan, filepath)', self.executed()[1])
         self.connection.commit.assert_called_once()
         self.connection.close.assert_called_once()
 

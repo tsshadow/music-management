@@ -202,7 +202,7 @@ already what it does.
 
 Shipped to develop 2026-09-19, in order: !861 (mtime DOUBLE), !862 (artist cache),
 !863 (net tag changes), !864 (workers announce -- T1, Telegram tags), and the queue-by-reason
-MR (reasons everywhere, per-reason paging with `migrate_v30`, the `library_media_files`
+MR (reasons everywhere, per-reason paging on the v28 index -- a reason beside a 767-char utf8mb4 path exceeds the 3072-byte key limit -- the `library_media_files`
 anti-join with reason `new_in_library`, the walk on `tagger_walk_interval_hours` with its
 last run recorded on disk). Open from the list in §6: item 9 (an invalidation during a
 parse is lost), item 10 (`tag_single` waits behind a round), item 11 (per-file connections).

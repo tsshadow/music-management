@@ -178,6 +178,35 @@ class MediaLibraryPlaybackController(
         return null
     }
 
+    /**
+     * The queue a tap on one track in a browsed list means: that list, starting at that track.
+     *
+     * Every song-level media id used to answer with a queue of one, so a track tapped in the car
+     * played and then stopped -- the phone plays the list from that track. The list is the same
+     * one the row was listed in (cached where the level cached it, refetched where a car that
+     * remembered the id comes back after the cache is gone), and a track that is not in it any
+     * more answers null so the caller can fall back to playing it alone.
+     */
+    fun queueForTap(mediaId: String): CarQueue? {
+        val parts = mediaId.split('|')
+        val (tracks, songId) = when (parts.first()) {
+            MEDIA_PLAYLIST_SONG_ITEM -> playPlaylist(parts[INDEX_ID], parts[INDEX_NAME]) to parts[INDEX_SONG_ID]
+            MEDIA_ALBUM_SONG_ITEM -> playAlbum(parts[INDEX_ID], parts[INDEX_NAME]) to parts[INDEX_SONG_ID]
+            MEDIA_SONG_STARRED_ITEM -> playStarredSongs() to parts[INDEX_ID]
+            MEDIA_SONG_RANDOM_ITEM -> dataProvider.randomSongsCache to parts[INDEX_ID]
+            MEDIA_SEARCH_SONG_ITEM -> dataProvider.searchSongsCache to parts[INDEX_ID]
+            MEDIA_FEED_ITEM -> playFeed(parts[INDEX_ID]) to parts[INDEX_NAME]
+            else -> return null
+        }
+        if (tracks.isNullOrEmpty()) return null
+        val index = tracks.indexOfFirst { it.id == songId }
+        if (index < 0) return null
+        return CarQueue(tracks, index)
+    }
+
+    /** A queue and where in it to start, for [queueForTap]. */
+    data class CarQueue(val tracks: List<Track>, val startIndex: Int)
+
     fun onAddLegacyAutoItems(
         mediaItems: MutableList<MediaItem>
     ): ListenableFuture<List<MediaItem>> {

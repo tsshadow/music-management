@@ -6,6 +6,7 @@ import {
   STORAGE_KEY,
   checkForAppUpdate,
   isCheckDue,
+  isOtherSeries,
 } from "../../src/lib/appUpdate.js";
 import { dismissAll, notifications } from "../../src/lib/notifications.js";
 
@@ -23,12 +24,26 @@ const NEWER = {
   available: true,
   currentVersionCode: 312,
   currentVersionName: "6.36.0",
+  currentSeries: "muma-mobile",
   latestVersionCode: 313,
   latestVersionName: "6.36.0",
+  latestSeries: "muma-mobile",
   url: "https://apk.example/dl/313?u=guest&p=guest",
 };
 
 const SAME = { ...NEWER, available: false, latestVersionCode: 312 };
+
+/** A debug phone on 7.0.0 (316) while the release series went on to 7.3.0 (320). */
+const RELEASE_AHEAD = {
+  available: true,
+  currentVersionCode: 316,
+  currentVersionName: "7.0.0",
+  currentSeries: "muma-mobile-debug",
+  latestVersionCode: 320,
+  latestVersionName: "7.3.0",
+  latestSeries: "muma-mobile",
+  url: "https://apk.example/dl/320?u=guest&p=guest",
+};
 
 function nativePlatform(answer) {
   return {
@@ -84,6 +99,28 @@ describe("checkForAppUpdate", () => {
     toast.action.onClick();
     expect(platform.system.openUrl).toHaveBeenCalledWith(NEWER.url);
     expect(storage.getItem(STORAGE_KEY)).toBe("5000");
+  });
+
+  // The debug series only moves when somebody runs the manual build job, so the shell asks
+  // after the release series too; that APK installs beside the debug one, so the toast must
+  // not promise an "update" -- it says the release is ahead, and still hands over the download.
+  it("words a release that outran a debug build as that, with the release download", async () => {
+    const platform = nativePlatform(RELEASE_AHEAD);
+
+    await checkForAppUpdate({ platform, storage: memoryStorage() });
+
+    const [toast] = get(notifications);
+    expect(toast.type).toBe("info");
+    expect(toast.message).toBe("Deze debug-build (7.0.0) is ouder dan release 7.3.0.");
+    toast.action.onClick();
+    expect(platform.system.openUrl).toHaveBeenCalledWith(RELEASE_AHEAD.url);
+  });
+
+  it("only calls it another series when the shell named one", () => {
+    expect(isOtherSeries(RELEASE_AHEAD)).toBe(true);
+    expect(isOtherSeries(NEWER)).toBe(false);
+    // An older shell that does not report series yet reads as the plain "new version".
+    expect(isOtherSeries({ ...NEWER, currentSeries: "", latestSeries: "" })).toBe(false);
   });
 
   it("stays quiet on an automatic check that finds nothing", async () => {

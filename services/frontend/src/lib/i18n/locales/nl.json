@@ -14,6 +14,7 @@
     "checkFailed": "Controleren op updates is niet gelukt.",
     "download": "Downloaden",
     "openFailed": "Kon de download niet openen.",
+    "releaseAhead": "Deze debug-build ({current}) is ouder dan release {version}.",
     "upToDate": "Je hebt de nieuwste versie ({version})."
   },
   "artist": {

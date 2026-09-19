@@ -7,7 +7,7 @@
   import { apiBase, fetchMumaJson } from '../mumaApi.js';
   import { fetchBundleVersion } from '../diagnosticsLog.js';
   import { parseMobileChangelog } from '../mobileReleaseNotes.js';
-  import { checkForAppUpdate } from '../appUpdate.js';
+  import { checkForAppUpdate, isOtherSeries } from '../appUpdate.js';
 
   /**
    * The version overview. Four things run here and ship on four schedules -- the APK, the web
@@ -115,7 +115,8 @@
       if (!update) {
         checkOutcome = 'failed';
       } else if (update.available) {
-        checkOutcome = 'available';
+        // A release that outran this debug build is another package, not an update to this one.
+        checkOutcome = isOtherSeries(update) ? 'releaseAhead' : 'available';
         latestVersion = update.latestVersionName;
       } else {
         checkOutcome = 'upToDate';
@@ -199,6 +200,8 @@
           </button>
           {#if checkOutcome === 'available'}
             <p class="text-sm text-brand m-0" data-testid="update-outcome">{$t('settings.about.updateAvailable', { version: latestVersion })}</p>
+          {:else if checkOutcome === 'releaseAhead'}
+            <p class="text-sm text-brand m-0" data-testid="update-outcome">{$t('appUpdate.releaseAhead', { version: latestVersion, current: appInfo?.version ?? '' })}</p>
           {:else if checkOutcome === 'upToDate'}
             <p class="text-sm text-[#b3b3b3] m-0" data-testid="update-outcome">{$t('settings.about.upToDate')}</p>
           {:else if checkOutcome === 'failed'}

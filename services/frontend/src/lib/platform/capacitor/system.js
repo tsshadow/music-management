@@ -80,8 +80,10 @@ export function createCapacitorSystem(plugin) {
         available: answer?.available === true,
         currentVersionCode: Number(answer?.currentVersionCode ?? 0),
         currentVersionName: String(answer?.currentVersionName ?? ""),
+        currentSeries: String(answer?.currentSeries ?? ""),
         latestVersionCode: Number(answer?.latestVersionCode ?? 0),
         latestVersionName: String(answer?.latestVersionName ?? ""),
+        latestSeries: String(answer?.latestSeries ?? ""),
         url: String(answer?.url ?? ""),
       };
     },

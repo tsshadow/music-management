@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+## Global Version 7.3.2 (2026-09-19)
+
+- **Android Auto bladert nu net als de telefoon.** Vier tabs (Start, Nummers, Sets,
+  Bibliotheek), met labels, podcasts, festivals, jaren en lineups; elke tag opent direct op zijn
+  nummers met Alles afspelen, Willekeurig en Per jaar erboven. Een preset rond een label of
+  festival speelt in de auto nu ook echt dat label of festival.
+
+- **Een nummer aantikken in de auto speelt de lijst vanaf dat nummer**, in plaats van alleen
+  dat nummer.
+
+- Een debug-installatie meldt nu ook wanneer een nieuwere release beschikbaar is.
 ## Global Version 7.3.1 (2026-09-19)
 
 - Onderhoudsrelease: bijgewerkte bouwtools, geen zichtbare wijziging.

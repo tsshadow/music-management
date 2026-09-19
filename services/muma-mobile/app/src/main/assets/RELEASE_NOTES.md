@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+## Global Version 7.3.1 (2026-09-19)
+
+- Onderhoudsrelease: bijgewerkte bouwtools, geen zichtbare wijziging.
 ## Global Version 7.3.0 (2026-09-17)
 
 - De speler laat zien via welke uitvoer je luistert; tikken opent de uitvoerkiezer van Android.

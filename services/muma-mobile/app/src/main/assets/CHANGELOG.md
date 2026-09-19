@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.3.1] - 2026-09-19
+
+### Changed
+- Gradle-plugin `com.github.ben-manes.versions` naar 0.63.1 (Renovate). Geen wijziging in de app.
+
 ## [7.3.0] - 2026-09-17
 
 ### Added

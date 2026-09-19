@@ -303,11 +303,14 @@ class QueueNewLibraryFilesTest(ProcessedFilesHelperTestCase):
 
 
 class ForgetTest(ProcessedFilesHelperTestCase):
-    def test_the_row_of_a_vanished_file_is_deleted(self):
+    def test_the_row_of_a_vanished_file_becomes_a_tombstone_not_a_gap(self):
+        # Deleting it let the anti-join against the scanner's table re-queue the same
+        # 768 stale paths every round; a row with reason `missing` stops that.
         self.helper.forget('/music/gone.mp3')
         query, args = self.cursor.execute.call_args.args
-        self.assertIn('DELETE FROM tagger_processed_files WHERE filepath = %s', query)
-        self.assertEqual(args, ('/music/gone.mp3',))
+        self.assertIn('INSERT INTO tagger_processed_files', query)
+        self.assertIn('ON DUPLICATE KEY UPDATE needs_rescan = FALSE, rescan_reason = VALUES(rescan_reason)', query)
+        self.assertEqual(args, ('/music/gone.mp3', 'missing'))
         self.connection.commit.assert_called_once()
 
     def test_a_failure_still_closes_the_connection(self):

@@ -1,5 +1,6 @@
 """Coverage for services/tagger/tagger.py: folder walking, dispatch and auto-detection."""
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -548,8 +549,6 @@ class TryParseTest(TaggerTestCase):
     def test_the_mtime_stored_is_the_one_after_the_save(self):
         # A written file has a newer mtime than the stat before parse_song; storing the old
         # one made every file the tagger wrote read as "changed" on the next walk.
-        import os
-
         song = self.make_song(self.music / 'Soundcloud' / 'artist')
         os.utime(song, (1000.0, 1000.0))
 

@@ -10,6 +10,7 @@ from yt_dlp.utils import sanitize_filename
 from services.common.Helpers.NotificationService import notification_service
 from services.downloader.youtube.YoutubeAccount import AUDIO, VIDEO
 from services.downloader.youtube.YoutubeArchive import YoutubeArchive
+from services.tagger.announce import announce
 from services.tagger.constants import SongTypeEnum
 from services.tagger.Song.ReleaseDate import format_release_date
 from services.tagger.tagger import Tagger
@@ -86,6 +87,9 @@ class YoutubeSongProcessor(PostProcessor):
             return ([], info)
         song = Tagger.parse_song(Path(path), SongTypeEnum.YOUTUBE, extra_info=info)
         if song:
+            # Bookkeeping, LMS and the scanner -- the file is tagged, now make it exist
+            # for everyone else without waiting for the walk.
+            announce(path)
             notification_service.notify(str(song), title='YouTube Download Complete')
         return ([], info)
 

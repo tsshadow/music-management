@@ -1,6 +1,9 @@
+import asyncio
 import sys
+import tempfile
 import types
 import unittest
+import unittest.mock
 from datetime import datetime, timedelta
 
 from services.tests.mock_base import setup_mocks
@@ -182,3 +185,46 @@ class FloodWaitTest(TelegramTimingTestBase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TaggingTest(TelegramTimingTestBase):
+    """A Telegram download is tagged by the worker, like SoundCloud and YouTube -- until
+    0.67 nothing tagged it and the file waited for the walk to reach Telegram/."""
+
+    def _message(self, mime, name='set.mp3', size=None):
+        message = types.SimpleNamespace()
+        message.file = types.SimpleNamespace(mime_type=mime, name=name, size=size)
+        message.id = 1
+        return message
+
+    def _download(self, message):
+        from services.downloader.telegram import telegram as telegram_module
+
+        with tempfile.TemporaryDirectory() as folder:
+            downloader = self._downloader(folder)
+            with (
+                unittest.mock.patch.object(telegram_module.Tagger, 'parse_song', return_value=object()) as parse,
+                unittest.mock.patch.object(telegram_module, 'announce') as announce,
+            ):
+                asyncio.run(downloader._download_if_needed(DummyClient(), message, folder, asyncio.Semaphore(1)))
+            return parse, announce, folder
+
+    def test_an_audio_download_is_tagged_and_announced(self):
+        parse, announce, folder = self._download(self._message('audio/mpeg'))
+        parse.assert_called_once()
+        self.assertEqual(parse.call_args.args[1].name, 'TELEGRAM')
+        announce.assert_called_once_with(f'{folder}/set.mp3')
+
+    def test_a_video_download_is_left_alone(self):
+        parse, announce, _ = self._download(self._message('video/mp4', name='clip.mp4'))
+        parse.assert_not_called()
+        announce.assert_not_called()
+
+    def test_a_failed_download_is_not_tagged(self):
+        async def failing(*_args, **_kwargs):
+            raise RuntimeError('network')
+
+        with unittest.mock.patch.object(DummyClient, 'download_media', failing):
+            parse, announce, _ = self._download(self._message('audio/mpeg'))
+        parse.assert_not_called()
+        announce.assert_not_called()

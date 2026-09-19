@@ -45,6 +45,31 @@ def test_compose_passes_both_spellings_of_the_system_key():
             )
 
 
+# Every container that tags a file and then announces it (services/tagger/announce.py):
+# the bookkeeping needs the database, LMS needs its host and key, the scanner needs the
+# music-manager URL and the system key.
+ANNOUNCING_SERVICES = ["importer_worker", "youtube_worker", "soundcloud_worker", "telegram_worker"]
+
+
+def test_every_worker_that_announces_a_file_can_reach_lms_and_the_scanner():
+    """Until 0.67 the workers had no LMS variables at all, so the importer's own
+    lms_scan_trigger.notify was a silent no-op on production and every download waited
+    for the next folder walk to be tagged, and for the hourly scanner to be indexed."""
+    compose = load_compose()
+    for name in ANNOUNCING_SERVICES:
+        environment = compose["services"][name]["environment"]
+        for variable in (
+            "MUMA_SERVER_HOSTS",
+            "MUMA_SERVER_SUBSONIC_API_KEY",
+            "LMS_SUBSONIC_API_KEY",
+            "music_folder_path",
+            "AUTH_SERVICE_URL",
+            "API_KEY",
+            "MUMA_API_KEY",
+        ):
+            assert variable in environment, f"{name} does not receive {variable}"
+
+
 # The variables that gate release jobs at the `rules:` level. The tests below
 # are about the .env-content checks, so these are filled with placeholders;
 # their own absence is covered by test_secrets_check_rejects_a_missing_gating_variable.

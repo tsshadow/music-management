@@ -35,6 +35,22 @@ class TestMover(unittest.TestCase):
             mock_notify.assert_called()
             self.assertEqual(mock_notify.call_args[1]['title'], 'Import Complete')
 
+    @patch('services.common.Helpers.NotificationService.notification_service.notify')
+    @patch('services.importer.mover.announce')
+    @patch('os.walk')
+    @patch('os.path.isfile')
+    def test_a_tagged_import_is_announced_per_file(self, mock_isfile, mock_walk, mock_announce, _notify):
+        # After the tag pass, so the bookkeeping carries the mtime the pass produced and the
+        # walk in music-manager does not tag the release a second time.
+        mock_walk.return_value = [('/tmp/eps/Scantraxx/SCAN123', [], ['01.mp3', '02.mp3'])]
+        mock_isfile.return_value = True
+        with patch('services.importer.mover.LabelSong'):
+            post_processing_songs('/tmp/eps/Scantraxx/SCAN123')
+        self.assertEqual(
+            [c.args[0] for c in mock_announce.call_args_list],
+            ['/tmp/eps/Scantraxx/SCAN123/01.mp3', '/tmp/eps/Scantraxx/SCAN123/02.mp3'],
+        )
+
 
 class TestMoverConflictHandling(unittest.TestCase):
     """Regression test: shutil.move(src, dst) raises shutil.Error (not FileExistsError) when

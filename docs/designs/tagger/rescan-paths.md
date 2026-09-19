@@ -176,3 +176,24 @@ Reviewed with Codex (2026-09-18); its corrections are folded in.
 Items 1–4 are each a handful of lines with a unit-test file next to them (`TableHelperTest`,
 `TagTest`, `TaggerTest`). The 1.6 s saving in item 2 is from one profiled file with the save
 disabled; the aggregate effect is to be measured on prod after the deploy, not assumed.
+
+## 7. Target model (agreed 2026-09-19)
+
+Four ways in, one consumer, no walk in the hot path. "Scan" below means both halves: the
+muma scanner (`library_*` tables) and the LMS scan (the app can play it).
+
+| # | Path | Trigger | Tag | Scan | Today's gap |
+|---|------|---------|-----|------|-------------|
+| T1 | Import or download | the worker that produced the file | the worker, right there, then `mark_processed` on the final path | worker notifies LMS for the folder and the muma scanner for the path | Downloader notifies neither; importer notifies LMS only; Telegram tags nothing; nobody writes `mark_processed`, so the walk tags every new file a second time. |
+| T2 | Total rescan | the button | whole table into the queue, reason `rescan_all` | one scan at the end of the round, as now | Works; reason is missing, so it is indistinguishable from the deep run. |
+| T3 | One track by hand | app/web rerun-parse | `tag_single` | `scan_single` + LMS | Works but waits behind a running round (D6/D7). |
+| T4 | Rule change | the app, on save | the app resolves the rule to its paths (`RescanInvalidator`) and queues them with the rule as reason | the round scans what it wrote | Works; queue order is the alphabet, not the decision. |
+
+What the walk is still for: a file nobody announced (dropped in by hand). That list is an
+anti-join — `library_media_files` minus `tagger_processed_files` — once the scanner has seen
+it, so the walk becomes a daily safety net rather than the five-minute loop's main job. The
+deep run stays as the "rules changed underneath old files" net, with its own reason.
+
+Consequences for the queue: `rescan_reason` becomes mandatory; `pending_paths` serves
+decisions (T3, T4) before bulk (T2, deep run); the page shows the count per reason, which is
+already what it does.

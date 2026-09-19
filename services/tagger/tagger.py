@@ -43,17 +43,30 @@ class Tagger:
         processed_files_helper.create_table()
 
     def run(
-        self, parse_labels=True, parse_soundcloud=True, parse_youtube=True, parse_generic=True, parse_telegram=True
+        self,
+        parse_labels=True,
+        parse_soundcloud=True,
+        parse_youtube=True,
+        parse_generic=True,
+        parse_telegram=True,
+        walk=True,
     ):
         """
         Entrypoint for the tagging process.
-        Scans various music directories (library_labels, YouTube, SoundCloud, generic) and applies appropriate tag parsing.
+
+        The queue first, then -- when `walk` is set -- the folders. The queue is where
+        everything that announces itself ends up: a decision, a rule, a download the
+        worker tagged, a file the scanner found. The walk is the safety net for what
+        nobody announced, and the loop runs it once a day rather than every round.
         """
         # A run started after a rule change must honour it. The helpers in Cache.py
         # preload at import and this process is a long-lived loop, so without this a
         # rule added today would only take effect after a restart.
         reload_rule_caches()
         self.stop_requested = False
+        # What the scanner has indexed and this table has never seen: a file dropped in
+        # by hand. Queued with its own reason so it goes after the decisions.
+        self._queue_new_library_files()
         # What a rule change queued comes first, straight from the table, before any
         # folder is walked. The walk goes EPs, Soundcloud, Youtube, Telegram, generic and
         # starts over at the top on every restart; with five deploys in a night and a
@@ -61,14 +74,15 @@ class Tagger:
         # decisions made that morning sat behind it. Whatever this pass finishes stays
         # finished across a restart, because a tagged file is no longer queued.
         self._process_pending()
-        # After the pending pass, so the snapshot already shows those files as done.
-        # Held for the walk only: the loop sleeps between rounds and there is no reason
-        # to keep 327k rows in memory while it does.
-        processed_files_helper.load_snapshot()
-        try:
-            self._walk(parse_labels, parse_soundcloud, parse_youtube, parse_generic, parse_telegram)
-        finally:
-            processed_files_helper.drop_snapshot()
+        if walk:
+            # After the pending pass, so the snapshot already shows those files as done.
+            # Held for the walk only: the loop sleeps between rounds and there is no reason
+            # to keep 327k rows in memory while it does.
+            processed_files_helper.load_snapshot()
+            try:
+                self._walk(parse_labels, parse_soundcloud, parse_youtube, parse_generic, parse_telegram)
+            finally:
+                processed_files_helper.drop_snapshot()
         if self.stop_requested:
             logging.info('Tagging process was interrupted by user')
         # One scan per run, not per file: LMS only reprocesses what changed, so this is
@@ -100,12 +114,38 @@ class Tagger:
     #: the pool to matter, small enough that a stop request is honoured within seconds.
     PENDING_BATCH = 500
 
+    #: The roots and extensions the walk covers, which is also what the anti-join
+    #: against the scanner's table may queue: the scanner indexes Lidarr, Hitzone and
+    #: .opus too, and the tagger has no rules for those.
+    WALK_FOLDERS = ('Soundcloud', 'Youtube', 'Telegram', 'Livesets', 'Podcasts', 'Top 100', 'Warm Up Mixes')
+
+    def _queue_new_library_files(self) -> int:
+        roots = [str(s.eps_folder_path)] + [str(Path(s.music_folder_path) / folder) for folder in self.WALK_FOLDERS]
+        extensions = tuple(
+            ext
+            for ext, enabled in (('mp3', parse_mp3), ('flac', parse_flac), ('m4a', parse_m4a), ('wav', parse_wav))
+            if enabled
+        )
+        added = processed_files_helper.queue_new_library_files(roots, extensions)
+        if added:
+            logging.info('Queued %d file(s) the scanner knows and the tagger never saw', added)
+        return added
+
     def _process_pending(self):
-        """Tag the files a rule change queued, without walking a folder for them."""
+        """Tag the queued files, reason by reason, without walking a folder for them."""
+        total = 0
+        for reason in processed_files_helper.pending_reasons():
+            if self.stop_requested:
+                break
+            total += self._process_pending_reason(reason)
+        if total:
+            logging.info('Pending pass handed %d queued file(s) to the tagger', total)
+
+    def _process_pending_reason(self, reason: str | None) -> int:
         after = ''
         total = 0
         while not self.stop_requested:
-            paths = processed_files_helper.pending_paths(self.PENDING_BATCH, after)
+            paths = processed_files_helper.pending_paths(self.PENDING_BATCH, after, reason)
             if not paths:
                 break
             after = paths[-1]
@@ -140,8 +180,7 @@ class Tagger:
             # queue merges them.
             for folder in dict.fromkeys(str(path.parent) for path in written):
                 lms_scan_trigger.notify([folder])
-        if total:
-            logging.info('Pending pass handed %d queued file(s) to the tagger', total)
+        return total
 
     def _parse_label_folders(self):
         """

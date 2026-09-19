@@ -1121,12 +1121,13 @@ def trigger_lb_import_proxy(
 @router.post('/tagger/rescan')
 def trigger_tagger_rescan(_auth: dict = Depends(verify_api_key)):
     helper = ProcessedFilesHelper()
-    helper.mark_for_rescan()
+    # With its reason: this is bulk, and the queue serves every decision before it.
+    helper.mark_for_rescan(reason='rescan_all')
     return {'status': 'ok', 'message': 'All files marked for rescan'}
 
 
 @router.post('/tagger/rescan/file')
 def trigger_file_rescan(filepath: str = Body(..., embed=True), _auth: dict = Depends(verify_api_key)):
     helper = ProcessedFilesHelper()
-    helper.mark_for_rescan(filepath)
+    helper.mark_for_rescan(filepath, reason='manual')
     return {'status': 'ok', 'message': f"File '{filepath}' marked for rescan"}

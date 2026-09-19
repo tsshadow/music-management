@@ -209,3 +209,16 @@ def test_the_tagger_stores_the_mtime_it_read(database):
             ('tagger_processed_files', 'mtime'),
         )
         assert cursor.fetchone()['data_type'] == 'double'
+
+
+def test_the_retag_queue_is_indexed_per_reason(database):
+    """migrate_v30: the pending pass pages one reason at a time, decisions before bulk,
+    and the (flag, path) index of migrate_v28 made every such page a filter over the
+    whole queue."""
+    with database.cursor() as cursor:
+        cursor.execute('SHOW INDEX FROM tagger_processed_files')
+        indexes = {}
+        for row in cursor.fetchall():
+            indexes.setdefault(row['Key_name'], []).append(row['Column_name'])
+    assert indexes.get('idx_tagger_processed_files_pending_reason') == ['needs_rescan', 'rescan_reason', 'filepath']
+    assert 'idx_tagger_processed_files_pending' not in indexes

@@ -62,7 +62,7 @@ class CreateTableTest(ProcessedFilesHelperTestCase):
         self.helper.create_table()
         self.assertIn('CREATE TABLE IF NOT EXISTS tagger_processed_files', self.executed()[0])
         self.assertIn('CREATE INDEX IF NOT EXISTS', self.executed()[1])
-        self.assertIn('(needs_rescan, filepath)', self.executed()[1])
+        self.assertIn('(needs_rescan, rescan_reason, filepath)', self.executed()[1])
         self.connection.commit.assert_called_once()
         self.connection.close.assert_called_once()
 
@@ -189,7 +189,12 @@ class MarkStaleForRescanTest(ProcessedFilesHelperTestCase):
         query = self.executed()[0]
         self.assertIn('ORDER BY last_processed', query)
         self.assertIn('LIMIT %s', query)
-        self.assertEqual(self.cursor.execute.call_args.args[1], (30, 200))
+        self.assertEqual(self.cursor.execute.call_args.args[1], ('deep_run', 30, 200))
+
+    def test_the_slice_carries_the_deep_run_reason(self):
+        # So the page can tell it from a decision, and the queue serves it last.
+        self.helper.mark_stale_for_rescan(30, 200)
+        self.assertIn('rescan_reason = %s', self.executed()[0])
 
     def test_the_number_of_queued_rows_is_returned(self):
         self.cursor.rowcount = 42
@@ -217,21 +222,79 @@ class CountStaleTest(ProcessedFilesHelperTestCase):
         self.connection.close.assert_called_once()
 
 
+class PendingReasonsTest(ProcessedFilesHelperTestCase):
+    def test_decisions_come_before_new_files_before_bulk_before_the_unexplained(self):
+        self.cursor.fetchall.return_value = [
+            (None,),
+            ('rescan_all',),
+            ('genre_decision',),
+            ('new_in_library',),
+            ('deep_run',),
+            ('artist_decision',),
+            ('rerun_parse',),
+        ]
+        self.assertEqual(
+            self.helper.pending_reasons(),
+            ['artist_decision', 'genre_decision', 'rerun_parse', 'new_in_library', 'deep_run', 'rescan_all', None],
+        )
+        self.assertIn('DISTINCT rescan_reason', self.executed()[0])
+        self.connection.close.assert_called_once()
+
+    def test_a_failure_reads_as_nothing_queued(self):
+        self.cursor.execute.side_effect = RuntimeError('database gone')
+        self.assertEqual(self.helper.pending_reasons(), [])
+
+
 class PendingPathsTest(ProcessedFilesHelperTestCase):
     def test_a_page_of_queued_paths_is_read_in_key_order_past_the_cursor(self):
         self.cursor.fetchall.return_value = [('/music/b.mp3',), ('/music/c.mp3',)]
-        paths = self.helper.pending_paths(2, after='/music/a.mp3')
+        paths = self.helper.pending_paths(2, after='/music/a.mp3', reason='genre_decision')
         self.assertEqual(paths, ['/music/b.mp3', '/music/c.mp3'])
         query, args = self.cursor.execute.call_args.args
-        self.assertIn('needs_rescan = TRUE AND filepath > %s', query)
+        self.assertIn('needs_rescan = TRUE AND rescan_reason = %s AND filepath > %s', query)
         self.assertIn('ORDER BY filepath LIMIT %s', query)
-        self.assertEqual(args, ('/music/a.mp3', 2))
+        self.assertEqual(args, ('genre_decision', '/music/a.mp3', 2))
         self.connection.close.assert_called_once()
+
+    def test_rows_without_a_reason_are_their_own_page(self):
+        self.cursor.fetchall.return_value = []
+        self.helper.pending_paths(500, reason=None)
+        query, args = self.cursor.execute.call_args.args
+        self.assertIn('rescan_reason IS NULL AND filepath > %s', query)
+        self.assertEqual(args, ('', 500))
 
     def test_the_first_page_starts_before_every_path(self):
         self.cursor.fetchall.return_value = []
-        self.helper.pending_paths(500)
-        self.assertEqual(self.cursor.execute.call_args.args[1], ('', 500))
+        self.helper.pending_paths(500, reason='deep_run')
+        self.assertEqual(self.cursor.execute.call_args.args[1], ('deep_run', '', 500))
+
+
+class QueueNewLibraryFilesTest(ProcessedFilesHelperTestCase):
+    def test_the_anti_join_is_limited_to_the_walks_roots_and_extensions(self):
+        self.cursor.rowcount = 7
+        added = self.helper.queue_new_library_files(['/mnt/music/EPs', '/mnt/music/Top 100/'], ('mp3', 'm4a'))
+        self.assertEqual(added, 7)
+        query, args = self.cursor.execute.call_args.args
+        self.assertIn('INSERT IGNORE INTO tagger_processed_files', query)
+        self.assertIn('LEFT JOIN tagger_processed_files t ON t.filepath = mf.file_path', query)
+        self.assertIn('WHERE t.filepath IS NULL', query)
+        self.assertEqual(args, ('new_in_library', '/mnt/music/EPs/%', '/mnt/music/Top 100/%', '%.mp3', '%.m4a'))
+        self.connection.commit.assert_called_once()
+
+    def test_like_wildcards_in_a_root_are_taken_literally(self):
+        self.cursor.rowcount = 0
+        self.helper.queue_new_library_files(['/mnt/music/Warm_Up 100%'], ('mp3',))
+        self.assertEqual(self.cursor.execute.call_args.args[1][1], '/mnt/music/Warm\\_Up 100\\%/%')
+
+    def test_nothing_to_match_queues_nothing(self):
+        self.assertEqual(self.helper.queue_new_library_files([], ('mp3',)), 0)
+        self.assertEqual(self.helper.queue_new_library_files(['/mnt/music/EPs'], ()), 0)
+        self.cursor.execute.assert_not_called()
+
+    def test_a_failure_queues_nothing_and_still_closes_the_connection(self):
+        self.cursor.execute.side_effect = RuntimeError('database gone')
+        self.assertEqual(self.helper.queue_new_library_files(['/mnt/music/EPs'], ('mp3',)), 0)
+        self.connection.close.assert_called_once()
 
     def test_a_failure_reads_as_an_empty_queue_and_still_closes_the_connection(self):
         self.cursor.execute.side_effect = RuntimeError('database gone')

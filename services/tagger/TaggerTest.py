@@ -36,8 +36,10 @@ class TaggerTestCase(unittest.TestCase):
         self.processed = tagger_module.processed_files_helper
         self.processed.needs_processing.return_value = True
         # An empty queue by default: a MagicMock is truthy and would keep the pending
-        # pass paging for ever.
+        # pass paging for ever. One reason, so the pass asks for pages at all.
         self.processed.pending_paths.return_value = []
+        self.processed.pending_reasons.return_value = ['genre_decision']
+        self.processed.queue_new_library_files.return_value = 0
         self.tagger = Tagger()
         self.tagger.parallel = False
 
@@ -256,8 +258,59 @@ class PendingPassTest(TaggerTestCase):
             self.tagger._process_pending()
         self.assertEqual(
             [call.args for call in self.processed.pending_paths.call_args_list],
-            [(Tagger.PENDING_BATCH, ''), (Tagger.PENDING_BATCH, str(first)), (Tagger.PENDING_BATCH, str(second))],
+            [
+                (Tagger.PENDING_BATCH, '', 'genre_decision'),
+                (Tagger.PENDING_BATCH, str(first), 'genre_decision'),
+                (Tagger.PENDING_BATCH, str(second), 'genre_decision'),
+            ],
         )
+
+    def test_the_queue_is_served_reason_by_reason_in_the_helpers_order(self):
+        # The helper decides the order (decisions before bulk); the pass pages each reason
+        # from the start of the key range, so a decision's page is never behind bulk's.
+        decision = self.make_song(self.music / 'Youtube' / 'z')
+        bulk = self.make_song(self.music / 'Soundcloud' / 'a')
+        self.processed.pending_reasons.return_value = ['genre_decision', None]
+        self.processed.pending_paths.side_effect = [[str(decision)], [], [str(bulk)], []]
+        with patch.object(self.tagger, '_try_parse') as try_parse:
+            self.tagger._process_pending()
+        self.assertEqual([call.args[0] for call in try_parse.call_args_list], [decision, bulk])
+        self.assertEqual(
+            [call.args for call in self.processed.pending_paths.call_args_list],
+            [
+                (Tagger.PENDING_BATCH, '', 'genre_decision'),
+                (Tagger.PENDING_BATCH, str(decision), 'genre_decision'),
+                (Tagger.PENDING_BATCH, '', None),
+                (Tagger.PENDING_BATCH, str(bulk), None),
+            ],
+        )
+
+    def test_a_stop_request_ends_the_pass_between_reasons(self):
+        self.processed.pending_reasons.return_value = ['genre_decision', 'rescan_all']
+        self.tagger.stop_requested = True
+        self.tagger._process_pending()
+        self.processed.pending_paths.assert_not_called()
+
+    def test_files_the_scanner_knows_and_the_tagger_never_saw_are_queued_first(self):
+        # Every walk root plus the EPs root, and only the extensions the walk enables.
+        self.processed.queue_new_library_files.return_value = 3
+        with patch.object(self.tagger, '_walk'):
+            self.tagger.run(walk=False)
+        roots, extensions = self.processed.queue_new_library_files.call_args.args
+        self.assertEqual(roots[0], str(self.eps))
+        self.assertIn(str(self.music / 'Youtube'), roots)
+        self.assertIn(str(self.music / 'Warm Up Mixes'), roots)
+        self.assertEqual(extensions, ('mp3', 'flac', 'm4a'))
+
+    def test_a_run_without_the_walk_serves_the_queue_and_touches_no_folder(self):
+        order = []
+        with (
+            patch.object(self.tagger, '_process_pending', side_effect=lambda: order.append('pending')),
+            patch.object(self.tagger, '_walk', side_effect=lambda *a: order.append('walk')),
+        ):
+            self.tagger.run(walk=False)
+        self.assertEqual(order, ['pending'])
+        self.processed.load_snapshot.assert_not_called()
 
     def test_a_queued_file_that_is_gone_is_forgotten_rather_than_retried_forever(self):
         gone = self.music / 'Youtube' / 'channel' / 'gone.mp3'
@@ -330,7 +383,12 @@ class PendingPassTest(TaggerTestCase):
 
     def test_an_empty_queue_walks_nothing_and_asks_once(self):
         self.tagger._process_pending()
-        self.processed.pending_paths.assert_called_once_with(Tagger.PENDING_BATCH, '')
+        self.processed.pending_paths.assert_called_once_with(Tagger.PENDING_BATCH, '', 'genre_decision')
+
+    def test_no_queued_reason_means_no_page_is_asked_for(self):
+        self.processed.pending_reasons.return_value = []
+        self.tagger._process_pending()
+        self.processed.pending_paths.assert_not_called()
 
 
 class FolderWalkTest(TaggerTestCase):

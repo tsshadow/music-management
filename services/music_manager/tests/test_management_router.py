@@ -468,7 +468,7 @@ class ProxyAndRescanTest(ManagementTestCase):
         with patch.object(management_router, 'ProcessedFilesHelper') as helper:
             body = self.client.post('/api/tagger/rescan', headers=self.headers).json()
         self.assertEqual(body['status'], 'ok')
-        helper.return_value.mark_for_rescan.assert_called_once_with()
+        helper.return_value.mark_for_rescan.assert_called_once_with(reason='rescan_all')
 
     def test_a_single_file_can_be_flagged_for_a_retag(self):
         with patch.object(management_router, 'ProcessedFilesHelper') as helper:
@@ -476,7 +476,7 @@ class ProxyAndRescanTest(ManagementTestCase):
                 '/api/tagger/rescan/file', headers=self.headers, json={'filepath': '/music/a.mp3'}
             ).json()
         self.assertEqual(body['status'], 'ok')
-        helper.return_value.mark_for_rescan.assert_called_once_with('/music/a.mp3')
+        helper.return_value.mark_for_rescan.assert_called_once_with('/music/a.mp3', reason='manual')
 
 
 class PodcastCurationQueueTest(ManagementTestCase):

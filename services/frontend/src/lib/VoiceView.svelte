@@ -1,5 +1,6 @@
 <script>
   import { t } from './i18n/index.js';
+  import { QUALITY_LABEL_KEYS } from './quality.js';
   import { onMount, onDestroy } from 'svelte';
   import { platform as defaultPlatform } from './platform/index.js';
   import { currentTrack, playerState } from './store.js';
@@ -53,7 +54,7 @@
   const supported = $derived(platform?.speech?.supported === true);
 
   /** The rows worth printing under "explanation", in a fixed, readable order. */
-  const FIELD_ORDER = ['genre', 'label', 'artist', 'album', 'playlist', 'year', 'rating', 'sets', 'order'];
+  const FIELD_ORDER = ['genre', 'label', 'artist', 'album', 'playlist', 'year', 'rating', 'quality', 'sets', 'order'];
 
   onMount(() => {
     if (!supported) return;
@@ -248,6 +249,8 @@
         return $t('filter.year');
       case 'rating':
         return $t('filter.rating');
+      case 'quality':
+        return $t('filter.quality.label');
       case 'sets':
         return $t('voice.setsLabel');
       case 'order':
@@ -258,6 +261,7 @@
   }
 
   function fieldValue(field, value) {
+    if (field === 'quality') return $t(QUALITY_LABEL_KEYS[value] ?? value);
     if (field !== 'order') return value;
     if (value === 'added') return $t('voice.orderAdded');
     if (value === 'random') return $t('voice.orderRandom');

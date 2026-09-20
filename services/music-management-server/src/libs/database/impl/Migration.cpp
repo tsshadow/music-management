@@ -35,7 +35,7 @@ namespace lms::db
 {
     namespace
     {
-        static constexpr Version LMS_DATABASE_VERSION{ 118 };
+        static constexpr Version LMS_DATABASE_VERSION{ 119 };
     }
 
     VersionInfo::VersionInfo()
@@ -1917,6 +1917,52 @@ FROM track)");
             utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD COLUMN version_kind TEXT NOT NULL DEFAULT ''");
             utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD COLUMN version_score INTEGER NOT NULL DEFAULT 0");
         }
+
+        void migrateFromV118(Session& session)
+        {
+            // The scanner now files every track under a QUALITY cluster (lossless / 320 / aac /
+            // 192 / low, the tiers muma's format_tier() uses), so a filter, a preset or a voice
+            // request can ask for "flac only". The scanner derives it from the codec and the
+            // bitrate it already stores on the track row, which means the existing library can
+            // be filed here from that row instead of a re-read of every file: scan_version is
+            // deliberately not bumped, as in V116 and V117.
+            //
+            // The codec is not on the row, so this backfill goes by extension where the scanner
+            // goes by codec. The two only disagree on an ALAC inside .m4a, which the scanner
+            // corrects the next time it reads that file. A track with bitrate 0 is filed as
+            // "low" rather than left out: the scanner did read it and found no stream info,
+            // and "not lossless" is the honest answer for it.
+            //
+            // track_count stays 0 on the new clusters. Cluster::hasOutdatedStats() sees a
+            // cluster with tracks and no count and makes the next scan recompute it.
+            utils::executeCommand(*session.getDboSession(), "INSERT INTO cluster_type (version, name) SELECT 0, 'QUALITY' WHERE NOT EXISTS (SELECT 1 FROM cluster_type WHERE name = 'QUALITY')");
+            for (const std::string tier : { "lossless", "320", "aac", "192", "low" })
+            {
+                utils::executeCommand(*session.getDboSession(),
+                                      "INSERT INTO cluster (version, name, track_count, release_count, cluster_type_id) "
+                                      "SELECT 0, ?, 0, 0, ct.id FROM cluster_type ct WHERE ct.name = 'QUALITY' "
+                                      "AND NOT EXISTS (SELECT 1 FROM cluster c WHERE c.cluster_type_id = ct.id AND c.name = ?)",
+                                      tier, tier);
+            }
+            utils::executeCommand(*session.getDboSession(), R"(
+INSERT INTO track_cluster (track_id, cluster_id)
+SELECT t.id, c.id
+FROM track t
+JOIN cluster c ON c.cluster_type_id = (SELECT id FROM cluster_type WHERE name = 'QUALITY')
+ AND c.name = CASE
+    WHEN LOWER(t.absolute_file_path) LIKE '%.flac' OR LOWER(t.absolute_file_path) LIKE '%.wav'
+      OR LOWER(t.absolute_file_path) LIKE '%.aiff' OR LOWER(t.absolute_file_path) LIKE '%.aif'
+      OR LOWER(t.absolute_file_path) LIKE '%.ape' OR LOWER(t.absolute_file_path) LIKE '%.wv' THEN 'lossless'
+    WHEN t.bitrate >= 300000 THEN '320'
+    WHEN LOWER(t.absolute_file_path) LIKE '%.m4a' OR LOWER(t.absolute_file_path) LIKE '%.aac'
+      OR LOWER(t.absolute_file_path) LIKE '%.opus' OR LOWER(t.absolute_file_path) LIKE '%.ogg' THEN 'aac'
+    WHEN t.bitrate >= 180000 THEN '192'
+    ELSE 'low'
+ END
+WHERE NOT EXISTS (
+    SELECT 1 FROM track_cluster tc JOIN cluster c2 ON c2.id = tc.cluster_id
+    WHERE tc.track_id = t.id AND c2.cluster_type_id = c.cluster_type_id))");
+        }
     } // namespace
 
     bool doDbMigration(Session& session)
@@ -2013,6 +2059,7 @@ FROM track)");
             { 115, migrateFromV115 },
             { 116, migrateFromV116 },
             { 117, migrateFromV117 },
+            { 118, migrateFromV118 },
         };
 
         bool migrationPerformed{};

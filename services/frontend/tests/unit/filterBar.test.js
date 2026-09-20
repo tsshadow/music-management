@@ -138,6 +138,15 @@ describe("FilterBar", () => {
     expect(onchange).toHaveBeenCalledWith(expect.objectContaining({ minRating: "4" }));
   });
 
+  it("reports a quality floor to the parent", async () => {
+    const onchange = vi.fn();
+    await renderLoaded({ onchange });
+
+    await fireEvent.change(screen.getByLabelText("Kwaliteit"), { target: { value: "320" } });
+
+    expect(onchange).toHaveBeenCalledWith(expect.objectContaining({ minQuality: "320" }));
+  });
+
   it("reports whether unrated tracks are included", async () => {
     const onchange = vi.fn();
     await renderLoaded({ onchange });
@@ -252,6 +261,21 @@ describe("FilterBar phone chips", () => {
     expect(screen.queryByTestId("bottom-sheet")).toBeNull();
   });
 
+  it("picks a quality floor from its sheet and clears it from the chip", async () => {
+    const onchange = vi.fn();
+    await renderMobile({ onchange });
+
+    await fireEvent.click(screen.getByTestId("chip-quality"));
+    const sheet = await screen.findByTestId("bottom-sheet");
+    await fireEvent.click(within(sheet).getByText("Lossless"));
+
+    expect(onchange).toHaveBeenCalledWith(expect.objectContaining({ minQuality: "lossless" }));
+    expect(within(screen.getByTestId("chip-quality")).getByText("Lossless")).toBeTruthy();
+
+    await fireEvent.click(screen.getByLabelText("Lossless wissen"));
+    expect(onchange).toHaveBeenLastCalledWith(expect.objectContaining({ minQuality: "" }));
+  });
+
   it("picks a year from its sheet", async () => {
     const onchange = vi.fn();
     await renderMobile({ onchange });
@@ -311,6 +335,7 @@ describe("FilterBar phone chips", () => {
     expect(screen.queryByTestId("chip-genre")).toBeNull();
     expect(screen.queryByTestId("chip-year")).toBeNull();
     expect(screen.queryByTestId("chip-rating")).toBeNull();
+    expect(screen.queryByTestId("chip-quality")).toBeNull();
     expect(screen.getByTestId("chip-role")).toBeTruthy();
   });
 });

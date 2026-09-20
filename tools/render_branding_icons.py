@@ -28,6 +28,9 @@ import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 RES = REPO / "services/muma-mobile/app/src/main/res"
+# The debug build type overlays main: a same-named drawable here replaces the release one,
+# so the aliases in the manifest need no build-type awareness at all.
+RES_DEBUG = REPO / "services/muma-mobile/app/src/debug/res"
 BRANDING = REPO / "docs/branding"
 
 # The mark, full-bleed in a 512 viewport: (centre x, top y). All bars end at BOTTOM.
@@ -45,6 +48,20 @@ GREEN = "#1DB954"
 INDIGO = "#3F51B5"
 BACKDROP = "#121212"
 
+# The debug build keeps the bars but drains the colour: a debug install next to the release
+# one on a phone or Android Auto used to be told apart only by the label, which the car does
+# not show. The two greys keep the icon-colour setting testable in debug. The badge is a D
+# drawn as strokes in the bars' style, on a dark disc ringed in the disc colour so it reads
+# as a badge rather than as the bars bleeding into it.
+DEBUG_GREY = "#9E9E9E"
+DEBUG_BLUE_GREY = "#78909C"
+BADGE_CENTRE = 344.0
+BADGE_RING_RADIUS = 80.0
+BADGE_RADIUS = 68.0
+BADGE_STROKE = 16.0
+BADGE_GLYPH_HALF_HEIGHT = 36.0
+BADGE_GLYPH_STEM = -16.0  # stem x, relative to the badge centre
+
 # The missing-artwork placeholder sits in a cover slot, so it is deliberately dull: the
 # panel greys from app.css, not a brand colour. It used to be the Spotify wordmark.
 PLACEHOLDER_DISC = "#282828"
@@ -58,7 +75,45 @@ def _scaled(value: float) -> float:
     return CENTRE + (value - CENTRE) * SAFE_ZONE
 
 
-def render_launcher_foreground(disc_hex: str) -> str:
+def _circle_path(fill_hex: str, cx: float, cy: float, radius: float) -> str:
+    return f"""    <path
+        android:fillColor="{fill_hex}"
+        android:pathData="M{cx:.1f},{cy - radius:.1f} \
+A{radius:.1f},{radius:.1f} 0 1,1 {cx - 0.1:.1f},{cy - radius:.1f} Z"/>"""
+
+
+def _debug_badge(disc_hex: str) -> str:
+    """A D in the lower right of the disc, inside the safe zone so no mask crops it.
+
+    The glyph is a filled even-odd outline rather than a stroked stem-plus-arc: a stroke
+    path that arcs back onto its own start renders as a filled bowl on Android.
+    """
+    centre = _scaled(BADGE_CENTRE)
+    stem = centre + BADGE_GLYPH_STEM * SAFE_ZONE
+    half = BADGE_GLYPH_HALF_HEIGHT * SAFE_ZONE
+    width = BADGE_STROKE * SAFE_ZONE / 2
+
+    def d_outline(inset: float) -> str:
+        radius = half - inset
+        return (
+            f"M{stem - inset:.1f},{centre - radius:.1f} H{stem:.1f} "
+            f"A{radius:.1f},{radius:.1f} 0 0,1 {stem:.1f},{centre + radius:.1f} "
+            f"H{stem - inset:.1f} Z"
+        )
+
+    return "\n".join(
+        [
+            _circle_path(disc_hex, centre, centre, BADGE_RING_RADIUS * SAFE_ZONE),
+            _circle_path(BACKDROP, centre, centre, BADGE_RADIUS * SAFE_ZONE),
+            f"""    <path
+        android:fillColor="{disc_hex}"
+        android:fillType="evenOdd"
+        android:pathData="{d_outline(-width)} {d_outline(width)}"/>""",
+        ]
+    )
+
+
+def render_launcher_foreground(disc_hex: str, debug: bool = False) -> str:
     """The adaptive-icon foreground: a coloured disc with the bars drawn over it."""
     radius = DISC_RADIUS * SAFE_ZONE
     bars = "\n".join(
@@ -69,6 +124,8 @@ def render_launcher_foreground(disc_hex: str) -> str:
         android:pathData="M{_scaled(x):.1f} {_scaled(top):.1f} V{_scaled(BOTTOM):.1f}"/>"""
         for x, top in BARS
     )
+    if debug:
+        bars += "\n" + _debug_badge(disc_hex)
     return f"""<?xml version="1.0" encoding="utf-8"?>
 <!-- {GENERATED} -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
@@ -193,6 +250,10 @@ PLACEHOLDER_COPIES = [
 OUTPUTS = {
     RES / "drawable/ic_launcher_foreground.xml": lambda: render_launcher_foreground(GREEN),
     RES / "drawable/ic_launcher_foreground_blue.xml": lambda: render_launcher_foreground(INDIGO),
+    RES_DEBUG / "drawable/ic_launcher_foreground.xml": lambda: render_launcher_foreground(DEBUG_GREY, debug=True),
+    RES_DEBUG / "drawable/ic_launcher_foreground_blue.xml": lambda: render_launcher_foreground(
+        DEBUG_BLUE_GREY, debug=True
+    ),
     RES / "drawable/ic_stat_ultrasonic.xml": render_notification_glyph,
     RES / "drawable/media3_notification_small_icon.xml": render_notification_glyph,
     BRANDING / "muma-icon-blue.svg": lambda: render_disc_svg(INDIGO),

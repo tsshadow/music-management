@@ -129,6 +129,11 @@ services:
       # in de tools-stack; music-manager leest hier niets anders dan latest.json.
       BACKUP_PATH: /backups
       BACKUP_STALE_AFTER_HOURS: ${BACKUP_STALE_AFTER_HOURS:-36}
+      # The tagger shares this process with the API. Worker threads per slice and the
+      # pause between slices are the two knobs that keep /api answering while a big
+      # retag queue drains; the code defaults (12, 0.5 s) apply when these are unset.
+      TAGGER_WORKERS: ${TAGGER_WORKERS:-}
+      TAGGER_BATCH_PAUSE: ${TAGGER_BATCH_PAUSE:-}
     volumes:
       # NOTE: these must point at the *actual* host directories used by the separate
       # "lms" stack (services/music-management-server/docker-compose.yml,

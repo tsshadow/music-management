@@ -52,7 +52,13 @@ class ScannerEndpointTest(unittest.TestCase):
         with patch.object(scanner_router.scanner_manager, 'scan_single') as scan_single:
             body = self.client.post('/api/scanner/scan/file?path=/music/a.mp3', headers=self.headers).json()
         self.assertIn('/music/a.mp3', body['message'])
+        self.assertTrue(body['scanned'])
         scan_single.assert_called_once_with('/music/a.mp3', force=False)
+
+    def test_a_single_file_scan_reports_when_the_scanner_did_not_take_it(self):
+        with patch.object(scanner_router.scanner_manager, 'scan_single', return_value=False):
+            body = self.client.post('/api/scanner/scan/file?path=/music/a.mp3', headers=self.headers).json()
+        self.assertFalse(body['scanned'])
 
     def test_a_request_without_a_key_is_unauthorized(self):
         self.assertEqual(self.client.post('/api/scanner/scan/all').status_code, 401)
@@ -98,6 +104,28 @@ class ScannerManagerTest(unittest.TestCase):
         ):
             self.assertTrue(self.manager.scan_single('/music/a.mp3'))
         process.assert_called_once()
+
+    def test_a_single_file_scan_gives_up_while_a_full_scan_holds_the_lock(self):
+        # A full scan holds the lock for hours; a single scan that waited for it kept a
+        # thread-pool thread for that long, and forty of them starved every sync endpoint.
+        self.manager.SINGLE_SCAN_LOCK_TIMEOUT = 0.05
+        self.manager._lock.acquire()
+        self.addCleanup(self.manager._lock.release)
+        with (
+            patch.object(scanner_router.os.path, 'exists', return_value=True),
+            patch.object(self.manager, '_process_file_safe') as process,
+        ):
+            self.assertFalse(self.manager.scan_single('/music/a.mp3'))
+        process.assert_not_called()
+
+    def test_a_single_file_scan_releases_the_lock_after_a_failure(self):
+        with (
+            patch.object(scanner_router.os.path, 'exists', return_value=True),
+            patch.object(self.manager, '_process_file_safe', side_effect=RuntimeError('boom')),
+        ):
+            with self.assertRaises(RuntimeError):
+                self.manager.scan_single('/music/a.mp3')
+        self.assertFalse(self.manager._lock.locked())
 
     def test_a_full_run_over_a_missing_music_folder_does_nothing(self):
         self.manager.music_path = None

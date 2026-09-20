@@ -37,6 +37,14 @@ def verify_api_key(x_api_key: str | None = Header(None)):
 
 
 class ScannerManager:
+    #: How long a single-file scan waits for a running full scan before giving up. Kept
+    #: under the 10 s the tagger's announce() gives the request: a full scan holds the
+    #: lock for hours, and every announce that waited for it kept its thread-pool thread
+    #: for that whole time. Forty of those and the sync endpoints -- /health included --
+    #: never got a thread again until the scan ended (prod, 2026-09-19). The skipped file
+    #: is not lost: its mtime changed, so the next full scan reads it anyway.
+    SINGLE_SCAN_LOCK_TIMEOUT = float(os.getenv('SCANNER_SINGLE_LOCK_TIMEOUT', '5'))
+
     def __init__(self):
         self.settings = Settings()
         self.music_path = self.settings.music_folder_path
@@ -60,7 +68,10 @@ class ScannerManager:
         # map here would stay stale for the process lifetime. One query per user-triggered
         # single scan is the cheaper mistake.
         self.genre_helper.reload()
-        with self._lock:
+        if not self._lock.acquire(timeout=self.SINGLE_SCAN_LOCK_TIMEOUT):
+            logger.info('Full scan in progress, %s waits for the next scanner round', path)
+            return False
+        try:
             logger.info('Processing single file scan request: %s', path)
             conn = get_db_connection()
             if not conn:
@@ -75,6 +86,8 @@ class ScannerManager:
                 return result
             finally:
                 conn.close()
+        finally:
+            self._lock.release()
 
     def run_full(self, force=False):
         if not self.music_path or not os.path.exists(self.music_path):
@@ -296,8 +309,8 @@ def api_scan_file(path: str = Query(...), force: bool = False, _auth: dict = Dep
     # Plain `def`, so FastAPI runs it in the thread pool: the scan reads the file and writes
     # rows, and the workers call this for every file they tag -- an `async def` here parked
     # the whole event loop for the duration of each one.
-    scanner_manager.scan_single(path, force=force)
-    return {'message': f'Scan for {path} completed'}
+    scanned = scanner_manager.scan_single(path, force=force)
+    return {'message': f'Scan for {path} completed', 'scanned': bool(scanned)}
 
 
 def run_scanner_loop(sleeptime: int = 3600):

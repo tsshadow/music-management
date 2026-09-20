@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+## Global Version 7.4.0 (2026-09-20)
+
+- **De ster, shuffle, herhaal en nieuws staan weer op het rijscherm van Android Auto.** Android
+  Auto 17.6 tekent alleen knoppen met een standaard-icoon; de app geeft die nu mee. In de auto is de
+  ster leeg, gevuld of een hart (vijf sterren); het cijfer blijft op de telefoon.
+
+- **De debug-app heeft nu een grijs icoon met een D**, zodat je op de telefoon en in de auto ziet
+  welke van de twee je opent.
+
+- **"Speel flac hardstyle af" werkt.** Ook "in hoge kwaliteit" voor 320 kbps of beter, in de
+  auto en in MuMa Voice.
 ## Global Version 7.3.2 (2026-09-19)
 
 - **Android Auto bladert nu net als de telefoon.** Vier tabs (Start, Nummers, Sets,

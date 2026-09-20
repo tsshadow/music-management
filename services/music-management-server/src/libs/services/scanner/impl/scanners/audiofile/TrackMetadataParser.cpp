@@ -27,6 +27,7 @@
 #include "core/ILogger.hpp"
 #include "core/PartialDateTime.hpp"
 #include "core/String.hpp"
+#include "core/media/Codec.hpp"
 
 #include "scanners/lyrics/LyricsParser.hpp"
 
@@ -59,6 +60,56 @@ namespace lms::scanner
                 // no delimiter found, or no delimiter to be used
                 visitTagIfNonEmpty(value);
             });
+        }
+
+        // Its own list rather than getCodecDesc().isLossless: that table leaves PCM out
+        // because a .wav is not compressed at all, and it throws on a codec it does not
+        // know, which is not a reason to drop the whole file from the scan.
+        bool isLossless(core::media::Codec codec)
+        {
+            using core::media::Codec;
+            switch (codec)
+            {
+            case Codec::ALAC:
+            case Codec::APE:
+            case Codec::DSD:
+            case Codec::FLAC:
+            case Codec::MP4ALS:
+            case Codec::PCM:
+            case Codec::Shorten:
+            case Codec::TrueAudio:
+            case Codec::WavPack:
+            case Codec::WMA9Lossless:
+                return true;
+            default:
+                return false;
+            }
+        }
+
+        // The five tiers muma's format_tier() uses to pick a canonical version, spelled the
+        // same so a filter on either side means the same files. Lossless is decided by the
+        // codec, not the extension: an ALAC .m4a is lossless. AAC-family codecs sit above a
+        // 192 mp3 at the same bitrate, which is why they get their own tier below 320.
+        std::string_view qualityTier(const audio::AudioProperties& audioProperties)
+        {
+            // Under the nominal rates, because VBR and container overhead put a real 320 or
+            // 192 file a little either side of the figure on the box.
+            constexpr unsigned bitsPerKilobit{ 1000 };
+            constexpr unsigned kbps320Floor{ 300 };
+            constexpr unsigned kbps192Floor{ 180 };
+
+            const core::media::Codec codec{ audioProperties.codec };
+            if (isLossless(codec))
+                return "lossless";
+
+            const unsigned kbps{ audioProperties.bitrate / bitsPerKilobit };
+            if (kbps >= kbps320Floor)
+                return "320";
+            if (codec == core::media::Codec::AAC || codec == core::media::Codec::Opus || codec == core::media::Codec::Vorbis)
+                return "aac";
+            if (kbps >= kbps192Floor)
+                return "192";
+            return "low";
         }
 
         template<typename T>
@@ -407,6 +458,13 @@ namespace lms::scanner
         else
         {
             track.userExtraTags["LENGTH"] = { "short" };
+        }
+
+        // No tag when the backend could not read the stream: a file of unknown quality must
+        // not match "lossless", and pretending it is "low" would be equally made up.
+        if (track.audioProperties)
+        {
+            track.userExtraTags["QUALITY"] = { std::string{ qualityTier(*track.audioProperties) } };
         }
     }
     /**

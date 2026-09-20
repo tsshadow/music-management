@@ -91,6 +91,15 @@ import timber.log.Timber
  *   trustworthy origin to Chromium, so nothing that needs a secure context is given up, and an
  *   https server keeps working -- https subresources on an http page were never the blocked
  *   direction.
+ * - The system bars are the web page's, not the theme's. With targetSdk 35 Android draws them
+ *   transparent and ignores `statusBarColor`/`navigationBarColor`; Capacitor's `SystemBars`
+ *   plugin then decides whether the WebView sits behind them. It only does so when the page's
+ *   viewport meta says `viewport-fit=cover` (and the WebView is 140+); otherwise it pads the
+ *   WebView by the insets and the bars show the WebView's own background, which on this phone
+ *   was a grey (#303030) nothing in the app had chosen. `services/frontend/index.html` carries
+ *   the meta, `backgroundColor` here is the colour of that padding on an older WebView and of
+ *   the first frame before the page paints, and `plugins.SystemBars.style` pins light bar icons
+ *   regardless of the phone's theme -- the UI is dark on every phone.
  */
 class CapacitorActivity : BridgeActivity() {
 

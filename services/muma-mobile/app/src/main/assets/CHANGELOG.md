@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.4.0] - 2026-09-20
+
+### Added
+- **"Speel flac hardstyle af" en "speel hardcore in hoge kwaliteit af" werken.** De spraakparser
+  leest flac, lossless, wav en hq als kwaliteitsondergrens, en "hoge kwaliteit" of "high
+  quality" als 320 of beter; het voorzetsel ervoor gaat mee weg zodat "in" niet in de vrije term
+  belandt. Het filter reist als `QUALITY`-cluster naar `getSongs`, dezelfde cluster die een
+  preset met `minQuality` in de auto meestuurt. De uitleg onder MuMa Voice noemt de
+  ondergrens, niet de hele lijst lagen erboven.
+
+### Changed
+- **De debug-build heeft een eigen icoon: grijs, met een D-badge rechtsonder.** Debug en
+  release stonden naast elkaar op de telefoon en in Android Auto met exact hetzelfde icoon; het
+  enige verschil was het label "MuMa Debug", en dat tekent de auto niet. Het debug-build-type
+  legt nu zijn eigen `ic_launcher_foreground` over die van main heen (grijs `#9E9E9E`, de
+  indigo-variant blauwgrijs `#78909C`, zodat de icoonkleur-instelling in debug testbaar blijft);
+  de release-bestanden zijn onaangeroerd. Beide komen uit `tools/render_branding_icons.py`; de
+  badge blijft binnen de 72dp van het launcher-masker. Het monochrome (thema-)icoon is niet
+  aangepast: een thema-icoon toont debug en release nog steeds gelijk.
+
+### Fixed
+- **De ster, shuffle, herhaal en nieuws waren uit het rijscherm van Android Auto verdwenen;
+  alleen vorige/volgende bleven over.** Niet door de Capacitor-overstap: een bugreport van de
+  telefoon laat zien dat de app alle vier de acties nog publiceert (de notificatie toont ze ook) en
+  dat Android Auto, op 12 september bijgewerkt naar 17.6, ze laat vallen. Het nieuwe mediascherm
+  tekent alleen acties waarvan de extras een `CommandButton.ICON_*`-constante noemen; onze knoppen
+  droegen alleen een eigen drawable. Elke autoknop noemt nu zo'n constante naast zijn drawable:
+  shuffle, herhaal (uit/één/alles) en nieuws hun eigen, de ster `STAR_UNFILLED` bij geen
+  beoordeling, `STAR_FILLED` bij één tot vier en `HEART_FILLED` bij vijf -- media3 kent geen
+  cijfersterren, dus in de auto zie je een tik van één naar vier niet verspringen. De notificatie
+  houdt de genummerde sterren.
 ## [7.3.2] - 2026-09-19
 
 ### Changed

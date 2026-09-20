@@ -11,6 +11,39 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.69.0 (2026-09-20)
+
+- Elke deploy zette de hele Youtube-boom (32.000 bestanden) opnieuw in de retag-wachtrij.
+  `scripts/deploy.sh` draait elke `migrate_*.sql` bij elke deploy, en stap 3 van
+  `migrate_v7_youtube_category_genres.sql` markeerde onvoorwaardelijk `%/Youtube/%` voor een
+  rescan -- zonder reden, dus in de wachtrij zichtbaar als "(walk)". Sinds het wachtrijmodel van
+  0.67.0 werkt de tagger dat direct na de start op volle snelheid af, en dat is wat op 2026-09-19
+  de API ruim een uur onbereikbaar maakte. De markering gebeurt nu alleen op de run die
+  daadwerkelijk een categorie-rij toevoegde of besliste; op elke volgende deploy raakt de migratie
+  geen bestand meer aan.
+
+- **Filteren op geluidskwaliteit.** In Bladeren staat een chip Kwaliteit: alleen lossless, of
+  alles vanaf 320 kbps. Sla hem op als preset en hij werkt ook in de auto.
+
+- Een losse bestandsscan wachtte onbeperkt op een lopende volledige scan, en dat legde de API alsnog
+  plat nadat de retag-wachtrij leeg was. `scan_single` nam dezelfde lock die `run_full` urenlang
+  vasthoudt; elke `announce()` van de tagger vroeg via `/api/scanner/scan/file` zo'n scan aan,
+  gaf het na 10 s op, maar de serverthread bleef wachten tot de volledige scan klaar was. Na
+  veertig van die aanvragen had geen enkel sync-endpoint -- `/health` incluis -- nog een thread,
+  terwijl de CPU vrijwel niets deed en de async endpoints in milliseconden antwoordden (prod,
+  2026-09-19: `/api/scanner/health` zei `busy: true`, `/health` bleef 60 s stil). Een losse scan
+  wacht nu hooguit 5 s (`SCANNER_SINGLE_LOCK_TIMEOUT`) en geeft anders op; het bestand is niet
+  kwijt, want zijn mtime is veranderd en de volgende volledige scan leest het sowieso. Het
+  antwoord van `/api/scanner/scan/file` meldt met `scanned` of de scan is uitgevoerd.
+
+- De tagger legde de API plat zodra een grote retag-wachtrij leegliep. Hij draait in hetzelfde
+  proces als music-manager en gaf 16 threads een pagina van 500 bestanden zonder adempauze; na de
+  0.67.0-deploy stonden 32.000 Youtube-bestanden in de wachtrij en gaven `/health` en
+  `/api/auth/login` ruim een uur geen antwoord, terwijl LMS in milliseconden reageerde -- inloggen
+  op de webpagina leek daardoor "stuk". De pool krijgt nu 12 threads (`TAGGER_WORKERS`) en werkt
+  per plak van twee bestanden per thread, met daarna een pauze van 0,5 s (`TAGGER_BATCH_PAUSE`)
+  waarin alleen de event loop het proces heeft. Een plak waarin niets geparsed hoefde te worden
+  kost geen pauze, dus een ongewijzigde dagwandeling wordt er niet langzamer van.
 ## Global Version 0.68.0 (2026-09-19)
 
 - **Artiesten worden goedgekeurd op extern bewijs.** Een script vraagt Deezer, iTunes en

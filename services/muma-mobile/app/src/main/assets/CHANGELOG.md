@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.3.2] - 2026-09-19
+
+### Changed
+- **Android Auto bladert nu net als de telefoon: labels, podcasts, festivals, jaren en lineups,
+  in vier tabs.** De root had negen ingangen terwijl Android Auto er maar vier als tab tekent;
+  Sets, de dagelijkse mixen, de release radar, radio, nieuws en Favorieten stonden allemaal
+  achter "Meer". Nu precies vier: Start (mixen, radar, favorieten, radio, nieuws in secties),
+  Nummers, Sets en Bibliotheek. Nummers en Sets spiegelen het Bladeren-rooster van de telefoon,
+  met dezelfde splitsing: labels en lineups alleen bij nummers, podcasts en festivals alleen bij
+  sets. Elke tag opent één en dezelfde map: Alles afspelen, Willekeurig, Recent toegevoegd,
+  Per jaar, en dan de nummers op releasedatum -- de oude genre-keten (genre, jaar, sortering,
+  pas dan muziek) is weg, net als "Recent afgespeelde genres" en de dubbele Livesets-tab. Een
+  preset rond een label of festival speelde in de auto alles van die lengte, omdat het media-id
+  alleen genre en jaar kon dragen; de auto zoekt de preset nu op id op en stuurt elk filter mee.
+  Ontwerp in `docs/designs/android-auto-browse/functional.md`.
+
+- **Een debug-installatie hoorde niets over een nieuwe release.** De update-check vroeg alleen
+  naar zijn eigen reeks op apk-hoster, en de debug-reeks beweegt alleen als iemand het handmatige
+  `mobile:build-debug` start: een telefoon bleef zo drie releases lang op 7.0.0 (316) staan
+  terwijl 7.3.0 (320) klaarstond, en toonde Release Radar en Daily Mix nog met de 401-fout die
+  7.1.0 verhielp. Een debug-build vraagt nu ook naar de release-reeks en meldt de nieuwste van de
+  twee — met de download, en als "deze debug-build is ouder dan release x" in plaats van als
+  update, want de release-APK installeert náást de debug-app. Een release-build vraagt nog steeds
+  alleen naar de release-reeks.
+
+### Fixed
+- **Een nummer aantikken in de auto speelde alleen dat nummer en stopte dan.** Elk
+  nummer-niveau media-id (genre-map, playlist, album, favorieten, zoekresultaat, feed) gaf
+  Media3 een wachtrij van één; de telefoon speelt de lijst vanaf dat nummer. `onSetMediaItems`
+  lost een tik nu op naar de gebladerde lijst plus startindex (`queueForTap`); een lijst die
+  het nummer niet meer bevat valt terug op het oude pad, dus speelt nog steeds het ene nummer.
 ## [7.3.1] - 2026-09-19
 
 ### Changed

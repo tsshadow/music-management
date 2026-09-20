@@ -83,8 +83,14 @@
        (an album, an artist) that have no tab of their own keep it hidden. Gated by
        `$isMobile` rather than the wider `md:hidden` alone -- see the same choice on
        `HomeShelf.svelte` -- with `md:hidden` kept alongside it as the CSS backstop the
-       app's other phone/desktop forks (the queue panel below) also carry. -->
-  <div class="md:hidden flex items-center gap-2 h-12 px-3 -mx-3 sticky top-0 z-30 mb-3 bg-[#121212]/90 backdrop-blur-md">
+       app's other phone/desktop forks (the queue panel below) also carry.
+
+       This bar is also what covers the status bar: the app runs edge-to-edge in the WebView
+       (`viewport-fit=cover` in index.html), so the top inset is padding here rather than a
+       system strip the OS paints -- the bar is sticky, and its translucent ground is what
+       scrolled content shows through under the clock, the way Spotify's does. `-mt-3` cancels
+       the column's own top padding so nothing sits above the bar on first paint. -->
+  <div class="md:hidden flex items-center gap-2 h-[calc(3rem+env(safe-area-inset-top,0px))] pt-[env(safe-area-inset-top,0px)] px-3 -mx-3 -mt-3 sticky top-0 z-30 mb-3 bg-[#121212]/90 backdrop-blur-md">
     {#if hasDrawer}
       <button
         class="flex items-center justify-center w-9 h-9 shrink-0 rounded-full bg-transparent border-none text-white hover:bg-[#282828] transition-colors cursor-pointer"

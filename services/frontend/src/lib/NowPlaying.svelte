@@ -14,6 +14,7 @@
   import { viewLabel, startQueue } from './queue.js';
   import { playTrack } from './playTrack.js';
   import { listOf, subsonicJson } from './subsonic.js';
+  import { primaryArtistOf } from './utils.js';
   import { loadVersions } from './versions.js';
 
   /**
@@ -235,11 +236,7 @@
   // multi-artist track ("A, B"), but the fetch above is keyed on `artistId`, which names one
   // of them -- the same "first artist" `Player.svelte`'s own `primaryArtist` picks, so the
   // heading names the artist the list is actually about rather than everyone on the credit.
-  const artistName = $derived.by(() => {
-    if (!track) return '';
-    if (track.artists?.[0]?.name) return track.artists[0].name;
-    return track.artist ? track.artist.split(', ')[0] : '';
-  });
+  const artistName = $derived(primaryArtistOf(track)?.name ?? '');
 
   /**
    * Starts a fresh queue of the artist's tracks and plays the one tapped -- unlike a "next up"
@@ -378,7 +375,7 @@
     style={backgroundStyle}
     in:fly={{ y: 600, duration: 250 }}
   >
-    <header class="flex items-center justify-between px-2 pt-[max(1rem,env(safe-area-inset-top))] pb-2 shrink-0">
+    <header class="flex items-center justify-between px-2 pt-[max(1rem,calc(0.5rem+env(safe-area-inset-top,0px)))] pb-2 shrink-0">
       <button
         class="bg-transparent border-none p-2 cursor-pointer text-white"
         onclick={onclose}
@@ -420,7 +417,7 @@
       </button>
     </header>
 
-    <div class="flex-1 flex flex-col px-6 pb-6 min-h-0 overflow-y-auto" bind:this={scrollContainerEl}>
+    <div class="flex-1 flex flex-col px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] min-h-0 overflow-y-auto" bind:this={scrollContainerEl}>
       <!-- `role="presentation"`: the swipe-to-close gesture is a bonus on top
            of the chevron button above, which is the one thing assistive tech
            and keyboard users need -- this element carries no interactive

@@ -108,7 +108,7 @@
   aria-labelledby="setup-title"
   data-testid="setup-wizard"
 >
-  <div class="w-full max-w-2xl mx-auto flex flex-col flex-1 p-6 sm:p-10 gap-8">
+  <div class="w-full max-w-2xl mx-auto flex flex-col flex-1 p-6 sm:p-10 gap-8 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pt-[calc(2.5rem+env(safe-area-inset-top,0px))] sm:pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))]">
     <header class="flex items-center justify-between gap-4">
       <div class="flex items-center gap-3">
         <img src="/images/logo.svg" alt="" class="w-10 h-10" onerror={(e) => (e.currentTarget.style.display = 'none')} />

@@ -2,7 +2,7 @@
   import { t } from './i18n/index.js';
   import { authParams, isMobile } from './store.js';
   import { offline } from './subsonic.js';
-  import { coverArtSrc, FALLBACK, localCoverArt } from './coverArt.js';
+  import { artistImageFallback, coverArtSrc, FALLBACK, localCoverArt } from './coverArt.js';
   import { playTrack } from './playTrack.js';
   import ArtistList from './ArtistList.svelte';
   import Artwork from './Artwork.svelte';
@@ -19,6 +19,10 @@
     const src = coverArtSrc(track.coverArt, 300, $authParams, $localCoverArt, $offline);
     return src === FALLBACK ? null : src;
   });
+  // Same chain as the player: cover, then the first artist's portrait, then the tinted panel.
+  // A shelf of mostly-uncovered tracks used to skip the portrait on purpose (a card is a track,
+  // not an artist); a row of title-only tiles read worse than a face next to a title.
+  const artistUrl = $derived(artistImageFallback(track, $authParams));
 </script>
 
 <div
@@ -29,9 +33,7 @@
   onkeydown={(e) => e.key === 'Enter' && playTrack(track)}
 >
   <div class="relative aspect-square shadow-[0_8px_24px_rgba(0,0,0,0.5)] rounded overflow-hidden">
-    <!-- No artist image here: a card is a track, not an artist, and the panel fallback (title on
-         a tinted background) already reads better than a stranger's face would. -->
-    <Artwork class="w-full h-full" {coverUrl} artistUrl={null} title={track.title || track.name} alt={track.title} />
+    <Artwork class="w-full h-full" {coverUrl} {artistUrl} title={track.title || track.name} alt={track.title} />
     <button
       aria-label={$t('common.play')}
       class="absolute right-2 bottom-2 w-12 h-12 bg-brand border-none rounded-full flex items-center justify-center shadow-[0_8px_16px_rgba(0,0,0,0.3)] opacity-0 translate-y-2 transition-all group-hover:opacity-100 group-hover:translate-y-0"

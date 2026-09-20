@@ -5,6 +5,7 @@ import { mumaApiUrl } from "../../src/lib/store.js";
 import {
   formatArtistList,
   getArtistImageUrl,
+  primaryArtistOf,
   splitArtists,
   viewArgument,
 } from "../../src/lib/utils.js";
@@ -78,6 +79,40 @@ describe("getArtistImageUrl", () => {
   it("falls back to the placeholder when nothing identifies the artist", () => {
     expect(getArtistImageUrl({}, "u=user")).toBe("/images/unknown-artist.svg");
     expect(getArtistImageUrl(null, "u=user")).toBe("/images/unknown-artist.svg");
+  });
+});
+
+describe("primaryArtistOf", () => {
+  it("takes the first entry of the artists array, id and all", () => {
+    const track = {
+      artist: "Angerfist, Outsiders",
+      artistId: "joined-id",
+      artists: [
+        { id: "a-1", name: "Angerfist" },
+        { id: "a-2", name: "Outsiders" },
+      ],
+    };
+    expect(primaryArtistOf(track)).toEqual({ id: "a-1", name: "Angerfist" });
+  });
+
+  it("splits the joined string when no array is given, with the track's artistId", () => {
+    expect(primaryArtistOf({ artist: "Angerfist, Outsiders", artistId: "a-1" })).toEqual({
+      name: "Angerfist",
+      id: "a-1",
+    });
+  });
+
+  it("ignores an empty artists array", () => {
+    expect(primaryArtistOf({ artist: "Angerfist", artistId: "a-1", artists: [] })).toEqual({
+      name: "Angerfist",
+      id: "a-1",
+    });
+  });
+
+  it("has nothing for a track without any artist", () => {
+    expect(primaryArtistOf({ artist: "", artistId: null })).toBeNull();
+    expect(primaryArtistOf(null)).toBeNull();
+    expect(primaryArtistOf(undefined)).toBeNull();
   });
 });
 

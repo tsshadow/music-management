@@ -2,6 +2,7 @@ import { get, writable } from "svelte/store";
 import { restUrl } from "./store.js";
 import { offline } from "./subsonic.js";
 import { platform as defaultPlatform } from "./platform/index.js";
+import { getArtistImageUrl, primaryArtistOf } from "./utils.js";
 
 /**
  * Where an `<img src>` for album art points.
@@ -95,6 +96,43 @@ export async function resolveCoverArt(ids, platform = defaultPlatform) {
       }
     }),
   );
+}
+
+/**
+ * Artist image URLs that answered with an error this session.
+ *
+ * MuMa says "no portrait for this artist" with a 404, and a browser does not
+ * cache a 404 -- so without this every row of the same artist asks again on
+ * every render, and each miss makes the server queue another lookup at
+ * Spotify. `Artwork.svelte` records a failed URL here and
+ * [artistImageFallback] answers `null` for it from then on, so the row starts
+ * at the panel instead of flashing through a request it already knows the
+ * outcome of.
+ *
+ * @type {Set<string>}
+ */
+export const missingArtistImages = new Set();
+
+/**
+ * The picture a track without a cover falls back to: its first artist's
+ * portrait, or `null` when there is no artist to ask for or MuMa already said
+ * it has none.
+ *
+ * `getArtistImageUrl` answers "nothing to build a URL from" with the
+ * unknown-artist placeholder rather than `null`; that is recognised here so
+ * `Artwork` does not treat a placeholder path as a real portrait and skip its
+ * own panel.
+ *
+ * @param {object|null|undefined} track - A Subsonic track.
+ * @param {string} auth - `$authParams`.
+ * @returns {string|null}
+ */
+export function artistImageFallback(track, auth) {
+  const artist = primaryArtistOf(track);
+  if (!artist) return null;
+  const url = getArtistImageUrl(artist, auth);
+  if (url === "/images/unknown-artist.svg" || missingArtistImages.has(url)) return null;
+  return url;
 }
 
 /** Forgets every resolved cover, which is what a removed download invalidates. */

@@ -30,10 +30,10 @@
   } from './setResume.js';
   import ArtistList from './ArtistList.svelte';
   import Artwork from './Artwork.svelte';
-  import { getArtistImageUrl, subsonicError } from './utils.js';
+  import { getArtistImageUrl, primaryArtistOf, subsonicError } from './utils.js';
   import { getHeaders } from './mumaApi.js';
   import { notify } from './notifications.js';
-  import { coverArtSrc, FALLBACK, localCoverArt, resolveCoverArt } from './coverArt.js';
+  import { artistImageFallback, coverArtSrc, FALLBACK, localCoverArt, resolveCoverArt } from './coverArt.js';
   import { offline } from './subsonic.js';
   import { fetchGenreTints, trackTint } from './genreTints.js';
 
@@ -1184,14 +1184,7 @@
     ownRating && ownRating.trackId === track?.id ? ownRating.rating : (track?.userRating || 0)
   );
 
-  const primaryArtist = $derived.by(() => {
-    if (track?.artists && track.artists.length > 0) return track.artists[0];
-    if (track?.artist) {
-      const firstName = track.artist.split(', ')[0];
-      return firstName ? { name: firstName, id: track.artistId } : null;
-    }
-    return null;
-  });
+  const primaryArtist = $derived(primaryArtistOf(track));
   const playing = $derived($playerState.playing);
   const progress = $derived(track ? $playerState.progress : 0);
   // Radio and a news bulletin are not the selected track, so they get no
@@ -1257,15 +1250,9 @@
     const src = coverArtSrc(track?.coverArt, 512, $authParams, $localCoverArt, $offline);
     return src === FALLBACK ? null : src;
   });
-  // `getArtistImageUrl` answers "no image" with `/images/unknown-artist.svg`
-  // rather than throwing or returning null, so that has to be recognised here
-  // too -- otherwise `Artwork` would treat a placeholder path as a real image
-  // and never fall through to the tinted panel.
-  const artistUrl = $derived.by(() => {
-    if (!primaryArtist) return null;
-    const url = getArtistImageUrl(primaryArtist, $authParams);
-    return url === '/images/unknown-artist.svg' ? null : url;
-  });
+  // The same cover -> portrait -> panel chain every track row uses, including its memory of
+  // portraits MuMa has already said it does not have.
+  const artistUrl = $derived(artistImageFallback(track, $authParams));
   const tint = $derived(trackTint(track, genreTints));
   // Offline, the art lives on disk and `coverArtSrc` only knows that once the
   // shell has been asked; a no-op online, so the player pays nothing there.

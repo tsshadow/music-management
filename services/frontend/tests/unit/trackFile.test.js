@@ -61,7 +61,7 @@ describe("formatSummary", () => {
 
 describe("tagRows", () => {
   const details = {
-    channels: [{ platform: "soundcloud", name: "Complex" }],
+    channels: [{ platform: "soundcloud", name: "Complex", label: null, artist: "Complex" }],
     source_url: "https://soundcloud.com/complex/x",
     source: "LABEL",
     bpm: 103.4,
@@ -93,6 +93,7 @@ describe("tagRows", () => {
       "podcast_episode",
     ]);
     expect(rows[0].value).toBe("Complex (Soundcloud)");
+    expect(rows[0].view).toBe("search:Complex");
     expect(rows[1].href).toBe("https://soundcloud.com/complex/x");
     expect(rows[2].value).toBe("Label");
     expect(rows[3].value).toBe("103");
@@ -101,6 +102,20 @@ describe("tagRows", () => {
       value: "NLF712600001",
       raw: true,
     });
+  });
+
+  it("sends a channel curated as a label to that label, and an uncurated one nowhere", () => {
+    const rows = tagRows(
+      {
+        channels: [
+          { platform: "youtube", name: "Q-dance", label: "Q-dance Records", artist: null },
+          { platform: "youtube", name: "Random Uploads", label: null, artist: null },
+        ],
+      },
+      {},
+    );
+    expect(rows[0].view).toBe("label:Q-dance Records");
+    expect(rows[1].view).toBeUndefined();
   });
 
   it("does not repeat tags the sheet already renders as chips or rows", () => {

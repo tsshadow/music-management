@@ -619,7 +619,9 @@ class LibraryReadsTest:
                 (path, hashlib.sha256(path.encode()).hexdigest(), track_id),
             )
             cursor.execute(
-                "INSERT INTO channels (platform, name, normalized_name) VALUES ('soundcloud', 'Complex', 'complex')"
+                "INSERT INTO channels (platform, name, normalized_name, artist_id)"
+                " VALUES ('soundcloud', 'Complex', 'complex', %s)",
+                (artist_id,),
             )
             channel_id = cursor.lastrowid
             cursor.execute(
@@ -643,7 +645,7 @@ class LibraryReadsTest:
         assert response.status_code == 200, response.text
         body = response.json()
         assert body['track_id'] == track_id
-        assert body['channels'] == [{'platform': 'soundcloud', 'name': 'Complex'}]
+        assert body['channels'] == [{'platform': 'soundcloud', 'name': 'Complex', 'label': None, 'artist': 'Complex'}]
         assert body['source'] == 'LABEL'
         assert body['tags'] == {'catalognumber': ['Q404PRO'], 'isrc': ['NL1']}
         assert body['bpm'] == pytest.approx(103.4)

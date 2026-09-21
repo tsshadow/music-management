@@ -178,6 +178,23 @@ describe("TrackDetailsSheet tags section", () => {
     expect(platform.system.openUrl).toHaveBeenCalledWith("https://youtu.be/abc");
   });
 
+  it("navigates from a curated channel row the way a chip does", async () => {
+    globalThis.__fetchTrackDetails.mockResolvedValue({
+      state: "ok",
+      details: {
+        channels: [{ platform: "youtube", name: "Q-dance", label: "Q-dance Records" }],
+        tags: {},
+      },
+    });
+    const onnavigate = vi.fn();
+    renderSheet({ track: track({ path: "a.mp3" }), onnavigate });
+
+    await waitFor(() => screen.getByTestId("tag-link"));
+    await fireEvent.click(screen.getByTestId("tag-link"));
+
+    expect(onnavigate).toHaveBeenCalledWith("label:Q-dance Records");
+  });
+
   it("shows no tags section when MuMa has never scanned the file", async () => {
     renderSheet({ track: track({ path: "a.mp3" }) });
     await waitFor(() => expect(screen.queryByText("Tags ophalen…")).toBeNull());

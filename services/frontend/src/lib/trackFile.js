@@ -104,8 +104,11 @@ function joined(tags, name) {
 /**
  * The named rows the sheet shows under "Tags", from MuMa's answer to
  * `/api/library/tracks/by-path` plus the LMS song object. Each row is
- * `{ key, value, href? }`, with `key` an i18n key under `track.` so the
- * component only has to translate and print.
+ * `{ key, value, href?, view? }`, with `key` an i18n key under `track.` so
+ * the component only has to translate and print. `view` is a router target
+ * for rows that are a place to go: a channel curated as a label opens that
+ * label, one curated as an artist opens a search for the name (the artist
+ * id MuMa holds is not the one LMS navigates by).
  *
  * Order is what a listener asks about first: where it came from, then the
  * release facts, then the credits. Anything the tagger wrote that has no
@@ -113,15 +116,18 @@ function joined(tags, name) {
  *
  * @param {Object|null} details - MuMa's answer, or null when there was none.
  * @param {Object} track - The Subsonic song object.
- * @returns {Array<{key: string, value: string, href?: string, raw?: boolean}>}
+ * @returns {Array<{key: string, value: string, href?: string, view?: string, raw?: boolean}>}
  */
 export function tagRows(details, track) {
   const rows = [];
   const tags = details?.tags ?? {};
 
   for (const channel of details?.channels ?? []) {
-    if (channel?.name)
-      rows.push({ key: "channel", value: platformLabel(channel.platform, channel.name) });
+    if (!channel?.name) continue;
+    const row = { key: "channel", value: platformLabel(channel.platform, channel.name) };
+    if (channel.label) row.view = `label:${channel.label}`;
+    else if (channel.artist) row.view = `search:${channel.artist}`;
+    rows.push(row);
   }
   if (details?.source_url) {
     rows.push({ key: "sourceUrl", value: details.source_url, href: details.source_url });

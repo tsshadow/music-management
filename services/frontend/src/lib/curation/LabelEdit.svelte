@@ -1,6 +1,7 @@
 <script>
   /**
-   * Editing one label: identity, the parent label, catalogue prefixes and genre rules.
+   * Editing one label: identity, the parent label, catalogue prefixes, catalogue
+   * coverage and genre rules.
    *
    * The parent label is stored and shown but nothing in the tagger reads it yet. That
    * is on purpose: the relations have to be enterable before a rule that lets a
@@ -11,6 +12,7 @@
   import ChipEditor from './ChipEditor.svelte';
   import CurationShell from './CurationShell.svelte';
   import GenreRuleEditor from './GenreRuleEditor.svelte';
+  import LabelCatalog from './LabelCatalog.svelte';
   import { isMbid, mbidUrl } from './curation.js';
   import {
     addLabelCatid,
@@ -146,6 +148,10 @@
       onadd={(catid) => act(() => addLabelCatid(name, catid), 'Prefix toegevoegd.')}
       onremove={(catid) => act(() => removeLabelCatid(name, catid), 'Prefix verwijderd.')}
     />
+
+    {#if label.in_library}
+      <LabelCatalog name={label.name} />
+    {/if}
 
     <GenreRuleEditor
       rules={label.genre_rules}

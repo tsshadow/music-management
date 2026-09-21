@@ -106,6 +106,7 @@ module = [
     "services.music_manager.artist_image_fetcher.normalizer",
     "services.music_manager.artist_image_fetcher.storage",
     "services.music_manager.artist_image_fetcher.providers.base",
+    "services.music_manager.catalog_series",
     "services.tagger.constants",
     "services.tagger.Song.rules.TagResult",
     "services.tagger.Song.rules.TagRule",

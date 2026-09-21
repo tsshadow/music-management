@@ -47,6 +47,7 @@ STRICT_MODULES=(
     services/music_manager/artist_image_fetcher/normalizer.py
     services/music_manager/artist_image_fetcher/storage.py
     services/music_manager/artist_image_fetcher/providers/base.py
+    services/music_manager/catalog_series.py
     services/tagger/constants.py
     services/tagger/Song/rules/TagResult.py
     services/tagger/Song/rules/TagRule.py

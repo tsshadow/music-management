@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.71.1] - 2026-09-21
+
+### Changed
+- **De speler laat album, releasedatum en de radioknop altijd zien, en zegt waar je écht uit
+  afspeelt.** Onder de artiest staat nu een vaste regel met het album (tikbaar) en de
+  releasedatum; die datum stond sinds de polish-ronde alleen nog in de nummerdetails. De
+  radioknop van de desktopbalk zit nu ook in de iconenrij van het telefoonscherm, met de
+  kanaalkeuze als bottom sheet. En "Afspelen vanuit" las "Nummers" voor elke wachtrij uit de
+  nummerlijst, wat niets zei over de lijst waaruit je koos: het is nu "Nummers · Recent
+  uitgebracht" (of welke sortering er ook aanstond). Een genre-, label- of jaarpagina hield al
+  zijn eigen naam.
+
+### Fixed
+- **De Volledigheid-tab gaf "No module named 'yt_dlp'" zodra hij live stond.** De opgeslagen
+  telling werd gelezen via een dataclass in `deep_sweep.py`, en die module importeert yt-dlp
+  bovenaan; de manager-container heeft yt-dlp niet en gaf dus geen enkele rij terug. De
+  dataclass staat nu in `account_snapshot.py` zonder die import. Een test leest een rij in een
+  subprocess waarin `yt_dlp` onimporteerbaar is, zodat dit niet stil terug kan komen.
+
 ## [0.71.0] - 2026-09-21
 
 ### Added

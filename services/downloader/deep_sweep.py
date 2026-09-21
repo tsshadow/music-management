@@ -22,6 +22,12 @@ from datetime import datetime
 
 from yt_dlp import YoutubeDL
 
+from services.downloader.account_snapshot import (  # noqa: F401 - re-exported for the passes and their tests
+    SNAPSHOT_CAPPED,
+    SNAPSHOT_COMPLETE,
+    SNAPSHOT_PARKED,
+    AccountSnapshot,
+)
 from services.downloader.write_offs import WriteOff, still_written_off
 
 # Read the listing, resolve none of it. A flat entry carries an id, a title and a
@@ -91,36 +97,6 @@ class DeepSweepReport:
             f'{self.written_off} written off, {self.wanted} wanted, '
             f'{self.downloaded} fetched'
         )
-
-
-SNAPSHOT_COMPLETE = 'complete'
-SNAPSHOT_CAPPED = 'capped'
-SNAPSHOT_PARKED = 'parked'
-
-
-@dataclass(frozen=True)
-class AccountSnapshot:
-    """How complete an account is, as of the end of one deep pass.
-
-    A partition of the listing, not the report's running totals: every listed id
-    is in exactly one of held, excluded and remaining, so the three add up to
-    listed and a percentage read off them means something. The report's `held`
-    is the archive before the pass and its `written_off` counts expired
-    decisions too; neither survives being stored and read back a month later.
-    """
-
-    listed: int
-    held: int
-    excluded: int
-    remaining: int
-    state: str
-    taken_at: datetime
-
-    @property
-    def coverage(self) -> float | None:
-        if self.listed <= 0:
-            return None
-        return self.held / self.listed
 
 
 def snapshot_state(report: DeepSweepReport, interrupted: bool = False) -> str:

@@ -266,7 +266,7 @@ class CoverageEndpointTest(DownloaderApiTestBase):
     class Checks:
         def load(self, source):
             from services.downloader.account_schedule import AccountCheck
-            from services.downloader.deep_sweep import AccountSnapshot
+            from services.downloader.account_snapshot import AccountSnapshot
 
             snapshot = AccountSnapshot(100, 60, 10, 30, 'capped', NOW)
             return {'dj_a': AccountCheck(NOW, snapshot=snapshot), '@dj_a#video': AccountCheck(NOW, snapshot=snapshot)}

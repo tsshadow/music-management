@@ -92,7 +92,7 @@ Response:
 
 ## Cross-App Impact
 
-- `services/downloader`: `deep_sweep.py` gains `AccountSnapshot` and `take_snapshot(...)`;
+- `services/downloader`: `account_snapshot.py` holds `AccountSnapshot` (no yt-dlp import: the manager container has none and reads these rows); `deep_sweep.py` gains `take_snapshot(...)`;
   `soundcloud.py` and `youtube.py` call it from `_settle_deep` and hand the result to
   `SweepPolicy.record_snapshot` → `AccountSchedule.record_snapshot` → store `mark_snapshot`.
   `AccountCheck` carries the snapshot; `DatabaseCheckStore.load` reads the new columns.

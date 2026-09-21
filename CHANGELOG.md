@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.70.0] - 2026-09-21
+
+### Added
+- **Per kanaal is nu te zien hoe compleet het is.** De diepe ronde van de downloader telde al
+  per account hoeveel tracks het platform vermeldt, hoeveel het archief heeft en hoeveel er nog
+  open staan, maar schreef dat alleen naar het log. Die telling wordt nu als momentopname
+  bewaard in `downloads_account_checks` (`snapshot_*`, per SoundCloud-account en per
+  YouTube-kanaal-en-type) en getoond onder Beheer → Downloaders → Volledigheid: tegels met
+  geteld/compleet/achterstand, de afschrijvingen per reden, en per kanaal een balk
+  gearchiveerd/uitgesloten/open met laatste download en leeftijd van de telling. De telling is
+  een partitie -- gearchiveerd + uitgesloten + open = vermeld -- en niet de lopende getallen uit
+  het rapport, die verlopen afschrijvingen meetellen en niet optellen. Er staat bewust geen
+  einddatum bij: de rondes lopen per kanaal op eigen tempo en een 429 remt alles tegelijk af.
+  `GET /api/downloaders/coverage/{source}`. Het YouTube-archief krijgt met `migrate_v31` een
+  `added_at`; bestaande rijen blijven NULL ("onbekend") in plaats van allemaal op de deploydag
+  te landen.
+
+- **Hoe compleet de catalogus van een label is, staat nu op de labelpagina.** Dirty Workz nummert
+  zijn releases `DWX0001` tot `DWX2212`; wie 001–303 en 305–309 heeft, moest tot nu toe een
+  mapoverzicht sorteren om te zien dat 304 er niet is. Beheer > Labels > label krijgt een sectie
+  Catalogus die de nummers uit de mapnamen van de releases leest (er is nergens een kolom voor;
+  `LabelPath.split` van de tagger levert de releasemap, ook bij een geneste map) en ze per reeks
+  groepeert: `DWX`, `DWXCD`, `DWXCVR`. Per reeks het waargenomen bereik, hoeveel daarvan aanwezig
+  is, een balkje, en de niet-aanwezige nummers als reeksen (`DWX0177, DWX0287–DWX0289`), met een
+  knop die ze voluit, één per regel, naar het klembord kopieert -- dat is waar je mee zoekt. Een
+  variant (`DWX1105D`, `DWX0544-`) vult zijn positie en wordt apart genoemd; wat geen nummer heeft
+  (`DWXFREE`) staat onder Overig en telt nooit als gat. Het nummer is de laatste cijferreeks, drie
+  cijfers of meer tenzij een streepje hem van de prefix scheidt, zodat `247HC001`, `AFT3R001`,
+  `R909-29` en `DWXCD-050` goed vallen. De pagina zegt bewust "niet aanwezig" en nooit
+  "ontbreekt": vóór het laagste en na het hoogste nummer wordt niets geclaimd, en een label kan
+  nummers overslaan. Eén verkeerd getypte map die een reeks tot boven de 20.000 nummers oprekt,
+  geeft alleen nog een telling. `GET /api/curation/labels/{naam}/catalog`, op aanvraag berekend
+  uit twee queries: de labelkoppeling van de scanner én de labelmap op schijf, want die koppeling
+  loopt achter (2.706 gekoppelde bestanden tegenover 5.531 onder `EPs/Dirty Workz/`, de
+  overgeslagen rescan). Alleen de EPs-map telt: de Soundcloud-, Podcasts- en Top 100-bestanden van
+  een label (74 + 44 + 20 + 33 bij Dirty Workz) zouden anders hun kanaal- of showmap als release
+  opvoeren. Geen kolom in het labeloverzicht, geen afschrijftabel -- dat zijn latere stappen
+  (docs/designs/label-catalog-coverage).
 ## [0.69.1] - 2026-09-21
 
 ### Changed

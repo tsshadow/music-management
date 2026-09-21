@@ -28,6 +28,7 @@ const DWX = {
 const CATALOG = {
   name: "Dirty Workz",
   files_considered: 5531,
+  files_outside_root: 0,
   series: [DWX],
   other: [{ catid: "DWXFREE", release_folder: "DWXFREE Free Download" }],
 };
@@ -149,6 +150,19 @@ describe("the Catalogus section", () => {
       expect(screen.getByText("Alles binnen het waargenomen bereik is aanwezig.")).toBeTruthy(),
     );
     expect(screen.queryByText("Kopieer als zoektermen")).toBeNull();
+  });
+
+  it("says how many of the label's files sit outside the EPs folder and were not counted", async () => {
+    globalThis.fetch = fetchAnswering(ok({ ...CATALOG, files_outside_root: 171 }));
+    render(LabelCatalog, { name: "Dirty Workz" });
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          "171 bestanden van dit label staan buiten de EPs-map en zijn niet meegeteld.",
+        ),
+      ).toBeTruthy(),
+    );
   });
 
   it("shows an empty state when no folder carries a readable number", async () => {

@@ -11,6 +11,7 @@ endpoint without adding it here is the only way to reintroduce that gap.
 """
 
 from datetime import date, timedelta
+from unittest.mock import patch
 
 import pytest
 
@@ -195,25 +196,35 @@ class CurationEditPagesTest:
     def test_a_label_catalogue_is_read_off_the_files_that_carry_it(self, api, headers, db):
         # The join in GET /labels/{name}/catalog is the only SQL the unit suite never
         # ran for real: label -> track labels -> media files.
+        # Number 5 has no label link -- the scanner has not linked half the EPs tree
+        # -- so it must come in through the path query.
         with db.cursor() as cursor:
             cursor.execute("INSERT INTO library_labels (name) VALUES ('Dirty Workz')")
             label_id = cursor.lastrowid
-            for number in (1, 2, 4):
+            for number, linked in ((1, True), (2, True), (4, True), (5, False)):
                 cursor.execute("INSERT INTO library_tracks (title) VALUES (%s)", (f'Track {number}',))
                 track_id = cursor.lastrowid
-                cursor.execute(
-                    'INSERT INTO library_track_labels (track_id, label_id) VALUES (%s, %s)', (track_id, label_id)
-                )
+                if linked:
+                    cursor.execute(
+                        'INSERT INTO library_track_labels (track_id, label_id) VALUES (%s, %s)', (track_id, label_id)
+                    )
                 cursor.execute(
                     'INSERT INTO library_media_files (file_path, file_path_hash, track_id) VALUES (%s, %s, %s)',
                     (f'/mnt/music/EPs/Dirty Workz/DWX{number:04d} Release/01.mp3', f'dwx-{number}', track_id),
                 )
 
-        page = api.get('/api/curation/labels/Dirty Workz/catalog', headers=headers)
+        # Imported here, not at module level: the router module builds the tagger on
+        # import, which wants a database before the fixtures have provided one.
+        from services.music_manager.routers import curation as curation_router
+
+        with patch.object(curation_router, 'Settings') as settings:
+            settings.return_value.eps_folder_path = '/mnt/music/EPs'
+            settings.return_value.delimiter = '/'
+            page = api.get('/api/curation/labels/Dirty Workz/catalog', headers=headers)
         assert page.status_code == 200, page.text
         body = page.json()
-        assert body['files_considered'] == 3
-        assert [(s['prefix'], s['min'], s['max'], s['absent']) for s in body['series']] == [('DWX', 1, 4, [3])]
+        assert body['files_considered'] == 4
+        assert [(s['prefix'], s['min'], s['max'], s['absent']) for s in body['series']] == [('DWX', 1, 5, [3])]
 
     def test_a_label_cannot_be_its_own_parent(self, api, headers, db):
         with db.cursor() as cursor:

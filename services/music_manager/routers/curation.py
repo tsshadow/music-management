@@ -448,17 +448,34 @@ def _require_label(cursor, name: str) -> dict:
     return label
 
 
+def _like_prefix(prefix: str) -> str:
+    """`prefix` as a LIKE pattern matching everything under it, with its wildcards escaped.
+
+    A label name may carry `_` (`__Free&None`) or, in principle, `%`; unescaped they
+    would widen the match to other labels' folders.
+    """
+    escaped = prefix.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+    return escaped + '%'
+
+
 @router.get('/labels/{name}/catalog')
 def get_label_catalog(name: str, _auth: dict = READ):
     """How complete the label's catalogue is, read off the release folders it has on disk.
 
-    Computed on demand from the paths of every file carrying the label: one query,
-    then `catalog_series` does the rest in Python. There is no catalogue-number column
-    to index, and the number of files behind one label is a few thousand at most, so
-    a cache would only add a way for the page to lag the disk. See
-    docs/designs/label-catalog-coverage/.
+    Two queries feed one answer. The label link (`library_track_labels`) is what the
+    scanner wrote, and it lags the disk: half the EPs tree has no link yet after a
+    skipped rescan, and the page's whole point is what is *on disk*. So every file
+    under `<eps root>/<label>/` is read by path as well, and the two sets are merged
+    by path. The join still matters for the files whose folder is named differently
+    from the label; the path query is what makes the count honest.
+
+    Computed on demand: there is no catalogue-number column to index, and one label
+    is a few thousand files at most, so a cache would only add a way for the page to
+    lag the disk. See docs/designs/label-catalog-coverage/.
     """
     settings = Settings()
+    eps_root = str(settings.eps_folder_path or '')
+    delimiter = str(settings.delimiter or '/')
     conn = _connect()
     try:
         with conn.cursor() as cursor:
@@ -472,10 +489,17 @@ def get_label_catalog(name: str, _auth: dict = READ):
                 ''',
                 (label['id'],),
             )
-            paths = [row['file_path'] for row in cursor.fetchall()]
+            paths = {row['file_path'] for row in cursor.fetchall()}
+            if eps_root:
+                folder = eps_root.rstrip(delimiter) + delimiter + label['name'] + delimiter
+                cursor.execute(
+                    'SELECT mf.file_path FROM library_media_files mf WHERE mf.file_path LIKE %s',
+                    (_like_prefix(folder),),
+                )
+                paths.update(row['file_path'] for row in cursor.fetchall())
     finally:
         conn.close()
-    catalog = catalog_series.build_catalog(paths, settings.eps_folder_path, settings.delimiter)
+    catalog = catalog_series.build_catalog(sorted(paths), eps_root, delimiter)
     return {'name': label['name'], **catalog}
 
 

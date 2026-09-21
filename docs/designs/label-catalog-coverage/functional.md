@@ -38,6 +38,8 @@ label released these and you do not have them" — a label may skip numbers, and
 | A release carries a suffix (`DWX1105D`, `DWX0544-`) | Position 1105 / 0544 counts as present; the catalogue number is listed under **Varianten** in the series block with the release folder as tooltip. |
 | A catalogue number cannot be read as prefix + number (`DWXFREE`) | It is listed under **Overig** with its release folder as tooltip and is never counted as a gap. |
 | A single mistyped folder makes a series span an absurd range (`DWX0001` … `DWX2000000`) | The header still shows range and count; the absent list is replaced by "te veel om op te sommen" and the copy button is not offered for that series. |
+| The label also has files under `Soundcloud/`, `Podcasts/` or `Top 100/` | Those are not part of the catalogue and do not appear; alleen de EPs-map telt. A channel or show folder never becomes a series or an "overig" entry. |
+| Some of the label's release folders have not been picked up by the scanner's label link yet | They still count: the section reads the label's folder on disk, not only what the library has linked to the label. |
 | The label has releases but none with a readable number | The section says so ("Geen leesbare catalogusnummers in de mappen van dit label.") instead of showing empty blocks. |
 | The label is not in the library yet (rules entered ahead of the first file) | The section is not shown. |
 | Loading the catalogue fails | The section shows its own error line; the rest of the page is unaffected. |
@@ -65,6 +67,9 @@ number the library holds.
    shows no Catalogus section.
 9. A failure to load the catalogue is reported inside the section and leaves the rest of the page
    working.
+10. Only the EPs folder counts: a label's SoundCloud sets, podcasts and Top 100 entries never show
+    up in the section, and a release folder that the library has not linked to the label yet is
+    still counted.
 
 ## Open Questions / Not Yet Decided
 

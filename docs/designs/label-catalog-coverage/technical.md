@@ -74,20 +74,41 @@ Series are sorted by `present` descending, then prefix.
 
 | Endpoint | Request | Response | Error cases |
 |---|---|---|---|
-| `GET /api/curation/labels/{name}/catalog` | Path: label name (URL-encoded). Auth: `music.read`, same as `GET /labels/{name}`. | `{ name, files_considered, series: [Series…], other: [{catid, release_folder}] }` — `files_considered` is the number of media-file rows read; `other` is sorted by catid. | `401`/`403` per the shared auth dependency; `404 Unknown label` when the name is not in `library_labels`. |
+| `GET /api/curation/labels/{name}/catalog` | Path: label name (URL-encoded). Auth: `music.read`, same as `GET /labels/{name}`. | `{ name, files_considered, files_outside_root, series: [Series…], other: [{catid, release_folder}] }` — `files_considered` is the number of distinct files read, `files_outside_root` how many of those were skipped for not being under the EPs root; `other` is sorted by catid. | `401`/`403` per the shared auth dependency; `404 Unknown label` when the name is not in `library_labels`. |
 
-Computed on demand, one query:
+Computed on demand from two queries, merged by path:
 
 ```sql
+-- 1. what the scanner linked to the label
 SELECT mf.file_path
 FROM library_track_labels tl
 JOIN library_media_files mf ON mf.track_id = tl.track_id
-WHERE tl.label_id = %s
+WHERE tl.label_id = %s;
+
+-- 2. what sits in the label's folder on disk
+SELECT mf.file_path FROM library_media_files mf WHERE mf.file_path LIKE %s;   -- '<eps_root>/<label name>/%'
 ```
 
-followed by pure Python (`catalog_series.build_catalog(paths, eps_root, delimiter)`). A label with
-no files answers `200` with an empty `series` and `other` — that is the page's empty state, not an
-error. No breaking change: the existing label endpoints are untouched.
+**Why both.** The label link is what the scanner wrote, and it lags the disk: on production
+`library_track_labels` links 2 706 files to Dirty Workz while 5 531 files sit under
+`/mnt/music/EPs/Dirty Workz/` — roughly half the EPs tree has no link yet after a skipped rescan
+(see `eps_label_gap_is_a_skipped_rescan`). The page's whole point is what is *on disk*, so the
+folder is read by path as well. The join is kept for files whose folder is named differently from
+the label (a sublabel folder, a moved release). The LIKE prefix is the label's stored name with `%`,
+`_` and `\` escaped (`_like_prefix`), so `__Free&None` does not also match `xxFree&None`; the path
+query is skipped when no `eps_folder_path` is configured. The union is deduplicated by path before
+`catalog_series.build_catalog(paths, eps_root, delimiter)` runs.
+
+**Only the EPs tree is read.** The join also brings in the label's files under `Soundcloud/`,
+`Podcasts/`, `Top 100/` and `Top-100/` (74 + 44 + 20 + 33 for Dirty Workz). There the folder above
+the file is a channel or a show, and `LabelPath.split`'s fallback would hand it over as a "release
+folder": a channel named after the label lands in `other`, a show named `Set 2019` becomes a bogus
+series. So when `eps_root` is set, `build_catalog` skips every path not under it and reports how
+many in `files_outside_root`; the two-folders-above-the-file fallback survives only for the case
+that no root is configured at all.
+
+A label with no files answers `200` with an empty `series` and `other` — that is the page's empty
+state, not an error. No breaking change: the existing label endpoints are untouched.
 
 ## Cross-App Impact
 
@@ -112,11 +133,15 @@ error. No breaking change: the existing label endpoints are untouched.
 6. A series spanning more than 20 000 numbers returns `absent_truncated: true`, empty `absent` and
    `absent_runs`, and the correct `absent_count`.
 7. `other` entries never affect any series' `min`/`max`.
-8. `files_considered` counts every row read, including rows whose release folder is empty.
+8. `files_considered` counts every distinct file read, including files whose release folder is
+   empty; a file outside the EPs root is skipped, counted in `files_outside_root`, and never lands
+   in a series or in `other`. With an empty `eps_root` the two folders above the file are used.
 9. Series order: most `present` first.
 10. `GET /api/curation/labels/{name}/catalog` returns 404 for an unknown label, 200 with the
     computed body for a known one, and is listed in `tests/integration/test_router_sql.py` so its SQL
-    runs against a real schema in CI.
+    runs against a real schema in CI. A file under `<eps_root>/<label>/` with no row in
+    `library_track_labels` is counted (router unit test and integration test); a file in both
+    queries is counted once; the LIKE parameter is the escaped label folder plus `%`.
 11. Frontend: `formatRuns` renders `[[287, 289]]` with prefix `DWX`, width 4 as `DWX0287–DWX0289`
     and `[[177, 177]]` as `DWX0177`; `searchTerms` expands `[[287, 289]]` to three lines.
 12. Frontend: the section shows the header, the runs, the variants and the other list from a mocked

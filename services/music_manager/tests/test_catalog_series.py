@@ -178,9 +178,30 @@ class BuildCatalogTest(unittest.TestCase):
         summary = build_catalog([nested, path('Dirty Workz', 'DWX0003 C')], EPS, '/')
         self.assertEqual(series(summary, 'DWX')['absent'], [2])
 
-    def test_a_path_outside_the_eps_root_falls_back_to_the_two_folders_above_the_file(self):
-        summary = build_catalog(['/import/Dirty Workz/DWX0007 G/01.mp3'], EPS, '/')
+    def test_a_path_outside_the_eps_root_is_skipped_and_counted(self):
+        # The label link also brings in Soundcloud/, Podcasts/ and Top 100/ files, where
+        # the folder above the file is a channel or a show. A channel named `Set 2019`
+        # would otherwise become a series; a channel named `Dirty Workz` would land in
+        # `other`. Neither says anything about the catalogue.
+        paths = [
+            path('Dirty Workz', 'DWX0001 A'),
+            '/mnt/music/Soundcloud/Dirty Workz/some-set.mp3',
+            '/mnt/music/Podcasts/Show 2019/episode.mp3',
+            '/mnt/music/Top 100/2019/track.mp3',
+        ]
+        summary = build_catalog(paths, EPS, '/')
+        self.assertEqual((summary['files_considered'], summary['files_outside_root']), (4, 3))
+        self.assertEqual([entry['prefix'] for entry in summary['series']], ['DWX'])
+        self.assertEqual(summary['other'], [])
+
+    def test_a_folder_that_merely_starts_with_the_root_name_is_outside_it(self):
+        summary = build_catalog([f'{EPS}2/Dirty Workz/DWX0001 A/01.mp3'], EPS, '/')
+        self.assertEqual(summary['files_outside_root'], 1)
+
+    def test_without_a_configured_root_the_two_folders_above_the_file_are_used(self):
+        summary = build_catalog(['/import/Dirty Workz/DWX0007 G/01.mp3'], '', '/')
         self.assertEqual(series(summary, 'DWX')['min'], 7)
+        self.assertEqual(summary['files_outside_root'], 0)
 
     def test_a_file_directly_in_the_label_folder_is_counted_but_not_read(self):
         summary = build_catalog([f'{EPS}/Dirty Workz/loose.mp3', path('Dirty Workz', 'DWX0001 A')], EPS, '/')
@@ -189,4 +210,6 @@ class BuildCatalogTest(unittest.TestCase):
         self.assertEqual(summary['other'], [])
 
     def test_no_files_is_an_empty_catalogue(self):
-        self.assertEqual(build_catalog([], EPS, '/'), {'files_considered': 0, 'series': [], 'other': []})
+        self.assertEqual(
+            build_catalog([], EPS, '/'), {'files_considered': 0, 'files_outside_root': 0, 'series': [], 'other': []}
+        )

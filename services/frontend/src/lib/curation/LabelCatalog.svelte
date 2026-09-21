@@ -60,9 +60,9 @@
 <section>
   <h2 class="text-xs font-bold uppercase tracking-wider text-muma-spotify-text m-0">Catalogus</h2>
   <p class="text-xs text-muma-spotify-text mt-1 mb-0">
-    Gelezen uit de mapnamen van de releases. Alleen het waargenomen bereik telt: vóór het laagste en na het
-    hoogste nummer wordt niets geclaimd, en een nummer dat niet aanwezig is kan ook door het label zijn
-    overgeslagen.
+    Gelezen uit de mapnamen van de releases; alleen de EPs-map telt. Alleen het waargenomen bereik telt: vóór
+    het laagste en na het hoogste nummer wordt niets geclaimd, en een nummer dat niet aanwezig is kan ook door
+    het label zijn overgeslagen.
   </p>
 
   {#if error}
@@ -73,6 +73,11 @@
     {#if catalog.series.length === 0}
       <p class="text-sm text-muma-spotify-text mt-3 mb-0">
         Geen leesbare catalogusnummers in de mappen van dit label.
+      </p>
+    {/if}
+    {#if catalog.files_outside_root > 0}
+      <p class="text-xs text-muma-spotify-text mt-2 mb-0">
+        {catalog.files_outside_root} bestanden van dit label staan buiten de EPs-map en zijn niet meegeteld.
       </p>
     {/if}
 

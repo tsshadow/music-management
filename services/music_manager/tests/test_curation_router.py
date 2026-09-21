@@ -310,36 +310,97 @@ class LabelReadTest(CurationTestCase):
 
 
 class LabelCatalogTest(CurationTestCase):
+    """The two queries behind the catalogue, merged by path.
+
+    The label link is what the scanner wrote and lags the disk (half of the EPs tree
+    has no link after a skipped rescan), so the label folder is also read by path.
+    The join still contributes files whose folder is named differently -- and files
+    outside the EPs tree, which the builder skips.
+    """
+
+    LINKED = [
+        {'file_path': '/mnt/music/EPs/Masters of Hardcore/MOH001 First/01.mp3'},
+        {'file_path': '/mnt/music/EPs/Masters of Hardcore/MOH001 First/02.mp3'},
+        {'file_path': '/mnt/music/Soundcloud/Masters of Hardcore/some-set.mp3'},
+    ]
+    BY_PATH = [
+        {'file_path': '/mnt/music/EPs/Masters of Hardcore/MOH001 First/01.mp3'},
+        {'file_path': '/mnt/music/EPs/Masters of Hardcore/MOH003 Third/01.mp3'},
+        {'file_path': '/mnt/music/EPs/Masters of Hardcore/MOHFREE Giveaway/01.mp3'},
+    ]
+    rules = (
+        ('FROM library_labels', None, LABEL_ROW),
+        ('FROM library_track_labels tl JOIN library_media_files mf', None, LINKED),
+        ('FROM library_media_files mf WHERE mf.file_path LIKE', None, BY_PATH),
+    )
+
+    def setUp(self):
+        super().setUp()
+        patcher = patch.object(curation_router, 'Settings')
+        settings = patcher.start()
+        self.addCleanup(patcher.stop)
+        settings.return_value.eps_folder_path = '/mnt/music/EPs'
+        settings.return_value.delimiter = '/'
+
+    def _catalog(self):
+        return self.client.get('/api/curation/labels/Masters%20of%20Hardcore/catalog', headers=self.headers)
+
+    def test_a_file_with_no_label_link_yet_is_still_counted_from_its_path(self):
+        response = self._catalog()
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['name'], 'Masters of Hardcore')
+        moh = body['series'][0]
+        # MOH003 only exists in the path query; MOH001 is in both and counts once.
+        self.assertEqual((moh['prefix'], moh['min'], moh['max'], moh['present'], moh['absent']), ('MOH', 1, 3, 2, [2]))
+        self.assertEqual(moh['releases'], 2)
+        self.assertEqual(body['other'], [{'catid': 'MOHFREE', 'release_folder': 'MOHFREE Giveaway'}])
+
+    def test_the_two_queries_are_merged_by_path_and_files_outside_the_root_are_reported(self):
+        body = self._catalog().json()
+        # 2 + 3 rows, one shared path: five distinct files, one of them under Soundcloud/.
+        self.assertEqual((body['files_considered'], body['files_outside_root']), (5, 1))
+
+    def test_the_path_query_is_anchored_on_the_label_folder_with_wildcards_escaped(self):
+        self._catalog()
+        _sql, params = self.statements('FROM library_media_files mf WHERE mf.file_path LIKE')[-1]
+        self.assertEqual(params, ('/mnt/music/EPs/Masters of Hardcore/%',))
+        _sql, params = self.statements('FROM library_track_labels tl')[-1]
+        self.assertEqual(params, (3,))
+
+    def test_reading_the_catalogue_does_not_reload_the_tagger_caches(self):
+        self._catalog()
+        self.assertEqual(self.reloaded_helpers(), [])
+
+
+class LabelCatalogLikeEscapingTest(unittest.TestCase):
+    def test_underscores_and_percents_in_a_label_name_do_not_widen_the_match(self):
+        # `__Free&None` is a real label folder; a bare `_` in LIKE would also match
+        # `/mnt/music/EPs/xxFree&None/`.
+        self.assertEqual(
+            curation_router._like_prefix('/mnt/music/EPs/__Free&None/'), '/mnt/music/EPs/\\_\\_Free&None/%'
+        )
+        self.assertEqual(curation_router._like_prefix('/x/50% off/'), '/x/50\\% off/%')
+
+
+class LabelCatalogWithoutRootTest(CurationTestCase):
     rules = (
         ('FROM library_labels', None, LABEL_ROW),
         (
             'FROM library_track_labels tl JOIN library_media_files mf',
             None,
-            [
-                {'file_path': '/mnt/music/EPs/Masters of Hardcore/MOH001 First/01.mp3'},
-                {'file_path': '/mnt/music/EPs/Masters of Hardcore/MOH001 First/02.mp3'},
-                {'file_path': '/mnt/music/EPs/Masters of Hardcore/MOH003 Third/01.mp3'},
-                {'file_path': '/mnt/music/EPs/Masters of Hardcore/MOHFREE Giveaway/01.mp3'},
-            ],
+            [{'file_path': '/somewhere/Masters of Hardcore/MOH001 First/01.mp3'}],
         ),
     )
 
-    def test_reads_the_series_off_the_release_folders(self):
-        response = self.client.get('/api/curation/labels/Masters%20of%20Hardcore/catalog', headers=self.headers)
+    def test_without_an_eps_root_only_the_label_link_is_read(self):
+        with patch.object(curation_router, 'Settings') as settings:
+            settings.return_value.eps_folder_path = ''
+            settings.return_value.delimiter = '/'
+            response = self.client.get('/api/curation/labels/Masters%20of%20Hardcore/catalog', headers=self.headers)
         self.assertEqual(response.status_code, 200)
-        body = response.json()
-        self.assertEqual(body['name'], 'Masters of Hardcore')
-        self.assertEqual(body['files_considered'], 4)
-        self.assertEqual(len(body['series']), 1)
-        moh = body['series'][0]
-        self.assertEqual((moh['prefix'], moh['min'], moh['max'], moh['present'], moh['absent']), ('MOH', 1, 3, 2, [2]))
-        self.assertEqual(body['other'], [{'catid': 'MOHFREE', 'release_folder': 'MOHFREE Giveaway'}])
-        _sql, params = self.statements('FROM library_track_labels tl')[-1]
-        self.assertEqual(params, (3,))
-
-    def test_reading_the_catalogue_does_not_reload_the_tagger_caches(self):
-        self.client.get('/api/curation/labels/Masters%20of%20Hardcore/catalog', headers=self.headers)
-        self.assertEqual(self.reloaded_helpers(), [])
+        self.assertEqual(self.statements('WHERE mf.file_path LIKE'), [])
+        self.assertEqual(response.json()['series'][0]['prefix'], 'MOH')
 
 
 class LabelCatalogUnknownLabelTest(CurationTestCase):
@@ -356,7 +417,10 @@ class LabelCatalogWithoutFilesTest(CurationTestCase):
     rules = (('FROM library_labels', None, LABEL_ROW),)
 
     def test_a_label_without_files_is_an_empty_catalogue_not_an_error(self):
-        response = self.client.get('/api/curation/labels/Masters%20of%20Hardcore/catalog', headers=self.headers)
+        with patch.object(curation_router, 'Settings') as settings:
+            settings.return_value.eps_folder_path = '/mnt/music/EPs'
+            settings.return_value.delimiter = '/'
+            response = self.client.get('/api/curation/labels/Masters%20of%20Hardcore/catalog', headers=self.headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['series'], [])
         self.assertEqual(response.json()['files_considered'], 0)

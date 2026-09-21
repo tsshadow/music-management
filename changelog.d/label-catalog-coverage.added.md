@@ -13,7 +13,11 @@
   "ontbreekt": vóór het laagste en na het hoogste nummer wordt niets geclaimd, en een label kan
   nummers overslaan. Eén verkeerd getypte map die een reeks tot boven de 20.000 nummers oprekt,
   geeft alleen nog een telling. `GET /api/curation/labels/{naam}/catalog`, op aanvraag berekend
-  uit één query; geen kolom in het labeloverzicht, geen afschrijftabel -- dat zijn latere stappen
+  uit twee queries: de labelkoppeling van de scanner én de labelmap op schijf, want die koppeling
+  loopt achter (2.706 gekoppelde bestanden tegenover 5.531 onder `EPs/Dirty Workz/`, de
+  overgeslagen rescan). Alleen de EPs-map telt: de Soundcloud-, Podcasts- en Top 100-bestanden van
+  een label (74 + 44 + 20 + 33 bij Dirty Workz) zouden anders hun kanaal- of showmap als release
+  opvoeren. Geen kolom in het labeloverzicht, geen afschrijftabel -- dat zijn latere stappen
   (docs/designs/label-catalog-coverage).
 
 <!-- release notes -->

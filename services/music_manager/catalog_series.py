@@ -128,16 +128,29 @@ def _most_common(counter: Counter, prefer_larger: bool) -> Any:
 def build_catalog(paths: Iterable[str], eps_root: str | None, delimiter: str) -> dict[str, Any]:
     """The catalogue picture for one label, from the paths of every file it has.
 
-    Returns `{'files_considered', 'series', 'other'}`: one entry per prefix in `series`,
-    most present numbers first, and the catalogue numbers that have no readable number
-    in `other`. A file that sits directly in the label folder has no release folder
-    and is skipped; it still counts in `files_considered`.
+    Returns `{'files_considered', 'files_outside_root', 'series', 'other'}`: one entry
+    per prefix in `series`, most present numbers first, and the catalogue numbers that
+    have no readable number in `other`.
+
+    Only the EPs tree is read. A label's files also live under `Soundcloud/`,
+    `Podcasts/` and `Top 100/`, and there the folder above the file is a channel or a
+    show, not a release; `LabelPath.split`'s fallback would happily hand those over
+    and a channel name ending in digits would become a series. So when `eps_root` is
+    set, a path outside it is skipped and counted in `files_outside_root`; the
+    fallback is kept only for the case that no root is configured at all. A file that
+    sits directly in the label folder has no release folder and is skipped too; both
+    still count in `files_considered`.
     """
     series: dict[str, _Series] = {}
     other: dict[str, tuple[str, str]] = {}
+    root = str(eps_root or '').rstrip(delimiter)
     files = 0
+    outside = 0
     for path in paths:
         files += 1
+        if root and not path.startswith(root + delimiter):
+            outside += 1
+            continue
         _label, release_folder = LabelPath.split(path, eps_root, delimiter)
         catid = LabelPath.catalog_number(release_folder)
         if not catid:
@@ -152,6 +165,7 @@ def build_catalog(paths: Iterable[str], eps_root: str | None, delimiter: str) ->
     summaries.sort(key=lambda entry: (-entry['present'], entry['prefix']))
     return {
         'files_considered': files,
+        'files_outside_root': outside,
         'series': summaries,
         'other': [{'catid': catid, 'release_folder': folder} for _key, (catid, folder) in sorted(other.items())],
     }

@@ -286,6 +286,11 @@ namespace lms::api::subsonic
         // makes the same choice for browsing by label.
         addClusters("labels", "PUBLISHER");
 
+        // The festival a set was recorded at, as the tagger writes it (TXXX:FESTIVAL). Only
+        // populated once FESTIVAL is among the scanner's extra tags to scan; until then the
+        // array is empty and the details sheet shows no festival row.
+        addClusters("festivals", "FESTIVAL");
+
         // Genres
         trackResponse.createEmptyArrayChild("genres");
         for (const auto& genre : genres)

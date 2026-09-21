@@ -130,17 +130,24 @@
 
   /**
    * The chip row under the artist: every genre (each its own tap target) and
-   * the label -- the same two things the details sheet already renders as
+   * every label -- the same two things the details sheet already renders as
    * chips, just condensed onto the player screen since it has far less room
    * than the sheet does. The release date used to sit here too; it moved
    * into the details sheet in increment B, one tap away rather than clipped
    * on a screen with no room to show it in full.
+   *
+   * `labels` first: that is the array LMS puts on every song node (the
+   * PUBLISHER cluster). This used to read only `label`/`publisher`, which
+   * nothing sets on a Subsonic song, so the label chip never rendered on the
+   * player while the sheet -- which reads `labels` -- showed it fine.
    */
   const metaItems = $derived.by(() => {
     if (!track) return [];
     const items = genreNames(track.genre).map((genre) => ({ text: genre, view: `genre:${genre}` }));
-    const label = track.label || track.publisher;
-    if (label) items.push({ text: label, view: `label:${label}` });
+    const labels = Array.isArray(track.labels) && track.labels.length
+      ? track.labels.filter(Boolean)
+      : [track.label || track.publisher].filter(Boolean);
+    for (const label of labels) items.push({ text: label, view: `label:${label}` });
     return items;
   });
 
@@ -447,7 +454,14 @@
 
       {#if track}
         <div class="min-w-0 mb-2">
-          <div class="text-xl font-bold truncate">{track.title}</div>
+          <!-- The title opens the same details sheet as the header's menu:
+               it is the biggest thing on the screen, and "tap the title for
+               more about it" is what a listener tries first. -->
+          <button
+            class="block w-full text-left text-xl font-bold truncate bg-transparent border-none p-0 text-white cursor-pointer"
+            data-testid="now-playing-title"
+            onclick={() => (showDetailsSheet = true)}
+          >{track.title}</button>
           <ArtistList artist={track.artist} artistId={track.artistId} artists={track.artists} onnavigate={navigate} size="lg" />
         </div>
 

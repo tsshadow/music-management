@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, Mock, patch
 from mutagen.easyid3 import EasyID3
 from mutagen.flac import VCFLACDict
 from mutagen.mp4 import MP4StreamInfoError
+from mutagen.mp4 import MP4Tags as MutagenMP4Tags
 from mutagen.oggopus import OggOpusVComment
 
 from services.tagger.constants import (
@@ -243,6 +244,32 @@ class BaseSongLoadingTest(unittest.TestCase):
 
         music_file.add_tags.assert_called_once()
         self.assertEqual(song.type, MusicFileType.WAV)
+
+    def test_an_m4a_without_a_tag_block_gets_one(self):
+        """An m4a container with no metadata atom loads as tags=None, and `_set_m4a_tag`
+        then assigns into None. A yt-dlp format fragment that never got merged is such a
+        file, and it raised `TypeError: 'NoneType' object does not support item assignment`
+        on every tagging round -- 274 times in one night off a single file."""
+        music_file = MagicMock()
+        music_file.tags = None
+
+        def add_the_atom():
+            music_file.tags = MutagenMP4Tags()
+
+        music_file.add_tags.side_effect = add_the_atom
+
+        with patch('services.tagger.Song.BaseSong.MP4', return_value=music_file):
+            song = BaseSong('some/path/test.m4a')
+
+        music_file.add_tags.assert_called_once()
+        self.assertEqual(song.type, MusicFileType.M4A)
+
+        tag = Mock()
+        tag.tag = ARTIST
+        tag.to_string.return_value = 'Sander van Doorn'
+        song.set_tag(tag)
+
+        self.assertEqual(music_file.tags[MP4Tags[ARTIST]], 'Sander van Doorn')
 
     def flac_file(self):
         music_file = MagicMock()

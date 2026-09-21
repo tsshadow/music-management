@@ -12,6 +12,8 @@
   import { playlist, queueSource } from './store.js';
   import { placeTitle, PLACE_PREFIXES } from './recentPlaces.js';
   import { viewLabel, startQueue } from './queue.js';
+  import { releaseDateLabel } from './trackDate.js';
+  import { describeFilter } from './management/radioChannels.js';
   import { playTrack } from './playTrack.js';
   import { listOf, subsonicJson } from './subsonic.js';
   import { primaryArtistOf } from './utils.js';
@@ -59,6 +61,16 @@
     outputRoute = null,
     isSetMode = false,
     lyricsLines = [],
+    // The radio: `radioActive` tints the button while a channel plays, `radioChannels` and
+    // `showRadioPicker` are `Player.svelte`'s own state for the channel choice (it fetches the
+    // list on the first tap and clears the flag when a channel starts), rendered here as a
+    // bottom sheet because the desktop bar's dropdown has nowhere to anchor on this screen.
+    radioActive = false,
+    radioChannels = [],
+    showRadioPicker = false,
+    ontoggleRadio = null,
+    onstartRadio = null,
+    oncloseRadioPicker = null,
     onclose,
     ontogglePlay,
     onnext,
@@ -398,12 +410,12 @@
           onclick={() => navigate(headerTarget)}
         >
           <span class="block text-[11px] text-[#b3b3b3]">{$t('nowPlaying.playingFromLabel')}</span>
-          <span class="block text-sm font-bold text-white truncate">{playingFrom}</span>
+          <span class="block text-sm font-bold text-white truncate" data-testid="now-playing-context">{playingFrom}</span>
         </button>
       {:else}
         <div class="flex-1 min-w-0 text-center px-2">
           <span class="block text-[11px] text-[#b3b3b3]">{$t('nowPlaying.playingFromLabel')}</span>
-          <span class="block text-sm font-bold text-white truncate">{playingFrom}</span>
+          <span class="block text-sm font-bold text-white truncate" data-testid="now-playing-context">{playingFrom}</span>
         </div>
       {/if}
       <!-- The one entry point to everything else the sheet offers -- artist,
@@ -463,6 +475,28 @@
             onclick={() => (showDetailsSheet = true)}
           >{track.title}</button>
           <ArtistList artist={track.artist} artistId={track.artistId} artists={track.artists} onnavigate={navigate} size="lg" />
+          <!-- Album and release date, always on the screen: the header line names the
+               place the queue came from, which is not the album, and the date used to
+               live only in the details sheet. -->
+          {#if track.album || releaseDateLabel(track)}
+            <div class="flex items-center gap-1.5 text-sm text-[#b3b3b3] min-w-0" data-testid="now-playing-album-line">
+              {#if track.album}
+                {#if track.albumId}
+                  <button
+                    class="bg-transparent border-none p-0 text-inherit truncate min-w-0 text-left hover:text-white hover:underline cursor-pointer"
+                    data-testid="now-playing-album"
+                    onclick={() => navigate(`album:${track.albumId}`)}
+                  >{track.album}</button>
+                {:else}
+                  <span class="truncate min-w-0">{track.album}</span>
+                {/if}
+              {/if}
+              {#if track.album && releaseDateLabel(track)}<span aria-hidden="true">·</span>{/if}
+              {#if releaseDateLabel(track)}
+                <span class="shrink-0" data-testid="now-playing-date">{releaseDateLabel(track)}</span>
+              {/if}
+            </div>
+          {/if}
         </div>
 
         {#if metaItems.length > 0}
@@ -650,6 +684,19 @@
             </svg>
           </button>
         {/if}
+        {#if ontoggleRadio}
+          <button
+            class="bg-transparent border-none p-2 cursor-pointer transition-colors hover:text-white {radioActive ? 'text-[#b266ff]' : 'text-[#b3b3b3]'}"
+            data-testid="now-playing-radio"
+            onclick={ontoggleRadio}
+            aria-label={$t('player.radio')}
+            aria-pressed={radioActive}
+          >
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+              <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"></path>
+            </svg>
+          </button>
+        {/if}
         {#if track?.workId}
           <button
             class="bg-transparent border-none p-2 cursor-pointer text-[#b3b3b3] hover:text-white transition-colors"
@@ -734,6 +781,23 @@
       </div>
     </BottomSheet>
   {/if}
+  {#if showRadioPicker}
+    <BottomSheet title={$t('radio.chooseChannel')} onclose={() => oncloseRadioPicker?.()}>
+      <div class="flex flex-col" role="menu" data-testid="now-playing-radio-picker">
+        {#each radioChannels as channel (channel.slug)}
+          <button
+            class="w-full text-left px-4 py-3 bg-transparent border-none cursor-pointer text-white hover:bg-white/10 transition-colors"
+            role="menuitem"
+            onclick={() => onstartRadio?.(channel)}
+          >
+            <span class="block text-sm font-bold">{channel.name}</span>
+            <span class="block text-[12px] text-[#b3b3b3]">{describeFilter(channel.filter, $t('management.radio.wholeLibrary'))}</span>
+          </button>
+        {/each}
+      </div>
+    </BottomSheet>
+  {/if}
+
   {#if showDetailsSheet && track}
     <TrackDetailsSheet
       {track}

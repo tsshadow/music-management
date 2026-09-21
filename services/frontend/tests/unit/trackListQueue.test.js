@@ -2,7 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import TrackList from "../../src/lib/TrackList.svelte";
-import { credentials, currentTrack, isMobile, playerState, playlist } from "../../src/lib/store.js";
+import {
+  credentials,
+  currentTrack,
+  isMobile,
+  playerState,
+  playlist,
+  queueSource,
+} from "../../src/lib/store.js";
 
 const FIRST = {
   id: "song-1",
@@ -73,6 +80,17 @@ describe("TrackList", () => {
     expect(get(currentTrack)).toEqual(FIRST);
     expect(get(playlist)).toHaveLength(2);
     expect(get(playerState).playing).toBe(true);
+  });
+
+  it("names the queue after the list when the page gives it a name", async () => {
+    playlist.set([]);
+    queueSource.set(null);
+    render(TrackList, props({ sourceName: "Nummers · Recent uitgebracht" }));
+
+    await fireEvent.click(screen.getAllByLabelText("Afspelen")[0]);
+
+    expect(get(queueSource)?.name).toBe("Nummers · Recent uitgebracht");
+    queueSource.set(null);
   });
 
   it("playing from the queue leaves the queue alone", async () => {

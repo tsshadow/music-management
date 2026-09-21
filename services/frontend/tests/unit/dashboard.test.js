@@ -5,6 +5,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import Dashboard from "../../src/lib/Dashboard.svelte";
 import {
+  activeView,
   credentials,
   deduplicateEnabled,
   favoriteGenres,
@@ -12,6 +13,7 @@ import {
   favoritePlaylists,
   isMobile,
   memoriesOnHomeEnabled,
+  queueSource,
   viewMode,
 } from "../../src/lib/store.js";
 
@@ -245,6 +247,21 @@ describe("Dashboard", () => {
 
     await waitFor(() => expect(urlsFor("/rest/getSpotifyTracks").length).toBeGreaterThan(0));
     expect(urlsFor("/rest/getSpotifyTracks")[0]).toContain("maxDuration=10");
+  });
+
+  it("a queue started from the songs list is named after the view and its sort", async () => {
+    // "Nummers" alone said nothing about what plays; the header now reads
+    // "Nummers · Recent uitgebracht" -- the sort is the list the listener picked from.
+    queueSource.set(null);
+    activeView.set("songs");
+    render(Dashboard, { activeView: "songs" });
+    await waitFor(() => expect(screen.getAllByLabelText("Afspelen").length).toBeGreaterThan(0));
+
+    await fireEvent.click(screen.getAllByLabelText("Afspelen")[0]);
+
+    expect(get(queueSource)).toEqual({ view: "songs", name: "Nummers · Recent uitgebracht" });
+    queueSource.set(null);
+    activeView.set("home");
   });
 
   it("the sets view asks for long recordings", async () => {

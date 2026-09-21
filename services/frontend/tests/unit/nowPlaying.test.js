@@ -57,7 +57,7 @@ describe("NowPlaying", () => {
     renderNowPlaying();
 
     expect(screen.getByText("Afspelen vanuit")).toBeTruthy();
-    expect(screen.getByText("Bad Blood")).toBeTruthy();
+    expect(screen.getByTestId("now-playing-context").textContent).toBe("Bad Blood");
   });
 
   it("falls back to the queue when the track has no album", () => {
@@ -69,7 +69,7 @@ describe("NowPlaying", () => {
   it("renders the header without the old all-caps treatment", () => {
     renderNowPlaying();
 
-    const name = screen.getByText("Bad Blood");
+    const name = screen.getByTestId("now-playing-context");
     expect(name.className).not.toMatch(/uppercase/);
     expect(name.className).toMatch(/font-bold/);
     const caption = screen.getByText("Afspelen vanuit");
@@ -327,7 +327,7 @@ describe("NowPlaying track info", () => {
     const onnavigate = vi.fn();
     renderNowPlaying({ track: { ...TRACK, albumId: "al1" }, onclose, onnavigate });
 
-    await fireEvent.click(screen.getByText("Bad Blood"));
+    await fireEvent.click(screen.getByTestId("now-playing-album"));
 
     expect(onclose).toHaveBeenCalled();
     expect(onnavigate).toHaveBeenCalledWith("album:al1");
@@ -336,8 +336,39 @@ describe("NowPlaying track info", () => {
   it("does not make the album line a link without an album id", () => {
     renderNowPlaying({ track: { ...TRACK, albumId: null } });
 
-    const name = screen.getByText("Bad Blood");
-    expect(name.closest("button")).toBeNull();
+    const line = screen.getByTestId("now-playing-album-line");
+    expect(line.textContent).toContain("Bad Blood");
+    expect(screen.queryByTestId("now-playing-album")).toBeNull();
+  });
+
+  it("keeps the album under the artist even when the header names another place", () => {
+    // The header reads the queue's source (a genre, a sort, a playlist); the album
+    // is its own line so it is on the screen no matter where the queue came from.
+    queueSource.set({ view: "genre:Hardstyle", name: null });
+    renderNowPlaying({ track: { ...TRACK, albumId: "al1" } });
+
+    expect(screen.getByTestId("now-playing-context").textContent).toBe("Hardstyle");
+    expect(screen.getByTestId("now-playing-album").textContent).toBe("Bad Blood");
+    queueSource.set(null);
+  });
+
+  it("shows the release date beside the album", () => {
+    renderNowPlaying({ track: { ...TRACK, originalDate: "2026-09-10" } });
+
+    expect(screen.getByTestId("now-playing-date").textContent).toBe("10-09-2026");
+    expect(screen.getByTestId("now-playing-album-line").textContent).toContain("·");
+  });
+
+  it("shows only the date when the track has no album", () => {
+    renderNowPlaying({ track: { ...TRACK, album: null, year: 2024 } });
+
+    expect(screen.getByTestId("now-playing-date").textContent).toBe("2024");
+    expect(screen.getByTestId("now-playing-album-line").textContent).not.toContain("·");
+  });
+
+  it("renders no album line when there is neither album nor date", () => {
+    renderNowPlaying({ track: { ...TRACK, album: null } });
+    expect(screen.queryByTestId("now-playing-album-line")).toBeNull();
   });
 
   it("shows every genre as its own chip button and navigates through one", async () => {
@@ -383,12 +414,44 @@ describe("NowPlaying track info", () => {
 
   it("does not put the release date among the meta chips", () => {
     // A date with no genre and no label used to still show as the sole meta
-    // item; now the row does not render at all for it, since the date moved
-    // to the details sheet.
+    // item; the chip row does not render for it -- the date has its own place
+    // on the album line.
     renderNowPlaying({ track: { ...TRACK, originalDate: "2026-01-05" } });
 
     expect(screen.queryByTestId("now-playing-meta")).toBeNull();
-    expect(screen.queryByText("05-01-2026")).toBeNull();
+    expect(screen.getByTestId("now-playing-date").textContent).toBe("05-01-2026");
+  });
+
+  it("shows a radio button only when the player wires one, tinted while a channel plays", async () => {
+    renderNowPlaying();
+    expect(screen.queryByTestId("now-playing-radio")).toBeNull();
+
+    const ontoggleRadio = vi.fn();
+    renderNowPlaying({ ontoggleRadio, radioActive: true });
+    const button = screen.getByTestId("now-playing-radio");
+    expect(button.getAttribute("aria-pressed")).toBe("true");
+    expect(button.className).toContain("b266ff");
+    await fireEvent.click(button);
+    expect(ontoggleRadio).toHaveBeenCalled();
+  });
+
+  it("offers the channel choice as a bottom sheet and starts the tapped channel", async () => {
+    const onstartRadio = vi.fn();
+    const channels = [
+      { slug: "hard", name: "Hard", filter: {} },
+      { slug: "soft", name: "Soft", filter: {} },
+    ];
+    renderNowPlaying({
+      ontoggleRadio: vi.fn(),
+      onstartRadio,
+      radioChannels: channels,
+      showRadioPicker: true,
+    });
+
+    const picker = screen.getByTestId("now-playing-radio-picker");
+    expect(picker.textContent).toContain("Hard");
+    await fireEvent.click(screen.getByText("Soft"));
+    expect(onstartRadio).toHaveBeenCalledWith(channels[1]);
   });
 
   it("offers the song page only when the track has a workId", () => {
@@ -491,7 +554,7 @@ describe("NowPlaying queue source", () => {
 
     const caption = screen.getByText("Afspelen vanuit");
     expect(caption.nextElementSibling.textContent).toBe("Thunderdome Essentials");
-    expect(screen.queryByText("Bad Blood")).toBeNull();
+    expect(screen.getByTestId("now-playing-context").textContent).not.toBe("Bad Blood");
   });
 
   it("names an argument-based place from its view when no name was given", () => {
@@ -515,7 +578,7 @@ describe("NowPlaying queue source", () => {
 
     renderNowPlaying();
 
-    expect(screen.getByText("Bad Blood")).toBeTruthy();
+    expect(screen.getByTestId("now-playing-context").textContent).toBe("Bad Blood");
   });
 
   it("prefers navigating to the queue source's place over the track's album", async () => {

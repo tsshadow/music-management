@@ -355,7 +355,7 @@ VALUES
         {
             // migrateFromV119 on a row that never had extra tags: FESTIVAL becomes the list.
             auto transaction{ session.createReadTransaction() };
-            const std::string extraTags{ session.getDboSession()->query<std::string>("SELECT extra_tags_to_scan FROM scan_settings") };
+            const std::string extraTags{ session.getDboSession()->query<std::string>("SELECT extra_tags_to_scan FROM scan_settings").resultValue() };
             EXPECT_EQ(extraTags, "FESTIVAL");
         }
 
@@ -370,8 +370,8 @@ VALUES
         db.getTLSSession().migrateSchemaIfNeeded();
         {
             auto transaction{ session.createReadTransaction() };
-            EXPECT_EQ(session.getDboSession()->query<std::string>("SELECT extra_tags_to_scan FROM scan_settings"), "MOOD;PUBLISHER;FESTIVAL");
-            EXPECT_EQ(session.getDboSession()->query<int>("SELECT audio_scan_version FROM scan_settings"), 8);
+            EXPECT_EQ(session.getDboSession()->query<std::string>("SELECT extra_tags_to_scan FROM scan_settings").resultValue(), "MOOD;PUBLISHER;FESTIVAL");
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT audio_scan_version FROM scan_settings").resultValue(), 8);
         }
         {
             auto transaction{ session.createWriteTransaction() };
@@ -380,8 +380,8 @@ VALUES
         db.getTLSSession().migrateSchemaIfNeeded();
         {
             auto transaction{ session.createReadTransaction() };
-            EXPECT_EQ(session.getDboSession()->query<std::string>("SELECT extra_tags_to_scan FROM scan_settings"), "MOOD;PUBLISHER;FESTIVAL");
-            EXPECT_EQ(session.getDboSession()->query<int>("SELECT audio_scan_version FROM scan_settings"), 8);
+            EXPECT_EQ(session.getDboSession()->query<std::string>("SELECT extra_tags_to_scan FROM scan_settings").resultValue(), "MOOD;PUBLISHER;FESTIVAL");
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT audio_scan_version FROM scan_settings").resultValue(), 8);
         }
 
         // Now perform some dummy finds to ensure all fields are correctly mapped

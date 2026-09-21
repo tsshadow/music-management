@@ -244,6 +244,14 @@ describe("NowPlaying", () => {
     expect(screen.getByLabelText("Meer")).toBeTruthy();
   });
 
+  it("opens the same details sheet from the title", async () => {
+    renderNowPlaying();
+
+    await fireEvent.click(screen.getByTestId("now-playing-title"));
+
+    expect(screen.getByTestId("song-details")).toBeTruthy();
+  });
+
   it("hides the sheet's lyrics row when the player found none for the track", async () => {
     renderNowPlaying({ lyricsLines: [] });
 
@@ -347,6 +355,25 @@ describe("NowPlaying track info", () => {
 
     expect(onclose).toHaveBeenCalled();
     expect(onnavigate).toHaveBeenCalledWith("genre:hardstyle");
+  });
+
+  it("shows every label from the array LMS sends as its own chip", async () => {
+    // `labels` is the PUBLISHER cluster on a Subsonic song node; `label` and
+    // `publisher` are set by nothing, and reading only those left the player
+    // without a label chip for every track while the sheet showed it fine.
+    const onnavigate = vi.fn();
+    renderNowPlaying({ track: { ...TRACK, labels: ["QDance", "Q-dance Records"] }, onnavigate });
+
+    const meta = screen.getByTestId("now-playing-meta");
+    expect(meta.textContent).toContain("QDance");
+    expect(meta.textContent).toContain("Q-dance Records");
+    await fireEvent.click(screen.getByText("QDance"));
+    expect(onnavigate).toHaveBeenCalledWith("label:QDance");
+  });
+
+  it("still reads a single label field for a track that only has that", () => {
+    renderNowPlaying({ track: { ...TRACK, label: "Scantraxx" } });
+    expect(screen.getByTestId("now-playing-meta").textContent).toContain("Scantraxx");
   });
 
   it("shows no meta line for a track with no genre, date or label", () => {

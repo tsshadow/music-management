@@ -10,6 +10,7 @@ The list below is deliberately exhaustive for GET endpoints: adding a new read
 endpoint without adding it here is the only way to reintroduce that gap.
 """
 
+import hashlib
 from datetime import date, timedelta
 from unittest.mock import patch
 
@@ -33,6 +34,8 @@ READ_ENDPOINTS = [
     ('/api/library/tracks', 200),
     ('/api/library/advanced', 200),
     ('/api/library/genres', 200),
+    # A file MuMa never scanned is a deliberate 404, never a 500.
+    ('/api/library/tracks/by-path?path=nope.mp3', 404),
     ('/api/rules', 200),
     ('/api/rules/genres', 200),
     ('/api/rules/genres/summary', 200),
@@ -596,6 +599,59 @@ class LibraryReadsTest:
 
     def test_rerunning_a_parse_for_an_unknown_track_is_a_not_found(self, api, headers, db):
         assert api.post('/api/library/tracks/999/rerun-parse', headers=headers).status_code == 404
+
+    def test_the_details_by_path_join_channel_ingestion_features_and_archive(self, api, headers, db):
+        """Five tables behind one answer for the player's details sheet, keyed on the
+        LMS-relative spelling of the path while every row stores the /mnt/music one."""
+        path = '/mnt/music/Soundcloud/Complex/b.mp3'
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_artists (name) VALUES ('Complex')")
+            artist_id = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id)'
+                " VALUES ('uid-b', 'Rammeroni Style', 201, %s)",
+                (artist_id,),
+            )
+            track_id = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO library_media_files (file_path, file_path_hash, track_id, file_mtime, file_size)'
+                ' VALUES (%s, %s, %s, 1.0, 10)',
+                (path, hashlib.sha256(path.encode()).hexdigest(), track_id),
+            )
+            cursor.execute(
+                "INSERT INTO channels (platform, name, normalized_name, artist_id)"
+                " VALUES ('soundcloud', 'Complex', 'complex', %s)",
+                (artist_id,),
+            )
+            channel_id = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO library_track_channels (track_id, channel_id) VALUES (%s, %s)', (track_id, channel_id)
+            )
+            cursor.execute(
+                'INSERT INTO library_ingestion_records (file_path, file_path_hash, source, tags_json)'
+                " VALUES (%s, %s, 'LABEL', '{\"catalognumber\": [\"Q404PRO\"], \"isrc\": [\"NL1\"]}')",
+                (path, hashlib.sha256(path.encode()).hexdigest()),
+            )
+            cursor.execute(
+                'INSERT INTO library_track_audio_features (track_id, internal_track_id, tempo) VALUES (%s, %s, 103.4)',
+                ('uid-b', track_id),
+            )
+            cursor.execute(
+                "INSERT INTO downloads_soundcloud_archive (account, video_id, filename, url, title)"
+                " VALUES ('complex', 'v1', %s, 'https://soundcloud.com/complex/b', 'b')",
+                (path,),
+            )
+        response = api.get('/api/library/tracks/by-path?path=Soundcloud/Complex/b.mp3', headers=headers)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body['track_id'] == track_id
+        assert body['channels'] == [{'platform': 'soundcloud', 'name': 'Complex', 'label': None, 'artist': 'Complex'}]
+        assert body['source'] == 'LABEL'
+        assert body['tags'] == {'catalognumber': ['Q404PRO'], 'isrc': ['NL1']}
+        assert body['bpm'] == pytest.approx(103.4)
+        assert body['source_url'] == 'https://soundcloud.com/complex/b'
+        assert body['source_platform'] == 'soundcloud'
+        assert body['added_at']
 
 
 class ScrobblingTest:

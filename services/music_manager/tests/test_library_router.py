@@ -1,6 +1,7 @@
 """Coverage for the /api/library, /api/jobs and /api/scrobble routers."""
 
 import asyncio
+import hashlib
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
@@ -142,6 +143,104 @@ class LibraryGenresTest(RouterTestCase):
         self.cursor.fetchall.return_value = [{'genre': None, 'state': 'white', 'count': 1}]
         response = self.client.get('/api/library/genres', headers=self.headers)
         self.assertRegex(response.json()[0]['tint'], r'^#[0-9a-f]{6}$')
+
+
+class TrackByPathTest(RouterTestCase):
+    """`GET /api/library/tracks/by-path`: what the player's details sheet asks MuMa for."""
+
+    module = library_router
+
+    MEDIA = {
+        'file_path': '/mnt/music/Soundcloud/Complex/x.mp3',
+        'file_path_hash': 'h',
+        'track_id': 7,
+        'track_uid': 'uid-7',
+        'created_at': '2026-09-02 10:00:00',
+    }
+
+    def answer(self, *rows):
+        """fetchone answers in query order; fetchall answers the channel query."""
+        self.cursor.fetchone.side_effect = list(rows)
+
+    def test_every_spelling_of_the_path_is_hashed_and_tried(self):
+        self.answer(None)
+        self.client.get('/api/library/tracks/by-path?path=Soundcloud/Complex/x.mp3', headers=self.headers)
+        sql = self.statements()[0]
+        params = self.cursor.execute.call_args_list[0].args[1]
+        self.assertIn('file_path_hash IN', sql)
+        self.assertIn(hashlib.sha256(b'/mnt/music/Soundcloud/Complex/x.mp3').hexdigest(), params)
+        self.assertIn(hashlib.sha256(b'/music/Soundcloud/Complex/x.mp3').hexdigest(), params)
+        self.assertIn(hashlib.sha256(b'Soundcloud/Complex/x.mp3').hexdigest(), params)
+
+    def test_a_file_muma_never_scanned_is_a_not_found(self):
+        self.answer(None)
+        response = self.client.get('/api/library/tracks/by-path?path=nope.mp3', headers=self.headers)
+        self.assertEqual(response.status_code, 404)
+
+    def test_channels_tags_bpm_and_source_url_are_assembled(self):
+        self.cursor.fetchall.return_value = [
+            {'platform': 'soundcloud', 'name': 'Complex', 'label': None, 'artist': 'Complex'}
+        ]
+        self.answer(
+            self.MEDIA,
+            {'bpm': 103.0},
+            {'ml_genre': 'hardstyle'},
+            {
+                'source': 'LABEL',
+                'tags_json': '{"catalognumber": ["Q404PRO"], "publisher": ["QDance"]}',
+                'recorded_at': '2026-09-10 08:00:00',
+            },
+            {'url': 'https://soundcloud.com/complex/x'},
+        )
+        response = self.client.get('/api/library/tracks/by-path?path=Soundcloud/Complex/x.mp3', headers=self.headers)
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            body['channels'], [{'platform': 'soundcloud', 'name': 'Complex', 'label': None, 'artist': 'Complex'}]
+        )
+        self.assertEqual(body['tags'], {'catalognumber': ['Q404PRO'], 'publisher': ['QDance']})
+        self.assertEqual(body['bpm'], 103.0)
+        self.assertEqual(body['ml_genre'], 'hardstyle')
+        self.assertEqual(body['source'], 'LABEL')
+        self.assertEqual(body['source_url'], 'https://soundcloud.com/complex/x')
+        self.assertEqual(body['source_platform'], 'soundcloud')
+        self.assertEqual(body['added_at'], '2026-09-02 10:00:00')
+
+    def test_the_archive_is_matched_on_the_whole_filename(self):
+        self.cursor.fetchall.return_value = []
+        self.answer(self.MEDIA, None, None, None, None, {'url': 'https://youtu.be/abc'})
+        response = self.client.get('/api/library/tracks/by-path?path=Soundcloud/Complex/x.mp3', headers=self.headers)
+        body = response.json()
+        self.assertEqual(body['source_platform'], 'youtube')
+        archive_statements = [s for s in self.statements() if 'archive' in s]
+        self.assertEqual(len(archive_statements), 2)
+        for statement in archive_statements:
+            self.assertIn('filename IN', statement)
+            self.assertNotIn('LIKE', statement)
+
+    def test_an_unreadable_tags_json_yields_no_tags_rather_than_an_error(self):
+        self.cursor.fetchall.return_value = []
+        self.answer(
+            self.MEDIA, None, None, {'source': 'YOUTUBE', 'tags_json': '{not json', 'recorded_at': None}, None, None
+        )
+        response = self.client.get('/api/library/tracks/by-path?path=x.mp3', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['tags'], {})
+        self.assertEqual(response.json()['source'], 'YOUTUBE')
+
+    def test_a_media_file_without_a_track_skips_the_track_joins(self):
+        media = {**self.MEDIA, 'track_id': None, 'track_uid': None}
+        self.answer(media, None, None, None)
+        response = self.client.get('/api/library/tracks/by-path?path=x.mp3', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['channels'], [])
+        self.assertIsNone(response.json()['bpm'])
+        self.assertFalse(any('library_track_channels' in s for s in self.statements()))
+
+    def test_a_database_outage_is_reported_as_a_server_error(self):
+        with patch.object(library_router, 'get_db_connection', return_value=None):
+            response = self.client.get('/api/library/tracks/by-path?path=x.mp3', headers=self.headers)
+        self.assertEqual(response.status_code, 500)
 
 
 class RerunParseTest(RouterTestCase):

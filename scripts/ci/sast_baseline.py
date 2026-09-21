@@ -58,7 +58,11 @@ REASONS = {
         'passes tuple(chunk) as parameters, so only the placeholder *count* is '
         'interpolated; events.py takes its WHERE from _build_filters(), where '
         'every clause is a literal and every value goes into params as %s. '
-        'Neither puts request data into the SQL string.'
+        'Neither puts request data into the SQL string. The two by-path sites '
+        'in routers/library.py (2026-09-21) are the same shape: one interpolates '
+        'the placeholder count for the path spellings, the other picks the '
+        'archive table name from a two-entry literal tuple; the path itself is '
+        'always a bound %s.'
     ),
     'avoid-sqlalchemy-text': 'Same as sqlalchemy-execute-raw-query.',
     'formatted-sql-query': (

@@ -1,6 +1,16 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/svelte";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor, fireEvent } from "@testing-library/svelte";
 import TrackDetailsSheet from "../../src/lib/TrackDetailsSheet.svelte";
+
+// The sheet asks MuMa for the tags when it opens; by default MuMa has never
+// seen the file, which renders no tags section at all.
+vi.mock("../../src/lib/trackDetails.js", () => ({
+  fetchTrackDetails: (...args) => globalThis.__fetchTrackDetails(...args),
+}));
+
+beforeEach(() => {
+  globalThis.__fetchTrackDetails = vi.fn(async () => ({ state: "none", details: null }));
+});
 
 const track = (extra = {}) => ({
   id: "1",
@@ -65,6 +75,16 @@ describe("TrackDetailsSheet festival chip", () => {
     expect(onnavigate).toHaveBeenCalledWith("festival:Defqon.1");
   });
 
+  it("renders one chip per festival from the array LMS sends", async () => {
+    const onnavigate = vi.fn();
+    renderSheet({ track: track({ festivals: ["Defqon.1", "Dominator"] }), onnavigate });
+
+    const chips = screen.getAllByTestId("festival-chip");
+    expect(chips.map((c) => c.textContent)).toEqual(["Defqon.1", "Dominator"]);
+    await chips[1].click();
+    expect(onnavigate).toHaveBeenCalledWith("festival:Dominator");
+  });
+
   it("renders no festival chip without one", () => {
     renderSheet();
     expect(screen.queryByTestId("festival-chip")).toBeNull();
@@ -83,23 +103,108 @@ describe("TrackDetailsSheet mood chips", () => {
   });
 });
 
-describe("TrackDetailsSheet technical details", () => {
-  it("stays collapsed until toggled, then shows format and path", async () => {
-    renderSheet({ track: track({ bitRate: 320, suffix: "flac", path: "/mnt/music/a.flac" }) });
+describe("TrackDetailsSheet file section", () => {
+  it("shows file name, format line, folder and the day it was added, no toggle", () => {
+    renderSheet({
+      track: track({
+        bitRate: 320,
+        suffix: "mp3",
+        samplingRate: 44100,
+        bitDepth: 0,
+        channelCount: 2,
+        size: 9800000,
+        created: "2026-09-02T10:00:00Z",
+        path: "Soundcloud/Complex/Complex - Rammeroni.mp3",
+      }),
+    });
 
-    expect(screen.queryByTestId("technical-body")).toBeNull();
-
-    await screen.getByTestId("technical-toggle").click();
-
-    const body = screen.getByTestId("technical-body");
-    expect(body.textContent).toContain("320 kbps");
-    expect(body.textContent).toContain("FLAC");
-    expect(body.textContent).toContain("/mnt/music/a.flac");
+    const section = screen.getByTestId("file-details");
+    expect(screen.getByTestId("file-name").textContent).toBe("Complex - Rammeroni.mp3");
+    expect(screen.getByTestId("file-format").textContent).toBe(
+      "MP3 · 320 kbps · 44.1 kHz · stereo · 9.8 MB",
+    );
+    expect(section.textContent).toContain("Soundcloud/Complex");
+    expect(section.textContent).toContain("02-09-2026");
+    expect(screen.queryByTestId("technical-toggle")).toBeNull();
   });
 
-  it("renders no technical toggle when nothing technical is known", () => {
+  it("renders no file section when nothing about the file is known", () => {
     renderSheet({ track: track({ bitRate: null, suffix: null, path: null }) });
-    expect(screen.queryByTestId("technical-toggle")).toBeNull();
+    expect(screen.queryByTestId("file-details")).toBeNull();
+  });
+});
+
+describe("TrackDetailsSheet tags section", () => {
+  it("asks MuMa by the track's path and lists what it knows", async () => {
+    globalThis.__fetchTrackDetails.mockResolvedValue({
+      state: "ok",
+      details: {
+        channels: [{ platform: "youtube", name: "Q-dance" }],
+        source_url: "https://youtu.be/abc",
+        source: "YOUTUBE",
+        bpm: 150,
+        tags: { catalognumber: ["Q404PRO"], isrc: ["NL123"] },
+      },
+    });
+    renderSheet({ track: track({ path: "Youtube/Q-dance/a.mp3" }) });
+
+    expect(globalThis.__fetchTrackDetails).toHaveBeenCalledWith("Youtube/Q-dance/a.mp3");
+    await waitFor(() => expect(screen.getByTestId("tag-details").textContent).toContain("Q404PRO"));
+    const text = screen.getByTestId("tag-details").textContent;
+    expect(text).toContain("Kanaal");
+    expect(text).toContain("Q-dance (Youtube)");
+    expect(text).toContain("Herkomst");
+    expect(text).toContain("Youtube");
+    expect(text).toContain("BPM");
+    expect(text).toContain("150");
+    expect(text).toContain("Catalogusnummer");
+    expect(text).toContain("isrc");
+    expect(text).toContain("NL123");
+    const link = screen.getByText("https://youtu.be/abc");
+    expect(link.getAttribute("href")).toBe("https://youtu.be/abc");
+  });
+
+  it("hands the source URL to the system browser rather than navigating the WebView", async () => {
+    globalThis.__fetchTrackDetails.mockResolvedValue({
+      state: "ok",
+      details: { source_url: "https://youtu.be/abc", tags: {} },
+    });
+    const platform = { system: { openUrl: vi.fn(async () => {}) } };
+    renderSheet({ track: track({ path: "a.mp3" }), platform });
+
+    await waitFor(() => screen.getByText("https://youtu.be/abc"));
+    await fireEvent.click(screen.getByText("https://youtu.be/abc"));
+
+    expect(platform.system.openUrl).toHaveBeenCalledWith("https://youtu.be/abc");
+  });
+
+  it("navigates from a curated channel row the way a chip does", async () => {
+    globalThis.__fetchTrackDetails.mockResolvedValue({
+      state: "ok",
+      details: {
+        channels: [{ platform: "youtube", name: "Q-dance", label: "Q-dance Records" }],
+        tags: {},
+      },
+    });
+    const onnavigate = vi.fn();
+    renderSheet({ track: track({ path: "a.mp3" }), onnavigate });
+
+    await waitFor(() => screen.getByTestId("tag-link"));
+    await fireEvent.click(screen.getByTestId("tag-link"));
+
+    expect(onnavigate).toHaveBeenCalledWith("label:Q-dance Records");
+  });
+
+  it("shows no tags section when MuMa has never scanned the file", async () => {
+    renderSheet({ track: track({ path: "a.mp3" }) });
+    await waitFor(() => expect(screen.queryByText("Tags ophalen…")).toBeNull());
+    expect(screen.queryByTestId("tag-details")).toBeNull();
+  });
+
+  it("says so when MuMa could not be reached, rather than looking like a file without tags", async () => {
+    globalThis.__fetchTrackDetails.mockResolvedValue({ state: "error", details: null });
+    renderSheet({ track: track({ path: "a.mp3" }) });
+    await waitFor(() => expect(screen.getByTestId("tags-unavailable")).toBeTruthy());
   });
 });
 

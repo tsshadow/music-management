@@ -1,3 +1,5 @@
+import hashlib
+import json
 import logging
 import os
 
@@ -8,6 +10,7 @@ from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
 from services.music_manager.genre_tint import genre_tint
+from services.music_manager.library_paths import candidate_paths
 from services.music_manager.routers.analytics_filters import (
     FROM_CLAUSE,
     LibraryFilter,
@@ -220,6 +223,144 @@ def rerun_parse_path(path: str = Query(...), _auth: dict = Depends(verify_api_ke
     except Exception as e:
         logging.warning(f'Could not execute immediate rescan/scan for path {filepath}: {e}')
     return {'status': 'ok', 'message': f'Track at {filepath} marked for rescan and immediate trigger attempted'}
+
+
+def _ingested_tags(cursor, file_path_hash: str) -> tuple[dict | None, dict]:
+    """The ingestion record for one file and the tag set it carries, parsed.
+
+    A record whose `tags_json` does not parse still counts as a record -- its `source`
+    is real -- but contributes no tags rather than failing the whole answer.
+    """
+    cursor.execute(
+        'SELECT source, tags_json, CAST(recorded_at AS CHAR) AS recorded_at '
+        'FROM library_ingestion_records WHERE file_path_hash = %s LIMIT 1',
+        (file_path_hash,),
+    )
+    ingestion = cursor.fetchone()
+    if not ingestion or not ingestion.get('tags_json'):
+        return ingestion, {}
+    try:
+        parsed = json.loads(ingestion['tags_json'])
+    except (TypeError, ValueError):
+        logging.warning('Unreadable tags_json on ingestion record %s', file_path_hash)
+        return ingestion, {}
+    return ingestion, parsed if isinstance(parsed, dict) else {}
+
+
+def _archive_source(cursor, spellings: list[str]) -> tuple[str | None, str | None]:
+    """The URL a file was downloaded from and which platform's archive had it.
+
+    Matches the whole filename, not `LIKE '%name%'` as `/redownload` does: the archive
+    stores the absolute path, and an equality over the candidate spellings finds the same
+    row without the substring false positives.
+    """
+    placeholders = ', '.join(['%s'] * len(spellings))
+    for platform, table in (
+        ('soundcloud', 'downloads_soundcloud_archive'),
+        ('youtube', 'downloads_youtube_archive'),
+    ):
+        cursor.execute(f'SELECT url FROM {table} WHERE filename IN ({placeholders}) LIMIT 1', tuple(spellings))
+        row = cursor.fetchone()
+        if row and row.get('url'):
+            return row['url'], platform
+    return None, None
+
+
+def _track_facts(cursor, media: dict) -> tuple[list[dict], float | None, str | None]:
+    """Channels, BPM and ML genre for the track behind a media file; empty for a file without one.
+
+    A channel carries the label or artist it was curated as, when it has one: that is what makes
+    the channel row in the details sheet a place to go rather than a name to read.
+    """
+    channels: list[dict] = []
+    bpm = None
+    ml_genre = None
+    if media['track_id'] is not None:
+        cursor.execute(
+            """
+            SELECT c.platform, c.name, l.name AS label, a.name AS artist
+            FROM library_track_channels tc
+            JOIN channels c ON c.id = tc.channel_id
+            LEFT JOIN library_labels l ON l.id = c.label_id
+            LEFT JOIN library_artists a ON a.id = c.artist_id
+            WHERE tc.track_id = %s
+            ORDER BY c.platform, c.name
+            """,
+            (media['track_id'],),
+        )
+        channels = [
+            {'platform': row['platform'], 'name': row['name'], 'label': row.get('label'), 'artist': row.get('artist')}
+            for row in cursor.fetchall()
+        ]
+        cursor.execute(
+            'SELECT COALESCE(af.tempo, af.bpm_tag) AS bpm FROM library_track_audio_features af '
+            'WHERE af.internal_track_id = %s LIMIT 1',
+            (media['track_id'],),
+        )
+        row = cursor.fetchone()
+        bpm = row['bpm'] if row else None
+    if media['track_uid']:
+        cursor.execute(
+            'SELECT ml_genre FROM library_track_ml_labels WHERE track_id = %s LIMIT 1', (media['track_uid'],)
+        )
+        row = cursor.fetchone()
+        ml_genre = row['ml_genre'] if row else None
+    return channels, bpm, ml_genre
+
+
+@router.get('/tracks/by-path')
+def get_track_by_path(path: str = Query(...), _auth: dict = Depends(verify_api_key)):
+    """What MuMa knows about one file that LMS does not: the channel it came from, the
+    source URL, the raw tag set the tagger wrote, and the analysed BPM.
+
+    Keyed on the path rather than a track id because the caller is the player, which holds
+    the Subsonic song object and so the LMS-relative path -- it has no MuMa track id. Every
+    spelling of that path is tried (`candidate_paths`), the same way the rating webhook joins.
+
+    A file MuMa has not scanned is a 404, not an empty body: the sheet distinguishes "MuMa
+    has nothing on this" from "MuMa could not be asked" by that.
+    """
+    spellings = candidate_paths(path)
+    hashes = [hashlib.sha256(spelling.encode('utf-8')).hexdigest() for spelling in spellings]
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail='Database connection failed')
+    try:
+        with conn.cursor() as cursor:
+            placeholders = ', '.join(['%s'] * len(hashes))
+            cursor.execute(
+                f"""
+                SELECT mf.file_path, mf.file_path_hash, mf.track_id, t.track_uid,
+                       CAST(t.created_at AS CHAR) AS created_at
+                FROM library_media_files mf
+                LEFT JOIN library_tracks t ON t.id = mf.track_id
+                WHERE mf.file_path_hash IN ({placeholders})
+                LIMIT 1
+                """,
+                tuple(hashes),
+            )
+            media = cursor.fetchone()
+            if not media:
+                raise HTTPException(status_code=404, detail='File not known to MuMa')
+
+            channels, bpm, ml_genre = _track_facts(cursor, media)
+            ingestion, tags = _ingested_tags(cursor, media['file_path_hash'])
+            source_url, source_platform = _archive_source(cursor, spellings)
+            return {
+                'track_id': media['track_id'],
+                'file_path': media['file_path'],
+                'added_at': media['created_at'],
+                'source': ingestion['source'] if ingestion else None,
+                'recorded_at': ingestion['recorded_at'] if ingestion else None,
+                'channels': channels,
+                'source_url': source_url,
+                'source_platform': source_platform,
+                'bpm': bpm,
+                'ml_genre': ml_genre,
+                'tags': tags,
+            }
+    finally:
+        conn.close()
 
 
 @router.post('/tracks/{track_id}/redownload')

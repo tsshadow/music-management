@@ -6,8 +6,11 @@
   import MetaChips from './MetaChips.svelte';
   import { coverArtSrc, localCoverArt } from './coverArt.js';
   import { offline } from './subsonic.js';
-  import { releaseDateLabel, preferredReleaseDate } from './trackDate.js';
+  import { releaseDateLabel, preferredReleaseDate, formatShortDate } from './trackDate.js';
   import { genreNames } from './genreSegments.js';
+  import { fileName, folderOf, formatSummary, hasFileDetails, tagRows } from './trackFile.js';
+  import { fetchTrackDetails } from './trackDetails.js';
+  import { platform as defaultPlatform } from './platform/index.js';
 
   /**
    * Everything we know about one track, as a bottom sheet -- the web
@@ -43,6 +46,7 @@
    * @property {string} [downloadState] - One of none/queued/running/done/failed.
    * @property {function(): void} [ondownload]
    * @property {function(): void} [onremovedownload]
+   * @property {Object} [platform] - The platform shim; the source URL goes through `system.openUrl` so the app hands it to the system browser instead of navigating the WebView away.
    */
 
   /** @type {Props} */
@@ -62,6 +66,7 @@
     downloadState = 'none',
     ondownload,
     onremovedownload,
+    platform = defaultPlatform,
   } = $props();
 
   /** What joins two artists in "Headhunterz × Wildstylez samen" -- same glyph the Kotlin sheet used. */
@@ -77,7 +82,11 @@
     if (Array.isArray(track?.moods)) return track.moods.filter(Boolean);
     return track?.mood ? [track.mood] : [];
   });
-  const festival = $derived(track?.festival || null);
+  /** `festivals` is what LMS sends (the FESTIVAL cluster, one array like `labels`); `festival` is the older single-value spelling the feeds hand out. */
+  const festivals = $derived.by(() => {
+    if (Array.isArray(track?.festivals) && track.festivals.length) return track.festivals.filter(Boolean);
+    return track?.festival ? [track.festival] : [];
+  });
 
   const artists = $derived.by(() => {
     if (track?.artists?.length) return track.artists;
@@ -102,18 +111,52 @@
       : String(track.track);
   });
 
-  const technicalSummary = $derived.by(() => {
-    const parts = [];
-    if (track?.bitRate > 0) parts.push(`${track.bitRate} kbps`);
-    if (track?.suffix) parts.push(String(track.suffix).toUpperCase());
-    return parts.join(' · ');
-  });
-  const hasTechnicalDetails = $derived(technicalSummary !== '' || !!track?.path);
+  /**
+   * The file section: name, format line, folder and the day it was added. All
+   * of it is on the song object LMS sends, so it renders at once, no toggle --
+   * the old "technical details" fold hid the file name behind two taps.
+   */
+  const fileSummary = $derived(
+    formatSummary(track, {
+      mono: $t('track.mono'),
+      stereo: $t('track.stereo'),
+      channels: (count) => $t('track.channels', { count }),
+    }),
+  );
+  const addedOn = $derived(formatShortDate(track?.created));
 
-  let showTechnical = $state(false);
+  /**
+   * The tags section is the one thing here MuMa has to be asked for, and it is
+   * asked when the sheet opens rather than when the track starts: a listener
+   * opens this for a fraction of the tracks they play. `none` (MuMa never
+   * scanned the file) renders nothing; `error` says MuMa could not be reached,
+   * because an empty section would read as "this file has no tags".
+   */
+  let tagState = $state('loading');
+  let mumaDetails = $state(null);
+  $effect(() => {
+    const path = track?.path;
+    let live = true;
+    tagState = 'loading';
+    mumaDetails = null;
+    fetchTrackDetails(path).then((result) => {
+      if (!live) return;
+      mumaDetails = result.details;
+      tagState = result.state;
+    });
+    return () => {
+      live = false;
+    };
+  });
+  const rows = $derived(tagRows(mumaDetails, track));
 
   function navigate(view) {
     onnavigate?.(view);
+  }
+
+  function openSource(event, url) {
+    event.preventDefault();
+    platform.system.openUrl(url).catch((error) => console.warn('Could not open the source', error));
   }
 </script>
 
@@ -163,14 +206,13 @@
       </div>
     {/if}
 
-    {#if festival}
+    {#if festivals.length}
       <div class="flex flex-col gap-1">
         <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-[#727272]">{$t('nav.festivals')}</span>
-        <button
-          class="self-start px-3 py-1.5 rounded-full text-[13px] font-bold bg-[#282828] text-[#b3b3b3] hover:text-white hover:bg-[#333] border-none cursor-pointer"
-          data-testid="festival-chip"
-          onclick={() => navigate(`festival:${festival}`)}
-        >{festival}</button>
+        <MetaChips
+          items={festivals.map((festival) => ({ text: festival, view: `festival:${festival}`, testid: 'festival-chip' }))}
+          onnavigate={navigate}
+        />
       </div>
     {/if}
 
@@ -196,24 +238,46 @@
       <span>{durationLabel} • {$t('track.plays')}: {track.globalPlayCount ?? track.playCount ?? 0}</span>
     </div>
 
-    {#if hasTechnicalDetails}
-      <div>
-        <button
-          class="flex items-center gap-1 bg-transparent border-none p-0 text-[#b3b3b3] hover:text-white cursor-pointer text-xs font-bold uppercase tracking-[0.1em]"
-          data-testid="technical-toggle"
-          aria-expanded={showTechnical}
-          onclick={() => (showTechnical = !showTechnical)}
-        >
-          {$t('track.technical')}
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" class="transition-transform {showTechnical ? 'rotate-180' : ''}">
-            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"></path>
-          </svg>
-        </button>
-        {#if showTechnical}
-          <div class="mt-2 flex flex-col gap-1 text-xs text-[#b3b3b3]" data-testid="technical-body">
-            {#if technicalSummary}<span>{$t('track.format')}: {technicalSummary}</span>{/if}
-            {#if track.path}<span class="break-all">{$t('track.path')}: {track.path}</span>{/if}
-          </div>
+    {#if hasFileDetails(track)}
+      <div class="flex flex-col gap-1" data-testid="file-details">
+        <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-[#727272]">{$t('track.file')}</span>
+        <dl class="details-list m-0 text-xs">
+          {#if track.path}
+            <dt>{$t('track.fileName')}</dt><dd class="break-all text-white" data-testid="file-name">{fileName(track.path)}</dd>
+          {/if}
+          {#if fileSummary}
+            <dt>{$t('track.format')}</dt><dd data-testid="file-format">{fileSummary}</dd>
+          {/if}
+          {#if folderOf(track.path)}
+            <dt>{$t('track.folder')}</dt><dd class="break-all">{folderOf(track.path)}</dd>
+          {/if}
+          {#if addedOn}
+            <dt>{$t('track.added')}</dt><dd>{addedOn}</dd>
+          {/if}
+        </dl>
+      </div>
+    {/if}
+
+    {#if tagState === 'loading' || tagState === 'error' || rows.length}
+      <div class="flex flex-col gap-1" data-testid="tag-details">
+        <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-[#727272]">{$t('track.tags')}</span>
+        {#if tagState === 'loading'}
+          <span class="text-xs text-[#727272]">{$t('track.tagsLoading')}</span>
+        {:else if tagState === 'error'}
+          <span class="text-xs text-[#727272]" data-testid="tags-unavailable">{$t('track.tagsUnavailable')}</span>
+        {:else}
+          <dl class="details-list m-0 text-xs">
+            {#each rows as row (row.key + row.value)}
+              <dt>{row.raw ? row.key : $t(`track.${row.key}`)}</dt>
+              <dd class="break-all">
+                {#if row.href}
+                  <a href={row.href} target="_blank" rel="noopener noreferrer" class="text-brand hover:underline" onclick={(e) => openSource(e, row.href)}>{row.value}</a>
+                {:else}
+                  {row.value}
+                {/if}
+              </dd>
+            {/each}
+          </dl>
         {/if}
       </div>
     {/if}
@@ -249,6 +313,22 @@
 </BottomSheet>
 
 <style>
+  /* Label left, value right, wrapping under each other on a narrow sheet. */
+  .details-list {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    column-gap: .75rem;
+    row-gap: .25rem;
+    color: #b3b3b3;
+  }
+  .details-list dt {
+    color: #727272;
+  }
+  .details-list dd {
+    margin: 0;
+    min-width: 0;
+  }
+
   /* One shared touch target for every details action, including the download link. */
   .details-actions > button, .details-actions > a {
     min-height: 44px;

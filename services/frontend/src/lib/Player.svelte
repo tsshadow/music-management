@@ -1805,6 +1805,12 @@
       ontoggleEqualizer={() => (showEqualizer = !showEqualizer)}
       {ontoggleQueue}
       onopenOutputPicker={openOutputPicker}
+      radioActive={isRadioActive}
+      {radioChannels}
+      {showRadioPicker}
+      ontoggleRadio={toggleRadio}
+      onstartRadio={startRadio}
+      oncloseRadioPicker={() => (showRadioPicker = false)}
       {onnavigate}
     />
   {:else}

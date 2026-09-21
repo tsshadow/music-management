@@ -23,6 +23,9 @@
     onremove = null,
     onnavigate,
     showDate = false,
+    // The name the player header gives this list when a row starts a queue from it ("Nummers ·
+    // Recent uitgebracht"); null lets `startQueue` name the current view itself.
+    sourceName = null,
     platform = defaultPlatform
   } = $props();
 
@@ -242,16 +245,18 @@
    * Sets the current track and starts playback.
    * If not in queue mode, also updates the global playlist.
    *
-   * No name is given: whatever page rendered this list (a genre, an artist, a
-   * playlist, ...) is already the current view, and `startQueue`'s default
-   * `view` picks that up on its own -- see `queue.js`.
+   * Whatever page rendered this list (a genre, an artist, a playlist, ...)
+   * is already the current view, and `startQueue`'s default `view` picks
+   * that up on its own -- see `queue.js`. `sourceName` is for the pages
+   * whose view name says too little on its own: the whole songs list is
+   * "Nummers", but what plays is "Nummers · Recent uitgebracht".
    *
    * @param {Object} track - The track object to play.
    */
   function playTrack(track) {
     currentTrack.set(track);
     if (!isQueue) {
-        startQueue(tracks);
+        startQueue(tracks, { name: sourceName });
     }
     playerState.update(s => ({ ...s, playing: true }));
   }

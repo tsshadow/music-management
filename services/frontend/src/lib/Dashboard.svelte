@@ -44,7 +44,7 @@
   import { defaultCollectionState, durationParts, lineupLevel, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
   import { loadIndexedTags } from './scanTags.js';
   import { DAILY_MIX, DAILY_MIXES, RELEASE_RADAR } from './feeds.js';
-  import { authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, hasPermission, isMobile, restUrl, mumaUser } from './store.js';
+  import { allSortOptions, authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, hasPermission, isMobile, restUrl, mumaUser } from './store.js';
 
   // Navigation that has to survive a refresh goes through onnavigate, which App turns into a URL.
   // The local assignment stays the fallback for the many places that only switch the screen.
@@ -416,6 +416,20 @@
       notify.error($t('presets.saveFailed'));
     }
   }
+
+  /**
+   * What the player header says a queue started from this list is playing from. The whole
+   * songs/sets view is named after its sort as well -- "Nummers · Recent uitgebracht" -- because
+   * "Nummers" alone told the listener nothing about the list they picked a track from. A genre,
+   * label or year view already has a name of its own (`placeTitle`), so those pass null and keep
+   * it.
+   */
+  const listSourceName = $derived.by(() => {
+    if (activeView !== 'songs' && activeView !== 'sets') return null;
+    const base = $viewMode === 'sets' ? $t('nav.sets') : $t('nav.songs');
+    const sortKey = allSortOptions.songs.find((option) => option.id === currentSort)?.labelKey;
+    return sortKey ? `${base} · ${$t(sortKey)}` : base;
+  });
 
   /** "Random Uptempo Hardcore", "Recent Hardstyle (2024)": the sort word first, as the old tiles were named. */
   function defaultPresetName() {
@@ -918,7 +932,7 @@
         <p>{$t('common.loading')}</p>
     {:else}
         {#if tracks.length > 0}
-            <TrackList {tracks} onnavigate={(v) => activeView = v} />
+            <TrackList {tracks} sourceName={listSourceName} onnavigate={(v) => activeView = v} />
             {#if tracksHasMore}
                 <div bind:this={sentinel} class="flex justify-center py-6">
                     <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAllTracks(true)}>

@@ -54,6 +54,10 @@ READ_ENDPOINTS = [
     ('/api/system/activity', 200),
     ('/api/soundcloud', 200),
     ('/api/youtube', 200),
+    # Four statements each over the downloader tables, including the archive
+    # timestamp the YouTube table only has since migrate_v31.
+    ('/api/downloaders/coverage/soundcloud', 200),
+    ('/api/downloaders/coverage/youtube', 200),
     ('/api/artists/search', 200),
     ('/api/artists/search-all', 200),
     ('/api/artists/images/stats', 200),

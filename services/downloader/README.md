@@ -122,6 +122,15 @@ budget on them, and never reach the real tail.
 Each pass logs its own audit: listed, held, written off, wanted, fetched. An account
 that is complete says so in arithmetic.
 
+The pass also leaves a count behind. `take_snapshot` partitions the listing *after* the
+pass -- held, excluded (a write-off that still stands under the current bounds and retry
+window), remaining -- and `AccountSchedule.record_snapshot` stores it in the six
+`snapshot_*` columns of `downloads_account_checks`, parked and capped passes included.
+That is what `GET /api/downloaders/coverage/{source}` and the Volledigheid tab read; the
+log line is not it. The report's own `held` is the archive before the pass and its
+`written_off` counts expired decisions, so neither adds up to `listed` and neither is
+stored. See docs/designs/channel-coverage.
+
 ## 🛠 Configuration
 
 See the root `.env.example` for source-specific settings (API keys, channel IDs, etc.).

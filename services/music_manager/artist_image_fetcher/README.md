@@ -12,7 +12,13 @@ The Artist Image Fetcher is a service designed to enrich the music library with 
 
 ## 🛠 Configuration
 
-Configure the following environment variables in your `.env` file:
+The API keys are read through `services.common.config_store.credential()`: a value set on
+**Beheer > Config** ("3rd Party APIs") wins, the environment is the fallback. On production
+the environment is the Portainer stack env, passed through by `docker/docker-compose.yml`.
+A run with no configured provider looks nothing up and marks nothing as failed -- see
+`docs/bug-reports/034-artist-image-fetcher-ran-blind.md` for the month it did.
+
+Environment variables:
 
 ```env
 # API Keys

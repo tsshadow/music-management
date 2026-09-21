@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from services.music_manager.artist_image_fetcher import fetcher as fetcher_module
 from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetcher
+from services.music_manager.artist_image_fetcher.providers.base import ProviderUnavailable
 
 
 def make_cursor(conn):
@@ -45,12 +46,19 @@ class FetcherTestCase(unittest.TestCase):
             'file_size': 10,
         }
 
-    def add_provider(self, name, candidates):
+    def add_provider(self, name, candidates, configured=True):
         provider = MagicMock()
         provider.name = name
+        provider.configured = configured
         provider.get_artist_images.return_value = candidates
         self.fetcher.providers.append(provider)
         return provider
+
+    def statements(self):
+        return [call.args[0] for call in self.cursor.execute.call_args_list]
+
+    def assert_status_untouched(self):
+        self.assertFalse(any('image_status = %s' in s for s in self.statements()))
 
 
 class ConstructionTest(unittest.TestCase):
@@ -78,19 +86,23 @@ class FetchForArtistTest(FetcherTestCase):
         self.assertTrue(self.fetcher.fetch_for_artist(1))
         self.fetcher.mb_provider.get_artist_metadata.assert_not_called()
 
+    # These three need a sighted fetcher: a blind one stops before the MusicBrainz step.
     def test_force_refresh_processes_an_artist_that_already_has_an_image(self):
+        self.add_provider('spotify', [])
         self.cursor.fetchone.return_value = {'id': 1, 'name': 'Angerfist', 'mbid': None, 'primary_image_id': 9}
         self.cursor.fetchall.return_value = []
         self.assertFalse(self.fetcher.fetch_for_artist(1, force_refresh=True))
         self.fetcher.mb_provider.get_artist_metadata.assert_called_once()
 
     def test_a_supplied_name_skips_the_name_lookup_but_still_reads_the_mbid(self):
+        self.add_provider('spotify', [])
         self.cursor.fetchone.return_value = {'id': 1, 'mbid': 'mb1', 'primary_image_id': None}
         self.cursor.fetchall.return_value = []
         self.fetcher.fetch_for_artist(1, 'Angerfist')
         self.fetcher.mb_provider.get_artist_metadata.assert_called_once_with('Angerfist', 'mb1')
 
     def test_an_artist_row_that_is_gone_leaves_the_mbid_empty(self):
+        self.add_provider('spotify', [])
         self.cursor.fetchone.return_value = None
         self.cursor.fetchall.return_value = []
         self.fetcher.fetch_for_artist(1, 'Angerfist')
@@ -143,8 +155,65 @@ class FetchForArtistTest(FetcherTestCase):
             'lastfm', [{'source': 'lastfm', 'source_id': 'l1', 'name': 'Someone Else', 'url': 'https://img.test/a.jpg'}]
         )
         self.assertFalse(self.fetcher.fetch_for_artist(1, 'Angerfist'))
-        statements = [call.args[0] for call in self.cursor.execute.call_args_list]
-        self.assertTrue(any('image_status = %s' in s for s in statements))
+        self.assertTrue(any('image_status = %s' in s for s in self.statements()))
+
+    # The August 2026 blindness: every provider unconfigured, 45.000 artists written down
+    # as unfindable. A fetcher with nobody to ask records nothing and says so.
+    def test_without_any_configured_provider_nothing_is_looked_up_and_nothing_is_recorded(self):
+        self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}
+        self.cursor.fetchall.return_value = []
+        spotify = self.add_provider('spotify', [], configured=False)
+        self.assertTrue(self.fetcher.blind)
+        self.assertFalse(self.fetcher.fetch_for_artist(1, 'Sefa'))
+        spotify.get_artist_images.assert_not_called()
+        self.fetcher.mb_provider.get_artist_metadata.assert_not_called()
+        self.assert_status_untouched()
+
+    def test_the_soundcloud_stub_alone_does_not_make_a_run_sighted(self):
+        self.add_provider('soundcloud', [])
+        self.assertTrue(self.fetcher.blind)
+        self.add_provider('spotify', [])
+        self.assertFalse(self.fetcher.blind)
+
+    def test_an_unconfigured_provider_is_not_asked(self):
+        self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}
+        self.cursor.fetchall.return_value = []
+        lastfm = self.add_provider('lastfm', [], configured=False)
+        self.add_provider(
+            'spotify', [{'source': 'spotify', 'source_id': 's1', 'name': 'Angerfist', 'url': 'https://img.test/a.jpg'}]
+        )
+        self.fetcher.downloader.download.return_value = b'binary'
+        self.assertTrue(self.fetcher.fetch_for_artist(1, 'Angerfist'))
+        lastfm.get_artist_images.assert_not_called()
+
+    # A provider that could not answer -- rate limit, rejected credential, network -- is not
+    # a verdict about the artist. The status stays and the next run asks again.
+    def test_a_provider_that_could_not_answer_defers_the_artist_instead_of_failing_it(self):
+        self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}
+        self.cursor.fetchall.return_value = []
+        spotify = self.add_provider('spotify', [])
+        spotify.get_artist_images.side_effect = ProviderUnavailable('Spotify: lookup answered 429')
+        self.assertFalse(self.fetcher.fetch_for_artist(1, 'Sefa'))
+        self.assert_status_untouched()
+
+    def test_a_provider_that_blew_up_defers_the_artist_too(self):
+        self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}
+        self.cursor.fetchall.return_value = []
+        spotify = self.add_provider('spotify', [])
+        spotify.get_artist_images.side_effect = RuntimeError('api down')
+        self.assertFalse(self.fetcher.fetch_for_artist(1, 'Sefa'))
+        self.assert_status_untouched()
+
+    def test_a_confident_hit_from_one_provider_wins_even_when_another_could_not_answer(self):
+        self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}
+        self.cursor.fetchall.return_value = []
+        spotify = self.add_provider('spotify', [])
+        spotify.get_artist_images.side_effect = ProviderUnavailable('Spotify: lookup answered 429')
+        self.add_provider(
+            'lastfm', [{'source': 'lastfm', 'source_id': 'l1', 'name': 'Angerfist', 'url': 'https://img.test/a.jpg'}]
+        )
+        self.fetcher.downloader.download.return_value = b'binary'
+        self.assertTrue(self.fetcher.fetch_for_artist(1, 'Angerfist'))
 
     def test_the_most_confident_candidate_wins(self):
         self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}

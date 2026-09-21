@@ -9,6 +9,7 @@ from services.common.Helpers.DatabaseConnector import DatabaseConnector
 
 from .matcher import ArtistMatcher
 from .normalizer import ArtistNameNormalizer
+from .providers.base import ProviderUnavailable
 from .providers.lastfm import LastFmArtistImageProvider
 from .providers.musicbrainz import MusicBrainzArtistProvider
 from .providers.soundcloud import SoundCloudArtistImageProvider
@@ -29,15 +30,38 @@ class ArtistImageFetcher:
         self.storage = ImageStorage(storage_path, public_base_url)
         self.downloader = ImageDownloader()
         self.mb_provider = MusicBrainzArtistProvider()
+        # SoundCloud is a stub that has never produced a candidate, so a run with only
+        # SoundCloud is a blind run -- see `configured_providers`.
         self.providers = [
             SpotifyArtistImageProvider(),
             SoundCloudArtistImageProvider(self.db_conn),
             LastFmArtistImageProvider(),
         ]
-        enabled_providers = [
-            p.name for p in self.providers if getattr(p, 'api_key', True) or getattr(p, 'client_id', True)
-        ]
-        self.logger.info(f'ArtistImageFetcher initialized with providers: {enabled_providers}')
+        enabled_providers = [p.name for p in self.configured_providers]
+        if enabled_providers:
+            self.logger.info(f'ArtistImageFetcher initialized with providers: {enabled_providers}')
+        else:
+            self.logger.error(
+                'ArtistImageFetcher has no configured image provider: set the Spotify client id and '
+                'secret (Beheer > Config, or SPOTIFY_CLIENT_ID/SPOTIFY_CLIENT_SECRET). Nothing will be '
+                'fetched and no artist will be marked as failed.'
+            )
+
+    @property
+    def configured_providers(self):
+        """The providers that can actually answer.
+
+        Only these are asked, and only a run that has at least one records `failed` for an
+        artist. Between 2026-08-22 and 2026-09-21 production ran with none -- the image no
+        longer carried the .env that held the Spotify credentials -- and every one of the
+        45.000 artists it asked about was written down as unfindable.
+        """
+        return [p for p in self.providers if p.configured and p.name != 'soundcloud']
+
+    @property
+    def blind(self):
+        """True when no provider is configured: a run that can find nothing, whoever it asks."""
+        return not self.configured_providers
 
     def fetch_for_artist(self, artist_id, artist_name=None, force_refresh=False):
         if not artist_name:
@@ -61,6 +85,10 @@ class ArtistImageFetcher:
         if primary_image_id and (not force_refresh):
             self.logger.info(f'Artist {artist_name} already has a primary image. Skipping.')
             return True
+        if self.blind:
+            # No verdict without a witness: the status is left exactly as it was.
+            self.logger.warning(f'No image provider configured; not looking up {artist_name}')
+            return False
         self.logger.info(f'Fetching images for artist: {artist_name} (ID: {artist_id})')
         external_ids = self._get_external_ids(artist_id)
         mb_metadata = self.mb_provider.get_artist_metadata(artist_name, mbid)
@@ -73,8 +101,9 @@ class ArtistImageFetcher:
                     external_ids[source] = sid
                     self._save_external_id(artist_id, source, sid)
         candidates = []
+        unavailable = []
         target_artist = {'id': artist_id, 'name': artist_name, 'mbid': mbid}
-        for provider in self.providers:
+        for provider in self.configured_providers:
             try:
                 provider_candidates = provider.get_artist_images(artist_name, mbid, external_ids)
                 self.logger.info(
@@ -83,8 +112,13 @@ class ArtistImageFetcher:
                 for cand in provider_candidates:
                     cand['confidence'] = self.matcher.calculate_confidence(target_artist, cand)
                     candidates.append(cand)
+            except ProviderUnavailable as e:
+                self.logger.warning(f'Provider {provider.name} could not answer for {artist_name}: {e}')
+                unavailable.append(provider.name)
             except Exception as e:
+                # A provider that blew up did not look either.
                 self.logger.error(f'Provider {provider.name} failed for {artist_name}: {e}')
+                unavailable.append(provider.name)
         source_priority = {'spotify': 1, 'soundcloud': 2, 'lastfm': 3, 'musicbrainz': 4}
         candidates.sort(key=lambda x: (x['confidence'], -source_priority.get(x['source'], 99)), reverse=True)
         best_candidate = None
@@ -93,6 +127,11 @@ class ArtistImageFetcher:
                 best_candidate = cand
                 break
         if not best_candidate:
+            if unavailable:
+                # Somebody who could have known did not answer: not a verdict. The artist
+                # keeps its status and is asked about again on the next run.
+                self.logger.info(f'No candidates for {artist_name} while {unavailable} could not answer; deferred.')
+                return False
             self.logger.info(f'No good candidates found for {artist_name}.')
             self._update_artist_image_status(artist_id, 'failed')
             return False

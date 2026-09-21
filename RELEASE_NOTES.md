@@ -11,6 +11,12 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.71.1 (2026-09-21)
+
+- **De speler toont altijd album, releasedatum en de radioknop**, en "Afspelen vanuit" noemt de
+  sortering waaruit je koos ("Nummers · Recent uitgebracht") in plaats van alleen "Nummers".
+- **De Volledigheid-tab werkt weer.** Hij gaf sinds zijn oplevering geen enkele rij terug.
+
 ## Global Version 0.71.0 (2026-09-21)
 
 - **Nummerdetails tonen nu het bestand en alle tags.** Tik op de titel in de speler (of `⋮`) voor

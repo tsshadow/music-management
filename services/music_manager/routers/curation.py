@@ -23,6 +23,7 @@ from pydantic import BaseModel
 
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.RescanInvalidator import invalidate_quietly
+from services.music_manager import catalog_series
 from services.music_manager import curation_rules as rules
 from services.music_manager.database import get_db_connection
 from services.music_manager.rbac import require_permission
@@ -445,6 +446,37 @@ def _require_label(cursor, name: str) -> dict:
     if not label:
         raise HTTPException(status_code=404, detail='Unknown label')
     return label
+
+
+@router.get('/labels/{name}/catalog')
+def get_label_catalog(name: str, _auth: dict = READ):
+    """How complete the label's catalogue is, read off the release folders it has on disk.
+
+    Computed on demand from the paths of every file carrying the label: one query,
+    then `catalog_series` does the rest in Python. There is no catalogue-number column
+    to index, and the number of files behind one label is a few thousand at most, so
+    a cache would only add a way for the page to lag the disk. See
+    docs/designs/label-catalog-coverage/.
+    """
+    settings = Settings()
+    conn = _connect()
+    try:
+        with conn.cursor() as cursor:
+            label = _require_label(cursor, name)
+            cursor.execute(
+                '''
+                SELECT mf.file_path
+                FROM library_track_labels tl
+                JOIN library_media_files mf ON mf.track_id = tl.track_id
+                WHERE tl.label_id = %s
+                ''',
+                (label['id'],),
+            )
+            paths = [row['file_path'] for row in cursor.fetchall()]
+    finally:
+        conn.close()
+    catalog = catalog_series.build_catalog(paths, settings.eps_folder_path, settings.delimiter)
+    return {'name': label['name'], **catalog}
 
 
 @router.put('/labels/{name}/mbid')

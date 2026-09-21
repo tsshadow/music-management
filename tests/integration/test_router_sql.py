@@ -86,6 +86,9 @@ READ_ENDPOINTS = [
     # rule may legitimately be written before the first matching file arrives.
     ('/api/curation/artists/Angerfist', 200),
     ('/api/curation/labels/Scantraxx', 200),
+    # The catalogue is read off files, so a label with none is a 404 rather than a
+    # row of nulls; the seeded label below proves the join.
+    ('/api/curation/labels/Scantraxx/catalog', 404),
     ('/api/curation/genres/Hardcore', 404),
     # The feeds surface. `headers` authenticates as the system key, which
     # `_resolve_username` in routers/feeds.py refuses without an explicit
@@ -188,6 +191,29 @@ class CurationEditPagesTest:
         page = api.get('/api/curation/labels/Minus Is More', headers=headers).json()
         assert page['parent_label_name'] == 'Roughstate'
         assert page['catids'] == ['MIM']
+
+    def test_a_label_catalogue_is_read_off_the_files_that_carry_it(self, api, headers, db):
+        # The join in GET /labels/{name}/catalog is the only SQL the unit suite never
+        # ran for real: label -> track labels -> media files.
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_labels (name) VALUES ('Dirty Workz')")
+            label_id = cursor.lastrowid
+            for number in (1, 2, 4):
+                cursor.execute("INSERT INTO library_tracks (title) VALUES (%s)", (f'Track {number}',))
+                track_id = cursor.lastrowid
+                cursor.execute(
+                    'INSERT INTO library_track_labels (track_id, label_id) VALUES (%s, %s)', (track_id, label_id)
+                )
+                cursor.execute(
+                    'INSERT INTO library_media_files (file_path, file_path_hash, track_id) VALUES (%s, %s, %s)',
+                    (f'/mnt/music/EPs/Dirty Workz/DWX{number:04d} Release/01.mp3', f'dwx-{number}', track_id),
+                )
+
+        page = api.get('/api/curation/labels/Dirty Workz/catalog', headers=headers)
+        assert page.status_code == 200, page.text
+        body = page.json()
+        assert body['files_considered'] == 3
+        assert [(s['prefix'], s['min'], s['max'], s['absent']) for s in body['series']] == [('DWX', 1, 4, [3])]
 
     def test_a_label_cannot_be_its_own_parent(self, api, headers, db):
         with db.cursor() as cursor:

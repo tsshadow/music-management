@@ -309,6 +309,59 @@ class LabelReadTest(CurationTestCase):
         self.assertEqual(body['track_count'], 88)
 
 
+class LabelCatalogTest(CurationTestCase):
+    rules = (
+        ('FROM library_labels', None, LABEL_ROW),
+        (
+            'FROM library_track_labels tl JOIN library_media_files mf',
+            None,
+            [
+                {'file_path': '/mnt/music/EPs/Masters of Hardcore/MOH001 First/01.mp3'},
+                {'file_path': '/mnt/music/EPs/Masters of Hardcore/MOH001 First/02.mp3'},
+                {'file_path': '/mnt/music/EPs/Masters of Hardcore/MOH003 Third/01.mp3'},
+                {'file_path': '/mnt/music/EPs/Masters of Hardcore/MOHFREE Giveaway/01.mp3'},
+            ],
+        ),
+    )
+
+    def test_reads_the_series_off_the_release_folders(self):
+        response = self.client.get('/api/curation/labels/Masters%20of%20Hardcore/catalog', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['name'], 'Masters of Hardcore')
+        self.assertEqual(body['files_considered'], 4)
+        self.assertEqual(len(body['series']), 1)
+        moh = body['series'][0]
+        self.assertEqual((moh['prefix'], moh['min'], moh['max'], moh['present'], moh['absent']), ('MOH', 1, 3, 2, [2]))
+        self.assertEqual(body['other'], [{'catid': 'MOHFREE', 'release_folder': 'MOHFREE Giveaway'}])
+        _sql, params = self.statements('FROM library_track_labels tl')[-1]
+        self.assertEqual(params, (3,))
+
+    def test_reading_the_catalogue_does_not_reload_the_tagger_caches(self):
+        self.client.get('/api/curation/labels/Masters%20of%20Hardcore/catalog', headers=self.headers)
+        self.assertEqual(self.reloaded_helpers(), [])
+
+
+class LabelCatalogUnknownLabelTest(CurationTestCase):
+    rules = ()
+
+    def test_a_label_the_library_does_not_hold_is_a_404(self):
+        # Unlike GET /labels/{name}, which answers for a label that only exists in the
+        # rule tables: a catalogue can only be read off files, and there are none.
+        response = self.client.get('/api/curation/labels/Nobody/catalog', headers=self.headers)
+        self.assertEqual(response.status_code, 404)
+
+
+class LabelCatalogWithoutFilesTest(CurationTestCase):
+    rules = (('FROM library_labels', None, LABEL_ROW),)
+
+    def test_a_label_without_files_is_an_empty_catalogue_not_an_error(self):
+        response = self.client.get('/api/curation/labels/Masters%20of%20Hardcore/catalog', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['series'], [])
+        self.assertEqual(response.json()['files_considered'], 0)
+
+
 class LabelGenreRuleTest(CurationTestCase):
     rules = (
         ('FROM rules_genres WHERE id', None, WHITE_GENRE),

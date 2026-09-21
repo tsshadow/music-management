@@ -35,6 +35,8 @@ const seg = (value) => encodeURIComponent(value);
 
 export const loadArtist = (name) => read(`/artists/${seg(name)}`);
 export const loadLabel = (name) => read(`/labels/${seg(name)}`);
+/** The label's catalogue coverage, read off its release folders; computed on demand. */
+export const loadLabelCatalog = (name) => read(`/labels/${seg(name)}/catalog`);
 export const loadGenre = (name) => read(`/genres/${seg(name)}`);
 
 export const setArtistMbid = (name, mbid) => write(`/artists/${seg(name)}/mbid`, "PUT", { mbid });

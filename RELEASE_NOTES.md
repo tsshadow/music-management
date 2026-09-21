@@ -11,6 +11,16 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.71.0 (2026-09-21)
+
+- **Nummerdetails tonen nu het bestand en alle tags.** Tik op de titel in de speler (of `⋮`) voor
+  bestandsnaam, formaat, map, kanaal, bron-URL, BPM, catalogusnummer en alle overige tags.
+- **Festivals worden nu echt geïndexeerd.** De scanner leest de festivaltag voortaan mee; na de
+  eerstvolgende volledige scan zijn de festivalpagina's en -chips gevuld.
+- **Kanaal in de nummerdetails is tikbaar** als het aan een label of artiest gekoppeld is.
+- **De labelchip in de speler rendert weer.** Hij las een veld dat de server nooit stuurde, dus
+  geen enkel nummer toonde zijn label onder de genres.
+
 ## Global Version 0.70.0 (2026-09-21)
 
 - Beheer → Downloaders → Volledigheid laat per SoundCloud-account en YouTube-kanaal zien hoeveel

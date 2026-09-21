@@ -1,7 +1,7 @@
 """How complete each followed channel is, from the counts the deep sweep leaves behind.
 
 The deep sweep stores one snapshot per account in `downloads_account_checks` (see
-`services.downloader.deep_sweep.AccountSnapshot` and docs/designs/channel-coverage). This
+`services.downloader.account_snapshot.AccountSnapshot` and docs/designs/channel-coverage). This
 turns those rows, the configured account list and the archive timestamps into the shape the
 Volledigheid page renders. Pure over its inputs; the router does the queries.
 

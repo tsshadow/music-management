@@ -294,5 +294,33 @@ class SoundcloudPassSnapshotTest(unittest.TestCase):
         self.assertEqual((2, 0, 0, 2), (result.listed, result.held, result.excluded, result.remaining))
 
 
+class ManagerWithoutYtDlpTest(unittest.TestCase):
+    """The manager container has no yt-dlp; reading a snapshot must not need it.
+
+    Run in a subprocess with `yt_dlp` made unimportable, because this process has
+    long since imported it. The first evening the page was live it answered
+    "No module named 'yt_dlp'" for exactly this reason.
+    """
+
+    def test_a_stored_row_is_read_without_yt_dlp(self):
+        import subprocess
+        import sys
+
+        # mock_base stubs yt_dlp itself, so the block has to come after it.
+        script = (
+            'from services.tests.mock_base import setup_mocks; setup_mocks()\n'
+            'import sys; sys.modules["yt_dlp"] = None\n'
+            'from datetime import datetime\n'
+            'from services.downloader.account_schedule import _snapshot_from_row\n'
+            'from services.music_manager import downloader_coverage\n'
+            'snapshot = _snapshot_from_row((10, 7, 1, 2, "capped", datetime(2026, 9, 21)))\n'
+            'assert snapshot.remaining == 2, snapshot\n'
+            'print("ok")\n'
+        )
+        result = subprocess.run([sys.executable, '-c', script], capture_output=True, text=True, check=False)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn('ok', result.stdout)
+
+
 if __name__ == '__main__':
     unittest.main()

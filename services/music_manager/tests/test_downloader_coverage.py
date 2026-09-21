@@ -8,7 +8,7 @@ from services.tests.mock_base import setup_mocks
 setup_mocks()
 
 from services.downloader.account_schedule import AccountCheck
-from services.downloader.deep_sweep import SNAPSHOT_CAPPED, SNAPSHOT_COMPLETE, AccountSnapshot
+from services.downloader.account_snapshot import SNAPSHOT_CAPPED, SNAPSHOT_COMPLETE, AccountSnapshot
 from services.music_manager.downloader_coverage import (
     ConfiguredAccount,
     build_coverage,

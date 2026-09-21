@@ -20,8 +20,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from services.downloader.account_snapshot import AccountSnapshot
+
 if TYPE_CHECKING:  # pragma: no cover - for type checkers only
-    from services.downloader.deep_sweep import AccountSnapshot
     from services.downloader.timing import DownloaderTiming
 
 SECONDS_PER_DAY = 86400
@@ -156,8 +157,6 @@ def _kept(new_value, previous: AccountCheck | None, attribute: str):
 
 def _snapshot_from_row(values) -> AccountSnapshot | None:
     """The stored snapshot, or None for a row that predates the count."""
-    from services.downloader.deep_sweep import AccountSnapshot
-
     listed, held, excluded, remaining, state, taken_at = values
     if listed is None or taken_at is None:
         return None

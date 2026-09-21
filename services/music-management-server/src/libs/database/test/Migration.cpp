@@ -297,6 +297,11 @@ INSERT INTO artist (version, name, sort_name, mbid) VALUES
 (1, 'Artist A', 'Artist A', 'mbid_artist_a'),
 (2, 'Artist B', 'Artist B', 'mbid_artist_b');
 
+-- One scan settings row, as every installation has, with extra tags already set:
+-- migrateFromV119 has to append FESTIVAL to it rather than replace it.
+INSERT INTO scan_settings (version, scan_version, media_directory, update_period, audio_file_extensions, similarity_engine_type)
+VALUES (1, 1, '/music', 0, '.mp3', 0);
+
 -- Inserting releases
 INSERT INTO release (version, name, mbid) VALUES
 (1, 'Release X', 'mbid_release_x'),
@@ -346,6 +351,38 @@ VALUES
 
         // Now perform full migration
         db.getTLSSession().migrateSchemaIfNeeded();
+
+        {
+            // migrateFromV119 on a row that never had extra tags: FESTIVAL becomes the list.
+            auto transaction{ session.createReadTransaction() };
+            const std::string extraTags{ session.getDboSession()->query<std::string>("SELECT extra_tags_to_scan FROM scan_settings") };
+            EXPECT_EQ(extraTags, "FESTIVAL");
+        }
+
+        // The same migration against a row that already scans other tags, run on its own by
+        // winding the recorded version back to 119: FESTIVAL is appended, the audio scan
+        // version bumped once, and a second run changes nothing.
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.execute("UPDATE scan_settings SET extra_tags_to_scan = 'MOOD;PUBLISHER', audio_scan_version = 7");
+            session.execute("UPDATE version_info SET db_version = 119");
+        }
+        db.getTLSSession().migrateSchemaIfNeeded();
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(session.getDboSession()->query<std::string>("SELECT extra_tags_to_scan FROM scan_settings"), "MOOD;PUBLISHER;FESTIVAL");
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT audio_scan_version FROM scan_settings"), 8);
+        }
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.execute("UPDATE version_info SET db_version = 119");
+        }
+        db.getTLSSession().migrateSchemaIfNeeded();
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(session.getDboSession()->query<std::string>("SELECT extra_tags_to_scan FROM scan_settings"), "MOOD;PUBLISHER;FESTIVAL");
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT audio_scan_version FROM scan_settings"), 8);
+        }
 
         // Now perform some dummy finds to ensure all fields are correctly mapped
         {

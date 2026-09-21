@@ -272,6 +272,8 @@
               <dd class="break-all">
                 {#if row.href}
                   <a href={row.href} target="_blank" rel="noopener noreferrer" class="text-brand hover:underline" onclick={(e) => openSource(e, row.href)}>{row.value}</a>
+                {:else if row.view}
+                  <button class="bg-transparent border-none p-0 text-inherit text-left hover:text-white hover:underline cursor-pointer" data-testid="tag-link" onclick={() => navigate(row.view)}>{row.value}</button>
                 {:else}
                   {row.value}
                 {/if}

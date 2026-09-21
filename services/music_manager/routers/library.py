@@ -267,22 +267,31 @@ def _archive_source(cursor, spellings: list[str]) -> tuple[str | None, str | Non
 
 
 def _track_facts(cursor, media: dict) -> tuple[list[dict], float | None, str | None]:
-    """Channels, BPM and ML genre for the track behind a media file; empty for a file without one."""
+    """Channels, BPM and ML genre for the track behind a media file; empty for a file without one.
+
+    A channel carries the label or artist it was curated as, when it has one: that is what makes
+    the channel row in the details sheet a place to go rather than a name to read.
+    """
     channels: list[dict] = []
     bpm = None
     ml_genre = None
     if media['track_id'] is not None:
         cursor.execute(
             """
-            SELECT c.platform, c.name
+            SELECT c.platform, c.name, l.name AS label, a.name AS artist
             FROM library_track_channels tc
             JOIN channels c ON c.id = tc.channel_id
+            LEFT JOIN library_labels l ON l.id = c.label_id
+            LEFT JOIN library_artists a ON a.id = c.artist_id
             WHERE tc.track_id = %s
             ORDER BY c.platform, c.name
             """,
             (media['track_id'],),
         )
-        channels = [{'platform': row['platform'], 'name': row['name']} for row in cursor.fetchall()]
+        channels = [
+            {'platform': row['platform'], 'name': row['name'], 'label': row.get('label'), 'artist': row.get('artist')}
+            for row in cursor.fetchall()
+        ]
         cursor.execute(
             'SELECT COALESCE(af.tempo, af.bpm_tag) AS bpm FROM library_track_audio_features af '
             'WHERE af.internal_track_id = %s LIMIT 1',

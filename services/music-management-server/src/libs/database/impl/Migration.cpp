@@ -35,7 +35,7 @@ namespace lms::db
 {
     namespace
     {
-        static constexpr Version LMS_DATABASE_VERSION{ 119 };
+        static constexpr Version LMS_DATABASE_VERSION{ 120 };
     }
 
     VersionInfo::VersionInfo()
@@ -1963,6 +1963,29 @@ WHERE NOT EXISTS (
     SELECT 1 FROM track_cluster tc JOIN cluster c2 ON c2.id = tc.cluster_id
     WHERE tc.track_id = t.id AND c2.cluster_type_id = c.cluster_type_id))");
         }
+
+        void migrateFromV119(Session& session)
+        {
+            // FESTIVAL joins the extra tags to scan. The tagger has written TXXX:FESTIVAL on
+            // every set recorded at a festival since the festival rules shipped, the Subsonic
+            // song node has carried a `festivals` array since the track-details work, and the
+            // browse pages have asked getTags?name=FESTIVAL all along -- yet nothing was ever
+            // indexed, because the tag sat in a runtime setting on production that nobody set.
+            // A migration makes it part of the deploy rather than a note in a design document.
+            //
+            // The audio scan version is bumped, as setExtraTagsToScan() itself would: a new
+            // cluster type can only be filled by re-reading the files, so the next scan walks
+            // the whole library once. An installation that already lists FESTIVAL is left
+            // alone, version included.
+            utils::executeCommand(*session.getDboSession(), R"(
+UPDATE scan_settings
+SET extra_tags_to_scan = CASE
+        WHEN extra_tags_to_scan IS NULL OR extra_tags_to_scan = '' THEN 'FESTIVAL'
+        ELSE extra_tags_to_scan || ';FESTIVAL'
+    END,
+    audio_scan_version = audio_scan_version + 1
+WHERE (';' || COALESCE(extra_tags_to_scan, '') || ';') NOT LIKE '%;FESTIVAL;%')");
+        }
     } // namespace
 
     bool doDbMigration(Session& session)
@@ -2060,6 +2083,7 @@ WHERE NOT EXISTS (
             { 116, migrateFromV116 },
             { 117, migrateFromV117 },
             { 118, migrateFromV118 },
+            { 119, migrateFromV119 },
         };
 
         bool migrationPerformed{};

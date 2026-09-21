@@ -178,7 +178,9 @@ class TrackByPathTest(RouterTestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_channels_tags_bpm_and_source_url_are_assembled(self):
-        self.cursor.fetchall.return_value = [{'platform': 'soundcloud', 'name': 'Complex'}]
+        self.cursor.fetchall.return_value = [
+            {'platform': 'soundcloud', 'name': 'Complex', 'label': None, 'artist': 'Complex'}
+        ]
         self.answer(
             self.MEDIA,
             {'bpm': 103.0},
@@ -193,7 +195,9 @@ class TrackByPathTest(RouterTestCase):
         response = self.client.get('/api/library/tracks/by-path?path=Soundcloud/Complex/x.mp3', headers=self.headers)
         body = response.json()
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(body['channels'], [{'platform': 'soundcloud', 'name': 'Complex'}])
+        self.assertEqual(
+            body['channels'], [{'platform': 'soundcloud', 'name': 'Complex', 'label': None, 'artist': 'Complex'}]
+        )
         self.assertEqual(body['tags'], {'catalognumber': ['Q404PRO'], 'publisher': ['QDance']})
         self.assertEqual(body['bpm'], 103.0)
         self.assertEqual(body['ml_genre'], 'hardstyle')

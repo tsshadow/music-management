@@ -195,6 +195,9 @@ class SweepPolicy:
     def mark_deep_swept(self, account: str) -> None:
         self.schedule.mark_deep_swept(account)
 
+    def record_snapshot(self, account: str, snapshot) -> None:
+        self.schedule.record_snapshot(account, snapshot)
+
     def finish(self) -> None:
         """Register a sweep that completed without being pushed back."""
         self.rate_state.record_success()

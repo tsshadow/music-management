@@ -205,6 +205,13 @@ def ensure_tables_exist() -> None:
                     # and services/downloader/info_json.py.
                     'ALTER TABLE downloads_soundcloud_archive ADD COLUMN IF NOT EXISTS info_json LONGTEXT NULL',
                     'ALTER TABLE downloads_youtube_archive ADD COLUMN IF NOT EXISTS info_json LONGTEXT NULL',
+                    # Production's archive predates the column above in CREATE TABLE and has no
+                    # timestamp at all. Added NULL first and given its default second: ADD COLUMN
+                    # with DEFAULT CURRENT_TIMESTAMP stamps every existing row with the moment of
+                    # the ALTER, and 53.000 archived videos would read as downloaded on deploy day.
+                    # See migrate_v31_youtube_archive_added_at.sql.
+                    'ALTER TABLE downloads_youtube_archive ADD COLUMN IF NOT EXISTS added_at DATETIME NULL',
+                    'ALTER TABLE downloads_youtube_archive ALTER COLUMN added_at SET DEFAULT CURRENT_TIMESTAMP',
                     # The release date the server read off the file, copied over by
                     # release_date_sync. Beside library_track_audio_features.release_date and not
                     # instead of it: that column only ever covered the tracks the ml-analyzer

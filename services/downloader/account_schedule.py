@@ -21,6 +21,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover - for type checkers only
+    from services.downloader.deep_sweep import AccountSnapshot
     from services.downloader.timing import DownloaderTiming
 
 SECONDS_PER_DAY = 86400
@@ -62,6 +63,9 @@ class AccountCheck:
     last_upload_at: datetime | None = None
     last_seen_track_id: str | None = None
     last_deep_sweep_at: datetime | None = None
+    # How complete the account was at the end of its last deep pass; None until
+    # one has run. Written only by the deep pass, kept by everything else.
+    snapshot: AccountSnapshot | None = None
 
 
 def due_accounts(
@@ -113,6 +117,7 @@ class InMemoryCheckStore:
             last_upload_at=_kept(last_upload_at, previous, 'last_upload_at'),
             last_seen_track_id=_kept(last_seen_track_id, previous, 'last_seen_track_id'),
             last_deep_sweep_at=_kept(last_deep_sweep_at, previous, 'last_deep_sweep_at'),
+            snapshot=previous.snapshot if previous else None,
         )
 
     def mark_deep(self, source: str, account: str, when: datetime) -> None:
@@ -123,6 +128,18 @@ class InMemoryCheckStore:
             last_upload_at=previous.last_upload_at if previous else None,
             last_seen_track_id=previous.last_seen_track_id if previous else None,
             last_deep_sweep_at=when,
+            snapshot=previous.snapshot if previous else None,
+        )
+
+    def mark_snapshot(self, source: str, account: str, snapshot: AccountSnapshot) -> None:
+        rows = self._rows.setdefault(source, {})
+        previous = rows.get(account)
+        rows[account] = AccountCheck(
+            last_checked_at=previous.last_checked_at if previous else snapshot.taken_at,
+            last_upload_at=previous.last_upload_at if previous else None,
+            last_seen_track_id=previous.last_seen_track_id if previous else None,
+            last_deep_sweep_at=previous.last_deep_sweep_at if previous else None,
+            snapshot=snapshot,
         )
 
 
@@ -135,6 +152,23 @@ def _kept(new_value, previous: AccountCheck | None, attribute: str):
     if new_value is not None:
         return new_value
     return getattr(previous, attribute) if previous is not None else None
+
+
+def _snapshot_from_row(values) -> AccountSnapshot | None:
+    """The stored snapshot, or None for a row that predates the count."""
+    from services.downloader.deep_sweep import AccountSnapshot
+
+    listed, held, excluded, remaining, state, taken_at = values
+    if listed is None or taken_at is None:
+        return None
+    return AccountSnapshot(
+        listed=int(listed),
+        held=int(held or 0),
+        excluded=int(excluded or 0),
+        remaining=int(remaining or 0),
+        state=str(state or ''),
+        taken_at=taken_at,
+    )
 
 
 class DatabaseCheckStore:
@@ -154,13 +188,14 @@ class DatabaseCheckStore:
             with connection.cursor() as cursor:
                 cursor.execute(
                     'SELECT account, last_checked_at, last_upload_at, last_seen_track_id, '
-                    '       last_deep_sweep_at '
+                    '       last_deep_sweep_at, snapshot_listed, snapshot_held, snapshot_excluded, '
+                    '       snapshot_remaining, snapshot_state, snapshot_at '
                     'FROM downloads_account_checks WHERE source = %s',
                     (source,),
                 )
                 return {
-                    account: AccountCheck(checked_at, upload_at, track_id, deep_at)
-                    for account, checked_at, upload_at, track_id, deep_at in cursor.fetchall()
+                    row[0]: AccountCheck(row[1], row[2], row[3], row[4], snapshot=_snapshot_from_row(row[5:]))
+                    for row in cursor.fetchall()
                 }
         finally:
             connection.close()
@@ -209,6 +244,41 @@ class DatabaseCheckStore:
                     'ON DUPLICATE KEY UPDATE '
                     '  last_deep_sweep_at = VALUES(last_deep_sweep_at)',
                     (source, account, when, when),
+                )
+            connection.commit()
+        finally:
+            connection.close()
+
+    def mark_snapshot(self, source: str, account: str, snapshot: AccountSnapshot) -> None:
+        connection = self._connect()
+        try:
+            with connection.cursor() as cursor:
+                # The six snapshot columns move together and nothing else does: the
+                # check time, the upload date and the deep-sweep date belong to the
+                # sweep that is running, not to the count it produced.
+                cursor.execute(
+                    'INSERT INTO downloads_account_checks '
+                    '(source, account, last_checked_at, snapshot_listed, snapshot_held, snapshot_excluded, '
+                    ' snapshot_remaining, snapshot_state, snapshot_at) '
+                    'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) '
+                    'ON DUPLICATE KEY UPDATE '
+                    '  snapshot_listed = VALUES(snapshot_listed), '
+                    '  snapshot_held = VALUES(snapshot_held), '
+                    '  snapshot_excluded = VALUES(snapshot_excluded), '
+                    '  snapshot_remaining = VALUES(snapshot_remaining), '
+                    '  snapshot_state = VALUES(snapshot_state), '
+                    '  snapshot_at = VALUES(snapshot_at)',
+                    (
+                        source,
+                        account,
+                        snapshot.taken_at,
+                        snapshot.listed,
+                        snapshot.held,
+                        snapshot.excluded,
+                        snapshot.remaining,
+                        snapshot.state,
+                        snapshot.taken_at,
+                    ),
                 )
             connection.commit()
         finally:
@@ -279,6 +349,13 @@ class AccountSchedule:
             self._store.mark_deep(self.source, account, when or self._now())
         except Exception as exc:
             logging.warning('Could not record the deep sweep of %s/%s: %s', self.source, account, exc)
+
+    def record_snapshot(self, account: str, snapshot: AccountSnapshot) -> None:
+        """Store how complete the account is; a store that is down loses one count, not the sweep."""
+        try:
+            self._store.mark_snapshot(self.source, account, snapshot)
+        except Exception as exc:
+            logging.warning('Could not record the snapshot of %s/%s: %s', self.source, account, exc)
 
     def mark_checked(
         self,

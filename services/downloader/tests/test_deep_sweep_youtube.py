@@ -228,3 +228,64 @@ class DeepSweepYoutubeBranchTest(DeepSweepYoutubeTestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class SnapshotTest(DeepSweepYoutubeTestCase):
+    """What a pass writes down about how complete the channel is."""
+
+    def _snapshot(self, key='@dj_a'):
+        return self.check_store.load('youtube')[key].snapshot
+
+    def test_a_finished_pass_records_the_channel_as_counted(self):
+        account = YoutubeAccount(name='@dj_a', download_type=AUDIO)
+
+        self._sweep(account, listing('a', 'b'), held={'a'}, held_after={'a', 'b'})
+
+        snapshot = self._snapshot()
+        self.assertEqual((2, 2, 0, 0), (snapshot.listed, snapshot.held, snapshot.excluded, snapshot.remaining))
+        self.assertEqual('complete', snapshot.state)
+
+    def test_a_video_that_failed_this_pass_is_excluded_not_remaining(self):
+        account = YoutubeAccount(name='@dj_a', download_type=AUDIO)
+
+        self._sweep(account, listing('a'), held=set(), held_after=set())
+
+        snapshot = self._snapshot()
+        self.assertEqual((1, 0, 1, 0), (snapshot.listed, snapshot.held, snapshot.excluded, snapshot.remaining))
+
+    def test_a_capped_pass_counts_what_it_did_not_reach_as_remaining(self):
+        account = YoutubeAccount(name='@dj_a', download_type=AUDIO)
+
+        self._sweep(account, listing('a', 'b', 'c'), held=set(), held_after={'a', 'b'})
+
+        snapshot = self._snapshot()
+        self.assertEqual('capped', snapshot.state)
+        self.assertEqual((3, 2, 0, 1), (snapshot.listed, snapshot.held, snapshot.excluded, snapshot.remaining))
+
+    def test_an_interrupted_pass_still_records_a_snapshot(self):
+        account = YoutubeAccount(name='@dj_a', download_type=AUDIO)
+
+        def _stop_the_sweep(url, ydl_opts=None, acc=None):
+            self.downloader.policy.stop.set()
+
+        self.downloader.download_url = _stop_the_sweep
+        with (
+            mock.patch('services.downloader.youtube.youtube.list_flat', return_value=listing('a', 'b')),
+            mock.patch('services.downloader.youtube.youtube.YoutubeArchive.held_ids', side_effect=[set(), set()]),
+        ):
+            with self.assertRaises(SweepAborted):
+                self.downloader.deep_sweep_account(account, {})
+
+        snapshot = self._snapshot()
+        self.assertEqual('parked', snapshot.state)
+        # `a` was charged a failed attempt and is out for the retry window; `b`
+        # was never asked about and is still to fetch.
+        self.assertEqual((2, 0, 1, 1), (snapshot.listed, snapshot.held, snapshot.excluded, snapshot.remaining))
+
+    def test_the_video_form_is_counted_under_its_own_key(self):
+        account = YoutubeAccount(name='@dj_a', download_type=VIDEO)
+
+        self._sweep(account, listing('a'), held={'a'})
+
+        self.assertEqual(1, self._snapshot('@dj_a#video').held)
+        self.assertNotIn('@dj_a', self.check_store.load('youtube'))

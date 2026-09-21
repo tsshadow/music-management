@@ -180,7 +180,7 @@ b6758acb30b1330e x7  # renovate-missing-minimum-release-age renovate.json
 # request and the rule no longer fires.
 511526ec8d8fb2c5 x1  # request-with-http services/music_manager/routers/users.py
 
-# --- sqlalchemy-execute-raw-query --- [r:6bad1fe5]
+# --- sqlalchemy-execute-raw-query --- [r:f592c2fe]
 # Table and column names cannot be bound as parameters, and every site
 # interpolates an internal constant rather than request data. Revisit any
 # new site that interpolates something reaching it from outside.
@@ -193,11 +193,11 @@ b6758acb30b1330e x7  # renovate-missing-minimum-release-age renovate.json
 # tuple(chunk) as parameters, so only the placeholder *count* is
 # interpolated; events.py takes its WHERE from _build_filters(), where every
 # clause is a literal and every value goes into params as %s. Neither puts
-# request data into the SQL string.
-# library.py's two by-path sites (2026-09-21) are the same shape: one
-# interpolates the placeholder count for the path spellings, the other picks
-# the archive table name from a two-entry literal tuple; the path itself is
-# always a bound %s.
+# request data into the SQL string. The two by-path sites in
+# routers/library.py (2026-09-21) are the same shape: one interpolates the
+# placeholder count for the path spellings, the other picks the archive
+# table name from a two-entry literal tuple; the path itself is always a
+# bound %s.
 3e91e9d22410d255 x1  # sqlalchemy-execute-raw-query scripts/cleanup_redundant_indices.py
 c9e52706e5417943 x4  # sqlalchemy-execute-raw-query scripts/migrate_stars_to_ratings.py
 4228ef42ed793ded x3  # sqlalchemy-execute-raw-query services/common/Helpers/BrokenSongArtistLookupHelper.py

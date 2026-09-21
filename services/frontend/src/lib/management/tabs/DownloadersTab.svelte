@@ -3,6 +3,7 @@
   import { onDestroy } from 'svelte';
   import { Cloud, ExternalLink, Trash2, Plus, Search, Play, Timer, RotateCcw, AlertTriangle } from '@lucide/svelte';
   import { formatDuration, describeBackoff, changedValues } from '../downloaderTiming';
+  import DownloaderCoverage from '../DownloaderCoverage.svelte';
 
   export let API_BASE;
   export let getHeaders;
@@ -254,6 +255,15 @@
         <div class="absolute bottom-0 left-0 right-0 h-1 bg-brand rounded-full animate-in fade-in duration-300"></div>
       {/if}
     </button>
+    <button
+      on:click={() => downloaderSubTab = 'coverage'}
+      class="pb-4 font-bold text-sm transition-colors relative {downloaderSubTab === 'coverage' ? 'text-white' : 'text-muma-spotify-text hover:text-white'}"
+    >
+      {$t('management.downloaders.tabCoverage')}
+      {#if downloaderSubTab === 'coverage'}
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-brand rounded-full animate-in fade-in duration-300"></div>
+      {/if}
+    </button>
   </div>
 
   {#if downloaderSubTab === 'soundcloud'}
@@ -351,6 +361,8 @@
         </table>
       </div>
     </div>
+  {:else if downloaderSubTab === 'coverage'}
+    <DownloaderCoverage {API_BASE} {getHeaders} />
   {:else if downloaderSubTab === 'timing'}
     <div class="space-y-6 animate-in fade-in duration-300">
       <p class="text-muma-spotify-text text-sm max-w-3xl">

@@ -51,6 +51,16 @@ _ALTER_ACCOUNT_CHECKS = (
     'ALTER TABLE downloads_account_checks ADD COLUMN IF NOT EXISTS last_upload_at DATETIME NULL',
     'ALTER TABLE downloads_account_checks ADD COLUMN IF NOT EXISTS last_seen_track_id VARCHAR(64) NULL',
     'ALTER TABLE downloads_account_checks ADD COLUMN IF NOT EXISTS last_deep_sweep_at DATETIME NULL',
+    # How complete the account was at the end of its last deep pass: a partition of
+    # the listing into held / excluded / remaining, plus whether that pass finished.
+    # All six move together; NULL across the board means never counted. See
+    # docs/designs/channel-coverage/technical.md.
+    'ALTER TABLE downloads_account_checks ADD COLUMN IF NOT EXISTS snapshot_listed INT NULL',
+    'ALTER TABLE downloads_account_checks ADD COLUMN IF NOT EXISTS snapshot_held INT NULL',
+    'ALTER TABLE downloads_account_checks ADD COLUMN IF NOT EXISTS snapshot_excluded INT NULL',
+    'ALTER TABLE downloads_account_checks ADD COLUMN IF NOT EXISTS snapshot_remaining INT NULL',
+    'ALTER TABLE downloads_account_checks ADD COLUMN IF NOT EXISTS snapshot_state VARCHAR(16) NULL',
+    'ALTER TABLE downloads_account_checks ADD COLUMN IF NOT EXISTS snapshot_at DATETIME NULL',
 )
 
 _CREATE_UNAVAILABLE = """

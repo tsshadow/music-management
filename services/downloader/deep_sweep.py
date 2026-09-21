@@ -93,6 +93,84 @@ class DeepSweepReport:
         )
 
 
+SNAPSHOT_COMPLETE = 'complete'
+SNAPSHOT_CAPPED = 'capped'
+SNAPSHOT_PARKED = 'parked'
+
+
+@dataclass(frozen=True)
+class AccountSnapshot:
+    """How complete an account is, as of the end of one deep pass.
+
+    A partition of the listing, not the report's running totals: every listed id
+    is in exactly one of held, excluded and remaining, so the three add up to
+    listed and a percentage read off them means something. The report's `held`
+    is the archive before the pass and its `written_off` counts expired
+    decisions too; neither survives being stored and read back a month later.
+    """
+
+    listed: int
+    held: int
+    excluded: int
+    remaining: int
+    state: str
+    taken_at: datetime
+
+    @property
+    def coverage(self) -> float | None:
+        if self.listed <= 0:
+            return None
+        return self.held / self.listed
+
+
+def snapshot_state(report: DeepSweepReport, interrupted: bool = False) -> str:
+    """How far the pass got: parked and interrupted both mean "not to the end".
+
+    A stop request is not a rate limit -- the settle still charges the track it
+    was on -- but for the count it is the same thing: the tail was not reached.
+    """
+    if report.parked or interrupted:
+        return SNAPSHOT_PARKED
+    if report.capped:
+        return SNAPSHOT_CAPPED
+    return SNAPSHOT_COMPLETE
+
+
+def take_snapshot(
+    listing: Iterable[FlatTrack],
+    held: set[str],
+    arrived: set[str],
+    write_offs: Mapping[str, WriteOff],
+    retry_days: int,
+    now: datetime,
+    bounds: tuple[int, int] | None,
+    state: str,
+) -> AccountSnapshot:
+    """Partition the listing after the pass: held, excluded, or still to fetch.
+
+    `held` is the archive as it was before the pass and may carry ids from the
+    text archive that the listing never mentioned; only listed ids count. What
+    `arrived` names is held now. `write_offs` must be re-read after the pass so
+    the failures it recorded are in it -- an id that is both held and written off
+    is held, which is what `wanted_tracks` decides too.
+    """
+    # One entry per id: a listing that repeats an id would otherwise make the
+    # three parts add up to more than the ids there are.
+    seen: set[str] = set()
+    listing = [entry for entry in listing if not (entry.track_id in seen or seen.add(entry.track_id))]
+    held_now = {entry.track_id for entry in listing if entry.track_id in held or entry.track_id in arrived}
+    remaining = wanted_tracks(listing, held_now, write_offs, retry_days, now, bounds)
+    listed = len(listing)
+    return AccountSnapshot(
+        listed=listed,
+        held=len(held_now),
+        excluded=listed - len(held_now) - len(remaining),
+        remaining=len(remaining),
+        state=state,
+        taken_at=now,
+    )
+
+
 def wanted_tracks(
     listing: Iterable[FlatTrack],
     held: set[str],

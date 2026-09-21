@@ -23,6 +23,7 @@ from pydantic import BaseModel
 
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.RescanInvalidator import invalidate_quietly
+from services.music_manager import catalog_series
 from services.music_manager import curation_rules as rules
 from services.music_manager.database import get_db_connection
 from services.music_manager.rbac import require_permission
@@ -445,6 +446,61 @@ def _require_label(cursor, name: str) -> dict:
     if not label:
         raise HTTPException(status_code=404, detail='Unknown label')
     return label
+
+
+def _like_prefix(prefix: str) -> str:
+    """`prefix` as a LIKE pattern matching everything under it, with its wildcards escaped.
+
+    A label name may carry `_` (`__Free&None`) or, in principle, `%`; unescaped they
+    would widen the match to other labels' folders.
+    """
+    escaped = prefix.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+    return escaped + '%'
+
+
+@router.get('/labels/{name}/catalog')
+def get_label_catalog(name: str, _auth: dict = READ):
+    """How complete the label's catalogue is, read off the release folders it has on disk.
+
+    Two queries feed one answer. The label link (`library_track_labels`) is what the
+    scanner wrote, and it lags the disk: half the EPs tree has no link yet after a
+    skipped rescan, and the page's whole point is what is *on disk*. So every file
+    under `<eps root>/<label>/` is read by path as well, and the two sets are merged
+    by path. The join still matters for the files whose folder is named differently
+    from the label; the path query is what makes the count honest.
+
+    Computed on demand: there is no catalogue-number column to index, and one label
+    is a few thousand files at most, so a cache would only add a way for the page to
+    lag the disk. See docs/designs/label-catalog-coverage/.
+    """
+    settings = Settings()
+    eps_root = str(settings.eps_folder_path or '')
+    delimiter = str(settings.delimiter or '/')
+    conn = _connect()
+    try:
+        with conn.cursor() as cursor:
+            label = _require_label(cursor, name)
+            cursor.execute(
+                '''
+                SELECT mf.file_path
+                FROM library_track_labels tl
+                JOIN library_media_files mf ON mf.track_id = tl.track_id
+                WHERE tl.label_id = %s
+                ''',
+                (label['id'],),
+            )
+            paths = {row['file_path'] for row in cursor.fetchall()}
+            if eps_root:
+                folder = eps_root.rstrip(delimiter) + delimiter + label['name'] + delimiter
+                cursor.execute(
+                    'SELECT mf.file_path FROM library_media_files mf WHERE mf.file_path LIKE %s',
+                    (_like_prefix(folder),),
+                )
+                paths.update(row['file_path'] for row in cursor.fetchall())
+    finally:
+        conn.close()
+    catalog = catalog_series.build_catalog(sorted(paths), eps_root, delimiter)
+    return {'name': label['name'], **catalog}
 
 
 @router.put('/labels/{name}/mbid')

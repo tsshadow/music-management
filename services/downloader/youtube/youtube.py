@@ -15,6 +15,8 @@ from services.downloader.deep_sweep import (
     DeepSweepReport,
     ids_in_text_archive,
     list_flat,
+    snapshot_state,
+    take_snapshot,
     wanted_tracks,
 )
 from services.downloader.rate_state import RateLimited, SweepAborted
@@ -371,6 +373,10 @@ class YoutubeDownloader:
             len(batch),
         )
         parked = False
+        # Reached the end of the batch. Anything else -- a rate limit, a stop
+        # request, an unexpected error -- leaves the tail unreached, and the
+        # count stored says so.
+        finished = False
         attempted: list = []
         try:
             for entry in batch:
@@ -380,16 +386,29 @@ class YoutubeDownloader:
                 # interrupted passes write it off for a month.
                 attempted.append(entry)
                 self.download_url(entry.url, ydl_opts, account)
+            finished = True
         except RateLimited:
             parked = True
             raise
         finally:
-            report = self._settle_deep(account, listing, held, write_offs, wanted, batch, attempted, parked, bounds)
+            report = self._settle_deep(
+                account, listing, held, write_offs, wanted, batch, attempted, parked, bounds, interrupted=not finished
+            )
             logging.info('Deep sweep of %s (%s): %s', account.name, account.download_type, report.summary())
         return report
 
     def _settle_deep(
-        self, account: YoutubeAccount, listing, held, write_offs, wanted, batch, attempted, parked: bool, bounds
+        self,
+        account: YoutubeAccount,
+        listing,
+        held,
+        write_offs,
+        wanted,
+        batch,
+        attempted,
+        parked: bool,
+        bounds,
+        interrupted: bool = False,
     ) -> DeepSweepReport:
         """Count what actually arrived, and write off what did not.
 
@@ -412,7 +431,7 @@ class YoutubeDownloader:
                 # Rejected during this very pass. A decision, not a failure.
                 continue
             self.write_offs.note_failure(ledger_key, entry.track_id)
-        return DeepSweepReport(
+        report = DeepSweepReport(
             listed=len(listing),
             held=len(held),
             written_off=len(write_offs),
@@ -421,6 +440,21 @@ class YoutubeDownloader:
             capped=len(wanted) > len(batch),
             parked=parked,
         )
+        # Re-read after the failures above were recorded, so the count stored is
+        # the one the next pass would start from.
+        ids = [entry.track_id for entry in listing]
+        snapshot = take_snapshot(
+            listing,
+            held,
+            arrived,
+            self.write_offs.load_many(ledger_key, ids),
+            self.timing.unavailable_retry_days,
+            datetime.now(),
+            bounds,
+            snapshot_state(report, interrupted),
+        )
+        self.policy.record_snapshot(ledger_key, snapshot)
+        return report
 
     def _check_account(self, account: YoutubeAccount, ydl_opts: dict) -> None:
         """One channel: the deep path when it is due one, the ordinary run otherwise."""

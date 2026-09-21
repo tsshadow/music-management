@@ -236,3 +236,73 @@ class RateStateEndpointTest(DownloaderApiTestBase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class CoverageEndpointTest(DownloaderApiTestBase):
+    """The page's one read, with the four queries and the check store swapped for canned data."""
+
+    class Queries:
+        def __init__(self, fail=False):
+            self.fail = fail
+
+        def configured(self, source):
+            if self.fail:
+                raise RuntimeError('db down')
+            from services.music_manager.downloader_coverage import ConfiguredAccount
+
+            if source == 'youtube':
+                return [ConfiguredAccount('@dj_a', '@dj_a#video', 'video')]
+            return [ConfiguredAccount('dj_a', 'dj_a'), ConfiguredAccount('dj_b', 'dj_b')]
+
+        def last_downloads(self, source):
+            return {'dj_a': NOW}
+
+        def recent_downloads(self, source):
+            return (3, 9)
+
+        def write_offs(self, source):
+            return {'too_short': 4}
+
+    class Checks:
+        def load(self, source):
+            from services.downloader.account_schedule import AccountCheck
+            from services.downloader.deep_sweep import AccountSnapshot
+
+            snapshot = AccountSnapshot(100, 60, 10, 30, 'capped', NOW)
+            return {'dj_a': AccountCheck(NOW, snapshot=snapshot), '@dj_a#video': AccountCheck(NOW, snapshot=snapshot)}
+
+    def setUp(self):
+        super().setUp()
+        patch('services.music_manager.routers.downloaders.coverage_queries', self.Queries()).start()
+        patch('services.music_manager.routers.downloaders.DatabaseCheckStore', self.Checks).start()
+
+    def test_the_body_has_the_tiles_the_rows_and_the_backoff(self):
+        body = self.client.get('/api/downloaders/coverage/soundcloud', headers=self.headers).json()
+        self.assertEqual('soundcloud', body['source'])
+        self.assertEqual(2, body['totals']['configured'])
+        self.assertEqual(1, body['totals']['never_counted'])
+        self.assertEqual(30, body['totals']['remaining'])
+        self.assertEqual((3, 9), (body['totals']['downloads_7d'], body['totals']['downloads_30d']))
+        self.assertEqual(4, body['totals']['write_offs'][0]['count'])
+        self.assertEqual('soundcloud', body['totals']['rate_state']['source'])
+        self.assertEqual(['dj_a', 'dj_b'], [row['account'] for row in body['accounts']])
+        self.assertEqual(NOW.isoformat(), body['accounts'][0]['last_download_at'])
+
+    def test_a_youtube_video_channel_is_matched_on_its_schedule_key(self):
+        body = self.client.get('/api/downloaders/coverage/youtube', headers=self.headers).json()
+        row = body['accounts'][0]
+        self.assertEqual(('@dj_a', 'video', 100), (row['account'], row['download_type'], row['listed']))
+
+    def test_an_unknown_source_is_refused(self):
+        response = self.client.get('/api/downloaders/coverage/telegram', headers=self.headers)
+        self.assertEqual(400, response.status_code)
+
+    def test_a_database_outage_is_a_503_with_the_reason(self):
+        patch('services.music_manager.routers.downloaders.coverage_queries', self.Queries(fail=True)).start()
+        response = self.client.get('/api/downloaders/coverage/soundcloud', headers=self.headers)
+        self.assertEqual(503, response.status_code)
+        self.assertIn('db down', response.json()['detail'])
+
+    def test_reading_the_coverage_needs_a_key(self):
+        response = self.client.get('/api/downloaders/coverage/soundcloud')
+        self.assertIn(response.status_code, (401, 403))

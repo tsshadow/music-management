@@ -11,6 +11,17 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.70.0 (2026-09-21)
+
+- Beheer → Downloaders → Volledigheid laat per SoundCloud-account en YouTube-kanaal zien hoeveel
+  tracks er zijn, hoeveel je hebt, hoeveel er bewust zijn overgeslagen en hoeveel de downloader
+  nog moet ophalen -- plus wanneer de laatste download binnenkwam.
+
+- **Hoe compleet de catalogus van een label is, staat nu op de labelpagina.** Per reeks (`DWX`,
+  `DWXCD`, ...) het waargenomen bereik, hoeveel daarvan aanwezig is, en de niet-aanwezige nummers
+  als reeksen, met een knop die ze als zoektermen kopieert. "Niet aanwezig", niet "ontbreekt":
+  een label kan nummers overslaan.
+
 ## Global Version 0.69.1 (2026-09-21)
 
 - **De artiestfoto-fetcher draaide een maand zonder sleutels en zette 45.000 artiesten op

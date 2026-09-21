@@ -19,6 +19,8 @@ from services.downloader.deep_sweep import (
     DeepSweepReport,
     ids_in_text_archive,
     list_flat,
+    snapshot_state,
+    take_snapshot,
     wanted_tracks,
 )
 from services.downloader.rate_state import RateLimited, SweepAborted
@@ -237,6 +239,10 @@ class SoundcloudDownloader:
             len(batch),
         )
         parked = False
+        # Reached the end of the batch. Anything else -- a rate limit, a stop
+        # request, an unexpected error -- leaves the tail unreached, and the
+        # count stored says so.
+        finished = False
         attempted: list = []
         try:
             for entry in batch:
@@ -246,16 +252,19 @@ class SoundcloudDownloader:
                 # interrupted passes write it off for a month.
                 attempted.append(entry)
                 self.download_url(entry.url, ydl_opts, account=account)
+            finished = True
         except RateLimited:
             parked = True
             raise
         finally:
-            report = self._settle_deep(account, listing, held, write_offs, wanted, batch, attempted, parked)
+            report = self._settle_deep(
+                account, listing, held, write_offs, wanted, batch, attempted, parked, interrupted=not finished
+            )
             logging.info('Deep sweep of %s: %s', account, report.summary())
         return report
 
     def _settle_deep(
-        self, account: str, listing, held, write_offs, wanted, batch, attempted, parked: bool
+        self, account: str, listing, held, write_offs, wanted, batch, attempted, parked: bool, interrupted: bool = False
     ) -> DeepSweepReport:
         """Count what actually arrived, and write off what did not.
 
@@ -277,7 +286,7 @@ class SoundcloudDownloader:
                 # Rejected during this very pass. A decision, not a failure.
                 continue
             self.unavailable.note_failure(account, entry.track_id)
-        return DeepSweepReport(
+        report = DeepSweepReport(
             listed=len(listing),
             held=len(held),
             written_off=len(write_offs),
@@ -286,6 +295,21 @@ class SoundcloudDownloader:
             capped=len(wanted) > len(batch),
             parked=parked,
         )
+        # Re-read after the failures above were recorded, so the count stored is
+        # the one the next pass would start from.
+        ids = [entry.track_id for entry in listing]
+        snapshot = take_snapshot(
+            listing,
+            held,
+            arrived,
+            self.unavailable.load_many(account, ids),
+            self.timing.unavailable_retry_days,
+            datetime.now(),
+            DURATION_BOUNDS,
+            snapshot_state(report, interrupted),
+        )
+        self.policy.record_snapshot(account, snapshot)
+        return report
 
     def _check_account(self, account: str, ydl_opts: dict) -> None:
         """One account: ask what its newest track is, and only dig in if it is new."""

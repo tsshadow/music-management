@@ -675,4 +675,23 @@ class ConfigStore:
         return self._config_path
 
 
-__all__ = ['ConfigField', 'ConfigStore']
+def credential(config_key: str, env_name: str) -> str | None:
+    """A third-party credential: the Beheer > Config value first, the environment second.
+
+    The store seeds itself from the environment at start-up and persists what the config
+    page stores, so on its own it would do -- except that it is a process-wide singleton
+    created before a test (or a CLI) can set the variable, so the environment is read again
+    as the fallback. `None` when neither has it, so `bool()` reads as "configured".
+
+    Every consumer of a Spotify or Last.fm key goes through here. Until 2026-09-21 the
+    artist-image fetcher and the tagger's artist verification each read `os.getenv` only,
+    and the config page's fields for the same keys were stored and read by nobody.
+    """
+    try:
+        value = ConfigStore().get(config_key)
+    except Exception:
+        value = None
+    return (value or os.getenv(env_name)) or None
+
+
+__all__ = ['ConfigField', 'ConfigStore', 'credential']

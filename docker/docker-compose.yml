@@ -120,6 +120,15 @@ services:
       # an inline service here.
       NOTIFY_URL: ${NOTIFY_URL}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      # The artist-image fetcher's and the tagger's third-party keys. Until 2026-09-21
+      # nothing carried these into the container: they came along inside the .env the
+      # image used to COPY, and when that COPY went (2026-07-24) the fetcher ran blind
+      # and recorded 45.000 artists as unfindable. The same keys can be set on
+      # Beheer > Config instead; that value wins over these.
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:-}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
+      LASTFM_API_KEY: ${LASTFM_API_KEY:-}
+      DISCOGS_TOKEN: ${DISCOGS_TOKEN:-}
       # Where the hourly news bulletins are written. Set NEWS_DATA_PATH in the
       # prod .env rather than leaning on the default below: production runs
       # docker-compose v1, so defaults here are worth as little trust as
@@ -142,6 +151,12 @@ services:
       # `${HOST_DATA_PATH}/music-management-server/var/lms`, which never existed) silently
       # broke the LMS DB sync (users/playlists/artist image sync into the player's native
       # DB) in production - see docs/bug-reports/004-artist-images-not-working.md.
+      # /app/data is what MUMA_SERVER_DB_ROOT calls the container's persistent directory,
+      # and until 2026-09-21 it was not: only the three sub-paths below were mounted, so
+      # Beheer > Config (`data/config.json`, ConfigStore) and the tagger's last-walk stamp
+      # lived in the container's own layer and vanished on every redeploy. Docker mounts
+      # parents before their nested paths, so the three below still land inside it.
+      - ${HOST_DATA_PATH}/music-manager:/app/data
       - ${LMS_DATA_PATH:-/docker/lms}/var/lms:/app/data/stable:rw
       - ${ALPHA_LMS_DATA_PATH:-/docker/alpha-lms}/var/lms:/app/data/alpha:rw
       - ${HOST_MUSIC_PATH}:/mnt/music

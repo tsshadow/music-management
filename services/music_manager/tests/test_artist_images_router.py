@@ -296,23 +296,25 @@ class ServeArtistImageTest(ArtistImagesTestCase):
             self.client.get('/api/artists/Angerfist/image')
         file_response.assert_called_once_with('/mnt/a.jpg')
 
-    # The endpoint schedules a fetch and then raises a 404; Starlette drops the
-    # background tasks of a failed response, so only the 404 is observable here.
-    # The scheduled task itself is covered by BackgroundFetchTest.
-    def test_a_missing_image_reports_not_found(self):
+    # A miss is a 404 and nothing else: the fetch this endpoint used to schedule was
+    # attached to an exception response, which Starlette never runs, and since !884
+    # every uncovered track row asks here -- a lookup per miss would be a lookup storm.
+    def test_a_missing_image_reports_not_found_without_starting_a_lookup(self):
         self.cursor.fetchone.return_value = None
-        with patch.object(artist_images_router, 'trigger_fetch'):
+        with patch.object(artist_images_router, 'trigger_fetch') as trigger:
             response = self.client.get('/api/artists/Angerfist/image')
         self.assertEqual(response.status_code, 404)
+        trigger.assert_not_called()
 
     def test_a_row_whose_file_disappeared_also_reports_not_found(self):
         self.cursor.fetchone.return_value = {'cached_path': '/mnt/gone.jpg'}
         with (
             patch.object(artist_images_router.os.path, 'exists', return_value=False),
-            patch.object(artist_images_router, 'trigger_fetch'),
+            patch.object(artist_images_router, 'trigger_fetch') as trigger,
         ):
             response = self.client.get('/api/artists/Angerfist/image')
         self.assertEqual(response.status_code, 404)
+        trigger.assert_not_called()
 
 
 class FetchEndpointTest(ArtistImagesTestCase):
@@ -344,6 +346,8 @@ class BackgroundFetchTest(unittest.TestCase):
         self.conn.cursor.return_value.__exit__.return_value = False
         self.fetcher_module = MagicMock()
         self.fetcher = self.fetcher_module.ArtistImageFetcher.return_value
+        # A MagicMock attribute is truthy, and a blind fetcher stops the run before it asks.
+        self.fetcher.blind = False
         patches = [
             patch.object(artist_images_router, 'get_db_connection', return_value=self.conn),
             patch.dict(sys.modules, {'services.music_manager.artist_image_fetcher.fetcher': self.fetcher_module}),
@@ -375,6 +379,19 @@ class BackgroundFetchTest(unittest.TestCase):
         artist_images_router.run_fetch_missing()
         self.assertEqual(artist_images_router.fetch_progress['status'], 'completed')
         self.fetcher.fetch_for_artist.assert_not_called()
+
+    def test_a_fetcher_without_a_provider_stops_before_asking_anyone(self):
+        """A run with no configured provider learns nothing about anybody, so it must not
+        walk the list -- that walk is how 45.000 artists became `failed` in August 2026."""
+        self.fetcher.blind = True
+        self.cursor.fetchone.return_value = {'count': 2}
+        self.cursor.fetchall.return_value = [{'id': 1, 'name': 'One'}]
+        artist_images_router.run_fetch_missing()
+        self.assertEqual(artist_images_router.fetch_progress['status'], 'failed')
+        self.assertIn('Spotify client id', artist_images_router.fetch_progress['message'])
+        self.assertFalse(artist_images_router.fetch_progress['active'])
+        self.fetcher.fetch_for_artist.assert_not_called()
+        self.cursor.execute.assert_not_called()
 
     def test_a_database_outage_marks_the_fetch_as_failed(self):
         with patch.object(artist_images_router, 'get_db_connection', return_value=None):

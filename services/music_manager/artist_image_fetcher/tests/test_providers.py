@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 from requests.exceptions import Timeout
 
 from services.music_manager.artist_image_fetcher.providers import lastfm, musicbrainz, soundcloud, spotify
+from services.music_manager.artist_image_fetcher.providers.base import ProviderUnavailable
 
 
 def make_response(status_code=200, payload=None):
@@ -20,12 +21,23 @@ class LastFmProviderTest(unittest.TestCase):
     def test_the_provider_is_named_after_its_source(self):
         self.assertEqual(self.provider.name, 'lastfm')
 
-    def test_without_an_api_key_the_provider_is_disabled(self):
-        with patch.dict('os.environ', {}, clear=True):
+    # A provider without its key is not configured, and asking it anyway is "could
+    # not answer" -- never the empty list that means "looked, found nothing".
+    def test_without_an_api_key_the_provider_is_not_configured(self):
+        with patch.dict('os.environ', {}, clear=True), patch.object(lastfm, 'credential', return_value=None):
             provider = lastfm.LastFmArtistImageProvider()
+        self.assertFalse(provider.configured)
         with patch.object(lastfm, 'requests') as http:
-            self.assertEqual(provider.get_artist_images('Angerfist'), [])
+            with self.assertRaises(ProviderUnavailable):
+                provider.get_artist_images('Angerfist')
         http.get.assert_not_called()
+
+    def test_the_key_comes_from_the_config_store_before_the_environment(self):
+        with patch.object(lastfm, 'credential', return_value='stored') as cred:
+            provider = lastfm.LastFmArtistImageProvider()
+        cred.assert_called_once_with('lastfm_api_key', 'LASTFM_API_KEY')
+        self.assertEqual(provider.api_key, 'stored')
+        self.assertTrue(provider.configured)
 
     def test_only_the_largest_images_become_candidates(self):
         payload = {
@@ -50,15 +62,24 @@ class LastFmProviderTest(unittest.TestCase):
         self.assertTrue(candidates[0]['is_known_match'])
         self.assertEqual(candidates[0]['metadata']['listeners'], '10')
 
-    def test_a_non_200_response_yields_no_candidates(self):
+    def test_a_non_200_response_is_the_provider_not_answering(self):
         with patch.object(lastfm, 'requests') as http:
             http.get.return_value = make_response(status_code=503)
-            self.assertEqual(self.provider.get_artist_images('Angerfist'), [])
+            with self.assertRaises(ProviderUnavailable):
+                self.provider.get_artist_images('Angerfist')
 
-    def test_a_transport_error_yields_no_candidates(self):
+    def test_a_transport_error_is_the_provider_not_answering(self):
         with patch.object(lastfm, 'requests') as http:
             http.get.side_effect = RuntimeError('network down')
-            self.assertEqual(self.provider.get_artist_images('Angerfist'), [])
+            with self.assertRaises(ProviderUnavailable):
+                self.provider.get_artist_images('Angerfist')
+
+    def test_a_200_without_images_is_a_real_empty_answer(self):
+        with patch.object(lastfm, 'requests') as http:
+            http.get.return_value = make_response(
+                payload={'error': 6, 'message': 'The artist you supplied could not be found'}
+            )
+            self.assertEqual(self.provider.get_artist_images('Nobody'), [])
 
 
 class SpotifyProviderTest(unittest.TestCase):
@@ -68,13 +89,23 @@ class SpotifyProviderTest(unittest.TestCase):
     def test_the_provider_is_named_after_its_source(self):
         self.assertEqual(self.provider.name, 'spotify')
 
-    def test_without_credentials_no_token_is_requested(self):
-        with patch.dict('os.environ', {}, clear=True):
+    def test_without_credentials_the_provider_is_not_configured_and_never_answers_empty(self):
+        with patch.dict('os.environ', {}, clear=True), patch.object(spotify, 'credential', return_value=None):
             provider = spotify.SpotifyArtistImageProvider()
+        self.assertFalse(provider.configured)
         with patch.object(spotify, 'requests') as http:
-            self.assertIsNone(provider._get_token())
-            self.assertEqual(provider.get_artist_images('Angerfist'), [])
+            with self.assertRaises(ProviderUnavailable):
+                provider.get_artist_images('Angerfist')
         http.post.assert_not_called()
+
+    def test_the_credentials_come_from_the_config_store_before_the_environment(self):
+        with patch.object(spotify, 'credential', side_effect=['stored-id', 'stored-secret']) as cred:
+            provider = spotify.SpotifyArtistImageProvider()
+        self.assertEqual(
+            [c.args for c in cred.call_args_list],
+            [('spotify_client_id', 'SPOTIFY_CLIENT_ID'), ('spotify_client_secret', 'SPOTIFY_CLIENT_SECRET')],
+        )
+        self.assertEqual((provider.client_id, provider.client_secret), ('stored-id', 'stored-secret'))
 
     def test_the_token_is_fetched_once_and_then_reused(self):
         with patch.object(spotify, 'requests') as http:
@@ -83,15 +114,20 @@ class SpotifyProviderTest(unittest.TestCase):
             self.assertEqual(self.provider._get_token(), 'tok')
         self.assertEqual(http.post.call_count, 1)
 
-    def test_a_rejected_token_request_leaves_the_provider_without_a_token(self):
+    # A credential Spotify rejects is a broken configuration, which looks exactly like
+    # "no image exists" if it is allowed to answer with an empty list.
+    def test_a_rejected_token_request_is_the_provider_not_answering(self):
         with patch.object(spotify, 'requests') as http:
             http.post.return_value = make_response(status_code=401)
-            self.assertIsNone(self.provider._get_token())
+            with self.assertRaises(ProviderUnavailable):
+                self.provider.get_artist_images('Angerfist')
+        http.get.assert_not_called()
 
-    def test_a_token_request_that_raises_is_swallowed(self):
+    def test_a_token_request_that_raises_is_the_provider_not_answering(self):
         with patch.object(spotify, 'requests') as http:
             http.post.side_effect = RuntimeError('network down')
-            self.assertIsNone(self.provider._get_token())
+            with self.assertRaises(ProviderUnavailable):
+                self.provider._get_token()
 
     def test_a_search_turns_every_image_of_every_hit_into_a_candidate(self):
         payload = {
@@ -138,17 +174,31 @@ class SpotifyProviderTest(unittest.TestCase):
         self.assertTrue(candidates[0]['is_known_match'])
         self.assertIn('/artists/sp9', http.get.call_args.args[0])
 
-    def test_a_non_200_search_yields_no_candidates(self):
+    def test_a_rate_limited_search_is_the_provider_not_answering(self):
         with patch.object(spotify, 'requests') as http:
             http.post.return_value = make_response(payload={'access_token': 'tok'})
             http.get.return_value = make_response(status_code=429)
-            self.assertEqual(self.provider.get_artist_images('Angerfist'), [])
+            with self.assertRaises(ProviderUnavailable):
+                self.provider.get_artist_images('Angerfist')
 
-    def test_a_transport_error_during_search_yields_no_candidates(self):
+    def test_a_transport_error_during_search_is_the_provider_not_answering(self):
         with patch.object(spotify, 'requests') as http:
             http.post.return_value = make_response(payload={'access_token': 'tok'})
             http.get.side_effect = RuntimeError('network down')
-            self.assertEqual(self.provider.get_artist_images('Angerfist'), [])
+            with self.assertRaises(ProviderUnavailable):
+                self.provider.get_artist_images('Angerfist')
+
+    def test_a_search_without_hits_is_a_real_empty_answer(self):
+        with patch.object(spotify, 'requests') as http:
+            http.post.return_value = make_response(payload={'access_token': 'tok'})
+            http.get.return_value = make_response(payload={'artists': {'items': []}})
+            self.assertEqual(self.provider.get_artist_images('Nobody'), [])
+
+    def test_a_known_id_spotify_no_longer_has_is_a_real_empty_answer(self):
+        with patch.object(spotify, 'requests') as http:
+            http.post.return_value = make_response(payload={'access_token': 'tok'})
+            http.get.return_value = make_response(status_code=404)
+            self.assertEqual(self.provider.get_artist_images('Gone', external_ids={'spotify': 'sp9'}), [])
 
 
 class MusicBrainzProviderTest(unittest.TestCase):

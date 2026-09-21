@@ -27,7 +27,7 @@
 {#if $notifications.length > 0}
   <section
     class="fixed z-50 flex flex-col gap-2 {$isMobile
-      ? 'top-18 left-4 right-4'
+      ? 'top-[calc(4.5rem+env(safe-area-inset-top,0px))] left-4 right-4'
       : 'top-4 right-4 w-[380px] max-w-[calc(100vw-2rem)]'}"
     aria-label={$t('notify.region')}
     onmouseenter={pauseTimers}

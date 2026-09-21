@@ -66,6 +66,12 @@ No new endpoints. Existing calls used, per increment:
   because the player no longer renders that file at full width; the rule stays for shelves.
 - Mini player: the 44px slot becomes `<Artwork size="w-11 h-11">`; the 16px artist avatar and its
   `getArtistImageUrl` call are removed from the mini player.
+- Since 2026-09-20 the rows and cards (`TrackRowCompact`, `TrackCard`) run the same chain as the
+  player instead of skipping the portrait: `artistImageFallback(track, auth)` in `coverArt.js`
+  builds the portrait URL from `primaryArtistOf(track)` (`utils.js`, the `artists` array first,
+  the joined string second) and answers `null` for a URL in `missingArtistImages`, the Set
+  `Artwork.svelte` fills from its artist `onerror`. MuMa's 404 is not cached by the browser, so
+  without that Set every row of the same artist re-asked on every render.
 
 ### B — header, chips, targets
 

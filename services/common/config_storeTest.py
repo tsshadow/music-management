@@ -18,6 +18,7 @@ sys.modules[_MODULE_NAME] = config_store
 _spec.loader.exec_module(config_store)
 ConfigField = config_store.ConfigField
 ConfigStore = config_store.ConfigStore
+credential = config_store.credential
 
 
 class ConfigStoreTestCase(unittest.TestCase):
@@ -391,3 +392,21 @@ class ConfigStoreCoercionTest(ConfigStoreTestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class CredentialTest(ConfigStoreTestCase):
+    """`credential()` is what every Spotify/Last.fm/Discogs consumer reads: the config page's
+    value first, the environment second, None when neither has it."""
+
+    def test_a_value_stored_through_the_config_page_wins(self):
+        self.store.update({'spotify_client_id': 'from-page'})
+        with patch.dict('os.environ', {'SPOTIFY_CLIENT_ID': 'from-env'}):
+            self.assertEqual(credential('spotify_client_id', 'SPOTIFY_CLIENT_ID'), 'from-page')
+
+    def test_the_environment_is_read_when_the_store_has_nothing(self):
+        with patch.dict('os.environ', {'SPOTIFY_CLIENT_ID': 'from-env'}):
+            self.assertEqual(credential('spotify_client_id', 'SPOTIFY_CLIENT_ID'), 'from-env')
+
+    def test_nothing_anywhere_is_none_not_an_empty_string(self):
+        with patch.dict('os.environ', {}, clear=True):
+            self.assertIsNone(credential('spotify_client_id', 'SPOTIFY_CLIENT_ID'))

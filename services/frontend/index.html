@@ -3,7 +3,11 @@
     <head>
         <meta charset="UTF-8" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <!-- `viewport-fit=cover` is what puts the WebView behind the phone's system bars: without it
+             Capacitor's SystemBars plugin pads the WebView by the bar insets and the bars keep the
+             WebView's own background (a grey the app never chose) instead of the app's. With it
+             `env(safe-area-inset-*)` carries the real insets and the surfaces below pad themselves. -->
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
         <title>MuMa</title>
     </head>
     <body>

@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.69.1] - 2026-09-21
+
+### Changed
+- **Een nummer zonder hoes toont in een rij of kaart de foto van zijn eerste artiest, niet een
+  tegel met alleen de titel.** De speler deed dat al (hoes, dan portret, dan het getinte
+  paneel); `TrackCard` en `TrackRowCompact` sloegen het portret bewust over, en een plank
+  "Recent uitgebracht" zonder hoezen werd zo een kolom grijze titelblokjes. De keten is nu in
+  `coverArt.artistImageFallback()` gedeeld, met `primaryArtistOf()` als de ene plek die de eerste
+  artiest kiest (de `artists`-lijst met ids gaat voor de samengevoegde string). MuMa zegt "geen
+  portret" met een 404 die de browser niet cachet, dus een mislukte URL wordt per sessie
+  onthouden en de volgende rij van dezelfde artiest begint meteen bij het paneel. Van de 56.800
+  artiesten hebben er 11.759 een portret; de 44.972 met status `failed` komen pas bij de
+  volgende opstart na de 30-daagse wachttijd opnieuw aan de beurt, dus de planken vullen zich
+  niet in één keer.
+
+### Fixed
+- **De artiestfoto-fetcher draaide een maand zonder sleutels en zette 45.000 artiesten op
+  "niet gevonden".** De Spotify client id en secret kwamen alleen ooit mee in de `.env` die het
+  image kopieerde; toen die COPY op 2026-07-24 terecht verdween, kreeg de container ze van niets
+  meer -- `docker-compose.yml` noemde ze niet. Een provider zonder sleutel antwoordde met een lege
+  lijst, precies wat een zoekopdracht zonder treffers ook geeft, en de fetcher schreef
+  `image_status = 'failed'`: Sefa, Partyraiser, Dr. Peacock, Warface, alles vanaf 22 augustus
+  (11.759 actief, allemaal van juli; 44.972 failed, geen enkele foto sinds). De velden op
+  Beheer > Config bestonden al en werden door niemand gelezen, en `data/config.json` stond niet op
+  een volume, dus wat je daar invulde overleefde geen deploy. Nu: `credential()` in
+  `config_store` (configpagina eerst, omgeving daarna) voor fetcher én tagger-lookup;
+  `ProviderUnavailable` voor een ontbrekende of afgewezen sleutel, 429, 5xx of netwerkfout, zodat
+  alleen een 200 zonder treffers "niet gevonden" is; een run zonder geconfigureerde provider
+  kijkt niets op en schrijft niets; `migrate_v30` zet de blinde verdicten terug naar "nooit
+  gevraagd" totdat de eerste providerfoto na 22 augustus binnen is; compose geeft
+  `SPOTIFY_*`/`LASTFM_API_KEY`/`DISCOGS_TOKEN` door en mount `/app/data`. De 404 op
+  `/api/artists/{naam}/image` doet niet meer alsof hij een lookup start -- Starlette liet die
+  background task altijd al vallen. Zie docs/bug-reports/034.
 ## [0.69.0] - 2026-09-20
 
 ### Added

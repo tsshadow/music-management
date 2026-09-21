@@ -43,6 +43,25 @@ export function viewArgument(view) {
 }
 
 /**
+ * The artist a track is credited to first: the one whose portrait stands in
+ * for a missing cover, and the one "more from this artist" is about.
+ *
+ * `artists` (OpenSubsonic) is preferred because each entry carries its own
+ * id; the joined `artist` string is what a source without that array leaves,
+ * and its first name gets the track's `artistId`, which LMS assigns to the
+ * first credited artist as well.
+ *
+ * @param {object|null|undefined} track - A Subsonic track.
+ * @returns {{name: string, id?: string}|null}
+ */
+export function primaryArtistOf(track) {
+  const listed = track?.artists?.[0];
+  if (listed?.name) return listed;
+  const [first] = splitArtists(track?.artist);
+  return first ? { name: first, id: track?.artistId } : null;
+}
+
+/**
  * Returns the URL for an artist image.
  *
  * @param {Object} artist - The artist object.

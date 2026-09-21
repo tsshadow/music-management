@@ -23,7 +23,7 @@ class DiscogsLookupTest(unittest.TestCase):
         self.lookup = DiscogsLookup(token='tok')
 
     def test_without_a_token_no_request_is_made(self):
-        with patch.dict('os.environ', {}, clear=True):
+        with patch.dict('os.environ', {}, clear=True), patch.object(module, 'credential', return_value=None):
             lookup = DiscogsLookup()
         with patch.object(module, 'requests') as http:
             self.assertFalse(lookup.is_known_artist('Angerfist'))
@@ -80,7 +80,7 @@ class LastfmLookupTest(unittest.TestCase):
         self.lookup = LastfmLookup(api_key='key')
 
     def test_without_an_api_key_no_request_is_made(self):
-        with patch.dict('os.environ', {}, clear=True):
+        with patch.dict('os.environ', {}, clear=True), patch.object(module, 'credential', return_value=None):
             lookup = LastfmLookup()
         with patch.object(module, 'requests') as http:
             self.assertFalse(lookup.is_known_artist('Angerfist'))
@@ -112,7 +112,7 @@ class SpotifyLookupTest(unittest.TestCase):
         self.lookup = SpotifyLookup(client_id='id', client_secret='secret')
 
     def test_without_credentials_there_is_no_token(self):
-        with patch.dict('os.environ', {}, clear=True):
+        with patch.dict('os.environ', {}, clear=True), patch.object(module, 'credential', return_value=None):
             lookup = SpotifyLookup()
         self.assertIsNone(lookup._get_token())
 

@@ -563,7 +563,7 @@
         transition:fade={{ duration: 150 }}
       ></button>
       <div
-        class="relative w-[280px] max-w-[85vw] h-full bg-black border-r border-[#282828] overflow-y-auto shadow-2xl"
+        class="relative w-[280px] max-w-[85vw] h-full bg-black border-r border-[#282828] overflow-y-auto shadow-2xl pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
         transition:fly={{ x: -280, duration: 200 }}
       >
         {#if $activeView === 'settings'}

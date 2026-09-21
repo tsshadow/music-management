@@ -38,6 +38,7 @@ increments may refine earlier ones, but nothing in an earlier increment depends 
 | Any track | The screen background is a vertical gradient from the genre tint (top) into the standard dark background (below the artwork), so the screen is never flat black. |
 | Track has several genres | The first genre that the server has a tint for decides the colour; no tint at all gives the neutral surface colour. |
 | Mini player | One square image slot with the same cover → artist → tint fallback; the separate round artist avatar next to the artist name disappears. |
+| Track row or card on Home/Browse (since 2026-09-20) | The same chain: a track without a cover shows its first artist's portrait, and only a track whose artist has none shows the title panel. A portrait MuMa has already said it lacks is not asked for again in the same session. |
 
 ### B — Player header, metadata and controls
 

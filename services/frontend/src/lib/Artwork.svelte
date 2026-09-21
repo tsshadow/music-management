@@ -1,4 +1,6 @@
 <script>
+  import { missingArtistImages } from './coverArt.js';
+
   /**
    * The one artwork slot every player surface uses: a cover, or -- when the
    * track has none -- the artist's image, or -- when neither exists -- a flat
@@ -43,8 +45,13 @@
     stage = artistUrl ? 'artist' : 'panel';
   }
 
-  /** The artist image failed too (MuMa has none for this artist) -- the panel is the only thing left. */
+  /**
+   * The artist image failed too (MuMa has none for this artist) -- the panel is the only thing
+   * left. Remembered, so the next row of the same artist starts at the panel rather than asking
+   * the server the same question again (see `missingArtistImages`).
+   */
   function handleArtistError() {
+    if (artistUrl) missingArtistImages.add(artistUrl);
     stage = 'panel';
   }
 </script>

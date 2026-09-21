@@ -1,7 +1,8 @@
 import logging
-import os
 
 import requests
+
+from services.common.config_store import credential
 
 
 class DiscogsLookup:
@@ -9,7 +10,7 @@ class DiscogsLookup:
 
     def __init__(self, token: str | None = None):
         self.name = 'Discogs'
-        self.token = token or os.getenv('DISCOGS_TOKEN')
+        self.token = token or credential('discogs_token', 'DISCOGS_TOKEN')
 
     def is_known_artist(self, name: str) -> bool:
         if not self.token:
@@ -57,7 +58,7 @@ class LastfmLookup:
 
     def __init__(self, api_key: str | None = None):
         self.name = 'Last.fm'
-        self.api_key = api_key or os.getenv('LASTFM_API_KEY')
+        self.api_key = api_key or credential('lastfm_api_key', 'LASTFM_API_KEY')
 
     def is_known_artist(self, name: str) -> bool:
         if not self.api_key:
@@ -85,8 +86,8 @@ class SpotifyLookup:
 
     def __init__(self, client_id: str | None = None, client_secret: str | None = None):
         self.name = 'Spotify'
-        self.client_id = client_id or os.getenv('SPOTIFY_CLIENT_ID')
-        self.client_secret = client_secret or os.getenv('SPOTIFY_CLIENT_SECRET')
+        self.client_id = client_id or credential('spotify_client_id', 'SPOTIFY_CLIENT_ID')
+        self.client_secret = client_secret or credential('spotify_client_secret', 'SPOTIFY_CLIENT_SECRET')
         self._token: str | None = None
 
     def _get_token(self) -> str | None:

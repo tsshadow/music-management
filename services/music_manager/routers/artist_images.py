@@ -410,7 +410,7 @@ def clear_artist_primary_image(artist_id: int, _auth: dict = Depends(verify_api_
 
 
 @router.get('/{artist_name}/image')
-def get_artist_image(artist_name: str, background_tasks: BackgroundTasks):
+def get_artist_image(artist_name: str):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')
@@ -423,8 +423,13 @@ def get_artist_image(artist_name: str, background_tasks: BackgroundTasks):
             row = cursor.fetchone()
             if row and row['cached_path'] and os.path.exists(row['cached_path']):
                 return FileResponse(row['cached_path'])
-            background_tasks.add_task(trigger_fetch, artist_name)
-            raise HTTPException(status_code=404, detail='Artist image not found. Fetching triggered.')
+            # No lookup is started here, and none ever was: a background task attached to
+            # a request that ends in an exception is dropped by Starlette, so the
+            # `add_task(trigger_fetch)` this line used to carry never ran once. Keep it
+            # that way -- since !884 every uncovered track row asks for its artist's
+            # portrait, and a lookup per miss would queue a MusicBrainz+Spotify round trip
+            # for each of them. The bulk run (`/fetch-missing`, and start-up) is the path.
+            raise HTTPException(status_code=404, detail='Artist image not found.')
     finally:
         conn.close()
 
@@ -473,6 +478,17 @@ def run_fetch_missing():
             return
         try:
             fetcher = ArtistImageFetcher(db_conn=conn)
+            if fetcher.blind:
+                # Without a provider this loop would walk 45.000 names and learn nothing
+                # -- which is what it did from 2026-08-22 to 2026-09-21, recording every
+                # one of them as failed. Say so instead, where the Beheer page reads it.
+                message = (
+                    'Geen image provider geconfigureerd: zet de Spotify client id en secret '
+                    '(Beheer > Config, of SPOTIFY_CLIENT_ID/SPOTIFY_CLIENT_SECRET) en start opnieuw.'
+                )
+                logger.error(message)
+                fetch_progress.update({'active': False, 'status': 'failed', 'message': message})
+                return
             with conn.cursor() as cursor:
                 cursor.execute('SELECT COUNT(*) as count FROM library_artists')
                 total_artists = cursor.fetchone()['count']

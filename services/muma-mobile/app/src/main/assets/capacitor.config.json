@@ -2,6 +2,7 @@
   "appId": "nl.teunschriks.mumamobile",
   "appName": "MuMa",
   "webDir": "dist",
+  "backgroundColor": "#121212",
   "android": {
     "path": "../muma-mobile",
     "webContentsDebuggingEnabled": true
@@ -15,6 +16,9 @@
     },
     "CapacitorCookies": {
       "enabled": true
+    },
+    "SystemBars": {
+      "style": "DARK"
     }
   }
 }

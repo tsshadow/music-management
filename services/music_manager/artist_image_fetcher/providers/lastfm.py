@@ -1,35 +1,43 @@
 import logging
-import os
 
 import requests
 
-from .base import ArtistImageProvider
+from .base import ArtistImageProvider, ProviderUnavailable, credential
 
 
 class LastFmArtistImageProvider(ArtistImageProvider):
     API_URL = 'https://ws.audioscrobbler.com/2.0/'
 
     def __init__(self, api_key=None):
-        self.api_key = api_key or os.getenv('LASTFM_API_KEY')
+        self.api_key = api_key or credential('lastfm_api_key', 'LASTFM_API_KEY')
         self.logger = logging.getLogger(__name__)
-        if not self.api_key:
+        if not self.configured:
             self.logger.warning('Last.fm API key (LASTFM_API_KEY) not found. Last.fm provider will be disabled.')
 
     @property
     def name(self):
         return 'lastfm'
 
+    @property
+    def configured(self):
+        return bool(self.api_key)
+
     def get_artist_images(self, artist_name, mbid=None, external_ids=None):
-        if not self.api_key:
-            return []
+        if not self.configured:
+            raise ProviderUnavailable('Last.fm: no API key configured')
         candidates = []
         try:
             params = {'method': 'artist.getinfo', 'artist': artist_name, 'api_key': self.api_key, 'format': 'json'}
             if mbid:
                 params['mbid'] = mbid
             response = requests.get(self.API_URL, params=params, timeout=5)
-            if response.status_code != 200:
-                return []
+        except Exception as e:
+            raise ProviderUnavailable(f'Last.fm: lookup failed: {e}') from e
+        # Last.fm answers an unknown artist with 200 and an error body (code 6), so a
+        # non-200 is the service or the key, never the artist.
+        if response.status_code != 200:
+            raise ProviderUnavailable(f'Last.fm: lookup answered {response.status_code}')
+        try:
             data = response.json()
             artist = data.get('artist', {})
             images = artist.get('image', [])
@@ -54,6 +62,6 @@ class LastFmArtistImageProvider(ArtistImageProvider):
                             },
                         }
                     )
-        except Exception as e:
-            self.logger.error('Last.fm artist image lookup failed: %s', e)
+        except (ValueError, AttributeError, TypeError) as e:
+            raise ProviderUnavailable(f'Last.fm: could not read the answer: {e}') from e
         return candidates

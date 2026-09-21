@@ -206,6 +206,10 @@ if 'services.common.config_store' in sys.modules:
             'delimiter': '/',
         }
         mock_cs.ConfigStore.return_value.delimiter = '/'
+        # `credential()` is a real function on the real module; a MagicMock in its place
+        # returns a truthy MagicMock for every key, which makes every provider look
+        # configured. Keep the environment half of its behaviour, drop the store half.
+        mock_cs.credential = lambda config_key, env_name: os.getenv(env_name) or None
 if 'yt_dlp.utils' in sys.modules:
     sys.modules['yt_dlp.utils'].sanitize_filename = lambda x, **k: x
 if 'dotenv' in sys.modules:

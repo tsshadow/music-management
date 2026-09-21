@@ -1,7 +1,7 @@
 <script>
   import { authParams } from './store.js';
   import { offline } from './subsonic.js';
-  import { coverArtSrc, FALLBACK, localCoverArt } from './coverArt.js';
+  import { artistImageFallback, coverArtSrc, FALLBACK, localCoverArt } from './coverArt.js';
   import { playTrack } from './playTrack.js';
   import Artwork from './Artwork.svelte';
   import ArtistList from './ArtistList.svelte';
@@ -31,6 +31,10 @@
     const src = coverArtSrc(track.coverArt, 100, $authParams, $localCoverArt, $offline);
     return src === FALLBACK ? null : src;
   });
+  // Same chain as the player: cover, then the first artist's portrait, then the tinted panel.
+  // A shelf of mostly-uncovered tracks used to skip the portrait on purpose (a card is a track,
+  // not an artist); a row of title-only tiles read worse than a face next to a title.
+  const artistUrl = $derived(artistImageFallback(track, $authParams));
 </script>
 
 <div
@@ -41,7 +45,7 @@
   onclick={() => (onplay ?? playTrack)(track)}
   onkeydown={(e) => e.key === 'Enter' && (onplay ?? playTrack)(track)}
 >
-  <Artwork class="w-12 h-12 shrink-0" {coverUrl} artistUrl={null} title={track.title || track.name} alt={track.title} />
+  <Artwork class="w-12 h-12 shrink-0" {coverUrl} {artistUrl} title={track.title || track.name} alt={track.title} />
   <div class="flex-1 min-w-0">
     <div class="text-sm font-bold truncate">{track.title || track.name}</div>
     <div class="truncate">

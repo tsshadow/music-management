@@ -22,7 +22,7 @@ buildscript {
 }
 
 plugins {
-    id "com.github.ben-manes.versions" version "0.63.1"
+    id "com.github.ben-manes.versions" version "0.64.0"
     // SBOM for the dependency audit: scripts/ci/dependency-audit.sh runs
     // `cyclonedxBom` and feeds the result to trivy. Gradle has no lockfiles in
     // this repo, so the resolved graph in the SBOM is the only thing a CVE

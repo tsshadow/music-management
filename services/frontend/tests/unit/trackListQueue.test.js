@@ -82,6 +82,23 @@ describe("TrackList", () => {
     expect(get(playerState).playing).toBe(true);
   });
 
+  it("falls back to the artist portrait for a track with no cover, never to a bare placeholder", () => {
+    // The table used to draw an `<img onerror>` that went straight to the MuMa mark, so the
+    // cover -> artist -> panel chain the cards use never reached the list most tracks are
+    // played from. With nearly no SoundCloud file carrying artwork, that was a column of
+    // identical placeholders.
+    render(TrackList, props({ tracks: [{ ...FIRST, coverArt: null }] }));
+
+    const image = screen.getByAltText("");
+    expect(image.getAttribute("src")).toContain("/api/artists/Angerfist/image");
+  });
+
+  it("shows the cover itself when the track has one", () => {
+    render(TrackList, props({ tracks: [{ ...FIRST, coverArt: "cover-1" }] }));
+
+    expect(screen.getByAltText("").getAttribute("src")).toContain("getCoverArt?id=cover-1");
+  });
+
   it("names the queue after the list when the page gives it a name", async () => {
     playlist.set([]);
     queueSource.set(null);

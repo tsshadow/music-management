@@ -583,6 +583,13 @@ class SoundcloudDownloader:
             'compat_opts': ['filename'],
             'nooverwrites': False,
             'no_part': True,
+            # `EmbedThumbnailPP` (added in download_url) embeds a thumbnail *file*: it reads
+            # `info['thumbnails'][i]['filepath']` and, finding none, prints "There are no
+            # thumbnails on disk" and returns the info untouched. The CLI's --embed-thumbnail
+            # implies --write-thumbnail; adding the post-processor through the API does not, so
+            # without this every SoundCloud download landed without artwork -- 387 of 149.626
+            # tracks on production had any, and the web UI drew the placeholder for the rest.
+            'writethumbnail': True,
             'format': 'bestaudio[ext=mp3]',
             'quiet': False,
             'ignoreerrors': True,

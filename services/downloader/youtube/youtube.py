@@ -129,6 +129,11 @@ class YoutubeDownloader:
                 {'key': 'EmbedThumbnail'},
                 {'key': 'FFmpegMetadata'},
             ],
+            # The EmbedThumbnail post-processor above embeds a thumbnail *file*; the CLI's
+            # --embed-thumbnail implies --write-thumbnail, the API does not. See the same
+            # comment in the SoundCloud downloader: without this the post-processor runs, finds
+            # nothing on disk and silently embeds nothing.
+            'writethumbnail': True,
             'compat_opts': ['filename'],
             'nooverwrites': True,
             'keepvideo': False,

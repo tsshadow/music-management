@@ -237,7 +237,7 @@ describe("TrackList cover art offline", () => {
     );
   });
 
-  it("keeps the placeholder for art this device never cached", async () => {
+  it("draws the panel, never a server request, for art this device never cached", async () => {
     const platform = shell({
       query: vi.fn(async () => ({
         "subsonic-response": { status: "failed", error: { code: 70 } },
@@ -252,6 +252,9 @@ describe("TrackList cover art offline", () => {
     });
 
     await waitFor(() => expect(platform.storage.query).toHaveBeenCalled());
-    expect(document.querySelector("img").getAttribute("src")).toBe("/images/spotify-fallback.svg");
+    // Offline the artist portrait is a server URL too, so there is nothing left to load:
+    // `Artwork` draws its panel. What matters is that no request is made for either.
+    expect(screen.getByTestId("artwork-panel")).toBeTruthy();
+    expect(document.querySelector("img")).toBeNull();
   });
 });

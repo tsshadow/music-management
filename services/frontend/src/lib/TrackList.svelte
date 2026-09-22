@@ -10,7 +10,8 @@
   import { releaseDateLabel } from './trackDate.js';
   import { genreSegments } from './genreSegments.js';
   import { platform as defaultPlatform } from './platform/index.js';
-  import { coverArtSrc, localCoverArt, resolveCoverArt } from './coverArt.js';
+  import { FALLBACK, artistImageFallback, coverArtSrc, localCoverArt, resolveCoverArt } from './coverArt.js';
+  import Artwork from './Artwork.svelte';
   import { offline } from './subsonic.js';
   import { formatBytes, isSet, trackSize } from './downloads.js';
   import { formatHoursMinutes } from './playerProgress.js';
@@ -38,6 +39,21 @@
    * up. In a browser `supported` is false, nothing is asked, and every row
    * renders exactly as it did before this feature existed.
    */
+  /**
+   * The row's cover, or `null` when there is none: `coverArtSrc` answers a missing or
+   * unresolved cover with `FALLBACK` (the MuMa mark), while `Artwork` wants `null` so it
+   * can fall through to the artist portrait and then to its own panel. Same mapping
+   * `TrackCard` and `TrackRowCompact` make.
+   *
+   * The panel is left titleless here, unlike in a card: at 48 pixels, directly beside the
+   * row's own title, a second copy of that title is unreadable noise rather than the
+   * identification it is on a square tile.
+   */
+  function thumbnailFor(track) {
+    const src = coverArtSrc(track.coverArt, 48, $authParams, $localCoverArt, $offline);
+    return src === FALLBACK ? null : src;
+  }
+
   const downloadsSupported = $derived(platform?.storage?.supported === true);
   let downloadStates = $state({});
   /** The set whose size is being confirmed, or null. */
@@ -452,11 +468,18 @@
         </td>
         <td class="p-2 px-4">
           <div class="flex items-center gap-3">
-            <img
-              src={coverArtSrc(track.coverArt, 48, $authParams, $localCoverArt, $offline)}
+            <!-- The same cover -> artist portrait -> tinted panel chain the cards, the
+                 compact rows and the player use. This table drew a bare `<img>` whose
+                 `onerror` went straight to the MuMa mark, so the artist fallback that
+                 shipped with the cards never reached the one list most tracks are played
+                 from -- and with 387 of 149.626 SoundCloud files carrying artwork, that is
+                 a column of identical placeholders. -->
+            <Artwork
+              class="w-12 h-12 shrink-0"
+              coverUrl={thumbnailFor(track)}
+              artistUrl={$offline ? null : artistImageFallback(track, $authParams)}
+              title=""
               alt=""
-              class="w-12 h-12 rounded shadow"
-              onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
             />
             <div class="flex flex-col min-w-0">
               <span class="text-sm md:text-base font-medium truncate {String($currentTrack?.id) === String(track.id) ? 'text-brand' : 'text-white'}">

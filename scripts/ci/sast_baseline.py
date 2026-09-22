@@ -62,7 +62,10 @@ REASONS = {
         'in routers/library.py (2026-09-21) are the same shape: one interpolates '
         'the placeholder count for the path spellings, the other picks the '
         'archive table name from a two-entry literal tuple; the path itself is '
-        'always a bound %s.'
+        'always a bound %s. scripts/backfill_artwork.py interpolates the same '
+        'kind of archive table name, from argparse choices that admit only '
+        '"soundcloud" or "youtube"; its filename and account are bound. '
+        'Audited 2026-09-22.'
     ),
     'avoid-sqlalchemy-text': 'Same as sqlalchemy-execute-raw-query.',
     'formatted-sql-query': (
@@ -183,7 +186,13 @@ REASONS = {
         'ProdClient refuses anything but http(s) in its constructor. Audited '
         '2026-09-10. This reason was once restored by hand after a regeneration '
         'replaced it with the placeholder; that is what unwritable_rationale() '
-        'below now prevents.'
+        'below now prevents. scripts/backfill_artwork.py has two sites: one '
+        'builds a SoundCloud API URL from a literal host and a list of track '
+        'ids out of our own archive table, the other fetches an artwork URL '
+        'that did come from a third party\'s JSON -- and that one goes through '
+        'artwork.is_web_url() first, which refuses anything but http(s) so a '
+        'crafted file:// value cannot have the backfill embed a local file. '
+        'Audited 2026-09-22.'
     ),
     'unsafe-formatstring': (
         'Format strings built from internal constants in one-off tools, not '

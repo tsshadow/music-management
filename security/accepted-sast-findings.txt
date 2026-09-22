@@ -72,7 +72,7 @@ dd45bf5b5d0df701 x1  # detected-ssh-password scripts/deploy.sh
 # container name on every connection (see the resolver comment there).
 215b7d436a195271 x5  # dynamic-proxy-host services/music-management-server/nginx/reverse-proxy.conf
 
-# --- dynamic-urllib-use-detected --- [r:72dea572]
+# --- dynamic-urllib-use-detected --- [r:dad7a3d4]
 # The ntfy notify call in the crash-triage listener builds its URL from
 # NTFY_URL, an operator-set value in a root-owned env file, and the code
 # pins the scheme to http(s) before opening it -- a mangled value cannot
@@ -81,7 +81,13 @@ dd45bf5b5d0df701 x1  # detected-ssh-password scripts/deploy.sh
 # ProdClient refuses anything but http(s) in its constructor. Audited
 # 2026-09-10. This reason was once restored by hand after a regeneration
 # replaced it with the placeholder; that is what unwritable_rationale()
-# below now prevents.
+# below now prevents. scripts/backfill_artwork.py has two sites: one builds
+# a SoundCloud API URL from a literal host and a list of track ids out of
+# our own archive table, the other fetches an artwork URL that did come from
+# a third party's JSON -- and that one goes through artwork.is_web_url()
+# first, which refuses anything but http(s) so a crafted file:// value
+# cannot have the backfill embed a local file. Audited 2026-09-22.
+e4d01bfba9291a3c x2  # dynamic-urllib-use-detected scripts/backfill_artwork.py
 1ad6abb9c22c9ef5 x1  # dynamic-urllib-use-detected scripts/crash-triage/crash_triage_listener.py
 3767fc89712eec02 x1  # dynamic-urllib-use-detected scripts/nightly-prod-check/collect.py
 
@@ -180,7 +186,7 @@ b6758acb30b1330e x7  # renovate-missing-minimum-release-age renovate.json
 # request and the rule no longer fires.
 511526ec8d8fb2c5 x1  # request-with-http services/music_manager/routers/users.py
 
-# --- sqlalchemy-execute-raw-query --- [r:f592c2fe]
+# --- sqlalchemy-execute-raw-query --- [r:0ddc513f]
 # Table and column names cannot be bound as parameters, and every site
 # interpolates an internal constant rather than request data. Revisit any
 # new site that interpolates something reaching it from outside.
@@ -197,7 +203,10 @@ b6758acb30b1330e x7  # renovate-missing-minimum-release-age renovate.json
 # routers/library.py (2026-09-21) are the same shape: one interpolates the
 # placeholder count for the path spellings, the other picks the archive
 # table name from a two-entry literal tuple; the path itself is always a
-# bound %s.
+# bound %s. scripts/backfill_artwork.py interpolates the same kind of
+# archive table name, from argparse choices that admit only "soundcloud" or
+# "youtube"; its filename and account are bound. Audited 2026-09-22.
+e3fd2407e6c36fdc x1  # sqlalchemy-execute-raw-query scripts/backfill_artwork.py
 3e91e9d22410d255 x1  # sqlalchemy-execute-raw-query scripts/cleanup_redundant_indices.py
 c9e52706e5417943 x4  # sqlalchemy-execute-raw-query scripts/migrate_stars_to_ratings.py
 4228ef42ed793ded x3  # sqlalchemy-execute-raw-query services/common/Helpers/BrokenSongArtistLookupHelper.py

@@ -199,6 +199,52 @@ def test_a_genre_name_is_unique_after_normalization(db):
             cursor.execute("INSERT INTO rules_genres (name, normalized_name) VALUES ('HARDCORE', 'hardcore')")
 
 
+def test_a_blind_image_verdict_is_undone_but_a_real_one_survives(database):
+    """migrate_v32: migrate_v30 asked "has any portrait landed since the blackout?" once, for
+    the whole table, and 22 hand-fetched ones answered yes before it first ran -- so 45.044
+    artists kept a `failed` a fetcher without credentials had written for them."""
+    with database.cursor() as cursor:
+        cursor.execute("INSERT INTO library_artists (name) VALUES ('Blind Verdict')")
+        blind_id = cursor.lastrowid
+        cursor.execute("INSERT INTO library_artists (name) VALUES ('Real Verdict')")
+        real_id = cursor.lastrowid
+        cursor.execute("INSERT INTO library_artists (name) VALUES ('Older Verdict')")
+        older_id = cursor.lastrowid
+        # One portrait from a provider closes the window at the moment it landed.
+        cursor.execute(
+            "INSERT INTO library_artist_images (artist_id, source, created_at) "
+            "VALUES (%s, 'spotify', '2026-09-21 12:56:40')",
+            (blind_id,),
+        )
+        cursor.execute(
+            "UPDATE library_artists SET image_status = 'failed', image_updated_at = %s, "
+            'primary_image_id = NULL WHERE id = %s',
+            ('2026-08-23 04:00:00', blind_id),
+        )
+        cursor.execute(
+            "UPDATE library_artists SET image_status = 'failed', image_updated_at = %s, "
+            'primary_image_id = NULL WHERE id = %s',
+            ('2026-09-22 09:00:00', real_id),
+        )
+        cursor.execute(
+            "UPDATE library_artists SET image_status = 'failed', image_updated_at = %s, "
+            'primary_image_id = NULL WHERE id = %s',
+            ('2026-07-01 09:00:00', older_id),
+        )
+
+    _apply_migrations(database)
+
+    with database.cursor() as cursor:
+        cursor.execute(
+            'SELECT id, image_status FROM library_artists WHERE id IN (%s, %s, %s)',
+            (blind_id, real_id, older_id),
+        )
+        status = {row['id']: row['image_status'] for row in cursor.fetchall()}
+    assert status[blind_id] is None, 'a verdict written while the fetcher was blind must be undone'
+    assert status[real_id] == 'failed', 'a verdict written after sight returned is real'
+    assert status[older_id] == 'failed', 'a verdict from before the blackout was never blind'
+
+
 def test_the_tagger_stores_the_mtime_it_read(database):
     """migrate_v29: a FLOAT mtime has a 128 s step at today's epoch, so the value written
     back was never the real one and 70% of the library read as changed on every walk."""

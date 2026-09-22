@@ -57,7 +57,7 @@ from services.downloader.artwork import (
     usable_image,
     youtube_artwork_urls,
 )
-from services.music_manager.database import get_db_connection
+from services.common.Helpers.DatabaseConnector import DatabaseConnector
 
 #: SoundCloud's id endpoint takes a comma-separated list; 50 is what its own web player asks for.
 SOUNDCLOUD_BATCH = 50
@@ -98,7 +98,9 @@ def candidates(cursor, platform, account=None):
         query += ' AND (account = %s OR filename LIKE %s)'
         params += [account, f'%/{account}/%']
     cursor.execute(query, tuple(params))
-    return [(row['filename'], row['video_id'], row['account']) for row in cursor.fetchall()]
+    # Read by position, not by name: the cursor this gets handed is whatever the caller's
+    # image gives it, and the downloader containers hand out tuples rather than dicts.
+    return [(row[0], row[1], row[2]) for row in cursor.fetchall()]
 
 
 def soundcloud_client_id():
@@ -241,18 +243,17 @@ def run_platform(cursor, platform, args):
 def main(argv=None):
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
     args = parse_args(argv)
-    conn = get_db_connection()
-    if not conn:
-        logger.error('No database connection')
-        return 1
     platforms = [args.platform] if args.platform else list(PLATFORMS)
     totals = {}
     try:
-        with conn.cursor() as cursor:
+        # `DatabaseConnector`, not music_manager's pool: this runs inside whichever container
+        # has yt-dlp and the music mount, and the downloader images do not ship music_manager.
+        with DatabaseConnector().connection() as conn, conn.cursor() as cursor:
             for platform in platforms:
                 totals[platform] = run_platform(cursor, platform, args)
-    finally:
-        conn.close()
+    except RuntimeError as exc:
+        logger.error('No database connection: %s', exc)
+        return 1
     for platform, (wanted, written, without) in totals.items():
         verb = 'would embed' if args.dry_run else 'embedded'
         logger.info('%s: %s without a picture, %s %s, %s left without one', platform, wanted, verb, written, without)

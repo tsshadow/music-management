@@ -100,7 +100,8 @@ class CandidatesTest:
         return cursor
 
     def test_the_archive_of_one_platform_is_read(self):
-        cursor = self.cursor_with([{'filename': '/music/a.mp3', 'video_id': '1', 'account': 'x'}])
+        # Tuples, not dicts: the downloader images hand out a plain cursor.
+        cursor = self.cursor_with([('/music/a.mp3', '1', 'x')])
 
         rows = backfill.candidates(cursor, 'soundcloud')
 
@@ -230,7 +231,7 @@ class RunPlatformTest:
 
     def test_a_dry_run_writes_nothing(self, capsys):
         cursor = MagicMock()
-        cursor.fetchall.return_value = [{'filename': '/music/a.mp3', 'video_id': '1', 'account': 'x'}]
+        cursor.fetchall.return_value = [('/music/a.mp3', '1', 'x')]
         with (
             patch.object(backfill, 'needs_artwork', return_value=True),
             patch.object(backfill, 'soundcloud_client_id', return_value='CID'),
@@ -246,7 +247,7 @@ class RunPlatformTest:
 
     def test_youtube_needs_no_api_call_at_all(self):
         cursor = MagicMock()
-        cursor.fetchall.return_value = [{'filename': '/music/v.m4a', 'video_id': 'abc', 'account': 'ch'}]
+        cursor.fetchall.return_value = [('/music/v.m4a', 'abc', 'ch')]
         with (
             patch.object(backfill, 'needs_artwork', return_value=True),
             patch.object(backfill, 'soundcloud_client_id', side_effect=AssertionError('youtube must not ask')),
@@ -261,7 +262,7 @@ class RunPlatformTest:
 
     def test_a_track_the_platform_has_no_artwork_for_is_counted_not_written(self):
         cursor = MagicMock()
-        cursor.fetchall.return_value = [{'filename': '/music/a.mp3', 'video_id': '1', 'account': 'x'}]
+        cursor.fetchall.return_value = [('/music/a.mp3', '1', 'x')]
         with (
             patch.object(backfill, 'needs_artwork', return_value=True),
             patch.object(backfill, 'soundcloud_client_id', return_value='CID'),
@@ -275,9 +276,7 @@ class RunPlatformTest:
 
     def test_the_limit_stops_the_run(self):
         cursor = MagicMock()
-        cursor.fetchall.return_value = [
-            {'filename': f'/music/{i}.m4a', 'video_id': f'v{i}', 'account': 'ch'} for i in range(5)
-        ]
+        cursor.fetchall.return_value = [(f'/music/{i}.m4a', f'v{i}', 'ch') for i in range(5)]
         with (
             patch.object(backfill, 'needs_artwork', return_value=True),
             patch.object(backfill, 'download', return_value=JPEG),
@@ -291,7 +290,7 @@ class RunPlatformTest:
 
     def test_a_file_that_already_has_a_picture_is_never_considered(self):
         cursor = MagicMock()
-        cursor.fetchall.return_value = [{'filename': '/music/a.mp3', 'video_id': '1', 'account': 'x'}]
+        cursor.fetchall.return_value = [('/music/a.mp3', '1', 'x')]
         with (
             patch.object(backfill, 'needs_artwork', return_value=False),
             patch.object(backfill, 'soundcloud_client_id', side_effect=AssertionError('nothing to look up')),
@@ -305,13 +304,14 @@ class RunPlatformTest:
 
 class MainTest:
     def test_without_a_database_it_reports_a_failure_rather_than_running(self):
-        with patch.object(backfill, 'get_db_connection', return_value=None):
+        connector = MagicMock()
+        connector.return_value.connection.side_effect = RuntimeError('not configured')
+        with patch.object(backfill, 'DatabaseConnector', connector):
             assert backfill.main([]) == 1
 
     def test_both_platforms_run_unless_one_is_named(self):
-        conn = MagicMock()
         with (
-            patch.object(backfill, 'get_db_connection', return_value=conn),
+            patch.object(backfill, 'DatabaseConnector', MagicMock()),
             patch.object(backfill, 'run_platform', return_value=(0, 0, 0)) as run,
         ):
             assert backfill.main(['--dry-run']) == 0

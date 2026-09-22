@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.72.0] - 2026-09-22
+
+### Added
+- **Een backfill die de hoes inbedt in bestanden die er zonder binnenkwamen.**
+  `scripts/backfill_artwork.py` vult aan wat de downloaders hadden moeten meeschrijven:
+  387 van 149.626 SoundCloud-nummers hadden een hoes, en 4.132 van 53.702 YouTube-nummers.
+  Opnieuw per bestand via yt-dlp zou 200.000 extracties zijn tegen een host die een burst met
+  403 beantwoordt; dat hoeft niet. SoundCloud beantwoordt `tracks?ids=<50>` met een
+  `artwork_url` per track en de id's staan al in het archief, dus de hele bibliotheek is
+  ~3.000 verzoeken. Een YouTube-thumbnail is adresseerbaar vanaf het video-id, dus die kant
+  vraagt geen enkele API. Alleen bestanden zonder afbeelding worden aangeraakt, een track
+  waarvoor het platform geen hoes heeft blijft leeg (níét de avatar van de uploader), en een
+  URL die geen http(s) is wordt geweigerd — `urllib` spreekt ook `file://`, en die URL komt
+  uit andermans JSON. Draai hem met `--dry-run`, dan `--account <kanaal>`, dan de rest.
+
+### Fixed
+- **45.066 artiesten hielden een oordeel dat een blinde fetcher had geveld.** `migrate_v30` was
+  precies daarvoor geschreven en draaide ook, maar deed niets: zijn voorwaarde was er één voor de
+  hele tabel — "reset alles, tenzij er sinds de blackout een provider-foto binnen is" — en tegen
+  de tijd dat die migratie voor het eerst op productie kwam, stonden er al 22 met de hand
+  opgehaalde Spotify-portretten in. Daarmee was de voorwaarde voor alle overige 45.044 artiesten
+  permanent onwaar. `migrate_v32` stelt de vraag per artiest: is *dit* oordeel geveld in het
+  venster tussen de blackout en de eerste foto die een provider daarna leverde? Zo ja, terug naar
+  "nooit gevraagd"; zo nee, het blijft staan. Zelfbeperkend en herhaalbaar, want deploy draait
+  hem elke keer. De fetcher pakt deze artiesten daarna vanzelf op.
+- **Gedownloade nummers krijgen weer een hoes.** Beide downloaders voegden yt-dlp's
+  `EmbedThumbnail`-postprocessor toe, maar zetten `writethumbnail` niet. Die postprocessor bedt
+  een thumbnail-*bestand* in: hij zoekt `info['thumbnails'][i]['filepath']`, vindt niets, meldt
+  "There are no thumbnails on disk" en geeft het bestand onveranderd terug. Op de
+  commandoregel impliceert `--embed-thumbnail` dat `--write-thumbnail`; via de Python-API niet.
+  Niets ging stuk: downloads landden, de postprocessor draaide, en de bestanden hadden geen
+  hoes. Op productie had 387 van de 149.626 SoundCloud-nummers er een. Geldt vanaf nu voor
+  nieuwe downloads; bestaande bestanden hebben een aparte backfill nodig.
+- **De nummerlijst in de webinterface valt terug op de artiestfoto.** De tabel tekende een kale
+  `<img>` die bij een ontbrekende hoes direct naar het MuMa-merk sprong, dus de keten
+  hoes → artiestfoto → getint vlak die de kaarten en de speler al gebruikten, bereikte nooit de
+  lijst waaruit de meeste nummers gespeeld worden. Offline wordt de artiestfoto overgeslagen --
+  dat is ook een serververzoek -- en het vlak blijft hier zonder titel: naast de titel van de
+  rij is een tweede exemplaar op 48 pixels ruis, geen herkenning.
+
 ## [0.71.1] - 2026-09-21
 
 ### Changed

@@ -11,6 +11,16 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.72.0 (2026-09-22)
+
+- **Gedownloade nummers krijgen weer een hoes.** De downloaders schreven de thumbnail niet weg,
+  waardoor yt-dlp niets had om in te bedden. Geldt voor nieuwe downloads; bestaande bestanden
+  kunnen hun hoes alsnog krijgen met `scripts/backfill_artwork.py`.
+- **De nummerlijst toont de artiestfoto** als een nummer zelf geen hoes heeft, net als de kaarten
+  en de speler al deden.
+- **Artiestfoto's worden opnieuw opgehaald voor de 45.000 artiesten** die als "geen foto te
+  vinden" waren weggeschreven door een fetcher die geen sleutels had.
+
 ## Global Version 0.71.1 (2026-09-21)
 
 - **De speler toont altijd album, releasedatum en de radioknop**, en "Afspelen vanuit" noemt de

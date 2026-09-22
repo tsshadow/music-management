@@ -107,14 +107,16 @@ class CandidatesTest:
         assert rows == [('/music/a.mp3', '1', 'x')]
         assert 'downloads_soundcloud_archive' in cursor.execute.call_args.args[0]
 
-    def test_one_account_can_be_singled_out_for_a_first_run(self):
+    def test_one_channel_can_be_singled_out_for_a_first_run(self):
+        # SoundCloud's archive column is the numeric user id for 157.712 of its 157.713 rows,
+        # so the folder is the only thing that answers to a channel name a person would type.
         cursor = self.cursor_with([])
 
         backfill.candidates(cursor, 'youtube', account='gabberhead')
 
         statement, params = cursor.execute.call_args.args
-        assert 'AND account = %s' in statement
-        assert params[-1] == 'gabberhead'
+        assert 'AND (account = %s OR filename LIKE %s)' in statement
+        assert params[-2:] == ('gabberhead', '%/gabberhead/%')
 
     def test_a_row_that_names_no_file_or_no_track_is_left_out_by_the_query(self):
         cursor = self.cursor_with([])
@@ -140,7 +142,9 @@ class SoundcloudBatchLookupTest:
 
         with (
             patch.object(backfill.urllib.request, 'urlopen', side_effect=fake_urlopen),
-            patch.object(backfill.json, 'load', return_value=[{'id': 1, 'artwork_url': 'https://i1.sndcdn.com/a-large.jpg'}]),
+            patch.object(
+                backfill.json, 'load', return_value=[{'id': 1, 'artwork_url': 'https://i1.sndcdn.com/a-large.jpg'}]
+            ),
             patch.object(backfill.time, 'sleep'),
         ):
             found = backfill.soundcloud_artwork_urls([1, 2], 'CID', sleep=0)

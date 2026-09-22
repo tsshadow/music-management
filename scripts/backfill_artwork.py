@@ -33,7 +33,8 @@ Usage:
     python3 scripts/backfill_artwork.py --limit 500 --sleep 0.5
 
     --dry-run   Report what would change and write nothing. Run this first.
-    --account   One SoundCloud account or YouTube channel, as the archive spells it.
+    --account   One channel, by folder name (SoundCloud's archive column is a numeric user
+                id, so the folder is what a person means) or by the archive's own value.
     --platform  soundcloud | youtube (default: both).
     --limit     Stop after this many files have been written.
     --sleep     Seconds between HTTP requests (default 0.2).
@@ -72,7 +73,7 @@ logger = logging.getLogger('backfill-artwork')
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--dry-run', action='store_true', help='Report what would change and write nothing.')
-    parser.add_argument('--account', help='One account/channel, as the archive spells it.')
+    parser.add_argument('--account', help='One channel, by folder name or by the archive value.')
     parser.add_argument('--platform', choices=PLATFORMS, help='Only this platform (default: both).')
     parser.add_argument('--limit', type=int, help='Stop after this many files have been written.')
     parser.add_argument('--sleep', type=float, default=0.2, help='Seconds between HTTP requests.')
@@ -84,13 +85,18 @@ def candidates(cursor, platform, account=None):
 
     Rows whose filename or id is empty are left out here rather than guarded for later: a row
     without either names no file and identifies no track.
+
+    `account` matches the folder as well as the column, because on the SoundCloud side the
+    column is the numeric user id (157.712 of 157.713 rows) while the folder carries the
+    uploader's name -- and "one channel" to a person means the name. Both are accepted so the
+    same flag works for YouTube, where the column is the channel name.
     """
     table = f'downloads_{platform}_archive'
     query = f'SELECT filename, video_id, account FROM {table} WHERE filename <> %s AND video_id <> %s'
     params = ['', '']
     if account:
-        query += ' AND account = %s'
-        params.append(account)
+        query += ' AND (account = %s OR filename LIKE %s)'
+        params += [account, f'%/{account}/%']
     cursor.execute(query, tuple(params))
     return [(row['filename'], row['video_id'], row['account']) for row in cursor.fetchall()]
 

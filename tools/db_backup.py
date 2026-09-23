@@ -40,6 +40,7 @@ import gzip
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -60,6 +61,14 @@ DAILY_PREFIX = 'muma_db_'
 MONTHLY_PREFIX = 'muma_db_monthly_'
 SUFFIX = '.sql.gz'
 LATEST_NAME = 'latest.json'
+# A file is written under this suffix and renamed to its real name only once it has been
+# verified, so nothing that looks like a backup is ever half a backup -- not even after a
+# SIGKILL, which no `finally` survives. prune() clears what such a kill leaves behind.
+PARTIAL_SUFFIX = '.partial'
+# Free space a dump needs, as a multiple of the last one. The dump grows a little from one
+# day to the next; the margin is for that, not for a second copy. On the first of the month
+# the monthly copy needs room of its own, which is the second term.
+FREE_SPACE_MARGIN = 1.1
 
 # A dump of this database is ~780 MB compressed. The floor only has to be above
 # "MariaDB printed an error and quit", which is a few hundred bytes.
@@ -261,12 +270,35 @@ def prune(destination: Path, retention_days: int, now: datetime) -> list[Path]:
 
     The destination may be a shared mount holding other people's files, so this
     never globs the directory blindly.
+
+    Runs *before* the dump, so a destination that filled up gets its space back
+    instead of failing the same way every night: pruning used to run only after a
+    successful dump, and a full disk never produced one. Because of that order the
+    newest daily backup is never removed, however old -- after a fortnight of failed
+    runs it is the only backup left, and the one about to be taken may fail too.
+
+    Also removes the `.partial` files a killed run left behind. Only this job
+    writes them, and none of them is a backup.
     """
     removed: list[Path] = []
     daily_cutoff = now - timedelta(days=retention_days)
     monthly_cutoff = now - timedelta(days=MONTHLY_RETENTION_MONTHS * 31)
+    dailies = [
+        path
+        for path in destination.iterdir()
+        if path.is_file()
+        and path.name.startswith(DAILY_PREFIX)
+        and not path.name.startswith(MONTHLY_PREFIX)
+        and path.name.endswith(SUFFIX)
+        and _parse_daily(path.name) is not None
+    ]
+    newest_daily = max(dailies, key=lambda path: _parse_daily(path.name) or now, default=None)
     for path in sorted(destination.iterdir()):
-        if not path.is_file() or not path.name.endswith(SUFFIX):
+        if path.is_file() and _is_partial(path.name):
+            path.unlink()
+            removed.append(path)
+            continue
+        if not path.is_file() or not path.name.endswith(SUFFIX) or path == newest_daily:
             continue
         if path.name.startswith(MONTHLY_PREFIX):
             stamp = _parse_monthly(path.name)
@@ -280,6 +312,11 @@ def prune(destination: Path, retention_days: int, now: datetime) -> list[Path]:
             path.unlink()
             removed.append(path)
     return removed
+
+
+def _is_partial(name: str) -> bool:
+    """Whether `name` is an unfinished file of this job's own: a dump or monthly copy mid-write."""
+    return name.startswith(DAILY_PREFIX) and name.endswith(SUFFIX + PARTIAL_SUFFIX)
 
 
 def _parse_daily(name: str) -> datetime | None:
@@ -309,7 +346,19 @@ def promote_monthly(backup: Path, now: datetime) -> Path | None:
     target = backup.parent / f'{MONTHLY_PREFIX}{now:%Y%m}{SUFFIX}'
     if target.exists():
         return target
-    target.write_bytes(backup.read_bytes())
+    partial = target.with_name(target.name + PARTIAL_SUFFIX)
+    try:
+        # Streamed: the dump is ~780 MB, and read_bytes() held all of it in memory.
+        with backup.open('rb') as source, partial.open('wb') as copy:
+            shutil.copyfileobj(source, copy, 1024 * 1024)
+            copy.flush()
+            os.fsync(copy.fileno())
+        if partial.stat().st_size != backup.stat().st_size:
+            raise BackupError(f'{target.name} came out {partial.stat().st_size} bytes, not {backup.stat().st_size}')
+        verify(partial)
+        os.replace(partial, target)
+    finally:
+        partial.unlink(missing_ok=True)
     return target
 
 
@@ -326,7 +375,14 @@ def write_latest(
         'row_counts': counts,
     }
     target = destination / LATEST_NAME
-    target.write_text(json.dumps(payload, indent=2, sort_keys=True))
+    # Through a temporary name and a rename: /health/backup and --check-stale read this
+    # file, and a run killed halfway through writing it left them unparseable JSON.
+    partial = target.with_name(target.name + PARTIAL_SUFFIX)
+    try:
+        partial.write_text(json.dumps(payload, indent=2, sort_keys=True))
+        os.replace(partial, target)
+    finally:
+        partial.unlink(missing_ok=True)
     return target
 
 
@@ -354,6 +410,33 @@ def check_stale(destination: Path, hours: int, now: datetime) -> str | None:
     return None
 
 
+def ensure_free_space(destination: Path, now: datetime) -> None:
+    """Refuse to start a dump that cannot fit, saying so, instead of filling the disk.
+
+    The yardstick is the newest daily dump, grown by `FREE_SPACE_MARGIN`; on the first
+    of the month the monthly copy needs as much again. Without a previous dump there is
+    nothing to measure against and the dump is simply tried.
+    """
+    dailies = [
+        path
+        for path in destination.iterdir()
+        if path.is_file()
+        and path.name.startswith(DAILY_PREFIX)
+        and not path.name.startswith(MONTHLY_PREFIX)
+        and path.name.endswith(SUFFIX)
+    ]
+    if not dailies:
+        return
+    last = max(dailies, key=lambda path: path.name).stat().st_size
+    needed = int(last * FREE_SPACE_MARGIN) + (last if now.day == 1 else 0)
+    free = shutil.disk_usage(destination).free
+    if free < needed:
+        raise BackupError(
+            f'{destination} has {free} bytes free and the next dump needs about {needed} '
+            f'(the last one was {last}); nothing was written'
+        )
+
+
 def run_backup(argv_destination: str | None = None) -> int:
     destination = resolve_destination(argv_destination or os.getenv('BACKUP_PATH', ''), os.getenv('DATA_PATH'))
     retention = int(os.getenv('BACKUP_RETENTION_DAYS', str(DEFAULT_RETENTION_DAYS)))
@@ -362,20 +445,24 @@ def run_backup(argv_destination: str | None = None) -> int:
         raise BackupError('DB_DB is not set, so there is nothing to dump')
 
     started = datetime.now(UTC)
+    removed = prune(destination, retention, started)
+    ensure_free_space(destination, started)
     backup = destination / f'{DAILY_PREFIX}{started:%Y%m%d_%H%M%S}{SUFFIX}'
+    partial = backup.with_name(backup.name + PARTIAL_SUFFIX)
     try:
-        dump(backup, creds)
-        verify(backup)
-    except BackupError:
-        # A partial file is a trap for whoever restores under pressure.
-        backup.unlink(missing_ok=True)
-        raise
+        dump(partial, creds)
+        verify(partial)
+        os.replace(partial, backup)
+    finally:
+        # A partial file is a trap for whoever restores under pressure, and on a full
+        # disk it is also what keeps the disk full. Any exception, not only a
+        # BackupError: running out of space is an OSError.
+        partial.unlink(missing_ok=True)
 
     finished = datetime.now(UTC)
     counts = row_counts(creds)
     write_latest(destination, backup, started, finished, counts)
     promoted = promote_monthly(backup, finished)
-    removed = prune(destination, retention, finished)
 
     print(
         f'backup: {backup} ({backup.stat().st_size} bytes, '

@@ -11,6 +11,10 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.72.1 (2026-09-23)
+
+- **Luisterbeurten in de app werden dubbel geteld.** De app scrobbelde elke track twee keer; dat
+  is nu één keer, en de melding "Scrobble mislukt" bij het terugkeren naar de app verdwijnt.
 ## Global Version 0.72.0 (2026-09-22)
 
 - **Gedownloade nummers krijgen weer een hoes.** De downloaders schreven de thumbnail niet weg,

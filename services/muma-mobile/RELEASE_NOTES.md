@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## Global Version 7.4.2 (2026-09-23)
+
+- **Diagnostiekrapporten bevatten weer wat er gebeurde.** De downloadservice vulde het logboek met
+  ruis, waardoor een autorit uit het rapport verdween; dat is opgelost, en de knoppen die de app
+  aan de auto geeft staan er nu in.
+
+- **Diagnostiekrapporten bevatten geen wachtwoord of API-key meer.**
 ## Global Version 7.4.1 (2026-09-21)
 
 - **De statusbalk en de navigatiebalk waren grijs, en de app tekende er niet achter.** Sinds

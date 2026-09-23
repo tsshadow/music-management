@@ -226,7 +226,7 @@ class SoundcloudDownloader:
         held = self._held_ids(account, ids)
         write_offs = self.unavailable.load_many(account, ids)
         wanted = wanted_tracks(
-            listing, held, write_offs, self.timing.unavailable_retry_days, datetime.now(), DURATION_BOUNDS
+            listing, held, write_offs, self.timing.unavailable_retry_days, self.unavailable.now(), DURATION_BOUNDS
         )
         batch = wanted[: self.timing.deep_sweep_max_downloads]
         logging.info(
@@ -304,7 +304,7 @@ class SoundcloudDownloader:
             arrived,
             self.unavailable.load_many(account, ids),
             self.timing.unavailable_retry_days,
-            datetime.now(),
+            self.unavailable.now(),
             DURATION_BOUNDS,
             snapshot_state(report, interrupted),
         )

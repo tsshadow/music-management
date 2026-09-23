@@ -3,7 +3,6 @@ import logging
 import os
 import shutil
 import time
-from datetime import datetime
 
 from yt_dlp import YoutubeDL
 
@@ -365,7 +364,9 @@ class YoutubeDownloader:
         ids = [entry.track_id for entry in listing]
         held = self._held_ids(account, ids)
         write_offs = self.write_offs.load_many(ledger_key, ids)
-        wanted = wanted_tracks(listing, held, write_offs, self.timing.unavailable_retry_days, datetime.now(), bounds)
+        wanted = wanted_tracks(
+            listing, held, write_offs, self.timing.unavailable_retry_days, self.write_offs.now(), bounds
+        )
         batch = wanted[: self.timing.deep_sweep_max_downloads]
         logging.info(
             'Deep sweep of %s (%s): %d listed, %d held, %d written off, %d missing, fetching %d.',
@@ -454,7 +455,7 @@ class YoutubeDownloader:
             arrived,
             self.write_offs.load_many(ledger_key, ids),
             self.timing.unavailable_retry_days,
-            datetime.now(),
+            self.write_offs.now(),
             bounds,
             snapshot_state(report, interrupted),
         )

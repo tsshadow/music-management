@@ -9,6 +9,7 @@ from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers import Quarantine
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.importer.release_compare import is_same_release
+from services.importer.settle import is_settled, is_staging
 
 
 def has_numbers(input_string):
@@ -33,6 +34,8 @@ def find_cat_id(folder):
 
 
 class Renamer:
+    """Prefixes every release folder in the import folder with the catalogue number its name carries."""
+
     def __init__(self):
         self.settings = Settings()
 
@@ -46,7 +49,13 @@ class Renamer:
         for folder in only_folders:
             if '@eaDir' in folder:
                 logging.info('skipping @eaDir')
+            elif is_staging(folder):
+                continue
             elif not is_parsed(folder):
+                # Renaming a folder a copy is still filling sends the rest of the copy
+                # into a fresh folder under the old name.
+                if not is_settled(join(self.settings.import_folder_path, folder)):
+                    continue
                 new_name = find_cat_id(folder)
                 logging.info('input: %s', folder)
                 logging.info('parsed: %s', new_name)
@@ -82,7 +91,7 @@ class Renamer:
         two are compared first and anything unequal is left for a human.
 
         Even when they compare equal the source is parked rather than deleted:
-        `is_same_release` reads relative names and sizes, not contents, so "the same
+        `is_same_release` reads track names and lengths, not contents, so "the same
         release" is a strong guess and not a fact.
         """
         if is_same_release(src, dst):

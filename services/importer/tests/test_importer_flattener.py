@@ -3,7 +3,7 @@ import unittest
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
-from services.importer import flattener
+from services.importer import flattener, settle
 from services.importer.flattener import Flattener
 
 
@@ -15,6 +15,8 @@ class FlattenerTest(unittest.TestCase):
     """
 
     def setUp(self):
+        # Folders made a moment ago count as settled here; the guard has tests of its own.
+        self.enterContext(patch.object(settle, 'settle_seconds', return_value=0))
         # pylint does not know enterContext closes the directory at the end of the test.
         self.root = self.enterContext(TemporaryDirectory())  # pylint: disable=consider-using-with
         settings = MagicMock(import_folder_path=self.root, delimiter=os.sep)

@@ -25,15 +25,18 @@ class TestMover(unittest.TestCase):
     @patch('os.walk')
     @patch('os.path.isfile')
     def test_post_processing_notifications(self, mock_isfile, mock_walk, mock_notify):
-        """Verify that post_processing_songs sends a notification."""
-        mock_walk.return_value = [('/tmp/eps/Scantraxx/SCAN123', [], ['song1.mp3'])]
+        """Every tagged file is an event, and none of them is a push: the release gets that."""
+        mock_walk.return_value = [('/tmp/eps/Scantraxx/SCAN123', [], ['song1.mp3', 'song2.mp3'])]
         mock_isfile.return_value = True
         with patch('services.importer.mover.LabelSong') as MockLabelSong:
             mock_song = MockLabelSong.return_value
             mock_song.__str__.return_value = 'Title=Test Song\nArtists=Test Artist'
-            post_processing_songs('/tmp/eps/Scantraxx/SCAN123')
-            mock_notify.assert_called()
-            self.assertEqual(mock_notify.call_args[1]['title'], 'Import Complete')
+            tagged = post_processing_songs('/tmp/eps/Scantraxx/SCAN123')
+        self.assertEqual(tagged, 2)
+        self.assertEqual(mock_notify.call_count, 2)
+        for call in mock_notify.call_args_list:
+            self.assertEqual(call.kwargs['title'], 'Track Imported')
+            self.assertIs(call.kwargs['push'], False)
 
     @patch('services.common.Helpers.NotificationService.notification_service.notify')
     @patch('services.importer.mover.announce')

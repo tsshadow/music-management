@@ -94,7 +94,8 @@ The system is split into specialized services, each handling a specific part of 
 5. **Server Sync**: Music Management Server rescans the library, making the music available for playback.
 6. **Notification**: An `INFO` event with `push=True` is emitted, its message formatted via
    `BaseSong.__str__`. It is written to the event log and, because push was requested, also relayed
-   to the user's mobile device via ntfy.
+   to the user's mobile device via ntfy. The importer pushes once per release instead (label,
+   catalogue number, track count) and records each track as an `INFO` event without a push.
 
 ---
 

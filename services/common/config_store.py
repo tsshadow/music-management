@@ -109,6 +109,18 @@ def _config_fields() -> list[ConfigField]:
             description='How long a quarantined file is kept before the importer sweeps it.',
         ),
         ConfigField(
+            key='import_settle_minutes',
+            type='integer',
+            default=5,
+            env='import_settle_minutes',
+            group='Paths',
+            description=(
+                'How long a release folder in the import folder must sit unchanged before the importer '
+                'renames, flattens or moves it, so a copy still in progress is never picked up half-done. '
+                '0 switches the wait off.'
+            ),
+        ),
+        ConfigField(
             key='delimiter',
             type='string',
             default=os.sep,

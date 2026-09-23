@@ -617,9 +617,11 @@ backend:unit:
         - services/other/**/*
         # A change to a test, or to a script a test covers, has to run the tests.
         - services/tests/**/*
-        # The script also collects tools/ and the pipeline policy suite.
+        # The script also collects tools/, the pipeline policy suite and the
+        # real-mutagen tests.
         - tools/**/*
         - tests/ci/**/*
+        - tests/unit/**/*
         - scripts/**/*
         - pytest.ini
         - .gitlab-ci.yml

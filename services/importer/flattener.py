@@ -5,6 +5,7 @@ from os.path import isdir, isfile, join
 
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
+from services.importer.settle import is_settled, is_staging
 
 AUDIO_EXTENSIONS = ('.mp3', '.flac', '.m4a', '.aac', '.wav')
 SYNOLOGY_FOLDER = '@eaDir'
@@ -58,10 +59,14 @@ class Flattener:
         logging.info('Starting Flatten Step')
         for _ in range(MAX_PASSES):
             try:
+                # A pack still being copied in is left for a later cycle: lifting its
+                # releases out now would move each one half-copied.
                 wrappers = [
                     folder
                     for folder in _sub_folders(self.settings.import_folder_path)
-                    if is_wrapper(join(self.settings.import_folder_path, folder))
+                    if not is_staging(folder)
+                    and is_wrapper(join(self.settings.import_folder_path, folder))
+                    and is_settled(join(self.settings.import_folder_path, folder))
                 ]
             except OSError as e:
                 logging.error(f'Failed to list folders: {e}')

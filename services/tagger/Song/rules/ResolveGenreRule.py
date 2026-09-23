@@ -24,7 +24,10 @@ class ResolveGenreRule(TagRule):
         if not song.tag_collection.has_item(GENRE):
             return
         genre_tag = song.tag_collection.get_item(GENRE)
-        genre_tag.regex()
+        # No Tag.regex() here: that is the artist splitter (ARTIST_REGEX), and it cut
+        # 'Drum & Bass' into 'Drum' and 'Bass' and 'Hardcore: Uptempo' in two, so a
+        # curated genre with '&', ' and ' or ': ' in its name never matched. A genre is
+        # split on ';' (by the Tag itself) and on '/' (split_composite, below) only.
         genre_tag.recapitalize()
         genre_tag.strip()
         genre_tag.sort()

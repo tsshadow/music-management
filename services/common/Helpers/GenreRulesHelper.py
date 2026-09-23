@@ -127,15 +127,18 @@ class GenreRulesHelper:
     def split_composite(self, name: str) -> list[str]:
         """Split 'Hardstyle/Hardcore' into two genres.
 
-        A slash between genres is a separator, not part of a name: the tag
-        pipeline already splits on ';' and on ' & ', but never on '/', so these
-        arrived as a single genre and filled the curation queue with
-        combinations that never repeat.
+        A slash between genres is a separator, not part of a name. Together
+        with the Tag's own ';' split this is the whole genre splitter: genres
+        are deliberately not split on the artist separators (' & ', ' and ',
+        ': ', ' x ', ...), because 'Drum & Bass' is one genre. A genre written
+        as a single string ('Hardstyle/Hardcore') reaches this point whole and
+        would otherwise fill the curation queue with combinations that never
+        repeat.
 
-        A genre that has been decided is never split, so approving a name that
-        genuinely contains a slash protects it permanently. That is also why
-        this lives on the genre helper and not in `Tag.resplit`: artists really
-        do contain slashes (AC/DC) and must keep them.
+        A genre that has been decided is never split here, so approving a name
+        that genuinely contains a slash protects it. That is also why this
+        lives on the genre helper: artists really do contain slashes (AC/DC)
+        and must keep them.
         """
         if not name or self.is_decided(name):
             return [name]

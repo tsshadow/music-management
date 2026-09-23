@@ -64,6 +64,23 @@ The Tagger API is hosted by the `music-manager` service on port 8000.
 6. **Error Handling**: Failed tagging operations for individual files are logged and added to the `broken_song_helper` (persisted to `broken-files.log`) without stopping the entire batch run.
 7. **Idempotency**: Running the tagger multiple times on the same file with no rule changes results in no changes to the file's modification time (mtime) after the first successful pass, handled via `ProcessedFilesHelper`.
 
+## Genre Splitting
+
+A genre tag is split on `;` and `/` only, never on the artist separators of `ARTIST_REGEX`
+(` & `, ` and `, ` x `, ` with `, `: `, ` vs `, ` et `, `, `, ...):
+
+- `;` is split by `Tag` itself, for every tag.
+- `/` is split by `GenreRulesHelper.split_composite` inside `ResolveGenreRule`, which leaves a
+  genre that curation has already decided whole.
+- `CleanTagsRule` puts `ARTIST`, `ALBUM_ARTIST` and `REMIXER` through `Tag.regex()`; `GENRE` is
+  only stripped and deduplicated there. `ResolveGenreRule` does not call `Tag.regex()` either.
+
+Before this, both rules ran `Tag.regex()` over the genre tag, so 'Drum & Bass' became 'Drum' and
+'Bass', 'Hardcore: Uptempo' two genres, and a curated genre with `&`, ` and ` or `: ` in its name
+could never match its own row (bug report 045). `GenrePathTest` runs the whole path over a real
+`TagCollection`. Files tagged before the fix keep the halves on disk; they need their genre
+corrected by hand or by a re-download, since the original string is gone.
+
 ## Related Docs
 
 - [docs/architecture/responsibilities.md](../../architecture/responsibilities.md) — Data boundaries between services.

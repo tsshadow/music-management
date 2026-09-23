@@ -44,9 +44,21 @@ class CleanTagsRuleTest(unittest.TestCase):
         song = MagicMock()
         song.tag_collection = tag_collection
         self.rule.apply(song)
-        for tag in [tag_artist, tag_album_artist, tag_genre]:
+        for tag in [tag_artist, tag_album_artist, tag_remixer]:
             tag.regex.assert_called_once()
             tag.strip.assert_called_once()
+        # The genre is stripped and deduplicated, never put through the artist splitter.
+        tag_genre.regex.assert_not_called()
+        tag_genre.strip.assert_called_once()
+        tag_genre.deduplicate.assert_called_once()
+
+    def test_a_genre_with_an_ampersand_is_not_split(self):
+        genre = Tag(GENRE, ['Drum & Bass', 'Hardcore: Uptempo', 'Film & Animation', 'Rock and Roll'])
+        song = MagicMock()
+        song.tag_collection = _FakeTagCollection({GENRE: genre})
+        self.rule.apply(song)
+        self.assertEqual(genre.value, ['Drum & Bass', 'Hardcore: Uptempo', 'Film & Animation', 'Rock and Roll'])
+        self.assertFalse(genre.has_changes())
 
     def test_regex_split_on_ampersand(self):
         tag = Tag(ARTIST, ['Angerfist & Miss K8'])

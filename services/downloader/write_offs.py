@@ -205,6 +205,10 @@ class WriteOffs:
         self.retry_days = retry_days
         self._now = now
 
+    def now(self) -> datetime:
+        """The clock this ledger judges its windows by -- injected in tests, the wall clock otherwise."""
+        return self._now()
+
     def should_skip(self, account: str, track_id: str | None, bounds: tuple[int, int] | None = None) -> bool:
         if not track_id:
             return False

@@ -173,6 +173,19 @@ While the domains are logically separated, they can reside in a single physical 
   and `library_track_labels` prevents duplicates.
 - `listens` enforces `uq_listen_dedupe` on (`user_id`, `track_id`, `listened_at`) to avoid duplicate scrobbles.
 - Indexes on normalized names and status fields speed up analyzer queries for matching and enrichment.
+- `library_tracks.primary_artist_id` is indexed (`idx_tracks_primary_artist`): every join from a listen,
+  a statistic or a feed to an artist goes through it. `scrobble_listens` has `idx_listens_track_user`
+  on (`track_id`, `username`) for per-track questions, and `idx_listens_listened_at` /
+  `idx_unmatched_listened_at` for date ranges across all users.
+- The UNIQUE key on `scrobble_unmatched_listens` (`username`, `listened_at`, `artist_name`,
+  `track_title`) is longer than InnoDB's index limit under utf8mb4, so MariaDB builds it as a `USING
+  HASH` long unique key. It enforces uniqueness exactly (no prefix truncation), but it cannot serve a
+  range seek -- a date range on that table relies on `idx_unmatched_listened_at`.
+- A TIMESTAMP column always declares its `DEFAULT`. On MariaDB before 10.10
+  (`explicit_defaults_for_timestamp=OFF`) the first TIMESTAMP column of a table without one silently
+  gets `ON UPDATE CURRENT_TIMESTAMP` too, and every UPDATE of the row rewrites it. That moved
+  `listened_at` on both scrobble tables -- see
+  [bug report 039](bug-reports/039-listened-at-rewritten-on-every-rematch.md).
 
 ## Extensibility guidelines
 

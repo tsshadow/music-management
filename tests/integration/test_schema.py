@@ -5,6 +5,8 @@ CREATE TABLE that MariaDB rejects, or a migrate_*.sql that only works on a
 database that has already been migrated, would go unnoticed until a deploy.
 """
 
+import contextlib
+
 import pytest
 
 from tests.integration.conftest import ROOT, _apply_migrations, _split_statements
@@ -255,3 +257,82 @@ def test_the_tagger_stores_the_mtime_it_read(database):
             ('tagger_processed_files', 'mtime'),
         )
         assert cursor.fetchone()['data_type'] == 'double'
+
+
+LISTEN_TABLES = ('scrobble_listens', 'scrobble_unmatched_listens')
+
+
+def _listened_at_extra(connection, table):
+    with connection.cursor() as cursor:
+        cursor.execute(
+            'SELECT extra AS extra FROM information_schema.columns '
+            "WHERE table_schema = DATABASE() AND table_name = %s AND column_name = 'listened_at'",
+            (table,),
+        )
+        return (cursor.fetchone()['extra'] or '').lower()
+
+
+def test_listened_at_is_never_rewritten_by_an_update(database):
+    """docs/bug-reports/039: without an explicit DEFAULT, MariaDB < 10.10 gives the first
+    TIMESTAMP column ON UPDATE CURRENT_TIMESTAMP, and every UPDATE of a listen moved it."""
+    for table in LISTEN_TABLES:
+        assert 'on update' not in _listened_at_extra(database, table), table
+
+
+@contextlib.contextmanager
+def _listen_tables_created_the_old_way(connection):
+    """Give both listened_at columns the ON UPDATE production's 10.6-era tables carry,
+    and put back exactly what was there afterwards, so no other test is masked."""
+    before = {table: _listened_at_extra(connection, table) for table in LISTEN_TABLES}
+    try:
+        with connection.cursor() as cursor:
+            for table in LISTEN_TABLES:
+                cursor.execute(
+                    f'ALTER TABLE {table} MODIFY listened_at TIMESTAMP NOT NULL '
+                    'DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'
+                )
+        assert all('on update' in _listened_at_extra(connection, table) for table in LISTEN_TABLES)
+        yield
+    finally:
+        with connection.cursor() as cursor:
+            for table in LISTEN_TABLES:
+                on_update = ' ON UPDATE CURRENT_TIMESTAMP' if 'on update' in before[table] else ''
+                cursor.execute(
+                    f'ALTER TABLE {table} MODIFY listened_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP{on_update}'
+                )
+
+
+def test_migrate_v33_repairs_a_table_created_the_old_way(database):
+    """The CREATE fix alone never reaches production's existing tables; the migration
+    has to -- and twice in a row, as every deploy reapplies it."""
+    with _listen_tables_created_the_old_way(database):
+        _apply_migrations(database)
+        _apply_migrations(database)
+
+        for table in LISTEN_TABLES:
+            assert 'on update' not in _listened_at_extra(database, table), table
+
+
+def test_start_up_repairs_a_table_created_the_old_way(database):
+    """A stack that never runs the migrations gets the same repair from init_db."""
+    from services.music_manager.routers import scrobbler
+
+    with _listen_tables_created_the_old_way(database):
+        with database.cursor() as cursor:
+            scrobbler.init_db(cursor)
+
+        for table in LISTEN_TABLES:
+            assert 'on update' not in _listened_at_extra(database, table), table
+
+
+def _index_columns(connection, table, index):
+    with connection.cursor() as cursor:
+        cursor.execute(f'SHOW INDEX FROM {table} WHERE Key_name = %s', (index,))
+        return [row['Column_name'] for row in sorted(cursor.fetchall(), key=lambda r: r['Seq_in_index'])]
+
+
+def test_the_join_columns_are_indexed(database):
+    """Every artist join goes through library_tracks.primary_artist_id and every per-track
+    listen question through scrobble_listens.track_id; neither was indexed (migrate_v34)."""
+    assert _index_columns(database, 'library_tracks', 'idx_tracks_primary_artist') == ['primary_artist_id']
+    assert _index_columns(database, 'scrobble_listens', 'idx_listens_track_user') == ['track_id', 'username']

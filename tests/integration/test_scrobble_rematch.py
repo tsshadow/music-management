@@ -158,3 +158,29 @@ def test_the_worker_survives_a_library_with_nothing_to_do(database, library):
     stats = scrobble_rematch.rematch_once(database)
 
     assert stats == {'backfilled': 0, 'tried': 0, 'linked': 0}
+
+
+def test_a_miss_leaves_the_moment_of_the_listen_alone(database, library):
+    """docs/bug-reports/039: on MariaDB < 10.10 an undeclared DEFAULT gave listened_at
+    ON UPDATE CURRENT_TIMESTAMP, so stamping a miss moved the listen to now -- and two
+    listens of the same track that missed in the same second then collided on the
+    UNIQUE key (username, listened_at, artist_name, track_title) with a 1062."""
+    moments = ['2026-01-01 10:00:00', '2026-01-02 10:00:00']
+    with database.cursor() as cursor:
+        for moment in moments:
+            cursor.execute(
+                'INSERT INTO scrobble_unmatched_listens '
+                '(artist_name, track_title, listened_at, username, source) '
+                'VALUES (%s, %s, %s, %s, %s)',
+                ('ISAB', 'The Secret Camo Tower', moment, 'user', 'lms'),
+            )
+
+    stats = scrobble_rematch.rematch_once(database)
+
+    assert stats['tried'] == 2
+    assert stats['linked'] == 0
+    with database.cursor() as cursor:
+        cursor.execute('SELECT listened_at, attempts FROM scrobble_unmatched_listens ORDER BY listened_at')
+        rows = cursor.fetchall()
+    assert [str(row['listened_at']) for row in rows] == moments
+    assert [row['attempts'] for row in rows] == [1, 1]

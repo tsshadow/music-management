@@ -112,8 +112,28 @@ cleanup_throwaway_images() {
     docker images --filter "reference=${THROWAWAY_NS}/*" --format '{{.Repository}}:{{.Tag}}' \
         | xargs -r docker rmi 2>/dev/null || true
 }
-trap cleanup_throwaway_images EXIT
 
+# shellcheck source=scripts/ci/docker-hub-session.sh
+. "$SCRIPT_DIR/docker-hub-session.sh"
+
+# The prod .env files are materialized here, outside the checkout: the repo root
+# is the build context of every image below, and .dockerignore is the only
+# other thing keeping a .env in the checkout out of an image.
+ENV_DIR="$(mktemp -d)"
+chmod 700 "$ENV_DIR"
+ROOT_ENV_FILE="$ENV_DIR/music-management.env"
+LMS_ENV_FILE="$ENV_DIR/lms.env"
+
+# cleanup_on_exit: everything this script leaves behind -- throwaway images,
+# the Docker Hub session and the materialized env files.
+cleanup_on_exit() {
+    cleanup_throwaway_images
+    docker_hub_logout
+    rm -rf "$ENV_DIR"
+}
+trap cleanup_on_exit EXIT
+
+# docker_push IMAGE: push IMAGE, or only say so when PUSH_IMAGES=false.
 docker_push() {
     if [ "$PUSH_IMAGES" != "true" ]; then
         echo "    (PUSH_IMAGES=false, not pushing $1)"
@@ -131,14 +151,19 @@ fi
 # muma:deploy uses, so IMAGE_CORE/DOCKER_USER/IMAGE_NAME/LMS_TAG match exactly
 # what production will pull (jobs don't share a filesystem, so this has to be
 # redone here rather than relying on what ci-deploy.sh writes in a later job).
+# write_env_file VALUE DEST: write a file-type CI/CD variable (a path) or a
+# plain one (the content itself) to DEST, readable by the owner only.
 write_env_file() {
     local var_value="$1"
     local dest="$2"
-    if [ -f "${var_value}" ]; then
-        cp "${var_value}" "$dest"
-    else
-        printf '%s\n' "${var_value}" > "$dest"
-    fi
+    (
+        umask 077
+        if [ -f "${var_value}" ]; then
+            cp "${var_value}" "$dest"
+        else
+            printf '%s\n' "${var_value}" > "$dest"
+        fi
+    )
 }
 
 if [ "$PUSH_IMAGES" = "true" ]; then
@@ -146,16 +171,15 @@ if [ "$PUSH_IMAGES" = "true" ]; then
         echo "Error: PROD_ENV_FILE CI/CD variable is not set. See docs/deployment.md."
         exit 1
     fi
-    write_env_file "${PROD_ENV_FILE}" "$PROJECT_ROOT/.env"
+    write_env_file "${PROD_ENV_FILE}" "$ROOT_ENV_FILE"
 
     if [ -z "${PROD_ENV_FILE_LMS}" ]; then
         echo "Error: PROD_ENV_FILE_LMS CI/CD variable is not set. See docs/deployment.md."
         exit 1
     fi
-    write_env_file "${PROD_ENV_FILE_LMS}" "$PROJECT_ROOT/services/music-management-server/.env"
+    write_env_file "${PROD_ENV_FILE_LMS}" "$LMS_ENV_FILE"
 
-    echo "--- Logging in to Docker Hub as ${DOCKERHUB_USERNAME} ---"
-    echo "${DOCKERHUB_TOKEN}" | docker login --username "${DOCKERHUB_USERNAME}" --password-stdin
+    docker_hub_login
 else
     # No push means no production secrets: a merge-request pipeline must not
     # need PROD_ENV_FILE at all. The image *names* are the only thing those
@@ -163,24 +187,27 @@ else
     # throwaway name. Written rather than skipped because the script sources
     # both files under `set -e`.
     #
-    # Only ever written when absent. In CI they always are (.env is gitignored,
-    # so a fresh checkout has none), but this script is runnable by hand, and
-    # overwriting a developer's real .env with placeholders would be a nasty
-    # way to find that out.
+    # A developer's own .env in the checkout is still honoured when this is run
+    # by hand -- read, never overwritten. In CI there is none (.env is
+    # gitignored), so the placeholders apply.
     echo "--- PUSH_IMAGES=false: building under ${THROWAWAY_NS}/, no Docker Hub login ---"
-    if [ ! -f "$PROJECT_ROOT/.env" ]; then
-        printf 'DOCKER_USER=%s\nIMAGE_CORE=music-manager\n' "$THROWAWAY_NS" > "$PROJECT_ROOT/.env"
+    if [ -f "$PROJECT_ROOT/.env" ]; then
+        ROOT_ENV_FILE="$PROJECT_ROOT/.env"
+    else
+        printf 'DOCKER_USER=%s\nIMAGE_CORE=music-manager\n' "$THROWAWAY_NS" > "$ROOT_ENV_FILE"
     fi
-    if [ ! -f "$PROJECT_ROOT/services/music-management-server/.env" ]; then
-        printf 'IMAGE_NAME=%s/lms\n' "$THROWAWAY_NS" > "$PROJECT_ROOT/services/music-management-server/.env"
+    if [ -f "$PROJECT_ROOT/services/music-management-server/.env" ]; then
+        LMS_ENV_FILE="$PROJECT_ROOT/services/music-management-server/.env"
+    else
+        printf 'IMAGE_NAME=%s/lms\n' "$THROWAWAY_NS" > "$LMS_ENV_FILE"
     fi
 fi
 
 VERSION=$(cat VERSION 2>/dev/null || echo "latest")
 
 # 1. Build + push music-manager -----------------------------------------------
-# shellcheck disable=SC1091
-set -a; source "$PROJECT_ROOT/.env"; set +a
+# shellcheck disable=SC1090,SC1091
+set -a; source "$ROOT_ENV_FILE"; set +a
 DOCKER_USER="${DOCKER_USER:-$DOCKERHUB_USERNAME}"
 IMAGE_CORE="${IMAGE_CORE:-music-manager}"
 scope_image_names
@@ -198,8 +225,8 @@ docker_push "${DOCKER_USER}/${IMAGE_CORE}:latest"
 docker_push "${DOCKER_USER}/${IMAGE_CORE}:${VERSION}"
 
 # 2. Build + push lms (music-management-server) -------------------------------
-# shellcheck disable=SC1091
-set -a; source "$PROJECT_ROOT/services/music-management-server/.env"; set +a
+# shellcheck disable=SC1090,SC1091
+set -a; source "$LMS_ENV_FILE"; set +a
 scope_image_names
 if [ -z "${IMAGE_NAME}" ]; then
     echo "Error: IMAGE_NAME is not set in PROD_ENV_FILE_LMS."
@@ -223,8 +250,8 @@ docker_push "${IMAGE_NAME}:${LMS_VERSION}"
 # 3. Build + push muma-base ----------------------------------------------------
 # (re-source root .env: sourcing PROD_ENV_FILE_LMS above may have shadowed
 # some of its variables since both files are sourced into the same shell)
-# shellcheck disable=SC1091
-set -a; source "$PROJECT_ROOT/.env"; set +a
+# shellcheck disable=SC1090,SC1091
+set -a; source "$ROOT_ENV_FILE"; set +a
 DOCKER_USER="${DOCKER_USER:-$DOCKERHUB_USERNAME}"
 IMAGE_BASE="${IMAGE_BASE:-muma-base}"
 IMAGE_DOWNLOADER="${IMAGE_DOWNLOADER:-muma-downloader}"

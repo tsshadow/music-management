@@ -26,3 +26,11 @@ services/frontend/dist/
 **/build/
 **/bin/
 **/obj/
+# Environment files hold production secrets (database root password, API keys,
+# Docker Hub names) and every build here uses the repo root as its context.
+# No Dockerfile copies one -- configuration reaches containers through compose
+# -- so none may enter a context. CI no longer writes them into the checkout
+# (see docs/bug-reports/038-deploy-puts-every-prod-secret-on-the-command-line.md);
+# this catches a developer's own .env and any script that still does.
+.env
+**/.env

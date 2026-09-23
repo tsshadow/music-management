@@ -207,6 +207,7 @@ def check_write_is_refused(config: Config) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Command line: check that the configured account can read, or that it cannot write."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--check-read', action='store_true', help='verify the account can read')

@@ -108,7 +108,7 @@ def has_audio(names: Sequence[str]) -> bool:
 
 def walk_files(path: str) -> list[str]:
     """Every real file under `path`, recursively, ignoring @eaDir."""
-    found = []
+    found: list[str] = []
     for root, dirs, files in os.walk(path):
         dirs[:] = [d for d in dirs if d not in IGNORED_DIRS]
         found.extend(os.path.join(root, name) for name in sorted(files))

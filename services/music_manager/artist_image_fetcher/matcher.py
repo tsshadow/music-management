@@ -2,6 +2,8 @@ from .normalizer import ArtistNameNormalizer
 
 
 class ArtistMatcher:
+    """Decides how sure a provider result is to be the artist that was asked for."""
+
     def __init__(self, db_conn=None):
         self.db_conn = db_conn
         self.normalizer = ArtistNameNormalizer()
@@ -51,7 +53,9 @@ class ArtistMatcher:
         return max(0, min(100, score))
 
     def should_auto_accept(self, confidence):
+        """Whether `confidence` is high enough to accept the image without review."""
         return confidence >= 80
 
     def is_candidate(self, confidence):
+        """Whether `confidence` is high enough to keep the result as a candidate."""
         return confidence >= 50

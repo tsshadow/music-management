@@ -176,11 +176,15 @@ reversed_WAVTags = {v: k for k, v in WAVTags.items()}
 
 
 class FormatEnum(Enum):
+    """How the tagger formats a value it writes back."""
+
     NONE = 0
     RECAPITALIZE = 1
 
 
 class SongTypeEnum(Enum):
+    """Where a song came from, which decides the rules it is tagged with."""
+
     NONE = 0
     LABEL = 1
     YOUTUBE = 2
@@ -190,6 +194,8 @@ class SongTypeEnum(Enum):
 
 
 class MusicFileType(Enum):
+    """The audio container of a file, which decides how its tags are read and written."""
+
     NONE = 0
     MP3 = 1
     FLAC = 2

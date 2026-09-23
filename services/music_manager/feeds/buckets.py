@@ -31,6 +31,7 @@ def bucket_of(
     artist_genre: dict[str, str],
     parents: dict[str, set[str]],
 ) -> tuple[str, str]:
+    """The share bucket `candidate` falls into, and whether its genre, label or artist decided it."""
     own = deepest({g.lower() for g in (candidate.get('genres') or []) if g}, parents)
     for genre in sorted(own):
         if genre in shares and genre != TAIL:

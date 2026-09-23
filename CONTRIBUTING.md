@@ -24,10 +24,11 @@ job, and the hook is a thin wrapper around the same scripts on purpose -- the
 two can never drift apart.
 
 ```bash
-./scripts/lint.sh                       # ruff + pylint (threshold 9.5)
-./scripts/test/music-management-unit.sh # unit tests + coverage gate (85%)
+./scripts/lint.sh                       # ruff + pylint (threshold 9.5) + docstrings on strict modules
+./scripts/test/music-management-unit.sh # unit tests + coverage gate (84%, source only)
 ./scripts/typecheck.sh                  # mypy over the strict module list
-./scripts/test/db-integration.sh        # endpoints against a real MariaDB (needs Docker)
+./scripts/typecheck.sh --all            # mypy over the whole tree (CI: allowed to fail, for now)
+./scripts/test/db-integration.sh        # endpoints + schema drift against MariaDB 12.3 (needs Docker)
 ./scripts/test/frontend-unit.sh         # lint + svelte-check + vitest
 ```
 
@@ -41,23 +42,37 @@ under `scripts/`, so the two behave identically.
 
 **The ratchets only go up.** `FAIL_UNDER` in `scripts/lint.sh` and `COVERAGE_MIN`
 in `scripts/test/music-management-unit.sh` are floors, not targets. Raise them
-when the numbers climb; never lower one to make a red build green.
+when the numbers climb; never lower one to make a red build green. Coverage is
+measured on source only: the test files under `services/` are omitted
+(`[tool.coverage.run]` in `pyproject.toml`), so a new test file cannot raise the
+figure by being executed itself.
 
 **Mocked tests are not enough for SQL.** Everything under `services/` mocks the
 database cursor, which proves the right query string was produced, not that
 MariaDB accepts it. A new endpoint that reads from the database belongs in
 `tests/integration/test_router_sql.py` as well.
 
-**A schema change needs three edits.** The `CREATE TABLE` in
-`services/common/db_init.py`, a `migrate_*.sql` in the repository root (which
-`scripts/deploy.sh` applies on every deploy, so it must be re-runnable), and the
-expected-tables list in `tests/integration/test_schema.py`. `CREATE TABLE IF NOT
+**A schema change needs two edits that agree.** The `CREATE TABLE` in
+`services/common/db_init.py` (or the router's `init_db`), and a `migrate_*.sql` in
+the repository root (which `scripts/deploy.sh` applies on every deploy, so it must
+be re-runnable). `tests/integration/test_schema_drift.py` builds the schema both
+ways from an empty database and fails on any column or index that differs, so give
+an index in the CREATE the name the migration gives it. The expected-table set is
+read from the `CREATE TABLE` statements, not kept by hand. `CREATE TABLE IF NOT
 EXISTS` never alters an existing table -- that is how two columns the code
 selected went missing until the integration suite caught them.
 
+**Run the integration suite on 10.6 when you touch a TIMESTAMP column.**
+`MARIADB_VERSION=10.6 ./scripts/test/db-integration.sh` runs the server
+production's oldest tables were created on, which is the only one that reproduces
+an implicit `ON UPDATE CURRENT_TIMESTAMP` (bug report 039). The default is 12.3,
+what production runs now.
+
 **Type checking is per module.** `pyproject.toml` holds a loose floor for the
 whole tree plus a list of strictly-checked modules. Adding to that list is
-welcome; removing from it needs a reason in the commit message.
+welcome; removing from it needs a reason in the commit message. A module on the
+list also has to document every public function and class -- `scripts/lint.sh`
+fails it otherwise -- so document a module before adding it.
 
 **Formatting is opt-in.** `./scripts/format.sh <path>` runs `ruff format` on a
 directory you name. It is deliberately not in CI: a tree-wide reformat would

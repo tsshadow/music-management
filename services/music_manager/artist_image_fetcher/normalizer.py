@@ -2,8 +2,11 @@ import re
 
 
 class ArtistNameNormalizer:
+    """Normalizes artist names for comparison and sorting."""
+
     @staticmethod
     def normalize(name):
+        """Lowercase `name` and strip separators and suffixes such as "official" or "records"."""
         if not name:
             return ''
         normalized = name.lower()
@@ -16,6 +19,7 @@ class ArtistNameNormalizer:
 
     @staticmethod
     def get_sort_name(name):
+        """The name to sort `name` under: a leading "The " moves to the end."""
         if not name:
             return ''
         if name.lower().startswith('the '):

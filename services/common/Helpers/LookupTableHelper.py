@@ -86,6 +86,7 @@ class LookupTableHelper:
         self._kv_map = fresh
 
     def get(self, key: str) -> list[str]:
+        """Every value stored under `key`, compared case-insensitively."""
         key = key.strip()
         self._refresh_if_stale()
         if self.cache_enabled:
@@ -113,6 +114,7 @@ class LookupTableHelper:
             connection.close()
 
     def get_substring(self, input_string: str) -> list[str]:
+        """Every value whose key occurs somewhere in `input_string`, sorted."""
         input_lower = input_string.lower()
         self._refresh_if_stale()
         if self.cache_enabled:

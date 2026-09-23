@@ -57,7 +57,11 @@ STRICT_MODULES=(
 
 if [ "${1:-}" = "--all" ]; then
     echo "--- mypy over the whole tree (loose floor) ---"
-    python3 -m mypy services/ tools/
+    # --explicit-package-bases: tools/ has no __init__.py, so without it mypy derived
+    # "muma_mcp.api" from the path and "tools.muma_mcp.api" from the imports, called
+    # the file "found twice under different module names" and checked nothing at all.
+    # Nothing ran this in CI, so that went unnoticed; backend:typecheck-all runs it now.
+    python3 -m mypy --explicit-package-bases services/ tools/
 elif [ $# -gt 0 ]; then
     echo "--- mypy on: $* ---"
     python3 -m mypy "$@"

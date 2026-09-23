@@ -426,6 +426,33 @@ backend:typecheck:
   script:
     - ./scripts/typecheck.sh
 
+# The loose floor itself: mypy over services/ and tools/ with the [tool.mypy]
+# settings every module is supposedly held to. backend:typecheck only runs the
+# strict list, so nothing ever ran this -- and it could not even start, because
+# tools/ was "found twice under different module names" (see scripts/typecheck.sh).
+#
+# allow_failure while the backlog is worked down: 299 errors in 82 files when this
+# job was added (99 outside the tests), counted in docs/open-work.md. Orange is the
+# point -- the number is visible on every pipeline instead of nowhere. Drop
+# allow_failure once it reaches zero, and do not add to it in the meantime.
+backend:typecheck-all:
+  stage: quality
+  timeout: 15m
+  retry: !reference [.infra_retry, retry]
+  allow_failure: true
+  tags: !reference [.fast_runner, tags]
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
+    - changes:
+        - services/**/*.py
+        - tools/**/*.py
+        - pyproject.toml
+        - scripts/typecheck.sh
+        - .gitlab-ci.yml
+  script:
+    - ./scripts/typecheck.sh --all
+
 # Dependency vulnerability scanning of the declared requirements and the
 # frontend lockfile -- repository-controlled, so a finding always points at a
 # line someone can change here. Runs on a schedule (so a newly published CVE
@@ -939,6 +966,10 @@ backend:integration:
     - changes:
         - services/music_manager/**/*
         - services/common/db_init.py
+        # The other places a table is declared (tests/integration/schema_sources.py
+        # reads them all): the downloader's own tables and the tagger's.
+        - services/downloader/db_schema.py
+        - services/common/Helpers/ProcessedFilesHelper.py
         - migrate_*.sql
         - tests/integration/**/*
         - .gitlab-ci.yml

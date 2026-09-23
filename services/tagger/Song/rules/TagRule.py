@@ -6,10 +6,13 @@ if TYPE_CHECKING:
 
 
 class TagRule(ABC):
+    """One tagging rule, applied to a song in turn with the others."""
+
     @abstractmethod
     def apply(self, song: 'BaseSong') -> None:
         """Pas de regel toe op een BaseSong."""
 
     @property
     def name(self) -> str:
+        """The name the rule is reported under: its class name."""
         return self.__class__.__name__

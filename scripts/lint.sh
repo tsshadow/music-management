@@ -60,4 +60,38 @@ if ! python3 -m pylint $TARGET --fail-under="$FAIL_UNDER"; then
 fi
 
 echo "--- Pylint passed ---"
+
+# Docstrings (AGENTS.md rule 5: every function and class says what it is for).
+# .pylintrc disables missing-function-docstring and missing-class-docstring for
+# the tree as a whole -- thousands of findings, mostly in tests -- so the rule was
+# enforced nowhere. It is enforced here on the modules pyproject.toml already
+# holds to the strict type-check standard, with no tolerance: that list only grows
+# (see scripts/typecheck.sh), and a module joins it clean. Only on a full run; a
+# run on named paths is somebody linting what they just touched.
+if [ $# -eq 0 ]; then
+    mapfile -t STRICT_PATHS < <(python3 - <<'PY'
+import tomllib
+from pathlib import Path
+
+config = tomllib.loads(Path('pyproject.toml').read_text(encoding='utf-8'))
+for override in config['tool']['mypy']['overrides']:
+    if not override.get('check_untyped_defs'):
+        continue
+    for module in override['module']:
+        path = Path(*module.removesuffix('.*').split('.'))
+        if module.endswith('.*') or path.is_dir():
+            print(f'{path}/')
+        else:
+            print(f'{path}.py')
+PY
+    )
+    echo "--- Checking docstrings on ${#STRICT_PATHS[@]} strictly-checked modules ---"
+    if ! python3 -m pylint --disable=all --enable=missing-function-docstring,missing-class-docstring \
+        --score=n "${STRICT_PATHS[@]}"; then
+        echo ""
+        echo "ERROR: a strictly-checked module has an undocumented public function or class."
+        exit 1
+    fi
+    echo "--- Docstrings present ---"
+fi
 exit 0

@@ -92,12 +92,14 @@ class InMemoryRateStateStore:
         self._rows: dict[str, RateSnapshot] = {}
 
     def load(self, source: str) -> RateSnapshot | None:
+        """A copy of the stored snapshot for `source`, or None when there is none."""
         stored = self._rows.get(source)
         if stored is None:
             return None
         return RateSnapshot(**vars(stored))
 
     def save(self, snapshot: RateSnapshot) -> None:
+        """Store a copy of `snapshot`."""
         self._rows[snapshot.source] = RateSnapshot(**vars(snapshot))
 
 
@@ -123,6 +125,7 @@ class DatabaseRateStateStore:
         return connection
 
     def load(self, source: str) -> RateSnapshot | None:
+        """The stored snapshot for `source` from downloads_rate_state, or None."""
         connection = self._connect()
         try:
             with connection.cursor() as cursor:
@@ -137,6 +140,7 @@ class DatabaseRateStateStore:
             connection.close()
 
     def save(self, snapshot: RateSnapshot) -> None:
+        """Write `snapshot` to downloads_rate_state, inserting or updating its row."""
         assignments = ', '.join(f'{column} = %s' for column in self._COLUMNS)
         values = tuple(getattr(snapshot, column) for column in self._COLUMNS)
         connection = self._connect()
@@ -194,10 +198,12 @@ class RateState:
             logging.warning('Could not persist rate state for %s: %s', self.source, exc)
 
     def snapshot(self) -> RateSnapshot:
+        """A copy of the current state."""
         return RateSnapshot(**vars(self._snapshot))
 
     @property
     def multiplier(self) -> int:
+        """The factor the sleep intervals are stretched by; never below 1."""
         return max(1, self._snapshot.multiplier or 1)
 
     def cooldown_remaining(self) -> int:

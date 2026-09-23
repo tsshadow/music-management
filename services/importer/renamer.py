@@ -13,14 +13,17 @@ from services.importer.settle import is_settled, is_staging
 
 
 def has_numbers(input_string):
+    """Whether `input_string` contains a digit."""
     return any(char.isdigit() for char in input_string)
 
 
 def is_parsed(folder):
+    """Whether `folder` already has the 'Artist - Title' shape."""
     return '- ' in folder
 
 
 def find_cat_id(folder):
+    """`folder` prefixed with its catalog id: the last parenthesised group holding a digit."""
     res = re.findall('\\(.*?\\)', folder)
     res.reverse()
     logging.info(res)
@@ -40,6 +43,7 @@ class Renamer:
         self.settings = Settings()
 
     def run(self, dry_run=False):
+        """Rename every release folder that needs it; `dry_run` only logs what would happen."""
         logging.info('Starting Rename Step')
         only_folders = [
             f

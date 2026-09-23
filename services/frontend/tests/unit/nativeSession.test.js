@@ -58,7 +58,9 @@ function fakeLibrary(songs, { ping = "ok" } = {}) {
     const song = songs[id];
     return {
       ok: true,
-      json: async () => ({ "subsonic-response": song ? { song } : { status: "failed" } }),
+      json: async () => ({
+        "subsonic-response": song ? { status: "ok", song } : { status: "failed" },
+      }),
     };
   });
 }

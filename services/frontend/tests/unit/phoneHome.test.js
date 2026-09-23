@@ -70,7 +70,7 @@ describe("phone home modes", () => {
     globalThis.fetch = vi.fn(async () => ({
       ok: true,
       json: async () => ({
-        "subsonic-response": { tracks: { track: [] }, starred2: { song: [] } },
+        "subsonic-response": { status: "ok", tracks: { track: [] }, starred2: { song: [] } },
       }),
     }));
     render(PhoneHome, { onnavigate: vi.fn() });
@@ -161,7 +161,10 @@ describe("phone home empty, loading and failed copy", () => {
     credentials.set({ url: "https://lms.example", username: "test", password: "test" });
     globalThis.fetch = vi.fn(async (url) => {
       if (String(url).includes("getStarred2")) throw new Error("network down");
-      return { ok: true, json: async () => ({ "subsonic-response": { tracks: { track: [] } } }) };
+      return {
+        ok: true,
+        json: async () => ({ "subsonic-response": { status: "ok", tracks: { track: [] } } }),
+      };
     });
 
     render(PhoneHome, { onnavigate: vi.fn() });
@@ -229,7 +232,7 @@ describe("phone home recent shelves", () => {
       const track = { id: `song-${sort}`, title: `Track ${sort}`, artist: "Angerfist" };
       return {
         ok: true,
-        json: async () => ({ "subsonic-response": { tracks: { track: [track] } } }),
+        json: async () => ({ "subsonic-response": { status: "ok", tracks: { track: [track] } } }),
       };
     });
 
@@ -296,7 +299,7 @@ describe("phone home fallback recent shelf", () => {
       const track = { id: `song-${sort}`, title: `Track ${sort}`, artist: "Angerfist" };
       return {
         ok: true,
-        json: async () => ({ "subsonic-response": { tracks: { track: [track] } } }),
+        json: async () => ({ "subsonic-response": { status: "ok", tracks: { track: [track] } } }),
       };
     });
   });

@@ -83,7 +83,9 @@ describe("resolveArtistView", () => {
   function searchResultWith(artists) {
     return {
       ok: true,
-      json: async () => ({ "subsonic-response": { searchResult3: { artist: artists } } }),
+      json: async () => ({
+        "subsonic-response": { status: "ok", searchResult3: { artist: artists } },
+      }),
     };
   }
 

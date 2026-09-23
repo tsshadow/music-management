@@ -220,6 +220,16 @@ describe("listFeeds", () => {
     expect(await listFeeds()).toEqual([]);
   });
 
+  it("does not cache an answer without a feed list -- an error body is not 'no feeds'", async () => {
+    globalThis.__fetchMumaJson.mockResolvedValueOnce({ detail: "Not authenticated" });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(await listFeeds()).toEqual([]);
+
+    globalThis.__fetchMumaJson.mockResolvedValue({ feeds: [{ slug: DAILY_MIX }] });
+    expect(await listFeeds()).toEqual([{ slug: DAILY_MIX }]);
+    expect(globalThis.__fetchMumaJson).toHaveBeenCalledTimes(2);
+  });
+
   it("retries the next time after a failure -- the cache does not remember an error", async () => {
     globalThis.__fetchMumaJson.mockRejectedValueOnce(new Error("gate refused"));
     await listFeeds();

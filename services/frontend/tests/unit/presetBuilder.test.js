@@ -22,26 +22,34 @@ function server() {
     if (u.includes("/rest/getGenres?")) {
       return body({
         "subsonic-response": {
+          status: "ok",
           genres: { genre: [{ value: "Uptempo Hardcore" }, { value: "Hardstyle" }] },
         },
       });
     }
     if (u.includes("/rest/getRecordLabels?")) {
       return body({
-        "subsonic-response": { recordLabels: { recordLabel: [{ value: "Masters of Hardcore" }] } },
+        "subsonic-response": {
+          status: "ok",
+          recordLabels: { recordLabel: [{ value: "Masters of Hardcore" }] },
+        },
       });
     }
     if (u.includes("/rest/getYears?")) {
-      return body({ "subsonic-response": { years: { year: [{ value: "2024" }] } } });
+      return body({ "subsonic-response": { status: "ok", years: { year: [{ value: "2024" }] } } });
     }
     if (u.includes("/rest/getTags?")) {
-      return body({ "subsonic-response": { tags: { tag: [{ value: "Dominator" }] } } });
+      return body({
+        "subsonic-response": { status: "ok", tags: { tag: [{ value: "Dominator" }] } },
+      });
     }
     if (u.includes("/rest/getArtistList?")) {
-      return body({ "subsonic-response": { artistList: { artist: [{ name: "Angerfist" }] } } });
+      return body({
+        "subsonic-response": { status: "ok", artistList: { artist: [{ name: "Angerfist" }] } },
+      });
     }
     if (u.includes("/rest/getSongs?")) {
-      return body({ "subsonic-response": { songs: { song: SONGS } } });
+      return body({ "subsonic-response": { status: "ok", songs: { song: SONGS } } });
     }
     if (u.includes("/dynamic-playlists") && init?.method === "POST") {
       return body({ status: "ok", id: 42 });

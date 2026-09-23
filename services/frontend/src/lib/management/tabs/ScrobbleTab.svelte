@@ -1,5 +1,6 @@
 <script >
   import { t } from '../../i18n/index.js';
+  import { onDestroy } from 'svelte';
   import { RefreshCw, Radio } from '@lucide/svelte';
   
   export let API_BASE;
@@ -14,6 +15,18 @@
   export let onError;
   export let onSelectUser;
   export let fetchLatestImports;
+
+  // The import-progress poll. Kept here rather than in a local so leaving the tab can stop it:
+  // otherwise it kept polling MuMa every three seconds for as long as the page stayed open.
+  let pollInterval = null;
+
+  /** Stops the import-progress poll, if one is running. */
+  function stopPolling() {
+    if (pollInterval) clearInterval(pollInterval);
+    pollInterval = null;
+  }
+
+  onDestroy(stopPolling);
 
   async function startLbImport() {
     if (!importMumaUser) return;
@@ -34,11 +47,12 @@
         onMessage(`ListenBrainz import gestart voor ${data.lb_username || 'gekoppeld account'}!`);
         fetchLatestImports();
         // Poll for updates every 3 seconds while active
-        const interval = setInterval(async () => {
+        stopPolling();
+        pollInterval = setInterval(async () => {
           await fetchLatestImports();
           const active = latestImports.some(i => i.status === 'running' || i.status === 'pending');
           if (!active) {
-            clearInterval(interval);
+            stopPolling();
             isImporting = false;
           }
         }, 3000);

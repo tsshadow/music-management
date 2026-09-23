@@ -12,6 +12,9 @@ import {
   loadFrontendSettings,
   saveFrontendSetting,
   flushLocaleSave,
+  flushFrontendSettings,
+  homeShortcutCount,
+  homeListCount,
   hydrateMumaUserFromApiKey,
   restUrl,
 } from "../../src/lib/store";
@@ -155,7 +158,11 @@ describe("store - favoriteGenres account sync", () => {
       expect(postCall).toBeDefined();
     });
     const [, postOpts] = fetch.mock.calls.find(([, opts]) => opts?.method === "POST");
-    expect(JSON.parse(JSON.parse(postOpts.body).settings)).toEqual({ favoriteGenres: ["Trance"] });
+    // One write carries everything the login uploads (the language too), not one per key.
+    expect(JSON.parse(JSON.parse(postOpts.body).settings)).toMatchObject({
+      favoriteGenres: ["Trance"],
+    });
+    expect(fetch.mock.calls.filter(([, opts]) => opts?.method === "POST")).toHaveLength(1);
     // The local value is kept, not wiped out while waiting for the upload.
     expect(get(favoriteGenres)).toEqual(["Trance"]);
   });
@@ -430,5 +437,122 @@ describe("store - hydrateMumaUserFromApiKey", () => {
     await hydrateMumaUserFromApiKey();
 
     expect(get(mumaApiKey)).toBe("good-key");
+  });
+});
+
+/**
+ * The account's `frontend` blob is one JSON document and the server only takes it whole. Each key
+ * used to do its own debounced read-modify-write, so two keys changed together raced and the last
+ * write dropped the other's change; and a failed read (answered as `null`) made the save write a
+ * blob holding only the one key, wiping every other setting -- the Android app's included.
+ */
+describe("store - account settings write queue", () => {
+  let blob;
+  let getStatus;
+  let postStatus;
+
+  /** A settings endpoint backed by `blob`, answering GET with `getStatus` and POST with `postStatus`. */
+  function server() {
+    global.fetch = vi.fn(async (_url, opts = {}) => {
+      if ((opts.method || "GET") === "GET") {
+        if (getStatus !== 200) {
+          return { ok: false, status: getStatus, json: async () => ({ detail: "boom" }) };
+        }
+        return { ok: true, status: 200, json: async () => ({ settings: JSON.stringify(blob) }) };
+      }
+      if (postStatus !== 200) {
+        return { ok: false, status: postStatus, json: async () => ({ detail: "boom" }) };
+      }
+      blob = JSON.parse(JSON.parse(opts.body).settings);
+      return { ok: true, status: 200, json: async () => ({ status: "ok" }) };
+    });
+  }
+
+  /** The calls to the settings endpoint made with `method`. */
+  const calls = (method) =>
+    fetch.mock.calls.filter(
+      ([url, opts = {}]) =>
+        String(url).includes("/users/11/settings/frontend") && (opts.method || "GET") === method,
+    );
+
+  beforeEach(async () => {
+    vi.useFakeTimers();
+    mumaUser.set(null);
+    mumaApiKey.set("test-api-key");
+    favoriteGenres.set([]);
+    blob = {
+      language: "en",
+      homeShortcutCount: 8,
+      homeListCount: 5,
+      favoriteGenres: [],
+      favoriteLabels: [],
+      favoritePlaylists: [],
+      androidOnly: "keep me",
+    };
+    getStatus = 200;
+    postStatus = 200;
+    server();
+    mumaUser.set({ id: 11 });
+    await vi.advanceTimersByTimeAsync(500);
+    fetch.mockClear();
+  });
+
+  afterEach(async () => {
+    getStatus = 200;
+    postStatus = 200;
+    await flushFrontendSettings();
+    mumaUser.set(null);
+    vi.useRealTimers();
+  });
+
+  it("two settings changed together are read once, written once, and both kept", async () => {
+    homeShortcutCount.set(4);
+    homeListCount.set(9);
+    await vi.advanceTimersByTimeAsync(400);
+
+    expect(calls("GET")).toHaveLength(1);
+    expect(calls("POST")).toHaveLength(1);
+    expect(blob).toMatchObject({ homeShortcutCount: 4, homeListCount: 9, androidOnly: "keep me" });
+  });
+
+  it("a failed read writes nothing, keeps the change, and retries it later", async () => {
+    getStatus = 500;
+    homeShortcutCount.set(3);
+    await vi.advanceTimersByTimeAsync(400);
+
+    expect(calls("GET")).toHaveLength(1);
+    expect(calls("POST")).toHaveLength(0);
+    expect(blob.androidOnly).toBe("keep me");
+
+    getStatus = 200;
+    await vi.advanceTimersByTimeAsync(10000);
+
+    expect(calls("POST")).toHaveLength(1);
+    expect(blob).toMatchObject({ homeShortcutCount: 3, homeListCount: 5, androidOnly: "keep me" });
+  });
+
+  it("a failed write is retried, and a newer change made meanwhile wins", async () => {
+    postStatus = 500;
+    homeShortcutCount.set(2);
+    await vi.advanceTimersByTimeAsync(400);
+    expect(blob.homeShortcutCount).toBe(8);
+
+    postStatus = 200;
+    homeShortcutCount.set(6);
+    await vi.advanceTimersByTimeAsync(400);
+
+    expect(blob).toMatchObject({ homeShortcutCount: 6, androidOnly: "keep me" });
+  });
+
+  it("an explicit save goes out at once, merged with what is still on its debounce", async () => {
+    homeListCount.set(7);
+    await saveFrontendSetting(11, "language", "nl");
+
+    expect(calls("POST")).toHaveLength(1);
+    expect(blob).toMatchObject({ language: "nl", homeListCount: 7, androidOnly: "keep me" });
+
+    // The debounce that was armed for homeListCount has nothing left to write.
+    await vi.advanceTimersByTimeAsync(400);
+    expect(calls("POST")).toHaveLength(1);
   });
 });

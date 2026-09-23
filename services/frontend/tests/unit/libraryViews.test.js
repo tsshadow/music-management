@@ -42,6 +42,7 @@ describe("History", () => {
       ok: true,
       json: async () => ({
         "subsonic-response": {
+          status: "ok",
           history: { entry: [{ ...TRACK, listenedAt: "2026-01-01T01:00:00Z" }] },
         },
       }),
@@ -64,6 +65,7 @@ describe("History", () => {
       ok: true,
       json: async () => ({
         "subsonic-response": {
+          status: "ok",
           history: { entry: { ...TRACK, listenedAt: "2026-01-01T01:00:00Z" } },
         },
       }),
@@ -88,7 +90,7 @@ describe("History", () => {
   it("an empty history shows nothing", async () => {
     globalThis.fetch = vi.fn(async () => ({
       ok: true,
-      json: async () => ({ "subsonic-response": { history: { entry: [] } } }),
+      json: async () => ({ "subsonic-response": { status: "ok", history: { entry: [] } } }),
     }));
 
     render(History, { onnavigate: vi.fn() });
@@ -105,7 +107,10 @@ describe("PlaylistView", () => {
     globalThis.fetch = vi.fn(async () => ({
       ok: true,
       json: async () => ({
-        "subsonic-response": { playlist: { id: "pl-1", name: "Gabber", entry: [TRACK, SECOND] } },
+        "subsonic-response": {
+          status: "ok",
+          playlist: { id: "pl-1", name: "Gabber", entry: [TRACK, SECOND] },
+        },
       }),
     }));
   });
@@ -126,7 +131,10 @@ describe("PlaylistView", () => {
     globalThis.fetch = vi.fn(async () => ({
       ok: true,
       json: async () => ({
-        "subsonic-response": { playlist: { id: "pl-1", name: "Gabber", entry: TRACK } },
+        "subsonic-response": {
+          status: "ok",
+          playlist: { id: "pl-1", name: "Gabber", entry: TRACK },
+        },
       }),
     }));
 
@@ -161,6 +169,7 @@ describe("PlaylistView", () => {
 describe("MemoriesView", () => {
   const MEMORIES = {
     "subsonic-response": {
+      status: "ok",
       memories: {
         memory: [
           { year: 2024, song: [TRACK] },
@@ -199,7 +208,12 @@ describe("MemoriesView", () => {
       ok: true,
       json: async () =>
         String(url).includes("year=2024")
-          ? { "subsonic-response": { memories: { memory: [{ year: 2024, song: wholeYear }] } } }
+          ? {
+              "subsonic-response": {
+                status: "ok",
+                memories: { memory: [{ year: 2024, song: wholeYear }] },
+              },
+            }
           : MEMORIES,
     }));
 
@@ -266,6 +280,7 @@ describe("MemoriesView", () => {
       ok: true,
       json: async () => ({
         "subsonic-response": {
+          status: "ok",
           memories: {
             memory: [
               {
@@ -300,6 +315,7 @@ describe("MemoriesView", () => {
 describe("MemoriesYearView", () => {
   const yearOf = (count) => ({
     "subsonic-response": {
+      status: "ok",
       memories: {
         memory: [
           {

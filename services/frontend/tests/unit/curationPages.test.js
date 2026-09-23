@@ -20,7 +20,10 @@ const ARTIST = { id: "artist-1", name: "Angerfist", album: [] };
 function subsonicFetch(curationBody = {}) {
   return vi.fn(async (url) => {
     if (url.includes("/rest/getArtist?")) {
-      return { ok: true, json: async () => ({ "subsonic-response": { artist: ARTIST } }) };
+      return {
+        ok: true,
+        json: async () => ({ "subsonic-response": { status: "ok", artist: ARTIST } }),
+      };
     }
     if (url.includes("/api/curation/genres/")) {
       return { ok: true, json: async () => curationBody };

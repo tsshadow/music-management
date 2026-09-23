@@ -11,7 +11,9 @@ const ARTIST = { id: "artist-1", name: "Angerfist" };
 function starred({ song = [SONG], album = [ALBUM], artist = [ARTIST] } = {}) {
   return vi.fn(async () => ({
     ok: true,
-    json: async () => ({ "subsonic-response": { starred2: { song, album, artist } } }),
+    json: async () => ({
+      "subsonic-response": { status: "ok", starred2: { song, album, artist } },
+    }),
   }));
 }
 

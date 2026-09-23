@@ -33,6 +33,7 @@ describe("fetchLyricsLines", () => {
   it("wraps a single lyrics line the same as several", async () => {
     const fetchImpl = fetchImplReturning({
       "subsonic-response": {
+        status: "ok",
         lyricsList: { structuredLyrics: { line: { value: "One line only" } } },
       },
     });

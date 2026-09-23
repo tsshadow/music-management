@@ -25,7 +25,7 @@ function lms(routes) {
     const match = Object.entries(routes).find(([path]) => String(url).includes(path));
     return {
       ok: true,
-      json: async () => (match ? match[1] : { "subsonic-response": {} }),
+      json: async () => (match ? match[1] : { "subsonic-response": { status: "ok" } }),
     };
   });
 }
@@ -127,7 +127,9 @@ describe("VoiceView", () => {
 
   it("plays a clear command through the same queue a preset uses", async () => {
     globalThis.fetch = lms({
-      "/rest/getSongs?": { "subsonic-response": { songs: { song: HARDSTYLE_SONGS } } },
+      "/rest/getSongs?": {
+        "subsonic-response": { status: "ok", songs: { song: HARDSTYLE_SONGS } },
+      },
     });
     const speech = fakeSpeech({ results: [CLEAR_PLAY] });
     render(VoiceView, { platform: { speech } });
@@ -142,7 +144,9 @@ describe("VoiceView", () => {
 
   it("puts up a question, answers it by tapping an option, and plays what that resolves to", async () => {
     globalThis.fetch = lms({
-      "/rest/getAlbum?": { "subsonic-response": { album: { song: THUNDERDOME_TRACKS } } },
+      "/rest/getAlbum?": {
+        "subsonic-response": { status: "ok", album: { song: THUNDERDOME_TRACKS } },
+      },
     });
     const speech = fakeSpeech({ results: [ASK_ALBUM_OR_PLAYLIST, ANSWERED_ALBUM] });
     render(VoiceView, { platform: { speech } });

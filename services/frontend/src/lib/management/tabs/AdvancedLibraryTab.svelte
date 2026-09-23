@@ -40,25 +40,35 @@
   let showFilters = true;
   let showInspector = true;
   let reloadTimer;
+  // Which request is current, per loader. A slow answer for an older filter set is dropped
+  // instead of overwriting the answer for the filters the user has since picked.
+  let tracksSeq = 0;
+  let aggregationsSeq = 0;
 
+  /** Loads one page of tracks for the current filters, sort and page. */
   async function loadTracks() {
+    const seq = ++tracksSeq;
     loading = true;
     loadError = null;
     try {
       const data = await apiGet(API_BASE, '/api/library/advanced', filters, getHeaders,
                                 { page, limit: LIMIT, sort, direction });
+      if (seq !== tracksSeq) return;
       tracks = data.tracks;
       total = data.total;
     } catch (err) {
+      if (seq !== tracksSeq) return;
       loadError = err.message;
       tracks = [];
       total = 0;
     } finally {
-      loading = false;
+      if (seq === tracksSeq) loading = false;
     }
   }
 
+  /** Loads the analytics panels for the current filters. */
   async function loadAggregations() {
+    const seq = ++aggregationsSeq;
     try {
       const [s, gd, bpm, years, artists, labels] = await Promise.all([
         apiGet(API_BASE, '/api/analytics/summary', filters, getHeaders),
@@ -68,6 +78,7 @@
         apiGet(API_BASE, '/api/analytics/top-artists', filters, getHeaders, { limit: 12 }),
         apiGet(API_BASE, '/api/analytics/top-labels', filters, getHeaders, { limit: 12 }),
       ]);
+      if (seq !== aggregationsSeq) return;
       summary = s;
       genreDistribution = gd;
       bpmHistogram = bpm;
@@ -75,6 +86,7 @@
       topArtists = artists;
       topLabels = labels;
     } catch (err) {
+      if (seq !== aggregationsSeq) return;
       onError(err.message);
     }
   }
@@ -278,9 +290,4 @@
 <style>
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-  :global(.text-brand) { color: #1DB954; }
-  :global(.bg-brand) { background-color: #1DB954; }
-  :global(.border-brand) { border-color: #1DB954; }
-  :global(.accent-brand) { accent-color: #1DB954; }
 </style>

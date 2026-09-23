@@ -29,24 +29,35 @@ function subsonic() {
       return {
         ok: true,
         json: async () => ({
-          "subsonic-response": { genres: { genre: [{ value: "Hardcore", songCount: 1200 }] } },
+          "subsonic-response": {
+            status: "ok",
+            genres: { genre: [{ value: "Hardcore", songCount: 1200 }] },
+          },
         }),
       };
     }
     if (url.includes("/rest/getSpotifyPlaylist")) {
-      return { ok: true, json: async () => ({ "subsonic-response": { playlist: { entry: [] } } }) };
+      return {
+        ok: true,
+        json: async () => ({ "subsonic-response": { status: "ok", playlist: { entry: [] } } }),
+      };
     }
     if (url.includes("/rest/getSpotifyTracks")) {
       return {
         ok: true,
-        json: async () => ({ "subsonic-response": { tracks: { track: [], moreResults: false } } }),
+        json: async () => ({
+          "subsonic-response": { status: "ok", tracks: { track: [], moreResults: false } },
+        }),
       };
     }
     if (url.includes("/rest/getRecordLabels")) {
       return {
         ok: true,
         json: async () => ({
-          "subsonic-response": { recordLabels: { recordLabel: [{ value: "Art of Creation" }] } },
+          "subsonic-response": {
+            status: "ok",
+            recordLabels: { recordLabel: [{ value: "Art of Creation" }] },
+          },
         }),
       };
     }

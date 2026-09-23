@@ -107,24 +107,33 @@
     fetchRows();
   }
 
+  // Which fetchRows call is current. Typing in the search box fires one per keystroke batch, and
+  // an older, slower answer must not replace the rows of the query now in the box.
+  let rowsSeq = 0;
+
+  /** Loads one page of the curation queue for the current state, search and proposal filters. */
   async function fetchRows() {
+    const seq = ++rowsSeq;
     loading = true;
     try {
       const params = new SvelteURLSearchParams({ state: stateFilter, limit: String(PAGE_SIZE), offset: String(offset) });
       if (search.trim()) params.set('q', search.trim());
       if (proposalFilter) params.set('proposal', proposalFilter);
       const res = await fetch(`${API_BASE}/api/rules/artists?${params}`, { headers: getHeaders() });
+      if (seq !== rowsSeq) return;
       if (res.ok) {
         const body = await res.json();
+        if (seq !== rowsSeq) return;
         rows = body.rows || [];
         total = body.total || 0;
       } else {
         onError($t('management.artists.loadFailed'));
       }
     } catch {
+      if (seq !== rowsSeq) return;
       onError($t('management.artists.loadNetworkError'));
     } finally {
-      loading = false;
+      if (seq === rowsSeq) loading = false;
     }
   }
 

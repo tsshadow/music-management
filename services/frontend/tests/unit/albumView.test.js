@@ -46,10 +46,16 @@ function subsonic({
 } = {}) {
   return vi.fn(async (url) => {
     if (url.includes("/rest/getAlbumInfo2")) {
-      return { ok: true, json: async () => ({ "subsonic-response": { albumInfo: info } }) };
+      return {
+        ok: true,
+        json: async () => ({ "subsonic-response": { status: "ok", albumInfo: info } }),
+      };
     }
     if (url.includes("/rest/getAlbum")) {
-      return { ok: true, json: async () => ({ "subsonic-response": { album: albumData } }) };
+      return {
+        ok: true,
+        json: async () => ({ "subsonic-response": { status: "ok", album: albumData } }),
+      };
     }
     return { ok: starOk, json: async () => ({ "subsonic-response": { status: "ok" } }) };
   });
@@ -216,5 +222,26 @@ describe("AlbumView", () => {
     render(AlbumView, { albumId: "album-1", onnavigate: vi.fn() });
 
     await waitFor(() => expect(screen.queryByText("Laden...")).toBeNull());
+  });
+});
+
+describe("AlbumView - failures", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("shows an error, not a blank page, when the album cannot be loaded", async () => {
+    credentials.set({ url: "", username: "user", password: "pw" });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        "subsonic-response": { status: "failed", error: { code: 70, message: "Not found" } },
+      }),
+    }));
+
+    render(AlbumView, { albumId: "gone", onnavigate: vi.fn() });
+
+    await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
   });
 });

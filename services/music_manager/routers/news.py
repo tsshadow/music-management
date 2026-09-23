@@ -25,6 +25,7 @@ from pydantic import BaseModel
 from services.music_manager.database import get_db_connection
 from services.music_manager.rbac import require_permission
 from services.music_manager.routers.management import verify_api_key
+from services.music_manager.thread_registry import run_forever
 
 router = APIRouter(tags=['news'])
 logger = logging.getLogger('music-manager.news')
@@ -260,41 +261,48 @@ def sources_due_at(sources: list, capture_at: float, now: float) -> list:
     return [s for s in sources if abs(next_capture_at(now, s['minute_of_hour'], s['lead_seconds']) - capture_at) < 1.0]
 
 
+# The recorder sleeps inside its tick until the next boundary, up to an hour, and a capture
+# adds its own duration and one retry on top: three hours without a completed tick is stuck.
+NEWS_STALE_AFTER_SECONDS = 3 * 3600
+
+
+def news_tick() -> float | None:
+    """One cycle: read the sources, sleep until the next boundary, record what is due.
+
+    Returns the delay before the next cycle: 60 s when the database is unavailable, 300 s
+    when no source is enabled, and none after a capture, since the next cycle sleeps
+    until its own boundary. Raises on a database failure; run_forever logs it and backs
+    off, which covers `_mark_source` failing inside record_source's own error path too.
+    """
+    conn = get_db_connection()
+    if not conn:
+        return 60
+    try:
+        sources = _enabled_sources(conn)
+    finally:
+        conn.close()
+    if not sources:
+        return 300
+
+    now = time.time()
+    capture_at = min(next_capture_at(now, s['minute_of_hour'], s['lead_seconds']) for s in sources)
+    due = sources_due_at(sources, capture_at, now)
+    time.sleep(max(0.0, capture_at - time.time()))
+
+    conn = get_db_connection()
+    if not conn:
+        return 60
+    try:
+        for source in due:
+            record_source(conn, source, capture_at)
+    finally:
+        conn.close()
+    return 0
+
+
 def run_news_recorder():
     """Background loop: sleep until the next boundary, then record what is due."""
-    while True:
-        conn = get_db_connection()
-        if not conn:
-            time.sleep(60)
-            continue
-        try:
-            sources = _enabled_sources(conn)
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error('News recorder could not read its sources: %s', e)
-            sources = None
-        finally:
-            conn.close()
-
-        if sources is None:
-            time.sleep(60)
-            continue
-        if not sources:
-            time.sleep(300)
-            continue
-
-        now = time.time()
-        capture_at = min(next_capture_at(now, s['minute_of_hour'], s['lead_seconds']) for s in sources)
-        due = sources_due_at(sources, capture_at, now)
-        time.sleep(max(0.0, capture_at - time.time()))
-
-        conn = get_db_connection()
-        if not conn:
-            continue
-        try:
-            for source in due:
-                record_source(conn, source, capture_at)
-        finally:
-            conn.close()
+    run_forever('news', news_tick, 300, stale_after=NEWS_STALE_AFTER_SECONDS)
 
 
 def _require_db():

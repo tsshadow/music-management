@@ -8,6 +8,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, 
 from services.common.config_store import ConfigStore
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
+from services.music_manager.thread_registry import default_stale_after, run_forever
 from services.tagger.deep_run import deep_run_tick
 from services.tagger.tagger import Tagger, TagSingleFile
 from services.tagger.walk_schedule import WalkSchedule
@@ -191,11 +192,27 @@ def _queue_deep_run():
         logger.error('Deep run tick failed: %s', e)
 
 
-def run_tagger_loop(sleeptime: int = 300):
-    logger.info('Starting background tagger loop with sleeptime %d', sleeptime)
+# A round may include the daily walk over the whole library, which on the CIFS share takes
+# far longer than the five-minute interval. A day without one completed round is stuck.
+TAGGER_STALE_AFTER_SECONDS = 24 * 3600
+
+
+def _tagger_tick() -> None:
+    """One round: queue a slice of the deep run, then tag what is pending."""
     _queue_deep_run()
     tagger_manager.run_full()
-    while True:
-        time.sleep(sleeptime)
-        _queue_deep_run()
-        tagger_manager.run_full()
+
+
+def run_tagger_loop(sleeptime: int = 300):
+    """The `tagger` thread: a round on start, then one every `sleeptime` seconds, for good.
+
+    Runs through thread_registry.run_forever, so a round that raises (MariaDB restarting, a
+    share that drops mid-walk) is logged and retried instead of ending the loop.
+    """
+    logger.info('Starting background tagger loop with sleeptime %d', sleeptime)
+    run_forever(
+        'tagger',
+        _tagger_tick,
+        sleeptime,
+        stale_after=max(TAGGER_STALE_AFTER_SECONDS, default_stale_after(sleeptime)),
+    )

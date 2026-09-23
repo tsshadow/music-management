@@ -108,6 +108,14 @@ queryable via `GET /api/events`, even if ntfy itself is unreachable. This is the
 pre-events design, where code POSTed to ntfy and a listener thread read it back to populate the
 database.
 
+Being the source of truth does not mean the push waits for the row. `EventService` runs two
+threads: the event worker hands each event to the database writer's own queue and then dispatches
+it to the sinks at once, and the writer does the INSERT with its retries (1 + 4 + 16 s). During a
+MariaDB outage the rows are late and the pushes are not — before the split a `CRITICAL` queued
+behind N events waited N x 21 s for its push. The writer keeps its own un-pooled connection on
+purpose: the module also runs in the downloader and importer, and the event log has to work when
+the API's pool is exhausted.
+
 Two ntfy topics keep milestones and alerts separate, since the ntfy Android app subscribes per topic
 and does not filter reliably on priority:
 - `notify_topic` (default `music-management`) — download/import milestones. Reached only when the
@@ -156,10 +164,28 @@ sound, distinct from the milestones topic.
 Home Assistant needs no dedicated integration — a REST sensor on
 `/api/events?level=ERROR&level=CRITICAL&since=-1h`, with the API key sent as a header, is enough to
 drive automations off the event count. Separately, `GET /health` reports `status`, `service`,
-`version`, `database` (`ok`/`unreachable`) and `threads` (the long-running loops: `tagger`,
-`scanner`, `radio`, `events-retention`, plus `events` for the event worker), and returns HTTP 503
-when any of those is unhealthy — instead of the old hard-coded `ok`. This is what makes the existing
+`version`, `database` (`ok`/`unreachable`), `threads` and `heartbeats`, and returns HTTP 503 when
+any of those is unhealthy — instead of the old hard-coded `ok`. This is what makes the existing
 Uptime Kuma monitor on that endpoint meaningful; nothing needs to change on the Kuma side.
+
+- `database` is `SELECT 1` on its own short-lived connection (1 s timeouts, 2 s deadline), never a
+  pooled one: the pool only pings a cached connection when a query runs, and an exhausted pool must
+  not make the check wait. `/health` therefore always answers within about two seconds.
+- `threads` has one boolean per long-running loop — `tagger`, `scanner`, `radio`, `news`,
+  `events-retention`, `scrobble-rematch`, `song-versions`, `feeds-refresh`, `lms-db-sync` — plus
+  `events` for the event worker and writer. A loop is `true` when its thread is alive **and** its
+  heartbeat (the last *completed* tick) is younger than its window: three intervals with a one-hour
+  floor, except `tagger` 24 h (a round may include the daily walk), `scanner` 12 h and `news` 3 h
+  (it sleeps up to an hour inside its tick). The window counts from startup, so a fresh process is
+  green. `heartbeats` carries the detail per loop: `alive`, `stale`, `last_tick_age_seconds`,
+  `stale_after_seconds`, `ticks`, `failures`.
+- Every loop runs through `thread_registry.run_forever`: an exception in a tick is logged with
+  `logger.exception` (an `ERROR` event from logger `music-manager.threads`), followed by a backoff
+  of 10 s doubling up to the loop's interval, and the loop carries on. `scrobble-rematch`,
+  `song-versions` and `lms-db-sync` wait their full interval after a failure instead, as they always
+  did. A new loop goes through `run_forever` too, or a single exception ends it for good.
+- A request that finds every pooled connection busy for `DB_POOL_WAIT_SECONDS` (default 5) gets a
+  503 with `Retry-After`, rather than waiting forever.
 
 ---
 

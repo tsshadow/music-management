@@ -10,6 +10,7 @@ from services.music_manager.database import get_db_connection
 from services.music_manager.lms_subsonic import fetch_candidate_tracks
 from services.music_manager.rbac import has_permission, require_permission
 from services.music_manager.routers.management import verify_api_key
+from services.music_manager.thread_registry import run_forever
 
 router = APIRouter(tags=['radio'])
 logger = logging.getLogger('music-manager.radio')
@@ -172,22 +173,27 @@ def fill_channel(conn, channel: dict, now: float) -> int:
     return len(entries)
 
 
+def radio_tick() -> None:
+    """One pass: fill every enabled channel's timeline ahead of now.
+
+    Raises on a database failure; run_forever logs it and backs off.
+    """
+    conn = get_db_connection()
+    if not conn:
+        return
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT id, slug, genre, filter_json FROM radio_channels WHERE enabled = 1')
+            channels = cursor.fetchall()
+        for channel in channels:
+            fill_channel(conn, channel, time.time())
+    finally:
+        conn.close()
+
+
 def run_radio_scheduler(interval: int = 5):
     """Background loop keeping every enabled channel's timeline filled ahead of now."""
-    while True:
-        conn = get_db_connection()
-        if conn:
-            try:
-                with conn.cursor() as cursor:
-                    cursor.execute('SELECT id, slug, genre, filter_json FROM radio_channels WHERE enabled = 1')
-                    channels = cursor.fetchall()
-                for channel in channels:
-                    fill_channel(conn, channel, time.time())
-            except Exception as e:
-                logger.error('Radio scheduler iteration failed: %s', e)
-            finally:
-                conn.close()
-        time.sleep(interval)
+    run_forever('radio', radio_tick, interval)
 
 
 @router.get('/channels')

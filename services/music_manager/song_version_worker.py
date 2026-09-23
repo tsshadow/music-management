@@ -13,8 +13,6 @@ Design: docs/superpowers/specs/2026-08-23-song-versions-and-canonical-design.md
 from __future__ import annotations
 
 import os
-import sys
-import time
 
 from services.music_manager.database import get_db_connection
 from services.music_manager.song_versions import (
@@ -23,6 +21,7 @@ from services.music_manager.song_versions import (
     version_score,
     work_key,
 )
+from services.music_manager.thread_registry import run_forever
 
 BATCH_SIZE = int(os.getenv('SONG_VERSION_BATCH', '500'))
 INTERVAL_SECONDS = int(os.getenv('SONG_VERSION_INTERVAL', '3600'))
@@ -201,17 +200,19 @@ def group_once(conn) -> dict:
     return {'assigned': assigned, 'remaining': remaining, 'recomputed': recomputed}
 
 
+def grouping_tick() -> None:
+    """One grouping pass; raises on a database failure so run_forever can log it."""
+    conn = get_db_connection()
+    if not conn:
+        return
+    try:
+        stats = group_once(conn)
+        if stats['recomputed']:
+            print(f"song-versions: recomputed {stats['recomputed']} works")
+    finally:
+        conn.close()
+
+
 def run_song_version_grouping() -> None:
-    while True:
-        try:
-            conn = get_db_connection()
-            if conn:
-                try:
-                    stats = group_once(conn)
-                    if stats['recomputed']:
-                        print(f"song-versions: recomputed {stats['recomputed']} works")
-                finally:
-                    conn.close()
-        except Exception as exc:
-            print(f'song-versions: pass failed: {exc}', file=sys.stderr)
-        time.sleep(INTERVAL_SECONDS)
+    """The `song-versions` thread: a pass every INTERVAL_SECONDS, a failure waits the same."""
+    run_forever('song-versions', grouping_tick, INTERVAL_SECONDS, backoff=False)

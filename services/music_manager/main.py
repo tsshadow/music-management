@@ -1,15 +1,16 @@
-import contextlib
 import json
 import logging
 import os
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from services.common.db_init import ensure_tables_exist
@@ -17,7 +18,7 @@ from services.common.Helpers.EventService import event_service
 from services.common.Helpers.logging_setup import setup_logging
 from services.common.version_helper import get_version
 from services.music_manager.cors import ALLOWED_METHODS, allowed_origins
-from services.music_manager.database import get_db_connection
+from services.music_manager.database import DatabaseBusyError, check_database, get_db_connection
 from services.music_manager.events_retention import run_events_retention
 from services.music_manager.feeds import snapshot as feeds_snapshot
 from services.music_manager.feeds.hardness import seed_genre_hardness
@@ -54,7 +55,7 @@ from services.music_manager.routers.tagger import run_tagger_loop
 from services.music_manager.routers.users import run_lms_db_sync_loop
 from services.music_manager.scrobble_rematch import run_scrobble_rematch
 from services.music_manager.song_version_worker import run_song_version_grouping
-from services.music_manager.thread_registry import start_thread, thread_status
+from services.music_manager.thread_registry import start_thread, thread_heartbeats, thread_status
 
 load_dotenv()
 logger = logging.getLogger('music-manager')
@@ -166,6 +167,28 @@ def startup_event():
         )
 
 
+# The whole /health answer has to arrive within about this many seconds, whatever MariaDB is
+# doing. The probe runs on a small executor so a hung DNS lookup or TCP connect cannot hold
+# the request past it; two workers bound how many stuck probes can ever pile up.
+HEALTH_DB_DEADLINE_SECONDS = 2.0
+_health_probe = ThreadPoolExecutor(max_workers=2, thread_name_prefix='health-db')
+
+
+def _database_status() -> str:
+    """'ok' when MariaDB answered `SELECT 1` within HEALTH_DB_DEADLINE_SECONDS, else 'unreachable'."""
+    try:
+        future = _health_probe.submit(check_database)
+        return 'ok' if future.result(timeout=HEALTH_DB_DEADLINE_SECONDS) else 'unreachable'
+    except Exception:  # pylint: disable=broad-except  # timeout or a full executor: both unreachable
+        return 'unreachable'
+
+
+@app.exception_handler(DatabaseBusyError)
+async def database_busy_handler(_request: Request, exc: DatabaseBusyError):
+    """An exhausted connection pool is a temporary overload: answer 503, not 500 or a hang."""
+    return JSONResponse(status_code=503, content={'detail': str(exc)}, headers={'Retry-After': '5'})
+
+
 @app.get('/health')
 def health(response: Response):
     """Rapporteert wat het beweert, zodat de Uptime Kuma-monitor iets meet.
@@ -173,24 +196,17 @@ def health(response: Response):
     De oude versie gaf altijd 'ok' terug en bleef dus groen terwijl de
     database weg was of een achtergrondlus aan een exceptie was gestorven.
 
-    get_db_connection() geeft alleen None terug als de pool zelf niet
-    aangemaakt kon worden; als de pool wel bestaat maar geen connectie meer
-    kan uitgeven, gooit hij een exceptie. Die vangen we hier af, want een
-    monitoring-endpoint dat zelf crasht is erger dan een dat liegt.
+    The database check runs `SELECT 1` on its own short-lived connection
+    (database.check_database), not on a pooled one: the pool only pings a cached
+    connection when a query runs, so taking one proved nothing, and an exhausted
+    pool used to make this endpoint wait forever. The probe is bounded at
+    HEALTH_DB_DEADLINE_SECONDS, so the endpoint always answers.
+
+    `threads` is True per loop when its thread is alive and its heartbeat -- the
+    last completed tick -- is younger than that loop's staleness window;
+    `heartbeats` carries the detail behind each verdict.
     """
-    conn = None
-    try:
-        conn = get_db_connection()
-    except Exception:
-        conn = None
-    database = 'unreachable'
-    if conn:
-        database = 'ok'
-        # Sluiten mag hier nooit alsnog het endpoint laten crashen: de status
-        # is al bepaald, dus een fout bij het sluiten van de connectie
-        # negeren we bewust.
-        with contextlib.suppress(Exception):
-            conn.close()
+    database = _database_status()
 
     threads = thread_status()
     threads['events'] = event_service.is_alive()
@@ -204,6 +220,7 @@ def health(response: Response):
         'version': get_version(),
         'database': database,
         'threads': threads,
+        'heartbeats': thread_heartbeats(),
     }
 
 

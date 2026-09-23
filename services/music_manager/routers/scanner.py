@@ -2,7 +2,6 @@ import hashlib
 import logging
 import os
 import threading
-import time
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
@@ -17,6 +16,7 @@ from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.GenreRulesHelper import BLACK, GenreRulesHelper
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.music_manager.database import get_db_connection
+from services.music_manager.thread_registry import default_stale_after, run_forever
 from services.scanner.Song.ReadonlySong import ReadonlySong
 from services.tagger.Song.BaseSong import ExtensionNotSupportedException
 
@@ -313,9 +313,26 @@ def api_scan_file(path: str = Query(...), force: bool = False, _auth: dict = Dep
     return {'message': f'Scan for {path} completed', 'scanned': bool(scanned)}
 
 
-def run_scanner_loop(sleeptime: int = 3600):
-    logger.info('Starting background scanner loop with sleeptime %d', sleeptime)
+# A full scan over the CIFS share can run for hours on a first pass or after a forced rescan;
+# half a day without a completed scan is stuck, whatever the interval.
+SCANNER_STALE_AFTER_SECONDS = 12 * 3600
+
+
+def _scanner_tick() -> None:
+    """One full scan; its return value is not a sleep override, so it is dropped here."""
     scanner_manager.run_full()
-    while True:
-        time.sleep(sleeptime)
-        scanner_manager.run_full()
+
+
+def run_scanner_loop(sleeptime: int = 3600):
+    """The `scanner` thread: a full scan on start, then one every `sleeptime` seconds, for good.
+
+    Runs through thread_registry.run_forever, so a scan that raises is logged and retried
+    instead of ending the loop.
+    """
+    logger.info('Starting background scanner loop with sleeptime %d', sleeptime)
+    run_forever(
+        'scanner',
+        _scanner_tick,
+        sleeptime,
+        stale_after=max(SCANNER_STALE_AFTER_SECONDS, default_stale_after(sleeptime)),
+    )

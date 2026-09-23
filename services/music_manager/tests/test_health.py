@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import threading
+import time
 import unittest
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -52,9 +53,9 @@ class HealthTest(unittest.TestCase):
         thread_registry.reset()
 
     @patch('services.music_manager.main.event_service')
-    @patch('services.music_manager.main.get_db_connection')
+    @patch('services.music_manager.main.check_database')
     def test_healthy_when_database_and_threads_are_up(self, mock_get_db, mock_events):
-        mock_get_db.return_value = MagicMock()
+        mock_get_db.return_value = True
         mock_events.is_alive.return_value = True
         stop = threading.Event()
         thread_registry.start_thread('tagger', stop.wait)
@@ -69,10 +70,12 @@ class HealthTest(unittest.TestCase):
         self.assertTrue(body['threads']['tagger'])
         self.assertTrue(body['threads']['events'])
 
+    # The database check is now database.check_database (SELECT 1 on its own connection)
+    # rather than "the pool handed out a connection", so these two patch that instead.
     @patch('services.music_manager.main.event_service')
-    @patch('services.music_manager.main.get_db_connection')
-    def test_degraded_with_503_when_database_is_gone(self, mock_get_db, mock_events):
-        mock_get_db.return_value = None
+    @patch('services.music_manager.main.check_database')
+    def test_degraded_with_503_when_database_is_gone(self, mock_check, mock_events):
+        mock_check.return_value = False
         mock_events.is_alive.return_value = True
 
         response = self.client.get('/health')
@@ -82,9 +85,9 @@ class HealthTest(unittest.TestCase):
         self.assertEqual(response.json()['database'], 'unreachable')
 
     @patch('services.music_manager.main.event_service')
-    @patch('services.music_manager.main.get_db_connection')
-    def test_degraded_with_503_when_database_raises(self, mock_get_db, mock_events):
-        mock_get_db.side_effect = Exception('pool kan geen connectie geven')
+    @patch('services.music_manager.main.check_database')
+    def test_degraded_with_503_when_database_raises(self, mock_check, mock_events):
+        mock_check.side_effect = Exception('pool kan geen connectie geven')
         mock_events.is_alive.return_value = True
 
         response = self.client.get('/health')
@@ -94,9 +97,9 @@ class HealthTest(unittest.TestCase):
         self.assertEqual(response.json()['database'], 'unreachable')
 
     @patch('services.music_manager.main.event_service')
-    @patch('services.music_manager.main.get_db_connection')
+    @patch('services.music_manager.main.check_database')
     def test_degraded_when_a_thread_died(self, mock_get_db, mock_events):
-        mock_get_db.return_value = MagicMock()
+        mock_get_db.return_value = True
         mock_events.is_alive.return_value = True
         thread = thread_registry.start_thread('scanner', lambda: None)
         thread.join(timeout=2)
@@ -107,15 +110,125 @@ class HealthTest(unittest.TestCase):
         self.assertFalse(response.json()['threads']['scanner'])
 
     @patch('services.music_manager.main.event_service')
-    @patch('services.music_manager.main.get_db_connection')
+    @patch('services.music_manager.main.check_database')
     def test_degraded_when_the_event_worker_died(self, mock_get_db, mock_events):
-        mock_get_db.return_value = MagicMock()
+        mock_get_db.return_value = True
         mock_events.is_alive.return_value = False
 
         response = self.client.get('/health')
 
         self.assertEqual(response.status_code, 503)
         self.assertFalse(response.json()['threads']['events'])
+
+
+class HealthHeartbeatTest(unittest.TestCase):
+    """A loop that is alive but no longer completes a tick is as broken as a dead one."""
+
+    def setUp(self):
+        self.client = TestClient(app)
+        thread_registry.reset()
+        stop = threading.Event()
+        self.addCleanup(stop.set)
+        self.addCleanup(thread_registry.reset)
+        thread_registry.start_thread('scanner', stop.wait)
+
+    @patch('services.music_manager.main.event_service')
+    @patch('services.music_manager.main.check_database', return_value=True)
+    def test_fresh_heartbeat_right_after_startup_is_healthy(self, _check, mock_events):
+        """The e2e suite waits on a 200 right after startup: registration counts as a beat."""
+        mock_events.is_alive.return_value = True
+        thread_registry.register_heartbeat('scanner', stale_after=3600)
+
+        response = self.client.get('/health')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['threads']['scanner'])
+        detail = response.json()['heartbeats']['scanner']
+        self.assertTrue(detail['alive'])
+        self.assertFalse(detail['stale'])
+        self.assertEqual(detail['stale_after_seconds'], 3600)
+
+    @patch('services.music_manager.main.event_service')
+    @patch('services.music_manager.main.check_database', return_value=True)
+    def test_stale_heartbeat_flips_health_to_503(self, _check, mock_events):
+        mock_events.is_alive.return_value = True
+        thread_registry.register_heartbeat('scanner', stale_after=60)
+        thread_registry._heartbeats['scanner'].last_beat_monotonic -= 120
+
+        response = self.client.get('/health')
+
+        self.assertEqual(response.status_code, 503)
+        body = response.json()
+        self.assertEqual(body['status'], 'degraded')
+        self.assertFalse(body['threads']['scanner'])
+        self.assertTrue(body['heartbeats']['scanner']['alive'])
+        self.assertTrue(body['heartbeats']['scanner']['stale'])
+
+    @patch('services.music_manager.main.event_service')
+    @patch('services.music_manager.main.check_database', return_value=True)
+    def test_a_new_beat_makes_it_healthy_again(self, _check, mock_events):
+        mock_events.is_alive.return_value = True
+        thread_registry.register_heartbeat('scanner', stale_after=60)
+        thread_registry._heartbeats['scanner'].last_beat_monotonic -= 120
+        thread_registry.beat('scanner')
+
+        self.assertEqual(self.client.get('/health').status_code, 200)
+
+
+class HealthDatabaseProbeTest(unittest.TestCase):
+    """`database: ok` has to mean MariaDB answered, and the answer has to come in time."""
+
+    def setUp(self):
+        self.client = TestClient(app)
+        thread_registry.reset()
+        self.addCleanup(thread_registry.reset)
+
+    @patch('services.music_manager.main.event_service')
+    def test_unreachable_when_select_1_raises(self, mock_events):
+        mock_events.is_alive.return_value = True
+        conn = MagicMock()
+        conn.cursor.return_value.__enter__.return_value.execute.side_effect = Exception('server has gone away')
+        with patch.object(services.music_manager.database.pymysql, 'connect', return_value=conn):
+            response = self.client.get('/health')
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()['database'], 'unreachable')
+        conn.close.assert_called_once()
+
+    @patch('services.music_manager.main.event_service')
+    def test_ok_when_select_1_answers(self, mock_events):
+        mock_events.is_alive.return_value = True
+        conn = MagicMock()
+        with patch.object(services.music_manager.database.pymysql, 'connect', return_value=conn) as connect:
+            response = self.client.get('/health')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['database'], 'ok')
+        conn.cursor.return_value.__enter__.return_value.execute.assert_called_once_with('SELECT 1')
+        # Short timeouts on the probe's own connection, never the pool's.
+        self.assertEqual(
+            connect.call_args.kwargs['read_timeout'], services.music_manager.database.HEALTH_TIMEOUT_SECONDS
+        )
+
+    @patch('services.music_manager.main.event_service')
+    def test_answers_within_the_bound_when_the_pool_is_exhausted_and_the_probe_hangs(self, mock_events):
+        """An exhausted pool used to make /health wait forever. Neither may hold it up now."""
+        mock_events.is_alive.return_value = True
+        release = threading.Event()
+        self.addCleanup(release.set)
+        exhausted_pool = MagicMock()
+        exhausted_pool.connection.side_effect = lambda: release.wait(30)
+        with (
+            patch.object(services.music_manager.database, '_pool', exhausted_pool),
+            patch.object(services.music_manager.database.pymysql, 'connect', side_effect=lambda **_: release.wait(30)),
+        ):
+            started = time.monotonic()
+            response = self.client.get('/health')
+            elapsed = time.monotonic() - started
+
+        self.assertLess(elapsed, 3.5)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()['database'], 'unreachable')
 
 
 class BackupHealthTest(unittest.TestCase):

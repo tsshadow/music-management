@@ -11,8 +11,6 @@ Design: docs/superpowers/specs/2026-08-21-scrobble-rematching-design.md
 from __future__ import annotations
 
 import os
-import sys
-import time
 
 from services.music_manager.database import get_db_connection
 from services.music_manager.scrobble_matching import (
@@ -22,6 +20,7 @@ from services.music_manager.scrobble_matching import (
     normalize,
     similarity,
 )
+from services.music_manager.thread_registry import run_forever
 
 BATCH_SIZE = int(os.getenv('SCROBBLE_REMATCH_BATCH', '500'))
 FUZZY_THRESHOLD = int(os.getenv('SCROBBLE_FUZZY_THRESHOLD', '90'))
@@ -241,17 +240,19 @@ def rematch_once(conn, limit: int = BATCH_SIZE) -> dict:
     return stats
 
 
+def rematch_tick() -> None:
+    """One rematch pass; raises on a database failure so run_forever can log it."""
+    conn = get_db_connection()
+    if not conn:
+        return
+    try:
+        stats = rematch_once(conn)
+        if stats['linked']:
+            print(f"scrobble-rematch: linked {stats['linked']} of {stats['tried']} retried")
+    finally:
+        conn.close()
+
+
 def run_scrobble_rematch() -> None:
-    while True:
-        try:
-            conn = get_db_connection()
-            if conn:
-                try:
-                    stats = rematch_once(conn)
-                    if stats['linked']:
-                        print(f"scrobble-rematch: linked {stats['linked']} of {stats['tried']} retried")
-                finally:
-                    conn.close()
-        except Exception as exc:
-            print(f'scrobble-rematch: pass failed: {exc}', file=sys.stderr)
-        time.sleep(INTERVAL_SECONDS)
+    """The `scrobble-rematch` thread: a pass every INTERVAL_SECONDS, a failure waits the same."""
+    run_forever('scrobble-rematch', rematch_tick, INTERVAL_SECONDS, backoff=False)

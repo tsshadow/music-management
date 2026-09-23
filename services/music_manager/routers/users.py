@@ -17,6 +17,7 @@ from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
 from services.music_manager.rate_limit import auth_attempt
 from services.music_manager.rbac import has_permission, require_permission
+from services.music_manager.thread_registry import run_forever
 
 router = APIRouter(tags=['users'])
 # These four are the keys this service *presents* when it calls the muma server.
@@ -1318,13 +1319,16 @@ def run_lms_db_sync_loop(sleeptime: int = 3600) -> None:
     Users and playlists ride along, which is harmless -- that sync is idempotent and cheap
     next to walking the library.
     """
-    while True:
-        try:
-            with lms_db_sync_lock:
-                run_lms_db_sync_with_retry()
-        except Exception as e:
-            logging.error('lms.db sync loop: %s', e, exc_info=True)
-        time.sleep(sleeptime)
+
+    # backoff=False: a failed pass waits the full interval, as it always did. The sync
+    # writes into the server's SQLite database, and hammering it again after ten seconds
+    # is exactly what a locked database does not need.
+    def tick() -> None:
+        """One sync pass; the synced-user count it returns is not a sleep override."""
+        with lms_db_sync_lock:
+            run_lms_db_sync_with_retry()
+
+    run_forever('lms-db-sync', tick, sleeptime, backoff=False)
 
 
 def run_lms_db_sync_with_retry(attempts: int = 6, delay_seconds: int = 60) -> int:

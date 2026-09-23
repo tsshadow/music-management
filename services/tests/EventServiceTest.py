@@ -1,4 +1,6 @@
 import sys
+import threading
+import time
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -6,6 +8,7 @@ for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql'):
     sys.modules.setdefault(_mod_name, MagicMock())
 
 from services.common.Helpers.EventService import Event, EventQueue, EventService
+from services.common.Helpers.ntfy_sink import NtfySink
 
 
 def make_event(level='INFO', title='t', source='downloader'):
@@ -98,3 +101,91 @@ class EventServiceWriteTest(unittest.TestCase):
     def test_emit_rejects_unknown_level(self):
         with self.assertRaises(ValueError):
             self.service.emit('TRACE', 'titel', 'bericht', 'downloader')
+
+
+class PushDoesNotWaitOnTheDatabaseTest(unittest.TestCase):
+    """During a MariaDB outage the rows are late, the pushes are not.
+
+    Before the split one worker wrote each event (with 1 + 4 + 16 s of retries) before
+    handing it to the sinks, so a CRITICAL queued behind N events reached the phone
+    N x 21 s late.
+    """
+
+    def setUp(self):
+        # Every database write blocks on this until the test ends: an outage that never heals.
+        self.outage = threading.Event()
+        self.addCleanup(self.outage.set)
+        connector = patch('services.common.Helpers.EventService.DatabaseConnector')
+        self.mock_connector = connector.start()
+        self.addCleanup(connector.stop)
+
+        def connect():
+            self.outage.wait(5)
+            raise RuntimeError('db weg')
+
+        self.mock_connector.return_value.connect.side_effect = connect
+        sleeper = patch('services.common.Helpers.EventService.time.sleep', side_effect=lambda _s: self.outage.wait(5))
+        sleeper.start()
+        self.addCleanup(sleeper.stop)
+
+    def _wait_for(self, predicate, timeout=2.0):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if predicate():
+                return True
+            # Not time.sleep: setUp patched that module-wide to simulate the stuck writer.
+            threading.Event().wait(0.01)
+        return False
+
+    def test_a_critical_reaches_the_sink_while_the_database_write_is_failing(self):
+        sink = MagicMock()
+        service = EventService(sinks=[sink])
+
+        for index in range(5):
+            service.emit('WARNING', f'db flapping {index}', 'm', 'music-manager', logger='music-manager.db')
+        service.emit('CRITICAL', 'library gone', 'm', 'music-manager')
+
+        self.assertTrue(
+            self._wait_for(lambda: any(c.args[0].level == 'CRITICAL' for c in sink.handle.call_args_list)),
+            'the CRITICAL push waited on the failing database write',
+        )
+        self.assertTrue(service.is_alive())
+        # The writer is still stuck on the very first row, so nothing was written yet.
+        self.assertEqual(self.mock_connector.return_value.connect.call_count, 1)
+
+    @patch('services.common.Helpers.ntfy_sink.requests')
+    def test_the_dedupe_brake_still_holds_back_a_repeat_push(self, mock_requests):
+        config = MagicMock()
+        values = {
+            'notify_url': 'https://ntfy.example.nl',
+            'notify_topic': 'music-management',
+            'notify_topic_alerts': 'music-management-alerts',
+        }
+        config.get.side_effect = values.get
+        service = EventService(sinks=[NtfySink(config=config)])
+
+        service.emit('CRITICAL', 'still cooling down for 240s', 'm', 'music-manager', logger='music-manager.db')
+        service.emit('CRITICAL', 'still cooling down for 230s', 'm', 'music-manager', logger='music-manager.db')
+        service.emit('ERROR', 'marker', 'm', 'music-manager', logger='music-manager.other')
+
+        self.assertTrue(self._wait_for(lambda: mock_requests.post.call_count >= 2))
+        threading.Event().wait(0.05)
+        titles = [c.kwargs['headers']['Title'] for c in mock_requests.post.call_args_list]
+        self.assertEqual(titles, ['still cooling down for 240s', 'marker'])
+
+    def test_every_event_is_still_handed_to_the_writer(self):
+        service = EventService(sinks=[])
+        with patch.object(service, '_dispatch'):
+            for index in range(3):
+                service._handle(make_event(title=f'e{index}'))
+        self.assertEqual(len(service._write_queue), 3)
+
+    def test_is_alive_needs_both_threads(self):
+        service = EventService(sinks=[])
+        self.assertFalse(service.is_alive())
+        service.emit('INFO', 't', 'm', 'downloader')
+        self.assertTrue(service.is_alive())
+
+
+if __name__ == '__main__':
+    unittest.main()

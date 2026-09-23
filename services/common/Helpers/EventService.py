@@ -7,6 +7,19 @@ hangen.
 
 Foutmeldingen gaan hier bewust naar stderr en niet via `logging`. Een logregel
 zou via EventLogHandler opnieuw als event binnenkomen en zichzelf voeden.
+
+Two threads, so a database outage delays rows and never pushes. The event worker takes
+each event off the intake queue, hands it to the database writer's own queue, and then
+dispatches it to the sinks straight away. The writer thread does the INSERT with its
+retries (1 + 4 + 16 s). Before this split one worker did both in that order, so during an
+outage every queued event cost ~21 s before its push, and a CRITICAL behind N events
+reached the phone N x 21 s late. The database is still the source of truth: every event
+is still written, only no longer ahead of the push.
+
+The writer uses its own un-pooled DatabaseConnector connection rather than the
+music-manager's pool on purpose: this module runs in the downloader and importer too,
+which have no such pool, and the event log has to keep working when the API has
+exhausted its pool -- that is exactly when there is something to report.
 """
 
 from __future__ import annotations
@@ -86,14 +99,24 @@ class EventService:
     def __init__(self, sinks: list | None = None, queue_maxsize: int = QUEUE_MAXSIZE) -> None:
         self._queue = EventQueue(maxsize=queue_maxsize)
         self._sinks = list(sinks) if sinks is not None else []
+        # A queue of its own, so a slow database cannot back up the intake queue and with
+        # it the pushes. Same overflow policy: INFO gives way first.
+        self._write_queue = EventQueue(maxsize=queue_maxsize)
         self._worker: threading.Thread | None = None
+        self._writer: threading.Thread | None = None
         self._worker_lock = threading.Lock()
 
     def add_sink(self, sink) -> None:
         self._sinks.append(sink)
 
     def is_alive(self) -> bool:
-        return self._worker is not None and self._worker.is_alive()
+        """True when both the dispatching worker and the database writer are running."""
+        return (
+            self._worker is not None
+            and self._worker.is_alive()
+            and self._writer is not None
+            and self._writer.is_alive()
+        )
 
     def emit(
         self,
@@ -123,22 +146,45 @@ class EventService:
         return accepted
 
     def _ensure_worker(self) -> None:
+        """Start (or restart) the dispatching worker and the database writer as needed."""
         with self._worker_lock:
-            if self._worker is not None and self._worker.is_alive():
-                return
-            self._worker = threading.Thread(target=self._run, name='event-worker', daemon=True)
-            self._worker.start()
+            if self._worker is None or not self._worker.is_alive():
+                self._worker = threading.Thread(target=self._run, name='event-worker', daemon=True)
+                self._worker.start()
+            if self._writer is None or not self._writer.is_alive():
+                self._writer = threading.Thread(target=self._run_writer, name='event-writer', daemon=True)
+                self._writer.start()
 
     def _run(self) -> None:
+        """Intake loop: queue each event for the database, then push it to the sinks at once."""
         while True:
             try:
                 event = self._queue.get(timeout=1.0)
                 if event is None:
                     continue
-                self._write(event)
-                self._dispatch(event)
+                self._handle(event)
             except Exception as exc:  # de worker mag nooit sterven
                 print(f'EventService: worker fout: {exc}', file=sys.stderr)
+
+    def _handle(self, event: Event) -> None:
+        """One event through the worker: hand it to the writer, then dispatch it without waiting."""
+        if not self._write_queue.put(event):
+            print(
+                f'EventService: schrijfwachtrij vol, {event.level} event niet opgeslagen: {event.title}',
+                file=sys.stderr,
+            )
+        self._dispatch(event)
+
+    def _run_writer(self) -> None:
+        """Database loop: write each queued event, with the retries, at the database's own pace."""
+        while True:
+            try:
+                event = self._write_queue.get(timeout=1.0)
+                if event is None:
+                    continue
+                self._write(event)
+            except Exception as exc:  # de writer mag nooit sterven
+                print(f'EventService: writer fout: {exc}', file=sys.stderr)
 
     def _write(self, event: Event) -> bool:
         attempts = len(RETRY_DELAYS) + 1

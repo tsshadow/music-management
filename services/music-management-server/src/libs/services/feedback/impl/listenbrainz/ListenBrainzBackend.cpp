@@ -111,6 +111,11 @@ namespace lms::feedback::listenBrainz
     {
     }
 
+    void ListenBrainzBackend::onRatingRemoved(const RatingRemovedEvent& /*event*/)
+    {
+        // Nothing to forward: this backend keeps no copy of ratings outside the database.
+    }
+
     void ListenBrainzBackend::onPlaylistChanged(db::TrackListId)
     {
     }

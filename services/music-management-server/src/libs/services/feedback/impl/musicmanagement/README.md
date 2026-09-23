@@ -44,10 +44,13 @@ The external service should expect a `POST` request with a JSON payload.
 }
 ```
 
-- **event**: Currently only `rating_changed` is emitted.
-- **object_type**: Currently only `track` is supported.
-- **object_id**: The internal LMS ID of the track.
-- **rating**: The new rating (0-5). `0` means the rating was removed.
+- **event**: `rating_changed` when a rating is set, `rating_removed` when it is cleared. The
+  removal is captured before the rated row is deleted (`RatingRemovedEvent`); before that, a
+  cleared rating sent nothing at all.
+- **object_type**: `track`, `release` or `artist`.
+- **object_id**: The internal LMS ID of the track, or the release/artist name.
+- **username**: The login name of the user who rated.
+- **rating**: The new rating (1-5); always `0` for `rating_removed`.
 - **path**: The absolute path to the audio file on disk. This is useful for tools like `music-management` to identify exactly which file to tag.
 
 ## Technical Details

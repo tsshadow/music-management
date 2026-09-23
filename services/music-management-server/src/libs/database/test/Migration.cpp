@@ -384,6 +384,29 @@ VALUES
             EXPECT_EQ(session.getDboSession()->query<int>("SELECT audio_scan_version FROM scan_settings").resultValue(), 8);
         }
 
+        // migrateFromV120 on a token table as it stood before: a plain (domain, value) index and
+        // duplicates under it. A value two users share is removed for both, a value one user
+        // holds twice keeps its oldest row, and afterwards a duplicate cannot be inserted.
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.execute("DROP INDEX IF EXISTS auth_token_domain_value_unique_idx");
+            session.execute("CREATE INDEX IF NOT EXISTS auth_token_domain_value_idx ON auth_token(domain, value)");
+            session.execute("DELETE FROM auth_token");
+            session.execute("INSERT INTO auth_token (id, domain, value, user_id) VALUES (1, 'subsonic', 'shared-token-value', 1), (2, 'subsonic', 'shared-token-value', 2), (3, 'subsonic', 'own-token-value-1', 1), (4, 'subsonic', 'own-token-value-1', 1), (5, 'ui', 'shared-token-value', 1)");
+            session.execute("UPDATE version_info SET db_version = 120");
+        }
+        db.getTLSSession().migrateSchemaIfNeeded();
+        {
+            auto transaction{ session.createReadTransaction() };
+            const auto remaining{ session.getDboSession()->query<long long>("SELECT id FROM auth_token ORDER BY id").resultList() };
+            EXPECT_EQ(std::vector<long long>(remaining.begin(), remaining.end()), (std::vector<long long>{ 3, 5 }));
+        }
+        {
+            auto transaction{ session.createWriteTransaction() };
+            EXPECT_ANY_THROW(session.execute("INSERT INTO auth_token (domain, value, user_id) VALUES ('subsonic', 'own-token-value-1', 2)"));
+            session.execute("DELETE FROM auth_token");
+        }
+
         // Now perform some dummy finds to ensure all fields are correctly mapped
         {
             auto transaction{ session.createReadTransaction() };

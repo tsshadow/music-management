@@ -81,8 +81,8 @@ namespace lms::scrobbling
     {
         insertNowPlayingEntry(listen);
 
-        if (std::optional<ScrobblingBackend> backend{ getUserBackend(listen.userId) })
-            _scrobblingBackends[*backend]->listenStarted(listen);
+        if (auto* backendImpl{ findUserBackend(listen.userId) })
+            backendImpl->listenStarted(listen);
 
         if (_mumaScrobbler)
             _mumaScrobbler->listenStarted(listen);
@@ -90,8 +90,8 @@ namespace lms::scrobbling
 
     void ScrobblingService::listenFinished(const Listen& listen, std::optional<std::chrono::seconds> duration)
     {
-        if (std::optional<ScrobblingBackend> backend{ getUserBackend(listen.userId) })
-            _scrobblingBackends[*backend]->listenFinished(listen, duration);
+        if (auto* backendImpl{ findUserBackend(listen.userId) })
+            backendImpl->listenFinished(listen, duration);
 
         if (_mumaScrobbler)
             _mumaScrobbler->listenFinished(listen, duration);
@@ -99,8 +99,8 @@ namespace lms::scrobbling
 
     void ScrobblingService::addTimedListen(const TimedListen& listen)
     {
-        if (std::optional<ScrobblingBackend> backend{ getUserBackend(listen.userId) })
-            _scrobblingBackends[*backend]->addTimedListen(listen);
+        if (auto* backendImpl{ findUserBackend(listen.userId) })
+            backendImpl->addTimedListen(listen);
 
         if (_mumaScrobbler)
             _mumaScrobbler->addTimedListen(listen);
@@ -126,11 +126,26 @@ namespace lms::scrobbling
 
     void ScrobblingService::synchronize(db::UserId userId)
     {
-        if (std::optional<ScrobblingBackend> backend{ getUserBackend(userId) })
-            _scrobblingBackends[*backend]->synchronize(userId);
+        if (auto* backendImpl{ findUserBackend(userId) })
+            backendImpl->synchronize(userId);
     }
 
-    std::optional<ScrobblingBackend> ScrobblingService::getUserBackend(UserId userId)
+    IScrobblingBackend* ScrobblingService::findUserBackend(UserId userId) const
+    {
+        const std::optional<ScrobblingBackend> backend{ getUserBackend(userId) };
+        if (!backend)
+            return nullptr;
+
+        const auto it{ _scrobblingBackends.find(*backend) };
+        if (it == std::cend(_scrobblingBackends) || !it->second)
+        {
+            LMS_LOG(SCROBBLING, WARNING, "No scrobbling backend registered for value " << static_cast<int>(*backend) << ", event skipped");
+            return nullptr;
+        }
+        return it->second.get();
+    }
+
+    std::optional<ScrobblingBackend> ScrobblingService::getUserBackend(UserId userId) const
     {
         std::optional<ScrobblingBackend> backend;
 

@@ -19,14 +19,64 @@
 
 #pragma once
 
+#include "core/ILogger.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
+#include "database/objects/Artist.hpp"
+#include "database/objects/RatedArtist.hpp"
+#include "database/objects/RatedRelease.hpp"
+#include "database/objects/RatedTrack.hpp"
+#include "database/objects/Release.hpp"
+#include "database/objects/Track.hpp"
 #include "database/objects/User.hpp"
 #include "services/feedback/IFeedbackService.hpp"
 
 namespace lms::feedback
 {
     using namespace db;
+
+    namespace detail
+    {
+        /// Login name of \p userId, or an empty string when the user no longer exists.
+        inline std::string getLoginName(Session& session, UserId userId)
+        {
+            const User::pointer user{ User::find(session, userId) };
+            return user ? std::string{ user->getLoginName() } : std::string{};
+        }
+
+        /// Captures the "rating removed" payload of an artist rating that is about to be deleted.
+        inline RatingRemovedEvent makeRatingRemovedEvent(Session& session, const RatedArtist::pointer& ratedArtist)
+        {
+            RatingRemovedEvent event{ .objectType = "artist", .previousRating = ratedArtist->getRating() };
+            if (const auto artist{ ratedArtist->getArtist() })
+                event.objectId = artist->getName();
+            event.username = getLoginName(session, ratedArtist->getUserId());
+            return event;
+        }
+
+        /// Captures the "rating removed" payload of a release rating that is about to be deleted.
+        inline RatingRemovedEvent makeRatingRemovedEvent(Session& session, const RatedRelease::pointer& ratedRelease)
+        {
+            RatingRemovedEvent event{ .objectType = "release", .previousRating = ratedRelease->getRating() };
+            if (const auto release{ ratedRelease->getRelease() })
+                event.objectId = release->getName();
+            event.username = getLoginName(session, ratedRelease->getUserId());
+            return event;
+        }
+
+        /// Captures the "rating removed" payload of a track rating that is about to be deleted.
+        inline RatingRemovedEvent makeRatingRemovedEvent(Session& session, const RatedTrack::pointer& ratedTrack)
+        {
+            RatingRemovedEvent event{ .objectType = "track", .previousRating = ratedTrack->getRating() };
+            if (const auto track{ ratedTrack->getTrack() })
+            {
+                event.objectId = track->getId().toString();
+                event.path = track->getAbsoluteFilePath().string();
+            }
+            event.username = getLoginName(session, ratedTrack->getUserId());
+            return event;
+        }
+    } // namespace detail
 
     template<typename ObjType, typename ObjIdType, typename StarredObjType>
     void FeedbackService::star(UserId userId, ObjIdType objId)
@@ -56,7 +106,8 @@ namespace lms::feedback
             starredObj.modify()->setDateTime(Wt::WDateTime::currentDateTime());
             starredObjId = starredObj->getId();
         }
-        _backends[*backend]->onStarred(starredObjId);
+        if (auto* backendImpl{ findBackend(*backend) })
+            backendImpl->onStarred(starredObjId);
     }
 
     template<typename ObjType, typename ObjIdType, typename StarredObjType>
@@ -77,7 +128,8 @@ namespace lms::feedback
 
             starredObjId = starredObj->getId();
         }
-        _backends[*backend]->onUnstarred(starredObjId);
+        if (auto* backendImpl{ findBackend(*backend) })
+            backendImpl->onUnstarred(starredObjId);
     }
 
     template<typename ObjType, typename ObjIdType, typename RatedObjType>
@@ -114,6 +166,7 @@ namespace lms::feedback
             return;
 
         typename RatedObjType::IdType ratedObjectId;
+        std::optional<RatingRemovedEvent> removedEvent;
         {
             Session& session{ _db.getTLSSession() };
             auto transaction{ session.createWriteTransaction() };
@@ -140,14 +193,22 @@ namespace lms::feedback
             {
                 if (ratedObject)
                 {
-                    ratedObjectId = ratedObject->getId();
+                    // Capture the payload now: once the row is removed, a backend that looks
+                    // it up by id finds nothing and the removal is never reported.
+                    removedEvent = detail::makeRatingRemovedEvent(session, ratedObject);
                     ratedObject.remove();
                 }
             }
         }
 
-        if (ratedObjectId.isValid())
-            _backends[*backend]->onRatingChanged(ratedObjectId);
+        IFeedbackBackend* backendImpl{ findBackend(*backend) };
+        if (!backendImpl)
+            return;
+
+        if (removedEvent)
+            backendImpl->onRatingRemoved(*removedEvent);
+        else if (ratedObjectId.isValid())
+            backendImpl->onRatingChanged(ratedObjectId);
     }
 
     template<typename ObjType, typename ObjIdType, typename RatedObjType>

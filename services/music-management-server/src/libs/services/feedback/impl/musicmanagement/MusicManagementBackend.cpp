@@ -134,6 +134,14 @@ namespace lms::feedback::musicManagement
         }
     }
 
+    void MusicManagementBackend::onRatingRemoved(const RatingRemovedEvent& event)
+    {
+        // MuMa's rating mirror is only ever written from here (the sync is one-way), so a
+        // cleared rating that is not reported keeps its old star there forever.
+        LMS_LOG(SCROBBLING, INFO, "Rating removed for " << event.objectType << " " << event.objectId << " (previous rating: " << event.previousRating << ", user: " << event.username << ")");
+        sendEvent("rating_removed", event.objectType, event.objectId, event.username, 0, event.path);
+    }
+
     void MusicManagementBackend::onPlaylistChanged(db::TrackListId playlistId)
     {
         (void)playlistId;

@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <functional>
+
 #include <optional>
 
 #include <Wt/Dbo/Field.h>
@@ -85,6 +87,10 @@ namespace lms::db
         static pointer find(Session& session, ListenId id);
         static pointer find(Session& session, UserId userId, TrackId trackId, ScrobblingBackend backend, const Wt::WDateTime& dateTime);
         static RangeResults<ListenId> find(Session& session, const FindParameters& parameters);
+        /// Visits the listens matching \p parameters together with their track, loaded in a
+        /// single query (the id-then-find pattern costs two extra queries per listen).
+        /// \p moreResults is set when the range cut off further listens.
+        static void findWithTrack(Session& session, const FindParameters& parameters, bool& moreResults, const std::function<void(const pointer& listen, const ObjectPtr<Track>& track)>& func);
 
         // Stats
         struct StatsFindParameters

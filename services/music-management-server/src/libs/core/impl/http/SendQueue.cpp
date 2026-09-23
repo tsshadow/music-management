@@ -81,6 +81,18 @@ namespace lms::core::http
 
             return "?";
         }
+
+        // Tells the owner of a request that was never answered because the queue is shutting
+        // down. Falls back to the failure callback when no abort callback is set, so a caller
+        // blocked on a promise is always released instead of waiting out its own timeout or
+        // finding a broken promise.
+        void notifyAborted(const ClientRequest& request)
+        {
+            if (request.getParameters().onAbortFunc)
+                request.getParameters().onAbortFunc();
+            else if (request.getParameters().onFailureFunc)
+                request.getParameters().onFailureFunc();
+        }
     } // namespace
 
     SendQueue::SendQueue(boost::asio::io_context& ioContext, std::string_view baseUrl)
@@ -134,10 +146,9 @@ namespace lms::core::http
             {
                 while (!requests.empty())
                 {
-                    std::unique_ptr<ClientRequest> request{ std::move(requests.front()) };
+                    const std::unique_ptr<ClientRequest> request{ std::move(requests.front()) };
                     requests.pop_front();
-                    if (request->getParameters().onAbortFunc)
-                        request->getParameters().onAbortFunc();
+                    notifyAborted(*request);
                 }
             }
 
@@ -165,10 +176,16 @@ namespace lms::core::http
             if (_abortAllRequests)
             {
                 LOG(DEBUG, "Not posting request because abortAllRequests() in progress");
-                if (request->getParameters().onAbortFunc)
-                    request->getParameters().onAbortFunc();
+                notifyAborted(*request);
 
                 return;
+            }
+
+            if (std::unique_ptr<ClientRequest> shed{ shedOldestIfFull(_sendQueue, _maxQueuedRequests) })
+            {
+                LOG(WARNING, "Queue full (" << _maxQueuedRequests << " requests), dropping the oldest low-priority request to '" << shed->getParameters().relativeUrl << "'");
+                if (shed->getParameters().onFailureFunc)
+                    shed->getParameters().onFailureFunc();
             }
 
             _sendQueue[request->getParameters().priority].emplace_back(std::move(request));
@@ -278,8 +295,7 @@ namespace lms::core::http
     {
         assert(_strand.running_in_this_thread());
 
-        if (request->getParameters().onAbortFunc)
-            request->getParameters().onAbortFunc();
+        notifyAborted(*request);
 
         sendNextQueuedRequest();
     }
@@ -330,10 +346,34 @@ namespace lms::core::http
 
         const ClientRequestParameters& requestParameters{ request->getParameters() };
         bool mustThrottle{};
+        bool handled{};
         if (msg.status() == 429)
         {
-            _sendQueue[requestParameters.priority].emplace_front(std::move(request));
-            mustThrottle = true;
+            switch (decideAfterRateLimited(requestParameters.treatAnyStatusAsSuccess, request->rateLimitRetryCount, _maxRateLimitRetryCount))
+            {
+            case RateLimitedAction::ForwardToCaller:
+                // A proxied call: its caller wants the upstream's answer, and this 429 is it.
+                // It says nothing about the other requests in the queue, so nothing is paused.
+                break;
+
+            case RateLimitedAction::RetryLater:
+                request->rateLimitRetryCount++;
+                LOG(WARNING, "Rate limited (429), retry " << request->rateLimitRetryCount << "/" << _maxRateLimitRetryCount << " for '" << requestParameters.relativeUrl << "'");
+                // Back of the queue, for the same reason as a transport error: a request the
+                // endpoint keeps refusing must not hold the head of the queue.
+                _sendQueue[requestParameters.priority].emplace_back(std::move(request));
+                mustThrottle = true;
+                handled = true;
+                break;
+
+            case RateLimitedAction::GiveUp:
+                LOG(ERROR, "Rate limited (429) " << request->rateLimitRetryCount << " times, giving up on '" << requestParameters.relativeUrl << "'");
+                if (requestParameters.onFailureFunc)
+                    requestParameters.onFailureFunc();
+                mustThrottle = true;
+                handled = true;
+                break;
+            }
         }
 
         const auto remainingCount{ headerReadAs<std::size_t>(msg, "X-RateLimit-Remaining") };
@@ -344,7 +384,7 @@ namespace lms::core::http
             throttle(waitDuration.value_or(_defaultRetryWaitDuration));
         }
 
-        if (!mustThrottle)
+        if (!handled)
         {
             if (msg.status() == 200 || requestParameters.treatAnyStatusAsSuccess)
             {

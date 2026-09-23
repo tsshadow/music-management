@@ -60,7 +60,11 @@ namespace lms::scrobbling
         ReleaseContainer getTopReleases(const FindParameters& params) override;
         TrackContainer getTopTracks(const FindParameters& params) override;
 
-        std::optional<db::ScrobblingBackend> getUserBackend(db::UserId userId);
+        std::optional<db::ScrobblingBackend> getUserBackend(db::UserId userId) const;
+        /// Backend instance for the user's configured scrobbling backend, or nullptr when the
+        /// user is gone or the stored value names no registered backend (logged). Never inserts:
+        /// the map is shared by every request thread.
+        IScrobblingBackend* findUserBackend(db::UserId userId) const;
 
         void insertNowPlayingEntry(const Listen& listen);
 

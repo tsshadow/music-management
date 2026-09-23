@@ -48,10 +48,13 @@ Stores listening events that couldn't be resolved to a library track at ingestio
 
 | Endpoint | Method | Body / Params | Response | Error cases |
 |---|---|---|---|---|
-| `/lms-event` | `POST` | `MuMaServerEvent` (event, object_type, object_id, username, rating, path?) | `200 {status: "success", entity_id: "..."}` | `401` Unauthorized; `500` DB failure |
+| `/lms-event` | `POST` | `MuMaServerEvent` (event, object_type, object_id, username, rating, path?) | `200 {status: "success", entity_id: "..."}`; `200 {status: "removed", entity_id: "..."}` for `rating_removed` | `401` Unauthorized; `500` DB failure |
 | `/ratings/{username}` | `GET` | — | `200 List[Rating]` | `401` Unauthorized |
 
 **Logic**: `/lms-event` resolves the `object_id` to a MuMa `track_uid`. If a `path` is provided, it attempts to look up the track in `library_media_files` to find the correct `track_uid`.
+`rating_changed` upserts the row; `rating_removed` (sent with `rating: 0` when a rating is cleared
+on the server) and a `rating_changed` with `rating <= 0` delete it. Before bug report 044 the server
+sent nothing on a clear, so the mirror kept the old rating.
 
 ### Scrobbler Service (`/api/scrobble`)
 

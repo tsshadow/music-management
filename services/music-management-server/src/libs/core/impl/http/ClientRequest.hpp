@@ -39,6 +39,7 @@ namespace lms::core::http
             : _parameters{ std::move(DELETEParams) } {}
 
         std::size_t retryCount{};
+        std::size_t rateLimitRetryCount{}; // how many times a 429 sent this request back to the queue
 
         const ClientRequestParameters& getParameters() const
         {

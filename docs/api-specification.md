@@ -51,6 +51,16 @@ The system key passes every check. Routes not marked otherwise need any authenti
     before. See [docs/designs/wrapped/technical.md](designs/wrapped/technical.md).
 - **POST `/api/rating/lms-event`** (alias `/api/rating/server-event`): the LMS rating webhook. System key
   only (403 for any user key, admin included): the body names the `username` the rating is stored under.
+  Body: `{"event", "object_type", "object_id", "username", "rating", "path"?}` where `object_type` is
+  `artist`, `release` or `track`, and `path` (tracks only) is resolved to a `track_uid`.
+  - `event: "rating_changed"` upserts `rating_tracks`; response `{"status": "success", "entity_id"}`.
+  - `event: "rating_removed"` (sent with `rating: 0`) deletes the mirrored row; response
+    `{"status": "removed", "entity_id"}`. A `rating_changed` with `rating <= 0` is treated the same
+    way, since no star count below 1 exists. Added with bug report 044: before it, clearing a rating
+    on the server sent nothing and the old rating stayed in `rating_tracks` for good. An older
+    music-manager answers `rating_removed` with `{"status": "ignored"}`, so the server and
+    music-manager must be deployed together.
+  - Any other `event` is answered with `{"status": "ignored", "reason": "unsupported event type"}`.
 - **GET `/api/rating/ratings/{username}`**: an account's ratings. Own username, or admin/system key.
 
 ### 🛠 Management & Rules

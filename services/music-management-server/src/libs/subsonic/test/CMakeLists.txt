@@ -7,9 +7,11 @@ add_executable(test-subsonic
 	Memories.cpp
 	ScanScope.cpp
 	SongsByPath.cpp
+	SpotifyPaging.cpp
 	Subsonic.cpp
 	SubsonicResponse.cpp
 	TranscodeDecision.cpp
+	UserSettingsValidation.cpp
 	)
 
 target_include_directories(test-subsonic PRIVATE

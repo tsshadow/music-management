@@ -112,6 +112,41 @@ namespace lms::db::tests
         }
     }
 
+    // The history endpoint pages through a user's listens with their tracks in one query;
+    // order, the user filter, the range and moreResults must match the id-based find.
+    TEST_F(DatabaseFixture, Listen_findWithTrack)
+    {
+        ScopedTrack track1{ session };
+        ScopedTrack track2{ session };
+        ScopedUser user{ session, "MyUser" };
+        ScopedUser otherUser{ session, "OtherUser" };
+        ScopedListen listen1{ session, user.lockAndGet(), track1.lockAndGet(), ScrobblingBackend::Internal, Wt::WDateTime{ Wt::WDate{ 2000, 1, 2 }, Wt::WTime{ 12, 0, 1 } } };
+        ScopedListen listen2{ session, user.lockAndGet(), track2.lockAndGet(), ScrobblingBackend::Internal, Wt::WDateTime{ Wt::WDate{ 2000, 1, 2 }, Wt::WTime{ 12, 0, 2 } } };
+        ScopedListen listen3{ session, user.lockAndGet(), track1.lockAndGet(), ScrobblingBackend::Internal, Wt::WDateTime{ Wt::WDate{ 2000, 1, 2 }, Wt::WTime{ 12, 0, 3 } } };
+        ScopedListen otherListen{ session, otherUser.lockAndGet(), track2.lockAndGet(), ScrobblingBackend::Internal, Wt::WDateTime{ Wt::WDate{ 2000, 1, 2 }, Wt::WTime{ 12, 0, 4 } } };
+
+        auto transaction{ session.createReadTransaction() };
+
+        std::vector<std::pair<ListenId, TrackId>> visited;
+        bool moreResults{ true };
+        Listen::findWithTrack(session, Listen::FindParameters{}.setUser(user->getId()), moreResults, [&](const Listen::pointer& listen, const ObjectPtr<Track>& track) {
+            visited.emplace_back(listen->getId(), track->getId());
+        });
+        EXPECT_FALSE(moreResults);
+        ASSERT_EQ(visited.size(), 3);
+        EXPECT_EQ(visited[0], std::make_pair(listen3.getId(), track1.getId()));
+        EXPECT_EQ(visited[1], std::make_pair(listen2.getId(), track2.getId()));
+        EXPECT_EQ(visited[2], std::make_pair(listen1.getId(), track1.getId()));
+
+        visited.clear();
+        Listen::findWithTrack(session, Listen::FindParameters{}.setUser(user->getId()).setRange(Range{ 1, 1 }), moreResults, [&](const Listen::pointer& listen, const ObjectPtr<Track>& track) {
+            visited.emplace_back(listen->getId(), track->getId());
+        });
+        EXPECT_TRUE(moreResults);
+        ASSERT_EQ(visited.size(), 1);
+        EXPECT_EQ(visited[0], std::make_pair(listen2.getId(), track2.getId()));
+    }
+
     TEST_F(DatabaseFixture, Listen_get_byDateTime)
     {
         ScopedTrack track{ session };

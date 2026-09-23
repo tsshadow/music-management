@@ -80,6 +80,13 @@ Summarised here because it affects what counts as a vulnerability;
 * A URL the server fetches on a caller's behalf (the artist image URL) must
   resolve to globally routable addresses only, re-checked on every redirect, and
   is size-capped; see `routers/artist_images.ensure_public_url`.
+* LMS's `/muma` bridge verifies a key before it grants anything: it must be
+  LMS's own `api-key` or a key MuMa confirms through `/api/auth/verify`, and
+  the caller's identity comes only from that verified credential or from a
+  checked Subsonic `u`/`p` pair -- never from the bare `u` parameter. Its
+  proxy forwards the caller's own key and never substitutes the system key.
+  See [docs/authentication.md](docs/authentication.md#the-lms-muma-bridge-mumaresource)
+  and [bug report 037](docs/bug-reports/037-lms-any-key-is-admin.md).
 
 ## The system API key
 

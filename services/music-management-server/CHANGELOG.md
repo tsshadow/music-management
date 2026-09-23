@@ -32,6 +32,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of the queue at most 3 times, then failed. The queue holds at most 1000 unsent requests (the
   oldest lowest-priority one is failed beyond that), and a request aborted without an
   `onAbortFunc` gets its `onFailureFunc`, so a caller blocked on a promise is released.
+- **`/muma` no longer takes any key on trust.** `MumaResource` accepted every non-empty
+  `X-API-Key`/`apiKey` and then named the caller from the bare `u` parameter, so a made-up key plus
+  `u=<an admin>` read and replaced Subsonic tokens and edited media libraries; the generic proxy
+  also lent MuMa's system key to any request without an `X-API-Key` header. A key now counts only
+  if it is this server's `api-key` (constant-time compare) or MuMa confirms it via
+  `GET /api/auth/verify` (positive answers cached 60 s by SHA-1 of the key, cleared on
+  `/muma/users/sync`). The caller's identity comes from the verified credential only; the admin
+  routes need a verified admin user, not a system key; per-user settings compare the MuMa id; and
+  the proxy forwards the caller's own key and nothing else. The decision lives in
+  `src/libs/muma/Authentication.cpp` with GTest coverage. See docs/bug-reports/037-lms-any-key-is-admin.md.
+- **`/muma/api/admin/subsonic-token` refuses a short token.** The admin route now applies the same
+  16-character floor as `updateUser` (`userSettings::minSubsonicTokenLength`) and answers 400
+  `token must be at least 16 characters` with the user's existing tokens untouched; an empty token
+  still revokes them all.
 
 ### Fixed
 - **A cleared rating reaches MuMa.** `FeedbackService::setRating(..., nullopt)` removed the row

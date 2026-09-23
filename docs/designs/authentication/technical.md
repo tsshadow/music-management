@@ -59,6 +59,13 @@ populates `credentials` with `{username: user.username, password: api_key}`, rel
 (gets a session, permissions, admin badge, ...) but every Subsonic call fails as unauthenticated, since LMS
 has no username/password to forward.
 
+LMS's own `/muma` bridge (`MumaResource`) accepts the same two credentials and nothing weaker: a key only
+once it matches LMS's `api-key` or MuMa confirms it through `GET /api/auth/verify` (the answer's `user.id`
+and `user.is_admin` then name the caller), or a `u`/`p` pair through `MusicManagementPasswordService`. It
+never takes the caller from the `u` parameter alone and its proxy never substitutes the system key for a
+caller without one -- see [docs/authentication.md](../../authentication.md#the-lms-muma-bridge-mumaresource)
+and bug report [037](../../bug-reports/037-lms-any-key-is-admin.md).
+
 **MuMa Mobile** also supports native Google Sign-In (`EditServerFragment.startGoogleSignIn()`, Android
 Credential Manager + `androidx.credentials`/`googleid`, via `GetSignInWithGoogleOption`). It reuses
 `GOOGLE_CLIENT_ID`/`VITE_GOOGLE_CLIENT_ID`'s value as the Credential Manager `serverClientId`

@@ -87,7 +87,8 @@ Fixed in the `fix/lms-subsonic-hardening` merge request, one change per defect:
    replaces the plain index with `auth_token_domain_value_unique_idx`. `updateUser` refuses a token
    shorter than 16 characters and one another user already holds.
 
-Follow-up for after MR !917 merges: the `/muma` token route (`MumaResource.cpp`, not touched here
-to avoid conflicting with !917) should apply the same 16-character minimum. MumaResource's proxy
+Follow-up, done in MR !917: the `/muma` token route (`MumaResource.cpp`, not touched here to avoid
+conflicting with !917) now applies the same 16-character minimum through
+`muma::subsonicTokenProblem`, answering 400 without touching existing tokens. MumaResource's proxy
 waits on its promises with a timeout and sets no `onAbortFunc`; the new fallback to
 `onFailureFunc` releases them at shutdown without a change there.

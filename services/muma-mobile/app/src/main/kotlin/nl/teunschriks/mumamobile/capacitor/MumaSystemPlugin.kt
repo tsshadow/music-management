@@ -179,13 +179,12 @@ class MumaSystemPlugin :
             val answers = mutableListOf<AppUpdate.Latest>()
             var firstFailure: Throwable? = null
             for (series in AppUpdate.seriesToAsk(BuildConfig.DEBUG)) {
-                val url = AppUpdate.versionUrl(BuildConfig.APK_HOST_URL, series, BuildConfig.APK_HOST_USER)
+                val url = AppUpdate.versionUrl(BuildConfig.APK_HOST_URL, series)
                 try {
                     answers += AppUpdate.fetchLatest(
                         updateClient,
                         url,
                         BuildConfig.VERSION_NAME,
-                        BuildConfig.APK_HOST_PASSWORD,
                         series
                     )
                 } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {

@@ -2,6 +2,7 @@ package nl.teunschriks.mumamobile.api.muma
 
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -72,9 +73,7 @@ class MumaAPIClient(
         }
         .apply {
             if (debug) {
-                val loggingInterceptor = HttpLoggingInterceptor(okLogger)
-                loggingInterceptor.level = HttpLoggingInterceptor.Level.HEADERS
-                addInterceptor(loggingInterceptor)
+                addInterceptor(SubsonicAPIClient.redactingLoggingInterceptor(okLogger))
             }
         }
         .build()

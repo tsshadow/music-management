@@ -91,7 +91,9 @@ class RingBufferLoggerTree :
         val exceptionSuffix = if (t != null) " $t" else ""
         val repeatSuffix = if (held > 0) " [$held more like this held back]" else ""
         val line = "$time ${logLevelToString(priority)}/$tag: ${capLines(message)}$exceptionSuffix$repeatSuffix"
-        buffer.append(line)
+        // Redacted before it is kept: the buffer is persisted to disk and uploaded with every
+        // diagnostics report, and request URLs in it carry the Subsonic credentials.
+        buffer.append(LogRedaction.redact(line))
         scheduleWrite()
     }
 

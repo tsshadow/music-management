@@ -39,10 +39,11 @@ class AppUpdateTest {
         AppUpdate.newest(emptyList()) shouldBeEqualTo null
     }
 
+    /** The query used to send the hoster's upload password; the read-only guest is enough (bug report 037). */
     @Test
-    fun `the version url is the legacy checker's query`() {
-        AppUpdate.versionUrl("https://apk.example", "muma-mobile-debug", "muma-mobile") shouldBeEqualTo
-            "https://apk.example/api/version?apk=muma-mobile-debug&user=muma-mobile"
+    fun `the version url asks as the read-only guest`() {
+        AppUpdate.versionUrl("https://apk.example", "muma-mobile-debug") shouldBeEqualTo
+            "https://apk.example/api/version?apk=muma-mobile-debug&u=guest&p=guest"
     }
 
     @Test

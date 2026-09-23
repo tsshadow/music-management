@@ -130,9 +130,7 @@ class SubsonicAPIClient(
     }
 
     private fun OkHttpClient.Builder.addLogging() {
-        val loggingInterceptor = HttpLoggingInterceptor(okLogger)
-        loggingInterceptor.level = HttpLoggingInterceptor.Level.HEADERS
-        this.addInterceptor(loggingInterceptor)
+        this.addInterceptor(redactingLoggingInterceptor(okLogger))
     }
 
     @Suppress("CustomX509TrustManager", "TrustAllX509TrustManager")
@@ -170,6 +168,23 @@ class SubsonicAPIClient(
             .registerModule(KotlinModule.Builder().build())
 
         const val OFFLINE_DB_URL = "http://localhost"
+
+        /** Query parameters that authenticate a Subsonic or muma request; never logged. */
+        val CREDENTIAL_QUERY_PARAMS = listOf("u", "p", "t", "s", "apiKey")
+
+        /** Headers that authenticate a request; never logged. */
+        val CREDENTIAL_HEADERS = listOf("X-API-Key", "Authorization")
+
+        /**
+         * The debug build's HEADERS-level request logging, with every credential header and query
+         * parameter replaced by `██`. Without the redaction each logged request line carried the
+         * password (`p=enc:<hex>`) or its salted token, and each muma call its `X-API-Key`.
+         */
+        fun redactingLoggingInterceptor(logger: HttpLoggingInterceptor.Logger): HttpLoggingInterceptor = HttpLoggingInterceptor(logger).apply {
+            level = HttpLoggingInterceptor.Level.HEADERS
+            CREDENTIAL_HEADERS.forEach { redactHeader(it) }
+            CREDENTIAL_QUERY_PARAMS.forEach { redactQueryParams(it) }
+        }
 
         /**
          * Derives the base URL of the Muma (`music-manager`) API from a Subsonic/LMS server URL.

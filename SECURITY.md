@@ -88,6 +88,32 @@ deployment's real `MUMA_API_KEY` -- read access to this repository was
 unrestricted admin access to the API. `services/music_manager/tests/test_api_key.py`
 walks the tree and fails if that literal reappears in any Python source.
 
+## The Android app
+
+What `services/muma-mobile` does with credentials, since bug report 037:
+
+* **TLS is verified.** The one server the app signs in to has a publicly trusted
+  certificate, and `StaticServers.ALLOW_SELF_SIGNED_CERTIFICATE` is `false`, so
+  the Subsonic client uses the system trust store. `network_security_config.xml`
+  refuses cleartext except to `localhost` (the Capacitor WebView's own origin)
+  and trusts user-installed CAs only in debuggable builds.
+* **The Subsonic password is still sent as `p=enc:<hex>`.** LMS accepts the
+  salted `t`/`s` form only for the per-user Subsonic token, not for the login
+  password the app holds, so switching would lock every account out. Open work
+  records the way out; until then the password is protected by TLS and by log
+  redaction, not by the encoding, which is reversible.
+* **Logs are redacted before they leave the phone.** `LogRedaction` masks the
+  `u`/`p`/`t`/`s`/`apiKey` query parameters, credential headers and
+  credential-named settings in every ring-buffer line, which is what diagnostics
+  reports upload. The debug build's OkHttp logging redacts the same names.
+* **Exported content providers serve only their own files.** The album-art
+  provider must stay exported for Android Auto, the media notification and the
+  widget, so it refuses any key that could resolve outside the art cache.
+* **No hoster credential is compiled in.** The update check asks apk-hoster as
+  its public read-only `guest` account; the upload password lives only in CI.
+* **WebView remote debugging is debug-only** (Capacitor's default when the key
+  is absent from `capacitor.config.json`).
+
 ## Secrets
 
 * `.env` is gitignored and must never be committed; `.env.example` documents the

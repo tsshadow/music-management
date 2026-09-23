@@ -48,7 +48,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="false"
         android:theme="@style/UltrasonicTheme.Spotify"
-        android:usesCleartextTraffic="true"
         tools:ignore="UnusedAttribute"
         tools:targetApi="q">
         <!-- Add for API 34 android:enableOnBackInvokedCallBack="true" -->
@@ -230,6 +229,11 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/appwidget_info"/>
         </receiver>
+        <!-- Exported because its readers live in other processes and get no URI grant: Android
+             Auto and the system media notification read MediaMetadata.artworkUri, and the
+             launcher draws the home-screen widget's RemoteViews.setImageViewUri. It serves only
+             files inside the album-art cache and refuses any key that could leave that
+             directory (AlbumArtPath, bug report 037). -->
         <provider
             android:name=".provider.AlbumArtContentProvider"
             android:authorities="${applicationId}.provider.AlbumArtContentProvider"

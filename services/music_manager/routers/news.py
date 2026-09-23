@@ -15,12 +15,13 @@ import os
 import re
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from services.music_manager.database import get_db_connection
 from services.music_manager.rbac import require_permission
@@ -38,8 +39,17 @@ DEFAULT_RETENTION = 12
 # A capture below this is treated as a failure. A truncated bulletin is worse
 # than none: the button looks like it worked and then falls silent.
 MIN_BULLETIN_SECONDS = 60
+# A capture longer than an hour would still be running when the same source's next
+# boundary comes round, and the per-source lock would then skip that hour.
+MAX_BULLETIN_SECONDS = 3600
+MAX_LEAD_SECONDS = 300
+MAX_RETENTION = 1000
 RETRY_DELAY_SECONDS = 20
 CHUNK_BYTES = 32 * 1024
+# How many sources may be captured at the same time. Each capture is a single
+# long HTTP stream written to disk, so two is plenty and keeps the pod's
+# bandwidth predictable.
+CAPTURE_WORKERS = 2
 
 DEFAULT_SOURCE = 'nos'
 SLUG_PATTERN = re.compile(r'^[a-z0-9][a-z0-9-]{0,63}$')
@@ -116,8 +126,29 @@ def bulletin_started_at(capture_at: float, lead_seconds: int) -> float:
 
 
 def bulletin_filename(slug: str, started_at: float) -> str:
-    stamp = datetime.fromtimestamp(started_at, tz=UTC).strftime('%Y-%m-%dT%H-%M')
+    """The file a bulletin is stored under, to the second.
+
+    Minute resolution let two record-now calls in the same minute write the same
+    `.part` file and insert two rows pointing at one recording. Rows keep the
+    filename they were stored with, so older minute-resolution names stay valid.
+    """
+    stamp = datetime.fromtimestamp(started_at, tz=UTC).strftime('%Y-%m-%dT%H-%M-%S')
     return f'{slug}-{stamp}.mp3'
+
+
+_source_locks: dict[int, threading.Lock] = {}
+_source_locks_guard = threading.Lock()
+
+
+def _source_lock(source_id: int) -> threading.Lock:
+    """The lock that keeps one source to one capture at a time, created on first use."""
+    with _source_locks_guard:
+        return _source_locks.setdefault(source_id, threading.Lock())
+
+
+def is_recording(source_id: int) -> bool:
+    """Whether a capture for this source is running right now."""
+    return _source_lock(source_id).locked()
 
 
 def news_dir() -> str:
@@ -157,89 +188,178 @@ def capture_stream(url: str, target: str, duration_seconds: int) -> int:
     return written
 
 
+def _open_connection():
+    """A pool connection for one short write; raises when the database is unavailable."""
+    conn = get_db_connection()
+    if not conn:
+        raise RuntimeError('Database unavailable')
+    return conn
+
+
+def _remove_bulletin_file(filename: str) -> None:
+    """Delete one bulletin's audio file, best effort: a failure is logged, never raised."""
+    path = os.path.join(news_dir(), filename)
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+    except OSError as e:
+        logger.warning('Could not delete news bulletin file %s: %s', path, e)
+
+
 def prune_bulletins(conn, source: dict) -> int:
-    """Keep only the newest `retention_count` bulletins for this source."""
+    """Keep only the newest `retention_count` bulletins for this source.
+
+    The count is floored at one. The API refuses anything lower, but a row written
+    before that validation existed could still hold zero -- which deleted the
+    bulletin just recorded -- or a negative number, which made the OFFSET fail
+    after the insert and the hour get captured a second time.
+    """
+    keep = max(1, int(source.get('retention_count') or 1))
     with conn.cursor() as cursor:
         cursor.execute(
             'SELECT id, filename FROM news_bulletins WHERE source_id = %s'
             ' ORDER BY started_at DESC LIMIT 1000 OFFSET %s',
-            (source['id'], source['retention_count']),
+            (source['id'], keep),
         )
         stale = cursor.fetchall() or []
         for row in stale:
-            path = os.path.join(news_dir(), row['filename'])
-            if os.path.exists(path):
-                os.remove(path)
+            _remove_bulletin_file(row['filename'])
             cursor.execute('DELETE FROM news_bulletins WHERE id = %s', (row['id'],))
     conn.commit()
     return len(stale)
 
 
-def capture_once(conn, source: dict, capture_at: float):
+def _discard_part(part_path: str) -> None:
+    """Remove a leftover `.part` capture, if there is one; a failure is only logged."""
+    try:
+        if os.path.exists(part_path):
+            os.remove(part_path)
+    except OSError as e:
+        logger.warning('Could not delete partial news capture %s: %s', part_path, e)
+
+
+def _store_bulletin(source: dict, started_at: float, duration_ms: int, size_bytes: int, filename: str):
+    """Insert the row for a finished capture and prune, on a connection opened for just that."""
+    conn = _open_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO news_bulletins (source_id, started_at, duration_ms, size_bytes,'
+                ' filename) VALUES (%s, %s, %s, %s, %s)',
+                (source['id'], started_at, duration_ms, size_bytes, filename),
+            )
+            bulletin_id = cursor.lastrowid
+        conn.commit()
+        prune_bulletins(conn, source)
+        return bulletin_id
+    finally:
+        conn.close()
+
+
+def capture_once(source: dict, capture_at: float):
     """Record one bulletin. Returns its id, or None when it was discarded.
 
     The file is written to `.part` and renamed only once it is whole, so a
-    client never sees a half-written capture.
+    client never sees a half-written capture. Whatever happens -- a stream that
+    drops, a file mutagen cannot read, a capture too short to keep -- the `.part`
+    is gone afterwards.
+
+    No database connection is held while the stream is being captured: that
+    takes as long as the recording, ten minutes by default, and a pool
+    connection parked for that long starves the API. One is opened only to
+    store the result.
     """
     started_at = bulletin_started_at(capture_at, source['lead_seconds'])
     filename = bulletin_filename(source['slug'], started_at)
     final_path = os.path.join(news_dir(), filename)
     part_path = f'{final_path}.part'
 
-    size_bytes = capture_stream(source['stream_url'], part_path, source['duration_seconds'])
-    duration_ms = probe_duration_ms(part_path)
+    try:
+        size_bytes = capture_stream(source['stream_url'], part_path, source['duration_seconds'])
+        duration_ms = probe_duration_ms(part_path)
+        if duration_ms < MIN_BULLETIN_SECONDS * 1000:
+            logger.warning('News capture for %s was only %s ms, discarding', source['slug'], duration_ms)
+            return None
+        os.replace(part_path, final_path)
+    finally:
+        _discard_part(part_path)
 
-    if duration_ms < MIN_BULLETIN_SECONDS * 1000:
-        logger.warning('News capture for %s was only %s ms, discarding', source['slug'], duration_ms)
-        os.remove(part_path)
-        return None
-
-    os.replace(part_path, final_path)
-    with conn.cursor() as cursor:
-        cursor.execute(
-            'INSERT INTO news_bulletins (source_id, started_at, duration_ms, size_bytes,'
-            ' filename) VALUES (%s, %s, %s, %s, %s)',
-            (source['id'], started_at, duration_ms, size_bytes, filename),
-        )
-        bulletin_id = cursor.lastrowid
-    conn.commit()
-    prune_bulletins(conn, source)
-    return bulletin_id
+    try:
+        return _store_bulletin(source, started_at, duration_ms, size_bytes, filename)
+    except Exception:
+        # Without its row nothing would ever find, serve or prune this file again.
+        _remove_bulletin_file(filename)
+        raise
 
 
-def _mark_source(conn, source_id: int, error):
-    with conn.cursor() as cursor:
-        if error is None:
-            cursor.execute(
-                'UPDATE news_sources SET last_error = NULL, last_success_at = %s WHERE id = %s',
-                (time.time(), source_id),
-            )
-        else:
-            cursor.execute(
-                'UPDATE news_sources SET last_error = %s WHERE id = %s',
-                (str(error)[:512], source_id),
-            )
-    conn.commit()
+def _mark_source(source_id: int, error):
+    """Record the outcome of a capture on the source row, on its own short connection."""
+    conn = _open_connection()
+    try:
+        with conn.cursor() as cursor:
+            if error is None:
+                cursor.execute(
+                    'UPDATE news_sources SET last_error = NULL, last_success_at = %s WHERE id = %s',
+                    (time.time(), source_id),
+                )
+            else:
+                cursor.execute(
+                    'UPDATE news_sources SET last_error = %s WHERE id = %s',
+                    (str(error)[:512], source_id),
+                )
+        conn.commit()
+    finally:
+        conn.close()
 
 
-def record_source(conn, source: dict, capture_at: float):
-    """One capture with one retry.
+def record_source(source: dict, capture_at: float):
+    """One capture with one retry, never two at once for the same source.
 
     A missed hour is logged, never raised: the loop has to survive a stream
-    that is briefly unreachable.
+    that is briefly unreachable. A capture that finds this source already
+    recording -- a record-now during the scheduled capture, say -- is skipped
+    rather than queued behind it. Only a failure to write the outcome to the
+    database propagates.
     """
-    for attempt in (1, 2):
-        try:
-            bulletin_id = capture_once(conn, source, capture_at)
-            _mark_source(conn, source['id'], None if bulletin_id else 'Capture too short, discarded')
+    lock = _source_lock(source['id'])
+    if not lock.acquire(blocking=False):
+        logger.warning('News capture for %s skipped: a capture is already running', source['slug'])
+        return None
+    try:
+        error = None
+        for attempt in (1, 2):
+            try:
+                bulletin_id = capture_once(source, capture_at)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning('News capture for %s failed (attempt %s): %s', source['slug'], attempt, e)
+                error = e
+                if attempt == 1:
+                    time.sleep(RETRY_DELAY_SECONDS)
+                continue
+            _mark_source(source['id'], None if bulletin_id else 'Capture too short, discarded')
             return bulletin_id
-        except Exception as e:  # pylint: disable=broad-except
-            logger.warning('News capture for %s failed (attempt %s): %s', source['slug'], attempt, e)
-            if attempt == 1:
-                time.sleep(RETRY_DELAY_SECONDS)
-            else:
-                _mark_source(conn, source['id'], e)
-    return None
+        _mark_source(source['id'], error)
+        return None
+    finally:
+        lock.release()
+
+
+def record_due_sources(due: list, capture_at: float) -> None:
+    """Capture every due source, up to CAPTURE_WORKERS at the same time, and wait for all.
+
+    Sequential captures meant a second source due at the same boundary started
+    ten minutes late -- and was then filed under the right hour with the wrong
+    audio. A source whose outcome could not be written is logged here, so one
+    failing source never hides another.
+    """
+    if not due:
+        return
+    with ThreadPoolExecutor(max_workers=CAPTURE_WORKERS, thread_name_prefix='news-capture') as pool:
+        futures = [(source, pool.submit(record_source, source, capture_at)) for source in due]
+    for source, future in futures:
+        error = future.exception()
+        if error is not None:
+            logger.error('News capture for %s could not be recorded: %s', source['slug'], error)
 
 
 def _enabled_sources(conn) -> list:
@@ -271,8 +391,8 @@ def news_tick() -> float | None:
 
     Returns the delay before the next cycle: 60 s when the database is unavailable, 300 s
     when no source is enabled, and none after a capture, since the next cycle sleeps
-    until its own boundary. Raises on a database failure; run_forever logs it and backs
-    off, which covers `_mark_source` failing inside record_source's own error path too.
+    until its own boundary. Raises when the sources cannot be read; run_forever logs it
+    and backs off. A failing capture does not raise: record_due_sources logs it per source.
     """
     conn = get_db_connection()
     if not conn:
@@ -289,14 +409,7 @@ def news_tick() -> float | None:
     due = sources_due_at(sources, capture_at, now)
     time.sleep(max(0.0, capture_at - time.time()))
 
-    conn = get_db_connection()
-    if not conn:
-        return 60
-    try:
-        for source in due:
-            record_source(conn, source, capture_at)
-    finally:
-        conn.close()
+    record_due_sources(due, capture_at)
     return 0
 
 
@@ -335,24 +448,34 @@ def _load_source(cursor, slug: str) -> dict:
 
 
 class SourceCreate(BaseModel):
+    """A new news source. Out-of-range settings are refused with 422 before anything is stored.
+
+    Unchecked, a negative retention made the prune's OFFSET fail after the insert, so
+    the hour was captured again under the same filename, and a retention of zero pruned
+    the bulletin just recorded.
+    """
+
     slug: str
-    name: str
-    stream_url: str
-    minute_of_hour: int = 0
-    duration_seconds: int = DEFAULT_DURATION_SECONDS
-    lead_seconds: int = DEFAULT_LEAD_SECONDS
-    retention_count: int = DEFAULT_RETENTION
+    name: str = Field(min_length=1, max_length=128)
+    stream_url: str = Field(min_length=1, max_length=512)
+    minute_of_hour: int = Field(0, ge=0, le=59)
+    duration_seconds: int = Field(DEFAULT_DURATION_SECONDS, ge=MIN_BULLETIN_SECONDS, le=MAX_BULLETIN_SECONDS)
+    lead_seconds: int = Field(DEFAULT_LEAD_SECONDS, ge=0, le=MAX_LEAD_SECONDS)
+    retention_count: int = Field(DEFAULT_RETENTION, ge=1, le=MAX_RETENTION)
 
 
 class SourceUpdate(BaseModel):
-    """Every field optional: the management screen sends only what changed."""
+    """Every field optional: the management screen sends only what changed.
 
-    name: str | None = None
-    stream_url: str | None = None
-    minute_of_hour: int | None = None
-    duration_seconds: int | None = None
-    lead_seconds: int | None = None
-    retention_count: int | None = None
+    The same bounds as SourceCreate apply to every field that is sent.
+    """
+
+    name: str | None = Field(None, min_length=1, max_length=128)
+    stream_url: str | None = Field(None, min_length=1, max_length=512)
+    minute_of_hour: int | None = Field(None, ge=0, le=59)
+    duration_seconds: int | None = Field(None, ge=MIN_BULLETIN_SECONDS, le=MAX_BULLETIN_SECONDS)
+    lead_seconds: int | None = Field(None, ge=0, le=MAX_LEAD_SECONDS)
+    retention_count: int | None = Field(None, ge=1, le=MAX_RETENTION)
     enabled: bool | None = None
 
 
@@ -432,6 +555,9 @@ def parse_range(header, size: int):
     Handled here rather than left to FileResponse: the pinned FastAPI
     constrains Starlette to a version whose range behaviour is not worth
     gambling on, and a player that cannot seek fails silently in a car.
+
+    The span is returned as asked; whether it is satisfiable (`start > end`, or
+    `start` past the end of the file) is for `range_is_satisfiable` to decide.
     """
     if not header:
         return None
@@ -447,6 +573,15 @@ def parse_range(header, size: int):
     start = int(raw_start)
     end = int(raw_end) if raw_end else size - 1
     return start, min(end, size - 1)
+
+
+def range_is_satisfiable(start: int, end: int, size: int) -> bool:
+    """Whether a parsed range selects at least one byte of the file.
+
+    `bytes=10-5` used to produce a negative Content-Length, and a suffix of
+    zero bytes an empty span; both answer 416 instead.
+    """
+    return 0 <= start <= end and start < size
 
 
 def _file_chunks(path: str, start: int, end: int):
@@ -485,8 +620,10 @@ def stream_bulletin(bulletin_id: int, request: Request, _auth: dict = Depends(ve
         return StreamingResponse(_file_chunks(path, 0, size - 1), media_type='audio/mpeg', headers=headers)
 
     start, end = span
-    if start >= size:
-        raise HTTPException(status_code=416, detail='Range beyond end of file')
+    if not range_is_satisfiable(start, end, size):
+        raise HTTPException(
+            status_code=416, detail='Range not satisfiable', headers={'Content-Range': f'bytes */{size}'}
+        )
     headers['Content-Range'] = f'bytes {start}-{end}/{size}'
     headers['Content-Length'] = str(end - start + 1)
     return StreamingResponse(_file_chunks(path, start, end), status_code=206, media_type='audio/mpeg', headers=headers)
@@ -540,28 +677,34 @@ def update_source(slug: str, body: SourceUpdate, _auth: dict = Depends(require_p
 
 @router.delete('/sources/{slug}')
 def delete_source(slug: str, _auth: dict = Depends(require_permission('news.manage'))):
+    """Delete a source, its bulletin rows and their audio files.
+
+    The files go after the commit and best effort: a file that cannot be removed
+    is logged, and the source is gone either way. Deleting only the rows left the
+    recordings on disk with nothing that would ever prune them.
+    """
     conn = _require_db()
     try:
         with conn.cursor() as cursor:
             source = _load_source(cursor, slug)
+            cursor.execute('SELECT filename FROM news_bulletins WHERE source_id = %s', (source['id'],))
+            filenames = [row['filename'] for row in cursor.fetchall() or []]
             cursor.execute('DELETE FROM news_bulletins WHERE source_id = %s', (source['id'],))
             cursor.execute('DELETE FROM news_sources WHERE id = %s', (source['id'],))
         conn.commit()
-        return {'deleted': slug}
     finally:
         conn.close()
+    for filename in filenames:
+        _remove_bulletin_file(filename)
+    return {'deleted': slug}
 
 
 def _record_in_background(source: dict):
-    """Runs a manual capture on its own connection, off the request thread."""
-    conn = get_db_connection()
-    if not conn:
-        logger.error('Manual news capture for %s: database unavailable', source['slug'])
-        return
+    """Runs a manual capture off the request thread; it opens connections only to write."""
     try:
-        record_source(conn, source, time.time() - source['lead_seconds'])
-    finally:
-        conn.close()
+        record_source(source, time.time() - source['lead_seconds'])
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error('Manual news capture for %s could not be recorded: %s', source['slug'], e)
 
 
 @router.post('/sources/{slug}/record-now')
@@ -576,6 +719,9 @@ def record_now(slug: str, _auth: dict = Depends(require_permission('news.manage'
     request open for that would time out at the reverse proxy and report a
     failure for a capture that actually succeeded. The result shows up in the
     bulletin list, and any failure in `last_error`.
+
+    A source that is already recording answers 409: one source records one
+    capture at a time.
     """
     conn = _require_db()
     try:
@@ -583,6 +729,8 @@ def record_now(slug: str, _auth: dict = Depends(require_permission('news.manage'
             source = _load_source(cursor, slug)
     finally:
         conn.close()
+    if is_recording(source['id']):
+        raise HTTPException(status_code=409, detail='This source is already recording')
 
     threading.Thread(
         target=_record_in_background,

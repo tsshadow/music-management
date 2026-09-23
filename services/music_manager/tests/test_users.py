@@ -218,6 +218,68 @@ class TestLoginFlows(unittest.TestCase):
         insert_calls = [c for c in mock_cursor.execute.call_args_list if 'INSERT INTO user_refresh_tokens' in c[0][0]]
         self.assertEqual(len(insert_calls), 1, 'a successful login must issue a refresh token')
 
+    def _login_as(self, mock_get_db, row, password):
+        """POST a login for `row` with `password` against a mocked users table."""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_db.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        mock_cursor.fetchone.return_value = row
+        return self.client.post('/api/auth/login', json={'username': row['username'], 'password': password})
+
+    @patch('services.music_manager.routers.users.get_db_connection')
+    def test_login_with_a_non_ascii_password_is_rejected_not_a_crash(self, mock_get_db):
+        # compare_digest raises TypeError on a non-ASCII str: this was a 500, and the rate
+        # limiter, which counts rejections, never saw it.
+        row = {'id': 9, 'username': 'plain-user', 'password_hash': None, 'api_key': 'the-api-key', 'enabled': True}
+        response = self._login_as(mock_get_db, row, 'wachtwoord-\u00e9\u00e8\U0001f3b5')
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()['detail'], 'Invalid username or password')
+
+    @patch('services.music_manager.routers.users.get_db_connection')
+    def test_login_with_a_password_over_bcrypts_limit_is_rejected_not_a_crash(self, mock_get_db):
+        row = {'id': 10, 'username': 'plain-user', 'password_hash': self.password_hash, 'enabled': True}
+        response = self._login_as(mock_get_db, row, 'x' * 200)
+        self.assertEqual(response.status_code, 401)
+
+    @patch('services.music_manager.routers.users.bcrypt.checkpw', side_effect=ValueError('password too long'))
+    @patch('services.music_manager.routers.users.get_db_connection')
+    def test_login_treats_a_bcrypt_value_error_as_a_wrong_password(self, mock_get_db, _mock_checkpw):
+        # bcrypt 5 raises for a password over 72 bytes instead of truncating it.
+        row = {'id': 11, 'username': 'plain-user', 'password_hash': self.password_hash, 'enabled': True}
+        response = self._login_as(mock_get_db, row, 'x' * 100)
+        self.assertEqual(response.status_code, 401)
+
+
+class TestPasswordMatches(unittest.TestCase):
+    """The comparison behind login, which must answer yes or no for any input."""
+
+    def setUp(self):
+        import bcrypt
+
+        self.password_hash = bcrypt.hashpw('p\u00e4ssw\u00f6rd'.encode(), bcrypt.gensalt()).decode('utf-8')
+
+    def test_a_non_ascii_password_matches_its_own_hash(self):
+        user = {'password_hash': self.password_hash, 'api_key': None}
+        self.assertTrue(users_router_password_matches('p\u00e4ssw\u00f6rd', user))
+        self.assertFalse(users_router_password_matches('passwort', user))
+
+    def test_a_non_ascii_api_key_candidate_is_compared_as_bytes(self):
+        user = {'password_hash': None, 'api_key': 'abc123'}
+        self.assertFalse(users_router_password_matches('\u00e9\u00e9\u00e9', user))
+        self.assertTrue(users_router_password_matches('abc123', user))
+
+    def test_a_malformed_stored_hash_is_no_match(self):
+        self.assertFalse(users_router_password_matches('anything', {'password_hash': 'not-a-bcrypt-hash'}))
+
+    def test_an_account_without_credentials_never_matches(self):
+        self.assertFalse(users_router_password_matches('', {'password_hash': None, 'api_key': None}))
+
+
+def users_router_password_matches(password, user):
+    """Indirection so the tests read as sentences about the helper under test."""
+    return services.music_manager.routers.users.password_matches(password, user)
+
 
 class TestServerDbSyncNeverDropsUserTable(unittest.TestCase):
     """Regression test for docs/bug-reports/005-lms-user-table-corruption.md: sync_single_server_db

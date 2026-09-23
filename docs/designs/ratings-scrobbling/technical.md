@@ -58,7 +58,12 @@ Stores listening events that couldn't be resolved to a library track at ingestio
 | Endpoint | Method | Body / Params | Response | Error cases |
 |---|---|---|---|---|
 | `/event` | `POST` | `ScrobbleEvent` | `200 {status: "success", matched: bool}` | `401` Unauthorized |
-| `/import/listenbrainz` | `POST` | `{username, lb_username?, token?}` | `200 {status: "ok", import_id: int}` | `500` DB failure |
+| `/import/listenbrainz` | `POST` | `{username, lb_username?, token?}` | `200 {status: "ok", import_id: int}` | `403` another account's `username` (admins and the system key excepted); `500` DB failure |
+
+An import pages through ListenBrainz with an exclusive `max_ts`, at most 100 pages of 100 listens per
+run. A run that reaches that cap ends as `truncated` rather than `completed`, and stores the oldest
+timestamp it reached in `scrobble_imports.oldest_listened_ts`; the next import for the same account
+continues below it.
 
 **Logic**: `/event` attempts to match `artist_name` and `track_title` against `library_artists` and `library_tracks`. If matched, it inserts into `scrobble_listens`; otherwise, it inserts into `scrobble_unmatched_listens`.
 

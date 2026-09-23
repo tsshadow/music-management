@@ -79,13 +79,20 @@ def database():
 def _apply_schema(connection):
     from services.common import db_init
     from services.music_manager import rbac
-    from services.music_manager.routers import artist_images, events, scrobbler, users
+    from services.music_manager.routers import artist_images, events, news, scrobbler, users
 
     db_init.ensure_tables_exist()
     with connection.cursor() as cursor:
         # Order matters: rbac.init_db creates `roles`, which users.init_db's
         # foreign keys and the user_requests table depend on.
-        for init in (users.init_db, rbac.init_db, scrobbler.init_db, artist_images.init_db, events.init_db):
+        for init in (
+            users.init_db,
+            rbac.init_db,
+            scrobbler.init_db,
+            artist_images.init_db,
+            events.init_db,
+            news.init_db,
+        ):
             init(cursor)
     _apply_migrations(connection)
 
@@ -188,6 +195,7 @@ def api(db, monkeypatch):
         'services.music_manager.routers.radio',
         'services.music_manager.routers.user_requests',
         'services.music_manager.routers.diagnostics',
+        'services.music_manager.routers.news',
     ):
         module = __import__(module_name, fromlist=['get_db_connection'])
         if hasattr(module, 'get_db_connection'):

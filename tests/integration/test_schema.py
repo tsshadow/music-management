@@ -102,6 +102,14 @@ def test_a_label_can_be_identified_and_filed_under_a_parent(database):
     assert {'mbid', 'parent_label_id'} <= columns
 
 
+def test_a_listenbrainz_import_records_where_it_stopped(database):
+    """migrate_v35 gives scrobble_imports the resume point a truncated import continues from."""
+    with database.cursor() as cursor:
+        cursor.execute('SHOW COLUMNS FROM scrobble_imports')
+        columns = {row['Field'] for row in cursor.fetchall()}
+    assert 'oldest_listened_ts' in columns
+
+
 def test_the_song_key_compares_byte_for_byte(database):
     """migrate_v19: utf8mb4_general_ci gives every character outside the BMP the same
     weight, so two work keys of equal length built from such characters compare equal

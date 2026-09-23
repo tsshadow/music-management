@@ -1,5 +1,6 @@
 package nl.teunschriks.mumamobile.log
 
+import android.util.Log
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -34,6 +35,31 @@ internal class RingBuffer(private val maxLines: Int) {
 }
 
 /**
+ * Lets the first occurrence of a line through and holds back its repeats for [windowMillis].
+ *
+ * Returns null for a repeat inside the window. Otherwise returns how many repeats the previous
+ * window held back, so the line that gets through can say so. Kept free of Android and clocks
+ * for the same reason as [RingBuffer].
+ */
+internal class RepeatGate(private val windowMillis: Long, private val maxKeys: Int = 256) {
+    private data class Window(val startedAt: Long, val held: Int)
+
+    private val windows = HashMap<String, Window>()
+
+    @Synchronized
+    fun admit(key: String, now: Long): Int? {
+        val open = windows[key]
+        if (open != null && now - open.startedAt < windowMillis) {
+            windows[key] = open.copy(held = open.held + 1)
+            return null
+        }
+        if (windows.size >= maxKeys) windows.clear()
+        windows[key] = Window(startedAt = now, held = 0)
+        return open?.held ?: 0
+    }
+}
+
+/**
  * A lightweight Timber Tree that always keeps the last [MAX_LINES] log lines
  * on disk, independent of [nl.teunschriks.mumamobile.util.Settings.debugLogToFile].
  * Unlike [FileLoggerTree] it never rotates or grows unbounded, so it's cheap
@@ -47,10 +73,24 @@ class RingBufferLoggerTree :
     CoroutineScope by CoroutineScope(Dispatchers.IO) {
     private val dateFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault())
 
+    /**
+     * Verbose lines stay in logcat only. They are the per-item chatter -- the download service
+     * logged one every two seconds per queued track -- and at [MAX_LINES] they decided what a
+     * report contained: report 37 covered 2.5 minutes of the current session, and the car drive
+     * before it had been pushed out entirely.
+     */
+    override fun isLoggable(tag: String?, priority: Int): Boolean = priority > Log.VERBOSE
+
     override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
+        var held = 0
+        if (priority >= Log.WARN) {
+            held = repeats.admit("$priority/$tag/${message.substringBefore('\n')}", System.currentTimeMillis())
+                ?: return
+        }
         val time = dateFormat.format(Date())
         val exceptionSuffix = if (t != null) " $t" else ""
-        val line = "$time ${logLevelToString(priority)}/$tag: $message$exceptionSuffix"
+        val repeatSuffix = if (held > 0) " [$held more like this held back]" else ""
+        val line = "$time ${logLevelToString(priority)}/$tag: ${capLines(message)}$exceptionSuffix$repeatSuffix"
         buffer.append(line)
         scheduleWrite()
     }
@@ -93,6 +133,8 @@ class RingBufferLoggerTree :
 
     private val writeScheduled = AtomicBoolean(false)
 
+    private val repeats = RepeatGate(REPEAT_WINDOW_MS)
+
     companion object {
         const val FILENAME = "ringbuffer.log"
 
@@ -106,6 +148,23 @@ class RingBufferLoggerTree :
 
         /** How long a burst of lines is allowed to collect before one write covers all of them. */
         internal const val WRITE_DELAY_MS = 250L
+
+        /**
+         * How long an identical warning is held back after it was logged. Report 34 carries one
+         * warning, stack trace and all, 266 times within a second.
+         */
+        internal const val REPEAT_WINDOW_MS = 60_000L
+
+        /** Lines of a single message kept -- the message and the top of its stack trace. */
+        internal const val MAX_MESSAGE_LINES = 12
+
+        /** [message] cut to [MAX_MESSAGE_LINES], saying how much was left out. */
+        internal fun capLines(message: String): String {
+            val lines = message.lines()
+            if (lines.size <= MAX_MESSAGE_LINES) return message
+            return lines.take(MAX_MESSAGE_LINES).joinToString("\n") +
+                "\n\t... ${lines.size - MAX_MESSAGE_LINES} more lines"
+        }
 
         internal val buffer = RingBuffer(MAX_LINES)
 

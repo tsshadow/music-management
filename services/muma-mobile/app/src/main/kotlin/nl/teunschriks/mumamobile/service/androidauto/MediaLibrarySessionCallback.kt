@@ -733,7 +733,12 @@ class MediaLibrarySessionCallback :
         commandHandler.configureRepeatMode(session.player)
 
         val playerCommands = radioAwarePlayerCommands()
-        Timber.i("onConnect: canChangeMediaItems=%b", playerCommands.contains(Player.COMMAND_CHANGE_MEDIA_ITEMS))
+        Timber.i(
+            "onConnect: %s (controller v%d) canChangeMediaItems=%b",
+            controller.packageName,
+            controller.controllerVersion,
+            playerCommands.contains(Player.COMMAND_CHANGE_MEDIA_ITEMS)
+        )
 
         return MediaSession.ConnectionResult.accept(
             sessionCommandsWithCustomButtons(),

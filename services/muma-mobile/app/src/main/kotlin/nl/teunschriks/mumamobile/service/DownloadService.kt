@@ -155,7 +155,10 @@ class DownloadService :
         // Fill up active List with waiting tasks
         while (activeDownloads.size < Settings.parallelDownloads && downloadQueue.peek() != null) {
             // Use poll() instead of remove() which throws an Exception if there is no element.
-            val track: DownloadableTrack = downloadQueue.poll() ?: continue
+            // A track can be queued a second time in the moment between poll() and put() below;
+            // two tasks on one file race each other's rename and delete, so an active one is dropped.
+            val track: DownloadableTrack? = downloadQueue.poll()
+            if (track == null || activeDownloads.containsKey(track.id)) continue
 
             val downloadTask = DownloadTask(track, currentScope, ::downloadStateChangedCallback)
             activeDownloads[track.id] = downloadTask
@@ -258,6 +261,9 @@ class DownloadService :
 
         private val downloadQueue = PriorityBlockingQueue<DownloadableTrack>()
         private val activeDownloads = ConcurrentHashMap<String, DownloadTask>()
+
+        /** Held while a request checks the queue and adds to it, so two requests cannot both add. */
+        private val enqueueLock = Any()
         private val failedList = ConcurrentHashMap<String, DownloadableTrack>()
 
         // The generic list models expect a LiveData, so even though we are using Rx for many events
@@ -290,18 +296,21 @@ class DownloadService :
                 var filteredTracks = if (updateSaveFlag) {
                     setSaveFlagForTracks(save, tracks)
                 } else {
-                    removeDownloadedTracksFromList(tracks)
+                    removeDownloadedTracksFromList(tracks, save)
                 }
 
-                // Remove tracks which are currently downloading
-                filteredTracks = filteredTracks.filter {
-                    !downloadQueue.any { i -> i.id == it.id } && !activeDownloads.containsKey(it.id)
-                }
+                // Remove tracks which are currently downloading. Checked and queued under one lock:
+                // every playback change asks for the upcoming tracks, often several times in the
+                // same millisecond, and checking and adding separately let each call queue the
+                // same track -- a report showed one file launched three times at once.
+                val tracksToDownload = synchronized(enqueueLock) {
+                    filteredTracks = filteredTracks.distinctBy { it.id }.filter {
+                        !downloadQueue.any { i -> i.id == it.id } && !activeDownloads.containsKey(it.id)
+                    }
 
-                // The remaining tracks should be added to the download queue
-                // By using the counter we ensure that the songs are added in the correct order
-                var priority = 0
-                val tracksToDownload =
+                    // The remaining tracks should be added to the download queue
+                    // By using the counter we ensure that the songs are added in the correct order
+                    var priority = 0
                     filteredTracks.map {
                         DownloadableTrack(
                             it,
@@ -309,29 +318,43 @@ class DownloadService :
                             0,
                             if (isHighPriority) priority++ else backgroundPriorityCounter++
                         )
-                    }
+                    }.also { downloadQueue.addAll(it) }
+                }
 
                 if (tracksToDownload.isNotEmpty()) {
-                    downloadQueue.addAll(tracksToDownload)
                     tracksToDownload.forEach { postState(it.track, DownloadState.QUEUED) }
                     processNextTracksOnService()
                 }
             }
         }
 
-        private fun removeDownloadedTracksFromList(tracks: List<Track>): List<Track> = tracks.filter { track ->
-            val pinnedFile = Storage.getFromPath(track.getPinnedFile())
-            val completeFile = Storage.getFromPath(track.getCompleteFile())
+        private fun removeDownloadedTracksFromList(tracks: List<Track>, save: Boolean): List<Track> = tracks.filter { track ->
+            val onDisk = stateOnDisk(
+                pinnedExists = Storage.getFromPath(track.getPinnedFile()) != null,
+                completeExists = Storage.getFromPath(track.getCompleteFile()) != null,
+                save = save
+            )
+            onDisk?.let { postState(track, it) }
+            onDisk == null
+        }
 
-            completeFile?.let {
-                postState(track, DownloadState.DONE)
-                false
-            }
-            pinnedFile?.let {
-                postState(track, DownloadState.PINNED)
-                false
-            }
-            true
+        /**
+         * The state a track already has on disk, or null when it still has to go through a
+         * [DownloadTask].
+         *
+         * This filter used to keep every track: its `false` answers sat inside `let` blocks whose
+         * value was thrown away, and the lambda always ended in `true`. So every already-cached
+         * track of the upcoming queue was handed to a task again on every playback change, only
+         * for the task to find the file and log "already exists" -- about one line every two
+         * seconds, enough to fill the diagnostics ring buffer by itself.
+         *
+         * A complete (unpinned) file asked for with [save] still goes through the task, which is
+         * what renames it to the pinned name.
+         */
+        internal fun stateOnDisk(pinnedExists: Boolean, completeExists: Boolean, save: Boolean): DownloadState? = when {
+            pinnedExists -> DownloadState.PINNED
+            completeExists && !save -> DownloadState.DONE
+            else -> null
         }
 
         private fun updateLiveData() {

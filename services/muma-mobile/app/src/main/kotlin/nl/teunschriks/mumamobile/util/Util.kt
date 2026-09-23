@@ -51,6 +51,7 @@ import nl.teunschriks.mumamobile.app.UApp.Companion.applicationContext
 import nl.teunschriks.mumamobile.domain.Bookmark
 import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.log.LogRedaction
 import timber.log.Timber
 
 private const val DEGRADE_PRECISION_AFTER = 10
@@ -587,8 +588,9 @@ object Util {
         Timber.d("========================")
         val keys = Settings.preferences.all
 
+        // Credentials are masked: this lands in the ring buffer, which every diagnostics report uploads.
         keys.forEach {
-            Timber.d("${it.key}: ${it.value}")
+            Timber.d("${it.key}: ${LogRedaction.settingValue(it.key, it.value)}")
         }
     }
 }

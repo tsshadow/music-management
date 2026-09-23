@@ -26,6 +26,16 @@ class GenreTintCache(private val fetch: () -> List<MumaLibraryGenre>?) {
 
     companion object {
         val REFRESH_MILLIS: Long = TimeUnit.HOURS.toMillis(1)
+
+        /**
+         * How long a failed fetch is left alone before the next lookup tries again.
+         *
+         * Without it every tile on a browse level asked again: diagnostics report 34 carries the
+         * same warning, stack trace and all, 266 times in one second -- each one a network call in
+         * front of a list the car was waiting to draw, and together enough to push everything
+         * else out of the ring buffer.
+         */
+        val RETRY_AFTER_FAILURE_MILLIS: Long = TimeUnit.SECONDS.toMillis(30)
     }
 
     @Volatile
@@ -34,6 +44,10 @@ class GenreTintCache(private val fetch: () -> List<MumaLibraryGenre>?) {
     /** When the held colours were fetched. Null while nothing has been fetched successfully. */
     @Volatile
     private var fetchedAt: Long? = null
+
+    /** When the last fetch failed. Null once a fetch has succeeded since. */
+    @Volatile
+    private var failedAt: Long? = null
 
     @ColorInt
     fun tintFor(name: String?, now: Long = System.currentTimeMillis()): Int {
@@ -45,6 +59,8 @@ class GenreTintCache(private val fetch: () -> List<MumaLibraryGenre>?) {
     private fun refreshIfStale(now: Long) {
         val last = fetchedAt
         if (last != null && now - last < REFRESH_MILLIS) return
+        val failed = failedAt
+        if (failed != null && now - failed < RETRY_AFTER_FAILURE_MILLIS) return
 
         val rows = try {
             fetch()
@@ -53,11 +69,15 @@ class GenreTintCache(private val fetch: () -> List<MumaLibraryGenre>?) {
             null
         }
 
-        // A null answer is not an answer: leaving `fetchedAt` alone means the next lookup tries
-        // again rather than sitting on an empty map for an hour.
-        if (rows == null) return
+        // A null answer is not an answer: leaving `fetchedAt` alone means a lookup after the
+        // short failure cooldown tries again rather than sitting on an empty map for an hour.
+        if (rows == null) {
+            failedAt = now
+            return
+        }
 
         tints = GenreTints.parse(rows)
         fetchedAt = now
+        failedAt = null
     }
 }

@@ -51,7 +51,7 @@ class DownloadTask(
 
     private fun checkIfExists(): Boolean {
         if (Storage.isPathExists(downloadTrack.pinnedFile)) {
-            Timber.i("%s already exists. Skipping.", downloadTrack.pinnedFile)
+            Timber.v("%s already exists. Skipping.", downloadTrack.pinnedFile)
             stateChangedCallback(downloadTrack, DownloadState.PINNED, null)
             return true
         }
@@ -65,7 +65,7 @@ class DownloadTask(
                 )
                 newStatus = DownloadState.PINNED
             } else {
-                Timber.i(
+                Timber.v(
                     "%s already exists. Skipping.",
                     downloadTrack.completeFile
                 )
@@ -195,7 +195,7 @@ class DownloadTask(
     }
 
     fun start() {
-        Timber.i("Launching new Job ${downloadTrack.pinnedFile}")
+        Timber.v("Launching new Job ${downloadTrack.pinnedFile}")
         job = scope.launch(exceptionHandler()) {
             FileUtil.createDirectoryForParent(downloadTrack.pinnedFile)
             if (!checkIfExists() && isActive) {

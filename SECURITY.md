@@ -65,7 +65,21 @@ Summarised here because it affects what counts as a vulnerability;
   shared key logged the whole installation out. Spraying one password across
   many accounts is covered a layer up, by LMS's own per-client `LoginThrottler`.
 * Passwords are stored as bcrypt hashes. Revoking sessions clears the api_key
-  and every refresh token in one step.
+  and every refresh token in one step. A non-admin changing their own password
+  must present the current one; another account's, or an admin's, needs the
+  admin role.
+* There is one key check, `routers.users.verify_api_key`. A router must not carry
+  its own copy: three did, from before RBAC, and accepted any enabled account on
+  every management route (docs/bug-reports/037). A route that changes rules
+  needs `rules.manage`; one that operates the installation (container logs,
+  downloader sources, event deletion, the lms.db sync) needs the admin role; a
+  webhook that names the acting user in its body (the LMS rating webhook)
+  accepts only the system key. `services/music_manager/tests/test_rbac_route_gaps.py`
+  pins each of those.
+* No response lists another account's `api_key`.
+* A URL the server fetches on a caller's behalf (the artist image URL) must
+  resolve to globally routable addresses only, re-checked on every redirect, and
+  is size-capped; see `routers/artist_images.ensure_public_url`.
 
 ## The system API key
 

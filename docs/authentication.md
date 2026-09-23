@@ -141,7 +141,8 @@ Answering "mis ik hier nog dingen?" (things not covered above and not implemente
   calls it to validate the password on *every* Subsonic request, so anything counted there is counted
   per library page view, not per login.
 - **No self-service password reset / email verification.** Password changes currently require either an
-  admin (`users.update`) or the user's own existing session (`POST /{id}/password`); there is no
+  admin (the admin role; any admin's password needs one too) or the user's own session plus their current
+  password (`POST /{id}/password` with `current_password`); there is no
   "forgot password" email flow, and a Google-account's `email` is trusted as-is from the ID token without a
   separate verification step (Google already verifies it, so this is arguably fine, but worth noting).
 - **Auto-generated usernames can theoretically collide** (`google-<subject_prefix>` is only the first 12

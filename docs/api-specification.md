@@ -66,6 +66,17 @@ The system key passes every check. Routes not marked otherwise need any authenti
 - **GET `/api/system/containers`**: the installation's Docker containers. Admin only.
 - **GET `/api/system/logs/{name}?tail=`**: one container's log tail. Admin only; `name` must be a container
   the list above returns (exact name, not an id), otherwise 404.
+- **POST `/api/scanner/relink-orphans`** (admin only, `require_admin`): One-off, idempotent repair for
+  track rows a retag left without a file (bug report 042). Every fileless `library_tracks` row whose
+  normalised title and duration match exactly one track that has a file -- with the same primary
+  artist, or the same set of artists in another order -- has its ratings, listens and ml-analyzer
+  rows moved to that track and is deleted. Runs in the background under the scanner lock. Response:
+  `{"message": "...", "last": <totals of the previous run or null>}`; `409` while a scan or a relink
+  is running, `403` for a non-admin key. The totals (`orphans`, `relinked`, `unmatched`, `failed`,
+  `ratings_moved`, `ratings_merged`, `listens_moved`, `listens_dropped`, `tracks_deleted`) are also
+  written as an `INFO` event titled "Orphaned tracks relinked".
+- **GET `/api/scanner/relink-orphans`** (admin only): `{"running": bool, "last": <totals or null>}` --
+  the state of the relink above, kept in memory for the life of the process.
 
 ### 🎨 Artist images
 - Reads (`/api/artists/search`, `/search-all`, `/images/stats`, `/fetch-progress`, `/manage/search`,

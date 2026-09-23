@@ -16,7 +16,9 @@ from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.GenreRulesHelper import BLACK, GenreRulesHelper
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.music_manager.database import get_db_connection
+from services.music_manager.rbac import require_admin
 from services.music_manager.thread_registry import default_stale_after, run_forever
+from services.music_manager.track_relink import relink_orphaned_tracks, relink_track, track_has_media_file
 from services.scanner.Song.ReadonlySong import ReadonlySong
 from services.tagger.Song.BaseSong import ExtensionNotSupportedException
 
@@ -209,13 +211,92 @@ class ScannerManager:
         row = cursor.fetchone()
         return row['id'] if row else None
 
+    def _resolve_label_id(self, cursor, song, path):
+        """The label this file names, created on first sight, or None.
+
+        A publisher is only stored as a label when it actually names one. SoundCloud, YouTube and
+        Telegram arrive in this same tag and are platforms, not labels; `__TODO` and `__Free&none`
+        are placeholders. Storing those made them the three largest "labels" in the collection.
+        See services/common/channels.py.
+        """
+        label_name = song.publisher()
+        if not (label_name and is_label(label_name) and path_can_carry_a_label(path, self.music_path)):
+            return None
+        cursor.execute('INSERT IGNORE INTO library_labels (name) VALUES (%s)', (label_name,))
+        cursor.execute('SELECT id FROM library_labels WHERE name = %s', (label_name,))
+        row = cursor.fetchone()
+        return row['id'] if row else None
+
+    def _write_links(self, cursor, track_id, path_hash, label_id=None, channel_id=None):
+        """Replace the track's label and channel links with what its files say today.
+
+        Used to be INSERT IGNORE only, so a corrected publisher kept its old label link for good.
+        A track can own several files -- the FLAC and the MP3 of one release -- so the set is
+        recomputed from every one of them: `label_id`/`channel_id` are what the file being
+        scanned (`path_hash`) says, and the track's other files are read here. A file that is
+        gone from disk supports nothing; a file that is there but cannot be read might still
+        carry a label, so then the label links are only added to, never removed.
+        """
+        label_ids = {label_id} - {None}
+        channel_ids = {channel_id} - {None}
+        labels_known = True
+        cursor.execute(
+            'SELECT file_path FROM library_media_files WHERE track_id = %s AND file_path_hash <> %s',
+            (track_id, path_hash or ''),
+        )
+        for row in cursor.fetchall():
+            other = row['file_path']
+            if not other or not os.path.exists(other):
+                continue
+            other_channel = self._resolve_channel_id(cursor, other)
+            if other_channel:
+                channel_ids.add(other_channel)
+            try:
+                other_label = self._resolve_label_id(cursor, ReadonlySong(other), other)
+            except Exception:
+                labels_known = False
+                continue
+            if other_label:
+                label_ids.add(other_label)
+        if labels_known:
+            cursor.execute('DELETE FROM library_track_labels WHERE track_id = %s', (track_id,))
+        for lid in sorted(label_ids):
+            cursor.execute(
+                'INSERT IGNORE INTO library_track_labels (track_id, label_id) VALUES (%s, %s)', (track_id, lid)
+            )
+        cursor.execute('DELETE FROM library_track_channels WHERE track_id = %s', (track_id,))
+        for cid in sorted(channel_ids):
+            cursor.execute(
+                'INSERT IGNORE INTO library_track_channels (track_id, channel_id) VALUES (%s, %s)', (track_id, cid)
+            )
+
+    def _settle_previous_track(self, cursor, previous_track_id, track_id, path_hash):
+        """Deal with the track a file just left: relink it away, or refresh what it still has.
+
+        When the file was its last one, the old row is merged into the new one (ratings, listens,
+        works) and deleted -- see track_relink.py. Otherwise it stays a track of its own, but the
+        label and channel links the departed file contributed are recomputed away.
+        """
+        if track_has_media_file(cursor, previous_track_id):
+            self._write_links(cursor, previous_track_id, path_hash)
+            return None
+        counts = relink_track(cursor, previous_track_id, track_id)
+        # INFO -- and so an event -- only when a user's data actually moved; a retag of a
+        # track nobody rated or played would otherwise put one row per file in the event log.
+        if counts and (counts['ratings_moved'] or counts['ratings_merged'] or counts['listens_moved']):
+            logger.info('Relinked track %s to %s: %s', previous_track_id, track_id, counts)
+        elif counts:
+            logger.debug('Relinked track %s to %s: %s', previous_track_id, track_id, counts)
+        return counts
+
     def process_file(self, conn, path, force=False):
         path_hash = self.get_file_hash(path)
         mtime = os.path.getmtime(path)
         size = os.path.getsize(path)
         with conn.cursor() as cursor:
             cursor.execute(
-                'SELECT id, file_mtime, file_size FROM library_media_files WHERE file_path_hash = %s', (path_hash,)
+                'SELECT id, file_mtime, file_size, track_id FROM library_media_files WHERE file_path_hash = %s',
+                (path_hash,),
             )
             record = cursor.fetchone()
             if not force and record and (record['file_mtime'] == mtime) and (record['file_size'] == size):
@@ -232,16 +313,7 @@ class ScannerManager:
                 cursor.execute('INSERT IGNORE INTO library_artists (name) VALUES (%s)', (name,))
                 cursor.execute('SELECT id FROM library_artists WHERE name = %s', (name,))
                 artist_ids.append(cursor.fetchone()['id'])
-            # A publisher is only stored as a label when it actually names one. SoundCloud, YouTube
-            # and Telegram arrive in this same tag and are platforms, not labels; `__TODO` and
-            # `__Free&none` are placeholders. Storing those made them the three largest "labels" in
-            # the collection. See services/common/channels.py.
-            label_name = song.publisher()
-            label_id = None
-            if label_name and is_label(label_name) and path_can_carry_a_label(path, self.music_path):
-                cursor.execute('INSERT IGNORE INTO library_labels (name) VALUES (%s)', (label_name,))
-                cursor.execute('SELECT id FROM library_labels WHERE name = %s', (label_name,))
-                label_id = cursor.fetchone()['id']
+            label_id = self._resolve_label_id(cursor, song, path)
             channel_id = self._resolve_channel_id(cursor, path)
             title = song.title()
             duration = song.length()
@@ -272,19 +344,27 @@ class ScannerManager:
                     (track_id, a_id, role, i),
                 )
             self._write_genres(cursor, track_id, self._resolve_genre_ids(song))
-            if label_id:
+            self._write_links(cursor, track_id, path_hash, label_id, channel_id)
+            # A retag that changed the title or the primary artist gives the file a new track_uid
+            # and so a new track row. Repointing the file and relinking the row it left are one
+            # change: the pool runs autocommit, so without an explicit transaction a failure
+            # half-way would leave ratings split between two rows.
+            previous_track_id = record.get('track_id') if record else None
+            moving = previous_track_id is not None and previous_track_id != track_id
+            if moving:
+                conn.begin()
+            try:
                 cursor.execute(
-                    'INSERT IGNORE INTO library_track_labels (track_id, label_id) VALUES (%s, %s)', (track_id, label_id)
+                    '\n                INSERT INTO library_media_files (file_path, file_path_hash, file_mtime, file_size, track_id, duration_secs)\n                VALUES (%s, %s, %s, %s, %s, %s)\n                ON DUPLICATE KEY UPDATE file_mtime=%s, file_size=%s, track_id=%s, duration_secs=%s\n            ',
+                    (path, path_hash, mtime, size, track_id, duration, mtime, size, track_id, duration),
                 )
-            if channel_id:
-                cursor.execute(
-                    'INSERT IGNORE INTO library_track_channels (track_id, channel_id) VALUES (%s, %s)',
-                    (track_id, channel_id),
-                )
-            cursor.execute(
-                '\n                INSERT INTO library_media_files (file_path, file_path_hash, file_mtime, file_size, track_id, duration_secs)\n                VALUES (%s, %s, %s, %s, %s, %s)\n                ON DUPLICATE KEY UPDATE file_mtime=%s, file_size=%s, track_id=%s, duration_secs=%s\n            ',
-                (path, path_hash, mtime, size, track_id, duration, mtime, size, track_id, duration),
-            )
+                if moving:
+                    self._settle_previous_track(cursor, previous_track_id, track_id, path_hash)
+                    conn.commit()
+            except Exception:
+                if moving:
+                    conn.rollback()
+                raise
             return True
 
 
@@ -311,6 +391,74 @@ def api_scan_file(path: str = Query(...), force: bool = False, _auth: dict = Dep
     # the whole event loop for the duration of each one.
     scanned = scanner_manager.scan_single(path, force=force)
     return {'message': f'Scan for {path} completed', 'scanned': bool(scanned)}
+
+
+#: The last orphan relink, for GET /relink-orphans: None until one has run in this process.
+relink_state: dict = {'running': False, 'last': None}
+
+
+def run_orphan_relink():
+    """Background body of POST /relink-orphans: relink every orphaned track, then report it.
+
+    Holds the scanner lock so no scan repoints a file underneath it, and records its totals as an
+    INFO event -- that, and GET /relink-orphans, is where an administrator reads the outcome.
+    """
+    if not scanner_manager._lock.acquire(blocking=False):
+        logger.warning('A scan is running, orphan relink skipped')
+        relink_state['running'] = False
+        return None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            logger.error('Could not get database connection')
+            return None
+        try:
+            totals = relink_orphaned_tracks(conn)
+        finally:
+            conn.close()
+    finally:
+        scanner_manager._lock.release()
+        relink_state['running'] = False
+    relink_state['last'] = totals
+    try:
+        from services.common.Helpers.EventService import event_service
+
+        event_service.emit(
+            level='INFO',
+            title='Orphaned tracks relinked',
+            message=(
+                f"{totals['relinked']} of {totals['orphans']} fileless tracks relinked, "
+                f"{totals['unmatched']} without a single successor, {totals['failed']} failed. "
+                f"Ratings moved {totals['ratings_moved']}, merged {totals['ratings_merged']}; "
+                f"listens moved {totals['listens_moved']}, duplicates dropped {totals['listens_dropped']}."
+            ),
+            source='music-manager',
+            logger=logger.name,
+            context=totals,
+        )
+    except Exception as exc:
+        logger.warning('Could not record the orphan relink event: %s', exc)
+    return totals
+
+
+@router.post('/relink-orphans')
+def api_relink_orphans(background_tasks: BackgroundTasks, _auth: dict = Depends(require_admin())):
+    """Start the one-off repair for track rows a retag left without a file (bug report 042).
+
+    Admin only: it deletes track rows. Runs in the background; the totals arrive as an INFO event
+    and on GET /relink-orphans. The previous run's totals, if any, come back straight away.
+    """
+    if relink_state['running'] or scanner_manager._lock.locked():
+        raise HTTPException(status_code=409, detail='A scan or relink is already in progress')
+    relink_state['running'] = True
+    background_tasks.add_task(run_orphan_relink)
+    return {'message': 'Orphaned track relink started in background', 'last': relink_state['last']}
+
+
+@router.get('/relink-orphans')
+def api_relink_orphans_status(_auth: dict = Depends(require_admin())):
+    """Whether an orphan relink is running, and the totals of the last one in this process."""
+    return {'running': relink_state['running'], 'last': relink_state['last']}
 
 
 # A full scan over the CIFS share can run for hours on a first pass or after a forced rescan;

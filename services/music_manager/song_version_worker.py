@@ -73,10 +73,16 @@ _UNGROUPED = '''
 
 # Highest score wins; the two tie-breaks keep the choice stable between passes so
 # the canonical does not move on its own.
+#
+# Only a track with a file can win. With a LEFT JOIN a row no file maps to any more
+# -- a retag leftover, see track_relink.py -- tied with the real file on score and
+# won on `created_at ASC` for being older, and song_version_sync then marked the
+# real file non-canonical in LMS. A work whose tracks all lost their files gets no
+# canonical, which LMS reads as "every version is canonical".
 _BEST_TRACK = '''
     SELECT t.id
     FROM library_tracks t
-    LEFT JOIN library_media_files mf ON mf.track_id = t.id
+    JOIN library_media_files mf ON mf.track_id = t.id
     WHERE t.work_id = %s
     ORDER BY t.version_score DESC,
              (mf.file_size / NULLIF(mf.duration_secs, 0)) DESC,

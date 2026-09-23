@@ -265,6 +265,15 @@ class RecomputeCanonicalsTest(unittest.TestCase):
         self.assertIn('t.created_at ASC', sql)
         self.assertIn('t.id ASC', sql)
 
+    def test_only_a_track_with_a_file_can_become_canonical(self):
+        # A retag leftover has no file and is older than its successor, so under a LEFT JOIN it
+        # won the created_at tie-break and hid the real file in LMS (bug report 042).
+        cursor = ScriptedCursor([('SELECT pinned_track_id FROM library_works', (40,), {'pinned_track_id': None})])
+        worker.recompute_canonicals(cursor, {40})
+        sql = cursor.statements_matching('ORDER BY t.version_score DESC')[0][0]
+        self.assertIn('JOIN library_media_files mf ON mf.track_id = t.id', sql)
+        self.assertNotIn('LEFT JOIN library_media_files', sql)
+
 
 class GroupOnceTest(unittest.TestCase):
     def _conn(self, cursor):

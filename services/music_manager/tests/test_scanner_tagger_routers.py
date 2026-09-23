@@ -400,7 +400,9 @@ class ProcessFileTest(unittest.TestCase):
             patch.object(self.manager, '_resolve_genre_ids', return_value=[]),
         ):
             self.manager.process_file(self.conn, '/music/a.mp3')
-        self.assertFalse(any('library_track_labels' in s for s in self.statements()))
+        self.assertFalse(any('INSERT IGNORE INTO library_track_labels' in s for s in self.statements()))
+        # The link a previous publisher left behind is cleared rather than kept for good.
+        self.assertTrue(any('DELETE FROM library_track_labels' in s for s in self.statements()))
 
     def test_empty_artist_names_are_ignored(self):
         self.cursor.fetchone.side_effect = [None, {'id': 5}]

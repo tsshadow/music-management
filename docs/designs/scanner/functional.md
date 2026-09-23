@@ -24,6 +24,7 @@ The "Scanner" feature is responsible for keeping the system's database in sync w
 | A redownload is requested for a track that has a matching entry in the download archive | A background task is started using the appropriate downloader (SoundCloud/YouTube) to re-acquire the track using its original source URL. |
 | A redownload is requested for a track that was imported manually (no source URL found) | The request is refused with a clear message stating that the source URL could not be found in the system's history. |
 | A file's metadata is updated on disk | During the next scan (full or single-file), the database record is updated to reflect the new title, artist, or label. |
+| A retag changes a file's title or primary artist | The file lands on a new track row; its ratings and listening history move with it and the old, fileless row disappears. A label or channel the file no longer names is unlinked. |
 
 ## Acceptance Criteria
 

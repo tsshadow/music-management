@@ -84,6 +84,18 @@ class GenreTintCacheTest {
         cache.tintFor("Hardstyle", now = 0)
 
         answer = listOf(MumaLibraryGenre(genre = "Hardstyle", tint = "#ff4d00"))
-        cache.tintFor("Hardstyle", now = 1) `should be equal to` orange
+        cache.tintFor("Hardstyle", now = GenreTintCache.RETRY_AFTER_FAILURE_MILLIS) `should be equal to` orange
+    }
+
+    @Test
+    fun `a failed fetch is not repeated for every tile on the same level`() {
+        answer = null
+        cache.tintFor("Hardstyle", now = 0)
+
+        answer = listOf(MumaLibraryGenre(genre = "Hardstyle", tint = "#ff4d00"))
+        (1L until 50L).forEach { cache.tintFor("Hardstyle", now = it) }
+
+        cache.tintFor("Hardstyle", now = 50) `should be equal to` GenreTints.FALLBACK
+        calls `should be equal to` 1
     }
 }

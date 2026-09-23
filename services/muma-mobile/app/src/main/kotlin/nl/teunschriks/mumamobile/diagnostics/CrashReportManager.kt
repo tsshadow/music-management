@@ -14,6 +14,7 @@ import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.BuildConfig
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.log.LogRedaction
 import nl.teunschriks.mumamobile.log.RingBufferLoggerTree
 import nl.teunschriks.mumamobile.service.MusicServiceFactory
 import nl.teunschriks.mumamobile.util.FileUtil
@@ -242,8 +243,10 @@ object CrashReportManager {
             appVersionName = Util.getVersionName(context) ?: "",
             appVersionCode = Util.getVersionCode(context),
             buildType = BuildConfig.BUILD_TYPE,
-            ringBufferText = report.ringBufferText,
-            stacktraceText = report.stacktraceText
+            // Redacted here as well as at the source: a previous session persisted by an older
+            // build still carries the credentials its settings dump wrote in plain text.
+            ringBufferText = LogRedaction.redact(report.ringBufferText),
+            stacktraceText = report.stacktraceText?.let(LogRedaction::redact)
         )
         true
     } catch (all: Throwable) {

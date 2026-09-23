@@ -215,8 +215,6 @@ class MediaLibraryCommandHandler {
         rating: Int = 0,
         canShuffle: Boolean = false
     ): ImmutableList<CommandButton> {
-        Timber.d("building custom commands (rating = %s, canShuffle = %s)", rating, canShuffle)
-
         currentRating = rating.coerceIn(0, PlaybackService.MAX_RATING)
 
         return ImmutableList.copyOf(
@@ -252,7 +250,7 @@ class MediaLibraryCommandHandler {
                 // controls that belong to the track being played.
                 add(newsButton)
             }.asIterable()
-        )
+        ).also { Timber.d("custom layout: %s", describeButtons(it)) }
     }
 
     /**
@@ -318,6 +316,19 @@ class MediaLibraryCommandHandler {
 
     companion object {
         private const val MIN_ITEMS_TO_SHUFFLE = 3
+
+        /**
+         * The buttons as the session publishes them: action, media3 icon constant, enabled.
+         *
+         * Android Auto 17.6 draws a custom button only when its icon constant is one it knows, and
+         * says nothing when it drops one. The line this builds is what a diagnostics report needs to
+         * tell "the app never published it" from "the car would not draw it".
+         */
+        fun describeButtons(buttons: List<CommandButton>): String = buttons.joinToString(", ") {
+            val action = it.sessionCommand?.customAction?.substringAfterLast('.') ?: "player:${it.playerCommand}"
+            val state = if (it.isEnabled) "" else " disabled"
+            "$action(icon=${it.icon}$state)"
+        }
 
         private val ratingIcons = listOf(
             R.drawable.ic_car_rating_0,

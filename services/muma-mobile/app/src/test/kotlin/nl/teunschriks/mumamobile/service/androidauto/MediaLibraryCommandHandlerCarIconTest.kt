@@ -78,4 +78,14 @@ class MediaLibraryCommandHandlerCarIconTest {
         button(PlaybackService.CUSTOM_COMMAND_SHUFFLE).iconResId shouldBeEqualTo R.drawable.media_shuffle
         button(PlaybackService.CUSTOM_COMMAND_PLAY_NEWS).iconResId shouldBeEqualTo R.drawable.ic_menu_podcasts
     }
+
+    // The car says nothing when it drops a button, so the log has to say what was published.
+    @Test
+    fun `the published layout is described by action and icon`() {
+        val shuffle = button(PlaybackService.CUSTOM_COMMAND_SHUFFLE)
+        val news = button(PlaybackService.CUSTOM_COMMAND_PLAY_NEWS)
+
+        MediaLibraryCommandHandler.describeButtons(listOf(shuffle, news)) shouldBeEqualTo
+            "SHUFFLE(icon=${CommandButton.ICON_SHUFFLE_ON}), PLAY_NEWS(icon=${CommandButton.ICON_FEED})"
+    }
 }

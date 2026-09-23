@@ -1333,6 +1333,11 @@
    * @param {boolean} [submission=true] - Whether this is a final submission or just a "now playing" notification.
    */
   async function scrobble(submission = true) {
+    // On the native shell the platform service scrobbles every track itself (source `mobile` or
+    // `auto`), and keeps doing so while this WebView sleeps. Scrobbling here as well recorded each
+    // listen twice under two timestamps the server cannot pair up, and the copies sent from a
+    // backgrounded WebView failed or arrived late with a stale start time.
+    if (nativePlayback) return;
     if (!track || !$credentials.username) return;
     const params = $authParams;
     // How long this track actually played, and where. Both are MuMa's own parameters rather than

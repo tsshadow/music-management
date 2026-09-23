@@ -75,8 +75,16 @@ vi.mock("@capacitor/core", () => ({
 window.Capacitor = { isNativePlatform: () => true };
 
 const { default: Player } = await import("../../src/lib/Player.svelte");
-const { currentTrack, isMobile, nowPlayingOpen, playerState, playlist, radioChannel, syncMode } =
-  await import("../../src/lib/store.js");
+const {
+  credentials,
+  currentTrack,
+  isMobile,
+  nowPlayingOpen,
+  playerState,
+  playlist,
+  radioChannel,
+  syncMode,
+} = await import("../../src/lib/store.js");
 const { dismissAll } = await import("../../src/lib/notifications.js");
 
 const FIRST = { id: "song-1", title: "Raise Your Fist", artist: "Angerfist", duration: 240 };
@@ -175,6 +183,30 @@ describe("Player on the native shell", () => {
     await Promise.resolve();
 
     expect(get(currentTrack)).toEqual(SECOND);
+  });
+
+  // The service scrobbles every track itself (source `mobile`/`auto`). A second scrobble from the
+  // WebView recorded each listen twice on production, under timestamps the server cannot pair.
+  it("leaves scrobbling to the service -- no /rest/scrobble from the WebView", async () => {
+    credentials.set({ url: "", username: "user", password: "pw" });
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ "subsonic-response": { status: "ok" } }),
+    }));
+    renderPlayer();
+
+    playerPlugin.fire("play", { status: "playing", trackId: FIRST.id, position: 0, duration: 240 });
+    playerPlugin.fire("timeupdate", {
+      status: "playing",
+      trackId: FIRST.id,
+      position: 200,
+      duration: 240,
+    });
+    playerPlugin.fire("ended", { status: "ended", trackId: FIRST.id });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const urls = global.fetch.mock.calls.map(([url]) => String(url));
+    expect(urls.filter((url) => url.includes("/rest/scrobble"))).toEqual([]);
   });
 
   it("adopts durationchange without a command and does not advance twice on the following command", async () => {

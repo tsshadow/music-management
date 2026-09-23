@@ -62,26 +62,30 @@ class MainTest(unittest.TestCase):
         patches = [
             patch.object(importer_service, 'ImporterService', return_value=self.service),
             patch.object(importer_service, 'setup_logging'),
+            # main() arms SIGTERM; keep that off the test process itself.
+            patch.object(importer_service.signal, 'signal'),
         ]
         for p in patches:
             p.start()
             self.addCleanup(p.stop)
+        importer_service.shutdown.reset()
+        self.addCleanup(importer_service.shutdown.reset)
 
     def test_without_the_repeat_flag_the_pipeline_runs_exactly_once(self):
-        with patch('sys.argv', ['importer']), patch.object(importer_service, 'sleep') as sleep:
+        with patch('sys.argv', ['importer']), patch.object(importer_service.shutdown, 'wait') as sleep:
             importer_service.main()
         self.service.run_import.assert_called_once()
         sleep.assert_not_called()
 
     def test_main_sets_up_logging_with_the_importer_source(self):
-        with patch('sys.argv', ['importer']), patch.object(importer_service, 'sleep'):
+        with patch('sys.argv', ['importer']), patch.object(importer_service.shutdown, 'wait'):
             importer_service.main()
         importer_service.setup_logging.assert_called_once_with('importer')
 
     def test_with_the_repeat_flag_the_pipeline_sleeps_between_runs(self):
         with (
             patch('sys.argv', ['importer', '--repeat', '--sleeptime', '7']),
-            patch.object(importer_service, 'sleep', side_effect=[None, KeyboardInterrupt]) as sleep,
+            patch.object(importer_service.shutdown, 'wait', side_effect=[None, KeyboardInterrupt]) as sleep,
         ):
             with self.assertRaises(KeyboardInterrupt):
                 importer_service.main()
@@ -90,7 +94,7 @@ class MainTest(unittest.TestCase):
 
     def test_an_interrupt_during_a_run_ends_the_loop_cleanly(self):
         self.service.run_import.side_effect = KeyboardInterrupt
-        with patch('sys.argv', ['importer', '--repeat']), patch.object(importer_service, 'sleep') as sleep:
+        with patch('sys.argv', ['importer', '--repeat']), patch.object(importer_service.shutdown, 'wait') as sleep:
             importer_service.main()
         sleep.assert_not_called()
 
@@ -98,11 +102,54 @@ class MainTest(unittest.TestCase):
         self.service.run_import.side_effect = [RuntimeError('boom'), None]
         with (
             patch('sys.argv', ['importer', '--repeat']),
-            patch.object(importer_service, 'sleep', side_effect=[KeyboardInterrupt]),
+            patch.object(importer_service.shutdown, 'wait', side_effect=[KeyboardInterrupt]),
         ):
             with self.assertRaises(KeyboardInterrupt):
                 importer_service.main()
         self.assertEqual(self.service.run_import.call_count, 1)
+
+    def test_main_arms_sigterm_to_raise_the_shared_stop_flag(self):
+        with patch('sys.argv', ['importer']):
+            importer_service.main()
+        importer_service.signal.signal.assert_called_once_with(
+            importer_service.signal.SIGTERM, importer_service.shutdown.request
+        )
+
+    def test_a_stop_during_the_wait_ends_the_loop_instead_of_running_again(self):
+        # `wait` returns True when the flag was raised while it slept: a deploy's
+        # SIGTERM must not sit out the rest of the interval until SIGKILL.
+        with (
+            patch('sys.argv', ['importer', '--repeat', '--sleeptime', '300']),
+            patch.object(importer_service.shutdown, 'wait', return_value=True) as wait,
+        ):
+            importer_service.main()
+        wait.assert_called_once_with(300)
+        self.service.run_import.assert_called_once()
+
+    def test_a_stop_raised_during_a_run_skips_the_sleep(self):
+        self.service.run_import.side_effect = lambda: importer_service.shutdown.request()
+        with (
+            patch('sys.argv', ['importer', '--repeat']),
+            patch.object(importer_service.shutdown, 'wait') as wait,
+        ):
+            importer_service.main()
+        wait.assert_not_called()
+
+
+class StepsStopOnShutdownTest(unittest.TestCase):
+    def setUp(self):
+        importer_service.shutdown.reset()
+        self.addCleanup(importer_service.shutdown.reset)
+
+    def test_the_pipeline_stops_before_the_next_step_once_a_stop_is_asked_for(self):
+        service = ImporterService.__new__(ImporterService)
+        service.dry_run = True
+        first, second = MagicMock(), MagicMock()
+        first.run.side_effect = lambda *_a, **_k: importer_service.shutdown.request()
+        service.steps = [first, second]
+        service.run_import()
+        first.run.assert_called_once()
+        second.run.assert_not_called()
 
 
 if __name__ == '__main__':

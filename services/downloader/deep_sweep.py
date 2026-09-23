@@ -22,6 +22,7 @@ from datetime import datetime
 
 from yt_dlp import YoutubeDL
 
+from services.downloader.account_report import detect_http_status
 from services.downloader.account_snapshot import (  # noqa: F401 - re-exported for the passes and their tests
     SNAPSHOT_CAPPED,
     SNAPSHOT_COMPLETE,
@@ -172,20 +173,48 @@ def wanted_tracks(
     return wanted
 
 
+class ListingFailed(Exception):
+    """A flat listing that did not come back, as opposed to one that came back empty.
+
+    The two used to look identical. yt-dlp ran with the caller's ``ignoreerrors``,
+    turned a 403 on the listing into a line on stderr and returned ``None``; the
+    pass read that as "nothing listed", counted zero wanted and zero fetched, and
+    marked the account deep-swept for another ``deep_sweep_days``. ``status`` is
+    the HTTP status yt-dlp's own text reports (403, 429), or None when it reports
+    none -- read from the reason alone, so an account whose name happens to
+    contain "403" cannot park the source.
+    """
+
+    def __init__(self, url: str, reason: str) -> None:
+        super().__init__(f'Could not list {url}: {reason}')
+        self.url = url
+        self.reason = reason
+        self.status = detect_http_status(reason)
+
+
 def list_flat(url: str, base_opts: dict, limit: int | None = None, ydl_factory=YoutubeDL) -> list[FlatTrack]:
     """Every track the URL lists, as ids and permalinks.
 
-    Errors are raised rather than swallowed: only the caller knows whether a 403
-    should park the source or fall through to the ordinary run.
+    Raises `ListingFailed` when the listing itself did not come back; only the
+    caller knows whether that should park the source or fall through to the
+    ordinary run. ``ignoreerrors`` is forced off for this one call, whatever the
+    caller's options say: under it yt-dlp reports a refused page on stderr and
+    returns nothing, which is indistinguishable from an account with no tracks.
     """
     opts = {key: value for key, value in base_opts.items() if key not in _DROPPED_OPTS}
     opts.update(FLAT_OPTS)
+    opts['ignoreerrors'] = False
     if limit is not None:
         opts['playlistend'] = limit
-    with ydl_factory(opts) as ydl:
-        info = ydl.extract_info(url, download=False)
+    try:
+        with ydl_factory(opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+    except Exception as exc:
+        raise ListingFailed(url, str(exc)) from exc
+    if info is None:
+        raise ListingFailed(url, 'yt-dlp returned no listing')
     tracks = []
-    for entry in (info or {}).get('entries') or []:
+    for entry in info.get('entries') or []:
         entry = entry or {}
         track_id = entry.get('id')
         if track_id is None:

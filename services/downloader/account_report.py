@@ -9,6 +9,11 @@ The two are distinguishable. A 403 among tracks we *did* manage to read is a
 track that is not for us. A 403 with nothing read at all is an account that gave
 us nothing, and only a run of those is evidence of an actual block. A 429 is the
 one unambiguous "slow down".
+
+Shared by both yt-dlp downloaders. YouTube reads the counters more bluntly than
+SoundCloud does (see ``YoutubeDownloader._blocked``), but it needs the same
+logger for the same reason: without it the 403 never leaves yt-dlp's stderr, and
+the source is never parked at all.
 """
 
 from __future__ import annotations
@@ -59,6 +64,10 @@ class AccountReport:
         self.extracted = 0
         self.throttled = False
         self.forbidden = 0
+        # The 403s yt-dlp gave up on. A 403 it logs as a warning is usually one
+        # request it retried, or one of several player clients it tried in turn,
+        # and the item still came back -- not evidence that anything was refused.
+        self.forbidden_errors = 0
         self.newest_timestamp: int | None = None
         self._current_track: str | None = None
         self._forbidden: list[str] = []
@@ -81,28 +90,36 @@ class AccountReport:
 
     @property
     def outcome(self) -> str:
+        """The run's counters read as one of CLEAN, UNAVAILABLE_TRACKS, BLANK or THROTTLED."""
         return classify_account(self.extracted, self.forbidden, self.throttled)
 
     def debug(self, msg):
+        """yt-dlp's debug channel; its own ``[debug]`` chatter is dropped."""
         if not str(msg).startswith('[debug] '):
             self._log('debug', msg)
 
     def info(self, msg):
+        """yt-dlp's info channel, passed on to `logging`."""
         self._log('info', msg)
 
     def warning(self, msg):
+        """yt-dlp's warning channel, passed on to `logging`."""
         self._log('warning', msg)
 
     def error(self, msg):
+        """yt-dlp's error channel, passed on to `logging` -- and so to the event log."""
         self._log('error', msg)
 
     def _log(self, level: str, msg) -> None:
+        """Log one yt-dlp line and count the HTTP status it reports, if any."""
         getattr(logging, level)(msg)
         status = detect_http_status(str(msg))
         if status == 429:
             self.throttled = True
         elif status == 403:
             self.forbidden += 1
+            if level == 'error':
+                self.forbidden_errors += 1
             track = self._current_track
             if track is not None and track not in self._forbidden:
                 self._forbidden.append(track)

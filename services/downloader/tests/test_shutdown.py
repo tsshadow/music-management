@@ -287,7 +287,7 @@ class MainLoopStopsTest(unittest.TestCase):
             mock.patch.object(downloader_service, 'DownloaderService', return_value=service),
             mock.patch.object(downloader_service, 'parse_args', return_value=downloader_service.parse_args(argv)),
             mock.patch.object(downloader_service, 'setup_logging'),
-            mock.patch.object(downloader_service.time, 'sleep') as slept,
+            mock.patch.object(downloader_service.shutdown, 'wait', return_value=False) as slept,
         ):
             downloader_service.main()
         return service, slept

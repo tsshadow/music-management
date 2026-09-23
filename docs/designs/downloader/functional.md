@@ -37,15 +37,23 @@ service monitors specific channels and downloads any audio or video files shared
 | A new track is found on a tracked account | The track is downloaded, metadata is extracted, the track is archived in the database, and the user receives a notification. |
 | A track is found but is already in the database archive | The track is skipped immediately. |
 | A track is found but is outside the allowed duration range (e.g., too short or too long) | The track is skipped; no notification is sent. |
-| The service encounters a "403 Forbidden" error | The service enters a backoff state, waiting for an increasing amount of time before retrying. |
-| The service encounters a "429 Too Many Requests" error | The service pauses for an extremely long time (1-2 hours) to avoid a permanent ban. |
+| SoundCloud answers "403 Forbidden" for single tracks of an account that otherwise works | Those tracks are written off for a while; the sweep carries on. |
+| SoundCloud answers "403 Forbidden" for whole accounts, several in a row | SoundCloud is parked: it enters a backoff state, waiting for an increasing amount of time before the next sweep. |
+| YouTube answers "403 Forbidden" and yt-dlp gives up on the request | YouTube is parked the same way. A 403 that yt-dlp recovers from (another player client, a retry) is not a refusal. |
+| The service encounters a "429 Too Many Requests" error | The source is parked for an extremely long time (1-2 hours) to avoid a permanent ban. |
+| A deep sweep cannot list an account (refused, removed, no such tab) | The account is not marked deep-swept and stays due. A refusal feeds the backoff above; anything else falls back to the ordinary check. |
+| An error is reported while downloading | It is written to the event log (and, for `WARNING` and up, to the alerts topic), for YouTube as well as SoundCloud. |
+| The worker is stopped (a deploy sends SIGTERM) | The download in progress is abandoned, the pause between rounds is cut short, and the worker exits within Docker's grace period. A cut-off download leaves only a `.part` file, never a truncated file under its real name. |
+| A single video is downloaded by URL (manual download or redownload) | Only that video is downloaded; its channel is **not** added to the followed YouTube channels. |
 
 ### Telegram Download
 
 | Situation | Observable outcome |
 |---|---|
-| A new audio file is posted in a monitored channel | The file is downloaded to the designated Telegram folder. |
-| A file with the same name and size already exists | The download is skipped. |
+| A new audio file is posted in a monitored channel | The file is downloaded to the designated Telegram folder as `<name> [<message id>].<ext>`, then tagged. |
+| Two messages carry the same filename | Both are kept: the message id makes the names differ. |
+| The sender's filename contains a path (`../../x.mp3`) or characters a filesystem refuses | Only the last path component is used, unsafe characters become `_`; nothing is ever written outside the channel folder. |
+| A file with the same name and size already exists (also under the name used before the message id was added) | The download is skipped. |
 | A file exists but the size is different (incomplete download) | The file is re-downloaded from the beginning. |
 
 ### Configuration and Control
@@ -68,6 +76,7 @@ service monitors specific channels and downloads any audio or video files shared
 
 ## Open Questions / Not Yet Decided
 
-- **Telegram tagging**: Unlike SoundCloud and YouTube, Telegram downloads are not immediately tagged by the downloader; they rely on the background tagger loop. Should Telegram have its own post-processor for immediate tagging and notifications?
+- ~~**Telegram tagging**~~: resolved in 0.67 -- the Telegram worker tags each audio download itself
+  (`tag_downloaded_file`), the same way the SoundCloud and YouTube post-processors do.
 - **User-driven account management**: Currently, accounts must be added directly to the database. Should there be a REST API or UI for managing tracked SoundCloud/YouTube accounts?
 - **Redownload triggers**: While there is a redownload API in the scanner, should the downloader service itself have a more accessible way to force-redownload a specific track by URL?

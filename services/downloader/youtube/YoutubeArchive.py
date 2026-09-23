@@ -75,16 +75,19 @@ class YoutubeArchive:
         already there rather than being ignored with the rest of the insert: this table
         *is* keyed on (video_id, download_type), so a re-download conflicts, and a row
         archived before this column existed is exactly the row worth filling in.
+
+        It deliberately leaves `downloads_youtube_accounts` alone. An `INSERT IGNORE`
+        there used to register every archived video's uploader as a followed channel
+        (the column default is ``active = 1``): one manual download or redownload
+        subscribed the whole channel, and an uploader id spelled differently from the
+        followed row (``@handle`` against ``channel/UC...``) became a second row that
+        was swept twice. Following a channel is done in the management screen.
         """
         if not all([account, video_id, url]):
             logging.warning(f'Missing fields for archive insert: account={account}, video_id={video_id}, url={url}')
             return
         try:
             with DatabaseConnector().connection() as conn, conn.cursor() as cursor:
-                cursor.execute(
-                    'INSERT IGNORE INTO downloads_youtube_accounts (name, download_type) VALUES (%s, %s)',
-                    (account, download_type),
-                )
                 blob = info_json.to_json(raw_info)
                 cursor.execute(
                     '\n                    INSERT INTO downloads_youtube_archive '

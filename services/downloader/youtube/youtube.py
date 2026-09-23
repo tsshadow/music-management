@@ -10,8 +10,10 @@ from services.common.config_store import ConfigStore
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.job_manager import job_manager
 from services.downloader import shutdown
+from services.downloader.account_report import AccountReport
 from services.downloader.deep_sweep import (
     DeepSweepReport,
+    ListingFailed,
     ids_in_text_archive,
     list_flat,
     snapshot_state,
@@ -140,7 +142,6 @@ class YoutubeDownloader:
             'match_filter': self._match_filter,
             'ignoreerrors': True,
             'socket_timeout': self.socket_timeout,
-            'playlist_random': True,
             'http_chunk_size': 10 * 1024 * 1024,
             'extractor_args': {'youtubetab': {'skip': ['authcheck']}},
             **self.timing.to_ydl_opts(),
@@ -321,19 +322,17 @@ class YoutubeDownloader:
         so nothing pages and `break_on_existing` has nothing to stop.
         """
         for attempt in range(1, self.timing.retry_attempts + 1):
+            report = AccountReport()
             try:
-                opts = dict(ydl_opts)
-                if 'postprocessors' in ydl_opts:
-                    opts['postprocessors'] = [
-                        pp.copy() if isinstance(pp, dict) else pp for pp in ydl_opts['postprocessors']
-                    ]
+                opts = self._attempt_opts(ydl_opts, report)
                 with self._create_ydl(opts, download_type=account.download_type) as ydl:
                     ydl.download([url])
+                self._settle(report, url)
                 return
             except RateLimited:
                 raise
             except Exception as exc:
-                rate_limited = self.policy.rate_limit_from(exc, url)
+                rate_limited = self._blocked(report, url) or self.policy.rate_limit_from(exc, url)
                 if rate_limited is not None:
                     raise rate_limited from exc
                 if '404' in str(exc):
@@ -344,6 +343,61 @@ class YoutubeDownloader:
                 logging.warning('Attempt %d failed for %s: %s', attempt, url, exc)
                 time.sleep(5 * attempt)
         logging.error('YouTube download failed for %s after %d attempts.', url, self.timing.retry_attempts)
+
+    @staticmethod
+    def _attempt_opts(template: dict, report: AccountReport) -> dict:
+        """The options for one attempt: a private copy, with this attempt's report as the logger.
+
+        yt-dlp runs with ``ignoreerrors``, so a 403 or 429 never surfaces as an
+        exception -- it is a line handed to the logger and nothing more. Without a
+        logger that line went to stderr, the sweep never parked, and none of it
+        reached the event log.
+        """
+        opts = dict(template)
+        if 'postprocessors' in template:
+            opts['postprocessors'] = [pp.copy() if isinstance(pp, dict) else pp for pp in template['postprocessors']]
+        opts['logger'] = report
+        return opts
+
+    def _blocked(self, report: AccountReport, target: str):
+        """Park the source when this attempt was refused; return the `RateLimited`, or None.
+
+        Blunter than SoundCloud's reading on purpose. SoundCloud answers 403 for a
+        single Go+ or geo-blocked track, so one 403 among readable tracks is only
+        that track. YouTube reports an unavailable video in words ("Private video",
+        "members-only content"), not as an HTTP status; a 403 from YouTube is the
+        client itself being refused -- the bot check, a stale PO token -- and every
+        later request in the sweep would get the same answer.
+
+        Only a 403 yt-dlp gave up on counts. It tries several player clients in turn
+        and retries a failed request, logging each refusal as a warning on the way;
+        a video that still came back is no reason to park the source for hours.
+        """
+        if report.throttled:
+            return self.policy.park('429', target)
+        if report.forbidden_errors:
+            return self.policy.park('403', target)
+        return None
+
+    def _settle(self, report: AccountReport, target: str) -> None:
+        """Act on an attempt that yt-dlp reported as finished; raises `RateLimited` if it was refused."""
+        rate_limited = self._blocked(report, target)
+        if rate_limited is not None:
+            raise rate_limited
+
+    def _list_or_park(self, url: str, ydl_opts: dict, account: YoutubeAccount) -> list:
+        """The flat listing, or the reason there is none.
+
+        A refused listing parks the source like any other 403 or 429. Anything
+        else is raised as it is: the channel was not checked, so it must not be
+        marked deep-swept or shown as "0 listed, complete".
+        """
+        try:
+            return list_flat(url, ydl_opts)
+        except ListingFailed as exc:
+            if exc.status in (403, 429):
+                raise self.policy.park(str(exc.status), account.name) from exc
+            raise
 
     def deep_sweep_account(self, account: YoutubeAccount, ydl_opts: dict) -> DeepSweepReport:
         """Walk a channel's whole videos tab and fetch whatever is missing.
@@ -360,7 +414,7 @@ class YoutubeDownloader:
         ledger_key = account.schedule_key
         bounds = (account.min_duration or DEFAULT_MIN_DURATION, MAX_DURATION)
         url = f'https://www.youtube.com/{account.name}/videos'
-        listing = list_flat(url, ydl_opts)
+        listing = self._list_or_park(url, ydl_opts, account)
         ids = [entry.track_id for entry in listing]
         held = self._held_ids(account, ids)
         write_offs = self.write_offs.load_many(ledger_key, ids)
@@ -465,10 +519,18 @@ class YoutubeDownloader:
     def _check_account(self, account: YoutubeAccount, ydl_opts: dict) -> None:
         """One channel: the deep path when it is due one, the ordinary run otherwise."""
         if self.deep_mode or self.policy.deep_due(account.schedule_key):
-            report = self.deep_sweep_account(account, ydl_opts)
-            if report.complete:
-                self.policy.mark_deep_swept(account.schedule_key)
-            return
+            try:
+                report = self.deep_sweep_account(account, ydl_opts)
+            except ListingFailed as exc:
+                # Not a refusal (that parked the source above) but no listing either:
+                # a removed channel, a tab that does not exist. The channel stays
+                # deep-due, and the ordinary run still gets its turn -- it knows
+                # how to read a 404 or a missing tab.
+                logging.warning('%s; doing the ordinary run instead.', exc)
+            else:
+                if report.complete:
+                    self.policy.mark_deep_swept(account.schedule_key)
+                return
         self.download_account(account, ydl_opts)
 
     def _archive_file_for(self, account: YoutubeAccount) -> str:
@@ -502,22 +564,22 @@ class YoutubeDownloader:
             download_type=account.download_type,
         )
         for attempt in range(1, self.timing.retry_attempts + 1):
+            report = AccountReport()
             try:
-                opts = dict(opts_template)
-                if 'postprocessors' in opts_template:
-                    opts['postprocessors'] = [
-                        pp.copy() if isinstance(pp, dict) else pp for pp in opts_template['postprocessors']
-                    ]
+                opts = self._attempt_opts(opts_template, report)
                 with self._create_ydl(opts, download_type=account.download_type) as ydl:
                     logging.info(f'Downloading {account.download_type} from account: {name} ({link})')
                     ydl.download([link])
+                self._settle(report, name)
                 logging.info(f'Finished downloading from: {name}')
                 return
             except RateLimited:
                 raise
             except Exception as e:
                 msg = str(e)
-                rate_limited = self.policy.rate_limit_from(e, name)
+                # The report first: `break_on_existing` ends a run by raising, and a
+                # 403 met before that point is still a 403.
+                rate_limited = self._blocked(report, name) or self.policy.rate_limit_from(e, name)
                 if rate_limited is not None:
                     raise rate_limited from e
                 if '404' in msg:
@@ -531,6 +593,8 @@ class YoutubeDownloader:
                     return
                 if 'this channel does not have a streams tab' in msg.lower():
                     return
+                if shutdown.is_requested():
+                    raise SweepAborted(f'Abandoned {name}; the {SOURCE} worker is shutting down.') from e
                 if 'timed out' in msg.lower():
                     logging.warning(f'Timeout encountered for {name}. Attempt {attempt} failed: {e}')
                 else:
@@ -561,13 +625,22 @@ class YoutubeDownloader:
             archive_dir = os.path.join(archive_dir, 'video')
             os.makedirs(archive_dir, exist_ok=True)
         archive_file = os.path.join(archive_dir, 'manual.txt')
+        report = AccountReport()
         try:
-            opts = self._build_ydl_opts(
-                archive_file, break_on_existing=breakOnExisting, redownload=redownload, download_type=download_type
+            opts = self._attempt_opts(
+                self._build_ydl_opts(
+                    archive_file, break_on_existing=breakOnExisting, redownload=redownload, download_type=download_type
+                ),
+                report,
             )
             with self._create_ydl(opts, download_type=download_type) as ydl:
                 logging.info(f'Downloading from url: {url}')
                 ydl.download([url])
+            if report.throttled or report.forbidden_errors:
+                # Not parked: this is one requested video, not a sweep, and the
+                # error itself already went to the event log through the report.
+                logging.warning('YouTube refused the download of %s (%s).', url, report.outcome)
+                return
             logging.info('Finished downloading video')
         except Exception as e:
             logging.error(f'Download failed for {url}: {e}', exc_info=True)

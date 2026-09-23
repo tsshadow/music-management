@@ -9,55 +9,16 @@ import contextlib
 
 import pytest
 
+from tests.integration import schema_sources
 from tests.integration.conftest import ROOT, _apply_migrations, _split_statements
 
 pytestmark = pytest.mark.integration
 
-# Tables the running code selects from. If one is missing, some endpoint 500s.
-EXPECTED_TABLES = {
-    'users',
-    'user_identities',
-    'user_refresh_tokens',
-    'user_requests',
-    'user_app_settings',
-    'user_listenbrainz_accounts',
-    'dynamic_playlists',
-    'roles',
-    'permissions',
-    'role_permissions',
-    'audit_events',
-    'library_artists',
-    'library_labels',
-    'library_tracks',
-    'library_media_files',
-    'library_works',
-    'library_track_artists',
-    'library_track_genres',
-    'library_track_labels',
-    'library_track_audio_features',
-    'library_track_ml_labels',
-    'library_artist_images',
-    'artist_external_ids',
-    'label_external_ids',
-    'rules_genres',
-    'rules_genre_expansions',
-    'rules_artist_genres',
-    'rules_label_genres',
-    'rules_catid_label',
-    'rules_label_proposals',
-    'rules_ignored_artists',
-    'rules_ignored_genres',
-    'rules_subgenre_hierarchy',
-    'rules_genre_backlog',
-    'downloads_soundcloud_accounts',
-    'downloads_soundcloud_archive',
-    'downloads_youtube_accounts',
-    'downloads_youtube_archive',
-    'scrobble_listens',
-    'scrobble_unmatched_listens',
-    'scrobble_imports',
-    'events',
-}
+# Every table the code or a migration declares, read from their CREATE TABLE
+# statements. This used to be a hand-kept list, and some twenty tables -- channels,
+# the feed snapshot, radio, news, the festival and podcast rules, the downloader's
+# own tables -- never made it onto it. See tests/integration/schema_sources.py.
+EXPECTED_TABLES = schema_sources.declared_tables()
 
 
 def table_names(connection):
@@ -66,8 +27,12 @@ def table_names(connection):
         return {next(iter(row.values())) for row in cursor.fetchall()}
 
 
-def test_every_table_the_code_reads_exists(database):
-    missing = EXPECTED_TABLES - table_names(database)
+def test_every_table_the_code_reads_exists(built_schemas):
+    """Checked against a schema built from nothing by the code alone, the way a fresh
+    stack gets it -- not against the session database, which also ran every migration
+    and so would hide a table that only a migration creates."""
+    assert len(EXPECTED_TABLES) > 60, 'the CREATE TABLE extraction found suspiciously little'
+    missing = EXPECTED_TABLES - set(built_schemas['code'])
     assert not missing, f'schema bootstrap does not create: {sorted(missing)}'
 
 

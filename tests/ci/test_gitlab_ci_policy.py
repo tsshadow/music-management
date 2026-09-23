@@ -634,6 +634,7 @@ PYTHON_UNIT_SOURCES = [
     "services/tagger/",
     "services/tests/",
     "tests/ci/",
+    "tests/unit/",
     "tools/",
 ]
 

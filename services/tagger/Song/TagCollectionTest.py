@@ -6,7 +6,7 @@ from mutagen.id3 import TPE1
 from mutagen.mp4 import MP4FreeForm, MP4Tags
 from mutagen.wave import _WaveID3
 
-from services.tagger.constants import ARTIST, GENRE
+from services.tagger.constants import ALBUM, ALBUM_ARTIST, ARTIST, FESTIVAL, GENRE, ORIGINAL_TITLE, REMIXER
 from services.tagger.Song.Tag import Tag
 from services.tagger.Song.TagCollection import TagCollection, UnsupportedExtension
 
@@ -102,6 +102,54 @@ class TagCollectionTest(unittest.TestCase):
         collection.set_item('artist', 'My Artist')
         output = str(collection)
         self.assertIn('artist: My Artist', output)
+
+    def test_m4a_album_and_album_artist_read_from_their_itunes_atoms(self):
+        tags = MP4Tags()
+        tags['\u00a9alb'] = ['Thunderdome 2025']
+        tags['aART'] = ['Various Artists']
+        collection = TagCollection(tags)
+        self.assertEqual(collection.get_item_as_string(ALBUM), 'Thunderdome 2025')
+        self.assertEqual(collection.get_item_as_string(ALBUM_ARTIST), 'Various Artists')
+        self.assertFalse(collection.get_item(ALBUM).has_changes())
+
+    def test_m4a_remixer_and_original_title_read_from_freeform_atoms(self):
+        tags = MP4Tags()
+        tags['----:com.apple.iTunes:REMIXER'] = [MP4FreeForm(b'Dj Mad Dog;Angerfist')]
+        tags['----:com.apple.iTunes:ORIGINAL_TITLE'] = [MP4FreeForm(b'A - B - C (24/7 Edit)')]
+        collection = TagCollection(tags)
+        self.assertEqual(collection.get_item_as_array(REMIXER), ['Dj Mad Dog', 'Angerfist'])
+        self.assertEqual(collection.get_item_as_string(ORIGINAL_TITLE), 'A - B - C (24/7 Edit)')
+        self.assertFalse(collection.get_item(REMIXER).has_changes())
+
+    def test_legacy_m4a_atoms_are_read_and_marked_for_rewriting(self):
+        tags = MP4Tags()
+        tags['REMI'] = ['Dj Mad Dog']
+        tags['ORIG'] = ['A - B - C']
+        tags['TALB'] = ['Various Artists']
+        tags['----:com.apple.iTunes:ALBUM'] = [MP4FreeForm(b'Youtube (Q-dance)')]
+        collection = TagCollection(tags)
+        self.assertEqual(collection.get_item_as_string(REMIXER), 'Dj Mad Dog')
+        self.assertEqual(collection.get_item_as_string(ORIGINAL_TITLE), 'A - B - C')
+        self.assertEqual(collection.get_item_as_string(ALBUM_ARTIST), 'Various Artists')
+        self.assertEqual(collection.get_item_as_string(ALBUM), 'Youtube (Q-dance)')
+        for key in (REMIXER, ORIGINAL_TITLE, ALBUM_ARTIST, ALBUM):
+            self.assertTrue(collection.get_item(key).has_changes(), key)
+
+    def test_the_correct_m4a_atom_wins_over_a_legacy_one_in_either_order(self):
+        for order in (('REMI', '----:com.apple.iTunes:REMIXER'), ('----:com.apple.iTunes:REMIXER', 'REMI')):
+            tags = MP4Tags()
+            for key in order:
+                tags[key] = ['Old'] if key == 'REMI' else [MP4FreeForm(b'New')]
+            collection = TagCollection(tags)
+            self.assertEqual(collection.get_item_as_string(REMIXER), 'New')
+            self.assertFalse(collection.get_item(REMIXER).has_changes())
+
+    def test_a_lower_case_freeform_twin_does_not_override_the_canonical_atom(self):
+        tags = MP4Tags()
+        tags['----:com.apple.iTunes:FESTIVAL'] = [MP4FreeForm(b'Reverze')]
+        tags['----:com.apple.iTunes:festival'] = [MP4FreeForm(b'Defqon')]
+        collection = TagCollection(tags)
+        self.assertEqual(collection.get_item_as_string(FESTIVAL), 'Reverze')
 
 
 if __name__ == '__main__':

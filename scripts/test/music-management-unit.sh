@@ -32,6 +32,10 @@ TEST_TARGETS=(
     # explicitly because tests/ holds integration suites that this job must not
     # run, so the whole directory cannot be handed to pytest.
     "tests/ci/"
+    # Tests that need the real mutagen (services/conftest.py stubs it for the whole
+    # session). Each runs its mutagen work in a child interpreter, so the stub that
+    # collecting services/ installs does not reach it.
+    "tests/unit/"
 )
 
 # Ratchet: the suite sits above this, and a change that drops below it fails here

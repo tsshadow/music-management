@@ -21,6 +21,8 @@ from services.tagger.constants import (
     DATE,
     FESTIVAL,
     GENRE,
+    LEGACY_MP4_ATOMS,
+    MP4_FREEFORM_PREFIX,
     ORIGINAL_ARTIST,
     ORIGINAL_DATE,
     PARSED,
@@ -143,6 +145,12 @@ class BaseSong:
         """Removes a tag from both the tag collection and file if present."""
         if self.music_file and self.music_file.get(tag):
             self.music_file.pop(tag)
+        if getattr(self, 'type', None) == MusicFileType.M4A and self.music_file is not None:
+            # An m4a keeps a tag under its atom name, not the tag name, so the pop above
+            # never matched: an emptied remixer stayed on the file and came back next read.
+            atoms = getattr(self.music_file, 'tags', None)
+            if atoms is not None and self._m4a_key(tag) in atoms:
+                del atoms[self._m4a_key(tag)]
         if tag in self.tag_collection.get():
             del self.tag_collection.get()[tag]
 
@@ -172,7 +180,7 @@ class BaseSong:
         tags = self.music_file.tags
         if tags is None:
             return False
-        prefix = '----:com.apple.iTunes:'
+        prefix = MP4_FREEFORM_PREFIX
         changed = False
         for key in [k for k in list(tags.keys()) if str(k).startswith(prefix)]:
             canonical = prefix + str(key)[len(prefix) :].upper()
@@ -194,6 +202,9 @@ class BaseSong:
         if not hasattr(self, 'tag_collection'):
             return False
         changes = self.normalize_custom_atoms()
+        # After the case fold, so a lower-case legacy freeform atom is caught under its
+        # canonical spelling too.
+        changes = self.drop_legacy_m4a_atoms() or changes
         written: list[Tag] = []
         for tag in list(self.tag_collection.get().values()):
             if isinstance(tag, Tag) and tag.has_changes():
@@ -258,12 +269,36 @@ class BaseSong:
                 self.music_file.tags[wav_key] = TextFrame(encoding=3, text=[value])
 
     def _set_m4a_tag(self, tag_name, value):
-        mp4_key = MP4Tags.get(tag_name)
-        if mp4_key:
-            self.music_file.tags[mp4_key] = value
+        """Write one tag to its m4a atom; freeform atoms carry UTF-8 bytes, standard ones text."""
+        mp4_key = self._m4a_key(tag_name)
+        if mp4_key.startswith(MP4_FREEFORM_PREFIX):
+            self.music_file.tags[mp4_key] = [MP4FreeForm(value.encode('utf-8'))]
         else:
-            custom_key = f'----:com.apple.iTunes:{tag_name.upper()}'
-            self.music_file.tags[custom_key] = [MP4FreeForm(value.encode('utf-8'))]
+            self.music_file.tags[mp4_key] = value
+
+    @staticmethod
+    def _m4a_key(tag_name) -> str:
+        """The m4a atom a tag is written to: its MP4Tags entry, else an upper-case freeform atom."""
+        return MP4Tags.get(tag_name) or f'{MP4_FREEFORM_PREFIX}{tag_name.upper()}'
+
+    def drop_legacy_m4a_atoms(self) -> bool:
+        """Deletes the atoms earlier versions wrote under a wrong name (see LEGACY_MP4_ATOMS).
+
+        TagCollection has already taken their value when the correct atom was missing, and
+        marked it unsaved, so save_file writes it to the correct atom in the same pass.
+        Returns True when an atom was removed and the file therefore has to be saved.
+        """
+        if getattr(self, 'type', None) != MusicFileType.M4A or not getattr(self, 'music_file', None):
+            return False
+        tags = self.music_file.tags
+        if tags is None:
+            return False
+        changed = False
+        for key in LEGACY_MP4_ATOMS:
+            if key in tags:
+                del tags[key]
+                changed = True
+        return changed
 
     def length(self):
         try:

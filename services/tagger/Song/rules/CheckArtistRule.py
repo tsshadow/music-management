@@ -5,6 +5,8 @@ from services.tagger.Song.rules.TagRule import TagRule
 
 
 class CheckArtistRule(TagRule):
+    """Normalises artist names against library_artists and rules_ignored_artists."""
+
     def __init__(self, artist_db=None, ignored_db=None):
         from services.common.Helpers.Cache import databaseHelpers
 
@@ -18,26 +20,30 @@ class CheckArtistRule(TagRule):
         )
 
     def apply(self, song) -> None:
+        """Swap each artist for its canonical or corrected spelling, in place.
+
+        Iterates over a snapshot: the list `library_artists()` returns is the tag's live
+        value, and mutating it mid-loop skipped values and re-appended corrections at the
+        end -- which demoted the primary artist and changed the order again on every pass.
+        """
         if not song.library_artists():
             return
         tag_item = song.tag_collection.get_item(ARTIST)
-        for name in song.library_artists():
-            name = name.strip()
+        for raw in list(song.library_artists()):
+            name = raw.strip()
             if not name:
                 continue
             if self.artist_table.exists(name):
                 canonical = self.artist_table.get(name)
-                if canonical != name:
-                    tag_item.add(canonical)
-                    tag_item.remove(name)
+                if canonical and canonical != name:
+                    tag_item.replace(raw, canonical)
                 continue
             corrected = self.ignored_table.get_corrected(name)
             if corrected:
                 print(f"↪️ Corrigeer '{name}' naar '{corrected}'")
-                tag_item.remove(name)
-                tag_item.add(corrected)
+                tag_item.replace(raw, corrected)
                 continue
             if self.ignored_table.exists(name):
                 print(f'🧹 Verwijder foutieve artiest zonder correctie: {name}')
-                tag_item.remove(name)
+                tag_item.remove(raw)
                 continue

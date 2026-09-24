@@ -32,7 +32,7 @@ services:
   phpmyadmin:
     security_opt:
       - no-new-privileges:true
-    image: phpmyadmin:latest
+    image: phpmyadmin:5.2.3@sha256:9e915766488a0f603183367a4b51f5db6309ea801f3eaa25138a83815772b14f
     container_name: music-management-phpmyadmin-1
     restart: unless-stopped
     depends_on:

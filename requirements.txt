@@ -49,11 +49,14 @@ numpy~=2.5.2
 Pillow~=12.3
 
 # --- Ingestion ---------------------------------------------------------------
-# Deliberately a floor, not a compatible-release pin. "~=2026.7.4" admits only
-# 2026.7.x, so a rebuild kept reinstalling a yt-dlp that predated whatever
-# SoundCloud or YouTube had changed in the meantime. See
-# scripts/ci/refresh-downloader-image.sh, which rebuilds this weekly.
-yt-dlp>=2026.7.4
+# An exact pin, kept fresh by Renovate rather than by the build. It used to be a
+# floor (">=2026.7.4") so that every rebuild picked up whatever PyPI had that day;
+# that also meant no two builds were known to contain the same yt-dlp. Renovate's
+# "yt-dlp" group bumps this line together with docker/Dockerfile.downloader and
+# docker/Dockerfile.tools, at any time and without the three-day cooldown, and
+# scripts/ci/refresh-downloader-image.sh ships develop's pin to production between
+# releases. See docs/bug-reports/067-image-builds-pull-unpinned-inputs.md.
+yt-dlp==2026.8.19
 telethon~=1.45.0
 patool~=4.0
 

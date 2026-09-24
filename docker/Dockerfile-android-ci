@@ -11,7 +11,7 @@
 #   docker build -f docker/Dockerfile-android-ci \
 #     --build-arg RUNNER_UID="$(id -u)" --build-arg RUNNER_GID="$(id -g)" \
 #     -t music-management/android-ci:35 docker/
-FROM mobiledevops/android-sdk-image:latest
+FROM mobiledevops/android-sdk-image:36.1.0@sha256:679b9b29374719ec1160515911d674292d5b00bbb47408eb623a5cbbde57ceb2
 
 ARG RUNNER_UID=1000
 ARG RUNNER_GID=1000

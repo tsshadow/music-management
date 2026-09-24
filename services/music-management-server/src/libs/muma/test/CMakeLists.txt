@@ -1,6 +1,7 @@
 include(GoogleTest)
 
 add_executable(test-muma
+	Authentication.cpp
 	PathEncoding.cpp
 	)
 

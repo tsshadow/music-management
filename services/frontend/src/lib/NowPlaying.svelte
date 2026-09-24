@@ -551,16 +551,30 @@
               </div>
             {/if}
 
-            <!-- `-ml-2.5`: each star is a 44px target around a 24px glyph, so the first
-                 glyph would otherwise sit 10px in from the text above it. -->
-            <div class="mt-1 -ml-2.5 flex items-center" data-testid="now-playing-rating">
+            <!-- Centred, like the transport below it, rather than hanging off the text
+                 edge: left-aligned, the row read as detached from the full-width controls.
+                 `max-w-xs` + `justify-between` spreads the five 44px targets evenly over a
+                 fixed width, so the gaps do not balloon on a tablet. An unset star is an
+                 outline in the secondary grey, not a near-invisible filled glyph: it has to
+                 read as "no rating yet", not as "disabled". -->
+            <div class="mx-auto mt-1 flex w-full max-w-xs items-center justify-between" data-testid="now-playing-rating">
               {#each [1, 2, 3, 4, 5] as star (star)}
                 <button
                   aria-label="{star} sterren"
-                  class="w-11 h-11 flex items-center justify-center bg-transparent border-none cursor-pointer transition-colors { rating >= star ? 'text-brand' : 'text-white/10' }"
+                  class="w-11 h-11 flex items-center justify-center bg-transparent border-none cursor-pointer transition-colors { rating >= star ? 'text-brand' : 'text-[#b3b3b3]' }"
+                  data-filled={rating >= star}
                   onclick={() => onrate?.(star)}
                 >
-                  <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="28"
+                    height="28"
+                    fill={rating >= star ? 'currentColor' : 'none'}
+                    stroke="currentColor"
+                    stroke-width={rating >= star ? 0 : 1.5}
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
                     <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
                   </svg>
                 </button>

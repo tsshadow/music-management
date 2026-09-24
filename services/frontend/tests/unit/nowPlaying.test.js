@@ -120,6 +120,33 @@ describe("NowPlaying", () => {
     expect(star.className).toContain("h-11");
   });
 
+  it("centres the rating row and spreads the stars evenly, like the transport", () => {
+    renderNowPlaying();
+
+    const row = screen.getByTestId("now-playing-rating");
+    expect(row.className).toContain("mx-auto");
+    expect(row.className).toContain("justify-between");
+    expect(row.className).toContain("max-w-xs");
+    // The old left-edge alignment must not come back alongside the centring.
+    expect(row.className).not.toContain("-ml-2.5");
+    expect(row.querySelectorAll("button")).toHaveLength(5);
+  });
+
+  it("draws unset stars as grey outlines, not as a faded disabled glyph", () => {
+    renderNowPlaying({ rating: 3 });
+
+    const set = screen.getAllByLabelText("3 sterren")[0];
+    const unset = screen.getAllByLabelText("4 sterren")[0];
+    expect(set.dataset.filled).toBe("true");
+    expect(set.className).toContain("text-brand");
+    expect(set.querySelector("svg").getAttribute("fill")).toBe("currentColor");
+    expect(unset.dataset.filled).toBe("false");
+    expect(unset.className).toContain("text-[#b3b3b3]");
+    expect(unset.className).not.toContain("text-white/10");
+    expect(unset.querySelector("svg").getAttribute("fill")).toBe("none");
+    expect(unset.disabled).toBe(false);
+  });
+
   it("toggles shuffle and repeat", async () => {
     const ontoggleShuffle = vi.fn();
     const ontoggleRepeat = vi.fn();

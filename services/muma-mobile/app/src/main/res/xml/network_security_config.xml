@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  What the app trusts on the network (bug report 037).
+  What the app trusts on the network (bug report 054).
 
   - Every remote host the app talks to is https (the server in StaticServers, the muma API,
     apk-hoster, the news stream), so cleartext is refused everywhere except localhost.

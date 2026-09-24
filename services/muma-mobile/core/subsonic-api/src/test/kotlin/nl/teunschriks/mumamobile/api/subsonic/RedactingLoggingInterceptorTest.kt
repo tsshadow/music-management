@@ -12,7 +12,7 @@ import org.junit.Test
 
 /**
  * The debug build's request logging wrote `p=enc:<hex>`, the salted token and the `X-API-Key`
- * header into logcat and the ring buffer (bug report 037).
+ * header into logcat and the ring buffer (bug report 054).
  */
 class RedactingLoggingInterceptorTest {
 

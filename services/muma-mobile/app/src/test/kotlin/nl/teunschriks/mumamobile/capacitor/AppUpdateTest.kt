@@ -39,7 +39,7 @@ class AppUpdateTest {
         AppUpdate.newest(emptyList()) shouldBeEqualTo null
     }
 
-    /** The query used to send the hoster's upload password; the read-only guest is enough (bug report 037). */
+    /** The query used to send the hoster's upload password; the read-only guest is enough (bug report 054). */
     @Test
     fun `the version url asks as the read-only guest`() {
         AppUpdate.versionUrl("https://apk.example", "muma-mobile-debug") shouldBeEqualTo

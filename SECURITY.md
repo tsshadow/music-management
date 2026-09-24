@@ -70,7 +70,7 @@ Summarised here because it affects what counts as a vulnerability;
   admin role.
 * There is one key check, `routers.users.verify_api_key`. A router must not carry
   its own copy: three did, from before RBAC, and accepted any enabled account on
-  every management route (docs/bug-reports/037). A route that changes rules
+  every management route (docs/bug-reports/037-management-routes-open-to-every-user.md). A route that changes rules
   needs `rules.manage`; one that operates the installation (container logs,
   downloader sources, event deletion, the lms.db sync) needs the admin role; a
   webhook that names the acting user in its body (the LMS rating webhook)
@@ -86,7 +86,7 @@ Summarised here because it affects what counts as a vulnerability;
   checked Subsonic `u`/`p` pair -- never from the bare `u` parameter. Its
   proxy forwards the caller's own key and never substitutes the system key.
   See [docs/authentication.md](docs/authentication.md#the-lms-muma-bridge-mumaresource)
-  and [bug report 037](docs/bug-reports/037-lms-any-key-is-admin.md).
+  and [bug report 056](docs/bug-reports/056-lms-any-key-is-admin.md).
 
 ## The system API key
 
@@ -111,7 +111,7 @@ walks the tree and fails if that literal reappears in any Python source.
 
 ## The Android app
 
-What `services/muma-mobile` does with credentials, since bug report 037:
+What `services/muma-mobile` does with credentials, since bug report 054:
 
 * **TLS is verified.** The one server the app signs in to has a publicly trusted
   certificate, and `StaticServers.ALLOW_SELF_SIGNED_CERTIFICATE` is `false`, so

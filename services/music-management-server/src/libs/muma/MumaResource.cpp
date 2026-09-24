@@ -369,7 +369,7 @@ namespace lms::api::muma
         // MuMa confirms, and otherwise a Subsonic u/p pair must hold. Any non-empty key used to be
         // accepted here, with the caller then named by the bare `u` parameter -- so any string plus
         // `u=<an admin>` was that admin on the routes below. See
-        // docs/bug-reports/037-lms-any-key-is-admin.md.
+        // docs/bug-reports/056-lms-any-key-is-admin.md.
         const AuthDecision auth{ authenticateRequest(request, isPublicAuthPath) };
         if (auth.outcome != AuthDecision::Outcome::Authenticated)
         {

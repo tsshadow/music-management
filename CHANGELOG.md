@@ -290,7 +290,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (title inference re-ran on the already-cleaned title each retag), and album / album artist went
   to atoms LMS does not read. They now go to `----:com.apple.iTunes:REMIXER`,
   `----:com.apple.iTunes:ORIGINAL_TITLE`, `©alb` and `aART`, and a file with the old atoms is
-  migrated on its next retag. Bug report 037.
+  migrated on its next retag. Bug report 053.
 
 - **Een m4a zonder metadatablok liet de tagger bij elke ronde opnieuw stuklopen.** mutagen geeft
   `tags` als `None` terug wanneer het bestand helemaal geen atom heeft — een yt-dlp-fragment dat
@@ -331,7 +331,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `api-key` or MuMa confirms it through `/api/auth/verify` (cached 60 s, cleared on
   `/muma/users/sync`); the caller is whoever that verified credential names; admin routes need a
   verified admin user rather than a system key; and the proxy forwards the caller's own key and
-  nothing else. Bug report 037. The same admin route also refuses a Subsonic token shorter than
+  nothing else. Bug report 056. The same admin route also refuses a Subsonic token shorter than
   16 characters (400, existing tokens untouched), the floor `updateUser` already applied.
 
 - **Any logged-in user could crash the music server with one settings request.** `updateUser`

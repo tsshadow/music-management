@@ -19,7 +19,7 @@ import org.junit.rules.TemporaryFolder
 
 /**
  * The exported album-art provider appended its key to the cache directory unchecked, so
- * `../../shared_prefs/<package>_preferences.xml` read the stored password (bug report 037).
+ * `../../shared_prefs/<package>_preferences.xml` read the stored password (bug report 054).
  */
 class AlbumArtPathTest {
 

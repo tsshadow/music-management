@@ -38,7 +38,7 @@ The Tagger API is hosted by the `music-manager` service on port 8000.
   fallback in `_set_m4a_tag`) is a freeform atom `----:com.apple.iTunes:<NAME>`, stored as UTF-8
   bytes and decoded on read. `LEGACY_MP4_ATOMS` lists where older versions wrote four tags (`REMI`,
   `ORIG`, `TALB`, freeform `ALBUM`); they are read when the correct atom is missing and deleted on the
-  next save, so files migrate on their next retag (bug report 037).
+  next save, so files migrate on their next retag (bug report 053).
 - **Splitting.** A tag value is split on ';' for every tag. It is split on '/' only for `GENRE`
   (`Tag.SLASH_SPLIT_TAGS`): 'AC/DC' is one artist and 'Live 24/7' one title.
 - **Order is identity.** The scanner takes the first artist as the primary one and hashes it into

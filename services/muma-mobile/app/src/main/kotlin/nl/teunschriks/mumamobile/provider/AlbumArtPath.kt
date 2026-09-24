@@ -15,7 +15,7 @@ import java.io.File
  * The provider is exported (Android Auto, the media notification and the launcher's widget host
  * read it from their own processes), so any app on the phone can hand it a URI. It used to append
  * the key to the album-art directory as it came, and `../../shared_prefs/<package>_preferences.xml`
- * then opened the preferences file that holds the password and the muma API key (bug report 037).
+ * then opened the preferences file that holds the password and the muma API key (bug report 054).
  * Kept free of Android types so the check is testable on the plain JVM.
  */
 object AlbumArtPath {

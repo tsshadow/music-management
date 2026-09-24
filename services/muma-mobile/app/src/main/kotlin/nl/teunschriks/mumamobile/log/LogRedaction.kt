@@ -19,7 +19,7 @@ package nl.teunschriks.mumamobile.log
  * The same text also carried request URLs and HTTP headers: the stream `DataSpec` logged at INFO
  * and the debug build's OkHttp logging wrote the Subsonic credentials (the `u`, `p`, `t`, `s` and
  * `apiKey` query parameters) and the `X-API-Key` header verbatim. [redact] masks those as well,
- * and the ring buffer applies it to every line before it keeps it (bug report 037).
+ * and the ring buffer applies it to every line before it keeps it (bug report 054).
  */
 object LogRedaction {
 

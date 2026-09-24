@@ -9,7 +9,7 @@ version.
 
 `library_tracks.track_uid` is `sha256(title-duration-primary_artist_id)`
 (`services/music_manager/routers/scanner.py`, `process_file`). A retag that fixes a title, or that
-reorders or splits the artists (bug report 037 did this to every file its rules touched), produces a
+reorders or splits the artists (bug report 053 did this to every file its rules touched), produces a
 new `track_uid`, so `process_file` inserts a new `library_tracks` row and repoints the file's
 `library_media_files` row at it. Nothing in `services/`, `scripts/` or `tools/` ever deleted a
 `library_tracks` row, so the old row stayed, without a file, holding:

@@ -42,12 +42,17 @@ _setup_lock = threading.Lock()
 #: (demote, disable, delete), so two admins cannot each remove the other at once.
 _admin_guard_lock = threading.Lock()
 
+#: The detail for a key no account holds; `verify_api_key` recognises it to answer 401.
+INVALID_API_KEY = 'Invalid API Key'
+
 
 def verify_api_key(x_api_key: str = Header(None)):
     """The one API-key dependency every router delegates to.
 
-    Missing key 401, unknown key or disabled account 403 and a database outage 503,
-    all decided by `verify_token`, whose exceptions pass through untouched.
+    Missing or unknown key 401 (the caller has not proved who it is), disabled account
+    403 (it has, and is refused), database outage 503. tests/bdd/features/
+    access_control.feature pins the 401 for an unknown key. `GET /api/auth/verify`
+    itself keeps answering 403 for an unknown key, which LMS's bridge reads.
     """
     # A plain `def`, not `async def`: `verify_token` is a database round trip, and an
     # async dependency that calls it directly holds the event loop for its duration --
@@ -57,10 +62,15 @@ def verify_api_key(x_api_key: str = Header(None)):
         raise HTTPException(status_code=401, detail='Missing API Key')
     if is_system_api_key(x_api_key):
         return {'type': 'system'}
-    res = verify_token(x_api_key)
+    try:
+        res = verify_token(x_api_key)
+    except HTTPException as exc:
+        if exc.status_code == 403 and exc.detail == INVALID_API_KEY:
+            raise HTTPException(status_code=401, detail=INVALID_API_KEY) from exc
+        raise
     if res.get('status') == 'ok':
         return res
-    raise HTTPException(status_code=401, detail='Invalid API Key')
+    raise HTTPException(status_code=401, detail=INVALID_API_KEY)
 
 
 class UserCreate(BaseModel):
@@ -273,7 +283,7 @@ def verify_token(x_api_key: str = Header(None)):
         raise _auth_database_unavailable() from exc
     finally:
         conn.close()
-    raise HTTPException(status_code=403, detail='Invalid API Key')
+    raise HTTPException(status_code=403, detail=INVALID_API_KEY)
 
 
 def _auth_database_unavailable() -> HTTPException:

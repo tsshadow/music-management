@@ -68,8 +68,8 @@ Summarised here because it affects what counts as a vulnerability;
   and every refresh token in one step. A non-admin changing their own password
   must present the current one; another account's, or an admin's, needs the
   admin role.
-* There is one key check, `routers.users.verify_api_key`: missing key 401,
-  unknown key or disabled account 403, database unreachable 503. A router must
+* There is one key check, `routers.users.verify_api_key`: missing or unknown
+  key 401, disabled account 403, database unreachable 503. A router must
   not carry its own copy: three did, from before RBAC, and accepted any enabled
   account on every management route (docs/bug-reports/037-management-routes-open-to-every-user.md); two more swallowed
   every error into 401 "Invalid API key" (docs/bug-reports/052). A route that changes rules

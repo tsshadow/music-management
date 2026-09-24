@@ -15,8 +15,9 @@ The `music-manager` service provides a REST API (FastAPI) for managing the music
   already completed` once one does (was 400); concurrent calls create exactly one admin.
 
 Every route below takes the key in `X-API-Key` and resolves it through the one
-`routers.users.verify_api_key` (401 without a key, 403 for an unknown or disabled one, 503 when the
-database cannot be asked -- no router answers "Invalid API key" for an outage any more). "Admin"
+`routers.users.verify_api_key` (401 without a key or for a key no account holds, 403 for a disabled
+account, 503 when the database cannot be asked -- no router answers "Invalid API key" for an outage
+any more). `GET /api/auth/verify` itself still answers 403 for an unknown key. "Admin"
 means the admin role (`rbac.require_admin`); a named permission means `rbac.require_permission`.
 The system key passes every check. Routes not marked otherwise need any authenticated account.
 

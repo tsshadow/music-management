@@ -11,7 +11,9 @@
 - **A database outage read as "Invalid API key".** The `library` and `scrobbler` routers kept their
   own key check, which swallowed every exception into a `401`. They now delegate to
   `users.verify_api_key`, and `verify_token` answers `503` when the users table cannot be read
-  (before: `403 Invalid API Key` without a pool, `500` on a connection error).
+  (before: `403 Invalid API Key` without a pool, `500` on a connection error). A key no account
+  holds is `401` on every router (it was `403` on all but `library` and `scrobbler` since 0.72.2;
+  the access-control feature requires `401`); a disabled account is `403` everywhere.
 - **Any account could scrobble into another account's history.** `POST /api/scrobble/event` took
   the body's `username` at its word for every key. A user key may now only name itself (`403`
   otherwise); admins and the system key, which LMS uses, still name anyone.

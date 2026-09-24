@@ -53,11 +53,17 @@ class LibraryAuthTest(unittest.TestCase):
             response = TestClient(app).get('/api/library/genres', headers={'x-api-key': 'user-key'})
         self.assertEqual(response.status_code, 500)
 
-    def test_a_key_that_does_not_verify_is_rejected_with_its_own_status(self):
-        # verify_token's answer passes through; this copy used to turn it into a 401.
+    def test_a_key_no_account_holds_is_unauthenticated(self):
         refused = HTTPException(status_code=403, detail='Invalid API Key')
         with patch.object(users_router, 'verify_token', side_effect=refused):
             response = TestClient(app).get('/api/library/genres', headers={'x-api-key': 'bad'})
+        self.assertEqual(response.status_code, 401)
+
+    def test_a_disabled_account_is_forbidden_not_unauthenticated(self):
+        # This router's own copy used to turn every verify_token exception into a 401.
+        refused = HTTPException(status_code=403, detail='Account disabled')
+        with patch.object(users_router, 'verify_token', side_effect=refused):
+            response = TestClient(app).get('/api/library/genres', headers={'x-api-key': 'disabled'})
         self.assertEqual(response.status_code, 403)
 
     def test_a_key_that_verifies_without_an_ok_status_is_rejected(self):

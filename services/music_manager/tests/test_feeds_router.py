@@ -102,11 +102,17 @@ class FeedsRealAuthTest(_LiveFeedsMixin, unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_a_key_that_does_not_verify_is_rejected(self):
-        """What verify_token raises for a key no account holds, passed through as is --
-        feeds.py no longer rewrites it to its own 401."""
+        """A key no account holds is unauthenticated: the canonical users.verify_api_key
+        answers 401, as tests/bdd/features/access_control.feature requires (bug report 052)."""
         rejection = HTTPException(status_code=403, detail='Invalid API Key')
         with patch.object(users_router, 'verify_token', side_effect=rejection):
             response = client.get('/api/feeds', headers={'X-API-Key': 'bad'})
+        self.assertEqual(response.status_code, 401)
+
+    def test_a_disabled_account_is_passed_through_as_403(self):
+        rejection = HTTPException(status_code=403, detail='Account disabled')
+        with patch.object(users_router, 'verify_token', side_effect=rejection):
+            response = client.get('/api/feeds', headers={'X-API-Key': 'disabled'})
         self.assertEqual(response.status_code, 403)
 
     def test_a_missing_key_is_a_401(self):

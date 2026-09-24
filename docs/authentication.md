@@ -151,8 +151,10 @@ simultaneous requests -- even in two processes -- create exactly one admin. The 
 
 ## API key checks and outages
 
-Every router resolves `X-API-Key` through `routers.users.verify_api_key`: missing key `401`, unknown key or
-disabled account `403`, the users table unreadable `503` (with `Retry-After`). Until bug report 052 the
+Every router resolves `X-API-Key` through `routers.users.verify_api_key`: missing key or a key no account
+holds `401` (as `tests/bdd/features/access_control.feature` requires), disabled account `403`, the users
+table unreadable `503` (with `Retry-After`). `GET /api/auth/verify`, which LMS asks, keeps its `403` for
+an unknown key. Until bug report 052 the
 `library` and `scrobbler` routers carried their own copy that caught every exception and answered
 `401 Invalid API key`, so a database outage (or a disabled account) told the client its key was wrong.
 

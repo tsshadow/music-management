@@ -61,6 +61,9 @@ mobile client without a housekeeping step.
 - **Key checks**: `library.verify_api_key` and `scrobbler.verify_api_key` delegate to
   `users.verify_api_key`, like every other router. `verify_token` answers `503 Authentication database
   unavailable` (`Retry-After: 5`) when there is no pool, the connection fails or the lookup fails.
+  `users.verify_api_key` answers `401` for a key no account holds and `403` only for a disabled
+  account: `tests/bdd/features/access_control.feature` requires 401 for an invalid key on the library,
+  and a uniform check means every router answers the same. `GET /api/auth/verify` keeps its 403.
   `tests/integration/conftest.py` now also patches `curation`, `downloaders`, `feeds` and `songs`,
   which import `get_db_connection` by value and were missing from its list.
 - **Scrobbles**: `POST /api/scrobble/event` uses the ListenBrainz import's rule (renamed

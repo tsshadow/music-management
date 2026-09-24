@@ -3,7 +3,6 @@ import faulthandler
 import logging
 import os
 import signal
-import time
 from collections.abc import Callable, Iterable, Sequence
 
 from services.common.config_store import ConfigStore as Settings
@@ -159,7 +158,11 @@ def main() -> None:
             break
         sleeptime = sweep_sleep_seconds(sorted(steps), args.sleeptime)
         logging.info('Sleeping for %d seconds before next run.', sleeptime)
-        time.sleep(sleeptime)
+        # Wakes on SIGTERM. A plain sleep sat out the whole interval -- up to an
+        # hour -- so a deploy during the pause always ended in SIGKILL.
+        if shutdown.wait(sleeptime):
+            logging.info('Shutting down; stopped waiting for the next round.')
+            break
 
 
 if __name__ == '__main__':

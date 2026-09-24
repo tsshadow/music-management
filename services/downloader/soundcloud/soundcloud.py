@@ -14,9 +14,16 @@ from services.common.config_store import ConfigStore
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.job_manager import job_manager
 from services.downloader import shutdown
+from services.downloader.account_report import (
+    BLANK,
+    THROTTLED,
+    UNAVAILABLE_TRACKS,
+    AccountReport,
+)
 from services.downloader.cookie_profile import snapshot_cookie_profile
 from services.downloader.deep_sweep import (
     DeepSweepReport,
+    ListingFailed,
     ids_in_text_archive,
     list_flat,
     snapshot_state,
@@ -25,12 +32,6 @@ from services.downloader.deep_sweep import (
 )
 from services.downloader.rate_state import RateLimited, SweepAborted
 from services.downloader.soundcloud.account_probe import ProbeResult, newest_track
-from services.downloader.soundcloud.account_report import (
-    BLANK,
-    THROTTLED,
-    UNAVAILABLE_TRACKS,
-    AccountReport,
-)
 from services.downloader.soundcloud.SoundcloudArchive import SoundcloudArchive
 from services.downloader.sweep import SweepPolicy
 from services.downloader.write_offs import WriteOffs
@@ -170,13 +171,19 @@ class SoundcloudDownloader:
     def _probe(self, account: str, ydl_opts: dict) -> ProbeResult | None:
         """The account's newest track, or None when the probe cannot answer.
 
-        A 403 or 429 is handed to the policy and stops the sweep, exactly as it
-        would from a full run. Anything else returns None, which falls through to
-        the full run: the probe is an optimisation and may never be the reason an
-        account goes unchecked.
+        A refused listing goes to the backoff exactly as a full run's answer would:
+        a 429 parks the source, a 403 counts as one blank account and is raised as
+        `ListingFailed` so the account is not asked again (see `_refused_listing`).
+        Anything else returns None, which falls through to the full run: the probe
+        is an optimisation and may never be the reason an account goes unchecked.
         """
         try:
             return newest_track(account, ydl_opts)
+        except ListingFailed as exc:
+            if self._refused_listing(exc, account):
+                raise
+            logging.warning('Could not probe %s (%s); doing the full run instead.', account, exc)
+            return None
         except Exception as exc:
             rate_limited = self.policy.rate_limit_from(exc, account)
             if rate_limited is not None:
@@ -221,7 +228,7 @@ class SoundcloudDownloader:
         """
         self.policy.guard(account)
         url = f'https://soundcloud.com/{account}/tracks'
-        listing = list_flat(url, ydl_opts)
+        listing = self._list_or_park(url, ydl_opts, account)
         ids = [entry.track_id for entry in listing]
         held = self._held_ids(account, ids)
         write_offs = self.unavailable.load_many(account, ids)
@@ -262,6 +269,37 @@ class SoundcloudDownloader:
             )
             logging.info('Deep sweep of %s: %s', account, report.summary())
         return report
+
+    def _list_or_park(self, url: str, ydl_opts: dict, account: str) -> list:
+        """The flat listing, or `ListingFailed` saying why there is none.
+
+        Whatever the reason, the account was not checked, so it must be neither
+        marked deep-swept nor counted as progress against a blank run. A refusal
+        is also fed to the backoff first (see `_refused_listing`).
+        """
+        try:
+            return list_flat(url, ydl_opts)
+        except ListingFailed as exc:
+            self._refused_listing(exc, account)
+            raise
+
+    def _refused_listing(self, exc: ListingFailed, account: str) -> bool:
+        """Feed a failed listing to the backoff; return whether SoundCloud refused it.
+
+        A 429 parks the source outright, as it does everywhere. A 403 is read the
+        way a full run that got nothing back is read (see `_settle`): one blank
+        account, and only `block_threshold` of them in a row park the source -- an
+        account that is private or blocked in this region answers 403 too. When
+        that threshold is reached the `RateLimited` is raised from here.
+        """
+        if exc.status == 429:
+            raise self.policy.park('429', account) from exc
+        if exc.status != 403:
+            return False
+        rate_limited = self.policy.note_blank(account)
+        if rate_limited is not None:
+            raise rate_limited from exc
+        return True
 
     def _settle_deep(
         self, account: str, listing, held, write_offs, wanted, batch, attempted, parked: bool, interrupted: bool = False
@@ -312,13 +350,37 @@ class SoundcloudDownloader:
         return report
 
     def _check_account(self, account: str, ydl_opts: dict) -> None:
-        """One account: ask what its newest track is, and only dig in if it is new."""
+        """One account: ask what its newest track is, and only dig in if it is new.
+
+        A listing SoundCloud refused with a 403 has already been counted as a blank
+        account; the account is left there, exactly like a full run that came back
+        empty, rather than asked a second time.
+        """
+        try:
+            self._check_account_inner(account, ydl_opts)
+        except ListingFailed as exc:
+            if exc.status != 403:
+                raise
+            logging.info('%s; counted as an account that gave nothing back.', exc)
+
+    def _check_account_inner(self, account: str, ydl_opts: dict) -> None:
+        """The deep pass when due, else the probe and, if it finds something new, the full run."""
         if self.deep_mode or self.policy.deep_due(account):
-            report = self.deep_sweep_account(account, ydl_opts)
-            if report.complete:
-                self.policy.mark_deep_swept(account)
-            self.policy.note_progress()
-            return
+            try:
+                report = self.deep_sweep_account(account, ydl_opts)
+            except ListingFailed as exc:
+                if exc.status == 403:
+                    raise
+                # No listing, but not a refusal either. The account stays deep-due,
+                # counts as no progress, and still gets the ordinary check below.
+                logging.warning('%s; checking the account the ordinary way instead.', exc)
+            else:
+                if report.complete:
+                    self.policy.mark_deep_swept(account)
+                # Only reached when the listing came back: a refused one raises out
+                # of the pass above, so a 403 storm can no longer reset the blank run.
+                self.policy.note_progress()
+                return
         probe = self._probe(account, ydl_opts)
         if probe is not None:
             self._seen_tracks[account] = probe.track_id
@@ -582,7 +644,12 @@ class SoundcloudDownloader:
             'outtmpl': f"{self.downloader_config['output_folder']}/%(uploader)s/%(title)s.%(ext)s",
             'compat_opts': ['filename'],
             'nooverwrites': False,
-            'no_part': True,
+            # No `nopart`: yt-dlp writes to `<name>.part` and renames on completion, so a
+            # download cut off by SIGKILL or a dropped connection never sits in the tree
+            # under its real name for the tagger and the scanner to pick up. The archive
+            # row is written by SoundcloudSongProcessor, a post-processor, which only runs
+            # after that rename. (A `no_part: True` stood here for years; yt-dlp spells the
+            # option `nopart`, so it never did anything -- removed rather than corrected.)
             # `EmbedThumbnailPP` (added in download_url) embeds a thumbnail *file*: it reads
             # `info['thumbnails'][i]['filepath']` and, finding none, prints "There are no
             # thumbnails on disk" and returns the info untouched. The CLI's --embed-thumbnail

@@ -4,7 +4,7 @@ from services.tests.mock_base import setup_mocks
 
 setup_mocks()
 
-from services.downloader.soundcloud.account_report import (
+from services.downloader.account_report import (
     BLANK,
     CLEAN,
     THROTTLED,

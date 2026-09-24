@@ -14,6 +14,15 @@ is handed to yt-dlp as a progress hook, fires on every block, and raises as soon
 as a stop has been asked for, which drops the sweep back to its own loop within a
 second.
 
+What it raises matters. The downloaders run yt-dlp with ``ignoreerrors``, and
+under that option yt-dlp swallows every exception an entry raises -- except
+``DownloadCancelled`` and a few of its own. A plain ``Exception`` abandoned one
+video and yt-dlp went straight on to the next, until SIGKILL. ``ShuttingDown``
+is therefore a ``DownloadCancelled``, which ``YoutubeDL.download`` re-raises.
+
+The flag itself lives in ``services.common.shutdown`` so the importer can share
+it; the names are re-exported here so the downloader keeps one import.
+
 Nothing here decides *what* to clean up. It only says "stop soon", and the
 existing checkpoints -- ``SweepPolicy.guard`` between tracks and the ``finally``
 in the deep pass -- do the rest.
@@ -21,49 +30,27 @@ in the deep pass -- do the rest.
 
 from __future__ import annotations
 
-import logging
-import signal
-import threading
+from services.common.shutdown import (  # noqa: F401 - re-exported for the downloader
+    _announced,
+    _requested,
+    install_handlers,
+    is_requested,
+    request,
+    reset,
+    wait,
+)
 
-_requested = threading.Event()
-_announced = threading.Event()
-
-
-class ShuttingDown(Exception):
-    """Raised inside yt-dlp to abandon a download the moment a stop is asked for."""
-
-
-def request(signum=None, _frame=None) -> None:
-    """Ask every downloader to stop at its next checkpoint.
-
-    Installed directly as the signal handler, so it has to accept the
-    ``(signum, frame)`` pair as well as being called with nothing at all.
-    """
-    _requested.set()
-    if not _announced.is_set():
-        _announced.set()
-        name = signal.Signals(signum).name if signum is not None else 'a stop request'
-        logging.info('Received %s; finishing the current step and shutting down.', name)
+try:
+    from yt_dlp.utils import DownloadCancelled as _Cancelled
+except ImportError:  # pragma: no cover - only under the test stub that replaces yt_dlp
+    _Cancelled = Exception
 
 
-def is_requested() -> bool:
-    """Whether a stop has been asked for."""
-    return _requested.is_set()
+class ShuttingDown(_Cancelled):  # type: ignore[misc, valid-type]
+    """Raised inside yt-dlp to abandon the whole download call the moment a stop is asked for."""
 
 
 def abort_hook(_progress: dict) -> None:
     """A yt-dlp progress hook that abandons the download once a stop is asked for."""
     if _requested.is_set():
         raise ShuttingDown('shutting down')
-
-
-def install_handlers() -> None:
-    """Arm SIGTERM and SIGINT. Safe to call more than once."""
-    signal.signal(signal.SIGTERM, request)
-    signal.signal(signal.SIGINT, request)
-
-
-def reset() -> None:
-    """Forget any stop that was asked for; used by tests."""
-    _requested.clear()
-    _announced.clear()

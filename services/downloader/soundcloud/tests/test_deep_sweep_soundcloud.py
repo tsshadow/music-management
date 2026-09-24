@@ -9,8 +9,8 @@ from services.tests.mock_base import setup_mocks
 setup_mocks()
 
 from services.downloader.account_schedule import AccountSchedule, InMemoryCheckStore
-from services.downloader.deep_sweep import FlatTrack
-from services.downloader.rate_state import InMemoryRateStateStore, RateState
+from services.downloader.deep_sweep import FlatTrack, ListingFailed
+from services.downloader.rate_state import InMemoryRateStateStore, RateLimited, RateState
 from services.downloader.soundcloud.soundcloud import SoundcloudDownloader
 from services.downloader.timing import load_timing
 from services.downloader.write_offs import InMemoryWriteOffStore, WriteOffs
@@ -187,6 +187,98 @@ class DeepSweepBranchTest(unittest.TestCase):
             self.downloader._check_account('dj_a', {})
 
         deep.assert_called_once()
+
+
+class RefusedListingTest(unittest.TestCase):
+    """A listing that did not come back must neither finish the account nor end a blank run."""
+
+    def setUp(self):
+        self.timing = load_timing('soundcloud', overrides={})
+        self.check_store = InMemoryCheckStore()
+        self.downloader = SoundcloudDownloader(
+            timing=self.timing,
+            rate_state=RateState('soundcloud', self.timing, store=InMemoryRateStateStore()),
+            schedule=AccountSchedule('soundcloud', store=self.check_store, now=lambda: NOW),
+            unavailable=WriteOffs('soundcloud', store=InMemoryWriteOffStore(), retry_days=30, now=lambda: NOW),
+            notifier=StubNotifier(),
+        )
+        self.downloader.downloader_config['archive_file'] = None
+        self.downloader.downloader_config['archive_dir'] = '/nonexistent'
+
+    def _check(self, error, account='dj_a'):
+        with (
+            mock.patch('services.downloader.soundcloud.soundcloud.list_flat', side_effect=error) as listing,
+            mock.patch.object(self.downloader.policy, 'note_progress') as progress,
+            mock.patch.object(self.downloader, 'download_account') as full_run,
+        ):
+            try:
+                self.downloader._check_account(account, {})
+            finally:
+                self.progress = progress
+                self.listing = listing
+                self.full_run = full_run
+
+    @staticmethod
+    def _refused(account='dj_a'):
+        return ListingFailed(f'https://soundcloud.com/{account}/tracks', 'HTTP Error 403: Forbidden')
+
+    def test_a_403_on_the_listing_counts_as_one_blank_account_and_leaves_it_deep_due(self):
+        # The same reading `_settle` gives a full run that got nothing back: an
+        # account that is private or region-blocked answers 403 too.
+        self._check(self._refused())
+
+        self.assertEqual(1, self.downloader.policy._blank_run)
+        self.assertEqual(0, self.downloader.policy.rate_state.cooldown_remaining())
+        self.assertTrue(self.downloader.policy.deep_due('dj_a'))
+        self.progress.assert_not_called()
+        # Not asked a second time through the probe or the full run.
+        self.assertEqual(1, self.listing.call_count)
+        self.full_run.assert_not_called()
+
+    def test_block_threshold_refused_listings_in_a_row_park_the_source(self):
+        for index in range(self.timing.block_threshold - 1):
+            self._check(self._refused(f'dj_{index}'), account=f'dj_{index}')
+
+        with self.assertRaises(RateLimited) as raised:
+            self._check(self._refused('dj_last'), account='dj_last')
+
+        self.assertEqual('403', raised.exception.reason)
+        self.assertGreater(self.downloader.policy.rate_state.cooldown_remaining(), 0)
+
+    def test_a_refused_probe_counts_as_a_blank_account_too(self):
+        self.downloader.deep_mode = False
+        with (
+            mock.patch.object(self.downloader.policy, 'deep_due', return_value=False),
+            mock.patch('services.downloader.soundcloud.soundcloud.newest_track', side_effect=self._refused()),
+        ):
+            self._check(self._refused())
+
+        self.assertEqual(1, self.downloader.policy._blank_run)
+        self.full_run.assert_not_called()
+
+    def test_a_429_on_the_listing_parks_the_source_without_resetting_the_blank_run(self):
+        # The blank counter is the only evidence of a 403 storm; a listing that
+        # never came back must not wipe it.
+        with self.assertRaises(RateLimited) as raised:
+            self._check(ListingFailed('https://soundcloud.com/dj_a/tracks', 'HTTP Error 429: Too Many Requests'))
+
+        self.assertEqual('429', raised.exception.reason)
+        self.progress.assert_not_called()
+        self.assertTrue(self.downloader.policy.deep_due('dj_a'))
+
+    def test_an_account_name_with_403_in_it_is_not_a_refusal(self):
+        self._check(ListingFailed('https://soundcloud.com/dj-403/tracks', 'Unable to download JSON metadata'), 'dj-403')
+
+        self.assertEqual(0, self.downloader.policy.rate_state.cooldown_remaining())
+        self.assertEqual(0, self.downloader.policy._blank_run)
+
+    def test_any_other_listing_failure_falls_through_to_the_ordinary_check(self):
+        self._check(ListingFailed('https://soundcloud.com/dj_a/tracks', 'Unable to download JSON metadata'))
+
+        self.full_run.assert_called_once_with('dj_a', {})
+        self.progress.assert_not_called()
+        self.assertTrue(self.downloader.policy.deep_due('dj_a'))
+        self.assertEqual(0, self.downloader.policy.rate_state.cooldown_remaining())
 
 
 if __name__ == '__main__':

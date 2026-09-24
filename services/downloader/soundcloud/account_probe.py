@@ -34,10 +34,12 @@ class ProbeResult:
 
 
 def newest_track(account: str, base_opts: dict, ydl_factory=YoutubeDL) -> ProbeResult | None:
-    """The account's newest track, or None when it has none we can see.
+    """The account's newest track, or None when the account lists nothing.
 
-    Errors are raised rather than swallowed: only the caller knows whether a 403
-    should park the source or simply fall through to a full run.
+    A listing that did not come back raises `ListingFailed` rather than reading
+    as an empty account -- `list_flat` forces ``ignoreerrors`` off for exactly
+    that reason. Only the caller knows whether the 403 inside it should park the
+    source or simply fall through to a full run.
     """
     url = f'https://soundcloud.com/{account}/tracks'
     tracks = list_flat(url, base_opts, limit=1, ydl_factory=ydl_factory)

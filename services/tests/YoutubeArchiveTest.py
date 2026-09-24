@@ -135,6 +135,17 @@ class YoutubeArchiveTest(unittest.TestCase):
         query, _ = connection.fake_cursor.queries[-1]
         self.assertIn('ON DUPLICATE KEY UPDATE info_json = COALESCE(info_json, %s)', query)
 
+    def test_a_download_does_not_follow_its_uploader(self):
+        """One manual download must not subscribe the whole channel, nor add a second spelling of it."""
+        connection = FakeConnection(row=None)
+        with self._with_connection(connection):
+            YoutubeArchive.insert(
+                '@qdance', 'vid', '/tmp/x.m4a', 'https://youtu.be/vid', 'Set', raw_info={'channel_id': 'UC123'}
+            )
+        queries = [query for query, _params in connection.fake_cursor.queries]
+        self.assertFalse([query for query in queries if 'downloads_youtube_accounts' in query], queries)
+        self.assertIn('INSERT INTO downloads_youtube_archive', queries[-1])
+
 
 if __name__ == '__main__':
     unittest.main()

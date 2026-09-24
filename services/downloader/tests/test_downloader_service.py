@@ -172,7 +172,7 @@ class MainLoopTest(unittest.TestCase):
         with (
             patch.object(downloader_service, 'DownloaderService', return_value=service),
             patch.object(downloader_service, 'parse_args', return_value=parse_args(argv)),
-            patch.object(downloader_service.time, 'sleep', side_effect=sleep) as sleeper,
+            patch.object(downloader_service.shutdown, 'wait', side_effect=sleep, return_value=False) as sleeper,
             contextlib.suppress(KeyboardInterrupt),
         ):
             main()
@@ -224,6 +224,14 @@ class MainLoopTest(unittest.TestCase):
 
         self.assertEqual(sleeper.call_args_list[0].args, (5,))
         self.assertEqual(self.sources_run(service), ['youtube', 'youtube'])
+
+    def test_a_stop_during_the_sleep_ends_the_loop_at_once(self):
+        # `shutdown.wait` returns True when SIGTERM arrived while it slept; the
+        # loop must leave instead of starting another round or sleeping on.
+        service, sleeper = self.run_main(['--step', 'youtube', '--repeat', '--sleeptime', '3600'], sleep=[True])
+
+        self.assertEqual(sleeper.call_count, 1)
+        self.assertEqual(self.sources_run(service), ['youtube'])
 
 
 if __name__ == '__main__':

@@ -20,6 +20,28 @@ fi
 
 export PYTHONPATH="$ROOT_DIR:$ROOT_DIR/services:$PYTHONPATH"
 
+# tests/unit/test_downloader_real_ytdlp.py needs the real yt-dlp: how it treats an
+# error under ignoreerrors is the whole question there, and mock_base replaces it
+# for everything under services/. When this interpreter has no yt-dlp of its own,
+# the version requirements.txt pins is put in a cache directory of its own (never
+# into the interpreter) and added to PYTHONPATH, which the child interpreters that
+# test starts inherit. yt-dlp is pure Python with no required dependencies. Only
+# the first run after a requirements bump talks to PyPI; if that fails, those
+# tests skip with a reason and the run goes on.
+if ! python3 -c "import yt_dlp" >/dev/null 2>&1; then
+    YTDLP_SPEC="$(grep -E '^yt-dlp[<>=~ ]' requirements.txt | head -n 1 | sed 's/[[:space:]]*#.*$//')"
+    YTDLP_SPEC="${YTDLP_SPEC:-yt-dlp}"
+    YTDLP_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/muma-unit-yt-dlp/$(echo "$YTDLP_SPEC" | sha256sum | cut -c1-16)"
+    if [ ! -d "$YTDLP_DIR/yt_dlp" ]; then
+        echo "--- Installing $YTDLP_SPEC for tests/unit into $YTDLP_DIR ---"
+        python3 -m pip install --quiet --disable-pip-version-check --no-deps --target "$YTDLP_DIR" "$YTDLP_SPEC" \
+            || echo "--- Could not install $YTDLP_SPEC; the tests/unit tests that need it will skip ---"
+    fi
+    if [ -d "$YTDLP_DIR/yt_dlp" ]; then
+        export PYTHONPATH="$PYTHONPATH:$YTDLP_DIR"
+    fi
+fi
+
 # Everything under services/ and tools/ is collected. This used to be a hand-maintained
 # allow-list, which silently left ~half the existing test files out of both the run and
 # the coverage figure. Discovery is governed by pytest.ini (python_files/norecursedirs)

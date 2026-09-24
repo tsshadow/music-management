@@ -129,6 +129,7 @@ The core of the collection, where metadata and analysis results converge.
 | `channels` | An account on a platform that a file arrived through — a SoundCloud or YouTube account, a Telegram chat. Not a label: a platform is how music arrived, not who released it. `label_id` and `artist_id` are independent and both nullable, so a channel may be a label, an artist, both, or neither until someone decides. Platforms stay split, so one imprint's SoundCloud and YouTube accounts are two rows that converge through `label_id`. | `platform`, `normalized_name`, `label_id`, `artist_id` | Unique on (`platform`, `normalized_name`). |
 | `library_track_channels` | Junction table for library_tracks and channels. | `track_id`, `channel_id` | |
 | `library_tagged_files` | Tracking which files were tagged. | `path`, `last_tagged` | |
+| `tagger_processed_files` | The tagger's bookkeeping and retag queue: one row per file it has seen. | `filepath`, `mtime`, `needs_rescan`, `rescan_reason`, `attempts`, `last_attempt` | `filepath` is the primary key and `utf8mb4_bin` (migrate_v37): under the server default a case, accent or emoji difference made two files one row. `attempts`/`last_attempt` pace the retries of a file that keeps failing; after five it is parked with reason `failed` ([bug report 051](bug-reports/051-a-failing-file-is-retried-every-round-forever.md)). |
 | `library_broken_songs` | Files that failed analysis. | `path`, `error_code` | |
 | `library_broken_song_artist_lookup`| Mapping for problematic artist names. | `raw_name` | |
 
@@ -181,6 +182,12 @@ While the domains are logically separated, they can reside in a single physical 
   `track_title`) is longer than InnoDB's index limit under utf8mb4, so MariaDB builds it as a `USING
   HASH` long unique key. It enforces uniqueness exactly (no prefix truncation), but it cannot serve a
   range seek -- a date range on that table relies on `idx_unmatched_listened_at`.
+- A column that is compared as an identifier -- a path, a normalised key -- is `utf8mb4_bin`, not the
+  server default. `utf8mb4_general_ci` folds case and accents and gives every character outside the
+  BMP the same weight, which merged `channels.normalized_name` (migrate_v13), `library_works.work_key`
+  (migrate_v19) and `tagger_processed_files.filepath` (migrate_v37). A join from such a column to a
+  `_ci` one names `COLLATE utf8mb4_bin` explicitly: a newer server's default,
+  `utf8mb4_uca1400_ai_ci`, is not reconciled with another collation implicitly.
 - A TIMESTAMP column always declares its `DEFAULT`. On MariaDB before 10.10
   (`explicit_defaults_for_timestamp=OFF`) the first TIMESTAMP column of a table without one silently
   gets `ON UPDATE CURRENT_TIMESTAMP` too, and every UPDATE of the row rewrites it. That moved

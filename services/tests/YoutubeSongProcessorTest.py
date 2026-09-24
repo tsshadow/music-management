@@ -126,6 +126,36 @@ class YoutubeSongProcessorTest(unittest.TestCase):
         # title rather than the placeholder the download arrived with.
         self.assertEqual(DummyYoutubeArchive.inserted[-1][6]['title'], 'Noiseflow | Defqon.1 2025')
 
+    def test_a_redownload_put_in_place_keeps_its_library_name(self):
+        """After ReplaceExistingPP the path is the library file's; the filename template
+        points at the staging folder, so a rename would move the file out of the library."""
+        html = '<html><head><meta property="og:title" content="Noiseflow | Defqon.1 2025"></head></html>'
+        processor = YoutubeSongProcessor()
+        processor._downloader = DummyDownloader(os.path.join(self.temp_dir.name, '.staging'), html)
+        library_path = os.path.join(self.temp_dir.name, 'Q-dance', 'Noiseflow.m4a')
+        os.makedirs(os.path.dirname(library_path))
+        with open(library_path, 'wb') as handle:
+            handle.write(b'data')
+        info = {
+            'id': '5mKayZadF4g',
+            'title': 'youtube video #5mKayZadF4g',
+            'extractor': 'youtube',
+            'uploader_id': 'qdance',
+            'ext': 'm4a',
+            'webpage_url': 'https://www.youtube.com/watch?v=5mKayZadF4g',
+            'filepath': library_path,
+            '__muma_replaced': True,
+        }
+        with (
+            patch('services.downloader.youtube.YoutubeSongProcessor.Tagger') as mock_tagger,
+            patch('services.downloader.youtube.YoutubeSongProcessor.announce') as mock_announce,
+        ):
+            processor.run(info)
+        self.assertTrue(os.path.exists(library_path))
+        mock_tagger.parse_song.assert_called_with(Path(library_path), SongTypeEnum.YOUTUBE, extra_info=info)
+        mock_announce.assert_called_once_with(library_path)
+        self.assertEqual(info['title'], 'Noiseflow | Defqon.1 2025', 'the corrected title still reaches the tags')
+
 
 if __name__ == '__main__':
     unittest.main()

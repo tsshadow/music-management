@@ -199,6 +199,13 @@ def ensure_tables_exist() -> None:
                     # migrate_v28_pending_rescan_index.sql.
                     'CREATE INDEX IF NOT EXISTS idx_tagger_processed_files_pending '
                     'ON tagger_processed_files (needs_rescan, filepath)',
+                    # The retry backoff of a file that keeps failing; see
+                    # migrate_v37_processed_files_binary_path.sql. The binary collation of
+                    # filepath from the same migration is left to the migration: it rebuilds
+                    # the table, which a start-up should not do, and a fresh table gets it
+                    # from ProcessedFilesHelper.create_table.
+                    'ALTER TABLE tagger_processed_files ADD COLUMN IF NOT EXISTS attempts INT NOT NULL DEFAULT 0',
+                    'ALTER TABLE tagger_processed_files ADD COLUMN IF NOT EXISTS last_attempt TIMESTAMP NULL DEFAULT NULL',
                     # The artist string as read off the file before CleanTagsRule split "feat"/"vs"/
                     # "&" into separate values, for display only -- never re-parsed or matched
                     # against library_artists. NULL until a file goes through a tag-write pass that

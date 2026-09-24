@@ -900,6 +900,7 @@
       "retagBusy": "De tagger is al bezig.",
       "retagFailed": "Retag starten mislukt.",
       "retagNow": "NU RETAGGEN",
+      "retagParked": "bestanden faalden vijf keer op rij en staan geparkeerd tot ze veranderen of er een retag wordt gevraagd.",
       "retagPending": "bestanden wachten op een retag:",
       "retagStarted": "Retag gestart.",
       "ruleDeleted": "Regel verwijderd.",

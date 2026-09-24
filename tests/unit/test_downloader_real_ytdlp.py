@@ -403,3 +403,112 @@ def test_a_soundcloud_download_is_written_to_a_part_file_and_renamed_before_post
         """
     )
     assert output == 'ok'
+
+
+_REDOWNLOAD_PRELUDE = """
+        from services.downloader.redownload import ReplaceExistingPP, redownload_opts, staged_opts
+        from yt_dlp.postprocessor import PostProcessor
+
+        folder = os.path.join(WORK, 'library', 'Channel')
+        os.makedirs(folder)
+        target = os.path.join(folder, 'track.mp3')
+        with open(target, 'w') as handle:
+            handle.write('old')
+        source = os.path.join(WORK, 'source.mp3')
+        with open(source, 'w') as handle:
+            handle.write('new' * 1000)
+
+        class FileTrackIE(InfoExtractor):
+            IE_NAME = 'filetrack'
+            _VALID_URL = r'filetrack:(?P<id>.+)$'
+
+            def _real_extract(self, url):
+                name = self._match_id(url)
+                return {'id': 'track', 'title': 'track', 'url': 'file://' + os.path.join(WORK, name), 'ext': 'mp3'}
+
+        seen = {}
+
+        class Tagger(PostProcessor):
+            # Stands in for the tagger's post-processor, which runs last.
+            def run(self, info):
+                seen['path'] = info['filepath']
+                with open(info['filepath']) as handle:
+                    seen['content'] = handle.read()[:3]
+                return [], info
+
+        def ydl(opts, replace=None):
+            instance = YoutubeDL({
+                'allowed_extractors': ['-all'],
+                'quiet': True,
+                'noprogress': True,
+                'ignoreerrors': True,
+                'enable_file_urls': True,
+                **opts,
+            })
+            instance.add_info_extractor(FileTrackIE())
+            if replace:
+                instance.add_post_processor(ReplaceExistingPP(replace))
+            instance.add_post_processor(Tagger())
+            return instance
+
+        def content():
+            if not os.path.exists(target):
+                return None
+            with open(target) as handle:
+                return handle.read()[:3]
+"""
+
+
+def test_nooverwrites_makes_a_redownload_onto_the_existing_file_a_no_op():
+    """The premise of the YouTube redownload bug: yt-dlp finds the file and fetches nothing."""
+    output = run_with_real_ytdlp(
+        _REDOWNLOAD_PRELUDE
+        + """
+        ydl({'outtmpl': os.path.join(folder, '%(title)s.%(ext)s'), 'nooverwrites': True}).download(['filetrack:source.mp3'])
+        print(content())
+        """
+    )
+    assert output == 'old'
+
+
+def test_overwriting_in_place_loses_the_file_when_the_download_fails():
+    """Why the redownload stages: told to overwrite, yt-dlp deletes the file first."""
+    output = run_with_real_ytdlp(
+        _REDOWNLOAD_PRELUDE
+        + """
+        opts = redownload_opts({'outtmpl': os.path.join(folder, '%(title)s.%(ext)s')})
+        ydl(opts).download(['filetrack:missing.mp3'])
+        print(content())
+        """
+    )
+    assert output == 'None'
+
+
+def test_a_staged_redownload_replaces_the_file_before_the_tagger_runs():
+    output = run_with_real_ytdlp(
+        _REDOWNLOAD_PRELUDE
+        + """
+        with staged_opts({'nooverwrites': True}, target) as opts:
+            staging = os.path.dirname(opts['outtmpl'])
+            ydl(opts, replace=target).download(['filetrack:source.mp3'])
+        assert not os.path.exists(staging), os.listdir(folder)
+        assert seen == {'path': target, 'content': 'new'}, seen
+        assert os.listdir(folder) == ['track.mp3'], os.listdir(folder)
+        print(content())
+        """
+    )
+    assert output == 'new'
+
+
+def test_a_staged_redownload_that_fails_leaves_the_old_file():
+    output = run_with_real_ytdlp(
+        _REDOWNLOAD_PRELUDE
+        + """
+        with staged_opts({}, target) as opts:
+            ydl(opts, replace=target).download(['filetrack:missing.mp3'])
+        assert seen == {}, seen
+        assert os.listdir(folder) == ['track.mp3'], os.listdir(folder)
+        print(content())
+        """
+    )
+    assert output == 'old'

@@ -84,6 +84,10 @@ The system key passes every check. Routes not marked otherwise need any authenti
   `DELETE /api/rules/artist-genres/{id}`, `POST /api/rules/label-genres`, `DELETE /api/rules/label-genres/{id}`,
   `POST /api/rules/artist-redirects`, `DELETE /api/rules/artist-redirects/{id}`,
   `POST /api/label-proposals/{id}/confirm|reject`, `POST /api/tagger/rescan`, `POST /api/tagger/rescan/file`.
+- **GET `/api/tagger/retag/pending`**: `{"total": <int>, "by_reason": [{"reason", "count"}], "failed": <int>,
+  "busy": <bool>, "stopping": <bool>}`. `total` counts the queued files; `failed` (added, additive) counts
+  the files parked after failing `TAGGER_PARK_AFTER` times in a row, which are not in `total` and wait
+  until the file changes or a retag is requested (bug report 051).
 - **Admin**: `POST /api/soundcloud`, `DELETE /api/soundcloud/{name}`, `POST /api/youtube`,
   `DELETE /api/youtube/{name}`.
 - **GET `/api/system/containers`**: the installation's Docker containers. Admin only.
@@ -132,6 +136,13 @@ The system key passes every check. Routes not marked otherwise need any authenti
   `yt_url`: those were two correlated `LIKE '%<basename>%'` scans of the download archives per row, and
   no client read them. `GET /api/library/tracks/by-path` and `POST /api/library/tracks/{id}/redownload`
   still resolve a track's source URL.
+- **POST `/api/library/tracks/{id}/redownload`**: fetches the track again from the archive's source URL
+  and replaces the file in place, atomically (a failed download leaves the old file). The source is
+  found by the exact stored path (SoundCloud archive `filename`, YouTube archive `path`) over every
+  spelling of the library path; only when none matches, by the exact file name in the same folder (or
+  in a row that recorded no folder). Response unchanged: `{"status": "ok", "message": ...}`. `404` no
+  file for the track, `400` no archive knows it, `409` the file name matches more than one archived
+  download and the path does not say which (it used to take the first `LIKE '%<name>%'` hit).
 - **GET `/api/library/advanced`**: the filtered library browser list. Same paging bounds: `page` from 1,
   `limit` (default 100) at most 500, otherwise 422.
 

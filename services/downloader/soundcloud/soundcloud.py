@@ -30,6 +30,7 @@ from services.downloader.deep_sweep import (
     wanted_tracks,
 )
 from services.downloader.rate_state import RateLimited, SweepAborted
+from services.downloader.redownload import ReplaceExistingPP, redownload_opts, staged_opts
 from services.downloader.soundcloud.account_probe import ProbeResult, newest_track
 from services.downloader.soundcloud.SoundcloudArchive import SoundcloudArchive
 from services.downloader.sweep import SweepPolicy
@@ -416,9 +417,14 @@ class SoundcloudDownloader:
         self.download_url(link, yt_dl_opts, account=name)
         logging.info(f'Finished downloading from: {name}')
 
-    def download_url(self, url: str, yt_dl_opts: dict = None, account: str | None = None):
+    def download_url(self, url: str, yt_dl_opts: dict = None, account: str | None = None, replace: str | None = None):
         """
         Download tracks from a specific SoundCloud URL (account, playlist, or single track).
+
+        `replace` is the library file a redownload replaces. The track is then fetched
+        into a staging folder beside it and moved over it in one rename once yt-dlp's own
+        post-processors are done, so a failed redownload leaves the old file in place
+        (see services/downloader/redownload.py).
 
         A 429 is written to the rate state and raised as `RateLimited` instead of being
         slept off in place. Parking the source in the database means a restart cannot
@@ -429,6 +435,14 @@ class SoundcloudDownloader:
         written off per track and the sweep carries on; only a run of accounts that
         yield nothing at all is read as SoundCloud keeping us out.
         """
+        if replace:
+            with staged_opts(yt_dl_opts or {}, replace) as staged:
+                self._download_url(url, staged, account, replace)
+            return
+        self._download_url(url, yt_dl_opts, account, None)
+
+    def _download_url(self, url: str, yt_dl_opts: dict | None, account: str | None, replace: str | None) -> None:
+        """download_url's body: the attempts, and what each one's report means."""
         account = account or account_from_url(url)
         for attempt in range(1, self.timing.retry_attempts + 1):
             report = AccountReport()
@@ -439,6 +453,8 @@ class SoundcloudDownloader:
                 with YoutubeDL(opts) as ydl:
                     ydl.add_post_processor(FFmpegMetadataPP(ydl))
                     ydl.add_post_processor(EmbedThumbnailPP(ydl))
+                    if replace:
+                        ydl.add_post_processor(ReplaceExistingPP(replace))
                     ydl.add_post_processor(SoundcloudSongProcessor(opts))
                     ydl.download([url])
 
@@ -577,6 +593,9 @@ class SoundcloudDownloader:
                 logging.info(f'Using per-account archive: {account_archive} for {acc}')
         else:
             ydl_opts.pop('download_archive', None)
+            # Explicit, not left to the configured `nooverwrites: False`: a redownload
+            # exists to replace the file, and yt-dlp skips an existing one otherwise.
+            ydl_opts = redownload_opts(ydl_opts)
             logging.info(f'Redownload enabled — skipping archive for {acc}.')
         return ydl_opts
 

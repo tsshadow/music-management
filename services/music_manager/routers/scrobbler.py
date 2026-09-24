@@ -5,7 +5,6 @@ import requests
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from pydantic import BaseModel
 
-from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
 from services.music_manager.rbac import is_admin_auth
 from services.music_manager.scrobble_rematch import find_track, record_match
@@ -14,19 +13,14 @@ router = APIRouter(tags=['scrobble'])
 
 
 def verify_api_key(x_api_key: str | None = Header(None)):
-    if not x_api_key:
-        raise HTTPException(status_code=401, detail='Missing API Key')
-    if is_system_api_key(x_api_key):
-        return {'type': 'system'}
-    from services.music_manager.routers.users import verify_token
+    """Delegates to the canonical users.verify_api_key; kept as a name tests override.
 
-    try:
-        res = verify_token(x_api_key)
-        if res.get('status') == 'ok':
-            return res
-    except Exception:
-        pass
-    raise HTTPException(status_code=401, detail='Invalid API key')
+    This copy used to catch every exception from verify_token and answer 401 "Invalid
+    API key", so a disabled account and a database outage both looked like a bad key.
+    """
+    from services.music_manager.routers.users import verify_api_key as _verify
+
+    return _verify(x_api_key)
 
 
 class ScrobbleEvent(BaseModel):
@@ -125,7 +119,16 @@ def _listened_at_rewrites_itself(cursor, table: str) -> bool:
 
 
 @router.post('/event')
-def handle_scrobble_event(event: ScrobbleEvent, _auth: dict = Depends(verify_api_key)):
+def handle_scrobble_event(event: ScrobbleEvent, auth: dict = Depends(verify_api_key)):
+    """Record one play in `event.username`'s history.
+
+    LMS reports every play here with the system key and names the listener. A user key
+    may only report its own plays: the body's `username` used to be taken at its word,
+    so any account could write listens -- and through them statistics and mixes -- into
+    another account's history. Admins keep the system key's reach, as for imports.
+    """
+    if not _may_write_history_for(auth, event.username):
+        raise HTTPException(status_code=403, detail='You can only scrobble to your own history')
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')
@@ -339,8 +342,8 @@ def get_latest_imports(_auth: dict = Depends(verify_api_key)):
         conn.close()
 
 
-def _may_import_for(auth: dict, username: str) -> bool:
-    """An account may import into its own history; the system key and admins into anyone's."""
+def _may_write_history_for(auth: dict, username: str) -> bool:
+    """An account may write (scrobble, import) into its own history; the system key and admins into anyone's."""
     if is_admin_auth(auth):
         return True
     user = (auth or {}).get('user') or {}
@@ -354,7 +357,7 @@ def trigger_lb_import(req: ImportRequest, background_tasks: BackgroundTasks, aut
     Only for the caller's own account, unless the caller is an admin or the system key:
     the listens land in that user's history and feed their statistics and mixes.
     """
-    if not _may_import_for(auth, req.username):
+    if not _may_write_history_for(auth, req.username):
         raise HTTPException(status_code=403, detail='You can only import into your own history')
     conn = get_db_connection()
     if not conn:

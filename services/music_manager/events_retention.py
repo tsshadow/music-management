@@ -7,6 +7,7 @@ snel, want dat is het volume.
 from __future__ import annotations
 
 from services.music_manager.database import get_db_connection
+from services.music_manager.rbac import purge_refresh_tokens
 from services.music_manager.thread_registry import run_forever
 
 RETENTION_DAYS = {'INFO': 14, 'WARNING': 60, 'ERROR': 365, 'CRITICAL': 365}
@@ -34,12 +35,14 @@ def purge_once(conn) -> dict[str, int]:
 
 
 def retention_tick() -> None:
-    """One purge; raises on a database failure so run_forever can log it and back off."""
+    """One purge of events and stale refresh tokens; raises on a database failure so run_forever can log it and back off."""
     conn = get_db_connection()
     if not conn:
         return
     try:
         purge_once(conn)
+        # The same daily housekeeping pass caps user_refresh_tokens, which every login grows.
+        purge_refresh_tokens(conn)
     finally:
         conn.close()
 

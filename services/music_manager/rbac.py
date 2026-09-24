@@ -287,3 +287,64 @@ def require_admin():
         return auth
 
     return _dependency
+
+
+#: How many refresh tokens one account keeps. Every successful login mints one -- and
+#: LMS logs in on the user's behalf for every Subsonic password check it has not cached
+#: -- so without a cap the table only ever grew.
+REFRESH_TOKENS_PER_USER = 10
+
+#: A revoked refresh token is refused whether its row exists or not; after this many
+#: days the row only takes up space.
+REVOKED_REFRESH_TOKEN_DAYS = 30
+
+# The newest REFRESH_TOKENS_PER_USER ids of one account survive; every older one goes.
+# The subquery sits inside a derived table because MariaDB refuses both a LIMIT in an
+# IN-subquery and a subquery that reads the table the DELETE writes; a derived table is
+# materialised first, which sidesteps both. Fewer rows than the cap leave the subquery
+# empty, the comparison NULL, and nothing is deleted.
+_PRUNE_ONE_ACCOUNT = (
+    'DELETE FROM user_refresh_tokens WHERE user_id = %s AND id < ('
+    'SELECT edge.id FROM ('
+    'SELECT id FROM user_refresh_tokens WHERE user_id = %s ORDER BY id DESC LIMIT 1 OFFSET %s'
+    ') AS edge)'
+)
+
+# The same cap over every account at once, for the daily housekeeping: it clears the
+# backlog that built up before the per-login prune existed.
+_PRUNE_ALL_ACCOUNTS = (
+    'DELETE t FROM user_refresh_tokens t JOIN ('
+    'SELECT id FROM ('
+    'SELECT id, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY id DESC) AS newest_first '
+    'FROM user_refresh_tokens'
+    ') AS ranked WHERE newest_first > %s'
+    ') AS doomed ON doomed.id = t.id'
+)
+
+_PURGE_REVOKED = (
+    'DELETE FROM user_refresh_tokens WHERE revoked_at IS NOT NULL AND revoked_at < DATE_SUB(NOW(), INTERVAL %s DAY)'
+)
+
+
+def issue_refresh_token(cursor, user_id: int, token: str) -> None:
+    """Store a new refresh token for `user_id` and drop that account's oldest beyond the cap.
+
+    Shared by the password login and the Google login, the two places that mint one.
+    """
+    cursor.execute('INSERT INTO user_refresh_tokens (user_id, token) VALUES (%s, %s)', (user_id, token))
+    cursor.execute(_PRUNE_ONE_ACCOUNT, (user_id, user_id, REFRESH_TOKENS_PER_USER - 1))
+
+
+def purge_refresh_tokens(conn) -> int:
+    """Daily housekeeping: enforce the per-account cap everywhere and drop old revoked rows.
+
+    Returns how many rows went. Runs from the events-retention loop.
+    """
+    removed = 0
+    with conn.cursor() as cursor:
+        cursor.execute(_PRUNE_ALL_ACCOUNTS, (REFRESH_TOKENS_PER_USER,))
+        removed += int(cursor.rowcount or 0)
+        cursor.execute(_PURGE_REVOKED, (REVOKED_REFRESH_TOKEN_DAYS,))
+        removed += int(cursor.rowcount or 0)
+    conn.commit()
+    return removed

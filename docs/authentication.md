@@ -47,7 +47,10 @@ Separate, related tables:
 - **`user_requests`** — a pending/approved/rejected *access request* raised by an unknown Google identity;
   see the [approve/unapprove](#approving--unapproving-an-access-request) section below.
 - **`user_refresh_tokens`** — long-lived tokens issued alongside the access token (`api_key`) so a client
-  doesn't have to re-authenticate with Google/local credentials every time.
+  doesn't have to re-authenticate with Google/local credentials every time. Every successful login mints
+  one -- LMS's Subsonic password checks included -- so an account keeps only its 10 newest
+  (`rbac.REFRESH_TOKENS_PER_USER`), pruned on every issue. The daily `events-retention` pass enforces the
+  same cap across all accounts and drops revoked rows older than 30 days.
 - **`audit_events`** — append-only log of `user_request.*` / `user.*` actions (who did what, to whom, when).
 
 ## Login flows
@@ -58,9 +61,14 @@ Separate, related tables:
 |---|---|
 | No user exists with that `username` | `401 Invalid username or password` (generic — does not reveal whether the username exists) |
 | User exists but has no `password_hash` (Google-only account) | `401 Invalid username or password` (same generic message, for the same reason) |
-| User exists, account `enabled = FALSE` | `403 Account disabled` |
-| User exists, wrong password | `401 Invalid username or password` |
+| User exists, wrong password (account enabled or not) | `401 Invalid username or password` |
+| User exists, correct password, account `enabled = FALSE` | `403 Account disabled` |
 | User exists, correct password | `200` — issues/refreshes an `api_key` (access token) and a new `user_refresh_tokens` row (refresh token), updates `last_login_at` |
+
+Neither the text nor the response time tells the cases in the first three rows apart: a username
+without a password hash (unknown, or Google-only) still runs one bcrypt check, against a dummy
+hash (`users._equalise_bcrypt_cost`), so it costs what a wrong password costs. "Account disabled" is
+only answered to a caller who has just proved the password.
 
 ### 2. Google Sign-In (`POST /api/auth/google`)
 
@@ -120,9 +128,35 @@ request `rejected` — there is nothing to delete.
 ## Deleting a user directly (`DELETE /api/users/{id}`)
 
 Independent of the request flow above (e.g. for an account that was never created via a Google request at
-all). Cleans up the same dependent rows as the unapprove flow, refuses to delete the **last remaining admin
-account**, and returns a clear `Verwijderen mislukt: ...` message instead of a bare `500` on unexpected
+all). Cleans up the same dependent rows as the unapprove flow, refuses (`409`) to delete the **last enabled
+admin account**, and returns a clear `Verwijderen mislukt: ...` message instead of a bare `500` on unexpected
 failures.
+
+## The last enabled admin
+
+Deleting it, demoting it (`PUT /api/users/{id}/role` with any role but `admin`) and disabling it
+(`POST /api/users/{id}/disable`) all answer `409` and change nothing, through one shared check,
+`users.ensure_not_last_enabled_admin`. "Last" means no *other* account holds the admin role with
+`enabled = TRUE`: a disabled admin cannot log in to repair anything, so it does not count. The check and
+the write run under one lock, so two admins cannot remove each other at the same moment. Before
+[bug report 052](bug-reports/052-the-last-admin-could-demote-itself.md) only delete checked, and it
+counted disabled admins.
+
+## First-time setup (`POST /api/auth/setup`)
+
+Unauthenticated, and only while the `users` table is empty. The emptiness check and the insert run under
+a module-level lock, and the `INSERT` itself carries `WHERE NOT EXISTS (SELECT 1 FROM users)`, so two
+simultaneous requests -- even in two processes -- create exactly one admin. The other gets
+`409 Setup already completed` (it used to be `400`).
+
+## API key checks and outages
+
+Every router resolves `X-API-Key` through `routers.users.verify_api_key`: missing key or a key no account
+holds `401` (as `tests/bdd/features/access_control.feature` requires), disabled account `403`, the users
+table unreadable `503` (with `Retry-After`). `GET /api/auth/verify`, which LMS asks, keeps its `403` for
+an unknown key. Until bug report 052 the
+`library` and `scrobbler` routers carried their own copy that caught every exception and answered
+`401 Invalid API key`, so a database outage (or a disabled account) told the client its key was wrong.
 
 ## The LMS `/muma` bridge (`MumaResource`)
 

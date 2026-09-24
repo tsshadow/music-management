@@ -218,6 +218,10 @@ def api(db, monkeypatch):
         'services.music_manager.routers.diagnostics',
         'services.music_manager.routers.news',
         'services.music_manager.routers.scanner',
+        'services.music_manager.routers.curation',
+        'services.music_manager.routers.downloaders',
+        'services.music_manager.routers.feeds',
+        'services.music_manager.routers.songs',
     ):
         module = __import__(module_name, fromlist=['get_db_connection'])
         if hasattr(module, 'get_db_connection'):

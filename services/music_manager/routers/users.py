@@ -1,4 +1,5 @@
 import contextlib
+import functools
 import json
 import logging
 import os
@@ -33,8 +34,26 @@ MUMA_SERVER_HOSTS = os.getenv('MUMA_SERVER_HOSTS', 'music-management-server:5082
 #: /sync endpoints alike, so the two never write the server database concurrently.
 lms_db_sync_lock = threading.Lock()
 
+#: Serialises first-time setup, so two simultaneous `POST /auth/setup` calls in this
+#: process cannot both find an empty users table. See `setup_admin`.
+_setup_lock = threading.Lock()
+
+#: Serialises the "is this the last enabled admin" check with the change it guards
+#: (demote, disable, delete), so two admins cannot each remove the other at once.
+_admin_guard_lock = threading.Lock()
+
+#: The detail for a key no account holds; `verify_api_key` recognises it to answer 401.
+INVALID_API_KEY = 'Invalid API Key'
+
 
 def verify_api_key(x_api_key: str = Header(None)):
+    """The one API-key dependency every router delegates to.
+
+    Missing or unknown key 401 (the caller has not proved who it is), disabled account
+    403 (it has, and is refused), database outage 503. tests/bdd/features/
+    access_control.feature pins the 401 for an unknown key. `GET /api/auth/verify`
+    itself keeps answering 403 for an unknown key, which LMS's bridge reads.
+    """
     # A plain `def`, not `async def`: `verify_token` is a database round trip, and an
     # async dependency that calls it directly holds the event loop for its duration --
     # every request in flight waited on each presets or settings read. FastAPI runs a
@@ -43,10 +62,15 @@ def verify_api_key(x_api_key: str = Header(None)):
         raise HTTPException(status_code=401, detail='Missing API Key')
     if is_system_api_key(x_api_key):
         return {'type': 'system'}
-    res = verify_token(x_api_key)
+    try:
+        res = verify_token(x_api_key)
+    except HTTPException as exc:
+        if exc.status_code == 403 and exc.detail == INVALID_API_KEY:
+            raise HTTPException(status_code=401, detail=INVALID_API_KEY) from exc
+        raise
     if res.get('status') == 'ok':
         return res
-    raise HTTPException(status_code=401, detail='Invalid API Key')
+    raise HTTPException(status_code=401, detail=INVALID_API_KEY)
 
 
 class UserCreate(BaseModel):
@@ -229,23 +253,64 @@ auth_router = APIRouter(tags=['auth'])
 
 @auth_router.get('/auth/verify')
 def verify_token(x_api_key: str = Header(None)):
+    """Resolve an X-API-Key to the system caller or to an enabled account.
+
+    Missing key 401; unknown key or disabled account 403; the database not answering
+    503. The last one used to read as 403 "Invalid API Key" (no pool) or escape as a
+    500, so an outage logged every client out with a message blaming their key.
+    """
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
     if is_system_api_key(x_api_key):
         return {'status': 'ok', 'type': 'system'}
-    conn = get_db_connection()
-    if conn:
-        try:
-            with conn.cursor() as cursor:
-                cursor.execute('SELECT * FROM users WHERE api_key = %s', (x_api_key,))
-                user = cursor.fetchone()
-                if user:
-                    if not user.get('enabled', True):
-                        raise HTTPException(status_code=403, detail='Account disabled')
-                    return {'status': 'ok', 'type': 'user', 'user': build_auth_user(cursor, user)}
-        finally:
-            conn.close()
-    raise HTTPException(status_code=403, detail='Invalid API Key')
+    try:
+        conn = get_db_connection()
+    except Exception as exc:  # pylint: disable=broad-except  # any connect failure is an outage
+        raise _auth_database_unavailable() from exc
+    if not conn:
+        raise _auth_database_unavailable()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT * FROM users WHERE api_key = %s', (x_api_key,))
+            user = cursor.fetchone()
+            if user:
+                if not user.get('enabled', True):
+                    raise HTTPException(status_code=403, detail='Account disabled')
+                return {'status': 'ok', 'type': 'user', 'user': build_auth_user(cursor, user)}
+    except HTTPException:
+        raise
+    except Exception as exc:  # pylint: disable=broad-except  # a failed query is an outage too
+        raise _auth_database_unavailable() from exc
+    finally:
+        conn.close()
+    raise HTTPException(status_code=403, detail=INVALID_API_KEY)
+
+
+def _auth_database_unavailable() -> HTTPException:
+    """The 503 every key check answers with when the users table cannot be read."""
+    return HTTPException(status_code=503, detail='Authentication database unavailable', headers={'Retry-After': '5'})
+
+
+@functools.cache
+def timing_dummy_hash() -> bytes:
+    """A bcrypt hash of random bytes at the cost every stored hash uses (`gensalt()`, 12).
+
+    It belongs to no account and nobody knows its input; checking a candidate against
+    it only costs the time a real check does. Made once, on first use, rather than
+    written into the source, where it would read as a leaked credential.
+    """
+    return bcrypt.hashpw(secrets.token_bytes(32), bcrypt.gensalt())
+
+
+def _equalise_bcrypt_cost(candidate: bytes) -> None:
+    """Run one bcrypt check whose result is thrown away.
+
+    Login used to answer an unknown username before bcrypt ran -- a few milliseconds
+    against a quarter of a second -- so the response time told anyone whether the
+    account existed. Never raises: the candidate is typed by a client.
+    """
+    with contextlib.suppress(ValueError):
+        bcrypt.checkpw(candidate, timing_dummy_hash())
 
 
 def password_matches(password: str, user: dict) -> bool:
@@ -265,6 +330,10 @@ def password_matches(password: str, user: dict) -> bool:
                 return True
         except ValueError:
             pass
+    else:
+        # No hash of its own (an unknown username, or a Google-only account): pay for one
+        # bcrypt check anyway, so the response time says nothing about which case this is.
+        _equalise_bcrypt_cost(candidate)
     api_key = user.get('api_key')
     return bool(api_key) and secrets.compare_digest(candidate, api_key.encode('utf-8'))
 
@@ -293,13 +362,15 @@ def login(req: LoginRequest, request: Request):
             with conn.cursor() as cursor:
                 cursor.execute('SELECT * FROM users WHERE username = %s', (req.username,))
                 user = cursor.fetchone()
-                if not user:
+                # An unknown username goes through the same bcrypt check (against the dummy
+                # hash, via password_matches) and gets the same answer as a wrong password,
+                # so neither the text nor the timing says whether the account exists. The
+                # disabled check comes after the password for the same reason: "Account
+                # disabled" is only news to someone who already knows the password.
+                if not password_matches(req.password, user or {}) or not user:
                     raise HTTPException(status_code=401, detail='Invalid username or password')
                 if not user.get('enabled', True):
                     raise HTTPException(status_code=403, detail='Account disabled')
-
-                if not password_matches(req.password, user):
-                    raise HTTPException(status_code=401, detail='Invalid username or password')
 
                 api_key = user['api_key']
                 if not api_key:
@@ -307,9 +378,7 @@ def login(req: LoginRequest, request: Request):
                     cursor.execute('UPDATE users SET api_key = %s WHERE id = %s', (api_key, user['id']))
                 cursor.execute('UPDATE users SET last_login_at = NOW() WHERE id = %s', (user['id'],))
                 refresh_token = secrets.token_hex(32)
-                cursor.execute(
-                    'INSERT INTO user_refresh_tokens (user_id, token) VALUES (%s, %s)', (user['id'], refresh_token)
-                )
+                rbac.issue_refresh_token(cursor, user['id'], refresh_token)
                 conn.commit()
                 auth_user = build_auth_user(cursor, user)
                 return {
@@ -366,28 +435,38 @@ def get_setup_status():
 
 @auth_router.post('/auth/setup')
 def setup_admin(user: UserCreate, request: Request):
+    """Create the first account, as admin, on an installation that has none.
+
+    Unauthenticated by necessity, so it must be impossible to win twice. It used to
+    COUNT the users and then INSERT, and two requests arriving together could both see
+    zero and both create an admin. The check and the insert now run under
+    `_setup_lock`, and the INSERT itself carries the condition (`WHERE NOT EXISTS`), so
+    a second process -- which the lock cannot see -- still inserts nothing. Either way
+    the loser gets 409.
+    """
     # Every call counts here, not just the rejected ones: this endpoint is
     # unauthenticated until the first admin exists and is legitimately used
     # exactly once, so there is no successful traffic to protect.
     with auth_attempt(request, count_successes=True):
+        if not user.password:
+            raise HTTPException(status_code=400, detail='Password is required for first-time setup')
+        # Hashed before taking the lock: bcrypt is the slow part and needs no database.
+        password_hash = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        token = user.api_key or secrets.token_hex(32)
+
         conn = get_db_connection()
         if not conn:
             raise HTTPException(status_code=500, detail='Database connection failed')
         try:
-            with conn.cursor() as cursor:
+            with _setup_lock, conn.cursor() as cursor:
                 cursor.execute('SELECT COUNT(*) as count FROM users')
                 if cursor.fetchone()['count'] > 0:
-                    raise HTTPException(status_code=400, detail='Setup already completed')
+                    raise HTTPException(status_code=409, detail='Setup already completed')
 
-                if not user.password:
-                    raise HTTPException(status_code=400, detail='Password is required for first-time setup')
-
-                password_hash = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-                token = user.api_key or secrets.token_hex(32)
                 admin_role = rbac.get_role_by_name(cursor, rbac.ADMIN_ROLE_NAME)
-
                 cursor.execute(
-                    'INSERT INTO users (username, display_name, is_admin, role_id, enabled, password_hash, api_key, server_user_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
+                    'INSERT INTO users (username, display_name, is_admin, role_id, enabled, password_hash, api_key, server_user_id) '
+                    'SELECT %s, %s, %s, %s, %s, %s, %s, %s FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM users)',
                     (
                         user.username,
                         user.display_name or user.username,
@@ -399,22 +478,26 @@ def setup_admin(user: UserCreate, request: Request):
                         user.server_user_id,
                     ),
                 )
+                if cursor.rowcount == 0:
+                    # Another process created the first account between our COUNT and here.
+                    raise HTTPException(status_code=409, detail='Setup already completed')
                 conn.commit()
-
-                # Notify server to sync users
-                notify_server_sync_users()
-
-                return {
-                    'status': 'ok',
-                    'id': cursor.lastrowid,
-                    'username': user.username,
-                    'display_name': user.display_name or user.username,
-                    'role_name': rbac.ADMIN_ROLE_NAME,
-                    'is_admin': True,
-                    'api_key': token,
-                }
+                new_id = cursor.lastrowid
         finally:
             conn.close()
+
+        # Notify server to sync users
+        notify_server_sync_users()
+
+        return {
+            'status': 'ok',
+            'id': new_id,
+            'username': user.username,
+            'display_name': user.display_name or user.username,
+            'role_name': rbac.ADMIN_ROLE_NAME,
+            'is_admin': True,
+            'api_key': token,
+        }
 
 
 @router.get('/{user_id}/dynamic-playlists')
@@ -751,14 +834,17 @@ def list_permissions(auth: dict = Depends(require_permission('permissions.read')
 
 @router.put('/{user_id}/role')
 def assign_role(user_id: int, req: RoleAssign, auth: dict = Depends(require_permission('users.assign-role'))):
+    """Give an account a role; 409 when that would demote the last enabled admin."""
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='DB failed')
     try:
-        with conn.cursor() as cursor:
+        with _admin_guard_lock, conn.cursor() as cursor:
             role = rbac.get_role_by_name(cursor, req.role)
             if not role:
                 raise HTTPException(status_code=404, detail=f"Unknown role: {req.role}")
+            if req.role != rbac.ADMIN_ROLE_NAME:
+                ensure_not_last_enabled_admin(cursor, _fetch_admin_guard_target(cursor, user_id), 'demote')
             cursor.execute(
                 'UPDATE users SET role_id = %s, is_admin = %s WHERE id = %s',
                 (role['id'], req.role == rbac.ADMIN_ROLE_NAME, user_id),
@@ -794,11 +880,13 @@ def enable_user(user_id: int, auth: dict = Depends(require_permission('users.dis
 
 @router.post('/{user_id}/disable')
 def disable_user(user_id: int, auth: dict = Depends(require_permission('users.disable'))):
+    """Disable an account; 409 when it is the last enabled admin."""
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='DB failed')
     try:
-        with conn.cursor() as cursor:
+        with _admin_guard_lock, conn.cursor() as cursor:
+            ensure_not_last_enabled_admin(cursor, _fetch_admin_guard_target(cursor, user_id), 'disable')
             cursor.execute('UPDATE users SET enabled = FALSE WHERE id = %s', (user_id,))
             actor_id = (auth.get('user') or {}).get('id')
             rbac.record_audit_event(cursor, 'user.disabled', actor_user_id=actor_id, target_user_id=user_id)
@@ -903,6 +991,46 @@ def update_lb_account(user_id: int, lb_data: LBAccountUpdate, auth: dict = Depen
         conn.close()
 
 
+#: What a refused last-admin change says, per action. Dutch, like the rest of the
+#: management UI that shows it.
+_LAST_ADMIN_DETAIL = {
+    'delete': 'Kan de laatste actieve beheerder niet verwijderen',
+    'demote': 'Kan de laatste actieve beheerder geen andere rol geven',
+    'disable': 'Kan de laatste actieve beheerder niet uitschakelen',
+}
+
+
+def _fetch_admin_guard_target(cursor, user_id: int) -> dict:
+    """The account a demote/disable/delete is about, with what the last-admin check needs; 404 if absent."""
+    cursor.execute('SELECT id, username, role_id, enabled FROM users WHERE id = %s', (user_id,))
+    target = cursor.fetchone()
+    if not target:
+        raise HTTPException(status_code=404, detail='User not found')
+    return target
+
+
+def ensure_not_last_enabled_admin(cursor, target: dict, action: str) -> None:
+    """Raise 409 when `target` is an enabled admin and no other enabled admin exists.
+
+    Shared by delete, demote (`PUT /{id}/role`) and disable: any of the three leaves an
+    installation where nobody can manage accounts, and only delete used to check. A
+    disabled admin does not count -- it cannot log in to repair anything. `action` is a
+    key of `_LAST_ADMIN_DETAIL`. Callers hold `_admin_guard_lock` across the check and
+    the write.
+    """
+    if not target.get('enabled', True):
+        return
+    admin_role = rbac.get_role_by_name(cursor, rbac.ADMIN_ROLE_NAME)
+    if not admin_role or target.get('role_id') != admin_role['id']:
+        return
+    cursor.execute(
+        'SELECT COUNT(*) AS cnt FROM users WHERE role_id = %s AND enabled = TRUE AND id <> %s',
+        (admin_role['id'], target['id']),
+    )
+    if cursor.fetchone()['cnt'] < 1:
+        raise HTTPException(status_code=409, detail=_LAST_ADMIN_DETAIL[action])
+
+
 def delete_user_row(cursor, user_id: int, actor_id=None, protect_last_admin: bool = True):
     """Delete a user and all its dependent rows; shared by ``delete_user`` and
     the ``user-requests`` unapprove flow so both get the exact same, robust
@@ -910,23 +1038,15 @@ def delete_user_row(cursor, user_id: int, actor_id=None, protect_last_admin: boo
     implementations of "verwijderen gaat niet altijd goed".
 
     Returns the deleted user's row (as fetched before deletion). Raises
-    ``HTTPException`` on a not-found user or (when ``protect_last_admin``) on
-    an attempt to delete the last remaining admin account.
+    ``HTTPException`` 404 on a not-found user or (when ``protect_last_admin``) 409 on
+    an attempt to delete the last enabled admin account.
     """
-    cursor.execute('SELECT id, username, role_id FROM users WHERE id = %s', (user_id,))
-    target = cursor.fetchone()
-    if not target:
-        raise HTTPException(status_code=404, detail='User not found')
+    target = _fetch_admin_guard_target(cursor, user_id)
 
     if protect_last_admin:
-        # Refuse to delete the last remaining admin account -- otherwise
-        # the whole system could be left without anyone able to manage
-        # users/roles at all.
-        admin_role = rbac.get_role_by_name(cursor, rbac.ADMIN_ROLE_NAME)
-        if admin_role and target.get('role_id') == admin_role['id']:
-            cursor.execute('SELECT COUNT(*) as cnt FROM users WHERE role_id = %s', (admin_role['id'],))
-            if cursor.fetchone()['cnt'] <= 1:
-                raise HTTPException(status_code=400, detail='Kan de laatste beheerder niet verwijderen')
+        # Refuse to delete the last enabled admin account -- otherwise the whole
+        # system could be left without anyone able to manage users/roles at all.
+        ensure_not_last_enabled_admin(cursor, target, 'delete')
 
     # Defensively remove dependent rows ourselves first, instead of
     # relying only on the FK ON DELETE CASCADE/SET NULL constraints:
@@ -961,7 +1081,7 @@ def delete_user(user_id: int, auth: dict = Depends(verify_api_key)):
     if not conn:
         raise HTTPException(status_code=500, detail='DB failed')
     try:
-        with conn.cursor() as cursor:
+        with _admin_guard_lock, conn.cursor() as cursor:
             actor_id = (auth.get('user') or {}).get('id')
             delete_user_row(cursor, user_id, actor_id=actor_id)
             conn.commit()

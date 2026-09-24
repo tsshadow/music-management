@@ -119,9 +119,7 @@ def google_login(req: GoogleAuthRequest):
                 cursor.execute(
                     'UPDATE users SET api_key = %s, last_login_at = NOW() WHERE id = %s', (api_key, user['id'])
                 )
-                cursor.execute(
-                    'INSERT INTO user_refresh_tokens (user_id, token) VALUES (%s, %s)', (user['id'], refresh_token)
-                )
+                rbac.issue_refresh_token(cursor, user['id'], refresh_token)
                 conn.commit()
 
                 from services.music_manager.routers.users import build_auth_user

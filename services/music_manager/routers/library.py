@@ -7,7 +7,6 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, 
 
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
-from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
 from services.music_manager.genre_tint import genre_tint
 from services.music_manager.library_paths import candidate_paths
@@ -40,19 +39,14 @@ def _order_by(sort: str, direction: str) -> str:
 
 
 def verify_api_key(x_api_key: str | None = Header(None)):
-    if not x_api_key:
-        raise HTTPException(status_code=401, detail='Missing API Key')
-    if is_system_api_key(x_api_key):
-        return {'type': 'system'}
-    from services.music_manager.routers.users import verify_token
+    """Delegates to the canonical users.verify_api_key; kept as a name tests override.
 
-    try:
-        res = verify_token(x_api_key)
-        if res.get('status') == 'ok':
-            return res
-    except Exception:
-        pass
-    raise HTTPException(status_code=401, detail='Invalid API key')
+    This copy used to catch every exception from verify_token and answer 401 "Invalid
+    API key", so a disabled account and a database outage both looked like a bad key.
+    """
+    from services.music_manager.routers.users import verify_api_key as _verify
+
+    return _verify(x_api_key)
 
 
 # The largest page either track list serves. The frontend asks for 100; anything

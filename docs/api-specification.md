@@ -7,10 +7,17 @@ The `music-manager` service provides a REST API (FastAPI) for managing the music
   session endpoints (`/api/auth/*`) and `GET /api/roles` are the only `users` routes under the bare
   `/api` prefix; every other user route is under `/api/users` only (there is no `/api/{user_id}/...`,
   and no `/api/users/auth/*`).
-- **GET `/api/auth/verify`**: Verify the validity of an `X-API-Key`.
+  An unknown username and a wrong password both answer `401 Invalid username or password`, at the
+  same bcrypt cost; `403 Account disabled` only follows a correct password.
+- **GET `/api/auth/verify`**: Verify the validity of an `X-API-Key`. 401 without a key, 403 for an
+  unknown key or a disabled account, 503 (`Retry-After: 5`) when the users table cannot be read.
+- **POST `/api/auth/setup`**: create the first account, as admin, while no account exists. `409 Setup
+  already completed` once one does (was 400); concurrent calls create exactly one admin.
 
 Every route below takes the key in `X-API-Key` and resolves it through the one
-`routers.users.verify_api_key` (401 without a key, 403 for an unknown or disabled one). "Admin"
+`routers.users.verify_api_key` (401 without a key or for a key no account holds, 403 for a disabled
+account, 503 when the database cannot be asked -- no router answers "Invalid API key" for an outage
+any more). `GET /api/auth/verify` itself still answers 403 for an unknown key. "Admin"
 means the admin role (`rbac.require_admin`); a named permission means `rbac.require_permission`.
 The system key passes every check. Routes not marked otherwise need any authenticated account.
 
@@ -20,6 +27,11 @@ The system key passes every check. Routes not marked otherwise need any authenti
 - **POST|PUT `/users/{user_id}/password`**: Body `{"password": ..., "current_password": ...}`. Another
   account's password, and any admin's, needs the admin role. A non-admin changing their own must send
   `current_password` (403 when missing or wrong); an account without a password yet may set its first.
+- **PUT `/users/{user_id}/role`** (`users.assign-role`), **POST `/users/{user_id}/disable`**
+  (`users.disable`), **DELETE `/users/{user_id}`**: `409` when the change would leave no enabled
+  admin -- demoting, disabling or deleting the last one. Delete answered 400 before and counted
+  disabled admins; demote and disable did not check at all. Disabling or demoting an unknown id is
+  now 404.
 - **POST `/users/sync/lms-db`** (also `/sync/lms`, `/sync/muma-server`): run the lms.db sync now and
   return `{"synced": <int>}`. Admin only; 409 while a sync (manual or the hourly loop) is running.
 - **GET `/users/{user_id}/settings/{app_id}`**: Retrieve application-specific settings (e.g., `app_id=ultrasonic` for MuMa Mobile's settings backup, `app_id=frontend` for the web player's favorite genres).
@@ -40,8 +52,9 @@ The system key passes every check. Routes not marked otherwise need any authenti
 - **DELETE `/api/events`**: Clear all events. Admin only.
 
 ### 📈 Scrobbling & Ratings
-- **POST `/api/event`**: General scrobble/playback event endpoint.
-  - `artist_name`, `track_title`, `username`: required.
+- **POST `/api/scrobble/event`**: General scrobble/playback event endpoint.
+  - `artist_name`, `track_title`, `username`: required. A user key may only name its own
+    `username` (403 otherwise); admins and the system key (LMS) may name anyone.
   - `source`: where the play happened — `frontend`, `mobile`, `auto` (phone in the car), `lms-web`,
     `listenbrainz`. Defaults to `manual`. Listens recorded before 2026-08 carry the historical
     constant `lms`, which meant "played through the server" and said nothing about the device.

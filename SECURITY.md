@@ -68,15 +68,26 @@ Summarised here because it affects what counts as a vulnerability;
   and every refresh token in one step. A non-admin changing their own password
   must present the current one; another account's, or an admin's, needs the
   admin role.
-* There is one key check, `routers.users.verify_api_key`. A router must not carry
-  its own copy: three did, from before RBAC, and accepted any enabled account on
-  every management route (docs/bug-reports/037-management-routes-open-to-every-user.md). A route that changes rules
+* There is one key check, `routers.users.verify_api_key`: missing or unknown
+  key 401, disabled account 403, database unreachable 503. A router must
+  not carry its own copy: three did, from before RBAC, and accepted any enabled
+  account on every management route (docs/bug-reports/037-management-routes-open-to-every-user.md); two more swallowed
+  every error into 401 "Invalid API key" (docs/bug-reports/052). A route that changes rules
   needs `rules.manage`; one that operates the installation (container logs,
   downloader sources, event deletion, the lms.db sync) needs the admin role; a
   webhook that names the acting user in its body (the LMS rating webhook)
   accepts only the system key. `services/music_manager/tests/test_rbac_route_gaps.py`
   pins each of those.
 * No response lists another account's `api_key`.
+* A user key writes only its own history: `POST /api/scrobble/event` and the
+  ListenBrainz import refuse (403) another account's `username` unless the
+  caller is an admin or the system key.
+* The last enabled admin cannot be deleted, demoted or disabled (409), and
+  first-time setup creates exactly one admin even under concurrent requests.
+* Login does not reveal whether a username exists: an unknown name gets the
+  same 401 text as a wrong password and still pays for one bcrypt check.
+* Refresh tokens are capped at 10 per account (oldest pruned on issue, and
+  daily across all accounts); revoked rows go after 30 days.
 * A URL the server fetches on a caller's behalf (the artist image URL) must
   resolve to globally routable addresses only, re-checked on every redirect, and
   is size-capped; see `routers/artist_images.ensure_public_url`.

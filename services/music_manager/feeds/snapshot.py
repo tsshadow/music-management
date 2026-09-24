@@ -42,6 +42,7 @@ from datetime import date, datetime, timedelta
 
 from services.music_manager.database import get_db_connection
 from services.music_manager.feeds import clock
+from services.music_manager.thread_registry import run_forever
 
 logger = logging.getLogger(__name__)
 
@@ -291,17 +292,23 @@ def run_feeds_refresh(
     `params_key` is called per pass, not once, so a settings change between passes
     ages every row and the next pass rebuilds them. `once=True` is for tests.
     """
-    while True:
+
+    def tick() -> None:
+        """One pass over every active listener; raises on a database failure."""
         conn = get_db_connection()
-        if conn:
-            try:
-                rebuilt = refresh_stale(conn, datetime.now(), params_key, slugs, build)
-                if rebuilt:
-                    logger.info('feeds.refresh rebuilt %d snapshot(s)', rebuilt)
-            except Exception:
-                logger.exception('feeds.refresh pass failed')
-            finally:
-                conn.close()
-        if once:
+        if not conn:
             return
-        time.sleep(sleep_seconds)
+        try:
+            rebuilt = refresh_stale(conn, datetime.now(), params_key, slugs, build)
+            if rebuilt:
+                logger.info('feeds.refresh rebuilt %d snapshot(s)', rebuilt)
+        finally:
+            conn.close()
+
+    if once:
+        try:
+            tick()
+        except Exception:  # pylint: disable=broad-except
+            logger.exception('feeds.refresh pass failed')
+        return
+    run_forever('feeds-refresh', tick, sleep_seconds)

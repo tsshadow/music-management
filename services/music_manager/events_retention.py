@@ -6,10 +6,8 @@ snel, want dat is het volume.
 
 from __future__ import annotations
 
-import sys
-import time
-
 from services.music_manager.database import get_db_connection
+from services.music_manager.thread_registry import run_forever
 
 RETENTION_DAYS = {'INFO': 14, 'WARNING': 60, 'ERROR': 365, 'CRITICAL': 365}
 BATCH_SIZE = 10000
@@ -35,15 +33,17 @@ def purge_once(conn) -> dict[str, int]:
     return removed
 
 
+def retention_tick() -> None:
+    """One purge; raises on a database failure so run_forever can log it and back off."""
+    conn = get_db_connection()
+    if not conn:
+        return
+    try:
+        purge_once(conn)
+    finally:
+        conn.close()
+
+
 def run_events_retention() -> None:
-    while True:
-        try:
-            conn = get_db_connection()
-            if conn:
-                try:
-                    purge_once(conn)
-                finally:
-                    conn.close()
-        except Exception as exc:
-            print(f'events-retention: opruimen mislukt: {exc}', file=sys.stderr)
-        time.sleep(INTERVAL_SECONDS)
+    """The `events-retention` thread: purge on start, then once a day, for good."""
+    run_forever('events-retention', retention_tick, INTERVAL_SECONDS)

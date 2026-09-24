@@ -160,11 +160,11 @@
    */
   const metaItems = $derived.by(() => {
     if (!track) return [];
-    const items = genreNames(track.genre).map((genre) => ({ text: genre, view: `genre:${genre}` }));
+    const items = genreNames(track.genre).map((genre) => ({ text: genre, view: `genre:${genre}`, kind: 'genre' }));
     const labels = Array.isArray(track.labels) && track.labels.length
       ? track.labels.filter(Boolean)
       : [track.label || track.publisher].filter(Boolean);
-    for (const label of labels) items.push({ text: label, view: `label:${label}` });
+    for (const label of labels) items.push({ text: label, view: `label:${label}`, kind: 'label' });
     return items;
   });
 

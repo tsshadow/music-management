@@ -187,6 +187,14 @@ To maintain clean design governance and prevent ad-hoc style drift:
   - K (done, 2026-09-24): the full-screen player's bottom icon row carries the news of the hour
     button directly after the radio button, styled like it: 24px newspaper glyph (the desktop
     bar's), `#B3B3B3` idle, `#b266ff` while a bulletin plays, `aria-pressed` (bug report 059).
+  - L (done, 2026-09-24): meta chips are coloured **by kind, never by position**. `MetaChips.svelte`
+    reads `kind` per item. A genre chip (and any chip without a kind: festival, mood) keeps the
+    neutral chip -- `bg-[#282828] text-[#b3b3b3]`, hover `bg-[#333] text-white`. A label chip is a
+    muted amber: `bg-[#3a2c16] text-[#ffcc80]`, hover `bg-[#4a3820] text-[#ffe0b2]` (contrast about
+    9:1), so genres and label read apart at a glance on the player's sideways chip row. Not the
+    brand token (the mode accent that marks active states), not `#b266ff` (radio/news active), not
+    a blue (sets mode's brand): each of those already means something else. Applies wherever
+    `MetaChips` renders a label -- the full-screen player and the track details sheet.
 
 - **Done** — Android login/welcome screens brought in line with the web's `LoginPage.svelte`: filled/rounded
   dark inputs (`MuMa Mobile.TextInputLayout`), a solid-green pill CTA

@@ -507,6 +507,24 @@ describe("NowPlaying track info", () => {
     expect(screen.getByTestId("now-playing-date").textContent).toBe("05-01-2026");
   });
 
+  it("colours the label chip apart from the genre chips, by kind not by position", () => {
+    // Found by text, not by index: the colour has to follow what a chip names, wherever
+    // in the row it lands.
+    renderNowPlaying({ track: { ...TRACK, genre: "Hardstyle; Techno", labels: ["Scantraxx"] } });
+
+    const row = screen.getByTestId("now-playing-meta");
+    const label = [...row.children].find((chip) => chip.textContent === "Scantraxx");
+    const genres = [...row.children].filter((chip) => chip.textContent !== "Scantraxx");
+    expect(label.dataset.kind).toBe("label");
+    expect(label.className).toContain("bg-[#3a2c16]");
+    expect(genres.length).toBeGreaterThan(0);
+    for (const genre of genres) {
+      expect(genre.dataset.kind).toBe("genre");
+      expect(genre.className).not.toContain("bg-[#3a2c16]");
+      expect(genre.className).toContain("bg-[#282828]");
+    }
+  });
+
   it("shows a radio button only when the player wires one, tinted while a channel plays", async () => {
     renderNowPlaying();
     expect(screen.queryByTestId("now-playing-radio")).toBeNull();

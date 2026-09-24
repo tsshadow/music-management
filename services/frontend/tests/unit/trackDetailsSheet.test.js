@@ -57,6 +57,17 @@ describe("TrackDetailsSheet label chip", () => {
     expect(onnavigate).toHaveBeenCalledWith("label:Art of Creation");
   });
 
+  it("colours the label chip like the player does, and the genre chip not", () => {
+    renderSheet({ track: track({ label: "Art of Creation", genre: "hardstyle" }) });
+
+    const label = screen.getByTestId("label-chip");
+    const genre = screen.getByTestId("genre-chip");
+    expect(label.dataset.kind).toBe("label");
+    expect(label.className).toContain("bg-[#3a2c16]");
+    expect(genre.dataset.kind).toBe("genre");
+    expect(genre.className).not.toContain("bg-[#3a2c16]");
+  });
+
   it("falls back to publisher when there is no label", async () => {
     const onnavigate = vi.fn();
     renderSheet({ track: track({ publisher: "Scantraxx" }), onnavigate });

@@ -57,6 +57,54 @@ TAGGER_WORKERS = max(1, _env_number('TAGGER_WORKERS', 12, int))
 #: up. Charged per slice in which a worker parsed something, so an unchanged walk pays nothing.
 TAGGER_BATCH_PAUSE = max(0.0, _env_number('TAGGER_BATCH_PAUSE', 0.5))
 
+#: Failed attempts in a row after which a file is parked instead of retried. A file that
+#: always raises used to be handed out every five-minute round, forever, with an ERROR --
+#: and so an alert -- each time. Between attempts the pending pass backs off (see
+#: ProcessedFilesHelper.pending_paths); on the last one the file is parked and one
+#: WARNING says so. See docs/bug-reports/051-a-failing-file-is-retried-every-round-forever.md.
+TAGGER_PARK_AFTER = int(max(1, _env_number('TAGGER_PARK_AFTER', 5, int)))
+
+
+def record_failure(file: str, error: BaseException) -> int:
+    """Count a failed tagging attempt on the file's queue row and log it once, at the right level.
+
+    The first failure is a WARNING with the traceback: that is news, but one file the
+    tagger cannot read is not an outage, and it is retried. A retry that fails again is
+    INFO, because the WARNING already said everything and each one becomes an event.
+    The failure that parks the file is one more WARNING. No round logs more than one
+    WARNING for a file and none logs an ERROR -- except when the attempt could not be
+    counted (the database is unreachable), which stays an ERROR. Returns the count.
+    """
+    try:
+        mtime = os.stat(file).st_mtime
+    except OSError:
+        mtime = 0.0
+    attempts = processed_files_helper.mark_failed(file, mtime, TAGGER_PARK_AFTER)
+    if not isinstance(attempts, int):
+        attempts = 0
+    if attempts >= TAGGER_PARK_AFTER:
+        logging.warning(
+            'Parked %s after %d failed tagging attempts in a row (last: %s: %s); it is retried when the file '
+            'changes or a retag is requested',
+            file,
+            attempts,
+            type(error).__name__,
+            error,
+        )
+    elif attempts < 1:
+        logging.error(f'Parse_song failed: {error} -> {file}', exc_info=error)
+    elif attempts == 1:
+        logging.warning(f'Parse_song failed: {error} -> {file}', exc_info=error)
+    else:
+        logging.info(
+            'Parse_song failed again (%d of %d before the file is parked): %s -> %s',
+            attempts,
+            TAGGER_PARK_AFTER,
+            error,
+            file,
+        )
+    return attempts
+
 
 class Tagger:
     """
@@ -349,7 +397,10 @@ class Tagger:
                 lms_scan_trigger.notify([str(folder)])
             if self.stop_requested:
                 return
-            for subfolder in [f for f in folder.iterdir() if f.is_dir() and (not f.name.startswith('_'))]:
+            # Hidden folders are skipped as the scanner skips them: '.quarantine', and the
+            # staging folder a redownload writes into beside the file it replaces
+            # (services/downloader/redownload.py), which holds a half-finished download.
+            for subfolder in [f for f in folder.iterdir() if f.is_dir() and not f.name.startswith(('_', '.'))]:
                 if self.stop_requested:
                     break
                 self.parse_folder(subfolder, song_type, extra_info)
@@ -371,10 +422,10 @@ class Tagger:
             logging.info('KeyboardInterrupt')
             sys.exit(1)
         except (PermissionError, MutagenError, FileNotFoundError, ExtensionNotSupportedException) as e:
-            logging.error(f'{type(e).__name__}: {e} -> {file}', exc_info=True)
+            record_failure(str(file), e)
             broken_song_helper.add(str(file), type(e).__name__)
         except Exception as e:
-            logging.error(f'Parse_song failed: {e} -> {file}', exc_info=True)
+            record_failure(str(file), e)
         return False
 
     @staticmethod
@@ -438,8 +489,9 @@ class Tagger:
         except Exception as e:
             # `parse_folder` throws this return value away, and the parallel path is the one
             # production runs -- so without the log line a file that failed every single round
-            # is indistinguishable from one that was tagged successfully.
-            logging.error(f'Parse_song failed: {e} -> {file}', exc_info=True)
+            # is indistinguishable from one that was tagged successfully. record_failure is
+            # also what backs the file off and, eventually, parks it.
+            record_failure(file, e)
             return (file, f'{type(e).__name__}: {e}')
 
 

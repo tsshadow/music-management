@@ -17,7 +17,9 @@
   // button is pressed, because a wide match can touch more files than intended and the
   // count is the only brake; polled while the page is open, because watching it go down
   // is the only way to see that a restart reached the queue.
-  let retagPending = $state({ total: 0, by_reason: [], busy: false, stopping: false });
+  // `failed` is the files parked after failing five times in a row: not in `total`, because
+  // nothing picks them up until the file changes or a retag is asked for.
+  let retagPending = $state({ total: 0, by_reason: [], failed: 0, busy: false, stopping: false });
 
   const POLL_MS = 5000;
   let pollTimer = null;
@@ -169,6 +171,13 @@
         {/if}
       </div>
     </div>
+  {/if}
+
+  {#if retagPending.failed > 0}
+    <p class="m-0 text-sm text-muma-spotify-text" data-testid="retag-parked">
+      <span class="font-bold text-white">{retagPending.failed}</span>
+      {$t('management.tagger.retagParked')}
+    </p>
   {/if}
 
   <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 p-6 flex items-center justify-between gap-4 flex-wrap">

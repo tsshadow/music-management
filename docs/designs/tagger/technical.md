@@ -27,6 +27,39 @@ The Tagger API is hosted by the `music-manager` service on port 8000.
 | `POST /api/tagger/tag/stop` | None | `{ "message": "Stop request sent to tagger" }` | None (Returns 200 even if no run is active). |
 | `POST /api/tagger/tag/file` | `?path=string` | `{ "message": "Tagging for <path> completed" }` | `404 Not Found`: File does not exist. <br> `500 Internal Server Error`: Parsing failed. |
 
+## Retag Queue: Backoff and Parking
+
+The queue is `tagger_processed_files`: one row per file the tagger has seen, `needs_rescan` set when
+something wants the file read again, `rescan_reason` saying what. The five-minute loop's pending pass
+serves it reason by reason (`ProcessedFilesHelper.pending_reasons`/`pending_paths`) before any folder
+walk. A file that raises in the tagger used to stay queued and was handed out again every round,
+forever, with an `ERROR` — and so an alert push — each time
+([bug report 051](../../bug-reports/051-a-failing-file-is-retried-every-round-forever.md)).
+
+- **Counting.** `attempts` and `last_attempt` on the row (migrate_v37). `tagger.record_failure` calls
+  `ProcessedFilesHelper.mark_failed` for every failed attempt, on the parallel and the serial path. A
+  file nothing had queued (the walk found it) is queued with reason `retry`; a queued file keeps its
+  reason.
+- **Backoff.** `pending_paths` skips a row while
+  `last_attempt + 2^attempts × RETRY_BASE_SECONDS` (300 s, one loop period) lies in the future: the
+  retries come 10, 20, 40 and 80 minutes apart.
+- **Parking.** The `TAGGER_PARK_AFTER`-th failure in a row (default 5, env override) sets
+  `needs_rescan = FALSE`, `rescan_reason = 'failed'` and stores the file's current mtime, so neither
+  the pending pass nor the daily walk touches it again until the file changes on disk.
+  `pending_summary` reports parked files as `failed`, outside `total`; the tagger page in Beheer shows
+  the count.
+- **Resetting.** `mark_processed` and every request that queues a file on purpose — `mark_for_rescan`
+  (rerun-parse, "rescan all", a redownload), `mark_paths_for_rescan` (curation decisions),
+  `mark_stale_for_rescan` (the deep run) — set `attempts = 0, last_attempt = NULL`, which is also what
+  takes a parked row back onto the queue.
+- **Logging.** The first failure is a `WARNING` with the traceback: one unreadable file is not an
+  outage, and it will be retried. A retry that fails again is `INFO`: the `WARNING` already said
+  everything, and every `WARNING` is an event and an alert. Parking is one more `WARNING`. No round
+  logs an `ERROR` for a file, except a failure that could not be counted (database unreachable).
+- **Path identity.** `filepath` is `utf8mb4_bin`. Under the old `utf8mb4_general_ci` key two files
+  whose paths differed only in case, an accent or an emoji shared one row, while the in-memory
+  snapshot matched exactly, so one of the pair was retagged on every walk.
+
 ## Tag Mapping and Multi-Value Splitting
 
 - **Per-format keys** live in `services/tagger/constants.py` (`MP3Tags`, `FLACTags`, `OPUSTags`,
@@ -61,7 +94,7 @@ The Tagger API is hosted by the `music-manager` service on port 8000.
 3. **File Support**: The system correctly reads and writes tags for MP3 (EasyID3), FLAC, WAV, M4A (MP4), and OPUS using the `mutagen` library.
 4. **Concurrency**: The `TaggerManager` in `music-manager` uses a `threading.Lock` to ensure only one full tagging run or single-file tagging operation occurs at a time, preventing file access conflicts.
 5. **Unicode Normalization**: `ReplaceInvalidUnicodeRule` identifies and replaces zero-width spaces, non-breaking spaces, and other problematic characters with their standard ASCII/UTF-8 equivalents.
-6. **Error Handling**: Failed tagging operations for individual files are logged and added to the `broken_song_helper` (persisted to `broken-files.log`) without stopping the entire batch run.
+6. **Error Handling**: Failed tagging operations for individual files are logged and added to the `broken_song_helper` (persisted to `broken-files.log`) without stopping the entire batch run. A file that keeps failing is retried with an exponential backoff and parked after `TAGGER_PARK_AFTER` failures (see "Retag Queue: Backoff and Parking").
 7. **Idempotency**: Running the tagger multiple times on the same file with no rule changes results in no changes to the file's modification time (mtime) after the first successful pass, handled via `ProcessedFilesHelper`.
 
 ## Genre Splitting

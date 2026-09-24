@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { get } from "svelte/store";
 import {
+  SUBSONIC_BAD_CREDENTIALS,
+  SubsonicError,
   listOf,
   offline,
   queryString,
@@ -8,7 +10,7 @@ import {
   viewHasOfflineSource,
   watchConnectivity,
 } from "../../src/lib/subsonic.js";
-import { credentials } from "../../src/lib/store.js";
+import { credentials, mumaApiKey, mumaSessionActive, mumaUser } from "../../src/lib/store.js";
 
 const BODY = { "subsonic-response": { status: "ok", tracks: { track: [{ id: "1" }] } } };
 const LOCAL = { "subsonic-response": { status: "ok", tracks: { track: [{ id: "local" }] } } };
@@ -181,10 +183,11 @@ describe("subsonicJson", () => {
       json: async () => ({ "subsonic-response": { status: "failed" } }),
     }));
 
-    const body = await subsonicJson("getGenres", {}, { platform, fetchImpl });
+    await expect(subsonicJson("getGenres", {}, { platform, fetchImpl })).rejects.toThrow(
+      SubsonicError,
+    );
 
     expect(platform.storage.query).not.toHaveBeenCalled();
-    expect(body["subsonic-response"].status).toBe("failed");
   });
 
   // A response that arrived but was not JSON -- a proxy's HTML error page, a
@@ -341,5 +344,70 @@ describe("watchConnectivity", () => {
     expect(get(offline)).toBe(true);
     emit({ online: true });
     expect(get(offline)).toBe(false);
+  });
+});
+
+/**
+ * Subsonic reports failures with HTTP 200 and `status: "failed"` in the body. Returned as data,
+ * every list read of it came out empty -- an expired password looked like an empty library.
+ */
+describe("subsonicJson - failed answers", () => {
+  beforeEach(() => {
+    credentials.set({ url: "https://lms.example", username: "user", password: "old" });
+    mumaApiKey.set("key-1");
+    mumaSessionActive.set(true);
+    mumaUser.set({ id: 1, username: "user" });
+  });
+
+  afterEach(() => {
+    mumaUser.set(null);
+    mumaApiKey.set("");
+    mumaSessionActive.set(false);
+    vi.restoreAllMocks();
+  });
+
+  /** A fetch answering a failed envelope with `code` and `message`. */
+  function failing(code, message) {
+    return answering({ "subsonic-response": { status: "failed", error: { code, message } } });
+  }
+
+  it("throws a SubsonicError carrying the code, instead of returning the body", async () => {
+    const fetchImpl = failing(70, "Artist not found");
+
+    const error = await subsonicJson(
+      "getArtist",
+      { id: "9" },
+      { platform: browser, fetchImpl },
+    ).catch((e) => e);
+
+    expect(error).toBeInstanceOf(SubsonicError);
+    expect(error.code).toBe(70);
+    expect(error.message).toBe("Artist not found");
+    // Any other error leaves the session alone.
+    expect(get(credentials).username).toBe("user");
+    expect(get(mumaApiKey)).toBe("key-1");
+  });
+
+  it("throws on a body without an envelope", async () => {
+    await expect(
+      subsonicJson("getGenres", {}, { platform: browser, fetchImpl: answering({}) }),
+    ).rejects.toThrow(SubsonicError);
+  });
+
+  it("error 40 -- a wrong or expired password -- ends the session, which shows the login page", async () => {
+    const fetchImpl = failing(SUBSONIC_BAD_CREDENTIALS, "Wrong username or password");
+
+    await expect(
+      subsonicJson("getGenres", {}, { platform: browser, fetchImpl }),
+    ).rejects.toMatchObject({ code: 40 });
+
+    // App.svelte renders LoginPage when neither a username nor a MuMa session is left.
+    expect(get(credentials).username).toBe("");
+    expect(get(credentials).password).toBe("");
+    expect(get(mumaSessionActive)).toBe(false);
+    expect(get(mumaApiKey)).toBe("");
+    expect(get(mumaUser)).toBeNull();
+    // The server address belongs to the device and survives.
+    expect(get(credentials).url).toBe("https://lms.example");
   });
 });

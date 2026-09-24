@@ -16,13 +16,16 @@ function subsonic({ genres = GENRES, years = YEARS } = {}) {
     if (url.includes("/rest/getGenres")) {
       return {
         ok: true,
-        json: async () => ({ "subsonic-response": { genres: { genre: genres } } }),
+        json: async () => ({ "subsonic-response": { status: "ok", genres: { genre: genres } } }),
       };
     }
     if (url.includes("/rest/getYears")) {
-      return { ok: true, json: async () => ({ "subsonic-response": { years: { year: years } } }) };
+      return {
+        ok: true,
+        json: async () => ({ "subsonic-response": { status: "ok", years: { year: years } } }),
+      };
     }
-    return { ok: true, json: async () => ({ "subsonic-response": {} }) };
+    return { ok: true, json: async () => ({ "subsonic-response": { status: "ok" } }) };
   });
 }
 

@@ -25,6 +25,10 @@
   let biography = $state("");
   let mbid = $state("");
   let isLoading = $state(true);
+  let loadFailed = $state(false);
+  // Which load is current. Every answer checks it before it writes anything, so the answer for
+  // an artist the listener already left can never land on the page of the one they went to.
+  let loadSeq = 0;
 
   /**
    * Toggles the starred status of the artist.
@@ -54,10 +58,22 @@
    */
   async function loadArtist() {
     if (!$authParams) return;
+    const seq = ++loadSeq;
     isLoading = true;
+    loadFailed = false;
+    // Nothing of the previous artist survives into this one, whatever fails below.
+    artist = null;
+    albumGroups = {};
+    appearsOn = [];
+    similarArtists = [];
+    allTracks = [];
+    biography = "";
+    mbid = "";
     try {
       const data = await subsonicJson('getArtist', { id: artistId });
+      if (seq !== loadSeq) return;
       const artistData = data['subsonic-response']?.artist;
+      if (!artistData) loadFailed = true;
       if (artistData) {
         artist = artistData;
         // The place is opened before this resolves (App's handleNavigate records the bare
@@ -81,14 +97,16 @@
         albumGroups = groups;
         appearsOn = other;
 
-        loadAllTracks();
-        loadArtistInfo();
-        loadArtistMuma();
+        loadAllTracks(false, seq);
+        loadArtistInfo(seq);
+        loadArtistMuma(seq);
       }
     } catch (e) {
+      if (seq !== loadSeq) return;
       console.error(e);
+      loadFailed = true;
     } finally {
-      isLoading = false;
+      if (seq === loadSeq) isLoading = false;
     }
   }
 
@@ -96,8 +114,9 @@
    * Loads all tracks by the artist, filtered by duration based on viewMode.
    *
    * @param {boolean} [append=false] - Whether to append new results to the existing tracks.
+   * @param {number} [seq] - The load this belongs to; see `loadSeq`.
    */
-  async function loadAllTracks(append = false) {
+  async function loadAllTracks(append = false, seq = loadSeq) {
     if (!append) {
         allTracksOffset = 0;
         allTracksHasMore = true;
@@ -117,6 +136,7 @@
           deduplicate: $deduplicateEnabled ? 'true' : undefined,
           ...durationFilter
         });
+        if (seq !== loadSeq) return;
         const tracksNode = data['subsonic-response']?.tracks;
         const newTracks = listOf(data, 'tracks.track');
 
@@ -140,34 +160,31 @@
           allTracks = currentBatch;
       }
     } catch (e) {
+      if (seq !== loadSeq) return;
       console.error(e);
+      allTracksHasMore = false;
     }
   }
 
   /**
-   * Loads additional artist information, such as similar artists.
+   * Loads additional artist information, such as similar artists. Every field is written on
+   * every answer -- empty when this artist has none -- so a field the previous artist had can
+   * never stay on screen for this one.
+   *
+   * @param {number} [seq] - The load this belongs to; see `loadSeq`.
    */
-  async function loadArtistInfo() {
+  async function loadArtistInfo(seq = loadSeq) {
     try {
-      const response = await fetch(restUrl(`/rest/getArtistInfo2?id=${artistId}&${$authParams}`));
-      const data = await response.json();
-      const info = data['subsonic-response']?.artistInfo || data['subsonic-response']?.artistInfo2;
-      if (info) {
-        if (info.similarArtist) {
-          similarArtists = Array.isArray(info.similarArtist) ? info.similarArtist : [info.similarArtist];
-        }
-        if (info.biography) {
-          biography = info.biography;
-        }
-        if (info.musicBrainzId) {
-          mbid = info.musicBrainzId;
-        }
-      } else {
-        similarArtists = [];
-        biography = "";
-        mbid = "";
-      }
+      const data = await subsonicJson('getArtistInfo2', { id: artistId });
+      if (seq !== loadSeq) return;
+      const info = data['subsonic-response']?.artistInfo || data['subsonic-response']?.artistInfo2 || {};
+      similarArtists = info.similarArtist
+        ? (Array.isArray(info.similarArtist) ? info.similarArtist : [info.similarArtist])
+        : [];
+      biography = info.biography || "";
+      mbid = info.musicBrainzId || "";
     } catch (e) {
+      if (seq !== loadSeq) return;
       console.error(e);
     }
   }
@@ -179,13 +196,16 @@
    * with `library_artists.id`, which is why the previous version of this call
    * (`/api/artists/{artistId}`) hit a route that does not exist and left the chips
    * empty for as long as they have been on the page.
+   *
+   * @param {number} [seq] - The load this belongs to; see `loadSeq`.
    */
-  async function loadArtistMuma() {
+  async function loadArtistMuma(seq = loadSeq) {
     if (!artist?.name) return;
     try {
       const response = await fetch(
         `${$mumaApiUrl}/api/curation/artists/${encodeURIComponent(artist.name)}`,
         { headers: getHeaders() });
+      if (seq !== loadSeq) return;
       if (response.ok) {
         const data = await response.json();
         if (data && data.genre_rules) {
@@ -227,7 +247,9 @@
 
 {#if isLoading}
   <div class="p-8">{$t('common.loading')}</div>
-{:else if artist}
+{:else if !artist || loadFailed}
+  <div class="p-8 text-[#b3b3b3]" role="alert">{$t('library.loadFailed')}</div>
+{:else}
   <div class="flex flex-col">
     <header class="h-auto md:h-[340px] flex flex-col md:flex-row items-center md:items-end p-6 md:p-8 bg-linear-to-b from-transparent to-black/50 relative gap-6 text-center md:text-left">
        <div class="w-[160px] h-[160px] md:w-[232px] md:h-[232px] flex-shrink-0">

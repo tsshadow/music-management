@@ -30,6 +30,7 @@ function api({
   verify = { type: "user", user: USER },
   loginOk = true,
   rejectKey = null,
+  failing = [],
 } = {}) {
   const bodies = {
     "/api/config": { version: "0.0.57" },
@@ -62,6 +63,9 @@ function api({
     // localStorage after the deployment stopped resolving one.
     if (rejectKey && options.headers?.["X-API-Key"] === rejectKey) {
       return { ok: false, status: 401, json: async () => ({}) };
+    }
+    if (failing.some((path) => url.includes(path))) {
+      return { ok: false, status: 500, json: async () => ({ detail: "Internal Server Error" }) };
     }
     // Before the generic '/api/rules' entry below, which would otherwise answer
     // the genre table with an object and leave it summarising a non-iterable.
@@ -245,5 +249,17 @@ describe("Management", () => {
     const urls = () => globalThis.fetch.mock.calls.map(([url]) => String(url));
     await waitFor(() => expect(urls().some((url) => url.includes("/api/stats"))).toBe(true));
     expect(urls().some((url) => url.includes("/api/versions"))).toBe(false);
+  });
+
+  // fetchMumaJson used to hand an error body back as data, so a failed section was assigned
+  // `{detail: ...}` in place of its list. Now a failed call leaves that section at its default.
+  it("one section that fails stays empty without taking the rest down or raising the banner", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    globalThis.fetch = api({ failing: ["/api/system/containers"] });
+
+    render(Management);
+
+    await waitFor(() => expect(screen.getByText("0 / 0 Running")).toBeTruthy());
+    expect(screen.queryByText("Kon gegevens niet ophalen van de Management API.")).toBeNull();
   });
 });

@@ -5,6 +5,17 @@ import ProfileButton from "../../src/lib/ProfileButton.svelte";
 import { platform } from "../../src/lib/platform/index.js";
 import {
   credentials,
+  currentTrack,
+  equalizerSettings,
+  EQUALIZER_DEFAULT,
+  homeShortcutCount,
+  mumaApiUrl,
+  playerState,
+  playlist,
+  setupStepsSeen,
+  syncMode,
+  trackPageSize,
+  DEFAULT_TRACK_PAGE_SIZE,
   mumaApiKey,
   mumaRefreshToken,
   mumaSessionActive,
@@ -104,5 +115,56 @@ describe("ProfileButton logout", () => {
 
     await waitFor(() => expect(reload).toHaveBeenCalledOnce());
     expect(get(credentials).username).toBe("");
+  });
+
+  // The second half of the bug: everything else the previous person left in localStorage --
+  // queue, current track, player, equalizer, page size, account settings -- used to survive, so
+  // the next person to sign in on this browser started inside their session.
+  it("leaves nothing of the previous user's session behind", async () => {
+    playlist.set([{ id: "t1" }, { id: "t2" }]);
+    currentTrack.set({ id: "t1", title: "Raise Your Fist" });
+    playerState.set({
+      playing: true,
+      volume: 20,
+      progress: 42,
+      duration: 240,
+      shuffle: true,
+      repeat: "all",
+    });
+    syncMode.set("host");
+    trackPageSize.set(200);
+    equalizerSettings.set({ ...EQUALIZER_DEFAULT, enabled: true, preamp: 3 });
+    homeShortcutCount.set(3);
+    setupStepsSeen.set(["language"]);
+    mumaApiUrl.set("https://muma.example");
+
+    const { container, getByText } = render(ProfileButton, { onNavigate: vi.fn() });
+    await openMenu(container);
+    await fireEvent.click(getByText("Uitloggen"));
+    await waitFor(() => expect(reload).toHaveBeenCalledOnce());
+
+    expect(get(playlist)).toEqual([]);
+    expect(get(currentTrack)).toBeNull();
+    expect(get(playerState)).toMatchObject({
+      playing: false,
+      progress: 0,
+      shuffle: false,
+      repeat: "none",
+    });
+    expect(get(syncMode)).toBe("off");
+    expect(get(trackPageSize)).toBe(DEFAULT_TRACK_PAGE_SIZE);
+    expect(get(equalizerSettings).enabled).toBe(false);
+    expect(get(homeShortcutCount)).toBe(8);
+    expect(get(setupStepsSeen)).toEqual([]);
+    for (const key of [
+      "lms_playlist",
+      "lms_current_track",
+      "lms_equalizer",
+      "lms_homeShortcutCount",
+    ]) {
+      expect(window.localStorage.getItem(key)).toBeNull();
+    }
+    // Which server this browser talks to is the device's, not the account's.
+    expect(get(mumaApiUrl)).toBe("https://muma.example");
   });
 });

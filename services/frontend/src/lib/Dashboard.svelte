@@ -260,6 +260,10 @@
     } catch (e) {
       if (e.name === 'AbortError') return;
       console.error("Failed to load tracks:", e);
+      // A refused call is not more to fetch: stop paging, and do not leave the previous
+      // view's list standing as if it were this one's answer.
+      tracksHasMore = false;
+      if (!append) tracks = [];
     } finally {
       if (!signal || !signal.aborted) {
         isLoading = false;
@@ -311,6 +315,8 @@
     } catch (e) {
       if (e.name === 'AbortError') return;
       console.error(e);
+      albumsHasMore = false;
+      if (!append) albums = [];
     }
   }
 
@@ -358,6 +364,8 @@
     } catch (e) {
       if (e.name === 'AbortError') return;
       console.error(e);
+      artistsHasMore = false;
+      if (!append) artists = [];
     }
   }
 
@@ -1213,9 +1221,15 @@
   {:else if activeView.startsWith('genre-edit:')}
     <GenreEdit name={viewArgument(activeView)} onback={() => activeView = `genre:${viewArgument(activeView)}`} />
   {:else if activeView.startsWith('artist:')}
-    <ArtistView artistId={viewArgument(activeView)} onnavigate={(v) => activeView = v} />
+    <!-- Keyed on the id: going from one artist straight to another remounts the view instead of
+         reusing it with the previous artist's fields still in place. -->
+    {#key viewArgument(activeView)}
+      <ArtistView artistId={viewArgument(activeView)} onnavigate={(v) => activeView = v} />
+    {/key}
   {:else if activeView.startsWith('album:')}
-    <AlbumView albumId={viewArgument(activeView)} onnavigate={(v) => activeView = v} />
+    {#key viewArgument(activeView)}
+      <AlbumView albumId={viewArgument(activeView)} onnavigate={(v) => activeView = v} />
+    {/key}
   {:else if activeView.startsWith('song:')}
     <SongView workId={viewArgument(activeView)} onnavigate={(v) => activeView = v} />
   {:else if activeView.startsWith('search:')}

@@ -9,6 +9,15 @@ import {
 } from "./equalizerPresets.js";
 import { gatedFetch } from "./mumaGate.js";
 
+/**
+ * Every store handed to {@link persist}, with the value it was declared with, so a logout can put
+ * each one back without a hand-kept list that a new store would be missing from. `device: true`
+ * marks the few that describe this browser rather than the person signed in to it.
+ *
+ * @type {Array<{key: string, store: import('svelte/store').Writable, initial: string, device: boolean}>}
+ */
+const persistedStores = [];
+
 // Helper to persist store to localStorage
 /**
  * Persists a Svelte store to localStorage.
@@ -18,8 +27,15 @@ import { gatedFetch } from "./mumaGate.js";
  * @param {import('svelte/store').Writable} store - The store to persist.
  * @param {Object} [options] - Optional configuration.
  * @param {function(any): any} [options.onLoad] - Transformation function applied to the loaded value.
+ * @param {boolean} [options.device] - Kept across a logout; see {@link resetSessionState}.
  */
 function persist(key, store, options = {}) {
+  persistedStores.push({
+    key,
+    store,
+    initial: JSON.stringify(get(store)),
+    device: options.device === true,
+  });
   const json = localStorage.getItem(key);
   if (json) {
     try {
@@ -62,7 +78,9 @@ persist("lms_credentials", credentials);
 export const mumaApiUrl = writable(
   import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "" : "/muma"),
 );
-persist("muma_api_url", mumaApiUrl);
+// Which MuMa this browser talks to is the device's configuration, not the account's: the next
+// person to sign in here reaches the same server.
+persist("muma_api_url", mumaApiUrl, { device: true });
 
 /**
  * Builds an absolute Subsonic (`/rest/*`) URL from `credentials.url`, so a
@@ -94,6 +112,23 @@ persist("muma_session_active", mumaSessionActive);
 
 export const userPermissions = writable([]);
 export const mumaUser = writable(null);
+
+/**
+ * Ends a session the server has stopped accepting -- Subsonic's error 40, a password changed or
+ * expired since sign-in. Clears the credentials and the MuMa session, which is what puts
+ * App.svelte's login page back up: without this an expired password did not look like an error at
+ * all, only like a library that had gone empty. Unlike a logout it keeps the queue and the
+ * settings -- whoever signs in next is almost always the same person -- and keeps the server
+ * address, which belongs to this device rather than to the account.
+ */
+export function endRejectedSession() {
+  credentials.update((current) => ({ ...current, username: "", password: "" }));
+  mumaApiKey.set("");
+  mumaRefreshToken.set("");
+  mumaSessionActive.set(false);
+  userPermissions.set([]);
+  mumaUser.set(null);
+}
 
 /**
  * Checks if the current user has a specific permission.
@@ -459,6 +494,41 @@ hydrateMumaUserFromApiKey();
 const frontendSettingsUrl = (userId) => `${get(mumaApiUrl)}/api/users/${userId}/settings/frontend`;
 
 /**
+ * Reads `userId`'s `frontend` blob and reports whether the read itself succeeded -- the
+ * distinction {@link loadFrontendSettings} folds into `null`. A writer needs it: "the account has
+ * nothing saved" may be written over, "the account could not be read" may not, because writing
+ * then would replace every key this browser did not happen to change.
+ *
+ * A stored blob that is not valid JSON counts as read and empty: there is nothing left in it to
+ * preserve, and refusing to write would leave the account stuck on it forever.
+ *
+ * @param {number} userId
+ * @returns {Promise<{ok: boolean, settings: Object|null}>}
+ */
+async function readFrontendSettings(userId) {
+  let data;
+  try {
+    const res = await gatedFetch(frontendSettingsUrl(userId), {
+      headers: { "X-API-Key": get(mumaApiKey) },
+    });
+    if (!res.ok) return { ok: false, settings: null };
+    data = await res.json();
+  } catch (e) {
+    console.warn("Could not load the account settings", e);
+    return { ok: false, settings: null };
+  }
+  if (!data?.settings) return { ok: true, settings: null };
+  try {
+    const parsed = JSON.parse(data.settings);
+    const isObject = parsed !== null && typeof parsed === "object" && !Array.isArray(parsed);
+    return { ok: true, settings: isObject ? parsed : null };
+  } catch (e) {
+    console.warn("The stored account settings are not valid JSON", e);
+    return { ok: true, settings: null };
+  }
+}
+
+/**
  * Reads `userId`'s `frontend` app-settings blob.
  *
  * @param {number} userId
@@ -467,50 +537,138 @@ const frontendSettingsUrl = (userId) => `${get(mumaApiUrl)}/api/users/${userId}/
  *   keep working off their local value rather than surfacing an error.
  */
 export async function loadFrontendSettings(userId) {
-  try {
-    const res = await gatedFetch(frontendSettingsUrl(userId), {
-      headers: { "X-API-Key": get(mumaApiKey) },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.settings ? JSON.parse(data.settings) : null;
-  } catch (e) {
-    console.warn("Kon accountinstellingen niet laden", e);
-    return null;
-  }
+  return (await readFrontendSettings(userId)).settings;
+}
+
+// Account-setting writes. The `frontend` blob is one JSON document shared by every key (and
+// written by the Android app too), and the server only accepts it whole. So every change is
+// queued here, and one debounced flush reads the blob once, merges everything pending into it and
+// writes it once. One debounce per key used to mean one read-modify-write per key, and two of
+// them in flight together each wrote back a blob without the other's change.
+// The durable fix is a per-key write on the server; see docs/open-work.md.
+
+/** How long a change waits for company before it is written. */
+const SETTINGS_SAVE_DELAY_MS = 400;
+/** How long a write that could not read or save the blob waits before it tries again. */
+const SETTINGS_RETRY_DELAY_MS = 10000;
+/** `userId -> {key: value}`: the changes not yet on that account. */
+const pendingSettingWrites = new Map();
+let settingsFlushTimer = null;
+// Flushes run one after another, never overlapping: two concurrent read-merge-writes of the same
+// blob are exactly the lost update this queue exists to prevent.
+let settingsFlushChain = Promise.resolve();
+// Bumped by resetSessionState, so a write already in flight at logout does not re-queue its
+// changes for an account nobody is signed in to any more.
+let settingsGeneration = 0;
+
+/**
+ * Arms (or re-arms) the single flush timer.
+ *
+ * @param {number} delayMs
+ */
+function scheduleSettingsFlush(delayMs) {
+  clearTimeout(settingsFlushTimer);
+  settingsFlushTimer = setTimeout(() => {
+    settingsFlushTimer = null;
+    flushFrontendSettings();
+  }, delayMs);
 }
 
 /**
- * Saves a single key into `userId`'s `frontend` app-settings blob. The blob
- * is read first and merged into, so the other settings sharing it aren't
- * clobbered.
+ * Queues one key for `userId`'s blob and arms the debounced flush. A later value for the same key
+ * replaces the queued one; different keys are written together.
  *
  * @param {number} userId
  * @param {string} key
  * @param {any} value
  */
-export async function saveFrontendSetting(userId, key, value) {
+function queueFrontendSetting(userId, key, value) {
+  const pending = pendingSettingWrites.get(userId) ?? {};
+  pending[key] = value;
+  pendingSettingWrites.set(userId, pending);
+  scheduleSettingsFlush(SETTINGS_SAVE_DELAY_MS);
+}
+
+/**
+ * Merges `changes` into `userId`'s blob: one read, one write. Refuses to write when the read
+ * failed, since the blob it would write back would be missing every key it could not see.
+ *
+ * @param {number} userId
+ * @param {Object} changes
+ * @returns {Promise<boolean>} Whether the account now holds the changes.
+ */
+async function writeSettingsBlob(userId, changes) {
+  const current = await readFrontendSettings(userId);
+  if (!current.ok) return false;
   try {
-    const settings = (await loadFrontendSettings(userId)) || {};
-    settings[key] = value;
-    await gatedFetch(frontendSettingsUrl(userId), {
+    const res = await gatedFetch(frontendSettingsUrl(userId), {
       method: "POST",
       headers: { "X-API-Key": get(mumaApiKey), "Content-Type": "application/json" },
-      body: JSON.stringify({ settings: JSON.stringify(settings) }),
+      body: JSON.stringify({
+        settings: JSON.stringify({ ...current.settings, ...changes }),
+      }),
     });
+    return res.ok;
   } catch (e) {
-    console.warn("Kon accountinstelling niet opslaan", e);
+    console.warn("Could not save the account settings", e);
+    return false;
   }
+}
+
+/**
+ * Writes everything queued, one account at a time. Changes that could not be written go back in
+ * the queue -- under anything queued meanwhile, which is newer -- and a retry is armed.
+ *
+ * @returns {Promise<void>}
+ */
+async function writePendingSettings() {
+  const generation = settingsGeneration;
+  let failed = false;
+  for (const [userId, changes] of [...pendingSettingWrites]) {
+    pendingSettingWrites.delete(userId);
+    const saved = await writeSettingsBlob(userId, changes);
+    if (!saved && generation === settingsGeneration) {
+      pendingSettingWrites.set(userId, { ...changes, ...pendingSettingWrites.get(userId) });
+      failed = true;
+    }
+  }
+  if (failed && !settingsFlushTimer) scheduleSettingsFlush(SETTINGS_RETRY_DELAY_MS);
+}
+
+/**
+ * Writes every queued account-setting change now instead of after its debounce, and resolves once
+ * that attempt is over. Never rejects: a failed write stays queued and is retried.
+ *
+ * @returns {Promise<void>}
+ */
+export function flushFrontendSettings() {
+  clearTimeout(settingsFlushTimer);
+  settingsFlushTimer = null;
+  settingsFlushChain = settingsFlushChain.then(writePendingSettings);
+  return settingsFlushChain;
+}
+
+/**
+ * Saves a single key into `userId`'s `frontend` app-settings blob right away, merged with the
+ * rest of the blob and with anything else queued. Resolves once the attempt is over; a failure is
+ * kept and retried rather than thrown.
+ *
+ * @param {number} userId
+ * @param {string} key
+ * @param {any} value
+ * @returns {Promise<void>}
+ */
+export function saveFrontendSetting(userId, key, value) {
+  const pending = pendingSettingWrites.get(userId) ?? {};
+  pending[key] = value;
+  pendingSettingWrites.set(userId, pending);
+  return flushFrontendSettings();
 }
 
 let syncedUserId = null;
 // True while values just fetched from the account are being applied to the
 // stores, so those writes don't get echoed straight back to the server.
 let applyingAccountSettings = false;
-let localeSaveTimer = null;
-// The language change waiting for its debounce to elapse, so `flushLocaleSave`
-// can push it now instead: `{ userId, code }` while a save is armed, else null.
-let pendingLocaleSave = null;
 
 // The favorite lists that follow the account, as `settings key -> store`. They
 // are handled as a group so that adding one (labels, playlists) is a one-line
@@ -552,12 +710,9 @@ function accountSetting(key, defaultValue) {
   persist(`lms_${key}`, store);
   accountSettingStores.push({ key, store });
 
-  let saveTimer = null;
   store.subscribe(($value) => {
     if (applyingAccountSettings || !syncedUserId) return;
-    const userId = syncedUserId;
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => saveFrontendSetting(userId, key, $value), 400);
+    queueFrontendSetting(syncedUserId, key, $value);
   });
   return store;
 }
@@ -635,7 +790,7 @@ async function applyAccountSettings(userId) {
     } else {
       const local = get(store);
       if (local.length > 0) {
-        await saveFrontendSetting(userId, key, local);
+        queueFrontendSetting(userId, key, local);
       }
     }
   }
@@ -645,7 +800,7 @@ async function applyAccountSettings(userId) {
     setLocaleFromAccount(settings.language);
     applyingAccountSettings = false;
   } else {
-    await saveFrontendSetting(userId, "language", currentLocale());
+    queueFrontendSetting(userId, "language", currentLocale());
   }
 
   // Only read, never seeded: an account without a page size has not chosen one, and
@@ -655,6 +810,9 @@ async function applyAccountSettings(userId) {
     trackPageSize.set(settings.trackPageSize);
     applyingAccountSettings = false;
   }
+
+  // Whatever the loops above uploaded goes out as one write, not one per key.
+  if (pendingSettingWrites.has(userId)) await flushFrontendSettings();
 }
 
 mumaUser.subscribe(($user) => {
@@ -686,20 +844,15 @@ mumaUser.subscribe(($user) => {
 });
 
 for (const [key, store] of Object.entries(syncedFavoriteLists)) {
-  let saveTimer = null;
   store.subscribe(($value) => {
     if (applyingAccountSettings || !syncedUserId) return;
-    const userId = syncedUserId;
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => saveFrontendSetting(userId, key, $value), 400);
+    queueFrontendSetting(syncedUserId, key, $value);
   });
 }
 
 locale.subscribe(($locale) => {
   if (applyingAccountSettings || !syncedUserId) return;
-  clearTimeout(localeSaveTimer);
-  pendingLocaleSave = { userId: syncedUserId, code: $locale };
-  localeSaveTimer = setTimeout(flushLocaleSave, 400);
+  queueFrontendSetting(syncedUserId, "language", $locale);
 });
 
 /**
@@ -715,21 +868,53 @@ locale.subscribe(($locale) => {
  * @returns {Promise<void>}
  */
 export async function flushLocaleSave() {
-  clearTimeout(localeSaveTimer);
-  localeSaveTimer = null;
-  const pending = pendingLocaleSave;
-  pendingLocaleSave = null;
-  if (!pending) return;
-  await saveFrontendSetting(pending.userId, "language", pending.code);
+  // The language shares the one settings queue, so flushing it flushes whatever else is waiting
+  // too -- which the reload that follows would otherwise lose just the same.
+  await flushFrontendSettings();
 }
 
-let pageSizeSaveTimer = null;
 trackPageSize.subscribe(($size) => {
   if (applyingAccountSettings || !syncedUserId) return;
-  const userId = syncedUserId;
-  clearTimeout(pageSizeSaveTimer);
-  pageSizeSaveTimer = setTimeout(() => saveFrontendSetting(userId, "trackPageSize", $size), 400);
+  queueFrontendSetting(syncedUserId, "trackPageSize", $size);
 });
+
+/**
+ * Puts everything a signed-in person leaves behind in this browser back to how a fresh visit
+ * finds it: every store registered with {@link persist} (except the few marked `device`) is set
+ * back to the value it was declared with and dropped from localStorage, and account-setting writes
+ * still waiting are discarded, so none of them lands on the account after it signed out. Built
+ * from the `persist()` registrations rather than a hand-kept list, so a store added later is
+ * covered without anyone remembering to add it here.
+ *
+ * Call it after `mumaUser` is null -- that is what resets an account's language -- as
+ * ProfileButton's logout does.
+ */
+export function resetSessionState() {
+  settingsGeneration += 1;
+  pendingSettingWrites.clear();
+  clearTimeout(settingsFlushTimer);
+  settingsFlushTimer = null;
+  syncedUserId = null;
+
+  applyingAccountSettings = true;
+  try {
+    for (const { key, store, initial, device } of persistedStores) {
+      if (device) continue;
+      store.set(JSON.parse(initial));
+      localStorage.removeItem(key);
+    }
+    // Not persisted, but still the previous person's until the page reloads.
+    queueSource.set(null);
+    currentPlaylist.set(null);
+    isPlaying.set(false);
+    radioChannel.set(null);
+    radioNowPlaying.set(null);
+    // The language is not reset here: `mumaUser.set(null)` already puts an account's language
+    // back to the browser's, and a Subsonic-only session never had one of its own.
+  } finally {
+    applyingAccountSettings = false;
+  }
+}
 
 export const isAdmin = derived(
   [subsonicIsAdmin, mumaUser, mumaUserHydrated],

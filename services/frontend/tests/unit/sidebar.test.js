@@ -13,7 +13,7 @@ const GENRES = [
 function subsonic(genres = GENRES) {
   return vi.fn(async () => ({
     ok: true,
-    json: async () => ({ "subsonic-response": { genres: { genre: genres } } }),
+    json: async () => ({ "subsonic-response": { status: "ok", genres: { genre: genres } } }),
   }));
 }
 

@@ -81,12 +81,21 @@
 
   async function loadOptions() {
     const value = (row) => row?.value ?? row?.name ?? '';
+    // Each list on its own: a server that refuses one of them (subsonicJson throws on a failed
+    // answer) leaves that picker empty rather than all four.
+    const rowsOf = (method, path, params) =>
+      subsonicJson(method, params)
+        .then((body) => listOf(body, path))
+        .catch((error) => {
+          console.warn('Could not load a cluster list', method, error);
+          return [];
+        });
     try {
       const [genreRows, labelRows, yearRows, festivalRows] = await Promise.all([
-        subsonicJson('getGenres').then((body) => listOf(body, 'genres.genre')),
-        subsonicJson('getRecordLabels').then((body) => listOf(body, 'recordLabels.recordLabel')),
-        subsonicJson('getYears').then((body) => listOf(body, 'years.year')),
-        subsonicJson('getTags', { name: 'FESTIVAL' }).then((body) => listOf(body, 'tags.tag')),
+        rowsOf('getGenres', 'genres.genre'),
+        rowsOf('getRecordLabels', 'recordLabels.recordLabel'),
+        rowsOf('getYears', 'years.year'),
+        rowsOf('getTags', 'tags.tag', { name: 'FESTIVAL' }),
       ]);
       genreOptions = genreRows.map(value).filter(Boolean).sort((a, b) => a.localeCompare(b));
       labelOptions = labelRows.map(value).filter(Boolean).sort((a, b) => a.localeCompare(b));

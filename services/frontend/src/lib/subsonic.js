@@ -1,5 +1,5 @@
 import { get, writable } from "svelte/store";
-import { authParams, restUrl } from "./store.js";
+import { authParams, endRejectedSession, restUrl } from "./store.js";
 import { platform as defaultPlatform } from "./platform/index.js";
 
 /**
@@ -73,6 +73,29 @@ export const OFFLINE_METHODS = Object.freeze([
   "getPlaylists",
   "getPlaylist",
 ]);
+
+/**
+ * Subsonic's error code for a wrong username or password. For a listener who signed in fine
+ * earlier it means the password changed or expired: nothing after this call will work either.
+ */
+export const SUBSONIC_BAD_CREDENTIALS = 40;
+
+/**
+ * A `/rest` answer whose envelope says `status: "failed"`. Subsonic reports its failures with
+ * HTTP 200 and the error in the body, so without this every caller reading `listOf(body, ...)`
+ * saw an empty list -- an expired password looked exactly like an empty library.
+ */
+export class SubsonicError extends Error {
+  /**
+   * @param {number|null} code - Subsonic's error code, when the body carried one.
+   * @param {string} message
+   */
+  constructor(code, message) {
+    super(message);
+    this.name = "SubsonicError";
+    this.code = code;
+  }
+}
 
 /** The empty success body, which is what "the device cannot answer that" looks like. */
 const EMPTY_BODY = Object.freeze({ "subsonic-response": { status: "ok", version: "1.16.1" } });
@@ -163,9 +186,11 @@ async function confirmedOffline(storage) {
  *   query is a bridge call that finishes in milliseconds.
  * @param {object} [options.platform] - Injected by the tests.
  * @param {typeof fetch} [options.fetchImpl] - Injected by the tests.
- * @returns {Promise<object>} The `{"subsonic-response": ...}` body.
- * @throws {Error} Only when there is no local library to fall back to, so that
- *   a browser tab keeps behaving exactly as it did.
+ * @returns {Promise<object>} The `{"subsonic-response": ...}` body, always a successful one.
+ * @throws {SubsonicError} When the server answered with a failed envelope. Error 40 (bad
+ *   credentials) also ends the session first, which puts the login page back up.
+ * @throws {Error} On a network failure only when there is no local library to fall back to,
+ *   so that a browser tab keeps behaving exactly as it did.
  */
 export async function subsonicJson(method, params = {}, options = {}) {
   const { signal, platform = defaultPlatform, fetchImpl } = options;
@@ -180,12 +205,13 @@ export async function subsonicJson(method, params = {}, options = {}) {
     offline.set(false);
   }
 
+  let body;
   try {
     const call = fetchImpl ?? fetch;
     const auth = get(authParams);
     const query = [auth, queryString(params)].filter(Boolean).join("&");
     const response = await call(restUrl(`/rest/${method}?${query}`), signal ? { signal } : {});
-    return await response.json();
+    body = await response.json();
   } catch (error) {
     if (!local || !isNetworkFailure(error)) throw error;
     if (!(await confirmedOffline(storage))) throw error;
@@ -196,6 +222,26 @@ export async function subsonicJson(method, params = {}, options = {}) {
     offline.set(true);
     return await localQuery(storage, method, params);
   }
+  return checkedBody(body);
+}
+
+/**
+ * Hands back a successful envelope and throws on anything else. The server's own answer is the
+ * only thing that says the call worked -- see {@link SubsonicError}.
+ *
+ * @param {any} body - What `/rest` answered with.
+ * @returns {object}
+ * @throws {SubsonicError}
+ */
+function checkedBody(body) {
+  const payload = body?.["subsonic-response"];
+  if (payload?.status === "ok") return body;
+  const code = payload?.error?.code ?? null;
+  if (Number(code) === SUBSONIC_BAD_CREDENTIALS) endRejectedSession();
+  throw new SubsonicError(
+    code,
+    payload?.error?.message || "The server did not answer with success",
+  );
 }
 
 /**

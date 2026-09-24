@@ -14,6 +14,9 @@
   let allTracks = $state([]);
   let albumInfo = $state(null);
   let isLoading = $state(true);
+  let loadFailed = $state(false);
+  // Which load is current; an answer for an album the listener already left is dropped.
+  let loadSeq = 0;
 
   /**
    * Toggles the starred status of the album.
@@ -79,34 +82,47 @@
    */
   async function loadAlbum() {
     if (!$authParams) return;
+    const seq = ++loadSeq;
     isLoading = true;
+    loadFailed = false;
+    // Nothing of the previous album survives into this one, whatever fails below.
+    album = null;
+    allTracks = [];
+    albumInfo = null;
     try {
       const data = await subsonicJson('getAlbum', { id: albumId });
+      if (seq !== loadSeq) return;
       const albumData = data['subsonic-response']?.album;
+      if (!albumData) loadFailed = true;
       if (albumData) {
         album = albumData;
         allTracks = listOf(data, 'album.song');
         // The place is opened before this resolves; this backfills the name once it is known.
         recordPlace(`album:${albumId}`, albumData.name);
 
-        loadAlbumInfo();
+        loadAlbumInfo(seq);
       }
     } catch (e) {
+      if (seq !== loadSeq) return;
       console.error(e);
+      loadFailed = true;
     } finally {
-      isLoading = false;
+      if (seq === loadSeq) isLoading = false;
     }
   }
 
   /**
    * Loads additional album information, such as notes/descriptions.
+   *
+   * @param {number} [seq] - The load this belongs to; see `loadSeq`.
    */
-  async function loadAlbumInfo() {
+  async function loadAlbumInfo(seq = loadSeq) {
     try {
-      const response = await fetch(restUrl(`/rest/getAlbumInfo2?id=${albumId}&${$authParams}`));
-      const data = await response.json();
-      albumInfo = data['subsonic-response']?.albumInfo;
+      const data = await subsonicJson('getAlbumInfo2', { id: albumId });
+      if (seq !== loadSeq) return;
+      albumInfo = data['subsonic-response']?.albumInfo ?? null;
     } catch (e) {
+      if (seq !== loadSeq) return;
       console.error(e);
     }
   }
@@ -123,7 +139,9 @@
 
 {#if isLoading}
   <div class="p-8">{$t('common.loading')}</div>
-{:else if album}
+{:else if !album || loadFailed}
+  <div class="p-8 text-[#b3b3b3]" role="alert">{$t('library.loadFailed')}</div>
+{:else}
   <div class="flex flex-col">
     <header class="h-auto md:h-[340px] flex flex-col md:flex-row items-center md:items-end p-6 md:p-8 bg-linear-to-b from-transparent to-black/50 relative gap-6 text-center md:text-left">
        <img

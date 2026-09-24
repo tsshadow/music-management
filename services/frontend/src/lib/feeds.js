@@ -72,7 +72,10 @@ export function listFeeds() {
   feedsPending = (async () => {
     try {
       const data = await fetchMumaJson(`${apiBase()}/api/feeds`, { headers: getHeaders() });
-      return Array.isArray(data?.feeds) ? data.feeds : [];
+      // A body without a list is a failure too, not "there are no feeds": caching it would
+      // hide every feed for the rest of the session.
+      if (!Array.isArray(data?.feeds)) throw new Error("The feeds answer holds no list");
+      return data.feeds;
     } catch (err) {
       console.error("Failed to list feeds:", err);
       feedsPending = null;

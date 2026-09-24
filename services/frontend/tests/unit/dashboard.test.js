@@ -63,57 +63,71 @@ function subsonic({
     if (url.includes("/rest/getSpotifyPlaylist")) {
       return {
         ok: true,
-        json: async () => ({ "subsonic-response": { playlist: { entry: curated } } }),
+        json: async () => ({ "subsonic-response": { status: "ok", playlist: { entry: curated } } }),
       };
     }
     if (url.includes("/rest/getSpotifyTracks")) {
-      return { ok: true, json: async () => ({ "subsonic-response": { tracks } }) };
+      return { ok: true, json: async () => ({ "subsonic-response": { status: "ok", tracks } }) };
     }
     if (url.includes("/rest/getAlbumList2")) {
       return {
         ok: true,
-        json: async () => ({ "subsonic-response": { albumList2: { album: albums } } }),
+        json: async () => ({
+          "subsonic-response": { status: "ok", albumList2: { album: albums } },
+        }),
       };
     }
     if (url.includes("/rest/getArtistList")) {
       return {
         ok: true,
-        json: async () => ({ "subsonic-response": { artistList: { artist: artists } } }),
+        json: async () => ({
+          "subsonic-response": { status: "ok", artistList: { artist: artists } },
+        }),
       };
     }
     if (url.includes("/rest/getPlaylists")) {
       return {
         ok: true,
-        json: async () => ({ "subsonic-response": { playlists: { playlist: playlists } } }),
+        json: async () => ({
+          "subsonic-response": { status: "ok", playlists: { playlist: playlists } },
+        }),
       };
     }
     if (url.includes("/rest/getGenres")) {
       return {
         ok: true,
-        json: async () => ({ "subsonic-response": { genres: { genre: genres } } }),
+        json: async () => ({ "subsonic-response": { status: "ok", genres: { genre: genres } } }),
       };
     }
     if (url.includes("/rest/getTags")) {
       const tag =
         { FESTIVAL: festivals, YEAR: years }[new URL(url, "http://x").searchParams.get("name")] ??
         podcasts;
-      return { ok: true, json: async () => ({ "subsonic-response": { tags: { tag } } }) };
+      return {
+        ok: true,
+        json: async () => ({ "subsonic-response": { status: "ok", tags: { tag } } }),
+      };
     }
     if (url.includes("/rest/getLineups")) {
       return {
         ok: true,
-        json: async () => ({ "subsonic-response": { lineups: { lineup: lineups } } }),
+        json: async () => ({ "subsonic-response": { status: "ok", lineups: { lineup: lineups } } }),
       };
     }
     if (url.includes("/rest/getScanStatus")) {
       const scanStatus =
         scanSettings === null ? { scanning: false } : { scanning: false, scanSettings };
-      return { ok: true, json: async () => ({ "subsonic-response": { scanStatus } }) };
+      return {
+        ok: true,
+        json: async () => ({ "subsonic-response": { status: "ok", scanStatus } }),
+      };
     }
     if (url.includes("/rest/getRecordLabels")) {
       return {
         ok: true,
-        json: async () => ({ "subsonic-response": { recordLabels: { recordLabel: labels } } }),
+        json: async () => ({
+          "subsonic-response": { status: "ok", recordLabels: { recordLabel: labels } },
+        }),
       };
     }
     if (url.includes("/rest/getMemories")) {
@@ -160,7 +174,10 @@ describe("Dashboard", () => {
     });
     render(Dashboard, { activeView: "home" });
     await waitFor(() => expect(screen.getAllByText("Raise Your Fist").length).toBeGreaterThan(0));
-    finish({ ok: true, json: async () => ({ "subsonic-response": { playlist: { entry: [] } } }) });
+    finish({
+      ok: true,
+      json: async () => ({ "subsonic-response": { status: "ok", playlist: { entry: [] } } }),
+    });
   });
 
   it("ignores an old curated result after Home is re-entered", async () => {
@@ -179,7 +196,9 @@ describe("Dashboard", () => {
     await waitFor(() => expect(releases).toHaveLength(4));
     const answer = (title) => ({
       ok: true,
-      json: async () => ({ "subsonic-response": { playlist: { entry: [{ ...TRACK, title }] } } }),
+      json: async () => ({
+        "subsonic-response": { status: "ok", playlist: { entry: [{ ...TRACK, title }] } },
+      }),
     });
     releases.slice(2).forEach((resolve) => resolve(answer("New result")));
     await waitFor(() => expect(screen.getAllByText("New result").length).toBeGreaterThan(0));

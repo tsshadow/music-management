@@ -310,7 +310,7 @@ class ServeArtistImageTest(ArtistImagesTestCase):
     # every uncovered track row asks here -- a lookup per miss would be a lookup storm.
     def test_a_missing_image_reports_not_found_without_starting_a_lookup(self):
         self.cursor.fetchone.return_value = None
-        with patch.object(artist_images_router, 'trigger_fetch') as trigger:
+        with patch.object(artist_images_router, 'trigger_fetch_by_id') as trigger:
             response = self.client.get('/api/artists/Angerfist/image')
         self.assertEqual(response.status_code, 404)
         trigger.assert_not_called()
@@ -319,7 +319,7 @@ class ServeArtistImageTest(ArtistImagesTestCase):
         self.cursor.fetchone.return_value = {'cached_path': '/mnt/gone.jpg'}
         with (
             patch.object(artist_images_router.os.path, 'exists', return_value=False),
-            patch.object(artist_images_router, 'trigger_fetch') as trigger,
+            patch.object(artist_images_router, 'trigger_fetch_by_id') as trigger,
         ):
             response = self.client.get('/api/artists/Angerfist/image')
         self.assertEqual(response.status_code, 404)
@@ -472,26 +472,6 @@ class BackgroundFetchTest(unittest.TestCase):
         self.fetcher_module.ArtistImageFetcher.side_effect = RuntimeError('boom')
         with patch('builtins.print'):
             artist_images_router.trigger_fetch_by_id(7)  # must not raise
-
-    def test_a_single_artist_fetch_by_name_looks_up_the_id(self):
-        self.cursor.fetchone.return_value = {'id': 7}
-        artist_images_router.trigger_fetch('Angerfist')
-        self.fetcher.fetch_for_artist.assert_called_once_with(7, 'Angerfist')
-
-    def test_an_unknown_artist_name_fetches_nothing(self):
-        self.cursor.fetchone.return_value = None
-        artist_images_router.trigger_fetch('Nobody')
-        self.fetcher.fetch_for_artist.assert_not_called()
-
-    def test_a_fetch_by_name_without_a_database_does_nothing(self):
-        with patch.object(artist_images_router, 'get_db_connection', return_value=None):
-            artist_images_router.trigger_fetch('Angerfist')
-        self.fetcher.fetch_for_artist.assert_not_called()
-
-    def test_a_failing_fetch_by_name_is_swallowed(self):
-        self.fetcher_module.ArtistImageFetcher.side_effect = RuntimeError('boom')
-        with patch('builtins.print'):
-            artist_images_router.trigger_fetch('Angerfist')  # must not raise
 
 
 class SyncImagesToServerTest(unittest.TestCase):

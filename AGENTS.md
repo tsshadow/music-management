@@ -81,7 +81,10 @@ The system is split into specialized services, each handling a specific part of 
 
 ### 5. `ml-analyzer` (`services/ml-analyzer`)
 - **Purpose**: Audio analysis for advanced metadata.
-- **Features**: Detects BPM, Musical Key, and Mood using machine learning models.
+- **Features**: Extracts tempo (BPM), loudness, spectral and timbre features (MFCC, chroma) with
+  librosa, plus a scikit-learn genre classifier. No key or mood detection.
+- **Status**: Not deployed — its compose service is commented out, and the code would not work if
+  it ran. Repair or retire is an open decision in [docs/open-work.md](docs/open-work.md).
 
 ---
 
@@ -255,7 +258,9 @@ To maintain high code quality, the system employs an automated test suite:
       (`services/downloader/soundcloud/tests/`, `services/importer/tests/`,
       `services/tests/YoutubeDownloaderTest.py`, `services/music_manager/tests/`) and aborts the
       container build if either fails. It is not the full suite: CI's `backend:unit` is.
-    - **Pre-commit Hook**: A Git `pre-commit` hook ensures all tests pass before allowing a commit to be finalized.
+    - **Pre-commit Hook**: The versioned `scripts/hooks/pre-commit` (installed by `./scripts/install-hooks.sh`)
+      runs `./scripts/lint.sh` and `./scripts/test/music-management-unit.sh` before a commit is
+      finalized; `SKIP_HOOK_TESTS=1` skips the tests, not the lint.
     - **Required deployment secrets**: the `release:check-secrets` CI job (`scripts/ci/check-required-secrets.sh`)
       verifies that specific keys required inside file-type CI/CD variables (e.g. `GOOGLE_CLIENT_ID` inside
       `PROD_ENV_FILE`, `VITE_GOOGLE_CLIENT_ID` inside `PROD_ENV_FILE_LMS`) are actually set, and fails the
@@ -268,9 +273,9 @@ To maintain high code quality, the system employs an automated test suite:
 
 ### Full test inventory & local commands
 - **Inventory**: See [docs/testing-inventory.md](docs/testing-inventory.md) for a per-module breakdown (build/start/test/lint commands, ports, health endpoints, databases, Docker findings).
-- **Quality gates** — all enforced in CI (`quality` stage) and by the versioned pre-commit
-  hook (`./scripts/install-hooks.sh`), which is a thin wrapper around the same scripts so the
-  two cannot drift:
+- **Quality gates** — enforced in CI (`quality` stage). The versioned pre-commit hook
+  (`./scripts/install-hooks.sh`) is a thin wrapper around the same scripts so the two cannot
+  drift, but it runs only `lint.sh` and the Python unit suite — not the type check:
     - `./scripts/lint.sh` — ruff (config in `pyproject.toml`) + pylint, threshold 9.5. On a full
       run it also fails any module on the strict type-check list that has an undocumented public
       function or class (rule 5 below); `.pylintrc` still disables those checks for the rest.
@@ -363,8 +368,8 @@ Use `scripts/set_user_password.sh` to change a user's password directly from the
 ```
 
 ### 4. Log Files
-Log files should me located in the log directory.
-If for dome reason a log file is not saved at that location, and you are done with it, move it to the log directory
+Log files should be located in the log directory.
+If for some reason a log file is not saved at that location, and you are done with it, move it to the log directory.
 ---
 
 ## 🔌 API Specification
@@ -403,8 +408,9 @@ rule 11).
 8. **No secrets, ever, in code, commits, or docs**: credentials, tokens, and keys are never committed or
    written into `AGENTS.md`/`docs/`; they live only in a gitignored `.env` or in password manager, referenced by
    name only. Treat `AGENTS.md` and everything under `docs/` as potentially public.
-9. **Changelog required**: every functional change updates `CHANGELOG.md`/`RELEASE_NOTES.md` in the same
-   change.
+9. **Changelog required**: every functional change adds a fragment under `changelog.d/` in the same
+   change (see [changelog.d/README.md](changelog.d/README.md)); `CHANGELOG.md` and `RELEASE_NOTES.md`
+   are assembled from the fragments at release time and are not edited on a feature branch.
 10. **API versioning / contract discipline**: a breaking change to a shared API (request/response shape,
     auth requirements) is called out explicitly in the technical design and the changelog, and is verified
     against [docs/testing-inventory.md](docs/testing-inventory.md)'s contract tests
@@ -414,7 +420,9 @@ rule 11).
 12. **Living document**: this rule list is updated whenever the process changes — a stale rule is worse than
     no rule. If a single service's rules ever outgrow this root file, a nested `services/<name>/AGENTS.md`
     can be added later (none is needed today).
-13. **Structured Bug Reports**: Every bug report is captured in a 2-step process using `docs/bug-reports/00#-<title>.md`, containing:
+13. **Structured Bug Reports**: Every bug report is captured in a 2-step process using `docs/bug-reports/NNN-<title>.md`
+    (three digits, the next free number — check the open branches too: five reports merged in parallel
+    once all took 037, and four had to be renumbered to 053-056), containing:
     - `# title`
     - `# status: reported/analysed/fixed`
     - `# reported problem`

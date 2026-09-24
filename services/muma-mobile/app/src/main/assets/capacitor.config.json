@@ -4,8 +4,7 @@
   "webDir": "dist",
   "backgroundColor": "#121212",
   "android": {
-    "path": "../muma-mobile",
-    "webContentsDebuggingEnabled": true
+    "path": "../muma-mobile"
   },
   "server": {
     "androidScheme": "http"

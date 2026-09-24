@@ -19,6 +19,7 @@ import androidx.media3.datasource.HttpDataSource.HttpDataSourceException
 import java.io.IOException
 import java.io.InputStream
 import java.io.InterruptedIOException
+import nl.teunschriks.mumamobile.log.LogRedaction
 import nl.teunschriks.mumamobile.util.AbstractFile
 import nl.teunschriks.mumamobile.util.FileUtil
 import nl.teunschriks.mumamobile.util.Storage
@@ -47,9 +48,10 @@ class CachedDataSource(private var upstreamDataSource: DataSource) : BaseDataSou
     private var cacheFile: AbstractFile? = null
 
     override fun open(dataSpec: DataSpec): Long {
+        // The stream URI carries the Subsonic credentials as query parameters.
         Timber.i(
             "CachedDatasource: Open: %s",
-            dataSpec.toString()
+            LogRedaction.redactUrl(dataSpec.toString())
         )
 
         this.dataSpec = dataSpec

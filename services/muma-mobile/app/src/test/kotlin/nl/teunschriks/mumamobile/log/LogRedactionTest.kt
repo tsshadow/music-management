@@ -27,6 +27,49 @@ class LogRedactionTest {
         LogRedaction.settingValue("staticPassword", "") shouldBeEqualTo ""
     }
 
+    /** The INFO line `CachedDataSource.open` wrote for every stream (bug report 037). */
+    @Test
+    fun `the credentials in a logged stream DataSpec are masked`() {
+        val line = "CachedDatasource: Open: DataSpec[GET https://music.example.com/rest/stream.view" +
+            "?id=tr-1&u=user&c=MuMa&f=json&v=1.16.1&p=enc:68756e74657232&maxBitRate=0, 0, -1, null, 0]"
+
+        val redacted = LogRedaction.redactUrl(line)
+
+        redacted shouldBeEqualTo "CachedDatasource: Open: DataSpec[GET https://music.example.com/rest/stream.view" +
+            "?id=tr-1&u=<redacted>&c=MuMa&f=json&v=1.16.1&p=<redacted>&maxBitRate=0, 0, -1, null, 0]"
+    }
+
+    @Test
+    fun `the salted token, its salt and an api key are masked too`() {
+        val url = "https://x/rest/ping.view?t=26719a1196d2a940705a59634eb18eab&s=c19b2d&apiKey=abc123"
+
+        LogRedaction.redactUrl(url) shouldBeEqualTo
+            "https://x/rest/ping.view?t=<redacted>&s=<redacted>&apiKey=<redacted>"
+    }
+
+    @Test
+    fun `ordinary parameters and text that merely ends in p= are left alone`() {
+        val text = "stop=now https://x/rest/getAlbum.view?id=42&size=300 map=1"
+
+        LogRedaction.redactUrl(text) shouldBeEqualTo text
+    }
+
+    @Test
+    fun `a credential header line is masked`() {
+        val redacted = LogRedaction.redact("X-API-Key: 444e005eefa57d15\nAuthorization: Basic dXNlcjpwYXNz\nAccept: */*")
+
+        redacted shouldNotContain "444e005e"
+        redacted shouldNotContain "dXNlcjpwYXNz"
+        redacted.lines() shouldBeEqualTo listOf("X-API-Key: <redacted>", "Authorization: <redacted>", "Accept: */*")
+    }
+
+    @Test
+    fun `redacting twice changes nothing`() {
+        val once = LogRedaction.redact("GET https://x/rest/ping.view?u=user&p=enc:6869\nX-API-Key: abc")
+
+        LogRedaction.redact(once) shouldBeEqualTo once
+    }
+
     @Test
     fun `a ring buffer written by an older build is redacted on the way out`() {
         val persisted = """

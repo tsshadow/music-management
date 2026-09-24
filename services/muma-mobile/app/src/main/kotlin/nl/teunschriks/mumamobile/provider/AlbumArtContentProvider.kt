@@ -13,7 +13,6 @@ import android.content.ContentValues
 import android.database.Cursor
 import android.net.Uri
 import android.os.ParcelFileDescriptor
-import java.io.File
 import java.util.Locale
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.domain.Track
@@ -23,6 +22,12 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import timber.log.Timber
 
+/**
+ * Serves cached cover art to readers in other processes (Android Auto, the media notification,
+ * the home-screen widget) under `content://<package>.provider.AlbumArtContentProvider/<coverArt>|<cacheKey>`,
+ * fetching the picture into the cache first when it is missing. Read-only, and limited to the
+ * album-art cache directory by [AlbumArtPath].
+ */
 class AlbumArtContentProvider :
     ContentProvider(),
     KoinComponent {
@@ -55,7 +60,14 @@ class AlbumArtContentProvider :
         val parts = uri.path?.trim('/')?.split('|')
         if (parts?.count() != 2 || parts[0].isEmpty() || parts[1].isEmpty()) return null
 
-        val albumArtFile = FileUtil.getAlbumArtFile(parts[1])
+        // Any app can call an exported provider: a key that could leave the album-art directory
+        // is refused before it is used for anything (see AlbumArtPath).
+        val resolved = AlbumArtPath.resolve(FileUtil.albumArtDirectory, parts[1])
+        if (resolved == null) {
+            Timber.w("AlbumArtContentProvider refused a cache key outside the album-art directory")
+            return null
+        }
+        val albumArtFile = resolved.path
         Timber.d("AlbumArtContentProvider openFile id: %s; file: %s", parts[0], albumArtFile)
 
         // TODO: Check if the dependency on the image loader could be removed.
@@ -63,10 +75,9 @@ class AlbumArtContentProvider :
         imageLoaderProvider.executeOn {
             it.downloadCoverArt(parts[0], albumArtFile)
         }
-        val file = File(albumArtFile)
-        if (!file.exists()) return null
+        if (!resolved.exists()) return null
 
-        return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+        return ParcelFileDescriptor.open(resolved, ParcelFileDescriptor.MODE_READ_ONLY)
     }
 
     override fun insert(uri: Uri, values: ContentValues?): Uri? = null

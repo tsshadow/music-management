@@ -12,6 +12,8 @@
     <uses-permission android:name="android.permission.BLUETOOTH"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- DownloadService: fetching files for offline use is a data transfer, not playback. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <!-- MuMa Voice records only while the microphone sheet is open. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
@@ -156,11 +158,14 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- dataSync, not mediaPlayback: Android 14+ checks that a foreground service does what its
+             type says, and a download plays nothing. Android 15 caps dataSync at six hours a day;
+             DownloadService.onTimeout stops the service when that runs out. -->
         <service
             android:name=".service.DownloadService"
             android:label="MuMa Media Player Service"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback">
+            android:foregroundServiceType="dataSync">
         </service>
 
         <!-- Needs to be exported: https://android.googlesource.com/platform/developers/build/+/4de32d4/prebuilts/gradle/MediaBrowserService/README.md -->
@@ -176,9 +181,11 @@
             </intent-filter>
         </service>
 
+        <!-- Not exported: every sender is the app itself: the home-screen widget's PendingIntents
+             (explicit component, sent with the app's identity) and BluetoothIntentReceiver's
+             package-scoped broadcasts. Exported, any app could pause, skip or stop playback. -->
         <receiver android:name=".receiver.UltrasonicIntentReceiver"
-            android:exported="true"
-            tools:ignore="ExportedReceiver">
+            android:exported="false">
             <intent-filter>
                 <action android:name="org.moire.ultrasonic.CMD_TOGGLEPAUSE"/>
                 <action android:name="org.moire.ultrasonic.CMD_PLAY"/>

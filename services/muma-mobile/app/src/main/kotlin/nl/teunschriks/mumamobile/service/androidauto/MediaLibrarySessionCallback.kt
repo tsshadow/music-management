@@ -31,6 +31,7 @@ import com.google.common.util.concurrent.SettableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -90,9 +91,12 @@ class MediaLibrarySessionCallback :
      * the album.
      */
     private val playbackSourceHolder: PlaybackSourceHolder by inject()
+
+    // Both cancelled by release() when the service shuts down; neither used to be, so work
+    // started here (the radio loop above all) outlived the service and its player.
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
-    private val mainScope = CoroutineScope(Dispatchers.Main)
+    private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     // Resolved per call, never captured: MusicServiceFactory.resetMusicService() (server switch,
     // credential edit, network coming back) replaces the instance, and getMusicService() returns
@@ -151,24 +155,38 @@ class MediaLibrarySessionCallback :
         commandHandler.initialize()
     }
 
+    /**
+     * Stops everything this callback started, because the service that owns it is shutting down:
+     * the radio sync loop first (it calls into the player being released), then every coroutine
+     * on [serviceScope] and [mainScope]. Called once, from `PlaybackService`.
+     */
+    fun release() {
+        radioPlaybackController.release()
+        serviceJob.cancel()
+        mainScope.cancel()
+    }
+
+    /**
+     * Always completes: with the saved queue, or -- no saved state, an unreadable file, or the
+     * service shutting down first -- with a failure, which Media3 treats as "nothing to resume".
+     * It used to leave the future pending on both of those paths, so a Bluetooth play button
+     * pressed after a fresh install or a corrupt save was never answered.
+     */
     @OptIn(UnstableApi::class)
     override fun onPlaybackResumption(
         mediaSession: MediaSession,
         controller: MediaSession.ControllerInfo
-    ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
-        val result = SettableFuture.create<MediaSession.MediaItemsWithStartPosition>()
-        serviceScope.launch {
-            val state = playbackStateSerializer.deserializeNow()
-            if (state != null) {
-                result.set(state.toMediaItemsWithStartPosition())
-                withContext(Dispatchers.Main) {
-                    mediaSession.player.shuffleModeEnabled = state.shufflePlay
-                    mediaSession.player.repeatMode = state.repeatMode
-                }
+    ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = PlaybackResumption.resume(
+        scope = serviceScope,
+        loadState = { playbackStateSerializer.deserializeNow() },
+        toResult = { it.toMediaItemsWithStartPosition() },
+        onResumed = { state ->
+            withContext(Dispatchers.Main) {
+                mediaSession.player.shuffleModeEnabled = state.shufflePlay
+                mediaSession.player.repeatMode = state.repeatMode
             }
         }
-        return result
-    }
+    )
 
     override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
         if (controller.controllerVersion != 0) {

@@ -13,6 +13,7 @@ import java.io.Serializable
 import java.lang.Exception
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.util.FileUtil.deserialize
@@ -30,13 +31,22 @@ class EqualizerController : CoroutineScope by CoroutineScope(Dispatchers.IO) {
     var equalizer: Equalizer? = null
     private var audioSessionId = 0
 
+    /**
+     * True once [release] ran. A caller that fetched this controller before the player was
+     * swapped (the web's equalizer screen, via [get]) must not touch the released effect.
+     */
+    @Volatile
+    var isReleased = false
+        private set
+
     fun saveSettings() {
-        if (equalizer == null) return
+        val current = equalizer ?: return
+        if (isReleased) return
         launch {
             try {
                 serialize(
                     UApp.applicationContext(),
-                    EqualizerSettings(equalizer!!),
+                    EqualizerSettings(current),
                     "equalizer.dat"
                 )
             } catch (all: Throwable) {
@@ -123,11 +133,23 @@ class EqualizerController : CoroutineScope by CoroutineScope(Dispatchers.IO) {
         }
 
         /**
-         * Releases the EqualizerController instance when the underlying MediaPlayer is no longer available
+         * Releases [controller] when the player it was bound to goes away -- the service shutting
+         * down or switching backends. Each local player creates its own controller, and none was
+         * ever released, so every backend switch leaked a native audio effect.
+         *
+         * Taking the controller rather than reading [get] matters: `postValue` is asynchronous,
+         * so the LiveData can still hold an older or not-yet-published instance.
          */
-        fun release() {
-            val controller = instance.value ?: return
-            controller.equalizer!!.release()
+        fun release(controller: EqualizerController) {
+            if (controller.isReleased) return
+            controller.isReleased = true
+            try {
+                controller.equalizer?.release()
+            } catch (all: Throwable) {
+                Timber.w(all, "Failed to release the equalizer")
+            }
+            controller.equalizer = null
+            controller.cancel()
             instance.postValue(null)
         }
     }

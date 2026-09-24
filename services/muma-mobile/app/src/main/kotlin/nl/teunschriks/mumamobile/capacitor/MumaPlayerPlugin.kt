@@ -17,9 +17,7 @@ import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlin.math.abs
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.audiofx.EqualizerController
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
@@ -94,7 +92,7 @@ class MumaPlayerPlugin :
 
     private val lookup by lazy { TrackLookup(mediaPlayerManager, activeServerProvider) }
     private val main = Handler(Looper.getMainLooper())
-    private val io = CoroutineScope(Dispatchers.IO)
+    private val calls = PluginCallScope("MumaPlayer")
     private val subscriptions = CompositeDisposable()
 
     private var failed = false
@@ -139,6 +137,7 @@ class MumaPlayerPlugin :
     override fun handleOnDestroy() {
         subscriptions.clear()
         main.removeCallbacks(ticker)
+        calls.cancel()
     }
 
     // ---------------------------------------------------------------- commands
@@ -166,11 +165,11 @@ class MumaPlayerPlugin :
 
     /** The id was not in the queue, so the cache is asked -- off the main thread, it is Room. */
     private fun resolveThenPlay(trackId: String, positionMs: Int, autoplay: Boolean, call: PluginCall) {
-        io.launch {
+        calls.runCall(call) { answer ->
             val track = lookup.fromCache(trackId)
             if (track == null) {
-                call.reject("track $trackId is not in the queue and not in this device's cache; use setQueue")
-                return@launch
+                answer.reject("track $trackId is not in the queue and not in this device's cache; use setQueue")
+                return@runCall
             }
             withContext(Dispatchers.Main) {
                 failed = false
@@ -184,7 +183,7 @@ class MumaPlayerPlugin :
                     insertionMode = MediaPlayerManager.InsertionMode.CLEAR
                 )
                 startAt(0, positionMs, autoplay)
-                call.resolve()
+                answer.resolve()
             }
         }
     }
@@ -429,7 +428,9 @@ class MumaPlayerPlugin :
             }
         }
 
-        val controller = EqualizerController.get().value
+        // A controller released by a backend switch can still be what the LiveData holds until
+        // the new one is posted; its effect is gone, so it counts as "no equalizer".
+        val controller = EqualizerController.get().value?.takeUnless { it.isReleased }
         val equalizer = controller?.equalizer
         val inEffect = if (equalizer == null) {
             false

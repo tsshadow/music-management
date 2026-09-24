@@ -58,6 +58,7 @@ class FilterTableHelper:
         self._preload()
 
     def exists(self, key: str) -> bool:
+        """Whether `key` is in the table, compared case-insensitively."""
         key = key.strip()
         if self.cache_enabled:
             return key.lower() in self._canonical_map
@@ -74,6 +75,7 @@ class FilterTableHelper:
             connection.close()
 
     def get_corrected(self, key: str) -> str:
+        """The corrected value stored for `key`, or '' when there is none."""
         key = key.strip()
         if self.cache_enabled:
             return str(self._corrected_map.get(key.lower(), ''))
@@ -120,6 +122,7 @@ class FilterTableHelper:
             connection.close()
 
     def add(self, key: str, corrected: str | None = None) -> bool:
+        """Insert `key`, with its correction when one is given; True when the write succeeded."""
         key = key.strip()
         values = [key]
         columns = [self.column_name]

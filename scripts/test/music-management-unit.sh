@@ -79,7 +79,12 @@ TEST_TARGETS=(
 # Ratchet: the suite sits above this, and a change that drops below it fails here
 # rather than silently eroding the figure. Raise it when coverage climbs; never
 # lower it to make a red build green.
-COVERAGE_MIN="${COVERAGE_MIN:-93}"
+#
+# Measured on source only: [tool.coverage.run] in pyproject.toml omits the test and
+# fixture files and adds tools/. Until then this read 93 against a figure that counted
+# the tests themselves as covered code; the one-off drop to the honest number is the
+# only time this floor has gone down (see docs/bug-reports/047).
+COVERAGE_MIN="${COVERAGE_MIN:-84}"
 
 echo "--- Running music-management Python unit tests (min coverage: ${COVERAGE_MIN}%) ---"
 # Not under `set -e`: a failing run must still leave a usable coverage report for
@@ -87,6 +92,7 @@ echo "--- Running music-management Python unit tests (min coverage: ${COVERAGE_M
 set +e
 python3 -m pytest -p no:warnings \
     --cov=services \
+    --cov=tools \
     --cov-report=term \
     --cov-report=xml:coverage-python.xml \
     --cov-fail-under="$COVERAGE_MIN" \
@@ -95,13 +101,35 @@ python3 -m pytest -p no:warnings \
 PYTEST_STATUS=$?
 set -e
 
-# Fix paths in Cobertura XML for GitLab visualization
-# It changes filename="path/to/file" to filename="services/path/to/file"
-# and sets <source> to the project root.
+# Make the Cobertura paths relative to the project root for GitLab's diff annotation.
+# coverage.py writes each filename relative to the source it came from (services/ or
+# tools/, see [tool.coverage.run] in pyproject.toml), so "artist_auto_approve.py" and
+# "common/db_init.py" arrive without saying which. This used to be a blanket sed that
+# prefixed services/ to everything, which filed every tools/ entry under services/.
+# No file path exists under both roots, so the lookup below is unambiguous.
 if [ -f coverage-python.xml ]; then
     echo "--- Fixing paths in coverage-python.xml ---"
-    sed -i 's|filename="|filename="services/|g' coverage-python.xml
-    sed -i 's|<source>.*</source>|<source>./</source>|g' coverage-python.xml
+    python3 - coverage-python.xml <<'PY'
+import re
+import sys
+from pathlib import Path
+
+report = Path(sys.argv[1])
+text = report.read_text(encoding='utf-8')
+
+
+def rooted(match):
+    name = match.group(1)
+    for root in ('services', 'tools'):
+        if (Path(root) / name).exists():
+            return f'filename="{root}/{name}"'
+    return match.group(0)
+
+
+text = re.sub(r'filename="([^"]*)"', rooted, text)
+text = re.sub(r'<source>.*?</source>', '<source>./</source>', text)
+report.write_text(text, encoding='utf-8')
+PY
 fi
 
 exit "$PYTEST_STATUS"

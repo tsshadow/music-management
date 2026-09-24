@@ -34,7 +34,28 @@ os.environ.setdefault('MUMA_DISABLE_BACKGROUND_WORKERS', '1')
 # docker/compose.test.yml uses, so no suite disagrees with another about it.
 os.environ.setdefault('API_KEY', 'test-api-key')
 
-pymysql = pytest.importorskip('pymysql', reason='the integration suite needs the real pymysql')
+
+def _unavailable(reason: str):
+    """Give up on the suite: a hard failure in CI, a loud skip anywhere else.
+
+    A skip is green. backend:integration used to gate only on the container
+    reporting healthy, so a database the tests could not reach -- or an
+    environment without pymysql -- skipped every test in the session and the job
+    still passed, having proved nothing. GitLab sets CI on every job; locally a
+    missing database stays a skip, since running the unit tests without Docker is
+    normal there.
+    """
+    if os.getenv('CI'):
+        pytest.fail(f'integration suite cannot run in CI: {reason}', pytrace=False)
+    pytest.skip(f'INTEGRATION SUITE NOT RUN -- {reason}')
+
+
+try:
+    import pymysql
+except ImportError:  # pragma: no cover - depends on the environment
+    if os.getenv('CI'):
+        raise
+    pytest.skip('INTEGRATION SUITE NOT RUN -- the real pymysql is not installed', allow_module_level=True)
 
 
 def _connection_settings():
@@ -69,7 +90,7 @@ def database():
     try:
         connection = _connect()
     except Exception as exc:  # pragma: no cover - only hit when no database is up
-        pytest.skip(f'no test database reachable ({exc}); run ./scripts/test/db-integration.sh')
+        _unavailable(f'no test database reachable ({exc}); run ./scripts/test/db-integration.sh')
 
     _apply_schema(connection)
     yield connection
@@ -262,3 +283,40 @@ __all__ = ['database', 'db', 'api', 'api_key', 'headers', 'run_sql', 'mariadb_av
 
 def pytest_configure(config):
     config.addinivalue_line('markers', 'integration: needs a live MariaDB')
+
+
+@pytest.fixture(scope='session')
+def built_schemas(database):
+    """The schema built twice from nothing, once per path, as snapshots.
+
+    ``code`` is what a fresh stack creates (db_init, every init_db main.py's startup
+    runs, the tagger's own table); ``migrated`` is what the deploy produces (db_init,
+    then every migrate_*.sql twice). Each is built in a database of its own, so the
+    shared session database -- and every test that relies on its rows -- is left
+    alone. db-integration.sh grants the test user the muma_test_* databases this
+    needs.
+    """
+    from tests.integration import schema_sources
+
+    names = {'code': 'muma_test_schema_code', 'migrated': 'muma_test_schema_migrated'}
+    snapshots = {}
+    for kind, name in names.items():
+        try:
+            with database.cursor() as cursor:
+                cursor.execute(f'DROP DATABASE IF EXISTS `{name}`')
+                cursor.execute(f'CREATE DATABASE `{name}`')
+        except pymysql.err.MySQLError as exc:
+            _unavailable(f'cannot create the scratch database {name} ({exc}); see scripts/test/db-integration.sh')
+        connection = _connect(database=name)
+        try:
+            if kind == 'code':
+                schema_sources.build_from_code(connection, name)
+            else:
+                schema_sources.build_from_migrations(connection, name, _apply_migrations)
+            snapshots[kind] = schema_sources.snapshot(connection, name)
+        finally:
+            connection.close()
+    yield snapshots
+    with database.cursor() as cursor:
+        for name in names.values():
+            cursor.execute(f'DROP DATABASE IF EXISTS `{name}`')

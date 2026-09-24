@@ -14,6 +14,8 @@ VALID_STATES = (WHITE, BLACK, UNKNOWN)
 
 @dataclass
 class GenreRow:
+    """One rules_genres row: a genre and its curation state."""
+
     id: int
     name: str
     normalized_name: str
@@ -84,6 +86,7 @@ class GenreRulesHelper:
         self._index(rows, expansions)
 
     def reload(self) -> None:
+        """Re-read every genre row from the database."""
         self._preload()
 
     def is_loaded(self) -> bool:
@@ -117,6 +120,7 @@ class GenreRulesHelper:
             logging.error(f'[{self.table_name}] Failed to preload genre rules: {e}')
 
     def get_row(self, name: str) -> GenreRow | None:
+        """The row for `name` after normalization, or None when the genre is unknown."""
         return self._rows.get(self.normalize(name))
 
     def is_decided(self, name: str) -> bool:

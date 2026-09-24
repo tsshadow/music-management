@@ -192,7 +192,8 @@ JOB_SCOPES = COMPONENT_SCOPES | {
 # beyond them is component-specific and lives in EXTRA_VERBS.
 CORE_VERBS = {"format", "lint", "unit"}
 EXTRA_VERBS = {
-    "backend": {"typecheck", "integration"},
+    # typecheck-all is the whole tree at the loose floor; typecheck is the strict list.
+    "backend": {"typecheck", "typecheck-all", "integration"},
     # `bundle` produces services/frontend/dist as an artifact for the Android build, which
     # runs in an image without Node. It is a frontend job because it is the frontend's own
     # toolchain that builds it; it is not a check, which is why it needs a verb of its own.
@@ -876,3 +877,55 @@ def test_backend_suites_run_in_the_container_in_ci():
         assert 'TOOLING_REQUIREMENTS="requirements.txt"' in text, script
     for script in ("scripts/lint.sh", "scripts/typecheck.sh", "scripts/format.sh"):
         assert "tooling_container_required" in (REPO_ROOT / script).read_text(encoding="utf-8"), script
+
+
+# --- Honest gates (docs/bug-reports/047) --------------------------------------
+
+
+def test_the_loose_type_floor_is_checked_somewhere():
+    """backend:typecheck runs the strict list only, so the floor the whole tree is
+    held to ran nowhere -- and could not have started, since tools/ was "found twice
+    under different module names". The job may be orange while the backlog is
+    worked down (docs/open-work.md); it may not disappear."""
+    ci = load_ci()
+    job = ci["backend:typecheck-all"]
+    assert job["script"] == ["./scripts/typecheck.sh --all"]
+    assert job["stage"] == "quality"
+    globs = _changes_globs(ci, "backend:typecheck-all")
+    assert "tools/**/*.py" in globs and "services/**/*.py" in globs
+    script = (REPO_ROOT / "scripts" / "typecheck.sh").read_text(encoding="utf-8")
+    assert "--explicit-package-bases services/ tools/" in script
+
+
+def test_integration_job_runs_for_every_file_that_declares_a_table():
+    """tests/integration/test_schema_drift.py builds the schema from every file with a
+    CREATE TABLE; a change to one of them has to run that test."""
+    from tests.integration import schema_sources
+
+    ci = load_ci()
+    globs = _changes_globs(ci, "backend:integration")
+    declaring = sorted({path for paths in schema_sources.code_declared_tables().values() for path in paths})
+    assert declaring, "no CREATE TABLE found; the extraction in schema_sources broke"
+    missing = [path for path in declaring if not any(_matches_file(glob, path) for glob in globs)]
+    assert missing == [], f"these declare tables but do not trigger backend:integration: {missing}"
+
+
+def test_db_integration_runs_the_mariadb_production_runs():
+    """db-integration.sh ran mariadb:10.6 for months after compose.test.yml (and
+    production) moved on, so every query was proven against a server nothing ran."""
+    script = (REPO_ROOT / "scripts" / "test" / "db-integration.sh").read_text(encoding="utf-8")
+    compose = (REPO_ROOT / "docker" / "compose.test.yml").read_text(encoding="utf-8")
+    default = re.search(r'MARIADB_VERSION="\$\{MARIADB_VERSION:-([^}]+)\}"', script)
+    assert default, "db-integration.sh no longer takes MARIADB_VERSION"
+    assert f"image: mariadb:{default.group(1)}" in compose
+
+
+def test_unit_coverage_is_measured_on_source_only():
+    """With --cov=services and no omit list the ~220 test files under services/ counted
+    as covered source, and tools/ -- whose tests run -- was not measured at all."""
+    import tomllib
+
+    script = (REPO_ROOT / "scripts" / "test" / "music-management-unit.sh").read_text(encoding="utf-8")
+    assert "--cov=services" in script and "--cov=tools" in script
+    coverage = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["coverage"]["run"]
+    assert {"*Test.py", "*/tests/*", "*/test_*.py", "*/conftest.py"} <= set(coverage["omit"])

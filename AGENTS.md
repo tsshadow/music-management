@@ -245,10 +245,16 @@ separately built/deployed, and talk to each other only over HTTP/Subsonic APIs:
 ## 🧪 Testing & Stability
 
 To maintain high code quality, the system employs an automated test suite:
-- **Location**: `services/downloader/*/tests/` and `services/importer/tests/`.
+- **Location**: next to the code under `services/` (`tests/` directories and `*Test.py` files), plus
+  `tools/`, `tests/ci/` (pipeline policy) and `tests/unit/` (tests that need a real library the
+  `services/` stubs replace) — all collected by `scripts/test/music-management-unit.sh`. The suites
+  that need a live database or stack live under `tests/integration/`, `tests/contracts/` and `tests/bdd/`.
 - **Mocking**: Uses a unified `mock_base.py` to provide an isolated environment (mocking `mutagen`, `yt-dlp`, and database helpers).
 - **Enforcement**: 
-    - **Build Check**: `build.sh` executes the full test suite and aborts the container build if any tests fail.
+    - **Build Check**: `build.sh` runs pylint over `services/` (floor 8.5) and a subset of the unit tests
+      (`services/downloader/soundcloud/tests/`, `services/importer/tests/`,
+      `services/tests/YoutubeDownloaderTest.py`, `services/music_manager/tests/`) and aborts the
+      container build if either fails. It is not the full suite: CI's `backend:unit` is.
     - **Pre-commit Hook**: A Git `pre-commit` hook ensures all tests pass before allowing a commit to be finalized.
     - **Required deployment secrets**: the `release:check-secrets` CI job (`scripts/ci/check-required-secrets.sh`)
       verifies that specific keys required inside file-type CI/CD variables (e.g. `GOOGLE_CLIENT_ID` inside
@@ -265,9 +271,14 @@ To maintain high code quality, the system employs an automated test suite:
 - **Quality gates** — all enforced in CI (`quality` stage) and by the versioned pre-commit
   hook (`./scripts/install-hooks.sh`), which is a thin wrapper around the same scripts so the
   two cannot drift:
-    - `./scripts/lint.sh` — ruff (config in `pyproject.toml`) + pylint, threshold 9.5.
+    - `./scripts/lint.sh` — ruff (config in `pyproject.toml`) + pylint, threshold 9.5. On a full
+      run it also fails any module on the strict type-check list that has an undocumented public
+      function or class (rule 5 below); `.pylintrc` still disables those checks for the rest.
     - `./scripts/typecheck.sh` — mypy. Rolled out per module: `pyproject.toml` holds a loose
       floor for the whole tree and lists the strictly-checked modules. That list only grows.
+      `backend:typecheck` runs the strict list; `backend:typecheck-all` runs `--all`, the whole
+      tree at the loose floor, and is `allow_failure` until its backlog (299 errors when it was
+      added, see [docs/open-work.md](docs/open-work.md)) reaches zero.
     - `./scripts/format.sh <path>` — opt-in `ruff format`. Deliberately not in CI: a tree-wide
       reformat would rewrite nearly every file and conflict with every open branch.
     - `./scripts/ci/dependency-audit.sh` — pip-audit + npm audit. Runs on a schedule and on the
@@ -275,18 +286,27 @@ To maintain high code quality, the system employs an automated test suite:
       this repository does not manage). Accepted findings, with a reason, live in
       `security/accepted-vulnerabilities.txt`.
 - **Ratchets** — `FAIL_UNDER` in `scripts/lint.sh` (9.5), `COVERAGE_MIN` in
-  `scripts/test/music-management-unit.sh` (85%) and the `thresholds` in
+  `scripts/test/music-management-unit.sh` (84%) and the `thresholds` in
   `services/frontend/vite.config.js` are floors. Raise them as the numbers climb; never lower
-  one to make a red build green.
+  one to make a red build green. The Python coverage figure is measured on source only —
+  `services/` and `tools/`, with every test and fixture file omitted (`[tool.coverage.run]` in
+  `pyproject.toml`); 84.89% when that was introduced. `COVERAGE_MIN` went from 93 to 84 then,
+  the one sanctioned exception to this rule: the old figure counted the tests themselves as
+  covered code (bug report 047).
 - **Uniform local test scripts** (`scripts/test/`), run the same way locally and in CI:
-    - `./scripts/test/music-management-unit.sh` — Python unit tests, whole `services/` and
-      `tools/` tree, with the coverage gate. In CI this and `db-integration.sh` run pytest inside
-      `docker/Dockerfile.python-ci` (python:3.14-slim, the images' Python) with `requirements.txt`
-      installed — not on the runner's own `python3`; `PYTHON_TOOLING_FORCE_CONTAINER=1` does the
-      same locally. A test dependency therefore has to be in `requirements.txt`.
-    - `./scripts/test/db-integration.sh` — every endpoint's SQL against a throwaway MariaDB,
-      plus the schema bootstrap and every `migrate_*.sql` applied twice. The unit suite mocks
-      the cursor, so this is the only thing that proves MariaDB accepts the queries.
+    - `./scripts/test/music-management-unit.sh` — Python unit tests: `services/`, `tools/`,
+      `tests/ci/` and `tests/unit/`, with the coverage gate. In CI this and `db-integration.sh`
+      run pytest inside `docker/Dockerfile.python-ci` (python:3.14-slim, the images' Python) with
+      `requirements.txt` installed — not on the runner's own `python3`;
+      `PYTHON_TOOLING_FORCE_CONTAINER=1` does the same locally. A test dependency therefore has
+      to be in `requirements.txt`.
+    - `./scripts/test/db-integration.sh` — every endpoint's SQL against a throwaway MariaDB
+      (13.0, like production; `MARIADB_VERSION=10.6` for the old server), plus the schema
+      bootstrap and every `migrate_*.sql` applied twice. The unit suite mocks the cursor, so this
+      is the only thing that proves MariaDB accepts the queries. It also builds the schema twice
+      from nothing — the fresh-stack way and the migrations way — and fails on any column or
+      index that differs (`tests/integration/test_schema_drift.py`). In CI a database it cannot
+      reach is a failure, not a skip.
     - `./scripts/test/muma-server-unit.sh` — LMS C++ unit tests (existing upstream CTest/GTest suite).
     - `./scripts/test/frontend-unit.sh` — frontend lint + svelte-check + vitest with coverage.
     - `./scripts/test/android-unit.sh` — MuMa Mobile JVM unit tests.
@@ -299,10 +319,12 @@ To maintain high code quality, the system employs an automated test suite:
 - **Test stack**: `docker/compose.test.yml` — temporary MariaDB, `music-manager` and `music-management-server`, all built from the current checkout, disposable volumes, healthchecks. Never mounts real music/library paths or production data.
 - **Fixture track**: `tests/fixtures/music/ci-test-track-001.mp3` (generated tone, no commercial audio) with expected metadata documented in `tests/fixtures/expected/ci-test-track-001.json`.
 - **A new endpoint that reads the database** belongs in `tests/integration/test_router_sql.py`
-  as well as in a unit test. **A schema change needs three edits**: the `CREATE TABLE` in
+  as well as in a unit test. **A schema change needs two edits**: the `CREATE TABLE` in
   `services/common/db_init.py`, a re-runnable `migrate_*.sql` in the repository root (applied
-  on every deploy by `scripts/deploy.sh`), and the expected-tables list in
-  `tests/integration/test_schema.py`. `CREATE TABLE IF NOT EXISTS` never alters an existing
+  on every deploy by `scripts/deploy.sh`), and the same shape in both — the expected-table
+  set is read from the `CREATE TABLE` statements themselves, and `test_schema_drift.py` fails if
+  the two paths end in different columns or index names (name an index in the CREATE the way the
+  migration names it). `CREATE TABLE IF NOT EXISTS` never alters an existing
   table -- that is how `downloads_youtube_accounts.channel_id` and
   `library_track_ml_labels.updated_at` went missing until the integration suite caught them.
   The migration must also be **expand-only**: `scripts/deploy.sh` applies it while the previous

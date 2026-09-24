@@ -64,6 +64,8 @@ MIN_BAND_CANDIDATES = 15
 
 @dataclass
 class Feed:
+    """One built feed: its tracks, how they were filtered, and what the client shows."""
+
     slug: str
     state: str  # 'ok' | 'no_matches' | 'not_enough_data'
     scope: str
@@ -134,6 +136,7 @@ class ProfileResolution:
 
     @property
     def scope(self) -> str:
+        """The scope of the taste profile this resolution settled on."""
         return self.profile.scope
 
 

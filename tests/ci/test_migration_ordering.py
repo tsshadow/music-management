@@ -59,6 +59,14 @@ REVIEWED_SAFE = {
         "information_schema, so it is a no-op once applied, and scrobbler.init_db does the same "
         "on start-up of the previous release anyway"
     ),
+    "migrate_v36_schema_drift.sql": (
+        "conditional repairs of drift between db_init.py and production (bug 047): the DELETE "
+        "removes duplicate rules_ignored_artists names before the plain index becomes the UNIQUE "
+        "key production already has, and the previous release only reads that table by name; the "
+        "DROP COLUMN removes five library_track_audio_features columns only fresh stacks ever had "
+        "and nothing reads or writes, guarded on information_schema so production's table is "
+        "never rebuilt"
+    ),
 }
 
 

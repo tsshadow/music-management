@@ -25,13 +25,14 @@
 - Build: `docker/Dockerfile.music-manager` (image `${IMAGE_CORE}`)
 - Start: `uvicorn main:app` (via Docker `CMD`, or `python main.py`)
 - Test: `pytest` (root `pytest.ini`: `pythonpath = services .`, patterns `*Test.py` / `test_*.py`)
-  - Existing tests: `services/music_manager/tests/test_users.py`, `test_rating.py`
-- Lint: `.pylintrc` (root), disables e.g. `missing-docstring`, `import-error`
+  - Tests: `services/music_manager/tests/` (one module per router and worker), run by
+    `scripts/test/music-management-unit.sh`
+- Lint: `.pylintrc` (root), disables e.g. `missing-docstring`, `import-error`; `scripts/lint.sh` re-enables the function and class docstring checks for the strictly type-checked modules and fails on any finding there
 - Env vars: `DB_HOST/PORT/USER/PASS/DB`, `API_KEY`, `AUTH_SERVICE_URL`, `MUMA_SERVER_HOSTS`, `MUMA_SERVER_SUBSONIC_API_KEY`, `NOTIFY_URL`, `STORAGE_PATH`, `PYTHONPATH`
 - Migrations: no ORM migration tool found (root `migrate_v2.sql`, `migrate_v3.sql` — manual SQL scripts)
 - External dependencies: MariaDB, music-management-server (Subsonic API), ntfy.sh, Spotify/Last.fm (artist images)
 - Dockerfile: `docker/Dockerfile.music-manager`; compose: `docker/docker-compose.yml` (service `music-manager`)
-- Test output: no JUnit/coverage config found; `pytest`/`coverage` are listed in `requirements.txt`
+- Test output: `report-python.xml` (JUnit) and `coverage-python.xml` (Cobertura), written by `scripts/test/music-management-unit.sh`; coverage configured in `[tool.coverage.run]` in `pyproject.toml`
 
 ### music-management-server (LMS, C++, port 5082)
 - Build: CMake + Ninja/Make, see `CMakeLists.txt`; release build via `Dockerfile-release` (multi-stage: frontend build first, then Alpine C++ build)
@@ -72,8 +73,13 @@
 - Some download tests may make real `yt-dlp`/SoundCloud calls — still needs to be verified whether these are mocked for CI (Phase 3.2 concern)
 
 ### ml-analyzer
-- Own `db_init.sql`, `requirements.txt`, still no tests
-- The only remaining large uncovered block in the Python suite (~715 statements at 0%). Its dependencies (`sqlalchemy`, `pandas`, `scikit-learn`, `joblib`) are in its own `requirements.txt` but not in the repo root one, so tests for it would either need those added to the CI environment or an `importorskip` guard that makes them silently skip there
+- Own `db_init.sql` and `requirements.txt`
+- Tested from `services/tests/`: `MlAnalyzerTest.py` (analyzer), `MlAnalyzerApproveTest.py`,
+  `MlAnalyzerPredictTest.py` and `MlAnalyzerScriptsTest.py` (`fix_db_schema`, `migrate_paths`,
+  `update_metadata`) -- 100 tests, run by the unit suite with the heavy dependencies stubbed by
+  `mock_base.py`. Coverage on source only (2026-09-23): `approve`, `fix_db_schema`,
+  `migrate_paths` and `update_metadata` 96-98%, `predict` 63%, `analyzer` 49%, `trainer` 0% --
+  `trainer.py` (125 statements) is the one module with no test at all
 - Compose service is commented out in `docker-compose.yml` (inactive)
 
 ### music-management-server (C++)
@@ -115,6 +121,16 @@
 - Builds the schema the way a deployment does: `services/common/db_init.py`, then every
   router's `init_db()`, then every `migrate_*.sql`. The migrations are applied twice, so one
   that is not re-runnable fails here rather than on deploy.
+- `test_schema_drift.py` also builds the schema twice from an empty database, in databases of
+  its own -- once as a fresh stack does (`db_init.py` plus every `init_db` `main.py`'s startup
+  calls), once as a deploy does (`db_init.py` plus every migration, twice) -- and fails on any
+  column (type, nullability, default, extra, collation) or index (name, columns, uniqueness) that
+  differs. The expected-table set in `test_schema.py` is read from the `CREATE TABLE` statements
+  (`tests/integration/schema_sources.py`), not kept by hand. Bug report 047.
+- Runs `mariadb:13.0`, what production and `docker/compose.test.yml` run;
+  `MARIADB_VERSION=10.6 ./scripts/test/db-integration.sh` for the old server, which is the only one
+  that reproduces bug report 039's implicit `ON UPDATE`.
+- With `CI` set, a database the suite cannot reach fails the job; locally it skips, loudly.
 - Covers 37 read endpoints (every GET that touches the database), the user lifecycle, dynamic
   playlists under all four sort methods, genre curation and expansions, library reads,
   scrobble matching, and the download-account round trips.
@@ -124,11 +140,12 @@
 ## Existing root-level test infrastructure
 - `pytest.ini`: `pythonpath = services .`, test patterns `*Test.py` and `test_*.py`, `norecursedirs = modules/scrobbler`
 - `conftest.py` (repo root): excludes `tools/test_fetcher_trace.py`, a hand-run diagnostic script that matches pytest's discovery pattern but contains no tests
-- `scripts/test/music-management-unit.sh` collects everything under `services/` and `tools/`. It used to carry a hand-maintained allow-list of directories and files, which silently left about half the existing test files out of both the run and the reported coverage; discovery is now governed by `pytest.ini` and the root `conftest.py` alone, so a new test file needs no script change
+- `scripts/test/music-management-unit.sh` collects everything under `services/` and `tools/`, plus `tests/ci/` and `tests/unit/`. It used to carry a hand-maintained allow-list of directories and files, which silently left about half the existing test files out of both the run and the reported coverage; discovery is now governed by `pytest.ini` and the root `conftest.py` alone, so a new test file needs no script change
+- Coverage is measured on source only: `[tool.coverage.run]` in `pyproject.toml` sets `source = services, tools` and omits `*Test.py`, `*/tests/*`, `*/test_*.py`, `*/conftest.py` and `mock_base.py`. Before that the ~220 test files under `services/` counted as covered code and `tools/` was not measured: 95.03% then, 84.89% on source only. `COVERAGE_MIN` is 84
 - `.pylintrc`: shared pylint config for all Python modules
 - `services/tests/`: root-wide/shared Python tests + `mock_base.py` (mock base for `mutagen`, `yt-dlp`, DB helpers)
-- `build.sh`: runs the full test suite and aborts the container build if any tests fail (mentioned in `AGENTS.md`)
-- Git pre-commit hook that requires tests to pass before commit (mentioned in `AGENTS.md`, not yet found as a file in this pass)
+- `build.sh` (`run_tests`, ~line 153): runs a subset, not the full suite -- `services/downloader/soundcloud/tests/`, `services/importer/tests/`, `services/tests/YoutubeDownloaderTest.py` and `services/music_manager/tests/` -- plus pylint over `services/` at a floor of 8.5, and aborts the container build if either fails. The full suite is CI's `backend:unit`
+- `scripts/hooks/pre-commit` (installed by `scripts/install-hooks.sh`): runs `scripts/lint.sh` and `scripts/test/music-management-unit.sh`
 
 ## Docker inventory (Phase 1.2 — findings, not yet resolved)
 
@@ -156,9 +173,9 @@ These gaps are **not resolved in this step** (per Task 1: inventory only, no pro
 1. LMS: confirm that the existing `ctest` suite actually passes locally on the current commit (Phase 2.1) — not yet run.
 2. Frontend: Vitest is in place; what is still missing is component-level rendering coverage
    (`@testing-library/svelte` is installed but unused).
-3. The pre-commit hook mentioned in `AGENTS.md` was not found as a file — needs verification.
+3. ~~The pre-commit hook mentioned in `AGENTS.md` was not found as a file.~~ It is `scripts/hooks/pre-commit`.
 4. Downloader tests that may perform real external calls need to be mocked for CI (Phase 3.2).
-5. `ml-analyzer` has no visible tests and its compose service is disabled — a scope decision is needed on whether it's included in Phases 1–3.
+5. `ml-analyzer` is tested from `services/tests/` (see its section above) except `trainer.py`; its compose service is still disabled.
 6. MuMa Mobile instrumentation/Android Auto tests: not yet found, needs a separate inventory pass once Phase 6 is addressed.
 7. `docker/Dockerfile.music-manager` runs `COPY .env /app/.env`, baking the real `.env` (with real secrets) into every built image. This is safe at runtime for `compose.test.yml` because `load_dotenv()` defaults to `override=False`, so container `environment:` values still win — but it's bad image hygiene (secrets end up in image layers) and should be fixed later (tracked as a follow-up, not done in Task 3).
 8. **Production config likely has the same bug as the Task 6 scrobble/rating URL fix.** All `music_manager` routes are mounted under `/api/*` (`main.py`: `app.include_router(..., prefix="/api/...")`), and this is what `UserSynchronizer.cpp` (`/users/`) and `MusicManagementPasswordService.cpp` (`/auth/login`) assume when appending directly onto `music-management-url`. On the production host (192.0.2.27, read-only SSH inspection), the deployed `LMS_MUSIC_MANAGEMENT_URL` is `http://192.0.2.27:8003` — **without** an `/api` suffix. This strongly suggests LMS→MusicManagement scrobbling/rating/user-sync is currently broken in production too, for the same root cause fixed in this session's `MusicManagementBackend.cpp` changes (scrobbling + feedback). Recommended fix: update the production `LMS_MUSIC_MANAGEMENT_URL` env var to `http://192.0.2.27:8003/api` (or the internal Docker service equivalent) once this fix is deployed. **Not changed in this session** — production was only inspected read-only, per explicit agreement; a production env change needs a deliberate, monitored rollout.

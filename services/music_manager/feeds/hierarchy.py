@@ -13,6 +13,7 @@ row can close a cycle. Hence the depth guard: a wrong row must not hang a feed.
 
 
 def ancestors(genre: str, parents: dict[str, set[str]], max_depth: int = 8) -> set[str]:
+    """Every genre above `genre` in the subgenre tree, up to `max_depth` levels."""
     seen: set[str] = set()
     frontier = {genre}
     for _ in range(max_depth):
@@ -24,6 +25,7 @@ def ancestors(genre: str, parents: dict[str, set[str]], max_depth: int = 8) -> s
 
 
 def deepest(genres: set[str], parents: dict[str, set[str]]) -> set[str]:
+    """The genres in `genres` that are not an ancestor of another one in the set."""
     covered: set[str] = set()
     for genre in genres:
         covered |= ancestors(genre, parents)

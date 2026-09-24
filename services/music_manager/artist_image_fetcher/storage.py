@@ -9,6 +9,8 @@ from PIL import Image
 
 
 class ImageStorage:
+    """Saves fetched artist images to disk and builds their public URLs."""
+
     def __init__(self, storage_path, public_base_url):
         self.storage_path = storage_path
         self.public_base_url = public_base_url

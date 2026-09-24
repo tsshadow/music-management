@@ -134,3 +134,19 @@ module = [
 disallow_untyped_defs = false
 check_untyped_defs = true
 warn_return_any = true
+
+[tool.coverage.run]
+# What scripts/test/music-management-unit.sh measures: the shipped Python under services/
+# and tools/, and nothing that only exists to test it. Before this table the run used
+# --cov=services with no omit list, so the ~220 test and fixture files under services/
+# (more lines than the code they test, all executed by definition) were counted as
+# covered source and lifted the figure by several points, while tools/ -- whose tests
+# do run -- was not measured at all.
+source = ["services", "tools"]
+omit = [
+    "*Test.py",
+    "*/tests/*",
+    "*/test_*.py",
+    "*/conftest.py",
+    "services/tests/mock_base.py",
+]

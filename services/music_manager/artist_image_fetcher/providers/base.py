@@ -15,9 +15,12 @@ class ProviderUnavailable(Exception):
 
 
 class ArtistImageProvider(ABC):
+    """A source of artist images, such as Spotify or MusicBrainz."""
+
     @property
     @abstractmethod
     def name(self):
+        """The name this provider is recorded under in the source column."""
         pass
 
     @property

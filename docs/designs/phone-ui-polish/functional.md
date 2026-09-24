@@ -98,6 +98,26 @@ increments may refine earlier ones, but nothing in an earlier increment depends 
 | Native app | The bottom row of the player shows the current output ("Bose QC35 II", "Phone speaker") in the accent colour; tapping opens the system output picker, or Bluetooth settings where no picker exists. |
 | Browser | Nothing is shown. |
 
+### I — Player that always fits, and tablets (2026-09-24)
+
+Feedback from the phone and a tablet: with a long title, several artists or three genres the
+transport slid under the navigation bar; the genre chips wrapped onto extra rows; tapping a genre
+or label chip landed back on the page underneath; a tablet on its side showed a cover taller than
+the screen and no controls at all; and the song table on a tablet ran title, artist and album over
+each other.
+
+| Situation | Observable outcome |
+|---|---|
+| Any track, any amount of metadata | Title, artists, album line, one chip row, stars, progress, transport and the bottom row are on the first screen without scrolling. Only the cover shrinks to make room. "Next up" and the other sections are one scroll down. |
+| Several artists | They stay on one line, comma and space separated, and truncate. |
+| Album and release date | One line: album on the left (truncates first), date right-aligned. |
+| Many genres and labels | One chip row that scrolls sideways. |
+| Tap a genre, label, album, artist or "next up" artist | The player closes and that page opens. |
+| Output route shown | It sits on the left of the bottom icon row instead of a line of its own. |
+| Landscape (tablet on its side, phone turned) | Two columns: cover on the left at the full available height, everything else on the right. A portrait tablet keeps the phone's proportions in a centred column. |
+| Song table on a tablet | Columns appear by the width the table actually has (the sidebar takes a quarter of the screen): a narrow table shows title, artist, stars and duration like the phone; album, date, genres and plays join as room allows. Cells truncate instead of overlapping; the date never wraps; touch devices have no empty rating column. |
+| Tablet system bars | The status bar no longer covers the sidebar logo, and the navigation bar no longer covers the player bar. |
+
 ## Acceptance Criteria
 
 1. With a track that has neither cover nor artist image, the player shows a tinted panel with the title; the MuMa mark is not visible.

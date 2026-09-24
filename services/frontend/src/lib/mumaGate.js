@@ -12,8 +12,10 @@
  * below every caller, and counts across all of them.
  *
  * Since !833 nginx sends most of `/muma/api/` straight to the Python server; only the
- * routes LMS implements itself (login, admin, the artist image, the native artist id,
- * `tracks/<id>/refresh`, `/muma/users/`) still pass the proxy and its gate. A single queue
+ * routes LMS implements itself (admin, the artist image, the native artist id,
+ * `tracks/<id>/refresh`, `/muma/users/`) still pass the proxy and its gate. The login
+ * left that list when LMS stopped answering it with its own shared key: it goes to MuMa
+ * directly, like everything else. A single queue
  * sized for that gate then held the direct calls hostage: with four feed builds of
  * seconds each in it, the session check, the settings read and the presets waited behind
  * a feed. So the queue is two lanes (docs/designs/feeds/home-load.md, step 1):
@@ -39,7 +41,7 @@ export const MAX_PARALLEL_DIRECT_CALLS = 8;
  * route added to that location belongs here too, or its calls run in the wrong lane.
  */
 const LMS_ROUTES =
-  /^\/(api\/auth\/login$|api\/admin\/|api\/artists\/[^/]+\/image$|api\/artists\/(?:[^/-]*-)?[0-9]+$|api\/tracks\/.+\/refresh$|users\/)/;
+  /^\/(api\/admin\/|api\/artists\/[^/]+\/image$|api\/artists\/(?:[^/-]*-)?[0-9]+$|api\/tracks\/.+\/refresh$|users\/)/;
 
 /** Extracts the API path independently of the configured deployment base prefix. */
 function laneFor(url) {

@@ -318,6 +318,9 @@ export function openNowPlaying() {
   pushedHistoryEntries.update((n) => n + 1);
 }
 
+/** Upper bound on how long `closeNowPlaying` waits for its `popstate`. */
+export const NOW_PLAYING_CLOSE_TIMEOUT_MS = 400;
+
 /**
  * Closes Now Playing: the chevron, a swipe on the cover, and the shell/browser
  * back button all call this.
@@ -332,12 +335,35 @@ export function openNowPlaying() {
  * anything a second time; it still does the one thing that matters there,
  * decrementing `pushedHistoryEntries` to match. See `SidebarHeader.svelte` for
  * the same back-consuming pattern used for a real navigation entry.
+ *
+ * The returned promise settles once that `popstate` has been handled (or at
+ * once, when there was no entry to consume). A caller that navigates straight
+ * after closing -- a genre chip, the album, an artist -- has to wait for it:
+ * `history.back()` is asynchronous, so a navigation pushed before it lands is
+ * followed by a `popstate` for the entry underneath, and `App.svelte` then
+ * restores the page the player was opened over. That is how every tap on a
+ * genre or label chip on this screen used to end up back where it started.
+ * `NOW_PLAYING_CLOSE_TIMEOUT_MS` bounds the wait for a WebView that never
+ * delivers the event.
+ *
+ * @returns {Promise<void>}
  */
 export function closeNowPlaying() {
   nowPlayingOpen.set(false);
-  if (get(pushedHistoryEntries) > 0) {
+  if (get(pushedHistoryEntries) <= 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    let timer = null;
+    const settle = () => {
+      window.removeEventListener("popstate", settle);
+      clearTimeout(timer);
+      resolve();
+    };
+    // Registered after `App.svelte`'s own listener, so it runs after that one
+    // has already applied the entry's state and balanced the counter.
+    window.addEventListener("popstate", settle);
+    timer = setTimeout(settle, NOW_PLAYING_CLOSE_TIMEOUT_MS);
     window.history.back();
-  }
+  });
 }
 
 export const visibleSortOptions = writable({
@@ -445,6 +471,31 @@ credentials.subscribe(($c) => {
 // startup, not only once already inside the management view.
 export const mumaUserHydrated = writable(!get(mumaApiKey));
 
+/**
+ * Ends a session that holds a system key instead of a user's own key, so the
+ * user signs in once more and gets their own.
+ *
+ * No web login hands out a system key any more: LMS's `/muma/api/auth/login`
+ * used to answer every user with LMS's own `api-key`, which MuMa verifies as
+ * `type: "system"` -- an always-allowed superuser, so this app made every
+ * holder an admin. MuMa's login answers with the user's own key. A system key
+ * still in this browser's storage is therefore a leftover from that login, and
+ * it is neither trusted as an admin nor kept: the whole session goes, exactly
+ * like one the server rejected, and the login page comes back.
+ */
+export function endLeftoverSharedKeySession() {
+  endRejectedSession();
+}
+
+/**
+ * Re-reads the account behind the persisted `mumaApiKey` at startup: publishes
+ * the user and their permissions for a user key, drops a key the server
+ * rejects, and ends the session for a leftover system key
+ * (`endLeftoverSharedKeySession`). A server that cannot be reached leaves
+ * everything as it was.
+ *
+ * @returns {Promise<void>}
+ */
 export async function hydrateMumaUserFromApiKey() {
   const key = get(mumaApiKey);
   if (!key) return;
@@ -469,12 +520,7 @@ export async function hydrateMumaUserFromApiKey() {
         userPermissions.set(data.user.permissions || []);
         mumaUser.set(data.user);
       } else if (data.type === "system") {
-        // See the matching comment in Management.svelte's onMount: every
-        // Subsonic-authenticated admin actually authenticates with the
-        // shared system key, which MuMa itself always treats as an
-        // always-allowed superuser.
-        userPermissions.set([]);
-        mumaUser.set({ is_admin: true });
+        endLeftoverSharedKeySession();
       }
     }
   } catch (e) {

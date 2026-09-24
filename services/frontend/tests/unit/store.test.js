@@ -430,6 +430,27 @@ describe("store - hydrateMumaUserFromApiKey", () => {
     expect(get(mumaApiKey)).toBe("good-key");
   });
 
+  it("ends the session for a leftover shared system key instead of making an admin", async () => {
+    // LMS used to answer every web login with its own api-key, which MuMa
+    // verifies as a system key, and startup then set `is_admin: true` for
+    // whoever held it. The login now hands out the user's own key, so a system
+    // key in storage is a leftover: the session goes and the user signs in once.
+    credentials.set({ url: "", username: "user", password: "pw" });
+    mumaApiKey.set("lms-shared-key");
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ type: "system" }),
+    }));
+
+    await hydrateMumaUserFromApiKey();
+
+    expect(get(mumaApiKey)).toBe("");
+    expect(get(mumaUser)).toBe(null);
+    expect(get(userPermissions)).toEqual([]);
+    expect(get(credentials).username).toBe("");
+    expect(get(credentials).password).toBe("");
+  });
+
   it("keeps the key on a server error", async () => {
     mumaApiKey.set("good-key");
     globalThis.fetch = vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) }));

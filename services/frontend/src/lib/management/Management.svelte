@@ -2,7 +2,7 @@
   import { t } from '../i18n/index.js';
   import { onDestroy, onMount, untrack } from 'svelte';
   import { RefreshCw } from '@lucide/svelte';
-  import { activeManagementTab, credentials, isAdmin, mumaApiKey, mumaApiUrl, userPermissions, mumaUser, hasPermission } from '../store.js';
+  import { activeManagementTab, credentials, isAdmin, mumaApiKey, mumaApiUrl, userPermissions, mumaUser, hasPermission, endLeftoverSharedKeySession } from '../store.js';
   import { getHeaders as sharedHeaders, fetchMumaJson, mapWithLimit } from '../mumaApi.js';
   import { MANAGEMENT_TABS } from '../router.js';
 
@@ -350,15 +350,15 @@
               mumaUser.set(authData.user);
               if (!selectedUser) selectedUser = currentUser;
             } else if (authData.type === 'system') {
-              // The MuMa backend itself treats the shared system API key as an
-              // always-allowed superuser (see rbac.has_permission/is_admin_auth),
-              // which is what every Subsonic-authenticated admin actually
-              // authenticates with (see AuthOverlay/store.js login flow). Mirror
-              // that here so `hasPermission()` (gating individual user-management
-              // actions below) doesn't stay stuck at "no permissions" just
-              // because there's no specific `user` record for this key.
-              userPermissions.set([]);
-              mumaUser.set({ ...(currentUser || {}), is_admin: true });
+              // A system key is a leftover from the login LMS used to answer
+              // with its own shared `api-key`; no web login hands one out any
+              // more. It makes nobody an administrator here: the session ends
+              // and the user signs in once more, for their own key. See
+              // endLeftoverSharedKeySession in store.js.
+              endLeftoverSharedKeySession();
+              isLoggedIn = false;
+              loading = false;
+              return;
             }
           }
           await fetchData();

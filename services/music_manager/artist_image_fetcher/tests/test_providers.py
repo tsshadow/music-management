@@ -4,13 +4,14 @@ from unittest.mock import MagicMock, patch
 from requests.exceptions import Timeout
 
 from services.music_manager.artist_image_fetcher.providers import lastfm, musicbrainz, soundcloud, spotify
-from services.music_manager.artist_image_fetcher.providers.base import ProviderUnavailable
+from services.music_manager.artist_image_fetcher.providers.base import ProviderRateLimited, ProviderUnavailable
 
 
-def make_response(status_code=200, payload=None):
+def make_response(status_code=200, payload=None, headers=None):
     response = MagicMock()
     response.status_code = status_code
     response.json.return_value = payload if payload is not None else {}
+    response.headers = headers if headers is not None else {}
     return response
 
 
@@ -253,6 +254,79 @@ class SpotifyProviderTest(unittest.TestCase):
             http.get.return_value = make_response(status_code=429)
             with self.assertRaises(ProviderUnavailable):
                 self.provider.get_artist_images('Angerfist')
+
+    # A 429 is about the run, not the artist: it has to be told apart from any other
+    # non-answer, and carry how long Spotify wants us to wait.
+    def test_a_rate_limited_lookup_carries_the_retry_after_header(self):
+        with patch.object(spotify, 'requests') as http:
+            http.post.return_value = make_response(payload={'access_token': 'tok'})
+            http.get.return_value = make_response(status_code=429, headers={'Retry-After': '7'})
+            with self.assertRaises(ProviderRateLimited) as caught:
+                self.provider.get_artist_images('Angerfist')
+        self.assertEqual(caught.exception.retry_after, 7.0)
+        self.assertIsInstance(caught.exception, ProviderUnavailable)
+
+    def test_a_rate_limit_without_retry_after_waits_the_default(self):
+        with patch.object(spotify, 'requests') as http:
+            http.post.return_value = make_response(payload={'access_token': 'tok'})
+            http.get.return_value = make_response(status_code=429)
+            with self.assertRaises(ProviderRateLimited) as caught:
+                self.provider.get_artist_images('Angerfist')
+        self.assertEqual(caught.exception.retry_after, spotify.SpotifyArtistImageProvider.DEFAULT_RETRY_AFTER)
+
+    def test_an_unreadable_retry_after_waits_the_default(self):
+        with patch.object(spotify, 'requests') as http:
+            http.post.return_value = make_response(payload={'access_token': 'tok'})
+            http.get.return_value = make_response(
+                status_code=429, headers={'Retry-After': 'Wed, 21 Oct 2026 07:28:00 GMT'}
+            )
+            with self.assertRaises(ProviderRateLimited) as caught:
+                self.provider.get_artist_images('Angerfist')
+        self.assertEqual(caught.exception.retry_after, spotify.SpotifyArtistImageProvider.DEFAULT_RETRY_AFTER)
+
+    def test_a_huge_retry_after_is_capped(self):
+        with patch.object(spotify, 'requests') as http:
+            http.post.return_value = make_response(payload={'access_token': 'tok'})
+            http.get.return_value = make_response(status_code=429, headers={'Retry-After': '86400'})
+            with self.assertRaises(ProviderRateLimited) as caught:
+                self.provider.get_artist_images('Angerfist')
+        self.assertEqual(caught.exception.retry_after, spotify.SpotifyArtistImageProvider.MAX_RETRY_AFTER)
+
+    def test_a_rate_limited_token_request_carries_the_retry_after_header(self):
+        with patch.object(spotify, 'requests') as http:
+            http.post.return_value = make_response(status_code=429, headers={'Retry-After': '12'})
+            with self.assertRaises(ProviderRateLimited) as caught:
+                self.provider.get_artist_images('Angerfist')
+        self.assertEqual(caught.exception.retry_after, 12.0)
+        http.get.assert_not_called()
+
+    def test_a_rate_limited_token_renewal_after_a_401_is_a_rate_limit(self):
+        with patch.object(spotify, 'requests') as http:
+            http.post.side_effect = [
+                make_response(payload={'access_token': 'stale'}),
+                make_response(status_code=429, headers={'Retry-After': '5'}),
+            ]
+            http.get.return_value = make_response(status_code=401)
+            with self.assertRaises(ProviderRateLimited) as caught:
+                self.provider.get_artist_images('Angerfist')
+        self.assertEqual(caught.exception.retry_after, 5.0)
+        self.assertEqual(http.get.call_count, 1)
+
+    def test_a_failed_token_renewal_after_a_401_is_the_provider_not_answering(self):
+        with patch.object(spotify, 'requests') as http:
+            http.post.side_effect = [make_response(payload={'access_token': 'stale'}), make_response(status_code=500)]
+            http.get.return_value = make_response(status_code=401)
+            with self.assertRaises(ProviderUnavailable) as caught:
+                self.provider.get_artist_images('Angerfist')
+        self.assertNotIsInstance(caught.exception, ProviderRateLimited)
+
+    def test_a_server_error_is_not_a_rate_limit(self):
+        with patch.object(spotify, 'requests') as http:
+            http.post.return_value = make_response(payload={'access_token': 'tok'})
+            http.get.return_value = make_response(status_code=502)
+            with self.assertRaises(ProviderUnavailable) as caught:
+                self.provider.get_artist_images('Angerfist')
+        self.assertNotIsInstance(caught.exception, ProviderRateLimited)
 
     def test_a_transport_error_during_search_is_the_provider_not_answering(self):
         with patch.object(spotify, 'requests') as http:

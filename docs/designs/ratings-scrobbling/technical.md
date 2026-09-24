@@ -84,6 +84,83 @@ continues below it.
 4. **Dynamic Playlist Integration**: Dynamic playlist queries in `users.py` must correctly join with `rating_tracks` to allow filtering by `rating_range`.
 5. **Testing**: All flows must be verified by `services/music_manager/tests/test_rating.py`.
 
+## LMS listen reconcile (2026-09-24)
+
+Repair tool for bug report 039. Logic in `services/music_manager/scrobble_reconcile.py`
+(pure `classify()` plus loaders and writers), endpoints in `routers/reconcile.py`, mounted at
+`/api/scrobble/reconcile`. No schema change.
+
+**Sources.** Every `lms.db` `routers/users.py::lms_db_targets()` finds (the same list the hourly
+LMS sync uses), opened read-only (`file:...?mode=ro`). From each:
+
+```sql
+SELECT l.id, l.date_time, u.login_name, t.absolute_file_path
+FROM listen l JOIN user u ON u.id = l.user_id JOIN track t ON t.id = l.track_id
+WHERE l.backend = 0 AND (l.sync_state IS NULL OR l.sync_state != 2)
+```
+
+`backend = 0` is `ScrobblingBackend::Internal` (the listens LMS records itself; LMS writes them at
+the same `currentDateTime()` it relays to muma through `MusicManagementBackend`), `sync_state = 2`
+is `PendingRemove`. The same (user, muma track, second) seen on two servers counts once.
+
+**The LMS-to-muma track join.** By file path, as the rating webhook and the version sync do:
+`listen.track_id` -> `track.absolute_file_path` -> every spelling
+`library_paths.candidate_paths()` produces (the path as given, under `MUMA_MUSIC_ROOT`
+(`/mnt/music`), under `LMS_MUSIC_ROOT` (`/music`), and relative) -> `library_media_files.file_path`
+(`WHERE track_id IS NOT NULL`, 200 paths per `IN`) -> `library_media_files.track_id`. The first
+spelling muma has wins. The user joins by name: LMS relays `user.login_name` as `username`. A
+listen whose file muma does not know is reported as `lms_unmapped`.
+
+**Time.** LMS `date_time` is Wt::Dbo's SQLite text, `YYYY-MM-DDTHH:MM:SS.mmm` in UTC; it is parsed
+as UTC (an explicit offset or `Z` is honoured) and floored to whole seconds. muma's side is read
+as `UNIX_TIMESTAMP(listened_at)` / `UNIX_TIMESTAMP(created_at)` and written as
+`FROM_UNIXTIME(%s)` on a session pinned to `+00:00` (restored afterwards). The relay stored
+`datetime.fromtimestamp(ts)` -- a naive value in the process zone -- which MariaDB read in the
+session zone; `zone_check()` compares the two offsets, the dry run reports them under `zones`,
+and the apply refuses (`ZoneMismatchError`) when they differ.
+
+**Classification**, per (username, muma track), deterministic (every ordering is total: gap,
+muma id, LMS server and id):
+
+1. `exact`: |muma - LMS| <= 5 s. Pairs are taken smallest gap first, one-to-one.
+2. `shifted`: from what is left, muma - LMS > 5 s (the bug moved times forward only), the muma
+   row is live (`source` not `listenbrainz`/`listenbrainz_import`) and shows a later write
+   (|`listened_at` - `created_at`| > 5 s; `created_at` never had an ON UPDATE). Smallest gap
+   first, one-to-one, so an LMS listen repairs at most its nearest moved row. Stricter than
+   "nearest LMS listen more than 5 s away" on purpose: an untouched row is a second play.
+3. `muma_only`: every muma listen not paired. Never written.
+4. `lms_only`: every LMS listen not paired. `insertable` only if no unpaired muma listen of the
+   same user and track exists and no muma listen or unmatched listen of the user has a
+   `listened_at` or `created_at` within 5 s of it (the same play under another track, or unmatched
+   -- whose `listened_at` may itself have been moved, while `created_at` was not).
+
+**Writes** (`POST`, background task, one transaction per user):
+
+- shifted: `UPDATE scrobble_listens SET listened_at = FROM_UNIXTIME(lms) WHERE id = %s AND
+  listened_at = FROM_UNIXTIME(old)` -- a row changed since the read is left alone and counted as
+  `changed_since_read`.
+- lms_only (opt-in, insertable only): `INSERT ... (track_id, listened_at, username, source,
+  match_method) VALUES (..., 'lms-reconcile', 'exact')`.
+- A 1062 on the UNIQUE (username, listened_at, track_id) is skipped and counted as `collisions`;
+  any other error rolls that user's transaction back.
+- Totals go to an INFO event "Listens reconciled against LMS" and to `GET /lms/status`.
+
+Idempotent: repaired and inserted rows are `exact` on the next run.
+
+| Endpoint | Method | Body / Params | Response | Error cases |
+|---|---|---|---|---|
+| `/api/scrobble/reconcile/lms` | `GET` | `username?` | `200 {username, servers, zones, totals, users, sample}` | `401`; `403` not admin; `503` no `lms.db` visible |
+| `/api/scrobble/reconcile/lms` | `POST` | `{username?, apply_shifted: bool, insert_lms_only: bool}` | `200 {message, last}`; runs in the background | `400` nothing to apply; `401`; `403`; `409` already running |
+| `/api/scrobble/reconcile/lms/status` | `GET` | -- | `200 {running, last, error}` | `401`; `403` |
+
+Not a breaking change: new endpoints only, no existing contract touched.
+
+**Not verified here:** the storage format comes from Wt 4.11.1's `Wt/Dbo/backend/Sqlite3.h` in the
+server image (default `DateTimeStorage::ISO8601AsText`; LMS never calls `setDateTimeStorage`) and
+LMS's mapping (`Listen.hpp`), not from a production `lms.db`; the parser also accepts a space
+separator (`PseudoISO8601AsText`), no fraction and a zone suffix. The dry run's runtime on production size is unmeasured; it runs
+inline, so a very large history may need `username` to stay under the proxy timeout.
+
 ## Related Docs
 
 - [docs/architecture.md](../../architecture.md) — Overarching system structure.

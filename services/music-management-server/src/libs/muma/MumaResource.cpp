@@ -255,7 +255,7 @@ namespace lms::api::muma
         return verdict;
     }
 
-    AuthDecision MumaResource::authenticateRequest(const Wt::Http::Request& request, bool isPublicAuthPath)
+    AuthDecision MumaResource::authenticateRequest(const Wt::Http::Request& request, bool publicAuthPath)
     {
         const std::string* apiKeyParam{ request.getParameter("apiKey") };
         const std::string* userParam{ request.getParameter("u") };
@@ -264,7 +264,7 @@ namespace lms::api::muma
 
         RequestCredentials credentials;
         credentials.headerKey = headerKey;
-        credentials.isPublicPath = isPublicAuthPath;
+        credentials.isPublicPath = publicAuthPath;
         if (apiKeyParam)
             credentials.paramKey = *apiKeyParam;
         if (userParam)
@@ -298,79 +298,26 @@ namespace lms::api::muma
         std::string pathInfo = request.pathInfo();
         response.setMimeType("application/json");
 
-        const std::string configMumaApiKey = std::string{ core::Service<core::IConfig>::get()->getString("api-key", "") };
-
-        if (pathInfo == "/api/auth/login")
-        {
-            Wt::Json::Object root;
-            std::string jsonStr((std::istreambuf_iterator<char>(request.in())), std::istreambuf_iterator<char>());
-            Wt::Json::ParseError error;
-            if (!Wt::Json::parse(jsonStr, root, error))
-            {
-                response.setStatus(400);
-                response.out() << "Invalid JSON";
-                return;
-            }
-
-            std::string username = root.get("username").toString().orIfNull("");
-            std::string password = root.get("password").toString().orIfNull("");
-
-            db::User::pointer dbUser = db::User::find(session, username);
-            if (dbUser)
-            {
-                if (auto passwordService{ core::Service<auth::IPasswordService>::get() })
-                {
-                    const auto passwordResult{ passwordService->checkUserPassword(boost::asio::ip::make_address(request.clientAddress()), username, password) };
-                    if (passwordResult.state == auth::IPasswordService::CheckResult::State::Granted)
-                    {
-                        Wt::Json::Object result;
-                        result["id"] = Wt::Json::Value((long long)dbUser->getId().getValue());
-                        result["username"] = Wt::Json::Value(std::string{ dbUser->getLoginName() });
-                        result["display_name"] = Wt::Json::Value(std::string{ dbUser->getLoginName() });
-                        result["is_admin"] = Wt::Json::Value(dbUser->isAdmin());
-                        result["api_key"] = Wt::Json::Value(configMumaApiKey);
-                        response.out() << Wt::Json::serialize(result);
-                        return;
-                    }
-
-                    // 401 here would tell the client its stored credentials are bad and make it
-                    // throw them away, when in fact we never managed to check them.
-                    if (passwordResult.state == auth::IPasswordService::CheckResult::State::BackendError)
-                    {
-                        LMS_LOG(API_SUBSONIC, ERROR, "MumaResource: cannot reach the authentication backend for user '" << username << "'");
-                        response.setStatus(503);
-                        response.out() << "Authentication backend unavailable";
-                        return;
-                    }
-                }
-            }
-
-            response.setStatus(401);
-            response.out() << "Invalid credentials";
-            return;
-        }
-
-        // Public, unauthenticated auth endpoints: these are the entry points for
-        // users who don't have any credentials yet (initial setup, and the
-        // Google Sign-In / access-request flow for a brand-new Google identity),
-        // so they must be reachable without an existing Subsonic apiKey/u+p.
-        // They are simply proxied through, unauthenticated, to MuMa below (same
-        // generic "/api/" proxy used for everything else), which does its own
-        // validation (Google ID token verification, setup-already-done checks, ...).
-        static const std::array<std::string_view, 4> publicAuthPaths{
-            "/api/auth/setup-status",
-            "/api/auth/setup",
-            "/api/auth/google",
-            "/api/auth/access-request",
-        };
-        const bool isPublicAuthPath = std::find(publicAuthPaths.begin(), publicAuthPaths.end(), pathInfo) != publicAuthPaths.end();
+        // Public, unauthenticated auth endpoints: the entry points for users who have no
+        // credentials yet -- the username/password login, initial setup, and the Google
+        // Sign-In / access-request flow. They are proxied through, unauthenticated, to MuMa
+        // below (the same generic "/api/" proxy used for everything else), which does its own
+        // validation and answers with the user's own key. See isPublicAuthPath().
+        //
+        // Behind reverse-proxy.conf the login never gets here: nginx sends /muma/api/auth/login
+        // straight to MuMa. It still has to work here, because not every way in has that nginx in
+        // front: lms.<domain> passes straight through to this server (docker-compose.yml), and so
+        // do the test stack (docker/compose.test.yml) and the dev stack. Answering it locally is
+        // what used to hand every user this server's own `api-key`; forwarding it is the only
+        // answer that gives the same result on every route.
+        const bool publicAuthPath{ isPublicAuthPath(pathInfo) };
 
         // A key opens nothing until it is verified: it must be this server's own `api-key` or a key
         // MuMa confirms, and otherwise a Subsonic u/p pair must hold. Any non-empty key used to be
         // accepted here, with the caller then named by the bare `u` parameter -- so any string plus
         // `u=<an admin>` was that admin on the routes below. See
         // docs/bug-reports/056-lms-any-key-is-admin.md.
-        const AuthDecision auth{ authenticateRequest(request, isPublicAuthPath) };
+        const AuthDecision auth{ authenticateRequest(request, publicAuthPath) };
         if (auth.outcome != AuthDecision::Outcome::Authenticated)
         {
             // Say "we could not check" rather than "you are not allowed", so the client keeps the

@@ -51,4 +51,37 @@ describe("ArtistList", () => {
     const row = screen.getByText("Angerfist").closest("span[class*='min-h-11']");
     expect(row).toBeTruthy();
   });
+
+  it("separates the names with a comma and a space", () => {
+    render(ArtistList, {
+      artists: [
+        { id: "a1", name: "Catscan" },
+        { id: "a2", name: "Starving Insect" },
+      ],
+    });
+
+    expect(screen.getByText("Catscan").parentElement.textContent).toBe("Catscan, Starving Insect");
+  });
+
+  it("keeps several artists on one truncating line in the large size", () => {
+    // As direct flex items, every name and every ", " became its own column, and
+    // four artists wrapped into a ragged block on the player ("David / Levy").
+    render(ArtistList, {
+      artists: [
+        { id: "a1", name: "Audiofreq" },
+        { id: "a2", name: "David Levy" },
+        { id: "a3", name: "Sovereign King" },
+      ],
+      size: "lg",
+      onnavigate: vi.fn(),
+    });
+
+    const row = screen.getByTestId("artist-list-lg");
+    const names = screen.getByText("David Levy").parentElement;
+    expect(names.parentElement).toBe(row);
+    expect(names.className).toContain("truncate");
+    expect(names.textContent.replace(/\s+/g, " ").trim()).toBe(
+      "Audiofreq, David Levy, Sovereign King",
+    );
+  });
 });

@@ -9,7 +9,7 @@ import {
   mumaUser,
   userPermissions,
 } from "../../src/lib/store.js";
-import { t } from "../../src/lib/i18n/index.js";
+import { setLocaleFromAccount, t } from "../../src/lib/i18n/index.js";
 
 const STATS = {
   total_tracks: 12345,
@@ -156,13 +156,24 @@ describe("Management", () => {
     expect(get(userPermissions)).toEqual(["users.read"]);
   });
 
-  it("the shared system key counts as an administrator", async () => {
+  it("a leftover shared system key ends the session instead of making an administrator", async () => {
+    // LMS used to answer every web login with its own api-key, which MuMa
+    // verifies as a system key -- and this screen then made the holder an
+    // administrator. The login now hands out the user's own key, so a system
+    // key in storage is a leftover: it goes, and the user signs in once more.
     globalThis.fetch = api({ verify: { type: "system" } });
 
     render(Management);
 
-    await waitFor(() => expect(get(userPermissions)).toEqual([]));
-    expect(get(mumaUser)?.is_admin).toBe(true);
+    await waitFor(() => expect(get(mumaApiKey)).toBe(""));
+    expect(get(mumaUser)).toBe(null);
+    expect(get(userPermissions)).toEqual([]);
+    expect(get(credentials).password).toBe("");
+    expect(screen.queryByText("1 / 1 Running")).toBeNull();
+    expect(globalThis.fetch.mock.calls.some(([url]) => url.includes("/api/stats"))).toBe(false);
+    // Ending the session is a logout, which drops the interface language back to the
+    // browser's (English here); the tests after this one read Dutch text.
+    setLocaleFromAccount("nl");
   });
 
   it("a tab that no longer exists falls back to the overview instead of an empty screen", async () => {

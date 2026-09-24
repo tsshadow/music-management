@@ -68,6 +68,8 @@ class FetchMissingCommandTest(CliTestCase):
         self.assertEqual(self.fetcher.fetch_for_artist.call_count, 2)
         self.assertEqual(self.cursor.execute.call_args_list[0].args[1], (5,))
         self.assertTrue(any('Found 2 artists' in line for line in output))
+        self.fetcher.start_run.assert_called_once_with()
+        self.fetcher.log_run_summary.assert_called_once_with()
 
     def test_previously_failed_artists_are_excluded_by_default(self):
         self.cursor.fetchall.return_value = []
@@ -97,6 +99,7 @@ class RefreshCommandTest(CliTestCase):
         self.cursor.fetchall.return_value = [{'id': 3, 'name': 'Three'}]
         output = self.run_cli('refresh', '--older-than-days', '30', '--limit', '9')
         self.fetcher.fetch_for_artist.assert_called_once_with(3, 'Three', force_refresh=True)
+        self.fetcher.log_run_summary.assert_called_once_with()
         self.assertEqual(self.cursor.execute.call_args.args[1], (30, 9))
         self.assertTrue(any('Refreshing 1' in line for line in output))
 

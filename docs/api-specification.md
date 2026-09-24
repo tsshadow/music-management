@@ -3,7 +3,11 @@
 The `music-manager` service provides a REST API (FastAPI) for managing the music library, users, and events.
 
 ### 🔐 Authentication
-- **POST `/api/auth/login`**: Authenticate with username/password and receive an API key. The
+- **POST `/api/auth/login`**: Authenticate with username/password and receive the user's own API
+  key: `200 {status, api_key, access_token, refresh_token, user}`, `user` carrying `permissions`,
+  `role_name` and `is_admin`. The web player reaches it as `/muma/api/auth/login` (nginx, or LMS's
+  pass-through when LMS is reached directly); LMS no longer answers that path itself with its own
+  `api-key` (breaking for any client that read LMS's flat `{id, username, is_admin, api_key}`). The
   session endpoints (`/api/auth/*`) and `GET /api/roles` are the only `users` routes under the bare
   `/api` prefix; every other user route is under `/api/users` only (there is no `/api/{user_id}/...`,
   and no `/api/users/auth/*`).
@@ -145,6 +149,21 @@ The system key passes every check. Routes not marked otherwise need any authenti
   download and the path does not say which (it used to take the first `LIKE '%<name>%'` hit).
 - **GET `/api/library/advanced`**: the filtered library browser list. Same paging bounds: `page` from 1,
   `limit` (default 100) at most 500, otherwise 422.
+
+### 🔁 LMS listen reconcile (admin)
+Repairs listen times bug report 039 moved, from LMS's own `listen` table. Rules and the file-path
+join are in the 2026-09-24 section of `docs/designs/ratings-scrobbling/technical.md`.
+- **GET `/api/scrobble/reconcile/lms`**: dry run, writes nothing. `username` (optional) limits it to
+  one user. Response `{username, servers, zones: {process_offset_seconds, database_offset_seconds,
+  database_zone, consistent}, totals: {exact, shifted, muma_only, lms_only, lms_only_insertable,
+  lms_unmapped}, users: {<username>: <same counts>}, sample: {shifted, muma_only, lms_only,
+  lms_unmapped}}` (at most 20 rows per class). 403 for a non-admin, 503 when no `lms.db` is visible.
+- **POST `/api/scrobble/reconcile/lms`**: body `{"username"?, "apply_shifted": bool,
+  "insert_lms_only": bool}`; at least one must be true (400 otherwise). Starts the apply in the
+  background (409 while one runs); one transaction per user, UNIQUE collisions skipped and counted,
+  refused when `zones.consistent` is false. Response `{message, last}`.
+- **GET `/api/scrobble/reconcile/lms/status`**: `{running, last, error}`; `last` holds
+  `{found, written: {shifted_fixed, lms_only_inserted, collisions, changed_since_read}, users, zones, ...}`.
 
 ### 📥 ListenBrainz import
 - **POST `/api/scrobble/import/listenbrainz`**: body `{"username", "lb_username"?, "token"?}`. Imports

@@ -15,26 +15,33 @@
    * @property {ChipItem[]} [items]
    * @property {function(string): void} [onnavigate] - Called with `item.view` when a navigable chip is tapped.
    * @property {string} [testid] - `data-testid` for the wrapping row.
+   * @property {boolean} [wrap] - `true` (default) wraps onto as many rows as the chips need;
+   *   `false` keeps them on one row that scrolls sideways, for a screen where every extra row
+   *   pushes something more important out of view (the Now Playing controls).
    */
 
   /** @type {Props} */
-  let { items = [], onnavigate, testid = undefined } = $props();
+  let { items = [], onnavigate, testid = undefined, wrap = true } = $props();
 
   /** Shared look for every chip, navigable or not. */
   const CHIP_CLASS =
     'px-3 py-1.5 rounded-full text-[13px] font-bold bg-[#282828] text-[#b3b3b3] hover:text-white hover:bg-[#333] border-none cursor-pointer';
 </script>
 
-<div class="flex flex-wrap gap-2" data-testid={testid}>
+<div
+  class="flex gap-2 {wrap ? 'flex-wrap' : 'flex-nowrap overflow-x-auto overscroll-x-contain scrollbar-hide'}"
+  data-testid={testid}
+  data-wrap={wrap}
+>
   {#each items as item, i (item.text + i)}
     {#if item.view}
       <button
-        class={CHIP_CLASS}
+        class="{CHIP_CLASS} {wrap ? '' : 'shrink-0 whitespace-nowrap'}"
         data-testid={item.testid}
         onclick={() => onnavigate?.(item.view)}
       >{item.text}</button>
     {:else}
-      <span class={CHIP_CLASS} data-testid={item.testid}>{item.text}</span>
+      <span class="{CHIP_CLASS} {wrap ? '' : 'shrink-0 whitespace-nowrap'}" data-testid={item.testid}>{item.text}</span>
     {/if}
   {/each}
 </div>

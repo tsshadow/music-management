@@ -165,7 +165,6 @@ describe("the MuMa call gate", () => {
   });
 
   it.each([
-    "/muma/api/auth/login",
     "/muma/api/admin/settings",
     "/muma/api/artists/name/image?auth=x",
     "/custom/base/api/artists/artist-123",
@@ -187,6 +186,17 @@ describe("the MuMa call gate", () => {
     );
     globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200 }));
     await expect(gatedFetch("/muma/api/feeds")).resolves.toMatchObject({ ok: true });
+    releases.forEach((resolve) => resolve());
+    await Promise.all(held);
+  });
+
+  it("sends the login down the direct lane, since nginx sends it to MuMa", async () => {
+    const releases = [];
+    const held = Array.from({ length: 3 }, () =>
+      withMumaGate(() => new Promise((resolve) => releases.push(resolve))),
+    );
+    globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200 }));
+    await expect(gatedFetch("/muma/api/auth/login")).resolves.toMatchObject({ ok: true });
     releases.forEach((resolve) => resolve());
     await Promise.all(held);
   });

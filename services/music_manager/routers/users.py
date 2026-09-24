@@ -46,7 +46,7 @@ _admin_guard_lock = threading.Lock()
 INVALID_API_KEY = 'Invalid API Key'
 
 
-def verify_api_key(x_api_key: str = Header(None)):
+def verify_api_key(x_api_key: str | None = Header(None)):
     """The one API-key dependency every router delegates to.
 
     Missing or unknown key 401 (the caller has not proved who it is), disabled account

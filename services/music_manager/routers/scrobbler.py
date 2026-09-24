@@ -2,25 +2,15 @@ import time
 from datetime import datetime
 
 import requests
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 
 from services.music_manager.database import get_db_connection
 from services.music_manager.rbac import is_admin_auth
+from services.music_manager.routers.users import verify_api_key
 from services.music_manager.scrobble_rematch import find_track, record_match
 
 router = APIRouter(tags=['scrobble'])
-
-
-def verify_api_key(x_api_key: str | None = Header(None)):
-    """Delegates to the canonical users.verify_api_key; kept as a name tests override.
-
-    This copy used to catch every exception from verify_token and answer 401 "Invalid
-    API key", so a disabled account and a database outage both looked like a bad key.
-    """
-    from services.music_manager.routers.users import verify_api_key as _verify
-
-    return _verify(x_api_key)
 
 
 class ScrobbleEvent(BaseModel):

@@ -1,6 +1,37 @@
+import logging
+import threading
 from abc import ABC, abstractmethod
 
 from services.common.config_store import credential
+
+# Setup complaints already logged at their full level in this process; see `log_once`.
+_logged_once: set[str] = set()
+_logged_once_lock = threading.Lock()
+
+
+def log_once(logger: logging.Logger, key: str, level: int, message: str) -> None:
+    """Log `message` at `level` the first time `key` comes up in this process, at DEBUG after.
+
+    For setup complaints a constructor would otherwise repeat: every single-artist fetch
+    from the manager builds a new ArtistImageFetcher, and each WARNING or ERROR is a push
+    on the alerts topic. The ntfy brake keys on level, source and logger for five
+    minutes, so a fetch every few minutes pushed "Spotify credentials missing" each time.
+    `forget_logged_once(key)` re-arms the key once the setup is fixed, so a later
+    regression is reported again.
+    """
+    with _logged_once_lock:
+        first = key not in _logged_once
+        _logged_once.add(key)
+    logger.log(level if first else logging.DEBUG, message)
+
+
+def forget_logged_once(key: str | None = None) -> None:
+    """Re-arm `key` (or every key) so the next `log_once` for it logs at full level again."""
+    with _logged_once_lock:
+        if key is None:
+            _logged_once.clear()
+        else:
+            _logged_once.discard(key)
 
 
 class ProviderUnavailable(Exception):

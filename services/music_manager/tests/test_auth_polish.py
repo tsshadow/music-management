@@ -331,15 +331,11 @@ class KeyCheckOutageTest(unittest.TestCase):
                 self.assertEqual(getattr(self.client, method)(path).status_code, 401)
 
     def test_no_router_keeps_a_swallowing_copy(self):
-        # Each router's verify_api_key is the same check: patching the canonical one
-        # changes what every router answers.
-        refused = users_router.HTTPException(status_code=418, detail='teapot')
+        # Each router's verify_api_key is the canonical check itself, not a copy or a
+        # wrapper (test_router_api_key_dependency.py covers every router).
         for module in (library_router, scrobbler_router, rating_router):
             with self.subTest(module=module.__name__):
-                with patch.object(users_router, 'verify_api_key', side_effect=refused):
-                    with self.assertRaises(users_router.HTTPException) as caught:
-                        module.verify_api_key('some-key')
-                self.assertEqual(caught.exception.status_code, 418)
+                self.assertIs(module.verify_api_key, users_router.verify_api_key)
 
 
 class ScrobbleUsernameTest(unittest.TestCase):

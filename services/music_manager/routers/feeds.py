@@ -12,7 +12,7 @@ from dataclasses import replace
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 
 from services.common.config_store import ConfigStore as Settings
@@ -42,6 +42,7 @@ from services.music_manager.feeds.snapshot import (
     serve as serve_snapshot,
 )
 from services.music_manager.library_paths import relative_path
+from services.music_manager.routers.users import verify_api_key
 
 router = APIRouter(tags=['feeds'])
 settings = Settings()
@@ -83,13 +84,6 @@ def init_db(cursor):
         )
         """
     )
-
-
-def verify_api_key(x_api_key: str | None = Header(None)):
-    """Delegates to the canonical users.verify_api_key; kept as a name tests override."""
-    from services.music_manager.routers.users import verify_api_key as _verify
-
-    return _verify(x_api_key)
 
 
 def _resolve_username(auth: dict, username: str | None) -> str:

@@ -1,6 +1,6 @@
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from services.common.config_store import ConfigStore
@@ -15,13 +15,6 @@ config_store = ConfigStore()
 # as well (see ConfigStore.SECRET_SENTINEL) -- the two are belt and braces, because
 # the non-secret half still describes the whole deployment.
 MANAGE = Depends(require_permission('config.manage'))
-
-
-def verify_api_key(x_api_key: str | None = Header(None)):
-    """Delegates to the canonical users.verify_api_key; kept as a name tests override."""
-    from services.music_manager.routers.users import verify_api_key as _verify
-
-    return _verify(x_api_key)
 
 
 class ConfigUpdatePayload(BaseModel):

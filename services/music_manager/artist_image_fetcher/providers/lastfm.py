@@ -2,7 +2,7 @@ import logging
 
 import requests
 
-from .base import ArtistImageProvider, ProviderUnavailable, credential
+from .base import ArtistImageProvider, ProviderUnavailable, credential, forget_logged_once, log_once
 
 # Last.fm stopped serving artist photos in 2019; `artist.getinfo` now answers every
 # artist with the same grey star placeholder, recognisable by this hash in its URL.
@@ -22,8 +22,15 @@ class LastFmArtistImageProvider(ArtistImageProvider):
     def __init__(self, api_key=None):
         self.api_key = api_key or credential('lastfm_api_key', 'LASTFM_API_KEY')
         self.logger = logging.getLogger(__name__)
-        if not self.configured:
-            self.logger.warning('Last.fm API key (LASTFM_API_KEY) not found. Last.fm provider will be disabled.')
+        if self.configured:
+            forget_logged_once('lastfm-api-key')
+        else:
+            log_once(
+                self.logger,
+                'lastfm-api-key',
+                logging.WARNING,
+                'Last.fm API key (LASTFM_API_KEY) not found. Last.fm provider will be disabled.',
+            )
 
     @property
     def name(self):

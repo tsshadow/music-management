@@ -3,7 +3,15 @@ import time
 
 import requests
 
-from .base import ArtistImageProvider, ProviderRateLimited, ProviderUnavailable, credential, parse_retry_after
+from .base import (
+    ArtistImageProvider,
+    ProviderRateLimited,
+    ProviderUnavailable,
+    credential,
+    forget_logged_once,
+    log_once,
+    parse_retry_after,
+)
 
 
 class SpotifyArtistImageProvider(ArtistImageProvider):
@@ -24,9 +32,14 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
         self._token = None
         self._token_expires_at = 0.0
         self.logger = logging.getLogger(__name__)
-        if not self.configured:
-            self.logger.warning(
-                'Spotify API credentials (SPOTIFY_CLIENT_ID/SECRET) not found. Spotify provider will be disabled.'
+        if self.configured:
+            forget_logged_once('spotify-credentials')
+        else:
+            log_once(
+                self.logger,
+                'spotify-credentials',
+                logging.WARNING,
+                'Spotify API credentials (SPOTIFY_CLIENT_ID/SECRET) not found. Spotify provider will be disabled.',
             )
 
     @property

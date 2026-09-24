@@ -7,23 +7,17 @@ import socket
 from urllib.parse import urljoin, urlsplit
 
 import requests
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from services.music_manager.database import get_db_connection
 from services.music_manager.rbac import require_permission
+from services.music_manager.routers.users import verify_api_key
 
 router = APIRouter(tags=['artists'])
 logger = logging.getLogger(__name__)
 fetch_progress = {'active': False, 'total': 0, 'current': 0, 'last_artist': None, 'status': 'idle', 'message': None}
-
-
-def verify_api_key(x_api_key: str | None = Header(None)):
-    """Delegates to the canonical users.verify_api_key; read-only routes use it."""
-    from services.music_manager.routers.users import verify_api_key as _verify
-
-    return _verify(x_api_key)
 
 
 # Changing which picture an artist carries is curation, the same as editing the artist.

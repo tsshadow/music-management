@@ -10,7 +10,7 @@ from services.common.Helpers.DatabaseConnector import DatabaseConnector
 
 from .matcher import ArtistMatcher
 from .normalizer import ArtistNameNormalizer
-from .providers.base import ProviderRateLimited, ProviderUnavailable
+from .providers.base import ProviderRateLimited, ProviderUnavailable, forget_logged_once, log_once
 from .providers.lastfm import LastFmArtistImageProvider
 from .providers.musicbrainz import MusicBrainzArtistProvider
 from .providers.soundcloud import SoundCloudArtistImageProvider
@@ -60,13 +60,19 @@ class ArtistImageFetcher:
             LastFmArtistImageProvider(),
         ]
         enabled_providers = [p.name for p in self.configured_providers]
+        # Logged once per process at full level (then DEBUG), like the providers' own
+        # complaints: the manager builds a fetcher for every single-artist fetch.
         if enabled_providers:
+            forget_logged_once('no-image-provider')
             self.logger.info(f'ArtistImageFetcher initialized with providers: {enabled_providers}')
         else:
-            self.logger.error(
+            log_once(
+                self.logger,
+                'no-image-provider',
+                logging.ERROR,
                 'ArtistImageFetcher has no configured image provider: set the Spotify client id and '
                 'secret (Beheer > Config, or SPOTIFY_CLIENT_ID/SPOTIFY_CLIENT_SECRET). Nothing will be '
-                'fetched and no artist will be marked as failed.'
+                'fetched and no artist will be marked as failed.',
             )
 
     @property
@@ -213,7 +219,7 @@ class ArtistImageFetcher:
             return False
         if self.blind:
             # No verdict without a witness: the status is left exactly as it was.
-            # INFO: construction already logged the missing provider as an ERROR once,
+            # INFO: construction already logged the missing provider as an ERROR once per process,
             # and a blind bulk run would otherwise repeat it per artist.
             self.logger.info(f'No image provider configured; not looking up {artist_name}')
             return False

@@ -21,9 +21,7 @@ import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import java.io.File
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.Track
@@ -87,7 +85,7 @@ class MumaStoragePlugin :
 
     private val lookup by lazy { TrackLookup(mediaPlayerManager, activeServerProvider) }
     private val main = Handler(Looper.getMainLooper())
-    private val io = CoroutineScope(Dispatchers.IO)
+    private val calls = PluginCallScope("MumaStorage")
     private val subscriptions = CompositeDisposable()
 
     /**
@@ -147,19 +145,20 @@ class MumaStoragePlugin :
     override fun handleOnDestroy() {
         subscriptions.clear()
         unwatchConnectivity()
+        calls.cancel()
     }
 
     @PluginMethod
     fun stateOf(call: PluginCall) {
         val ids = stringsOf(call.getArray("ids"))
-        withTracks(ids) { tracks ->
-            io.launch {
+        withTracks(call, ids) { tracks, answer ->
+            calls.runCall(answer) {
                 val result = JSObject()
                 ids.forEach { id ->
                     val track = tracks[id]
                     result.put(id, if (track == null) "none" else downloadStateWire(DownloadService.getDownloadState(track)))
                 }
-                main.post { call.resolve(result) }
+                withContext(Dispatchers.Main) { answer.resolve(result) }
             }
         }
     }
@@ -167,9 +166,9 @@ class MumaStoragePlugin :
     @PluginMethod
     fun isLocal(call: PluginCall) {
         val id = call.getString("id").orEmpty()
-        withTracks(listOf(id)) { tracks ->
+        withTracks(call, listOf(id)) { tracks, answer ->
             val track = tracks[id]
-            call.resolve(JSObject().put("value", track != null && isOnDisk(track)))
+            answer.resolve(JSObject().put("value", track != null && isOnDisk(track)))
         }
     }
 
@@ -181,10 +180,10 @@ class MumaStoragePlugin :
     fun download(call: PluginCall) {
         val ids = stringsOf(call.getArray("ids"))
         val pin = call.getBoolean("pin", false) == true
-        withTracks(ids) { tracks ->
+        withTracks(call, ids) { tracks, answer ->
             val found = ids.mapNotNull { tracks[it] }
             if (found.isNotEmpty()) DownloadService.download(found, save = pin, updateSaveFlag = pin)
-            call.resolve(JSObject().put("requested", found.size).put("unknown", ids.size - found.size))
+            answer.resolve(JSObject().put("requested", found.size).put("unknown", ids.size - found.size))
         }
     }
 
@@ -196,12 +195,12 @@ class MumaStoragePlugin :
     @PluginMethod
     fun remove(call: PluginCall) {
         val ids = stringsOf(call.getArray("ids"))
-        withTracks(ids) { tracks ->
+        withTracks(call, ids) { tracks, answer ->
             val found = ids.mapNotNull { tracks[it] }
             DownloadService.unpin(found)
             DownloadService.delete(found)
             offline.invalidate()
-            call.resolve(JSObject().put("removed", found.size))
+            answer.resolve(JSObject().put("removed", found.size))
         }
     }
 
@@ -225,14 +224,14 @@ class MumaStoragePlugin :
 
     @PluginMethod
     fun size(call: PluginCall) {
-        io.launch {
+        calls.runCall(call) { answer ->
             val bytes = try {
                 bytesUnder(FileUtil.musicDirectory)
             } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
                 Timber.w(all, "Failed to measure the download directory")
                 0L
             }
-            call.resolve(JSObject().put("value", bytes))
+            answer.resolve(JSObject().put("value", bytes))
         }
     }
 
@@ -267,14 +266,14 @@ class MumaStoragePlugin :
     fun query(call: PluginCall) {
         val method = call.getString("method").orEmpty()
         val params: JSONObject = call.getObject("params") ?: JSObject()
-        io.launch {
-            val answer = try {
+        calls.runCall(call) { answer ->
+            val body = try {
                 offline.answer(method, params)
             } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
                 Timber.w(all, "Offline query for %s failed", method)
                 JSONObject().put(OfflineSubsonic.RESPONSE, JSONObject().put("status", "ok"))
             }
-            withContext(Dispatchers.Main) { call.resolve(JSObject.fromJSONObject(answer)) }
+            withContext(Dispatchers.Main) { answer.resolve(JSObject.fromJSONObject(body)) }
         }
     }
 
@@ -357,19 +356,39 @@ class MumaStoragePlugin :
      * Resolves the ids and hands them to [block] on the main thread, because everything the
      * callers do with them ends up in `DownloadService`, whose LiveData is main-thread bound.
      * The queue is read first (main thread, no IO) and only the remainder reaches Room.
+     *
+     * [block] answers through the [CallAnswer] it is given; a failure anywhere on the way,
+     * the Room lookup included, rejects [call] instead of leaving its promise pending.
      */
-    private fun withTracks(ids: List<String>, block: (Map<String, Track>) -> Unit) {
+    private fun withTracks(call: PluginCall, ids: List<String>, block: (Map<String, Track>, CallAnswer) -> Unit) {
+        val answer = CallAnswer(call)
         main.post {
-            val queued = lookup.queued(ids)
-            val missing = ids.filterNot { queued.containsKey(it) }
-            if (missing.isEmpty()) {
-                block(queued)
+            val queued = try {
+                lookup.queued(ids)
+            } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
+                Timber.w(failure, "Could not read the queue for %s", ids)
+                answer.reject(failure.message ?: failure.javaClass.simpleName)
                 return@post
             }
-            io.launch {
-                val cached = lookup.fromCache(missing)
-                withContext(Dispatchers.Main) { block(queued + cached) }
+            val missing = ids.filterNot { queued.containsKey(it) }
+            if (missing.isEmpty()) {
+                runBlockSafely(answer) { block(queued, answer) }
+                return@post
             }
+            calls.runCall(answer) {
+                val cached = lookup.fromCache(missing)
+                withContext(Dispatchers.Main) { block(queued + cached, answer) }
+            }
+        }
+    }
+
+    /** Runs [block] on the calling thread, rejecting [answer] if it throws. */
+    private fun runBlockSafely(answer: CallAnswer, block: () -> Unit) {
+        try {
+            block()
+        } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
+            Timber.w(failure, "Storage call failed")
+            answer.reject(failure.message ?: failure.javaClass.simpleName)
         }
     }
 

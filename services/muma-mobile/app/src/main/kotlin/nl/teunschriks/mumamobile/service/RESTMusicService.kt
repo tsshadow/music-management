@@ -879,14 +879,26 @@ open class RESTMusicService(
         ensureMumaLogin(force = true)
     }
 
+    /**
+     * Makes sure the MuMa client carries an API key, logging in with the Subsonic credentials
+     * only when no key is stored yet or when [force] says the stored one was refused.
+     *
+     * The stored key lives in [Settings.mumaApiKey] (written by
+     * [ActiveServerProvider.setMumaSettings]); the server entry's own `apiKey` is never filled
+     * for the static servers. Reading only the latter made every settings, tile and crash-report
+     * call post `/api/auth/login` first, which is what fed the login rate limit.
+     */
     @Throws(Exception::class)
     private fun ensureMumaLogin(force: Boolean = false) {
         val activeServer = activeServerProvider.getActiveServer()
-        if (!force &&
-            !activeServer.apiKey.isNullOrEmpty() &&
-            isUsableMumaUserId(activeServer.mumaUserId)
-        ) {
-            subsonicAPIClient.mumaApi.setApiKey(activeServer.apiKey!!)
+        val credentials = MumaStoredCredentials.resolve(
+            serverApiKey = activeServer.apiKey,
+            serverUserId = activeServer.mumaUserId,
+            settingsApiKey = Settings.mumaApiKey,
+            settingsUserId = Settings.mumaUserId
+        )
+        if (!force && credentials != null) {
+            subsonicAPIClient.mumaApi.setApiKey(credentials.apiKey)
             return
         }
 
@@ -920,6 +932,17 @@ open class RESTMusicService(
         }
     }
 
+    /**
+     * Runs [request] and, when the server answers 401 to the stored key, logs in once and runs
+     * it again. Now that a stored key is trusted instead of re-validated by a login on every
+     * call, this is what recovers from a key the server no longer accepts.
+     */
+    @Throws(Exception::class)
+    private fun <T> retryOnceWhenUnauthorized(request: () -> retrofit2.Response<T>): retrofit2.Response<T> = MumaStoredCredentials.retryOnceWhenUnauthorized(
+        login = { ensureMumaLogin(force = true) },
+        request = request
+    )
+
     @Throws(Exception::class)
     override fun getMumaTiles(): List<MumaTile> {
         ensureMumaLogin()
@@ -927,7 +950,7 @@ open class RESTMusicService(
         val userId = activeServer.mumaUserId ?: Settings.mumaUserId
         if (!isUsableMumaUserId(userId)) throw IOException("User ID not set")
 
-        val response = subsonicAPIClient.mumaApi.api.getTiles(userId).execute()
+        val response = retryOnceWhenUnauthorized { subsonicAPIClient.mumaApi.api.getTiles(userId).execute() }
         if (!response.isSuccessful) throw IOException("Failed to get MuMa tiles: ${response.code()}")
         return response.body()?.map { MumaTile(it.id?.toString(), it.name, it.smartParams) } ?: emptyList()
     }
@@ -940,7 +963,7 @@ open class RESTMusicService(
         if (!isUsableMumaUserId(userId)) throw IOException("User ID not set")
 
         val apiTile = MumaApiTile(tile.id?.toIntOrNull(), tile.name, tile.smartParams)
-        val response = subsonicAPIClient.mumaApi.api.saveTile(userId, apiTile).execute()
+        val response = retryOnceWhenUnauthorized { subsonicAPIClient.mumaApi.api.saveTile(userId, apiTile).execute() }
         if (!response.isSuccessful) throw IOException("Failed to save MuMa tile: ${response.code()}")
         return response.body()?.id ?: throw IOException("Empty response from server")
     }
@@ -953,14 +976,14 @@ open class RESTMusicService(
         if (!isUsableMumaUserId(userId)) throw IOException("User ID not set")
 
         val playlistId = id.toIntOrNull() ?: throw IOException("Invalid tile ID: $id")
-        val response = subsonicAPIClient.mumaApi.api.deleteTile(userId, playlistId).execute()
+        val response = retryOnceWhenUnauthorized { subsonicAPIClient.mumaApi.api.deleteTile(userId, playlistId).execute() }
         if (!response.isSuccessful) throw IOException("Failed to delete MuMa tile: ${response.code()}")
     }
 
     @Throws(Exception::class)
     override fun getMumaSettings(userId: Int, appId: String): String? {
         ensureMumaLogin()
-        val response = subsonicAPIClient.mumaApi.api.getSettings(userId, appId).execute()
+        val response = retryOnceWhenUnauthorized { subsonicAPIClient.mumaApi.api.getSettings(userId, appId).execute() }
         if (!response.isSuccessful) throw IOException("Failed to get settings: ${response.code()}")
         return response.body()?.settings
     }
@@ -969,7 +992,7 @@ open class RESTMusicService(
     override fun saveMumaSettings(userId: Int, appId: String, settings: String) {
         ensureMumaLogin()
         val req = nl.teunschriks.mumamobile.api.muma.MumaSettingsRequest(settings)
-        val response = subsonicAPIClient.mumaApi.api.saveSettings(userId, appId, req).execute()
+        val response = retryOnceWhenUnauthorized { subsonicAPIClient.mumaApi.api.saveSettings(userId, appId, req).execute() }
         if (!response.isSuccessful) throw IOException("Failed to save settings: ${response.code()}")
     }
 
@@ -993,7 +1016,7 @@ open class RESTMusicService(
             ring_buffer_text = ringBufferText,
             stacktrace_text = stacktraceText
         )
-        val response = subsonicAPIClient.mumaApi.api.uploadCrashReport(req).execute()
+        val response = retryOnceWhenUnauthorized { subsonicAPIClient.mumaApi.api.uploadCrashReport(req).execute() }
         if (!response.isSuccessful) throw IOException("Failed to upload crash report: ${response.code()}")
     }
 

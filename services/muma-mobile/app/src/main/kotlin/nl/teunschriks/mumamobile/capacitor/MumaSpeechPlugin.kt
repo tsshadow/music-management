@@ -18,10 +18,7 @@ import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import com.getcapacitor.annotation.Permission
 import com.getcapacitor.annotation.PermissionCallback
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.service.MusicServiceFactory
@@ -92,7 +89,7 @@ private const val MICROPHONE_ALIAS = "microphone"
 class MumaSpeechPlugin : Plugin() {
 
     private val main = Handler(Looper.getMainLooper())
-    private val io = CoroutineScope(Dispatchers.IO)
+    private val calls = PluginCallScope("MumaSpeech")
     private var capture: SpeechCapture? = null
 
     @PluginMethod
@@ -154,7 +151,7 @@ class MumaSpeechPlugin : Plugin() {
             (0 until array.length()).mapNotNull { index -> array.optString(index, "").takeIf { it.isNotBlank() } }
         }.orEmpty()
 
-        io.launch {
+        calls.runCall(call) { answer ->
             val trace = QueryTrace(entryPoint, "web")
             val resolution = runCatching {
                 if (pinned != null) {
@@ -172,7 +169,7 @@ class MumaSpeechPlugin : Plugin() {
                 QueryResolution.NoMatch(it.javaClass.simpleName, trace)
             }
             VoiceTraceLog.record(resolution.trace)
-            withContext(Dispatchers.Main) { call.resolve(interpretPayload(resolution)) }
+            withContext(Dispatchers.Main) { answer.resolve(interpretPayload(resolution)) }
         }
     }
 
@@ -205,7 +202,7 @@ class MumaSpeechPlugin : Plugin() {
 
     override fun handleOnDestroy() {
         main.post { capture?.stop() }
-        io.cancel()
+        calls.cancel()
     }
 
     private fun beginListening(call: PluginCall) {

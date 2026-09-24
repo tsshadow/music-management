@@ -23,6 +23,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import com.google.common.util.concurrent.SettableFuture
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.PriorityBlockingQueue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -105,6 +106,16 @@ class DownloadService :
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         return START_NOT_STICKY
+    }
+
+    /**
+     * Android 15 gives a `dataSync` foreground service six hours a day and then calls this; a
+     * service that does not stop within seconds is treated as an ANR. What is still queued is
+     * picked up again by the next [download] call, which starts the service afresh.
+     */
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        Timber.w("DownloadService used up its daily dataSync foreground time, stopping")
+        stopSelf()
     }
 
     override fun onDestroy() {
@@ -512,7 +523,13 @@ class DownloadService :
         private fun processNextTracksOnService() {
             val serviceFuture = startFuture ?: requestStart()
             serviceFuture.addListener({
-                val service = serviceFuture.get()
+                val service = try {
+                    serviceFuture.get()
+                } catch (failed: ExecutionException) {
+                    // Already logged by startService; the queue stays and the next call retries.
+                    Timber.d(failed, "DownloadService did not start, downloads wait for the next request")
+                    return@addListener
+                }
                 service.processNextTracks()
                 Timber.i("DownloadService processNextTracks executed.")
             }, MoreExecutors.directExecutor())
@@ -539,6 +556,13 @@ class DownloadService :
             return future
         }
 
+        /**
+         * Starts the service in the foreground. Android refuses that from the background
+         * (`ForegroundServiceStartNotAllowedException`, an [IllegalStateException]); the start
+         * future is then failed and forgotten, so the next [download] call tries again. It used
+         * to stay pending forever, and every later request queued behind a start that would
+         * never happen until the process was restarted.
+         */
         private fun startService() {
             try {
                 val context = UApp.applicationContext()
@@ -549,7 +573,15 @@ class DownloadService :
                     context.startService(intent)
                 }
             } catch (e: IllegalStateException) {
-                Timber.w(e, "Failed to start download service: the app is in the background")
+                Timber.w(
+                    e,
+                    "Downloads not started: Android refused to start the download service (%s: %s)",
+                    e.javaClass.simpleName,
+                    e.message
+                )
+                val pending = startFuture
+                startFuture = null
+                pending?.setException(e)
             }
         }
 

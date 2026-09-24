@@ -101,6 +101,56 @@ class TestRating(unittest.TestCase):
         path_res_call = next(call for call in mock_cursor.execute.call_args_list if 'SELECT t.track_uid' in call[0][0])
         self.assertIn('/mnt/music/Soundcloud/EQUAL2/song.mp3', path_res_call[0][1])
 
+    @patch('services.music_manager.routers.rating.get_db_connection')
+    def test_rating_removed_deletes_the_mirrored_row(self, mock_get_db):
+        """Clearing a rating in LMS sends ``rating_removed``; the mirror must drop the row
+        rather than keep the old star forever (the sync is one-way)."""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_db.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        mock_cursor.fetchone.return_value = {'track_uid': 'resolved-uid'}
+        payload = {
+            'event': 'rating_removed',
+            'object_type': 'track',
+            'object_id': '1392868',
+            'username': 'user',
+            'rating': 0,
+            'path': '/music/Soundcloud/EQUAL2/song.mp3',
+        }
+        response = self.client.post('/api/rating/lms-event', json=payload, headers={'x-api-key': self.api_key})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'status': 'removed', 'entity_id': 'resolved-uid'})
+        statements = [call[0][0] for call in mock_cursor.execute.call_args_list]
+        self.assertFalse(any('INSERT INTO rating_tracks' in sql for sql in statements))
+        delete_call = next(
+            call for call in mock_cursor.execute.call_args_list if 'DELETE FROM rating_tracks' in call[0][0]
+        )
+        self.assertEqual(delete_call[0][1], ('track', 'resolved-uid', 'user'))
+        mock_conn.commit.assert_called()
+
+    @patch('services.music_manager.routers.rating.get_db_connection')
+    def test_rating_changed_to_zero_is_a_removal(self, mock_get_db):
+        """No star count below 1 exists, so a zero rating never lands in the mirror."""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_db.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        payload = {
+            'event': 'rating_changed',
+            'object_type': 'artist',
+            'object_id': 'Headhunterz',
+            'username': 'user',
+            'rating': 0,
+        }
+        response = self.client.post('/api/rating/lms-event', json=payload, headers={'x-api-key': self.api_key})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'status': 'removed', 'entity_id': 'Headhunterz'})
+        delete_call = next(
+            call for call in mock_cursor.execute.call_args_list if 'DELETE FROM rating_tracks' in call[0][0]
+        )
+        self.assertEqual(delete_call[0][1], ('artist', 'Headhunterz', 'user'))
+
     def test_candidate_paths_bridges_both_roots(self):
         from services.music_manager.routers.rating import candidate_paths
 

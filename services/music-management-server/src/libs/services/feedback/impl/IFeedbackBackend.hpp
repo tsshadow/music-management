@@ -20,6 +20,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 #include "database/objects/RatedArtistId.hpp"
 #include "database/objects/RatedReleaseId.hpp"
@@ -31,6 +32,18 @@
 
 namespace lms::feedback
 {
+    /// Everything a backend needs to report a cleared rating. The rated row is already gone
+    /// by the time backends are notified, so the service captures this inside the write
+    /// transaction that removes it; looking the row up afterwards finds nothing.
+    struct RatingRemovedEvent
+    {
+        std::string objectType; // "artist", "release" or "track"
+        std::string objectId;   // same identifier the rating-changed notification uses
+        std::string username;
+        std::string path; // absolute file path, tracks only
+        int previousRating{};
+    };
+
     class IFeedbackBackend
     {
     public:
@@ -46,6 +59,8 @@ namespace lms::feedback
         virtual void onRatingChanged(db::RatedArtistId artistId) = 0;
         virtual void onRatingChanged(db::RatedReleaseId releaseId) = 0;
         virtual void onRatingChanged(db::RatedTrackId trackId) = 0;
+        /// Called after a rating was cleared; \p event was captured before the row was removed.
+        virtual void onRatingRemoved(const RatingRemovedEvent& event) = 0;
 
         virtual void onPlaylistChanged(db::TrackListId playlistId) = 0;
     };

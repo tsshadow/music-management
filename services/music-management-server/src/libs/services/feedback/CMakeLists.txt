@@ -26,3 +26,7 @@ target_link_libraries(lmsfeedback PRIVATE
 target_link_libraries(lmsfeedback PUBLIC
 	lmsdatabase
 	)
+
+if(BUILD_TESTING)
+	add_subdirectory(test)
+endif()

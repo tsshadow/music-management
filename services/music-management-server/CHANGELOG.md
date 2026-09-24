@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **`updateUser` could crash the server for everyone.** `feedbackBackend` and `scrobblingBackend`
+  were `static_cast` from any integer; the next rating or listen then ran
+  `_backends[*backend]->...`, where `unordered_map::operator[]` inserted a null backend for the
+  unknown key and the call dereferenced it (and wrote to a map every request thread shares). Every
+  enum setting `updateUser` takes is now range-checked (`endpoints/UserSettingsValidation.hpp`;
+  unknown value = `BadParameterGenericError`, nothing written), `subsonicDefaultTranscodeBitrate`
+  must be an allowed bitrate, and `FeedbackService::findBackend` /
+  `ScrobblingService::findUserBackend` use `find()` and log-and-skip. `updateUser` stays
+  self-service: upstream LMS does not implement it, and the web player's settings and password
+  change use it for the caller's own account. See docs/bug-reports/044-any-user-can-crash-lms-through-updateuser.md.
+- **Subsonic tokens are unique per domain.** A token shared by two users made `AuthToken::find`
+  throw `NoUniqueResult` (a 500 for both). Migration V121 deletes values held by more than one
+  user, keeps the oldest row of a value one user holds twice, and replaces
+  `auth_token_domain_value_idx` with the unique `auth_token_domain_value_unique_idx`. `updateUser`
+  refuses a token shorter than 16 characters or one another user holds.
+- **`getSpotifyTracks` / `getSpotifyPlaylist` / `getSpotifyHistory` bound their page.** A negative
+  `offset` or `count` is a bad parameter (it wrapped to `SIZE_MAX`), and `count` is clamped to
+  1000 -- the largest real request is 500.
+- **`SendQueue` survives a MuMa that answers 429.** A 429 went back to the head of the queue with no
+  retry cap and paused the whole queue, proxied calls included. Now a `treatAnyStatusAsSuccess`
+  request gets the 429 as its answer and pauses nothing; any other request is retried at the back
+  of the queue at most 3 times, then failed. The queue holds at most 1000 unsent requests (the
+  oldest lowest-priority one is failed beyond that), and a request aborted without an
+  `onAbortFunc` gets its `onFailureFunc`, so a caller blocked on a promise is released.
+
+### Fixed
+- **A cleared rating reaches MuMa.** `FeedbackService::setRating(..., nullopt)` removed the row
+  and then notified with its id; `MusicManagementBackend` found nothing and sent nothing. The
+  payload is captured inside the write transaction as a `RatingRemovedEvent` and sent through the
+  new `IFeedbackBackend::onRatingRemoved` as `{"event": "rating_removed", "rating": 0, ...}`. New
+  `test-feedback` suite.
+- **Deduplicated pagination no longer skips tracks.** `nextOffset` counted every row of the last
+  scan batch, including those after the page filled; `spotifyPaging::collectDedupedPage` counts
+  only the consumed rows and reports `moreResults` when the page cut a batch short. History loads
+  listens and tracks in one query (`Listen::findWithTrack`).
+
 ### Added
 - **Every track is filed under a `QUALITY` cluster, and `getSpotifyTracks` takes a floor on it.**
   `lossless` / `320` / `aac` / `192` / `low`, the five tiers muma's `format_tier()` ranks the

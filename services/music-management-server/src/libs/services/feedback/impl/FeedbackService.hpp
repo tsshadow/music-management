@@ -36,7 +36,12 @@ namespace lms::feedback
     class FeedbackService : public IFeedbackService
     {
     public:
+        using Backends = std::unordered_map<db::FeedbackBackend, std::unique_ptr<IFeedbackBackend>>;
+
         FeedbackService(boost::asio::io_context& ioContext, db::IDb& db);
+        /// Service over \p backends instead of the production ones; lets a test observe exactly
+        /// which notifications a rating change produces.
+        FeedbackService(db::IDb& db, Backends backends);
         ~FeedbackService() override;
         FeedbackService(const FeedbackService&) = delete;
         FeedbackService& operator=(const FeedbackService&) = delete;
@@ -72,6 +77,9 @@ namespace lms::feedback
         void notifyPlaylistChanged(db::TrackListId playlistId) override;
 
         std::optional<db::FeedbackBackend> getUserFeedbackBackend(db::UserId userId);
+        /// Backend instance for \p backend, or nullptr (logged) for a value no backend is
+        /// registered under. Never inserts: the map is shared by every request thread.
+        IFeedbackBackend* findBackend(db::FeedbackBackend backend) const;
 
         template<typename ObjType, typename ObjIdType, typename StarredObjType>
         void star(db::UserId userId, ObjIdType id);
@@ -89,7 +97,7 @@ namespace lms::feedback
         std::optional<db::Rating> getRating(db::UserId userId, ObjIdType objectId);
 
         db::IDb& _db;
-        std::unordered_map<db::FeedbackBackend, std::unique_ptr<IFeedbackBackend>> _backends;
+        Backends _backends;
     };
 
 } // namespace lms::feedback

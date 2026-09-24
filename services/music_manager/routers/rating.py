@@ -46,6 +46,13 @@ class Rating(BaseModel):
 
 
 class MuMaServerEvent(BaseModel):
+    """A rating event pushed by the music-management-server (LMS fork).
+
+    ``event`` is ``rating_changed`` (upsert ``rating``) or ``rating_removed`` (the user
+    cleared the rating; ``rating`` is 0). A ``rating_changed`` with a rating of 0 or less
+    is treated as a removal as well, because no star count below 1 exists.
+    """
+
     event: str
     object_type: str
     object_id: str
@@ -63,9 +70,11 @@ def init_db(cursor):
 @router.post('/server-event')
 @router.post('/lms-event')
 def handle_server_event(event: MuMaServerEvent, _auth: dict = Depends(require_system_key)):
-    """Store a rating LMS reports. System key only, see require_system_key."""
-    if event.event != 'rating_changed':
+    """Mirror one LMS rating event into ``rating_tracks``: upsert a rating, or delete the
+    row when the rating was cleared on the server. System key only, see require_system_key."""
+    if event.event not in ('rating_changed', 'rating_removed'):
         return {'status': 'ignored', 'reason': 'unsupported event type'}
+    removed = event.event == 'rating_removed' or event.rating <= 0
     entity_id = event.object_id
     if event.object_type == 'track' and event.path:
         possible_paths = candidate_paths(event.path)
@@ -86,6 +95,13 @@ def handle_server_event(event: MuMaServerEvent, _auth: dict = Depends(require_sy
         raise HTTPException(status_code=500, detail='Database connection failed')
     try:
         with conn.cursor() as cursor:
+            if removed:
+                cursor.execute(
+                    'DELETE FROM rating_tracks WHERE entity_type = %s AND entity_id = %s AND username = %s',
+                    (event.object_type, entity_id, event.username),
+                )
+                conn.commit()
+                return {'status': 'removed', 'entity_id': entity_id}
             cursor.execute(
                 '\n                INSERT INTO rating_tracks (entity_type, entity_id, username, rating)\n                VALUES (%s, %s, %s, %s)\n                ON DUPLICATE KEY UPDATE rating = VALUES(rating)\n            ',
                 (event.object_type, entity_id, event.username, event.rating),

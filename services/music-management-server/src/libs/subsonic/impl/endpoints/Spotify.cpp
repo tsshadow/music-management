@@ -23,6 +23,7 @@
 #include "../RequestContext.hpp"
 #include "../SubsonicId.hpp"
 #include "FestivalLineupRepository.hpp"
+#include "SpotifyPaging.hpp"
 #include "core/Service.hpp"
 #include "core/String.hpp"
 #include "database/Session.hpp"
@@ -42,7 +43,7 @@
 #include <set>
 #include <string>
 #include <string_view>
-#include <unordered_map>
+#include <vector>
 
 namespace lms::api::subsonic
 {
@@ -100,68 +101,36 @@ namespace lms::api::subsonic
         void findTracks(db::Session& session, db::Track::FindParameters& params, const std::map<std::string, std::set<db::ClusterId>>& clusterGroups, bool deduplicate, int& nextOffset, bool& moreResults, std::function<void(const db::Track::pointer&)> callback)
         {
             int initialOffset = params.range ? static_cast<int>(params.range->offset) : 0;
-            int requestedCount = params.range ? static_cast<int>(params.range->size) : 50;
+            const int requestedCount = params.range ? static_cast<int>(params.range->size) : 50;
 
             if (deduplicate)
             {
-                std::unordered_map<std::string, db::Track::pointer> bestTracks;
-                std::vector<std::string> orderedKeys;
+                // Scan at least 100 rows per round so a small page still sees past a run of
+                // duplicates; cap the total so one request cannot walk the whole library.
+                const std::size_t scanBatchSize{ std::max<std::size_t>(static_cast<std::size_t>(requestedCount), 100) };
+                constexpr std::size_t maxScanCount{ 5000 };
 
-                int uniqueCount = 0;
-                int totalScanned = 0;
-                bool batchMoreResults = false;
+                std::vector<db::Track::pointer> tracks;
+                const spotifyPaging::DedupedPageResult page{ spotifyPaging::collectDedupedPage<db::Track::pointer>(
+                    static_cast<std::size_t>(initialOffset), static_cast<std::size_t>(requestedCount), scanBatchSize, maxScanCount,
+                    [&](std::size_t offset, std::size_t size, const auto& visit) {
+                        params.range = db::Range{ offset, size };
+                        db::Track::find_advanced(session, params, clusterGroups, [&](const db::Track::pointer& track) { visit(track); });
+                    },
+                    getDedupeKey,
+                    // muma named a winner; nothing here re-decides that. The score only
+                    // settles it when neither is canonical, which happens while a work is
+                    // being regrouped and its canonical has not been recomputed yet.
+                    [](const db::Track::pointer& current, const db::Track::pointer& candidate) {
+                        return !current->isCanonical() && (candidate->isCanonical() || candidate->getVersionScore() > current->getVersionScore());
+                    },
+                    tracks) };
 
-                // We iterate in batches to fill requestedCount unique tracks
-                int currentScanOffset = initialOffset;
-                int scanBatchSize = std::max(requestedCount, 100);
-                const int maxScanCount = 5000; // Limit scanning to avoid server hangs
+                for (const db::Track::pointer& track : tracks)
+                    callback(track);
 
-                while (uniqueCount < requestedCount && totalScanned < maxScanCount)
-                {
-                    params.range = db::Range{ static_cast<std::size_t>(currentScanOffset), static_cast<std::size_t>(scanBatchSize) };
-
-                    int batchScanned = 0;
-                    db::Track::find_advanced(session, params, clusterGroups, [&](const db::Track::pointer& track) {
-                        batchScanned++;
-                        if (uniqueCount >= requestedCount)
-                            return;
-
-                        std::string key = getDedupeKey(track);
-                        auto it = bestTracks.find(key);
-                        if (it == bestTracks.end())
-                        {
-                            bestTracks[key] = track;
-                            orderedKeys.push_back(key);
-                            uniqueCount++;
-                        }
-                        // muma named a winner; nothing here re-decides that. The score only
-                        // settles it when neither is canonical, which happens while a work is
-                        // being regrouped and its canonical has not been recomputed yet.
-                        else if (!it->second->isCanonical()
-                                 && (track->isCanonical() || track->getVersionScore() > it->second->getVersionScore()))
-                        {
-                            bestTracks[key] = track;
-                        }
-                    });
-
-                    totalScanned += batchScanned;
-                    currentScanOffset += batchScanned;
-
-                    // We need to know if there were more results in the batch
-                    // find_advanced doesn't easily tell us this for raw SQL unless we check if we got scanBatchSize results
-                    batchMoreResults = (batchScanned >= scanBatchSize);
-
-                    if (!batchMoreResults || uniqueCount >= requestedCount)
-                        break;
-                }
-
-                for (const auto& key : orderedKeys)
-                {
-                    callback(bestTracks[key]);
-                }
-
-                moreResults = batchMoreResults;
-                nextOffset = initialOffset + totalScanned;
+                moreResults = page.moreResults;
+                nextOffset = static_cast<int>(page.nextOffset);
             }
             else
             {
@@ -229,9 +198,7 @@ namespace lms::api::subsonic
         auto transaction{ session.createReadTransaction() };
 
         db::Track::FindParameters params;
-        int offset = getParameterAs<int>(ctx.getParameters(), "offset").value_or(0);
-        int count = getParameterAs<int>(ctx.getParameters(), "count").value_or(50);
-        params.range = db::Range{ static_cast<std::size_t>(offset), static_cast<std::size_t>(count) };
+        params.range = spotifyPaging::parseRange(getParameterAs<int>(ctx.getParameters(), "offset"), getParameterAs<int>(ctx.getParameters(), "count"));
 
         if (auto seed = getParameterAs<int>(ctx.getParameters(), "seed"))
         {
@@ -465,9 +432,7 @@ namespace lms::api::subsonic
             params.ratingUser = ctx.getUser()->getId();
         }
 
-        int offset = getParameterAs<int>(ctx.getParameters(), "offset").value_or(0);
-        int count = getParameterAs<int>(ctx.getParameters(), "count").value_or(50);
-        params.range = db::Range{ static_cast<std::size_t>(offset), static_cast<std::size_t>(count) };
+        params.range = spotifyPaging::parseRange(getParameterAs<int>(ctx.getParameters(), "offset"), getParameterAs<int>(ctx.getParameters(), "count"));
 
         Response response{ Response::createOkResponse(ctx.getServerProtocolVersion()) };
         auto& tracksNode = response.createNode("tracks");
@@ -505,28 +470,20 @@ namespace lms::api::subsonic
         params.setUser(ctx.getUser()->getId());
         params.setDesc(true);
 
-        int offset = getParameterAs<int>(ctx.getParameters(), "offset").value_or(0);
-        int count = getParameterAs<int>(ctx.getParameters(), "count").value_or(50);
-        params.range = db::Range{ static_cast<std::size_t>(offset), static_cast<std::size_t>(count) };
+        params.range = spotifyPaging::parseRange(getParameterAs<int>(ctx.getParameters(), "offset"), getParameterAs<int>(ctx.getParameters(), "count"));
 
         Response response{ Response::createOkResponse(ctx.getServerProtocolVersion()) };
         auto& historyNode = response.createNode("history");
 
-        auto results = db::Listen::find(session, params);
-        for (db::ListenId listenId : results.results)
-        {
-            if (auto listen = db::Listen::find(session, listenId))
-            {
-                if (auto track = listen->getTrack())
-                {
-                    auto entryNode{ createSongNode(ctx, track, true) };
-                    entryNode.setAttribute("listenedAt", listen->getDateTime().toString().toUTF8());
-                    historyNode.addArrayChild("entry", std::move(entryNode));
-                }
-            }
-        }
+        // Listens and their tracks in one query, instead of one lookup per listen.
+        bool moreResults{};
+        db::Listen::findWithTrack(session, params, moreResults, [&](const db::Listen::pointer& listen, const db::ObjectPtr<db::Track>& track) {
+            auto entryNode{ createSongNode(ctx, track, true) };
+            entryNode.setAttribute("listenedAt", listen->getDateTime().toString().toUTF8());
+            historyNode.addArrayChild("entry", std::move(entryNode));
+        });
 
-        historyNode.setAttribute("moreResults", results.moreResults);
+        historyNode.setAttribute("moreResults", moreResults);
 
         return response;
     }

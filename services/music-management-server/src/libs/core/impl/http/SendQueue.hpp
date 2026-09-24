@@ -57,6 +57,11 @@ namespace lms::core::http
         void throttle(std::chrono::seconds duration);
 
         const std::size_t _maxRetryCount{ 2 };
+        // How many 429 answers one request may receive before it is failed rather than requeued.
+        const std::size_t _maxRateLimitRetryCount{ 3 };
+        // Upper bound on queued (not yet sent) requests; beyond it the oldest low-priority one is
+        // dropped, so an unreachable endpoint cannot grow the queue without limit.
+        const std::size_t _maxQueuedRequests{ 1000 };
         // How many transport errors in a row it takes before the endpoint is treated as down and
         // the queue stops sending altogether.
         const std::size_t _consecutiveErrorsBeforeThrottling{ 3 };

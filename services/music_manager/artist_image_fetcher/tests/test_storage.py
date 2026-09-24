@@ -62,6 +62,12 @@ class ImageStorageTest(unittest.TestCase):
         with self.assertRaises(UnidentifiedImageError):
             self.storage.save_image(7, 'spotify', b'this is not an image')
 
+    # The fetcher decides how loud a failure is; storage only raises.
+    def test_a_failure_is_raised_without_logging_anything(self):
+        with self.assertNoLogs(storage.__name__, level='INFO'):
+            with self.assertRaises(UnidentifiedImageError):
+                self.storage.save_image(7, 'spotify', b'this is not an image')
+
 
 class ImageDownloaderTest(unittest.TestCase):
     def setUp(self):
@@ -114,6 +120,16 @@ class ImageDownloaderTest(unittest.TestCase):
             http.get.return_value = response
             with self.assertRaises(RuntimeError):
                 downloader.download('https://img.test/a.jpg')
+
+    # Each attempt is one artist's; a WARNING per retry was a push on the phone.
+    def test_a_failed_attempt_is_logged_at_info_only(self):
+        downloader = storage.ImageDownloader(retries=2)
+        with patch.object(storage, 'requests') as http:
+            http.get.side_effect = RuntimeError('boom')
+            with self.assertLogs(storage.__name__, level='INFO') as logs:
+                with self.assertRaises(RuntimeError):
+                    downloader.download('https://img.test/a.jpg')
+        self.assertEqual([r.levelname for r in logs.records], ['INFO', 'INFO'])
 
     def test_the_configured_timeout_is_passed_on(self):
         downloader = storage.ImageDownloader(timeout=42)

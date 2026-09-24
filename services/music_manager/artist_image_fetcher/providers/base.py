@@ -29,6 +29,36 @@ class ProviderRateLimited(ProviderUnavailable):
         self.retry_after = retry_after
 
 
+def parse_retry_after(response: object, default: float, maximum: float) -> float:
+    """Seconds to wait according to a response's `Retry-After` header, bounded.
+
+    Only the delta-seconds form is read. A missing, unreadable or HTTP-date value falls
+    back to `default`; the result lies between 1 s and `maximum`, so a hostile or broken
+    header cannot park a run for a day.
+    """
+    headers = getattr(response, 'headers', None) or {}
+    try:
+        value = headers.get('Retry-After')
+    except AttributeError:
+        value = None
+    seconds = float(default)
+    if isinstance(value, (str, int, float)) and not isinstance(value, bool):
+        try:
+            seconds = float(value)
+        except ValueError:
+            seconds = float(default)
+    return min(max(seconds, 1.0), float(maximum))
+
+
+def has_retry_after(response: object) -> bool:
+    """Whether a response carries a `Retry-After` header at all."""
+    headers = getattr(response, 'headers', None) or {}
+    try:
+        return headers.get('Retry-After') is not None
+    except AttributeError:
+        return False
+
+
 class ArtistImageProvider(ABC):
     """A source of artist images, such as Spotify or MusicBrainz."""
 
@@ -66,4 +96,11 @@ class ArtistImageProvider(ABC):
         """
 
 
-__all__ = ['ArtistImageProvider', 'ProviderRateLimited', 'ProviderUnavailable', 'credential']
+__all__ = [
+    'ArtistImageProvider',
+    'ProviderRateLimited',
+    'ProviderUnavailable',
+    'credential',
+    'has_retry_after',
+    'parse_retry_after',
+]

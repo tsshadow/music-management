@@ -77,3 +77,15 @@ answered and none had a confident match; retried after `ARTIST_IMAGE_RETRY_AFTER
 `/fetch-image?force=true` looks it up again) or empty (never decided). A provider that could not
 answer, and a download or save that failed, write no status at all: the artist is asked again next
 run.
+
+## Logging and alerts
+
+Every `WARNING` and `ERROR` becomes an event and a push on the `music-management-alerts` ntfy
+topic, so a bulk run keeps per-artist trouble at `INFO` and counts it instead: a provider that could
+not answer (MusicBrainz included -- timeouts, 5xx, transport errors), and a portrait that was found
+but could not be downloaded or saved. A run logs at most two `WARNING`s -- the first rate limit it
+hits, and the closing summary from `log_run_summary()` (artists deferred, rate-limit pauses and total
+pause time, failed downloads, non-answers per provider) -- plus at most one `ERROR`, when the image
+directory cannot be written. A `429` from Spotify or MusicBrainz, or a MusicBrainz `503` carrying
+`Retry-After`, pauses the whole run for the requested time (default 30 s, capped at 10 minutes).
+See bug reports 058 and 060.

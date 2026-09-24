@@ -209,7 +209,16 @@ def build_auth_user(cursor, user_row):
     }
 
 
-@router.get('/auth/verify')
+#: The routes this module serves directly under `/api` rather than `/api/users`: the
+#: `/auth/*` session endpoints every client calls there, and `/roles`, which
+#: Management.svelte (and the copy of it bundled in already-installed apps) has always
+#: fetched as `/api/roles`. `router` used to be mounted at both prefixes to reach these,
+#: which also published every user route a second time under `/api/{user_id}/...` --
+#: `DELETE /api/{user_id}` among them.
+auth_router = APIRouter(tags=['auth'])
+
+
+@auth_router.get('/auth/verify')
 def verify_token(x_api_key: str = Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
@@ -230,7 +239,7 @@ def verify_token(x_api_key: str = Header(None)):
     raise HTTPException(status_code=403, detail='Invalid API Key')
 
 
-@router.post('/auth/login')
+@auth_router.post('/auth/login')
 def login(req: LoginRequest, request: Request):
     """Log in with username/password, used both by the login form and, indirectly, by
     Subsonic/LMS clients (LMS forwards its own username/password login attempts here, see
@@ -293,7 +302,7 @@ def login(req: LoginRequest, request: Request):
             conn.close()
 
 
-@router.post('/auth/refresh')
+@auth_router.post('/auth/refresh')
 def refresh_access_token(req: RefreshRequest, request: Request):
     """Exchange a refresh token for a fresh access token (api_key)."""
     with auth_attempt(request):
@@ -320,7 +329,7 @@ def refresh_access_token(req: RefreshRequest, request: Request):
             conn.close()
 
 
-@router.get('/auth/setup-status')
+@auth_router.get('/auth/setup-status')
 def get_setup_status():
     conn = get_db_connection()
     if not conn:
@@ -334,7 +343,7 @@ def get_setup_status():
         conn.close()
 
 
-@router.post('/auth/setup')
+@auth_router.post('/auth/setup')
 def setup_admin(user: UserCreate, request: Request):
     # Every call counts here, not just the rejected ones: this endpoint is
     # unauthenticated until the first admin exists and is legitimately used
@@ -686,6 +695,7 @@ def create_user(user: UserCreate, auth: dict = Depends(verify_api_key)):
         conn.close()
 
 
+@auth_router.get('/roles')
 @router.get('/roles')
 def list_roles(auth: dict = Depends(require_permission('roles.read'))):
     conn = get_db_connection()

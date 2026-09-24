@@ -105,7 +105,7 @@
 - No instrumentation/Android Auto tests beyond that smoke tripwire (UI flows still uncovered)
 
 ### common
-- Shared helpers (`config_store.py`, `db_init.py`, `job_manager.py`, `step.py`, `version_helper.py`) — partly covered directly (`TableHelperTest.py`, `FilterTableHelperTest.py`, `LookupTableHelperTest.py`, `FestivalHelperTest.py`, `NotificationServiceTest.py`, `ProcessedFilesHelperTest.py`), the rest indirectly via dependent modules
+- Shared helpers (`config_store.py`, `db_init.py`, `step.py`, `version_helper.py`) — partly covered directly (`TableHelperTest.py`, `FilterTableHelperTest.py`, `LookupTableHelperTest.py`, `FestivalHelperTest.py`, `NotificationServiceTest.py`, `ProcessedFilesHelperTest.py`), the rest indirectly via dependent modules
 
 ## Database integration tests (`tests/integration/`)
 - Runs every endpoint's SQL against a throwaway MariaDB: `./scripts/test/db-integration.sh`.

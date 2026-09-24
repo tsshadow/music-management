@@ -12,7 +12,6 @@ from yt_dlp.postprocessor import EmbedThumbnailPP, FFmpegMetadataPP
 
 from services.common.config_store import ConfigStore
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
-from services.common.job_manager import job_manager
 from services.downloader import shutdown
 from services.downloader.cookie_profile import snapshot_cookie_profile
 from services.downloader.deep_sweep import (
@@ -453,7 +452,7 @@ class SoundcloudDownloader:
             batch_num = i // burst_size + 1
             logging.info(f'Processing batch {batch_num} of {total_batches}')
             try:
-                processed = self._process_batch(batch, break_on_existing_arg, redownload, processed, total_accounts)
+                processed = self._process_batch(batch, break_on_existing_arg, redownload, processed)
             except RateLimited as exc:
                 logging.warning('Stopping the SoundCloud sweep: %s', exc)
                 return
@@ -471,7 +470,7 @@ class SoundcloudDownloader:
             return accounts
         return [account]
 
-    def _process_batch(self, batch, break_on_existing_arg, redownload, processed, total_accounts):
+    def _process_batch(self, batch, break_on_existing_arg, redownload, processed):
         rate_limited = None
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.timing.max_workers) as executor:
             futures = {}
@@ -490,9 +489,6 @@ class SoundcloudDownloader:
                     logging.info(str(exc))
                 except Exception as exc:
                     logging.error(f'Unhandled error downloading {acc}: {exc}')
-                job_manager.publish(
-                    {'type': 'soundcloud-account', 'account': acc, 'current': processed, 'total': total_accounts}
-                )
         if rate_limited is not None:
             raise rate_limited
         return processed

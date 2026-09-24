@@ -61,3 +61,7 @@ docs
 # The web bundle the Capacitor shell serves. Built by Node into services/frontend/dist and
 # staged here by the prepareWebBundle Gradle task; never committed.
 app/src/main/assets/public/
+
+# An empty SQLite file named after DB_FILENAME (AppPermanentStorageModule.kt) appeared in this
+# directory and was committed once; whatever creates it (not pinned down) must not do so again.
+ultrasonic-database.db*

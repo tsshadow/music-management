@@ -1,7 +1,7 @@
 """HTTP surface for the personalized feeds: the radar, the daily mix, the
 listener's own taste profile, and the exclusions that shape it.
 
-Auth mirrors routers/library.py's verify_api_key: a user key resolves its own
+Auth is the canonical users.verify_api_key: a user key resolves its own
 username and can never read or write anyone else's; the system key must say
 whose feed it is asking for. See docs/designs/feeds/technical.md, "API
 Contract", for the binding shape of every response below.
@@ -16,7 +16,6 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from pydantic import BaseModel
 
 from services.common.config_store import ConfigStore as Settings
-from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
 from services.music_manager.feeds.build import (
     CLASSIC_TITLE,
@@ -87,19 +86,10 @@ def init_db(cursor):
 
 
 def verify_api_key(x_api_key: str | None = Header(None)):
-    if not x_api_key:
-        raise HTTPException(status_code=401, detail='Missing API Key')
-    if is_system_api_key(x_api_key):
-        return {'type': 'system'}
-    from services.music_manager.routers.users import verify_token
+    """Delegates to the canonical users.verify_api_key; kept as a name tests override."""
+    from services.music_manager.routers.users import verify_api_key as _verify
 
-    try:
-        res = verify_token(x_api_key)
-        if res.get('status') == 'ok':
-            return res
-    except Exception:
-        pass
-    raise HTTPException(status_code=401, detail='Invalid API key')
+    return _verify(x_api_key)
 
 
 def _resolve_username(auth: dict, username: str | None) -> str:

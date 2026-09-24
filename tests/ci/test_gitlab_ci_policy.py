@@ -629,7 +629,6 @@ PYTHON_UNIT_SOURCES = [
     "services/importer/",
     "services/ml-analyzer/",
     "services/music_manager/",
-    "services/other/",
     "services/scanner/",
     "services/tagger/",
     "services/tests/",

@@ -614,7 +614,6 @@ backend:unit:
         # coverage floor: untested code added here drops the total and must
         # fail in its own pipeline, not in the next unrelated merge request.
         - services/ml-analyzer/**/*
-        - services/other/**/*
         # A change to a test, or to a script a test covers, has to run the tests.
         - services/tests/**/*
         # The script also collects tools/ and the pipeline policy suite.

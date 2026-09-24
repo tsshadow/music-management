@@ -3,8 +3,11 @@
 The `music-manager` service provides a REST API (FastAPI) for managing the music library, users, and events.
 
 ### 🔐 Authentication
-- **POST `/users/auth/login`**: Authenticate with username/password and receive an API key.
-- **GET `/users/auth/verify`**: Verify the validity of an `X-API-Key`.
+- **POST `/api/auth/login`**: Authenticate with username/password and receive an API key. The
+  session endpoints (`/api/auth/*`) and `GET /api/roles` are the only `users` routes under the bare
+  `/api` prefix; every other user route is under `/api/users` only (there is no `/api/{user_id}/...`,
+  and no `/api/users/auth/*`).
+- **GET `/api/auth/verify`**: Verify the validity of an `X-API-Key`.
 
 ### 👤 User & Settings Management
 - **GET `/users/`**: List all registered users (Admin only).

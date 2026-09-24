@@ -128,8 +128,12 @@ The script will prompt you for a password and confirmation. You can also provide
 
 The system is split into modular Docker Compose files for better resource management:
 
-1. **`docker-compose.yml`**: Core infrastructure (MariaDB, phpMyAdmin, Music Management Server, Music Manager).
-2. **`docker-compose.workers.yml`**: Background workers (Importer, YouTube/SoundCloud/Telegram downloaders, Tagger, Scanner).
+1. **`docker/docker-compose.yml`**: What production runs (`scripts/ci-deploy.sh`): MariaDB, phpMyAdmin,
+   Music Manager (which hosts the tagger and scanner) and the importer, YouTube, SoundCloud and
+   Telegram workers. LMS is its own stack (`services/music-management-server/docker-compose.yml`).
+2. **`docker/docker-compose.workers.yml`**: Local-only overlay used by `scripts/dev.sh`. It redefines
+   the same worker containers with a flat, older environment and is not valid on its own (its
+   workers depend on a `db` only `docker-compose.yml` defines). Production never reads it.
 3. **`docker-compose.tools.yml`**: Utility services (Fetchers, ML Analyzer, Firefox).
 
 ### Database Backups
@@ -143,7 +147,7 @@ Backups are stored in `/muma/backups` on the host machine. The script uses `dock
 
 **Start the entire stack:**
 ```bash
-docker-compose -f docker-compose.yml -f docker-compose.workers.yml -f docker-compose.tools.yml up -d
+docker-compose -f docker/docker-compose.yml -f docker/docker-compose.tools.yml up -d
 ```
 
 **Start only core services:**
@@ -153,7 +157,7 @@ docker-compose up -d
 
 **View logs for a specific service:**
 ```bash
-docker-compose -f docker-compose.yml -f docker-compose.workers.yml logs -f importer_worker
+docker-compose -f docker/docker-compose.yml logs -f importer_worker
 ```
 
 ---

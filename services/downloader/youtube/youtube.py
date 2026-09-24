@@ -8,7 +8,6 @@ from yt_dlp import YoutubeDL
 
 from services.common.config_store import ConfigStore
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
-from services.common.job_manager import job_manager
 from services.downloader import shutdown
 from services.downloader.deep_sweep import (
     DeepSweepReport,
@@ -668,7 +667,7 @@ class YoutubeDownloader:
             batch_index = i // burst_size + 1
             logging.info('Processing YouTube %s batch %s of %s', download_type, batch_index, total_batches)
             try:
-                processed = self._process_batch(batch, break_on_existing_arg, redownload, processed, total_accounts)
+                processed = self._process_batch(batch, break_on_existing_arg, redownload, processed)
             except RateLimited as exc:
                 logging.warning('Stopping the YouTube sweep: %s', exc)
                 return False
@@ -703,7 +702,7 @@ class YoutubeDownloader:
         """Accept plain names too, so a caller passing strings keeps working."""
         return row if isinstance(row, YoutubeAccount) else YoutubeAccount(name=row)
 
-    def _process_batch(self, batch, break_on_existing_arg, redownload, processed, total_accounts):
+    def _process_batch(self, batch, break_on_existing_arg, redownload, processed):
         batch = [self._as_account(entry) for entry in batch]
         rate_limited = None
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.timing.max_workers) as executor:
@@ -723,15 +722,6 @@ class YoutubeDownloader:
                     logging.info(str(exc))
                 except Exception as exc:
                     logging.error(f'Unhandled error downloading {acc.name}: {exc}')
-                job_manager.publish(
-                    {
-                        'type': 'youtube-account',
-                        'account': acc.name,
-                        'download_type': acc.download_type,
-                        'current': processed,
-                        'total': total_accounts,
-                    }
-                )
         if rate_limited is not None:
             raise rate_limited
         return processed

@@ -14,6 +14,7 @@ test_library_router.py.
 import unittest
 from unittest.mock import MagicMock, patch
 
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 import services.music_manager.routers.users as users_router
@@ -79,12 +80,12 @@ class FeedsRealAuthTest(_LiveFeedsMixin, unittest.TestCase):
     """Exercises the real `verify_api_key` body, not a dependency override.
 
     Every other test class here replaces the dependency wholesale, which never
-    runs feeds.py's own system-key detection, its deferred `verify_token` call,
-    or its `except Exception` rejection path -- a regression in any of those
-    would leave the rest of this file green. Same pattern as
-    test_library_router.py's LibraryAuthTest: a real system key, a patched
-    `verify_token` for the user-key path, and a `side_effect` exception for the
-    rejection path, all one level below `verify_api_key` itself.
+    runs the canonical `users.verify_api_key` feeds.py delegates to: its
+    system-key detection, its `verify_token` call, or the rejection verify_token
+    raises -- a regression in any of those would leave the rest of this file
+    green. A real system key, a patched `verify_token` for the user-key path,
+    and verify_token's own `HTTPException` for the rejection path, all one level
+    below `verify_api_key` itself.
     """
 
     def test_the_real_system_key_is_accepted(self):
@@ -101,9 +102,15 @@ class FeedsRealAuthTest(_LiveFeedsMixin, unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_a_key_that_does_not_verify_is_rejected(self):
-        with patch.object(users_router, 'verify_token', side_effect=Exception('nope')):
+        """What verify_token raises for a key no account holds, passed through as is --
+        feeds.py no longer rewrites it to its own 401."""
+        rejection = HTTPException(status_code=403, detail='Invalid API Key')
+        with patch.object(users_router, 'verify_token', side_effect=rejection):
             response = client.get('/api/feeds', headers={'X-API-Key': 'bad'})
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 403)
+
+    def test_a_missing_key_is_a_401(self):
+        self.assertEqual(client.get('/api/feeds').status_code, 401)
 
 
 class FeedsRouterTest(_FeedsAuthTestCase):

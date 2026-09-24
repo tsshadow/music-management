@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 from services.music_manager import rbac
 from services.music_manager.api_key import is_system_api_key
-from services.music_manager.database import get_db_connection
+from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.rate_limit import auth_attempt
 from services.music_manager.rbac import has_permission, require_permission
 from services.music_manager.thread_registry import run_forever
@@ -1081,10 +1081,9 @@ def delete_user(user_id: int, auth: dict = Depends(verify_api_key)):
     if not conn:
         raise HTTPException(status_code=500, detail='DB failed')
     try:
-        with _admin_guard_lock, conn.cursor() as cursor:
+        with _admin_guard_lock, transaction(conn), conn.cursor() as cursor:
             actor_id = (auth.get('user') or {}).get('id')
             delete_user_row(cursor, user_id, actor_id=actor_id)
-            conn.commit()
             return {'status': 'ok'}
     except HTTPException:
         raise
@@ -1119,7 +1118,7 @@ def merge_users(user_id: int, req: MergeUsersRequest, auth: dict = Depends(requi
     if not conn:
         raise HTTPException(status_code=500, detail='DB failed')
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             cursor.execute('SELECT * FROM users WHERE id = %s', (primary_id,))
             primary = cursor.fetchone()
             cursor.execute('SELECT * FROM users WHERE id = %s', (secondary_id,))
@@ -1220,7 +1219,6 @@ def merge_users(user_id: int, req: MergeUsersRequest, auth: dict = Depends(requi
                 target_user_id=primary_id,
                 details=f"merged user_id={secondary_id} (username={secondary['username']}) into user_id={primary_id} (username={primary['username']})",
             )
-            conn.commit()
             cursor.execute(
                 'SELECT u.id, u.username, u.display_name, u.email, u.avatar_url, u.is_admin, u.role_id, r.name as role_name, u.enabled, u.server_user_id FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.id = %s',
                 (primary_id,),

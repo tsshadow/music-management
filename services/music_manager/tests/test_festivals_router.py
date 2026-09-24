@@ -17,7 +17,12 @@ from fastapi.testclient import TestClient
 from services.common.Helpers import Cache
 from services.music_manager.main import app
 from services.music_manager.routers import festivals
-from services.music_manager.tests.scripted_cursor import ScriptedCursor
+from services.music_manager.tests.scripted_cursor import (
+    ScriptedCursor,
+    assert_atomic,
+    assert_rolled_back,
+    transaction_log,
+)
 
 API_KEY = resolve_system_api_key()
 
@@ -170,6 +175,53 @@ class ProbeTest(FestivalTestCase):
             '/api/rules/festivals/probe', json={'text': 'Sunrise 2024'}, headers=self.headers
         ).json()
         self.assertEqual(body['matches'], [])
+
+
+class FestivalAtomicityTest(FestivalTestCase):
+    """A festival's aliases and editions are deleted and re-inserted in one transaction."""
+
+    rules = UpdateTest.rules
+
+    def update(self):
+        return self.client.put(
+            '/api/rules/festivals/1',
+            json={'name': 'Defqon.1', 'aliases': ['Defqon'], 'editions': [{'year': 2025, 'date': '2025-06-27'}]},
+            headers=self.headers,
+        )
+
+    def test_the_children_are_replaced_inside_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        self.assertEqual(self.update().status_code, 200)
+        assert_atomic(
+            self,
+            log,
+            'UPDATE rules_festivals',
+            'DELETE FROM rules_festival_aliases',
+            'INSERT INTO rules_festival_aliases',
+            'DELETE FROM rules_festival_editions',
+            'INSERT INTO rules_festival_editions',
+        )
+
+    def test_a_failing_insert_rolls_the_delete_back(self):
+        log = transaction_log(self.conn, self.cursor, fail_on='INSERT INTO rules_festival_editions')
+        with self.assertRaises(RuntimeError):
+            self.update()
+        assert_rolled_back(self, log)
+        self.assertEqual(self.reloaded(), [])
+
+    def test_a_new_festival_and_its_children_are_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        response = self.client.post(
+            '/api/rules/festivals', json={'name': 'Dominator', 'aliases': ['Dominator Festival']}, headers=self.headers
+        )
+        self.assertEqual(response.status_code, 201)
+        assert_atomic(
+            self,
+            log,
+            'INSERT INTO rules_festivals',
+            'DELETE FROM rules_festival_aliases',
+            'INSERT INTO rules_festival_aliases',
+        )
 
 
 if __name__ == '__main__':

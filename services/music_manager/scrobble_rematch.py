@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import os
 
-from services.music_manager.database import get_db_connection
+from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.scrobble_matching import (
     MatchTier,
     base_title,
@@ -210,7 +210,10 @@ def rematch_once(conn, limit: int = BATCH_SIZE) -> dict:
 
     for row in due:
         stats['tried'] += 1
-        with conn.cursor() as cursor:
+        # One transaction per listen: the INSERT into scrobble_listens and the DELETE from
+        # the queue land together, so a crash between them can neither lose the listen
+        # nor count it twice on the next pass.
+        with transaction(conn), conn.cursor() as cursor:
             found = find_track(cursor, row['artist_name'], row['track_title'])
             if found:
                 track_id, tier, score = found
@@ -235,7 +238,6 @@ def rematch_once(conn, limit: int = BATCH_SIZE) -> dict:
                     'SET attempts = attempts + 1, last_attempt_at = NOW() WHERE id = %s',
                     (row['id'],),
                 )
-        conn.commit()
 
     return stats
 

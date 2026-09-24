@@ -30,7 +30,12 @@ from services.common.Helpers.GenreNameAnalyzer import REJECT, REWRITE, SPLIT
 from services.music_manager.main import app
 from services.music_manager.routers import genre_curation
 from services.music_manager.routers import management as management_router
-from services.music_manager.tests.scripted_cursor import ScriptedCursor
+from services.music_manager.tests.scripted_cursor import (
+    ScriptedCursor,
+    assert_atomic,
+    assert_rolled_back,
+    transaction_log,
+)
 
 API_KEY = resolve_system_api_key()
 
@@ -225,6 +230,23 @@ class TaggerGenreListTest(GenreCurationTestCase):
     def test_the_tagger_page_only_gets_approved_genres(self):
         self.client.get('/api/rules', headers=self.headers)
         self.assertIn("WHERE state = 'white'", self.statements('SELECT id, name, corrected_genre')[0][0])
+
+
+class AnalyzeAtomicityTest(GenreCurationTestCase):
+    """The proposals table is emptied and refilled in one transaction."""
+
+    rules = AnalyzeTest.rules
+    run_analysis = AnalyzeTest.run_analysis
+
+    def test_the_delete_and_the_inserts_are_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        self.assertEqual(self.run_analysis()['status'], 'finished')
+        assert_atomic(self, log, 'DELETE FROM rules_genre_proposals', 'INSERT INTO rules_genre_proposals')
+
+    def test_a_failing_insert_keeps_the_previous_proposals(self):
+        log = transaction_log(self.conn, self.cursor, fail_on='INSERT INTO rules_genre_proposals')
+        self.assertEqual(self.run_analysis()['status'], 'failed')
+        assert_rolled_back(self, log)
 
 
 if __name__ == '__main__':

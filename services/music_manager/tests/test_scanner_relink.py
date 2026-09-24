@@ -83,17 +83,41 @@ class ProcessFileMoveTest(unittest.TestCase):
         self.conn.rollback.assert_called_once()
         self.conn.commit.assert_not_called()
 
-    def test_a_file_that_stays_on_its_track_opens_no_transaction(self):
+    def test_a_file_that_stays_on_its_track_still_rewrites_its_links_in_one_transaction(self):
         with patch.object(self.manager, '_settle_previous_track') as settle:
             self.run_with_previous_track(5)
         settle.assert_not_called()
-        self.conn.begin.assert_not_called()
+        self.conn.begin.assert_called_once()
+        self.conn.commit.assert_called_once()
+        self.conn.rollback.assert_not_called()
 
-    def test_a_file_seen_for_the_first_time_opens_no_transaction(self):
+    def test_a_file_seen_for_the_first_time_rewrites_its_links_in_one_transaction(self):
         with patch.object(self.manager, '_settle_previous_track') as settle:
             self.run_with_previous_track(None)
         settle.assert_not_called()
-        self.conn.begin.assert_not_called()
+        self.conn.begin.assert_called_once()
+        self.conn.commit.assert_called_once()
+
+    def test_the_link_deletes_run_inside_the_transaction(self):
+        # Delete-then-insert: the DELETE of the old artist links must come after BEGIN
+        # and the last write before COMMIT, or a crash in between strips the track.
+        order = []
+        self.conn.begin.side_effect = lambda: order.append('begin')
+        self.conn.commit.side_effect = lambda: order.append('commit')
+        self.cursor.execute.side_effect = lambda sql, *_a: order.append(sql.split()[0])
+        self.run_with_previous_track(5)
+        self.assertLess(order.index('begin'), order.index('DELETE'))
+        self.assertEqual(order[-1], 'commit')
+
+    def test_a_failing_link_write_rolls_back_the_deleted_links(self):
+        with (
+            patch.object(self.manager, '_write_links', side_effect=RuntimeError('lock wait timeout')),
+            self.assertRaises(RuntimeError),
+        ):
+            self.run_with_previous_track(5)
+        self.conn.begin.assert_called_once()
+        self.conn.rollback.assert_called_once()
+        self.conn.commit.assert_not_called()
 
 
 class SettlePreviousTrackTest(unittest.TestCase):

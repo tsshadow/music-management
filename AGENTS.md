@@ -336,6 +336,11 @@ To maintain high code quality, the system employs an automated test suite:
   release is still running, before the new containers start. Dropping, renaming or narrowing
   what the running code reads waits for a later release (`tests/ci/test_migration_ordering.py`,
   `docs/deployment.md#deploy-order-and-migrations`).
+- **Multi-statement writes go through `transaction(conn)`** from `services/music_manager/database.py`:
+  the pool runs autocommit, so a DELETE-then-INSERT (or any write that must land whole) without it
+  is two separate commits, and `conn.commit()` does not change that. Test it with
+  `transaction_log` from `services/music_manager/tests/scripted_cursor.py`
+  ([design](docs/designs/db-transactions/technical.md)).
 - **See [CONTRIBUTING.md](CONTRIBUTING.md)** for the full local setup and the conventions
   above in one place, and [SECURITY.md](SECURITY.md) for the auth model and what is scanned.
 

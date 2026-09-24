@@ -11,11 +11,19 @@ Two properties of DBUtils' PooledDB shape this module:
   "the pool handed out a connection" says nothing about whether MariaDB is up.
   `check_database` answers that question with its own short-lived connection and a
   `SELECT 1` under tight timeouts, independent of the pool's state.
+
+The pool runs with `autocommit=True`, so a `conn.commit()` after several writes commits
+nothing extra: each statement was already committed on its own. Code that writes more
+than one statement which must land together -- above all a DELETE followed by the
+INSERTs that replace it -- wraps them in `transaction(conn)`.
 """
 
 import contextlib
+import logging
 import os
 import time
+from collections.abc import Iterator
+from typing import Any
 
 import pymysql
 from dbutils.pooled_db import PooledDB
@@ -34,6 +42,7 @@ except ImportError:
 
 load_dotenv()
 _pool = None
+logger = logging.getLogger('music-manager.database')
 
 # How long a caller may wait for a free pooled connection before getting a clear error.
 POOL_WAIT_SECONDS = float(os.getenv('DB_POOL_WAIT_SECONDS', '5'))
@@ -134,3 +143,29 @@ def check_database() -> bool:
         if conn is not None:
             with contextlib.suppress(Exception):
                 conn.close()
+
+
+@contextlib.contextmanager
+def transaction(conn: Any) -> Iterator[Any]:
+    """Run the enclosed writes as one transaction on `conn`: all of them land, or none.
+
+    `conn.begin()` issues an explicit BEGIN, which suspends the pool's autocommit until
+    the matching COMMIT or ROLLBACK, after which the connection is back in autocommit
+    mode. Commits when the block finishes, rolls back when it raises -- an
+    HTTPException for a 404 included -- and re-raises the original exception, even when
+    the rollback itself fails. A connection closed mid-transaction is safe as well:
+    DBUtils rolls back whatever is still open when the connection returns to the pool.
+
+    Every statement has to run on this same `conn`: a second connection sees none of
+    the uncommitted rows and is not part of the transaction.
+    """
+    conn.begin()
+    try:
+        yield conn
+    except BaseException:
+        try:
+            conn.rollback()
+        except Exception as rollback_error:  # pylint: disable=broad-except  # keep the original error
+            logger.warning('Rolling back a transaction failed: %s', rollback_error)
+        raise
+    conn.commit()

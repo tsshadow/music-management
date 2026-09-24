@@ -25,7 +25,7 @@ from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.RescanInvalidator import invalidate_quietly
 from services.music_manager import catalog_series
 from services.music_manager import curation_rules as rules
-from services.music_manager.database import get_db_connection
+from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.job_store import job_store
 from services.music_manager.rbac import require_permission
 from services.music_manager.routers.tagger import tagger_manager
@@ -219,7 +219,7 @@ def set_artist_mbid(name: str, request: MbidRequest, _auth: dict = WRITE):
     mbid = rules.parse_mbid(request.mbid)
     conn = _connect()
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             artist = _require_artist(cursor, name)
             cursor.execute('UPDATE library_artists SET mbid = %s WHERE id = %s', (mbid, artist['id']))
             if mbid:
@@ -231,7 +231,6 @@ def set_artist_mbid(name: str, request: MbidRequest, _auth: dict = WRITE):
                     'DELETE FROM artist_external_ids WHERE artist_id = %s AND source = %s',
                     (artist['id'], rules.MUSICBRAINZ),
                 )
-            conn.commit()
             return {'status': 'ok', 'mbid': mbid}
     finally:
         conn.close()
@@ -247,10 +246,9 @@ def set_artist_external_id(name: str, request: ExternalIdRequest, _auth: dict = 
         rules.parse_mbid(external_id)
     conn = _connect()
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             artist = _require_artist(cursor, name)
             _store_artist_external_id(cursor, artist['id'], source, external_id, request.external_url, request.verified)
-            conn.commit()
             return {'status': 'ok'}
     finally:
         conn.close()
@@ -508,7 +506,7 @@ def set_label_mbid(name: str, request: MbidRequest, _auth: dict = WRITE):
     mbid = rules.parse_mbid(request.mbid)
     conn = _connect()
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             label = _require_label(cursor, name)
             cursor.execute('UPDATE library_labels SET mbid = %s WHERE id = %s', (mbid, label['id']))
             if mbid:
@@ -520,7 +518,6 @@ def set_label_mbid(name: str, request: MbidRequest, _auth: dict = WRITE):
                     'DELETE FROM label_external_ids WHERE label_id = %s AND source = %s',
                     (label['id'], rules.MUSICBRAINZ),
                 )
-            conn.commit()
             return {'status': 'ok', 'mbid': mbid}
     finally:
         conn.close()
@@ -567,10 +564,9 @@ def set_label_external_id(name: str, request: ExternalIdRequest, _auth: dict = W
         rules.parse_mbid(external_id)
     conn = _connect()
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             label = _require_label(cursor, name)
             _store_label_external_id(cursor, label['id'], source, external_id, request.external_url, request.verified)
-            conn.commit()
             return {'status': 'ok'}
     finally:
         conn.close()
@@ -778,7 +774,7 @@ def set_genre_parents(name: str, request: ParentGenresRequest, _auth: dict = WRI
 
     conn = _connect()
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             genre = rules.find_genre_by_name(cursor, name)
             if not genre:
                 raise HTTPException(status_code=404, detail='Unknown genre')
@@ -802,7 +798,6 @@ def set_genre_parents(name: str, request: ParentGenresRequest, _auth: dict = WRI
                     'INSERT INTO rules_subgenre_hierarchy (subgenre, genre) VALUES (%s, %s)',
                     (genre['name'], parent_name),
                 )
-            conn.commit()
     finally:
         conn.close()
     rules.refresh(rules.SUBGENRE_HELPER)

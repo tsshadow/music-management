@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from services.music_manager import rbac
-from services.music_manager.database import get_db_connection
+from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.rbac import require_permission
 
 router = APIRouter(tags=['user-requests'])
@@ -228,7 +228,7 @@ def approve_user_request(
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             cursor.execute('SELECT * FROM user_requests WHERE id = %s', (request_id,))
             req = cursor.fetchone()
             if not req:
@@ -287,7 +287,6 @@ def approve_user_request(
                 target_user_id=approved_user_id,
                 details=f"request_id={request_id}",
             )
-            conn.commit()
             cursor.execute('SELECT * FROM user_requests WHERE id = %s', (request_id,))
             return {'status': 'ok', 'request': _request_to_dict(cursor.fetchone())}
     except HTTPException:
@@ -357,7 +356,7 @@ def unapprove_user_request(
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             cursor.execute('SELECT * FROM user_requests WHERE id = %s', (request_id,))
             req = cursor.fetchone()
             if not req:
@@ -389,7 +388,6 @@ def unapprove_user_request(
                 target_user_id=created_user_id,
                 details=f"request_id={request_id}, reason={body.reason}",
             )
-            conn.commit()
             cursor.execute('SELECT * FROM user_requests WHERE id = %s', (request_id,))
             return {'status': 'ok', 'request': _request_to_dict(cursor.fetchone())}
     except HTTPException:

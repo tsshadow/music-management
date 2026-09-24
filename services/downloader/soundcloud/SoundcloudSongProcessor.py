@@ -26,7 +26,15 @@ class SoundcloudSongProcessor(PostProcessor):
 
     This class ensures that all SoundCloud downloads are archived in the database
     and enriched with metadata for later tagging or analysis.
+
+    `ydl_opts` are the options the download itself ran with. The enrichment is a
+    second request for a track this process has just fetched, so it has to present
+    the same session; see `_credential_args`.
     """
+
+    def __init__(self, ydl_opts: dict | None = None, downloader=None):
+        super().__init__(downloader)
+        self._ydl_opts = ydl_opts or {}
 
     def run(self, info):
         path = info.get('filepath') or info.get('_filename')
@@ -82,7 +90,36 @@ class SoundcloudSongProcessor(PostProcessor):
             return None
 
     @staticmethod
-    def _fetch_enriched_info(url: str):
+    def _credential_args(ydl_opts: dict) -> list[str]:
+        """The session the download presented, as `yt-dlp` command-line flags.
+
+        The download runs through `YoutubeDL` with the logged-in Firefox cookies and
+        the user agent that matches them (`soundcloud.py`, `_apply_config`), because
+        SoundCloud only resolves a private or follower-only track for the session that
+        may see it. The enrichment below asks for the very same track, so leaving the
+        cookies out makes SoundCloud answer 401 for exactly the tracks this downloader
+        exists to fetch -- and only for those, which is why it reads as an occasional
+        upstream hiccup rather than a missing header.
+
+        `cookies` is read next to `cookiefile` on purpose: the config writes the former
+        and yt-dlp's Python API names it the latter, so the flag is produced whichever
+        of the two a caller set.
+        """
+        args: list[str] = []
+        from_browser = ydl_opts.get('cookiesfrombrowser')
+        cookie_file = ydl_opts.get('cookiefile') or ydl_opts.get('cookies')
+        if from_browser:
+            browser = from_browser[0]
+            profile = from_browser[1] if len(from_browser) > 1 else None
+            args += ['--cookies-from-browser', f'{browser}:{profile}' if profile else str(browser)]
+        elif cookie_file:
+            args += ['--cookies', str(cookie_file)]
+        user_agent = (ydl_opts.get('http_headers') or {}).get('User-Agent')
+        if user_agent:
+            args += ['--user-agent', user_agent]
+        return args
+
+    def _fetch_enriched_info(self, url: str):
         """
         Fetch full metadata from a SoundCloud URL using yt-dlp's --dump-single-json.
 
@@ -97,10 +134,9 @@ class SoundcloudSongProcessor(PostProcessor):
         Returns:
             dict: Enriched metadata, or None if the fetch failed.
         """
+        command = ['yt-dlp', '--dump-single-json', '--no-playlist', *self._credential_args(self._ydl_opts), url]
         try:
-            result = subprocess.run(
-                ['yt-dlp', '--dump-single-json', '--no-playlist', url], capture_output=True, text=True, check=True
-            )
+            result = subprocess.run(command, capture_output=True, text=True, check=True)
             return json.loads(result.stdout)
         except subprocess.CalledProcessError as e:
             logging.error(f'Failed to enrich metadata for {url}: {e.stderr}')

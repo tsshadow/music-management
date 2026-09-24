@@ -76,6 +76,36 @@ class TestSoundcloudBasicRun(unittest.TestCase):
         self.assertEqual(song.album(), 'Soundcloud (Albino)')
         self.assertEqual(song.publisher(), 'Soundcloud')
 
+    @patch('services.downloader.soundcloud.soundcloud.YoutubeDL')
+    def test_the_postprocessor_is_handed_the_session_the_download_runs_with(self, mock_ytdlp):
+        # The enrichment call inside the postprocessor asks SoundCloud for the track
+        # the download has just fetched. It only stays authorised -- the fix for the
+        # 401s of 2026-09-23 -- if the options the download opened SoundCloud with
+        # actually reach it.
+        mock_instance = mock_ytdlp.return_value.__enter__.return_value
+
+        def capture(pp):
+            if 'SoundcloudSongProcessor' in str(type(pp)):
+                self.processor = pp
+
+        mock_instance.add_post_processor.side_effect = capture
+        mock_instance.download.return_value = 0
+        downloader = SoundcloudDownloader(break_on_existing=False)
+        opts = downloader.downloader_config['ydl_opts']
+        with patch('time.sleep'):
+            downloader.download_url('http://soundcloud.com/albino_music/tracks', opts, account='albino_music')
+        self.assertIsNotNone(self.processor)
+        session_keys = {'cookiesfrombrowser', 'cookiefile', 'cookies'}
+        self.assertTrue(session_keys & set(opts), 'the download itself carries no session to pass on')
+        self.assertTrue(
+            session_keys & set(self.processor._ydl_opts),
+            'the enrichment would go out anonymous again',
+        )
+        self.assertEqual(
+            opts['http_headers']['User-Agent'],
+            self.processor._ydl_opts['http_headers']['User-Agent'],
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

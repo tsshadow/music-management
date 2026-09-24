@@ -84,11 +84,25 @@ scp -o StrictHostKeyChecking=no \
     "${REMOTE_USER}@${REMOTE_HOST}:/docker/lms/nginx/reverse-proxy.conf"
 
 # 4. Deploy stack 1: "music-management"
+#
+#    deploy.sh backs the database up, migrates, and only then runs the pre-up
+#    hook below, which moves the release's images from :${VERSION} to :latest
+#    (release:build-images no longer pushes :latest at all). Until that moment
+#    Watchtower on the host has nothing new to pull, so no container can start
+#    this release's code before its migrations have been applied -- and a
+#    pipeline whose muma:deploy never runs never changes :latest. The stack
+#    itself is then pulled at :latest (IMAGE_TAG unset), which keeps the
+#    downloader family on the tag muma:refresh-downloader republishes.
+#    See docs/bug-reports/050-deploy-starts-new-code-before-migrations.md.
 echo "--- Deploying stack: music-management ---"
 export DEPLOY_TARGET_NAME="music-management"
 export LOCAL_COMPOSE_FILE="docker/docker-compose.yml"
 export LOCAL_ENV_FILE="$ENV_DIR/music-management.env"
+export DEPLOY_PRE_UP_HOOK="$SCRIPT_DIR/ci/promote-release-images.sh"
+export PROMOTE_ENV_FILE="$ENV_DIR/music-management.env"
+export PROMOTE_LMS_ENV_FILE="$ENV_DIR/lms.env"
 "$SCRIPT_DIR/deploy.sh"
+unset DEPLOY_PRE_UP_HOOK
 
 # 5. Deploy stack 2: "lms"
 echo "--- Deploying stack: lms ---"

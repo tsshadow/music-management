@@ -100,7 +100,7 @@ def run_secrets_check(env_content: str, lms_env_content: str, **overrides: str) 
 
 
 LMS_ENV = "VITE_GOOGLE_CLIENT_ID=some-client-id\n"
-BASE_ENV = "GOOGLE_CLIENT_ID=some-client-id\n"
+BASE_ENV = "GOOGLE_CLIENT_ID=some-client-id\nFIREFOX_PASSWORD=not-admin\n"
 
 
 def test_secrets_check_rejects_a_release_without_any_system_key():
@@ -137,3 +137,11 @@ def test_secrets_check_rejects_a_missing_gating_variable():
         result = run_secrets_check(BASE_ENV + "API_KEY=a-real-key\n", LMS_ENV, **{name: None})
         assert result.returncode != 0, f"missing {name} passed the check"
         assert name in result.stdout
+
+
+def test_secrets_check_rejects_a_release_without_a_firefox_password():
+    """docker/docker-compose.yml no longer defaults the noVNC password to
+    "admin"; an unset value would reach the container empty."""
+    result = run_secrets_check(BASE_ENV.replace("FIREFOX_PASSWORD=not-admin\n", "") + "API_KEY=a-real-key\n", LMS_ENV)
+    assert result.returncode != 0
+    assert "FIREFOX_PASSWORD" in result.stdout

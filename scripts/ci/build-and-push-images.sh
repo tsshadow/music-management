@@ -16,18 +16,27 @@
 # re-pulling the same old manually-pushed ":latest" tag. Bullets 3-6 close
 # that gap for every image docker/docker-compose.yml actually references.
 #
+# Tags: every image is pushed as ":${VERSION}" and ":rc" -- never ":latest"
+# (nor ":stable" for lms). Those are the tags production pulls, and Watchtower
+# on the host pulls ":latest" of the downloader family the moment it changes;
+# pushed from here, a release's code could start before muma:deploy had applied
+# its migrations, or ship with no deploy at all. muma:deploy moves them, after
+# the pre-deploy backup and the migrations, in
+# scripts/ci/promote-release-images.sh. See
+# docs/bug-reports/050-deploy-starts-new-code-before-migrations.md.
+#
 #   1. music-manager  (docker/Dockerfile.music-manager, build context: repo root)
-#      -> pushed as "${DOCKER_USER}/${IMAGE_CORE}:latest" and ":${VERSION}"
-#         (matches docker/docker-compose.yml's `image: ${DOCKER_USER}/${IMAGE_CORE}:latest`).
+#      -> "${DOCKER_USER}/${IMAGE_CORE}" (docker/docker-compose.yml's
+#         `image: ${DOCKER_USER}/${IMAGE_CORE}:${IMAGE_TAG:-latest}`).
 #   2. lms / music-management-server (services/music-management-server/Dockerfile-release,
 #      build context: repo root)
-#      -> pushed as "${IMAGE_NAME}:latest", ":stable" and ":${LMS_VERSION}"
-#         (matches services/music-management-server/docker-compose.yml's
-#         `image: ${IMAGE_NAME}:${LMS_TAG}` - both "latest" and "stable" are
-#         pushed so this works regardless of which one LMS_TAG is set to).
+#      -> "${IMAGE_NAME}", also as ":${LMS_VERSION}" (the C++ project's own
+#         version, which does not move every release -- hence ":${VERSION}" as
+#         the tag promotion copies from). Production pulls `${IMAGE_NAME}:${LMS_TAG}`,
+#         and promotion moves both ":latest" and ":stable", so either value works.
 #   3. muma-base (docker/Dockerfile.base) - common base image for 4-6 below.
 #      Not referenced directly by docker-compose.yml, but must be rebuilt
-#      first and pushed so the FROM ${DOCKER_USER}/muma-base:latest in the
+#      first and pushed so the FROM ${DOCKER_USER}/muma-base:${VERSION} in the
 #      Dockerfiles below actually picks up the current requirements.txt/code.
 #   4. muma-downloader (docker/Dockerfile.downloader) -> "${DOCKER_USER}/${IMAGE_DOWNLOADER}"
 #      (soundcloud/youtube/generic downloader workers).
@@ -216,12 +225,12 @@ echo "--- Building music-manager image (${DOCKER_USER}/${IMAGE_CORE}:${VERSION})
 docker build \
     --build-arg DOCKER_USER="${DOCKER_USER}" \
     --build-arg VERSION="${VERSION}" \
-    -t "${DOCKER_USER}/${IMAGE_CORE}:latest" \
+    -t "${DOCKER_USER}/${IMAGE_CORE}:rc" \
     -t "${DOCKER_USER}/${IMAGE_CORE}:${VERSION}" \
     -f docker/Dockerfile.music-manager .
 
 echo "--- Pushing music-manager image ---"
-docker_push "${DOCKER_USER}/${IMAGE_CORE}:latest"
+docker_push "${DOCKER_USER}/${IMAGE_CORE}:rc"
 docker_push "${DOCKER_USER}/${IMAGE_CORE}:${VERSION}"
 
 # 2. Build + push lms (music-management-server) -------------------------------
@@ -237,14 +246,14 @@ LMS_VERSION=$(grep "project(lms VERSION" services/music-management-server/CMakeL
 echo "--- Building lms image (${IMAGE_NAME}:${LMS_VERSION}) ---"
 docker build \
     --build-arg VITE_GOOGLE_CLIENT_ID="${VITE_GOOGLE_CLIENT_ID}" \
-    -t "${IMAGE_NAME}:latest" \
-    -t "${IMAGE_NAME}:stable" \
+    -t "${IMAGE_NAME}:rc" \
+    -t "${IMAGE_NAME}:${VERSION}" \
     -t "${IMAGE_NAME}:${LMS_VERSION}" \
     -f services/music-management-server/Dockerfile-release .
 
 echo "--- Pushing lms image ---"
-docker_push "${IMAGE_NAME}:latest"
-docker_push "${IMAGE_NAME}:stable"
+docker_push "${IMAGE_NAME}:rc"
+docker_push "${IMAGE_NAME}:${VERSION}"
 docker_push "${IMAGE_NAME}:${LMS_VERSION}"
 
 # 3. Build + push muma-base ----------------------------------------------------
@@ -262,12 +271,12 @@ scope_image_names
 
 echo "--- Building muma-base image (${DOCKER_USER}/${IMAGE_BASE}:${VERSION}) ---"
 docker build \
-    -t "${DOCKER_USER}/${IMAGE_BASE}:latest" \
+    -t "${DOCKER_USER}/${IMAGE_BASE}:rc" \
     -t "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}" \
     -f docker/Dockerfile.base .
 
 echo "--- Pushing muma-base image ---"
-docker_push "${DOCKER_USER}/${IMAGE_BASE}:latest"
+docker_push "${DOCKER_USER}/${IMAGE_BASE}:rc"
 docker_push "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}"
 
 # 4. Build + push muma-downloader ----------------------------------------------
@@ -275,12 +284,12 @@ echo "--- Building muma-downloader image (${DOCKER_USER}/${IMAGE_DOWNLOADER}:${V
 docker build \
     --build-arg DOCKER_USER="${DOCKER_USER}" \
     --build-arg VERSION="${VERSION}" \
-    -t "${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest" \
+    -t "${DOCKER_USER}/${IMAGE_DOWNLOADER}:rc" \
     -t "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}" \
     -f docker/Dockerfile.downloader .
 
 echo "--- Pushing muma-downloader image ---"
-docker_push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest"
+docker_push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:rc"
 docker_push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}"
 
 # 5. Build + push muma-telegram -------------------------------------------------
@@ -288,12 +297,12 @@ echo "--- Building muma-telegram image (${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSI
 docker build \
     --build-arg DOCKER_USER="${DOCKER_USER}" \
     --build-arg VERSION="${VERSION}" \
-    -t "${DOCKER_USER}/${IMAGE_TELEGRAM}:latest" \
+    -t "${DOCKER_USER}/${IMAGE_TELEGRAM}:rc" \
     -t "${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSION}" \
     -f docker/Dockerfile.telegram .
 
 echo "--- Pushing muma-telegram image ---"
-docker_push "${DOCKER_USER}/${IMAGE_TELEGRAM}:latest"
+docker_push "${DOCKER_USER}/${IMAGE_TELEGRAM}:rc"
 docker_push "${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSION}"
 
 # 6. Build + push muma-importer -------------------------------------------------
@@ -301,38 +310,38 @@ echo "--- Building muma-importer image (${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSI
 docker build \
     --build-arg DOCKER_USER="${DOCKER_USER}" \
     --build-arg VERSION="${VERSION}" \
-    -t "${DOCKER_USER}/${IMAGE_IMPORTER}:latest" \
+    -t "${DOCKER_USER}/${IMAGE_IMPORTER}:rc" \
     -t "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}" \
     -f docker/Dockerfile.importer .
 
 echo "--- Pushing muma-importer image ---"
-docker_push "${DOCKER_USER}/${IMAGE_IMPORTER}:latest"
+docker_push "${DOCKER_USER}/${IMAGE_IMPORTER}:rc"
 docker_push "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}"
 
 # 7. Build + push muma-tools ----------------------------------------------------
 echo "--- Building muma-tools image (${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}) ---"
 docker build \
-    -t "${DOCKER_USER}/${IMAGE_TOOLS}:latest" \
+    -t "${DOCKER_USER}/${IMAGE_TOOLS}:rc" \
     -t "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}" \
     -f docker/Dockerfile.tools .
 
 echo "--- Pushing muma-tools image ---"
-docker_push "${DOCKER_USER}/${IMAGE_TOOLS}:latest"
+docker_push "${DOCKER_USER}/${IMAGE_TOOLS}:rc"
 docker_push "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}"
 
 # In no-push mode, untag the per-version aliases before exiting. Every tag
-# above points at the same image id as its :latest sibling, so this removes
+# above points at the same image id as its :rc sibling, so this removes
 # no layers and costs the next build nothing -- but without it every
 # merge-request run of muma:images left a :${VERSION} tag behind, and
 # each release bump orphaned the previous version's set on the runner's disk.
-# The :latest tags stay: they are overwritten in place on the next run and are
+# The :rc tags stay: they are overwritten in place on the next run and are
 # what keeps the build cache warm. (The runner LXC has filled up before; see
 # the ops notes on per-pipeline image accumulation.)
 if [ "$PUSH_IMAGES" != "true" ] && [ "$VERSION" != "latest" ]; then
     echo "--- PUSH_IMAGES=false: untagging per-version aliases ---"
     docker rmi \
         "${DOCKER_USER}/${IMAGE_CORE}:${VERSION}" \
-        "${IMAGE_NAME}:stable" \
+        "${IMAGE_NAME}:${VERSION}" \
         "${IMAGE_NAME}:${LMS_VERSION}" \
         "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}" \
         "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}" \

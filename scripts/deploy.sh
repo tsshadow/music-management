@@ -1,6 +1,21 @@
 #!/bin/bash
 # Comprehensive Docker Stack Deployment Script
 # Handles: Webhooks, Remote SSH updates, and Database Migrations.
+#
+# Remote deploy order: prepare (db up + ready) -> verified pre-deploy dump ->
+# migrations -> DEPLOY_PRE_UP_HOOK -> pull + up of what changed. See the comment
+# above step 2 below and docs/deployment.md.
+#
+# Knobs (environment; all optional):
+#   IMAGE_TAG=<tag>       deploy that tag of every image this repo builds
+#                         instead of :latest -- the rollback lever
+#   DEPLOY_DB=1           also (re)create the `db` container when its
+#                         definition changed; otherwise it is only started
+#                         when missing, never recreated
+#   DEPLOY_ONESHOTS=1     also start the one-shot tool containers
+#                         (soundcloud-fetcher, genre-processor)
+#   PREDEPLOY_BACKUP=0    skip the pre-deploy dump (loudly); for emergencies
+#   DEPLOY_PRE_UP_HOOK=<cmd>  run locally after the migrations, before `up`
 
 set -e
 
@@ -78,6 +93,24 @@ TAG="${TAG:-latest}"
 SEARCH_STRING="${SEARCH_STRING:-muma/muma}"
 LOCAL_COMPOSE_FILE="${LOCAL_COMPOSE_FILE:-docker/docker-compose.yml}"
 
+# Deploy-order knobs, see the header.
+DEPLOY_DB="${DEPLOY_DB:-0}"
+DEPLOY_ONESHOTS="${DEPLOY_ONESHOTS:-0}"
+PREDEPLOY_BACKUP="${PREDEPLOY_BACKUP:-1}"
+# One-shot jobs that live in docker/docker-compose.yml with `restart: "no"`.
+# Starting them on every deploy re-ran a full SoundCloud fetch each release.
+ONESHOT_SERVICES="soundcloud-fetcher genre-processor"
+# Where scripts/backup/install-systemd.sh put the backup compose file and env.
+BACKUP_COMPOSE_DIR="${BACKUP_COMPOSE_DIR:-/opt/muma-backup}"
+# Same floor as tools/db_backup.py (MIN_SIZE_BYTES): above "mariadb-dump printed
+# an error and quit", far below the ~780 MB a real dump is.
+PREDEPLOY_DUMP_MIN_BYTES="${PREDEPLOY_DUMP_MIN_BYTES:-1048576}"
+PREDEPLOY_DUMPS_KEPT="${PREDEPLOY_DUMPS_KEPT:-3}"
+DB_WAIT_SECONDS="${DB_WAIT_SECONDS:-180}"
+case "$PREDEPLOY_DUMP_MIN_BYTES$PREDEPLOY_DUMPS_KEPT$DB_WAIT_SECONDS" in
+    *[!0-9]*) echo "Error: PREDEPLOY_DUMP_MIN_BYTES, PREDEPLOY_DUMPS_KEPT and DB_WAIT_SECONDS must be numbers."; exit 1 ;;
+esac
+
 # 1. Trigger Portainer Webhook if configured
 if [ -n "${PORTAINER_WEBHOOK_URL}" ]; then
     echo "--- Triggering Portainer Webhook for: $STACK_NAME ---"
@@ -100,9 +133,27 @@ if [ -n "${PORTAINER_WEBHOOK_URL}" ]; then
 fi
 
 # 2. Remote Deployment via SSH if configured
+#
+# The order below is the point of this block; see
+# docs/bug-reports/050-deploy-starts-new-code-before-migrations.md.
+#
+#   a. prepare   ship the compose file, make sure `db` runs (never recreating
+#                it unless DEPLOY_DB=1) and wait until it answers
+#   b. backup    a verified pre-deploy dump; no dump, no deploy
+#   c. migrate   every migrate_*.sql, while the *old* containers still run --
+#                migrations are expand-only (tests/ci/test_migration_ordering.py),
+#                so the old code keeps working on the new schema
+#   d. hook      DEPLOY_PRE_UP_HOOK, if set; CI promotes the release's images
+#                to :latest here (scripts/ci/promote-release-images.sh), so
+#                Watchtower cannot start new code before (c) has finished
+#   e. up        pull and recreate what changed -- without `db` and without
+#                the one-shot tool containers unless asked for
+#
+# Before this order the stack was recreated first (every container, `db`
+# included, with --force-recreate) and migrated afterwards, with no backup.
 if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
     echo "--- Starting remote deployment for stack: $STACK_NAME on $REMOTE_HOST ---"
-    
+
     # Discovery command to be run on remote hosts
     DISCOVERY_CMD="
         ACTUAL_COMPOSE_FILE=\"\"
@@ -133,7 +184,7 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
     "
 
     COMPOSE_CONTENT=""
-    
+
     # Use local compose file if provided (Source of truth)
     if [ -f "$PROJECT_ROOT/$LOCAL_COMPOSE_FILE" ]; then
         echo "Using local configuration file: $LOCAL_COMPOSE_FILE"
@@ -160,7 +211,40 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
         SEND_ENV=1
     fi
 
-    # Deployment logic
+    # Root when the env carries its password, the application user otherwise.
+    # Used by the migrations and by the fallback dump.
+    MIGRATION_USER="$DB_USER"
+    MIGRATION_PASS="$DB_PASS"
+    if [ -n "$MYSQL_ROOT_PASSWORD" ]; then
+        MIGRATION_USER="root"
+        MIGRATION_PASS="$MYSQL_ROOT_PASSWORD"
+    fi
+
+    # IMAGE_TAG is the one-variable rollback (docs/deployment.md#rollback):
+    # docker/docker-compose.yml names every image this repository builds as
+    # ${IMAGE_TAG:-latest}. Not a secret, so it may travel on the command line,
+    # but it is checked to be a tag and nothing else before it is interpolated
+    # into a remote shell.
+    IMAGE_TAG_EXPORT=""
+    if [ -n "${IMAGE_TAG:-}" ]; then
+        if ! printf '%s' "$IMAGE_TAG" | grep -Eq '^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$'; then
+            echo "Error: IMAGE_TAG '$IMAGE_TAG' is not a valid image tag."
+            exit 1
+        fi
+        IMAGE_TAG_EXPORT="export IMAGE_TAG='$IMAGE_TAG'"
+        echo "--- Deploying image tag: $IMAGE_TAG ---"
+    fi
+
+    # Services a routine deploy leaves alone (see the header of this block).
+    SKIP_SERVICES=""
+    if [ "$DEPLOY_DB" != "1" ]; then
+        SKIP_SERVICES="$SKIP_SERVICES db"
+    fi
+    if [ "$DEPLOY_ONESHOTS" != "1" ]; then
+        SKIP_SERVICES="$SKIP_SERVICES $ONESHOT_SERVICES"
+    fi
+
+    # Shared prelude of the two remote steps that run compose (prepare, up).
     #
     # Everything lands in a root-only directory under the remote user's home,
     # not in world-writable /tmp: a file another account can pre-create or
@@ -171,8 +255,9 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
     # project, so nothing needs it afterwards. A run killed before its trap
     # fired is cleaned up by the next one (the rm of run.*).
     #
-    # The env content arrives on stdin, never on the command line.
-    DEPLOY_CMD="
+    # The env content arrives on stdin, never on the command line -- once per
+    # step, because each step's trap deletes it again.
+    REMOTE_PRELUDE="
         set -e
         umask 077
         DEPLOY_ROOT=\"\${HOME:?}/.muma-deploy\"
@@ -204,56 +289,170 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
             echo \"Error: No docker-compose command found on remote.\"
             exit 1
         fi
-        
-        echo \"Updating stack '$STACK_NAME'...\"
-        
-        \$DOCKER_CMD pull
+        $IMAGE_TAG_EXPORT
+    "
 
-        # A container whose image has since been pruned off the host cannot be
-        # recreated in place: compose stops and asks \"Continue with the new image?
-        # [yN]\", which has no answer over a non-interactive ssh, so the deploy dies
-        # having already recreated half the stack. Drop those containers here and
-        # let 'up -d' build them fresh from the image we just pulled.
-        for CID in \$(docker ps -aq --filter \"label=com.docker.compose.project=$STACK_NAME\"); do
-            CIMG=\$(docker inspect --format '{{.Image}}' \"\$CID\" 2>/dev/null || echo '')
-            if [ -n \"\$CIMG\" ] && ! docker image inspect \"\$CIMG\" >/dev/null 2>&1; then
-                echo \"Container \$(docker inspect --format '{{.Name}}' \"\$CID\" 2>/dev/null) references a missing image, removing it so it can be recreated.\"
-                docker rm -f \"\$CID\" >/dev/null
-            fi
-        done
-
-        if [ -n \"$SERVICE_NAME\" ] && \$DOCKER_CMD config --services | grep -q \"^$SERVICE_NAME\$\"; then
-            echo \"Updating service: $SERVICE_NAME\"
-            \$DOCKER_CMD up -d --force-recreate --remove-orphans $SERVICE_NAME
+    # remote_compose_step CMD: run the prelude plus CMD on the host, with the
+    # env file (if any) on stdin.
+    remote_compose_step() {
+        if [ "$SEND_ENV" = 1 ]; then
+            run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "$REMOTE_PRELUDE
+$1" < "$ENV_PATH"
         else
-            echo \"Updating full stack...\"
-            \$DOCKER_CMD up -d --force-recreate --remove-orphans
+            run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "$REMOTE_PRELUDE
+$1" < /dev/null
+        fi
+    }
+
+    # a. prepare -------------------------------------------------------------
+    #
+    # `db` is started when it is missing but never recreated on a routine
+    # deploy: --no-recreate leaves a running database alone even when its
+    # definition changed (a new logging block, say). DEPLOY_DB=1 is the
+    # deliberate way to roll such a change out, or to move MariaDB itself.
+    #
+    # Readiness is asked of the server itself: `mariadb-admin ping` exits 0 as
+    # soon as mysqld answers, even with "access denied", so it needs no
+    # credential. The migrations below must not start against a server that is
+    # still recovering.
+    echo "--- [1/5] Preparing $STACK_NAME: compose file, database ---"
+    DB_UP_CMD="up -d --no-deps --no-recreate db"
+    if [ "$DEPLOY_DB" = "1" ]; then
+        DB_UP_CMD="up -d --no-deps db"
+    fi
+    remote_compose_step "
+        if \$DOCKER_CMD config --services | grep -qx db; then
+            if [ \"$DEPLOY_DB\" = 1 ]; then
+                echo 'DEPLOY_DB=1: pulling and, if its definition changed, recreating db'
+                \$DOCKER_CMD pull db
+            fi
+            \$DOCKER_CMD $DB_UP_CMD
+            waited=0
+            until docker exec music-management-db-1 mariadb-admin ping --silent >/dev/null 2>&1; do
+                if [ \"\$waited\" -ge $DB_WAIT_SECONDS ]; then
+                    echo 'Error: the database did not answer within $DB_WAIT_SECONDS s; nothing was migrated or recreated.'
+                    exit 1
+                fi
+                sleep 2
+                waited=\$((waited + 2))
+            done
+            echo \"Database is answering (after \${waited}s).\"
+        else
+            echo 'No db service in this compose file; skipping the database wait.'
         fi
     "
 
-    if [ "$SEND_ENV" = 1 ]; then
-        run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "$DEPLOY_CMD" < "$ENV_PATH"
+    # b. backup --------------------------------------------------------------
+    #
+    # First choice is the same entry point the nightly timer uses:
+    # tools/db_backup.py, through the db-backup service of the compose file that
+    # scripts/backup/install-systemd.sh installed in $BACKUP_COMPOSE_DIR. It
+    # dumps, verifies (size floor, gzip stream, "-- Dump completed" trailer),
+    # records row counts and prunes. BACKUP_LABEL=pre-deploy names the file
+    # muma_db_pre-deploy_<stamp>.sql.gz; an older tools image that predates the
+    # label ignores the variable and writes an ordinary verified daily dump,
+    # which serves the same purpose.
+    #
+    # When that is not installed or fails, the fallback is mariadb-dump through
+    # `docker exec` into the same destination, held to the same three checks.
+    # The password travels as on the migrations: first line of stdin, into
+    # MYSQL_PWD, `docker exec -e MYSQL_PWD` without a value.
+    #
+    # Either way, no verified dump means no deploy: nothing has been migrated
+    # or recreated yet at this point, so stopping here changes nothing.
+    if [ "$PREDEPLOY_BACKUP" = "1" ]; then
+        echo "--- [2/5] Pre-deploy database backup ---"
+        Q_BACKUP_COMPOSE_DIR=$(printf '%q' "$BACKUP_COMPOSE_DIR")
+        Q_BACKUP_DEST=$(printf '%q' "${HOST_BACKUP_PATH:-/mnt/backups/muma}")
+        Q_DB_DB=$(printf '%q' "$DB_DB")
+        Q_MIGRATION_USER=$(printf '%q' "$MIGRATION_USER")
+        REMOTE_BACKUP_CMD="
+            set -e
+            IFS= read -r DUMP_PWD || true
+            BACKUP_DIR=$Q_BACKUP_COMPOSE_DIR
+            if [ -f \"\$BACKUP_DIR/docker-compose.backup.yml\" ] && [ -f \"\$BACKUP_DIR/.env\" ]; then
+                if docker compose version >/dev/null 2>&1; then
+                    BACKUP_COMPOSE=\"docker compose\"
+                else
+                    BACKUP_COMPOSE=\"docker-compose\"
+                fi
+                echo \"Running the db-backup service from \$BACKUP_DIR (tools/db_backup.py)\"
+                if \$BACKUP_COMPOSE --env-file \"\$BACKUP_DIR/.env\" -f \"\$BACKUP_DIR/docker-compose.backup.yml\" -p $STACK_NAME \\
+                        run --rm -T -e BACKUP_LABEL=pre-deploy db-backup < /dev/null; then
+                    echo 'PREDEPLOY_BACKUP_OK (db-backup service)'
+                    exit 0
+                fi
+                echo 'WARNING: the db-backup service failed; falling back to mariadb-dump through docker exec.'
+            else
+                echo \"No backup compose file in \$BACKUP_DIR; using mariadb-dump through docker exec.\"
+            fi
+
+            if [ -z \"\$DUMP_PWD\" ]; then
+                echo 'Error: no database password for the fallback dump; refusing to deploy without a backup.'
+                exit 1
+            fi
+            DEST=$Q_BACKUP_DEST
+            if [ ! -d \"\$DEST\" ]; then
+                echo \"Error: backup destination \$DEST does not exist (is the backup share mounted?); refusing to deploy without a backup.\"
+                exit 1
+            fi
+            STAMP=\$(date -u +%Y%m%d_%H%M%S)
+            FILE=\"\$DEST/muma_db_pre-deploy_\$STAMP.sql.gz\"
+            PART=\"\$FILE.partial\"
+            STATUS_FILE=\$(mktemp)
+            trap 'rm -f \"\$STATUS_FILE\" \"\$PART\"' EXIT
+            # The dump's own exit status goes through a file: in a pipe into
+            # gzip it would otherwise be lost, and a dump that died halfway
+            # would look like a short success.
+            {
+                MYSQL_PWD=\"\$DUMP_PWD\" docker exec -i -e MYSQL_PWD music-management-db-1 mariadb-dump \\
+                    -u $Q_MIGRATION_USER --single-transaction --quick --routines --triggers --events \\
+                    --default-character-set=utf8mb4 $Q_DB_DB < /dev/null
+                echo \$? > \"\$STATUS_FILE\"
+            } | gzip > \"\$PART\"
+            if [ \"\$(cat \"\$STATUS_FILE\")\" != 0 ]; then
+                echo \"Error: mariadb-dump exited \$(cat \"\$STATUS_FILE\"); refusing to deploy without a backup.\"
+                exit 1
+            fi
+            SIZE=\$(stat -c %s \"\$PART\")
+            if [ \"\$SIZE\" -lt $PREDEPLOY_DUMP_MIN_BYTES ]; then
+                echo \"Error: the dump is \$SIZE bytes, below the $PREDEPLOY_DUMP_MIN_BYTES floor; refusing to deploy without a backup.\"
+                exit 1
+            fi
+            if ! gzip -t \"\$PART\"; then
+                echo 'Error: the dump does not decompress; refusing to deploy without a backup.'
+                exit 1
+            fi
+            if ! gzip -dc \"\$PART\" | tail -c 4096 | grep -q -- '-- Dump completed'; then
+                echo 'Error: the dump has no \"-- Dump completed\" trailer (truncated); refusing to deploy without a backup.'
+                exit 1
+            fi
+            mv \"\$PART\" \"\$FILE\"
+            # Keep the newest $PREDEPLOY_DUMPS_KEPT; the nightly job prunes its own
+            # files by prefix and never matches these.
+            ls -1t \"\$DEST\"/muma_db_pre-deploy_*.sql.gz 2>/dev/null | tail -n +$((PREDEPLOY_DUMPS_KEPT + 1)) | xargs -r rm -f
+            echo \"PREDEPLOY_BACKUP_OK \$FILE (\$SIZE bytes)\"
+        "
+        printf '%s\n' "$MIGRATION_PASS" \
+            | run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "$REMOTE_BACKUP_CMD"
     else
-        run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "$DEPLOY_CMD" < /dev/null
+        echo "--- [2/5] WARNING: PREDEPLOY_BACKUP=0, deploying WITHOUT a pre-deploy backup ---"
     fi
 
-    # 3. Database Migrations
+    # c. migrate -------------------------------------------------------------
+    #
     # Glob is migrate_*.sql, matching the !migrate_*.sql exception in .gitignore
     # exactly: one naming rule decides both what gets committed and what gets
     # applied, so a migration can no longer be silently skipped by one of the two
     # (see docs/bug-reports/021-genre-migration-never-shipped.md). Every match
-    # runs on every deploy, so migrations must be re-runnable.
+    # runs on every deploy, so migrations must be re-runnable -- and, because
+    # they run before the new containers start, expand-only: the release that is
+    # still running has to keep working on the migrated schema.
+    echo "--- [3/5] Applying database migrations (old containers still running) ---"
     for sql_file in "$PROJECT_ROOT"/migrate_*.sql; do
         if [ -f "$sql_file" ]; then
             fname=$(basename "$sql_file")
             echo "--- Executing database migration: $fname ---"
-
-            MIGRATION_USER="$DB_USER"
-            MIGRATION_PASS="$DB_PASS"
-            if [ -n "$MYSQL_ROOT_PASSWORD" ]; then
-                MIGRATION_USER="root"
-                MIGRATION_PASS="$MYSQL_ROOT_PASSWORD"
-            fi
 
             # stdin carries the password on its first line and the SQL after
             # it. The remote shell reads the first line into MYSQL_PWD (the
@@ -282,7 +481,65 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
                 | run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "$REMOTE_MIGRATE_CMD"
         fi
     done
-    
+
+    # d. hook ----------------------------------------------------------------
+    if [ -n "${DEPLOY_PRE_UP_HOOK:-}" ]; then
+        echo "--- [4/5] Pre-up hook: $DEPLOY_PRE_UP_HOOK ---"
+        "$DEPLOY_PRE_UP_HOOK"
+    else
+        echo "--- [4/5] No pre-up hook ---"
+    fi
+
+    # e. up ------------------------------------------------------------------
+    #
+    # No --force-recreate: compose recreates exactly the containers whose image
+    # or definition changed, and leaves the rest running. --no-deps because
+    # `up <service>` would otherwise converge that service's dependencies too,
+    # and every service here depends on `db`.
+    echo "--- [5/5] Updating containers ---"
+    remote_compose_step "
+        SERVICES=''
+        if [ -n \"$SERVICE_NAME\" ]; then
+            if ! \$DOCKER_CMD config --services | grep -qx \"$SERVICE_NAME\"; then
+                echo \"Error: service '$SERVICE_NAME' is not defined in the compose file.\"
+                exit 1
+            fi
+            SERVICES=\"$SERVICE_NAME\"
+        else
+            for SVC in \$(\$DOCKER_CMD config --services); do
+                case \" $SKIP_SERVICES \" in
+                    *\" \$SVC \"*) echo \"Leaving \$SVC alone (see DEPLOY_DB / DEPLOY_ONESHOTS in scripts/deploy.sh)\" ;;
+                    *) SERVICES=\"\$SERVICES \$SVC\" ;;
+                esac
+            done
+        fi
+        if [ -z \"\$SERVICES\" ]; then
+            echo 'Error: no services left to update.'
+            exit 1
+        fi
+        echo \"Updating:\$SERVICES\"
+
+        \$DOCKER_CMD pull \$SERVICES
+
+        # A container whose image has since been pruned off the host cannot be
+        # recreated in place: compose stops and asks \"Continue with the new image?
+        # [yN]\", which has no answer over a non-interactive ssh, so the deploy dies
+        # having already recreated half the stack. Drop those containers here and
+        # let 'up -d' build them fresh from the image we just pulled. Only for the
+        # services being updated: removing \`db\` here would leave it removed.
+        for CID in \$(docker ps -aq --filter \"label=com.docker.compose.project=$STACK_NAME\"); do
+            CSVC=\$(docker inspect --format '{{ index .Config.Labels \"com.docker.compose.service\" }}' \"\$CID\" 2>/dev/null || echo '')
+            case \" \$SERVICES \" in *\" \$CSVC \"*) ;; *) continue ;; esac
+            CIMG=\$(docker inspect --format '{{.Image}}' \"\$CID\" 2>/dev/null || echo '')
+            if [ -n \"\$CIMG\" ] && ! docker image inspect \"\$CIMG\" >/dev/null 2>&1; then
+                echo \"Container \$(docker inspect --format '{{.Name}}' \"\$CID\" 2>/dev/null) references a missing image, removing it so it can be recreated.\"
+                docker rm -f \"\$CID\" >/dev/null
+            fi
+        done
+
+        \$DOCKER_CMD up -d --no-deps --remove-orphans \$SERVICES
+    "
+
     echo "--- Remote deployment completed successfully ---"
 else
     echo "Error: Remote deployment skipped. No PORTAINER_WEBHOOK_URL, REMOTE_HOST, or SSH targets configured in .env."

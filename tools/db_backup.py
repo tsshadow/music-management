@@ -78,6 +78,15 @@ MONTHLY_RETENTION_MONTHS = 6
 DEFAULT_RETENTION_DAYS = 14
 DEFAULT_STALE_AFTER_HOURS = 36
 
+# BACKUP_LABEL names an out-of-schedule dump: scripts/deploy.sh takes one with
+# label "pre-deploy" before it migrates anything. Such a dump is written as
+# muma_db_<label>_<stamp>.sql.gz, verified exactly like a nightly one, and kept
+# in a rotation of its own -- prune() never matches it (its stem does not parse
+# as a date), and it does not replace latest.json, whose row counts and age
+# belong to the nightly schedule that /health/backup and the restore check watch.
+LABEL_PATTERN = re.compile(r'^[a-z0-9][a-z0-9-]{0,31}$')
+LABELLED_KEPT = 3
+
 
 class BackupError(Exception):
     """Anything that means the backup did not happen."""
@@ -424,6 +433,7 @@ def ensure_free_space(destination: Path, now: datetime) -> None:
         and path.name.startswith(DAILY_PREFIX)
         and not path.name.startswith(MONTHLY_PREFIX)
         and path.name.endswith(SUFFIX)
+        and _parse_daily(path.name) is not None
     ]
     if not dailies:
         return
@@ -437,17 +447,54 @@ def ensure_free_space(destination: Path, now: datetime) -> None:
         )
 
 
+def backup_label() -> str | None:
+    """The BACKUP_LABEL of an out-of-schedule dump, or None for a nightly one.
+
+    Checked to be a plain slug because it becomes part of a file name, and
+    "monthly" is refused because muma_db_monthly_ is the monthly series' prefix.
+    """
+    label = os.getenv('BACKUP_LABEL', '').strip()
+    if not label:
+        return None
+    if not LABEL_PATTERN.match(label) or label == 'monthly':
+        raise BackupError(f'BACKUP_LABEL {label!r} is not a usable label (lowercase letters, digits, dashes)')
+    return label
+
+
+def prune_labelled(destination: Path, label: str, keep: int = LABELLED_KEPT) -> list[Path]:
+    """Keep the newest KEEP dumps carrying LABEL, remove the older ones.
+
+    The stamp in the name sorts chronologically, so the name order is the age
+    order. Only files with exactly this label's prefix are candidates.
+    """
+    prefix = f'{DAILY_PREFIX}{label}_'
+    labelled = sorted(
+        (p for p in destination.iterdir() if p.is_file() and p.name.startswith(prefix) and p.name.endswith(SUFFIX)),
+        key=lambda p: p.name,
+        reverse=True,
+    )
+    removed = labelled[keep:]
+    for path in removed:
+        path.unlink()
+    return removed
+
+
 def run_backup(argv_destination: str | None = None) -> int:
+    """Take one backup: dump, verify, and record/prune for a nightly run."""
     destination = resolve_destination(argv_destination or os.getenv('BACKUP_PATH', ''), os.getenv('DATA_PATH'))
     retention = int(os.getenv('BACKUP_RETENTION_DAYS', str(DEFAULT_RETENTION_DAYS)))
+    label = backup_label()
     creds = _credentials()
     if not creds['database']:
         raise BackupError('DB_DB is not set, so there is nothing to dump')
 
     started = datetime.now(UTC)
-    removed = prune(destination, retention, started)
+    # A labelled (pre-deploy) dump leaves the nightly rotation alone: it prunes only
+    # its own series, after it has verified. The free-space check applies to both.
+    removed = [] if label else prune(destination, retention, started)
     ensure_free_space(destination, started)
-    backup = destination / f'{DAILY_PREFIX}{started:%Y%m%d_%H%M%S}{SUFFIX}'
+    name_prefix = f'{DAILY_PREFIX}{label}_' if label else DAILY_PREFIX
+    backup = destination / f'{name_prefix}{started:%Y%m%d_%H%M%S}{SUFFIX}'
     partial = backup.with_name(backup.name + PARTIAL_SUFFIX)
     try:
         dump(partial, creds)
@@ -458,6 +505,13 @@ def run_backup(argv_destination: str | None = None) -> int:
         # disk it is also what keeps the disk full. Any exception, not only a
         # BackupError: running out of space is an OSError.
         partial.unlink(missing_ok=True)
+
+    if label:
+        removed = prune_labelled(destination, label)
+        print(f'backup ({label}): {backup} ({backup.stat().st_size} bytes)')
+        for path in removed:
+            print(f'pruned: {path.name}')
+        return 0
 
     finished = datetime.now(UTC)
     counts = row_counts(creds)

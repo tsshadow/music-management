@@ -131,9 +131,50 @@ class InitDbTest(unittest.TestCase):
         the unique keys lead on username and cannot serve that."""
         cursor = ScriptedCursor(rules=[("SHOW COLUMNS", None, {'Field': 'played_secs'})])
         init_db(cursor)
-        indexed = [sql for sql, _params in cursor.executed if 'ADD INDEX' in sql]
+        indexed = [sql for sql, _params in cursor.executed if 'ADD INDEX' in sql and 'listened_at' in sql]
         self.assertEqual(len(indexed), 2, indexed)
-        self.assertTrue(all('listened_at' in sql for sql in indexed), indexed)
+
+    def test_the_track_index_is_created_on_an_existing_database(self):
+        """Per-track listen questions seek on track_id, which no key led with."""
+        cursor = ScriptedCursor(rules=[("SHOW COLUMNS", None, {'Field': 'played_secs'})])
+        init_db(cursor)
+        indexed = [sql for sql, _params in cursor.executed if 'ADD INDEX' in sql and 'idx_listens_track_user' in sql]
+        self.assertEqual(len(indexed), 1, indexed)
+        self.assertIn('(track_id, username)', indexed[0])
+
+    def test_a_fresh_table_declares_its_listened_at_default(self):
+        """An undeclared DEFAULT on the first TIMESTAMP column means ON UPDATE on MariaDB
+        < 10.10 (docs/bug-reports/039)."""
+        cursor = ScriptedCursor()
+        init_db(cursor)
+        creates = [sql for sql, _params in cursor.executed if 'CREATE TABLE IF NOT EXISTS scrobble_' in sql]
+        listens = [sql for sql in creates if 'listened_at' in sql]
+        self.assertEqual(len(listens), 2, creates)
+        for sql in listens:
+            self.assertIn('listened_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,', sql)
+            self.assertNotIn('ON UPDATE', sql)
+
+    @staticmethod
+    def _listened_at_modifies(cursor):
+        return [sql for sql, _params in cursor.executed if 'MODIFY listened_at' in sql]
+
+    def test_an_old_table_loses_its_on_update_at_start_up(self):
+        cursor = ScriptedCursor(
+            rules=[("SHOW COLUMNS", None, {'Field': 'played_secs'}), ('information_schema', None, {'n': 1})]
+        )
+        init_db(cursor)
+        modified = self._listened_at_modifies(cursor)
+        self.assertEqual(len(modified), 2, modified)
+        self.assertTrue(all('ON UPDATE' not in sql for sql in modified), modified)
+
+    def test_a_repaired_table_is_not_altered_again(self):
+        """The MODIFY copies the whole table (the long UNIQUE key is a hash key), so it
+        must only run while the attribute is still there."""
+        cursor = ScriptedCursor(
+            rules=[("SHOW COLUMNS", None, {'Field': 'played_secs'}), ('information_schema', None, {'n': 0})]
+        )
+        init_db(cursor)
+        self.assertEqual(self._listened_at_modifies(cursor), [])
 
 
 if __name__ == '__main__':

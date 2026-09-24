@@ -49,10 +49,65 @@ TOOLING_IMAGE="${PYTHON_TOOLING_IMAGE:-python:3.14-slim}"
 # Set PYTHON_TOOLING_CACHE to move it; set it to "none" to install afresh.
 TOOLING_CACHE_ROOT="${PYTHON_TOOLING_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/muma-python-tooling}"
 
+# Which requirements files the container installs, space-separated and relative
+# to the repository root. The quality jobs only need the linters
+# (requirements-dev.txt); the unit and integration suites set this to
+# requirements.txt, so they run against the dependency versions the images
+# install instead of whatever the runner's system Python happens to carry.
+# Each distinct list gets its own cache directory through tooling_cache_key.
+TOOLING_REQUIREMENTS="${TOOLING_REQUIREMENTS:-requirements-dev.txt}"
+
+# Extra `docker run` arguments (e.g. --network host) and the names of host
+# environment variables to pass into the container. Arrays, set by the caller
+# before tooling_container runs.
+TOOLING_DOCKER_ARGS=("${TOOLING_DOCKER_ARGS[@]}")
+TOOLING_ENV_VARS=("${TOOLING_ENV_VARS[@]}")
+
 # tooling_cache_key
 # Sixteen hex characters that change when the requirements or the image do.
+# For the default list this is byte-for-byte the key it always was, so existing
+# caches on the runners stay valid.
 tooling_cache_key() {
-    { echo "$TOOLING_IMAGE"; cat "$ROOT_DIR/requirements-dev.txt"; } | sha256sum | cut -c1-16
+    local req
+    {
+        echo "$TOOLING_IMAGE"
+        for req in $TOOLING_REQUIREMENTS; do
+            cat "$ROOT_DIR/$req"
+        done
+    } | sha256sum | cut -c1-16
+}
+
+# tooling_container_required
+# True when the calling script must run inside the tooling container even if the
+# tools are on this host's PATH: in CI (GitLab sets CI=true), or when
+# PYTHON_TOOLING_FORCE_CONTAINER=1. The two runners carry different system
+# Pythons (LXC 3.11, workstation 3.13) and neither is the 3.14 the images run,
+# so a native run would report on an interpreter production never uses -- and
+# a different one depending on which runner picked the job up.
+tooling_container_required() {
+    [ "${PYTHON_TOOLING_CONTAINER:-0}" != "1" ] || return 1
+    [ -n "${CI:-}" ] || [ "${PYTHON_TOOLING_FORCE_CONTAINER:-0}" = "1" ]
+}
+
+# tooling_use_ci_image
+# Switches TOOLING_IMAGE to docker/Dockerfile.python-ci -- python:3.14-slim plus
+# the git and ssh client the test suite shells out to -- building it on this
+# host first when the tag is missing. Same shape as scripts/ci/cpp-tidy-image.sh:
+# the tag carries a hash of the Dockerfile, so editing it forces a rebuild. An
+# explicit PYTHON_TOOLING_IMAGE still wins.
+tooling_use_ci_image() {
+    if [ -n "${PYTHON_TOOLING_IMAGE:-}" ]; then
+        return 0
+    fi
+    local dockerfile="$ROOT_DIR/docker/Dockerfile.python-ci"
+    TOOLING_IMAGE="music-management/python-ci:314-$(sha256sum "$dockerfile" | cut -c1-12)-u$(id -u)"
+    if ! docker image inspect "$TOOLING_IMAGE" >/dev/null 2>&1; then
+        echo "--- Building $TOOLING_IMAGE (one-off per Dockerfile change) ---"
+        docker build -q -f "$dockerfile" \
+            --build-arg RUNNER_UID="$(id -u)" \
+            --build-arg RUNNER_GID="$(id -g)" \
+            -t "$TOOLING_IMAGE" "$ROOT_DIR/docker/" >/dev/null
+    fi
 }
 
 # tooling_mounts
@@ -84,13 +139,21 @@ tooling_mounts() {
 # container runs as the host user, so nothing root-owned is left behind.
 tooling_container() {
     local mounts=()
+    local env_args=()
+    local name line
     while IFS= read -r line; do
         [ -n "$line" ] && mounts+=("$line")
     done < <(tooling_mounts)
+    for name in "${TOOLING_ENV_VARS[@]}"; do
+        env_args+=(-e "$name")
+    done
     docker run --rm \
         --user "$(id -u):$(id -g)" \
         -v "$ROOT_DIR:/repo" \
         "${mounts[@]}" \
+        "${env_args[@]}" \
+        "${TOOLING_DOCKER_ARGS[@]}" \
+        -e TOOLING_REQUIREMENTS="$TOOLING_REQUIREMENTS" \
         -w /repo \
         -e HOME=/tmp \
         -e PYTHONUSERBASE=/tmp/tooling \
@@ -113,7 +176,7 @@ rerun_in_container() {
         exit 1
     fi
 
-    echo "--- Tooling not on PATH; running $script inside $TOOLING_IMAGE ---"
+    echo "--- Running $script inside $TOOLING_IMAGE ---"
     tooling_container "$script $*"
     exit $?
 }

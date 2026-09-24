@@ -8,6 +8,22 @@ set -e
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
+# In CI the suite runs inside the Python the images run (python:3.14-slim, see
+# scripts/lib/python-tooling.sh) with requirements.txt installed, cached per
+# requirements hash. It used to run on the runner's system python3 -- 3.11 on
+# the LXC, which cannot even install the numpy pinned here -- against whatever
+# packages that host happened to carry, so a green job said nothing about the
+# interpreter or dependencies production uses. Locally the developer's own
+# environment is used unless PYTHON_TOOLING_FORCE_CONTAINER=1.
+# shellcheck source=scripts/lib/python-tooling.sh
+source "$ROOT_DIR/scripts/lib/python-tooling.sh"
+if tooling_container_required; then
+    TOOLING_REQUIREMENTS="requirements.txt"
+    tooling_use_ci_image
+    TOOLING_ENV_VARS=(COVERAGE_MIN)
+    rerun_in_container ./scripts/test/music-management-unit.sh "$@"
+fi
+
 # Load .env if it exists (same convention as build.sh / scripts/lint.sh)
 if [ -f .env ]; then
     while IFS= read -r line || [[ -n "$line" ]]; do

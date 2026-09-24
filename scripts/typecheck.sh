@@ -18,8 +18,10 @@ cd "$ROOT_DIR"
 # shellcheck source=scripts/lib/python-tooling.sh
 source "$ROOT_DIR/scripts/lib/python-tooling.sh"
 
-# The CI runner has no mypy installed; fall back to the container image.
-if [ "${PYTHON_TOOLING_CONTAINER:-0}" != "1" ] && ! have_tool mypy; then
+# In CI always inside the tooling container (tooling_container_required),
+# elsewhere only when mypy is missing from this host.
+if tooling_container_required \
+   || { [ "${PYTHON_TOOLING_CONTAINER:-0}" != "1" ] && ! have_tool mypy; }; then
     rerun_in_container ./scripts/typecheck.sh "$@"
 fi
 

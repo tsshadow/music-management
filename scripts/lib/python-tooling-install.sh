@@ -32,6 +32,13 @@ if [ -f "$base/.complete" ]; then
     exit 0
 fi
 
-echo "--- Installing requirements-dev.txt into $base ---"
-pip install --user --quiet --disable-pip-version-check -r requirements-dev.txt
+# TOOLING_REQUIREMENTS is the space-separated list python-tooling.sh keyed this
+# directory on; requirements-dev.txt when a caller did not choose.
+req_args=()
+for req in ${TOOLING_REQUIREMENTS:-requirements-dev.txt}; do
+    req_args+=(-r "$req")
+done
+
+echo "--- Installing ${TOOLING_REQUIREMENTS:-requirements-dev.txt} into $base ---"
+pip install --user --quiet --disable-pip-version-check "${req_args[@]}"
 touch "$base/.complete"

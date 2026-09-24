@@ -9,3 +9,6 @@ src/lms/ui/ui/node_modules/
 src/lms/ui/ui/dist/
 *.swp
 *.log
+# Production secrets; see the note in the root .dockerignore.
+.env
+**/.env

@@ -32,27 +32,48 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # 2. Materialize the .env files for both stacks from CI/CD variables (since
 #    .env is gitignored and would otherwise not exist on a fresh checkout).
+#
+#    Into a private temp directory, not into the checkout: the shell-executor
+#    runner keeps its checkouts, so a prod .env written there outlived the job,
+#    and the repo root is the build context of every image -- one `docker build
+#    .` in a later job would have copied it in. Removed on exit together with
+#    the ssh-agent (prod_ssh_teardown, from prod-ssh-setup.sh).
+ENV_DIR="$(mktemp -d)"
+chmod 700 "$ENV_DIR"
+
+# cleanup_deploy: remove the materialized env files and stop the ssh-agent.
+cleanup_deploy() {
+    rm -rf "$ENV_DIR"
+    prod_ssh_teardown
+}
+trap cleanup_deploy EXIT
+
+# write_env_file VALUE DEST: write a file-type CI/CD variable (a path) or a
+# plain one (the content itself) to DEST, readable by the owner only.
 write_env_file() {
     local var_value="$1"
     local dest="$2"
-    if [ -f "${var_value}" ]; then
-        cp "${var_value}" "$dest"
-    else
-        printf '%s\n' "${var_value}" > "$dest"
-    fi
+    (
+        umask 077
+        if [ -f "${var_value}" ]; then
+            cp "${var_value}" "$dest"
+        else
+            printf '%s\n' "${var_value}" > "$dest"
+        fi
+    )
 }
 
 if [ -z "${PROD_ENV_FILE}" ]; then
     echo "Error: PROD_ENV_FILE CI/CD variable is not set. See docs/deployment.md."
     exit 1
 fi
-write_env_file "${PROD_ENV_FILE}" "$PROJECT_ROOT/.env"
+write_env_file "${PROD_ENV_FILE}" "$ENV_DIR/music-management.env"
 
 if [ -z "${PROD_ENV_FILE_LMS}" ]; then
     echo "Error: PROD_ENV_FILE_LMS CI/CD variable is not set. See docs/deployment.md."
     exit 1
 fi
-write_env_file "${PROD_ENV_FILE_LMS}" "$PROJECT_ROOT/services/music-management-server/.env"
+write_env_file "${PROD_ENV_FILE_LMS}" "$ENV_DIR/lms.env"
 
 # 3. Provision the reverse-proxy nginx config on the remote host (this used
 #    to be a manual copy step, see docs/deployment.md).
@@ -66,7 +87,7 @@ scp -o StrictHostKeyChecking=no \
 echo "--- Deploying stack: music-management ---"
 export DEPLOY_TARGET_NAME="music-management"
 export LOCAL_COMPOSE_FILE="docker/docker-compose.yml"
-export LOCAL_ENV_FILE=".env"
+export LOCAL_ENV_FILE="$ENV_DIR/music-management.env"
 "$SCRIPT_DIR/deploy.sh"
 
 # 5. Deploy stack 2: "lms"
@@ -75,7 +96,7 @@ echo "--- Deploying stack: lms ---"
     cd "$PROJECT_ROOT/services/music-management-server"
     export DEPLOY_TARGET_NAME="lms"
     export LOCAL_COMPOSE_FILE="$PROJECT_ROOT/services/music-management-server/docker-compose.yml"
-    export LOCAL_ENV_FILE="$PROJECT_ROOT/services/music-management-server/.env"
+    export LOCAL_ENV_FILE="$ENV_DIR/lms.env"
     "$PROJECT_ROOT/services/music-management-server/scripts/deploy-stack.sh"
 )
 

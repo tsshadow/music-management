@@ -1,6 +1,5 @@
-"""Coverage for the /api/library, /api/jobs and /api/scrobble routers."""
+"""Coverage for the /api/library and /api/scrobble routers."""
 
-import asyncio
 import hashlib
 import sys
 import unittest
@@ -17,7 +16,6 @@ users_router.run_lms_db_sync = lambda: None
 from fastapi.testclient import TestClient
 
 from services.music_manager.main import app
-from services.music_manager.routers import jobs as jobs_router
 from services.music_manager.routers import library as library_router
 from services.music_manager.routers import scrobbler as scrobbler_router
 
@@ -542,154 +540,6 @@ class RunListenBrainzImportTest(unittest.TestCase):
         ):
             scrobbler_router.run_listenbrainz_import(1, 'user', 'user-lb')
         http.get.assert_not_called()
-
-
-class JobManagerTest(unittest.TestCase):
-    def setUp(self):
-        self.manager = jobs_router.JobManager()
-
-    def test_a_pipeline_run_reports_progress_and_finishes(self):
-        step = MagicMock()
-        step.name = 'Extractor'
-        asyncio.run(self.manager.run('job-1', [step], ['all']))
-        self.assertEqual(self.manager.jobs['job-1']['status'], 'finished')
-        self.assertEqual(self.manager.jobs['job-1']['progress'], 1)
-        self.assertEqual(list(self.manager.history), ['job-1'])
-        step.run.assert_called_once_with(['all'])
-
-    def test_a_listener_is_sent_the_current_state_on_connect(self):
-        websocket = MagicMock()
-        websocket.accept = MagicMock(return_value=asyncio.sleep(0))
-        sent = []
-
-        async def send_json(payload):
-            sent.append(payload)
-
-        websocket.send_json = send_json
-        self.manager.jobs['job-1'] = {'status': 'running'}
-        asyncio.run(self.manager.connect('job-1', websocket))
-        self.assertEqual(sent, [{'status': 'running'}])
-
-    def test_a_listener_for_an_unknown_job_is_only_accepted(self):
-        websocket = MagicMock()
-        websocket.accept = MagicMock(return_value=asyncio.sleep(0))
-        websocket.send_json = MagicMock(side_effect=AssertionError('should not send'))
-        asyncio.run(self.manager.connect('unknown', websocket))
-        self.assertIn(websocket, self.manager.connections['unknown'])
-
-    def test_a_listener_can_be_disconnected(self):
-        websocket = MagicMock()
-        self.manager.connections['job-1'].append(websocket)
-        self.manager.disconnect('job-1', websocket)
-        self.assertEqual(self.manager.connections['job-1'], [])
-
-    def test_disconnecting_an_unknown_job_is_harmless(self):
-        self.manager.disconnect('nope', MagicMock())  # must not raise
-
-    def test_a_listener_that_dropped_is_removed_on_the_next_notify(self):
-        websocket = MagicMock()
-
-        async def send_json(_payload):
-            raise jobs_router.WebSocketDisconnect()
-
-        websocket.send_json = send_json
-        self.manager.connections['job-1'].append(websocket)
-        self.manager.jobs['job-1'] = {'status': 'running'}
-        asyncio.run(self.manager._notify('job-1'))
-        self.assertEqual(self.manager.connections['job-1'], [])
-
-    def test_publishing_outside_a_job_does_nothing(self):
-        async def publish():
-            self.manager.publish({'message': 'hello'})
-
-        asyncio.run(publish())  # must not raise
-
-    def test_publishing_inside_a_job_notifies_its_listeners(self):
-        sent = []
-
-        async def send_json(payload):
-            sent.append(payload)
-
-        websocket = MagicMock()
-        websocket.send_json = send_json
-        self.manager.connections['job-1'].append(websocket)
-
-        async def publish():
-            token = jobs_router.current_job_id.set('job-1')
-            try:
-                self.manager.publish({'message': 'hello'})
-                await asyncio.sleep(0)
-            finally:
-                jobs_router.current_job_id.reset(token)
-
-        asyncio.run(publish())
-        self.assertEqual(sent, [{'message': 'hello'}])
-
-    def test_creating_a_job_schedules_it_and_hands_back_an_id(self):
-        step = MagicMock()
-        step.name = 'Extractor'
-
-        async def create():
-            job_id = self.manager.create_job([step], ['all'])
-            await asyncio.sleep(0.05)
-            return job_id
-
-        job_id = asyncio.run(create())
-        self.assertIn(job_id, self.manager.results)
-
-    def test_recent_returns_the_finished_jobs_newest_first(self):
-        self.manager.results = {'a': {'status': 'finished'}, 'b': {'status': 'finished'}}
-        self.manager.history.extend(['a', 'b'])
-        self.assertEqual(len(self.manager.recent()), 2)
-
-
-class JobEndpointTest(unittest.TestCase):
-    def setUp(self):
-        self.client = TestClient(app)
-        self.headers = {'x-api-key': API_KEY}
-        jobs_router.job_manager.jobs.clear()
-        jobs_router.job_manager.results.clear()
-        jobs_router.job_manager.history.clear()
-
-    def test_the_job_routes_take_a_key(self):
-        # These sat behind LMS's own credential check until the reverse proxy
-        # started handing /muma/api/ to MuMa directly; open, "register" would
-        # let anyone on the internet write into the job table.
-        self.assertEqual(self.client.post('/api/jobs/register/ext-0', json={'status': 'running'}).status_code, 401)
-        self.assertEqual(self.client.get('/api/jobs/active').status_code, 401)
-        self.assertEqual(self.client.get('/api/jobs/history').status_code, 401)
-        self.assertNotIn('ext-0', jobs_router.job_manager.jobs)
-
-    def test_a_running_external_job_is_registered_but_not_archived(self):
-        response = self.client.post('/api/jobs/register/ext-1', json={'status': 'running'}, headers=self.headers)
-        self.assertEqual(response.json(), {'status': 'ok'})
-        self.assertIn('ext-1', jobs_router.job_manager.jobs)
-        self.assertNotIn('ext-1', jobs_router.job_manager.results)
-
-    def test_a_finished_external_job_lands_in_the_history(self):
-        self.client.post('/api/jobs/register/ext-2', json={'status': 'finished'}, headers=self.headers)
-        self.assertIn('ext-2', jobs_router.job_manager.results)
-        self.assertIn('ext-2', jobs_router.job_manager.history)
-
-    def test_the_same_finished_job_is_not_archived_twice(self):
-        self.client.post('/api/jobs/register/ext-3', json={'status': 'finished'}, headers=self.headers)
-        self.client.post('/api/jobs/register/ext-3', json={'status': 'finished'}, headers=self.headers)
-        self.assertEqual(list(jobs_router.job_manager.history).count('ext-3'), 1)
-
-    def test_the_active_jobs_are_listed(self):
-        self.client.post('/api/jobs/register/ext-4', json={'status': 'running'}, headers=self.headers)
-        response = self.client.get('/api/jobs/active', headers=self.headers)
-        self.assertIn('ext-4', response.json()['jobs'])
-
-    def test_the_job_history_is_listed(self):
-        self.client.post('/api/jobs/register/ext-5', json={'status': 'completed'}, headers=self.headers)
-        response = self.client.get('/api/jobs/history', headers=self.headers)
-        self.assertEqual(len(response.json()['history']), 1)
-
-    def test_a_websocket_listener_receives_the_job_state(self):
-        jobs_router.job_manager.jobs['ext-6'] = {'status': 'running'}
-        with self.client.websocket_connect('/api/jobs/ws/jobs/ext-6') as websocket:
-            self.assertEqual(websocket.receive_json(), {'status': 'running'})
 
 
 if __name__ == '__main__':

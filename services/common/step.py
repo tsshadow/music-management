@@ -1,8 +1,6 @@
 import inspect
 import logging
 
-from services.common.job_manager import job_manager
-
 
 class Step:
     """Represents an executable step in the importer workflow."""
@@ -13,23 +11,28 @@ class Step:
         self.action = action
 
     def should_run(self, steps):
+        """Whether this step is selected by `steps` ('all' selects every step)."""
         return self.condition_keys is None or bool(self.condition_keys.intersection(steps)) or 'all' in steps
 
     def run(self, steps, **kwargs):
-        if self.should_run(steps):
-            job_id = job_manager.register(self.name)
-            try:
-                params = inspect.signature(self.action).parameters
-                if 'steps' in params:
-                    self.action(steps, **kwargs)
-                elif params:
-                    self.action(**kwargs)
-                else:
-                    self.action()
-                logging.info(f'{self.name} completed.')
-                job_manager.update(job_id, 'completed')
-            except Exception as e:
-                logging.error(f'{self.name} failed: {e}')
-                job_manager.update(job_id, 'failed', str(e))
-            return job_id
-        return None
+        """Run the action if `steps` selects it.
+
+        Returns None when the step was not selected, True when the action completed and
+        False when it raised; a failure is logged, never propagated, so one broken step
+        cannot stop the rest of the pipeline.
+        """
+        if not self.should_run(steps):
+            return None
+        try:
+            params = inspect.signature(self.action).parameters
+            if 'steps' in params:
+                self.action(steps, **kwargs)
+            elif params:
+                self.action(**kwargs)
+            else:
+                self.action()
+        except Exception as e:
+            logging.error(f'{self.name} failed: {e}')
+            return False
+        logging.info(f'{self.name} completed.')
+        return True

@@ -53,7 +53,9 @@ def test_db_restore_check_imports():
 
 
 def test_ad_hoc_db_tools_have_no_credentials_of_their_own():
-    """Seven of these carried the production root password as a string literal.
+    """Seven of these carried the production root password as a string literal (three of
+    them, check_media, finalize_genres and migrate_db_renames, were one-off relics and
+    have since been deleted).
 
     They also defaulted DB_HOST to the production address, so running one from a
     checkout aimed itself at production as root without being asked to. The URL
@@ -67,12 +69,9 @@ def test_ad_hoc_db_tools_have_no_credentials_of_their_own():
     tools_dir = pathlib.Path(__file__).parent
     for name in (
         'check_backlog',
-        'check_media',
         'cleanup_db',
         'describe_tables',
-        'finalize_genres',
         'integrity_check',
-        'migrate_db_renames',
     ):
         source = (tools_dir / f'{name}.py').read_text(encoding='utf-8')
         assert 'mysql+mysqlconnector://' not in source, f'tools/{name}.py builds its own database URL again'

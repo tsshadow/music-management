@@ -34,7 +34,6 @@ e996461e5ed5e4c3 x1  # avoid-sqlalchemy-text services/ml-analyzer/approve.py
 4b8f20a3cc9ede53 x2  # avoid-sqlalchemy-text tools/db_backup_json.py
 7537691a4823731d x1  # avoid-sqlalchemy-text tools/describe_tables.py
 1ecbcf5910aa8330 x1  # avoid-sqlalchemy-text tools/inspect_table_content.py
-607ed9c79b00a7ca x1  # avoid-sqlalchemy-text tools/migrate_db_renames.py
 
 # --- detected-bcrypt-hash --- [r:5de201b9]
 # An example hash in installation documentation.

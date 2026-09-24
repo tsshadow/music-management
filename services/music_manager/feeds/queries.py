@@ -302,6 +302,21 @@ def exclusions_query(username: str) -> tuple[str, list]:
     return sql, [username]
 
 
+def genre_hardness_digest_query() -> str:
+    """One row that changes whenever any genre's hardness (or its curation state) does.
+
+    `routers/feeds.py`'s `params_key` folds it into the key a spectrum-mix snapshot is
+    stored under, so a curator's hardness edit ages those rows on the next read rather
+    than the next day. An aggregate over the scored genres, not the rows themselves:
+    this runs on every feed request, and the answer only has to differ, not explain.
+    """
+    return (
+        'SELECT COUNT(*) AS genres, '
+        "COALESCE(SUM(CRC32(CONCAT(name, '=', hardness, '=', state))), 0) AS checksum "
+        'FROM rules_genres WHERE hardness IS NOT NULL'
+    )
+
+
 def genre_hardness_query(track_ids: list[int]) -> tuple[str, list]:
     """Per-track weighted genre hardness, bounded to one batch of tracks.
 

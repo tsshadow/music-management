@@ -1,5 +1,4 @@
 import unittest
-from unittest.mock import patch
 
 from services.common.step import Step
 
@@ -34,29 +33,19 @@ class StepShouldRunTest(unittest.TestCase):
 
 
 class StepRunTest(unittest.TestCase):
-    def setUp(self):
-        patcher = patch('services.common.step.job_manager')
-        self.addCleanup(patcher.stop)
-        self.job_manager = patcher.start()
-        self.job_manager.register.return_value = 'job-1'
-
-    def test_a_skipped_step_registers_no_job(self):
+    def test_a_skipped_step_runs_nothing(self):
         called = []
         step = Step('tagger', lambda: called.append(True), condition_keys=['tag'])
 
         self.assertIsNone(step.run({'scan'}))
         self.assertEqual(called, [])
-        self.job_manager.register.assert_not_called()
 
     def test_an_action_without_parameters_is_called_bare(self):
         called = []
         step = Step('tagger', lambda: called.append('bare'))
 
-        job_id = step.run({'all'}, extra='ignored')
-
-        self.assertEqual(job_id, 'job-1')
+        self.assertIs(step.run({'all'}, extra='ignored'), True)
         self.assertEqual(called, ['bare'])
-        self.job_manager.update.assert_called_once_with('job-1', 'completed')
 
     def test_an_action_that_takes_steps_receives_them_positionally(self):
         seen = {}
@@ -79,14 +68,13 @@ class StepRunTest(unittest.TestCase):
 
         self.assertEqual(seen, {'limit': 5})
 
-    def test_a_failing_action_marks_the_job_failed_without_raising(self):
+    def test_a_failing_action_is_logged_and_reported_without_raising(self):
         def action():
             raise RuntimeError('boom')
 
-        job_id = Step('tagger', action).run({'all'})
-
-        self.assertEqual(job_id, 'job-1')
-        self.job_manager.update.assert_called_once_with('job-1', 'failed', 'boom')
+        with self.assertLogs(level='ERROR') as logs:
+            self.assertIs(Step('tagger', action).run({'all'}), False)
+        self.assertIn('tagger failed: boom', logs.output[0])
 
 
 if __name__ == '__main__':

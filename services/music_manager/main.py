@@ -33,7 +33,6 @@ from services.music_manager.routers import (
     feeds,
     festivals,
     genre_curation,
-    jobs,
     library,
     lineups,
     listening,
@@ -68,10 +67,10 @@ app.add_middleware(
     allow_credentials=False,
 )
 app.include_router(users.router, prefix="/api/users")
-app.include_router(
-    events.router, prefix="/api/events"
-)  # before /api/auth/* below: its bare /{user_id} DELETE would otherwise shadow /api/events
-app.include_router(users.router, prefix="/api")  # For /api/auth/*
+app.include_router(events.router, prefix="/api/events")
+# /api/auth/* and /api/roles only. The users router itself is mounted once, above: mounting it
+# at /api as well published every user route a second time as /api/{user_id}/...
+app.include_router(users.auth_router, prefix="/api")
 app.include_router(scrobbler.router, prefix="/api/scrobble")
 app.include_router(rating.router, prefix="/api/rating")
 app.include_router(stats.router, prefix="/api/stats")
@@ -82,7 +81,6 @@ app.include_router(analytics.router, prefix="/api/analytics")
 app.include_router(listening.router, prefix="/api/listening")
 app.include_router(tagger.router, prefix="/api/tagger")
 app.include_router(scanner.router, prefix="/api/scanner")
-app.include_router(jobs.router, prefix="/api/jobs")
 app.include_router(config.router, prefix="/api/config")
 app.include_router(downloaders.router, prefix="/api/downloaders")
 app.include_router(user_requests.router, prefix="/api")  # /api/auth/google, /api/user-requests/*

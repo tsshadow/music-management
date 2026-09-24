@@ -125,12 +125,12 @@ class AnalyzeTest(GenreCurationTestCase):
         self.assertEqual(params, (genre_curation.MIN_ARTIST_TRACKS,))
 
     def test_a_second_request_while_one_runs_returns_the_same_job(self):
-        genre_curation.job_manager.jobs['genre-analysis-busy'] = {'status': 'running'}
+        genre_curation.job_store.jobs['genre-analysis-busy'] = {'status': 'running'}
         try:
             response = self.client.post('/api/rules/genres/analyze', headers=self.headers)
             self.assertEqual(response.json(), {'status': 'running', 'job_id': 'genre-analysis-busy'})
         finally:
-            del genre_curation.job_manager.jobs['genre-analysis-busy']
+            del genre_curation.job_store.jobs['genre-analysis-busy']
 
     def test_an_unknown_job_is_a_404(self):
         self.assertEqual(self.client.get('/api/rules/genres/analyze/nope', headers=self.headers).status_code, 404)

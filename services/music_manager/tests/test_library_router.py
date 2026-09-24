@@ -93,6 +93,34 @@ class LibraryTracksTest(RouterTestCase):
             response = self.client.get('/api/library/tracks', headers=self.headers)
         self.assertEqual(response.status_code, 500)
 
+    def test_page_zero_is_refused_rather_than_a_negative_offset(self):
+        # page=0 produced OFFSET -50, which MariaDB rejects: a 500 from a bad request.
+        response = self.client.get('/api/library/tracks?page=0', headers=self.headers)
+        self.assertEqual(response.status_code, 422)
+        self.cursor.execute.assert_not_called()
+
+    def test_the_page_size_is_capped(self):
+        response = self.client.get(
+            f'/api/library/tracks?limit={library_router.MAX_PAGE_SIZE + 1}', headers=self.headers
+        )
+        self.assertEqual(response.status_code, 422)
+        self.cursor.execute.assert_not_called()
+
+    def test_the_largest_page_is_still_served(self):
+        self.cursor.fetchall.return_value = []
+        self.cursor.fetchone.return_value = {'total': 0}
+        response = self.client.get(f'/api/library/tracks?limit={library_router.MAX_PAGE_SIZE}', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+
+    def test_rows_no_longer_scan_the_download_archives(self):
+        # Two correlated LIKE '%basename%' scans per row over TEXT columns, read by nobody.
+        self.cursor.fetchall.return_value = []
+        self.cursor.fetchone.return_value = {'total': 0}
+        self.client.get('/api/library/tracks', headers=self.headers)
+        query = self.cursor.execute.call_args_list[0].args[0]
+        self.assertNotIn('_archive', query)
+        self.assertNotIn('sc_url', query)
+
 
 class LibraryAdvancedTest(RouterTestCase):
     module = library_router
@@ -109,11 +137,22 @@ class LibraryAdvancedTest(RouterTestCase):
         response = self.client.get('/api/library/advanced', headers=self.headers)
         self.assertEqual(response.json()['tracks'][0]['genres'], [])
 
-    def test_page_zero_does_not_produce_a_negative_offset(self):
+    def test_page_zero_is_refused(self):
+        response = self.client.get('/api/library/advanced?page=0&limit=10', headers=self.headers)
+        self.assertEqual(response.status_code, 422)
+        self.cursor.execute.assert_not_called()
+
+    def test_the_first_page_starts_at_offset_zero(self):
         self.cursor.fetchall.return_value = []
         self.cursor.fetchone.return_value = {'total': 0}
-        self.client.get('/api/library/advanced?page=0&limit=10', headers=self.headers)
+        self.client.get('/api/library/advanced?page=1&limit=10', headers=self.headers)
         self.assertEqual(self.cursor.execute.call_args_list[0].args[1][-1], 0)
+
+    def test_the_page_size_is_capped(self):
+        response = self.client.get(
+            f'/api/library/advanced?limit={library_router.MAX_PAGE_SIZE + 1}', headers=self.headers
+        )
+        self.assertEqual(response.status_code, 422)
 
     def test_a_database_outage_is_reported_as_a_server_error(self):
         with patch.object(library_router, 'get_db_connection', return_value=None):
@@ -424,6 +463,49 @@ class ListenBrainzImportTest(RouterTestCase):
         )
         self.assertEqual(response.json()['lb_username'], 'user')
 
+    def _as_user(self, username, role_name='user'):
+        """verify_token resolving the request's key to an ordinary (or admin) account."""
+        return patch.object(
+            users_router,
+            'verify_token',
+            return_value={'status': 'ok', 'type': 'user', 'user': {'username': username, 'role_name': role_name}},
+        )
+
+    def test_an_account_may_import_into_its_own_history(self):
+        self.cursor.lastrowid = 9
+        with self._as_user('user'):
+            response = self.client.post(
+                '/api/scrobble/import/listenbrainz', headers={'x-api-key': 'user-key'}, json={'username': 'user'}
+            )
+        self.assertEqual(response.status_code, 200)
+
+    def test_an_account_may_not_import_into_someone_elses_history(self):
+        with self._as_user('mallory'):
+            response = self.client.post(
+                '/api/scrobble/import/listenbrainz', headers={'x-api-key': 'user-key'}, json={'username': 'user'}
+            )
+        self.assertEqual(response.status_code, 403)
+        self.cursor.execute.assert_not_called()
+
+    def test_an_admin_may_import_for_anyone(self):
+        self.cursor.lastrowid = 10
+        with self._as_user('root', role_name='admin'):
+            response = self.client.post(
+                '/api/scrobble/import/listenbrainz', headers={'x-api-key': 'user-key'}, json={'username': 'user'}
+            )
+        self.assertEqual(response.status_code, 200)
+
+    def test_the_management_proxy_applies_the_same_check(self):
+        # Registered on the same path after the scrobbler router, so called directly here.
+        from fastapi import HTTPException
+
+        from services.music_manager.routers import management as management_router
+
+        mallory = {'type': 'user', 'user': {'username': 'mallory', 'role_name': 'user'}}
+        with self.assertRaises(HTTPException) as refused:
+            management_router.trigger_lb_import_proxy(MagicMock(), {'username': 'user'}, mallory)
+        self.assertEqual(refused.exception.status_code, 403)
+
 
 class ProcessListensPageTest(unittest.TestCase):
     def setUp(self):
@@ -468,6 +550,20 @@ class ProcessListensPageTest(unittest.TestCase):
         )
         self.assertEqual(max_ts, 100)
 
+    def test_a_listen_without_a_timestamp_does_not_break_the_page(self):
+        # The comparison ran before the None check: a timestamp-less listen after the first
+        # one raised TypeError and failed the whole import.
+        self.cursor.fetchone.return_value = {'id': 42}
+        processed, oldest = scrobbler_router._process_listens_page(
+            [self.listen(ts=200), self.listen(ts=None), self.listen(ts=100)], self.conn, 'user', 1, 3
+        )
+        self.assertEqual(processed, 2)
+        self.assertEqual(oldest, 100)
+
+    def test_a_page_with_no_timestamps_has_no_oldest(self):
+        _, oldest = scrobbler_router._process_listens_page([self.listen(ts=None)], self.conn, 'user', 1, 1)
+        self.assertIsNone(oldest)
+
     def test_progress_is_written_back_every_ten_listens(self):
         self.cursor.fetchone.return_value = {'id': 42}
         listens = [self.listen(ts=1000 - i) for i in range(10)]
@@ -505,7 +601,7 @@ class RunListenBrainzImportTest(unittest.TestCase):
         with patch.object(scrobbler_router, 'requests') as http:
             http.get.return_value.json.return_value = {'payload': {'listens': []}}
             scrobbler_router.run_listenbrainz_import(1, 'user', 'user-lb')
-        self.assertTrue(any("status = 'completed'" in call.args[0] for call in self.cursor.execute.call_args_list))
+        self.assertEqual(self.statuses()[-1], 'completed')
 
     def test_a_short_page_ends_the_import(self):
         self.cursor.fetchone.return_value = {'id': 42}
@@ -532,6 +628,88 @@ class RunListenBrainzImportTest(unittest.TestCase):
             http.get.side_effect = RuntimeError('listenbrainz down')
             scrobbler_router.run_listenbrainz_import(1, 'user', 'user-lb')
         self.assertTrue(any("status = 'failed'" in call.args[0] for call in self.cursor.execute.call_args_list))
+
+    def statuses(self):
+        """Every status the run wrote to its import row, in order."""
+        found = []
+        for call in self.cursor.execute.call_args_list:
+            sql = call.args[0]
+            if "status = 'running'" in sql:
+                found.append('running')
+            elif "status = 'failed'" in sql:
+                found.append('failed')
+            elif 'SET status = %s' in sql:
+                found.append(call.args[1][0])
+        return found
+
+    def test_the_next_page_starts_strictly_below_the_oldest_listen_seen(self):
+        # max_ts is exclusive on ListenBrainz; max_ts - 1 skipped listens at that second.
+        self.cursor.fetchone.return_value = {'id': 42}
+        with patch.object(scrobbler_router, 'requests') as http:
+            http.get.return_value.json.side_effect = [self.page(100), {'payload': {'listens': []}}]
+            scrobbler_router.run_listenbrainz_import(1, 'user', 'user-lb')
+        oldest_on_first_page = 1_700_000_000 - 99
+        self.assertEqual(http.get.call_args_list[1].kwargs['params']['max_ts'], oldest_on_first_page)
+        self.assertEqual(self.statuses(), ['running', 'completed'])
+
+    def test_hitting_the_page_cap_is_reported_as_truncated(self):
+        self.cursor.fetchone.return_value = {'id': 42}
+        pages = [
+            {
+                'payload': {
+                    'listens': [
+                        {'track_metadata': {'artist_name': 'A', 'track_name': 'B'}, 'listened_at': 10_000 - p * 100 - i}
+                        for i in range(scrobbler_router.LB_PAGE_SIZE)
+                    ]
+                }
+            }
+            for p in range(3)
+        ]
+        with (
+            patch.object(scrobbler_router, 'LB_MAX_PAGES', 3),
+            patch.object(scrobbler_router, 'requests') as http,
+        ):
+            http.get.return_value.json.side_effect = pages
+            scrobbler_router.run_listenbrainz_import(1, 'user', 'user-lb')
+        self.assertEqual(http.get.call_count, 3)
+        self.assertEqual(self.statuses(), ['running', 'truncated'])
+        resume_writes = [
+            call.args[1] for call in self.cursor.execute.call_args_list if 'SET oldest_listened_ts = %s' in call.args[0]
+        ]
+        self.assertEqual(resume_writes[-1], (10_000 - 299, 1))
+
+    def test_an_import_continues_below_a_truncated_predecessor(self):
+        self.cursor.fetchone.return_value = {'status': 'truncated', 'oldest_listened_ts': 1_600_000_000}
+        with patch.object(scrobbler_router, 'requests') as http:
+            http.get.return_value.json.return_value = {'payload': {'listens': []}}
+            scrobbler_router.run_listenbrainz_import(2, 'user', 'user-lb')
+        self.assertEqual(http.get.call_args.kwargs['params']['max_ts'], 1_600_000_000)
+        lookup = self.cursor.execute.call_args_list[0].args
+        self.assertIn('FROM scrobble_imports', lookup[0])
+        self.assertEqual(lookup[1], ('user', 'user-lb', 2))
+
+    def test_an_import_after_a_completed_one_starts_at_the_newest_listen(self):
+        self.cursor.fetchone.return_value = {'status': 'completed', 'oldest_listened_ts': 1_600_000_000}
+        with patch.object(scrobbler_router, 'requests') as http:
+            http.get.return_value.json.return_value = {'payload': {'listens': []}}
+            scrobbler_router.run_listenbrainz_import(2, 'user', 'user-lb')
+        self.assertNotIn('max_ts', http.get.call_args.kwargs['params'])
+
+    def test_a_page_that_cannot_advance_ends_the_import(self):
+        # A full page without timestamps would otherwise be fetched again forever.
+        page = {
+            'payload': {
+                'listens': [
+                    {'track_metadata': {'artist_name': 'A', 'track_name': 'B'}, 'listened_at': None}
+                    for _ in range(scrobbler_router.LB_PAGE_SIZE)
+                ]
+            }
+        }
+        with patch.object(scrobbler_router, 'requests') as http:
+            http.get.return_value.json.return_value = page
+            scrobbler_router.run_listenbrainz_import(1, 'user', 'user-lb')
+        self.assertEqual(http.get.call_count, 1)
+        self.assertEqual(self.statuses(), ['running', 'completed'])
 
     def test_an_import_without_a_database_connection_ends_immediately(self):
         with (

@@ -30,9 +30,12 @@ rewrites it to all of them; `black` without any drops it; `unknown` leaves the t
 
 ### Splitting composites
 
-`Hardstyle/Hardcore` is two genres. The tag pipeline already splits on `;` and on ` & ` — `Tag.resplit` even
-claims to handle `/`, but it only runs when `Tag.regex` changed something, and `ARTIST_REGEX` never matches a
-slash, so these arrived as a single genre and filled the queue with combinations that never repeat.
+`Hardstyle/Hardcore` is two genres. A genre tag is split on `;` by `Tag` and on `/` here, and on nothing
+else: it is not put through `Tag.regex` (the artist splitter, `ARTIST_REGEX`), which cut `Drum & Bass` into
+`Drum` and `Bass` and `Hardcore: Uptempo` in two until bug report 045, so a curated genre with `&`, ` and ` or
+`: ` in its name could never match. A genre such as `Bass & Beats` now reaches the queue whole, where the
+advice below can propose splitting it. A single-string `Hardstyle/Hardcore` used to arrive as one genre and
+fill the queue with combinations that never repeat.
 
 `GenreRulesHelper.split_composite` does the split, and deliberately not `Tag.resplit`: artists really do
 contain slashes (`AC/DC`) and must keep them, so this stays on the genre path only. A genre that has been

@@ -79,3 +79,39 @@ The system key passes every check. Routes not marked otherwise need any authenti
 ### ❤️ Health
 - **GET `/health`**: Reports actual service health instead of a hard-coded `ok`. Response: `{"status": "ok"|"degraded", "service": "music-manager", "version": <string>, "database": "ok"|"unreachable", "threads": {"tagger": <bool>, "scanner": <bool>, "radio": <bool>, "news": <bool>, "events-retention": <bool>, "scrobble-rematch": <bool>, "song-versions": <bool>, "feeds-refresh": <bool>, "lms-db-sync": <bool>, "events": <bool>}, "heartbeats": {"<loop>": {"alive": <bool>, "stale": <bool>, "last_tick_age_seconds": <float|null>, "stale_after_seconds": <float|null>, "ticks": <int>, "failures": <int>}}}`. `database` is the result of `SELECT 1` on a dedicated short-lived connection, bounded at about 2 s, so the endpoint always answers. `threads` covers the long-running background loops plus the event worker; a loop is `true` only when its thread is alive and its last completed tick is younger than its staleness window (three intervals with a one-hour floor; tagger 24 h, scanner 12 h, news 3 h), counted from startup. One-shot startup tasks are deliberately excluded, since registering them would pin the endpoint to `degraded` within a minute of every restart. `status` is `degraded` — and the HTTP status code is 503 — when the database is unreachable or any of those threads has died or gone stale.
 - **Any endpoint — 503 `{"detail": "No free database connection: the pool is exhausted"}`** with `Retry-After: 5`, when every pooled database connection stayed busy for `DB_POOL_WAIT_SECONDS` (default 5). Before, such a request waited forever.
+
+### 📚 Library track lists
+- **GET `/api/library/tracks`**: newest-first track list, `?q=` searches title, artist and label.
+  `page` starts at 1 and `limit` (default 50) is capped at 500; `page=0`, a negative page or a larger
+  `limit` is a 422 (it used to be a 500 from a negative `OFFSET`). Rows no longer carry `sc_url` /
+  `yt_url`: those were two correlated `LIKE '%<basename>%'` scans of the download archives per row, and
+  no client read them. `GET /api/library/tracks/by-path` and `POST /api/library/tracks/{id}/redownload`
+  still resolve a track's source URL.
+- **GET `/api/library/advanced`**: the filtered library browser list. Same paging bounds: `page` from 1,
+  `limit` (default 100) at most 500, otherwise 422.
+
+### 📥 ListenBrainz import
+- **POST `/api/scrobble/import/listenbrainz`**: body `{"username", "lb_username"?, "token"?}`. Imports
+  into `username`'s history, so an ordinary account may only name itself (403 otherwise); an admin or
+  the system key may name anyone.
+- **GET `/api/scrobble/import/latest`**: the last ten import rows. `status` is one of `pending`,
+  `running`, `completed`, `truncated` or `failed`. A run fetches at most 100 pages of 100 listens; one
+  that stops at that cap ends as `truncated` (it used to report `completed`). `oldest_listened_ts` is
+  the Unix timestamp of the oldest listen a run reached; the next import for the same
+  `username`/`lb_username` after a `truncated` or `failed` run continues strictly below it.
+
+### 📻 News bulletins
+See [news-mode.md](news-mode.md).
+- **GET `/api/news/sources`**, **GET `/api/news/bulletins?source=&limit=`** (limit 1–100),
+  **GET `/api/news/bulletins/latest?source=`** (404 when nothing is recorded yet): any authenticated
+  account.
+- **GET `/api/news/bulletins/{id}/stream`**: the audio, with `Range` support. A range that selects no
+  byte of the file — start past the end, `start > end` such as `bytes=10-5`, or `bytes=-0` — is a 416
+  with `Content-Range: bytes */<size>`; it used to produce a negative `Content-Length`.
+- **POST `/api/news/sources`**, **PUT `/api/news/sources/{slug}`** (`news.manage`): out-of-range
+  settings are a 422 — `minute_of_hour` 0–59, `duration_seconds` 60–3600, `lead_seconds` 0–300,
+  `retention_count` 1–1000, `name` 1–128 and `stream_url` 1–512 characters.
+- **DELETE `/api/news/sources/{slug}`** (`news.manage`): removes the source, its bulletin rows and their
+  audio files; a file that cannot be deleted is logged, not an error.
+- **POST `/api/news/sources/{slug}/record-now`** (`news.manage`): starts a capture in the background and
+  answers at once; 409 while that source is already recording.

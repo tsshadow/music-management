@@ -248,6 +248,27 @@ def verify_token(x_api_key: str = Header(None)):
     raise HTTPException(status_code=403, detail='Invalid API Key')
 
 
+def password_matches(password: str, user: dict) -> bool:
+    """Whether `password` is this account's password, or its api_key (see `login`).
+
+    Never raises for anything a client can type. `secrets.compare_digest` refuses a
+    `str` with non-ASCII characters (TypeError), so both sides are compared as UTF-8
+    bytes; bcrypt raises ValueError for a password over its 72-byte limit and for a
+    malformed stored hash. Either used to escape as a 500, which the login rate
+    limiter -- counting only rejections -- never saw.
+    """
+    candidate = (password or '').encode('utf-8')
+    password_hash = user.get('password_hash')
+    if password_hash:
+        try:
+            if bcrypt.checkpw(candidate, password_hash.encode('utf-8')):
+                return True
+        except ValueError:
+            pass
+    api_key = user.get('api_key')
+    return bool(api_key) and secrets.compare_digest(candidate, api_key.encode('utf-8'))
+
+
 @auth_router.post('/auth/login')
 def login(req: LoginRequest, request: Request):
     """Log in with username/password, used both by the login form and, indirectly, by
@@ -277,16 +298,7 @@ def login(req: LoginRequest, request: Request):
                 if not user.get('enabled', True):
                     raise HTTPException(status_code=403, detail='Account disabled')
 
-                password_valid = False
-                if (
-                    user.get('password_hash')
-                    and bcrypt.checkpw(req.password.encode('utf-8'), user['password_hash'].encode('utf-8'))
-                    or user.get('api_key')
-                    and secrets.compare_digest(req.password, user['api_key'])
-                ):
-                    password_valid = True
-
-                if not password_valid:
+                if not password_matches(req.password, user):
                     raise HTTPException(status_code=401, detail='Invalid username or password')
 
                 api_key = user['api_key']

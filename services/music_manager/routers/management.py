@@ -1131,11 +1131,12 @@ def get_latest_scrobble_imports_proxy(_auth: dict = Depends(verify_api_key)):
 
 @router.post('/scrobble/import/listenbrainz')
 def trigger_lb_import_proxy(
-    background_tasks: BackgroundTasks, req: dict[str, Any] = Body(...), _auth: dict = Depends(verify_api_key)
+    background_tasks: BackgroundTasks, req: dict[str, Any] = Body(...), auth: dict = Depends(verify_api_key)
 ):
+    """The same import as POST /api/scrobble/import/listenbrainz, with the same self-or-admin check."""
     from services.music_manager.routers.scrobbler import ImportRequest, trigger_lb_import
 
-    return trigger_lb_import(ImportRequest(**req), background_tasks)
+    return trigger_lb_import(ImportRequest(**req), background_tasks, auth)
 
 
 @router.post('/tagger/rescan')

@@ -33,6 +33,19 @@ deleted with their files. A capture shorter than a minute is discarded rather
 than stored: a truncated bulletin is worse than none, because the button appears
 to work and then falls silent.
 
+A recording is written as `<slug>-YYYY-MM-DDTHH-MM-SS.mp3.part` and renamed to
+drop the `.part` only once it is whole and long enough. Whatever goes wrong — the
+stream drops, mutagen cannot read the result, it is too short, or its row cannot
+be stored — no `.part` and no unreferenced `.mp3` is left behind. The name carries
+the second, not just the minute: two record-now presses in the same minute used to
+share one file and get two rows. Rows keep the name they were stored under, so
+older `…THH-MM.mp3` recordings still play.
+
+One source records one capture at a time. Sources due at the same boundary are
+captured side by side, at most two at once, and no database connection is held
+while a stream is being recorded — only for the short writes before and after.
+Deleting a source deletes its recordings from disk as well as its rows.
+
 Bulletins deliberately stay **out** of the music library. Ratings, genre
 curation, scan statistics, scrobbles and the tagger all key on that library, and
 a dozen news files a day would be noise in every one of them. The cost is that
@@ -63,7 +76,16 @@ records in the background. Holding the request open for ten minutes would time
 out at the reverse proxy and report a failure for a capture that succeeded. The
 result appears in the bulletin list — the refresh button next to it is there
 because a background capture has no way to announce itself — and any failure
-lands in `last_error`.
+lands in `last_error`. Pressing it while that source is already recording answers
+409 instead of starting a second capture.
+
+The API refuses settings that cannot work (422): the minute of the hour must be
+0–59, the recording length 60–3600 seconds (anything under a minute is discarded
+anyway, and more than an hour would run into the next one), the lead 0–300
+seconds, and the number to keep 1–1000. A retention of zero used to delete the
+bulletin that had just been recorded, and a negative one made pruning fail after
+the row was written, so the same hour was captured again under the same name.
+The recorder also treats any stored value below one as one.
 
 Adding a second source (BNR, a foreign broadcaster) needs no code: the schema and
 the recorder loop already handle several, only the seed carries one.

@@ -7,6 +7,376 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.72.2] - 2026-09-24
+
+### Changed
+- **Every user route existed twice.** The users router was mounted at `/api/users` and again at
+  `/api` (to reach `/api/auth/*`), so `DELETE /api/{user_id}` and every other user route answered under the
+  bare prefix too. The session endpoints (`/api/auth/*`) and `GET /api/roles`, which the web
+  player's Beheer page calls there, are now a router of their own at `/api`; everything else is under
+  `/api/users` only. No client used the duplicates. `/api/users/auth/*`, which
+  `docs/api-specification.md` documented and no client called, no longer exists.
+- **The analytics, config, feeds, stats and listening routers check a key through the one
+  `users.verify_api_key`**, as scanner already does (management and rating follow in !916). A user key no account
+  holds, or a disabled account, now gets that function's 403 there instead of a local copy's 401;
+  a missing key is still a 401. The web player treats both the same.
+- **`docker/docker-compose.workers.yml` is marked local-only** (`scripts/dev.sh` layers it on top;
+  production never reads it), and `run_telegram_auth.sh` points at `docker/docker-compose.yml`
+  instead of a `work-context/` file that no longer exists.
+
+- **The test gates now measure what they claim.** Python coverage is measured on source only — the
+  ~220 test files under `services/` used to count as covered code, and `tools/` was not measured —
+  which moves the figure from 95% to 84.9% and the floor from 93 to 84; the only time that floor
+  has gone down. `backend:integration` fails instead of skipping when CI cannot reach its database,
+  and runs MariaDB 13.0 like production (`MARIADB_VERSION=10.6` still reproduces bug report 039).
+  The loose mypy floor runs in a new `backend:typecheck-all` job (allowed to fail while its 299
+  errors are worked down), and `scripts/lint.sh` now fails an undocumented public function or class
+  in a strictly type-checked module. Bug report 047.
+
+- **The importer sends one phone notification per release instead of one per file.** A 44-release
+  weekly pack used to be well over a hundred pushes. Each release now gets one `Import Complete`
+  push with its label, catalogue number and track count. Every imported track is still in the event
+  log as an `INFO` event (`Track Imported`), just without a push.
+
+### Removed
+- **Dead code removed.** `services/other/` (an artist fixer, converter, EPs flattener that
+  duplicated `services/importer/flattener.py`, file repair, sanitizer and an unimportable
+  `yt-fixer.py`, 461 lines that only their own tests imported) and its tests;
+  `services/tagger/run_tagger.py`; `VerifyArtistRule`, reachable only through `services/other`;
+  seven one-off tools (`check_media`, `finalize_genres`, `init_remote_db`, `list_imports`,
+  `replace_table_names`, `repro_mutagen`, `migrate_db_renames`); the frontend's Vite template
+  leftovers (`Counter.svelte`, `hero.png`, `svelte.svg`, `vite.svg`); the unused
+  `subsonic/VideoPlayer.kt`; and an empty `ultrasonic-database.db` committed into the Android tree.
+- **The `/api/jobs` registry and its WebSocket are gone.** Nothing read them: the downloader and
+  importer side only pushed when `HUB_API_URL` was set, which no deployment did, and the WebSocket
+  took no key. The curation pages' own job progress (artist and genre analysis, a rule's retag) now
+  lives in `services/music_manager/job_store.py`, which keeps the last 50 finished jobs instead of
+  every job for the life of the process.
+
+### Fixed
+- **A bulk artist-image run went blind after an hour.** The Spotify token was fetched once and
+  kept forever; client-credentials tokens expire after 3600 s, so every lookup after the first
+  hour answered 401 and the rest of a ~45.000-artist run was deferred. The token is now renewed
+  before it expires, and a 401 renews it and retries once. (Bug report 043.)
+- **Clearing a portrait in the manager was undone at the next restart.** The clear set
+  `image_status = 'none'`, which the start-up run treats as "never asked". It now sets `cleared`,
+  which the bulk run and a plain `/fetch-image` skip; "search automatically" in the manager sends
+  `force=true` and still reaches it.
+- **One failed download marked an artist `failed` for 30 days.** A provider had found the artist;
+  the CDN or the disk had not cooperated. A failed download or save now records nothing and the
+  artist is asked again next run, and the downloader pauses 1 s, then 2 s, between attempts.
+- **Last.fm's placeholder was taken for a portrait.** `artist.getinfo` returns the same grey star
+  for every artist, and with an MBID it scored as a known match. It is skipped now.
+- **`manifest.json` in the artist-image folder is no longer maintained.** It was rewritten in full
+  after every artist and nothing read it. Existing files are left on disk.
+- **The config store's file beat every deploy.** `data/config.json` held a snapshot of every value,
+  secrets from the environment included, and was loaded after the environment. Now only values
+  changed through the config page are written (mode 0600), a value set back to its environment value
+  is removed from the file, and an existing file is cleaned up at start-up -- a secret the
+  environment also sets is left to the environment. The `db_*` fields, which nothing read through
+  the store, are shown read-only. The radio scheduler now resolves the LMS Subsonic key the way the
+  scan trigger does.
+- **LMS errors no longer leak the Subsonic key or flood the alerts.** The key travels in the query
+  string, and requests' error text carries the full URL; the radio logged it at WARNING -- an event
+  and an ntfy alert -- per channel every five seconds while LMS was down. Query strings are now
+  redacted, and the radio warns once per channel per outage.
+
+- **One MariaDB restart or CIFS hiccup stopped the tagger or the scanner until the next deploy.**
+  Their loops had nothing around the loop body, and the radio, news and feeds loops took their
+  connection outside their `try`. Every background loop now runs through one helper that logs the
+  failure as an `ERROR` event, backs off (10 s, doubling up to the loop's interval) and carries on.
+  Each loop also records a heartbeat, and `/health` answers 503 when a loop is alive but has not
+  completed a round within its window (24 h tagger, 12 h scanner, 3 h news, otherwise three
+  intervals and at least an hour); the new `heartbeats` field shows the detail.
+- **`/health` said `database: ok` while MariaDB was down, and hung when the pool was exhausted.**
+  It now runs `SELECT 1` on its own connection with short timeouts and answers within about two
+  seconds. The connection pool no longer waits forever: after 5 s (`DB_POOL_WAIT_SECONDS`) a request
+  gets a 503 instead of hanging.
+- **During a database outage an alert push waited ~21 s per queued event before reaching the
+  phone.** The event log's database write now runs on its own thread, so pushes go out immediately
+  and only the rows are late. The 5-minute repeat brake still applies.
+
+- **A deploy started the new code before its migrations, with no backup and no way back.**
+  `scripts/deploy.sh` recreated every container first — MariaDB included, with `--force-recreate`
+  — and migrated afterwards, and `release:build-images` had already pushed `:latest`, which
+  Watchtower on the host pulls for the downloader images, so a release's workers could start before
+  `muma:deploy` had migrated anything, or without any deploy at all when it was skipped. The order
+  is now: database up and answering, a verified pre-deploy dump (`tools/db_backup.py` with
+  `BACKUP_LABEL=pre-deploy`, else `mariadb-dump` through `docker exec`; no dump, no deploy),
+  migrations while the previous release still runs, `:latest` moved from `:${VERSION}` inside
+  `muma:deploy`, then `pull` + `up` of only what changed. `db` is no longer recreated on a routine
+  deploy (`DEPLOY_DB=1` does), the one-shot `soundcloud-fetcher`/`genre-processor` no longer run on
+  every deploy (`DEPLOY_ONESHOTS=1`), and every image this repo builds is
+  `${IMAGE_TAG:-latest}`, so `IMAGE_TAG=<previous> ./scripts/deploy.sh` is a rollback. New
+  migrations must be expand-only (`tests/ci/test_migration_ordering.py`). See bug report 050.
+- **The post-deploy check could pass while a container was crash-looping.** It sampled once, right
+  after `up`. music-manager now has a healthcheck on `/health`, every worker a light one (Python
+  runs, MariaDB reachable), and `post-deploy-verify.sh` probes LMS's Subsonic ping and re-samples
+  after 60 s, failing on any restart-count increase or unhealthy container.
+- **CI tested on Python 3.11 against whatever the runner had installed; production runs 3.14.**
+  `backend:unit` and `backend:integration` now run inside `docker/Dockerfile.python-ci`
+  (python:3.14-slim) with `requirements.txt` installed, and the lint jobs always use their 3.14
+  container. That run found `httpx2` missing from `requirements.txt` and a numpy stub that broke
+  every property-based test; both are fixed.
+- **Changed production defaults (need a human on the first deploy).** MariaDB `3306` and phpMyAdmin
+  `8002` bind to `127.0.0.1` unless `DB_BIND_ADDRESS`/`PHPMYADMIN_BIND_ADDRESS` are set (the database
+  binding only changes on a `DEPLOY_DB=1` deploy; phpMyAdmin's on the next one). The Firefox noVNC
+  password lost its `admin` default and `FIREFOX_PASSWORD` is now required in `PROD_ENV_FILE` by
+  `release:check-secrets`. Every service's log is capped at 3 × 10 MB, and music-manager (4g) and
+  the workers (2g, telegram 1g) have memory limits, overridable per `MUMA_MEM_LIMIT_*`.
+
+- **YouTube never backed off when YouTube refused it, and its download errors never reached the
+  event log.** yt-dlp ran with `ignoreerrors` and no logger, so it wrote a 403 or 429 to stderr and
+  returned normally. The code that parks the source only ran on an exception, so it never ran.
+  YouTube now uses the same yt-dlp logger as SoundCloud. It parks on a 429 and on a 403 that yt-dlp
+  gave up on, and every error goes through the event log. (bug report 040)
+- **A deep sweep that was refused counted as finished.** The listing came back empty, so the account
+  was marked deep-swept for another month. A refused listing now feeds the backoff and leaves the
+  account due. Any other listing failure falls back to the ordinary check.
+- **A deploy now stops the downloader and importer cleanly.** A download in progress is abandoned
+  instead of continuing to the next video until SIGKILL. The pause between rounds wakes up on
+  SIGTERM, and the importer handles SIGTERM between its steps.
+- **Telegram no longer trusts the sender's filename.** Only the base name is used, with the message
+  id added, so two posts with the same name no longer overwrite each other and nothing can be
+  written outside the channel folder. Files are downloaded to `.part` and renamed when complete.
+- **Downloading a single YouTube video no longer follows its whole channel.** Every archived video
+  used to add its uploader to the followed channels, which created duplicates when the same channel
+  was spelled differently.
+- Removed two yt-dlp options that did nothing because of a typo (`no_part` and `playlist_random`).
+
+- **A daily mix that came out empty stayed empty for the rest of the day.** A listener who opened
+  Home before their first listen got `not_enough_data`, and that answer was cached as the day's
+  mix. A mix that is not `ok` now lives 15 minutes (`FEEDS_NON_OK_TTL_SECONDS`) and is rebuilt
+  after that, on the next read or by the background refresh. A curator's hardness edit and a
+  listener's exclusion change now also reach the mixes on the next read, including when a build
+  was already running, and the mixes roll over at local midnight (`MUMA_TIMEZONE`, default
+  `Europe/Amsterdam`) instead of at 01:00 or 02:00. See
+  `docs/bug-reports/049-empty-daily-mix-stays-empty-all-day.md`.
+
+- **Logging out of the web player left the previous user's session behind.** The queue, current
+  track, player state, equalizer, page size and every account setting survived a logout, so the
+  next person to sign in on that browser started in the previous person's session. Logout now
+  resets everything the web player persists (bug report 041).
+- **Changing two settings at once could lose one, and a failed read could wipe them all.** Each
+  setting did its own read-modify-write of the shared account blob, and a failed read wrote back a
+  blob holding only the one changed key. Changes are now batched into one read and one write, and
+  nothing is written after a failed read.
+- **An expired password looked like an empty library.** Failed Subsonic answers and MuMa error
+  responses were treated as data (and the feed list cached an error as "no feeds" for the whole
+  session). They now surface as errors; a rejected password returns to the login page.
+- **Sets mode stayed green** once the management pages had loaded: two components overrode the
+  brand colour app-wide. Removed, and a test guards against it.
+- **Going from one artist or album straight to another could show the previous one's details**,
+  and the scrobble-import poll kept running after leaving its tab.
+
+- **Genres went through the artist splitter, so 'Drum & Bass' became 'Drum' and 'Bass'.**
+  `CleanTagsRule` and `ResolveGenreRule` both ran `ARTIST_REGEX` over the genre tag, which splits on
+  ` & `, ` and `, ` x `, ` with `, `: `, ` vs ` and ` et `. A curated genre with any of those in its
+  name could never match its own row, 'Hardcore: Uptempo' became two genres, and a YouTube category
+  such as 'Film & Animation' dodged its blacklist entry. Genres are now split on ';' and '/' only.
+  The unused `MergeDrumAndBassGenresRule` (meant to repair exactly this, wired to nothing and calling
+  a method that does not exist) and `InferGenreFromTitleRule` (no callers) are gone. Files tagged
+  before this keep the halves on disk. Bug report 045.
+
+- **A fresh database and production's disagreed about the schema, and no test compared them.** A
+  new integration test builds the schema twice from nothing — once the way a fresh stack does
+  (`db_init.py` plus every `init_db`), once the way a deploy does (the migrations) — and compares
+  every column and index. On develop it found `library_artist_aliases`, which the artist edit page
+  reads, missing from every fresh stack, three portrait columns no migration declared, and seven
+  indexes that were missing or named differently on one of the two paths. `migrate_v36_schema_drift.sql` also gives
+  `rules_ignored_artists.name` the unique key production already has (removing duplicates first),
+  drops five audio-feature columns only fresh stacks ever had and nothing reads or writes, and
+  declares three indexes that existed only in `db_init.py`. Bug report 047.
+
+- **A half-extracted archive could land in the library.** Every backend extracted straight into the
+  import folder, so when `unrar-free` gave up after 13 of 44 releases, those 13 stayed there and the
+  fallback extracted the rest on top of them (7z renamed each collision to `name_1.mp3`). The same
+  cycle then moved whatever was there. Each attempt now extracts into its own staging folder, and
+  only a complete extraction reaches the import folder. (bug report 046)
+- **A release still being copied into `__TODO` could be renamed or moved half-done.** The
+  flattener, renamer and mover now leave a folder alone until nothing in it has changed for
+  `import_settle_minutes` (new setting, default 5).
+- **A second download of a release already in the library stayed in `__TODO` for ever.** The
+  duplicate check compared byte sizes, and the library copy gets new tags right after the move, so
+  the two never matched. The mover logged "contents differ ... manual intervention" about it on
+  every cycle. Releases are now compared by track list and track length.
+- **Every import cycle read the tags of every folder it could not place again**, over CIFS: about
+  2.266 folders every five minutes. A folder is now read again only when something in it changed.
+- **Split RAR sets failed on every cycle.** Only the first volume is extracted now, and the other
+  volumes are quarantined together with it.
+- **A full backup disk never recovered.** Old dumps were only pruned after a successful dump, and a
+  dump that ran out of space left its half-written file behind. The job now prunes first (never the
+  newest daily), refuses to start when the last dump would not fit, and removes a partial file
+  whatever went wrong. The monthly copy is streamed and verified instead of being read into memory,
+  and `latest.json` can no longer be left half-written.
+- `scripts/restore_db.sh` and `tools/backup_db.sh` no longer put the database password on a
+  command line.
+
+- **Every scrobble-rematch miss moved the listen to "now".** Both scrobble tables were created on
+  MariaDB 10.6 with `listened_at TIMESTAMP NOT NULL` and no DEFAULT, which that server turns into
+  `ON UPDATE CURRENT_TIMESTAMP`. Each miss stamp, played_secs top-up, re-match and account merge
+  therefore rewrote when the listen happened; two misses of the same track in one second collided on
+  the unique key, which is the `1062 Duplicate entry ... for key 'username'` seen after 0.23.0 — not
+  the key truncation `docs/open-work.md` suspected. `listened_at` now declares its DEFAULT, and
+  `migrate_v33_listened_at_no_on_update.sql` removes the attribute from the existing tables. Values
+  already rewritten are not repaired; bug report 039 says how to count them.
+- **Two join columns were never indexed.** `library_tracks.primary_artist_id` (every rematch tier,
+  the artist statistics and the feeds join on it) and `scrobble_listens.track_id` — which
+  `migrate_v20` claimed already had an index. `migrate_v34` adds `idx_tracks_primary_artist` and
+  `idx_listens_track_user (track_id, username)`.
+
+- **Clearing a rating now clears it in MuMa too.** The server deleted its rating row and then
+  reported the change by the id of the row it had just deleted, so nothing was ever sent and MuMa
+  kept the old star forever. It now sends a `rating_removed` event (rating 0), captured before the
+  row goes, and `POST /api/rating/lms-event` deletes the mirrored row on it -- and on a
+  `rating_changed` of 0, which no star count means. A cross-app contract change: an older MuMa
+  ignores `rating_removed`, so both sides ship together.
+- **Deduplicated track pages no longer skip tracks.** `nextOffset` advanced past every row the last
+  scan fetched, including the rows after the page had filled, so those tracks never appeared on
+  any page. It now counts only the rows actually used. History also loads its listens and tracks
+  in one query instead of one per listen.
+
+- **News recorder.** A capture that failed part way left its `.part` file behind; deleting a source
+  left its recordings on disk; a retention of 0 deleted the bulletin just recorded and a negative
+  one captured the same hour twice; two record-now presses in the same minute shared one file and
+  got two rows; and a second source due at the same hour waited for the first, while each capture
+  held a database connection for its full ten minutes. Recordings are now named to the second, one
+  source records one capture at a time (record-now answers 409 while it does), sources due together
+  are captured side by side, no connection is held during a capture, and out-of-range source
+  settings are a 422. A `Range` such as `bytes=10-5` is a 416 instead of a negative
+  `Content-Length`.
+- **ListenBrainz import stopped at 10.000 listens and said `completed`.** It now ends as
+  `truncated` at its page cap and the next import for the same account continues below the oldest
+  listen reached (`scrobble_imports.oldest_listened_ts`, `migrate_v35`). Paging no longer skips the
+  listens that share the boundary second (`max_ts` is exclusive already), and a listen without a
+  timestamp no longer fails the whole import with a `TypeError`.
+- **`GET /api/library/tracks` and `/advanced`: page 0 was a 500 and `limit` had no ceiling.** Both
+  now answer 422 for `page < 1` or `limit > 500`. `/tracks` also dropped `sc_url`/`yt_url`, two
+  correlated `LIKE '%…%'` scans of the download archives per row that no client read.
+- **Logging in with a non-ASCII password, or one over bcrypt's 72-byte limit, was a 500** that the
+  login rate limiter never counted. Both are now an ordinary 401.
+
+- **A retag that changed a title or the primary artist left the track's ratings and listens behind.**
+  `track_uid` hashes title, duration and primary artist, so the scanner gave the retagged file a new
+  track row and never touched the old one: ratings (`rating_tracks`) and listens (`scrobble_listens`)
+  stayed on a row without a file, and the song-version worker could even pick that row as canonical
+  and hide the real file in LMS. The scanner now moves ratings (newest wins), listens, analysis rows
+  and work pins to the new row and deletes the old one, in one transaction; a fileless track can no
+  longer be canonical. Rows orphaned before this are repaired by the new admin-only
+  `POST /api/scanner/relink-orphans` (bug report 042).
+- **A corrected publisher kept its old label link.** Label and channel links were only ever added;
+  they are now recomputed from every file of the track on each scan.
+
+- **Een promo- of follower-only track kwam binnen zonder genre, tags en omschrijving, en zonder
+  regel in het archief.** De download zelf loopt door `YoutubeDL` mét de ingelogde
+  Firefox-cookies en de bijpassende user agent -- daar is deze downloader voor -- maar de
+  verrijking erna (`SoundcloudSongProcessor._fetch_enriched_info`) startte een kale
+  `yt-dlp --dump-single-json` zonder cookies en zonder user agent. SoundCloud beantwoordt zo'n
+  anonieme aanvraag voor een niet-openbare track met 401, en juist alleen voor die tracks,
+  waardoor het jarenlang op een incidentele storing bij SoundCloud leek. Op 23 september ging het
+  vier keer mis op 53 downloads: `thesplitter/dreaming` en drie promo's van `merciless_music`,
+  elk 0,8 seconde na de eigen regel "Postprocessing downloaded file" -- de gecredentialiseerde
+  aanvraag voor exact dezelfde track was dus net gelukt. De verrijking stuurt nu dezelfde sessie
+  mee als de download. Wat verloren ging was de rij in `downloads_soundcloud_archive` en de
+  tags uit `--dump-single-json`; het bestand zelf stond er gewoon.
+
+- **The tagger rewrote files on every retag, and each rewrite could give a track a new identity.**
+  `CheckArtistRule` edited the artist list while walking it, so a corrected first artist moved to
+  the end (`ANGERFIST;outsiders;Dj Mad Dog` became `outsiders;Dj Mad Dog;Angerfist`) and the order
+  changed again next pass; the scanner derives `track_uid` from the first artist, so ratings and
+  listens ended up on a stale row. Every tag value was also split on '/', so AC/DC became two
+  artists and `Live 24/7` three title parts; only genres are split on '/' now. On m4a, `REMIXER`
+  and `ORIGINAL_TITLE` were written to atoms mutagen truncates to `REMI`/`ORIG` and never read back
+  (title inference re-ran on the already-cleaned title each retag), and album / album artist went
+  to atoms LMS does not read. They now go to `----:com.apple.iTunes:REMIXER`,
+  `----:com.apple.iTunes:ORIGINAL_TITLE`, `©alb` and `aART`, and a file with the old atoms is
+  migrated on its next retag. Bug report 037.
+
+- **Een m4a zonder metadatablok liet de tagger bij elke ronde opnieuw stuklopen.** mutagen geeft
+  `tags` als `None` terug wanneer het bestand helemaal geen atom heeft — een yt-dlp-fragment dat
+  nooit samengevoegd werd (`... Identity Episode 108.f140.m4a`) is zo'n bestand — en
+  `BaseSong._set_m4a_tag` schreef daar rechtstreeks in: `TypeError: 'NoneType' object does not
+  support item assignment`. De wav-tak maakte dat blok al aan als het ontbrak; m4a doet dat nu ook.
+  Omdat een bestand dat de parse niet haalt nooit als verwerkt wordt weggeschreven, kwam het via
+  `new_in_library` elke ronde terug: 274 keer in het venster van één nacht, op één bestand.
+
+### Security
+- **`POST /api/config` echoed secrets in the clear.** The response carried the real value of every
+  posted key; it now carries the masked value the GET shows. API consumers that read the response
+  body receive the sentinel for secrets (the web config page reloads the fields and is unaffected).
+
+- **The seven accepted starlette advisories are gone from `security/accepted-vulnerabilities.txt`.**
+  They were accepted for fastapi 0.111; the requirements pin 0.141, and
+  `scripts/ci/dependency-audit.sh` reports no Python, npm or Android finding with the list empty.
+
+- **A deploy showed the whole production `.env` to anyone who ran `ps`.** `deploy.sh` and
+  `deploy-stack.sh` put the env file, base64-encoded, on the ssh command line, and migrations put
+  the MariaDB root password in `mariadb -p...` — visible on the runner and on the production host
+  for as long as the deploy ran. The env file now travels on ssh's stdin and the password reaches
+  the client as `MYSQL_PWD` through `docker exec -e`. On the host the env file is written under
+  `umask 077` to `/root/.muma-deploy/<stack>/` and deleted when the deploy ends, instead of staying
+  world-readable in `/tmp/.env.<stack>` until the next reboot; the compose file moved there too,
+  and a `/tmp/docker-compose-v2` is no longer run as root. In CI the Docker Hub login uses a
+  throwaway `DOCKER_CONFIG`, the ssh-agent holding the prod key is killed when its job ends, and
+  the prod env files are written outside the checkout (and `.dockerignore` excludes `.env`), so
+  none of them outlives the job on the shared runner or lands in a build context. A password
+  containing `#` no longer breaks the migration step. See bug report 038.
+
+- **Any `X-API-Key` made the caller whoever `u` named on LMS's `/muma` routes.** The bridge accepted
+  every non-empty key without checking it and then took the caller from the bare `u` parameter, so
+  `GET /muma/api/admin/subsonic-token?u=<an admin>&username=<anyone>` with `X-API-Key: x` read -- and
+  `PUT` replaced -- any user's Subsonic token; media libraries and per-user settings opened the same
+  way. The generic proxy also added MuMa's system key whenever the caller sent no header, so
+  `?apiKey=x` reached MuMa as the system identity. A key now counts only if it is LMS's own
+  `api-key` or MuMa confirms it through `/api/auth/verify` (cached 60 s, cleared on
+  `/muma/users/sync`); the caller is whoever that verified credential names; admin routes need a
+  verified admin user rather than a system key; and the proxy forwards the caller's own key and
+  nothing else. Bug report 037. The same admin route also refuses a Subsonic token shorter than
+  16 characters (400, existing tokens untouched), the floor `updateUser` already applied.
+
+- **Any logged-in user could crash the music server with one settings request.** `updateUser`
+  stored any integer as the feedback or scrobbling backend, and the next rating or listen looked
+  up a backend that did not exist and dereferenced a null pointer -- a segfault for everyone.
+  Every enum setting is now range-checked (an unknown value is a bad-parameter error and nothing is
+  written), and both services look a backend up without inserting into the map the request
+  threads share. Subsonic tokens are unique per domain (migration V121 removes values two users
+  shared, so both re-issue) and must be at least 16 characters. Bug report 044.
+- **`getSpotifyTracks`, `getSpotifyPlaylist` and `getSpotifyHistory` no longer walk the whole
+  library.** A negative `offset`/`count` is refused and `count` is capped at 1000, so `count=-1`
+  no longer means "everything".
+- **A 429 from MuMa no longer freezes the queue to MuMa.** A proxied call gets the 429 as its
+  answer, other requests are retried three times and then failed, and the queue is capped at 1000
+  waiting requests.
+
+- **Any account could start a ListenBrainz import into any other account's history.**
+  `POST /api/scrobble/import/listenbrainz` took `username` from the body without checking it against
+  the caller. An ordinary account may now only import into its own history (403 otherwise); admins
+  and the system key may still name anyone.
+
+- **Most of the management API was open to every account, whatever its role.** Three routers
+  still carried a pre-RBAC `verify_api_key` that accepted any enabled account, so a plain `user`
+  could read the log of any container on the Docker host, add and remove downloader sources,
+  decide genres and rules, confirm label proposals (which moves folders on disk), clear the event
+  log, write ratings under another account's name, and make the server fetch an arbitrary URL.
+  `GET /api/users` also returned every account's `api_key`, which login accepts as a password.
+  **Contract change** for the routes below; the web management UI (admins) and LMS (system key)
+  pass unchanged, and the Android app uses none of them as a normal user:
+  - `rules.manage`: genre/podcast decisions, artist/label genre rules, artist redirects,
+    label-proposal confirm/reject, `POST /api/tagger/rescan[/file]`, and the mutating artist-image
+    routes (`/image/url`, `/image/upload`, `/image/select`, `/image/clear`, `/fetch-missing`,
+    `/{id}/fetch-image`);
+  - admin: `GET /api/system/containers`, `GET /api/system/logs/{name}` (only containers the list
+    shows, else 404), SoundCloud/YouTube account add/delete, `DELETE /api/events[/{id}]`,
+    `POST /api/users/sync/*` (409 while a sync runs, shared lock with the hourly loop);
+  - system key only: `POST /api/rating/lms-event` and `/server-event`;
+  - own account or admin: `GET /api/rating/ratings/{username}`;
+  - `POST|PUT /api/users/{id}/password`: another account's or any admin's password needs admin; a
+    non-admin changing their own must send `current_password`;
+  - `GET /api/users` and the `POST /api/users/{id}/merge` response no longer carry `api_key`;
+  - image URLs resolving to a non-public address are refused (400), and downloads and uploads are
+    capped at 10 MB (413).
+  An unknown or disabled key on the management routes now answers 403 instead of 401, like every
+  other router. See docs/bug-reports/037-management-routes-open-to-every-user.md.
 ## [0.72.1] - 2026-09-23
 
 ### Fixed

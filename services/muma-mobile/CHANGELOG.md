@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.4.3] - 2026-09-24
+
+### Fixed
+- **Radio kept polling the server after the player was gone.** Nothing cancelled the playback
+  service's background work, so once the service was destroyed the radio sync loop went on calling
+  the server every 2 to 10 seconds and calling into a released player. The service now shuts down
+  once, through a single path, and cancels everything it started (bug report 048).
+- **Swiping the app away stopped the music.** Only a paused or empty player stops the service now.
+- **A Bluetooth play button could go unanswered.** With no saved queue, or one that could not be
+  read, the app never answered the system's request to resume. It now always answers.
+- **Radio channels could fail to start on the phone.** Their stream address was taken apart as if it
+  were a library track and the load failed. A finished stream address now goes out unchanged.
+- **The saved queue and position could be one change behind.** Updates that arrived while the
+  previous one was being written were thrown away; the newest one is now written right after.
+- **Every settings save, tile change and diagnostics upload logged in with the password first.**
+  The stored MuMa API key was never read, so each of those calls also counted towards the login rate
+  limit. The stored key is used now, and the app logs in again only if the server refuses it.
+- **A failing background call in the app could crash it, and the web UI kept waiting.** Such a call
+  now reports an error to the web UI instead, and background work stops when the app is closed.
+- **Downloads ran as a media-playback service.** They are declared as data transfer now, which is
+  what Android 14 and later expect. A download that Android refuses to start in the background no
+  longer blocks every later download until the app restarts.
+- **Other apps could control playback.** The receiver for the widget's play, pause and skip buttons
+  accepted commands from any installed app. It now only accepts them from MuMa itself.
+- **The equalizer was not released when the player changed**, and could be adjusted on an effect
+  whose player was already gone.
+
+### Security
+- **The app accepted any certificate for the MuMa server.** It skipped certificate and hostname
+  checks for a server that has a valid certificate, so anyone on the network path could pose as the
+  server and read the password. It now uses the normal trust store, refuses unencrypted
+  connections except to the phone itself, and trusts user-installed certificates only in the debug
+  build (bug report 037).
+- **Any app on the phone could read MuMa's stored password through the cover-art provider.** A
+  cover-art address with `../` in it opened files outside the artwork cache, including the settings
+  file with the password and the MuMa API key. Such addresses are now refused.
+- **The APK contained the apk-hoster upload password.** The update check sent it; it now asks as
+  the hoster's read-only guest account, and the password is no longer compiled in.
+- **WebView remote debugging was on in the release app.** It is now limited to the debug build.
+- **Stream URLs and request headers in the log carried credentials.** The username, the password,
+  its token and salt, the API key and the `X-API-Key` header are masked before a line reaches the
+  diagnostics log, and in the debug build's request logging.
 ## [7.4.2] - 2026-09-23
 
 ### Fixed

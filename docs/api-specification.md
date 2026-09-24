@@ -3,7 +3,11 @@
 The `music-manager` service provides a REST API (FastAPI) for managing the music library, users, and events.
 
 ### 🔐 Authentication
-- **POST `/api/auth/login`**: Authenticate with username/password and receive an API key. The
+- **POST `/api/auth/login`**: Authenticate with username/password and receive the user's own API
+  key: `200 {status, api_key, access_token, refresh_token, user}`, `user` carrying `permissions`,
+  `role_name` and `is_admin`. The web player reaches it as `/muma/api/auth/login` (nginx, or LMS's
+  pass-through when LMS is reached directly); LMS no longer answers that path itself with its own
+  `api-key` (breaking for any client that read LMS's flat `{id, username, is_admin, api_key}`). The
   session endpoints (`/api/auth/*`) and `GET /api/roles` are the only `users` routes under the bare
   `/api` prefix; every other user route is under `/api/users` only (there is no `/api/{user_id}/...`,
   and no `/api/users/auth/*`).

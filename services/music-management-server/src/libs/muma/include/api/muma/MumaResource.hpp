@@ -28,7 +28,7 @@ namespace lms::api::muma
         KeyVerdict verifyKeyWithMuma(std::string_view key);
 
         /// Checks the request's credentials (key, or Subsonic u/p) -- see muma::authenticate.
-        AuthDecision authenticateRequest(const Wt::Http::Request& request, bool isPublicAuthPath);
+        AuthDecision authenticateRequest(const Wt::Http::Request& request, bool publicAuthPath);
 
         db::IDb& _db;
         auth::IUserSynchronizer& _userSynchronizer;

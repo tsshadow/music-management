@@ -149,6 +149,14 @@ namespace lms::api::muma
     /// if what failed was the asking rather than the credential.
     AuthDecision authenticate(const RequestCredentials& credentials, std::string_view lmsApiKey, const KeyVerifier& verifyWithMuma, const PasswordChecker& checkPassword);
 
+    /// Whether `pathInfo` is one of MuMa's credential-less auth entry points (setup, Google, the
+    /// access request, and the username/password login). These reach MuMa through the generic
+    /// proxy without any check here: the caller has no credentials yet, and MuMa validates them
+    /// itself. The login is on this list rather than answered locally, so a web login receives the
+    /// user's own MuMa key -- this server used to answer it with its own `api-key`, the same value
+    /// for everyone.
+    bool isPublicAuthPath(std::string_view pathInfo);
+
     /// What an authenticated caller may do on the routes this server answers itself.
     struct CallerRights
     {
@@ -164,8 +172,8 @@ namespace lms::api::muma
     bool isUserCaller(const CallerRights& rights);
 
     /// Media libraries and Subsonic tokens: a verified admin *user* only. A system key is not
-    /// enough, because this server hands its own `api-key` to everyone who logs in through
-    /// `/api/auth/login`, so holding it proves nothing about being an admin.
+    /// enough: it belongs to a service, not a person, so holding it proves nothing about being an
+    /// admin. (Until 0.72.x this server also handed its own `api-key` to every web login.)
     bool mayAdministerServer(const CallerRights& rights);
 
     /// `/users/sync`: MuMa's own notification (its system key), or an admin.

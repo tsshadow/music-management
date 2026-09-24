@@ -78,7 +78,11 @@ Summarised here because it affects what counts as a vulnerability;
   webhook that names the acting user in its body (the LMS rating webhook)
   accepts only the system key. `services/music_manager/tests/test_rbac_route_gaps.py`
   pins each of those.
-* No response lists another account's `api_key`.
+* No response lists another account's `api_key`, and no login hands out a key
+  that is not the caller's own. The web login (`/muma/api/auth/login`) is
+  MuMa's login; LMS used to answer it with its own `api-key` for every user.
+  A system key left in a browser from that login ends the session at startup
+  rather than counting as an administrator.
 * A user key writes only its own history: `POST /api/scrobble/event` and the
   ListenBrainz import refuse (403) another account's `username` unless the
   caller is an admin or the system key.

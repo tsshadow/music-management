@@ -116,8 +116,9 @@ blocking on its own.
   of them, and the radar's BUTTON tile describes itself with its own copy rather than its first
   track. The only `/api/feeds/*` call a Home load makes is the listing.
 - `mumaGate.js`: two lanes. Calls to the LMS-owned routes (the regex in
-  `reverse-proxy.conf`: `auth/login`, `admin/`, `artists/<name>/image`, `artists/<id>`,
-  `tracks/*/refresh`, `users/`) keep the cap of 3. Everything else under `/api/` is a direct
+  `reverse-proxy.conf`: `admin/`, `artists/<name>/image`, `artists/<id>`,
+  `tracks/*/refresh`, `users/`; `auth/login` was on it until 2026-09-24, when the login moved
+  to MuMa) keep the cap of 3. Everything else under `/api/` is a direct
   call to Python and gets a cap of 8 — bounded so a burst of misses cannot exhaust the PyMySQL
   pool, but wide enough that the session chain never queues behind a feed build.
 

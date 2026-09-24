@@ -110,3 +110,41 @@ exactly like username/password login.
   design was derived from; consult it for the full table-by-table breakdown if this summary is insufficient.
 - [docs/designs/authentication/functional.md](functional.md) — the functional design this technical design
   implements.
+
+## 2026-09-24: `/muma/api/auth/login` answered by MuMa, not LMS
+
+**Contract change (AGENTS.md rule 10).** `POST /muma/api/auth/login` used to be answered by LMS's
+`MumaResource` with a flat `{id, username, display_name, is_admin, api_key}`, where `api_key` was
+LMS's configured `api-key` for every user. It now answers with MuMa's own
+`200 {status, api_key, access_token, refresh_token, user}` (the row in the API Contract table above),
+`user` carrying `permissions`, `role_name` and `is_admin`. Errors are MuMa's: `401`, `403` disabled,
+`429` rate limited.
+
+- **nginx** (`services/music-management-server/nginx/reverse-proxy.conf`): `api/auth/login$` left the
+  regex of LMS-owned routes, so the login goes straight to `music-manager:8000` like the rest of
+  `/muma/api/`. `scripts/test/reverse-proxy-routing.sh` pins the route.
+- **Rate limit**: `rate_limit.client_key` keys on the left-most `X-Forwarded-For` entry. The direct
+  location therefore uses `set_real_ip_from` (10/8, 172.16/12, 192.168/16), `real_ip_header
+  X-Forwarded-For` and `real_ip_recursive on`, and sends MuMa `X-Forwarded-For: $remote_addr` -- the
+  right-most address not written by a private-network proxy -- instead of the whole chain, so a
+  client cannot start a fresh bucket per guess by prefixing an address of its choice. The routing
+  test sends forged chains and asserts what MuMa receives. The per-account bucket is unchanged.
+- **LMS**: the local login handler is deleted. `/api/auth/login` joins `isPublicAuthPath`
+  (`Authentication.cpp`), so a login that reaches LMS directly -- `lms.<domain>` and the test/dev
+  stacks have no nginx in front -- is proxied to MuMa unauthenticated, like setup and Google, and
+  gets the same answer. That hop carries no client address, so there MuMa counts per account only,
+  as it already does for LMS's per-request password check. LMS's `api-key` stays: it is what MuMa
+  presents when it calls LMS (`MUMA_SERVER_API_KEY`/`LMS_API_KEY` in `routers/users.py`).
+- **Frontend**: `login.js`'s `startManagementSession` accepts only MuMa's shape (no `api_key` or no
+  `user` object = no session, nothing stored). At startup `hydrateMumaUserFromApiKey` treats a key
+  that verifies as `type: "system"` as a leftover of the old login and calls
+  `endLeftoverSharedKeySession` (= `endRejectedSession`); `Management.svelte` does the same instead
+  of setting `is_admin: true`. `isAdmin` therefore comes only from the Subsonic `adminRole` or the
+  user's own `is_admin`/`role_name`. `mumaGate.js` moved the login from the proxy lane to the direct
+  lane.
+- **Consumers**: MuMa Mobile logs in against MuMa itself (`MumaAPIDefinition.login`,
+  `MumaStoredCredentials`) and is unaffected. The contract tests log in through Subsonic and the
+  BDD steps call MuMa's `/api/auth/login` directly; neither goes through the changed route.
+- **Tests**: `src/libs/muma/test/Authentication.cpp` (`isPublicAuthPath`),
+  `services/frontend/tests/unit/login.test.js`, `store.test.js`, `management.test.js`,
+  `mumaGate.test.js`, and the routing script.

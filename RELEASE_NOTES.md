@@ -11,6 +11,27 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.72.3 (2026-09-24)
+
+- **Accounts and login:** the last active admin can no longer be demoted or disabled, first-time
+  setup can no longer produce two admins, login no longer reveals whether a username exists, and a
+  database outage now reads as an outage (503) instead of "invalid API key". Listens can only be
+  written to your own history, and old refresh tokens are cleaned up.
+
+- Internal clean-up only; nothing changes for users.
+
+- **The nightly production check now runs with an explicit permission allowlist.** It can read
+  production but not change it, and can open a fix merge request but not merge one.
+
+- **A file the tagger cannot read no longer causes an alert every five minutes.** It is retried a
+  few times with growing pauses and then set aside; the tagger page shows how many are set aside.
+- **Files whose names differ only in capitals, accents or emoji are no longer retagged on every
+  pass.**
+- **One refusal from SoundCloud or YouTube now costs one step of backoff and one notification**, and
+  resetting the backoff during a download round sticks.
+- **Redownload fetches the right track and actually replaces the file on YouTube**; if the download
+  fails, the old file stays.
+
 ## Global Version 0.72.2 (2026-09-24)
 
 - **Artist portraits:** a long portrait run no longer stops finding anything after an hour, a

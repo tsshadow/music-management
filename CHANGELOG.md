@@ -7,6 +7,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.72.3] - 2026-09-24
+
+### Removed
+- **`trigger_fetch` in the artist-images router is gone.** Since the image endpoint stopped
+  scheduling a lookup on a miss, nothing but its own tests called it; the per-artist fetch that
+  remains is `trigger_fetch_by_id` behind `/fetch-image`. `coverage-muma-server.xml` is no longer
+  tracked either: `scripts/test/muma-server-unit.sh` writes it on every run and `server:unit`
+  uploads it from there.
+
+### Fixed
+- **A file the tagger could not read was retried every five minutes, forever, with an alert each
+  time.** A failed file kept its place on the retag queue, was handed out again on the next round and
+  logged another `ERROR` — and every `ERROR` is an event and an alert push. Failures now back off
+  (10, 20, 40, 80 minutes) and the fifth in a row parks the file with reason `failed` until it changes
+  on disk or a retag is requested: one `WARNING` for the first failure, one for the park, `INFO` in
+  between, no `ERROR`. `GET /api/tagger/retag/pending` reports the parked files as `failed`, outside
+  `total`, and the tagger page shows the count. New columns `attempts`/`last_attempt` (migrate_v37).
+  Bug report 051.
+- **Two files whose paths differed only in case, an accent or an emoji shared one row in the
+  tagger's table** (`tagger_processed_files.filepath` was `utf8mb4_general_ci`), so one of the pair
+  was retagged on every walk and each overwrote the other's mtime. The column is `utf8mb4_bin` now;
+  migrate_v37 queues the rows that stood for two files (reason `binary_path`) before it changes the
+  collation, and the tagger picks up the twin as a new file. The tagger's folder walk now skips hidden
+  folders, as the scanner already did.
+- **One 403 during a multi-threaded sweep climbed the backoff ladder once per worker thread and sent
+  a push per thread.** `park()` now counts the first refusal of a sweep only and hands the others the
+  same answer. A backoff reset from the management page during a sweep is no longer undone when the
+  sweep finishes.
+- **Redownload could fetch the wrong track, and on YouTube did nothing.** The source was looked up
+  with `LIKE '%<name>%' LIMIT 1` (so `Intro.mp3` matched `DJ Intro.mp3`, and `_` matched anything);
+  it is now the exact stored path, then the exact file name in the same folder, and a name that
+  matches several downloads is a `409` instead of a guess. YouTube ran with `nooverwrites`, so yt-dlp
+  reported the file as already downloaded and kept it. Both downloaders now overwrite on a
+  redownload, into a staging folder beside the file that is moved over the old one only once it is
+  complete: a failed redownload leaves the old file where it was.
+
+### Security
+- **The last admin could demote or disable itself.** Only `DELETE /api/users/{id}` refused to remove
+  the last admin, and it counted disabled admins as spares. `PUT /api/users/{id}/role` and
+  `POST /api/users/{id}/disable` now share its check, which counts only *other enabled* admins, and
+  all three answer `409` (delete answered `400`). Bug report 052.
+- **Two simultaneous first-time setups could create two admins.** `POST /api/auth/setup` counted the
+  users and then inserted without a lock. The check and the insert now run under a lock and the
+  `INSERT` itself refuses a non-empty table; the loser gets `409 Setup already completed` (was `400`).
+- **Login timing told whether a username existed.** An unknown username was answered before bcrypt
+  ran -- milliseconds against a quarter second. It now pays for one bcrypt check against a dummy
+  hash and gets the same text as a wrong password; "Account disabled" only follows a correct password.
+- **A database outage read as "Invalid API key".** The `library` and `scrobbler` routers kept their
+  own key check, which swallowed every exception into a `401`. They now delegate to
+  `users.verify_api_key`, and `verify_token` answers `503` when the users table cannot be read
+  (before: `403 Invalid API Key` without a pool, `500` on a connection error). A key no account
+  holds is `401` on every router (it was `403` on all but `library` and `scrobbler` since 0.72.2;
+  the access-control feature requires `401`); a disabled account is `403` everywhere.
+- **Any account could scrobble into another account's history.** `POST /api/scrobble/event` took
+  the body's `username` at its word for every key. A user key may now only name itself (`403`
+  otherwise); admins and the system key, which LMS uses, still name anyone.
+- **`user_refresh_tokens` grew without bound.** Every successful login -- including every LMS
+  Subsonic password check it has not cached -- inserted a row that was never removed. Each account
+  now keeps its 10 newest, pruned on issue, and the daily `events-retention` pass applies the same
+  cap everywhere and drops revoked rows older than 30 days.
+
+- **The nightly production check no longer runs Claude with every permission switched off.** It
+  judged a report built from production logs and crash reports -- text anyone who can make prod log
+  a line can partly write -- under `--dangerously-skip-permissions`, so the skill's "only GET against
+  prod, never merge" was a request, not a limit. `scripts/nightly-prod-check/run.sh` now starts it
+  with `--permission-mode dontAsk` (not allowed means denied, never asked) and an explicit
+  allowlist: edits only in the fix worktrees and the result file, production only through the new
+  `prod-get.sh` (a GET of `/api/...` or `/health`, curl itself denied), `git push` only to
+  `nightly-fix/*`, and `glab mr create/view/list` only -- merge, approve, `glab api`, force pushes,
+  pushes to `master`/`develop`/`release/*`, ntfy and MCP servers are denied. Pinned by
+  `tests/ci/test_nightly_prod_check_permissions.py`.
+
 ## [0.72.2] - 2026-09-24
 
 ### Changed

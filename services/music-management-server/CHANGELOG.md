@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `/muma/users/sync`). The caller's identity comes from the verified credential only; the admin
   routes need a verified admin user, not a system key; per-user settings compare the MuMa id; and
   the proxy forwards the caller's own key and nothing else. The decision lives in
-  `src/libs/muma/Authentication.cpp` with GTest coverage. See docs/bug-reports/037-lms-any-key-is-admin.md.
+  `src/libs/muma/Authentication.cpp` with GTest coverage. See docs/bug-reports/056-lms-any-key-is-admin.md.
 - **`/muma/api/admin/subsonic-token` refuses a short token.** The admin route now applies the same
   16-character floor as `updateUser` (`userSettings::minSubsonicTokenLength`) and answers 400
   `token must be at least 16 characters` with the user's existing tokens untouched; an empty token

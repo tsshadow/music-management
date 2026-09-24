@@ -64,7 +64,7 @@ once it matches LMS's `api-key` or MuMa confirms it through `GET /api/auth/verif
 and `user.is_admin` then name the caller), or a `u`/`p` pair through `MusicManagementPasswordService`. It
 never takes the caller from the `u` parameter alone and its proxy never substitutes the system key for a
 caller without one -- see [docs/authentication.md](../../authentication.md#the-lms-muma-bridge-mumaresource)
-and bug report [037](../../bug-reports/037-lms-any-key-is-admin.md).
+and bug report [056](../../bug-reports/056-lms-any-key-is-admin.md).
 
 **MuMa Mobile** also supports native Google Sign-In (`EditServerFragment.startGoogleSignIn()`, Android
 Credential Manager + `androidx.credentials`/`googleid`, via `GetSignInWithGoogleOption`). It reuses

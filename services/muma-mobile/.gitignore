@@ -63,5 +63,9 @@ docs
 app/src/main/assets/public/
 
 # An empty SQLite file named after DB_FILENAME (AppPermanentStorageModule.kt) appeared in this
-# directory and was committed once; whatever creates it (not pinned down) must not do so again.
+# directory and was committed once; whatever creates it must not do so again. It is not the build:
+# nothing in Gradle, Robolectric or the tests names it with a `.db` suffix (Room's file has none),
+# and a full `scripts/test/muma-mobile-unit.sh` run on 2026-09-24 left no such file anywhere. The
+# committed copies were 4096 bytes, WAL mode, no tables -- the trace of an interactive sqlite3 or
+# adb inspection run from this directory, first swept in by a `git add -A` on 2026-09-06.
 ultrasonic-database.db*

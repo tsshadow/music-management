@@ -145,7 +145,7 @@ most of those to MuMa directly). Its authentication, in
   without a key. The configured MuMa system key is used only for LMS's own calls on behalf of an
   already-verified caller (artist image, track refresh, settings).
 
-Bug report [037](bug-reports/037-lms-any-key-is-admin.md) describes what this replaced: any
+Bug report [056](bug-reports/056-lms-any-key-is-admin.md) describes what this replaced: any
 non-empty key was accepted and the caller was taken from `u`.
 
 ## Gaps / things to consider

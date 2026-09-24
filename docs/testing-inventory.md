@@ -80,7 +80,9 @@
   `mock_base.py`. Coverage on source only (2026-09-23): `approve`, `fix_db_schema`,
   `migrate_paths` and `update_metadata` 96-98%, `predict` 63%, `analyzer` 49%, `trainer` 0% --
   `trainer.py` (125 statements) is the one module with no test at all
-- Compose service is commented out in `docker-compose.yml` (inactive)
+- Compose service is commented out in `docker/docker-compose.yml` (inactive; only the unused
+  `docker/docker-compose.full.yml` still defines it). The tests pass on code that would not work
+  if it ran -- repair or retire is an open decision in [open-work.md](open-work.md)
 
 ### music-management-server (C++)
 - Formatting: `./scripts/test/muma-server-format.sh` (`server:format`), clang-format pinned

@@ -39,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   checks for a server that has a valid certificate, so anyone on the network path could pose as the
   server and read the password. It now uses the normal trust store, refuses unencrypted
   connections except to the phone itself, and trusts user-installed certificates only in the debug
-  build (bug report 037).
+  build (bug report 054).
 - **Any app on the phone could read MuMa's stored password through the cover-art provider.** A
   cover-art address with `../` in it opened files outside the artwork cache, including the settings
   file with the password and the MuMa API key. Such addresses are now refused.

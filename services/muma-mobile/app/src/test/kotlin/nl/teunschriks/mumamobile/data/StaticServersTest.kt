@@ -16,7 +16,7 @@ import org.junit.Test
 /**
  * The one server the app signs in to shipped with `allowSelfSignedCertificate = true`, which
  * installs a trust-all certificate manager and hostname verifier for a server that has a valid
- * certificate (bug report 037). These pin the transport settings of that server.
+ * certificate (bug report 054). These pin the transport settings of that server.
  */
 class StaticServersTest {
 

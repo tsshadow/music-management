@@ -240,7 +240,7 @@
              Auto and the system media notification read MediaMetadata.artworkUri, and the
              launcher draws the home-screen widget's RemoteViews.setImageViewUri. It serves only
              files inside the album-art cache and refuses any key that could leave that
-             directory (AlbumArtPath, bug report 037). -->
+             directory (AlbumArtPath, bug report 054). -->
         <provider
             android:name=".provider.AlbumArtContentProvider"
             android:authorities="${applicationId}.provider.AlbumArtContentProvider"

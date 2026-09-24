@@ -561,6 +561,14 @@ class ParseFolderTest(TaggerTestCase):
             self.tagger.parse_folder(folder, SongTypeEnum.SOUNDCLOUD)
         try_parse.assert_not_called()
 
+    def test_hidden_subfolders_are_not_walked(self):
+        # A redownload stages its file in a dot folder beside the one it replaces.
+        folder = self.music / 'Soundcloud' / 'artist'
+        self.make_song(folder / '.muma-redownload-x1')
+        with patch.object(self.tagger, '_try_parse') as try_parse:
+            self.tagger.parse_folder(folder, SongTypeEnum.SOUNDCLOUD)
+        try_parse.assert_not_called()
+
     def test_a_stop_request_prevents_the_folder_from_being_touched(self):
         folder = self.music / 'Soundcloud' / 'artist'
         self.make_song(folder)
@@ -800,6 +808,73 @@ class ParseWorkerTest(TaggerTestCase):
         with patch.object(Tagger, 'parse_song', side_effect=RuntimeError('boom')), self.assertLogs(level='ERROR'):
             Tagger._parse_worker(str(song), 'SOUNDCLOUD')
         self.processed.mark_processed.assert_not_called()
+
+
+class FailedAttemptTest(TaggerTestCase):
+    """A file that always fails is backed off and parked, not retried every round forever.
+
+    Each failed round used to log an ERROR, and every ERROR is an event and an alert
+    push: a single broken file buzzed the phone every five minutes. Bug report 051.
+    """
+
+    def run_failing(self, attempts, worker=True):
+        """Run one failing attempt with the helper reporting `attempts`; return the log records."""
+        song = self.make_song(self.music / 'Soundcloud' / 'artist')
+        self.processed.mark_failed.return_value = attempts
+        with (
+            patch.object(Tagger, 'parse_song', side_effect=RuntimeError('boom')),
+            self.assertLogs(level='INFO') as logs,
+        ):
+            if worker:
+                Tagger._parse_worker(str(song), 'SOUNDCLOUD')
+            else:
+                self.tagger._try_parse(song, SongTypeEnum.SOUNDCLOUD)
+        return song, logs.records
+
+    def levels(self, records):
+        return [record.levelname for record in records if 'boom' in record.getMessage()]
+
+    def test_every_failure_is_counted_with_the_files_mtime_and_the_threshold(self):
+        song, _ = self.run_failing(1)
+        path, mtime, park_after = self.processed.mark_failed.call_args.args
+        self.assertEqual(path, str(song))
+        self.assertEqual(mtime, song.stat().st_mtime)
+        self.assertEqual(park_after, tagger_module.TAGGER_PARK_AFTER)
+
+    def test_the_first_failure_is_a_warning_not_an_error(self):
+        _, records = self.run_failing(1)
+        self.assertEqual(self.levels(records), ['WARNING'])
+        self.assertIsNotNone(records[-1].exc_info)
+
+    def test_a_retry_that_fails_again_is_no_new_error(self):
+        _, records = self.run_failing(2)
+        self.assertEqual(self.levels(records), ['INFO'])
+
+    def test_the_failure_that_parks_the_file_is_one_warning(self):
+        _, records = self.run_failing(tagger_module.TAGGER_PARK_AFTER)
+        self.assertEqual(self.levels(records), ['WARNING'])
+        self.assertIn('Parked', records[-1].getMessage())
+
+    def test_the_serial_path_counts_failures_too(self):
+        _, records = self.run_failing(2, worker=False)
+        self.processed.mark_failed.assert_called_once()
+        self.assertEqual(self.levels(records), ['INFO'])
+
+    def test_an_uncounted_failure_is_still_an_error(self):
+        # The database could not be written: nothing is known about earlier attempts.
+        _, records = self.run_failing(0)
+        self.assertEqual(self.levels(records), ['ERROR'])
+
+    def test_a_broken_file_is_counted_as_well_as_recorded(self):
+        song = self.make_song(self.music / 'Soundcloud' / 'artist')
+        self.processed.mark_failed.return_value = 1
+        with (
+            patch.object(Tagger, 'parse_song', side_effect=PermissionError('denied')),
+            self.assertLogs(level='WARNING'),
+        ):
+            self.tagger._try_parse(song, SongTypeEnum.SOUNDCLOUD)
+        self.processed.mark_failed.assert_called_once()
+        tagger_module.broken_song_helper.add.assert_called_once_with(str(song), 'PermissionError')
 
 
 class TagSingleFileTest(TaggerTestCase):

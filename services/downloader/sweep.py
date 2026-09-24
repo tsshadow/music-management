@@ -61,6 +61,11 @@ class SweepPolicy:
         self.stop = threading.Event()
         self._blank_run = 0
         self._notifier = notifier
+        # With max_workers > 1 every thread that meets the same 403 calls park(). One
+        # incident has to cost one rung of the ladder and one push, so the first caller
+        # records it and the rest get its answer back. See park().
+        self._park_lock = threading.Lock()
+        self._parked: RateLimited | None = None
 
     def begin(self) -> bool:
         """Return whether a sweep may start, or False while the source is parked."""
@@ -70,6 +75,7 @@ class SweepPolicy:
             return False
         self.stop.clear()
         self._blank_run = 0
+        self._parked = None
         return True
 
     def note_progress(self) -> None:
@@ -115,21 +121,35 @@ class SweepPolicy:
             raise SweepAborted(f'Skipped {name}; the {self.source} sweep is already stopping.')
 
     def park(self, reason: str, target: str) -> RateLimited:
-        """Record the rejection, stop the sweep, and report how long we stay away."""
-        previous = self._current_403_wait()
-        wait = self.rate_state.record_429() if reason == '429' else self.rate_state.record_403()
-        self.stop.set()
-        logging.warning(
-            'HTTP %s for %s. Pausing %s for %ds (multiplier %sx).',
-            reason,
-            target,
-            self.source,
-            wait,
-            self.rate_state.multiplier,
-        )
-        if reason == '403':
-            self._announce_403(target, previous, wait)
-        return RateLimited(self.source, wait, reason)
+        """Record the rejection, stop the sweep, and report how long we stay away.
+
+        Once per sweep: the worker threads of one sweep all meet the same refusal, and
+        each of them used to call this. Every call climbed a rung of the 403 ladder and
+        pushed a notification, so four workers turned one incident into a four-rung
+        wait and four buzzes. Serialised by a lock, and once the sweep is stopping the
+        `RateLimited` the first caller got is handed back unchanged.
+        """
+        with self._park_lock:
+            if self.stop.is_set() and self._parked is not None:
+                logging.info(
+                    'HTTP %s for %s while %s is already parked; not counted again.', reason, target, self.source
+                )
+                return self._parked
+            previous = self._current_403_wait()
+            wait = self.rate_state.record_429() if reason == '429' else self.rate_state.record_403()
+            self.stop.set()
+            logging.warning(
+                'HTTP %s for %s. Pausing %s for %ds (multiplier %sx).',
+                reason,
+                target,
+                self.source,
+                wait,
+                self.rate_state.multiplier,
+            )
+            if reason == '403':
+                self._announce_403(target, previous, wait)
+            self._parked = RateLimited(self.source, wait, reason)
+            return self._parked
 
     def _current_403_wait(self) -> int:
         """The wait the running 403 streak has already earned; 0 before the first one."""

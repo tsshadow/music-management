@@ -1,6 +1,16 @@
 # 🧠 ML Analyzer Service
 
-This service is responsible for analyzing audio files and extracting musical features for machine learning purposes.
+This service analyzes audio files and extracts musical features for machine learning purposes.
+
+> **Status: not deployed, and known not to work as-is.** Its service is commented out of
+> `docker/docker-compose.yml`, so production never runs it (only the unused
+> `docker/docker-compose.full.yml` still defines it). The 2026-09-24 dead-code sweep found it would
+> not work if it did run: the already-analysed check reads the wrong key, the
+> `library_track_ml_labels` join repeats bug report 028's stale join key, and `predict.py` writes
+> `library_track_ml_predictions`, a table only `db_init.sql` here creates and no deploy applies.
+> Whether to repair or retire it is an open decision — see "ml-analyzer: retire it or repair it"
+> in [docs/open-work.md](../../docs/open-work.md). The code is still unit-tested (see
+> [docs/testing-inventory.md](../../docs/testing-inventory.md)).
 
 ## ⚙️ Functionality
 
@@ -15,59 +25,61 @@ This service is responsible for analyzing audio files and extracting musical fea
 
 ## 🛠 Tech Stack
 
-- **Python 3.10+**
+- **Python 3.14** in the image (`python:3.14-slim`).
 - **Librosa** (with NumPy): audio feature extraction.
 - **scikit-learn**, **pandas**, **joblib**: the genre classifier (`trainer.py`, `predict.py`).
 - **SQLAlchemy** / **mysql-connector-python**: database interaction.
 
 No PyTorch and no Essentia: neither is in `requirements.txt` or imported anywhere here.
 
-## 📊 Wat betekenen de resultaten?
+## 📊 What do the results mean?
 
-De analyzer haalt momenteel de volgende kenmerken uit je muziek:
+The analyzer currently extracts the following features:
 
-1.  **Tempo (BPM)**: De snelheid van de track. 
-    *   *ML nut*: Helpt bij het onderscheiden van rules_genres (bijv. Hardcore > 160 vs Hardstyle ~150).
-    *   *Opmerking*: De analyzer is geoptimaliseerd voor snellere muziek (150+ BPM) om te voorkomen dat het tempo per ongeluk op de helft wordt gedetecteerd.
-2.  **Duration**: De lengte van het bestand.
-    *   *ML nut*: Helpt bij het filteren van korte samples of radio edits vs extended mixes.
-3.  **Spectral Centroid**: De "helderheid" of het "timbre" van het geluid. 
-    *   *ML nut*: Hardere stijlen met veel vervorming (distorted kicks/leads) hebben vaak een hogere waarde.
-4.  **Spectral Rolloff**: De frequentie waaronder een bepaald percentage (bijv. 85%) van de spectrale energie ligt.
-    *   *ML nut*: Helpt bij het onderscheiden van dof vs. helder geluid.
-5.  **RMS**: De gemiddelde luidheid (energie).
-    *   *ML nut*: Geeft een indicatie van de intensiteit en compressie van de track.
-6.  **Zero Crossing Rate (ZCR)**: Hoe vaak het signaal de nul-as passeert.
-    *   *ML nut*: Een indicator voor percussiviteit en ruis (noise). Hardcore kicks hebben vaak een unieke ZCR-signatuur.
-7.  **MFCCs (Mel-frequency cepstral coefficients)**: Een compacte representatie van de spectrale vorm.
-    *   *ML nut*: Dit is de "gouden standaard" voor timbre-herkenning en genreclassificatie.
-8.  **Chroma Features**: De verdeling van harmonische energie over de 12 toonhoogteklassen.
-    *   *ML nut*: Helpt bij het herkennen van toonsoort en melodische patronen.
+1.  **Tempo (BPM)**: the speed of the track.
+    *   *ML use*: helps tell genres apart (e.g. Hardcore > 160 vs Hardstyle ~150).
+    *   *Note*: the analyzer is tuned for faster music (150+ BPM) so the tempo is not detected at
+        half speed by accident.
+2.  **Duration**: the length of the file.
+    *   *ML use*: helps filter short samples or radio edits from extended mixes.
+3.  **Spectral Centroid**: the "brightness" or "timbre" of the sound.
+    *   *ML use*: harder styles with a lot of distortion (distorted kicks/leads) often score higher.
+4.  **Spectral Rolloff**: the frequency below which a given share (e.g. 85%) of the spectral
+    energy lies.
+    *   *ML use*: helps separate dull from bright sound.
+5.  **RMS**: the average loudness (energy).
+    *   *ML use*: indicates the intensity and compression of the track.
+6.  **Zero Crossing Rate (ZCR)**: how often the signal crosses zero.
+    *   *ML use*: an indicator of percussiveness and noise. Hardcore kicks often have a distinctive
+        ZCR signature.
+7.  **MFCCs (Mel-frequency cepstral coefficients)**: a compact representation of the spectral shape.
+    *   *ML use*: the "gold standard" for timbre recognition and genre classification.
+8.  **Chroma Features**: the distribution of harmonic energy over the 12 pitch classes.
+    *   *ML use*: helps recognise key and melodic patterns.
 
 ## 🚀 Usage
 
 ### Via Docker
 
-The service is included in the main `docker-compose.yml` (located in `work-context/`).
+There is no running container to `docker exec` into: the service is commented out of
+`docker/docker-compose.yml`. To try it, build `services/ml-analyzer/Dockerfile` (from the
+repository root, as the build context) and run it against a music mount and the database
+environment (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_DB`). The image's default command is
+`python services/ml-analyzer/analyzer.py --all --save --repeat --sleeptime 3600`; the script
+lives at `services/ml-analyzer/analyzer.py` inside the image, so pass that path for a one-off run:
 
-Build and start:
 ```bash
-docker-compose up -d ml-analyzer
-```
+# A single track
+python services/ml-analyzer/analyzer.py /mnt/music/path/to/track.mp3
 
-Manually analyze a track, folder, or the entire collection:
-```bash
-# Enkele track
-docker exec -it muma-ml-analyzer python analyzer.py /mnt/music/path/to/track.mp3
+# A whole folder, saved to the database
+python services/ml-analyzer/analyzer.py /mnt/music/path/to/folder --save
 
-# Hele map en opslaan in database
-docker exec -it muma-ml-analyzer python analyzer.py /mnt/music/path/to/folder --save
+# A folder, analysed in parallel (faster)
+python services/ml-analyzer/analyzer.py /mnt/music/path/to/folder --save --parallel
 
-# Parallelle analyse van een map (sneller)
-docker exec -it muma-ml-analyzer python analyzer.py /mnt/music/path/to/folder --save --parallel
-
-# VOLLEDIGE COLLECTIE (net als de tagger)
-docker exec -it muma-ml-analyzer python analyzer.py --all --save --parallel
+# The whole collection (like the tagger)
+python services/ml-analyzer/analyzer.py --all --save --parallel
 ```
 
 ### Local (Native Python)
@@ -89,28 +101,32 @@ pip install --default-timeout=100 -r requirements.txt
 
 #### 2. Configuration
 
-Ensure you have a `.env` file in this directory with the correct database credentials (see `.env.example`). If you only want to see the output in the console and not save to the DB, the script will work as long as `DB_PASS` is empty or the connection fails gracefully (currently it prints features to stdout).
+The database connection comes from the environment: `DB_HOST` (default `db`), `DB_PORT` (`3306`),
+`DB_USER`, `DB_PASS` and `DB_DB`; `MUSIC_PATH` (default `/mnt/music`) and `EPS_PATH` choose what
+`--all` scans. There is no `.env.example` in this directory — use the repository's root `.env`.
+Without `--save` the features are only printed to stdout.
 
 #### 3. Run
 
-Analyseer een bestand:
+Analyse one file:
 ```bash
 python analyzer.py /path/to/your/music/file.mp3
 ```
 
-Analyseer een map en sla op in DB:
+Analyse a folder and save to the database:
 ```bash
 python analyzer.py /path/to/folder --save
 ```
 
-Analyseer de volledige muziekcollectie parallel (zoals geconfigureerd in `.env`):
+Analyse the whole collection in parallel (`MUSIC_PATH`/`EPS_PATH`):
 ```bash
 python analyzer.py --all --save --parallel
 ```
 
-## 📅 Future Roadmap (as per machine-learning.md)
+## 📅 Future Roadmap
 
-1. **Database Integration**: Automatically save extracted features to MariaDB.
-2. **Audio Chunking**: Splitting library_tracks into smaller fragments for better training data.
-3. **Genre Classification**: Training custom models based on the high-quality labeled library.
-4. **Kick-type Recognition**: Specialized models for identifying different kick drum styles in electronic music.
+From [docs/machine-learning.md](../../docs/machine-learning.md), which is an unbuilt proposal:
+
+1. **Audio Chunking**: Splitting library_tracks into smaller fragments for better training data.
+2. **Genre Classification**: Training custom models based on the high-quality labeled library.
+3. **Kick-type Recognition**: Specialized models for identifying different kick drum styles in electronic music.

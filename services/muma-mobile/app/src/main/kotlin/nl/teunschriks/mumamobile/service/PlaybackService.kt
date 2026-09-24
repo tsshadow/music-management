@@ -216,8 +216,8 @@ class PlaybackService :
             .setBitmapLoader(ArtworkBitmapLoader())
             .build()
 
-        // Send custom layout to legacy session.
-        mediaLibrarySession.setCustomLayout(
+        // Publish the car/notification buttons, which also reaches the platform session.
+        mediaLibrarySession.setMediaButtonPreferences(
             librarySessionCallback.getCommandHelper().defaultCustomCommands
         )
 

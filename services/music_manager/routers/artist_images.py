@@ -686,26 +686,6 @@ def trigger_fetch_by_id(artist_id: int, force: bool = False):
         print(f'Background fetch failed for artist ID {artist_id}: {e}')
 
 
-def trigger_fetch(artist_name: str):
-    try:
-        from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetcher
-
-        conn = get_db_connection()
-        if not conn:
-            return
-        try:
-            fetcher = ArtistImageFetcher(db_conn=conn)
-            with conn.cursor() as cursor:
-                cursor.execute('SELECT id FROM library_artists WHERE name = %s', (artist_name,))
-                row = cursor.fetchone()
-                if row:
-                    fetcher.fetch_for_artist(row['id'], artist_name)
-        finally:
-            conn.close()
-    except Exception as e:
-        print(f'Background fetch failed for {artist_name}: {e}')
-
-
 def sync_artist_images_to_server(muma_conn, server_conn):
     """
     Syncs primary artist images from MuMa MariaDB to Music Management Server SQLite DB.

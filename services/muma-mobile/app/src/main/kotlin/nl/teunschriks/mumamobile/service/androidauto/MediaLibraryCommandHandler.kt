@@ -8,9 +8,11 @@
 package nl.teunschriks.mumamobile.service.androidauto
 
 import android.os.Bundle
+import androidx.annotation.OptIn
 import androidx.car.app.connection.CarConnection
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
@@ -37,9 +39,8 @@ import timber.log.Timber
  * @note This class interacts with `MediaSession` and `PlaybackService` to control media playback.
  *
  */
+@OptIn(UnstableApi::class)
 class MediaLibraryCommandHandler {
-    private val placeholderButton = getPlaceholderButton()
-
     private var currentRating = 0
     var customRepeatModeSet = false
 
@@ -67,6 +68,13 @@ class MediaLibraryCommandHandler {
     // repeat and news buttons vanished from the car while the notification kept showing them. The
     // drawable stays the icon of the notification and the fallback for anything that does not
     // know the constant (`DefaultMediaNotificationProvider` reads `iconResId`).
+    //
+    // The icon constants alone (7.4.1) did not bring the buttons back. Every button therefore also
+    // names its slot, SLOT_OVERFLOW, and the session publishes them as media button preferences
+    // instead of the deprecated custom layout -- the path media3 and the Auto docs describe, and the
+    // only one on which media3 writes the previous/next slot reservations into the platform
+    // session's extras. Those reservations also do what the old placeholder button did: keep a
+    // custom button out of the "next" slot on the last track of a queue that does not repeat.
 
     /**
      * The news button carries no extras on purpose: Android Auto strips them
@@ -77,6 +85,7 @@ class MediaLibraryCommandHandler {
         .setCustomIconResId(R.drawable.ic_menu_podcasts)
         .setSessionCommand(sessionCommand)
         .setEnabled(true)
+        .setSlots(CommandButton.SLOT_OVERFLOW)
         .build()
 
     private fun getShuffleCommandButton(sessionCommand: SessionCommand) = CommandButton.Builder(CommandButton.ICON_SHUFFLE_ON)
@@ -84,18 +93,7 @@ class MediaLibraryCommandHandler {
         .setCustomIconResId(R.drawable.media_shuffle)
         .setSessionCommand(sessionCommand)
         .setEnabled(true)
-        .build()
-
-    private fun getPlaceholderButton() = CommandButton.Builder(CommandButton.ICON_UNDEFINED)
-        .setDisplayName("Placeholder")
-        .setCustomIconResId(android.R.color.transparent)
-        .setSessionCommand(
-            SessionCommand(
-                PlaybackService.CUSTOM_COMMAND_PLACEHOLDER,
-                Bundle.EMPTY
-            )
-        )
-        .setEnabled(false)
+        .setSlots(CommandButton.SLOT_OVERFLOW)
         .build()
 
     private fun getRepeatModeButton(sessionCommand: SessionCommand, repeatMode: Int) = CommandButton.Builder(
@@ -121,6 +119,7 @@ class MediaLibraryCommandHandler {
         )
         .setSessionCommand(sessionCommand)
         .setEnabled(true)
+        .setSlots(CommandButton.SLOT_OVERFLOW)
         .build()
 
     private fun getRatingCommandButton(rating: Int) = CommandButton.Builder(carRatingIcon(rating))
@@ -139,6 +138,7 @@ class MediaLibraryCommandHandler {
             )
         )
         .setEnabled(true)
+        .setSlots(CommandButton.SLOT_OVERFLOW)
         .build()
 
     fun initialize() {
@@ -200,7 +200,7 @@ class MediaLibraryCommandHandler {
 
     fun updateCustomRatingButton(session: MediaSession, rating: Int) {
         with(session) {
-            setCustomLayout(
+            setMediaButtonPreferences(
                 buildCustomCommands(
                     rating = rating,
                     canShuffle = canShuffle()
@@ -219,17 +219,9 @@ class MediaLibraryCommandHandler {
 
         return ImmutableList.copyOf(
             buildList {
-                // placeholder must come first here because if there is no next button the first
-                // custom command button is place right next to the play/pause button
-                if (
-                    player.repeatMode != Player.REPEAT_MODE_ALL &&
-                    player.currentMediaItemIndex == player.mediaItemCount - 1
-                ) {
-                    add(placeholderButton)
-                }
-
-                // due to the previous placeholder this rating button will always appear to the
-                // left of the default playback items
+                // First, so it is the custom button the car shows when it has room for only one.
+                // Previous and next are reserved (see the slot comment above), so it never takes
+                // the place of the transport controls.
                 add(ratingButtons[currentRating])
 
                 // both the shuffle and the active repeat mode button will end up in the overflow
@@ -299,7 +291,7 @@ class MediaLibraryCommandHandler {
         session.updateCustomCommands()
     }
     private fun MediaSession.updateCustomCommands() {
-        setCustomLayout(
+        setMediaButtonPreferences(
             buildCustomCommands(
                 currentRating,
                 canShuffle()

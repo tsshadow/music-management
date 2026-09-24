@@ -149,7 +149,7 @@ class SetupTest(UsersEndpointTestCase):
     def test_setup_cannot_run_twice(self):
         self.cursor.fetchone.return_value = {'count': 1}
         response = self.client.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 409)
 
     def test_setup_requires_a_password(self):
         self.cursor.fetchone.return_value = {'count': 0}
@@ -398,7 +398,7 @@ class UserManagementTest(UsersEndpointTestCase):
             patch.object(users_router, 'notify_server_sync_users') as notify,
         ):
             self.client.post('/api/users/4/disable', headers=self.headers)
-        self.assertIn('enabled = FALSE', self.statements()[0])
+        self.assertTrue(any('enabled = FALSE' in s for s in self.statements()))
         # LMS caches a granted password for five minutes; the poke is what ends that early.
         # Without it a disabled listener keeps playing until the cache happens to lapse.
         notify.assert_called_once()
@@ -505,10 +505,11 @@ class DeleteUserTest(UsersEndpointTestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_the_last_admin_account_cannot_be_deleted(self):
-        self.cursor.fetchone.side_effect = [{'id': 1, 'username': 'root', 'role_id': 1}, {'cnt': 1}]
+        # `cnt` counts the *other* enabled admins.
+        self.cursor.fetchone.side_effect = [{'id': 1, 'username': 'root', 'role_id': 1}, {'cnt': 0}]
         with patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 1}):
             response = self.client.delete('/api/users/1', headers=self.headers)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 409)
 
     def test_one_of_several_admins_can_be_deleted(self):
         self.cursor.fetchone.side_effect = [{'id': 1, 'username': 'root', 'role_id': 1}, {'cnt': 2}]

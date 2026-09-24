@@ -7,7 +7,6 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, 
 
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
-from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
 from services.music_manager.genre_tint import genre_tint
 from services.music_manager.library_paths import candidate_paths
@@ -40,19 +39,14 @@ def _order_by(sort: str, direction: str) -> str:
 
 
 def verify_api_key(x_api_key: str | None = Header(None)):
-    if not x_api_key:
-        raise HTTPException(status_code=401, detail='Missing API Key')
-    if is_system_api_key(x_api_key):
-        return {'type': 'system'}
-    from services.music_manager.routers.users import verify_token
+    """Delegates to the canonical users.verify_api_key; kept as a name tests override.
 
-    try:
-        res = verify_token(x_api_key)
-        if res.get('status') == 'ok':
-            return res
-    except Exception:
-        pass
-    raise HTTPException(status_code=401, detail='Invalid API key')
+    This copy used to catch every exception from verify_token and answer 401 "Invalid
+    API key", so a disabled account and a database outage both looked like a bad key.
+    """
+    from services.music_manager.routers.users import verify_api_key as _verify
+
+    return _verify(x_api_key)
 
 
 # The largest page either track list serves. The frontend asks for 100; anything
@@ -305,9 +299,10 @@ def _ingested_tags(cursor, file_path_hash: str) -> tuple[dict | None, dict]:
 def _archive_source(cursor, spellings: list[str]) -> tuple[str | None, str | None]:
     """The URL a file was downloaded from and which platform's archive had it.
 
-    Matches the whole filename, not `LIKE '%name%'` as `/redownload` does: the archive
-    stores the absolute path, and an equality over the candidate spellings finds the same
-    row without the substring false positives.
+    Matches the whole filename, not a substring: the archive stores the absolute path,
+    and an equality over the candidate spellings finds the same row without the
+    substring false positives. `/redownload` resolves its source the same way first
+    (`_redownload_source`).
     """
     placeholders = ', '.join(['%s'] * len(spellings))
     for platform, table in (
@@ -418,8 +413,90 @@ def get_track_by_path(path: str = Query(...), _auth: dict = Depends(verify_api_k
         conn.close()
 
 
+def _escape_like(text: str) -> str:
+    """`text` as a literal inside a LIKE pattern: `%` and `_` are wildcards there."""
+    return text.replace('\\', '\\\\').replace('%', r'\%').replace('_', r'\_')
+
+
+class AmbiguousSource(Exception):
+    """More than one archived download could be the file, so none is picked."""
+
+
+def _redownload_source(cursor, filepath: str) -> tuple[str | None, str | None]:
+    """The URL a library file was downloaded from, and which platform's archive had it.
+
+    Exact first: the stored path -- `filename` on the SoundCloud archive, `path` on the
+    YouTube one -- against every spelling of the library path. This used to be
+    `filename LIKE '%<name>%' LIMIT 1`, with the name's own `_` and `%` left as
+    wildcards: `Intro.mp3` matched `DJ Intro.mp3`, and whichever row came first was
+    downloaded over the file.
+
+    Only when no stored path matches, the file name alone, exactly: equal to a bare
+    name, or the last component of a stored path. A candidate whose stored path puts
+    it in another folder is not this file, and if more than one source URL is still
+    left the answer is `AmbiguousSource` rather than a guess.
+    """
+    spellings = candidate_paths(filepath)
+    placeholders = ', '.join(['%s'] * len(spellings))
+    for platform, table, path_column in (
+        ('soundcloud', 'downloads_soundcloud_archive', 'filename'),
+        ('youtube', 'downloads_youtube_archive', 'path'),
+    ):
+        cursor.execute(
+            f'SELECT url, {path_column} AS stored FROM {table} '
+            f'WHERE {path_column} IN ({placeholders}) AND url IS NOT NULL LIMIT 20',
+            tuple(spellings),
+        )
+        # IN compares under the archive's case-insensitive collation; the path has to be
+        # this one exactly, not a file whose name differs only in case.
+        for row in cursor.fetchall() or []:
+            if row.get('stored') in spellings and row.get('url'):
+                return row['url'], platform
+
+    name = os.path.basename(filepath)
+    folder = os.path.basename(os.path.dirname(filepath))
+    suffix = f'%/{_escape_like(name)}'
+    candidates: dict[str, str] = {}
+    for platform, query, args in (
+        (
+            'soundcloud',
+            'SELECT url, filename AS stored FROM downloads_soundcloud_archive '
+            'WHERE (filename = %s OR filename LIKE %s) AND url IS NOT NULL LIMIT 20',
+            (name, suffix),
+        ),
+        (
+            'youtube',
+            "SELECT url, COALESCE(NULLIF(path, ''), filename) AS stored FROM downloads_youtube_archive "
+            'WHERE filename = %s AND url IS NOT NULL LIMIT 20',
+            (name,),
+        ),
+    ):
+        cursor.execute(query, args)
+        for row in cursor.fetchall() or []:
+            stored = row.get('stored') or ''
+            # The comparisons above run under the archive's case-insensitive collation;
+            # this one is exact.
+            if os.path.basename(stored) != name:
+                continue
+            stored_folder = os.path.basename(os.path.dirname(stored))
+            if stored_folder and stored_folder != folder:
+                continue
+            candidates.setdefault(row['url'], platform)
+    if len(candidates) > 1:
+        raise AmbiguousSource(f'{len(candidates)} archived downloads are called {name}')
+    if candidates:
+        url, platform = next(iter(candidates.items()))
+        return url, platform
+    return None, None
+
+
 @router.post('/tracks/{track_id}/redownload')
 def redownload_track(track_id: int, background_tasks: BackgroundTasks, _auth: dict = Depends(verify_api_key)):
+    """Fetch a track again from where it was downloaded and put it in place of the file.
+
+    400 when no archive knows the file, 409 when the file name is all there is to go on
+    and more than one archived download carries it.
+    """
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
@@ -430,47 +507,48 @@ def redownload_track(track_id: int, background_tasks: BackgroundTasks, _auth: di
             if not row:
                 raise HTTPException(status_code=404, detail='Track file not found')
             filepath = row['file_path']
-            filename = os.path.basename(filepath)
-            source_url = None
-            source_type = None
-            cursor.execute(
-                'SELECT url FROM downloads_soundcloud_archive WHERE filename LIKE %s LIMIT 1', (f'%{filename}%',)
-            )
-            res = cursor.fetchone()
-            if res:
-                source_url = res['url']
-                source_type = 'soundcloud'
-            if not source_url:
-                cursor.execute(
-                    'SELECT url FROM downloads_youtube_archive WHERE filename LIKE %s LIMIT 1', (f'%{filename}%',)
-                )
-                res = cursor.fetchone()
-                if res:
-                    source_url = res['url']
-                    source_type = 'youtube'
+            try:
+                source_url, source_type = _redownload_source(cursor, filepath)
+            except AmbiguousSource as exc:
+                raise HTTPException(
+                    status_code=409, detail=f'Several archived downloads could be this file ({exc}); not guessing'
+                ) from exc
             if not source_url:
                 raise HTTPException(status_code=400, detail='Could not find source URL in archive for redownload')
-            background_tasks.add_task(run_redownload_task, source_url, source_type)
+            background_tasks.add_task(run_redownload_task, source_url, source_type, filepath)
             return {'status': 'ok', 'message': f'Redownload started for {source_type} track: {source_url}'}
     finally:
         conn.close()
 
 
-def run_redownload_task(url: str, source_type: str):
+def run_redownload_task(url: str, source_type: str, target: str | None = None):
+    """Download `url` again and, when `target` is given, replace that library file with it.
+
+    The file is replaced atomically (see services/downloader/redownload.py), tagged, and
+    its tagger queue row re-marked with the new mtime by the downloader's own
+    post-processor. The row is also queued here for a retag: should the post-processor
+    not reach its bookkeeping, the next round still reads the new file, and a row parked
+    after repeated failures -- a damaged file is the usual reason to redownload -- starts
+    its failure count over.
+    """
     logging.info(f'Starting redownload task for {source_type}: {url}')
     try:
         if source_type == 'soundcloud':
             from services.downloader.soundcloud.soundcloud import SoundcloudDownloader
 
-            downloader = SoundcloudDownloader(break_on_existing=False)
-            downloader.redownload_mode = True
-            ydl_opts = downloader._prepare_ydl_opts('', break_on_existing_arg=False, redownload=True)
-            downloader.download_url(url, ydl_opts)
+            soundcloud = SoundcloudDownloader(break_on_existing=False)
+            soundcloud.redownload_mode = True
+            ydl_opts = soundcloud._prepare_ydl_opts('', break_on_existing_arg=False, redownload=True)
+            soundcloud.download_url(url, ydl_opts, replace=target)
         elif source_type == 'youtube':
             from services.downloader.youtube.youtube import YoutubeDownloader
 
-            downloader = YoutubeDownloader(break_on_existing=False)
-            downloader.download_link(url, breakOnExisting=False, redownload=True)
+            youtube = YoutubeDownloader(break_on_existing=False)
+            youtube.download_link(url, breakOnExisting=False, redownload=True, replace=target)
+        else:
+            return
+        if target and os.path.exists(target):
+            ProcessedFilesHelper().mark_for_rescan(target, reason='redownload')
         logging.info(f'Redownload task completed for {url}')
     except Exception as e:
         logging.error(f'Redownload task failed for {url}: {e}', exc_info=True)

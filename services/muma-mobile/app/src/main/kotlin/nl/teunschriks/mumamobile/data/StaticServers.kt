@@ -28,7 +28,7 @@ object StaticServers {
      * It must not: `true` installs a trust-all `X509TrustManager` and a hostname verifier that
      * accepts anything, so anyone on the network path could impersonate the server and collect the
      * password from the next request. The server has a publicly trusted certificate, so the normal
-     * system trust store is all it needs (bug report 037).
+     * system trust store is all it needs (bug report 054).
      */
     const val ALLOW_SELF_SIGNED_CERTIFICATE = false
 

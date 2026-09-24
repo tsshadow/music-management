@@ -56,7 +56,7 @@ class MediaLibraryCommandHandlerRatingTest {
         val (handler, session) = handlerWith(itemCount)
         val layout = slot<List<CommandButton>>()
         handler.updateCustomRatingButton(session, rating)
-        verify { session.setCustomLayout(capture(layout)) }
+        verify { session.setMediaButtonPreferences(capture(layout)) }
         return layout.captured
     }
 

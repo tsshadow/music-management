@@ -251,22 +251,33 @@ class PendingPathsTest(ProcessedFilesHelperTestCase):
         paths = self.helper.pending_paths(2, after='/music/a.mp3', reason='genre_decision')
         self.assertEqual(paths, ['/music/b.mp3', '/music/c.mp3'])
         query, args = self.cursor.execute.call_args.args
-        self.assertIn('needs_rescan = TRUE AND rescan_reason = %s AND filepath > %s', query)
-        self.assertIn('ORDER BY filepath LIMIT %s', query)
-        self.assertEqual(args, ('genre_decision', '/music/a.mp3', 2))
+        self.assertIn('needs_rescan = TRUE AND rescan_reason = %s AND', query)
+        self.assertIn('AND filepath > %s ORDER BY filepath LIMIT %s', query)
+        self.assertEqual(args, ('genre_decision', 300, '/music/a.mp3', 2))
         self.connection.close.assert_called_once()
 
     def test_rows_without_a_reason_are_their_own_page(self):
         self.cursor.fetchall.return_value = []
         self.helper.pending_paths(500, reason=None)
         query, args = self.cursor.execute.call_args.args
-        self.assertIn('rescan_reason IS NULL AND filepath > %s', query)
-        self.assertEqual(args, ('', 500))
+        self.assertIn('rescan_reason IS NULL AND', query)
+        self.assertEqual(args, (300, '', 500))
 
     def test_the_first_page_starts_before_every_path(self):
         self.cursor.fetchall.return_value = []
         self.helper.pending_paths(500, reason='deep_run')
-        self.assertEqual(self.cursor.execute.call_args.args[1], ('deep_run', '', 500))
+        self.assertEqual(self.cursor.execute.call_args.args[1], ('deep_run', 300, '', 500))
+
+    def test_a_file_that_failed_waits_out_its_backoff(self):
+        # 2^attempts loop periods after the last attempt, so a file that always raises is
+        # not handed out every round. Bug report 051.
+        self.cursor.fetchall.return_value = []
+        self.helper.pending_paths(500, reason='genre_decision')
+        query = self.cursor.execute.call_args.args[0]
+        self.assertIn(
+            '(last_attempt IS NULL OR last_attempt <= NOW() - INTERVAL (%s * POW(2, LEAST(attempts, 16))) SECOND)',
+            query,
+        )
 
 
 class QueueNewLibraryFilesTest(ProcessedFilesHelperTestCase):
@@ -373,13 +384,83 @@ class RescanReasonTest(ProcessedFilesHelperTestCase):
 
     def test_the_pending_summary_groups_by_reason(self):
         self.cursor.fetchall.return_value = [('artist_genre_rule', 12), ('genre_decision', 130)]
+        self.cursor.fetchone.return_value = (3,)
         summary = self.helper.pending_summary()
         self.assertEqual(summary['total'], 142)
         self.assertEqual(summary['by_reason'][0], {'reason': 'artist_genre_rule', 'count': 12})
 
+    def test_parked_files_are_counted_apart_from_the_pending_total(self):
+        self.cursor.fetchall.return_value = [('genre_decision', 10)]
+        self.cursor.fetchone.return_value = (3,)
+        summary = self.helper.pending_summary()
+        self.assertEqual(summary['total'], 10)
+        self.assertEqual(summary['failed'], 3)
+        query, args = self.cursor.execute.call_args.args
+        self.assertIn('needs_rescan = FALSE AND rescan_reason = %s', query)
+        self.assertEqual(args, ('failed',))
+
     def test_the_pending_summary_survives_a_database_error(self):
         self.cursor.execute.side_effect = RuntimeError('database gone')
-        self.assertEqual(self.helper.pending_summary(), {'total': 0, 'by_reason': []})
+        self.assertEqual(self.helper.pending_summary(), {'total': 0, 'by_reason': [], 'failed': 0})
+
+
+class RetryBackoffTest(ProcessedFilesHelperTestCase):
+    """A file that fails is retried with a backoff and parked after PARK_AFTER failures."""
+
+    def test_a_failure_raises_the_counter_and_keeps_the_file_queued(self):
+        self.cursor.fetchone.return_value = (1,)
+        self.assertEqual(self.helper.mark_failed('/music/a.mp3', 100.0), 1)
+        upsert, args = self.cursor.execute.call_args_list[0].args
+        self.assertIn('VALUES (%s, 0, TRUE, %s, 1, NOW())', upsert)
+        self.assertIn('needs_rescan = TRUE, attempts = attempts + 1, last_attempt = NOW()', upsert)
+        self.assertEqual(args, ('/music/a.mp3', 'retry'))
+        self.assertEqual(len(self.executed()), 2, 'one failure is not a park')
+        self.connection.commit.assert_called_once()
+
+    def test_a_queued_file_keeps_the_reason_that_queued_it(self):
+        self.cursor.fetchone.return_value = (2,)
+        self.helper.mark_failed('/music/a.mp3', 100.0)
+        # Decided on the old flag, before the flag is raised: assignment order matters.
+        upsert = self.executed()[0]
+        self.assertIn(
+            'rescan_reason = IF(needs_rescan, rescan_reason, VALUES(rescan_reason)), needs_rescan = TRUE', upsert
+        )
+
+    def test_the_last_allowed_failure_parks_the_file_with_its_mtime(self):
+        self.cursor.fetchone.return_value = (5,)
+        self.assertEqual(self.helper.mark_failed('/music/a.mp3', 123.5), 5)
+        park, args = self.cursor.execute.call_args_list[2].args
+        self.assertIn('SET needs_rescan = FALSE, rescan_reason = %s, mtime = %s', park)
+        self.assertEqual(args, ('failed', 123.5, '/music/a.mp3'))
+
+    def test_the_caller_can_set_the_threshold(self):
+        self.cursor.fetchone.return_value = (2,)
+        self.helper.mark_failed('/music/a.mp3', 1.0, park_after=2)
+        self.assertEqual(len(self.executed()), 3)
+
+    def test_a_parked_file_is_skipped_by_the_walk_until_it_changes(self):
+        self.helper._snapshot = {}
+        self.cursor.fetchone.return_value = (5,)
+        self.helper.mark_failed('/music/a.mp3', 123.5)
+        self.assertFalse(self.helper.needs_processing('/music/a.mp3', 123.5))
+        self.assertTrue(self.helper.needs_processing('/music/a.mp3', 99999.0))
+
+    def test_a_database_error_reports_an_unknown_count(self):
+        self.cursor.execute.side_effect = RuntimeError('database gone')
+        self.assertEqual(self.helper.mark_failed('/music/a.mp3', 1.0), 0)
+        self.connection.close.assert_called_once()
+
+    def test_tagging_a_file_starts_its_count_over(self):
+        self.helper.mark_processed('/music/a.mp3', 100.0)
+        self.assertIn('attempts = 0, last_attempt = NULL', self.executed()[0])
+
+    def test_every_retag_request_starts_the_count_over(self):
+        self.helper.mark_for_rescan('/music/a.mp3', reason='manual')
+        self.helper.mark_for_rescan(None, reason='rescan_all')
+        self.helper.mark_paths_for_rescan(['/music/a.mp3'], 'genre_decision')
+        self.helper.mark_stale_for_rescan(30, 10)
+        for query in self.executed():
+            self.assertIn('attempts = 0, last_attempt = NULL', query)
 
 
 if __name__ == '__main__':

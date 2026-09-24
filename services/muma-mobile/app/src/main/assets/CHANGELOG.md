@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.4.4] - 2026-09-24
+
+### Fixed
+- **Android Auto still showed only play, previous and next.** The icon constants of 7.4.1 did not
+  bring the rating, shuffle, repeat and news buttons back. The buttons now go out as media button
+  preferences with an explicit overflow slot instead of the deprecated custom layout, which also
+  gives the car the previous/next slot reservations it documents; the placeholder button that
+  used to hold the "next" slot is gone. When the car connects, the app logs exactly which buttons
+  the car was handed, so a diagnostics report after one drive settles it if they still do not
+  appear. Bug report 057.
+
 ## [7.4.3] - 2026-09-24
 
 ### Fixed
@@ -39,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   checks for a server that has a valid certificate, so anyone on the network path could pose as the
   server and read the password. It now uses the normal trust store, refuses unencrypted
   connections except to the phone itself, and trusts user-installed certificates only in the debug
-  build (bug report 037).
+  build (bug report 054).
 - **Any app on the phone could read MuMa's stored password through the cover-art provider.** A
   cover-art address with `../` in it opened files outside the artwork cache, including the settings
   file with the password and the MuMa API key. Such addresses are now refused.

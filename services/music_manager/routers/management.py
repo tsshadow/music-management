@@ -25,7 +25,7 @@ from services.music_manager.rbac import require_admin, require_permission
 # Re-exported: news, radio and events import it from here. It is the canonical
 # users.verify_api_key -- this module used to carry its own copy, which accepted any
 # enabled account for every route below, including the ones that change rules, move
-# folders on disk and read container logs. See docs/bug-reports/037.
+# folders on disk and read container logs. See docs/bug-reports/037-management-routes-open-to-every-user.md.
 from services.music_manager.routers.users import verify_api_key
 
 router = APIRouter(tags=['management'])

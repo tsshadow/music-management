@@ -33,6 +33,16 @@ bounds one slice, so the deep run costs seconds per round instead of hours once 
 Re-reading a file is cheap: a rule that produces the same value writes nothing, so a slice that
 finds no news touches no files and gives LMS nothing to re-index.
 
+## ⏸ Files that keep failing
+
+A file that raises in the tagger is not retried every round. Its queue row counts the failures
+(`attempts`, `last_attempt`); the next try waits `2^attempts × 5 minutes`, and the fifth failure in
+a row (`TAGGER_PARK_AFTER`) parks the file with reason `failed` until it changes on disk or a retag
+is requested. The first failure logs a `WARNING` with the traceback, parking one more `WARNING`, retries only
+`INFO`; none of them is an `ERROR`. The
+tagger page in Beheer shows how many files are parked. See
+[docs/designs/tagger/technical.md](../../docs/designs/tagger/technical.md#retag-queue-backoff-and-parking).
+
 ## 📜 Rules
 
 Detailed information about the available tagging rules can be found in the [Rules README](Song/rules/README.MD).

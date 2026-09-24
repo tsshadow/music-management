@@ -27,7 +27,7 @@ class LogRedactionTest {
         LogRedaction.settingValue("staticPassword", "") shouldBeEqualTo ""
     }
 
-    /** The INFO line `CachedDataSource.open` wrote for every stream (bug report 037). */
+    /** The INFO line `CachedDataSource.open` wrote for every stream (bug report 054). */
     @Test
     fun `the credentials in a logged stream DataSpec are masked`() {
         val line = "CachedDatasource: Open: DataSpec[GET https://music.example.com/rest/stream.view" +

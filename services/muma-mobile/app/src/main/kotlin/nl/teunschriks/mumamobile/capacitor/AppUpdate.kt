@@ -55,7 +55,7 @@ object AppUpdate {
      * Asked as apk-hoster's read-only `guest` account (`view,download`), the same one the download
      * link below uses. The query used to carry the hoster's *upload* password in an
      * `X-Upload-Password` header, compiled into `BuildConfig` -- so every APK handed out the
-     * credential that can publish an APK to every phone (bug report 037). `view` is all
+     * credential that can publish an APK to every phone (bug report 054). `view` is all
      * `/api/version` requires.
      */
     fun versionUrl(host: String, series: String): String = host.toUri().buildUpon()

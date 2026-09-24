@@ -16,6 +16,8 @@ from unittest.mock import patch
 
 import pytest
 
+from tests.integration.conftest import run_sql
+
 pytestmark = pytest.mark.integration
 
 # (method, path) for every endpoint that reads from the database and needs no
@@ -337,8 +339,54 @@ class UserLifecycleTest:
         setup = api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
         admin_id = setup.json()['id']
         refused = api.delete(f'/api/users/{admin_id}', headers=headers)
-        assert refused.status_code == 400
+        assert refused.status_code == 409
         assert 'beheerder' in refused.json()['detail']
+
+    def test_the_last_enabled_admin_cannot_be_demoted_or_disabled(self, api, headers, db):
+        admin_id = api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'}).json()['id']
+        demoted = api.put(f'/api/users/{admin_id}/role', headers=headers, json={'role': 'user'})
+        assert demoted.status_code == 409, demoted.text
+        disabled = api.post(f'/api/users/{admin_id}/disable', headers=headers)
+        assert disabled.status_code == 409, disabled.text
+
+        # A second, enabled admin lifts the guard: the SQL counts the others, enabled only.
+        second = api.post('/api/users', headers=headers, json={'username': 'user'}).json()['id']
+        api.put(f'/api/users/{second}/role', headers=headers, json={'role': 'admin'})
+        assert api.post(f'/api/users/{admin_id}/disable', headers=headers).status_code == 200
+        # ...and now `user` is the last enabled one, root being disabled.
+        assert api.put(f'/api/users/{second}/role', headers=headers, json={'role': 'user'}).status_code == 409
+
+    def test_setup_runs_once_and_its_guarded_insert_is_accepted(self, api, db):
+        assert api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'}).status_code == 200
+        again = api.post('/api/auth/setup', json={'username': 'other', 'password': 'hunter2'})
+        assert again.status_code == 409, again.text
+        assert run_sql(db, 'SELECT COUNT(*) AS n FROM users')[0]['n'] == 1
+
+    def test_logins_keep_only_the_newest_refresh_tokens(self, api, db):
+        from services.music_manager import rbac
+
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        tokens = [
+            api.post('/api/auth/login', json={'username': 'root', 'password': 'hunter2'}).json()['refresh_token']
+            for _ in range(rbac.REFRESH_TOKENS_PER_USER + 3)
+        ]
+        stored = [row['token'] for row in run_sql(db, 'SELECT token FROM user_refresh_tokens ORDER BY id')]
+        assert stored == tokens[-rbac.REFRESH_TOKENS_PER_USER :]
+
+    def test_the_daily_purge_caps_every_account_and_drops_old_revoked_rows(self, api, db):
+        from services.music_manager import rbac
+
+        root_id = api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'}).json()['id']
+        for n in range(rbac.REFRESH_TOKENS_PER_USER + 5):
+            run_sql(db, 'INSERT INTO user_refresh_tokens (user_id, token) VALUES (%s, %s)', (root_id, f'bulk-{n}'))
+        run_sql(
+            db,
+            'UPDATE user_refresh_tokens SET revoked_at = NOW() - INTERVAL 40 DAY WHERE token = %s',
+            (f'bulk-{rbac.REFRESH_TOKENS_PER_USER + 4}',),
+        )
+        rbac.purge_refresh_tokens(db)
+        stored = [row['token'] for row in run_sql(db, 'SELECT token FROM user_refresh_tokens ORDER BY id')]
+        assert stored == [f'bulk-{n}' for n in range(5, rbac.REFRESH_TOKENS_PER_USER + 4)]
 
     def test_a_role_can_be_assigned_and_is_reflected_in_the_permissions(self, api, headers, db):
         api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})

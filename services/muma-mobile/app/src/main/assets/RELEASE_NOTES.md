@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## Global Version 7.4.4 (2026-09-24)
+
+- **Android Auto:** another attempt at bringing the rating, shuffle, repeat and news buttons back
+  to the car's player screen. If they are still missing, send a diagnostics report after the drive.
+
 ## Global Version 7.4.3 (2026-09-24)
 
 - **Security fixes.** The app checks the server's certificate again, other apps can no longer read

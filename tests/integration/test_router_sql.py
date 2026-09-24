@@ -113,6 +113,10 @@ READ_ENDPOINTS = [
     ('/api/feeds/release-radar?username=root', 200),
     ('/api/feeds/daily-mix', 400),
     ('/api/feeds/daily-mix?username=root', 200),
+    # A spectrum mix and the listing for a named listener also run params_key's
+    # genre-hardness digest (CRC32 over rules_genres) before the snapshot read.
+    ('/api/feeds?username=root', 200),
+    ('/api/feeds/daily-mix-hard?username=root', 200),
 ]
 
 

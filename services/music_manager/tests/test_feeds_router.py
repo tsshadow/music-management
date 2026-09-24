@@ -57,6 +57,11 @@ class _LiveFeedsMixin:
         patcher = patch('services.music_manager.routers.feeds.serve_snapshot', side_effect=_serve_live)
         patcher.start()
         self.addCleanup(patcher.stop)
+        # params_key reads exclusions and genre hardness through a cursor these
+        # connections do not have; ParamsKeyTest covers what it reads.
+        key_patcher = patch('services.music_manager.routers.feeds.params_key', return_value='k')
+        key_patcher.start()
+        self.addCleanup(key_patcher.stop)
 
 
 class _FeedsAuthTestCase(_LiveFeedsMixin, unittest.TestCase):
@@ -468,6 +473,9 @@ class FeedsSnapshotRouterTest(unittest.TestCase):
         patcher = patch('services.music_manager.routers.feeds.get_db_connection', return_value=self.conn)
         patcher.start()
         self.addCleanup(patcher.stop)
+        key_patcher = patch('services.music_manager.routers.feeds.params_key', return_value='k')
+        key_patcher.start()
+        self.addCleanup(key_patcher.stop)
 
     def tearDown(self):
         app.dependency_overrides.pop(feeds_router.verify_api_key, None)
@@ -559,6 +567,116 @@ class FeedsSnapshotRouterTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers['X-MuMa-Feed-Source'], 'live')
         build.assert_called_once()
+
+    def test_the_key_is_asked_for_this_listener_and_slug(self):
+        with (
+            patch('services.music_manager.routers.feeds.serve_snapshot', return_value=({'feeds': []}, 'snapshot')),
+            patch('services.music_manager.routers.feeds.params_key', return_value='k') as key,
+        ):
+            client.get('/api/feeds/daily-mix-hard?username=user', headers={'X-API-Key': 'k'})
+            client.get('/api/feeds?username=user', headers={'X-API-Key': 'k'})
+        self.assertEqual(
+            [call.args for call in key.call_args_list],
+            [(self.conn, 'user', 'daily-mix-hard'), (self.conn, 'user', feeds_router.LIST_SLUG)],
+        )
+
+
+class _KeyDatabase:
+    """A connection whose cursor answers the two queries `params_key` issues: the
+    listener's exclusions and the genre-hardness digest."""
+
+    def __init__(self, exclusions=(), hardness=(10, 12345)):
+        self.exclusions = list(exclusions)
+        self.hardness = hardness
+        self.statements = []
+
+    def cursor(self):
+        database = self
+
+        class Cursor:
+            _sql = ''
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_exc):
+                return False
+
+            def execute(self, sql, params=None):
+                self._sql = ' '.join(sql.split())
+                database.statements.append(self._sql)
+
+            def fetchall(self):
+                if 'feeds_profile_exclusions' in self._sql:
+                    return [{'entity_type': kind, 'entity_name': name} for kind, name in database.exclusions]
+                return []
+
+            def fetchone(self):
+                genres, checksum = database.hardness
+                return {'genres': genres, 'checksum': checksum}
+
+        return Cursor()
+
+
+class ParamsKeyTest(unittest.TestCase):
+    """What ages a snapshot within its day: `params_key` must change with each input
+    that shapes a build, and only for the slugs that input shapes."""
+
+    def setUp(self):
+        patcher = patch.object(feeds_router.settings, 'get', return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_a_hardness_edit_changes_the_key_of_the_spectrum_mixes_and_the_listing(self):
+        before, after = _KeyDatabase(hardness=(10, 111)), _KeyDatabase(hardness=(10, 222))
+        for slug in ('daily-mix-soft', 'daily-mix-mid', 'daily-mix-hard', feeds_router.LIST_SLUG):
+            with self.subTest(slug=slug):
+                self.assertNotEqual(
+                    feeds_router.params_key(before, 'user', slug), feeds_router.params_key(after, 'user', slug)
+                )
+
+    def test_a_hardness_edit_leaves_the_other_feeds_fresh(self):
+        before, after = _KeyDatabase(hardness=(10, 111)), _KeyDatabase(hardness=(10, 222))
+        for slug in ('release-radar', 'daily-mix', 'daily-mix-artist', 'daily-mix-label'):
+            with self.subTest(slug=slug):
+                self.assertEqual(
+                    feeds_router.params_key(before, 'user', slug), feeds_router.params_key(after, 'user', slug)
+                )
+        self.assertFalse(
+            any('rules_genres' in sql for sql in before.statements), 'no digest query for a slug it cannot shape'
+        )
+
+    def test_an_exclusion_change_changes_every_key_of_that_listener(self):
+        before = _KeyDatabase(exclusions=[('artist', 'angerfist')])
+        after = _KeyDatabase(exclusions=[('artist', 'angerfist'), ('label', 'masters of hardcore')])
+        for slug in feeds_router.SNAPSHOT_SLUGS:
+            with self.subTest(slug=slug):
+                self.assertNotEqual(
+                    feeds_router.params_key(before, 'user', slug), feeds_router.params_key(after, 'user', slug)
+                )
+
+    def test_the_key_ignores_the_order_the_exclusions_come_back_in(self):
+        one = _KeyDatabase(exclusions=[('artist', 'a'), ('genre', 'b')])
+        other = _KeyDatabase(exclusions=[('genre', 'b'), ('artist', 'a')])
+        self.assertEqual(
+            feeds_router.params_key(one, 'user', 'daily-mix'), feeds_router.params_key(other, 'user', 'daily-mix')
+        )
+
+    def test_an_exclusion_that_lands_during_a_build_leaves_its_row_stale(self):
+        """The race: the router computes the key, the build runs on the old exclusions,
+        the exclusion lands and deletes the rows, the build then writes. The row it
+        writes carries the old key, so the next read rebuilds it."""
+        database = _KeyDatabase(exclusions=[])
+        written = feeds_router.params_key(database, 'user', 'daily-mix')
+        database.exclusions.append(('artist', 'angerfist'))
+        self.assertNotEqual(feeds_router.params_key(database, 'user', 'daily-mix'), written)
+
+    def test_a_settings_change_still_changes_the_key(self):
+        database = _KeyDatabase()
+        default = feeds_router.params_key(database, 'user', 'release-radar')
+        with patch.object(feeds_router.settings, 'get', side_effect=lambda name: '40,80' if 'edges' in name else None):
+            moved = feeds_router.params_key(database, 'user', 'release-radar')
+        self.assertNotEqual(default, moved)
 
 
 if __name__ == '__main__':

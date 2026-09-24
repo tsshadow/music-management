@@ -13,6 +13,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any
 
+from services.music_manager.feeds import clock
 from services.music_manager.feeds.buckets import bucket_of, dominant_genre
 from services.music_manager.feeds.hardness import (
     DEFAULT_BAND_EDGES,
@@ -370,7 +371,7 @@ def _describe(
     }
     if policy.rotate:
         names = _ranked_names(profile.artists if policy.rotate == 'artist' else profile.labels)
-        chosen = pick_daily_entity(username, now.date(), names)
+        chosen = pick_daily_entity(username, clock.feed_date(now), names)
         noun = 'artiest' if policy.rotate == 'artist' else 'label'
         default_title = 'Artiestmix' if policy.rotate == 'artist' else 'Labelmix'
         return {
@@ -722,7 +723,7 @@ def build_feed(
     ]
     funnel['bucketed'] = len(bucketed)
 
-    order_key = _order_key_fn(policy, profile, username, now.date())
+    order_key = _order_key_fn(policy, profile, username, clock.feed_date(now))
 
     if bucketed:
         # Step 6: how many places each share gets, capped by what is available.

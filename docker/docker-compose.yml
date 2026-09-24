@@ -143,6 +143,9 @@ services:
       # retag queue drains; the code defaults (12, 0.5 s) apply when these are unset.
       TAGGER_WORKERS: ${TAGGER_WORKERS:-}
       TAGGER_BATCH_PAUSE: ${TAGGER_BATCH_PAUSE:-}
+      # The zone a daily mix's day is counted in. The container itself runs on UTC; empty
+      # means the code default, Europe/Amsterdam. See docs/deployment.md.
+      MUMA_TIMEZONE: ${MUMA_TIMEZONE:-}
     volumes:
       # NOTE: these must point at the *actual* host directories used by the separate
       # "lms" stack (services/music-management-server/docker-compose.yml,

@@ -152,15 +152,27 @@ CREATE TABLE IF NOT EXISTS feeds_snapshot (
 
 `payload` is the complete response body for the feed at its policy size, so a hit needs no
 Python beyond `json.loads`. The listing (`GET /api/feeds`) is stored under the reserved slug
-`_list` in the same table, since it is derived from the same profile. `params_key` digests the
-starting genres and the hardness edges (`routers/feeds.py`, `params_key()`): a row built under
-other settings is stale whatever its age, so an admin who moves the edges sees them on the next
-read rather than tomorrow. Anything new that shapes a build belongs in that digest.
+`_list` in the same table, since it is derived from the same profile. `params_key(conn, username,
+slug)` (`routers/feeds.py`) digests the starting genres, the hardness edges, the listener's
+exclusions and — for the three spectrum mixes and the listing — an aggregate checksum over
+`rules_genres.hardness`: a row built under anything else is stale whatever its age, so an admin who
+moves the edges, a curator who re-scores a genre and a listener who excludes an artist all see it
+on the next read rather than tomorrow. The key is computed *before* the build, so a change that
+lands while a build is running leaves the row that build writes stale; that is what closes the race
+between an exclusion change's `delete_user` and a build still running on the old exclusions.
+Anything new that shapes a build belongs in that digest.
+
+"Today" is the calendar day in `MUMA_TIMEZONE` (default `Europe/Amsterdam`, `feeds/clock.py`), not
+the container's UTC day; the snapshot's `feed_date`, the daily sample order and the artist/label
+rotation all read it, so the mixes roll over at local midnight.
 
 Read path (`GET /api/feeds/{slug}`): look up `(username, slug, today)`. A row is fresh when its
 `params_key` matches and the policy is a daily mix (any `daily-mix*`: valid until midnight) or,
 for `release-radar`, when `generated_at` is less than `FEEDS_RADAR_TTL_SECONDS` (default 3600)
-old. Fresh → return the payload. Stale or missing → build, upsert, return. A `?limit=` smaller
+old — except that a feed whose `state` is not `ok` (`not_enough_data`, `no_matches`) is fresh for
+only `FEEDS_NON_OK_TTL_SECONDS` (default 900), whatever its slug. An empty answer is about the data
+at build time, and for a listener who opened Home before their first listen that data changes
+within the day (bug report 049). Fresh → return the payload. Stale or missing → build, upsert, return. A `?limit=` smaller
 than the policy size returns the first `limit` tracks of the snapshot; a `limit` *larger* than
 the policy size is a different feed (the quota is allocated over more places) and is built live
 and not stored — nothing in the apps asks for one. The response carries `X-MuMa-Feed-Source:
@@ -182,7 +194,9 @@ skipped, not allowed to stop the pass. Yesterday's rows are deleted by the same 
 
 What a listener sees: the first Home of the day after a deploy may still build live once (the
 refresh thread starts at the same time), every one after that is a table read. New listens today
-change tomorrow's mix, not today's — which is what "daily" already meant. New releases reach the
+change tomorrow's mix, not today's — which is what "daily" already meant — with one exception: a
+mix that came out empty is rebuilt after 15 minutes, by the refresh pass as soon as the listener
+has a listen, so a new listener's mixes fill in the same day. New releases reach the
 radar within an hour, the same cadence `release_date_sync` already imposes.
 
 Timing is logged on every build (`feeds.build slug=… user=… total_ms=… source=live|refresh`) so

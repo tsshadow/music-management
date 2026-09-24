@@ -178,7 +178,7 @@ separately built/deployed, and talk to each other only over HTTP/Subsonic APIs:
 - **Mobile Client**: A native Android application for interacting with the music collection on the go.
 - **Subsonic Integration**: Connects directly to the `music-management-server` for audio streaming and library browsing.
 - **Settings Backup & Sync**:
-    - Synchronizes application settings (stored as JSON) to the `music-manager` API (`POST /api/users/{id}/app-settings/ultrasonic`).
+    - Synchronizes application settings (stored as JSON) to the `music-manager` API (`POST /api/users/{id}/settings/ultrasonic`, read back with `GET` on the same path).
     - Provides a seamless transition when switching devices or re-installing the app.
 - **Real-time Feedback**:
     - **Ratings**: Star ratings changed within MuMa Mobile are sent to LMS via the Subsonic API and then webhooked to `music-manager`.

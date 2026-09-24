@@ -98,7 +98,7 @@
 - **Accessibility**: High contrast between text (`#FFFFFF` / `#B3B3B3`) and background (`#121212`), clear focus states, touch targets at least 48x48px on mobile.
 
 ## Coding Conventions
-- **Web (`services/frontend`)**: Svelte components + Tailwind CSS utility classes adhering to the Spotify dark color tokens (`spotify-green`, `spotify-gray`, etc.).
+- **Web (`services/frontend`)**: Svelte components + Tailwind CSS utility classes using the color tokens declared in the `@theme` block of `src/app.css`: `brand` (the mode-dependent accent), `brand-green`, `brand-blue`, and the `muma-spotify-*` surfaces (`-black`, `-dark`, `-panel`, `-light`, `-text`). A token that is not declared there compiles to no CSS rule at all, silently.
 - **Android (`services/muma-mobile`)**: Kotlin + Material Design components customized with dark theme color attributes matching the web palette.
 
 ## Do's & Don'ts

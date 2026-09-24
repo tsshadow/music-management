@@ -242,7 +242,8 @@ or a platform folder, so both layouts stay correct while the move happens.
 ### Why it cannot be run from a developer machine alone
 
 Every path setting reaches the worker containers through production's `.env`, as
-`docker-compose.workers.yml:26-28` and `:33` show — not through the API config store. Renaming the
+the `x-environment-paths` and `x-environment-downloader` anchors of `docker/docker-compose.yml`
+show — not through the API config store. Renaming the
 folders without changing those first leaves the workers reading and writing paths that no longer
 exist: the downloaders simply recreate `/mnt/music/Soundcloud`, and the tagger finds an empty intake.
 

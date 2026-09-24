@@ -132,7 +132,8 @@ To maintain clean design governance and prevent ad-hoc style drift:
     full-screen player background is a vertical gradient from the track's genre tint (55% mix with
     `#121212`) to `#121212` at 60%; the mini player shows one square image.
   - B (done): player header is two lines (caption `11px #B3B3B3`, name `14px bold white`, sentence case);
-    genres and label are chips (the details-sheet chip); stars are 44px targets with a 24px glyph;
+    genres and label are chips (the details-sheet chip); stars are 44px targets with a 24px glyph
+    (28px since J);
     transport and bottom-row icons at 24px, shuffle/repeat included.
   - C (done): Home "show all" in sentence case at 13px; odd tile counts span the last tile; recent-track
     shelves are compact rows (48px thumbnail); Browse tiles 68px high with a 36px icon; the advanced
@@ -172,10 +173,28 @@ To maintain clean design governance and prevent ad-hoc style drift:
   - I (done, 2026-09-24): the full-screen player is a one-screen stage -- only the cover shrinks,
     the transport is always visible; artists on one truncating line; album left and release date
     right-aligned (`tabular-nums`) on one line, no `·`; genre/label chips on one sideways-scrolling
-    row; stars and the transport's outer glyphs aligned to the text edge (`-ml-2.5`, `-mx-2`);
-    landscape is two columns (cover left, info right), portrait tablets a centred `max-w-xl`
-    column. The song table shows optional columns by its own width (container queries), truncates
-    cells, never wraps the date, and has no rating column on touch devices.
+    row; the transport's outer glyphs aligned to the text edge (`-mx-2`) (the stars were too, with
+    `-ml-2.5`, until J); landscape is two columns (cover left, info right), portrait tablets a
+    centred `max-w-xl` column. The song table shows optional columns by its own width (container
+    queries), truncates cells, never wraps the date, and has no rating column on touch devices.
+  - J (done, 2026-09-24): the full-screen player's rating row is **centred**, not aligned to the
+    text edge: five 44px targets spread evenly (`justify-between`) over a centred `max-w-xs`
+    (320px) row, so it shares the transport row's centre line and does not stretch on a tablet.
+    Glyphs are 28px, the size of the previous/next glyphs. A set star is filled `text-brand`; an
+    unset star is a 1.5px outline in the secondary grey `#B3B3B3` -- "no rating yet", never the
+    faded `white/10` fill that read as disabled. Scope: `NowPlaying.svelte` only; the desktop bar,
+    track rows and the details sheet keep their own compact stars.
+  - K (done, 2026-09-24): the full-screen player's bottom icon row carries the news of the hour
+    button directly after the radio button, styled like it: 24px newspaper glyph (the desktop
+    bar's), `#B3B3B3` idle, `#b266ff` while a bulletin plays, `aria-pressed` (bug report 059).
+  - L (done, 2026-09-24): meta chips are coloured **by kind, never by position**. `MetaChips.svelte`
+    reads `kind` per item. A genre chip (and any chip without a kind: festival, mood) keeps the
+    neutral chip -- `bg-[#282828] text-[#b3b3b3]`, hover `bg-[#333] text-white`. A label chip is a
+    muted amber: `bg-[#3a2c16] text-[#ffcc80]`, hover `bg-[#4a3820] text-[#ffe0b2]` (contrast about
+    9:1), so genres and label read apart at a glance on the player's sideways chip row. Not the
+    brand token (the mode accent that marks active states), not `#b266ff` (radio/news active), not
+    a blue (sets mode's brand): each of those already means something else. Applies wherever
+    `MetaChips` renders a label -- the full-screen player and the track details sheet.
 
 - **Done** — Android login/welcome screens brought in line with the web's `LoginPage.svelte`: filled/rounded
   dark inputs (`MuMa Mobile.TextInputLayout`), a solid-green pill CTA

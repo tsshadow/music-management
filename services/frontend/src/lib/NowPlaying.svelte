@@ -69,6 +69,11 @@
     radioChannels = [],
     showRadioPicker = false,
     ontoggleRadio = null,
+    // The news bulletin: `newsActive` tints the button while one plays (`Player.svelte`'s
+    // `newsSnapshot !== null`), `ontoggleNews` is its `toggleNews`. The desktop bar always had
+    // this button; the phone lost it when the full-screen view moved into this component.
+    newsActive = false,
+    ontoggleNews = null,
     onstartRadio = null,
     oncloseRadioPicker = null,
     onclose,
@@ -155,11 +160,11 @@
    */
   const metaItems = $derived.by(() => {
     if (!track) return [];
-    const items = genreNames(track.genre).map((genre) => ({ text: genre, view: `genre:${genre}` }));
+    const items = genreNames(track.genre).map((genre) => ({ text: genre, view: `genre:${genre}`, kind: 'genre' }));
     const labels = Array.isArray(track.labels) && track.labels.length
       ? track.labels.filter(Boolean)
       : [track.label || track.publisher].filter(Boolean);
-    for (const label of labels) items.push({ text: label, view: `label:${label}` });
+    for (const label of labels) items.push({ text: label, view: `label:${label}`, kind: 'label' });
     return items;
   });
 
@@ -551,16 +556,30 @@
               </div>
             {/if}
 
-            <!-- `-ml-2.5`: each star is a 44px target around a 24px glyph, so the first
-                 glyph would otherwise sit 10px in from the text above it. -->
-            <div class="mt-1 -ml-2.5 flex items-center" data-testid="now-playing-rating">
+            <!-- Centred, like the transport below it, rather than hanging off the text
+                 edge: left-aligned, the row read as detached from the full-width controls.
+                 `max-w-xs` + `justify-between` spreads the five 44px targets evenly over a
+                 fixed width, so the gaps do not balloon on a tablet. An unset star is an
+                 outline in the secondary grey, not a near-invisible filled glyph: it has to
+                 read as "no rating yet", not as "disabled". -->
+            <div class="mx-auto mt-1 flex w-full max-w-xs items-center justify-between" data-testid="now-playing-rating">
               {#each [1, 2, 3, 4, 5] as star (star)}
                 <button
                   aria-label="{star} sterren"
-                  class="w-11 h-11 flex items-center justify-center bg-transparent border-none cursor-pointer transition-colors { rating >= star ? 'text-brand' : 'text-white/10' }"
+                  class="w-11 h-11 flex items-center justify-center bg-transparent border-none cursor-pointer transition-colors { rating >= star ? 'text-brand' : 'text-[#b3b3b3]' }"
+                  data-filled={rating >= star}
                   onclick={() => onrate?.(star)}
                 >
-                  <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="28"
+                    height="28"
+                    fill={rating >= star ? 'currentColor' : 'none'}
+                    stroke="currentColor"
+                    stroke-width={rating >= star ? 0 : 1.5}
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
                     <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
                   </svg>
                 </button>
@@ -742,6 +761,21 @@
               >
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
                   <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"></path>
+                </svg>
+              </button>
+            {/if}
+            {#if ontoggleNews}
+              <!-- Same newspaper glyph and purple as the desktop bar's news button. -->
+              <button
+                class="shrink-0 bg-transparent border-none p-2 cursor-pointer transition-colors hover:text-white {newsActive ? 'text-[#b266ff]' : 'text-[#b3b3b3]'}"
+                data-testid="now-playing-news"
+                onclick={ontoggleNews}
+                title={newsActive ? $t('news.playing') : $t('news.play')}
+                aria-label={$t('news.play')}
+                aria-pressed={newsActive}
+              >
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+                  <path d="M20 3H4a2 2 0 0 0-2 2v12a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V5a2 2 0 0 0-2-2zM5 18a1 1 0 0 1-1-1V5h12v12a3 3 0 0 0 .17 1zm14 0a1 1 0 0 1-1-1V5h2v12a1 1 0 0 1-1 1zM6 7h8v2H6zm0 4h8v2H6zm0 4h5v2H6z"></path>
                 </svg>
               </button>
             {/if}

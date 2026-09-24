@@ -389,6 +389,22 @@ describe("Player", () => {
       );
       expect(spy).not.toHaveBeenCalledWith("Nog geen bulletin opgenomen");
     });
+
+    // The phone's full-screen player had no news button at all: only the desktop bar
+    // rendered one, and `NowPlaying` was never handed `toggleNews` (bug report 059).
+    it("the phone's Now Playing screen has a news button wired to the same toggle", async () => {
+      const spy = vi.spyOn(notify, "error");
+      globalThis.fetch = newsApi({ latest: 404 });
+      isMobile.set(true);
+      renderPlayer();
+      await fireEvent.click(screen.getByText("Raise Your Fist"));
+
+      const button = screen.getByTestId("now-playing-news");
+      expect(button.getAttribute("aria-pressed")).toBe("false");
+      await fireEvent.click(button);
+
+      await waitFor(() => expect(spy).toHaveBeenCalledWith("Nog geen bulletin opgenomen"));
+    });
   });
 
   it("the repeat button cycles through its modes", async () => {

@@ -33,6 +33,10 @@ READ_ENDPOINTS = [
     ('/api/auth/verify', 200),
     ('/api/library/tracks', 200),
     ('/api/library/advanced', 200),
+    # Paging is validated before any SQL runs: page 0 was a negative OFFSET (a 500).
+    ('/api/library/tracks?page=0', 422),
+    ('/api/library/tracks?limit=501', 422),
+    ('/api/library/advanced?page=0', 422),
     ('/api/library/genres', 200),
     # A file MuMa never scanned is a deliberate 404, never a 500.
     ('/api/library/tracks/by-path?path=nope.mp3', 404),
@@ -89,6 +93,13 @@ READ_ENDPOINTS = [
     ('/api/listening/top-artists', 200),
     ('/api/listening/top-labels', 200),
     ('/api/user-requests', 200),
+    # News bulletins. Nothing recorded yet is a deliberate 404 for the latest and
+    # for a stream, never a 500.
+    ('/api/news/sources', 200),
+    ('/api/news/bulletins', 200),
+    ('/api/news/bulletins?source=nos&limit=5', 200),
+    ('/api/news/bulletins/latest', 404),
+    ('/api/news/bulletins/1/stream', 404),
     # The curation edit pages. An artist or label the library has never seen reads
     # back as a row of nulls rather than a 404: the rule tables are free text, so a
     # rule may legitimately be written before the first matching file arrives.
@@ -113,6 +124,10 @@ READ_ENDPOINTS = [
     ('/api/feeds/release-radar?username=root', 200),
     ('/api/feeds/daily-mix', 400),
     ('/api/feeds/daily-mix?username=root', 200),
+    # A spectrum mix and the listing for a named listener also run params_key's
+    # genre-hardness digest (CRC32 over rules_genres) before the snapshot read.
+    ('/api/feeds?username=root', 200),
+    ('/api/feeds/daily-mix-hard?username=root', 200),
 ]
 
 
@@ -734,6 +749,31 @@ class ArtistImagesTest:
         assert body['total'] == 1
         assert body['items'][0]['has_image'] is False
 
+    def test_a_cleared_portrait_is_left_out_of_the_bulk_run(self, api, headers, db):
+        """Clearing used to set `none`, which the start-up run read as "never asked"."""
+        import sys
+        from unittest.mock import MagicMock
+
+        from services.music_manager.routers import artist_images
+
+        with db.cursor() as cursor:
+            cursor.executemany('INSERT INTO library_artists (name) VALUES (%s)', [('Cleared',), ('Never Asked',)])
+            cursor.execute("SELECT id FROM library_artists WHERE name = 'Cleared'")
+            cleared_id = cursor.fetchone()['id']
+        assert api.post(f'/api/artists/{cleared_id}/image/clear', headers=headers).status_code == 200
+        with db.cursor() as cursor:
+            cursor.execute('SELECT image_status FROM library_artists WHERE id = %s', (cleared_id,))
+            assert cursor.fetchone()['image_status'] == 'cleared'
+
+        fetcher_module = MagicMock()
+        fetcher = fetcher_module.ArtistImageFetcher.return_value
+        fetcher.blind = False
+        fetcher.fetch_for_artist.return_value = False
+        with patch.dict(sys.modules, {'services.music_manager.artist_image_fetcher.fetcher': fetcher_module}):
+            artist_images.run_fetch_missing()
+        asked = [call.args[1] for call in fetcher.fetch_for_artist.call_args_list]
+        assert asked == ['Never Asked']
+
 
 class FeedsPipelineTest:
     """The candidate query, its grouped audio-features subquery, the two
@@ -867,3 +907,68 @@ class FeedsProfileAndExclusionsTest:
         )
         assert removed.status_code == 200, removed.text
         assert api.get('/api/feeds/profile?username=root', headers=headers).json()['excluded'] == []
+
+
+class NewsSqlTest:
+    """The news source and bulletin SQL against the real schema, which news.init_db creates."""
+
+    def _source(self, db, slug='bnr'):
+        with db.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO news_sources (slug, name, stream_url) VALUES (%s, %s, %s)',
+                (slug, slug.upper(), f'http://stream.test/{slug}'),
+            )
+            return cursor.lastrowid
+
+    def _bulletin(self, db, source_id, started_at, filename):
+        with db.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO news_bulletins (source_id, started_at, duration_ms, size_bytes, filename)'
+                ' VALUES (%s, %s, %s, %s, %s)',
+                (source_id, started_at, 612000, 10, filename),
+            )
+
+    def test_bulletins_are_listed_newest_first_and_the_latest_is_found(self, api, headers, db):
+        source_id = self._source(db)
+        self._bulletin(db, source_id, 1787248800.0, 'bnr-2026-08-20T18-00-00.mp3')
+        self._bulletin(db, source_id, 1787252400.0, 'bnr-2026-08-20T19-00-00.mp3')
+
+        listed = api.get('/api/news/bulletins?source=bnr', headers=headers).json()['bulletins']
+        assert [b['started_at'] for b in listed] == [1787252400.0, 1787248800.0]
+        latest = api.get('/api/news/bulletins/latest?source=bnr', headers=headers).json()
+        assert latest['started_at'] == 1787252400.0
+
+    def test_a_source_is_listed_with_its_settings(self, api, headers, db):
+        self._source(db)
+        sources = api.get('/api/news/sources', headers=headers).json()['sources']
+        bnr = next(s for s in sources if s['slug'] == 'bnr')
+        assert bnr['retention_count'] == 12
+        assert bnr['enabled'] is True
+
+    def test_prune_keeps_the_newest_retention_count(self, db, tmp_path, monkeypatch):
+        from services.music_manager.routers import news
+
+        monkeypatch.setenv('NEWS_DATA_DIR', str(tmp_path))
+        source_id = self._source(db)
+        for hour in range(3):
+            self._bulletin(db, source_id, 1787248800.0 + hour * 3600, f'bnr-{hour}.mp3')
+            (tmp_path / f'bnr-{hour}.mp3').write_bytes(b'x')
+
+        removed = news.prune_bulletins(db, {'id': source_id, 'retention_count': 1})
+
+        assert removed == 2
+        assert sorted(p.name for p in tmp_path.iterdir()) == ['bnr-2.mp3']
+
+    def test_deleting_a_source_removes_its_rows_and_files(self, api, headers, db, tmp_path, monkeypatch):
+        monkeypatch.setenv('NEWS_DATA_DIR', str(tmp_path))
+        source_id = self._source(db)
+        self._bulletin(db, source_id, 1787248800.0, 'bnr-a.mp3')
+        (tmp_path / 'bnr-a.mp3').write_bytes(b'x')
+
+        response = api.delete('/api/news/sources/bnr', headers=headers)
+
+        assert response.status_code == 200, response.text
+        assert list(tmp_path.iterdir()) == []
+        with db.cursor() as cursor:
+            cursor.execute('SELECT COUNT(*) AS n FROM news_bulletins WHERE source_id = %s', (source_id,))
+            assert cursor.fetchone()['n'] == 0

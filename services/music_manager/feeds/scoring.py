@@ -24,6 +24,7 @@ def taste_score(candidate: dict, profile: TasteProfile) -> float:
 
 
 def score(candidate: dict, profile: TasteProfile, policy: FeedPolicy) -> float:
+    """How well `candidate` fits the listener's taste under `policy`."""
     value = taste_score(candidate, profile)
     if candidate.get('has_label'):
         value += policy.label_bonus

@@ -140,6 +140,14 @@ class YoutubeDownloaderTest(unittest.TestCase):
         ]
         self.assertIn(('DropCategoryGenrePP', 'pre_process'), registered)
 
+    def test_the_dead_playlist_random_key_is_gone(self):
+        # YoutubeDL reads 'playlistrandom'; the CLI-style 'playlist_random' key is
+        # read by nothing. Dropped, not corrected: newest-first is the order
+        # break_on_existing relies on. The SoundCloud side lost it earlier.
+        downloader = YoutubeDownloader(timing=load_timing('youtube', overrides={}))
+        self.assertNotIn('playlist_random', downloader._base_ydl_opts)
+        self.assertNotIn('playlistrandom', downloader._base_ydl_opts)
+
 
 if __name__ == '__main__':
     unittest.main()

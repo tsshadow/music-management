@@ -5,57 +5,20 @@ CREATE TABLE that MariaDB rejects, or a migrate_*.sql that only works on a
 database that has already been migrated, would go unnoticed until a deploy.
 """
 
+import contextlib
+
 import pytest
 
+from tests.integration import schema_sources
 from tests.integration.conftest import ROOT, _apply_migrations, _split_statements
 
 pytestmark = pytest.mark.integration
 
-# Tables the running code selects from. If one is missing, some endpoint 500s.
-EXPECTED_TABLES = {
-    'users',
-    'user_identities',
-    'user_refresh_tokens',
-    'user_requests',
-    'user_app_settings',
-    'user_listenbrainz_accounts',
-    'dynamic_playlists',
-    'roles',
-    'permissions',
-    'role_permissions',
-    'audit_events',
-    'library_artists',
-    'library_labels',
-    'library_tracks',
-    'library_media_files',
-    'library_works',
-    'library_track_artists',
-    'library_track_genres',
-    'library_track_labels',
-    'library_track_audio_features',
-    'library_track_ml_labels',
-    'library_artist_images',
-    'artist_external_ids',
-    'label_external_ids',
-    'rules_genres',
-    'rules_genre_expansions',
-    'rules_artist_genres',
-    'rules_label_genres',
-    'rules_catid_label',
-    'rules_label_proposals',
-    'rules_ignored_artists',
-    'rules_ignored_genres',
-    'rules_subgenre_hierarchy',
-    'rules_genre_backlog',
-    'downloads_soundcloud_accounts',
-    'downloads_soundcloud_archive',
-    'downloads_youtube_accounts',
-    'downloads_youtube_archive',
-    'scrobble_listens',
-    'scrobble_unmatched_listens',
-    'scrobble_imports',
-    'events',
-}
+# Every table the code or a migration declares, read from their CREATE TABLE
+# statements. This used to be a hand-kept list, and some twenty tables -- channels,
+# the feed snapshot, radio, news, the festival and podcast rules, the downloader's
+# own tables -- never made it onto it. See tests/integration/schema_sources.py.
+EXPECTED_TABLES = schema_sources.declared_tables()
 
 
 def table_names(connection):
@@ -64,8 +27,12 @@ def table_names(connection):
         return {next(iter(row.values())) for row in cursor.fetchall()}
 
 
-def test_every_table_the_code_reads_exists(database):
-    missing = EXPECTED_TABLES - table_names(database)
+def test_every_table_the_code_reads_exists(built_schemas):
+    """Checked against a schema built from nothing by the code alone, the way a fresh
+    stack gets it -- not against the session database, which also ran every migration
+    and so would hide a table that only a migration creates."""
+    assert len(EXPECTED_TABLES) > 60, 'the CREATE TABLE extraction found suspiciously little'
+    missing = EXPECTED_TABLES - set(built_schemas['code'])
     assert not missing, f'schema bootstrap does not create: {sorted(missing)}'
 
 
@@ -98,6 +65,14 @@ def test_a_label_can_be_identified_and_filed_under_a_parent(database):
         cursor.execute('SHOW COLUMNS FROM library_labels')
         columns = {row['Field'] for row in cursor.fetchall()}
     assert {'mbid', 'parent_label_id'} <= columns
+
+
+def test_a_listenbrainz_import_records_where_it_stopped(database):
+    """migrate_v35 gives scrobble_imports the resume point a truncated import continues from."""
+    with database.cursor() as cursor:
+        cursor.execute('SHOW COLUMNS FROM scrobble_imports')
+        columns = {row['Field'] for row in cursor.fetchall()}
+    assert 'oldest_listened_ts' in columns
 
 
 def test_the_song_key_compares_byte_for_byte(database):
@@ -255,3 +230,82 @@ def test_the_tagger_stores_the_mtime_it_read(database):
             ('tagger_processed_files', 'mtime'),
         )
         assert cursor.fetchone()['data_type'] == 'double'
+
+
+LISTEN_TABLES = ('scrobble_listens', 'scrobble_unmatched_listens')
+
+
+def _listened_at_extra(connection, table):
+    with connection.cursor() as cursor:
+        cursor.execute(
+            'SELECT extra AS extra FROM information_schema.columns '
+            "WHERE table_schema = DATABASE() AND table_name = %s AND column_name = 'listened_at'",
+            (table,),
+        )
+        return (cursor.fetchone()['extra'] or '').lower()
+
+
+def test_listened_at_is_never_rewritten_by_an_update(database):
+    """docs/bug-reports/039: without an explicit DEFAULT, MariaDB < 10.10 gives the first
+    TIMESTAMP column ON UPDATE CURRENT_TIMESTAMP, and every UPDATE of a listen moved it."""
+    for table in LISTEN_TABLES:
+        assert 'on update' not in _listened_at_extra(database, table), table
+
+
+@contextlib.contextmanager
+def _listen_tables_created_the_old_way(connection):
+    """Give both listened_at columns the ON UPDATE production's 10.6-era tables carry,
+    and put back exactly what was there afterwards, so no other test is masked."""
+    before = {table: _listened_at_extra(connection, table) for table in LISTEN_TABLES}
+    try:
+        with connection.cursor() as cursor:
+            for table in LISTEN_TABLES:
+                cursor.execute(
+                    f'ALTER TABLE {table} MODIFY listened_at TIMESTAMP NOT NULL '
+                    'DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'
+                )
+        assert all('on update' in _listened_at_extra(connection, table) for table in LISTEN_TABLES)
+        yield
+    finally:
+        with connection.cursor() as cursor:
+            for table in LISTEN_TABLES:
+                on_update = ' ON UPDATE CURRENT_TIMESTAMP' if 'on update' in before[table] else ''
+                cursor.execute(
+                    f'ALTER TABLE {table} MODIFY listened_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP{on_update}'
+                )
+
+
+def test_migrate_v33_repairs_a_table_created_the_old_way(database):
+    """The CREATE fix alone never reaches production's existing tables; the migration
+    has to -- and twice in a row, as every deploy reapplies it."""
+    with _listen_tables_created_the_old_way(database):
+        _apply_migrations(database)
+        _apply_migrations(database)
+
+        for table in LISTEN_TABLES:
+            assert 'on update' not in _listened_at_extra(database, table), table
+
+
+def test_start_up_repairs_a_table_created_the_old_way(database):
+    """A stack that never runs the migrations gets the same repair from init_db."""
+    from services.music_manager.routers import scrobbler
+
+    with _listen_tables_created_the_old_way(database):
+        with database.cursor() as cursor:
+            scrobbler.init_db(cursor)
+
+        for table in LISTEN_TABLES:
+            assert 'on update' not in _listened_at_extra(database, table), table
+
+
+def _index_columns(connection, table, index):
+    with connection.cursor() as cursor:
+        cursor.execute(f'SHOW INDEX FROM {table} WHERE Key_name = %s', (index,))
+        return [row['Column_name'] for row in sorted(cursor.fetchall(), key=lambda r: r['Seq_in_index'])]
+
+
+def test_the_join_columns_are_indexed(database):
+    """Every artist join goes through library_tracks.primary_artist_id and every per-track
+    listen question through scrobble_listens.track_id; neither was indexed (migrate_v34)."""
+    assert _index_columns(database, 'library_tracks', 'idx_tracks_primary_artist') == ['primary_artist_id']
+    assert _index_columns(database, 'scrobble_listens', 'idx_listens_track_user') == ['track_id', 'username']

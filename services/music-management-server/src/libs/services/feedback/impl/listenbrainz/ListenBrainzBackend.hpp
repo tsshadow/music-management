@@ -53,6 +53,7 @@ namespace lms::feedback::listenBrainz
         void onRatingChanged(db::RatedArtistId artistId) override;
         void onRatingChanged(db::RatedReleaseId releaseId) override;
         void onRatingChanged(db::RatedTrackId trackId) override;
+        void onRatingRemoved(const RatingRemovedEvent& event) override;
 
         void onPlaylistChanged(db::TrackListId playlistId) override;
 

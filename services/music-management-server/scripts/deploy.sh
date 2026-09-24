@@ -3,18 +3,14 @@ set -e
 
 cd "$(dirname "$(readlink -f "$0")")/.."
 
-# Load .env variables, stripping comments and extra whitespace
+# shellcheck source=scripts/lib/dotenv.sh
+. ../../scripts/lib/dotenv.sh
+
+# Load .env variables; values already in the environment win. The shared parser
+# keeps a `#` inside a value (a password, say), where the old sed one-liner cut
+# it off -- see docs/bug-reports/038-deploy-puts-every-prod-secret-on-the-command-line.md.
 if [ -f .env ]; then
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        # Strip trailing comments and whitespace
-        clean_line=$(echo "$line" | sed 's/[[:space:]]*#.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        if [[ -n "$clean_line" && ! "$clean_line" =~ ^# ]]; then
-            varname="${clean_line%%=*}"
-            if [ -z "${!varname}" ]; then
-                export "$clean_line"
-            fi
-        fi
-    done < .env
+    dotenv_load .env --keep-existing
 fi
 
 # Determine mode (debug is default)

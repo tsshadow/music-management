@@ -46,6 +46,7 @@ class FestivalHelper:
     # -- data ------------------------------------------------------------
 
     def set_festivals(self, festivals: list[Festival]) -> None:
+        """Replace the festival list and rebuild the alias index the matcher searches."""
         self._festivals = festivals
         index = []
         for festival in festivals:
@@ -57,6 +58,7 @@ class FestivalHelper:
         self._index = index
 
     def reload(self) -> None:
+        """Re-read the festivals from the database."""
         self.set_festivals(self._load())
 
     def _load(self) -> list[Festival]:

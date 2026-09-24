@@ -6,15 +6,20 @@ from unittest.mock import MagicMock, Mock, patch
 from mutagen.easyid3 import EasyID3
 from mutagen.flac import VCFLACDict
 from mutagen.mp4 import MP4StreamInfoError
+from mutagen.mp4 import MP4Tags as MutagenMP4Tags
 from mutagen.oggopus import OggOpusVComment
 
 from services.tagger.constants import (
+    ALBUM,
+    ALBUM_ARTIST,
     ARTIST,
     DATE,
     FESTIVAL,
     GENRE,
     ORIGINAL_ARTIST,
     ORIGINAL_DATE,
+    ORIGINAL_TITLE,
+    REMIXER,
     TITLE,
     TRACK_NUMBER,
     AACTags,
@@ -243,6 +248,32 @@ class BaseSongLoadingTest(unittest.TestCase):
 
         music_file.add_tags.assert_called_once()
         self.assertEqual(song.type, MusicFileType.WAV)
+
+    def test_an_m4a_without_a_tag_block_gets_one(self):
+        """An m4a container with no metadata atom loads as tags=None, and `_set_m4a_tag`
+        then assigns into None. A yt-dlp format fragment that never got merged is such a
+        file, and it raised `TypeError: 'NoneType' object does not support item assignment`
+        on every tagging round -- 274 times in one night off a single file."""
+        music_file = MagicMock()
+        music_file.tags = None
+
+        def add_the_atom():
+            music_file.tags = MutagenMP4Tags()
+
+        music_file.add_tags.side_effect = add_the_atom
+
+        with patch('services.tagger.Song.BaseSong.MP4', return_value=music_file):
+            song = BaseSong('some/path/test.m4a')
+
+        music_file.add_tags.assert_called_once()
+        self.assertEqual(song.type, MusicFileType.M4A)
+
+        tag = Mock()
+        tag.tag = ARTIST
+        tag.to_string.return_value = 'Sander van Doorn'
+        song.set_tag(tag)
+
+        self.assertEqual(music_file.tags[MP4Tags[ARTIST]], 'Sander van Doorn')
 
     def flac_file(self):
         music_file = MagicMock()
@@ -718,6 +749,63 @@ class OriginalArtistTagTest(unittest.TestCase):
         song = MagicMock()
         song.tag_collection.get_item_as_string = MagicMock(return_value='')
         self.assertIsNone(BaseSong.original_artist(song))
+
+
+class BaseSongM4aAtomTest(unittest.TestCase):
+    """The m4a atoms BaseSong writes, and the legacy ones it removes."""
+
+    def m4a_song(self, tags):
+        song = BaseSong.__new__(BaseSong)
+        song.type = MusicFileType.M4A
+        song._path = '/mnt/music/Youtube/set.m4a'
+        song.music_file = MagicMock()
+        song.music_file.tags = tags
+        song.tag_collection = MagicMock()
+        song.tag_collection.get.return_value = {}
+        return song
+
+    def test_remixer_and_original_title_go_to_freeform_atoms(self):
+        song = self.m4a_song({})
+        song.set_tag(Tag(REMIXER, 'Dj Mad Dog'))
+        song.set_tag(Tag(ORIGINAL_TITLE, 'A - B - C'))
+        self.assertEqual(
+            song.music_file.tags,
+            {
+                '----:com.apple.iTunes:REMIXER': [b'Dj Mad Dog'],
+                '----:com.apple.iTunes:ORIGINAL_TITLE': [b'A - B - C'],
+            },
+        )
+
+    def test_album_and_album_artist_go_to_the_itunes_atoms(self):
+        song = self.m4a_song({})
+        song.set_tag(Tag(ALBUM, 'Youtube (Q-dance)'))
+        song.set_tag(Tag(ALBUM_ARTIST, 'Q-dance'))
+        self.assertEqual(song.music_file.tags, {'\u00a9alb': 'Youtube (Q-dance)', 'aART': 'Q-dance'})
+
+    def test_legacy_atoms_are_dropped_and_the_file_saved(self):
+        song = self.m4a_song(
+            {
+                'REMI': ['x'],
+                'ORIG': ['y'],
+                'TALB': ['z'],
+                '----:com.apple.iTunes:album': [b'w'],
+                '\u00a9ART': ['Angerfist'],
+            }
+        )
+        self.assertTrue(song.save_file())
+        self.assertEqual(song.music_file.tags, {'\u00a9ART': ['Angerfist']})
+        song.music_file.save.assert_called_once()
+
+    def test_a_file_without_legacy_atoms_is_not_saved(self):
+        song = self.m4a_song({'\u00a9ART': ['Angerfist']})
+        self.assertFalse(song.save_file())
+        song.music_file.save.assert_not_called()
+
+    def test_an_emptied_m4a_tag_is_removed_from_its_atom(self):
+        song = self.m4a_song({'----:com.apple.iTunes:REMIXER': [b'Dj Mad Dog']})
+        song.music_file.get.return_value = None
+        song.set_tag(Tag(REMIXER, ''))
+        self.assertEqual(song.music_file.tags, {})
 
 
 if __name__ == '__main__':

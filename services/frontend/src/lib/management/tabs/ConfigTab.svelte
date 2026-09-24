@@ -7,7 +7,8 @@
    * a frontend change. Saving posts only what differs.
    *
    * Secrets arrive masked and are never sent back unless retyped — see
-   * `configFields.js` and `ConfigStore.SECRET_SENTINEL`.
+   * `configFields.js` and `ConfigStore.SECRET_SENTINEL`. Fields marked `read_only`
+   * (the database connection) are shown disabled: the environment sets them.
    */
   import { onMount } from 'svelte';
   import { RefreshCw, Save, Eye, EyeOff } from '@lucide/svelte';
@@ -122,10 +123,15 @@
               {#if field.description}
                 <p class="text-xs text-muma-spotify-text mt-1 mb-3">{field.description}</p>
               {/if}
+              {#if field.read_only}
+                <p class="text-[11px] text-muma-spotify-text mt-0 mb-2">
+                  Alleen-lezen: deze waarde komt uit de omgeving van de container.
+                </p>
+              {/if}
 
               {#if field.type === 'boolean'}
                 <label class="flex items-center gap-2 text-sm cursor-pointer">
-                  <input id={`cfg-${field.key}`} type="checkbox" bind:checked={draft[field.key]} />
+                  <input id={`cfg-${field.key}`} type="checkbox" disabled={field.read_only} bind:checked={draft[field.key]} />
                   {draft[field.key] ? 'Aan' : 'Uit'}
                 </label>
               {:else if field.type === 'integer' || field.type === 'number'}
@@ -133,6 +139,7 @@
                   id={`cfg-${field.key}`}
                   type="number"
                   class="w-full bg-muma-spotify-dark border-none rounded px-3 py-2 text-sm text-white"
+                  disabled={field.read_only}
                   bind:value={draft[field.key]}
                 />
               {:else if field.secret}
@@ -141,6 +148,7 @@
                     id={`cfg-${field.key}`}
                     type={revealed[field.key] ? 'text' : 'password'}
                     class="flex-1 bg-muma-spotify-dark border-none rounded px-3 py-2 text-sm text-white font-mono"
+                    disabled={field.read_only}
                     bind:value={draft[field.key]}
                   />
                   <button
@@ -163,6 +171,7 @@
                   id={`cfg-${field.key}`}
                   type="text"
                   class="w-full bg-muma-spotify-dark border-none rounded px-3 py-2 text-sm text-white"
+                  disabled={field.read_only}
                   bind:value={draft[field.key]}
                 />
               {/if}

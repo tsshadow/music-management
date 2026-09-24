@@ -100,6 +100,7 @@ class InMemoryCheckStore:
         self._rows: dict[str, dict[str, AccountCheck]] = {}
 
     def load(self, source: str) -> dict[str, AccountCheck]:
+        """Every account's last check for `source`."""
         return dict(self._rows.get(source, {}))
 
     def mark(
@@ -111,6 +112,7 @@ class InMemoryCheckStore:
         last_seen_track_id: str | None = None,
         last_deep_sweep_at: datetime | None = None,
     ) -> None:
+        """Record a check of `account`, keeping the upload fields a check did not learn."""
         rows = self._rows.setdefault(source, {})
         previous = rows.get(account)
         rows[account] = AccountCheck(
@@ -122,6 +124,7 @@ class InMemoryCheckStore:
         )
 
     def mark_deep(self, source: str, account: str, when: datetime) -> None:
+        """Record a deep sweep of `account` without moving its last check time."""
         rows = self._rows.setdefault(source, {})
         previous = rows.get(account)
         rows[account] = AccountCheck(
@@ -133,6 +136,7 @@ class InMemoryCheckStore:
         )
 
     def mark_snapshot(self, source: str, account: str, snapshot: AccountSnapshot) -> None:
+        """Record the completeness count of `account`'s last deep pass."""
         rows = self._rows.setdefault(source, {})
         previous = rows.get(account)
         rows[account] = AccountCheck(
@@ -182,6 +186,7 @@ class DatabaseCheckStore:
         return connection
 
     def load(self, source: str) -> dict[str, AccountCheck]:
+        """Every account's last check for `source`, read from downloads_account_checks."""
         connection = self._connect()
         try:
             with connection.cursor() as cursor:
@@ -208,6 +213,7 @@ class DatabaseCheckStore:
         last_seen_track_id: str | None = None,
         last_deep_sweep_at: datetime | None = None,
     ) -> None:
+        """Record a check of `account`, keeping the upload fields a check did not learn."""
         connection = self._connect()
         try:
             with connection.cursor() as cursor:
@@ -230,6 +236,7 @@ class DatabaseCheckStore:
             connection.close()
 
     def mark_deep(self, source: str, account: str, when: datetime) -> None:
+        """Record a deep sweep of `account` without moving its last check time."""
         connection = self._connect()
         try:
             with connection.cursor() as cursor:
@@ -249,6 +256,7 @@ class DatabaseCheckStore:
             connection.close()
 
     def mark_snapshot(self, source: str, account: str, snapshot: AccountSnapshot) -> None:
+        """Record the completeness count of `account`'s last deep pass."""
         connection = self._connect()
         try:
             with connection.cursor() as cursor:
@@ -344,6 +352,7 @@ class AccountSchedule:
         return age_days >= deep_sweep_days
 
     def mark_deep_swept(self, account: str, when: datetime | None = None) -> None:
+        """Record that `account` was deep-swept; a database error is logged, never raised."""
         try:
             self._store.mark_deep(self.source, account, when or self._now())
         except Exception as exc:
@@ -363,6 +372,7 @@ class AccountSchedule:
         last_upload_at: datetime | None = None,
         last_seen_track_id: str | None = None,
     ) -> None:
+        """Record that `account` was checked; a database error is logged, never raised."""
         try:
             self._store.mark(self.source, account, when or self._now(), last_upload_at, last_seen_track_id)
         except Exception as exc:

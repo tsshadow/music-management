@@ -10,10 +10,14 @@
 -- the write path is a handful of inserts per hour, so the extra index costs nothing
 -- worth measuring on that side.
 --
--- No index on track_id is added. `scrobble_listens` already has one from the rematch
--- migration, and a date-filtered GROUP BY track_id cannot use a filtering index and a
--- grouping index at the same time -- adding more would be guessing at a plan rather
--- than reading one.
+-- No index on track_id is added here. This comment used to say `scrobble_listens`
+-- already had one "from the rematch migration"; it did not -- migrate_v11 only adds
+-- idx_listens_match_method. migrate_v34 adds (track_id, username).
+--
+-- Note too that the UNIQUE key on scrobble_unmatched_listens is past the index length
+-- limit and is therefore a HASH key: it enforces uniqueness but cannot serve a range
+-- seek on (username, listened_at). idx_unmatched_listened_at below is the only index
+-- a date range on that table can use.
 --
 -- Mirrors the ALTERs in services/music_manager/routers/scrobbler.py init_db, which is
 -- what a fresh stack runs; this file is what production runs.

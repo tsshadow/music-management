@@ -49,11 +49,20 @@ object AppUpdate {
      */
     fun newest(answers: List<Latest>): Latest? = answers.maxByOrNull { it.versionCode }
 
-    /** `${host}/api/version?apk=<series>&user=<user>` -- exactly the query the legacy checker sent. */
-    fun versionUrl(host: String, series: String, user: String): String = host.toUri().buildUpon()
+    /**
+     * `${host}/api/version?apk=<series>&u=guest&p=guest`.
+     *
+     * Asked as apk-hoster's read-only `guest` account (`view,download`), the same one the download
+     * link below uses. The query used to carry the hoster's *upload* password in an
+     * `X-Upload-Password` header, compiled into `BuildConfig` -- so every APK handed out the
+     * credential that can publish an APK to every phone (bug report 037). `view` is all
+     * `/api/version` requires.
+     */
+    fun versionUrl(host: String, series: String): String = host.toUri().buildUpon()
         .appendEncodedPath("api/version")
         .appendQueryParameter("apk", series)
-        .appendQueryParameter("user", user)
+        .appendQueryParameter("u", GUEST_USER)
+        .appendQueryParameter("p", GUEST_PASSWORD)
         .build()
         .toString()
 
@@ -73,20 +82,18 @@ object AppUpdate {
 
     /**
      * One GET, meant for an IO thread; throws on anything but a 2xx with a body, and the plugin
-     * turns that throw into a rejected call. The password header is what the hoster gates the
-     * version query on, the same one the upload uses.
+     * turns that throw into a rejected call. Authentication is the guest pair [versionUrl] puts in
+     * the query; nothing secret is sent.
      */
     fun fetchLatest(
         client: OkHttpClient,
         url: String,
         versionName: String,
-        password: String,
         series: String = ""
     ): Latest {
         val request = Request.Builder()
             .url(url)
             .header("User-Agent", "muma-mobile/$versionName")
-            .header("X-Upload-Password", password)
             .build()
         client.newCall(request).execute().use { response ->
             check(response.isSuccessful) { "apk-hoster answered ${response.code}" }
@@ -106,9 +113,15 @@ object AppUpdate {
     fun downloadUrl(url: String): String {
         if (url.isBlank()) return ""
         return url.toUri().buildUpon()
-            .appendQueryParameter("u", "guest")
-            .appendQueryParameter("p", "guest")
+            .appendQueryParameter("u", GUEST_USER)
+            .appendQueryParameter("p", GUEST_PASSWORD)
             .build()
             .toString()
     }
+
+    /** apk-hoster's public read-only account; seeded by the hoster itself, not a secret. */
+    private const val GUEST_USER = "guest"
+
+    /** Password of [GUEST_USER]; public by design, the hoster documents it for browser downloads. */
+    private const val GUEST_PASSWORD = "guest"
 }

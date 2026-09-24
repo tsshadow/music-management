@@ -2,8 +2,8 @@ import argparse
 import faulthandler
 import logging
 import signal
-from time import sleep
 
+from services.common import shutdown
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers import Quarantine
 from services.common.Helpers.logging_setup import setup_logging
@@ -76,6 +76,9 @@ class ImporterService:
         """
         logging.info(f"Starting importer pipeline... {'(DRY RUN)' if self.dry_run else ''}")
         for step in self.steps:
+            if shutdown.is_requested():
+                logging.info('Shutting down; skipping the importer steps from %s on.', step.name)
+                return
             logging.info('Running step: %s', step.name)
             step.run(self.steps, dry_run=self.dry_run)
         # The steps above no longer delete what they discard, they park it. Something has
@@ -91,6 +94,11 @@ class ImporterService:
 
 def main() -> None:
     setup_logging('importer')
+    # Only SIGTERM: that is what a deploy sends. Python's default ends the process
+    # outright, mid-move if need be; with this the running step finishes, the
+    # pipeline stops before the next one, and the loop does not go back to sleep.
+    # SIGINT keeps raising KeyboardInterrupt, which is what someone at a terminal expects.
+    signal.signal(signal.SIGTERM, shutdown.request)
     args = parse_args()
     logging.info('Starting music importer service')
     importer_service = ImporterService()
@@ -105,8 +113,13 @@ def main() -> None:
         if not args.repeat:
             logging.info('Repeat flag not set; exiting after a single run.')
             break
+        if shutdown.is_requested():
+            logging.info('Shutting down; not sleeping until the next importer run.')
+            break
         logging.info('Waiting for %d seconds before next importer run.', args.sleeptime)
-        sleep(args.sleeptime)
+        if shutdown.wait(args.sleeptime):
+            logging.info('Shutting down; stopped waiting for the next importer run.')
+            break
 
 
 if __name__ == '__main__':

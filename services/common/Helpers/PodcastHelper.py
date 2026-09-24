@@ -122,6 +122,7 @@ class PodcastHelper:
     # -- data ------------------------------------------------------------
 
     def set_shows(self, shows: list[Show]) -> None:
+        """Replace the show list and rebuild the alias index the matcher searches."""
         self._shows = shows
         index = []
         for show in shows:

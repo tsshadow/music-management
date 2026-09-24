@@ -65,11 +65,16 @@ resolve_dump() {
     fi
 }
 
+# The password travels as MYSQL_PWD in the environment of the one command that needs
+# it, never as --password=...: a command line is readable through `ps` by every local
+# process, and the client warns about it on every call. For docker exec, `-e MYSQL_PWD`
+# without a value copies it from the docker client's environment, so the value is not
+# on that command line either.
 # Check if running inside a container or on host
 if [ -f /.dockerenv ]; then
     # Inside container, try to connect to the 'db' host
     echo "Running inside container, connecting to host: ${DB_HOST:-db}"
-    "$(resolve_dump)" -h "${DB_HOST:-db}" -u root --password="${ROOT_PASSWORD}" "${DB_NAME}" > "$BACKUP_FILE"
+    MYSQL_PWD="${ROOT_PASSWORD}" "$(resolve_dump)" -h "${DB_HOST:-db}" -u root "${DB_NAME}" > "$BACKUP_FILE"
 else
     # On host, try docker exec first as it's the most reliable for local docker setups
     CONTAINER_NAME="music-management-db-1"
@@ -77,7 +82,7 @@ else
         echo "Found running container: ${CONTAINER_NAME}. Using docker exec..."
         # Inside the mariadb image: mariadb-dump has existed since 10.5 and is
         # the only name left in 12. No absolute path -- it is on PATH there.
-        docker exec "${CONTAINER_NAME}" mariadb-dump --single-transaction --quick -u root --password="${ROOT_PASSWORD}" "${DB_NAME}" > "$BACKUP_FILE"
+        MYSQL_PWD="${ROOT_PASSWORD}" docker exec -e MYSQL_PWD "${CONTAINER_NAME}" mariadb-dump --single-transaction --quick -u root "${DB_NAME}" > "$BACKUP_FILE"
     else
         echo "Container ${CONTAINER_NAME} not found. Attempting a direct dump..."
         # If DB_HOST is 'db', it might not work from host unless 'db' is in /etc/hosts
@@ -85,7 +90,7 @@ else
         if [ "$HOST_TARGET" == "db" ]; then
             HOST_TARGET="localhost"
         fi
-        "$(resolve_dump)" -h "${HOST_TARGET}" -u root --password="${ROOT_PASSWORD}" "${DB_NAME}" > "$BACKUP_FILE"
+        MYSQL_PWD="${ROOT_PASSWORD}" "$(resolve_dump)" -h "${HOST_TARGET}" -u root "${DB_NAME}" > "$BACKUP_FILE"
     fi
 fi
 

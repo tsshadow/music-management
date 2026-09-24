@@ -1,7 +1,7 @@
 """HTTP surface for the personalized feeds: the radar, the daily mix, the
 listener's own taste profile, and the exclusions that shape it.
 
-Auth mirrors routers/library.py's verify_api_key: a user key resolves its own
+Auth is the canonical users.verify_api_key: a user key resolves its own
 username and can never read or write anyone else's; the system key must say
 whose feed it is asking for. See docs/designs/feeds/technical.md, "API
 Contract", for the binding shape of every response below.
@@ -16,7 +16,6 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from pydantic import BaseModel
 
 from services.common.config_store import ConfigStore as Settings
-from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
 from services.music_manager.feeds.build import (
     CLASSIC_TITLE,
@@ -32,7 +31,7 @@ from services.music_manager.feeds.policy import (
     parse_hardness_edges,
     parse_starting_genres,
 )
-from services.music_manager.feeds.queries import exclusions_query
+from services.music_manager.feeds.queries import exclusions_query, genre_hardness_digest_query
 from services.music_manager.feeds.snapshot import (
     LIST_SLUG,
 )
@@ -87,19 +86,10 @@ def init_db(cursor):
 
 
 def verify_api_key(x_api_key: str | None = Header(None)):
-    if not x_api_key:
-        raise HTTPException(status_code=401, detail='Missing API Key')
-    if is_system_api_key(x_api_key):
-        return {'type': 'system'}
-    from services.music_manager.routers.users import verify_token
+    """Delegates to the canonical users.verify_api_key; kept as a name tests override."""
+    from services.music_manager.routers.users import verify_api_key as _verify
 
-    try:
-        res = verify_token(x_api_key)
-        if res.get('status') == 'ok':
-            return res
-    except Exception:
-        pass
-    raise HTTPException(status_code=401, detail='Invalid API key')
+    return _verify(x_api_key)
 
 
 def _resolve_username(auth: dict, username: str | None) -> str:
@@ -123,15 +113,37 @@ def _hardness_edges() -> tuple[tuple[float, float], str]:
     return parse_hardness_edges(settings.get(HARDNESS_EDGES_SETTING))
 
 
-def params_key() -> str:
-    """A digest of every setting a feed is built under, stored beside each snapshot.
+#: The snapshot slugs whose body depends on the curated per-genre hardness: the three
+#: spectrum mixes, and the listing, whose subtitles describe them.
+_HARDNESS_SLUGS = frozenset({LIST_SLUG, *(slug for slug, policy in POLICIES.items() if policy.hardness_band)})
 
-    A snapshot whose key differs from the current one is stale whatever its age --
-    an admin who moves the hardness edges or the starting genres sees the change on
-    the next read, not tomorrow. Anything new that shapes a build belongs in here.
+
+def _genre_hardness_digest(conn) -> tuple:
+    """`(scored genres, checksum)` over `rules_genres.hardness` -- changes on any edit."""
+    with conn.cursor() as cursor:
+        cursor.execute(genre_hardness_digest_query())
+        row = cursor.fetchone() or {}
+    return (int(row.get('genres') or 0), int(row.get('checksum') or 0))
+
+
+def params_key(conn, username: str, slug: str) -> str:
+    """A digest of everything a snapshot of `(username, slug)` is built under.
+
+    Stored beside each snapshot; a snapshot whose key differs from the current one is
+    stale whatever its age. It covers the settings (the hardness edges and the starting
+    genres), for the spectrum mixes and the listing the curated per-genre hardness, and
+    the listener's own exclusions -- so an admin who moves the edges, a curator who
+    re-scores a genre and a listener who excludes an artist all see the change on the
+    next read, not tomorrow. The exclusions are in here, and not only handled by
+    `delete_user_snapshots`, because a build already running when the exclusion lands
+    would otherwise write a row from the old ones that nothing ages. Callers compute
+    the key *before* the build for the same reason. Anything new that shapes a build
+    belongs in here.
     """
     edges, edges_source = _hardness_edges()
-    material = repr((sorted(_starting_genres() or []), edges, edges_source))
+    exclusions = sorted((row['entity_type'], row['entity_name']) for row in _exclusion_rows(conn, username))
+    hardness = _genre_hardness_digest(conn) if slug in _HARDNESS_SLUGS else None
+    material = repr((sorted(_starting_genres() or []), edges, edges_source, exclusions, hardness))
     return hashlib.sha256(material.encode('utf-8')).hexdigest()[:32]
 
 
@@ -300,7 +312,12 @@ def list_feeds(response: Response, username: str | None = None, auth: dict = Dep
             body, source = list_body(None, None, now), 'live'
         else:
             body, source = serve_snapshot(
-                conn, resolved, LIST_SLUG, now, params_key(), lambda: list_body(conn, resolved, now)
+                conn,
+                resolved,
+                LIST_SLUG,
+                now,
+                params_key(conn, resolved, LIST_SLUG),
+                lambda: list_body(conn, resolved, now),
             )
     finally:
         if conn:
@@ -397,7 +414,12 @@ def get_feed(
             body, source = feed_body(conn, resolved, replace(policy, size=limit), now), 'live'
         else:
             body, source = serve_snapshot(
-                conn, resolved, slug, now, params_key(), lambda: feed_body(conn, resolved, policy, now)
+                conn,
+                resolved,
+                slug,
+                now,
+                params_key(conn, resolved, slug),
+                lambda: feed_body(conn, resolved, policy, now),
             )
     finally:
         conn.close()

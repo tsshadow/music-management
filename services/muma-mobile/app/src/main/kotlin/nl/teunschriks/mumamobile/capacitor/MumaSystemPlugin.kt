@@ -26,9 +26,7 @@ import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.ActivityCallback
 import com.getcapacitor.annotation.CapacitorPlugin
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.BuildConfig
 import nl.teunschriks.mumamobile.car.CAR_DEVICE_CLASSES
@@ -120,6 +118,7 @@ class MumaSystemPlugin :
         onBackClaimed = null
         outputRoutes?.stop()
         outputRoutes = null
+        calls.cancel()
     }
 
     @PluginMethod
@@ -175,17 +174,16 @@ class MumaSystemPlugin :
     @PluginMethod
     fun checkForUpdate(call: PluginCall) {
         val ownSeries = AppUpdate.seriesOf(BuildConfig.DEBUG)
-        io.launch {
+        calls.runCall(call) { answer ->
             val answers = mutableListOf<AppUpdate.Latest>()
             var firstFailure: Throwable? = null
             for (series in AppUpdate.seriesToAsk(BuildConfig.DEBUG)) {
-                val url = AppUpdate.versionUrl(BuildConfig.APK_HOST_URL, series, BuildConfig.APK_HOST_USER)
+                val url = AppUpdate.versionUrl(BuildConfig.APK_HOST_URL, series)
                 try {
                     answers += AppUpdate.fetchLatest(
                         updateClient,
                         url,
                         BuildConfig.VERSION_NAME,
-                        BuildConfig.APK_HOST_PASSWORD,
                         series
                     )
                 } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
@@ -195,12 +193,12 @@ class MumaSystemPlugin :
             }
             val latest = AppUpdate.newest(answers)
             if (latest == null) {
-                withContext(Dispatchers.Main) { call.reject("update check failed: ${firstFailure?.message}") }
-                return@launch
+                withContext(Dispatchers.Main) { answer.reject("update check failed: ${firstFailure?.message}") }
+                return@runCall
             }
             val current = BuildConfig.VERSION_CODE
             withContext(Dispatchers.Main) {
-                call.resolve(
+                answer.resolve(
                     JSObject()
                         .put("available", AppUpdate.isNewer(latest, current))
                         .put("currentVersionCode", current)
@@ -296,7 +294,7 @@ class MumaSystemPlugin :
 
     /** One client for the update check; the app's Subsonic client is bound to the server, not the hoster. */
     private val updateClient by lazy { OkHttpClient() }
-    private val io = CoroutineScope(Dispatchers.IO)
+    private val calls = PluginCallScope("MumaSystem")
 
     /**
      * The two bases every URL in the web player is built on.

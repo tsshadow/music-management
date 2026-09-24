@@ -529,6 +529,7 @@
     "images": {
       "autoSearch": "Search automatically",
       "busyWith": "Working on:",
+      "cleared": "Cleared by hand",
       "deleteImage": "Delete image",
       "libraryStatus": "Library status",
       "noImage": "No image",

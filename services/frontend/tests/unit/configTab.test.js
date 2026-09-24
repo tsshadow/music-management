@@ -86,6 +86,31 @@ describe("ConfigTab", () => {
     expect(input.value).toBe(SECRET_SENTINEL);
   });
 
+  it("shows a read-only field disabled, with where its value comes from", async () => {
+    const fields = [
+      ...FIELDS,
+      {
+        key: "db_host",
+        type: "string",
+        group: "Database",
+        secret: false,
+        read_only: true,
+        description: "Database host.",
+        default: "",
+        value: "mariadb",
+        nullable: true,
+      },
+    ];
+    globalThis.fetch = api({ fields });
+    render(ConfigTab, props());
+    await waitFor(() => expect(screen.getByText("db_host")).toBeTruthy());
+    const input = document.getElementById("cfg-db_host");
+    expect(input.disabled).toBe(true);
+    expect(input.value).toBe("mariadb");
+    expect(screen.getByText(/Alleen-lezen/)).toBeTruthy();
+    expect(document.getElementById("cfg-db_user").disabled).toBe(false);
+  });
+
   it("has nothing to save until something changes", async () => {
     render(ConfigTab, props());
     await waitFor(() => expect(screen.getByText("max_retag_files")).toBeTruthy());

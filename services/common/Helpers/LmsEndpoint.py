@@ -15,6 +15,13 @@ The environment is the fallback rather than the other way round, for the same re
 """
 
 import os
+import re
+
+# A URL with a query string, as it appears inside an error message: absolute, or the bare
+# path urllib3 puts after "with url:" in a connection error ("Max retries exceeded with
+# url: /rest/x.view?apiKey=..."). The query is cut at whitespace or a quote, which is
+# where requests' messages end a URL.
+_URL_WITH_QUERY = re.compile(r'''(https?://[^\s?'"<>]+|\burl: /[^\s?'"<>]*)\?[^\s'"<>]*''')
 
 #: The environment variables that name an LMS host, most specific first. Shared with the
 #: Subsonic client so that configuring one configures both.
@@ -85,3 +92,44 @@ def lms_api_key() -> str:
         if key:
             return key
     return ''
+
+
+def redact_url(text: str) -> str:
+    """`text` with the query string of every http(s) URL in it replaced by ``?<redacted>``.
+
+    Subsonic authenticates in the query string (``apiKey=...``), and requests puts the
+    full URL into both ``HTTPError`` ("... for url: http://lms/rest/x?apiKey=...") and
+    connection errors. Logged at WARNING, that went into the events table and out to
+    ntfy. Use this on any error or URL from an LMS call before it is logged.
+    """
+    return _URL_WITH_QUERY.sub(r'\1?<redacted>', str(text))
+
+
+def resolve_lms_api_key(store=None) -> str:
+    """The Subsonic API key every LMS caller uses: the ConfigStore first, then the environment.
+
+    `lms_subsonic_api_key` in the store is a key typed on the config page when there is
+    one, else `LMS_SUBSONIC_API_KEY` from the environment (see ConfigStore's
+    precedence). Only when that is empty are the environment names read directly.
+
+    The radio scheduler used to read the environment only while ``LmsScanTrigger`` read
+    the store first, so the two could authenticate with different keys and a fix made
+    on one path did not reach the other. `store` is injectable for tests; a value that
+    is not a string (a mocked store) counts as unset.
+    """
+    if store is None:
+        try:
+            from services.common.config_store import ConfigStore
+
+            store = ConfigStore()
+        except Exception:
+            store = None
+    configured = ''
+    if store is not None:
+        try:
+            value = store.get('lms_subsonic_api_key')
+        except Exception:
+            value = None
+        if isinstance(value, str):
+            configured = value.strip()
+    return configured or lms_api_key()

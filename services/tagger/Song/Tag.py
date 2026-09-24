@@ -1,7 +1,13 @@
 import logging
 import re
 
-from services.tagger.constants import ARTIST_REGEX
+from services.tagger.constants import ARTIST_REGEX, GENRE
+
+# The only tag whose values are split on '/'. 'Hardstyle/Hardcore' is two genres, but
+# 'AC/DC' is one artist and 'Live 24/7' is one title: splitting every tag on '/' turned
+# such a title into three values, written back joined by ';', and made the scanner index
+# AC/DC as two artists. GenreRulesHelper.split_composite is the genre-aware half of this.
+SLASH_SPLIT_TAGS = frozenset({GENRE})
 
 
 class Tag:
@@ -81,10 +87,11 @@ class Tag:
 
     def resplit(self):
         """
-        Further splits values by ';' and '/' delimiters.
+        Further splits values by ';', and by '/' for the tags in SLASH_SPLIT_TAGS only.
         """
         self.value = [item for sublist in self.value for item in sublist.split(';')]
-        self.value = [item for sublist in self.value for item in sublist.split('/')]
+        if self.tag in SLASH_SPLIT_TAGS:
+            self.value = [item for sublist in self.value for item in sublist.split('/')]
 
     def to_array(self):
         """
@@ -136,6 +143,43 @@ class Tag:
             self.value.append(item)
             logging.info(f'{self.tag} changed(add) from {old_value} to {self.value}')
             self.changed = True
+
+    def replace(self, old, new):
+        """
+        Swaps `old` for `new` at the position `old` holds, leaving every other value in place.
+
+        A correction must not move a value: the scanner takes the first artist as the primary
+        one, and the track's identity is derived from it. `add` + `remove` appended the
+        correction at the end, so correcting the first artist demoted it -- and changed it
+        again on the next pass. When `new` is already present, `old` is simply dropped.
+
+        Args:
+            old (str): The value to replace.
+            new (str): The value to put in its place.
+
+        Returns:
+            bool: True when the value list changed.
+        """
+        if old == new or old not in self.value:
+            return False
+        old_value = self.value[:]
+        index = self.value.index(old)
+        if new in self.value:
+            del self.value[index]
+        else:
+            self.value[index] = new
+        logging.info(f'{self.tag} changed(replace) from {old_value} to {self.value}')
+        self.changed = True
+        return True
+
+    def mark_unsaved(self):
+        """
+        Forgets the on-disk baseline, so the current value counts as a change to write.
+
+        Used for a value read from a legacy location (a truncated m4a atom): it is on the
+        file, but not where the tagger reads it next time, so it has to be written out again.
+        """
+        self._initial = []
 
     def remove(self, val):
         """

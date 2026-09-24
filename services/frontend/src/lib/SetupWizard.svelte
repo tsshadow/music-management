@@ -183,7 +183,7 @@
               <span class="font-bold">{$t('settings.general.memoriesOnHome')}</span>
               <input
                 type="checkbox"
-                class="w-5 h-5 accent-[#1db954]"
+                class="w-5 h-5 accent-brand"
                 checked={$memoriesOnHomeEnabled}
                 onchange={() => memoriesOnHomeEnabled.update((v) => !v)}
               />
@@ -196,7 +196,7 @@
               </span>
               <input
                 type="checkbox"
-                class="w-5 h-5 accent-[#1db954]"
+                class="w-5 h-5 accent-brand"
                 checked={$deduplicateEnabled}
                 onchange={() => deduplicateEnabled.update((v) => !v)}
               />
@@ -217,7 +217,7 @@
               <span class="font-bold">{$t('settings.general.display.showConfirmationDialog')}</span>
               <input
                 type="checkbox"
-                class="w-5 h-5 accent-[#1db954]"
+                class="w-5 h-5 accent-brand"
                 checked={$showConfirmationDialog}
                 onchange={() => showConfirmationDialog.update((v) => !v)}
               />
@@ -228,7 +228,7 @@
                 <span class="font-bold">{$t('settings.general.wifiOnly')}</span>
                 <span class="text-xs text-[#b3b3b3]">{$t('settings.general.wifiOnlyHelp')}</span>
               </span>
-              <input type="checkbox" class="w-5 h-5 accent-[#1db954]" checked={wifiOnly} onchange={toggleWifiOnly} />
+              <input type="checkbox" class="w-5 h-5 accent-brand" checked={wifiOnly} onchange={toggleWifiOnly} />
             </label>
           {:else if step.id === 'guide'}
             <button

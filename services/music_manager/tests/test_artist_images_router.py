@@ -15,12 +15,15 @@ from services.music_manager.api_key import resolve_system_api_key
 
 users_router.run_lms_db_sync = lambda: None
 
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from services.music_manager.main import app
 from services.music_manager.routers import artist_images as artist_images_router
 
 API_KEY = resolve_system_api_key()
+# Captured before any test patches it, for the tests that need its URL checks.
+REAL_DOWNLOAD = artist_images_router.download_public_image
 
 
 class ArtistImagesTestCase(unittest.TestCase):
@@ -55,9 +58,9 @@ class AuthTest(unittest.TestCase):
         self.assertEqual(response.status_code, 500)
 
     def test_a_key_that_does_not_verify_is_rejected(self):
-        with patch.object(users_router, 'verify_token', side_effect=Exception('nope')):
+        with patch.object(users_router, 'verify_token', side_effect=HTTPException(status_code=403)):
             response = TestClient(app).get('/api/artists/search', headers={'x-api-key': 'bad'})
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 403)
 
 
 class SearchTest(ArtistImagesTestCase):
@@ -195,9 +198,12 @@ class ManualImageTest(ArtistImagesTestCase):
         patcher = patch.dict(sys.modules, {'services.music_manager.artist_image_fetcher.storage': self.storage_module})
         patcher.start()
         self.addCleanup(patcher.stop)
+        download_patcher = patch.object(artist_images_router, 'download_public_image')
+        self.download = download_patcher.start()
+        self.addCleanup(download_patcher.stop)
 
     def test_an_image_url_is_downloaded_and_becomes_the_primary_image(self):
-        self.storage_module.ImageDownloader.return_value.download.return_value = b'binary'
+        self.download.return_value = b'binary'
         self.cursor.fetchone.return_value = {'id': 1, 'name': 'Angerfist'}
         self.cursor.lastrowid = 9
         body = self.client.post(
@@ -207,20 +213,22 @@ class ManualImageTest(ArtistImagesTestCase):
         self.assertTrue(any('is_primary = 1' in s for s in self.statements()))
 
     def test_a_non_http_url_is_rejected(self):
+        # The real download helper, not the setUp mock: the scheme check lives there.
+        self.download.side_effect = REAL_DOWNLOAD
         response = self.client.post(
             '/api/artists/1/image/url', headers=self.headers, json={'url': 'ftp://img.test/a.jpg'}
         )
         self.assertEqual(response.status_code, 400)
 
     def test_a_download_that_fails_is_reported(self):
-        self.storage_module.ImageDownloader.return_value.download.side_effect = RuntimeError('404')
+        self.download.side_effect = RuntimeError('404')
         response = self.client.post(
             '/api/artists/1/image/url', headers=self.headers, json={'url': 'https://img.test/a.jpg'}
         )
         self.assertEqual(response.status_code, 400)
 
     def test_a_download_that_yields_nothing_is_reported(self):
-        self.storage_module.ImageDownloader.return_value.download.return_value = None
+        self.download.return_value = None
         response = self.client.post(
             '/api/artists/1/image/url', headers=self.headers, json={'url': 'https://img.test/a.jpg'}
         )
@@ -278,7 +286,8 @@ class PrimaryImageTest(ArtistImagesTestCase):
         self.cursor.fetchone.return_value = {'id': 1}
         body = self.client.post('/api/artists/1/image/clear', headers=self.headers).json()
         self.assertEqual(body, {'status': 'ok', 'artist_id': 1})
-        self.assertTrue(any("image_status = 'none'" in s for s in self.statements()))
+        # `cleared`, not `none`: the start-up bulk run skips it instead of undoing the clear.
+        self.assertTrue(any("image_status = 'cleared'" in s for s in self.statements()))
         self.assertFalse(any('DELETE' in s for s in self.statements()))
 
     def test_clearing_for_an_unknown_artist_is_a_not_found(self):
@@ -335,7 +344,12 @@ class FetchEndpointTest(ArtistImagesTestCase):
         with patch.object(artist_images_router, 'trigger_fetch_by_id') as task:
             body = self.client.post('/api/artists/7/fetch-image', headers=self.headers).json()
         self.assertEqual(body['status'], 'ok')
-        task.assert_called_once_with(7)
+        task.assert_called_once_with(7, False)
+
+    def test_force_is_passed_on_so_a_cleared_portrait_can_be_fetched_again(self):
+        with patch.object(artist_images_router, 'trigger_fetch_by_id') as task:
+            self.client.post('/api/artists/7/fetch-image?force=true', headers=self.headers)
+        task.assert_called_once_with(7, True)
 
 
 class BackgroundFetchTest(unittest.TestCase):
@@ -416,6 +430,14 @@ class BackgroundFetchTest(unittest.TestCase):
         self.assertIn('INTERVAL %s DAY', sql)
         self.assertEqual(params, (14,))
 
+    def test_an_artist_whose_portrait_was_cleared_is_not_fetched_again(self):
+        """Clearing set `none`, which this query picked up on the next boot."""
+        self.cursor.fetchone.return_value = {'count': 1}
+        self.cursor.fetchall.return_value = []
+        artist_images_router.run_fetch_missing()
+        sql = self.cursor.execute.call_args_list[-1][0][0]
+        self.assertIn("image_status <> 'cleared'", sql)
+
     def test_the_cooldown_defaults_to_thirty_days(self):
         self.cursor.fetchone.return_value = {'count': 1}
         self.cursor.fetchall.return_value = []
@@ -427,7 +449,14 @@ class BackgroundFetchTest(unittest.TestCase):
     def test_a_single_artist_fetch_by_id_forces_a_refresh(self):
         self.cursor.fetchone.return_value = {'name': 'Angerfist'}
         artist_images_router.trigger_fetch_by_id(7)
-        self.fetcher.fetch_for_artist.assert_called_once_with(7, 'Angerfist', force_refresh=True)
+        self.fetcher.fetch_for_artist.assert_called_once_with(
+            7, 'Angerfist', force_refresh=True, override_cleared=False
+        )
+
+    def test_a_forced_single_artist_fetch_overrides_a_cleared_portrait(self):
+        self.cursor.fetchone.return_value = {'name': 'Angerfist'}
+        artist_images_router.trigger_fetch_by_id(7, force=True)
+        self.fetcher.fetch_for_artist.assert_called_once_with(7, 'Angerfist', force_refresh=True, override_cleared=True)
 
     def test_an_unknown_artist_id_fetches_nothing(self):
         self.cursor.fetchone.return_value = None

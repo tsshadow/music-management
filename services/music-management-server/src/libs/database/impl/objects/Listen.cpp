@@ -291,6 +291,29 @@ namespace lms::db
         return utils::execRangeQuery<ListenId>(query, parameters.range);
     }
 
+    void Listen::findWithTrack(Session& session, const FindParameters& parameters, bool& moreResults, const std::function<void(const pointer& listen, const ObjectPtr<Track>& track)>& func)
+    {
+        session.checkReadTransaction();
+
+        using ResultType = std::tuple<Wt::Dbo::ptr<Listen>, Wt::Dbo::ptr<Track>>;
+        auto query{ session.getDboSession()->query<ResultType>("SELECT l, t FROM listen l").join("track t ON t.id = l.track_id") };
+
+        if (parameters.user.isValid())
+            query = query.where("l.user_id = ?").bind(parameters.user);
+
+        if (parameters.backend)
+            query = query.where("l.backend = ?").bind(*parameters.backend);
+
+        if (parameters.syncState)
+            query = query.where("l.sync_state = ?").bind(*parameters.syncState);
+
+        query = query.orderBy(parameters.desc ? "l.date_time DESC" : "l.date_time ASC");
+
+        utils::forEachQueryRangeResult(query, parameters.range, moreResults, [&](const ResultType& result) {
+            func(std::get<Wt::Dbo::ptr<Listen>>(result), std::get<Wt::Dbo::ptr<Track>>(result));
+        });
+    }
+
     Listen::pointer Listen::find(Session& session, UserId userId, TrackId trackId, ScrobblingBackend backend, const Wt::WDateTime& dateTime)
     {
         session.checkReadTransaction();

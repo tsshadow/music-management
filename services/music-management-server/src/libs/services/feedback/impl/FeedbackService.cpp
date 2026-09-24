@@ -55,6 +55,12 @@ namespace lms::feedback
         LMS_LOG(SCROBBLING, INFO, "Service started!");
     }
 
+    FeedbackService::FeedbackService(db::IDb& db, Backends backends)
+        : _db{ db }
+        , _backends{ std::move(backends) }
+    {
+    }
+
     FeedbackService::~FeedbackService()
     {
         LMS_LOG(SCROBBLING, INFO, "Service stopped!");
@@ -70,6 +76,17 @@ namespace lms::feedback
             feedbackBackend = user->getFeedbackBackend();
 
         return feedbackBackend;
+    }
+
+    IFeedbackBackend* FeedbackService::findBackend(db::FeedbackBackend backend) const
+    {
+        const auto it{ _backends.find(backend) };
+        if (it == std::cend(_backends) || !it->second)
+        {
+            LMS_LOG(SCROBBLING, WARNING, "No feedback backend registered for value " << static_cast<int>(backend) << ", event skipped");
+            return nullptr;
+        }
+        return it->second.get();
     }
 
     void FeedbackService::star(UserId userId, ArtistId artistId)

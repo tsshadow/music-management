@@ -146,7 +146,9 @@
 
   async function autoFetch(artist) {
     await withBusy(artist.id, async () => {
-      const res = await fetch(`${API_BASE}/api/artists/${artist.id}/fetch-image`, {
+      // force=true: a click here is an explicit request, so it also re-fetches a portrait
+      // that was cleared by hand (which the bulk run leaves alone).
+      const res = await fetch(`${API_BASE}/api/artists/${artist.id}/fetch-image?force=true`, {
         method: 'POST',
         headers: getHeaders()
       });
@@ -403,7 +405,11 @@
                     {artist.width}x{artist.height} • {artist.source || 'onbekend'}
                   {:else}
                     <span class={artist.image_status === 'failed' ? 'text-red-400' : ''}>
-                      {artist.image_status === 'failed' ? $t('management.images.notFound') : $t('management.images.noImage')}
+                      {artist.image_status === 'failed'
+                        ? $t('management.images.notFound')
+                        : artist.image_status === 'cleared'
+                          ? $t('management.images.cleared')
+                          : $t('management.images.noImage')}
                     </span>
                   {/if}
                 </p>

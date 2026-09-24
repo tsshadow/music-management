@@ -10,6 +10,7 @@ setup_mocks()
 
 from services.common.Helpers import Quarantine as quarantine_module
 from services.importer import mover as mover_module
+from services.importer import settle
 from services.importer.mover import Mover, get_cat_id, post_processing_songs
 
 
@@ -78,6 +79,8 @@ class PostProcessingTest(unittest.TestCase):
 
 class MoverTestCase(unittest.TestCase):
     def setUp(self):
+        # Folders made a moment ago count as settled here; the guard has tests of its own.
+        self.enterContext(patch.object(settle, 'settle_seconds', return_value=0))
         reset_database_helpers()
         self.settings = MagicMock(import_folder_path='/import', eps_folder_path='/eps', delimiter='/')
         self.connector, self.connection = fake_connector()

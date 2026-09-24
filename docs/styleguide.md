@@ -11,6 +11,14 @@
 
 ## Colors
 - **Primary Accent**: `#1DB954` (Spotify Green) — Primary actions, active states, highlights, playback indicators.
+- **Brand token (Web)**: the accent follows the listening mode — `#1DB954` in songs mode, `#2D5AFC`
+  (blue) in sets mode. In `services/frontend` write it as the Tailwind token (`bg-brand`,
+  `text-brand`, `border-brand`, `accent-brand`, `focus:border-brand`), never as `#1DB954`, so
+  `:root.mode-sets` in `src/app.css` can switch it. **Never declare a `:global(...-brand)` rule in a
+  component**: Tailwind's utilities live in `@layer utilities` and any unlayered rule beats them,
+  so one such rule turns the whole app green in sets mode (bug report 041;
+  `tests/unit/brandToken.test.js` fails on it). The login page is the one deliberate exception: it
+  is shown before any mode applies and stays `#1DB954`.
 - **Background (Main)**: `#121212` (Dark Charcoal) — Default content view background.
 - **Background (Sidebar / Navigation)**: `#000000` (Pure Black) — Sidebar, bottom navigation bars.
 - **Surface (Cards / Modals / Rows)**: `#282828` (Medium Gray) — Cards, hover overlays, input backgrounds, active tabs.
@@ -48,9 +56,9 @@
 
 ## Components
 - **Buttons**:
-  - Primary: Rounded full (`rounded-full`), Spotify green background (`bg-[#1DB954]`), dark text or white bold text.
+  - Primary: Rounded full (`rounded-full`), brand background (`bg-brand` on the web; green in songs mode, see "Brand token" above), dark text or white bold text.
   - Secondary: Transparent with border or surface gray background (`bg-[#282828]`), white text.
-- **Forms & Inputs**: Dark background (`bg-[#282828]`), subtle border, green focus ring (`focus:border-[#1DB954]`), white text.
+- **Forms & Inputs**: Dark background (`bg-[#282828]`), subtle border, brand focus ring (`focus:border-brand` on the web, see "Brand token" above), white text.
 - **Cards**: Surface gray (`bg-[#282828]`), rounded corners (`rounded-md` or `rounded-lg`), smooth hover elevation/scaling.
 - **Modals**: Centered overlay with backdrop blur or dark translucent background (`bg-black/80`), rounded card container.
 - **Navigation**: Persistent sidebar on Web, Bottom Navigation / Drawer on Android. Active items highlighted with white text and/or green accent.
@@ -98,7 +106,7 @@
 - **Accessibility**: High contrast between text (`#FFFFFF` / `#B3B3B3`) and background (`#121212`), clear focus states, touch targets at least 48x48px on mobile.
 
 ## Coding Conventions
-- **Web (`services/frontend`)**: Svelte components + Tailwind CSS utility classes adhering to the Spotify dark color tokens (`spotify-green`, `spotify-gray`, etc.).
+- **Web (`services/frontend`)**: Svelte components + Tailwind CSS utility classes using the color tokens declared in the `@theme` block of `src/app.css`: `brand` (the mode-dependent accent), `brand-green`, `brand-blue`, and the `muma-spotify-*` surfaces (`-black`, `-dark`, `-panel`, `-light`, `-text`). A token that is not declared there compiles to no CSS rule at all, silently.
 - **Android (`services/muma-mobile`)**: Kotlin + Material Design components customized with dark theme color attributes matching the web palette.
 
 ## Do's & Don'ts

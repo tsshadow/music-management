@@ -6,6 +6,7 @@ from services.tests.mock_base import setup_mocks
 
 setup_mocks()
 
+from services.downloader.deep_sweep import ListingFailed  # isort:skip
 from services.downloader.soundcloud.account_probe import (  # isort:skip
     ProbeResult,
     newest_track,
@@ -99,9 +100,16 @@ class NewestTrackTest(unittest.TestCase):
         FakeYoutubeDL.result = {'entries': []}
         self.assertIsNone(self.probe())
 
-    def test_an_extraction_that_returned_nothing_gives_nothing(self):
+    def test_an_extraction_that_returned_nothing_is_a_failure_not_an_empty_account(self):
+        # What yt-dlp hands back under `ignoreerrors` after a refused page. Reading
+        # it as "no tracks" is how a 403 used to pass for a finished account.
         FakeYoutubeDL.result = None
-        self.assertIsNone(self.probe())
+        with self.assertRaises(ListingFailed):
+            self.probe()
+
+    def test_ignoreerrors_is_forced_off_for_the_listing(self):
+        self.probe({'ignoreerrors': True})
+        self.assertIs(FakeYoutubeDL.last_opts['ignoreerrors'], False)
 
     def test_an_entry_without_an_id_gives_nothing(self):
         FakeYoutubeDL.result = {'entries': [{'title': 'no id here'}]}
@@ -115,8 +123,10 @@ class NewestTrackTest(unittest.TestCase):
         # Only the caller knows whether a 403 should park the source or fall
         # through to a full run.
         FakeYoutubeDL.error = RuntimeError('HTTP Error 403: Forbidden')
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ListingFailed) as raised:
             self.probe()
+        # yt-dlp's own text survives, so the policy can still read the status.
+        self.assertIn('HTTP Error 403: Forbidden', str(raised.exception))
 
 
 if __name__ == '__main__':

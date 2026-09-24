@@ -6,10 +6,12 @@ import time
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from services.common.Helpers.LmsEndpoint import redact_url
 from services.music_manager.database import get_db_connection
 from services.music_manager.lms_subsonic import fetch_candidate_tracks
 from services.music_manager.rbac import has_permission, require_permission
 from services.music_manager.routers.management import verify_api_key
+from services.music_manager.thread_registry import run_forever
 
 router = APIRouter(tags=['radio'])
 logger = logging.getLogger('music-manager.radio')
@@ -122,6 +124,34 @@ def scheduled_track_ids(conn, channel_id: int, since: float) -> list:
         return [row['track_id'] for row in (cursor.fetchall() or [])]
 
 
+#: Channels whose candidate fetch is currently failing. The scheduler retries every
+#: five seconds per channel, and every WARNING becomes an event and an ntfy alert: a
+#: down LMS used to mean one alert per channel every five seconds, each carrying the
+#: request URL -- Subsonic apiKey included.
+_channels_in_outage: set[str] = set()
+
+
+def _report_candidate_failure(slug: str, error: Exception) -> None:
+    """Log a failed candidate fetch once per outage at WARNING, then at DEBUG."""
+    message = redact_url(str(error))
+    if slug in _channels_in_outage:
+        logger.debug("Radio channel '%s': still cannot fetch candidates: %s", slug, message)
+        return
+    _channels_in_outage.add(slug)
+    logger.warning(
+        "Radio channel '%s': could not fetch candidates: %s (further failures are logged at DEBUG until it recovers)",
+        slug,
+        message,
+    )
+
+
+def _report_candidate_recovery(slug: str) -> None:
+    """Close an outage opened by `_report_candidate_failure`, saying so once."""
+    if slug in _channels_in_outage:
+        _channels_in_outage.discard(slug)
+        logger.info("Radio channel '%s': candidate fetch recovered", slug)
+
+
 def fill_channel(conn, channel: dict, now: float) -> int:
     """Top up one channel's timeline. Returns how many entries were inserted."""
     with conn.cursor() as cursor:
@@ -138,8 +168,9 @@ def fill_channel(conn, channel: dict, now: float) -> int:
     try:
         candidates = fetch_candidate_tracks(channel_filter(channel), size=CANDIDATE_BATCH_SIZE)
     except Exception as e:
-        logger.warning("Radio channel '%s': could not fetch candidates: %s", channel['slug'], e)
+        _report_candidate_failure(channel['slug'], e)
         return 0
+    _report_candidate_recovery(channel['slug'])
 
     candidates = pick_candidates(candidates, scheduled_track_ids(conn, channel['id'], now))
     entries = plan_entries(existing_end, now, candidates)
@@ -172,22 +203,32 @@ def fill_channel(conn, channel: dict, now: float) -> int:
     return len(entries)
 
 
+def radio_tick() -> None:
+    """One pass: fill every enabled channel's timeline ahead of now.
+
+    Raises on a database failure; run_forever logs it and backs off. The error is
+    re-raised with its message passed through `redact_url` and its original traceback
+    suppressed: run_forever logs with `logger.exception`, and a request URL in the text
+    -- Subsonic apiKey included -- would otherwise reach the events table and ntfy.
+    """
+    conn = get_db_connection()
+    if not conn:
+        return
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT id, slug, genre, filter_json FROM radio_channels WHERE enabled = 1')
+            channels = cursor.fetchall()
+        for channel in channels:
+            fill_channel(conn, channel, time.time())
+    except Exception as e:
+        raise RuntimeError(f'Radio scheduler iteration failed: {redact_url(str(e))}') from None
+    finally:
+        conn.close()
+
+
 def run_radio_scheduler(interval: int = 5):
     """Background loop keeping every enabled channel's timeline filled ahead of now."""
-    while True:
-        conn = get_db_connection()
-        if conn:
-            try:
-                with conn.cursor() as cursor:
-                    cursor.execute('SELECT id, slug, genre, filter_json FROM radio_channels WHERE enabled = 1')
-                    channels = cursor.fetchall()
-                for channel in channels:
-                    fill_channel(conn, channel, time.time())
-            except Exception as e:
-                logger.error('Radio scheduler iteration failed: %s', e)
-            finally:
-                conn.close()
-        time.sleep(interval)
+    run_forever('radio', radio_tick, interval)
 
 
 @router.get('/channels')
@@ -365,8 +406,11 @@ def preview_filter(body: FilterPreview, _auth: dict = Depends(require_permission
     try:
         matches = fetch_candidate_tracks(body.filter.model_dump(exclude_none=True), size=PREVIEW_PROBE_SIZE)
     except Exception as e:
-        logger.warning('Radio filter preview failed: %s', e)
-        raise HTTPException(status_code=502, detail=f'LMS could not answer this filter: {e}') from e
+        # The error carries the request URL, apiKey included; neither the log nor the
+        # browser gets that.
+        message = redact_url(str(e))
+        logger.warning('Radio filter preview failed: %s', message)
+        raise HTTPException(status_code=502, detail=f'LMS could not answer this filter: {message}') from e
     return {
         'matched': len(matches),
         # LMS was asked for a bounded number, so a full response means "at least".

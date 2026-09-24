@@ -239,7 +239,9 @@ namespace lms::db
 
             tryExecute("CREATE INDEX IF NOT EXISTS auth_token_user_domain_idx ON auth_token(user_id, domain)");
             tryExecute("CREATE INDEX IF NOT EXISTS auth_token_domain_expiry_idx ON auth_token(domain, expiry)");
-            tryExecute("CREATE INDEX IF NOT EXISTS auth_token_domain_value_idx ON auth_token(domain, value)");
+            // Unique: a token is looked up by (domain, value) alone, and a duplicate made that
+            // lookup throw for every user holding it (see migrateFromV120).
+            tryExecute("CREATE UNIQUE INDEX IF NOT EXISTS auth_token_domain_value_unique_idx ON auth_token(domain, value)");
 
             tryExecute("CREATE INDEX IF NOT EXISTS cluster_id_idx ON cluster(id)");
             tryExecute("CREATE INDEX IF NOT EXISTS cluster_cluster_type_idx ON cluster(cluster_type_id)");

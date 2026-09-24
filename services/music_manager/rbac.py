@@ -205,6 +205,7 @@ def init_db(cursor):
 
 
 def get_role_by_name(cursor, name):
+    """The roles row called `name`, or None."""
     cursor.execute('SELECT id, name FROM roles WHERE name = %s', (name,))
     return cursor.fetchone()
 
@@ -225,6 +226,7 @@ def get_permissions_for_role(cursor, role_id):
 
 
 def record_audit_event(cursor, event_type, actor_user_id=None, target_user_id=None, details=None):
+    """Append one row to audit_events."""
     cursor.execute(
         'INSERT INTO audit_events (event_type, actor_user_id, target_user_id, details) VALUES (%s, %s, %s, %s)',
         (event_type, actor_user_id, target_user_id, details),

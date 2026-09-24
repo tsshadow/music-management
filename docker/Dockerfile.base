@@ -35,7 +35,6 @@ COPY services/tagger/ /app/services/tagger/
 COPY services/scanner/ /app/services/scanner/
 COPY services/downloader/ /app/services/downloader/
 COPY services/importer/ /app/services/importer/
-COPY services/other/ /app/services/other/
 COPY VERSION RELEASE_NOTES.md CHANGELOG.md /app/
 
 ENV PYTHONPATH=/app

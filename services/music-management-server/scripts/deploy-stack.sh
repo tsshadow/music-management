@@ -4,7 +4,14 @@
 
 set -e
 
-# Helper function to run SSH command
+# Nothing secret may appear on a command line in this script: argv is readable
+# through `ps` by every account on the runner and on the production host. The
+# env file travels on ssh's stdin instead. See
+# docs/bug-reports/038-deploy-puts-every-prod-secret-on-the-command-line.md.
+
+# run_ssh HOST USER PASS CMD: run CMD on HOST, passing this shell's stdin through.
+# CMD itself must never contain a secret. The password, when one is used, goes
+# to sshpass through the SSHPASS environment variable rather than `-p`.
 run_ssh() {
     local host="$1"
     local user="$2"
@@ -18,7 +25,7 @@ run_ssh() {
     if [ -z "$pass" ]; then
         ssh -o StrictHostKeyChecking=no "${user}@${host}" "${cmd}"
     elif command -v sshpass >/dev/null 2>&1; then
-        sshpass -p "${pass}" ssh -o StrictHostKeyChecking=no "${user}@${host}" "${cmd}"
+        SSHPASS="${pass}" sshpass -e ssh -o StrictHostKeyChecking=no "${user}@${host}" "${cmd}"
     else
         echo "Error: sshpass not found. Install it or unset password variable."
         exit 1
@@ -107,26 +114,54 @@ if [ -z "$COMPOSE_CONTENT" ]; then
     exit 1
 fi
 
+# The compose file is no secret (it is the tracked file), so it may ride on the
+# command line; the env file may not.
+B64_DATA=$(echo "$COMPOSE_CONTENT" | base64 -w 0)
+SEND_ENV=0
+if [ -n "$LOCAL_ENV_FILE" ] && [ -f "$LOCAL_ENV_FILE" ]; then
+    SEND_ENV=1
+fi
+
 # Final deployment logic to be run on REMOTE_HOST
+#
+# Everything lands in a root-only directory under the remote user's home, not
+# in world-writable /tmp: a file another account can pre-create or swap there is
+# a file root would hand to compose. The compose file stays (it holds no
+# secrets, and the container labels point at it); the env file is written into a
+# per-run directory that the EXIT trap removes once compose is done with it.
+# compose only reads --env-file while it parses the project. A run killed before
+# its trap fired is cleaned up by the next one (the rm of run.*).
+#
+# The env content arrives on stdin, never on the command line.
 DEPLOY_CMD="
     set -e
-    FINAL_COMPOSE_FILE=\"/tmp/docker-compose.$STACK_NAME.yml\"
-    echo \"\$BASE64_COMPOSE\" | base64 -d > \"\$FINAL_COMPOSE_FILE\"
-    
+    umask 077
+    DEPLOY_ROOT=\"\${HOME:?}/.muma-deploy\"
+    DEPLOY_DIR=\"\$DEPLOY_ROOT/$STACK_NAME\"
+    mkdir -p \"\$DEPLOY_DIR\"
+    chmod 700 \"\$DEPLOY_ROOT\" \"\$DEPLOY_DIR\"
+    rm -rf \"\$DEPLOY_DIR\"/run.*
+    RUN_DIR=\$(mktemp -d \"\$DEPLOY_DIR/run.XXXXXX\")
+    trap 'rm -rf \"\$RUN_DIR\"' EXIT
+    trap 'exit 1' HUP INT TERM
+
+    FINAL_COMPOSE_FILE=\"\$DEPLOY_DIR/docker-compose.yml\"
+    echo '$B64_DATA' | base64 -d > \"\$FINAL_COMPOSE_FILE\"
+
     # Handle environment variables
     ENV_ARG=\"\"
-    if [ -n \"\$BASE64_ENV\" ]; then
-        FINAL_ENV_FILE=\"/tmp/.env.$STACK_NAME\"
-        echo \"\$BASE64_ENV\" | base64 -d > \"\$FINAL_ENV_FILE\"
+    if [ \"$SEND_ENV\" = 1 ]; then
+        FINAL_ENV_FILE=\"\$RUN_DIR/.env\"
+        cat > \"\$FINAL_ENV_FILE\"
         ENV_ARG=\"--env-file \$FINAL_ENV_FILE\"
-        echo \"Using environment file: \$FINAL_ENV_FILE\"
+        echo \"Using environment file: \$FINAL_ENV_FILE (removed when this deploy ends)\"
     fi
 
-    # Selection of compose command
+    # Selection of compose command. Only root-owned locations are consulted:
+    # this runs as root, and an executable any local account could drop into
+    # /tmp would be run as root on the next deploy.
     if [ -x /usr/local/bin/docker-compose-v2 ]; then
         DOCKER_CMD=\"/usr/local/bin/docker-compose-v2 \$ENV_ARG -f \$FINAL_COMPOSE_FILE -p $STACK_NAME\"
-    elif [ -x /tmp/docker-compose-v2 ]; then
-        DOCKER_CMD=\"/tmp/docker-compose-v2 \$ENV_ARG -f \$FINAL_COMPOSE_FILE -p $STACK_NAME\"
     elif docker compose version >/dev/null 2>&1; then
         DOCKER_CMD=\"docker compose \$ENV_ARG -f \$FINAL_COMPOSE_FILE -p $STACK_NAME\"
     elif command -v docker-compose >/dev/null 2>&1; then
@@ -155,11 +190,10 @@ DEPLOY_CMD="
     fi
 "
 
-B64_DATA=$(echo "$COMPOSE_CONTENT" | base64 -w 0)
-B64_ENV=""
-if [ -n "$LOCAL_ENV_FILE" ] && [ -f "$LOCAL_ENV_FILE" ]; then
-    B64_ENV=$(base64 -w 0 "$LOCAL_ENV_FILE")
+if [ "$SEND_ENV" = 1 ]; then
+    run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "$DEPLOY_CMD" < "$LOCAL_ENV_FILE"
+else
+    run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "$DEPLOY_CMD" < /dev/null
 fi
-run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "BASE64_COMPOSE='$B64_DATA' BASE64_ENV='$B64_ENV' $DEPLOY_CMD"
 
 echo "--- Stack '$STACK_NAME' deployment completed successfully ---"

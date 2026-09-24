@@ -30,8 +30,8 @@ from services.common.Helpers.GenreNameAnalyzer import (
     build_dictionary,
 )
 from services.music_manager.database import get_db_connection
+from services.music_manager.job_store import job_store
 from services.music_manager.rbac import require_permission
-from services.music_manager.routers.jobs import job_manager
 
 router = APIRouter(tags=['genre-curation'])
 logger = logging.getLogger('music-manager.genre-curation')
@@ -128,12 +128,12 @@ def propose_all(queue: dict, dictionary, config: GenreAnalyzerConfig | None = No
 
 def _run_analysis(job_id: str) -> None:
     """Rewrite `rules_genre_proposals` for every queued genre. Never touches a decision."""
-    state = job_manager.jobs.setdefault(job_id, {})
+    state = job_store.jobs.setdefault(job_id, {})
     state.update({'status': 'running', 'progress': 0, 'total': 0, 'current': None, 'failed': 0})
     conn = get_db_connection()
     if not conn:
         state.update({'status': 'failed', 'error': 'No database connection'})
-        job_manager.results[job_id] = dict(state)
+        job_store.finish(job_id, state)
         return
     try:
         with conn.cursor() as cursor:
@@ -175,9 +175,7 @@ def _run_analysis(job_id: str) -> None:
     finally:
         conn.close()
         state['current'] = None
-        job_manager.results[job_id] = dict(state)
-        if job_id not in job_manager.history:
-            job_manager.history.appendleft(job_id)
+        job_store.finish(job_id, state)
 
 
 @router.get('/summary')
@@ -209,11 +207,11 @@ def summary(_auth: dict = READ):
 @router.post('/analyze', status_code=202)
 def analyze(background: BackgroundTasks, _auth: dict = WRITE):
     """Recompute every proposal. Cheap to repeat: nothing a human decided is read or written."""
-    for existing_id, existing in job_manager.jobs.items():
+    for existing_id, existing in list(job_store.jobs.items()):
         if existing_id.startswith('genre-analysis-') and existing.get('status') in ('queued', 'running'):
             return {'status': 'running', 'job_id': existing_id}
     job_id = f'genre-analysis-{uuid.uuid4()}'
-    job_manager.jobs[job_id] = {'status': 'queued', 'progress': 0, 'total': 0, 'current': None, 'failed': 0}
+    job_store.jobs[job_id] = {'status': 'queued', 'progress': 0, 'total': 0, 'current': None, 'failed': 0}
     background.add_task(_run_analysis, job_id)
     return {'status': 'queued', 'job_id': job_id}
 
@@ -221,7 +219,7 @@ def analyze(background: BackgroundTasks, _auth: dict = WRITE):
 @router.get('/analyze/{job_id}')
 def analysis_status(job_id: str, _auth: dict = READ):
     """Where an analysis run is, or its result once finished."""
-    state = job_manager.jobs.get(job_id) or job_manager.results.get(job_id)
+    state = job_store.state(job_id)
     if not state:
         raise HTTPException(status_code=404, detail='Unknown job')
     return state

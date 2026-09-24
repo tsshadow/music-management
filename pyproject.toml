@@ -6,7 +6,15 @@
 
 [tool.ruff]
 line-length = 120
-target-version = "py311"          # lowest Python any image runs (docker/Dockerfile.*)
+# The lowest Python this tree has to *parse* on, which is not the images' 3.14:
+# the developer workstation runs the suite natively through the pre-commit hook
+# on 3.13, and scripts/prod/install-muma-mcp.sh builds tools/muma_mcp's venv
+# from that same python3. "py314" would have ruff format rewrite
+# `except (A, B):` into PEP 758's `except A, B:`, a SyntaxError on 3.13. It was
+# "py311" -- the CI LXC's system Python -- which stopped mattering once the
+# backend jobs moved into the 3.14 tooling container. Type checking follows the
+# images instead: see python_version under [tool.mypy].
+target-version = "py313"
 extend-exclude = [
     ".venv",
     "node_modules",
@@ -65,7 +73,9 @@ known-first-party = ["services", "tools"]
 quote-style = "preserve"
 
 [tool.mypy]
-python_version = "3.11"
+# The images' Python (docker/Dockerfile.*), which CI now also runs the suite on.
+# Deliberately newer than [tool.ruff] target-version, which is about syntax.
+python_version = "3.14"
 # Rolled out per module: the settings below are the floor for the whole tree,
 # and the [[tool.mypy.overrides]] blocks tighten it where the code is ready.
 # Tighten one module at a time; never loosen the floor.
@@ -107,6 +117,8 @@ module = [
     "services.music_manager.artist_image_fetcher.storage",
     "services.music_manager.artist_image_fetcher.providers.base",
     "services.music_manager.catalog_series",
+    # New code (bug report 042), so it starts strict.
+    "services.music_manager.track_relink",
     "services.tagger.constants",
     "services.tagger.Song.rules.TagResult",
     "services.tagger.Song.rules.TagRule",
@@ -122,3 +134,19 @@ module = [
 disallow_untyped_defs = false
 check_untyped_defs = true
 warn_return_any = true
+
+[tool.coverage.run]
+# What scripts/test/music-management-unit.sh measures: the shipped Python under services/
+# and tools/, and nothing that only exists to test it. Before this table the run used
+# --cov=services with no omit list, so the ~220 test and fixture files under services/
+# (more lines than the code they test, all executed by definition) were counted as
+# covered source and lifted the figure by several points, while tools/ -- whose tests
+# do run -- was not measured at all.
+source = ["services", "tools"]
+omit = [
+    "*Test.py",
+    "*/tests/*",
+    "*/test_*.py",
+    "*/conftest.py",
+    "services/tests/mock_base.py",
+]

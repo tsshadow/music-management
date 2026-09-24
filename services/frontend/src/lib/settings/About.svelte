@@ -81,6 +81,8 @@
       const health = await fetchMumaJson(`${apiBase()}/health`);
       if (typeof health?.version === 'string') mumaVersion = health.version;
     } catch (e) {
+      // An unhealthy MuMa answers /health with 503 and the full report, version included.
+      if (typeof e?.body?.version === 'string') mumaVersion = e.body.version;
       console.warn('Could not read the MuMa API version', e);
     }
   }

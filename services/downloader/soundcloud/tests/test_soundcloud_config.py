@@ -283,6 +283,15 @@ class ApplyConfigTest(unittest.TestCase):
         # break_on_existing and the account probe rely on.
         self.assertNotIn('playlist_random', self.apply()['ydl_opts'])
 
+    def test_downloads_go_through_a_part_file(self):
+        # yt-dlp writes `<name>.part` and renames it once complete unless `nopart`
+        # is set, so a cut-off download never sits under its real name for the
+        # tagger to pick up. The inert `no_part` key that used to stand here is
+        # gone too, so nobody reads it as the opposite.
+        opts = self.apply()['ydl_opts']
+        self.assertNotIn('nopart', opts)
+        self.assertNotIn('no_part', opts)
+
     def test_lazy_playlist_is_on_so_break_on_existing_stops_the_paging(self):
         # Without it __process_playlist materialises every entry before a single
         # download starts, so break_on_existing can only stop the download loop.

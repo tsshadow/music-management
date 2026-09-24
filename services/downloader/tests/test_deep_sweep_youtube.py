@@ -8,8 +8,8 @@ from services.tests.mock_base import setup_mocks
 setup_mocks()
 
 from services.downloader.account_schedule import AccountSchedule, InMemoryCheckStore
-from services.downloader.deep_sweep import FlatTrack
-from services.downloader.rate_state import InMemoryRateStateStore, RateState, SweepAborted
+from services.downloader.deep_sweep import FlatTrack, ListingFailed
+from services.downloader.rate_state import InMemoryRateStateStore, RateLimited, RateState, SweepAborted
 from services.downloader.timing import load_timing
 from services.downloader.write_offs import InMemoryWriteOffStore, WriteOffs
 from services.downloader.youtube.youtube import YoutubeDownloader
@@ -226,8 +226,53 @@ class DeepSweepYoutubeBranchTest(DeepSweepYoutubeTestCase):
         deep.assert_called_once()
 
 
-if __name__ == '__main__':
-    unittest.main()
+class RefusedListingTest(DeepSweepYoutubeTestCase):
+    """A listing that did not come back must not pass for a finished channel."""
+
+    def _check_with_listing_error(self, error):
+        account = YoutubeAccount(name='@dj_a', download_type=AUDIO)
+        with (
+            mock.patch('services.downloader.youtube.youtube.list_flat', side_effect=error),
+            mock.patch.object(self.downloader.policy, 'record_snapshot') as snapshot,
+        ):
+            try:
+                self.downloader._check_account(account, {})
+            finally:
+                self.recorded_snapshot = snapshot.called
+
+    def test_a_403_on_the_listing_parks_the_source(self):
+        error = ListingFailed('https://www.youtube.com/@dj_a/videos', 'HTTP Error 403: Forbidden')
+
+        with self.assertRaises(RateLimited) as raised:
+            self._check_with_listing_error(error)
+
+        self.assertEqual('403', raised.exception.reason)
+        self.assertGreater(self.downloader.policy.rate_state.cooldown_remaining(), 0)
+
+    def test_a_refused_listing_leaves_the_channel_deep_due_and_writes_no_snapshot(self):
+        error = ListingFailed('https://www.youtube.com/@dj_a/videos', 'HTTP Error 429: Too Many Requests')
+
+        with self.assertRaises(RateLimited):
+            self._check_with_listing_error(error)
+
+        self.assertTrue(self.downloader.policy.deep_due('@dj_a'))
+        # No "0 listed / complete" in the coverage view for a channel never read.
+        self.assertFalse(self.recorded_snapshot)
+        self.assertEqual([], self.fetched)
+
+    def test_any_other_listing_failure_falls_through_to_the_ordinary_run(self):
+        # A removed channel or a missing tab: not a refusal, so nothing is parked,
+        # the channel stays deep-due, and the ordinary run -- which knows how to
+        # read a 404 or a missing tab -- still gets its turn.
+        error = ListingFailed('https://www.youtube.com/@dj_a/videos', 'Unable to extract yt initial data')
+
+        with mock.patch.object(self.downloader, 'download_account') as ordinary:
+            self._check_with_listing_error(error)
+
+        ordinary.assert_called_once()
+        self.assertTrue(self.downloader.policy.deep_due('@dj_a'))
+        self.assertEqual(0, self.downloader.policy.rate_state.cooldown_remaining())
+        self.assertFalse(self.recorded_snapshot)
 
 
 class SnapshotTest(DeepSweepYoutubeTestCase):
@@ -289,3 +334,7 @@ class SnapshotTest(DeepSweepYoutubeTestCase):
 
         self.assertEqual(1, self._snapshot('@dj_a#video').held)
         self.assertNotIn('@dj_a', self.check_store.load('youtube'))
+
+
+if __name__ == '__main__':
+    unittest.main()

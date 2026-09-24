@@ -206,19 +206,60 @@ class PruneTest(unittest.TestCase):
         db_backup.prune(self.dest, 14, self.now)
         self.assertTrue(odd.exists())
 
+    def test_the_newest_daily_survives_however_old_it_is(self):
+        """Pruning runs before the dump now; after two weeks of failures it is the only backup."""
+        older = self._touch('muma_db_20260701_030000.sql.gz')
+        newest = self._touch('muma_db_20260702_030000.sql.gz')
+        removed = db_backup.prune(self.dest, 14, self.now)
+        self.assertEqual(removed, [older])
+        self.assertTrue(newest.exists())
+
+    def test_what_a_killed_run_left_half_written_is_removed(self):
+        partials = [
+            self._touch('muma_db_20260830_030000.sql.gz.partial'),
+            self._touch('muma_db_monthly_202608.sql.gz.partial'),
+        ]
+        others = self._touch('someone-elses.sql.gz.partial')
+        db_backup.prune(self.dest, 14, self.now)
+        for path in partials:
+            self.assertFalse(path.exists(), f'{path.name} should have been removed')
+        self.assertTrue(others.exists())
+
 
 class PromoteMonthlyTest(unittest.TestCase):
     def setUp(self):
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.backup = Path(self.tmp.name) / 'muma_db_20260901_030000.sql.gz'
-        self.backup.write_bytes(b'payload')
+        self.backup = write_dump(Path(self.tmp.name) / 'muma_db_20260901_030000.sql.gz')
 
     def test_promotes_on_the_first(self):
         target = db_backup.promote_monthly(self.backup, datetime(2026, 9, 1, tzinfo=UTC))
         self.assertIsNotNone(target)
         self.assertEqual(target.name, 'muma_db_monthly_202609.sql.gz')
-        self.assertEqual(target.read_bytes(), b'payload')
+        self.assertEqual(target.read_bytes(), self.backup.read_bytes())
+
+    def test_the_copy_is_streamed_not_read_into_memory(self):
+        with patch.object(Path, 'read_bytes', side_effect=AssertionError('read the whole dump into memory')):
+            target = db_backup.promote_monthly(self.backup, datetime(2026, 9, 1, tzinfo=UTC))
+        self.assertTrue(target.exists())
+
+    def test_a_copy_that_does_not_verify_leaves_no_monthly_behind(self):
+        real_copy = db_backup.shutil.copyfileobj
+
+        def truncating_copy(source, destination, length=0):
+            real_copy(source, destination, length)
+            destination.truncate(1024)
+
+        with patch.object(db_backup.shutil, 'copyfileobj', truncating_copy):
+            with self.assertRaises(db_backup.BackupError):
+                db_backup.promote_monthly(self.backup, datetime(2026, 9, 1, tzinfo=UTC))
+        self.assertEqual(sorted(p.name for p in Path(self.tmp.name).iterdir()), [self.backup.name])
+
+    def test_a_disk_that_fills_during_the_copy_leaves_no_monthly_behind(self):
+        with patch.object(db_backup.shutil, 'copyfileobj', side_effect=OSError(28, 'No space left on device')):
+            with self.assertRaises(OSError):
+                db_backup.promote_monthly(self.backup, datetime(2026, 9, 1, tzinfo=UTC))
+        self.assertEqual(sorted(p.name for p in Path(self.tmp.name).iterdir()), [self.backup.name])
 
     def test_leaves_the_daily_in_place_so_the_series_stays_contiguous(self):
         db_backup.promote_monthly(self.backup, datetime(2026, 9, 1, tzinfo=UTC))
@@ -323,6 +364,65 @@ class RunBackupTest(unittest.TestCase):
                 db_backup.run_backup()
         self.assertEqual(list(self.dest.glob('*.sql.gz')), [])
 
+    def test_a_disk_that_fills_mid_dump_leaves_no_file_behind(self):
+        """ENOSPC is an OSError, not a BackupError, and used to leave the half-written dump in place.
+
+        On a full disk that partial file is what keeps the disk full: every later run
+        failed the same way, and nothing ever got the space back.
+        """
+
+        def disk_full(target, _creds):
+            target.write_bytes(b'x' * 4096)
+            raise OSError(28, 'No space left on device')
+
+        with patch.object(db_backup, 'dump', disk_full):
+            with self.assertRaises(OSError):
+                db_backup.run_backup()
+        self.assertEqual(sorted(p.name for p in self.dest.iterdir()), [])
+
+    def test_old_backups_are_pruned_before_the_dump_so_a_full_disk_recovers(self):
+        write_dump(self.dest / 'muma_db_20200101_030000.sql.gz')
+        write_dump(self.dest / 'muma_db_20200102_030000.sql.gz')
+        seen = {}
+
+        def dump(target, _creds):
+            seen['present'] = sorted(p.name for p in self.dest.iterdir())
+            write_dump(target)
+
+        with (
+            patch.object(db_backup, 'dump', dump),
+            patch.object(db_backup, 'row_counts', return_value={}),
+        ):
+            db_backup.run_backup()
+        self.assertEqual(seen['present'], ['muma_db_20200102_030000.sql.gz'])
+
+    def test_a_dump_is_written_under_a_temporary_name_until_it_verifies(self):
+        seen = {}
+
+        def dump(target, _creds):
+            seen['name'] = target.name
+            write_dump(target)
+
+        with (
+            patch.object(db_backup, 'dump', dump),
+            patch.object(db_backup, 'row_counts', return_value={}),
+        ):
+            db_backup.run_backup()
+        self.assertTrue(seen['name'].endswith(db_backup.SUFFIX + db_backup.PARTIAL_SUFFIX))
+        names = sorted(p.name for p in self.dest.iterdir())
+        self.assertEqual(names, [db_backup.LATEST_NAME, seen['name'][: -len(db_backup.PARTIAL_SUFFIX)]])
+
+    def test_a_dump_that_cannot_fit_is_not_started(self):
+        last = write_dump(self.dest / f'muma_db_{datetime.now(UTC) - timedelta(days=1):%Y%m%d_%H%M%S}.sql.gz')
+        dump = MagicMock()
+        full = MagicMock(free=last.stat().st_size // 2)
+        with patch.object(db_backup, 'dump', dump), patch.object(db_backup.shutil, 'disk_usage', return_value=full):
+            with self.assertRaises(db_backup.BackupError) as caught:
+                db_backup.run_backup()
+        dump.assert_not_called()
+        self.assertIn('bytes free', str(caught.exception))
+        self.assertEqual([p.name for p in self.dest.iterdir()], [last.name])
+
     def test_a_dump_that_fails_verification_is_removed(self):
         with patch.object(db_backup, 'dump', lambda target, _c: target.write_bytes(b'tiny')):
             with self.assertRaises(db_backup.BackupError):
@@ -341,6 +441,116 @@ class RunBackupTest(unittest.TestCase):
         self.assertEqual(latest['tables'], 2)
         self.assertTrue(latest['file'].startswith(db_backup.DAILY_PREFIX))
         self.assertGreater(latest['bytes'], 0)
+
+    def test_a_labelled_run_names_the_file_and_leaves_the_nightly_record_alone(self):
+        """scripts/deploy.sh takes BACKUP_LABEL=pre-deploy dumps; they must not
+        pose as the nightly backup that /health/backup and the restore check read."""
+        with (
+            patch.dict(os.environ, {'BACKUP_LABEL': 'pre-deploy'}),
+            patch.object(db_backup, 'dump', lambda target, _c: write_dump(target)),
+            patch.object(db_backup, 'row_counts') as counts,
+        ):
+            self.assertEqual(db_backup.run_backup(), 0)
+        files = list(self.dest.glob('*.sql.gz'))
+        self.assertEqual(len(files), 1)
+        self.assertTrue(files[0].name.startswith('muma_db_pre-deploy_'))
+        self.assertFalse((self.dest / db_backup.LATEST_NAME).exists())
+        counts.assert_not_called()
+
+    def test_a_labelled_dump_that_fails_verification_is_removed(self):
+        with (
+            patch.dict(os.environ, {'BACKUP_LABEL': 'pre-deploy'}),
+            patch.object(db_backup, 'dump', lambda target, _c: target.write_bytes(b'tiny')),
+        ):
+            with self.assertRaises(db_backup.BackupError):
+                db_backup.run_backup()
+        self.assertEqual(list(self.dest.glob('*.sql.gz')), [])
+
+    def test_labelled_dumps_keep_their_own_rotation(self):
+        for stamp in ['20260901_010000', '20260902_010000', '20260903_010000', '20260904_010000']:
+            (self.dest / f'muma_db_pre-deploy_{stamp}.sql.gz').write_bytes(b'x')
+        nightly = self.dest / 'muma_db_20260801_031200.sql.gz'
+        nightly.write_bytes(b'x')
+        other_label = self.dest / 'muma_db_manual_20260801_031200.sql.gz'
+        other_label.write_bytes(b'x')
+        removed = db_backup.prune_labelled(self.dest, 'pre-deploy', keep=3)
+        self.assertEqual([p.name for p in removed], ['muma_db_pre-deploy_20260901_010000.sql.gz'])
+        self.assertTrue(nightly.exists())
+        self.assertTrue(other_label.exists())
+
+    def test_the_nightly_prune_never_touches_a_labelled_dump(self):
+        labelled = self.dest / 'muma_db_pre-deploy_20200101_000000.sql.gz'
+        labelled.write_bytes(b'x')
+        db_backup.prune(self.dest, 14, datetime(2026, 9, 1, tzinfo=UTC))
+        self.assertTrue(labelled.exists())
+
+    def test_a_labelled_run_leaves_the_nightly_rotation_unpruned(self):
+        """A deploy-time dump is not the nightly job: it must not delete nightlies."""
+        old = write_dump(self.dest / 'muma_db_20200101_030000.sql.gz')
+        newest = write_dump(self.dest / 'muma_db_20200102_030000.sql.gz')
+        with (
+            patch.dict(os.environ, {'BACKUP_LABEL': 'pre-deploy'}),
+            patch.object(db_backup, 'dump', lambda target, _c: write_dump(target)),
+        ):
+            self.assertEqual(db_backup.run_backup(), 0)
+        self.assertTrue(old.exists())
+        self.assertTrue(newest.exists())
+
+    def test_a_labelled_dump_that_cannot_fit_is_not_started(self):
+        last = write_dump(self.dest / f'muma_db_{datetime.now(UTC) - timedelta(days=1):%Y%m%d_%H%M%S}.sql.gz')
+        dump = MagicMock()
+        full = MagicMock(free=last.stat().st_size // 2)
+        with (
+            patch.dict(os.environ, {'BACKUP_LABEL': 'pre-deploy'}),
+            patch.object(db_backup, 'dump', dump),
+            patch.object(db_backup.shutil, 'disk_usage', return_value=full),
+        ):
+            with self.assertRaises(db_backup.BackupError):
+                db_backup.run_backup()
+        dump.assert_not_called()
+
+    def test_the_free_space_yardstick_is_the_newest_nightly_not_a_labelled_dump(self):
+        """A labelled name sorts after every stamp, so picking by name alone would measure it."""
+        nightly = write_dump(self.dest / 'muma_db_20260901_030000.sql.gz')
+        (self.dest / 'muma_db_pre-deploy_20200101_000000.sql.gz').write_bytes(b'x')
+        tight = MagicMock(free=nightly.stat().st_size)
+        with patch.object(db_backup.shutil, 'disk_usage', return_value=tight):
+            with self.assertRaises(db_backup.BackupError):
+                db_backup.ensure_free_space(self.dest, datetime(2026, 9, 2, tzinfo=UTC))
+
+    def test_an_unusable_label_is_refused(self):
+        for label in ['monthly', '../etc', 'Pre Deploy', 'x' * 40]:
+            with patch.dict(os.environ, {'BACKUP_LABEL': label}):
+                with self.assertRaises(db_backup.BackupError):
+                    db_backup.backup_label()
+
+
+class WriteLatestTest(unittest.TestCase):
+    """latest.json is read by /health/backup and --check-stale; it must never be half a file."""
+
+    def setUp(self):
+        self.tmp = TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dest = Path(self.tmp.name)
+        self.backup = write_dump(self.dest / 'muma_db_20260831_030000.sql.gz')
+        self.now = datetime(2026, 8, 31, 3, 5, tzinfo=UTC)
+
+    def test_it_is_replaced_in_one_step_and_leaves_no_temporary_file(self):
+        with patch.object(db_backup.os, 'replace', wraps=os.replace) as replace:
+            target = db_backup.write_latest(self.dest, self.backup, self.now, self.now, {'t': 1})
+        replace.assert_called_once()
+        self.assertEqual(replace.call_args.args[1], target)
+        self.assertEqual(json.loads(target.read_text())['row_counts'], {'t': 1})
+        self.assertEqual(sorted(p.name for p in self.dest.iterdir()), [db_backup.LATEST_NAME, self.backup.name])
+
+    def test_a_failed_write_keeps_the_previous_file_intact(self):
+        db_backup.write_latest(self.dest, self.backup, self.now, self.now, {'t': 1})
+        with patch.object(Path, 'write_text', side_effect=OSError(28, 'No space left on device')):
+            with self.assertRaises(OSError):
+                db_backup.write_latest(self.dest, self.backup, self.now, self.now, {'t': 2})
+        latest = json.loads((self.dest / db_backup.LATEST_NAME).read_text())
+        self.assertEqual(latest['row_counts'], {'t': 1})
+        self.assertEqual(sorted(p.name for p in self.dest.iterdir()), [db_backup.LATEST_NAME, self.backup.name])
 
 
 if __name__ == '__main__':

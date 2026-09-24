@@ -16,18 +16,27 @@
 # re-pulling the same old manually-pushed ":latest" tag. Bullets 3-6 close
 # that gap for every image docker/docker-compose.yml actually references.
 #
+# Tags: every image is pushed as ":${VERSION}" and ":rc" -- never ":latest"
+# (nor ":stable" for lms). Those are the tags production pulls, and Watchtower
+# on the host pulls ":latest" of the downloader family the moment it changes;
+# pushed from here, a release's code could start before muma:deploy had applied
+# its migrations, or ship with no deploy at all. muma:deploy moves them, after
+# the pre-deploy backup and the migrations, in
+# scripts/ci/promote-release-images.sh. See
+# docs/bug-reports/050-deploy-starts-new-code-before-migrations.md.
+#
 #   1. music-manager  (docker/Dockerfile.music-manager, build context: repo root)
-#      -> pushed as "${DOCKER_USER}/${IMAGE_CORE}:latest" and ":${VERSION}"
-#         (matches docker/docker-compose.yml's `image: ${DOCKER_USER}/${IMAGE_CORE}:latest`).
+#      -> "${DOCKER_USER}/${IMAGE_CORE}" (docker/docker-compose.yml's
+#         `image: ${DOCKER_USER}/${IMAGE_CORE}:${IMAGE_TAG:-latest}`).
 #   2. lms / music-management-server (services/music-management-server/Dockerfile-release,
 #      build context: repo root)
-#      -> pushed as "${IMAGE_NAME}:latest", ":stable" and ":${LMS_VERSION}"
-#         (matches services/music-management-server/docker-compose.yml's
-#         `image: ${IMAGE_NAME}:${LMS_TAG}` - both "latest" and "stable" are
-#         pushed so this works regardless of which one LMS_TAG is set to).
+#      -> "${IMAGE_NAME}", also as ":${LMS_VERSION}" (the C++ project's own
+#         version, which does not move every release -- hence ":${VERSION}" as
+#         the tag promotion copies from). Production pulls `${IMAGE_NAME}:${LMS_TAG}`,
+#         and promotion moves both ":latest" and ":stable", so either value works.
 #   3. muma-base (docker/Dockerfile.base) - common base image for 4-6 below.
 #      Not referenced directly by docker-compose.yml, but must be rebuilt
-#      first and pushed so the FROM ${DOCKER_USER}/muma-base:latest in the
+#      first and pushed so the FROM ${DOCKER_USER}/muma-base:${VERSION} in the
 #      Dockerfiles below actually picks up the current requirements.txt/code.
 #   4. muma-downloader (docker/Dockerfile.downloader) -> "${DOCKER_USER}/${IMAGE_DOWNLOADER}"
 #      (soundcloud/youtube/generic downloader workers).
@@ -112,8 +121,28 @@ cleanup_throwaway_images() {
     docker images --filter "reference=${THROWAWAY_NS}/*" --format '{{.Repository}}:{{.Tag}}' \
         | xargs -r docker rmi 2>/dev/null || true
 }
-trap cleanup_throwaway_images EXIT
 
+# shellcheck source=scripts/ci/docker-hub-session.sh
+. "$SCRIPT_DIR/docker-hub-session.sh"
+
+# The prod .env files are materialized here, outside the checkout: the repo root
+# is the build context of every image below, and .dockerignore is the only
+# other thing keeping a .env in the checkout out of an image.
+ENV_DIR="$(mktemp -d)"
+chmod 700 "$ENV_DIR"
+ROOT_ENV_FILE="$ENV_DIR/music-management.env"
+LMS_ENV_FILE="$ENV_DIR/lms.env"
+
+# cleanup_on_exit: everything this script leaves behind -- throwaway images,
+# the Docker Hub session and the materialized env files.
+cleanup_on_exit() {
+    cleanup_throwaway_images
+    docker_hub_logout
+    rm -rf "$ENV_DIR"
+}
+trap cleanup_on_exit EXIT
+
+# docker_push IMAGE: push IMAGE, or only say so when PUSH_IMAGES=false.
 docker_push() {
     if [ "$PUSH_IMAGES" != "true" ]; then
         echo "    (PUSH_IMAGES=false, not pushing $1)"
@@ -131,14 +160,19 @@ fi
 # muma:deploy uses, so IMAGE_CORE/DOCKER_USER/IMAGE_NAME/LMS_TAG match exactly
 # what production will pull (jobs don't share a filesystem, so this has to be
 # redone here rather than relying on what ci-deploy.sh writes in a later job).
+# write_env_file VALUE DEST: write a file-type CI/CD variable (a path) or a
+# plain one (the content itself) to DEST, readable by the owner only.
 write_env_file() {
     local var_value="$1"
     local dest="$2"
-    if [ -f "${var_value}" ]; then
-        cp "${var_value}" "$dest"
-    else
-        printf '%s\n' "${var_value}" > "$dest"
-    fi
+    (
+        umask 077
+        if [ -f "${var_value}" ]; then
+            cp "${var_value}" "$dest"
+        else
+            printf '%s\n' "${var_value}" > "$dest"
+        fi
+    )
 }
 
 if [ "$PUSH_IMAGES" = "true" ]; then
@@ -146,16 +180,15 @@ if [ "$PUSH_IMAGES" = "true" ]; then
         echo "Error: PROD_ENV_FILE CI/CD variable is not set. See docs/deployment.md."
         exit 1
     fi
-    write_env_file "${PROD_ENV_FILE}" "$PROJECT_ROOT/.env"
+    write_env_file "${PROD_ENV_FILE}" "$ROOT_ENV_FILE"
 
     if [ -z "${PROD_ENV_FILE_LMS}" ]; then
         echo "Error: PROD_ENV_FILE_LMS CI/CD variable is not set. See docs/deployment.md."
         exit 1
     fi
-    write_env_file "${PROD_ENV_FILE_LMS}" "$PROJECT_ROOT/services/music-management-server/.env"
+    write_env_file "${PROD_ENV_FILE_LMS}" "$LMS_ENV_FILE"
 
-    echo "--- Logging in to Docker Hub as ${DOCKERHUB_USERNAME} ---"
-    echo "${DOCKERHUB_TOKEN}" | docker login --username "${DOCKERHUB_USERNAME}" --password-stdin
+    docker_hub_login
 else
     # No push means no production secrets: a merge-request pipeline must not
     # need PROD_ENV_FILE at all. The image *names* are the only thing those
@@ -163,24 +196,27 @@ else
     # throwaway name. Written rather than skipped because the script sources
     # both files under `set -e`.
     #
-    # Only ever written when absent. In CI they always are (.env is gitignored,
-    # so a fresh checkout has none), but this script is runnable by hand, and
-    # overwriting a developer's real .env with placeholders would be a nasty
-    # way to find that out.
+    # A developer's own .env in the checkout is still honoured when this is run
+    # by hand -- read, never overwritten. In CI there is none (.env is
+    # gitignored), so the placeholders apply.
     echo "--- PUSH_IMAGES=false: building under ${THROWAWAY_NS}/, no Docker Hub login ---"
-    if [ ! -f "$PROJECT_ROOT/.env" ]; then
-        printf 'DOCKER_USER=%s\nIMAGE_CORE=music-manager\n' "$THROWAWAY_NS" > "$PROJECT_ROOT/.env"
+    if [ -f "$PROJECT_ROOT/.env" ]; then
+        ROOT_ENV_FILE="$PROJECT_ROOT/.env"
+    else
+        printf 'DOCKER_USER=%s\nIMAGE_CORE=music-manager\n' "$THROWAWAY_NS" > "$ROOT_ENV_FILE"
     fi
-    if [ ! -f "$PROJECT_ROOT/services/music-management-server/.env" ]; then
-        printf 'IMAGE_NAME=%s/lms\n' "$THROWAWAY_NS" > "$PROJECT_ROOT/services/music-management-server/.env"
+    if [ -f "$PROJECT_ROOT/services/music-management-server/.env" ]; then
+        LMS_ENV_FILE="$PROJECT_ROOT/services/music-management-server/.env"
+    else
+        printf 'IMAGE_NAME=%s/lms\n' "$THROWAWAY_NS" > "$LMS_ENV_FILE"
     fi
 fi
 
 VERSION=$(cat VERSION 2>/dev/null || echo "latest")
 
 # 1. Build + push music-manager -----------------------------------------------
-# shellcheck disable=SC1091
-set -a; source "$PROJECT_ROOT/.env"; set +a
+# shellcheck disable=SC1090,SC1091
+set -a; source "$ROOT_ENV_FILE"; set +a
 DOCKER_USER="${DOCKER_USER:-$DOCKERHUB_USERNAME}"
 IMAGE_CORE="${IMAGE_CORE:-music-manager}"
 scope_image_names
@@ -189,17 +225,17 @@ echo "--- Building music-manager image (${DOCKER_USER}/${IMAGE_CORE}:${VERSION})
 docker build \
     --build-arg DOCKER_USER="${DOCKER_USER}" \
     --build-arg VERSION="${VERSION}" \
-    -t "${DOCKER_USER}/${IMAGE_CORE}:latest" \
+    -t "${DOCKER_USER}/${IMAGE_CORE}:rc" \
     -t "${DOCKER_USER}/${IMAGE_CORE}:${VERSION}" \
     -f docker/Dockerfile.music-manager .
 
 echo "--- Pushing music-manager image ---"
-docker_push "${DOCKER_USER}/${IMAGE_CORE}:latest"
+docker_push "${DOCKER_USER}/${IMAGE_CORE}:rc"
 docker_push "${DOCKER_USER}/${IMAGE_CORE}:${VERSION}"
 
 # 2. Build + push lms (music-management-server) -------------------------------
-# shellcheck disable=SC1091
-set -a; source "$PROJECT_ROOT/services/music-management-server/.env"; set +a
+# shellcheck disable=SC1090,SC1091
+set -a; source "$LMS_ENV_FILE"; set +a
 scope_image_names
 if [ -z "${IMAGE_NAME}" ]; then
     echo "Error: IMAGE_NAME is not set in PROD_ENV_FILE_LMS."
@@ -210,21 +246,21 @@ LMS_VERSION=$(grep "project(lms VERSION" services/music-management-server/CMakeL
 echo "--- Building lms image (${IMAGE_NAME}:${LMS_VERSION}) ---"
 docker build \
     --build-arg VITE_GOOGLE_CLIENT_ID="${VITE_GOOGLE_CLIENT_ID}" \
-    -t "${IMAGE_NAME}:latest" \
-    -t "${IMAGE_NAME}:stable" \
+    -t "${IMAGE_NAME}:rc" \
+    -t "${IMAGE_NAME}:${VERSION}" \
     -t "${IMAGE_NAME}:${LMS_VERSION}" \
     -f services/music-management-server/Dockerfile-release .
 
 echo "--- Pushing lms image ---"
-docker_push "${IMAGE_NAME}:latest"
-docker_push "${IMAGE_NAME}:stable"
+docker_push "${IMAGE_NAME}:rc"
+docker_push "${IMAGE_NAME}:${VERSION}"
 docker_push "${IMAGE_NAME}:${LMS_VERSION}"
 
 # 3. Build + push muma-base ----------------------------------------------------
 # (re-source root .env: sourcing PROD_ENV_FILE_LMS above may have shadowed
 # some of its variables since both files are sourced into the same shell)
-# shellcheck disable=SC1091
-set -a; source "$PROJECT_ROOT/.env"; set +a
+# shellcheck disable=SC1090,SC1091
+set -a; source "$ROOT_ENV_FILE"; set +a
 DOCKER_USER="${DOCKER_USER:-$DOCKERHUB_USERNAME}"
 IMAGE_BASE="${IMAGE_BASE:-muma-base}"
 IMAGE_DOWNLOADER="${IMAGE_DOWNLOADER:-muma-downloader}"
@@ -235,12 +271,12 @@ scope_image_names
 
 echo "--- Building muma-base image (${DOCKER_USER}/${IMAGE_BASE}:${VERSION}) ---"
 docker build \
-    -t "${DOCKER_USER}/${IMAGE_BASE}:latest" \
+    -t "${DOCKER_USER}/${IMAGE_BASE}:rc" \
     -t "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}" \
     -f docker/Dockerfile.base .
 
 echo "--- Pushing muma-base image ---"
-docker_push "${DOCKER_USER}/${IMAGE_BASE}:latest"
+docker_push "${DOCKER_USER}/${IMAGE_BASE}:rc"
 docker_push "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}"
 
 # 4. Build + push muma-downloader ----------------------------------------------
@@ -248,12 +284,12 @@ echo "--- Building muma-downloader image (${DOCKER_USER}/${IMAGE_DOWNLOADER}:${V
 docker build \
     --build-arg DOCKER_USER="${DOCKER_USER}" \
     --build-arg VERSION="${VERSION}" \
-    -t "${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest" \
+    -t "${DOCKER_USER}/${IMAGE_DOWNLOADER}:rc" \
     -t "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}" \
     -f docker/Dockerfile.downloader .
 
 echo "--- Pushing muma-downloader image ---"
-docker_push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest"
+docker_push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:rc"
 docker_push "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}"
 
 # 5. Build + push muma-telegram -------------------------------------------------
@@ -261,12 +297,12 @@ echo "--- Building muma-telegram image (${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSI
 docker build \
     --build-arg DOCKER_USER="${DOCKER_USER}" \
     --build-arg VERSION="${VERSION}" \
-    -t "${DOCKER_USER}/${IMAGE_TELEGRAM}:latest" \
+    -t "${DOCKER_USER}/${IMAGE_TELEGRAM}:rc" \
     -t "${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSION}" \
     -f docker/Dockerfile.telegram .
 
 echo "--- Pushing muma-telegram image ---"
-docker_push "${DOCKER_USER}/${IMAGE_TELEGRAM}:latest"
+docker_push "${DOCKER_USER}/${IMAGE_TELEGRAM}:rc"
 docker_push "${DOCKER_USER}/${IMAGE_TELEGRAM}:${VERSION}"
 
 # 6. Build + push muma-importer -------------------------------------------------
@@ -274,38 +310,38 @@ echo "--- Building muma-importer image (${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSI
 docker build \
     --build-arg DOCKER_USER="${DOCKER_USER}" \
     --build-arg VERSION="${VERSION}" \
-    -t "${DOCKER_USER}/${IMAGE_IMPORTER}:latest" \
+    -t "${DOCKER_USER}/${IMAGE_IMPORTER}:rc" \
     -t "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}" \
     -f docker/Dockerfile.importer .
 
 echo "--- Pushing muma-importer image ---"
-docker_push "${DOCKER_USER}/${IMAGE_IMPORTER}:latest"
+docker_push "${DOCKER_USER}/${IMAGE_IMPORTER}:rc"
 docker_push "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}"
 
 # 7. Build + push muma-tools ----------------------------------------------------
 echo "--- Building muma-tools image (${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}) ---"
 docker build \
-    -t "${DOCKER_USER}/${IMAGE_TOOLS}:latest" \
+    -t "${DOCKER_USER}/${IMAGE_TOOLS}:rc" \
     -t "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}" \
     -f docker/Dockerfile.tools .
 
 echo "--- Pushing muma-tools image ---"
-docker_push "${DOCKER_USER}/${IMAGE_TOOLS}:latest"
+docker_push "${DOCKER_USER}/${IMAGE_TOOLS}:rc"
 docker_push "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}"
 
 # In no-push mode, untag the per-version aliases before exiting. Every tag
-# above points at the same image id as its :latest sibling, so this removes
+# above points at the same image id as its :rc sibling, so this removes
 # no layers and costs the next build nothing -- but without it every
 # merge-request run of muma:images left a :${VERSION} tag behind, and
 # each release bump orphaned the previous version's set on the runner's disk.
-# The :latest tags stay: they are overwritten in place on the next run and are
+# The :rc tags stay: they are overwritten in place on the next run and are
 # what keeps the build cache warm. (The runner LXC has filled up before; see
 # the ops notes on per-pipeline image accumulation.)
 if [ "$PUSH_IMAGES" != "true" ] && [ "$VERSION" != "latest" ]; then
     echo "--- PUSH_IMAGES=false: untagging per-version aliases ---"
     docker rmi \
         "${DOCKER_USER}/${IMAGE_CORE}:${VERSION}" \
-        "${IMAGE_NAME}:stable" \
+        "${IMAGE_NAME}:${VERSION}" \
         "${IMAGE_NAME}:${LMS_VERSION}" \
         "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}" \
         "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${VERSION}" \

@@ -13,6 +13,8 @@ from services.music_manager.feeds.hardness import DEFAULT_BAND_EDGES
 
 @dataclass(frozen=True)
 class FeedPolicy:
+    """The knobs of one feed: its size, time windows and scoring weights."""
+
     slug: str
     size: int = 30
     profile_window_days: int = 90

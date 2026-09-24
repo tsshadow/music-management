@@ -124,6 +124,30 @@ all). Cleans up the same dependent rows as the unapprove flow, refuses to delete
 account**, and returns a clear `Verwijderen mislukt: ...` message instead of a bare `500` on unexpected
 failures.
 
+## The LMS `/muma` bridge (`MumaResource`)
+
+LMS answers a handful of `/muma` routes itself -- media libraries, Subsonic tokens
+(`/muma/api/admin/...`), the artist image and native artist lookup, track refresh, and
+`/muma/users/...` -- and proxies any other `/muma/api/...` call that reaches it to MuMa (nginx sends
+most of those to MuMa directly). Its authentication, in
+`services/music-management-server/src/libs/muma/Authentication.cpp`:
+
+- A key (`X-API-Key`, else `?apiKey=`) counts only if it equals LMS's own `api-key` or MuMa
+  confirms it via `GET /api/auth/verify`. MuMa's positive answers are cached for 60 s;
+  `/muma/users/sync` clears the cache. When MuMa cannot be asked the answer is `503`, not `401`.
+- Otherwise a Subsonic `u`/`p` pair is checked through the password service.
+- The caller is whoever the verified credential names -- the password service's user, or the user in
+  MuMa's verify answer. The `u` parameter never names the caller when a key was used.
+- Media libraries and Subsonic tokens need a verified admin **user**; a system key (LMS's `api-key`
+  or MuMa's) authenticates but is nobody. `/muma/users/sync` takes a system key or an admin.
+  `/muma/users/{id}/settings/{app}` takes the user whose MuMa id is `id`, or an admin.
+- The proxy forwards the caller's own verified key and nothing else; a `u`/`p` caller reaches MuMa
+  without a key. The configured MuMa system key is used only for LMS's own calls on behalf of an
+  already-verified caller (artist image, track refresh, settings).
+
+Bug report [037](bug-reports/037-lms-any-key-is-admin.md) describes what this replaced: any
+non-empty key was accepted and the caller was taken from `u`.
+
 ## Gaps / things to consider
 
 Answering "mis ik hier nog dingen?" (things not covered above and not implemented in this pass):
@@ -141,7 +165,8 @@ Answering "mis ik hier nog dingen?" (things not covered above and not implemente
   calls it to validate the password on *every* Subsonic request, so anything counted there is counted
   per library page view, not per login.
 - **No self-service password reset / email verification.** Password changes currently require either an
-  admin (`users.update`) or the user's own existing session (`POST /{id}/password`); there is no
+  admin (the admin role; any admin's password needs one too) or the user's own session plus their current
+  password (`POST /{id}/password` with `current_password`); there is no
   "forgot password" email flow, and a Google-account's `email` is trusted as-is from the ID token without a
   separate verification step (Google already verifies it, so this is arguably fine, but worth noting).
 - **Auto-generated usernames can theoretically collide** (`google-<subject_prefix>` is only the first 12

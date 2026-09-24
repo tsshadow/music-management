@@ -18,7 +18,7 @@ services:
   test-db:
     security_opt:
       - no-new-privileges:true
-    image: mariadb:12.3
+    image: mariadb:13.0
     # Same pin as the production compose files: without it CI runs on MariaDB
     # 12's utf8mb4_uca1400_ai_ci default while production runs
     # utf8mb4_general_ci, so a collation mismatch would pass here and fail there.

@@ -35,7 +35,7 @@ namespace lms::db
 {
     namespace
     {
-        static constexpr Version LMS_DATABASE_VERSION{ 120 };
+        static constexpr Version LMS_DATABASE_VERSION{ 121 };
     }
 
     VersionInfo::VersionInfo()
@@ -1986,6 +1986,28 @@ SET extra_tags_to_scan = CASE
     audio_scan_version = audio_scan_version + 1
 WHERE (';' || COALESCE(extra_tags_to_scan, '') || ';') NOT LIKE '%;FESTIVAL;%')");
         }
+
+        void migrateFromV120(Session& session)
+        {
+            // An auth token is looked up by (domain, value) alone and expected to be unique, yet
+            // only a plain index sat on those columns. Two users with the same Subsonic token
+            // made every lookup of it throw NoUniqueResult -- a 500 for both of them. The index
+            // becomes unique here, after the duplicates it would refuse are removed:
+            //
+            // - a value shared by different users is removed for all of them. Keeping one would
+            //   hand that user the other's key, or the other user this one's; neither may keep
+            //   a key someone else also holds, so both re-issue theirs.
+            // - a value repeated for the same user is harmless: the oldest row is kept.
+            utils::executeCommand(*session.getDboSession(), R"(
+DELETE FROM auth_token
+WHERE (domain, value) IN (
+    SELECT domain, value FROM auth_token GROUP BY domain, value HAVING COUNT(DISTINCT COALESCE(user_id, -1)) > 1))");
+            utils::executeCommand(*session.getDboSession(), R"(
+DELETE FROM auth_token
+WHERE id NOT IN (SELECT MIN(id) FROM auth_token GROUP BY domain, value))");
+            utils::executeCommand(*session.getDboSession(), "DROP INDEX IF EXISTS auth_token_domain_value_idx");
+            utils::executeCommand(*session.getDboSession(), "CREATE UNIQUE INDEX IF NOT EXISTS auth_token_domain_value_unique_idx ON auth_token(domain, value)");
+        }
     } // namespace
 
     bool doDbMigration(Session& session)
@@ -2084,6 +2106,7 @@ WHERE (';' || COALESCE(extra_tags_to_scan, '') || ';') NOT LIKE '%;FESTIVAL;%')"
             { 117, migrateFromV117 },
             { 118, migrateFromV118 },
             { 119, migrateFromV119 },
+            { 120, migrateFromV120 },
         };
 
         bool migrationPerformed{};

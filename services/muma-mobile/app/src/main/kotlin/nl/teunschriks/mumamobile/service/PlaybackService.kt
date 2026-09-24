@@ -33,6 +33,7 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import java.util.Random
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
@@ -78,6 +79,10 @@ class PlaybackService :
 
     private var isStarted = false
 
+    // Set by the first shutdown(), so the second path in (the Rx shutdown command, then the
+    // system's own onDestroy after stopSelf) does not release the player and session twice.
+    private var isShutDown = false
+
     override fun onCreate() {
         Timber.i("onCreate called")
         super.onCreate()
@@ -90,8 +95,7 @@ class PlaybackService :
 
     override fun onDestroy() {
         Timber.i("onDestroy called")
-        SessionMarker.markSessionEndedCleanly()
-        releasePlayerAndSession()
+        shutdown()
         super.onDestroy()
     }
 
@@ -108,26 +112,56 @@ class PlaybackService :
     /** Same, for a running news bulletin. */
     val isNewsPlaying: Boolean get() = librarySessionCallback.isNewsPlaying
 
+    /**
+     * Swiping the app out of the recents list only stops the service when nothing is playing.
+     * Music that is playing keeps playing from the foreground service and its notification --
+     * this used to release the player unconditionally, so a swipe silenced the music.
+     */
     override fun onTaskRemoved(rootIntent: Intent?) {
-        Timber.i("Stopping the playback because we were swiped away")
-        releasePlayerAndSession()
+        if (!isShutDown && !PlaybackServiceRules.shouldStopOnTaskRemoved(player.playWhenReady, player.mediaItemCount)) {
+            Timber.i("Swiped away while playing, the service keeps playing")
+            return
+        }
+        Timber.i("Swiped away with nothing playing, stopping the service")
+        shutdown()
         super.onTaskRemoved(rootIntent)
     }
 
-    private fun releasePlayerAndSession() {
+    /**
+     * Releases everything this service owns, exactly once, whichever path gets here first: the
+     * system's [onDestroy], a swipe-away with nothing playing, or the app's Rx shutdown command.
+     * Releasing twice used to hit `player.release()` and `super.onDestroy()` a second time.
+     */
+    private fun shutdown() {
+        if (isShutDown) return
+        isShutDown = true
         Timber.i("Releasing player and session")
+        SessionMarker.markSessionEndedCleanly()
         // Broadcast that the service is being shutdown
         RxBus.stopServiceCommandPublisher.onNext(Unit)
 
+        // Before the player goes: the radio loop and the callback's coroutines call into it.
+        if (::librarySessionCallback.isInitialized) librarySessionCallback.release()
+
         // TODO Save the player state before shutdown
-        player.removeListener(listener)
-        player.release()
-        mediaLibrarySession.release()
+        if (::player.isInitialized) {
+            player.removeListener(listener)
+            releaseEqualizer()
+            player.release()
+        }
+        if (::mediaLibrarySession.isInitialized) mediaLibrarySession.release()
         rxBusSubscription.dispose()
+        cancel()
         isStarted = false
         stopForegroundRemoveNotification()
         stopSelf()
         instance = null
+    }
+
+    /** Releases the audio effect bound to the current local player's audio session, if any. */
+    private fun releaseEqualizer() {
+        equalizer?.let { EqualizerController.release(it) }
+        equalizer = null
     }
 
     private val resolver: ResolvingDataSource.Resolver = ResolvingDataSource.Resolver {
@@ -145,13 +179,18 @@ class PlaybackService :
                 )
                 .build()
         }
-        val components = it.uri.toString().split('|')
-        val id = components[0]
-        val bitrate = components[1].toInt()
-        val uri = getMusicService().getStreamUrl(id, bitrate, null)!!
-        // AirSonic doesn't seem to stream correctly with the default
-        // icy-metadata headers set by media3, so remove them.
-        it.buildUpon().setUri(uri).setHttpRequestHeaders(emptyMap()).build()
+        when (val target = PlaybackServiceRules.streamTargetOf(it.uri.toString())) {
+            // Radio hands the player a finished, authenticated stream URL (transcoded, with the
+            // offset baked in), so there is nothing to resolve -- splitting it on '|' as if it
+            // were an "id|bitrate" item threw, and the channel never started.
+            PlaybackServiceRules.StreamTarget.Direct -> it
+            is PlaybackServiceRules.StreamTarget.Track -> {
+                val uri = getMusicService().getStreamUrl(target.id, target.bitrate, null)!!
+                // AirSonic doesn't seem to stream correctly with the default
+                // icy-metadata headers set by media3, so remove them.
+                it.buildUpon().setUri(uri).setHttpRequestHeaders(emptyMap()).build()
+            }
+        }
     }
 
     private fun initializeSessionAndPlayer() {
@@ -220,7 +259,7 @@ class PlaybackService :
         // Listen to the shutdown command
         rxBusSubscription += RxBus.shutdownCommandObservable.subscribe {
             Timber.i("Received destroy command via Rx")
-            onDestroy()
+            shutdown()
         }
 
         player.addListener(listener)
@@ -231,6 +270,8 @@ class PlaybackService :
         Timber.i("Switching player backends")
         // Remove old listeners
         player.removeListener(listener)
+        // The effect is bound to the old player's audio session; the new local player makes its own.
+        releaseEqualizer()
         player.release()
 
         player = createNewBackend(newBackend)

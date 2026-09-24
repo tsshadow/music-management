@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
 from services.common.Helpers import Quarantine as quarantine_module
-from services.importer import renamer
+from services.importer import renamer, settle
 from services.importer.renamer import Renamer, find_cat_id, has_numbers, is_parsed
 
 
@@ -35,6 +35,8 @@ class FolderNameHelpersTest(unittest.TestCase):
 
 class RenamerTest(unittest.TestCase):
     def setUp(self):
+        # Folders made a moment ago count as settled here; the guard has tests of its own.
+        self.enterContext(patch.object(settle, 'settle_seconds', return_value=0))
         settings = MagicMock(import_folder_path='/import', delimiter='/')
         patcher = patch.object(renamer, 'Settings', return_value=settings)
         patcher.start()
@@ -97,6 +99,8 @@ class RenamerCollisionTest(unittest.TestCase):
     RENAMED = 'SCAN123 - Some Release (SCAN123)'
 
     def setUp(self):
+        # Folders made a moment ago count as settled here; the guard has tests of its own.
+        self.enterContext(patch.object(settle, 'settle_seconds', return_value=0))
         self.tmp = self.enterContext(TemporaryDirectory())
         # A real quarantine root, because a collision no longer deletes the duplicate --
         # it moves it. Without somewhere to move it to, the renamer leaves the folder

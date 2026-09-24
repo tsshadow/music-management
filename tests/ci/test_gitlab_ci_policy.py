@@ -192,7 +192,8 @@ JOB_SCOPES = COMPONENT_SCOPES | {
 # beyond them is component-specific and lives in EXTRA_VERBS.
 CORE_VERBS = {"format", "lint", "unit"}
 EXTRA_VERBS = {
-    "backend": {"typecheck", "integration"},
+    # typecheck-all is the whole tree at the loose floor; typecheck is the strict list.
+    "backend": {"typecheck", "typecheck-all", "integration"},
     # `bundle` produces services/frontend/dist as an artifact for the Android build, which
     # runs in an image without Node. It is a frontend job because it is the frontend's own
     # toolchain that builds it; it is not a check, which is why it needs a verb of its own.
@@ -629,11 +630,11 @@ PYTHON_UNIT_SOURCES = [
     "services/importer/",
     "services/ml-analyzer/",
     "services/music_manager/",
-    "services/other/",
     "services/scanner/",
     "services/tagger/",
     "services/tests/",
     "tests/ci/",
+    "tests/unit/",
     "tools/",
 ]
 
@@ -813,3 +814,118 @@ def test_the_back_merge_no_longer_deletes_branches():
     `exit 0`, is how this got confusing in the first place."""
     script = (REPO_ROOT / "scripts" / "ci" / "back-merge-develop.sh").read_text(encoding="utf-8")
     assert "repository/branches/" not in script
+
+
+# --- Deploy order and the CI Python (bug report 050) -------------------------
+
+
+def test_latest_is_only_moved_by_the_deploy():
+    """release:build-images used to push :latest before muma:deploy had
+    migrated anything, so Watchtower could start a release's code early -- or
+    without any deploy, when muma:deploy was skipped. :latest now moves inside
+    muma:deploy, after the backup and the migrations."""
+    build = (REPO_ROOT / "scripts" / "ci" / "build-and-push-images.sh").read_text(encoding="utf-8")
+    pushes = [line.strip() for line in build.splitlines() if line.strip().startswith("docker_push")]
+    assert pushes, "the release build must still push"
+    offenders = [line for line in pushes if ':latest"' in line or ':stable"' in line]
+    assert offenders == [], f"release:build-images must not push production's tags: {offenders}"
+
+    ci_deploy = (REPO_ROOT / "scripts" / "ci-deploy.sh").read_text(encoding="utf-8")
+    assert "promote-release-images.sh" in ci_deploy
+    ci = load_ci()
+    assert "./scripts/ci-deploy.sh" in ci["muma:deploy"]["script"]
+
+
+def test_deploy_timeout_leaves_room_for_the_pre_deploy_dump():
+    ci = load_ci()
+    timeout = ci["muma:deploy"]["timeout"]
+    assert timeout.endswith("m") and int(timeout[:-1]) >= 45, timeout
+
+
+def test_backend_test_jobs_rerun_when_their_environment_changes():
+    """Both suites run in docker/Dockerfile.python-ci with requirements.txt
+    installed; a change to either changes what the tests run on."""
+    ci = load_ci()
+    for name in ("backend:unit", "backend:integration"):
+        globs = _changes_globs(ci, name)
+        for path in ("requirements.txt", "docker/Dockerfile.python-ci"):
+            assert _is_covered(path, globs), f"{name} is not triggered by {path}"
+
+
+def _python_base(dockerfile: str) -> str:
+    """The python:* image a Dockerfile's last stage is built FROM."""
+    froms = re.findall(r"^FROM\s+(python:\S+)", (REPO_ROOT / dockerfile).read_text(encoding="utf-8"), re.M)
+    assert froms, f"{dockerfile} is not built FROM python:*"
+    return froms[-1].split("-slim")[0]
+
+
+def test_ci_python_is_the_python_the_images_run():
+    """backend:unit ran on the runner's system python3 -- 3.11 on the LXC --
+    while every image runs 3.14. The CI image and the images must agree."""
+    ci_python = _python_base("docker/Dockerfile.python-ci")
+    for image in ("docker/Dockerfile.music-manager", "docker/Dockerfile.base", "docker/Dockerfile.tools"):
+        assert _python_base(image) == ci_python, f"{image} and docker/Dockerfile.python-ci disagree"
+    tooling = (REPO_ROOT / "scripts" / "lib" / "python-tooling.sh").read_text(encoding="utf-8")
+    assert f"${{PYTHON_TOOLING_IMAGE:-{ci_python}-slim}}" in tooling
+
+
+def test_backend_suites_run_in_the_container_in_ci():
+    for script in ("scripts/test/music-management-unit.sh", "scripts/test/db-integration.sh"):
+        text = (REPO_ROOT / script).read_text(encoding="utf-8")
+        assert "tooling_container_required" in text, script
+        assert "tooling_use_ci_image" in text, script
+        assert 'TOOLING_REQUIREMENTS="requirements.txt"' in text, script
+    for script in ("scripts/lint.sh", "scripts/typecheck.sh", "scripts/format.sh"):
+        assert "tooling_container_required" in (REPO_ROOT / script).read_text(encoding="utf-8"), script
+
+
+# --- Honest gates (docs/bug-reports/047) --------------------------------------
+
+
+def test_the_loose_type_floor_is_checked_somewhere():
+    """backend:typecheck runs the strict list only, so the floor the whole tree is
+    held to ran nowhere -- and could not have started, since tools/ was "found twice
+    under different module names". The job may be orange while the backlog is
+    worked down (docs/open-work.md); it may not disappear."""
+    ci = load_ci()
+    job = ci["backend:typecheck-all"]
+    assert job["script"] == ["./scripts/typecheck.sh --all"]
+    assert job["stage"] == "quality"
+    globs = _changes_globs(ci, "backend:typecheck-all")
+    assert "tools/**/*.py" in globs and "services/**/*.py" in globs
+    script = (REPO_ROOT / "scripts" / "typecheck.sh").read_text(encoding="utf-8")
+    assert "--explicit-package-bases services/ tools/" in script
+
+
+def test_integration_job_runs_for_every_file_that_declares_a_table():
+    """tests/integration/test_schema_drift.py builds the schema from every file with a
+    CREATE TABLE; a change to one of them has to run that test."""
+    from tests.integration import schema_sources
+
+    ci = load_ci()
+    globs = _changes_globs(ci, "backend:integration")
+    declaring = sorted({path for paths in schema_sources.code_declared_tables().values() for path in paths})
+    assert declaring, "no CREATE TABLE found; the extraction in schema_sources broke"
+    missing = [path for path in declaring if not any(_matches_file(glob, path) for glob in globs)]
+    assert missing == [], f"these declare tables but do not trigger backend:integration: {missing}"
+
+
+def test_db_integration_runs_the_mariadb_production_runs():
+    """db-integration.sh ran mariadb:10.6 for months after compose.test.yml (and
+    production) moved on, so every query was proven against a server nothing ran."""
+    script = (REPO_ROOT / "scripts" / "test" / "db-integration.sh").read_text(encoding="utf-8")
+    compose = (REPO_ROOT / "docker" / "compose.test.yml").read_text(encoding="utf-8")
+    default = re.search(r'MARIADB_VERSION="\$\{MARIADB_VERSION:-([^}]+)\}"', script)
+    assert default, "db-integration.sh no longer takes MARIADB_VERSION"
+    assert f"image: mariadb:{default.group(1)}" in compose
+
+
+def test_unit_coverage_is_measured_on_source_only():
+    """With --cov=services and no omit list the ~220 test files under services/ counted
+    as covered source, and tools/ -- whose tests run -- was not measured at all."""
+    import tomllib
+
+    script = (REPO_ROOT / "scripts" / "test" / "music-management-unit.sh").read_text(encoding="utf-8")
+    assert "--cov=services" in script and "--cov=tools" in script
+    coverage = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["coverage"]["run"]
+    assert {"*Test.py", "*/tests/*", "*/test_*.py", "*/conftest.py"} <= set(coverage["omit"])

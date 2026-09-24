@@ -6,7 +6,9 @@
 # (services/muma-mobile/scripts/build.sh + publish.sh + deploy.sh, run by hand).
 #
 # Required CI/CD variables (see docs/deployment.md):
-#   - APK_HOSTER_URL, APK_HOSTER_PASSWORD: always required.
+#   - APK_HOSTER_URL, APK_HOSTER_PASSWORD: always required. The password is read only by
+#     scripts/deploy.sh for the upload; app/build.gradle no longer compiles it into the APK
+#     (bug report 037), so it must never be added back as a BuildConfig field.
 #   - SIGNING_STORE_FILE (file-type variable with the keystore),
 #     SIGNING_STORE_PASSWORD, SIGNING_KEY_ALIAS, SIGNING_KEY_PASSWORD:
 #     only required for "release" builds (debug builds are unsigned/dev-signed).

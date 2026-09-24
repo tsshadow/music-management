@@ -11,6 +11,145 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.72.2 (2026-09-24)
+
+- **Artist portraits:** a long portrait run no longer stops finding anything after an hour, a
+  portrait you remove stays removed, and a temporary download error no longer hides an artist for
+  a month.
+- **Settings:** values from the environment are no longer frozen into the settings file, secrets are
+  no longer echoed back after saving, and the database settings are shown read-only.
+- **Radio:** a down LMS no longer sends an alert every five seconds.
+
+- **`POST /api/config` echoed secrets in the clear.** The response carried the real value of every
+  posted key; it now carries the masked value the GET shows. API consumers that read the response
+  body receive the sentinel for secrets (the web config page reloads the fields and is unaffected).
+
+- **Background jobs (tagging, scanning, radio, news, feeds) now survive a database restart**
+  instead of stopping until the next deploy, and the health check notices when one of them stalls.
+- **The health check tells the truth about the database** and always answers within seconds.
+- **Alerts reach the phone immediately during a database outage.**
+
+- **Every user route existed twice.** The users router was mounted at `/api/users` and again at
+  `/api` (to reach `/api/auth/*`), so `DELETE /api/{user_id}` and every other user route answered under the
+  bare prefix too. The session endpoints (`/api/auth/*`) and `GET /api/roles`, which the web
+  player's Beheer page calls there, are now a router of their own at `/api`; everything else is under
+  `/api/users` only. No client used the duplicates. `/api/users/auth/*`, which
+  `docs/api-specification.md` documented and no client called, no longer exists.
+- **The analytics, config, feeds, stats and listening routers check a key through the one
+  `users.verify_api_key`**, as scanner already does (management and rating follow in !916). A user key no account
+  holds, or a disabled account, now gets that function's 403 there instead of a local copy's 401;
+  a missing key is still a 401. The web player treats both the same.
+- **`docker/docker-compose.workers.yml` is marked local-only** (`scripts/dev.sh` layers it on top;
+  production never reads it), and `run_telegram_auth.sh` points at `docker/docker-compose.yml`
+  instead of a `work-context/` file that no longer exists.
+
+- **Dead code removed.** `services/other/` (an artist fixer, converter, EPs flattener that
+  duplicated `services/importer/flattener.py`, file repair, sanitizer and an unimportable
+  `yt-fixer.py`, 461 lines that only their own tests imported) and its tests;
+  `services/tagger/run_tagger.py`; `VerifyArtistRule`, reachable only through `services/other`;
+  seven one-off tools (`check_media`, `finalize_genres`, `init_remote_db`, `list_imports`,
+  `replace_table_names`, `repro_mutagen`, `migrate_db_renames`); the frontend's Vite template
+  leftovers (`Counter.svelte`, `hero.png`, `svelte.svg`, `vite.svg`); the unused
+  `subsonic/VideoPlayer.kt`; and an empty `ultrasonic-database.db` committed into the Android tree.
+- **The `/api/jobs` registry and its WebSocket are gone.** Nothing read them: the downloader and
+  importer side only pushed when `HUB_API_URL` was set, which no deployment did, and the WebSocket
+  took no key. The curation pages' own job progress (artist and genre analysis, a rule's retag) now
+  lives in `services/music_manager/job_store.py`, which keeps the last 50 finished jobs instead of
+  every job for the life of the process.
+
+- **The seven accepted starlette advisories are gone from `security/accepted-vulnerabilities.txt`.**
+  They were accepted for fastapi 0.111; the requirements pin 0.141, and
+  `scripts/ci/dependency-audit.sh` reports no Python, npm or Android finding with the list empty.
+
+- **Deploys are safer.** The database is backed up and migrated before any new code starts, a
+  deploy no longer restarts the database, and a bad release can be rolled back by redeploying the
+  previous version's images. The post-deploy check now notices a service that keeps restarting.
+- **Database and phpMyAdmin are no longer reachable from the whole network by default**, the
+  Firefox helper needs a real password, and container logs and memory are capped.
+
+- **A deploy no longer exposes production secrets on the runner or the server.** The env file and
+  the database password are no longer visible in the process list, no copy stays behind in `/tmp`,
+  and the Docker Hub token and deploy key no longer outlive their CI job.
+
+- **YouTube now backs off when YouTube blocks it, and its download errors appear in the event
+  log.**
+- **A deploy stops the downloaders and the importer cleanly.** A half-finished download no longer
+  ends up in the library under its final name.
+- **Telegram downloads keep posts with the same name apart** and can no longer be written outside
+  their channel folder.
+- **Downloading a single YouTube video no longer subscribes you to its channel.**
+
+- Je dagmixen vullen zich nu dezelfde dag nog zodra je iets hebt geluisterd, in plaats van pas de
+  volgende dag. Een aangepaste hardheid van een genre is direct zichtbaar, en de mixen wisselen om
+  middernacht in plaats van om 01:00 of 02:00.
+
+- Logging out now clears the previous user's queue and settings from the browser.
+- Settings changed in quick succession are no longer lost.
+- An expired password now returns to the login page instead of showing an empty library.
+- Sets mode keeps its blue accent everywhere.
+- Artist and album pages no longer show details of the previous one.
+
+- Genres such as "Drum & Bass" and "Hardcore: Uptempo" are no longer cut in two by the tagger.
+
+- Internal: the automated checks are stricter and report honest numbers.
+
+- A new installation now gets exactly the database layout production has; the artist edit page no
+  longer fails on a fresh install.
+
+- **One notification per imported release** (label, catalogue number, number of tracks) instead of
+  one per track. The individual tracks are still in the event log.
+
+- **Importing a large archive can no longer put a half-finished release in the library**, and a
+  release still being copied into the import folder is left alone until the copy is done.
+- **A second download of a release you already have is now recognised as a duplicate** instead of
+  sitting in the import folder for ever.
+- **Split RAR archives import cleanly.**
+- **The nightly database backup recovers on its own when its disk fills up.**
+
+- **Luistermomenten schoven naar "nu" bij elke mislukte herkoppelpoging.** Dat gebeurt niet meer;
+  wat al verschoven is, wordt nog niet hersteld.
+- **Twee ontbrekende database-indexen toegevoegd**, voor snellere statistieken en herkoppeling.
+
+- **Fixed a hole that let any key act as an admin on the server's own management routes.** Keys are
+  now verified before they grant anything, and the server no longer lends its system key to
+  requests that did not bring their own.
+
+- **Clearing a rating now also clears it in MuMa.**
+- **Scrolling through versions-merged track lists no longer skips tracks.**
+
+- **Fixed a settings request that let any user crash the music server.**
+- **Fixed three smaller holes in the server:** unbounded page sizes, a queue that a busy MuMa could
+  freeze, and Subsonic tokens that two users could share.
+
+- News recordings no longer leave stray files behind, and a second news source is recorded at the
+  same time as the first instead of ten minutes later.
+- A long ListenBrainz history is imported completely over successive runs instead of stopping at
+  10.000 listens.
+
+- **Any account could start a ListenBrainz import into any other account's history.**
+  `POST /api/scrobble/import/listenbrainz` took `username` from the body without checking it against
+  the caller. An ordinary account may now only import into its own history (403 otherwise); admins
+  and the system key may still name anyone.
+
+- **Security: management actions now require the right role.** Rules, downloader sources, container
+  logs, event deletion and the server sync were available to every account; they now need the
+  curator permission or the admin role. The user list no longer exposes access keys, and changing
+  your own password asks for the current one.
+
+- **Ratings and listening history now survive a retag that changes a track's title or artist**, and
+  a corrected label replaces the old one instead of piling up next to it. Tracks damaged before this
+  can be repaired with a one-off admin action.
+
+- **Promo- en follower-only tracks van SoundCloud kwamen binnen zonder genre, tags en
+  omschrijving.** De stap die die gegevens ophaalt was niet ingelogd en gebruikt nu dezelfde
+  sessie als de download.
+
+- The tagger no longer rewrites already-tagged files on every run, keeps the artist order and
+  slashes in names like AC/DC, and writes album, album artist, remixer and original title on m4a
+  files where LMS and the tagger itself can read them back.
+
+- **Een m4a-bestand zonder tags liet de tagger elke ronde opnieuw struikelen.** Zo'n bestand krijgt
+  nu gewoon een leeg tagblok en wordt normaal getagd.
 ## Global Version 0.72.1 (2026-09-23)
 
 - **Luisterbeurten in de app werden dubbel geteld.** De app scrobbelde elke track twee keer; dat

@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 
-from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
 
 # The same file goes by two names depending on who is talking about it, and the version
@@ -12,6 +11,7 @@ from services.music_manager.library_paths import (
     MUMA_MUSIC_ROOT,
     candidate_paths,
 )
+from services.music_manager.rbac import is_admin_auth
 
 router = APIRouter(tags=['rating'])
 
@@ -19,19 +19,23 @@ __all__ = ['LMS_MUSIC_ROOT', 'MUMA_MUSIC_ROOT', 'candidate_paths', 'router']
 
 
 def verify_api_key(x_api_key: str | None = Header(None)):
-    if not x_api_key:
-        raise HTTPException(status_code=401, detail='Missing API Key')
-    if is_system_api_key(x_api_key):
-        return {'type': 'system'}
-    from services.music_manager.routers.users import verify_token
+    """Delegates to the canonical users.verify_api_key; kept as a name tests patch."""
+    from services.music_manager.routers.users import verify_api_key as _verify
 
-    try:
-        res = verify_token(x_api_key)
-        if res.get('status') == 'ok':
-            return res
-    except Exception:
-        pass
-    raise HTTPException(status_code=401, detail='Invalid API key')
+    return _verify(x_api_key)
+
+
+def require_system_key(x_api_key: str | None = Header(None)):
+    """Only the system key: the rating webhook writes whatever username its body names.
+
+    LMS is the one caller (MusicManagementBackend.cpp, configured with
+    `music-management-api-key`, which is the system key -- see SECURITY.md). A user
+    key here would let any account write ratings under any other account's name.
+    """
+    auth = verify_api_key(x_api_key)
+    if auth.get('type') != 'system':
+        raise HTTPException(status_code=403, detail='System API key required')
+    return auth
 
 
 class Rating(BaseModel):
@@ -42,6 +46,13 @@ class Rating(BaseModel):
 
 
 class MuMaServerEvent(BaseModel):
+    """A rating event pushed by the music-management-server (LMS fork).
+
+    ``event`` is ``rating_changed`` (upsert ``rating``) or ``rating_removed`` (the user
+    cleared the rating; ``rating`` is 0). A ``rating_changed`` with a rating of 0 or less
+    is treated as a removal as well, because no star count below 1 exists.
+    """
+
     event: str
     object_type: str
     object_id: str
@@ -58,9 +69,12 @@ def init_db(cursor):
 
 @router.post('/server-event')
 @router.post('/lms-event')
-def handle_server_event(event: MuMaServerEvent, _auth: dict = Depends(verify_api_key)):
-    if event.event != 'rating_changed':
+def handle_server_event(event: MuMaServerEvent, _auth: dict = Depends(require_system_key)):
+    """Mirror one LMS rating event into ``rating_tracks``: upsert a rating, or delete the
+    row when the rating was cleared on the server. System key only, see require_system_key."""
+    if event.event not in ('rating_changed', 'rating_removed'):
         return {'status': 'ignored', 'reason': 'unsupported event type'}
+    removed = event.event == 'rating_removed' or event.rating <= 0
     entity_id = event.object_id
     if event.object_type == 'track' and event.path:
         possible_paths = candidate_paths(event.path)
@@ -81,6 +95,13 @@ def handle_server_event(event: MuMaServerEvent, _auth: dict = Depends(verify_api
         raise HTTPException(status_code=500, detail='Database connection failed')
     try:
         with conn.cursor() as cursor:
+            if removed:
+                cursor.execute(
+                    'DELETE FROM rating_tracks WHERE entity_type = %s AND entity_id = %s AND username = %s',
+                    (event.object_type, entity_id, event.username),
+                )
+                conn.commit()
+                return {'status': 'removed', 'entity_id': entity_id}
             cursor.execute(
                 '\n                INSERT INTO rating_tracks (entity_type, entity_id, username, rating)\n                VALUES (%s, %s, %s, %s)\n                ON DUPLICATE KEY UPDATE rating = VALUES(rating)\n            ',
                 (event.object_type, entity_id, event.username, event.rating),
@@ -93,6 +114,10 @@ def handle_server_event(event: MuMaServerEvent, _auth: dict = Depends(verify_api
 
 @router.get('/ratings/{username}')
 def get_user_ratings(username: str, _auth: dict = Depends(verify_api_key)):
+    """One account's ratings: the caller's own, or anyone's for an admin or the system key."""
+    own = ((_auth.get('user') or {}).get('username')) == username
+    if not own and not is_admin_auth(_auth):
+        raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')

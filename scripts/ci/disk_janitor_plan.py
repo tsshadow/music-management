@@ -44,9 +44,11 @@ from datetime import datetime, timedelta, timezone
 CREATED_AT = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [+-]\d{4})")
 
 # Repositories whose per-version tags are disposable, and how many of the
-# newest to keep. Moving tags (:latest, :stable) are never candidates.
+# newest to keep. Moving tags (:latest, :stable, and :rc -- the newest release
+# build, which release:build-images pushes instead of :latest) are never
+# candidates.
 VERSIONED_PREFIXES = ("muma/", "muma-ci/")
-MOVING_TAGS = frozenset({"latest", "stable"})
+MOVING_TAGS = frozenset({"latest", "stable", "rc"})
 ANDROID_CI_REPO = "music-management/android-ci"
 TEST_STACK_PREFIX = "muma-test-"
 # Per-job merge-request build images (`muma-ci-<job-id>/muma-base`, ...). Their

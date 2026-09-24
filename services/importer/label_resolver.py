@@ -85,7 +85,7 @@ def _walk(folder_path: str):
 
 
 def _audio_files(folder_path: str) -> list[str]:
-    found = []
+    found: list[str] = []
     for dirpath, files in _walk(folder_path):
         found.extend(
             join(dirpath, name)

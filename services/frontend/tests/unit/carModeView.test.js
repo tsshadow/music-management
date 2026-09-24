@@ -29,7 +29,7 @@ function fetchMock() {
       return {
         ok: true,
         json: async () => ({
-          "subsonic-response": { songs: { song: [{ id: "7", title: "Mix track" }] } },
+          "subsonic-response": { status: "ok", songs: { song: [{ id: "7", title: "Mix track" }] } },
         }),
       };
     }

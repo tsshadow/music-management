@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sys
 import tempfile
 import types
@@ -53,15 +54,19 @@ class DummyClient:
 
         return _generator()
 
-    async def download_media(self, *_args, **_kwargs):
-        return None
+    async def download_media(self, _message, file=None, **_kwargs):
+        # Behaves like Telethon: writes the bytes to the path it was given and
+        # returns that path.
+        with open(file, 'wb') as handle:
+            handle.write(b'audio')
+        return file
 
 
 _telethon.TelegramClient = DummyClient
 
 from services.downloader.account_schedule import AccountSchedule, InMemoryCheckStore
 from services.downloader.rate_state import InMemoryRateStateStore, RateState
-from services.downloader.telegram.telegram import TelegramDownloader
+from services.downloader.telegram.telegram import TelegramDownloader, download_target, legacy_target
 from services.downloader.timing import load_timing
 
 NOW = datetime(2026, 7, 30, 12, 0, 0)
@@ -183,37 +188,54 @@ class FloodWaitTest(TelegramTimingTestBase):
         self.assertEqual(self.downloaded_channels, ['some_channel'])
 
 
-if __name__ == '__main__':
-    unittest.main()
-
-
 class TaggingTest(TelegramTimingTestBase):
     """A Telegram download is tagged by the worker, like SoundCloud and YouTube -- until
     0.67 nothing tagged it and the file waited for the walk to reach Telegram/."""
 
-    def _message(self, mime, name='set.mp3', size=None):
+    def _message(self, mime, name='set.mp3', size=None, message_id=1, ext=None):
         message = types.SimpleNamespace()
-        message.file = types.SimpleNamespace(mime_type=mime, name=name, size=size)
-        message.id = 1
+        message.file = types.SimpleNamespace(mime_type=mime, name=name, size=size, ext=ext)
+        message.id = message_id
         return message
 
-    def _download(self, message):
+    def _download(self, message, prepare=None):
         from services.downloader.telegram import telegram as telegram_module
 
         with tempfile.TemporaryDirectory() as folder:
+            if prepare is not None:
+                prepare(folder)
             downloader = self._downloader(folder)
             with (
                 unittest.mock.patch.object(telegram_module.Tagger, 'parse_song', return_value=object()) as parse,
                 unittest.mock.patch.object(telegram_module, 'announce') as announce,
             ):
                 asyncio.run(downloader._download_if_needed(DummyClient(), message, folder, asyncio.Semaphore(1)))
+            self.files = sorted(os.listdir(folder))
             return parse, announce, folder
 
     def test_an_audio_download_is_tagged_and_announced(self):
         parse, announce, folder = self._download(self._message('audio/mpeg'))
         parse.assert_called_once()
         self.assertEqual(parse.call_args.args[1].name, 'TELEGRAM')
-        announce.assert_called_once_with(f'{folder}/set.mp3')
+        announce.assert_called_once_with(f'{folder}/set [1].mp3')
+
+    def test_the_part_file_is_renamed_once_the_download_is_done(self):
+        self._download(self._message('audio/mpeg'))
+        self.assertEqual(['set [1].mp3'], self.files)
+
+    def test_a_file_already_there_under_the_old_name_is_not_downloaded_again(self):
+        def _old_file(folder):
+            with open(os.path.join(folder, 'set.mp3'), 'wb') as handle:
+                handle.write(b'audio')
+
+        parse, _announce, _folder = self._download(self._message('audio/mpeg', size=5), prepare=_old_file)
+        parse.assert_not_called()
+        self.assertEqual(['set.mp3'], self.files)
+
+    def test_a_name_that_climbs_out_of_the_folder_lands_inside_it(self):
+        parse, announce, folder = self._download(self._message('audio/mpeg', name='../../evil.mp3'))
+        announce.assert_called_once_with(f'{folder}/evil [1].mp3')
+        self.assertEqual(['evil [1].mp3'], self.files)
 
     def test_a_video_download_is_left_alone(self):
         parse, announce, _ = self._download(self._message('video/mp4', name='clip.mp4'))
@@ -228,3 +250,76 @@ class TaggingTest(TelegramTimingTestBase):
             parse, announce, _ = self._download(self._message('audio/mpeg'))
         parse.assert_not_called()
         announce.assert_not_called()
+        # Neither a truncated file under the real name nor a stray .part is left.
+        self.assertEqual([], self.files)
+
+    def test_a_download_that_wrote_nothing_is_a_failure(self):
+        async def silent(*_args, **_kwargs):
+            return None
+
+        with unittest.mock.patch.object(DummyClient, 'download_media', silent):
+            parse, _announce, _ = self._download(self._message('audio/mpeg'))
+        parse.assert_not_called()
+        self.assertEqual([], self.files)
+
+
+class DownloadTargetTest(unittest.TestCase):
+    """The path a Telegram file is written to; the sender picks the name."""
+
+    FOLDER = '/music/Telegram/chan'
+
+    def test_an_ordinary_name_keeps_its_stem_and_gains_the_message_id(self):
+        self.assertEqual(
+            f'{self.FOLDER}/Angerfist - Set [42].mp3', download_target(self.FOLDER, 42, 'Angerfist - Set.mp3')
+        )
+
+    def test_a_relative_climb_is_reduced_to_the_last_component(self):
+        self.assertEqual(f'{self.FOLDER}/passwd [7].mp3', download_target(self.FOLDER, 7, '../../../etc/passwd.mp3'))
+
+    def test_an_absolute_path_is_reduced_to_the_last_component(self):
+        self.assertEqual(f'{self.FOLDER}/x [7].flac', download_target(self.FOLDER, 7, '/tmp/x.flac'))
+
+    def test_a_windows_style_path_is_reduced_too(self):
+        self.assertEqual(f'{self.FOLDER}/x [7].mp3', download_target(self.FOLDER, 7, '..\\..\\x.mp3'))
+
+    def test_a_bare_dot_dot_leaves_only_the_message_id(self):
+        self.assertEqual(f'{self.FOLDER}/7.mp3', download_target(self.FOLDER, 7, '..', ext_hint='.mp3'))
+
+    def test_unsafe_characters_are_replaced(self):
+        self.assertEqual(f'{self.FOLDER}/a_b_c_ d [7].mp3', download_target(self.FOLDER, 7, 'a:b?c\x00 d.mp3'))
+
+    def test_two_messages_with_the_same_name_get_different_paths(self):
+        self.assertNotEqual(download_target(self.FOLDER, 1, 'set.mp3'), download_target(self.FOLDER, 2, 'set.mp3'))
+
+    def test_a_nameless_message_takes_telethons_extension(self):
+        self.assertEqual(f'{self.FOLDER}/9.m4a', download_target(self.FOLDER, 9, None, ext_hint='.m4a'))
+
+    def test_a_nameless_message_without_a_hint_takes_the_mime_types_extension(self):
+        self.assertEqual(f'{self.FOLDER}/9.flac', download_target(self.FOLDER, 9, None, mime='audio/flac'))
+
+    def test_bin_is_only_the_last_resort(self):
+        self.assertEqual(f'{self.FOLDER}/9.bin', download_target(self.FOLDER, 9, None))
+
+    def test_a_very_long_name_is_cut_to_fit_the_filesystem(self):
+        path = download_target(self.FOLDER, 9, 'x' * 400 + '.mp3')
+        self.assertLess(len(os.path.basename(path).encode('utf-8')), 255 - len('.part'))
+        self.assertTrue(path.endswith(' [9].mp3'))
+
+    def test_a_symlinked_escape_is_refused(self):
+        with tempfile.TemporaryDirectory() as root:
+            folder = os.path.join(root, 'chan')
+            os.makedirs(folder)
+            os.symlink('/tmp', os.path.join(folder, 'link [1].mp3'))
+            with self.assertRaises(ValueError):
+                download_target(folder, 1, 'link.mp3')
+
+    def test_the_legacy_name_is_the_bare_basename(self):
+        self.assertEqual(f'{self.FOLDER}/set.mp3', legacy_target(self.FOLDER, '../set.mp3'))
+
+    def test_there_is_no_legacy_name_without_a_remote_name(self):
+        self.assertIsNone(legacy_target(self.FOLDER, None))
+        self.assertIsNone(legacy_target(self.FOLDER, '..'))
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -1,6 +1,7 @@
 import hashlib
 import logging
 import os
+import time
 from io import BytesIO
 
 import requests
@@ -8,6 +9,8 @@ from PIL import Image
 
 
 class ImageStorage:
+    """Saves fetched artist images to disk and builds their public URLs."""
+
     def __init__(self, storage_path, public_base_url):
         self.storage_path = storage_path
         self.public_base_url = public_base_url
@@ -75,12 +78,18 @@ class ImageStorage:
 
 
 class ImageDownloader:
-    def __init__(self, timeout=10, retries=3):
+    """Downloads image bytes, retrying a failed attempt after a short, growing pause."""
+
+    def __init__(self, timeout=10, retries=3, backoff=1.0):
         self.timeout = timeout
         self.retries = retries
+        # Seconds before the second attempt; doubled for each one after. Three attempts
+        # back to back all land inside the same CDN hiccup.
+        self.backoff = backoff
         self.logger = logging.getLogger(__name__)
 
     def download(self, url):
+        """Return the body at `url`; raise the last error once every attempt failed."""
         for i in range(self.retries):
             try:
                 response = requests.get(url, timeout=self.timeout)
@@ -90,4 +99,5 @@ class ImageDownloader:
                 self.logger.warning(f'Attempt {i + 1} failed to download {url}: {e}')
                 if i == self.retries - 1:
                     raise
+                time.sleep(self.backoff * (2**i))
         return None

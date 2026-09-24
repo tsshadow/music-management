@@ -88,6 +88,9 @@
   // to every tab from here, so the tabs did not have to change.
   const getHeaders = sharedHeaders;
 
+  /** Marks a call in fetchData's batch that failed, so its section keeps its default. */
+  const FAILED = Symbol('failed');
+
   async function fetchData() {
     loading = true;
     const headers = getHeaders();
@@ -108,23 +111,43 @@
           '/api/system/activity',
           '/api/stats'
         ],
-        (path) => fetchMumaJson(`${$mumaApiUrl}${path}`, { headers })
+        // One refused call (a 403 on an endpoint this account may not read, a 500) must not
+        // take the other nine down with it, nor be assigned as if it were data: an error body
+        // in `users` or `accounts` rendered as a broken list. A failure comes back as
+        // FAILED and leaves that section at its empty default.
+        (path) => fetchMumaJson(`${$mumaApiUrl}${path}`, { headers }).catch((err) => {
+          console.error(err);
+          return FAILED;
+        })
       );
+
+      /**
+       * `body` unless its call failed, else `fallback`.
+       *
+       * @param {any} body
+       * @param {any} fallback
+       */
+      const loaded = (body, fallback) => (body === FAILED ? fallback : body);
 
       // The endpoint answers {config, groups}; the tabs below want the values map.
       // Reading the envelope as if it were flat is why the ntfy fields on the events
       // tab have always rendered empty.
-      config = configBody?.config ?? configBody ?? {};
-      notes = notesBody;
-      accounts = accountsBody;
-      youtubeAccounts = youtubeBody;
-      allNotes = allNotesBody;
-      latestImports = importsBody;
-      users = usersBody;
-      containers = containersBody;
-      activity = activityBody;
-      stats = statsBody;
+      config = loaded(configBody?.config ?? configBody, config);
+      notes = loaded(notesBody, notes);
+      accounts = loaded(accountsBody, accounts);
+      youtubeAccounts = loaded(youtubeBody, youtubeAccounts);
+      allNotes = loaded(allNotesBody, allNotes);
+      latestImports = loaded(importsBody, latestImports);
+      users = loaded(usersBody, users);
+      containers = loaded(containersBody, containers);
+      activity = loaded(activityBody, activity);
+      stats = loaded(statsBody, stats);
 
+      const bodies = [configBody, notesBody, accountsBody, youtubeBody, allNotesBody, importsBody, usersBody, containersBody, activityBody, statsBody];
+      // The banner is for "the Management API cannot be reached", not for one section this
+      // deployment cannot answer (no Docker socket for the container list, say): that section
+      // just stays empty, and its error is already in the console above.
+      if (bodies.every((body) => body === FAILED)) error = "Kon gegevens niet ophalen van de Management API.";
     } catch (err) {
       error = "Kon gegevens niet ophalen van de Management API.";
       console.error(err);
@@ -154,8 +177,7 @@
     if (progressInterval) clearInterval(progressInterval);
     progressInterval = setInterval(async () => {
       try {
-        const res = await fetch(`${$mumaApiUrl}/api/artists/fetch-progress`, { headers: getHeaders() });
-        fetchProgress = await res.json();
+        fetchProgress = await fetchMumaJson(`${$mumaApiUrl}/api/artists/fetch-progress`, { headers: getHeaders() });
         if (!fetchProgress.active && fetchProgress.status !== 'running') {
           clearInterval(progressInterval);
           fetchImageStats();
@@ -175,8 +197,7 @@
 
   async function fetchImageStats() {
     try {
-      const res = await fetch(`${$mumaApiUrl}/api/artists/images/stats`, { headers: getHeaders() });
-      imageStats = await res.json();
+      imageStats = await fetchMumaJson(`${$mumaApiUrl}/api/artists/images/stats`, { headers: getHeaders() });
     } catch (err) {
       console.error(err);
     }
@@ -184,8 +205,7 @@
 
   async function fetchStats() {
     try {
-      const res = await fetch(`${$mumaApiUrl}/api/stats`, { headers: getHeaders() });
-      stats = await res.json();
+      stats = await fetchMumaJson(`${$mumaApiUrl}/api/stats`, { headers: getHeaders() });
     } catch (err) {
       console.error(err);
     }
@@ -194,8 +214,7 @@
   async function fetchPlaylists() {
     if (!selectedUser) return;
     try {
-      const res = await fetch(`${$mumaApiUrl}/api/users/${selectedUser.id}/dynamic-playlists`, { headers: getHeaders() });
-      playlists = await res.json();
+      playlists = await fetchMumaJson(`${$mumaApiUrl}/api/users/${selectedUser.id}/dynamic-playlists`, { headers: getHeaders() });
     } catch (err) {
       console.error(err);
     }
@@ -203,8 +222,7 @@
 
   async function fetchLatestImports() {
     try {
-      const res = await fetch(`${$mumaApiUrl}/api/scrobble/import/latest`, { headers: getHeaders() });
-      latestImports = await res.json();
+      latestImports = await fetchMumaJson(`${$mumaApiUrl}/api/scrobble/import/latest`, { headers: getHeaders() });
     } catch (err) {
       console.error(err);
     }
@@ -212,8 +230,7 @@
 
   async function fetchUsers() {
     try {
-      const res = await fetch(`${$mumaApiUrl}/api/users`, { headers: getHeaders() });
-      users = await res.json();
+      users = await fetchMumaJson(`${$mumaApiUrl}/api/users`, { headers: getHeaders() });
     } catch (err) {
       console.error(err);
     }
@@ -221,8 +238,7 @@
 
   async function fetchRoles() {
     try {
-      const res = await fetch(`${$mumaApiUrl}/api/roles`, { headers: getHeaders() });
-      roles = await res.json();
+      roles = await fetchMumaJson(`${$mumaApiUrl}/api/roles`, { headers: getHeaders() });
     } catch (err) {
       console.error(err);
     }
@@ -538,12 +554,3 @@
     {/if}
   {/if}
 </div>
-
-<style>
-  :global(.text-brand) {
-    color: #1DB954;
-  }
-  :global(.bg-brand) {
-    background-color: #1DB954;
-  }
-</style>

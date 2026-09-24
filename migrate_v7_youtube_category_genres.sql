@@ -13,9 +13,11 @@
 -- makes ResolveGenreRule drop them the next time the tagger walks the library,
 -- instead of leaving one curation entry per category for a human to reject.
 --
--- Both the full category names and their halves are listed, because CleanTagsRule
--- runs ARTIST_REGEX over the genre tag and that splits on ' & ': 'Film & Animation'
--- reaches curation as 'Film' and 'Animation', never as itself.
+-- Both the full category names and their halves are listed. CleanTagsRule used to run
+-- ARTIST_REGEX over the genre tag, which splits on ' & ': 'Film & Animation' reached
+-- curation as 'Film' and 'Animation', never as itself, and files tagged back then still
+-- carry the halves. Since bug report 045 genres are no longer split on ' & ', so a new
+-- tag arrives whole and meets the full name's row.
 --
 -- A category that somebody has already ruled on is left alone -- only rows still
 -- sitting at 'unknown' are decided here.

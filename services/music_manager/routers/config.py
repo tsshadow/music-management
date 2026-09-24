@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from services.common.config_store import ConfigStore
-from services.music_manager.api_key import is_system_api_key
 from services.music_manager.rbac import require_permission
 
 router = APIRouter(tags=['config'])
@@ -19,19 +18,10 @@ MANAGE = Depends(require_permission('config.manage'))
 
 
 def verify_api_key(x_api_key: str | None = Header(None)):
-    if not x_api_key:
-        raise HTTPException(status_code=401, detail='Missing API Key')
-    if is_system_api_key(x_api_key):
-        return {'type': 'system'}
-    from services.music_manager.routers.users import verify_token
+    """Delegates to the canonical users.verify_api_key; kept as a name tests override."""
+    from services.music_manager.routers.users import verify_api_key as _verify
 
-    try:
-        res = verify_token(x_api_key)
-        if res.get('status') == 'ok':
-            return res
-    except Exception:
-        pass
-    raise HTTPException(status_code=401, detail='Invalid API key')
+    return _verify(x_api_key)
 
 
 class ConfigUpdatePayload(BaseModel):

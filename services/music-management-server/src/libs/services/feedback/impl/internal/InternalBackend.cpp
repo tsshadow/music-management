@@ -93,6 +93,11 @@ namespace lms::feedback
     {
     }
 
+    void InternalBackend::onRatingRemoved(const RatingRemovedEvent& /*event*/)
+    {
+        // Nothing to forward: this backend keeps no copy of ratings outside the database.
+    }
+
     void InternalBackend::onPlaylistChanged(db::TrackListId)
     {
     }

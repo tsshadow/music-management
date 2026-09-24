@@ -10,18 +10,17 @@ This service is responsible for analyzing audio files and extracting musical fea
     - Loudness (RMS)
     - Spectral Centroid (timbre/brightness)
     - Duration
-- **Advanced Extraction Ready**:
-    - Mel-spectrograms
-    - Pretrained embeddings (musicnn, MuQ)
-    - Essentia descriptors
+- **Not implemented**: mel-spectrograms, pretrained embeddings (musicnn, MuQ) and Essentia
+  descriptors were once planned; nothing in this directory computes them.
 
 ## 🛠 Tech Stack
 
 - **Python 3.10+**
-- **PyTorch**: Deep learning framework.
-- **Librosa**: Audio and music analysis.
-- **Essentia**: Music-specific feature extraction.
-- **SQLAlchemy**: Database interaction.
+- **Librosa** (with NumPy): audio feature extraction.
+- **scikit-learn**, **pandas**, **joblib**: the genre classifier (`trainer.py`, `predict.py`).
+- **SQLAlchemy** / **mysql-connector-python**: database interaction.
+
+No PyTorch and no Essentia: neither is in `requirements.txt` or imported anywhere here.
 
 ## 📊 Wat betekenen de resultaten?
 
@@ -86,9 +85,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install --default-timeout=100 -r requirements.txt
 ```
 
-*Note: `essentia-tensorflow` is a large package (~300MB) and is currently not required for the basic `analyzer.py`. You can comment it out in `requirements.txt` if you have a slow connection and want to start with basic features.*
-
-*Note: `essentia-tensorflow` might require specific system libraries (like FFmpeg) to be installed on your system.*
+*Note: `librosa` decodes through FFmpeg for most formats, so FFmpeg has to be installed on the system.*
 
 #### 2. Configuration
 

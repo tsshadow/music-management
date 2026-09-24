@@ -62,6 +62,39 @@ class LastFmProviderTest(unittest.TestCase):
         self.assertTrue(candidates[0]['is_known_match'])
         self.assertEqual(candidates[0]['metadata']['listeners'], '10')
 
+    # artist.getinfo answers every artist with the same grey-star placeholder; taking it
+    # handed thousands of artists one identical picture, scored as a known match.
+    def test_the_generic_placeholder_image_is_never_a_candidate(self):
+        placeholder = 'https://lastfm.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png'
+        payload = {
+            'artist': {
+                'name': 'Angerfist',
+                'mbid': 'mb-1',
+                'image': [
+                    {'size': 'extralarge', '#text': placeholder},
+                    {'size': 'mega', '#text': placeholder},
+                ],
+            }
+        }
+        with patch.object(lastfm, 'requests') as http:
+            http.get.return_value = make_response(payload=payload)
+            self.assertEqual(self.provider.get_artist_images('Angerfist', mbid='mb-1'), [])
+
+    def test_a_real_image_next_to_the_placeholder_is_still_a_candidate(self):
+        payload = {
+            'artist': {
+                'name': 'Angerfist',
+                'image': [
+                    {'size': 'extralarge', '#text': 'https://img.test/2a96cbd8b46e442fc41c2b86b821562f.png'},
+                    {'size': 'mega', '#text': 'https://img.test/real.jpg'},
+                ],
+            }
+        }
+        with patch.object(lastfm, 'requests') as http:
+            http.get.return_value = make_response(payload=payload)
+            candidates = self.provider.get_artist_images('Angerfist')
+        self.assertEqual([c['url'] for c in candidates], ['https://img.test/real.jpg'])
+
     def test_a_non_200_response_is_the_provider_not_answering(self):
         with patch.object(lastfm, 'requests') as http:
             http.get.return_value = make_response(status_code=503)
@@ -113,6 +146,46 @@ class SpotifyProviderTest(unittest.TestCase):
             self.assertEqual(self.provider._get_token(), 'tok')
             self.assertEqual(self.provider._get_token(), 'tok')
         self.assertEqual(http.post.call_count, 1)
+
+    # A client-credentials token lasts an hour; a bulk run takes far longer. Reusing
+    # the first token forever turned every lookup after the first hour into a 401.
+    def test_an_expired_token_is_renewed_before_it_is_used(self):
+        with patch.object(spotify, 'requests') as http, patch.object(spotify.time, 'monotonic') as clock:
+            http.post.side_effect = [
+                make_response(payload={'access_token': 'first', 'expires_in': 3600}),
+                make_response(payload={'access_token': 'second', 'expires_in': 3600}),
+            ]
+            clock.return_value = 1000.0
+            self.assertEqual(self.provider._get_token(), 'first')
+            clock.return_value = 1000.0 + 3600 - 120
+            self.assertEqual(self.provider._get_token(), 'first')
+            # Inside the refresh margin: renewed before Spotify would reject it.
+            clock.return_value = 1000.0 + 3600 - 30
+            self.assertEqual(self.provider._get_token(), 'second')
+        self.assertEqual(http.post.call_count, 2)
+
+    def test_a_401_during_lookup_renews_the_token_once_and_retries(self):
+        payload = {
+            'artists': {'items': [{'id': 'sp1', 'name': 'Angerfist', 'images': [{'url': 'https://img.test/a.jpg'}]}]}
+        }
+        with patch.object(spotify, 'requests') as http:
+            http.post.side_effect = [
+                make_response(payload={'access_token': 'stale'}),
+                make_response(payload={'access_token': 'fresh'}),
+            ]
+            http.get.side_effect = [make_response(status_code=401), make_response(payload=payload)]
+            candidates = self.provider.get_artist_images('Angerfist')
+        self.assertEqual([c['url'] for c in candidates], ['https://img.test/a.jpg'])
+        self.assertEqual(http.post.call_count, 2)
+        self.assertEqual(http.get.call_args.kwargs['headers'], {'Authorization': 'Bearer fresh'})
+
+    def test_a_second_401_after_renewal_is_the_provider_not_answering(self):
+        with patch.object(spotify, 'requests') as http:
+            http.post.return_value = make_response(payload={'access_token': 'tok'})
+            http.get.return_value = make_response(status_code=401)
+            with self.assertRaises(ProviderUnavailable):
+                self.provider.get_artist_images('Angerfist')
+        self.assertEqual(http.get.call_count, 2)
 
     # A credential Spotify rejects is a broken configuration, which looks exactly like
     # "no image exists" if it is allowed to answer with an empty list.

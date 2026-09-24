@@ -26,8 +26,8 @@ from services.common.Helpers.RescanInvalidator import invalidate_quietly
 from services.music_manager import catalog_series
 from services.music_manager import curation_rules as rules
 from services.music_manager.database import get_db_connection
+from services.music_manager.job_store import job_store
 from services.music_manager.rbac import require_permission
-from services.music_manager.routers.jobs import job_manager
 from services.music_manager.routers.tagger import tagger_manager
 
 router = APIRouter(tags=['curation'])
@@ -852,7 +852,7 @@ def _run_retag(job_id: str, paths: list[str]) -> None:
     permission error on a CIFS share is common and is not a reason to leave the other
     hundred files on their old tags.
     """
-    state = job_manager.jobs.setdefault(job_id, {})
+    state = job_store.jobs.setdefault(job_id, {})
     state.update({'status': 'running', 'progress': 0, 'total': len(paths), 'current': None, 'failed': 0})
     for index, path in enumerate(paths, start=1):
         state['current'] = path
@@ -864,9 +864,7 @@ def _run_retag(job_id: str, paths: list[str]) -> None:
         state['progress'] = index
     state['status'] = 'finished'
     state['current'] = None
-    job_manager.results[job_id] = dict(state)
-    if job_id not in job_manager.history:
-        job_manager.history.appendleft(job_id)
+    job_store.finish(job_id, state)
 
 
 @router.post('/retag', status_code=202)
@@ -895,6 +893,6 @@ def retag(request: RetagRequest, background: BackgroundTasks, _auth: dict = WRIT
         )
 
     job_id = f'retag-{uuid.uuid4()}'
-    job_manager.jobs[job_id] = {'status': 'queued', 'progress': 0, 'total': len(paths), 'current': None, 'failed': 0}
+    job_store.jobs[job_id] = {'status': 'queued', 'progress': 0, 'total': len(paths), 'current': None, 'failed': 0}
     background.add_task(_run_retag, job_id, paths)
     return {'status': 'queued', 'job_id': job_id, 'files': len(paths)}

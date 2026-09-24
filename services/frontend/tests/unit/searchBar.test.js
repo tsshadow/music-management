@@ -22,16 +22,23 @@ function subsonicApi({
     if (url.includes("/rest/getGenres")) {
       return {
         json: async () => ({
-          "subsonic-response": { genres: { genre: genres.map((value) => ({ value })) } },
+          "subsonic-response": {
+            status: "ok",
+            genres: { genre: genres.map((value) => ({ value })) },
+          },
         }),
       };
     }
     if (url.includes("/rest/getRecordLabels")) {
       return {
-        json: async () => ({ "subsonic-response": { recordLabels: { recordLabel: labels } } }),
+        json: async () => ({
+          "subsonic-response": { status: "ok", recordLabels: { recordLabel: labels } },
+        }),
       };
     }
-    return { json: async () => ({ "subsonic-response": { searchResult3: searchResult } }) };
+    return {
+      json: async () => ({ "subsonic-response": { status: "ok", searchResult3: searchResult } }),
+    };
   });
 }
 
@@ -246,7 +253,7 @@ describe("SearchBar", () => {
   it("survives a search request that fails", async () => {
     globalThis.fetch = vi.fn(async (url) => {
       if (url.includes("/rest/search3")) throw new Error("network down");
-      return { json: async () => ({ "subsonic-response": {} }) };
+      return { json: async () => ({ "subsonic-response": { status: "ok" } }) };
     });
     render(SearchBar);
 
@@ -268,7 +275,11 @@ describe("SearchBar", () => {
   it("survives a genre list that fails to load", async () => {
     globalThis.fetch = vi.fn(async (url) => {
       if (url.includes("/rest/getGenres")) throw new Error("network down");
-      return { json: async () => ({ "subsonic-response": { searchResult3: { song: [TRACK] } } }) };
+      return {
+        json: async () => ({
+          "subsonic-response": { status: "ok", searchResult3: { song: [TRACK] } },
+        }),
+      };
     });
     render(SearchBar);
 

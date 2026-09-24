@@ -44,6 +44,15 @@ class RadioPlaybackController(
     private var entry: RadioEntry? = null
     private var srcOffsetSeconds: Int = 0
 
+    /**
+     * Set by [release] when the service goes away. From then on nothing may touch the player --
+     * it has been released -- and [start] refuses, so a late retune (news handing back a channel)
+     * cannot start a loop that nothing would ever stop.
+     */
+    @Volatile
+    var isReleased = false
+        private set
+
     /** True while a radio channel is on air on this device. */
     val isActive: Boolean get() = syncJob?.isActive == true
 
@@ -73,6 +82,7 @@ class RadioPlaybackController(
     }
 
     private fun loadEntryAt(player: Player, target: RadioEntry, positionSeconds: Double) {
+        if (isReleased) return
         val offset = positionSeconds.coerceAtLeast(0.0).toInt()
         srcOffsetSeconds = offset
         val item = MediaItem.Builder()
@@ -117,6 +127,7 @@ class RadioPlaybackController(
     }
 
     private fun tick(player: Player) {
+        if (isReleased) return
         val active = entry ?: return
         val target = RadioSync.targetPositionSeconds(active, serverNowMs())
         val localPos = srcOffsetSeconds + player.currentPosition / 1000.0
@@ -131,6 +142,10 @@ class RadioPlaybackController(
 
     /** Tune into [slug] and keep correcting until [stop] is called. */
     fun start(player: Player, slug: String) {
+        if (isReleased) {
+            Timber.w("Radio %s not started: the playback service has shut down", slug)
+            return
+        }
         stop(player)
         currentSlug = slug
         syncJob = serviceScope.launch {
@@ -148,12 +163,26 @@ class RadioPlaybackController(
     }
 
     fun stop(player: Player) {
+        cancelSync()
+        if (!isReleased) player.setPlaybackParameters(PlaybackParameters(1.0f))
+    }
+
+    /**
+     * Ends the sync loop for good because the service is going away. Unlike [stop] it does not
+     * touch the player, which is being released alongside. The loop used to outlive the service
+     * and kept polling the server every 2-10 seconds, calling into a released player.
+     */
+    fun release() {
+        isReleased = true
+        cancelSync()
+    }
+
+    private fun cancelSync() {
         syncJob?.cancel()
         syncJob = null
         currentSlug = null
         entry = null
         srcOffsetSeconds = 0
-        player.setPlaybackParameters(PlaybackParameters(1.0f))
     }
 
     companion object {

@@ -81,8 +81,8 @@ def build_filter(f: LibraryFilter):
     Values repeated within one parameter are OR; separate parameters are AND.
     Every user-supplied value travels as a parameter, never as literal SQL.
     """
-    clauses = []
-    params = []
+    clauses: list[str] = []
+    params: list[object] = []
 
     for term in (f.q or '').split(' '):
         if term.strip():

@@ -10,6 +10,7 @@ setup_mocks()
 from services.downloader.deep_sweep import (
     DeepSweepReport,
     FlatTrack,
+    ListingFailed,
     ids_in_text_archive,
     list_flat,
     wanted_tracks,
@@ -166,9 +167,33 @@ class ListFlatTest(unittest.TestCase):
     def test_an_empty_listing_is_not_an_error(self):
         class Empty(FakeYDL):
             def extract_info(self, url, download=False):
-                return None
+                return {'entries': []}
 
         self.assertEqual([], list_flat('https://example.test/x', {}, ydl_factory=Empty))
+
+    def test_no_listing_at_all_is_a_failure_not_an_empty_account(self):
+        # What yt-dlp returns under `ignoreerrors` after a refused page. Counting
+        # it as "0 listed" marked the account complete and skipped it for weeks.
+        class Nothing(FakeYDL):
+            def extract_info(self, url, download=False):
+                return None
+
+        with self.assertRaises(ListingFailed):
+            list_flat('https://example.test/x', {}, ydl_factory=Nothing)
+
+    def test_an_extraction_error_is_raised_as_a_listing_failure_that_keeps_the_status(self):
+        class Refused(FakeYDL):
+            def extract_info(self, url, download=False):
+                raise RuntimeError('ERROR: Unable to download API page: HTTP Error 403: Forbidden')
+
+        with self.assertRaises(ListingFailed) as raised:
+            list_flat('https://example.test/x', {}, ydl_factory=Refused)
+        self.assertIn('HTTP Error 403: Forbidden', str(raised.exception))
+        self.assertEqual('https://example.test/x', raised.exception.url)
+
+    def test_ignoreerrors_is_forced_off_whatever_the_caller_passes(self):
+        list_flat('https://example.test/dj_a', {'ignoreerrors': True}, ydl_factory=FakeYDL)
+        self.assertIs(False, FakeYDL.last.opts['ignoreerrors'])
 
 
 class TextArchiveTest(unittest.TestCase):

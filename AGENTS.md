@@ -94,7 +94,8 @@ The system is split into specialized services, each handling a specific part of 
 5. **Server Sync**: Music Management Server rescans the library, making the music available for playback.
 6. **Notification**: An `INFO` event with `push=True` is emitted, its message formatted via
    `BaseSong.__str__`. It is written to the event log and, because push was requested, also relayed
-   to the user's mobile device via ntfy.
+   to the user's mobile device via ntfy. The importer pushes once per release instead (label,
+   catalogue number, track count) and records each track as an `INFO` event without a push.
 
 ---
 
@@ -106,6 +107,14 @@ out to every registered sink, of which ntfy is currently the only one — so an 
 queryable via `GET /api/events`, even if ntfy itself is unreachable. This is the reverse of the
 pre-events design, where code POSTed to ntfy and a listener thread read it back to populate the
 database.
+
+Being the source of truth does not mean the push waits for the row. `EventService` runs two
+threads: the event worker hands each event to the database writer's own queue and then dispatches
+it to the sinks at once, and the writer does the INSERT with its retries (1 + 4 + 16 s). During a
+MariaDB outage the rows are late and the pushes are not — before the split a `CRITICAL` queued
+behind N events waited N x 21 s for its push. The writer keeps its own un-pooled connection on
+purpose: the module also runs in the downloader and importer, and the event log has to work when
+the API's pool is exhausted.
 
 Two ntfy topics keep milestones and alerts separate, since the ntfy Android app subscribes per topic
 and does not filter reliably on priority:
@@ -155,10 +164,56 @@ sound, distinct from the milestones topic.
 Home Assistant needs no dedicated integration — a REST sensor on
 `/api/events?level=ERROR&level=CRITICAL&since=-1h`, with the API key sent as a header, is enough to
 drive automations off the event count. Separately, `GET /health` reports `status`, `service`,
-`version`, `database` (`ok`/`unreachable`) and `threads` (the long-running loops: `tagger`,
-`scanner`, `radio`, `events-retention`, plus `events` for the event worker), and returns HTTP 503
-when any of those is unhealthy — instead of the old hard-coded `ok`. This is what makes the existing
+`version`, `database` (`ok`/`unreachable`), `threads` and `heartbeats`, and returns HTTP 503 when
+any of those is unhealthy — instead of the old hard-coded `ok`. This is what makes the existing
 Uptime Kuma monitor on that endpoint meaningful; nothing needs to change on the Kuma side.
+
+- `database` is `SELECT 1` on its own short-lived connection (1 s timeouts, 2 s deadline), never a
+  pooled one: the pool only pings a cached connection when a query runs, and an exhausted pool must
+  not make the check wait. `/health` therefore always answers within about two seconds.
+- `threads` has one boolean per long-running loop — `tagger`, `scanner`, `radio`, `news`,
+  `events-retention`, `scrobble-rematch`, `song-versions`, `feeds-refresh`, `lms-db-sync` — plus
+  `events` for the event worker and writer. A loop is `true` when its thread is alive **and** its
+  heartbeat (the last *completed* tick) is younger than its window: three intervals with a one-hour
+  floor, except `tagger` 24 h (a round may include the daily walk), `scanner` 12 h and `news` 3 h
+  (it sleeps up to an hour inside its tick). The window counts from startup, so a fresh process is
+  green. `heartbeats` carries the detail per loop: `alive`, `stale`, `last_tick_age_seconds`,
+  `stale_after_seconds`, `ticks`, `failures`.
+- Every loop runs through `thread_registry.run_forever`: an exception in a tick is logged with
+  `logger.exception` (an `ERROR` event from logger `music-manager.threads`), followed by a backoff
+  of 10 s doubling up to the loop's interval, and the loop carries on. `scrobble-rematch`,
+  `song-versions` and `lms-db-sync` wait their full interval after a failure instead, as they always
+  did. A new loop goes through `run_forever` too, or a single exception ends it for good.
+- A request that finds every pooled connection busy for `DB_POOL_WAIT_SECONDS` (default 5) gets a
+  503 with `Retry-After`, rather than waiting forever.
+
+---
+
+## ⚙️ Runtime Configuration
+
+`services/common/config_store.py` (`ConfigStore`) holds the runtime settings; Beheer > Configuratie
+renders its schema (`GET /api/config/fields`) and saves through `POST /api/config`. Precedence,
+highest first:
+
+1. a value changed through the API, persisted in `data/config.json` (mode 0600);
+2. the environment, read at start-up;
+3. the field's declared default.
+
+Only (1) is written to disk, and only while it differs from what the environment or default would
+give: setting a key back to its environment value removes it from the file, so the next deploy's
+environment applies again. Secrets that come from the environment are never written. Up to 0.72
+the store wrote every value — secrets included — and loaded the file after the environment, so a
+snapshot from the day of the first save beat every later deploy. Such a legacy file (no
+`__format__` marker) still loads, except entries equal to env/default, secrets the environment
+also sets, and read-only fields; it is rewritten in the new format on the first start.
+
+Secrets leave the process only as `SECRET_SENTINEL`, on reads and in the `POST` response alike.
+The `db_*` fields are `read_only`: the database connection is opened from the environment
+(`DatabaseConnector`, `database.py`), so the page shows them for information and the API refuses
+a change. The LMS Subsonic key has one resolver, `LmsEndpoint.resolve_lms_api_key()` (store, then
+`MUMA_SERVER_SUBSONIC_API_KEY`/`LMS_SUBSONIC_API_KEY`), used by both the radio scheduler and the
+scan trigger; anything that logs an LMS error passes it through `redact_url()` first, because the
+key travels in the query string.
 
 ---
 
@@ -178,7 +233,7 @@ separately built/deployed, and talk to each other only over HTTP/Subsonic APIs:
 - **Mobile Client**: A native Android application for interacting with the music collection on the go.
 - **Subsonic Integration**: Connects directly to the `music-management-server` for audio streaming and library browsing.
 - **Settings Backup & Sync**:
-    - Synchronizes application settings (stored as JSON) to the `music-manager` API (`POST /api/users/{id}/app-settings/ultrasonic`).
+    - Synchronizes application settings (stored as JSON) to the `music-manager` API (`POST /api/users/{id}/settings/ultrasonic`, read back with `GET` on the same path).
     - Provides a seamless transition when switching devices or re-installing the app.
 - **Real-time Feedback**:
     - **Ratings**: Star ratings changed within MuMa Mobile are sent to LMS via the Subsonic API and then webhooked to `music-manager`.
@@ -190,10 +245,16 @@ separately built/deployed, and talk to each other only over HTTP/Subsonic APIs:
 ## 🧪 Testing & Stability
 
 To maintain high code quality, the system employs an automated test suite:
-- **Location**: `services/downloader/*/tests/` and `services/importer/tests/`.
+- **Location**: next to the code under `services/` (`tests/` directories and `*Test.py` files), plus
+  `tools/`, `tests/ci/` (pipeline policy) and `tests/unit/` (tests that need a real library the
+  `services/` stubs replace) — all collected by `scripts/test/music-management-unit.sh`. The suites
+  that need a live database or stack live under `tests/integration/`, `tests/contracts/` and `tests/bdd/`.
 - **Mocking**: Uses a unified `mock_base.py` to provide an isolated environment (mocking `mutagen`, `yt-dlp`, and database helpers).
 - **Enforcement**: 
-    - **Build Check**: `build.sh` executes the full test suite and aborts the container build if any tests fail.
+    - **Build Check**: `build.sh` runs pylint over `services/` (floor 8.5) and a subset of the unit tests
+      (`services/downloader/soundcloud/tests/`, `services/importer/tests/`,
+      `services/tests/YoutubeDownloaderTest.py`, `services/music_manager/tests/`) and aborts the
+      container build if either fails. It is not the full suite: CI's `backend:unit` is.
     - **Pre-commit Hook**: A Git `pre-commit` hook ensures all tests pass before allowing a commit to be finalized.
     - **Required deployment secrets**: the `release:check-secrets` CI job (`scripts/ci/check-required-secrets.sh`)
       verifies that specific keys required inside file-type CI/CD variables (e.g. `GOOGLE_CLIENT_ID` inside
@@ -210,9 +271,14 @@ To maintain high code quality, the system employs an automated test suite:
 - **Quality gates** — all enforced in CI (`quality` stage) and by the versioned pre-commit
   hook (`./scripts/install-hooks.sh`), which is a thin wrapper around the same scripts so the
   two cannot drift:
-    - `./scripts/lint.sh` — ruff (config in `pyproject.toml`) + pylint, threshold 9.5.
+    - `./scripts/lint.sh` — ruff (config in `pyproject.toml`) + pylint, threshold 9.5. On a full
+      run it also fails any module on the strict type-check list that has an undocumented public
+      function or class (rule 5 below); `.pylintrc` still disables those checks for the rest.
     - `./scripts/typecheck.sh` — mypy. Rolled out per module: `pyproject.toml` holds a loose
       floor for the whole tree and lists the strictly-checked modules. That list only grows.
+      `backend:typecheck` runs the strict list; `backend:typecheck-all` runs `--all`, the whole
+      tree at the loose floor, and is `allow_failure` until its backlog (299 errors when it was
+      added, see [docs/open-work.md](docs/open-work.md)) reaches zero.
     - `./scripts/format.sh <path>` — opt-in `ruff format`. Deliberately not in CI: a tree-wide
       reformat would rewrite nearly every file and conflict with every open branch.
     - `./scripts/ci/dependency-audit.sh` — pip-audit + npm audit. Runs on a schedule and on the
@@ -220,15 +286,27 @@ To maintain high code quality, the system employs an automated test suite:
       this repository does not manage). Accepted findings, with a reason, live in
       `security/accepted-vulnerabilities.txt`.
 - **Ratchets** — `FAIL_UNDER` in `scripts/lint.sh` (9.5), `COVERAGE_MIN` in
-  `scripts/test/music-management-unit.sh` (85%) and the `thresholds` in
+  `scripts/test/music-management-unit.sh` (84%) and the `thresholds` in
   `services/frontend/vite.config.js` are floors. Raise them as the numbers climb; never lower
-  one to make a red build green.
+  one to make a red build green. The Python coverage figure is measured on source only —
+  `services/` and `tools/`, with every test and fixture file omitted (`[tool.coverage.run]` in
+  `pyproject.toml`); 84.89% when that was introduced. `COVERAGE_MIN` went from 93 to 84 then,
+  the one sanctioned exception to this rule: the old figure counted the tests themselves as
+  covered code (bug report 047).
 - **Uniform local test scripts** (`scripts/test/`), run the same way locally and in CI:
-    - `./scripts/test/music-management-unit.sh` — Python unit tests, whole `services/` and
-      `tools/` tree, with the coverage gate.
-    - `./scripts/test/db-integration.sh` — every endpoint's SQL against a throwaway MariaDB,
-      plus the schema bootstrap and every `migrate_*.sql` applied twice. The unit suite mocks
-      the cursor, so this is the only thing that proves MariaDB accepts the queries.
+    - `./scripts/test/music-management-unit.sh` — Python unit tests: `services/`, `tools/`,
+      `tests/ci/` and `tests/unit/`, with the coverage gate. In CI this and `db-integration.sh`
+      run pytest inside `docker/Dockerfile.python-ci` (python:3.14-slim, the images' Python) with
+      `requirements.txt` installed — not on the runner's own `python3`;
+      `PYTHON_TOOLING_FORCE_CONTAINER=1` does the same locally. A test dependency therefore has
+      to be in `requirements.txt`.
+    - `./scripts/test/db-integration.sh` — every endpoint's SQL against a throwaway MariaDB
+      (13.0, like production; `MARIADB_VERSION=10.6` for the old server), plus the schema
+      bootstrap and every `migrate_*.sql` applied twice. The unit suite mocks the cursor, so this
+      is the only thing that proves MariaDB accepts the queries. It also builds the schema twice
+      from nothing — the fresh-stack way and the migrations way — and fails on any column or
+      index that differs (`tests/integration/test_schema_drift.py`). In CI a database it cannot
+      reach is a failure, not a skip.
     - `./scripts/test/muma-server-unit.sh` — LMS C++ unit tests (existing upstream CTest/GTest suite).
     - `./scripts/test/frontend-unit.sh` — frontend lint + svelte-check + vitest with coverage.
     - `./scripts/test/android-unit.sh` — MuMa Mobile JVM unit tests.
@@ -241,12 +319,18 @@ To maintain high code quality, the system employs an automated test suite:
 - **Test stack**: `docker/compose.test.yml` — temporary MariaDB, `music-manager` and `music-management-server`, all built from the current checkout, disposable volumes, healthchecks. Never mounts real music/library paths or production data.
 - **Fixture track**: `tests/fixtures/music/ci-test-track-001.mp3` (generated tone, no commercial audio) with expected metadata documented in `tests/fixtures/expected/ci-test-track-001.json`.
 - **A new endpoint that reads the database** belongs in `tests/integration/test_router_sql.py`
-  as well as in a unit test. **A schema change needs three edits**: the `CREATE TABLE` in
+  as well as in a unit test. **A schema change needs two edits**: the `CREATE TABLE` in
   `services/common/db_init.py`, a re-runnable `migrate_*.sql` in the repository root (applied
-  on every deploy by `scripts/deploy.sh`), and the expected-tables list in
-  `tests/integration/test_schema.py`. `CREATE TABLE IF NOT EXISTS` never alters an existing
+  on every deploy by `scripts/deploy.sh`), and the same shape in both — the expected-table
+  set is read from the `CREATE TABLE` statements themselves, and `test_schema_drift.py` fails if
+  the two paths end in different columns or index names (name an index in the CREATE the way the
+  migration names it). `CREATE TABLE IF NOT EXISTS` never alters an existing
   table -- that is how `downloads_youtube_accounts.channel_id` and
   `library_track_ml_labels.updated_at` went missing until the integration suite caught them.
+  The migration must also be **expand-only**: `scripts/deploy.sh` applies it while the previous
+  release is still running, before the new containers start. Dropping, renaming or narrowing
+  what the running code reads waits for a later release (`tests/ci/test_migration_ordering.py`,
+  `docs/deployment.md#deploy-order-and-migrations`).
 - **See [CONTRIBUTING.md](CONTRIBUTING.md)** for the full local setup and the conventions
   above in one place, and [SECURITY.md](SECURITY.md) for the auth model and what is scanned.
 

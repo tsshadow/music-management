@@ -49,13 +49,19 @@ function subsonic({
 } = {}) {
   return vi.fn(async (url) => {
     if (url.includes("/rest/getArtistInfo2")) {
-      return { ok: true, json: async () => ({ "subsonic-response": { artistInfo2: info } }) };
+      return {
+        ok: true,
+        json: async () => ({ "subsonic-response": { status: "ok", artistInfo2: info } }),
+      };
     }
     if (url.includes("/rest/getSpotifyTracks")) {
-      return { ok: true, json: async () => ({ "subsonic-response": { tracks } }) };
+      return { ok: true, json: async () => ({ "subsonic-response": { status: "ok", tracks } }) };
     }
     if (url.includes("/rest/getArtist?")) {
-      return { ok: true, json: async () => ({ "subsonic-response": { artist: artistData } }) };
+      return {
+        ok: true,
+        json: async () => ({ "subsonic-response": { status: "ok", artist: artistData } }),
+      };
     }
     // The curation endpoint, keyed by name. The previous version of this mock
     // answered /api/artists/{id} -- a route that has never existed, so the test
@@ -273,5 +279,94 @@ describe("ArtistView", () => {
       const place = get(recentPlaces).find((p) => p.view === "artist:artist-1");
       expect(place?.title).toBe("Angerfist");
     });
+  });
+});
+
+/**
+ * Going from one artist straight to another reused the same component, nothing guarded against
+ * the first artist's answer arriving last, and the biography, similar artists and MusicBrainz id
+ * were only cleared when the answer had no info block at all -- so B's page could show A.
+ */
+describe("ArtistView - switching artists", () => {
+  const A = { id: "artist-a", name: "Angerfist", album: [] };
+  const B = { id: "artist-b", name: "Miss K8", album: [] };
+
+  /**
+   * A server knowing A and B. `holdA`, when given, keeps A's getArtist answer back until it
+   * resolves; `infoA`/`infoB` are their getArtistInfo2 blocks.
+   */
+  function twoArtists({ holdA = null, infoA = { biography: "Bio van A." }, infoB = {} } = {}) {
+    const ok = (payload) => ({
+      ok: true,
+      json: async () => ({ "subsonic-response": { status: "ok", ...payload } }),
+    });
+    return vi.fn(async (url) => {
+      const id = new URL(url, "https://lms.example").searchParams.get("id");
+      if (url.includes("/rest/getArtist?")) {
+        if (id === A.id && holdA) await holdA;
+        return ok({ artist: id === A.id ? A : B });
+      }
+      if (url.includes("/rest/getArtistInfo2"))
+        return ok({ artistInfo2: id === A.id ? infoA : infoB });
+      if (url.includes("/rest/getSpotifyTracks"))
+        return ok({ tracks: { track: [], moreResults: false } });
+      if (url.includes("/api/curation/artists/")) return { ok: true, json: async () => ({}) };
+      return ok({});
+    });
+  }
+
+  beforeEach(() => {
+    credentials.set({ url: "", username: "user", password: "pw" });
+    viewMode.set("songs");
+    deduplicateEnabled.set(false);
+    clearRecentPlaces();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("shows B when A's answer arrives after B's", async () => {
+    let releaseA;
+    const holdA = new Promise((resolve) => {
+      releaseA = resolve;
+    });
+    globalThis.fetch = twoArtists({ holdA });
+
+    const { rerender } = render(ArtistView, { artistId: A.id, onnavigate: vi.fn() });
+    await rerender({ artistId: B.id });
+    await waitFor(() => expect(screen.getByText(B.name)).toBeTruthy());
+
+    releaseA();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(screen.getByText(B.name)).toBeTruthy();
+    expect(screen.queryByText(A.name)).toBeNull();
+  });
+
+  it("does not keep a biography A had and B lacks", async () => {
+    globalThis.fetch = twoArtists();
+
+    const { rerender } = render(ArtistView, { artistId: A.id, onnavigate: vi.fn() });
+    await waitFor(() => expect(screen.getByText(/Bio van A/)).toBeTruthy());
+
+    await rerender({ artistId: B.id });
+    await waitFor(() => expect(screen.getByText(B.name)).toBeTruthy());
+
+    expect(screen.queryByText(/Bio van A/)).toBeNull();
+  });
+
+  it("shows an error, not a blank page, when the artist cannot be loaded", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        "subsonic-response": { status: "failed", error: { code: 70, message: "Not found" } },
+      }),
+    }));
+
+    render(ArtistView, { artistId: "gone", onnavigate: vi.fn() });
+
+    await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
   });
 });

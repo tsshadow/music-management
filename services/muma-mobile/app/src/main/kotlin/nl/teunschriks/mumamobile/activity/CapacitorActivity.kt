@@ -48,22 +48,22 @@ import org.koin.android.ext.android.inject
 import timber.log.Timber
 
 /**
- * The opt-in shell: the Svelte web player in a `WebView`, over the services the Kotlin app
- * already has.
+ * The app's interface: the Svelte web player in a `WebView`, over the Kotlin services.
  *
- * It is not a replacement for [NavigationActivity] -- both are in the APK, only one is the
- * launcher (see `AppIconVariant`), and the default is still the Kotlin UI. Everything below the
- * screens is shared and untouched: `PlaybackService`, the media session, Android Auto, the
- * notification, `DownloadService`, Room and the Koin graph. This activity carries over the parts
- * of `NavigationActivity` that are the *app's* lifecycle rather than the UI's, and nothing else:
+ * It is the only UI in the APK. The Kotlin screens and their `NavigationActivity` were deleted
+ * (MR !783); every launcher alias opens `LauncherActivity`, a trampoline that starts this
+ * activity (see `AppIconVariant` and `LauncherActivity`). Everything below the screens is Kotlin:
+ * `PlaybackService`, the media session, Android Auto, the notification, `DownloadService`, Room
+ * and the Koin graph. This activity owns the parts that are the *app's* lifecycle rather than a
+ * screen's, which it took over from `NavigationActivity`:
  *
  * - `Util.applyTheme` and the locale/scale [attachBaseContext] wrapping, so a WebView launched
  *   from a shortcut is configured the same way every other screen is;
  * - `volumeControlStream`, so the hardware keys reach the music stream and not the ringer;
  * - the notification permission, asked once;
  * - `lifecycleSupport.onCreate()` in [onResume], which is what starts the player's event
- *   receivers -- it is deliberately *not* in `onCreate`, matching `NavigationActivity`;
- * - `CrashReportManager.maybeHandlePendingReport`, so a crash in either interface is offered;
+ *   receivers -- it is deliberately *not* in `onCreate`, as it was not in `NavigationActivity`;
+ * - `CrashReportManager.maybeHandlePendingReport`, so a pending crash report is offered;
  * - the car-presence loop, which here emits `carConnected` to the web UI instead of navigating.
  *
  * Deep links arrive the way they always have -- as intent extras and actions -- and are

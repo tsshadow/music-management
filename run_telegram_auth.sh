@@ -23,11 +23,24 @@ fi
 # Default channel if none provided
 CHANNEL=${1:-"Hard Dance Events"}
 
+# The compose file that defines telegram_worker as deployed. It used to point at a
+# work-context/docker-compose.yml that no longer exists. docker/docker-compose.workers.yml
+# (the local-only overlay scripts/dev.sh layers on top) is not usable on its own here:
+# its telegram_worker depends on a `db` service only docker-compose.yml defines.
+COMPOSE_FILE_PATH="docker/docker-compose.yml"
+
 # Check if we are in the project root
-if [ ! -f "work-context/docker-compose.yml" ]; then
-    echo "Error: work-context/docker-compose.yml not found."
+if [ ! -f "$COMPOSE_FILE_PATH" ]; then
+    echo "Error: $COMPOSE_FILE_PATH not found."
     echo "Please run this script from the music-management project root."
     exit 1
+fi
+
+# The project .env sits in the repository root; compose would otherwise look for it next to
+# the compose file, in docker/.
+ENV_ARGS=()
+if [ -f ".env" ]; then
+    ENV_ARGS=(--env-file .env)
 fi
 
 # Detect Docker Compose version
@@ -47,9 +60,11 @@ echo "Follow the prompts to enter your phone number and the code you receive via
 echo "The session will be saved in the persistent volume."
 echo ""
 
-$DOCKER_CMD -f work-context/docker-compose.yml run --rm -it telegram_worker python services/downloader/downloader_service.py --step telegram --account "$CHANNEL"
+# Interactive with a TTY by default for `run`; --no-deps leaves the database container alone.
+$DOCKER_CMD "${ENV_ARGS[@]}" -f "$COMPOSE_FILE_PATH" run --rm --no-deps telegram_worker \
+    python services/downloader/downloader_service.py --step telegram --account "$CHANNEL"
 
 echo ""
 echo "--- Authentication Complete ---"
 echo "You can now start the worker in the background using:"
-echo "$DOCKER_CMD -f work-context/docker-compose.yml up -d telegram_worker"
+echo "$DOCKER_CMD ${ENV_ARGS[*]} -f $COMPOSE_FILE_PATH up -d telegram_worker"

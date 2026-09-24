@@ -22,6 +22,11 @@ The Importer works as a background worker that monitors a specific `__TODO` fold
 - `label_proposal_store.py`: Records releases the Mover could not place, for review in the management page.
 - `mover.py`: Logic for moving files to their final destination.
 - `renamer.py`: Sanitizes file and folder names.
+- `settle.py`: The settle rule -- no step acts on a release folder changed within `import_settle_minutes`
+  (default 5), so a release still being copied in is never renamed or moved half-done.
+
+Archives are extracted into a `.muma-extract-*` staging folder and only a complete extraction is moved
+into the watch folder. See `docs/designs/importer/technical.md` for the settle and duplicate rules.
 
 ## 🚀 Downloaders
 

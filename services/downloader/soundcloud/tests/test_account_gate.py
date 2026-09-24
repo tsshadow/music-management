@@ -10,7 +10,7 @@ setup_mocks()
 
 from services.downloader.rate_state import RateLimited  # isort:skip
 from services.downloader.soundcloud.account_probe import ProbeResult  # isort:skip
-from services.downloader.soundcloud.account_report import AccountReport  # isort:skip
+from services.downloader.account_report import AccountReport  # isort:skip
 from services.downloader.soundcloud.soundcloud import SoundcloudDownloader  # isort:skip
 
 

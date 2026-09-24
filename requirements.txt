@@ -69,6 +69,12 @@ docker~=7.2.0
 pytest>=8.4.0
 pytest-cov>=4.1.0
 coverage~=7.16.0
+# fastapi.testclient (starlette.testclient) refuses to import without it, and
+# every router test uses TestClient. The CI runners' system Python had it
+# installed by hand, so nothing noticed this file did not list it until the
+# unit suite started running from this file alone (backend:unit in the images'
+# Python, see scripts/test/music-management-unit.sh).
+httpx2~=2.13
 # Property-based tests (services/common/Helpers/ArtistNameAnalyzerPropertyTest.py).
 # Here rather than in requirements-dev.txt for the same reason as pytest: those
 # tests guard the text helpers, and without this they skip silently on CI.

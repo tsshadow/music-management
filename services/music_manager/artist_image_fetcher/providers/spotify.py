@@ -1,4 +1,5 @@
 import logging
+import time
 
 import requests
 
@@ -8,11 +9,16 @@ from .base import ArtistImageProvider, ProviderUnavailable, credential
 class SpotifyArtistImageProvider(ArtistImageProvider):
     TOKEN_URL = 'https://accounts.spotify.com/api/token'
     SEARCH_URL = 'https://api.spotify.com/v1/search'
+    # Used when the token response omits expires_in; Spotify documents 3600 s.
+    DEFAULT_TOKEN_LIFETIME = 3600
+    # Renew this many seconds before the token would expire.
+    TOKEN_REFRESH_MARGIN = 60
 
     def __init__(self, client_id=None, client_secret=None):
         self.client_id = client_id or credential('spotify_client_id', 'SPOTIFY_CLIENT_ID')
         self.client_secret = client_secret or credential('spotify_client_secret', 'SPOTIFY_CLIENT_SECRET')
         self._token = None
+        self._token_expires_at = 0.0
         self.logger = logging.getLogger(__name__)
         if not self.configured:
             self.logger.warning(
@@ -28,8 +34,16 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
         return bool(self.client_id and self.client_secret)
 
     def _get_token(self):
-        if self._token:
+        """Return a valid client-credentials access token, requesting a new one when needed.
+
+        Spotify's client-credentials tokens expire after `expires_in` seconds (3600 in
+        practice). The token is renewed `TOKEN_REFRESH_MARGIN` seconds before that, so a
+        bulk run over tens of thousands of artists does not turn every lookup after the
+        first hour into a 401.
+        """
+        if self._token and time.monotonic() < self._token_expires_at:
             return self._token
+        self._token = None
         if not self.configured:
             raise ProviderUnavailable('Spotify: no client id/secret configured')
         try:
@@ -43,24 +57,49 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
             raise ProviderUnavailable(f'Spotify: token request failed: {e}') from e
         if resp.status_code != 200:
             raise ProviderUnavailable(f'Spotify: token request answered {resp.status_code}')
-        self._token = resp.json().get('access_token')
-        if not self._token:
+        try:
+            body = resp.json()
+            token = body.get('access_token')
+            expires_in = body.get('expires_in')
+        except (ValueError, AttributeError) as e:
+            raise ProviderUnavailable(f'Spotify: could not read the token response: {e}') from e
+        if not token:
             raise ProviderUnavailable('Spotify: token response carried no access_token')
+        try:
+            lifetime = float(expires_in) if expires_in is not None else self.DEFAULT_TOKEN_LIFETIME
+        except (TypeError, ValueError):
+            lifetime = self.DEFAULT_TOKEN_LIFETIME
+        self._token = token
+        self._token_expires_at = time.monotonic() + max(lifetime - self.TOKEN_REFRESH_MARGIN, 0)
         return self._token
 
-    def get_artist_images(self, artist_name, mbid=None, external_ids=None):
+    def _request(self, url, params=None):
+        """GET `url` with the bearer token; on a 401 renew the token once and retry.
+
+        A 401 mid-run means the token expired or was revoked early. One renewal is
+        worth trying; a second 401 is returned to the caller, which treats it as
+        Spotify not answering.
+        """
         token = self._get_token()
+        response = requests.get(url, params=params, headers={'Authorization': f'Bearer {token}'}, timeout=5)
+        if response.status_code == 401:
+            self._token = None
+            token = self._get_token()
+            response = requests.get(url, params=params, headers={'Authorization': f'Bearer {token}'}, timeout=5)
+        return response
+
+    def get_artist_images(self, artist_name, mbid=None, external_ids=None):
+        """Return image candidates from Spotify, by known id or by name search."""
+        self._get_token()
         candidates = []
+        spotify_id = external_ids.get('spotify') if external_ids else None
         try:
-            spotify_id = external_ids.get('spotify') if external_ids else None
             if spotify_id:
-                url = f'https://api.spotify.com/v1/artists/{spotify_id}'
-                response = requests.get(url, headers={'Authorization': f'Bearer {token}'}, timeout=5)
+                response = self._request(f'https://api.spotify.com/v1/artists/{spotify_id}')
             else:
-                params = {'q': artist_name, 'type': 'artist', 'limit': 5}
-                response = requests.get(
-                    self.SEARCH_URL, params=params, headers={'Authorization': f'Bearer {token}'}, timeout=5
-                )
+                response = self._request(self.SEARCH_URL, params={'q': artist_name, 'type': 'artist', 'limit': 5})
+        except ProviderUnavailable:
+            raise
         except Exception as e:
             raise ProviderUnavailable(f'Spotify: lookup failed: {e}') from e
         # A known artist id that Spotify no longer has is a real answer; anything else

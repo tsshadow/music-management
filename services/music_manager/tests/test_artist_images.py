@@ -188,9 +188,9 @@ class ArtistImagesManagerTest(unittest.TestCase):
         self.assertEqual(res.status_code, 400)
 
     @patch(f'{ROUTER}._store_manual_image')
-    @patch('services.music_manager.artist_image_fetcher.storage.ImageDownloader')
-    def test_set_image_from_url_downloads_and_stores(self, mock_downloader, mock_store):
-        mock_downloader.return_value.download.return_value = b'jpeg-bytes'
+    @patch(f'{ROUTER}.download_public_image')
+    def test_set_image_from_url_downloads_and_stores(self, mock_download, mock_store):
+        mock_download.return_value = b'jpeg-bytes'
         mock_store.return_value = {'status': 'ok', 'artist_id': 1, 'image_id': 43}
 
         res = self.client.post(

@@ -4,6 +4,7 @@ import logging
 import os
 import secrets
 import sqlite3
+import threading
 import time
 
 import bcrypt
@@ -16,6 +17,7 @@ from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
 from services.music_manager.rate_limit import auth_attempt
 from services.music_manager.rbac import has_permission, require_permission
+from services.music_manager.thread_registry import run_forever
 
 router = APIRouter(tags=['users'])
 # These four are the keys this service *presents* when it calls the muma server.
@@ -26,6 +28,10 @@ MUMA_SERVER_API_KEY = os.getenv('MUMA_SERVER_API_KEY') or os.getenv('LMS_API_KEY
 API_KEY = os.getenv('API_KEY') or MUMA_SERVER_API_KEY
 MUMA_SERVER_SUBSONIC_API_KEY = os.getenv('MUMA_SERVER_SUBSONIC_API_KEY') or os.getenv('LMS_SUBSONIC_API_KEY') or API_KEY
 MUMA_SERVER_HOSTS = os.getenv('MUMA_SERVER_HOSTS', 'music-management-server:5082')
+
+#: Held for the duration of one lms.db sync, by the hourly loop and by the manual
+#: /sync endpoints alike, so the two never write the server database concurrently.
+lms_db_sync_lock = threading.Lock()
 
 
 def verify_api_key(x_api_key: str = Header(None)):
@@ -105,7 +111,10 @@ class DynamicPlaylistUpdate(BaseModel):
 
 
 class PasswordUpdate(BaseModel):
+    """A new password; `current_password` is required when a non-admin changes their own."""
+
     password: str
+    current_password: str | None = None
 
 
 class AppSettingsUpdate(BaseModel):
@@ -209,7 +218,16 @@ def build_auth_user(cursor, user_row):
     }
 
 
-@router.get('/auth/verify')
+#: The routes this module serves directly under `/api` rather than `/api/users`: the
+#: `/auth/*` session endpoints every client calls there, and `/roles`, which
+#: Management.svelte (and the copy of it bundled in already-installed apps) has always
+#: fetched as `/api/roles`. `router` used to be mounted at both prefixes to reach these,
+#: which also published every user route a second time under `/api/{user_id}/...` --
+#: `DELETE /api/{user_id}` among them.
+auth_router = APIRouter(tags=['auth'])
+
+
+@auth_router.get('/auth/verify')
 def verify_token(x_api_key: str = Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail='Missing API Key')
@@ -230,7 +248,28 @@ def verify_token(x_api_key: str = Header(None)):
     raise HTTPException(status_code=403, detail='Invalid API Key')
 
 
-@router.post('/auth/login')
+def password_matches(password: str, user: dict) -> bool:
+    """Whether `password` is this account's password, or its api_key (see `login`).
+
+    Never raises for anything a client can type. `secrets.compare_digest` refuses a
+    `str` with non-ASCII characters (TypeError), so both sides are compared as UTF-8
+    bytes; bcrypt raises ValueError for a password over its 72-byte limit and for a
+    malformed stored hash. Either used to escape as a 500, which the login rate
+    limiter -- counting only rejections -- never saw.
+    """
+    candidate = (password or '').encode('utf-8')
+    password_hash = user.get('password_hash')
+    if password_hash:
+        try:
+            if bcrypt.checkpw(candidate, password_hash.encode('utf-8')):
+                return True
+        except ValueError:
+            pass
+    api_key = user.get('api_key')
+    return bool(api_key) and secrets.compare_digest(candidate, api_key.encode('utf-8'))
+
+
+@auth_router.post('/auth/login')
 def login(req: LoginRequest, request: Request):
     """Log in with username/password, used both by the login form and, indirectly, by
     Subsonic/LMS clients (LMS forwards its own username/password login attempts here, see
@@ -259,16 +298,7 @@ def login(req: LoginRequest, request: Request):
                 if not user.get('enabled', True):
                     raise HTTPException(status_code=403, detail='Account disabled')
 
-                password_valid = False
-                if (
-                    user.get('password_hash')
-                    and bcrypt.checkpw(req.password.encode('utf-8'), user['password_hash'].encode('utf-8'))
-                    or user.get('api_key')
-                    and secrets.compare_digest(req.password, user['api_key'])
-                ):
-                    password_valid = True
-
-                if not password_valid:
+                if not password_matches(req.password, user):
                     raise HTTPException(status_code=401, detail='Invalid username or password')
 
                 api_key = user['api_key']
@@ -293,7 +323,7 @@ def login(req: LoginRequest, request: Request):
             conn.close()
 
 
-@router.post('/auth/refresh')
+@auth_router.post('/auth/refresh')
 def refresh_access_token(req: RefreshRequest, request: Request):
     """Exchange a refresh token for a fresh access token (api_key)."""
     with auth_attempt(request):
@@ -320,7 +350,7 @@ def refresh_access_token(req: RefreshRequest, request: Request):
             conn.close()
 
 
-@router.get('/auth/setup-status')
+@auth_router.get('/auth/setup-status')
 def get_setup_status():
     conn = get_db_connection()
     if not conn:
@@ -334,7 +364,7 @@ def get_setup_status():
         conn.close()
 
 
-@router.post('/auth/setup')
+@auth_router.post('/auth/setup')
 def setup_admin(user: UserCreate, request: Request):
     # Every call counts here, not just the rejected ones: this endpoint is
     # unauthenticated until the first admin exists and is legitimately used
@@ -635,6 +665,12 @@ def seed_defaults(user_id: int, auth: dict = Depends(verify_api_key)):
 @router.get('')
 @router.get('/')
 def get_users(auth: dict = Depends(verify_api_key)):
+    """Every account, for the user administration.
+
+    Without `api_key`: that column is a password-equivalent access token (login accepts
+    it in place of the password), and listing it handed every account's credential to
+    whoever could read this list. No client reads it from here.
+    """
     if auth.get('type') == 'user' and (not has_permission(auth, 'users.read')):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
@@ -643,7 +679,7 @@ def get_users(auth: dict = Depends(verify_api_key)):
     try:
         with conn.cursor() as cursor:
             cursor.execute(
-                'SELECT u.id, u.username, u.display_name, u.email, u.avatar_url, u.is_admin, u.role_id, r.name as role_name, u.enabled, u.server_user_id, u.api_key, CAST(u.created_at AS CHAR) as created_at, CAST(u.last_login_at AS CHAR) as last_login_at FROM users u LEFT JOIN roles r ON u.role_id = r.id'
+                'SELECT u.id, u.username, u.display_name, u.email, u.avatar_url, u.is_admin, u.role_id, r.name as role_name, u.enabled, u.server_user_id, CAST(u.created_at AS CHAR) as created_at, CAST(u.last_login_at AS CHAR) as last_login_at FROM users u LEFT JOIN roles r ON u.role_id = r.id'
             )
             return cursor.fetchall()
     finally:
@@ -686,6 +722,7 @@ def create_user(user: UserCreate, auth: dict = Depends(verify_api_key)):
         conn.close()
 
 
+@auth_router.get('/roles')
 @router.get('/roles')
 def list_roles(auth: dict = Depends(require_permission('roles.read'))):
     conn = get_db_connection()
@@ -1065,7 +1102,7 @@ def merge_users(user_id: int, req: MergeUsersRequest, auth: dict = Depends(requi
             )
             conn.commit()
             cursor.execute(
-                'SELECT u.id, u.username, u.display_name, u.email, u.avatar_url, u.is_admin, u.role_id, r.name as role_name, u.enabled, u.server_user_id, u.api_key FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.id = %s',
+                'SELECT u.id, u.username, u.display_name, u.email, u.avatar_url, u.is_admin, u.role_id, r.name as role_name, u.enabled, u.server_user_id FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.id = %s',
                 (primary_id,),
             )
             return {'status': 'ok', 'user': cursor.fetchone()}
@@ -1080,14 +1117,37 @@ def merge_users(user_id: int, req: MergeUsersRequest, auth: dict = Depends(requi
 @router.post('/{user_id}/password')
 @router.put('/{user_id}/password')
 def update_password(user_id: int, req: PasswordUpdate, auth: dict = Depends(verify_api_key)):
-    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
+    """Set an account's password.
+
+    Another account's password, and any admin's, is an admin action. A non-admin changing
+    their own must present the current password, so a leaked access token cannot be
+    turned into a password that outlives a session revoke. An account that has no
+    password yet (Google sign-in only) has nothing to present and may set its first one.
+    """
+    caller_is_admin = rbac.is_admin_auth(auth)
+    caller_id = (auth.get('user') or {}).get('id') if auth.get('type') == 'user' else None
+    if not caller_is_admin and caller_id != user_id:
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
     try:
-        password_hash = bcrypt.hashpw(req.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         with conn.cursor() as cursor:
+            cursor.execute(
+                'SELECT u.id, u.password_hash, r.name AS role_name FROM users u '
+                'LEFT JOIN roles r ON u.role_id = r.id WHERE u.id = %s',
+                (user_id,),
+            )
+            target = cursor.fetchone()
+            if not target:
+                raise HTTPException(status_code=404, detail='User not found')
+            if target.get('role_name') == rbac.ADMIN_ROLE_NAME and not caller_is_admin:
+                raise HTTPException(status_code=403, detail='Forbidden')
+            if not caller_is_admin and target.get('password_hash'):
+                current = req.current_password or ''
+                if not current or not bcrypt.checkpw(current.encode('utf-8'), target['password_hash'].encode('utf-8')):
+                    raise HTTPException(status_code=403, detail='Current password is incorrect')
+            password_hash = bcrypt.hashpw(req.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             cursor.execute('UPDATE users SET password_hash = %s WHERE id = %s', (password_hash, user_id))
             conn.commit()
             return {'status': 'ok'}
@@ -1144,9 +1204,19 @@ def update_user_app_settings(user_id: int, app_id: str, req: AppSettingsUpdate, 
 @router.post('/sync/muma-server')
 @router.post('/sync/lms')
 @router.post('/sync/lms-db')
-def sync_lms_db(background_tasks: BackgroundTasks, _api_key: str = Depends(verify_api_key)):
-    # Run synchronously to return count to UI
-    synced = run_lms_db_sync()
+def sync_lms_db(background_tasks: BackgroundTasks, _auth: dict = Depends(rbac.require_admin())):
+    """Run the lms.db sync now and return its count. Admin only; 409 while one is running.
+
+    Synchronous so the UI can show the count. The hourly loop takes the same lock, so a
+    click during its run is refused instead of opening a second writer on the server's
+    SQLite database -- the server dies on a locked database rather than waiting.
+    """
+    if not lms_db_sync_lock.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail='A Music Management Server DB sync is already running')
+    try:
+        synced = run_lms_db_sync()
+    finally:
+        lms_db_sync_lock.release()
     return {'message': 'Music Management Server DB sync completed', 'synced': synced}
 
 
@@ -1261,12 +1331,16 @@ def run_lms_db_sync_loop(sleeptime: int = 3600) -> None:
     Users and playlists ride along, which is harmless -- that sync is idempotent and cheap
     next to walking the library.
     """
-    while True:
-        try:
+
+    # backoff=False: a failed pass waits the full interval, as it always did. The sync
+    # writes into the server's SQLite database, and hammering it again after ten seconds
+    # is exactly what a locked database does not need.
+    def tick() -> None:
+        """One sync pass; the synced-user count it returns is not a sleep override."""
+        with lms_db_sync_lock:
             run_lms_db_sync_with_retry()
-        except Exception as e:
-            logging.error('lms.db sync loop: %s', e, exc_info=True)
-        time.sleep(sleeptime)
+
+    run_forever('lms-db-sync', tick, sleeptime, backoff=False)
 
 
 def run_lms_db_sync_with_retry(attempts: int = 6, delay_seconds: int = 60) -> int:

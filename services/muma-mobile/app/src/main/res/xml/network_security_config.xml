@@ -1,13 +1,30 @@
-<network-security-config xmlns:tools="http://schemas.android.com/tools">
-    <base-config cleartextTrafficPermitted="true"
-        tools:ignore="InsecureBaseConfiguration">
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What the app trusts on the network (bug report 037).
+
+  - Every remote host the app talks to is https (the server in StaticServers, the muma API,
+    apk-hoster, the news stream), so cleartext is refused everywhere except localhost.
+  - localhost stays cleartext: the Capacitor WebView serves the bundled UI from http://localhost
+    (server.androidScheme is "http", see CapacitorActivity), and the offline mode's placeholder
+    server url is http://localhost too.
+  - Only the system CA store is trusted. User-installed CAs are trusted in debuggable builds only,
+    through debug-overrides, so a debugging proxy still works on a debug APK without letting any
+    CA a user was talked into installing intercept the release app.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
-            <!-- Allow system CAs -->
             <certificates src="system" />
-            <!-- Allow user CAs -->
-            <certificates
-                src="user"
-                tools:ignore="AcceptsUserCertificates" />
         </trust-anchors>
     </base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
 </network-security-config>

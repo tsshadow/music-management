@@ -9,17 +9,21 @@ from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers import Quarantine
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.importer.release_compare import is_same_release
+from services.importer.settle import is_settled, is_staging
 
 
 def has_numbers(input_string):
+    """Whether `input_string` contains a digit."""
     return any(char.isdigit() for char in input_string)
 
 
 def is_parsed(folder):
+    """Whether `folder` already has the 'Artist - Title' shape."""
     return '- ' in folder
 
 
 def find_cat_id(folder):
+    """`folder` prefixed with its catalog id: the last parenthesised group holding a digit."""
     res = re.findall('\\(.*?\\)', folder)
     res.reverse()
     logging.info(res)
@@ -33,10 +37,13 @@ def find_cat_id(folder):
 
 
 class Renamer:
+    """Prefixes every release folder in the import folder with the catalogue number its name carries."""
+
     def __init__(self):
         self.settings = Settings()
 
     def run(self, dry_run=False):
+        """Rename every release folder that needs it; `dry_run` only logs what would happen."""
         logging.info('Starting Rename Step')
         only_folders = [
             f
@@ -46,7 +53,13 @@ class Renamer:
         for folder in only_folders:
             if '@eaDir' in folder:
                 logging.info('skipping @eaDir')
+            elif is_staging(folder):
+                continue
             elif not is_parsed(folder):
+                # Renaming a folder a copy is still filling sends the rest of the copy
+                # into a fresh folder under the old name.
+                if not is_settled(join(self.settings.import_folder_path, folder)):
+                    continue
                 new_name = find_cat_id(folder)
                 logging.info('input: %s', folder)
                 logging.info('parsed: %s', new_name)
@@ -82,7 +95,7 @@ class Renamer:
         two are compared first and anything unequal is left for a human.
 
         Even when they compare equal the source is parked rather than deleted:
-        `is_same_release` reads relative names and sizes, not contents, so "the same
+        `is_same_release` reads track names and lengths, not contents, so "the same
         release" is a strong guess and not a fact.
         """
         if is_same_release(src, dst):

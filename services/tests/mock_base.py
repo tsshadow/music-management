@@ -159,6 +159,22 @@ for mod_name in [
 # signal maths it backs is deliberately not asserted on; the analyzer's own
 # branching is.
 sys.modules['numpy'] = MagicMock()
+# hypothesis seeds numpy's global RNG whenever 'numpy' is in sys.modules, with a
+# plain `import numpy.random` -- which fails on a MagicMock, since it is not a
+# package, and took every @given test down with "'numpy' is not a package". The
+# submodule has to be registered next to the stub for that import to resolve.
+sys.modules['numpy.random'] = sys.modules['numpy'].random
+
+
+class _NdarrayStub:
+    """Stands in for numpy.ndarray so `isinstance(x, numpy.ndarray)` stays legal.
+
+    hypothesis runs exactly that check on every generated value when numpy is
+    loaded, and a MagicMock attribute is not a type.
+    """
+
+
+sys.modules['numpy'].ndarray = _NdarrayStub
 # tqdm(iterable) has to keep iterating, or every progress-wrapped loop would run zero times.
 sys.modules['tqdm'].tqdm = lambda iterable=(), *a, **k: iterable
 

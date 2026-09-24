@@ -55,20 +55,72 @@ def verify_api_key(x_api_key: str | None = Header(None)):
     raise HTTPException(status_code=401, detail='Invalid API key')
 
 
+# The largest page either track list serves. The frontend asks for 100; anything
+# above this is a request to walk the library in one response, which is what the
+# uncapped `limit` allowed.
+MAX_PAGE_SIZE = 500
+
+
 @router.get('/tracks')
-def get_tracks(q: str = '', page: int = 1, limit: int = 50, _auth: dict = Depends(verify_api_key)):
+def get_tracks(
+    q: str = '',
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=MAX_PAGE_SIZE),
+    _auth: dict = Depends(verify_api_key),
+):
+    """Newest-first track list with a free-text search over title, artist and label.
+
+    `page` starts at 1 and `limit` is capped at MAX_PAGE_SIZE: page 0 produced a
+    negative OFFSET, which MariaDB rejects with a 500. The SoundCloud and YouTube
+    source URLs are no longer part of each row. They were two correlated
+    `filename LIKE '%<basename>%'` scans of the download archives per track --
+    unindexable over TEXT columns -- and no client ever read them; the redownload
+    endpoint resolves a track's source itself.
+    """
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
     offset = (page - 1) * limit
     try:
         with conn.cursor() as cursor:
-            query = "\n                SELECT \n                    t.id, t.title, a.name as artist, t.display_artist,\n                    (SELECT l.name FROM library_labels l \n                     JOIN library_track_labels tl ON l.id = tl.label_id \n                     WHERE tl.track_id = t.id LIMIT 1) as label,\n                    (SELECT GROUP_CONCAT(g.name SEPARATOR ', ') FROM rules_genres g \n                     JOIN library_track_genres tg ON g.id = tg.genre_id \n                     WHERE tg.track_id = t.id) as genre,\n                    (SELECT mf.file_path FROM library_media_files mf WHERE mf.track_id = t.id LIMIT 1) as file_path,\n                    ml.ml_genre, \n                    COALESCE(af.tempo, af.bpm_tag) as bpm,\n                    CAST(t.created_at AS CHAR) as created_at,\n                    (SELECT url FROM downloads_soundcloud_archive \n                     WHERE filename LIKE CONCAT('%%', SUBSTRING_INDEX((SELECT mf2.file_path FROM library_media_files mf2 WHERE mf2.track_id = t.id LIMIT 1), '/', -1), '%%') \n                     LIMIT 1) as sc_url,\n                    (SELECT url FROM downloads_youtube_archive \n                     WHERE filename LIKE CONCAT('%%', SUBSTRING_INDEX((SELECT mf3.file_path FROM library_media_files mf3 WHERE mf3.track_id = t.id LIMIT 1), '/', -1), '%%') \n                     LIMIT 1) as yt_url\n                FROM library_tracks t\n                LEFT JOIN library_artists a ON t.primary_artist_id = a.id\n                LEFT JOIN library_track_ml_labels ml ON t.track_uid = ml.track_id\n                LEFT JOIN library_track_audio_features af ON af.internal_track_id = t.id\n                WHERE t.title LIKE %s OR a.name LIKE %s OR \n                      EXISTS (SELECT 1 FROM library_track_labels tl \n                              JOIN library_labels l ON tl.label_id = l.id \n                              WHERE tl.track_id = t.id AND l.name LIKE %s)\n                ORDER BY t.created_at DESC\n                LIMIT %s OFFSET %s\n            "
+            # Plain literals, no interpolation: both statements take the search three times.
+            query = """
+                SELECT
+                    t.id, t.title, a.name AS artist, t.display_artist,
+                    (SELECT l.name FROM library_labels l
+                     JOIN library_track_labels tl ON l.id = tl.label_id
+                     WHERE tl.track_id = t.id LIMIT 1) AS label,
+                    (SELECT GROUP_CONCAT(g.name SEPARATOR ', ') FROM rules_genres g
+                     JOIN library_track_genres tg ON g.id = tg.genre_id
+                     WHERE tg.track_id = t.id) AS genre,
+                    (SELECT mf.file_path FROM library_media_files mf WHERE mf.track_id = t.id LIMIT 1) AS file_path,
+                    ml.ml_genre,
+                    COALESCE(af.tempo, af.bpm_tag) AS bpm,
+                    CAST(t.created_at AS CHAR) AS created_at
+                FROM library_tracks t
+                LEFT JOIN library_artists a ON t.primary_artist_id = a.id
+                LEFT JOIN library_track_ml_labels ml ON t.track_uid = ml.track_id
+                LEFT JOIN library_track_audio_features af ON af.internal_track_id = t.id
+                WHERE t.title LIKE %s OR a.name LIKE %s OR
+                      EXISTS (SELECT 1 FROM library_track_labels tl
+                              JOIN library_labels l ON tl.label_id = l.id
+                              WHERE tl.track_id = t.id AND l.name LIKE %s)
+                ORDER BY t.created_at DESC
+                LIMIT %s OFFSET %s
+            """
             search_pattern = f'%{q}%'
             cursor.execute(query, (search_pattern, search_pattern, search_pattern, limit, offset))
             tracks = cursor.fetchall()
             cursor.execute(
-                '\n                SELECT COUNT(*) as total\n                FROM library_tracks t\n                LEFT JOIN library_artists a ON t.primary_artist_id = a.id\n                WHERE t.title LIKE %s OR a.name LIKE %s OR \n                      EXISTS (SELECT 1 FROM library_track_labels tl \n                              JOIN library_labels l ON tl.label_id = l.id \n                              WHERE tl.track_id = t.id AND l.name LIKE %s)\n            ',
+                """
+                SELECT COUNT(*) AS total
+                FROM library_tracks t
+                LEFT JOIN library_artists a ON t.primary_artist_id = a.id
+                WHERE t.title LIKE %s OR a.name LIKE %s OR
+                      EXISTS (SELECT 1 FROM library_track_labels tl
+                              JOIN library_labels l ON tl.label_id = l.id
+                              WHERE tl.track_id = t.id AND l.name LIKE %s)
+                """,
                 (search_pattern, search_pattern, search_pattern),
             )
             total = cursor.fetchone()['total']
@@ -79,8 +131,8 @@ def get_tracks(q: str = '', page: int = 1, limit: int = 50, _auth: dict = Depend
 
 @router.get('/advanced')
 def get_advanced_library(
-    page: int = 1,
-    limit: int = 100,
+    page: int = Query(1, ge=1),
+    limit: int = Query(100, ge=1, le=MAX_PAGE_SIZE),
     sort: str = 'created',
     direction: str = 'desc',
     f: LibraryFilter = Depends(parse_filter),
@@ -93,12 +145,15 @@ def get_advanced_library(
     in a CREATE TABLE IF NOT EXISTS that is a no-op against the existing table --
     so every request failed with "Unknown column 'af.musical_key'". They are gone
     rather than added, because nothing writes them.
+
+    Paging is bounded the same way as /tracks: `page` from 1, `limit` up to
+    MAX_PAGE_SIZE.
     """
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')
 
-    offset = max(page - 1, 0) * limit
+    offset = (page - 1) * limit
     where, params = build_filter(f)
     try:
         with conn.cursor() as cursor:

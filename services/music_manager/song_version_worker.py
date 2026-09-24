@@ -13,8 +13,6 @@ Design: docs/superpowers/specs/2026-08-23-song-versions-and-canonical-design.md
 from __future__ import annotations
 
 import os
-import sys
-import time
 
 from services.music_manager.database import get_db_connection
 from services.music_manager.song_versions import (
@@ -23,6 +21,7 @@ from services.music_manager.song_versions import (
     version_score,
     work_key,
 )
+from services.music_manager.thread_registry import run_forever
 
 BATCH_SIZE = int(os.getenv('SONG_VERSION_BATCH', '500'))
 INTERVAL_SECONDS = int(os.getenv('SONG_VERSION_INTERVAL', '3600'))
@@ -74,10 +73,16 @@ _UNGROUPED = '''
 
 # Highest score wins; the two tie-breaks keep the choice stable between passes so
 # the canonical does not move on its own.
+#
+# Only a track with a file can win. With a LEFT JOIN a row no file maps to any more
+# -- a retag leftover, see track_relink.py -- tied with the real file on score and
+# won on `created_at ASC` for being older, and song_version_sync then marked the
+# real file non-canonical in LMS. A work whose tracks all lost their files gets no
+# canonical, which LMS reads as "every version is canonical".
 _BEST_TRACK = '''
     SELECT t.id
     FROM library_tracks t
-    LEFT JOIN library_media_files mf ON mf.track_id = t.id
+    JOIN library_media_files mf ON mf.track_id = t.id
     WHERE t.work_id = %s
     ORDER BY t.version_score DESC,
              (mf.file_size / NULLIF(mf.duration_secs, 0)) DESC,
@@ -201,17 +206,19 @@ def group_once(conn) -> dict:
     return {'assigned': assigned, 'remaining': remaining, 'recomputed': recomputed}
 
 
+def grouping_tick() -> None:
+    """One grouping pass; raises on a database failure so run_forever can log it."""
+    conn = get_db_connection()
+    if not conn:
+        return
+    try:
+        stats = group_once(conn)
+        if stats['recomputed']:
+            print(f"song-versions: recomputed {stats['recomputed']} works")
+    finally:
+        conn.close()
+
+
 def run_song_version_grouping() -> None:
-    while True:
-        try:
-            conn = get_db_connection()
-            if conn:
-                try:
-                    stats = group_once(conn)
-                    if stats['recomputed']:
-                        print(f"song-versions: recomputed {stats['recomputed']} works")
-                finally:
-                    conn.close()
-        except Exception as exc:
-            print(f'song-versions: pass failed: {exc}', file=sys.stderr)
-        time.sleep(INTERVAL_SECONDS)
+    """The `song-versions` thread: a pass every INTERVAL_SECONDS, a failure waits the same."""
+    run_forever('song-versions', grouping_tick, INTERVAL_SECONDS, backoff=False)

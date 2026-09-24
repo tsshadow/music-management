@@ -93,6 +93,7 @@ class _Series:
             self.variants[key] = (catid, release_folder)
 
     def summary(self) -> dict[str, Any]:
+        """The range, count and missing numbers of this series, as the API returns them."""
         low, high = min(self.numbers), max(self.numbers)
         span = high - low + 1
         present = len(self.numbers)

@@ -116,12 +116,75 @@ namespace lms::api::muma
 
             return std::max<std::size_t>(1, threadCount / 2);
         }
+
+        // How long MuMa's word on a key is trusted before it is asked again. It is also how long a
+        // revoked key keeps opening this server's own routes, which is why it is short; a
+        // /users/sync from MuMa clears the cache at once.
+        constexpr std::chrono::seconds keyVerdictTtl{ 60 };
+        constexpr std::size_t keyVerdictCacheMaxEntries{ 1024 };
+        constexpr std::chrono::seconds keyVerifyTimeout{ 10 };
+
+        /// What the verified caller may do on the routes answered here. The LMS user is looked up
+        /// from the verified identity only: the password service's user id for u/p, MuMa's own
+        /// answer for a MuMa key. Never from `u`.
+        CallerRights resolveCallerRights(db::Session& session, const AuthDecision& auth)
+        {
+            CallerRights rights;
+            rights.method = auth.method;
+            if (auth.lmsUserId)
+            {
+                if (const db::User::pointer user{ db::User::find(session, db::UserId{ *auth.lmsUserId }) })
+                {
+                    rights.isAdmin = user->isAdmin();
+                    if (const std::optional<int> mumaId{ user->getMumaId() })
+                        rights.mumaUserId = *mumaId;
+                }
+            }
+            else if (auth.mumaUserId)
+            {
+                // MuMa's own answer is fresher than the synced LMS copy of the role, so it decides.
+                rights.isAdmin = auth.mumaUserIsAdmin;
+                rights.mumaUserId = auth.mumaUserId;
+            }
+            return rights;
+        }
+
+        /// Maps the password service's answer onto the shape muma::authenticate expects.
+        PasswordCheck toPasswordCheck(const auth::IPasswordService::CheckResult& result)
+        {
+            switch (result.state)
+            {
+            case auth::IPasswordService::CheckResult::State::Granted:
+                return PasswordCheck::withState(PasswordCheck::State::Granted, result.userId.getValue());
+            case auth::IPasswordService::CheckResult::State::BackendError:
+                return PasswordCheck::withState(PasswordCheck::State::BackendError);
+            case auth::IPasswordService::CheckResult::State::Denied:
+            case auth::IPasswordService::CheckResult::State::Throttled:
+                break;
+            }
+            return PasswordCheck::withState(PasswordCheck::State::Denied);
+        }
+
+        /// Replaces every Subsonic token of `userId` with `token`, or only revokes them when
+        /// `token` is empty. Returns why the token was refused, in which case nothing changed:
+        /// a too-short token must not cost the user the working token they already have.
+        std::optional<std::string> replaceSubsonicToken(auth::IAuthTokenService& authTokenService, db::UserId userId, std::string_view token)
+        {
+            if (auto problem{ subsonicTokenProblem(token) })
+                return problem;
+
+            authTokenService.clearAuthTokens("subsonic", userId);
+            if (!token.empty())
+                authTokenService.createAuthToken("subsonic", userId, token);
+            return std::nullopt;
+        }
     } // namespace
 
     MumaResource::MumaResource(boost::asio::io_context& ioContext, db::IDb& db, auth::IUserSynchronizer& userSynchronizer)
         : _db{ db }
         , _userSynchronizer{ userSynchronizer }
         , _mumaCallGate{ getMumaCallLimit() }
+        , _keyVerdictCache{ keyVerdictTtl, keyVerdictCacheMaxEntries }
     {
         _mumaApiUrl = std::string{ core::Service<core::IConfig>::get()->getString("music-management-url", "") };
         if (_mumaApiUrl.empty())
@@ -147,6 +210,84 @@ namespace lms::api::muma
 
     MumaResource::~MumaResource()
     {
+    }
+
+    KeyVerdict MumaResource::verifyKeyWithMuma(std::string_view key)
+    {
+        if (std::optional<KeyVerdict> cached{ _keyVerdictCache.find(key, KeyVerdictCache::Clock::now()) })
+            return *cached;
+
+        if (!_httpClient)
+            return KeyVerdict::withState(KeyVerdict::State::Unavailable);
+
+        auto resultPromise{ std::make_shared<std::promise<KeyVerdict>>() };
+        auto resultFuture{ resultPromise->get_future() };
+
+        core::http::ClientGETRequestParameters params;
+        params.relativeUrl = "/api/auth/verify";
+        params.priority = core::http::ClientRequestParameters::Priority::High;
+        params.headers.emplace_back("X-API-Key", std::string{ key });
+        // 401/403 are answers here ("not a valid key"), not transport failures to be retried.
+        params.treatAnyStatusAsSuccess = true;
+        params.onSuccessFunc = [resultPromise](const Wt::Http::Message& msg) {
+            resultPromise->set_value(parseVerifyResponse(msg.status(), msg.body()));
+        };
+        params.onFailureFunc = [resultPromise]() {
+            resultPromise->set_value(KeyVerdict::withState(KeyVerdict::State::Unavailable));
+        };
+
+        const auto mumaCallLease{ _mumaCallGate.tryAcquire() };
+        if (!mumaCallLease)
+        {
+            LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: key verification refused, " << _mumaCallGate.getInUseCount() << " of " << _mumaCallGate.getMaxConcurrent() << " calls to MuMa already in flight");
+            return KeyVerdict::withState(KeyVerdict::State::Unavailable);
+        }
+
+        _httpClient->sendGETRequest(std::move(params));
+        if (resultFuture.wait_for(keyVerifyTimeout) != std::future_status::ready)
+        {
+            LMS_LOG(API_SUBSONIC, ERROR, "MumaResource: timeout waiting for MuMa to verify a key");
+            return KeyVerdict::withState(KeyVerdict::State::Unavailable);
+        }
+
+        const KeyVerdict verdict{ resultFuture.get() };
+        _keyVerdictCache.store(key, verdict, KeyVerdictCache::Clock::now());
+        return verdict;
+    }
+
+    AuthDecision MumaResource::authenticateRequest(const Wt::Http::Request& request, bool isPublicAuthPath)
+    {
+        const std::string* apiKeyParam{ request.getParameter("apiKey") };
+        const std::string* userParam{ request.getParameter("u") };
+        const std::string* passParam{ request.getParameter("p") };
+        const std::string headerKey{ request.headerValue("X-API-Key") };
+
+        RequestCredentials credentials;
+        credentials.headerKey = headerKey;
+        credentials.isPublicPath = isPublicAuthPath;
+        if (apiKeyParam)
+            credentials.paramKey = *apiKeyParam;
+        if (userParam)
+            credentials.user = *userParam;
+        if (passParam)
+            credentials.password = *passParam;
+
+        const std::string lmsApiKey{ core::Service<core::IConfig>::get()->getString("api-key", "") };
+        const std::string clientAddress{ request.clientAddress() };
+
+        AuthDecision decision{ authenticate(
+            credentials, lmsApiKey, [this](std::string_view key) { return verifyKeyWithMuma(key); },
+            [&clientAddress](std::string_view user, std::string_view password) {
+                auth::IPasswordService* passwordService{ core::Service<auth::IPasswordService>::get() };
+                if (!passwordService)
+                    return PasswordCheck{};
+                return toPasswordCheck(passwordService->checkUserPassword(boost::asio::ip::make_address(clientAddress), user, password));
+            }) };
+
+        if (decision.outcome != AuthDecision::Outcome::Authenticated)
+            LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: authentication failed" << (userParam ? " for user '" + *userParam + "'" : std::string{}) << " (outcome: " << static_cast<int>(decision.outcome) << ")");
+
+        return decision;
     }
 
     void MumaResource::handleRequest(const Wt::Http::Request& request, Wt::Http::Response& response)
@@ -224,68 +365,17 @@ namespace lms::api::muma
         };
         const bool isPublicAuthPath = std::find(publicAuthPaths.begin(), publicAuthPaths.end(), pathInfo) != publicAuthPaths.end();
 
-        // Simple auth for other endpoints
-        const std::string* apiKeyParam = request.getParameter("apiKey");
-        const std::string* userParam = request.getParameter("u");
-        const std::string* passParam = request.getParameter("p");
-        const std::string xApiKeyHeader = request.headerValue("X-API-Key");
-
-        // NOTE: matching the single, shared `configMumaApiKey` (LMS_API_KEY) is
-        // only ONE valid way in -- it's what `/api/auth/login` (handled locally,
-        // just above) hands back to every locally-authenticated Subsonic user.
-        // But MuMa (music_manager) also issues its own, per-user API keys (e.g.
-        // to Google Sign-In users via `/api/auth/google`/`/api/auth/access-request`,
-        // see the public-path list above), which will never equal the shared
-        // key. Any non-empty key is therefore accepted here and simply
-        // forwarded on to MuMa for every proxied "/api/" endpoint below --
-        // MuMa re-validates X-API-Key itself on every request (see
-        // rbac.require_permission / verify_token) and is the real
-        // authority here; this local check only exists to keep fully
-        // anonymous requests (no key, no Subsonic u/p) from being proxied at all.
-        bool authenticated = isPublicAuthPath;
-        if (!xApiKeyHeader.empty())
-            authenticated = true;
-        else if (apiKeyParam && !apiKeyParam->empty())
-            authenticated = true;
-
-        db::User::pointer dbUser;
-        if (userParam)
-        {
-            dbUser = db::User::find(session, *userParam);
-        }
-
-        bool authBackendUnavailable = false;
-        if (!authenticated && userParam && passParam)
-        {
-            std::string password = *passParam;
-            if (password.starts_with("enc:"))
-            {
-                if (auto decoded = core::stringUtils::stringFromHex(password.substr(4)))
-                    password = *decoded;
-            }
-
-            if (auto passwordService{ core::Service<auth::IPasswordService>::get() })
-            {
-                const auto passwordResult{ passwordService->checkUserPassword(boost::asio::ip::make_address(request.clientAddress()), *userParam, password) };
-                if (passwordResult.state == auth::IPasswordService::CheckResult::State::Granted)
-                {
-                    authenticated = true;
-                    if (!dbUser)
-                        dbUser = db::User::find(session, passwordResult.userId);
-                }
-                else
-                {
-                    authBackendUnavailable = passwordResult.state == auth::IPasswordService::CheckResult::State::BackendError;
-                    LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: Authentication failed for user '" << *userParam << "' (state: " << static_cast<int>(passwordResult.state) << ")");
-                }
-            }
-        }
-
-        if (!authenticated)
+        // A key opens nothing until it is verified: it must be this server's own `api-key` or a key
+        // MuMa confirms, and otherwise a Subsonic u/p pair must hold. Any non-empty key used to be
+        // accepted here, with the caller then named by the bare `u` parameter -- so any string plus
+        // `u=<an admin>` was that admin on the routes below. See
+        // docs/bug-reports/037-lms-any-key-is-admin.md.
+        const AuthDecision auth{ authenticateRequest(request, isPublicAuthPath) };
+        if (auth.outcome != AuthDecision::Outcome::Authenticated)
         {
             // Say "we could not check" rather than "you are not allowed", so the client keeps the
             // credentials it has and retries instead of logging the user out.
-            if (authBackendUnavailable)
+            if (auth.outcome == AuthDecision::Outcome::BackendUnavailable)
             {
                 LMS_LOG(API_SUBSONIC, ERROR, "MumaResource: authentication backend unavailable for " << pathInfo);
                 response.setStatus(503);
@@ -299,9 +389,11 @@ namespace lms::api::muma
             return;
         }
 
+        const CallerRights rights{ resolveCallerRights(session, auth) };
+
         if (pathInfo == "/api/admin/libraries")
         {
-            if (!dbUser || !dbUser->isAdmin())
+            if (!mayAdministerServer(rights))
             {
                 response.setStatus(403);
                 response.out() << "Forbidden";
@@ -356,7 +448,7 @@ namespace lms::api::muma
 
         if (pathInfo.find("/api/admin/libraries/") == 0 && request.method() == "DELETE")
         {
-            if (!dbUser || !dbUser->isAdmin())
+            if (!mayAdministerServer(rights))
             {
                 response.setStatus(403);
                 response.out() << "Forbidden";
@@ -400,7 +492,7 @@ namespace lms::api::muma
         // the tokens live in this server's own auth-token store.
         if (pathInfo == "/api/admin/subsonic-token")
         {
-            if (!dbUser || !dbUser->isAdmin())
+            if (!mayAdministerServer(rights))
             {
                 response.setStatus(403);
                 response.out() << "Forbidden";
@@ -456,10 +548,14 @@ namespace lms::api::muma
 
                 // An empty token means "revoke": every existing token is dropped and
                 // no new one is created, so the user's external clients stop working
-                // until a new token is issued.
-                authTokenService.clearAuthTokens("subsonic", targetUser->getId());
-                if (!token.empty())
-                    authTokenService.createAuthToken("subsonic", targetUser->getId(), token);
+                // until a new token is issued. A token shorter than /updateUser accepts
+                // is refused with nothing changed.
+                if (const auto problem{ replaceSubsonicToken(authTokenService, targetUser->getId(), token) })
+                {
+                    response.setStatus(400);
+                    response.out() << *problem;
+                    return;
+                }
 
                 Wt::Json::Object result;
                 result["username"] = Wt::Json::Value(std::string{ targetUser->getLoginName() });
@@ -756,12 +852,22 @@ namespace lms::api::muma
         {
             if (pathInfo == "/users/sync")
             {
+                // MuMa sends this with its system key whenever an account changes; a disabled or
+                // demoted user's cached key verdict must not outlive that news.
+                if (!mayTriggerUserSync(rights))
+                {
+                    response.setStatus(403);
+                    response.out() << "Forbidden";
+                    return;
+                }
+                _keyVerdictCache.clear();
                 _userSynchronizer.syncUsers();
                 response.out() << "{\"status\":\"ok\"}";
                 return;
             }
 
-            if (!dbUser)
+            // A system key is a service, not a person: per-user settings need a verified user.
+            if (!isUserCaller(rights))
             {
                 response.setStatus(401);
                 response.out() << "User not found";
@@ -790,7 +896,9 @@ namespace lms::api::muma
                     return;
                 }
 
-                if (*userId != dbUser->getId() && !dbUser->isAdmin())
+                // The id is MuMa's (it is forwarded to MuMa's /api/users/{id}/settings unchanged), so it
+                // is compared with the caller's MuMa id, not their LMS id.
+                if (!mayAccessUserSettings(rights, userId->getValue()))
                 {
                     response.setStatus(403);
                     response.out() << "Forbidden";
@@ -938,15 +1046,13 @@ namespace lms::api::muma
                 if (isNewsBulletin(pathInfo))
                     collectResponseInChunks(getParams, streamedBody);
 
-                // Forward the CALLER's own key first (Subsonic-shared LMS key or a
-                // per-user MuMa key from Google Sign-In) so MuMa sees the real caller
-                // identity/permissions instead of a generic system identity for every
-                // request; only fall back to the configured system key when the
-                // caller didn't send one at all (e.g. an internal/system-only call).
-                if (!xApiKeyHeader.empty())
-                    getParams.headers.push_back(Wt::Http::Message::Header("X-API-Key", xApiKeyHeader));
-                else if (!_mumaApiKey.empty())
-                    getParams.headers.push_back(Wt::Http::Message::Header("X-API-Key", _mumaApiKey));
+                // Only ever the CALLER's own key, so MuMa's RBAC judges the real caller. This used
+                // to fall back to the configured system key when the caller sent no header, which
+                // made `?apiKey=<anything>` reach MuMa as the system identity. A caller that
+                // authenticated with u/p and no key reaches MuMa with no key, and MuMa answers
+                // 401 for whatever needs one.
+                if (!auth.forwardKey.empty())
+                    getParams.headers.emplace_back("X-API-Key", auth.forwardKey);
 
                 // This is a raw pass-through proxy: MuMa's exact status code (401,
                 // 403, 404, ...) and body are meaningful to the original caller and
@@ -967,12 +1073,9 @@ namespace lms::api::muma
                 if (!query.empty())
                     bodyParams.relativeUrl += "?" + query;
 
-                // See the matching comment in the GET branch above: prefer the
-                // caller's own key over the system key.
-                if (!xApiKeyHeader.empty())
-                    bodyParams.message.addHeader("X-API-Key", xApiKeyHeader);
-                else if (!_mumaApiKey.empty())
-                    bodyParams.message.addHeader("X-API-Key", _mumaApiKey);
+                // See the matching comment in the GET branch above: the caller's own key only.
+                if (!auth.forwardKey.empty())
+                    bodyParams.message.addHeader("X-API-Key", auth.forwardKey);
 
                 std::string contentType = request.headerValue("Content-Type");
                 if (!contentType.empty())

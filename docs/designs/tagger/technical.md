@@ -27,6 +27,26 @@ The Tagger API is hosted by the `music-manager` service on port 8000.
 | `POST /api/tagger/tag/stop` | None | `{ "message": "Stop request sent to tagger" }` | None (Returns 200 even if no run is active). |
 | `POST /api/tagger/tag/file` | `?path=string` | `{ "message": "Tagging for <path> completed" }` | `404 Not Found`: File does not exist. <br> `500 Internal Server Error`: Parsing failed. |
 
+## Tag Mapping and Multi-Value Splitting
+
+- **Per-format keys** live in `services/tagger/constants.py` (`MP3Tags`, `FLACTags`, `OPUSTags`,
+  `WAVTags`, `MP4Tags`); `TagCollection` reads through the reversed maps, `BaseSong.set_tag` writes
+  through the forward ones.
+- **m4a atoms.** Standard tags use the iTunes atoms (`©nam`, `©ART`, `©alb`, `aART`, `©gen`, `©day`,
+  `cprt`). mutagen writes any atom name outside the `----:` freeform namespace as exactly 4 bytes, so
+  every custom name longer than that (`REMIXER`, `ORIGINAL_TITLE`, and every unmapped name via the
+  fallback in `_set_m4a_tag`) is a freeform atom `----:com.apple.iTunes:<NAME>`, stored as UTF-8
+  bytes and decoded on read. `LEGACY_MP4_ATOMS` lists where older versions wrote four tags (`REMI`,
+  `ORIG`, `TALB`, freeform `ALBUM`); they are read when the correct atom is missing and deleted on the
+  next save, so files migrate on their next retag (bug report 037).
+- **Splitting.** A tag value is split on ';' for every tag. It is split on '/' only for `GENRE`
+  (`Tag.SLASH_SPLIT_TAGS`): 'AC/DC' is one artist and 'Live 24/7' one title.
+- **Order is identity.** The scanner takes the first artist as the primary one and hashes it into
+  `track_uid`, so rules must correct an artist in place (`Tag.replace`), never by appending the
+  correction and removing the original.
+- **Real-mutagen tests.** `services/tests/mock_base.py` stubs mutagen for all of `services/`; what
+  lands on disk is tested in `tests/unit/test_tagger_idempotence.py`, in a child interpreter.
+
 ## Cross-App Impact
 
 - **`music-manager`**: Primary host of the tagger logic and API.
@@ -43,6 +63,23 @@ The Tagger API is hosted by the `music-manager` service on port 8000.
 5. **Unicode Normalization**: `ReplaceInvalidUnicodeRule` identifies and replaces zero-width spaces, non-breaking spaces, and other problematic characters with their standard ASCII/UTF-8 equivalents.
 6. **Error Handling**: Failed tagging operations for individual files are logged and added to the `broken_song_helper` (persisted to `broken-files.log`) without stopping the entire batch run.
 7. **Idempotency**: Running the tagger multiple times on the same file with no rule changes results in no changes to the file's modification time (mtime) after the first successful pass, handled via `ProcessedFilesHelper`.
+
+## Genre Splitting
+
+A genre tag is split on `;` and `/` only, never on the artist separators of `ARTIST_REGEX`
+(` & `, ` and `, ` x `, ` with `, `: `, ` vs `, ` et `, `, `, ...):
+
+- `;` is split by `Tag` itself, for every tag.
+- `/` is split by `GenreRulesHelper.split_composite` inside `ResolveGenreRule`, which leaves a
+  genre that curation has already decided whole.
+- `CleanTagsRule` puts `ARTIST`, `ALBUM_ARTIST` and `REMIXER` through `Tag.regex()`; `GENRE` is
+  only stripped and deduplicated there. `ResolveGenreRule` does not call `Tag.regex()` either.
+
+Before this, both rules ran `Tag.regex()` over the genre tag, so 'Drum & Bass' became 'Drum' and
+'Bass', 'Hardcore: Uptempo' two genres, and a curated genre with `&`, ` and ` or `: ` in its name
+could never match its own row (bug report 045). `GenrePathTest` runs the whole path over a real
+`TagCollection`. Files tagged before the fix keep the halves on disk; they need their genre
+corrected by hand or by a re-download, since the original string is gone.
 
 ## Related Docs
 

@@ -7,9 +7,16 @@ Three timers, one job each:
 
 | Timer | When | What it does |
 | --- | --- | --- |
-| `muma-db-backup` | nightly 03:12 | dump, verify, record row counts, prune |
+| `muma-db-backup` | nightly 03:12 | prune, check free space, dump, verify, record row counts |
 | `muma-db-backup-stale` | daily 09:12 | alert when the newest dump is over `BACKUP_STALE_AFTER_HOURS` old |
 | `muma-db-restore-check` | Sunday 05:30 | restore the newest dump into a throwaway database and compare it against the recorded row counts |
+
+A fourth caller is the deploy. `scripts/deploy.sh` runs the same `db-backup` service from
+`/opt/muma-backup` before it migrates anything, with `-e BACKUP_LABEL=pre-deploy`: the dump is named
+`muma_db_pre-deploy_<stamp>.sql.gz`, verified like a nightly one, kept in a rotation of three, and
+never written to `latest.json` (so it neither resets the staleness clock nor becomes the restore
+check's subject). When the service is not installed or fails, the deploy falls back to its own
+verified `mariadb-dump` into the same directory. See `docs/deployment.md#backups`.
 
 ## Why a restore check, and not just a checksum
 
@@ -24,6 +31,23 @@ are compared exactly). That is arithmetic, not slack: `--single-transaction`
 snapshots at the start of the dump and the counts are read when it finishes, so an
 append-heavy table legitimately restores slightly short. A lost table, an emptied
 one, or a truncated file all fall far outside it.
+
+## When the destination fills up
+
+A full destination recovers on its own. The job prunes first -- dailies past
+`BACKUP_RETENTION_DAYS`, monthlies past six months, and any `*.partial` a killed
+run left behind -- and only then dumps. It never prunes the newest daily, however
+old: after a run of failures that one is the only backup left.
+
+Before dumping it checks for room: the last daily's size plus 10%, and as much
+again on the first of the month for the monthly copy. When that is not free it
+alerts with the numbers and writes nothing.
+
+Every file is written under a `.partial` name and renamed once it has verified
+(size floor, full decompress, `-- Dump completed` trailer); that goes for the
+daily dump, the monthly copy and `latest.json`. So a name without `.partial` is
+always a complete file, and an exception of any kind -- running out of space is
+an `OSError`, not a failed dump -- removes the partial on the way out.
 
 ## Why the staleness check exists twice
 

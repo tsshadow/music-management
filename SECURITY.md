@@ -65,7 +65,28 @@ Summarised here because it affects what counts as a vulnerability;
   shared key logged the whole installation out. Spraying one password across
   many accounts is covered a layer up, by LMS's own per-client `LoginThrottler`.
 * Passwords are stored as bcrypt hashes. Revoking sessions clears the api_key
-  and every refresh token in one step.
+  and every refresh token in one step. A non-admin changing their own password
+  must present the current one; another account's, or an admin's, needs the
+  admin role.
+* There is one key check, `routers.users.verify_api_key`. A router must not carry
+  its own copy: three did, from before RBAC, and accepted any enabled account on
+  every management route (docs/bug-reports/037). A route that changes rules
+  needs `rules.manage`; one that operates the installation (container logs,
+  downloader sources, event deletion, the lms.db sync) needs the admin role; a
+  webhook that names the acting user in its body (the LMS rating webhook)
+  accepts only the system key. `services/music_manager/tests/test_rbac_route_gaps.py`
+  pins each of those.
+* No response lists another account's `api_key`.
+* A URL the server fetches on a caller's behalf (the artist image URL) must
+  resolve to globally routable addresses only, re-checked on every redirect, and
+  is size-capped; see `routers/artist_images.ensure_public_url`.
+* LMS's `/muma` bridge verifies a key before it grants anything: it must be
+  LMS's own `api-key` or a key MuMa confirms through `/api/auth/verify`, and
+  the caller's identity comes only from that verified credential or from a
+  checked Subsonic `u`/`p` pair -- never from the bare `u` parameter. Its
+  proxy forwards the caller's own key and never substitutes the system key.
+  See [docs/authentication.md](docs/authentication.md#the-lms-muma-bridge-mumaresource)
+  and [bug report 037](docs/bug-reports/037-lms-any-key-is-admin.md).
 
 ## The system API key
 
@@ -87,6 +108,32 @@ used to end their key expression with `or '<a uuid>'`, and that uuid was the
 deployment's real `MUMA_API_KEY` -- read access to this repository was
 unrestricted admin access to the API. `services/music_manager/tests/test_api_key.py`
 walks the tree and fails if that literal reappears in any Python source.
+
+## The Android app
+
+What `services/muma-mobile` does with credentials, since bug report 037:
+
+* **TLS is verified.** The one server the app signs in to has a publicly trusted
+  certificate, and `StaticServers.ALLOW_SELF_SIGNED_CERTIFICATE` is `false`, so
+  the Subsonic client uses the system trust store. `network_security_config.xml`
+  refuses cleartext except to `localhost` (the Capacitor WebView's own origin)
+  and trusts user-installed CAs only in debuggable builds.
+* **The Subsonic password is still sent as `p=enc:<hex>`.** LMS accepts the
+  salted `t`/`s` form only for the per-user Subsonic token, not for the login
+  password the app holds, so switching would lock every account out. Open work
+  records the way out; until then the password is protected by TLS and by log
+  redaction, not by the encoding, which is reversible.
+* **Logs are redacted before they leave the phone.** `LogRedaction` masks the
+  `u`/`p`/`t`/`s`/`apiKey` query parameters, credential headers and
+  credential-named settings in every ring-buffer line, which is what diagnostics
+  reports upload. The debug build's OkHttp logging redacts the same names.
+* **Exported content providers serve only their own files.** The album-art
+  provider must stay exported for Android Auto, the media notification and the
+  widget, so it refuses any key that could resolve outside the art cache.
+* **No hoster credential is compiled in.** The update check asks apk-hoster as
+  its public read-only `guest` account; the upload password lives only in CI.
+* **WebView remote debugging is debug-only** (Capacitor's default when the key
+  is absent from `capacitor.config.json`).
 
 ## Secrets
 

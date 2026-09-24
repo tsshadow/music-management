@@ -1,0 +1,39 @@
+# The interpreter the backend unit and integration suites run on in CI.
+#
+# Same base as the service images (docker/Dockerfile.music-manager,
+# docker/Dockerfile.tools: python:3.14-slim) so a green backend:unit is a
+# statement about the Python production runs. Before this, the suite ran on the
+# runner's own system python3 (3.11 on the LXC), which cannot even install the
+# numpy that requirements.txt pins.
+#
+# Nothing Python is installed here: scripts/lib/python-tooling.sh installs
+# requirements.txt into a per-hash cache directory at run time, which is what
+# keeps a Renovate bump from needing an image rebuild. What is here is what the
+# test suite shells out to and the slim image lacks:
+#   git              tests/ci/test_release_version_check.py builds throwaway repos
+#   openssh-client   tests/ci/test_deploy_script_hygiene.py exercises the ssh-agent
+#                    lifetime of scripts/ci/prod-ssh-setup.sh (skipped without it)
+#
+# Built on the runner by tooling_use_ci_image (scripts/lib/python-tooling.sh),
+# tagged with a hash of this file, never pushed.
+FROM python:3.14-slim
+
+# The container runs as the runner's uid (scripts/lib/python-tooling.sh passes
+# --user), so nothing it writes into the checkout is root-owned. That uid needs
+# a passwd entry: ssh-keygen refuses to run without one ("No user exists for
+# uid ..."). The tag carries the uid for the same reason the android-ci image
+# bakes it in -- two accounts on one host must not share an image.
+ARG RUNNER_UID=1000
+ARG RUNNER_GID=1000
+
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+    git \
+    openssh-client \
+    && rm -rf /var/lib/apt/lists/* \
+    && (groupadd -g "$RUNNER_GID" ci 2>/dev/null || true) \
+    && (useradd -u "$RUNNER_UID" -g "$RUNNER_GID" -M -d /tmp -s /bin/bash ci 2>/dev/null || true)
+
+# The container runs as the runner's uid, which has no passwd entry and
+# therefore no git identity; the release-version-check tests commit.
+ENV GIT_AUTHOR_NAME=ci GIT_AUTHOR_EMAIL=ci@localhost \
+    GIT_COMMITTER_NAME=ci GIT_COMMITTER_EMAIL=ci@localhost

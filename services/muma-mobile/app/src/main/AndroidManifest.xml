@@ -12,6 +12,8 @@
     <uses-permission android:name="android.permission.BLUETOOTH"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- DownloadService: fetching files for offline use is a data transfer, not playback. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <!-- MuMa Voice records only while the microphone sheet is open. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
@@ -48,7 +50,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="false"
         android:theme="@style/UltrasonicTheme.Spotify"
-        android:usesCleartextTraffic="true"
         tools:ignore="UnusedAttribute"
         tools:targetApi="q">
         <!-- Add for API 34 android:enableOnBackInvokedCallBack="true" -->
@@ -156,11 +157,14 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- dataSync, not mediaPlayback: Android 14+ checks that a foreground service does what its
+             type says, and a download plays nothing. Android 15 caps dataSync at six hours a day;
+             DownloadService.onTimeout stops the service when that runs out. -->
         <service
             android:name=".service.DownloadService"
             android:label="MuMa Media Player Service"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback">
+            android:foregroundServiceType="dataSync">
         </service>
 
         <!-- Needs to be exported: https://android.googlesource.com/platform/developers/build/+/4de32d4/prebuilts/gradle/MediaBrowserService/README.md -->
@@ -176,9 +180,11 @@
             </intent-filter>
         </service>
 
+        <!-- Not exported: every sender is the app itself: the home-screen widget's PendingIntents
+             (explicit component, sent with the app's identity) and BluetoothIntentReceiver's
+             package-scoped broadcasts. Exported, any app could pause, skip or stop playback. -->
         <receiver android:name=".receiver.UltrasonicIntentReceiver"
-            android:exported="true"
-            tools:ignore="ExportedReceiver">
+            android:exported="false">
             <intent-filter>
                 <action android:name="org.moire.ultrasonic.CMD_TOGGLEPAUSE"/>
                 <action android:name="org.moire.ultrasonic.CMD_PLAY"/>
@@ -230,6 +236,11 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/appwidget_info"/>
         </receiver>
+        <!-- Exported because its readers live in other processes and get no URI grant: Android
+             Auto and the system media notification read MediaMetadata.artworkUri, and the
+             launcher draws the home-screen widget's RemoteViews.setImageViewUri. It serves only
+             files inside the album-art cache and refuses any key that could leave that
+             directory (AlbumArtPath, bug report 037). -->
         <provider
             android:name=".provider.AlbumArtContentProvider"
             android:authorities="${applicationId}.provider.AlbumArtContentProvider"

@@ -22,6 +22,32 @@ object StaticServers {
     const val LEGACY_SERVER_NAME = "LMS"
     const val SERVER_URL = "https://music.example.com"
 
+    /**
+     * Whether the Subsonic client may skip certificate and hostname checks for [SERVER_URL].
+     *
+     * It must not: `true` installs a trust-all `X509TrustManager` and a hostname verifier that
+     * accepts anything, so anyone on the network path could impersonate the server and collect the
+     * password from the next request. The server has a publicly trusted certificate, so the normal
+     * system trust store is all it needs (bug report 037).
+     */
+    const val ALLOW_SELF_SIGNED_CERTIFICATE = false
+
+    /**
+     * Whether requests authenticate with `p=enc:<hex password>` instead of the salted Subsonic
+     * token (`t=md5(password + salt)&s=salt`).
+     *
+     * Still `true`, deliberately. LMS checks a `t`/`s` pair against the user's *Subsonic API token*
+     * (`db::AuthToken` in the `subsonic` domain, see `SubsonicResource::authenticateUser`), never
+     * against the login password: passwords are verified by the music-manager password service and
+     * are not stored anywhere LMS could hash them with a salt. The app only knows the login password
+     * (or, after a Google sign-in, the muma API key that stands in for it), so the token form is
+     * rejected with "wrong username or password" for every account. Switching needs the app to
+     * obtain the per-user Subsonic token first -- tracked in `docs/open-work.md`. Until then the
+     * password travels only over verified TLS ([ALLOW_SELF_SIGNED_CERTIFICATE] is `false`) and is
+     * redacted from every log the app writes ([nl.teunschriks.mumamobile.log.LogRedaction]).
+     */
+    const val FORCE_PLAIN_TEXT_PASSWORD = true
+
     val STATIC_SERVERS = listOf(
         ServerSetting(
             id = 0,
@@ -30,8 +56,8 @@ object StaticServers {
             url = SERVER_URL,
             userName = "",
             password = "",
-            allowSelfSignedCertificate = true,
-            forcePlainTextPassword = true,
+            allowSelfSignedCertificate = ALLOW_SELF_SIGNED_CERTIFICATE,
+            forcePlainTextPassword = FORCE_PLAIN_TEXT_PASSWORD,
             shareSupport = true,
             jukeboxByDefault = false,
             musicFolderId = null,

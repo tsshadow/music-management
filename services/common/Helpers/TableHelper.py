@@ -70,6 +70,7 @@ class TableHelper:
         self._preload()
 
     def exists(self, key: str) -> bool:
+        """Whether `key` is in the table."""
         if self.cache_enabled:
             with self._lock:
                 self._refresh_if_stale()
@@ -84,6 +85,7 @@ class TableHelper:
             return False
 
     def get(self, key: str) -> str:
+        """The stored spelling of `key`, looked up case-insensitively, or '' when absent."""
         if self.cache_enabled:
             with self._lock:
                 self._refresh_if_stale()
@@ -99,6 +101,7 @@ class TableHelper:
             return key.title()
 
     def add(self, key: str) -> bool:
+        """Insert `key` unless it is already there; True when the write succeeded."""
         query = f'INSERT INTO {self.table_name} ({self.column_name}) VALUES (%s) ON DUPLICATE KEY UPDATE {self.column_name} = VALUES({self.column_name})'
         connection = self.db_connector.connect()
         try:
@@ -119,6 +122,7 @@ class TableHelper:
         return True
 
     def delete(self, key: str) -> bool:
+        """Delete `key`; True when the write succeeded."""
         query = f'DELETE FROM {self.table_name} WHERE {self.column_name} = %s'
         connection = self.db_connector.connect()
         try:

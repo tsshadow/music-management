@@ -2,11 +2,14 @@
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
   import { Settings2, CarFront, CircleHelp } from '@lucide/svelte';
-  import { credentials, isAdmin, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser, defaultSubsonicUrl, activeSettingsTab } from './store.js';
+  import { credentials, isAdmin, userPermissions, mumaUser, activeSettingsTab, flushFrontendSettings, resetSessionState } from './store.js';
   import { platform } from './platform/index.js';
   import { logAction } from './diagnosticsLog.js';
 
   const { onNavigate } = $props();
+
+  /** How long a logout waits for pending account-setting writes before it goes ahead anyway. */
+  const LOGOUT_FLUSH_TIMEOUT_MS = 2000;
 
   let isOpen = $state(false);
   const displayUsername = $derived($credentials.username || 'Gebruiker');
@@ -47,23 +50,19 @@
       console.warn("The native session could not be cleared before logging out", error);
     }
 
-    // Reset credentials and ensure localStorage is updated
-    const emptyCreds = { url: defaultSubsonicUrl(), username: '', password: '' };
-    credentials.set(emptyCreds);
-    localStorage.setItem('lms_credentials', JSON.stringify(emptyCreds));
+    // Whatever setting change is still on its debounce belongs to this account; write it
+    // while the key still works. Bounded, so an unreachable server cannot hold the logout up.
+    await Promise.race([
+      flushFrontendSettings(),
+      new Promise((resolve) => setTimeout(resolve, LOGOUT_FLUSH_TIMEOUT_MS)),
+    ]);
 
-    // Clear MuMa / Google session state and localStorage
-    mumaApiKey.set('');
-    localStorage.setItem('muma_api_key', JSON.stringify(''));
-    mumaRefreshToken.set('');
-    localStorage.setItem('muma_refresh_token', JSON.stringify(''));
-    mumaSessionActive.set(false);
-    localStorage.setItem('muma_session_active', JSON.stringify(false));
+    // Clear MuMa / Google session state, then everything else the account left behind: queue,
+    // current track, player state, equalizer, page size, every account setting. See
+    // `resetSessionState` in store.js -- it covers every persisted store, so none is forgotten.
     userPermissions.set([]);
     mumaUser.set(null);
-
-    // Clear view state to return to home on next login
-    localStorage.removeItem('lms_active_view');
+    resetSessionState();
 
     isOpen = false;
     window.location.reload();

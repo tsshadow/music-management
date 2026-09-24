@@ -27,6 +27,8 @@ def listen_weight(age_days: float, match_method: str, played_secs: int | None, h
 
 @dataclass
 class TasteProfile:
+    """A listener's weighted artists, labels and genres, built from their listens."""
+
     artists: dict[str, float] = field(default_factory=dict)
     labels: dict[str, float] = field(default_factory=dict)
     genres: dict[str, float] = field(default_factory=dict)

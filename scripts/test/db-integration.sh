@@ -12,6 +12,13 @@
 #
 # Usage: ./scripts/test/db-integration.sh [pytest-args...]
 #        KEEP_DB=1 ./scripts/test/db-integration.sh   # leave the container up
+#        MARIADB_VERSION=10.6 ./scripts/test/db-integration.sh
+#
+# MARIADB_VERSION defaults to what production and docker/compose.test.yml run.
+# 10.6 is worth a run by hand when a change touches a TIMESTAMP column: production's
+# oldest tables were created on 10.6, whose explicit_defaults_for_timestamp=OFF gave
+# the first TIMESTAMP column of a table an implicit ON UPDATE CURRENT_TIMESTAMP (bug
+# report 039) -- 12.3 never does, so only a 10.6 run reproduces it.
 
 set -e
 
@@ -31,7 +38,11 @@ find_free_port() {
     python3 -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()'
 }
 CONTAINER="${DB_INTEGRATION_CONTAINER:-muma-integration-db${CI_JOB_ID:+-$CI_JOB_ID}}"
-IMAGE="mariadb:10.6"
+# Keep in step with docker/compose.test.yml and production. This read 10.6 for
+# months after both moved to 12.3 (both are on 13.0 now), so every query was proven against a server
+# nothing runs.
+MARIADB_VERSION="${MARIADB_VERSION:-13.0}"
+IMAGE="mariadb:${MARIADB_VERSION}"
 if [ -z "${DB_INTEGRATION_PORT:-}" ] && [ -n "${CI_JOB_ID:-}" ]; then
     HOST_PORT="$(find_free_port)"
 else
@@ -85,7 +96,33 @@ for attempt in $(seq 1 60); do
     sleep 1
 done
 
-echo "--- Running tests/integration/ ---"
-python3 -m pytest -p no:warnings tests/integration/ "$@"
+# tests/integration/test_schema_drift.py builds the schema from nothing twice, each
+# time in a database of its own, so the test user needs more than the one database
+# the image creates for it. Scoped to the muma_test_ prefix, and the container is
+# throwaway either way.
+docker exec "$CONTAINER" mariadb -uroot -ptest-root-password \
+    -e "GRANT ALL PRIVILEGES ON \`muma\\_test\\_%\`.* TO '$DB_USER'@'%'"
+
+echo "--- Running tests/integration/ against $IMAGE ---"
+# In CI pytest runs inside the images' Python with requirements.txt installed
+# (see scripts/test/music-management-unit.sh for why). The database stays a
+# sibling container on this host; --network host lets the test container reach
+# it on 127.0.0.1:$HOST_PORT exactly as a native run does.
+# shellcheck source=scripts/lib/python-tooling.sh
+source "$ROOT_DIR/scripts/lib/python-tooling.sh"
+if tooling_container_required; then
+    TOOLING_REQUIREMENTS="requirements.txt"
+    tooling_use_ci_image
+    TOOLING_DOCKER_ARGS=(--network host)
+    TOOLING_ENV_VARS=(DB_HOST DB_PORT DB_USER DB_PASS DB_DB MUMA_DISABLE_BACKGROUND_WORKERS)
+    echo "--- Running inside $TOOLING_IMAGE ---"
+    extra_args=""
+    if [ $# -gt 0 ]; then
+        extra_args="$(printf '%q ' "$@")"
+    fi
+    tooling_container "PYTHONPATH=/repo:/repo/services python3 -m pytest -p no:warnings tests/integration/ $extra_args"
+else
+    python3 -m pytest -p no:warnings tests/integration/ "$@"
+fi
 
 echo "--- Database integration tests passed ---"

@@ -14,6 +14,7 @@ users_router.run_lms_db_sync = lambda: None
 
 from fastapi.testclient import TestClient
 
+from services.music_manager import thread_registry
 from services.music_manager.main import app
 from services.music_manager.routers import scanner as scanner_router
 from services.music_manager.routers import tagger as tagger_router
@@ -66,11 +67,27 @@ class ScannerEndpointTest(unittest.TestCase):
     def test_the_background_loop_scans_and_then_sleeps(self):
         with (
             patch.object(scanner_router.scanner_manager, 'run_full') as run_full,
-            patch.object(scanner_router.time, 'sleep', side_effect=[None, KeyboardInterrupt]),
+            patch.object(thread_registry.time, 'sleep', side_effect=[None, KeyboardInterrupt]),
         ):
             with self.assertRaises(KeyboardInterrupt):
                 scanner_router.run_scanner_loop(sleeptime=1)
         self.assertEqual(run_full.call_count, 2)
+
+    def test_a_scan_that_raises_does_not_end_the_loop(self):
+        """A MariaDB restart mid-scan used to kill the scanner thread for good."""
+        with (
+            patch.object(
+                scanner_router.scanner_manager, 'run_full', side_effect=[OSError('share gone'), None]
+            ) as run_full,
+            patch.object(thread_registry.time, 'sleep', side_effect=[None, KeyboardInterrupt]) as sleep,
+            self.assertLogs('music-manager.threads', 'ERROR') as logs,
+        ):
+            with self.assertRaises(KeyboardInterrupt):
+                scanner_router.run_scanner_loop(sleeptime=3600)
+        self.assertEqual(run_full.call_count, 2)
+        self.assertIn('share gone', '\n'.join(logs.output))
+        # Backed off after the failure, then the normal interval after the success.
+        self.assertEqual([c.args[0] for c in sleep.call_args_list], [10.0, 3600])
 
 
 class ScannerManagerTest(unittest.TestCase):
@@ -383,7 +400,9 @@ class ProcessFileTest(unittest.TestCase):
             patch.object(self.manager, '_resolve_genre_ids', return_value=[]),
         ):
             self.manager.process_file(self.conn, '/music/a.mp3')
-        self.assertFalse(any('library_track_labels' in s for s in self.statements()))
+        self.assertFalse(any('INSERT IGNORE INTO library_track_labels' in s for s in self.statements()))
+        # The link a previous publisher left behind is cleared rather than kept for good.
+        self.assertTrue(any('DELETE FROM library_track_labels' in s for s in self.statements()))
 
     def test_empty_artist_names_are_ignored(self):
         self.cursor.fetchone.side_effect = [None, {'id': 5}]
@@ -530,6 +549,21 @@ class TaggerManagerTest(unittest.TestCase):
             with self.assertRaises(KeyboardInterrupt):
                 tagger_router.run_tagger_loop(sleeptime=1)
         run_full.assert_called_once()
+
+    def test_a_round_that_raises_does_not_end_the_loop(self):
+        """`run_full` raising (database gone, CIFS hiccup) is logged and the next round runs."""
+        with (
+            patch.object(
+                tagger_router.tagger_manager, 'run_full', side_effect=[RuntimeError('database gone'), None]
+            ) as run_full,
+            patch.object(tagger_router, 'deep_run_tick'),
+            patch.object(thread_registry.time, 'sleep', side_effect=[None, KeyboardInterrupt]),
+            self.assertLogs('music-manager.threads', 'ERROR') as logs,
+        ):
+            with self.assertRaises(KeyboardInterrupt):
+                tagger_router.run_tagger_loop(sleeptime=300)
+        self.assertEqual(run_full.call_count, 2)
+        self.assertIn('database gone', '\n'.join(logs.output))
 
 
 if __name__ == '__main__':

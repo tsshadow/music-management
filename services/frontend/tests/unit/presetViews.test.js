@@ -53,7 +53,7 @@ function lms(pages) {
     const song = isSongs ? (pages.shift() ?? []) : [];
     return {
       ok: true,
-      json: async () => (isSongs ? { "subsonic-response": { songs: { song } } } : {}),
+      json: async () => (isSongs ? { "subsonic-response": { status: "ok", songs: { song } } } : {}),
     };
   });
 }
@@ -190,7 +190,7 @@ describe("PresetView", () => {
       if (String(url).includes("/rest/getSongs?")) {
         return {
           ok: true,
-          json: async () => ({ "subsonic-response": { songs: { song: SONGS } } }),
+          json: async () => ({ "subsonic-response": { status: "ok", songs: { song: SONGS } } }),
         };
       }
       return { ok: true, json: async () => [] };

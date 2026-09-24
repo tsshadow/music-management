@@ -51,7 +51,10 @@ describe("the Downloads entry in the navigation", () => {
     globalThis.fetch = vi.fn(async () => ({
       ok: true,
       json: async () => ({
-        "subsonic-response": { genres: { genre: [{ value: "Hardcore", songCount: 1200 }] } },
+        "subsonic-response": {
+          status: "ok",
+          genres: { genre: [{ value: "Hardcore", songCount: 1200 }] },
+        },
       }),
     }));
   });

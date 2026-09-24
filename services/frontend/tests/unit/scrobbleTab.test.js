@@ -127,6 +127,23 @@ describe("ScrobbleTab", () => {
     expect(fetchLatestImports.mock.calls.length).toBeGreaterThan(2);
   });
 
+  it("stops polling when the tab is left while an import is still running", async () => {
+    const fetchLatestImports = vi.fn();
+    const running = [{ ...IMPORTS[0], status: "running" }];
+    const { unmount } = render(
+      ScrobbleTab,
+      props({ importMumaUser: "user", latestImports: running, fetchLatestImports }),
+    );
+    await fireEvent.click(screen.getByText("IMPORT STARTEN"));
+    await waitFor(() => expect(fetchLatestImports).toHaveBeenCalledTimes(1));
+
+    unmount();
+    const atUnmount = fetchLatestImports.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(9000);
+
+    expect(fetchLatestImports.mock.calls.length).toBe(atUnmount);
+  });
+
   it("stops polling once nothing is running any more", async () => {
     const fetchLatestImports = vi.fn();
     render(ScrobbleTab, props({ importMumaUser: "user", fetchLatestImports }));

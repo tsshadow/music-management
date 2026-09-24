@@ -51,19 +51,37 @@ if [ -z "${PROD_ENV_FILE}" ]; then
     exit 1
 fi
 
+# shellcheck source=scripts/ci/docker-hub-session.sh
+. "$SCRIPT_DIR/docker-hub-session.sh"
+
 # Same materialization release:build-images does: the image names production
-# pulls live in the prod .env, and jobs do not share a filesystem.
-if [ -f "${PROD_ENV_FILE}" ]; then
-    cp "${PROD_ENV_FILE}" "$PROJECT_ROOT/.env"
-else
-    printf '%s\n' "${PROD_ENV_FILE}" > "$PROJECT_ROOT/.env"
-fi
+# pulls live in the prod .env, and jobs do not share a filesystem. Written to a
+# private temp directory rather than the checkout, which is the build context
+# of every image below and outlives the job on the shell-executor runner.
+ENV_DIR="$(mktemp -d)"
+chmod 700 "$ENV_DIR"
+ROOT_ENV_FILE="$ENV_DIR/music-management.env"
 
-echo "--- Logging in to Docker Hub as ${DOCKERHUB_USERNAME} ---"
-echo "${DOCKERHUB_TOKEN}" | docker login --username "${DOCKERHUB_USERNAME}" --password-stdin
+# cleanup_on_exit: end the Docker Hub session and remove the env file.
+cleanup_on_exit() {
+    docker_hub_logout
+    rm -rf "$ENV_DIR"
+}
+trap cleanup_on_exit EXIT
 
-# shellcheck disable=SC1091
-set -a; source "$PROJECT_ROOT/.env"; set +a
+(
+    umask 077
+    if [ -f "${PROD_ENV_FILE}" ]; then
+        cp "${PROD_ENV_FILE}" "$ROOT_ENV_FILE"
+    else
+        printf '%s\n' "${PROD_ENV_FILE}" > "$ROOT_ENV_FILE"
+    fi
+)
+
+docker_hub_login
+
+# shellcheck disable=SC1090,SC1091
+set -a; source "$ROOT_ENV_FILE"; set +a
 DOCKER_USER="${DOCKER_USER:-$DOCKERHUB_USERNAME}"
 IMAGE_BASE="${IMAGE_BASE:-muma-base}"
 IMAGE_DOWNLOADER="${IMAGE_DOWNLOADER:-muma-downloader}"

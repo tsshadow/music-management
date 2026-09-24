@@ -7,6 +7,8 @@ from mutagen.oggopus import OggOpusVComment
 from mutagen.wave import _WaveID3
 
 from services.tagger.constants import (
+    LEGACY_MP4_ATOMS,
+    MP4_FREEFORM_PREFIX,
     reversed_FLACTags,
     reversed_MP3Tags,
     reversed_MP4Tags,
@@ -21,6 +23,27 @@ missing_aac_tags = []
 missing_tags_mp3 = []
 missing_tags_wav = []
 missing_tags_m4a = []
+
+
+def _canonical_m4a_key(tag_key: str) -> str:
+    """The spelling this tagger writes for an m4a key: freeform names upper-cased, others as-is."""
+    if tag_key.startswith(MP4_FREEFORM_PREFIX):
+        return MP4_FREEFORM_PREFIX + tag_key[len(MP4_FREEFORM_PREFIX) :].upper()
+    return tag_key
+
+
+def _decode_m4a_value(value) -> str:
+    """One m4a atom value as text: a freeform atom holds bytes, a standard one a str."""
+    if isinstance(value, (MP4FreeForm, bytes)):
+        return value.decode('utf-8', 'ignore')
+    return str(value)
+
+
+def _decode_m4a_values(values) -> list[str]:
+    """Every value of an m4a atom as text, so a freeform atom reads back as it was written."""
+    if isinstance(values, (str, bytes)):
+        values = [values]
+    return [_decode_m4a_value(value) for value in values]
 
 
 class UnsupportedExtension(Exception):
@@ -103,17 +126,32 @@ class TagCollection:
                     missing_tags_wav.append(tag)
 
     def _parse_m4a(self, tags):
+        """Read m4a atoms; a correct atom always wins over a legacy or differently-cased one."""
+        legacy: dict[str, list] = {}
         for tag_key, value in tags.items():
+            legacy_key = LEGACY_MP4_ATOMS.get(_canonical_m4a_key(tag_key))
+            if legacy_key:
+                legacy.setdefault(legacy_key, value)
+                continue
             standard_key = reversed_MP4Tags.get(tag_key)
             if standard_key:
-                self.tags[standard_key] = Tag(standard_key, value)
-            elif tag_key.startswith('----:com.apple.iTunes:'):
+                self.tags[standard_key] = Tag(standard_key, _decode_m4a_values(value))
+            elif tag_key.startswith(MP4_FREEFORM_PREFIX):
                 custom_name = tag_key.split(':')[-1].lower()
-                val = value[0]
-                decoded_val = val.decode('utf-8', 'ignore') if isinstance(val, (MP4FreeForm, bytes)) else str(val)
-                self.tags[custom_name] = Tag(custom_name, decoded_val)
+                if custom_name in self.tags and tag_key != _canonical_m4a_key(tag_key):
+                    # A lower- or mixed-case twin of an atom already read: the upper-case
+                    # one is what this tagger writes, so it holds the current value.
+                    continue
+                self.tags[custom_name] = Tag(custom_name, _decode_m4a_value(value[0]) if value else '')
             elif tag_key not in missing_tags_m4a:
                 missing_tags_m4a.append(tag_key)
+        for standard_key, value in legacy.items():
+            if standard_key in self.tags:
+                continue
+            tag = Tag(standard_key, _decode_m4a_values(value))
+            # Read from where no later read will look, so it has to be written to the real atom.
+            tag.mark_unsaved()
+            self.tags[standard_key] = tag
 
     def __str__(self):
         """

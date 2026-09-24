@@ -64,6 +64,26 @@ class ImageStorageTest(unittest.TestCase):
 
 
 class ImageDownloaderTest(unittest.TestCase):
+    def setUp(self):
+        patcher = patch.object(storage.time, 'sleep')
+        self.sleep = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    # Three attempts back to back all land inside the same CDN hiccup.
+    def test_the_attempts_are_spaced_out_with_a_growing_pause(self):
+        downloader = storage.ImageDownloader(retries=3, backoff=0.5)
+        with patch.object(storage, 'requests') as http:
+            http.get.side_effect = RuntimeError('boom')
+            with self.assertRaises(RuntimeError):
+                downloader.download('https://img.test/a.jpg')
+        self.assertEqual([c.args[0] for c in self.sleep.call_args_list], [0.5, 1.0])
+
+    def test_a_first_attempt_that_succeeds_does_not_wait(self):
+        with patch.object(storage, 'requests') as http:
+            http.get.return_value = MagicMock(content=b'binary')
+            storage.ImageDownloader().download('https://img.test/a.jpg')
+        self.sleep.assert_not_called()
+
     def test_the_body_of_a_successful_response_is_returned(self):
         downloader = storage.ImageDownloader()
         with patch.object(storage, 'requests') as http:

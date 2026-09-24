@@ -66,6 +66,7 @@ class ConfigEndpointTest(unittest.TestCase):
             '/api/config/', headers=self.headers, json={'updates': {'notify_topic': 'music-alerts'}}
         )
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'status': 'success', 'config': {'notify_topic': 'music-alerts'}})
 
     def test_saving_a_setting_actually_changes_it(self):
         self.client.post('/api/config/', headers=self.headers, json={'updates': {'notify_topic': 'music-alerts'}})
@@ -128,29 +129,49 @@ class ConfigSecretTest(ConfigEndpointTest):
     """Secrets are masked on the way out and preserved on the way back in."""
 
     def test_a_stored_secret_does_not_leave_over_the_api(self):
-        self.store.update({'db_pass': 'hunter2'})
+        self.store.update({'lastfm_api_key': 'hunter2'})
         body = self.client.get('/api/config/', headers=self.headers).json()
-        self.assertNotEqual(body['config']['db_pass'], 'hunter2')
+        self.assertNotEqual(body['config']['lastfm_api_key'], 'hunter2')
 
     def test_the_schema_marks_which_fields_are_secret(self):
         fields = {row['key']: row for row in self.client.get('/api/config/fields', headers=self.headers).json()}
-        self.assertTrue(fields['db_pass']['secret'])
-        self.assertFalse(fields['db_user']['secret'])
+        self.assertTrue(fields['lastfm_api_key']['secret'])
+        self.assertFalse(fields['telegram_api_id']['secret'])
         # An identifier is not a credential: the Spotify client id is public.
         self.assertFalse(fields['spotify_client_id']['secret'])
         self.assertTrue(fields['spotify_client_secret']['secret'])
 
     def test_posting_the_page_back_unchanged_keeps_the_secret(self):
-        self.store.update({'db_pass': 'hunter2'})
+        self.store.update({'lastfm_api_key': 'hunter2'})
         page = self.client.get('/api/config/', headers=self.headers).json()['config']
         page['notify_topic'] = 'something-else'
         self.client.post('/api/config/', headers=self.headers, json={'updates': page})
-        self.assertEqual(self.store.get('db_pass'), 'hunter2')
+        self.assertEqual(self.store.get('lastfm_api_key'), 'hunter2')
         self.assertEqual(self.store.get('notify_topic'), 'something-else')
 
     def test_a_deliberately_typed_secret_is_stored(self):
-        self.client.post('/api/config/', headers=self.headers, json={'updates': {'db_pass': 'correct horse'}})
-        self.assertEqual(self.store.get('db_pass'), 'correct horse')
+        self.client.post('/api/config/', headers=self.headers, json={'updates': {'lastfm_api_key': 'correct horse'}})
+        self.assertEqual(self.store.get('lastfm_api_key'), 'correct horse')
+
+    # The POST used to answer with `get()` for every posted key: the secret just typed
+    # came straight back in the clear, into the browser and any proxy log.
+    def test_saving_a_secret_does_not_echo_it_back(self):
+        response = self.client.post(
+            '/api/config/',
+            headers=self.headers,
+            json={'updates': {'lastfm_api_key': 'correct horse', 'notify_topic': 'alerts'}},
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['status'], 'success')
+        self.assertEqual(body['config']['lastfm_api_key'], '\u2022' * 8)
+        self.assertEqual(body['config']['notify_topic'], 'alerts')
+        self.assertNotIn('correct horse', response.text)
+
+    def test_a_read_only_database_field_cannot_be_changed(self):
+        response = self.client.post('/api/config/', headers=self.headers, json={'updates': {'db_host': 'elsewhere'}})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('read-only', response.json()['detail'])
 
 
 class ConfigRetagLimitTest(ConfigEndpointTest):

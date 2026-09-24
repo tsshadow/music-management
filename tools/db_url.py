@@ -14,8 +14,7 @@ rotated.
 
 Nothing here defaults: a missing variable raises rather than quietly picking a
 host, because "which database did that script just rewrite" should never be a
-question. `rename_tables()` in migrate_db_renames.py, for one, disables foreign
-key checks and renames tables.
+question.
 """
 
 from __future__ import annotations

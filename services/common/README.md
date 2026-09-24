@@ -1,26 +1,21 @@
 # 🛠️ Common Service & Utilities
 
-This module contains shared logic, database helpers, and the main internal API that bridges the different workers and the frontend.
+This module contains the shared logic and database helpers the workers (downloader, importer)
+and `music-manager` import. It runs nothing on its own: the HTTP API lives in
+`services/music_manager`.
 
 ## 📂 Structure
 
-- **`api/`**: The FastAPI-based server.
-    - `server.py`: Main API entry point.
-    - `job_manager.py`: Handles background tasks and worker status.
+- `config_store.py`: the settings store behind Beheer > Config (`ConfigStore`).
+- `db_init.py`: the `CREATE TABLE` statements for the shared schema.
+- `step.py`: `Step`, one stage of the importer pipeline.
+- `channels.py`, `version_helper.py`: small shared helpers.
 - **`Helpers/`**: Reusable utility classes.
     - `DatabaseConnector.py`: Centralized DB access.
     - `TableHelper.py`: Abstraction for database table operations.
     - `Cache.py`: Simple file-based or memory-based caching.
     - `FestivalHelper.py`: Logic for festival detection.
     - `PodcastHelper.py`: Logic for radio show and podcast series detection.
-
-## 🌐 API
-
-The API provides endpoints for:
-- Monitoring the status of importer/tagger workers.
-- Manually triggering re-scans or re-tagging jobs.
-- Accessing library metadata.
-- Configuration management.
 
 ## 🛠 Usage in other services
 

@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+## Global Version 7.4.3 (2026-09-24)
+
+- **Security fixes.** The app checks the server's certificate again, other apps can no longer read
+  its stored password, and credentials are kept out of the diagnostics log and out of the APK.
+
+- **Playback service fixes.** Music keeps playing when the app is swiped away, radio no longer runs
+  on after the player stops and starts reliably on the phone, a Bluetooth play button is always
+  answered, the saved queue stays current, and the app no longer logs in again for every settings
+  save.
 ## Global Version 7.4.2 (2026-09-23)
 
 - **Diagnostiekrapporten bevatten weer wat er gebeurde.** De downloadservice vulde het logboek met

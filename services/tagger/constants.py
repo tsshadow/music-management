@@ -117,8 +117,20 @@ AACTags = {
     TITLE: 'Title',
 }
 reversed_AACTags = {v: k for k, v in AACTags.items()}
+# The namespace for the m4a atoms this tagger invents. mutagen writes every atom name outside
+# it as exactly 4 bytes and silently truncates a longer one: a bare 'REMIXER' landed on disk as
+# 'REMI' and 'ORIGINAL_TITLE' as 'ORIG', and neither was ever read back. So every m4a with a
+# remixer was rewritten on every retag, and InferArtistFromTitleRule re-seeded ORIGINAL_TITLE
+# from the already-cleaned title and inferred again from the remainder. Every custom name longer
+# than 4 bytes therefore lives under this prefix: REMIXER and ORIGINAL_TITLE explicitly below,
+# and every unmapped name (ORIGINAL_ARTIST, FESTIVAL, PODCAST, PARSED, ...) through
+# BaseSong._set_m4a_tag's freeform fallback. The 4-byte 'CATA' and 'PUBL' are not affected.
+# A freeform atom holds bytes (MP4FreeForm): TagCollection._parse_m4a decodes them and
+# BaseSong._set_m4a_tag encodes them, so a value reads back exactly as it was written.
+MP4_FREEFORM_PREFIX: Final = '----:com.apple.iTunes:'
 MP4Tags = {
-    ALBUM_ARTIST: 'TALB',
+    ALBUM: '©alb',
+    ALBUM_ARTIST: 'aART',
     TITLE: '©nam',
     ARTIST: '©ART',
     CATALOG_NUMBER: 'CATA',
@@ -126,16 +138,21 @@ MP4Tags = {
     DATE: '©day',
     GENRE: '©gen',
     PUBLISHER: 'PUBL',
-    REMIXER: 'REMIXER',
-    ORIGINAL_TITLE: 'ORIGINAL_TITLE',
-    # ORIGINAL_ARTIST is deliberately unmapped here: an M4A atom name outside the
-    # `----:` freeform namespace gets truncated to 4 bytes by mutagen, so mapping
-    # it to a bare 'ORIGINAL_ARTIST' the way ORIGINAL_TITLE is mapped above would
-    # collide onto the same 'ORIG' atom as ORIGINAL_TITLE. Leaving it unmapped
-    # routes it through _set_m4a_tag's freeform-atom fallback instead
-    # (`----:com.apple.iTunes:ORIGINAL_ARTIST`), which doesn't have that limit.
+    REMIXER: MP4_FREEFORM_PREFIX + 'REMIXER',
+    ORIGINAL_TITLE: MP4_FREEFORM_PREFIX + 'ORIGINAL_TITLE',
 }
 reversed_MP4Tags = {v: k for k, v in MP4Tags.items()}
+# Where earlier versions put a tag on m4a, keyed by that atom. 'REMI' and 'ORIG' are the
+# truncated names described above; 'TALB' is the ID3 album frame name, which was mapped as the
+# album artist's atom; the album itself had no mapping and fell through to a freeform ALBUM
+# atom that LMS does not read. TagCollection reads a legacy atom when the correct one is
+# absent, and BaseSong deletes it on the next save, so a file heals on its next retag.
+LEGACY_MP4_ATOMS = {
+    'REMI': REMIXER,
+    'ORIG': ORIGINAL_TITLE,
+    'TALB': ALBUM_ARTIST,
+    MP4_FREEFORM_PREFIX + 'ALBUM': ALBUM,
+}
 WAVTags = {
     ALBUM: 'TALB',
     ALBUM_ARTIST: 'TPE2',
@@ -159,11 +176,15 @@ reversed_WAVTags = {v: k for k, v in WAVTags.items()}
 
 
 class FormatEnum(Enum):
+    """How the tagger formats a value it writes back."""
+
     NONE = 0
     RECAPITALIZE = 1
 
 
 class SongTypeEnum(Enum):
+    """Where a song came from, which decides the rules it is tagged with."""
+
     NONE = 0
     LABEL = 1
     YOUTUBE = 2
@@ -173,6 +194,8 @@ class SongTypeEnum(Enum):
 
 
 class MusicFileType(Enum):
+    """The audio container of a file, which decides how its tags are read and written."""
+
     NONE = 0
     MP3 = 1
     FLAC = 2

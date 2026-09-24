@@ -27,7 +27,7 @@ starts; see `feeds/policy.py`'s `parse_hardness_edges` for the runtime override.
 
 from collections import Counter
 
-from services.music_manager.feeds.hierarchy import nearest_ancestor
+from services.music_manager.feeds.hierarchy import nearest_ancestor, warn_cycles
 
 #: Proposed defaults (docs/designs/feeds/functional.md, "Daily mixes v2"), matched
 #: case-insensitively against `rules_genres.name`. Not a measurement: nobody has yet
@@ -254,6 +254,7 @@ def seed_genre_hardness(cursor) -> int:
     parents: dict[str, set[str]] = {}
     for row in cursor.fetchall():
         parents.setdefault(row['subgenre'].lower(), set()).add(row['genre'].lower())
+    warn_cycles(parents, 'hardness')
 
     candidates = set(known)
     for row in rows:

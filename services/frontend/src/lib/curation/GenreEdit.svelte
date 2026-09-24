@@ -93,9 +93,9 @@
         items={genre.parents}
         {busy}
         validate={(candidate) =>
-          parentIsAllowed(genre.name, candidate, genre.parents)
+          parentIsAllowed(genre.name, candidate, genre.parents, genre.descendants ?? [])
             ? null
-            : 'Dat kan niet: een genre valt niet onder zichzelf, en staat er maar één keer in.'}
+            : 'Dat kan niet: een genre valt niet onder zichzelf of onder een eigen subgenre, en staat er maar één keer in.'}
         onadd={(parent) => saveParents(addParent(genre.parents, parent))}
         onremove={(parent) => saveParents(removeParent(genre.parents, parent))}
       />

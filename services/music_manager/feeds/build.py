@@ -21,6 +21,7 @@ from services.music_manager.feeds.hardness import (
     hardness_percentiles,
     track_hardness,
 )
+from services.music_manager.feeds.hierarchy import warn_cycles
 from services.music_manager.feeds.policy import FeedPolicy
 from services.music_manager.feeds.profile import TasteProfile, blend, build_profile, genre_shares, listen_weight
 from services.music_manager.feeds.queries import (
@@ -154,7 +155,9 @@ def _load_hierarchy(conn) -> dict[str, set[str]]:
     parents: dict[str, set[str]] = defaultdict(set)
     for row in _rows(conn, hierarchy_query()):
         parents[row['subgenre'].lower()].add(row['genre'].lower())
-    return dict(parents)
+    loaded = dict(parents)
+    warn_cycles(loaded, 'feeds')
+    return loaded
 
 
 def _load_exclusions(conn, username: str) -> dict[str, set[str]]:

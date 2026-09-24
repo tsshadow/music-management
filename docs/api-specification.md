@@ -92,6 +92,18 @@ The system key passes every check. Routes not marked otherwise need any authenti
   "busy": <bool>, "stopping": <bool>}`. `total` counts the queued files; `failed` (added, additive) counts
   the files parked after failing `TAGGER_PARK_AFTER` times in a row, which are not in `total` and wait
   until the file changes or a retag is requested (bug report 051).
+- **PUT `/api/curation/genres/{name}/parents`** (`rules.manage`): body `{"parents": [<genre>, ...]}`,
+  replaces the genre's parents in `rules_subgenre_hierarchy`. `400` for a genre listed as its own parent
+  or an unknown/unaccepted parent, `403` when curation has not accepted the genre itself, and `409` with
+  detail `"<genre> is already an ancestor of <parent>"` when a parent sits below the genre (at any depth),
+  since storing it would close a cycle. Nothing is written when any parent is refused (bug report 064).
+- **GET `/api/curation/genres/{name}`**: the edit page's view -- `name`, `genre_id`, `state`, `editable`,
+  `occurrences`, `hardness`, `parents`, `children`, and (added, additive) `descendants`: every genre below
+  this one at any depth, the ones the page will not offer as a parent.
+- **GET `/api/curation/genre-hierarchy/cycles`**: read-only integrity check, any authenticated account.
+  `{"count": <int>, "cycles": [[<genre>, ...], ...]}`, one sorted member list per cycle (a genre that is
+  its own parent is a one-member cycle). New cycles are refused by the `PUT` above; a stored one is
+  fixed by removing a parent on the genre edit page in Beheer.
 - **Admin**: `POST /api/soundcloud`, `DELETE /api/soundcloud/{name}`, `POST /api/youtube`,
   `DELETE /api/youtube/{name}`.
 - **GET `/api/system/containers`**: the installation's Docker containers. Admin only.

@@ -45,9 +45,15 @@ if ! zcat "$DUMP" | tail -c 4096 | grep -q -- '-- Dump completed'; then
     exit 1
 fi
 
+# The root password is read from the container's own environment and handed to the
+# client as MYSQL_PWD, never as -p<password>: a command line inside a container is
+# as readable through `ps` on the host as any other. MYSQL_PWD is set in the shell
+# inside the container, so the value never crosses the docker command line either.
+# shellcheck disable=SC2016 # expanded by the shell inside the container, on purpose
+IN_CONTAINER_CLIENT='MYSQL_PWD="${MARIADB_ROOT_PASSWORD:-$MYSQL_ROOT_PASSWORD}"; export MYSQL_PWD; exec mariadb -u root "$@"'
+
 run_sql() {
-    docker exec -i "$DB_CONTAINER" sh -c \
-        'exec mariadb -u root -p"${MARIADB_ROOT_PASSWORD:-$MYSQL_ROOT_PASSWORD}"' "$@"
+    docker exec -i "$DB_CONTAINER" sh -c "$IN_CONTAINER_CLIENT" mariadb "$@"
 }
 
 EXISTING=$(run_sql <<SQL
@@ -70,8 +76,7 @@ SQL
 # database whose default disagrees with its own tables produces "Illegal mix of
 # collations" on the first join against a table created afterwards.
 
-zcat "$DUMP" | docker exec -i "$DB_CONTAINER" sh -c \
-    "exec mariadb -u root -p\"\${MARIADB_ROOT_PASSWORD:-\$MYSQL_ROOT_PASSWORD}\" '${TARGET}'"
+zcat "$DUMP" | run_sql "$TARGET"
 
 TABLES=$(run_sql <<SQL | tail -1
 SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '${TARGET}';

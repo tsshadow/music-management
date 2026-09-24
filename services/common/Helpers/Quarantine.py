@@ -7,7 +7,7 @@ call that can be wrong:
   release has been tagged, moved or scanned. For a label rip that archive is the only
   pristine copy of the release there will ever be.
 - `Mover` removes a source folder it judges to be a duplicate. `is_same_release` compares
-  relative names and sizes, not contents, so two different releases that happen to agree
+  track names and lengths, not contents, so two different releases that happen to agree
   on both are indistinguishable to it.
 - `Renamer` does the same when a rename collides.
 - `BaseSong.__init__` deletes an `.m4a` mutagen cannot parse.

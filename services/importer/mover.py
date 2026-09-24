@@ -13,6 +13,7 @@ from services.common.Helpers.NotificationService import notification_service
 from services.importer.label_proposal_store import LabelProposalStore
 from services.importer.label_resolver import resolve
 from services.importer.release_compare import is_same_release
+from services.importer.settle import is_settled, is_staging, newest_mtime
 from services.tagger.announce import announce
 from services.tagger.Song.LabelSong import LabelSong
 
@@ -84,12 +85,17 @@ def make_library_writable(folder_path) -> int:
     return failures
 
 
-def post_processing_songs(folder_path):
+def post_processing_songs(folder_path) -> int:
     """
     Call LabelSong(path) for every supported audio file in the folder,
     excluding Synology's @eaDir directories and non-files.
+
+    Every tagged file is recorded in the event log, without a push: one per file was
+    100+ phone notifications for a single weekly pack. The mover sends one push per
+    release instead, which is why this returns how many files were tagged.
     """
     supported_exts = ('.mp3', '.flac', '.m4a', '.aac', '.wav')
+    tagged = 0
     for root, dirs, files in os.walk(folder_path):
         dirs[:] = [d for d in dirs if d != '@eaDir']
         for file in files:
@@ -105,27 +111,66 @@ def post_processing_songs(folder_path):
                     # The walk would otherwise tag the release a second time on its next
                     # pass; and the scanner learns of it now rather than on the hour.
                     announce(full_path)
-                    notification_service.notify(str(s), title='Import Complete')
+                    notification_service.notify(str(s), title='Track Imported', push=False)
+                    tagged += 1
                 except Exception as e:
                     logging.error(f'Failed to process {full_path} with LabelSong: {e}')
+    return tagged
+
+
+def release_summary(folder: str, label: str, tracks: int) -> str:
+    """The one push a release gets: label, catalogue number and how many tracks were imported.
+
+    The catalogue number is the part of the folder name before the renamer's ` - `, which
+    is the full number (`SCAN123`) rather than the prefix the label was looked up by.
+    """
+    catalog = folder.split(' - ', 1)[0].strip() if ' - ' in folder else ''
+    lines = [folder, f'Label: {label}']
+    if catalog:
+        lines.append(f'Catalog: {catalog}')
+    lines.append(f'Tracks: {tracks}')
+    return '\n'.join(lines)
 
 
 class Mover:
+    """Moves every settled release folder in the import folder to its label, and tags it there."""
+
     def __init__(self):
         self.settings = Settings()
         self.db_connector = DatabaseConnector()
         self.proposals = LabelProposalStore()
+        #: folder -> newest modification time inside it when its label was last resolved.
+        #: Lives as long as the process, which runs the import loop for weeks.
+        self._resolved: dict[str, float] = {}
 
     def _propose(self, folder, cat_id):
         """
         Record a release this step could not place, so it can be reviewed once instead
         of re-warned on every cycle for as long as it sits in the import folder.
+
+        Resolving reads the tags of every track, over CIFS, and ~2.266 unplaceable
+        folders sat in the import folder on production: every cycle re-read all of them
+        to arrive at the same answer. A folder is resolved again only when something in
+        it changed since the last time this process resolved it. A decision on the
+        proposal does not depend on this: confirming one with a catalogue number adds
+        the `rules_catid_label` row the lookup before this finds, and confirming one
+        without moves the folder itself.
         """
         src = join(self.settings.import_folder_path, folder)
+        try:
+            changed = newest_mtime(src)
+        except OSError as e:
+            logging.debug('Could not read %s to decide whether to resolve it again: %s', src, e)
+            changed = None
+        if changed is not None and self._resolved.get(folder) == changed:
+            logging.debug('Label proposal for %s is current; not reading its tags again', folder)
+            return
         import_folder_name = os.path.basename(self.settings.import_folder_path.rstrip(os.sep))
         self.proposals.record(
             folder, resolve(src, import_folder_name=import_folder_name, catid_from_name=cat_id or None)
         )
+        if changed is not None:
+            self._resolved[folder] = changed
 
     def get_label(self, key) -> str | None:
         query = 'SELECT `label` FROM `rules_catid_label` WHERE `catid` = %s'
@@ -145,7 +190,7 @@ class Mover:
 
         Named `remove` because that is what it meant, and it is called from the two places
         that judge a folder to be a duplicate download. The judgement rests on
-        `is_same_release`, which compares relative names and sizes rather than contents, so
+        `is_same_release`, which compares track names and lengths rather than contents, so
         it can be wrong -- and it used to be wrong irreversibly. Quarantine.sweep does the
         actual deleting, once the retention window has closed.
         """
@@ -159,7 +204,7 @@ class Mover:
     def _resolve_conflict(self, folder, src, dst, dry_run):
         """Decides what to do when the label folder already holds this release.
 
-        Same rule as the renamer: identical file names and sizes mean the release was
+        Same rule as the renamer: the same track names and lengths mean the release was
         imported before and this is a duplicate download, so the source goes. Anything
         else may be a different release that resolved to the same folder name, and gets
         left alone rather than merged into the one already there.
@@ -210,9 +255,12 @@ class Mover:
             else:
                 logging.info(f'Dry run - would move: {src} -> {dst}')
             try:
-                post_processing_songs(dst)
+                tracks = post_processing_songs(dst)
             except Exception as e:
                 logging.error(f'Post-processing failed for {dst}: {e}')
+            else:
+                if not dry_run:
+                    notification_service.notify(release_summary(folder, label, tracks), title='Import Complete')
         except (FileExistsError, shutil.Error) as e:
             # shutil.move(src, dst) treats an existing "dst" directory as a target to move
             # INTO (i.e. src ends up at dst/basename(src)), not as an in-place conflict. If
@@ -252,9 +300,13 @@ class Mover:
         only_folders = [
             f
             for f in listdir(self.settings.import_folder_path)
-            if not isfile(join(self.settings.import_folder_path, f))
+            if not isfile(join(self.settings.import_folder_path, f)) and not is_staging(f)
         ]
         for folder in only_folders:
+            # A release still being copied in would be moved with half its tracks, and
+            # the rest would arrive in a new import folder the next cycle calls a conflict.
+            if not is_settled(join(self.settings.import_folder_path, folder)):
+                continue
             cat_id = get_cat_id(folder)
             if cat_id:
                 self._move_folder(folder, cat_id, dry_run)

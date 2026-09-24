@@ -205,7 +205,8 @@
         "nginx",
         "mobiledevops/android-sdk-image"
       ],
-      "pinDigests": true
+      "pinDigests": true,
+      "minimumReleaseAge": "3 days"
     },
     {
       "description": "deno is pinned together with the sha256 of its release zip (docker/Dockerfile.downloader). Renovate can bump the version but not the checksum, so its merge request goes red on `sha256sum -c` until DENO_SHA256 is filled in by hand -- see docs/deployment.md, \"Pinned build inputs\". It never merges on its own.",
@@ -216,7 +217,8 @@
       "labels": [
         "dependencies",
         "docker"
-      ]
+      ],
+      "minimumReleaseAge": "3 days"
     },
     {
       "description": "Vendored upstream fork; its dependencies are managed by that project, not here.",
@@ -233,7 +235,8 @@
       "matchManagers": [
         "docker-compose"
       ],
-      "enabled": true
+      "enabled": true,
+      "minimumReleaseAge": "3 days"
     }
   ]
 }

@@ -378,7 +378,7 @@ class SoundcloudDownloader:
                 with YoutubeDL(opts) as ydl:
                     ydl.add_post_processor(FFmpegMetadataPP(ydl))
                     ydl.add_post_processor(EmbedThumbnailPP(ydl))
-                    ydl.add_post_processor(SoundcloudSongProcessor())
+                    ydl.add_post_processor(SoundcloudSongProcessor(opts))
                     ydl.download([url])
 
                 self._settle(report, account, url)

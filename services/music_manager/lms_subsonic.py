@@ -8,7 +8,7 @@ import logging
 
 import requests
 
-from services.common.Helpers.LmsEndpoint import LmsNotConfigured, lms_api_key, lms_base_url
+from services.common.Helpers.LmsEndpoint import LmsNotConfigured, lms_base_url, resolve_lms_api_key
 
 logger = logging.getLogger('music-manager.lms-subsonic')
 
@@ -24,7 +24,7 @@ __all__ = ['LmsNotConfigured', 'lms_base_url']
 
 def _auth_params() -> dict:
     return {
-        'apiKey': lms_api_key(),
+        'apiKey': resolve_lms_api_key(),
         'v': API_VERSION,
         'c': CLIENT_NAME,
         'f': 'json',

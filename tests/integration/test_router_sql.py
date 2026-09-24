@@ -749,6 +749,31 @@ class ArtistImagesTest:
         assert body['total'] == 1
         assert body['items'][0]['has_image'] is False
 
+    def test_a_cleared_portrait_is_left_out_of_the_bulk_run(self, api, headers, db):
+        """Clearing used to set `none`, which the start-up run read as "never asked"."""
+        import sys
+        from unittest.mock import MagicMock
+
+        from services.music_manager.routers import artist_images
+
+        with db.cursor() as cursor:
+            cursor.executemany('INSERT INTO library_artists (name) VALUES (%s)', [('Cleared',), ('Never Asked',)])
+            cursor.execute("SELECT id FROM library_artists WHERE name = 'Cleared'")
+            cleared_id = cursor.fetchone()['id']
+        assert api.post(f'/api/artists/{cleared_id}/image/clear', headers=headers).status_code == 200
+        with db.cursor() as cursor:
+            cursor.execute('SELECT image_status FROM library_artists WHERE id = %s', (cleared_id,))
+            assert cursor.fetchone()['image_status'] == 'cleared'
+
+        fetcher_module = MagicMock()
+        fetcher = fetcher_module.ArtistImageFetcher.return_value
+        fetcher.blind = False
+        fetcher.fetch_for_artist.return_value = False
+        with patch.dict(sys.modules, {'services.music_manager.artist_image_fetcher.fetcher': fetcher_module}):
+            artist_images.run_fetch_missing()
+        asked = [call.args[1] for call in fetcher.fetch_for_artist.call_args_list]
+        assert asked == ['Never Asked']
+
 
 class FeedsPipelineTest:
     """The candidate query, its grouped audio-features subquery, the two

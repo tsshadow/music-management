@@ -286,7 +286,8 @@ class PrimaryImageTest(ArtistImagesTestCase):
         self.cursor.fetchone.return_value = {'id': 1}
         body = self.client.post('/api/artists/1/image/clear', headers=self.headers).json()
         self.assertEqual(body, {'status': 'ok', 'artist_id': 1})
-        self.assertTrue(any("image_status = 'none'" in s for s in self.statements()))
+        # `cleared`, not `none`: the start-up bulk run skips it instead of undoing the clear.
+        self.assertTrue(any("image_status = 'cleared'" in s for s in self.statements()))
         self.assertFalse(any('DELETE' in s for s in self.statements()))
 
     def test_clearing_for_an_unknown_artist_is_a_not_found(self):
@@ -343,7 +344,12 @@ class FetchEndpointTest(ArtistImagesTestCase):
         with patch.object(artist_images_router, 'trigger_fetch_by_id') as task:
             body = self.client.post('/api/artists/7/fetch-image', headers=self.headers).json()
         self.assertEqual(body['status'], 'ok')
-        task.assert_called_once_with(7)
+        task.assert_called_once_with(7, False)
+
+    def test_force_is_passed_on_so_a_cleared_portrait_can_be_fetched_again(self):
+        with patch.object(artist_images_router, 'trigger_fetch_by_id') as task:
+            self.client.post('/api/artists/7/fetch-image?force=true', headers=self.headers)
+        task.assert_called_once_with(7, True)
 
 
 class BackgroundFetchTest(unittest.TestCase):
@@ -424,6 +430,14 @@ class BackgroundFetchTest(unittest.TestCase):
         self.assertIn('INTERVAL %s DAY', sql)
         self.assertEqual(params, (14,))
 
+    def test_an_artist_whose_portrait_was_cleared_is_not_fetched_again(self):
+        """Clearing set `none`, which this query picked up on the next boot."""
+        self.cursor.fetchone.return_value = {'count': 1}
+        self.cursor.fetchall.return_value = []
+        artist_images_router.run_fetch_missing()
+        sql = self.cursor.execute.call_args_list[-1][0][0]
+        self.assertIn("image_status <> 'cleared'", sql)
+
     def test_the_cooldown_defaults_to_thirty_days(self):
         self.cursor.fetchone.return_value = {'count': 1}
         self.cursor.fetchall.return_value = []
@@ -435,7 +449,14 @@ class BackgroundFetchTest(unittest.TestCase):
     def test_a_single_artist_fetch_by_id_forces_a_refresh(self):
         self.cursor.fetchone.return_value = {'name': 'Angerfist'}
         artist_images_router.trigger_fetch_by_id(7)
-        self.fetcher.fetch_for_artist.assert_called_once_with(7, 'Angerfist', force_refresh=True)
+        self.fetcher.fetch_for_artist.assert_called_once_with(
+            7, 'Angerfist', force_refresh=True, override_cleared=False
+        )
+
+    def test_a_forced_single_artist_fetch_overrides_a_cleared_portrait(self):
+        self.cursor.fetchone.return_value = {'name': 'Angerfist'}
+        artist_images_router.trigger_fetch_by_id(7, force=True)
+        self.fetcher.fetch_for_artist.assert_called_once_with(7, 'Angerfist', force_refresh=True, override_cleared=True)
 
     def test_an_unknown_artist_id_fetches_nothing(self):
         self.cursor.fetchone.return_value = None

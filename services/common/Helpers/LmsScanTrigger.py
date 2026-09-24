@@ -7,7 +7,13 @@ from collections.abc import Iterable
 import requests
 
 from services.common.config_store import ConfigStore
-from services.common.Helpers.LmsEndpoint import LmsNotConfigured, lms_api_key, lms_base_url, normalise_host
+from services.common.Helpers.LmsEndpoint import (
+    LmsNotConfigured,
+    lms_base_url,
+    normalise_host,
+    redact_url,
+    resolve_lms_api_key,
+)
 
 
 class LmsScanTrigger:
@@ -56,7 +62,7 @@ class LmsScanTrigger:
             except LmsNotConfigured:
                 hosts = []
 
-        api_key = str(self._config.get('lms_subsonic_api_key') or '') or lms_api_key()
+        api_key = resolve_lms_api_key(self._config)
 
         if not hosts or not api_key:
             if not self._warned_unconfigured:
@@ -100,7 +106,7 @@ class LmsScanTrigger:
             response.raise_for_status()
             logging.info('Triggered LMS scan on %s (fullScan=%s)', host, full_scan)
         except Exception as e:
-            logging.warning('Failed to trigger LMS scan on %s: %s', host, e)
+            logging.warning('Failed to trigger LMS scan on %s: %s', host, redact_url(str(e)))
 
     def notify(self, paths: Iterable) -> None:
         try:
@@ -191,7 +197,7 @@ class LmsScanTrigger:
                 response.raise_for_status()
                 logging.info('Notified LMS on %s of %d path(s)', host, len(paths))
             except Exception as e:
-                logging.warning('Failed to notify LMS on %s: %s', host, e)
+                logging.warning('Failed to notify LMS on %s: %s', host, redact_url(str(e)))
 
 
 lms_scan_trigger = LmsScanTrigger()

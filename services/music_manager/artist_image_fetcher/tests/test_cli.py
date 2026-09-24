@@ -34,16 +34,20 @@ class CliTestCase(unittest.TestCase):
 class FetchCommandTest(CliTestCase):
     def test_an_artist_id_is_fetched_directly(self):
         self.run_cli('fetch', '--artist-id', '7', '--name', 'Angerfist')
-        self.fetcher.fetch_for_artist.assert_called_once_with(7, 'Angerfist', force_refresh=False)
+        self.fetcher.fetch_for_artist.assert_called_once_with(
+            7, 'Angerfist', force_refresh=False, override_cleared=False
+        )
 
     def test_the_force_flag_is_passed_through(self):
         self.run_cli('fetch', '--artist-id', '7', '--force')
-        self.fetcher.fetch_for_artist.assert_called_once_with(7, None, force_refresh=True)
+        self.fetcher.fetch_for_artist.assert_called_once_with(7, None, force_refresh=True, override_cleared=True)
 
     def test_a_name_is_resolved_to_an_id_first(self):
         self.cursor.fetchone.return_value = {'id': 12}
         self.run_cli('fetch', '--name', 'Angerfist')
-        self.fetcher.fetch_for_artist.assert_called_once_with(12, 'Angerfist', force_refresh=False)
+        self.fetcher.fetch_for_artist.assert_called_once_with(
+            12, 'Angerfist', force_refresh=False, override_cleared=False
+        )
 
     def test_a_name_that_is_not_in_the_library_is_reported(self):
         self.cursor.fetchone.return_value = None
@@ -68,7 +72,7 @@ class FetchMissingCommandTest(CliTestCase):
     def test_previously_failed_artists_are_excluded_by_default(self):
         self.cursor.fetchall.return_value = []
         self.run_cli('fetch-missing')
-        self.assertIn("image_status != 'failed'", self.cursor.execute.call_args_list[0].args[0])
+        self.assertIn("NOT IN ('failed', 'cleared')", self.cursor.execute.call_args_list[0].args[0])
 
     def test_include_failed_switches_the_filter_around(self):
         self.cursor.fetchall.return_value = []

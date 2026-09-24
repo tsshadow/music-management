@@ -4,6 +4,17 @@ import requests
 
 from .base import ArtistImageProvider, ProviderUnavailable, credential
 
+# Last.fm stopped serving artist photos in 2019; `artist.getinfo` now answers every
+# artist with the same grey star placeholder, recognisable by this hash in its URL.
+# Accepting it gave every artist with an MBID the same picture, scored +100 as a
+# "known match".
+LASTFM_PLACEHOLDER_HASH = '2a96cbd8b46e442fc41c2b86b821562f'
+
+
+def is_placeholder_image(url):
+    """Whether `url` is Last.fm's generic placeholder rather than a real artist photo."""
+    return bool(url) and LASTFM_PLACEHOLDER_HASH in url
+
 
 class LastFmArtistImageProvider(ArtistImageProvider):
     API_URL = 'https://ws.audioscrobbler.com/2.0/'
@@ -42,7 +53,10 @@ class LastFmArtistImageProvider(ArtistImageProvider):
             artist = data.get('artist', {})
             images = artist.get('image', [])
             for img in images:
-                if img.get('size') in ['extralarge', 'mega'] and img.get('#text'):
+                url = img.get('#text')
+                if is_placeholder_image(url):
+                    continue
+                if img.get('size') in ['extralarge', 'mega'] and url:
                     candidates.append(
                         {
                             'source': self.name,

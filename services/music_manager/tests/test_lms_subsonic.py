@@ -114,6 +114,16 @@ class FetchCandidateTracksTest(unittest.TestCase):
         return self._response({'subsonic-response': {'status': 'ok', 'songsByFilter': {'song': list(songs)}}})
 
     @patch('services.music_manager.lms_subsonic.requests.get')
+    def test_the_api_key_comes_from_the_same_resolver_as_the_scan_trigger(self, mock_get):
+        """The radio read the environment only while LmsScanTrigger read the config
+        store first, so the two could authenticate with different keys."""
+        mock_get.return_value = self._songs()
+        with patch.object(lms_subsonic, 'resolve_lms_api_key', return_value='resolved-key') as resolver:
+            lms_subsonic.fetch_candidate_tracks({}, size=5)
+        resolver.assert_called_once_with()
+        self.assertEqual(mock_get.call_args[1]['params']['apiKey'], 'resolved-key')
+
+    @patch('services.music_manager.lms_subsonic.requests.get')
     def test_empty_filter_draws_from_the_whole_library(self, mock_get):
         mock_get.return_value = self._songs({'id': 'tr-1', 'title': 'A', 'artist': 'X', 'album': 'Y', 'duration': 100})
         tracks = lms_subsonic.fetch_candidate_tracks({}, size=5)

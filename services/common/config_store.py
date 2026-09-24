@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
+import tempfile
 import threading
 from collections import defaultdict
 from collections.abc import Callable, Iterable, MutableMapping
@@ -39,6 +41,11 @@ class ConfigField:
     #: boundary. Set it for credentials, not for identifiers: a Spotify client id is
     #: public, its client secret is not.
     secret: bool = False
+    #: Shown on the config page for information only. Its value comes from the
+    #: environment and cannot be changed or persisted through the API, because the
+    #: code that uses it reads the environment directly (the database connection is
+    #: opened long before any page could change it).
+    read_only: bool = False
 
 
 def _config_fields() -> list[ConfigField]:
@@ -183,7 +190,7 @@ def _config_fields() -> list[ConfigField]:
             secret=True,
             env='LMS_SUBSONIC_API_KEY',
             group='LMS',
-            description='Subsonic API key used to call startScan.view on the LMS hosts.',
+            description='Subsonic API key for LMS: the scan trigger and the radio scheduler both use it. Empty falls back to MUMA_SERVER_SUBSONIC_API_KEY / LMS_SUBSONIC_API_KEY.',
         ),
         ConfigField(
             key='youtube_folder',
@@ -312,7 +319,8 @@ def _config_fields() -> list[ConfigField]:
             default='',
             env='DB_HOST',
             group='Database',
-            description='Database host for metadata storage.',
+            read_only=True,
+            description='Database host for metadata storage. Read-only: set DB_HOST in the environment.',
         ),
         ConfigField(
             key='db_port',
@@ -320,7 +328,8 @@ def _config_fields() -> list[ConfigField]:
             default=None,
             env='DB_PORT',
             group='Database',
-            description='Database port for metadata storage.',
+            read_only=True,
+            description='Database port for metadata storage. Read-only: set DB_PORT in the environment.',
         ),
         ConfigField(
             key='db_user',
@@ -328,7 +337,8 @@ def _config_fields() -> list[ConfigField]:
             default='',
             env='DB_USER',
             group='Database',
-            description='Database user for metadata storage.',
+            read_only=True,
+            description='Database user for metadata storage. Read-only: set DB_USER in the environment.',
         ),
         ConfigField(
             key='db_pass',
@@ -337,7 +347,8 @@ def _config_fields() -> list[ConfigField]:
             secret=True,
             env='DB_PASS',
             group='Database',
-            description='Database password for metadata storage.',
+            read_only=True,
+            description='Database password for metadata storage. Read-only: set DB_PASS in the environment.',
         ),
         ConfigField(
             key='db_name',
@@ -345,7 +356,8 @@ def _config_fields() -> list[ConfigField]:
             default='',
             env='DB_DB',
             group='Database',
-            description='Database name for metadata storage.',
+            read_only=True,
+            description='Database name for metadata storage. Read-only: set DB_DB in the environment.',
         ),
         ConfigField(
             key='db_connect_timeout',
@@ -353,7 +365,8 @@ def _config_fields() -> list[ConfigField]:
             default=5,
             env='DB_CONNECT_TIMEOUT',
             group='Database',
-            description='Connection timeout (seconds) when connecting to the database.',
+            read_only=True,
+            description='Connection timeout (seconds) when connecting to the database. Read-only: set DB_CONNECT_TIMEOUT in the environment.',
         ),
         ConfigField(
             key='discogs_token',
@@ -443,8 +456,30 @@ def _config_fields() -> list[ConfigField]:
     ]
 
 
+#: Marks a config.json written by a store that persists overrides only. A file
+#: without it predates that and held a snapshot of every value, secrets from the
+#: environment included; see `ConfigStore._load_from_disk`.
+FILE_FORMAT_KEY = '__format__'
+FILE_FORMAT = 2
+
+
 class ConfigStore:
-    """Runtime configuration store shared across the application."""
+    """Runtime configuration store shared across the application.
+
+    Precedence, highest first:
+
+    1. a value explicitly changed through the API (`update`), persisted in
+       `config.json`;
+    2. the environment, read at start-up;
+    3. the field's declared default.
+
+    Only (1) is ever written to disk, and only while it differs from what (2)/(3)
+    would give: a value set back to its environment value or default is removed
+    from the file, so the next deploy's environment applies again. Up to 0.72 every
+    value was written, the file was loaded after the environment, and whatever was
+    in the environment on the day of the first save -- secrets included -- won
+    over every later deploy.
+    """
 
     _instance: ConfigStore | None = None
     _instance_lock = threading.Lock()
@@ -470,13 +505,30 @@ class ConfigStore:
             else:
                 self._config_path = Path('data') / 'config.json'
             self._config_path.parent.mkdir(parents=True, exist_ok=True)
+            self._env_values: dict[str, Any] = {}
+            self._overrides: dict[str, Any] = {}
             self._values: dict[str, Any] = {field.key: field.default for field in self._fields}
             self._load_from_env()
             self._load_from_disk()
+            for field in self._fields:
+                self._recompute(field)
             self._initialized = True
 
     def _initialize(self) -> None:
         """Legacy initialization method."""
+
+    def _baseline(self, field: ConfigField) -> Any:
+        """What the field is without an override: the environment's value, else the default."""
+        if field.key in self._env_values:
+            return self._env_values[field.key]
+        return field.default
+
+    def _recompute(self, field: ConfigField) -> None:
+        """Refresh the effective value of `field` from override, environment and default."""
+        if field.key in self._overrides:
+            self._values[field.key] = self._overrides[field.key]
+        else:
+            self._values[field.key] = self._baseline(field)
 
     def _public_value(self, field: ConfigField) -> Any:
         """The value as it may leave the process.
@@ -501,12 +553,14 @@ class ConfigStore:
                     'nullable': field.nullable,
                     'default': field.default,
                     'secret': field.secret,
+                    'read_only': field.read_only,
                     'value': self._public_value(field),
                 }
                 for field in self._fields
             ]
 
     def get(self, key: str, default: Any = None) -> Any:
+        """The effective value of `key`, unmasked; for in-process readers only."""
         field = self._field_map.get(key)
         if not field:
             return os.getenv(key, default)
@@ -531,19 +585,34 @@ class ConfigStore:
             return {field.key: self._public_value(field) for field in self._fields}
 
     def groups(self) -> list[str]:
+        """Every configuration group name."""
         return list({field.group for field in self._fields})
 
     def fields(self) -> list[dict[str, Any]]:
+        """Alias of `describe`, kept for the `/api/config/fields` route."""
         return self.describe()
 
     def get_many(self, keys: Iterable[str]) -> dict[str, Any]:
+        """Read several keys at once, unmasked."""
         return {key: self.get(key) for key in keys}
 
+    def is_overridden(self, key: str) -> bool:
+        """Whether `key` holds a value set through the API rather than env/default."""
+        with self._lock:
+            return key in self._overrides
+
     def update(self, updates: dict[str, Any]) -> dict[str, Any]:
+        """Apply values posted by the config page and return them as the API may show them.
+
+        The whole payload is validated before anything changes. The returned mapping is
+        the public (masked) value of every key in `updates` -- the same thing
+        `all_configs` reports -- so a secret that was just typed in is not echoed back.
+        """
         if not updates:
             return {}
         changed: dict[str, Any] = {}
         with self._lock:
+            staged: dict[str, Any] = {}
             for key, raw_value in updates.items():
                 field = self._field_map.get(key)
                 if field is None:
@@ -554,14 +623,30 @@ class ConfigStore:
                 if field.secret and raw_value == SECRET_SENTINEL:
                     continue
                 value = self._coerce(field, raw_value)
-                if self._values.get(key) != value:
-                    self._values[key] = value
-                    changed[key] = value
-            if changed:
+                if field.read_only:
+                    # Posting the page back carries these unchanged; anything else is
+                    # an attempt to set what nothing would read.
+                    if value != self._values.get(key):
+                        raise ValueError(f'{key} is read-only here: it is read from the environment')
+                    continue
+                staged[key] = value
+            overrides_before = dict(self._overrides)
+            for key, value in staged.items():
+                field = self._field_map[key]
+                if value == self._baseline(field):
+                    self._overrides.pop(key, None)
+                else:
+                    self._overrides[key] = value
+                before = self._values.get(key)
+                self._recompute(field)
+                if self._values.get(key) != before:
+                    changed[key] = self._values[key]
+            if self._overrides != overrides_before:
                 self._persist_locked()
+            result = {key: self._public_value(self._field_map[key]) for key in updates}
         for key, value in changed.items():
             self._notify_listeners(key, value)
-        return {key: self.get(key) for key in updates}
+        return result
 
     def subscribe(self, key: str, callback: Callable[[Any], None], *, immediate: bool = False) -> Callable[[], None]:
         """Register a callback that receives the new value when a key changes."""
@@ -635,6 +720,7 @@ class ConfigStore:
         raise ValueError(f'Invalid type for string field {field.key}')
 
     def _load_from_env(self) -> None:
+        """Record every field the environment sets; these are the baseline, not overrides."""
         for field in self._fields:
             env_key = field.env or field.key
             candidates = [env_key]
@@ -647,10 +733,26 @@ class ConfigStore:
                         value = self._coerce(field, raw_value)
                     except ValueError:
                         continue
-                    self._values[field.key] = value
+                    self._env_values[field.key] = value
                     break
 
     def _load_from_disk(self) -> None:
+        """Read the persisted overrides.
+
+        A file in the current format holds overrides only; an entry that happens to
+        equal the environment or the default is dropped. A file without the format
+        marker was written by 0.72 or earlier and holds a snapshot of every value. It still
+        loads, with three filters, because such a file cannot tell a value typed on the
+        config page from one copied out of the environment on the day of the save:
+
+        * an entry equal to the environment value or the default is not an override;
+        * a secret the environment also sets is left to the environment -- a stale
+          copy of a since-rotated credential is exactly what that file preserved;
+        * read-only fields are ignored.
+
+        What survives is rewritten in the current format straight away, so the
+        environment's secrets are off the persistent volume from the first start.
+        """
         if not self._config_path.exists():
             return
         try:
@@ -659,18 +761,49 @@ class ConfigStore:
             return
         if not isinstance(data, dict):
             return
+        legacy = data.get(FILE_FORMAT_KEY) != FILE_FORMAT
         for key, value in data.items():
             field = self._field_map.get(key)
-            if not field:
+            if not field or field.read_only:
                 continue
             try:
-                self._values[key] = self._coerce(field, value)
+                coerced = self._coerce(field, value)
             except ValueError:
                 continue
+            if coerced == self._baseline(field):
+                continue
+            if legacy and field.secret and field.key in self._env_values:
+                continue
+            self._overrides[key] = coerced
+        if legacy:
+            with contextlib.suppress(OSError):
+                self._persist_locked()
+        else:
+            self._restrict_permissions()
 
     def _persist_locked(self) -> None:
-        payload = {key: self._values.get(key) for key in self._field_map}
-        self._config_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding='utf-8')
+        """Write the overrides -- nothing else -- to config.json, readable by the owner only."""
+        payload: dict[str, Any] = {FILE_FORMAT_KEY: FILE_FORMAT}
+        payload.update({key: value for key, value in self._overrides.items() if not self._field_map[key].read_only})
+        text = json.dumps(payload, indent=2, sort_keys=True)
+        # mkstemp creates the file 0600 under a unique name: several worker containers
+        # share one data volume, and each is PID 1 in its own namespace.
+        fd, tmp_name = tempfile.mkstemp(prefix=f'.{self._config_path.name}.', dir=self._config_path.parent)
+        tmp_path = Path(tmp_name)
+        try:
+            with os.fdopen(fd, 'w', encoding='utf-8') as handle:
+                handle.write(text)
+            os.replace(tmp_path, self._config_path)
+        except BaseException:
+            with contextlib.suppress(OSError):
+                tmp_path.unlink()
+            raise
+        self._restrict_permissions()
+
+    def _restrict_permissions(self) -> None:
+        """Make config.json owner-only; it may hold a credential typed on the config page."""
+        with contextlib.suppress(OSError):
+            os.chmod(self._config_path, 0o600)
 
     def _notify_listeners(self, key: str, value: Any) -> None:
         listeners: list[Callable[[Any], None]]
@@ -684,6 +817,7 @@ class ConfigStore:
 
     @property
     def config_path(self) -> Path:
+        """Where the overrides are persisted."""
         return self._config_path
 
 
@@ -691,7 +825,7 @@ def credential(config_key: str, env_name: str) -> str | None:
     """A third-party credential: the Beheer > Config value first, the environment second.
 
     The store seeds itself from the environment at start-up and persists what the config
-    page stores, so on its own it would do -- except that it is a process-wide singleton
+    page changes, so on its own it would do -- except that it is a process-wide singleton
     created before a test (or a CLI) can set the variable, so the environment is read again
     as the fallback. `None` when neither has it, so `bool()` reads as "configured".
 

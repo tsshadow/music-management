@@ -458,7 +458,10 @@ def clear_artist_primary_image(artist_id: int, _auth: dict = Depends(require_rul
     """Unsets the artist's primary image.
 
     The stored image rows and files are kept so a previously fetched image can be
-    re-selected from the manager; only the artist's pointer to it is removed.
+    re-selected from the manager; only the artist's pointer to it is removed. The
+    status becomes `cleared`, which the bulk run (started on every boot) and a plain
+    single-artist fetch leave alone -- with `none` the next restart fetched the
+    portrait that had just been removed.
     """
     conn = get_db_connection()
     if not conn:
@@ -472,7 +475,7 @@ def clear_artist_primary_image(artist_id: int, _auth: dict = Depends(require_rul
             cursor.execute(
                 """
                 UPDATE library_artists
-                SET primary_image_id = NULL, image_updated_at = NOW(), image_status = 'none'
+                SET primary_image_id = NULL, image_updated_at = NOW(), image_status = 'cleared'
                 WHERE id = %s
             """,
                 (artist_id,),
@@ -524,9 +527,16 @@ def fetch_missing_images(background_tasks: BackgroundTasks, _auth: dict = Depend
 
 @router.post('/{artist_id}/fetch-image')
 def fetch_artist_image_manual(
-    artist_id: int, background_tasks: BackgroundTasks, _auth: dict = Depends(require_rules_manage)
+    artist_id: int,
+    background_tasks: BackgroundTasks,
+    force: bool = False,
+    _auth: dict = Depends(require_rules_manage),
 ):
-    background_tasks.add_task(trigger_fetch_by_id, artist_id)
+    """Look up a new portrait for one artist in the background.
+
+    An artist whose portrait was cleared by hand is skipped unless `force=true`.
+    """
+    background_tasks.add_task(trigger_fetch_by_id, artist_id, force)
     return {'status': 'ok', 'message': f'Fetching image for artist ID {artist_id} started'}
 
 
@@ -582,6 +592,7 @@ def run_fetch_missing():
                     SELECT id, name
                     FROM library_artists
                     WHERE primary_image_id IS NULL
+                      AND (image_status IS NULL OR image_status <> 'cleared')
                       AND (image_status IS NULL
                            OR image_status <> 'failed'
                            OR image_updated_at IS NULL
@@ -654,7 +665,8 @@ def run_fetch_missing():
         fetch_progress.update({'active': False, 'status': 'failed', 'message': str(e)})
 
 
-def trigger_fetch_by_id(artist_id: int):
+def trigger_fetch_by_id(artist_id: int, force: bool = False):
+    """Background task behind `/fetch-image`; `force` also re-fetches a cleared portrait."""
     try:
         from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetcher
 
@@ -667,7 +679,7 @@ def trigger_fetch_by_id(artist_id: int):
                 cursor.execute('SELECT name FROM library_artists WHERE id = %s', (artist_id,))
                 row = cursor.fetchone()
                 if row:
-                    fetcher.fetch_for_artist(artist_id, row['name'], force_refresh=True)
+                    fetcher.fetch_for_artist(artist_id, row['name'], force_refresh=True, override_cleared=force)
         finally:
             conn.close()
     except Exception as e:

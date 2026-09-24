@@ -65,4 +65,15 @@ It also adds fields to `library_artists` to track image status.
 
 LMS can consume these images via:
 1. **Stable Path**: Images are always available at `ARTIST_IMAGE_PUBLIC_BASE_URL/{artist_id}/primary.jpg`.
-2. **JSON Manifest**: A `manifest.json` is generated in the storage directory for batch processing.
+
+The storage directory used to carry a `manifest.json`, rewritten whole after every artist. Nothing
+read it, so it is no longer maintained; an existing file is left on disk untouched.
+
+## Image status
+
+`library_artists.image_status` is `active` (has a portrait), `failed` (every configured provider
+answered and none had a confident match; retried after `ARTIST_IMAGE_RETRY_AFTER_DAYS`), `cleared`
+(removed by hand in the manager; the bulk run and a plain `/fetch-image` leave it alone, only
+`/fetch-image?force=true` looks it up again) or empty (never decided). A provider that could not
+answer, and a download or save that failed, write no status at all: the artist is asked again next
+run.

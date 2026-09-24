@@ -4,7 +4,7 @@ import os
 from typing import Any
 
 import markdown
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
@@ -19,8 +19,14 @@ from services.common.Helpers.ReleaseFolder import MOVED, move_release_folder
 from services.common.Helpers.RescanInvalidator import invalidate_quietly, rescan_invalidator
 from services.common.version_helper import get_changelog, get_release_notes, get_version
 from services.music_manager import curation_rules
-from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
+from services.music_manager.rbac import require_admin, require_permission
+
+# Re-exported: news, radio and events import it from here. It is the canonical
+# users.verify_api_key -- this module used to carry its own copy, which accepted any
+# enabled account for every route below, including the ones that change rules, move
+# folders on disk and read container logs. See docs/bug-reports/037.
+from services.music_manager.routers.users import verify_api_key
 
 router = APIRouter(tags=['management'])
 
@@ -97,24 +103,14 @@ class PodcastAliasRequest(BaseModel):
     alias: str
 
 
-def verify_api_key(x_api_key: str | None = Header(None)):
-    if not x_api_key:
-        raise HTTPException(status_code=401, detail='Missing API Key')
-    if is_system_api_key(x_api_key):
-        return {'type': 'system'}
-    from services.music_manager.routers.users import verify_token
-
-    try:
-        res = verify_token(x_api_key)
-        if res.get('status') == 'ok':
-            return res
-    except Exception:
-        pass
-    raise HTTPException(status_code=401, detail='Invalid API key')
-
-
 def init_db(_cursor):
     pass
+
+
+# Changes rules the tagger applies to every file, or moves releases on disk.
+require_rules_manage = require_permission('rules.manage')
+# Operating the installation itself: container logs, downloader sources.
+require_admin_role = require_admin()
 
 
 @router.get('/rules')
@@ -204,7 +200,7 @@ def get_label_proposals(status: str = 'new', _auth: dict = Depends(verify_api_ke
 
 @router.post('/label-proposals/{proposal_id}/confirm')
 def confirm_label_proposal(
-    proposal_id: int, decision: LabelDecisionRequest = Body(...), _auth: dict = Depends(verify_api_key)
+    proposal_id: int, decision: LabelDecisionRequest = Body(...), _auth: dict = Depends(require_rules_manage)
 ):
     """
     Accept a proposal.
@@ -269,7 +265,7 @@ def confirm_label_proposal(
 
 
 @router.post('/label-proposals/{proposal_id}/reject')
-def reject_label_proposal(proposal_id: int, _auth: dict = Depends(verify_api_key)):
+def reject_label_proposal(proposal_id: int, _auth: dict = Depends(require_rules_manage)):
     """A rejected proposal never returns to the list, however often the importer meets the folder again."""
     conn = get_db_connection()
     if not conn:
@@ -319,13 +315,25 @@ def get_stats_proxy(_auth: dict = Depends(verify_api_key)):
     return get_stats(_auth)
 
 
+# The containers this installation owns. /system/containers lists only these, and
+# /system/logs/{name} serves only these: the Docker socket reaches every container on
+# the host, and a log is where a service prints its connection strings.
+CONTAINER_NAME_MARKERS = ('muma', 'music-management', 'music-manager', 'db', 'lms')
+
+
+def is_listed_container(name: str) -> bool:
+    """Whether a container name belongs to this installation, by the list endpoint's rule."""
+    return any(marker in name for marker in CONTAINER_NAME_MARKERS)
+
+
 @router.get('/system/containers')
-def get_containers(_auth: dict = Depends(verify_api_key)):
+def get_containers(_auth: dict = Depends(require_admin_role)):
+    """The installation's containers and their state. Admin only."""
     try:
         client = docker.from_env()
         containers = []
         for container in client.containers.list(all=True):
-            if any(name in container.name for name in ['muma', 'music-management', 'music-manager', 'db', 'lms']):
+            if is_listed_container(container.name):
                 containers.append(
                     {
                         'id': container.short_id,
@@ -340,12 +348,24 @@ def get_containers(_auth: dict = Depends(verify_api_key)):
 
 
 @router.get('/system/logs/{name}')
-def get_logs(name: str, tail: int = 200, _auth: dict = Depends(verify_api_key)):
+def get_logs(name: str, tail: int = 200, _auth: dict = Depends(require_admin_role)):
+    """The tail of one listed container's log. Admin only.
+
+    `name` must be a container name the list endpoint would return. Docker also
+    resolves ids and id prefixes, so the resolved container's own name is checked
+    too, rather than trusting what was asked for.
+    """
+    if not is_listed_container(name):
+        raise HTTPException(status_code=404, detail='Unknown container')
     try:
         client = docker.from_env()
         container = client.containers.get(name)
+        if container.name != name:
+            raise HTTPException(status_code=404, detail='Unknown container')
         logs = container.logs(tail=tail).decode('utf-8')
         return {'logs': logs}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -409,7 +429,7 @@ def get_soundcloud_accounts(_auth: dict = Depends(verify_api_key)):
 
 
 @router.post('/soundcloud')
-def add_soundcloud_account(req: dict[str, Any] = Body(...), _auth: dict = Depends(verify_api_key)):
+def add_soundcloud_account(req: dict[str, Any] = Body(...), _auth: dict = Depends(require_admin_role)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
@@ -426,7 +446,7 @@ def add_soundcloud_account(req: dict[str, Any] = Body(...), _auth: dict = Depend
 
 
 @router.delete('/soundcloud/{name}')
-def delete_soundcloud_account(name: str, _auth: dict = Depends(verify_api_key)):
+def delete_soundcloud_account(name: str, _auth: dict = Depends(require_admin_role)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
@@ -463,7 +483,7 @@ YOUTUBE_DEFAULT_MIN_DURATION = {'audio': 60, 'video': 1200}
 
 
 @router.post('/youtube')
-def add_youtube_account(req: dict[str, Any] = Body(...), _auth: dict = Depends(verify_api_key)):
+def add_youtube_account(req: dict[str, Any] = Body(...), _auth: dict = Depends(require_admin_role)):
     download_type = req.get('download_type') or 'audio'
     if download_type not in YOUTUBE_DOWNLOAD_TYPES:
         raise HTTPException(status_code=400, detail=f'download_type must be one of {YOUTUBE_DOWNLOAD_TYPES}')
@@ -484,7 +504,7 @@ def add_youtube_account(req: dict[str, Any] = Body(...), _auth: dict = Depends(v
 
 
 @router.delete('/youtube/{name}')
-def delete_youtube_account(name: str, download_type: str = '', _auth: dict = Depends(verify_api_key)):
+def delete_youtube_account(name: str, download_type: str = '', _auth: dict = Depends(require_admin_role)):
     """Delete one channel row, or every row for the channel when no type is given."""
     if download_type and download_type not in YOUTUBE_DOWNLOAD_TYPES:
         raise HTTPException(status_code=400, detail=f'download_type must be one of {YOUTUBE_DOWNLOAD_TYPES}')
@@ -594,7 +614,7 @@ def get_genre_curation_queue(
 
 
 @router.post('/rules/genres/{genre_id}/decide')
-def decide_genre(genre_id: int, decision: GenreDecisionRequest, auth: dict = Depends(verify_api_key)):
+def decide_genre(genre_id: int, decision: GenreDecisionRequest, auth: dict = Depends(require_rules_manage)):
     """Move a genre to white or black, optionally rewriting it to other genres.
 
     A decision made here is recorded as `decided_by`, so the tagger never
@@ -745,7 +765,7 @@ def get_podcast_curation_queue(state: str | None = None, limit: int = 200, _auth
 
 
 @router.post('/rules/podcasts/{podcast_id}/decide')
-def decide_podcast(podcast_id: int, decision: PodcastDecisionRequest, auth: dict = Depends(verify_api_key)):
+def decide_podcast(podcast_id: int, decision: PodcastDecisionRequest, auth: dict = Depends(require_rules_manage)):
     """Move a show to white or black, optionally merging it into another show.
 
     Merging is how the three spellings of Isaac's Hardstyle Sessions become one
@@ -798,7 +818,7 @@ def decide_podcast(podcast_id: int, decision: PodcastDecisionRequest, auth: dict
 
 
 @router.post('/rules/podcasts/{podcast_id}/rename')
-def rename_podcast(podcast_id: int, request: PodcastRenameRequest, _auth: dict = Depends(verify_api_key)):
+def rename_podcast(podcast_id: int, request: PodcastRenameRequest, _auth: dict = Depends(require_rules_manage)):
     """Give a show the name it should be tagged and browsed under.
 
     The name is what `PodcastHelper.get` writes into the PODCAST tag, so a detected
@@ -832,7 +852,7 @@ def rename_podcast(podcast_id: int, request: PodcastRenameRequest, _auth: dict =
 
 
 @router.post('/rules/podcasts/{podcast_id}/aliases')
-def add_podcast_alias(podcast_id: int, request: PodcastAliasRequest, _auth: dict = Depends(verify_api_key)):
+def add_podcast_alias(podcast_id: int, request: PodcastAliasRequest, _auth: dict = Depends(require_rules_manage)):
     """Record another spelling this show occurs under.
 
     The detector only proposes fragments that carried an episode marker, so the
@@ -872,7 +892,7 @@ def add_podcast_alias(podcast_id: int, request: PodcastAliasRequest, _auth: dict
 
 
 @router.delete('/rules/podcasts/{podcast_id}/aliases')
-def delete_podcast_alias(podcast_id: int, alias: str, _auth: dict = Depends(verify_api_key)):
+def delete_podcast_alias(podcast_id: int, alias: str, _auth: dict = Depends(require_rules_manage)):
     """Drop a spelling that matches files this show does not own.
 
     There is no floor on how many spellings may go: a show with none still matches its
@@ -934,7 +954,7 @@ def get_artist_genre_rules(_auth: dict = Depends(verify_api_key)):
 
 
 @router.post('/rules/artist-genres')
-def add_artist_genre_rule(rule: ArtistGenreRule, _auth: dict = Depends(verify_api_key)):
+def add_artist_genre_rule(rule: ArtistGenreRule, _auth: dict = Depends(require_rules_manage)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
@@ -952,7 +972,7 @@ def add_artist_genre_rule(rule: ArtistGenreRule, _auth: dict = Depends(verify_ap
 
 
 @router.delete('/rules/artist-genres/{rule_id}')
-def delete_artist_genre_rule(rule_id: int, _auth: dict = Depends(verify_api_key)):
+def delete_artist_genre_rule(rule_id: int, _auth: dict = Depends(require_rules_manage)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
@@ -1001,7 +1021,7 @@ def get_label_genre_rules(_auth: dict = Depends(verify_api_key)):
 
 
 @router.post('/rules/label-genres')
-def add_label_genre_rule(rule: LabelGenreRule, _auth: dict = Depends(verify_api_key)):
+def add_label_genre_rule(rule: LabelGenreRule, _auth: dict = Depends(require_rules_manage)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
@@ -1019,7 +1039,7 @@ def add_label_genre_rule(rule: LabelGenreRule, _auth: dict = Depends(verify_api_
 
 
 @router.delete('/rules/label-genres/{rule_id}')
-def delete_label_genre_rule(rule_id: int, _auth: dict = Depends(verify_api_key)):
+def delete_label_genre_rule(rule_id: int, _auth: dict = Depends(require_rules_manage)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
@@ -1052,7 +1072,7 @@ def get_artist_redirects(_auth: dict = Depends(verify_api_key)):
 
 
 @router.post('/rules/artist-redirects')
-def save_artist_redirect(redirect: ArtistRedirect, _auth: dict = Depends(verify_api_key)):
+def save_artist_redirect(redirect: ArtistRedirect, _auth: dict = Depends(require_rules_manage)):
     """Add a redirect, or change the correction on one that already exists."""
     name = redirect.name.strip()
     if not name:
@@ -1084,7 +1104,7 @@ def save_artist_redirect(redirect: ArtistRedirect, _auth: dict = Depends(verify_
 
 
 @router.delete('/rules/artist-redirects/{rule_id}')
-def delete_artist_redirect(rule_id: int, _auth: dict = Depends(verify_api_key)):
+def delete_artist_redirect(rule_id: int, _auth: dict = Depends(require_rules_manage)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
@@ -1119,7 +1139,7 @@ def trigger_lb_import_proxy(
 
 
 @router.post('/tagger/rescan')
-def trigger_tagger_rescan(_auth: dict = Depends(verify_api_key)):
+def trigger_tagger_rescan(_auth: dict = Depends(require_rules_manage)):
     helper = ProcessedFilesHelper()
     # With its reason: this is bulk, and the queue serves every decision before it.
     helper.mark_for_rescan(reason='rescan_all')
@@ -1127,7 +1147,7 @@ def trigger_tagger_rescan(_auth: dict = Depends(verify_api_key)):
 
 
 @router.post('/tagger/rescan/file')
-def trigger_file_rescan(filepath: str = Body(..., embed=True), _auth: dict = Depends(verify_api_key)):
+def trigger_file_rescan(filepath: str = Body(..., embed=True), _auth: dict = Depends(require_rules_manage)):
     helper = ProcessedFilesHelper()
     helper.mark_for_rescan(filepath, reason='manual')
     return {'status': 'ok', 'message': f"File '{filepath}' marked for rescan"}

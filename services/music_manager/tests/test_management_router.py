@@ -14,6 +14,7 @@ from services.music_manager.api_key import resolve_system_api_key
 
 users_router.run_lms_db_sync = lambda: None
 
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from services.common.Helpers import Cache
@@ -53,9 +54,9 @@ class AuthTest(unittest.TestCase):
         self.assertEqual(response.status_code, 500)
 
     def test_a_key_that_does_not_verify_is_rejected(self):
-        with patch.object(users_router, 'verify_token', side_effect=Exception('nope')):
+        with patch.object(users_router, 'verify_token', side_effect=HTTPException(status_code=403)):
             response = TestClient(app).get('/api/artists', headers={'x-api-key': 'bad'})
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 403)
 
 
 class GenreRulesTest(ManagementTestCase):
@@ -179,14 +180,28 @@ class SystemTest(ManagementTestCase):
 
     def test_container_logs_are_decoded(self):
         with patch.object(management_router, 'docker') as docker:
+            docker.from_env.return_value.containers.get.return_value.name = 'muma-manager'
             docker.from_env.return_value.containers.get.return_value.logs.return_value = b'hello'
             body = self.client.get('/api/system/logs/muma-manager', headers=self.headers).json()
         self.assertEqual(body['logs'], 'hello')
 
-    def test_logs_of_an_unknown_container_are_a_server_error(self):
+    def test_a_docker_failure_on_a_listed_container_is_a_server_error(self):
         with patch.object(management_router, 'docker') as docker:
             docker.from_env.return_value.containers.get.side_effect = RuntimeError('not found')
-            self.assertEqual(self.client.get('/api/system/logs/nope', headers=self.headers).status_code, 500)
+            self.assertEqual(self.client.get('/api/system/logs/muma-gone', headers=self.headers).status_code, 500)
+
+    def test_logs_of_a_container_outside_the_list_are_refused(self):
+        with patch.object(management_router, 'docker') as docker:
+            response = self.client.get('/api/system/logs/nginx-proxy', headers=self.headers)
+        self.assertEqual(response.status_code, 404)
+        docker.from_env.assert_not_called()
+
+    def test_a_listed_name_resolving_to_another_container_is_refused(self):
+        # Docker resolves id prefixes too; the resolved container's own name decides.
+        with patch.object(management_router, 'docker') as docker:
+            docker.from_env.return_value.containers.get.return_value.name = 'password manager'
+            response = self.client.get('/api/system/logs/db', headers=self.headers)
+        self.assertEqual(response.status_code, 404)
 
     def test_the_activity_feed_returns_both_recently_added_and_recently_tagged(self):
         self.cursor.fetchall.side_effect = [[{'title': 'A'}], [{'title': 'B'}]]
@@ -346,7 +361,13 @@ class DecideGenreTest(ManagementTestCase):
     def test_a_user_decision_is_attributed_to_that_user(self):
         self.cursor.fetchone.return_value = {'id': 1}
         with patch.object(
-            users_router, 'verify_token', return_value={'status': 'ok', 'type': 'user', 'user': {'username': 'user'}}
+            users_router,
+            'verify_token',
+            return_value={
+                'status': 'ok',
+                'type': 'user',
+                'user': {'username': 'user', 'permissions': ['rules.manage']},
+            },
         ):
             self.client.post(
                 '/api/rules/genres/1/decide', headers={'x-api-key': 'user-key'}, json={'state': management_router.WHITE}

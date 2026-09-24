@@ -15,12 +15,15 @@ from services.music_manager.api_key import resolve_system_api_key
 
 users_router.run_lms_db_sync = lambda: None
 
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from services.music_manager.main import app
 from services.music_manager.routers import artist_images as artist_images_router
 
 API_KEY = resolve_system_api_key()
+# Captured before any test patches it, for the tests that need its URL checks.
+REAL_DOWNLOAD = artist_images_router.download_public_image
 
 
 class ArtistImagesTestCase(unittest.TestCase):
@@ -55,9 +58,9 @@ class AuthTest(unittest.TestCase):
         self.assertEqual(response.status_code, 500)
 
     def test_a_key_that_does_not_verify_is_rejected(self):
-        with patch.object(users_router, 'verify_token', side_effect=Exception('nope')):
+        with patch.object(users_router, 'verify_token', side_effect=HTTPException(status_code=403)):
             response = TestClient(app).get('/api/artists/search', headers={'x-api-key': 'bad'})
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 403)
 
 
 class SearchTest(ArtistImagesTestCase):
@@ -195,9 +198,12 @@ class ManualImageTest(ArtistImagesTestCase):
         patcher = patch.dict(sys.modules, {'services.music_manager.artist_image_fetcher.storage': self.storage_module})
         patcher.start()
         self.addCleanup(patcher.stop)
+        download_patcher = patch.object(artist_images_router, 'download_public_image')
+        self.download = download_patcher.start()
+        self.addCleanup(download_patcher.stop)
 
     def test_an_image_url_is_downloaded_and_becomes_the_primary_image(self):
-        self.storage_module.ImageDownloader.return_value.download.return_value = b'binary'
+        self.download.return_value = b'binary'
         self.cursor.fetchone.return_value = {'id': 1, 'name': 'Angerfist'}
         self.cursor.lastrowid = 9
         body = self.client.post(
@@ -207,20 +213,22 @@ class ManualImageTest(ArtistImagesTestCase):
         self.assertTrue(any('is_primary = 1' in s for s in self.statements()))
 
     def test_a_non_http_url_is_rejected(self):
+        # The real download helper, not the setUp mock: the scheme check lives there.
+        self.download.side_effect = REAL_DOWNLOAD
         response = self.client.post(
             '/api/artists/1/image/url', headers=self.headers, json={'url': 'ftp://img.test/a.jpg'}
         )
         self.assertEqual(response.status_code, 400)
 
     def test_a_download_that_fails_is_reported(self):
-        self.storage_module.ImageDownloader.return_value.download.side_effect = RuntimeError('404')
+        self.download.side_effect = RuntimeError('404')
         response = self.client.post(
             '/api/artists/1/image/url', headers=self.headers, json={'url': 'https://img.test/a.jpg'}
         )
         self.assertEqual(response.status_code, 400)
 
     def test_a_download_that_yields_nothing_is_reported(self):
-        self.storage_module.ImageDownloader.return_value.download.return_value = None
+        self.download.return_value = None
         response = self.client.post(
             '/api/artists/1/image/url', headers=self.headers, json={'url': 'https://img.test/a.jpg'}
         )

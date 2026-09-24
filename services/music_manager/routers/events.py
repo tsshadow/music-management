@@ -9,7 +9,8 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from services.music_manager.database import get_db_connection
-from services.music_manager.routers.management import verify_api_key
+from services.music_manager.rbac import require_admin
+from services.music_manager.routers.users import verify_api_key
 
 router = APIRouter(tags=['events'])
 
@@ -134,7 +135,8 @@ def list_events(
 
 
 @router.delete('/{event_id}')
-def delete_event(event_id: int, _auth: dict = Depends(verify_api_key)):
+def delete_event(event_id: int, _auth: dict = Depends(require_admin())):
+    """Remove one event. Admin only: the log is the audit trail of what went wrong."""
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')
@@ -149,7 +151,8 @@ def delete_event(event_id: int, _auth: dict = Depends(verify_api_key)):
 
 @router.delete('')
 @router.delete('/')
-def clear_events(_auth: dict = Depends(verify_api_key)):
+def clear_events(_auth: dict = Depends(require_admin())):
+    """Empty the event log. Admin only."""
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')

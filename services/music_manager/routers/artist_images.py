@@ -1,14 +1,18 @@
 import base64
 import binascii
+import ipaddress
 import logging
 import os
+import socket
+from urllib.parse import urljoin, urlsplit
 
+import requests
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection
+from services.music_manager.rbac import require_permission
 
 router = APIRouter(tags=['artists'])
 logger = logging.getLogger(__name__)
@@ -16,19 +20,82 @@ fetch_progress = {'active': False, 'total': 0, 'current': 0, 'last_artist': None
 
 
 def verify_api_key(x_api_key: str | None = Header(None)):
-    if not x_api_key:
-        raise HTTPException(status_code=401, detail='Missing API Key')
-    if is_system_api_key(x_api_key):
-        return {'type': 'system'}
-    from services.music_manager.routers.users import verify_token
+    """Delegates to the canonical users.verify_api_key; read-only routes use it."""
+    from services.music_manager.routers.users import verify_api_key as _verify
 
+    return _verify(x_api_key)
+
+
+# Changing which picture an artist carries is curation, the same as editing the artist.
+require_rules_manage = require_permission('rules.manage')
+
+# Both ways in -- a URL this service fetches, and bytes a browser uploads -- stop here.
+# A real artist photo is a few hundred kilobytes; ten megabytes is generous and still
+# far short of what a hostile URL could stream into memory.
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
+MAX_IMAGE_REDIRECTS = 3
+DOWNLOAD_TIMEOUT_SECONDS = 10
+
+
+class UnsafeImageUrl(ValueError):
+    """A URL this service refuses to fetch: wrong scheme, unresolvable, or not public."""
+
+
+class ImageTooLarge(ValueError):
+    """An image that exceeds MAX_IMAGE_BYTES."""
+
+
+def ensure_public_url(url: str) -> None:
+    """Refuse a URL that is not http(s) or whose host resolves to a non-public address.
+
+    Without this, "set image from URL" is a request this server makes on the caller's
+    behalf to anything it can reach: the database, the Docker socket proxy, LMS, the
+    router's admin page. Every address the name resolves to must be globally routable,
+    so loopback, RFC 1918, link-local (cloud metadata), CGNAT (the tailnet) and the
+    reserved ranges are all refused. A name that resolves differently between this
+    check and the fetch (DNS rebinding) is not covered; each redirect hop is re-checked.
+    """
+    parts = urlsplit(url)
+    if parts.scheme.lower() not in ('http', 'https') or not parts.hostname:
+        raise UnsafeImageUrl('Only http(s) image URLs are supported')
     try:
-        res = verify_token(x_api_key)
-        if res.get('status') == 'ok':
-            return res
-    except Exception:
-        pass
-    raise HTTPException(status_code=401, detail='Invalid API key')
+        port = parts.port or (443 if parts.scheme.lower() == 'https' else 80)
+        infos = socket.getaddrinfo(parts.hostname, port, proto=socket.IPPROTO_TCP)
+    except (ValueError, OSError) as e:
+        raise UnsafeImageUrl(f'Cannot resolve {parts.hostname}') from e
+    if not infos:
+        raise UnsafeImageUrl(f'Cannot resolve {parts.hostname}')
+    for info in infos:
+        address = ipaddress.ip_address(str(info[4][0]).split('%', 1)[0])
+        if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
+            address = address.ipv4_mapped
+        if not address.is_global or address.is_multicast:
+            raise UnsafeImageUrl('Image URL points at a non-public address')
+
+
+def download_public_image(url: str) -> bytes:
+    """Fetch an image from a public http(s) URL, at most MAX_IMAGE_BYTES of it.
+
+    Redirects are followed by hand so every hop passes ensure_public_url, and the body
+    is streamed so an oversized or endless response is cut off rather than buffered.
+    """
+    for _ in range(MAX_IMAGE_REDIRECTS + 1):
+        ensure_public_url(url)
+        with requests.get(url, timeout=DOWNLOAD_TIMEOUT_SECONDS, stream=True, allow_redirects=False) as response:
+            if response.is_redirect:
+                url = urljoin(url, response.headers.get('Location', ''))
+                continue
+            response.raise_for_status()
+            declared = response.headers.get('Content-Length', '')
+            if declared.isdigit() and int(declared) > MAX_IMAGE_BYTES:
+                raise ImageTooLarge('Image is larger than 10 MB')
+            data = bytearray()
+            for chunk in response.iter_content(chunk_size=64 * 1024):
+                data.extend(chunk)
+                if len(data) > MAX_IMAGE_BYTES:
+                    raise ImageTooLarge('Image is larger than 10 MB')
+            return bytes(data)
+    raise UnsafeImageUrl('Too many redirects')
 
 
 STORAGE_PATH = os.getenv('STORAGE_PATH', '/mnt/music/artists')
@@ -331,14 +398,15 @@ def _store_manual_image(artist_id: int, image_data: bytes, original_url: str | N
 
 
 @router.post('/{artist_id}/image/url')
-def set_artist_image_from_url(artist_id: int, req: ArtistImageUrlRequest, _auth: dict = Depends(verify_api_key)):
+def set_artist_image_from_url(artist_id: int, req: ArtistImageUrlRequest, _auth: dict = Depends(require_rules_manage)):
+    """Fetch an image from a public URL and make it the artist's primary image."""
     url = (req.url or '').strip()
-    if not url.lower().startswith(('http://', 'https://')):
-        raise HTTPException(status_code=400, detail='Only http(s) image URLs are supported')
-    from services.music_manager.artist_image_fetcher.storage import ImageDownloader
-
     try:
-        image_data = ImageDownloader().download(url)
+        image_data = download_public_image(url)
+    except UnsafeImageUrl as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except ImageTooLarge as e:
+        raise HTTPException(status_code=413, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=400, detail=f'Could not download image: {e}') from e
     if not image_data:
@@ -347,21 +415,27 @@ def set_artist_image_from_url(artist_id: int, req: ArtistImageUrlRequest, _auth:
 
 
 @router.post('/{artist_id}/image/upload')
-def upload_artist_image(artist_id: int, req: ArtistImageUploadRequest, _auth: dict = Depends(verify_api_key)):
+def upload_artist_image(artist_id: int, req: ArtistImageUploadRequest, _auth: dict = Depends(require_rules_manage)):
+    """Store uploaded base64 image bytes as the artist's primary image, up to 10 MB."""
     payload = (req.data or '').strip()
     if ',' in payload and payload.lower().startswith('data:'):
         payload = payload.split(',', 1)[1]
+    # Checked on the encoded text first, so an oversized body is never decoded.
+    if len(payload) > (MAX_IMAGE_BYTES * 4) // 3 + 4:
+        raise HTTPException(status_code=413, detail='Image is larger than 10 MB')
     try:
         image_data = base64.b64decode(payload, validate=True)
     except (binascii.Error, ValueError) as e:
         raise HTTPException(status_code=400, detail='Image data is not valid base64') from e
     if not image_data:
         raise HTTPException(status_code=400, detail='Image data is empty')
+    if len(image_data) > MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=413, detail='Image is larger than 10 MB')
     return _store_manual_image(artist_id, image_data)
 
 
 @router.post('/{artist_id}/image/select/{image_id}')
-def select_artist_primary_image(artist_id: int, image_id: int, _auth: dict = Depends(verify_api_key)):
+def select_artist_primary_image(artist_id: int, image_id: int, _auth: dict = Depends(require_rules_manage)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')
@@ -380,7 +454,7 @@ def select_artist_primary_image(artist_id: int, image_id: int, _auth: dict = Dep
 
 
 @router.post('/{artist_id}/image/clear')
-def clear_artist_primary_image(artist_id: int, _auth: dict = Depends(verify_api_key)):
+def clear_artist_primary_image(artist_id: int, _auth: dict = Depends(require_rules_manage)):
     """Unsets the artist's primary image.
 
     The stored image rows and files are kept so a previously fetched image can be
@@ -436,7 +510,7 @@ def get_artist_image(artist_name: str):
 
 @router.post('/fetch-missing')
 @router.post('/fetch-images')
-def fetch_missing_images(background_tasks: BackgroundTasks, _auth: dict = Depends(verify_api_key)):
+def fetch_missing_images(background_tasks: BackgroundTasks, _auth: dict = Depends(require_rules_manage)):
     """
     Triggers a background task to fetch missing artist images for all artists.
     """
@@ -449,7 +523,9 @@ def fetch_missing_images(background_tasks: BackgroundTasks, _auth: dict = Depend
 
 
 @router.post('/{artist_id}/fetch-image')
-def fetch_artist_image_manual(artist_id: int, background_tasks: BackgroundTasks, _auth: dict = Depends(verify_api_key)):
+def fetch_artist_image_manual(
+    artist_id: int, background_tasks: BackgroundTasks, _auth: dict = Depends(require_rules_manage)
+):
     background_tasks.add_task(trigger_fetch_by_id, artist_id)
     return {'status': 'ok', 'message': f'Fetching image for artist ID {artist_id} started'}
 

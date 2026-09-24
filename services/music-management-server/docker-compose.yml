@@ -56,9 +56,13 @@ services:
   #
   # It needs the Docker socket to restart a container, which is effectively root
   # on this host. Read-only limits it to no worse than the daemon's own API.
+  #
+  # Pinned by digest. The image has published no version tag since 1.2.0 (2021)
+  # while :latest keeps being rebuilt, so the tag stays "latest" and the digest is
+  # the pin; Renovate moves the digest (renovate.json).
   autoheal:
     container_name: lms-autoheal
-    image: willfarrell/autoheal
+    image: willfarrell/autoheal:latest@sha256:3d5c946ac4c14612e7e1096137f27f71a7b3d7b6909ee89cc98412df184882e8
     environment:
       - AUTOHEAL_CONTAINER_LABEL=autoheal
       - AUTOHEAL_INTERVAL=15
@@ -75,7 +79,7 @@ services:
   # (see main.cpp SpotifyResource fallback). See docs/deployment.md.
   reverse-proxy:
     container_name: lms-reverse-proxy
-    image: nginx:alpine
+    image: nginx:1.31.6-alpine@sha256:d10753d9289b8e3f884386351f73554ce72b631378949deddd75e83ee296c427
     ports:
       - "${LMS_PORT:-80}:80"
     volumes:

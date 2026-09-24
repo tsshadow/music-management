@@ -17,11 +17,28 @@ RUN apt-get update && apt-get install -y ffmpeg unzip && rm -rf /var/lib/apt/lis
 # SoundCloud run logs "The extractor is attempting impersonation, but no impersonate
 # target is available" and `yt-dlp --list-impersonate-targets` reports every target as
 # "(unavailable)", which is what SoundCloud's 403 throttling looked like in production.
-RUN pip install --no-cache-dir "yt-dlp[default,curl-cffi]"
+#
+# Pinned, and kept equal to the pin in requirements.txt and docker/Dockerfile.tools:
+# Renovate bumps all three in one merge request (the "yt-dlp" group in renovate.json),
+# so a new yt-dlp reaches production through a green pipeline rather than through
+# whatever PyPI served on the day of the build. muma:refresh-downloader overrides
+# this ARG with the version pinned on develop -- see scripts/ci/refresh-downloader-image.sh.
+# renovate: datasource=pypi depName=yt-dlp
+ARG YT_DLP_VERSION=2026.8.19
+RUN pip install --no-cache-dir "yt-dlp[default,curl-cffi]==${YT_DLP_VERSION}"
 
 # Deno is the runtime yt-dlp uses by default; the others need an explicit --js-runtimes flag.
+#
+# Pinned to a release and to the sha256 of its zip (the same value upstream publishes
+# as deno-x86_64-unknown-linux-gnu.zip.sha256sum). Renovate opens the version bump,
+# but cannot compute the new checksum: that merge request fails on `sha256sum -c`
+# until DENO_SHA256 is updated by hand. See docs/deployment.md, "Pinned build inputs".
+# renovate: datasource=github-releases depName=denoland/deno
+ARG DENO_VERSION=v2.9.7
+ARG DENO_SHA256=c6527f24f4b16031d3ae4fa9f658d5f11534c8d84ce7dc8502420280919c3490
 RUN curl -fsSL -o /tmp/deno.zip \
-        https://github.com/denoland/deno/releases/latest/download/deno-x86_64-unknown-linux-gnu.zip && \
+        https://github.com/denoland/deno/releases/download/${DENO_VERSION}/deno-x86_64-unknown-linux-gnu.zip && \
+    echo "${DENO_SHA256}  /tmp/deno.zip" | sha256sum -c - && \
     unzip -q /tmp/deno.zip -d /usr/local/bin && \
     chmod +x /usr/local/bin/deno && \
     rm /tmp/deno.zip && \

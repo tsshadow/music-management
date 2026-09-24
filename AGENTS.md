@@ -252,7 +252,10 @@ To maintain high code quality, the system employs an automated test suite:
   one to make a red build green.
 - **Uniform local test scripts** (`scripts/test/`), run the same way locally and in CI:
     - `./scripts/test/music-management-unit.sh` — Python unit tests, whole `services/` and
-      `tools/` tree, with the coverage gate.
+      `tools/` tree, with the coverage gate. In CI this and `db-integration.sh` run pytest inside
+      `docker/Dockerfile.python-ci` (python:3.14-slim, the images' Python) with `requirements.txt`
+      installed — not on the runner's own `python3`; `PYTHON_TOOLING_FORCE_CONTAINER=1` does the
+      same locally. A test dependency therefore has to be in `requirements.txt`.
     - `./scripts/test/db-integration.sh` — every endpoint's SQL against a throwaway MariaDB,
       plus the schema bootstrap and every `migrate_*.sql` applied twice. The unit suite mocks
       the cursor, so this is the only thing that proves MariaDB accepts the queries.
@@ -274,6 +277,10 @@ To maintain high code quality, the system employs an automated test suite:
   `tests/integration/test_schema.py`. `CREATE TABLE IF NOT EXISTS` never alters an existing
   table -- that is how `downloads_youtube_accounts.channel_id` and
   `library_track_ml_labels.updated_at` went missing until the integration suite caught them.
+  The migration must also be **expand-only**: `scripts/deploy.sh` applies it while the previous
+  release is still running, before the new containers start. Dropping, renaming or narrowing
+  what the running code reads waits for a later release (`tests/ci/test_migration_ordering.py`,
+  `docs/deployment.md#deploy-order-and-migrations`).
 - **See [CONTRIBUTING.md](CONTRIBUTING.md)** for the full local setup and the conventions
   above in one place, and [SECURITY.md](SECURITY.md) for the auth model and what is scanned.
 

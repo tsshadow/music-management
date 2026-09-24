@@ -51,12 +51,39 @@ x-environment-lms: &environment-lms
   MUMA_SERVER_SUBSONIC_API_KEY: ${MUMA_SERVER_SUBSONIC_API_KEY:-}
   LMS_SUBSONIC_API_KEY: ${LMS_SUBSONIC_API_KEY:-}
 
+# Every service logs through json-file with rotation. Docker's default is
+# json-file *without* a size cap, so a chatty worker grows its log under
+# /var/lib/docker until the disk is full -- and on this host a full disk has
+# already looked like an unrelated 502 (nginx logs just stop). 3 x 10 MB per
+# container is plenty for `docker logs`; the event log is the real history.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# The workers have no HTTP port to probe and no heartbeat, so this is a light
+# check by design: it runs Python inside the container (proving the process
+# namespace and interpreter are alive -- a dead PID 1 stops the container and
+# the restart policy takes over) and opens a TCP connection to the database,
+# the one dependency every worker loop needs. It does not detect a loop that
+# hangs while the process lives; nothing short of a heartbeat would. What it
+# buys is that `docker ps` and scripts/ci/post-deploy-verify.sh see "unhealthy"
+# for a worker that cannot reach MariaDB, instead of a green "Up".
+x-worker-healthcheck: &worker-healthcheck
+  test: ["CMD", "python", "-c", "import os, socket; h, _, p = (os.environ.get('DB_HOST') or 'db').partition(':'); socket.create_connection((h, int(p or os.environ.get('DB_PORT') or 3306)), 5).close()"]
+  interval: 60s
+  timeout: 10s
+  retries: 3
+  start_period: 60s
+
 services:
   db:
     security_opt:
       - no-new-privileges:true
     image: mariadb:13.0
     container_name: music-management-db-1
+    logging: *default-logging
     restart: unless-stopped
     # MariaDB 11.5 changed the server default to utf8mb4_uca1400_ai_ci, and the
     # 10.10 -> 12.3 migration inherited it: the restored tables kept their own
@@ -73,8 +100,15 @@ services:
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASS}
       MYSQL_DATABASE: ${DB_DB}
+    # Loopback by default: every client of this database is a container on the
+    # music-management_db network and reaches it as db:3306. Anything on the
+    # LAN that needs it directly (the workstation's read-only MCP,
+    # tools/muma_mcp, connects to 192.0.2.27:3306) sets DB_BIND_ADDRESS to
+    # the host's LAN address in the stack's .env -- a deliberate opt-in rather
+    # than MariaDB root being reachable from every device on the network.
+    # Takes effect only when `db` is recreated, i.e. on a DEPLOY_DB=1 deploy.
     ports:
-      - "3306:3306"
+      - "${DB_BIND_ADDRESS:-127.0.0.1}:3306:3306"
     volumes:
       - ${HOST_DATA_PATH}/mariadb:/var/lib/mysql
     networks:
@@ -85,14 +119,18 @@ services:
       - no-new-privileges:true
     image: phpmyadmin:latest
     container_name: music-management-phpmyadmin-1
+    logging: *default-logging
     restart: unless-stopped
     depends_on:
       - db
     environment:
       PMA_HOST: db
       PMA_PORT: 3306
+    # Loopback by default, reached through `ssh -L 8002:127.0.0.1:8002
+    # root@<host>`: phpMyAdmin logs in with database credentials, and was open
+    # to every device on the LAN. PHPMYADMIN_BIND_ADDRESS opts back in.
     ports:
-      - "8002:80"
+      - "${PHPMYADMIN_BIND_ADDRESS:-127.0.0.1}:8002:80"
     networks:
       - music-management_db
 
@@ -100,9 +138,26 @@ services:
   music-manager:
     security_opt:
       - no-new-privileges:true
-    image: ${DOCKER_USER}/${IMAGE_CORE}:latest
+    image: ${DOCKER_USER}/${IMAGE_CORE}:${IMAGE_TAG:-latest}
     container_name: music-manager
+    logging: *default-logging
     restart: unless-stopped
+    # GET /health answers 503 when the database is unreachable or one of the
+    # long-running loops (tagger, scanner, radio, events) has died, so this is
+    # the honest signal. No curl in this image; urllib raises on any non-2xx.
+    # start_period covers the thread registry filling up after a start.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=8)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    # A ceiling, not a reservation: on a host whose RAM is shared with MariaDB
+    # and LMS, one runaway container can otherwise push the others into the
+    # OOM killer. No sizing is documented for this host; 4g is a
+    # conservative guess -- check `docker stats` after the first deploy and
+    # override with MUMA_MEM_LIMIT_MANAGER in the stack's .env.
+    mem_limit: ${MUMA_MEM_LIMIT_MANAGER:-4g}
     ports:
       - "8000:8000"
       - "8003:8000" # Backward compatibility for control center
@@ -242,9 +297,14 @@ services:
   importer_worker:
     security_opt:
       - no-new-privileges:true
-    image: ${DOCKER_USER}/${IMAGE_IMPORTER}:latest
+    image: ${DOCKER_USER}/${IMAGE_IMPORTER}:${IMAGE_TAG:-latest}
     container_name: muma-importer-worker
+    logging: *default-logging
     restart: unless-stopped
+    healthcheck: *worker-healthcheck
+    # Conservative ceiling (yt-dlp + ffmpeg post-processing is the peak);
+    # override with MUMA_MEM_LIMIT_IMPORTER. See the note on music-manager.
+    mem_limit: ${MUMA_MEM_LIMIT_IMPORTER:-2g}
     depends_on:
       - db
     command:
@@ -273,9 +333,14 @@ services:
   youtube_worker:
     security_opt:
       - no-new-privileges:true
-    image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest
+    image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:${IMAGE_TAG:-latest}
     container_name: muma-youtube-worker
+    logging: *default-logging
     restart: unless-stopped
+    healthcheck: *worker-healthcheck
+    # Conservative ceiling (yt-dlp + ffmpeg post-processing is the peak);
+    # override with MUMA_MEM_LIMIT_DOWNLOADER. See the note on music-manager.
+    mem_limit: ${MUMA_MEM_LIMIT_DOWNLOADER:-2g}
     depends_on:
       - db
     command:
@@ -307,9 +372,14 @@ services:
   soundcloud_worker:
     security_opt:
       - no-new-privileges:true
-    image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest
+    image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:${IMAGE_TAG:-latest}
     container_name: muma-soundcloud-worker
+    logging: *default-logging
     restart: unless-stopped
+    healthcheck: *worker-healthcheck
+    # Conservative ceiling (yt-dlp + ffmpeg post-processing is the peak);
+    # override with MUMA_MEM_LIMIT_DOWNLOADER. See the note on music-manager.
+    mem_limit: ${MUMA_MEM_LIMIT_DOWNLOADER:-2g}
     depends_on:
       - db
     command:
@@ -341,9 +411,14 @@ services:
   telegram_worker:
     security_opt:
       - no-new-privileges:true
-    image: ${DOCKER_USER}/${IMAGE_TELEGRAM}:latest
+    image: ${DOCKER_USER}/${IMAGE_TELEGRAM}:${IMAGE_TAG:-latest}
     container_name: muma-telegram-worker
+    logging: *default-logging
     restart: unless-stopped
+    healthcheck: *worker-healthcheck
+    # Conservative ceiling (yt-dlp + ffmpeg post-processing is the peak);
+    # override with MUMA_MEM_LIMIT_TELEGRAM. See the note on music-manager.
+    mem_limit: ${MUMA_MEM_LIMIT_TELEGRAM:-1g}
     depends_on:
       - db
     command:
@@ -431,8 +506,12 @@ services:
   soundcloud-fetcher:
     security_opt:
       - no-new-privileges:true
-    image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
+    image: ${DOCKER_USER}/${IMAGE_TOOLS}:${IMAGE_TAG:-latest}
     container_name: muma-soundcloud-fetcher
+    logging: *default-logging
+    # One-shot: runs when started by hand or by a DEPLOY_ONESHOTS=1 deploy,
+    # never on a routine deploy (scripts/deploy.sh leaves it alone).
+    restart: "no"
     depends_on:
       - db
     command: ["python", "tools/soundcloud_fetcher.py"]
@@ -451,8 +530,12 @@ services:
   genre-processor:
     security_opt:
       - no-new-privileges:true
-    image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
+    image: ${DOCKER_USER}/${IMAGE_TOOLS}:${IMAGE_TAG:-latest}
     container_name: genre-processor
+    logging: *default-logging
+    # One-shot: runs when started by hand or by a DEPLOY_ONESHOTS=1 deploy,
+    # never on a routine deploy (scripts/deploy.sh leaves it alone).
+    restart: "no"
     depends_on:
       - db
     environment:
@@ -561,6 +644,7 @@ services:
       - no-new-privileges:true
     image: jlesage/firefox:latest
     container_name: muma-firefox
+    logging: *default-logging
     restart: unless-stopped
     shm_size: "1gb"
     environment:
@@ -569,7 +653,10 @@ services:
       SECURE_CONNECTION: "1"
       DISABLE_GPU: "1"
       WEB_AUTHENTICATION_USERNAME: ${FIREFOX_USER:-admin}
-      WEB_AUTHENTICATION_PASSWORD: ${FIREFOX_PASSWORD:-admin}
+      # No default: it was "admin", on a port bound on every interface.
+      # scripts/ci/check-required-secrets.sh refuses a release whose
+      # PROD_ENV_FILE does not set it.
+      WEB_AUTHENTICATION_PASSWORD: ${FIREFOX_PASSWORD}
     ports:
       - "7003:5800"
     volumes:

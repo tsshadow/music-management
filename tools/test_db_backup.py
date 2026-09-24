@@ -442,6 +442,88 @@ class RunBackupTest(unittest.TestCase):
         self.assertTrue(latest['file'].startswith(db_backup.DAILY_PREFIX))
         self.assertGreater(latest['bytes'], 0)
 
+    def test_a_labelled_run_names_the_file_and_leaves_the_nightly_record_alone(self):
+        """scripts/deploy.sh takes BACKUP_LABEL=pre-deploy dumps; they must not
+        pose as the nightly backup that /health/backup and the restore check read."""
+        with (
+            patch.dict(os.environ, {'BACKUP_LABEL': 'pre-deploy'}),
+            patch.object(db_backup, 'dump', lambda target, _c: write_dump(target)),
+            patch.object(db_backup, 'row_counts') as counts,
+        ):
+            self.assertEqual(db_backup.run_backup(), 0)
+        files = list(self.dest.glob('*.sql.gz'))
+        self.assertEqual(len(files), 1)
+        self.assertTrue(files[0].name.startswith('muma_db_pre-deploy_'))
+        self.assertFalse((self.dest / db_backup.LATEST_NAME).exists())
+        counts.assert_not_called()
+
+    def test_a_labelled_dump_that_fails_verification_is_removed(self):
+        with (
+            patch.dict(os.environ, {'BACKUP_LABEL': 'pre-deploy'}),
+            patch.object(db_backup, 'dump', lambda target, _c: target.write_bytes(b'tiny')),
+        ):
+            with self.assertRaises(db_backup.BackupError):
+                db_backup.run_backup()
+        self.assertEqual(list(self.dest.glob('*.sql.gz')), [])
+
+    def test_labelled_dumps_keep_their_own_rotation(self):
+        for stamp in ['20260901_010000', '20260902_010000', '20260903_010000', '20260904_010000']:
+            (self.dest / f'muma_db_pre-deploy_{stamp}.sql.gz').write_bytes(b'x')
+        nightly = self.dest / 'muma_db_20260801_031200.sql.gz'
+        nightly.write_bytes(b'x')
+        other_label = self.dest / 'muma_db_manual_20260801_031200.sql.gz'
+        other_label.write_bytes(b'x')
+        removed = db_backup.prune_labelled(self.dest, 'pre-deploy', keep=3)
+        self.assertEqual([p.name for p in removed], ['muma_db_pre-deploy_20260901_010000.sql.gz'])
+        self.assertTrue(nightly.exists())
+        self.assertTrue(other_label.exists())
+
+    def test_the_nightly_prune_never_touches_a_labelled_dump(self):
+        labelled = self.dest / 'muma_db_pre-deploy_20200101_000000.sql.gz'
+        labelled.write_bytes(b'x')
+        db_backup.prune(self.dest, 14, datetime(2026, 9, 1, tzinfo=UTC))
+        self.assertTrue(labelled.exists())
+
+    def test_a_labelled_run_leaves_the_nightly_rotation_unpruned(self):
+        """A deploy-time dump is not the nightly job: it must not delete nightlies."""
+        old = write_dump(self.dest / 'muma_db_20200101_030000.sql.gz')
+        newest = write_dump(self.dest / 'muma_db_20200102_030000.sql.gz')
+        with (
+            patch.dict(os.environ, {'BACKUP_LABEL': 'pre-deploy'}),
+            patch.object(db_backup, 'dump', lambda target, _c: write_dump(target)),
+        ):
+            self.assertEqual(db_backup.run_backup(), 0)
+        self.assertTrue(old.exists())
+        self.assertTrue(newest.exists())
+
+    def test_a_labelled_dump_that_cannot_fit_is_not_started(self):
+        last = write_dump(self.dest / f'muma_db_{datetime.now(UTC) - timedelta(days=1):%Y%m%d_%H%M%S}.sql.gz')
+        dump = MagicMock()
+        full = MagicMock(free=last.stat().st_size // 2)
+        with (
+            patch.dict(os.environ, {'BACKUP_LABEL': 'pre-deploy'}),
+            patch.object(db_backup, 'dump', dump),
+            patch.object(db_backup.shutil, 'disk_usage', return_value=full),
+        ):
+            with self.assertRaises(db_backup.BackupError):
+                db_backup.run_backup()
+        dump.assert_not_called()
+
+    def test_the_free_space_yardstick_is_the_newest_nightly_not_a_labelled_dump(self):
+        """A labelled name sorts after every stamp, so picking by name alone would measure it."""
+        nightly = write_dump(self.dest / 'muma_db_20260901_030000.sql.gz')
+        (self.dest / 'muma_db_pre-deploy_20200101_000000.sql.gz').write_bytes(b'x')
+        tight = MagicMock(free=nightly.stat().st_size)
+        with patch.object(db_backup.shutil, 'disk_usage', return_value=tight):
+            with self.assertRaises(db_backup.BackupError):
+                db_backup.ensure_free_space(self.dest, datetime(2026, 9, 2, tzinfo=UTC))
+
+    def test_an_unusable_label_is_refused(self):
+        for label in ['monthly', '../etc', 'Pre Deploy', 'x' * 40]:
+            with patch.dict(os.environ, {'BACKUP_LABEL': label}):
+                with self.assertRaises(db_backup.BackupError):
+                    db_backup.backup_label()
+
 
 class WriteLatestTest(unittest.TestCase):
     """latest.json is read by /health/backup and --check-stale; it must never be half a file."""

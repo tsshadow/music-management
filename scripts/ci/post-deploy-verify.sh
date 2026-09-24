@@ -17,11 +17,20 @@
 #   3. /health on music-manager answers 200 with status=ok, which means the
 #      database is reachable and every background thread is alive.
 #   4. The version /health reports is the version we just deployed.
+#   5. LMS answers its Subsonic ping.
+#   6. After VERIFY_SETTLE_SECONDS (default 60) the containers are sampled
+#      again: step 2 must still hold, and no container may have restarted
+#      since the first sample.
 #
-# Steps 3 and 4 are polled: `docker compose up -d` returns as soon as the
+# Steps 3-5 are polled: `docker compose up -d` returns as soon as the
 # container is started, not when the app inside it is serving, and the health
 # endpoint legitimately reports degraded for a few seconds while the thread
 # registry fills up.
+#
+# Step 6 exists because a single sample taken right after `up` sees every
+# container "running" -- including one that will crash in twenty seconds and
+# come back, over and over, with restart: unless-stopped hiding it between
+# samples. Docker's RestartCount does not hide it.
 #
 # Usage: ./scripts/ci/post-deploy-verify.sh [expected_version]
 # Defaults to the VERSION file at the repo root. Assumes SSH is already set up
@@ -46,38 +55,53 @@ if [ -z "$EXPECTED_VERSION" ] && [ -f "$PROJECT_ROOT/VERSION" ]; then
 fi
 
 # The health endpoint is served by the music-manager container, published on
-# 8000. Probing over SSH from the host itself deliberately skips DNS and the
-# reverse proxy: this job answers "did the deploy work", not "is the domain
+# 8000; LMS publishes its Subsonic API on LMS_SUBSONIC_PORT (default 8080).
+# Probing over SSH from the host itself deliberately skips DNS and the reverse
+# proxy: this job answers "did the deploy work", not "is the domain
 # resolving", and those are different alarms.
 HEALTH_URL="http://localhost:8000/health"
-DEADLINE=$((SECONDS + 180))
+LMS_PING_URL="http://localhost:${LMS_SUBSONIC_PORT:-8080}/rest/ping.view"
+DEADLINE=$((SECONDS + ${VERIFY_TIMEOUT_SECONDS:-180}))
+SETTLE_SECONDS="${VERIFY_SETTLE_SECONDS:-60}"
+POLL_SECONDS="${VERIFY_POLL_SECONDS:-5}"
+PROJECTS="music-management lms"
 
+# remote CMD: run CMD on the production host.
 remote() {
     ssh -o StrictHostKeyChecking=no "${REMOTE_USER}@${REMOTE_HOST}" "$@"
 }
 
-echo "--- Verifying container state on $REMOTE_HOST ---"
+# sample_containers: print project|name|restart-policy|state|health|restarts
+# for every container of both stacks, one per line. Two separate `docker ps`
+# calls: multiple --filter label=... on the same key are AND'ed by the Docker
+# CLI, not OR'ed, so one combined filter for two project names returns nothing.
+sample_containers() {
+    local project
+    for project in $PROJECTS; do
+        remote "ids=\$(docker ps -a --filter 'label=com.docker.compose.project=${project}' -q); [ -z \"\$ids\" ] || docker inspect -f '${project}|{{.Name}}|{{.HostConfig.RestartPolicy.Name}}|{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}|{{.RestartCount}}' \$ids" || true
+    done
+}
 
-# Two separate `docker ps` calls: multiple --filter label=... on the same key
-# are AND'ed by the Docker CLI, not OR'ed, so one combined filter for two
-# different project names always returns nothing.
+# check_states SAMPLE: print every container of SAMPLE with its state, and
+# return non-zero when a stack is empty or any container is in a failed state.
+#
 # Inspected rather than string-matched on `docker ps` output, because the
 # distinction that matters is not in that output: a one-shot container with
-# restart: "no" (the old soundcloud full sweep was one) exits by design, so a grep
+# restart: "no" (soundcloud-fetcher, genre-processor) exits by design, so a grep
 # for "Exited" would fail every deploy that has one. Restart policy is what
-# separates "finished its job" from "died".
-failed=0
-for project in music-management lms; do
-    echo "[$project stack]"
-    states="$(remote "ids=\$(docker ps -a --filter 'label=com.docker.compose.project=${project}' -q); [ -n \"\$ids\" ] && docker inspect -f '{{.Name}}|{{.HostConfig.RestartPolicy.Name}}|{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' \$ids")"
-    if [ -z "$states" ]; then
-        echo "  ERROR: no containers in the ${project} stack - 'up -d' did not start anything."
-        failed=1
-        continue
-    fi
-    while IFS='|' read -r name policy state health; do
+# separates "finished its job" from "died". A health of "starting" is not a
+# failure: the worker healthchecks run once a minute.
+check_states() {
+    local sample="$1" failed=0 project name policy state health restarts
+    for project in $PROJECTS; do
+        if ! printf '%s\n' "$sample" | grep -q "^${project}|"; then
+            echo "  ERROR: no containers in the ${project} stack - 'up -d' did not start anything."
+            failed=1
+        fi
+    done
+    while IFS='|' read -r project name policy state health restarts; do
         [ -z "$name" ] && continue
-        echo "  ${name#/} state=${state} health=${health} restart=${policy}"
+        echo "  [${project}] ${name#/} state=${state} health=${health} restart=${policy} restarts=${restarts}"
         if [ "$state" = "restarting" ]; then
             echo "    ERROR: crash loop."
             failed=1
@@ -85,10 +109,7 @@ for project in music-management lms; do
             echo "    ERROR: healthcheck is failing."
             failed=1
         elif [ "$state" = "exited" ] || [ "$state" = "dead" ] || [ "$state" = "created" ]; then
-            # Empty means the same as "no": docker-compose.yml declares no
-            # restart policy for soundcloud-fetcher or genre-processor, and
-            # Docker's default is not to restart. Failing on their exit would
-            # red every deploy, which is how a gate gets ignored.
+            # Empty means the same as "no": Docker's default is not to restart.
             if [ "$policy" = "no" ] || [ -z "$policy" ]; then
                 echo "    (no restart policy, exiting is expected)"
             else
@@ -96,10 +117,28 @@ for project in music-management lms; do
                 failed=1
             fi
         fi
-    done <<< "$states"
-done
+    done <<< "$sample"
+    return "$failed"
+}
 
-if [ "$failed" -ne 0 ]; then
+# restarts_increased BEFORE AFTER: print every container whose RestartCount
+# grew between the two samples, and return 0 when there is at least one.
+restarts_increased() {
+    local before="$1" after="$2" project name policy state health restarts old grew=1
+    while IFS='|' read -r project name policy state health restarts; do
+        [ -z "$name" ] && continue
+        old="$(printf '%s\n' "$before" | awk -F'|' -v n="$name" '$2 == n { print $6; exit }')"
+        if [ -n "$old" ] && [ "${restarts:-0}" -gt "$old" ]; then
+            echo "  ERROR: ${name#/} restarted $((restarts - old)) time(s) since the first sample."
+            grew=0
+        fi
+    done <<< "$after"
+    return "$grew"
+}
+
+echo "--- Verifying container state on $REMOTE_HOST ---"
+FIRST_SAMPLE="$(sample_containers)"
+if ! check_states "$FIRST_SAMPLE"; then
     echo "--- Post-deploy verification FAILED: container state ---"
     exit 1
 fi
@@ -133,7 +172,42 @@ while true; do
         fi
         exit 1
     fi
-    sleep 5
+    sleep "$POLL_SECONDS"
 done
+
+# Without credentials ping.view answers with a Subsonic error document and a
+# 4xx, which is a perfectly good answer here: the question is whether LMS still
+# has a thread free to answer at all (see the healthcheck in
+# services/music-management-server/docker-compose.yml). 000 (no answer) and 5xx
+# are the failures.
+echo "--- Waiting for LMS to answer ${LMS_PING_URL} ---"
+while true; do
+    code="$(remote "curl -s -o /dev/null -w '%{http_code}' --max-time 10 ${LMS_PING_URL}" 2>/dev/null || true)"
+    case "$code" in
+        [234][0-9][0-9])
+            echo "--- LMS answered (HTTP ${code}) ---"
+            break
+            ;;
+    esac
+    echo "  LMS not answering yet (HTTP ${code:-none})"
+    if [ "$SECONDS" -ge "$DEADLINE" ]; then
+        echo "--- Post-deploy verification FAILED: LMS does not answer its Subsonic ping ---"
+        exit 1
+    fi
+    sleep "$POLL_SECONDS"
+done
+
+echo "--- Re-sampling containers in ${SETTLE_SECONDS}s (catches a crash loop between samples) ---"
+sleep "$SETTLE_SECONDS"
+SECOND_SAMPLE="$(sample_containers)"
+failed=0
+check_states "$SECOND_SAMPLE" || failed=1
+if restarts_increased "$FIRST_SAMPLE" "$SECOND_SAMPLE"; then
+    failed=1
+fi
+if [ "$failed" -ne 0 ]; then
+    echo "--- Post-deploy verification FAILED: containers did not stay up ---"
+    exit 1
+fi
 
 echo "--- Post-deploy verification passed ---"

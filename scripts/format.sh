@@ -24,7 +24,8 @@ source "$ROOT_DIR/scripts/lib/python-tooling.sh"
 
 # Same container fallback as scripts/lint.sh, so this works on a host without
 # ruff -- which is every CI runner.
-if [ "${PYTHON_TOOLING_CONTAINER:-0}" != "1" ] && ! have_tool ruff; then
+if tooling_container_required \
+   || { [ "${PYTHON_TOOLING_CONTAINER:-0}" != "1" ] && ! have_tool ruff; }; then
     rerun_in_container ./scripts/format.sh "$@"
 fi
 

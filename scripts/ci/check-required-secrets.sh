@@ -120,6 +120,12 @@ else
     # literal fallback; removing that literal is what made it a deploy secret.
     require_any_key "$env_content" "the shared system API key" "PROD_ENV_FILE" \
         "API_KEY" "MUMA_API_KEY" || missing=1
+    # The noVNC login of the firefox container (the browser whose cookies the
+    # YouTube/SoundCloud workers borrow). docker/docker-compose.yml used to
+    # default it to "admin", on a port bound on every interface; the default is
+    # gone, so an unset value would reach the container as an empty password.
+    # See docs/bug-reports/050-deploy-starts-new-code-before-migrations.md.
+    require_key "$env_content" "FIREFOX_PASSWORD" "PROD_ENV_FILE" || missing=1
 fi
 
 if [ -z "${PROD_ENV_FILE_LMS}" ]; then

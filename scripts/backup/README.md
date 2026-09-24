@@ -11,6 +11,13 @@ Three timers, one job each:
 | `muma-db-backup-stale` | daily 09:12 | alert when the newest dump is over `BACKUP_STALE_AFTER_HOURS` old |
 | `muma-db-restore-check` | Sunday 05:30 | restore the newest dump into a throwaway database and compare it against the recorded row counts |
 
+A fourth caller is the deploy. `scripts/deploy.sh` runs the same `db-backup` service from
+`/opt/muma-backup` before it migrates anything, with `-e BACKUP_LABEL=pre-deploy`: the dump is named
+`muma_db_pre-deploy_<stamp>.sql.gz`, verified like a nightly one, kept in a rotation of three, and
+never written to `latest.json` (so it neither resets the staleness clock nor becomes the restore
+check's subject). When the service is not installed or fails, the deploy falls back to its own
+verified `mariadb-dump` into the same directory. See `docs/deployment.md#backups`.
+
 ## Why a restore check, and not just a checksum
 
 A dump that gunzips and ends in `-- Dump completed` is intact. That is not the

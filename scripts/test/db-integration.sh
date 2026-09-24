@@ -86,6 +86,25 @@ for attempt in $(seq 1 60); do
 done
 
 echo "--- Running tests/integration/ ---"
-python3 -m pytest -p no:warnings tests/integration/ "$@"
+# In CI pytest runs inside the images' Python with requirements.txt installed
+# (see scripts/test/music-management-unit.sh for why). The database stays a
+# sibling container on this host; --network host lets the test container reach
+# it on 127.0.0.1:$HOST_PORT exactly as a native run does.
+# shellcheck source=scripts/lib/python-tooling.sh
+source "$ROOT_DIR/scripts/lib/python-tooling.sh"
+if tooling_container_required; then
+    TOOLING_REQUIREMENTS="requirements.txt"
+    tooling_use_ci_image
+    TOOLING_DOCKER_ARGS=(--network host)
+    TOOLING_ENV_VARS=(DB_HOST DB_PORT DB_USER DB_PASS DB_DB MUMA_DISABLE_BACKGROUND_WORKERS)
+    echo "--- Running inside $TOOLING_IMAGE ---"
+    extra_args=""
+    if [ $# -gt 0 ]; then
+        extra_args="$(printf '%q ' "$@")"
+    fi
+    tooling_container "PYTHONPATH=/repo:/repo/services python3 -m pytest -p no:warnings tests/integration/ $extra_args"
+else
+    python3 -m pytest -p no:warnings tests/integration/ "$@"
+fi
 
 echo "--- Database integration tests passed ---"

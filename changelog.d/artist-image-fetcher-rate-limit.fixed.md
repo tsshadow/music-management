@@ -5,7 +5,7 @@
   10 minutes) on the lookup and the token endpoint, and the fetcher pauses the whole run for that long
   and asks about the same artist once more before deferring it. Per-artist non-answers are `INFO`; a
   run logs at most two `WARNING`s, the first rate limit and a closing summary (artists deferred,
-  pauses, total pause time). Bug report 057.
+  pauses, total pause time). Bug report 058.
 
 <!-- release notes -->
 

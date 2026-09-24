@@ -122,7 +122,12 @@ class BaseSong:
             # Returning here is what keeps the rest of __init__ from reading self.type,
             # which the failed load never got to set.
             return
-        if self.type == MusicFileType.WAV and self.music_file.tags is None:
+        # An m4a needs this for the same reason a wav does: mutagen reports `tags` as None
+        # when the container carries no metadata atom at all, and `_set_m4a_tag` then writes
+        # into None. A yt-dlp format fragment that never got merged (`....f140.m4a`) is
+        # exactly such a file, and it is the tagger -- not the reader -- that has to put the
+        # atom there before the first tag is written.
+        if self.type in (MusicFileType.WAV, MusicFileType.M4A) and self.music_file.tags is None:
             self.music_file.add_tags()
         self.tag_collection = TagCollection(self.music_file.tags if self.type != MusicFileType.AAC else self.music_file)
         if extra_info:

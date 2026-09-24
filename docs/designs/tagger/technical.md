@@ -27,6 +27,26 @@ The Tagger API is hosted by the `music-manager` service on port 8000.
 | `POST /api/tagger/tag/stop` | None | `{ "message": "Stop request sent to tagger" }` | None (Returns 200 even if no run is active). |
 | `POST /api/tagger/tag/file` | `?path=string` | `{ "message": "Tagging for <path> completed" }` | `404 Not Found`: File does not exist. <br> `500 Internal Server Error`: Parsing failed. |
 
+## Tag Mapping and Multi-Value Splitting
+
+- **Per-format keys** live in `services/tagger/constants.py` (`MP3Tags`, `FLACTags`, `OPUSTags`,
+  `WAVTags`, `MP4Tags`); `TagCollection` reads through the reversed maps, `BaseSong.set_tag` writes
+  through the forward ones.
+- **m4a atoms.** Standard tags use the iTunes atoms (`©nam`, `©ART`, `©alb`, `aART`, `©gen`, `©day`,
+  `cprt`). mutagen writes any atom name outside the `----:` freeform namespace as exactly 4 bytes, so
+  every custom name longer than that (`REMIXER`, `ORIGINAL_TITLE`, and every unmapped name via the
+  fallback in `_set_m4a_tag`) is a freeform atom `----:com.apple.iTunes:<NAME>`, stored as UTF-8
+  bytes and decoded on read. `LEGACY_MP4_ATOMS` lists where older versions wrote four tags (`REMI`,
+  `ORIG`, `TALB`, freeform `ALBUM`); they are read when the correct atom is missing and deleted on the
+  next save, so files migrate on their next retag (bug report 037).
+- **Splitting.** A tag value is split on ';' for every tag. It is split on '/' only for `GENRE`
+  (`Tag.SLASH_SPLIT_TAGS`): 'AC/DC' is one artist and 'Live 24/7' one title.
+- **Order is identity.** The scanner takes the first artist as the primary one and hashes it into
+  `track_uid`, so rules must correct an artist in place (`Tag.replace`), never by appending the
+  correction and removing the original.
+- **Real-mutagen tests.** `services/tests/mock_base.py` stubs mutagen for all of `services/`; what
+  lands on disk is tested in `tests/unit/test_tagger_idempotence.py`, in a child interpreter.
+
 ## Cross-App Impact
 
 - **`music-manager`**: Primary host of the tagger logic and API.

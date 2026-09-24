@@ -111,6 +111,43 @@ class TestTag(unittest.TestCase):
         tag = Tag('title', 'My Track')
         self.assertEqual(str(tag), 'title: My Track')
 
+    def test_a_title_keeps_its_slashes(self):
+        tag = Tag('title', ['AC/DC Tribute (Live 24/7)'])
+        self.assertEqual(tag.to_array(), ['AC/DC Tribute (Live 24/7)'])
+        self.assertEqual(tag.to_string(), 'AC/DC Tribute (Live 24/7)')
+
+    def test_an_artist_keeps_its_slash_but_still_splits_on_semicolons(self):
+        tag = Tag('artist', ['AC/DC;Angerfist'])
+        self.assertEqual(tag.to_array(), ['AC/DC', 'Angerfist'])
+
+    def test_set_with_a_list_keeps_the_slash_outside_genre(self):
+        tag = Tag('album', '')
+        tag.set(['Live 24/7'])
+        self.assertEqual(tag.to_array(), ['Live 24/7'])
+
+    def test_replace_keeps_the_position(self):
+        tag = Tag('artist', 'ANGERFIST;Outsiders;Dj Mad Dog')
+        self.assertTrue(tag.replace('ANGERFIST', 'Angerfist'))
+        self.assertEqual(tag.to_array(), ['Angerfist', 'Outsiders', 'Dj Mad Dog'])
+        self.assertTrue(tag.has_changes())
+
+    def test_replace_onto_an_existing_value_drops_the_old_one(self):
+        tag = Tag('artist', 'Angerfist;ANGERFIST;Outsiders')
+        self.assertTrue(tag.replace('ANGERFIST', 'Angerfist'))
+        self.assertEqual(tag.to_array(), ['Angerfist', 'Outsiders'])
+
+    def test_replace_of_an_absent_or_identical_value_is_no_change(self):
+        tag = Tag('artist', 'Angerfist')
+        self.assertFalse(tag.replace('Nobody', 'Somebody'))
+        self.assertFalse(tag.replace('Angerfist', 'Angerfist'))
+        self.assertFalse(tag.has_changes())
+
+    def test_mark_unsaved_makes_the_current_value_a_change(self):
+        tag = Tag('remixer', ['Angerfist'])
+        self.assertFalse(tag.has_changes())
+        tag.mark_unsaved()
+        self.assertTrue(tag.has_changes())
+
 
 if __name__ == '__main__':
     unittest.main()

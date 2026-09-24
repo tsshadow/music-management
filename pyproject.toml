@@ -107,6 +107,8 @@ module = [
     "services.music_manager.artist_image_fetcher.storage",
     "services.music_manager.artist_image_fetcher.providers.base",
     "services.music_manager.catalog_series",
+    # New code (bug report 042), so it starts strict.
+    "services.music_manager.track_relink",
     "services.tagger.constants",
     "services.tagger.Song.rules.TagResult",
     "services.tagger.Song.rules.TagRule",

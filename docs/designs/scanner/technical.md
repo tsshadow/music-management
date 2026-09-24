@@ -18,6 +18,41 @@ The scanner interacts with the following MariaDB tables in the `music_management
     - `role`: Either `primary` or `featuring`.
     - `position`: Integer indicating the order of artists.
 - **`library_track_labels`**: Junction table for many-to-many label relationships.
+- **`library_track_channels`**: The channel (SoundCloud/YouTube/Telegram account) a file arrived
+  through, read from its path.
+
+### Label and channel links are recomputed, not accumulated
+`process_file` replaces a track's `library_track_labels` and `library_track_channels` rows with the
+set its files support today: the file being scanned, plus every other `library_media_files` row of
+the same track (the other files' tags are read, their channel comes from their path). A file that
+is gone from disk supports nothing. A file that exists but cannot be read might still name a label,
+so then label links are only added, never removed. Until bug report 042 these were INSERT IGNORE
+only, and a corrected publisher kept its old label link for good.
+
+### Relink rule: a file that moves to another track row
+`track_uid` changes with the title and the primary artist, so a retag gives the same file a new
+track row. When `process_file` repoints a media file from track A to track B:
+
+- If A still has another media file, A stays; only its label/channel links are recomputed.
+- Otherwise `track_relink.relink_track` merges A into B and deletes A, in one explicit transaction
+  together with the media-file repoint (the pool runs `autocommit=True`, so `conn.begin()` is what
+  makes it one unit):
+  - `rating_tracks` rows keyed on A's `track_uid` move to B's; when a user rated both, the row with
+    the newer `updated_at` wins. `updated_at` is preserved, not bumped.
+  - `scrobble_listens.track_id` moves with UPDATE IGNORE; a listen B already has at the same
+    `listened_at` is a duplicate and is dropped. `listened_at` is preserved explicitly.
+  - `library_track_audio_features.internal_track_id` and `library_track_ml_labels`
+    (`internal_track_id`, and `track_id` which holds the `track_uid`) follow.
+  - A work pinned to A is pinned to B with its canonical cleared, so the song-version worker's next
+    pass decides after assigning B a work; a work whose computed canonical was A is recomputed at once.
+  - The junction tables cascade with A. `radio_timeline` (LMS ids) and `feeds_snapshot` (a daily
+    cache) are deliberately not touched.
+- The song-version worker only ever picks a track that has a media file as canonical.
+
+Rows orphaned before this rule existed are repaired by `POST /api/scanner/relink-orphans`
+(`track_relink.relink_orphaned_tracks`): an orphan is relinked only when exactly one track with a
+file has the same normalised title and duration (within 0.5 s) and either the same primary artist
+or the same set of artists. It is never run automatically.
 
 ### Downloader Domain (for Redownload)
 - **`downloads_soundcloud_archive`**: Checked by filename to find original SoundCloud URLs.
@@ -30,6 +65,8 @@ The scanner interacts with the following MariaDB tables in the `music_management
 | `GET /api/scanner/health` | N/A | `{"status": "OK", "busy": bool}` | |
 | `POST /api/scanner/scan/all` | Query: `force: bool` | `{"message": "Full library scan started..."}` | `409 Conflict`: If another scan is already running. |
 | `POST /api/scanner/scan/file` | Query: `path: str`, `force: bool` | `{"message": "Scan for ... completed"}` | |
+| `POST /api/scanner/relink-orphans` | Admin key | `{"message": "...", "last": {...}\|null}` | `403`: not an admin.<br>`409`: a scan or relink is running. |
+| `GET /api/scanner/relink-orphans` | Admin key | `{"running": bool, "last": {...}\|null}` | `403`: not an admin. |
 | `POST /api/library/tracks/{id}/redownload` | Path: `track_id: int` | `{"status": "ok", "message": "Redownload started..."}` | `404 Not Found`: Track ID not in media files.<br>`400 Bad Request`: Source URL not found in archives. |
 | `POST /api/library/tracks/rerun-parse-path` | Query: `path: str` | `{"status": "ok", "message": "..."}` | Proxies to `scanner_manager.scan_single`. |
 

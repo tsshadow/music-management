@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from services.music_manager.artist_image_fetcher import fetcher as fetcher_module
 from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetcher
-from services.music_manager.artist_image_fetcher.providers.base import ProviderUnavailable
+from services.music_manager.artist_image_fetcher.providers.base import ProviderRateLimited, ProviderUnavailable
 
 
 def make_cursor(conn):
@@ -323,6 +323,101 @@ class FetchForArtistTest(FetcherTestCase):
         self.assertTrue(any('INSERT INTO library_artist_images' in s for s in statements))
         self.assertTrue(any('is_primary = 1' in s for s in statements))
         self.assertTrue(any("image_status = 'active'" in s for s in statements))
+
+
+class RateLimitTest(FetcherTestCase):
+    """On 2026-09-24 a 429 on ~40% of lookups produced 3.278 WARNINGs and a push every
+    five minutes: the fetcher walked on to the next artist instead of waiting."""
+
+    HIT = [{'source': 'spotify', 'source_id': 's1', 'name': 'Angerfist', 'url': 'https://img.test/a.jpg'}]
+
+    def setUp(self):
+        super().setUp()
+        self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}
+        self.cursor.fetchall.return_value = []
+        self.fetcher.stop_event = MagicMock()
+        self.fetcher.stop_event.wait.return_value = False
+        self.fetcher.downloader.download.return_value = b'binary'
+        self.spotify = self.add_provider('spotify', [])
+
+    def records(self, level):
+        return [r for r in self.logs.records if r.levelname == level]
+
+    def fetch(self, *names):
+        with self.assertLogs(fetcher_module.__name__, level='INFO') as self.logs:
+            results = [self.fetcher.fetch_for_artist(1, name) for name in names]
+            self.fetcher.log_run_summary()
+        return results
+
+    def test_a_rate_limit_pauses_for_retry_after_and_retries_the_same_artist(self):
+        self.spotify.get_artist_images.side_effect = [ProviderRateLimited('429', 17.0), self.HIT]
+        self.assertEqual(self.fetch('Angerfist'), [True])
+        self.fetcher.stop_event.wait.assert_called_once_with(17.0)
+        self.assertEqual([c.args[0] for c in self.spotify.get_artist_images.call_args_list], ['Angerfist', 'Angerfist'])
+
+    def test_still_limited_after_the_pause_defers_the_artist(self):
+        self.spotify.get_artist_images.side_effect = ProviderRateLimited('429', 5.0)
+        self.assertEqual(self.fetch('Sefa'), [False])
+        self.assertEqual(self.spotify.get_artist_images.call_count, 2)
+        self.fetcher.stop_event.wait.assert_called_once_with(5.0)
+        self.assert_status_untouched()
+        self.assertEqual(self.fetcher.run_stats['deferred'], 1)
+
+    def test_a_stop_during_the_pause_defers_without_retrying(self):
+        self.fetcher.stop_event.wait.return_value = True
+        self.spotify.get_artist_images.side_effect = [ProviderRateLimited('429', 5.0), self.HIT]
+        self.assertEqual(self.fetch('Sefa'), [False])
+        self.assertEqual(self.spotify.get_artist_images.call_count, 1)
+        self.assert_status_untouched()
+
+    def test_per_artist_failures_are_info_and_the_run_gets_one_summary_warning(self):
+        self.spotify.get_artist_images.side_effect = [
+            ProviderUnavailable('Spotify: lookup answered 502'),
+            ProviderUnavailable('Spotify: lookup failed: connection reset'),
+            ProviderUnavailable('Spotify: lookup answered 503'),
+        ]
+        self.fetch('A', 'B', 'C')
+        warnings = self.records('WARNING')
+        self.assertEqual(len(warnings), 1)
+        self.assertIn('3 artist(s) deferred', warnings[0].getMessage())
+        self.assertEqual(len([r for r in self.records('INFO') if 'could not answer for' in r.getMessage()]), 3)
+
+    def test_only_the_first_rate_limit_of_a_run_is_a_warning(self):
+        self.spotify.get_artist_images.side_effect = [
+            ProviderRateLimited('429', 10.0),
+            [],
+            ProviderRateLimited('429', 20.0),
+            [],
+            ProviderRateLimited('429', 30.0),
+            [],
+        ]
+        self.fetch('A', 'B', 'C')
+        warnings = [r.getMessage() for r in self.records('WARNING')]
+        self.assertEqual(len(warnings), 2)
+        self.assertIn('pausing 10s', warnings[0])
+        self.assertIn('3 rate-limit pause(s), 60s paused in total', warnings[1])
+        self.assertEqual(self.fetcher.run_stats['rate_limit_pauses'], 3)
+
+    def test_a_clean_run_summary_is_info(self):
+        self.spotify.get_artist_images.return_value = self.HIT
+        self.fetch('Angerfist')
+        self.assertEqual(self.records('WARNING'), [])
+        self.assertTrue(any('0 artist(s) deferred' in r.getMessage() for r in self.records('INFO')))
+
+    def test_start_run_resets_the_counters_and_the_first_warning(self):
+        self.spotify.get_artist_images.side_effect = [ProviderRateLimited('429', 10.0), []]
+        self.fetch('A')
+        self.fetcher.start_run()
+        self.assertEqual(self.fetcher.run_stats, {'deferred': 0, 'rate_limit_pauses': 0, 'pause_seconds': 0.0})
+        self.spotify.get_artist_images.side_effect = [ProviderRateLimited('429', 10.0), []]
+        self.fetch('B')
+        self.assertTrue(any('pausing 10s' in r.getMessage() for r in self.records('WARNING')))
+
+    def test_by_default_the_pause_waits_on_a_real_event(self):
+        instance = ArtistImageFetcher(db_conn=MagicMock())
+        with patch.object(instance.stop_event, 'wait', return_value=False) as wait:
+            self.assertTrue(instance._pause_for_rate_limit('spotify', 'A', 3.0))
+        wait.assert_called_once_with(3.0)
 
 
 class ManifestTest(FetcherTestCase):

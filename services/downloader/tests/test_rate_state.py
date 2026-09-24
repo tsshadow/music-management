@@ -239,6 +239,61 @@ class RateStateSurvivesStorageFailureTest(unittest.TestCase):
         self.assertEqual(state.record_429(), 7200)
 
 
+class ChangedElsewhereTest(unittest.TestCase):
+    """A reset from the management page while a sweep holds its RateState must stick.
+
+    The sweep wrote its in-memory copy back at finish(), so the reset was silently
+    undone by the state from before it.
+    """
+
+    setUp = RateStateTest.setUp
+    _state = RateStateTest._state
+
+    def test_a_reset_during_a_sweep_survives_the_sweeps_finish(self):
+        sweep = self._state()
+        for _ in range(3):
+            sweep.record_429()
+        self.assertEqual(self.store.load("soundcloud").multiplier, 8)
+
+        self._state().reset()  # another process: the reset endpoint
+        sweep.record_success()
+
+        stored = self.store.load('soundcloud')
+        self.assertEqual(stored.multiplier, 1)
+        self.assertIsNone(stored.cooldown_until)
+        self.assertEqual(stored.clean_runs, 1, 'the clean run is merged onto the reset, not dropped')
+
+    def test_a_403_after_a_reset_starts_the_ladder_from_the_bottom(self):
+        sweep = self._state()
+        for _ in range(3):
+            sweep.record_403()
+        self._state().reset()
+        self.assertEqual(sweep.record_403(), 240)
+
+    def test_the_sweeps_own_writes_are_not_mistaken_for_someone_elses(self):
+        sweep = self._state()
+        sweep.record_429()
+        sweep.record_success()
+        self.assertEqual(self.store.load('soundcloud').multiplier, 2)
+        self.assertEqual(self.store.load('soundcloud').clean_runs, 1)
+
+    def test_whole_second_storage_does_not_read_as_a_change(self):
+        # DATETIME keeps whole seconds; what comes back has no microseconds.
+        class SecondsStore(InMemoryRateStateStore):
+            def save(self, snapshot):
+                values = {
+                    k: (v.replace(microsecond=0) if isinstance(v, datetime) else v) for k, v in vars(snapshot).items()
+                }
+                super().save(RateSnapshot(**values))
+
+        self.store = SecondsStore()
+        self.now = START + timedelta(microseconds=500000)
+        sweep = self._state()
+        sweep.record_403()
+        with self.assertNoLogs(level='INFO'):
+            sweep.record_success()
+
+
 class SnapshotDefaultsTest(unittest.TestCase):
     def test_a_snapshot_defaults_to_a_neutral_multiplier(self):
         self.assertEqual(RateSnapshot(source='youtube').multiplier, 1)

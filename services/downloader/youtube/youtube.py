@@ -20,6 +20,7 @@ from services.downloader.deep_sweep import (
     wanted_tracks,
 )
 from services.downloader.rate_state import RateLimited, SweepAborted
+from services.downloader.redownload import ReplaceExistingPP, redownload_opts, staged_opts
 from services.downloader.sweep import SweepPolicy
 from services.downloader.write_offs import WriteOffs
 from services.downloader.youtube.DropCategoryGenre import DropCategoryGenrePP
@@ -101,6 +102,9 @@ class YoutubeDownloader:
         self.default_break_on_existing = break_on_existing
         self.dry_run = dry_run
         self.redownload_mode = False
+        # The library file a redownload replaces; set only for the duration of one
+        # download_link(..., replace=...) call. See services/downloader/redownload.py.
+        self._replace_target: str | None = None
         self.deep_mode = deep
         self.write_offs = (
             write_offs
@@ -235,6 +239,9 @@ class YoutubeDownloader:
             opts['download_archive'] = archive_file
         else:
             opts.pop('download_archive', None)
+            # `nooverwrites` makes yt-dlp answer "has already been downloaded" for a file
+            # that exists, which made every YouTube redownload a no-op.
+            opts = redownload_opts(opts)
         if break_on_existing:
             opts['break_on_existing'] = True
         else:
@@ -255,6 +262,10 @@ class YoutubeDownloader:
         """
         ydl = YoutubeDL(ydl_opts)
         ydl.add_post_processor(DropCategoryGenrePP(), when='pre_process')
+        if self._replace_target:
+            # After yt-dlp's own post-processors, before the tagger's: the file is moved
+            # over the one it replaces, then tagged and announced at the library path.
+            ydl.add_post_processor(ReplaceExistingPP(self._replace_target))
         ydl.add_post_processor(YoutubeSongProcessor(download_type=download_type))
         return ydl
 
@@ -602,7 +613,12 @@ class YoutubeDownloader:
         logging.error(f'YouTube download failed for {name} after {self.timing.retry_attempts} attempts.')
 
     def download_link(
-        self, url: str, breakOnExisting: bool = True, redownload: bool = False, download_type: str = AUDIO
+        self,
+        url: str,
+        breakOnExisting: bool = True,
+        redownload: bool = False,
+        download_type: str = AUDIO,
+        replace: str | None = None,
     ):
         """
         Download a single video using a direct URL.
@@ -613,9 +629,26 @@ class YoutubeDownloader:
             redownload (bool): Whether to force redownloading of existing content.
             download_type (str): 'audio' keeps the m4a extraction; 'video' keeps the
                 highest available video and writes it to the video folder.
+            replace (str | None): The library file this download replaces. The file is
+                fetched into a staging folder beside it and moved over it in one rename
+                once it is complete, so a failed redownload leaves the old file alone.
 
         Logs errors if the download fails.
         """
+        if replace:
+            self._replace_target = replace
+            try:
+                with staged_opts({}, replace) as staging:
+                    self._download_link(url, breakOnExisting, redownload, download_type, staging)
+            finally:
+                self._replace_target = None
+            return
+        self._download_link(url, breakOnExisting, redownload, download_type, None)
+
+    def _download_link(
+        self, url: str, breakOnExisting: bool, redownload: bool, download_type: str, staging: dict | None
+    ) -> None:
+        """download_link's body; `staging` carries the staged outtmpl for a replacement."""
         self.redownload_mode = redownload
         if download_type == VIDEO and not self._video_ready():
             return
@@ -632,6 +665,8 @@ class YoutubeDownloader:
                 ),
                 report,
             )
+            if staging:
+                opts.update(staging)
             with self._create_ydl(opts, download_type=download_type) as ydl:
                 logging.info(f'Downloading from url: {url}')
                 ydl.download([url])

@@ -8,6 +8,7 @@ from yt_dlp.postprocessor import PostProcessor
 from yt_dlp.utils import sanitize_filename
 
 from services.common.Helpers.NotificationService import notification_service
+from services.downloader.redownload import REPLACED_KEY
 from services.downloader.youtube.YoutubeAccount import AUDIO, VIDEO
 from services.downloader.youtube.YoutubeArchive import YoutubeArchive
 from services.tagger.announce import announce
@@ -56,7 +57,10 @@ class YoutubeSongProcessor(PostProcessor):
             return ([], info)
         logging.info(f'Postprocessing downloaded file: {path}')
         corrected_title = self._ensure_real_title(info, url)
-        if corrected_title:
+        # Not after a redownload was put in place of a library file: that name is the one
+        # the library already knows, and renaming it would move it into the staging folder
+        # yt-dlp's filename template points at. The corrected title still reaches the tags.
+        if corrected_title and not info.get(REPLACED_KEY):
             path = self._apply_title_correction(path, info, corrected_title)
         title_for_archive = info.get('title')
         account = info.get('uploader_id') or info.get('channel_id') or info.get('uploader') or info.get('channel')

@@ -355,24 +355,20 @@ class RedownloadTest(RouterTestCase):
         self.addCleanup(patcher.stop)
 
     def test_a_soundcloud_track_is_queued_for_redownload(self):
-        self.cursor.fetchone.side_effect = [
-            {'file_path': '/music/a.mp3'},
-            {'url': 'https://soundcloud.com/x/y'},
-        ]
+        self.cursor.fetchone.return_value = {'file_path': '/music/a.mp3'}
+        self.cursor.fetchall.side_effect = [[{'url': 'https://soundcloud.com/x/y', 'stored': '/music/a.mp3'}]]
         response = self.client.post('/api/library/tracks/1/redownload', headers=self.headers)
         self.assertIn('soundcloud', response.json()['message'])
 
     def test_a_youtube_track_is_queued_when_soundcloud_has_nothing(self):
-        self.cursor.fetchone.side_effect = [
-            {'file_path': '/music/a.mp3'},
-            None,
-            {'url': 'https://youtube.com/watch?v=x'},
-        ]
+        self.cursor.fetchone.return_value = {'file_path': '/music/a.mp3'}
+        self.cursor.fetchall.side_effect = [[], [{'url': 'https://youtube.com/watch?v=x', 'stored': '/music/a.mp3'}]]
         response = self.client.post('/api/library/tracks/1/redownload', headers=self.headers)
         self.assertIn('youtube', response.json()['message'])
 
     def test_a_track_without_a_source_url_cannot_be_redownloaded(self):
-        self.cursor.fetchone.side_effect = [{'file_path': '/music/a.mp3'}, None, None]
+        self.cursor.fetchone.return_value = {'file_path': '/music/a.mp3'}
+        self.cursor.fetchall.side_effect = [[], [], [], []]
         response = self.client.post('/api/library/tracks/1/redownload', headers=self.headers)
         self.assertEqual(response.status_code, 400)
 
@@ -380,6 +376,69 @@ class RedownloadTest(RouterTestCase):
         self.cursor.fetchone.return_value = None
         response = self.client.post('/api/library/tracks/1/redownload', headers=self.headers)
         self.assertEqual(response.status_code, 404)
+
+    def test_the_source_is_found_by_the_exact_stored_path_not_a_substring(self):
+        # `filename LIKE '%name%' LIMIT 1` downloaded 'DJ Intro.mp3' over 'Intro.mp3'.
+        self.cursor.fetchone.return_value = {'file_path': '/mnt/music/Soundcloud/x/Intro.mp3'}
+        self.cursor.fetchall.side_effect = [
+            [{'url': 'https://soundcloud.com/x/intro', 'stored': '/mnt/music/Soundcloud/x/Intro.mp3'}]
+        ]
+        self.client.post('/api/library/tracks/1/redownload', headers=self.headers)
+        lookup, args = self.cursor.execute.call_args_list[1].args
+        self.assertIn('WHERE filename IN (', lookup)
+        self.assertNotIn('LIKE', lookup)
+        self.assertIn('/mnt/music/Soundcloud/x/Intro.mp3', args)
+
+    def test_a_stored_path_that_differs_only_in_case_is_not_this_file(self):
+        # IN runs under the archive's case-insensitive collation.
+        self.cursor.fetchone.return_value = {'file_path': '/music/a.mp3'}
+        self.cursor.fetchall.side_effect = [[{'url': 'twin', 'stored': '/music/A.mp3'}], [], [], []]
+        response = self.client.post('/api/library/tracks/1/redownload', headers=self.headers)
+        self.assertEqual(response.status_code, 400)
+
+    def test_the_youtube_archive_is_matched_on_its_path_column(self):
+        self.cursor.fetchone.return_value = {'file_path': '/mnt/music/Youtube/x/a.m4a'}
+        self.cursor.fetchall.side_effect = [[], [{'url': 'yt', 'stored': '/mnt/music/Youtube/x/a.m4a'}]]
+        self.client.post('/api/library/tracks/1/redownload', headers=self.headers)
+        self.assertIn('FROM downloads_youtube_archive WHERE path IN (', self.statements()[2])
+
+    def test_the_library_file_is_handed_to_the_task_to_replace(self):
+        self.cursor.fetchone.return_value = {'file_path': '/music/a.mp3'}
+        self.cursor.fetchall.side_effect = [[{'url': 'https://soundcloud.com/x/y', 'stored': '/music/a.mp3'}]]
+        self.client.post('/api/library/tracks/1/redownload', headers=self.headers)
+        self.redownload_task.assert_called_once_with('https://soundcloud.com/x/y', 'soundcloud', '/music/a.mp3')
+
+    def fallback(self, soundcloud_rows, youtube_rows, path='/mnt/music/Youtube/Channel/Intro_1.m4a'):
+        """No stored path matched; the name-only lookups answer with these rows."""
+        self.cursor.fetchone.return_value = {'file_path': path}
+        self.cursor.fetchall.side_effect = [[], [], soundcloud_rows, youtube_rows]
+        return self.client.post('/api/library/tracks/1/redownload', headers=self.headers)
+
+    def test_the_name_only_lookup_takes_the_name_literally(self):
+        self.fallback([], [{'url': 'yt', 'stored': 'Intro_1.m4a'}])
+        soundcloud_query, args = self.cursor.execute.call_args_list[3].args
+        self.assertIn('filename = %s OR filename LIKE %s', soundcloud_query)
+        self.assertEqual(args, ('Intro_1.m4a', r'%/Intro\_1.m4a'))
+
+    def test_a_row_that_never_recorded_a_folder_is_matched_by_name(self):
+        response = self.fallback([], [{'url': 'yt', 'stored': 'Intro_1.m4a'}])
+        self.assertEqual(response.status_code, 200)
+        self.redownload_task.assert_called_once_with('yt', 'youtube', '/mnt/music/Youtube/Channel/Intro_1.m4a')
+
+    def test_a_row_in_another_folder_is_not_this_file(self):
+        response = self.fallback([], [{'url': 'yt', 'stored': '/music/Youtube/Other/Intro_1.m4a'}])
+        self.assertEqual(response.status_code, 400)
+
+    def test_a_row_that_differs_only_in_case_is_not_this_file(self):
+        response = self.fallback([], [{'url': 'yt', 'stored': '/music/Youtube/Channel/intro_1.m4a'}])
+        self.assertEqual(response.status_code, 400)
+
+    def test_two_sources_for_one_name_are_refused_rather_than_guessed(self):
+        response = self.fallback(
+            [{'url': 'sc', 'stored': 'Intro_1.m4a'}], [{'url': 'yt', 'stored': '/x/Channel/Intro_1.m4a'}]
+        )
+        self.assertEqual(response.status_code, 409)
+        self.redownload_task.assert_not_called()
 
 
 class RedownloadTaskTest(unittest.TestCase):
@@ -396,6 +455,36 @@ class RedownloadTaskTest(unittest.TestCase):
         with patch.dict(sys.modules, {'services.downloader.youtube.youtube': downloader_module}):
             library_router.run_redownload_task('https://youtube.com/x', 'youtube')
         downloader_module.YoutubeDownloader.return_value.download_link.assert_called_once()
+
+    def test_the_file_to_replace_reaches_both_downloaders(self):
+        downloader_module = MagicMock()
+        with (
+            patch.dict(
+                sys.modules,
+                {
+                    'services.downloader.youtube.youtube': downloader_module,
+                    'services.downloader.soundcloud.soundcloud': downloader_module,
+                },
+            ),
+            patch.object(library_router, 'ProcessedFilesHelper'),
+        ):
+            library_router.run_redownload_task('https://youtube.com/x', 'youtube', '/music/a.m4a')
+            library_router.run_redownload_task('https://soundcloud.com/x', 'soundcloud', '/music/b.mp3')
+        youtube_call = downloader_module.YoutubeDownloader.return_value.download_link.call_args
+        self.assertEqual(youtube_call.kwargs['replace'], '/music/a.m4a')
+        self.assertIs(youtube_call.kwargs['redownload'], True)
+        soundcloud_call = downloader_module.SoundcloudDownloader.return_value.download_url.call_args
+        self.assertEqual(soundcloud_call.kwargs['replace'], '/music/b.mp3')
+
+    def test_the_replaced_file_is_queued_for_the_tagger(self):
+        downloader_module = MagicMock()
+        with (
+            patch.dict(sys.modules, {'services.downloader.youtube.youtube': downloader_module}),
+            patch.object(library_router, 'ProcessedFilesHelper') as helper,
+            patch.object(library_router.os.path, 'exists', return_value=True),
+        ):
+            library_router.run_redownload_task('https://youtube.com/x', 'youtube', '/music/a.m4a')
+        helper.return_value.mark_for_rescan.assert_called_once_with('/music/a.m4a', reason='redownload')
 
     def test_an_unknown_source_type_does_nothing(self):
         library_router.run_redownload_task('https://example.test/x', 'bandcamp')  # must not raise

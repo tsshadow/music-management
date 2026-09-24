@@ -2,6 +2,8 @@
 account lookup, the yt-dlp match filter, the options it builds and the
 configuration that decides whether it runs at all."""
 
+import os
+import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -181,6 +183,48 @@ class PrepareYdlOptsTest(unittest.TestCase):
         opts = self.downloader(archive_file='/data/archive.txt')._prepare_ydl_opts('angerfist', None, True)
 
         self.assertNotIn('download_archive', opts)
+
+    def test_a_redownload_tells_yt_dlp_to_overwrite(self):
+        opts = self.downloader()._prepare_ydl_opts('angerfist', None, True)
+
+        self.assertIs(opts['overwrites'], True)
+        self.assertNotIn('nooverwrites', opts)
+
+
+class RedownloadReplaceTest(unittest.TestCase):
+    """A redownload with a target is staged beside it and moved over it before tagging."""
+
+    def setUp(self):
+        self.downloader = downloader_with(CONFIG)
+        self.downloader.timing.retry_attempts = 1
+        self.downloader._make_match_filter = MagicMock()
+        self.downloader._settle = MagicMock()
+
+    def test_the_file_is_put_in_place_before_the_tagger_sees_it(self):
+        with tempfile.TemporaryDirectory() as folder:
+            target = f'{folder}/angerfist/track.mp3'
+            os.makedirs(os.path.dirname(target))
+            with patch.object(soundcloud_module, 'YoutubeDL') as ydl_class:
+                self.downloader.download_url('https://soundcloud.com/angerfist/track', {'quiet': True}, replace=target)
+            opts = ydl_class.call_args.args[0]
+            self.assertTrue(opts['outtmpl'].startswith(f'{folder}/angerfist/.muma-redownload-'))
+            self.assertIs(opts['overwrites'], True)
+            added = [
+                type(call.args[0]).__name__
+                for call in ydl_class.return_value.__enter__.return_value.add_post_processor.call_args_list
+            ]
+            self.assertLess(added.index('ReplaceExistingPP'), added.index('SoundcloudSongProcessor'))
+            self.assertEqual(os.listdir(f'{folder}/angerfist'), [], 'the staging folder is removed afterwards')
+
+    def test_without_a_target_nothing_is_staged(self):
+        with patch.object(soundcloud_module, 'YoutubeDL') as ydl_class:
+            self.downloader.download_url('https://soundcloud.com/angerfist/track', {'quiet': True})
+        added = [
+            type(call.args[0]).__name__
+            for call in ydl_class.return_value.__enter__.return_value.add_post_processor.call_args_list
+        ]
+        self.assertNotIn('ReplaceExistingPP', added)
+        self.assertNotIn('outtmpl', ydl_class.call_args.args[0])
 
 
 class SnapshotProfileTest(unittest.TestCase):

@@ -157,6 +157,23 @@ class DatabaseRateStateStore:
             connection.close()
 
 
+def _same_state(left: RateSnapshot, right: RateSnapshot) -> bool:
+    """Whether two snapshots describe the same state, as the database can store it.
+
+    The DATETIME columns keep whole seconds, so a snapshot read back after a save has
+    lost the microseconds the saved one carried. Compared at that resolution, or a
+    sweep's own write would read as somebody else's.
+    """
+
+    def stored(snapshot: RateSnapshot) -> dict:
+        return {
+            key: value.replace(microsecond=0) if isinstance(value, datetime) else value
+            for key, value in vars(snapshot).items()
+        }
+
+    return stored(left) == stored(right)
+
+
 def _default_jitter() -> float:
     return random.uniform(1.0, 1.5)
 
@@ -182,6 +199,10 @@ class RateState:
         self._now = now
         self._jitter = jitter
         self._snapshot = self._load()
+        # What the store held the last time this object read or wrote it. Another
+        # process -- the reset button in music-manager -- may write the row while a
+        # sweep holds this object; comparing against this copy is how the sweep notices.
+        self._persisted = RateSnapshot(**vars(self._snapshot))
 
     def _load(self) -> RateSnapshot:
         try:
@@ -191,9 +212,31 @@ class RateState:
             return RateSnapshot(source=self.source)
         return stored if stored is not None else RateSnapshot(source=self.source)
 
+    def _refresh(self) -> None:
+        """Adopt the stored state when somebody else changed it since we last saw it.
+
+        A sweep holds its RateState for the whole run and wrote its in-memory copy back
+        on every update, so a reset made from the management page during a sweep was
+        overwritten at `finish()` by the state from before the reset. Before every
+        update the row is read again; if it no longer matches what this object last
+        read or wrote, the stored row wins and the update is applied on top of it. When
+        the row cannot be read, the in-memory state is used as before.
+        """
+        try:
+            stored = self._store.load(self.source)
+        except Exception as exc:
+            logging.warning('Could not re-read rate state for %s: %s', self.source, exc)
+            return
+        stored = stored if stored is not None else RateSnapshot(source=self.source)
+        if not _same_state(stored, self._persisted):
+            logging.info('Rate state for %s was changed elsewhere during this run; building on that.', self.source)
+            self._snapshot = RateSnapshot(**vars(stored))
+            self._persisted = RateSnapshot(**vars(stored))
+
     def _persist(self) -> None:
         try:
             self._store.save(self._snapshot)
+            self._persisted = RateSnapshot(**vars(self._snapshot))
         except Exception as exc:
             logging.warning('Could not persist rate state for %s: %s', self.source, exc)
 
@@ -216,6 +259,7 @@ class RateState:
 
     def record_429(self) -> int:
         """Register a 429 and return how long to stay away."""
+        self._refresh()
         now = self._now()
         self._snapshot.multiplier = next_multiplier_on_429(self.multiplier, self.timing.max_multiplier)
         self._snapshot.consecutive_429 += 1
@@ -228,6 +272,7 @@ class RateState:
 
     def record_403(self) -> int:
         """Register a 403 and return how long to stay away."""
+        self._refresh()
         now = self._now()
         standing = decayed_403_count(
             self._snapshot.consecutive_403, self._snapshot.last_403_at, self.timing.backoff_403_decay, now
@@ -245,7 +290,12 @@ class RateState:
         return wait
 
     def record_success(self) -> None:
-        """Register a clean run, which slowly walks the multiplier back down."""
+        """Register a clean run, which slowly walks the multiplier back down.
+
+        Merged onto the stored row when that changed during the run (see `_refresh`):
+        a reset made mid-sweep stays a reset, plus this one clean run.
+        """
+        self._refresh()
         multiplier, clean_runs = recover(self.multiplier, self._snapshot.clean_runs, self.timing.recovery_runs)
         self._snapshot.multiplier = multiplier
         self._snapshot.clean_runs = clean_runs

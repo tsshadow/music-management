@@ -1503,9 +1503,14 @@ def run_lms_db_sync_with_retry(attempts: int = 6, delay_seconds: int = 60) -> in
     return synced
 
 
-def run_lms_db_sync(only_sources: set[str] | None = None):
-    """Sync every server database, or only the ones named in `only_sources`."""
-    _skipped_unmigrated_servers.clear()
+def lms_db_targets() -> list[tuple[str, str]]:
+    """Every server database this process can see, as (path, source name) pairs.
+
+    `MUMA_SERVER_DB_PATH` (or the legacy `LMS_DB_PATH`) names one file directly; under
+    `MUMA_SERVER_DB_ROOT` every `<dir>/lms.db` and a root-level `lms.db` count as well. Shared
+    by the hourly sync and the scrobble reconcile, so the two never disagree about which
+    servers exist.
+    """
     db_root = os.getenv('MUMA_SERVER_DB_ROOT') or os.getenv('LMS_DB_ROOT') or '/app/data'
     targets = []
 
@@ -1527,6 +1532,13 @@ def run_lms_db_sync(only_sources: set[str] | None = None):
         root_db = os.path.join(db_root, 'lms.db')
         if os.path.exists(root_db):
             targets.append((root_db, 'server-root'))
+    return targets
+
+
+def run_lms_db_sync(only_sources: set[str] | None = None):
+    """Sync every server database, or only the ones named in `only_sources`."""
+    _skipped_unmigrated_servers.clear()
+    targets = lms_db_targets()
 
     if only_sources is not None:
         targets = [(db_path, source) for db_path, source in targets if source in only_sources]

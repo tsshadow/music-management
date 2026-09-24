@@ -41,6 +41,7 @@ from services.music_manager.routers import (
     news,
     radio,
     rating,
+    reconcile,
     scanner,
     scrobbler,
     songs,
@@ -73,6 +74,7 @@ app.include_router(events.router, prefix="/api/events")
 # at /api as well published every user route a second time as /api/{user_id}/...
 app.include_router(users.auth_router, prefix="/api")
 app.include_router(scrobbler.router, prefix="/api/scrobble")
+app.include_router(reconcile.router, prefix="/api/scrobble/reconcile")
 app.include_router(rating.router, prefix="/api/rating")
 app.include_router(stats.router, prefix="/api/stats")
 app.include_router(management.router, prefix="/api")

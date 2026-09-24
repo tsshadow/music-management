@@ -36,3 +36,23 @@ The Ratings & Scrobbling feature ensures that a user's track preferences and lis
 - **Track Deletion**: If a track is deleted from the library, do its ratings and listens remain in the database for historical statistics?
 - **Unmatched Reconciliation**: Is there an automated process to re-scan unmatched scrobbles when new tracks are added to the library?
 - **Rating Scale Mapping**: Are 1-5 star ratings from all Subsonic clients consistently mapped to the 0-100 internal scale?
+
+## LMS listen reconcile (2026-09-24)
+
+Bug report 039 moved the time of many listens to the moment of an unrelated update (a rematch
+pass, a played-seconds top-up, an account merge), so "when did I hear this" is wrong for them in
+every statistic. LMS keeps its own record of each play it relayed, with the original time.
+
+| Situation | Observable outcome |
+|---|---|
+| An admin asks for a dry run | A report per user: how many listens agree with LMS, how many were moved and can be restored, how many LMS never saw (left alone), and how many LMS has that muma lost, with a short sample of each. Nothing changes. |
+| An admin applies the restore | The moved listens get LMS's time back; an event records the totals. Running it again changes nothing. |
+| An admin also asks to insert lost listens | Plays LMS recorded that muma has no trace of are added, marked with source `lms-reconcile`. A play that muma holds under another track, or still unmatched, is not added a second time. |
+
+Acceptance criteria:
+
+1. The dry run writes nothing and is available to admins only.
+2. Only listens that were played through LMS are ever changed; ListenBrainz imports and manual
+   scrobbles are left as they are.
+3. A listen whose time agrees with LMS within five seconds is never touched.
+4. A second apply over the same data writes nothing.

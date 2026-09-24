@@ -135,6 +135,21 @@ The system key passes every check. Routes not marked otherwise need any authenti
 - **GET `/api/library/advanced`**: the filtered library browser list. Same paging bounds: `page` from 1,
   `limit` (default 100) at most 500, otherwise 422.
 
+### 🔁 LMS listen reconcile (admin)
+Repairs listen times bug report 039 moved, from LMS's own `listen` table. Rules and the file-path
+join are in the 2026-09-24 section of `docs/designs/ratings-scrobbling/technical.md`.
+- **GET `/api/scrobble/reconcile/lms`**: dry run, writes nothing. `username` (optional) limits it to
+  one user. Response `{username, servers, zones: {process_offset_seconds, database_offset_seconds,
+  database_zone, consistent}, totals: {exact, shifted, muma_only, lms_only, lms_only_insertable,
+  lms_unmapped}, users: {<username>: <same counts>}, sample: {shifted, muma_only, lms_only,
+  lms_unmapped}}` (at most 20 rows per class). 403 for a non-admin, 503 when no `lms.db` is visible.
+- **POST `/api/scrobble/reconcile/lms`**: body `{"username"?, "apply_shifted": bool,
+  "insert_lms_only": bool}`; at least one must be true (400 otherwise). Starts the apply in the
+  background (409 while one runs); one transaction per user, UNIQUE collisions skipped and counted,
+  refused when `zones.consistent` is false. Response `{message, last}`.
+- **GET `/api/scrobble/reconcile/lms/status`**: `{running, last, error}`; `last` holds
+  `{found, written: {shifted_fixed, lms_only_inserted, collisions, changed_since_read}, users, zones, ...}`.
+
 ### 📥 ListenBrainz import
 - **POST `/api/scrobble/import/listenbrainz`**: body `{"username", "lb_username"?, "token"?}`. Imports
   into `username`'s history, so an ordinary account may only name itself (403 otherwise); an admin or

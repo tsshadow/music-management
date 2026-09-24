@@ -25,6 +25,9 @@ pytestmark = pytest.mark.integration
 # deliberate 4xx -- never a 500, which is what invalid SQL produces.
 READ_ENDPOINTS = [
     ('/api/users', 200),
+    # The LMS listen reconcile's status is process state; its dry run needs an lms.db and is
+    # exercised by ScrobbleReconcileSqlTest below and tests/integration/test_scrobble_reconcile.py.
+    ('/api/scrobble/reconcile/lms/status', 200),
     ('/api/users/roles', 200),
     ('/api/users/permissions', 200),
     ('/api/users/1/dynamic-playlists', 200),
@@ -1020,3 +1023,37 @@ class NewsSqlTest:
         with db.cursor() as cursor:
             cursor.execute('SELECT COUNT(*) AS n FROM news_bulletins WHERE source_id = %s', (source_id,))
             assert cursor.fetchone()['n'] == 0
+
+
+class ScrobbleReconcileSqlTest:
+    """GET /api/scrobble/reconcile/lms runs every muma-side query against the real schema.
+
+    An empty SQLite with LMS's `user`, `track` and `listen` columns stands in for `lms.db`; the
+    seeded listen makes the path lookup against `library_media_files` run too.
+    """
+
+    def test_the_dry_run_sql_runs(self, api, headers, db, tmp_path, monkeypatch):
+        import sqlite3
+
+        path = tmp_path / 'lms.db'
+        lms = sqlite3.connect(path)
+        lms.execute('CREATE TABLE user (id INTEGER PRIMARY KEY, login_name TEXT)')
+        lms.execute('CREATE TABLE track (id INTEGER PRIMARY KEY, absolute_file_path TEXT)')
+        lms.execute(
+            'CREATE TABLE listen (id INTEGER PRIMARY KEY, date_time TEXT, backend INTEGER, '
+            'sync_state INTEGER, user_id INTEGER, track_id INTEGER)'
+        )
+        lms.execute("INSERT INTO user (login_name) VALUES ('root')")
+        lms.execute("INSERT INTO track (absolute_file_path) VALUES ('/music/a.mp3')")
+        lms.execute(
+            "INSERT INTO listen (date_time, backend, sync_state, user_id, track_id) VALUES ('2026-08-21T19:02:05.000', 0, 1, 1, 1)"
+        )
+        lms.commit()
+        lms.close()
+        monkeypatch.setenv('MUMA_SERVER_DB_PATH', str(path))
+        monkeypatch.setenv('MUMA_SERVER_DB_ROOT', str(tmp_path / 'none'))
+
+        for query in ('', '?username=root'):
+            response = api.get(f'/api/scrobble/reconcile/lms{query}', headers=headers)
+            assert response.status_code == 200, response.text
+            assert response.json()['totals']['lms_unmapped'] == 1

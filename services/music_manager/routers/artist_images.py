@@ -626,6 +626,7 @@ def run_fetch_missing():
                 fetcher.start_run()
                 success_count = 0
                 failed_count = 0
+                error_count = 0
                 for i, artist in enumerate(artists):
                     fetch_progress['current'] = i + 1
                     fetch_progress['last_artist'] = artist['name']
@@ -636,17 +637,33 @@ def run_fetch_missing():
                         else:
                             failed_count += 1
                     except Exception as e:
-                        logger.error(f"Failed to fetch for {artist['name']}: {e}")
+                        # Only the first is an ERROR: whatever broke one artist here
+                        # (the database, usually) breaks the next one too, and every
+                        # ERROR is a push on the phone.
+                        error_count += 1
+                        if error_count == 1:
+                            logger.error(
+                                f"Failed to fetch for {artist['name']}: {e} "
+                                '(further failures in this run are logged at INFO)'
+                            )
+                        else:
+                            logger.info(f"Failed to fetch for {artist['name']}: {e}")
                         failed_count += 1
                 logger.info('Background fetch for missing artist images completed.')
-                # One WARNING for the whole run when artists were deferred or the run
-                # had to pause for a rate limit -- never one per artist.
-                fetcher.log_run_summary()
+                # One WARNING for the whole run when artists were deferred, downloads
+                # failed or the run had to pause for a rate limit -- never one per artist.
+                run_stats = fetcher.log_run_summary()
+                download_failures = run_stats.get('download_failures', 0)
+                provider_failures = run_stats.get('provider_failures', {})
                 fetch_progress.update(
                     {
                         'active': False,
                         'status': 'completed',
-                        'message': f'Completed: {success_count} succeeded, {failed_count} failed',
+                        'message': (
+                            f'Completed: {success_count} succeeded, {failed_count} failed '
+                            f'({run_stats.get("deferred", 0)} deferred, {download_failures} downloads failed, '
+                            f'{error_count} errors)'
+                        ),
                     }
                 )
                 try:
@@ -655,9 +672,20 @@ def run_fetch_missing():
                     event_service.emit(
                         level='INFO',
                         title='Artist Image Fetcher',
-                        message=f'Background fetch completed.\nSucceeded: {success_count}\nFailed: {failed_count}',
+                        message=(
+                            f'Background fetch completed.\nSucceeded: {success_count}\nFailed: {failed_count}'
+                            f'\nDownloads failed: {download_failures}'
+                        ),
                         source='music-manager',
-                        context={'succeeded': success_count, 'failed': failed_count},
+                        context={
+                            'succeeded': success_count,
+                            'failed': failed_count,
+                            'errors': error_count,
+                            'deferred': run_stats.get('deferred', 0),
+                            'download_failures': download_failures,
+                            'provider_failures': provider_failures,
+                            'rate_limit_pauses': run_stats.get('rate_limit_pauses', 0),
+                        },
                         push=True,
                     )
                 except Exception as e:

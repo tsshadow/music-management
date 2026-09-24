@@ -1,3 +1,4 @@
+import errno
 import logging
 import os
 import threading
@@ -18,6 +19,10 @@ from .storage import ImageDownloader, ImageStorage
 
 load_dotenv()
 
+# errno values that mean the image directory itself cannot take a file: not one
+# artist's problem but the whole run's, and the one storage failure worth an ERROR.
+STORAGE_UNWRITABLE_ERRNOS = frozenset({errno.EACCES, errno.EPERM, errno.EROFS, errno.ENOSPC, errno.EDQUOT})
+
 # Set by the manager's "clear portrait" action; the bulk run and a plain single-artist
 # fetch leave such an artist alone.
 CLEARED_STATUS = 'cleared'
@@ -27,9 +32,11 @@ class ArtistImageFetcher:
     """Finds, downloads and stores a portrait per artist, one artist at a time.
 
     A bulk run calls `start_run()`, then `fetch_for_artist()` per artist, then
-    `log_run_summary()`. Per-artist trouble -- a provider that could not answer --
-    is logged at INFO; the run as a whole gets at most two WARNINGs (the first rate
-    limit, and the summary), because every WARNING is a push on the phone.
+    `log_run_summary()`. Per-artist trouble -- a provider (MusicBrainz included) that
+    could not answer, a portrait that could not be downloaded or saved -- is logged at
+    INFO and counted; the run as a whole gets at most two WARNINGs (the first rate
+    limit, and the summary), because every WARNING is a push on the phone. The one
+    ERROR a run can add is an image directory that cannot be written, logged once.
     """
 
     def __init__(self, db_conn=None, stop_event=None):
@@ -80,25 +87,51 @@ class ArtistImageFetcher:
 
     def start_run(self):
         """Reset the per-run counters that `log_run_summary()` reports on."""
-        self.run_stats = {'deferred': 0, 'rate_limit_pauses': 0, 'pause_seconds': 0.0}
+        self.run_stats = {
+            'deferred': 0,
+            'rate_limit_pauses': 0,
+            'pause_seconds': 0.0,
+            # Provider name -> how many times it could not answer for an artist.
+            'provider_failures': {},
+            # Portraits a provider found that could not be downloaded or saved.
+            'download_failures': 0,
+        }
         self._rate_limit_warned = False
+        self._storage_error_logged = False
 
     def log_run_summary(self):
         """Log one line about the run and return its counters.
 
-        WARNING when something was deferred or the run had to pause, INFO otherwise.
-        This is the only per-run WARNING besides the first rate limit.
+        WARNING when something was deferred, a download failed or the run had to
+        pause, INFO otherwise. This is the only per-run WARNING besides the first rate
+        limit. Provider non-answers alone do not raise it: a MusicBrainz timeout costs
+        the artist its external ids, not its lookup.
         """
         stats = dict(self.run_stats)
-        message = (
-            f"Artist image run: {stats['deferred']} artist(s) deferred because a provider could not answer, "
-            f"{stats['rate_limit_pauses']} rate-limit pause(s), {stats['pause_seconds']:.0f}s paused in total"
-        )
-        if stats['deferred'] or stats['rate_limit_pauses']:
+        stats['provider_failures'] = dict(self.run_stats['provider_failures'])
+        message = f'Artist image run: {self.format_run_summary(stats)}'
+        if stats['deferred'] or stats['rate_limit_pauses'] or stats['download_failures']:
             self.logger.warning(message)
         else:
             self.logger.info(message)
         return stats
+
+    @staticmethod
+    def format_run_summary(stats):
+        """One line with every run counter, as `log_run_summary()` logs it."""
+        failures = stats.get('provider_failures') or {}
+        per_provider = ', '.join(f'{name} {count}' for name, count in sorted(failures.items())) or 'none'
+        return (
+            f"{stats['deferred']} artist(s) deferred because a provider could not answer, "
+            f"{stats['rate_limit_pauses']} rate-limit pause(s), {stats['pause_seconds']:.0f}s paused in total, "
+            f"{stats['download_failures']} image download(s) failed, "
+            f'provider non-answers: {per_provider}'
+        )
+
+    def _count_provider_failure(self, provider_name):
+        """Count one non-answer of `provider_name` for the run summary."""
+        failures = self.run_stats['provider_failures']
+        failures[provider_name] = failures.get(provider_name, 0) + 1
 
     def _pause_for_rate_limit(self, provider_name, artist_name, retry_after):
         """Pause the whole run for `retry_after` seconds; False when stopped meanwhile.
@@ -122,12 +155,33 @@ class ArtistImageFetcher:
         Raises ProviderUnavailable when the provider still cannot answer, or when the
         run was stopped during the pause.
         """
+        return self._with_rate_limit_pause(
+            provider.name, artist_name, lambda: provider.get_artist_images(artist_name, mbid, external_ids)
+        )
+
+    def _with_rate_limit_pause(self, provider_name, artist_name, call):
+        """Run `call`; after a rate limit, pause the run and run it once more."""
         try:
-            return provider.get_artist_images(artist_name, mbid, external_ids)
+            return call()
         except ProviderRateLimited as e:
-            if not self._pause_for_rate_limit(provider.name, artist_name, e.retry_after):
-                raise ProviderUnavailable(f'{provider.name}: stopped while waiting out a rate limit') from e
-        return provider.get_artist_images(artist_name, mbid, external_ids)
+            if not self._pause_for_rate_limit(provider_name, artist_name, e.retry_after):
+                raise ProviderUnavailable(f'{provider_name}: stopped while waiting out a rate limit') from e
+        return call()
+
+    def _musicbrainz_metadata(self, artist_name, mbid):
+        """MusicBrainz metadata for one artist, or None when it has none or could not answer.
+
+        A non-answer is logged at INFO and counted per provider: the artist is still
+        looked up by name, only without the external ids MusicBrainz would have added.
+        """
+        try:
+            return self._with_rate_limit_pause(
+                'musicbrainz', artist_name, lambda: self.mb_provider.get_artist_metadata(artist_name, mbid)
+            )
+        except Exception as e:  # ProviderUnavailable, or a provider that blew up
+            self.logger.info(f'MusicBrainz could not answer for {artist_name}: {e}')
+            self._count_provider_failure('musicbrainz')
+            return None
 
     def fetch_for_artist(self, artist_id, artist_name=None, force_refresh=False, override_cleared=False):
         """Look up, download and store a portrait for one artist; True when it has one.
@@ -159,11 +213,13 @@ class ArtistImageFetcher:
             return False
         if self.blind:
             # No verdict without a witness: the status is left exactly as it was.
-            self.logger.warning(f'No image provider configured; not looking up {artist_name}')
+            # INFO: construction already logged the missing provider as an ERROR once,
+            # and a blind bulk run would otherwise repeat it per artist.
+            self.logger.info(f'No image provider configured; not looking up {artist_name}')
             return False
         self.logger.info(f'Fetching images for artist: {artist_name} (ID: {artist_id})')
         external_ids = self._get_external_ids(artist_id)
-        mb_metadata = self.mb_provider.get_artist_metadata(artist_name, mbid)
+        mb_metadata = self._musicbrainz_metadata(artist_name, mbid)
         if mb_metadata:
             if not mbid:
                 mbid = mb_metadata['mbid']
@@ -188,10 +244,13 @@ class ArtistImageFetcher:
                 # INFO, not WARNING: one line per artist, and every WARNING is a push.
                 # The run summary reports how many artists this deferred.
                 self.logger.info(f'Provider {provider.name} could not answer for {artist_name}: {e}')
+                self._count_provider_failure(provider.name)
                 unavailable.append(provider.name)
             except Exception as e:
-                # A provider that blew up did not look either.
-                self.logger.error(f'Provider {provider.name} failed for {artist_name}: {e}')
+                # A provider that blew up did not look either. INFO for the same reason
+                # as above; the summary counts it with the other non-answers.
+                self.logger.info(f'Provider {provider.name} failed for {artist_name}: {e}')
+                self._count_provider_failure(provider.name)
                 unavailable.append(provider.name)
         source_priority = {'spotify': 1, 'soundcloud': 2, 'lastfm': 3, 'musicbrainz': 4}
         candidates.sort(key=lambda x: (x['confidence'], -source_priority.get(x['source'], 99)), reverse=True)
@@ -228,8 +287,26 @@ class ArtistImageFetcher:
             # database. That is no verdict about the artist either, so the status stays
             # and the next run tries again -- `failed` would have hidden a findable
             # artist for ARTIST_IMAGE_RETRY_AFTER_DAYS over one network blip.
-            self.logger.error(f'Failed to save image for {artist_name}; deferred: {e}')
+            self._record_download_failure(artist_name, e)
             return False
+
+    def _record_download_failure(self, artist_name, error):
+        """Count a portrait that could not be downloaded or saved, and log it.
+
+        One artist's failure is INFO; the summary reports the count. An image directory
+        that cannot be written is the whole run's failure: that is an ERROR, logged once
+        per run, and every later artist hitting it is INFO again.
+        """
+        self.run_stats['download_failures'] += 1
+        systemic = isinstance(error, OSError) and error.errno in STORAGE_UNWRITABLE_ERRNOS
+        if systemic and not self._storage_error_logged:
+            self._storage_error_logged = True
+            self.logger.error(
+                f'Artist image directory {self.storage.storage_path} cannot be written: {error} '
+                '(further failures in this run are logged at INFO and counted in the summary)'
+            )
+            return
+        self.logger.info(f'Failed to download or save the image for {artist_name}; deferred: {error}')
 
     def _get_external_ids(self, artist_id):
         ids = {}

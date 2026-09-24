@@ -17,39 +17,38 @@ class ImageStorage:
         self.logger = logging.getLogger(__name__)
 
     def save_image(self, artist_id, source, image_data, filename_prefix=None):
-        """
-        Saves image data, generates thumbnails and returns metadata.
+        """Save image data, generate thumbnails and return the metadata.
+
+        Errors are raised, not logged: the fetcher decides whether a failure is one
+        artist's (INFO, counted into the run summary) or the whole run's (an image
+        directory that cannot be written, one ERROR per run).
         """
         artist_dir = os.path.join(self.storage_path, str(artist_id))
         os.makedirs(artist_dir, exist_ok=True)
-        try:
-            img: Image.Image = Image.open(BytesIO(image_data))
-            width, height = img.size
-            file_hash = hashlib.md5(image_data).hexdigest()
-            ext = 'jpg'
-            base_filename = f'{source}-{file_hash}'
-            if filename_prefix:
-                base_filename = f'{filename_prefix}-{base_filename}'
-            full_filename = f'{base_filename}.{ext}'
-            cached_path = os.path.join(artist_dir, full_filename)
-            if img.mode in ('RGBA', 'P'):
-                img = img.convert('RGB')
-            img = self._square_crop(img)
-            img.save(cached_path, 'JPEG', quality=90)
-            self._generate_thumbnails(img, artist_dir, base_filename)
-            primary_path = os.path.join(artist_dir, 'primary.jpg')
-            img.save(primary_path, 'JPEG', quality=90)
-            return {
-                'cached_path': cached_path,
-                'public_path': f'{self.public_base_url}/{artist_id}/{full_filename}',
-                'width': img.size[0],
-                'height': img.size[1],
-                'mime_type': 'image/jpeg',
-                'file_size': os.path.getsize(cached_path),
-            }
-        except Exception as e:
-            self.logger.error(f'Error saving image for artist {artist_id}: {e}')
-            raise
+        img: Image.Image = Image.open(BytesIO(image_data))
+        width, height = img.size
+        file_hash = hashlib.md5(image_data).hexdigest()
+        ext = 'jpg'
+        base_filename = f'{source}-{file_hash}'
+        if filename_prefix:
+            base_filename = f'{filename_prefix}-{base_filename}'
+        full_filename = f'{base_filename}.{ext}'
+        cached_path = os.path.join(artist_dir, full_filename)
+        if img.mode in ('RGBA', 'P'):
+            img = img.convert('RGB')
+        img = self._square_crop(img)
+        img.save(cached_path, 'JPEG', quality=90)
+        self._generate_thumbnails(img, artist_dir, base_filename)
+        primary_path = os.path.join(artist_dir, 'primary.jpg')
+        img.save(primary_path, 'JPEG', quality=90)
+        return {
+            'cached_path': cached_path,
+            'public_path': f'{self.public_base_url}/{artist_id}/{full_filename}',
+            'width': img.size[0],
+            'height': img.size[1],
+            'mime_type': 'image/jpeg',
+            'file_size': os.path.getsize(cached_path),
+        }
 
     def _square_crop(self, img):
         width, height = img.size
@@ -96,7 +95,9 @@ class ImageDownloader:
                 response.raise_for_status()
                 return response.content
             except Exception as e:
-                self.logger.warning(f'Attempt {i + 1} failed to download {url}: {e}')
+                # INFO: one attempt for one artist. The final failure is raised to the
+                # fetcher, which counts it into the run summary.
+                self.logger.info(f'Attempt {i + 1} failed to download {url}: {e}')
                 if i == self.retries - 1:
                     raise
                 time.sleep(self.backoff * (2**i))

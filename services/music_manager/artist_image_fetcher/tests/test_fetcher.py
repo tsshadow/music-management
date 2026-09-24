@@ -325,9 +325,8 @@ class FetchForArtistTest(FetcherTestCase):
         self.assertTrue(any("image_status = 'active'" in s for s in statements))
 
 
-class RateLimitTest(FetcherTestCase):
-    """On 2026-09-24 a 429 on ~40% of lookups produced 3.278 WARNINGs and a push every
-    five minutes: the fetcher walked on to the next artist instead of waiting."""
+class RunTestCase(FetcherTestCase):
+    """A bulk run with one configured provider, its log captured from INFO upward."""
 
     HIT = [{'source': 'spotify', 'source_id': 's1', 'name': 'Angerfist', 'url': 'https://img.test/a.jpg'}]
 
@@ -348,6 +347,11 @@ class RateLimitTest(FetcherTestCase):
             results = [self.fetcher.fetch_for_artist(1, name) for name in names]
             self.fetcher.log_run_summary()
         return results
+
+
+class RateLimitTest(RunTestCase):
+    """On 2026-09-24 a 429 on ~40% of lookups produced 3.278 WARNINGs and a push every
+    five minutes: the fetcher walked on to the next artist instead of waiting."""
 
     def test_a_rate_limit_pauses_for_retry_after_and_retries_the_same_artist(self):
         self.spotify.get_artist_images.side_effect = [ProviderRateLimited('429', 17.0), self.HIT]
@@ -408,7 +412,16 @@ class RateLimitTest(FetcherTestCase):
         self.spotify.get_artist_images.side_effect = [ProviderRateLimited('429', 10.0), []]
         self.fetch('A')
         self.fetcher.start_run()
-        self.assertEqual(self.fetcher.run_stats, {'deferred': 0, 'rate_limit_pauses': 0, 'pause_seconds': 0.0})
+        self.assertEqual(
+            self.fetcher.run_stats,
+            {
+                'deferred': 0,
+                'rate_limit_pauses': 0,
+                'pause_seconds': 0.0,
+                'provider_failures': {},
+                'download_failures': 0,
+            },
+        )
         self.spotify.get_artist_images.side_effect = [ProviderRateLimited('429', 10.0), []]
         self.fetch('B')
         self.assertTrue(any('pausing 10s' in r.getMessage() for r in self.records('WARNING')))
@@ -418,6 +431,79 @@ class RateLimitTest(FetcherTestCase):
         with patch.object(instance.stop_event, 'wait', return_value=False) as wait:
             self.assertTrue(instance._pause_for_rate_limit('spotify', 'A', 3.0))
         wait.assert_called_once_with(3.0)
+
+
+class QuietFailureTest(RunTestCase):
+    """MusicBrainz and the image download used to log a WARNING or an ERROR per artist,
+    each a push on the phone; they are INFO now, counted into the one run summary."""
+
+    def setUp(self):
+        super().setUp()
+        self.spotify.get_artist_images.return_value = self.HIT
+
+    def test_a_musicbrainz_timeout_is_info_and_counted_per_provider(self):
+        self.fetcher.mb_provider.get_artist_metadata.side_effect = ProviderUnavailable('MusicBrainz: timed out')
+        self.assertEqual(self.fetch('Angerfist', 'Angerfist'), [True, True])
+        self.assertEqual(self.records('WARNING'), [])
+        self.assertEqual(len([r for r in self.records('INFO') if 'MusicBrainz could not answer' in r.getMessage()]), 2)
+        self.assertEqual(self.fetcher.run_stats['provider_failures'], {'musicbrainz': 2})
+        self.assertTrue(any('provider non-answers: musicbrainz 2' in r.getMessage() for r in self.records('INFO')))
+
+    def test_a_musicbrainz_rate_limit_pauses_the_run_and_asks_again(self):
+        metadata = {'mbid': 'mb1', 'name': 'Angerfist', 'external_ids': {}}
+        self.fetcher.mb_provider.get_artist_metadata.side_effect = [ProviderRateLimited('503', 12.0), metadata]
+        self.fetch('Angerfist')
+        self.fetcher.stop_event.wait.assert_called_once_with(12.0)
+        self.assertEqual(self.fetcher.mb_provider.get_artist_metadata.call_count, 2)
+        self.assertEqual(self.fetcher.run_stats['provider_failures'], {})
+        self.assertEqual(self.fetcher.run_stats['rate_limit_pauses'], 1)
+
+    def test_a_musicbrainz_still_limited_after_the_pause_is_counted_and_the_lookup_goes_on(self):
+        self.fetcher.mb_provider.get_artist_metadata.side_effect = ProviderRateLimited('429', 5.0)
+        self.assertEqual(self.fetch('Angerfist'), [True])
+        self.assertEqual(self.fetcher.run_stats['provider_failures'], {'musicbrainz': 1})
+
+    def test_other_provider_non_answers_are_counted_per_provider(self):
+        self.spotify.get_artist_images.side_effect = [ProviderUnavailable('502'), RuntimeError('bug')]
+        self.fetch('Angerfist', 'Angerfist')
+        self.assertEqual(self.fetcher.run_stats['provider_failures'], {'spotify': 2})
+        self.assertEqual(self.records('ERROR'), [])
+
+    def test_a_failed_download_is_info_and_the_summary_reports_it(self):
+        self.fetcher.downloader.download.side_effect = RuntimeError('503 from the CDN')
+        self.assertEqual(self.fetch('Angerfist', 'Angerfist', 'Angerfist'), [False, False, False])
+        self.assertEqual(self.records('ERROR'), [])
+        warnings = [r.getMessage() for r in self.records('WARNING')]
+        self.assertEqual(len(warnings), 1)
+        self.assertIn('3 image download(s) failed', warnings[0])
+        self.assertEqual(self.fetcher.run_stats['download_failures'], 3)
+        self.assert_status_untouched()
+
+    def test_an_unwritable_image_directory_is_one_error_per_run(self):
+        self.fetcher.storage.save_image.side_effect = PermissionError(13, 'Permission denied', '/mnt/music/artists/1')
+        self.fetch('Angerfist', 'Angerfist', 'Angerfist')
+        errors = [r.getMessage() for r in self.records('ERROR')]
+        self.assertEqual(len(errors), 1)
+        self.assertIn('cannot be written', errors[0])
+        self.assertEqual(self.fetcher.run_stats['download_failures'], 3)
+        self.fetcher.start_run()
+        self.fetch('Angerfist')
+        self.assertEqual(len(self.records('ERROR')), 1)
+
+    def test_a_blind_fetcher_logs_each_skipped_artist_at_info(self):
+        self.fetcher.providers = []
+        self.fetch('Angerfist', 'Angerfist')
+        self.assertEqual(self.records('WARNING'), [])
+
+    def test_the_summary_returns_every_counter(self):
+        self.fetcher.downloader.download.side_effect = RuntimeError('boom')
+        self.fetcher.mb_provider.get_artist_metadata.side_effect = ProviderUnavailable('timed out')
+        self.fetch('Angerfist')
+        stats = self.fetcher.log_run_summary()
+        self.assertEqual(stats['download_failures'], 1)
+        self.assertEqual(stats['provider_failures'], {'musicbrainz': 1})
+        stats['provider_failures']['spotify'] = 9
+        self.assertNotIn('spotify', self.fetcher.run_stats['provider_failures'])
 
 
 class ManifestTest(FetcherTestCase):

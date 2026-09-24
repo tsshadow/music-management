@@ -3,7 +3,7 @@ import time
 
 import requests
 
-from .base import ArtistImageProvider, ProviderRateLimited, ProviderUnavailable, credential
+from .base import ArtistImageProvider, ProviderRateLimited, ProviderUnavailable, credential, parse_retry_after
 
 
 class SpotifyArtistImageProvider(ArtistImageProvider):
@@ -44,18 +44,7 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
         back to `DEFAULT_RETRY_AFTER`; the result lies between 1 s and
         `MAX_RETRY_AFTER`, so a hostile or broken header cannot park the run for a day.
         """
-        headers = getattr(response, 'headers', None) or {}
-        try:
-            value = headers.get('Retry-After')
-        except AttributeError:
-            value = None
-        seconds = float(self.DEFAULT_RETRY_AFTER)
-        if isinstance(value, (str, int, float)) and not isinstance(value, bool):
-            try:
-                seconds = float(value)
-            except ValueError:
-                seconds = float(self.DEFAULT_RETRY_AFTER)
-        return min(max(seconds, 1.0), float(self.MAX_RETRY_AFTER))
+        return parse_retry_after(response, self.DEFAULT_RETRY_AFTER, self.MAX_RETRY_AFTER)
 
     def _rate_limited(self, what, response):
         """The ProviderRateLimited for a 429 on `what`, carrying the bounded wait."""

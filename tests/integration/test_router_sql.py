@@ -115,6 +115,7 @@ READ_ENDPOINTS = [
     # row of nulls; the seeded label below proves the join.
     ('/api/curation/labels/Scantraxx/catalog', 404),
     ('/api/curation/genres/Hardcore', 404),
+    ('/api/curation/genre-hierarchy/cycles', 200),
     # The feeds surface. `headers` authenticates as the system key, which
     # `_resolve_username` in routers/feeds.py refuses without an explicit
     # `username` -- so the bare paths are a deliberate 400, not a miss. With a
@@ -284,6 +285,36 @@ class CurationEditPagesTest:
         page = api.get('/api/curation/genres/Industrial Hardcore', headers=headers).json()
         assert page['parents'] == ['Hardcore']
         assert api.get('/api/curation/genres/Hardcore', headers=headers).json()['children'] == ['Industrial Hardcore']
+
+    def test_a_genre_hierarchy_refuses_a_cycle(self, api, headers, db):
+        self._white_genre(db, 'Hardcore')
+        self._white_genre(db, 'Uptempo')
+        self._white_genre(db, 'Upterror')
+        assert (
+            api.put('/api/curation/genres/Uptempo/parents', headers=headers, json={'parents': ['Hardcore']}).status_code
+            == 200
+        )
+        assert (
+            api.put('/api/curation/genres/Upterror/parents', headers=headers, json={'parents': ['Uptempo']}).status_code
+            == 200
+        )
+
+        refused = api.put('/api/curation/genres/Hardcore/parents', headers=headers, json={'parents': ['Upterror']})
+        assert refused.status_code == 409, refused.text
+        assert refused.json()['detail'] == 'Hardcore is already an ancestor of Upterror'
+        assert api.get('/api/curation/genres/Hardcore', headers=headers).json()['descendants'] == [
+            'Uptempo',
+            'Upterror',
+        ]
+        assert api.get('/api/curation/genre-hierarchy/cycles', headers=headers).json() == {'count': 0, 'cycles': []}
+
+    def test_the_cycle_check_reports_a_stored_cycle(self, api, headers, db):
+        with db.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO rules_subgenre_hierarchy (subgenre, genre) VALUES ('Uptempo', 'Terror'), ('Terror', 'Uptempo')"
+            )
+        report = api.get('/api/curation/genre-hierarchy/cycles', headers=headers).json()
+        assert report == {'count': 1, 'cycles': [['Terror', 'Uptempo']]}
 
     def test_a_rejected_genre_has_no_hierarchy_to_edit(self, api, headers, db):
         self._white_genre(db, 'Hardcore')

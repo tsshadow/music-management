@@ -27,7 +27,12 @@ from fastapi.testclient import TestClient
 from services.common.Helpers import Cache
 from services.music_manager.main import app
 from services.music_manager.routers import curation as curation_router
-from services.music_manager.tests.scripted_cursor import ScriptedCursor
+from services.music_manager.tests.scripted_cursor import (
+    ScriptedCursor,
+    assert_atomic,
+    assert_rolled_back,
+    transaction_log,
+)
 
 API_KEY = resolve_system_api_key()
 
@@ -798,3 +803,91 @@ class RetagConfigurableCeilingTest(CurationTestCase):
         with patch.object(curation_router, 'Settings') as settings:
             settings.return_value.get.return_value = 'not a number'
             self.assertEqual(curation_router._max_retag_files(), curation_router.MAX_RETAG_FILES_DEFAULT)
+
+
+class AtomicReplaceTest(CurationTestCase):
+    """Every delete-then-insert on the curation pages runs in one transaction."""
+
+    rules = (
+        ('FROM library_artists', None, ARTIST_ROW),
+        ('FROM library_labels', None, LABEL_ROW),
+        ('FROM rules_genres WHERE normalized_name', None, WHITE_GENRE),
+    )
+    MBID = '5b11f4ce-a62d-471e-81fc-a69a8278c7da'
+
+    def test_an_artist_mbid_and_its_external_id_are_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        response = self.client.put(
+            '/api/curation/artists/Angerfist/mbid', json={'mbid': self.MBID}, headers=self.headers
+        )
+        self.assertEqual(response.status_code, 200)
+        assert_atomic(
+            self,
+            log,
+            'UPDATE library_artists SET mbid',
+            'DELETE FROM artist_external_ids',
+            'INSERT INTO artist_external_ids',
+        )
+
+    def test_an_artist_external_id_is_replaced_in_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        response = self.client.put(
+            '/api/curation/artists/Angerfist/external-ids',
+            json={'source': 'spotify', 'external_id': 'abc'},
+            headers=self.headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        assert_atomic(self, log, 'DELETE FROM artist_external_ids', 'INSERT INTO artist_external_ids')
+
+    def test_a_failing_external_id_insert_keeps_the_old_one(self):
+        log = transaction_log(self.conn, self.cursor, fail_on='INSERT INTO artist_external_ids')
+        with self.assertRaises(RuntimeError):
+            self.client.put(
+                '/api/curation/artists/Angerfist/external-ids',
+                json={'source': 'spotify', 'external_id': 'abc'},
+                headers=self.headers,
+            )
+        assert_rolled_back(self, log)
+
+    def test_a_label_mbid_and_its_external_id_are_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        response = self.client.put(
+            '/api/curation/labels/Masters%20of%20Hardcore/mbid', json={'mbid': self.MBID}, headers=self.headers
+        )
+        self.assertEqual(response.status_code, 200)
+        assert_atomic(
+            self,
+            log,
+            'UPDATE library_labels SET mbid',
+            'DELETE FROM label_external_ids',
+            'INSERT INTO label_external_ids',
+        )
+
+    def test_a_label_external_id_is_replaced_in_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        response = self.client.put(
+            '/api/curation/labels/Masters%20of%20Hardcore/external-ids',
+            json={'source': 'discogs', 'external_id': '123'},
+            headers=self.headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        assert_atomic(self, log, 'DELETE FROM label_external_ids', 'INSERT INTO label_external_ids')
+
+    def test_genre_parents_are_replaced_in_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        response = self.client.put(
+            '/api/curation/genres/Industrial%20Hardcore/parents', json={'parents': ['Hardcore']}, headers=self.headers
+        )
+        self.assertEqual(response.status_code, 200)
+        assert_atomic(self, log, 'DELETE FROM rules_subgenre_hierarchy', 'INSERT INTO rules_subgenre_hierarchy')
+
+    def test_a_failing_parent_insert_keeps_the_old_hierarchy(self):
+        log = transaction_log(self.conn, self.cursor, fail_on='INSERT INTO rules_subgenre_hierarchy')
+        with self.assertRaises(RuntimeError):
+            self.client.put(
+                '/api/curation/genres/Industrial%20Hardcore/parents',
+                json={'parents': ['Hardcore']},
+                headers=self.headers,
+            )
+        assert_rolled_back(self, log)
+        self.assertEqual(self.reloaded_helpers(), [])

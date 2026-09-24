@@ -62,6 +62,14 @@ read from the `CREATE TABLE` statements, not kept by hand. `CREATE TABLE IF NOT
 EXISTS` never alters an existing table -- that is how two columns the code
 selected went missing until the integration suite caught them.
 
+**A write of more than one statement goes through `transaction(conn)`.** The pool
+in `services/music_manager/database.py` runs autocommit, so a DELETE followed by
+the INSERTs that replace it is two commits, and a `conn.commit()` afterwards does
+not change that. Wrap the statements in `with transaction(conn), conn.cursor() as
+cursor:` on one connection; `transaction_log` in
+`services/music_manager/tests/scripted_cursor.py` asserts the BEGIN/COMMIT order in
+a unit test ([design](docs/designs/db-transactions/technical.md)).
+
 **Run the integration suite on 10.6 when you touch a TIMESTAMP column.**
 `MARIADB_VERSION=10.6 ./scripts/test/db-integration.sh` runs the server
 production's oldest tables were created on, which is the only one that reproduces

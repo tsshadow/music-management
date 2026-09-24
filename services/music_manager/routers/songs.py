@@ -12,7 +12,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from services.music_manager.database import get_db_connection
+from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.routers.rating import verify_api_key
 from services.music_manager.song_version_worker import recompute_canonicals
 from services.music_manager.song_versions import SPLIT_PREFIX
@@ -83,7 +83,7 @@ def pin_version(work_id: int, pin: Pin, _auth: dict = Depends(verify_api_key)):
     """Pin a version, or clear the pin by sending a null track_id."""
     conn = _connection()
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             if pin.track_id is not None:
                 cursor.execute('SELECT work_id FROM library_tracks WHERE id = %s', (pin.track_id,))
                 row = cursor.fetchone()
@@ -94,7 +94,6 @@ def pin_version(work_id: int, pin: Pin, _auth: dict = Depends(verify_api_key)):
 
             cursor.execute('UPDATE library_works SET pinned_track_id = %s WHERE id = %s', (pin.track_id, work_id))
             recompute_canonicals(cursor, {work_id})
-        conn.commit()
     finally:
         conn.close()
     return {'status': 'ok', 'work_id': work_id, 'pinned_track_id': pin.track_id}
@@ -109,7 +108,7 @@ def split_track(track_id: int, _auth: dict = Depends(verify_api_key)):
     """
     conn = _connection()
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             cursor.execute('SELECT work_id, title, primary_artist_id FROM library_tracks WHERE id = %s', (track_id,))
             track = cursor.fetchone()
             if track is None:
@@ -140,7 +139,6 @@ def split_track(track_id: int, _auth: dict = Depends(verify_api_key)):
                 )
                 to_recompute.add(old_work_id)
             recompute_canonicals(cursor, to_recompute)
-        conn.commit()
     finally:
         conn.close()
     return {'status': 'ok', 'track_id': track_id, 'work_id': new_work_id}

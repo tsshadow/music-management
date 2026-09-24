@@ -17,10 +17,37 @@ from services.tests.mock_base import reset_database_helpers, setup_mocks
 setup_mocks()
 from services.importer import mover as mover_module  # noqa: E402
 from services.importer import settle  # noqa: E402
+from services.importer.label_proposal_store import KnownProposal, ProposalSnapshot  # noqa: E402
 from services.importer.label_resolver import LabelProposal  # noqa: E402
 from services.importer.mover import Mover, release_summary  # noqa: E402
 
 AN_HOUR_AGO = time.time() - 3600
+
+
+class FakeProposalStore:
+    """`rules_label_proposals` and `rules_catid_label` as far as the mover sees them.
+
+    Outlives a Mover, the way the database outlives the importer process.
+    """
+
+    def __init__(self):
+        self.rules_version = '0:0'
+        self.rows: dict[str, KnownProposal] = {}
+        self.record = MagicMock(side_effect=self._record)
+        self.unreachable = False
+
+    def _record(self, folder, proposal, resolved_fingerprint=None):
+        row = self.rows.get(folder, KnownProposal('new', None, None))
+        self.rows[folder] = KnownProposal(row.status, row.decided_at, resolved_fingerprint)
+
+    def snapshot(self):
+        if self.unreachable:
+            return None
+        return ProposalSnapshot(self.rules_version, dict(self.rows))
+
+    def decide(self, folder, status, decided_at):
+        row = self.rows[folder]
+        self.rows[folder] = KnownProposal(status, decided_at, row.fingerprint)
 
 
 class MoverOnDiskTest(unittest.TestCase):
@@ -41,9 +68,14 @@ class MoverOnDiskTest(unittest.TestCase):
             patch.object(mover_module, 'resolve', return_value=LabelProposal(None, 'none', 0, None))
         )
         self.notify = self.enterContext(patch.object(mover_module, 'notification_service')).notify
-        self.mover = Mover()
-        self.mover.proposals = MagicMock()
-        self.mover.get_label = MagicMock(return_value=None)
+        self.store = FakeProposalStore()
+        self.mover = self.new_mover()
+
+    def new_mover(self):
+        mover = Mover()
+        mover.proposals = self.store
+        mover.get_label = MagicMock(return_value=None)
+        return mover
 
     def release(self, folder, tracks=('01.mp3',)):
         path = os.path.join(self.imports, folder)
@@ -96,16 +128,95 @@ class ProposalIsNotResolvedEveryCycleTest(MoverOnDiskTest):
         self.assertTrue(os.path.isdir(os.path.join(self.eps, 'Scantraxx', 'UNKNOWN123 - Release')))
         self.assertEqual(os.listdir(self.imports), [])
 
-    def test_the_cache_lives_in_the_process_so_a_restart_resolves_once_more(self):
+    def test_the_cache_is_in_the_database_so_a_restart_does_not_resolve_again(self):
         self.release('UNKNOWN123 - Release')
         self.mover.run()
 
-        restarted = Mover()
-        restarted.proposals = MagicMock()
-        restarted.get_label = MagicMock(return_value=None)
-        restarted.run()
+        self.new_mover().run()
+
+        self.assertEqual(self.resolve.call_count, 1)
+
+    def test_a_changed_catalogue_rule_resolves_every_unplaceable_folder_once_more(self):
+        self.release('UNKNOWN123 - Release')
+        self.release('OTHER456 - Release')
+        self.mover.run()
+
+        self.store.rules_version = '1:12345'
+        self.mover.run()
+        self.mover.run()
+
+        self.assertEqual(self.resolve.call_count, 4)
+
+    def test_a_decision_on_the_proposal_resolves_that_folder_once_more(self):
+        self.release('UNKNOWN123 - Release')
+        self.release('OTHER456 - Release')
+        self.mover.run()
+
+        self.store.decide('UNKNOWN123 - Release', 'rejected', '2026-09-24 12:00:00')
+        self.mover.run()
+        self.mover.run()
+
+        self.assertEqual(self.resolve.call_count, 3)
+        self.assertEqual(self.resolve.call_args.args[0], os.path.join(self.imports, 'UNKNOWN123 - Release'))
+
+    def test_a_deleted_proposal_row_is_written_again(self):
+        self.release('UNKNOWN123 - Release')
+        self.mover.run()
+
+        self.store.rows.clear()
+        self.mover.run()
+
+        self.assertEqual(self.store.record.call_count, 2)
+        self.assertIn('UNKNOWN123 - Release', self.store.rows)
+
+    def test_a_changed_mtime_alone_resolves_again(self):
+        path = self.release('UNKNOWN123 - Release')
+        self.mover.run()
+
+        os.utime(os.path.join(path, '01.mp3'), (AN_HOUR_AGO + 60, AN_HOUR_AGO + 60))
+        self.mover.run()
 
         self.assertEqual(self.resolve.call_count, 2)
+
+    def test_without_the_database_the_process_memory_still_skips(self):
+        self.release('UNKNOWN123 - Release')
+        self.store.unreachable = True
+
+        self.mover.run()
+        self.mover.run()
+
+        self.assertEqual(self.resolve.call_count, 1)
+
+    def test_a_folder_that_cannot_be_read_is_resolved_every_time(self):
+        self.release('UNKNOWN123 - Release')
+        with patch.object(mover_module, 'folder_signature', return_value=None):
+            self.mover.run()
+            self.mover.run()
+
+        self.assertEqual(self.resolve.call_count, 2)
+
+    def test_one_count_line_per_cycle_and_the_warning_only_on_a_re_read(self):
+        self.release('UNKNOWN123 - Release')
+        self.release('NoCatalogNumber')
+        self.mover.run()
+
+        with self.assertLogs(level='DEBUG') as logs:
+            self.mover.run()
+
+        warnings = [r for r in logs.records if r.levelname == 'WARNING']
+        counts = [r.getMessage() for r in logs.records if r.getMessage().startswith('Unplaceable folders:')]
+        self.assertEqual(warnings, [])
+        self.assertEqual(counts, ['Unplaceable folders: 2 checked, 2 skipped as unchanged, 0 re-read'])
+
+    def test_the_first_cycle_warns_per_folder_and_counts_the_re_reads(self):
+        self.release('UNKNOWN123 - Release')
+
+        with self.assertLogs(level='DEBUG') as logs:
+            self.mover.run()
+
+        messages = [r.getMessage() for r in logs.records]
+        self.assertTrue(any('CAT ID UNKNOWN not found' in m for m in messages), messages)
+        self.assertIn('Unplaceable folders: 1 checked, 0 skipped as unchanged, 1 re-read', messages)
 
 
 class OnePushPerReleaseTest(MoverOnDiskTest):

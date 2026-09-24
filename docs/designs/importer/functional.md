@@ -39,7 +39,7 @@ user of the successful import.
 | A standardized folder is ready for moving | The system looks up the catalog ID prefix (e.g., `SCAN`) in its database to find the associated Label (e.g., `Scantraxx`). |
 | The Label is found in the database | The folder is moved to the final library path: `/path/to/eps/[Label]/[Folder Name]`. |
 | A folder is moved to its final destination | Every audio file inside is tagged with metadata and recorded in the event log, and the user receives one "Import Complete" notification for the release (label, catalogue number, number of tracks). |
-| A folder's catalog ID is not recognized | The folder remains in the import folder and a label proposal is recorded for review. Its tags are read again only when the folder changes. |
+| A folder's catalog ID is not recognized | The folder remains in the import folder and a label proposal is recorded for review. Its tags are read again only when the folder changes, a catalogue-number rule changes, or its proposal is decided -- also across restarts. The per-folder warning is logged only when the folder is actually resolved; every cycle logs one line with the counts. |
 | A destination folder already exists in the library and holds the same tracks (same names, same lengths) | The source folder is parked in the quarantine as a duplicate, and a warning is logged. |
 | A destination folder already exists in the library and holds something else | Both are left in place, and a warning asks for manual intervention. |
 

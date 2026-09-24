@@ -158,7 +158,7 @@ class MoveFolderTest(MoverTestCase):
 
         self.mover._move_folder('NOPE123 - Release', 'NOPE', dry_run=False)
 
-        folder, proposal = self.mover.proposals.record.call_args.args
+        folder, proposal, _fingerprint = self.mover.proposals.record.call_args.args
         self.assertEqual(folder, 'NOPE123 - Release')
         self.assertEqual(proposal.catid, 'NOPE')
 
@@ -230,7 +230,7 @@ class RunTest(MoverTestCase):
         ):
             self.mover.run()
 
-        folder, proposal = self.mover.proposals.record.call_args.args
+        folder, proposal, _fingerprint = self.mover.proposals.record.call_args.args
         self.assertEqual(folder, ' - Dewstate_-_Bass_Cannon')
         self.assertIsNone(proposal.catid)
 

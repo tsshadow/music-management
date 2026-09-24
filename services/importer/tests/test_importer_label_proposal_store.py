@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from services.importer import label_proposal_store
-from services.importer.label_proposal_store import LabelProposalStore
+from services.importer.label_proposal_store import NEW_ROW, KnownProposal, LabelProposalStore, fingerprint
 from services.importer.label_resolver import LabelProposal
 
 
@@ -29,7 +29,7 @@ class LabelProposalStoreTest(unittest.TestCase):
 
         query, params = self.cursor.execute.call_args.args
         self.assertIn('rules_label_proposals', query)
-        self.assertEqual(params, ('BKRP104 - Darwin', 'BKRP', 'Brutal Kuts', 'tag:label', 90))
+        self.assertEqual(params, ('BKRP104 - Darwin', 'BKRP', 'Brutal Kuts', 'tag:label', 90, None))
 
     def test_the_write_is_committed(self):
         self.store.record('BKRP104 - Darwin', LabelProposal('Brutal Kuts', 'tag:label', 90, 'BKRP'))
@@ -47,7 +47,39 @@ class LabelProposalStoreTest(unittest.TestCase):
         self.store.record(' - Dewstate_-_Bass_Cannon', LabelProposal(None, 'none', 0, None))
 
         _, params = self.cursor.execute.call_args.args
-        self.assertEqual(params, (' - Dewstate_-_Bass_Cannon', None, None, 'none', 0))
+        self.assertEqual(params, (' - Dewstate_-_Bass_Cannon', None, None, 'none', 0, None))
+
+    def test_the_fingerprint_is_written_even_on_a_decided_row(self):
+        self.store.record('BKRP104 - Darwin', LabelProposal('Brutal Kuts', 'tag:label', 90, 'BKRP'), 'f' * 64)
+
+        query, params = self.cursor.execute.call_args.args
+        self.assertEqual(params[-1], 'f' * 64)
+        self.assertIn('resolved_fingerprint = VALUES(resolved_fingerprint)', query)
+
+    def test_the_snapshot_reads_the_rules_version_and_every_row(self):
+        self.cursor.fetchone.return_value = (3, 987654)
+        self.cursor.fetchall.return_value = [('A - One', 'new', None, 'abc'), ('B - Two', 'rejected', 'then', None)]
+
+        snapshot = self.store.snapshot()
+
+        self.assertEqual(snapshot.rules_version, '3:987654')
+        self.assertEqual(snapshot.rows['A - One'], KnownProposal('new', None, 'abc'))
+        self.assertEqual(snapshot.rows['B - Two'].status, 'rejected')
+        first_query = self.cursor.execute.call_args_list[0].args[0]
+        self.assertIn('rules_catid_label', first_query)
+
+    def test_an_unreadable_snapshot_is_none(self):
+        self.cursor.execute.side_effect = RuntimeError('gone')
+
+        self.assertIsNone(self.store.snapshot())
+
+    def test_the_fingerprint_changes_with_each_of_its_inputs(self):
+        base = fingerprint('2:10:1.0', '3:99', NEW_ROW)
+
+        self.assertEqual(base, fingerprint('2:10:1.0', '3:99', KnownProposal('new', None, 'ignored')))
+        self.assertNotEqual(base, fingerprint('2:10:2.0', '3:99', NEW_ROW))
+        self.assertNotEqual(base, fingerprint('2:10:1.0', '4:99', NEW_ROW))
+        self.assertNotEqual(base, fingerprint('2:10:1.0', '3:99', KnownProposal('rejected', 'then', None)))
 
     def test_a_database_failure_does_not_raise(self):
         self.cursor.execute.side_effect = RuntimeError('gone')

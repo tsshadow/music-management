@@ -26,9 +26,11 @@ not style (see the comments at the entries).
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import cast
 
 from services.common.Helpers import RoundScope
 from services.common.Helpers.Cache import databaseHelpers
+from services.common.Helpers.FilterTableHelper import FilterTableHelper
 from services.tagger.Song.rules.AddMissingArtistToDatabaseRule import AddMissingArtistToDatabaseRule
 from services.tagger.Song.rules.CaptureDisplayArtistRule import CaptureDisplayArtistRule
 from services.tagger.Song.rules.CheckArtistRule import CheckArtistRule
@@ -75,8 +77,8 @@ def _check_artist_rule() -> CheckArtistRule:
 def _infer_artist_rule() -> InferArtistFromTitleRule:
     return InferArtistFromTitleRule(
         artist_db=databaseHelpers['library_artists'],
-        ignored_db=databaseHelpers['rules_ignored_artists'],
-        genre_db=databaseHelpers['rules_genres'],
+        ignored_db=cast(FilterTableHelper, databaseHelpers['rules_ignored_artists']),
+        genre_db=cast(FilterTableHelper, databaseHelpers['rules_genres']),
     )
 
 

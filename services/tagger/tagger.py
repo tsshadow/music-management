@@ -215,7 +215,9 @@ class Tagger:
         stack = ExitStack()
         if not self.parallel:
             return stack
-        pool = ThreadPoolExecutor(max_workers=TAGGER_WORKERS, initializer=scope.attach, thread_name_prefix='tagger')
+        pool = ThreadPoolExecutor(
+            max_workers=int(TAGGER_WORKERS), initializer=scope.attach, thread_name_prefix='tagger'
+        )
         self._pool = pool
 
         def shut_down():
@@ -345,7 +347,7 @@ class Tagger:
             executor = self._pool
             if executor is None:
                 # Called outside a round (a test, a caller of parse_folder): a pool of its own.
-                executor = stack.enter_context(ThreadPoolExecutor(max_workers=TAGGER_WORKERS))
+                executor = stack.enter_context(ThreadPoolExecutor(max_workers=int(TAGGER_WORKERS)))
             for start in range(0, len(files), self.PARALLEL_SLICE):
                 if self.stop_requested:
                     break

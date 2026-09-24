@@ -11,6 +11,24 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.73.0 (2026-09-24)
+
+- **The artist-image run no longer sends an alert every five minutes when Spotify slows it down.** It
+  now waits as long as Spotify asks and reports once at the end of the run.
+
+- **Speler:** de bediening blijft altijd in beeld, genres op één scrollbare rij, datum rechts,
+  en een tik op een genre of label opent die pagina weer. Liggend staan hoes en bediening naast
+  elkaar.
+- **Tablet:** de nummerlijst loopt niet meer over elkaar heen, en de systeembalken bedekken het
+  logo en de spelerbalk niet meer.
+- Artiesten staan weer met een spatie na de komma.
+
+- Admins can repair listening-history times that an earlier bug moved, using the play times LMS
+  kept: a dry run first, then the restore.
+
+- **Signing in on the web now gives you your own key, not one shared by everybody.** What the
+  management screens let you do follows your own account. Everyone signs in once more after this
+  update.
 ## Global Version 0.72.3 (2026-09-24)
 
 - **Accounts and login:** the last active admin can no longer be demoted or disabled, first-time

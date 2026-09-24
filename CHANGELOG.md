@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.73.0] - 2026-09-24
+
+### Added
+- **Listen times destroyed by bug 039 can be restored from LMS.** Until migrate_v33 every update
+  of a listen -- a rematch, a played-seconds top-up, an account merge -- moved its `listened_at` to
+  the moment of that update. LMS's own `listen` table still has the real time of every play it
+  relayed. `GET /api/scrobble/reconcile/lms` (admin) compares the two per user and track, joined by
+  file path across the `/music` vs `/mnt/music` spellings, and reports `exact` / `shifted` /
+  `muma_only` / `lms_only` with a sample; `POST` restores the shifted times (and, on request,
+  inserts plays muma lost, as source `lms-reconcile`) in one transaction per user. Idempotent;
+  ListenBrainz imports are never touched.
+
+### Fixed
+- **A Spotify rate limit during the artist-image run pushed an alert every five minutes for the whole
+  run.** Spotify answered `429` on about 40% of the lookups, and the fetcher logged each one as a
+  `WARNING` and went straight on to the next artist, which kept the limit tripped: 3,278 warnings on
+  2026-09-24, 1,650 in one hour. The Spotify provider now reads `Retry-After` (default 30 s, capped at
+  10 minutes) on the lookup and the token endpoint, and the fetcher pauses the whole run for that long
+  and asks about the same artist once more before deferring it. Per-artist non-answers are `INFO`; a
+  run logs at most two `WARNING`s, the first rate limit and a closing summary (artists deferred,
+  pauses, total pause time). Bug report 058.
+
+- **Een tik op een genre of label in de speler kwam nergens uit.** De speler sloot met
+  `history.back()`, maar die komt pas later aan; de navigatie ging eerst, en de late `popstate`
+  zette daarna de pagina onder de speler terug. `closeNowPlaying()` geeft nu een promise die pas
+  na die `popstate` afloopt, en de speler navigeert daarna. Geldt ook voor album, artiest en de
+  rijen onder "Hierna".
+- **Bij veel informatie verdween de bediening van de speler onder de navigatiebalk.** Het
+  schermvullende scherm is nu één schermhoogte: alleen de hoes krimpt mee, titel, artiesten,
+  albumregel, genres, sterren, voortgang en knoppen staan altijd in beeld. Genres en labels staan
+  op één rij die zijwaarts scrollt, de datum staat rechts naast het album, meerdere artiesten
+  blijven op één regel. Liggend (tablet, gedraaide telefoon) staan hoes en bediening naast elkaar;
+  voorheen was de hoes op een liggende tablet hoger dan het scherm en zag je geen enkele knop.
+- **Artiesten stonden zonder spatie achter de komma ("Catscan,Starving Insect").** Svelte haalde
+  de spatie weg uit `, ` binnen een `{#if}`. Overal waar `ArtistList` artiesten toont.
+- **De nummerlijst op een tablet schoof titel, artiest en album over elkaar.** De kolommen gingen
+  aan op de breedte van het scherm, terwijl de zijbalk daar een kwart van inneemt: bij ~500px
+  tabel bleef er ~65px over voor de titel. Kolommen verschijnen nu op de breedte van de tabel
+  zelf, cellen kappen af in plaats van over elkaar heen te lopen, de datum breekt niet meer af en
+  aanraakschermen hebben geen lege beoordelingskolom meer. De status- en navigatiebalk van een
+  tablet liggen niet meer over het logo en de spelerbalk.
+
+### Security
+- **The web login hands each user their own MuMa key instead of LMS's shared `api-key`.** LMS
+  answered `/muma/api/auth/login` itself and returned its own configured `api-key` to every user --
+  on production possibly MuMa's system key, which MuMa treats as an always-allowed superuser and the
+  web app showed as an administrator for whoever held it. The route is now MuMa's own login: nginx
+  sends it to `music-manager` directly (and LMS, when reached without nginx, passes it through), so
+  the answer is `{api_key, refresh_token, user: {permissions, role_name, is_admin, ...}}` for that
+  user. **Contract change:** a client that read LMS's flat `{id, username, display_name, is_admin,
+  api_key}` gets MuMa's shape instead; the web player is updated in the same change and MuMa Mobile
+  already used MuMa's login. **Every web user signs in once more:** a browser still holding the
+  shared key finds it verified as a system key at startup, and the session ends instead of counting
+  as an administrator. On the direct route nginx forwards the client as one `X-Forwarded-For`
+  address (the right-most one not written by a private-network proxy), so the login rate limit
+  cannot be reset by a forged address in front of the chain.
 ## [0.72.3] - 2026-09-24
 
 ### Removed

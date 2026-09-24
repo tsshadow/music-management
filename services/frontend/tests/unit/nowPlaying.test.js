@@ -352,18 +352,22 @@ describe("NowPlaying track info", () => {
     queueSource.set(null);
   });
 
-  it("shows the release date beside the album", () => {
+  it("puts the release date on the album line, right-aligned, with no separator", () => {
     renderNowPlaying({ track: { ...TRACK, originalDate: "2026-09-10" } });
 
-    expect(screen.getByTestId("now-playing-date").textContent).toBe("10-09-2026");
-    expect(screen.getByTestId("now-playing-album-line").textContent).toContain("·");
+    const date = screen.getByTestId("now-playing-date");
+    expect(date.textContent).toBe("10-09-2026");
+    // `ml-auto` pushes it to the right edge; the album truncates before it does.
+    expect(date.className).toContain("ml-auto");
+    expect(date.className).toContain("shrink-0");
+    expect(screen.getByTestId("now-playing-album-line").textContent).not.toContain("·");
   });
 
   it("shows only the date when the track has no album", () => {
     renderNowPlaying({ track: { ...TRACK, album: null, year: 2024 } });
 
     expect(screen.getByTestId("now-playing-date").textContent).toBe("2024");
-    expect(screen.getByTestId("now-playing-album-line").textContent).not.toContain("·");
+    expect(screen.queryByTestId("now-playing-album")).toBeNull();
   });
 
   it("renders no album line when there is neither album nor date", () => {
@@ -386,6 +390,60 @@ describe("NowPlaying track info", () => {
 
     expect(onclose).toHaveBeenCalled();
     expect(onnavigate).toHaveBeenCalledWith("genre:hardstyle");
+  });
+
+  it("keeps genre and label chips on one row that scrolls sideways", () => {
+    renderNowPlaying({
+      track: {
+        ...TRACK,
+        genre: "hardstyle,hardcore,uptempo,terror",
+        labels: ["Masters of Hardcore"],
+      },
+    });
+
+    // Every extra chip row used to push the transport further down, off the screen.
+    const row = screen.getByTestId("now-playing-meta");
+    expect(row.className).toContain("flex-nowrap");
+    expect(row.className).toContain("overflow-x-auto");
+    expect(row.className).not.toContain("flex-wrap");
+    expect(screen.getByText("terror").className).toContain("shrink-0");
+  });
+
+  it("waits for a close that returns a promise before navigating", async () => {
+    // `closeNowPlaying` consumes the history entry the player pushed; its `popstate`
+    // arrives later. Navigating before it lands let that `popstate` restore the page
+    // underneath, which is how a tap on a genre chip used to go nowhere.
+    let finishClose;
+    const onclose = vi.fn(() => new Promise((resolve) => (finishClose = resolve)));
+    const onnavigate = vi.fn();
+    renderNowPlaying({
+      track: { ...TRACK, genre: "hardstyle", labels: ["Q-dance"] },
+      onclose,
+      onnavigate,
+    });
+
+    await fireEvent.click(screen.getByText("Q-dance"));
+
+    expect(onclose).toHaveBeenCalled();
+    expect(onnavigate).not.toHaveBeenCalled();
+
+    finishClose();
+    await waitFor(() => expect(onnavigate).toHaveBeenCalledWith("label:Q-dance"));
+  });
+
+  it("builds the screen as a one-screen stage with the transport inside it", () => {
+    renderNowPlaying({ track: { ...TRACK, genre: "a,b,c,d,e,f" } });
+
+    // The stage is at least a screen tall and the artwork box is the only part that
+    // gives way, so the transport is always on the first screen.
+    const stage = screen.getByTestId("now-playing-stage");
+    expect(stage.className).toContain("min-h-full");
+    expect(stage.contains(screen.getByTestId("now-playing-transport"))).toBe(true);
+    const artwork = screen.getByTestId("now-playing-artwork");
+    expect(artwork.className).toContain("flex-1");
+    expect(artwork.className).toContain("min-h-0");
+    // Landscape (a tablet on its side) splits cover and controls into two columns.
+    expect(stage.className).toContain("landscape:grid-cols-2");
   });
 
   it("shows every label from the array LMS sends as its own chip", async () => {
@@ -810,7 +868,9 @@ describe("NowPlaying swipe-to-close and scrolling", () => {
     renderNowPlaying({ onclose });
 
     const cover = screen.getByTestId("now-playing-artwork");
-    const scrollContainer = cover.parentElement;
+    // The stage sits between the cover and the element that actually scrolls.
+    const scrollContainer = screen.getByTestId("now-playing-stage").parentElement;
+    expect(scrollContainer.className).toContain("overflow-y-auto");
     Object.defineProperty(scrollContainer, "scrollTop", { value: 50, configurable: true });
 
     await fireEvent.touchStart(cover, { touches: [{ clientY: 100 }] });

@@ -5,6 +5,7 @@ import {
   pushedHistoryEntries,
   openNowPlaying,
   closeNowPlaying,
+  NOW_PLAYING_CLOSE_TIMEOUT_MS,
 } from "../../src/lib/store.js";
 
 /**
@@ -46,6 +47,46 @@ describe("openNowPlaying / closeNowPlaying", () => {
     // pushed, so the next real back press does not hit it for no reason.
     expect(get(nowPlayingOpen)).toBe(false);
     expect(backSpy).toHaveBeenCalled();
+  });
+
+  it("settles only after the popstate for the consumed entry has arrived", async () => {
+    openNowPlaying();
+    vi.spyOn(window.history, "back").mockImplementation(() => {});
+    let settled = false;
+
+    const closing = closeNowPlaying().then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await closing;
+    expect(settled).toBe(true);
+  });
+
+  it("settles after a timeout when the popstate never arrives", async () => {
+    vi.useFakeTimers();
+    try {
+      openNowPlaying();
+      vi.spyOn(window.history, "back").mockImplementation(() => {});
+      let settled = false;
+      closeNowPlaying().then(() => {
+        settled = true;
+      });
+
+      await vi.advanceTimersByTimeAsync(NOW_PLAYING_CLOSE_TIMEOUT_MS);
+      expect(settled).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("settles at once when there is no pushed entry", async () => {
+    nowPlayingOpen.set(true);
+    pushedHistoryEntries.set(0);
+
+    await expect(closeNowPlaying()).resolves.toBeUndefined();
   });
 
   it("does not touch history when there is no pushed entry to consume", () => {

@@ -168,6 +168,14 @@ To maintain clean design governance and prevent ad-hoc style drift:
     (Bluetooth / headset / speaker) directly above the full-screen player's bottom icon row;
     tapping opens Android's output switcher, or Bluetooth settings without one. Native only:
     `platform.system.outputRoute()` is `null` in a browser and the line is not rendered.
+    Since I it is the left end of the bottom icon row.
+  - I (done, 2026-09-24): the full-screen player is a one-screen stage -- only the cover shrinks,
+    the transport is always visible; artists on one truncating line; album left and release date
+    right-aligned (`tabular-nums`) on one line, no `·`; genre/label chips on one sideways-scrolling
+    row; stars and the transport's outer glyphs aligned to the text edge (`-ml-2.5`, `-mx-2`);
+    landscape is two columns (cover left, info right), portrait tablets a centred `max-w-xl`
+    column. The song table shows optional columns by its own width (container queries), truncates
+    cells, never wraps the date, and has no rating column on touch devices.
 
 - **Done** — Android login/welcome screens brought in line with the web's `LoginPage.svelte`: filled/rounded
   dark inputs (`MuMa Mobile.TextInputLayout`), a solid-green pill CTA

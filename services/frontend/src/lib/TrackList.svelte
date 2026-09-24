@@ -420,27 +420,38 @@
 <!-- table-fixed: the title cell holds nowrap text, and under the default auto layout that
      text sets the column's minimum width, so a long title pushed the table past the phone's
      viewport and the whole page scrolled sideways. Fixed layout gives the title column what
-     is left after the sized columns and lets `truncate` do its work. -->
+     is left after the sized columns and lets `truncate` do its work.
+
+     The optional columns appear by the width of the table itself (`@container`, `@xl:` ...),
+     not by the viewport (`md:`/`lg:`): on a tablet the sidebar takes a quarter of the screen,
+     so a viewport breakpoint switched on album, genres, date, plays and rating for a table
+     only ~500px wide, and the title was left ~65px -- "TITANI..." with the artist spilling
+     over the album column. Each column now joins only once the table has room for it, and
+     the title keeps what is left. Touch devices never get the rating column: their stars
+     sit under the artist, so the column stayed empty there. -->
+<div class="@container w-full">
 <table class="w-full table-fixed border-collapse text-[#b3b3b3] text-sm">
   <thead class="border-b border-white/10">
     <tr>
-      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[50px] text-right hidden md:table-cell">#</th>
+      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[50px] text-right hidden @2xl:table-cell">#</th>
       <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em]">{#if !$isMobile}{$t('track.title')}{/if}</th>
       {#if !isQueue}
-        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] hidden md:table-cell">{$t('common.album')}</th>
-        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] hidden md:table-cell">{$t('nav.genres')}</th>
-        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-20 hidden md:table-cell">{$t('track.date')}</th>
-        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-12 hidden lg:table-cell text-center">{$t('track.plays')}</th>
-        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-32 hidden lg:table-cell text-center">{$t('filter.rating')}</th>
+        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[26%] hidden @xl:table-cell">{$t('common.album')}</th>
+        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[18%] hidden @3xl:table-cell">{$t('nav.genres')}</th>
+        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-28 hidden @2xl:table-cell">{$t('track.date')}</th>
+        <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-16 hidden @5xl:table-cell text-center">{$t('track.plays')}</th>
+        {#if !$isMobile}
+          <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-32 hidden @4xl:table-cell text-center">{$t('filter.rating')}</th>
+        {/if}
       {/if}
-      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[56px] md:w-[100px] text-right">
+      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[56px] @2xl:w-[88px] text-right">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="inline">
           <path d="M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM0 8a8 8 0 1116 0A8 8 0 010 8z"></path>
           <path d="M8 4a.5.5 0 01.5.5v3h3a.5.5 0 010 1H8a.5.5 0 01-.5-.5v-4A.5.5 0 018 4z"></path>
         </svg>
       </th>
       <!-- Phone rows reserve one touch target for the details sheet; desktop keeps hover actions. -->
-      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] text-center {isQueue || playlistId ? 'w-[84px] md:w-[100px]' : 'w-[48px] md:w-[100px]'}"></th>
+      <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] text-center {$isMobile ? (isQueue || playlistId ? 'w-[84px]' : 'w-[48px]') : isQueue || playlistId ? 'w-[84px] md:w-[100px]' : 'w-[48px] md:w-[100px]'}"></th>
     </tr>
   </thead>
   <tbody>
@@ -454,7 +465,7 @@
         ondblclick={() => { if (!$isMobile) playTrack(track); }}
         onkeydown={(e) => e.target === e.currentTarget && e.key === 'Enter' && playTrack(track)}
       >
-        <td class="p-2 px-4 text-right relative hidden md:table-cell">
+        <td class="p-2 px-4 text-right relative hidden @2xl:table-cell">
             <span class="block group-hover:hidden">{i + 1}</span>
             <button
               aria-label={$t('common.play')}
@@ -503,13 +514,18 @@
                   </span>
                 {/if}
               </span>
-              <ArtistList
-                artist={track.artist}
-                artistId={track.artistId}
-                artists={track.artists}
-                active={String($currentTrack?.id) === String(track.id)}
-                onnavigate={onnavigate}
-              />
+              <!-- `truncate` on a wrapper: the names are inline text, and one long
+                   unbroken credit ("Bössels,Revellers") otherwise ran on over the
+                   album column next to it. -->
+              <div class="min-w-0 truncate">
+                <ArtistList
+                  artist={track.artist}
+                  artistId={track.artistId}
+                  artists={track.artists}
+                  active={String($currentTrack?.id) === String(track.id)}
+                  onnavigate={onnavigate}
+                />
+              </div>
               {#if $isMobile && Number($trackListLines) === 3}
                 <div class="text-xs text-[#b3b3b3] truncate" data-testid="track-third-line">
                   {#if track.albumId}
@@ -541,7 +557,7 @@
           </div>
         </td>
         {#if !isQueue}
-          <td class="p-2 px-4 hidden md:table-cell">
+          <td class="p-2 px-4 hidden @xl:table-cell truncate" title={track.album || ''}>
             <span
               role="link"
               tabindex="0"
@@ -550,7 +566,7 @@
               onkeydown={(e) => e.key === 'Enter' && onnavigate && onnavigate(`album:${track.albumId}`)}
             >{track.album || ''}</span>
           </td>
-          <td class="p-2 px-4 text-xs italic opacity-80 max-w-[150px] truncate hidden md:table-cell" title={track.genre || ''}>
+          <td class="p-2 px-4 text-xs italic opacity-80 truncate hidden @3xl:table-cell" title={track.genre || ''}>
             {#each genreSegments(track.genre) as segment, i (i)}{#if segment.name}<span
                 role="link"
                 tabindex="0"
@@ -559,18 +575,18 @@
                 onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); if (onnavigate) onnavigate(`genre:${segment.name}`); } }}
               >{segment.text}</span>{:else}{segment.text}{/if}{/each}
           </td>
-          <td class="p-2 px-4 hidden md:table-cell">
+          <td class="p-2 px-4 hidden @2xl:table-cell whitespace-nowrap tabular-nums">
             {#if showDate}
               {formatDate(track.listenedAt)}
             {:else}
               {releaseDateLabel(track)}
             {/if}
           </td>
-          <td class="p-2 px-4 hidden lg:table-cell text-center text-xs opacity-70">
+          <td class="p-2 px-4 hidden @5xl:table-cell text-center text-xs opacity-70">
             {track.globalPlayCount || ''}
           </td>
-          <td class="p-2 px-4 hidden lg:table-cell">
-            {#if !$isMobile}
+          {#if !$isMobile}
+          <td class="p-2 px-4 hidden @4xl:table-cell">
               <div class="flex gap-0.5 justify-center">
                 {#each [1, 2, 3, 4, 5] as star (star)}
                   <button
@@ -584,15 +600,17 @@
                   </button>
                 {/each}
               </div>
-            {/if}
           </td>
+          {/if}
         {/if}
-        <td class="p-2 px-4 text-right text-xs md:text-sm">{durationCellText(track)}</td>
+        <td class="p-2 px-4 text-right text-xs md:text-sm whitespace-nowrap tabular-nums">{durationCellText(track)}</td>
         <td class="p-1 md:px-4 text-center">
           {#if $isMobile}
             <button class="w-10 h-10 bg-transparent border-none text-white text-xl cursor-pointer" aria-label={$t('track.details')} onclick={(e) => { e.stopPropagation(); detailsIndex = i; detailsTrack = track; }}>⋯</button>
           {/if}
-          <div class="hidden md:flex gap-1 justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+          <!-- Hover-only actions: a touch screen has no hover to reveal them, and on a tablet
+               (`md` by viewport) they took 100px of invisible width from the title. -->
+          <div class="{$isMobile ? 'hidden' : 'hidden md:flex'} gap-1 justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity">
               {#if isQueue}
                       <button
                         aria-label={$t('track.moveUp')}
@@ -736,6 +754,7 @@
     {/each}
   </tbody>
 </table>
+</div>
 
 {#if detailsTrack}
   <TrackDetailsSheet

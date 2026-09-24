@@ -318,6 +318,9 @@ export function openNowPlaying() {
   pushedHistoryEntries.update((n) => n + 1);
 }
 
+/** Upper bound on how long `closeNowPlaying` waits for its `popstate`. */
+export const NOW_PLAYING_CLOSE_TIMEOUT_MS = 400;
+
 /**
  * Closes Now Playing: the chevron, a swipe on the cover, and the shell/browser
  * back button all call this.
@@ -332,12 +335,35 @@ export function openNowPlaying() {
  * anything a second time; it still does the one thing that matters there,
  * decrementing `pushedHistoryEntries` to match. See `SidebarHeader.svelte` for
  * the same back-consuming pattern used for a real navigation entry.
+ *
+ * The returned promise settles once that `popstate` has been handled (or at
+ * once, when there was no entry to consume). A caller that navigates straight
+ * after closing -- a genre chip, the album, an artist -- has to wait for it:
+ * `history.back()` is asynchronous, so a navigation pushed before it lands is
+ * followed by a `popstate` for the entry underneath, and `App.svelte` then
+ * restores the page the player was opened over. That is how every tap on a
+ * genre or label chip on this screen used to end up back where it started.
+ * `NOW_PLAYING_CLOSE_TIMEOUT_MS` bounds the wait for a WebView that never
+ * delivers the event.
+ *
+ * @returns {Promise<void>}
  */
 export function closeNowPlaying() {
   nowPlayingOpen.set(false);
-  if (get(pushedHistoryEntries) > 0) {
+  if (get(pushedHistoryEntries) <= 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    let timer = null;
+    const settle = () => {
+      window.removeEventListener("popstate", settle);
+      clearTimeout(timer);
+      resolve();
+    };
+    // Registered after `App.svelte`'s own listener, so it runs after that one
+    // has already applied the entry's state and balanced the counter.
+    window.addEventListener("popstate", settle);
+    timer = setTimeout(settle, NOW_PLAYING_CLOSE_TIMEOUT_MS);
     window.history.back();
-  }
+  });
 }
 
 export const visibleSortOptions = writable({

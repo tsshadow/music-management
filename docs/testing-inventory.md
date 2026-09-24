@@ -127,7 +127,7 @@
   column (type, nullability, default, extra, collation) or index (name, columns, uniqueness) that
   differs. The expected-table set in `test_schema.py` is read from the `CREATE TABLE` statements
   (`tests/integration/schema_sources.py`), not kept by hand. Bug report 047.
-- Runs `mariadb:12.3`, what production and `docker/compose.test.yml` run;
+- Runs `mariadb:13.0`, what production and `docker/compose.test.yml` run;
   `MARIADB_VERSION=10.6 ./scripts/test/db-integration.sh` for the old server, which is the only one
   that reproduces bug report 039's implicit `ON UPDATE`.
 - With `CI` set, a database the suite cannot reach fails the job; locally it skips, loudly.

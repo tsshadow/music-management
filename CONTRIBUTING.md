@@ -28,7 +28,7 @@ two can never drift apart.
 ./scripts/test/music-management-unit.sh # unit tests + coverage gate (84%, source only)
 ./scripts/typecheck.sh                  # mypy over the strict module list
 ./scripts/typecheck.sh --all            # mypy over the whole tree (CI: allowed to fail, for now)
-./scripts/test/db-integration.sh        # endpoints + schema drift against MariaDB 12.3 (needs Docker)
+./scripts/test/db-integration.sh        # endpoints + schema drift against MariaDB 13.0 (needs Docker)
 ./scripts/test/frontend-unit.sh         # lint + svelte-check + vitest
 ```
 
@@ -65,7 +65,7 @@ selected went missing until the integration suite caught them.
 **Run the integration suite on 10.6 when you touch a TIMESTAMP column.**
 `MARIADB_VERSION=10.6 ./scripts/test/db-integration.sh` runs the server
 production's oldest tables were created on, which is the only one that reproduces
-an implicit `ON UPDATE CURRENT_TIMESTAMP` (bug report 039). The default is 12.3,
+an implicit `ON UPDATE CURRENT_TIMESTAMP` (bug report 039). The default is 13.0,
 what production runs now.
 
 **Type checking is per module.** `pyproject.toml` holds a loose floor for the

@@ -39,9 +39,9 @@ find_free_port() {
 }
 CONTAINER="${DB_INTEGRATION_CONTAINER:-muma-integration-db${CI_JOB_ID:+-$CI_JOB_ID}}"
 # Keep in step with docker/compose.test.yml and production. This read 10.6 for
-# months after both moved to 12.3, so every query was proven against a server
+# months after both moved to 12.3 (both are on 13.0 now), so every query was proven against a server
 # nothing runs.
-MARIADB_VERSION="${MARIADB_VERSION:-12.3}"
+MARIADB_VERSION="${MARIADB_VERSION:-13.0}"
 IMAGE="mariadb:${MARIADB_VERSION}"
 if [ -z "${DB_INTEGRATION_PORT:-}" ] && [ -n "${CI_JOB_ID:-}" ]; then
     HOST_PORT="$(find_free_port)"

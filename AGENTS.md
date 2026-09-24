@@ -301,7 +301,7 @@ To maintain high code quality, the system employs an automated test suite:
       `PYTHON_TOOLING_FORCE_CONTAINER=1` does the same locally. A test dependency therefore has
       to be in `requirements.txt`.
     - `./scripts/test/db-integration.sh` — every endpoint's SQL against a throwaway MariaDB
-      (12.3, like production; `MARIADB_VERSION=10.6` for the old server), plus the schema
+      (13.0, like production; `MARIADB_VERSION=10.6` for the old server), plus the schema
       bootstrap and every `migrate_*.sql` applied twice. The unit suite mocks the cursor, so this
       is the only thing that proves MariaDB accepts the queries. It also builds the schema twice
       from nothing — the fresh-stack way and the migrations way — and fails on any column or

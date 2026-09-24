@@ -55,6 +55,14 @@ class DatabaseBusyError(RuntimeError):
     """Every pooled connection stayed in use for longer than POOL_WAIT_SECONDS."""
 
 
+class DatabaseUnavailableError(RuntimeError):
+    """There is no pool to hand out a connection: MariaDB was unreachable when it was built.
+
+    main.py answers it with a 503, the same as DatabaseBusyError. The routers' own
+    "no connection" checks used to answer 500 with four different messages.
+    """
+
+
 def _connection_params() -> dict:
     """Host, port, credentials and database from the environment, shared by pool and probe."""
     host = os.getenv('DB_HOST', 'db')
@@ -117,6 +125,17 @@ def get_db_connection(wait_seconds: float | None = None):
             if time.monotonic() >= deadline:
                 raise DatabaseBusyError('No free database connection: the pool is exhausted') from exc
             time.sleep(_POOL_RETRY_SECONDS)
+
+
+def require_connection(conn: Any) -> Any:
+    """`conn` itself, or DatabaseUnavailableError when `get_db_connection` returned None.
+
+    Takes the connection rather than fetching it, so each router keeps calling its own
+    module-level `get_db_connection` -- the name its tests patch.
+    """
+    if not conn:
+        raise DatabaseUnavailableError('Database unavailable')
+    return conn
 
 
 def check_database() -> bool:

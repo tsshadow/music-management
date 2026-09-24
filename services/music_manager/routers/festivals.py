@@ -20,7 +20,7 @@ from pydantic import BaseModel
 
 from services.common.Helpers.FestivalHelper import Festival, FestivalHelper
 from services.music_manager import curation_rules
-from services.music_manager.database import get_db_connection, transaction
+from services.music_manager.database import get_db_connection, require_connection, transaction
 from services.music_manager.rbac import require_permission
 
 router = APIRouter(tags=['festivals'])
@@ -49,10 +49,8 @@ class ProbeRequest(BaseModel):
 
 
 def _connect():
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500, detail='No database connection')
-    return conn
+    """A pooled connection; no pool at all is a 503 (database.require_connection)."""
+    return require_connection(get_db_connection())
 
 
 def _key(value: str) -> str:

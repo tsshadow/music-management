@@ -23,9 +23,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from services.music_manager.database import get_db_connection
+from services.music_manager.database import get_db_connection, require_connection
 from services.music_manager.rbac import require_permission
-from services.music_manager.routers.management import verify_api_key
+from services.music_manager.routers.users import verify_api_key
 from services.music_manager.thread_registry import run_forever
 
 router = APIRouter(tags=['news'])
@@ -419,10 +419,8 @@ def run_news_recorder():
 
 
 def _require_db():
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500, detail='Database unavailable')
-    return conn
+    """A pooled connection; no pool at all is a 503 (database.require_connection)."""
+    return require_connection(get_db_connection())
 
 
 def _row_to_bulletin(row: dict) -> dict:

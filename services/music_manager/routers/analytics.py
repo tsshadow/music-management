@@ -6,7 +6,7 @@ count flat as scopes multiply, and lets a later player page reuse these directly
 new endpoint.
 """
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from services.music_manager.database import get_db_connection
 from services.music_manager.routers.analytics_filters import (
@@ -15,19 +15,13 @@ from services.music_manager.routers.analytics_filters import (
     build_filter,
     parse_filter,
 )
+from services.music_manager.routers.users import verify_api_key
 
 router = APIRouter(tags=['analytics'])
 
 # Years outside this range are tagging accidents, not releases.
 YEAR_FLOOR = 1950
 YEAR_CEILING = 2100
-
-
-def verify_api_key(x_api_key: str | None = Header(None)):
-    """Delegates to the canonical users.verify_api_key; kept as a name tests override."""
-    from services.music_manager.routers.users import verify_api_key as _verify
-
-    return _verify(x_api_key)
 
 
 def _query(sql_builder, f: LibraryFilter, fetch='all'):

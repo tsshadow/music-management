@@ -4,7 +4,7 @@ import os
 import threading
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
 from services.common.channels import (
     channel_from_path,
@@ -17,6 +17,7 @@ from services.common.Helpers.GenreRulesHelper import BLACK, GenreRulesHelper
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.rbac import require_admin
+from services.music_manager.routers.users import verify_api_key
 from services.music_manager.thread_registry import default_stale_after, run_forever
 from services.music_manager.track_relink import relink_orphaned_tracks, relink_track, track_has_media_file
 from services.scanner.Song.ReadonlySong import ReadonlySong
@@ -24,18 +25,6 @@ from services.tagger.Song.BaseSong import ExtensionNotSupportedException
 
 router = APIRouter(tags=['scanner'])
 logger = logging.getLogger('music-manager.scanner')
-
-
-def verify_api_key(x_api_key: str | None = Header(None)):
-    """Same system-or-user API key check the other routers use.
-
-    Delegates rather than re-implementing it (as library.py/management.py do) so there is one
-    place where "what counts as a valid key" is defined. Imported lazily because users.py is
-    itself a router module that main.py imports alongside this one.
-    """
-    from services.music_manager.routers.users import verify_api_key as _verify
-
-    return _verify(x_api_key)
 
 
 class ScannerManager:

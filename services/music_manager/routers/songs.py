@@ -12,8 +12,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from services.music_manager.database import get_db_connection, transaction
-from services.music_manager.routers.rating import verify_api_key
+from services.music_manager.database import get_db_connection, require_connection, transaction
+from services.music_manager.routers.users import verify_api_key
 from services.music_manager.song_version_worker import recompute_canonicals
 from services.music_manager.song_versions import SPLIT_PREFIX
 
@@ -36,10 +36,8 @@ class Pin(BaseModel):
 
 
 def _connection():
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=503, detail='Database unavailable')
-    return conn
+    """A pooled connection; no pool at all is a 503 (database.require_connection)."""
+    return require_connection(get_db_connection())
 
 
 @router.get('/{work_id}')

@@ -157,6 +157,10 @@ table unreadable `503` (with `Retry-After`). `GET /api/auth/verify`, which LMS a
 an unknown key. Until bug report 052 the
 `library` and `scrobbler` routers carried their own copy that caught every exception and answered
 `401 Invalid API key`, so a database outage (or a disabled account) told the client its key was wrong.
+After it, eleven routers still defined a `verify_api_key` that wrapped the shared one; since bug
+report 065 none does -- each imports `routers.users.verify_api_key` itself, and
+`services/music_manager/tests/test_router_api_key_dependency.py` fails if a router defines its own
+again. A router's own "no database connection" check answers `503` too (`database.require_connection`).
 
 ## The LMS `/muma` bridge (`MumaResource`)
 

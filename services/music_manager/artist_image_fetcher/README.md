@@ -89,3 +89,9 @@ pause time, failed downloads, non-answers per provider) -- plus at most one `ERR
 directory cannot be written. A `429` from Spotify or MusicBrainz, or a MusicBrainz `503` carrying
 `Retry-After`, pauses the whole run for the requested time (default 30 s, capped at 10 minutes).
 See bug reports 058 and 060.
+
+Missing configuration is reported once per process, not once per fetcher: the manager builds a new
+fetcher for every single-artist fetch. The Spotify credentials and Last.fm key (`WARNING`) and "no
+configured image provider" (`ERROR`) go through `providers.base.log_once`, which logs at full level
+the first time and at `DEBUG` after. Once a fetcher finds the setting present again the complaint is
+re-armed, so removing it later is reported again. See bug report 065.

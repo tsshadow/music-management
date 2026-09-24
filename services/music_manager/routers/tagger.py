@@ -3,11 +3,12 @@ import threading
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
 from services.common.config_store import ConfigStore
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
+from services.music_manager.routers.users import verify_api_key
 from services.music_manager.thread_registry import default_stale_after, run_forever
 from services.tagger.deep_run import deep_run_tick
 from services.tagger.tagger import Tagger, TagSingleFile
@@ -15,18 +16,6 @@ from services.tagger.walk_schedule import WalkSchedule
 
 router = APIRouter(tags=['tagger'])
 logger = logging.getLogger('music-manager.tagger')
-
-
-def verify_api_key(x_api_key: str | None = Header(None)):
-    """Same system-or-user API key check the other routers use.
-
-    Delegates rather than re-implementing it (as library.py/management.py do) so there is one
-    place where "what counts as a valid key" is defined. Imported lazily because users.py is
-    itself a router module that main.py imports alongside this one.
-    """
-    from services.music_manager.routers.users import verify_api_key as _verify
-
-    return _verify(x_api_key)
 
 
 class TaggerManager:

@@ -1,16 +1,10 @@
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from services.music_manager.database import get_db_connection
 from services.music_manager.rbac import has_permission
+from services.music_manager.routers.users import verify_api_key
 
 router = APIRouter(tags=['stats'])
-
-
-def verify_api_key(x_api_key: str | None = Header(None)):
-    """Delegates to the canonical users.verify_api_key; kept as a name tests override."""
-    from services.music_manager.routers.users import verify_api_key as _verify
-
-    return _verify(x_api_key)
 
 
 def init_db(_cursor):

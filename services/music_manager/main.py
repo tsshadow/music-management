@@ -18,7 +18,12 @@ from services.common.Helpers.EventService import event_service
 from services.common.Helpers.logging_setup import setup_logging
 from services.common.version_helper import get_version
 from services.music_manager.cors import ALLOWED_METHODS, allowed_origins
-from services.music_manager.database import DatabaseBusyError, check_database, get_db_connection
+from services.music_manager.database import (
+    DatabaseBusyError,
+    DatabaseUnavailableError,
+    check_database,
+    get_db_connection,
+)
 from services.music_manager.events_retention import run_events_retention
 from services.music_manager.feeds import snapshot as feeds_snapshot
 from services.music_manager.feeds.hardness import seed_genre_hardness
@@ -186,8 +191,9 @@ def _database_status() -> str:
 
 
 @app.exception_handler(DatabaseBusyError)
-async def database_busy_handler(_request: Request, exc: DatabaseBusyError):
-    """An exhausted connection pool is a temporary overload: answer 503, not 500 or a hang."""
+@app.exception_handler(DatabaseUnavailableError)
+async def database_busy_handler(_request: Request, exc: RuntimeError):
+    """An exhausted pool, or no pool at all, is a database outage: answer 503, not 500 or a hang."""
     return JSONResponse(status_code=503, content={'detail': str(exc)}, headers={'Retry-After': '5'})
 
 

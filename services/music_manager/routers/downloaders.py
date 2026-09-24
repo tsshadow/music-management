@@ -18,7 +18,7 @@ from services.downloader.timing import SOURCES, TIMING_FIELDS, load_timing
 from services.music_manager import downloader_coverage
 from services.music_manager.database import get_db_connection
 from services.music_manager.downloader_coverage import ConfiguredAccount, youtube_key
-from services.music_manager.routers.config import verify_api_key
+from services.music_manager.routers.users import verify_api_key
 
 router = APIRouter(tags=['downloaders'])
 

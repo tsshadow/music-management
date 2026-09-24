@@ -60,20 +60,26 @@ class ScannerManager:
         return hashlib.sha256(path.encode('utf-8')).hexdigest()
 
     def scan_single(self, path: str | Path, force=False):
-        # Without this the curation rules are still empty on a process that has never run a
-        # full scan, and process_file writes that emptiness: _write_genres deletes the
-        # track's rows before inserting the nothing it resolved. Rescanning one track from
-        # the UI or from LMS therefore used to strip its genres.
-        #
-        # A full reload rather than a load-once: curation decisions refresh the helpers in
-        # the Cache registry (see curation_rules.refresh), never this instance, so a cached
-        # map here would stay stale for the process lifetime. One query per user-triggered
-        # single scan is the cheaper mistake.
-        self.genre_helper.reload()
+        """Scan one file into the library tables; False when it could not be done right now.
+
+        The lock comes first and the rules second. The reload is a query, and it used to
+        run before the lock was even tried: while a full scan held the lock, every single
+        scan paid for a reload whose result it then threw away when it gave up.
+        """
         if not self._lock.acquire(timeout=self.SINGLE_SCAN_LOCK_TIMEOUT):
             logger.info('Full scan in progress, %s waits for the next scanner round', path)
             return False
         try:
+            # Without this the curation rules are still empty on a process that has never run a
+            # full scan, and process_file writes that emptiness: _write_genres deletes the
+            # track's rows before inserting the nothing it resolved. Rescanning one track from
+            # the UI or from LMS therefore used to strip its genres.
+            #
+            # A full reload rather than a load-once: curation decisions refresh the helpers in
+            # the Cache registry (see curation_rules.refresh), never this instance, so a cached
+            # map here would stay stale for the process lifetime. One query per user-triggered
+            # single scan is the cheaper mistake.
+            self.genre_helper.reload()
             logger.info('Processing single file scan request: %s', path)
             conn = get_db_connection()
             if not conn:

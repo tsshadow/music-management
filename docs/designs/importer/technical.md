@@ -71,11 +71,20 @@ The importer is a standalone Python service (`services/importer/importer_service
       existing folder; see the duplicate rule below).
     - Triggers `post_processing_songs(path)`, then sends **one** push for the release.
     - A folder it cannot place is recorded in `rules_label_proposals` via `label_resolver.resolve`,
-      which reads the tags of every track. That is done once per folder per process: the Mover keeps
-      `{folder: newest mtime}` in memory and resolves again only when something in the folder changed.
-      A decision on the proposal is not held up by this -- confirming one with a catalogue number
-      writes the `rules_catid_label` row the lookup above finds, and confirming one without moves the
-      folder from the API.
+      which reads the tags of every track. The proposal row carries a `resolved_fingerprint`: a hash
+      of the folder's signature (entry count, total size, newest mtime -- one `stat` walk, no file
+      opened), the `rules_catid_label` version (row count plus a CRC32 sum over every pair, since the
+      table has no timestamp) and the row's own `status`/`decided_at`. At the start of each cycle the
+      Mover reads the rules version and all proposal rows in two queries; a folder whose fingerprint
+      still matches is skipped without reading its tags or logging its per-folder warning, anything
+      else is resolved exactly as before and the new fingerprint written with the proposal. Stored in
+      the database, so a restart or deploy does not re-read the whole backlog. When the table cannot
+      be read the Mover falls back to an in-process `{folder: signature}` memory. Clearing the column
+      (`UPDATE rules_label_proposals SET resolved_fingerprint = NULL`) forces one full re-read; there
+      is no endpoint for it. Each cycle logs one `INFO` line: unplaceable folders checked, skipped as
+      unchanged, re-read. A decision on the proposal is not held up by any of this -- confirming one
+      with a catalogue number writes the `rules_catid_label` row the lookup above finds, and
+      confirming one without moves the folder from the API.
 5. **Post-Processing (`LabelSong`)**:
     - Walks the new directory.
     - For each audio file, instantiates `LabelSong(path)`.

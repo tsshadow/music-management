@@ -10,10 +10,10 @@ from services.common.Helpers import Quarantine
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.NotificationService import notification_service
-from services.importer.label_proposal_store import LabelProposalStore
+from services.importer.label_proposal_store import NEW_ROW, LabelProposalStore, ProposalSnapshot, fingerprint
 from services.importer.label_resolver import resolve
 from services.importer.release_compare import is_same_release
-from services.importer.settle import is_settled, is_staging, newest_mtime
+from services.importer.settle import folder_signature, is_settled, is_staging
 from services.tagger.announce import announce
 from services.tagger.Song.LabelSong import LabelSong
 
@@ -139,38 +139,56 @@ class Mover:
         self.settings = Settings()
         self.db_connector = DatabaseConnector()
         self.proposals = LabelProposalStore()
-        #: folder -> newest modification time inside it when its label was last resolved.
-        #: Lives as long as the process, which runs the import loop for weeks.
-        self._resolved: dict[str, float] = {}
+        #: folder -> signature when its label was last resolved by this process. Only
+        #: consulted when the proposal table cannot be read; see `_propose`.
+        self._resolved: dict[str, str] = {}
+        #: The proposal rows and rules version this cycle compares against.
+        self._snapshot: ProposalSnapshot | None = None
+        #: Unplaceable folders this cycle: seen, skipped as unchanged, and read again.
+        self._counts = {'checked': 0, 'skipped': 0, 'reread': 0}
 
-    def _propose(self, folder, cat_id):
+    def _propose(self, folder, cat_id, warning):
         """
         Record a release this step could not place, so it can be reviewed once instead
         of re-warned on every cycle for as long as it sits in the import folder.
 
         Resolving reads the tags of every track, over CIFS, and ~2.266 unplaceable
         folders sat in the import folder on production: every cycle re-read all of them
-        to arrive at the same answer. A folder is resolved again only when something in
-        it changed since the last time this process resolved it. A decision on the
-        proposal does not depend on this: confirming one with a catalogue number adds
-        the `rules_catid_label` row the lookup before this finds, and confirming one
-        without moves the folder itself.
+        to arrive at the same answer. The proposal row stores a fingerprint of what the
+        folder was resolved against -- its entries, size and newest mtime, the
+        catalogue-number rules, and the row's own decision -- and the tags are read
+        again only when that fingerprint no longer matches. Stored in the database, so
+        a restart or a deploy does not start the whole backlog over.
+
+        `warning` is logged only when the folder is actually resolved, i.e. the first
+        time and after a change: repeating it every cycle for thousands of folders is
+        what the per-cycle count in `run` replaces.
         """
+        self._counts['checked'] += 1
         src = join(self.settings.import_folder_path, folder)
-        try:
-            changed = newest_mtime(src)
-        except OSError as e:
-            logging.debug('Could not read %s to decide whether to resolve it again: %s', src, e)
-            changed = None
-        if changed is not None and self._resolved.get(folder) == changed:
-            logging.debug('Label proposal for %s is current; not reading its tags again', folder)
+        signature = folder_signature(src)
+        snapshot = self._snapshot
+        expected = None
+        if signature is not None and snapshot is not None:
+            row = snapshot.rows.get(folder, NEW_ROW)
+            expected = fingerprint(signature, snapshot.rules_version, row)
+            if row.fingerprint == expected:
+                self._counts['skipped'] += 1
+                return
+        elif signature is not None and self._resolved.get(folder) == signature:
+            # No database to compare with: fall back to what this process remembers.
+            self._counts['skipped'] += 1
             return
+        logging.warning(warning)
         import_folder_name = os.path.basename(self.settings.import_folder_path.rstrip(os.sep))
         self.proposals.record(
-            folder, resolve(src, import_folder_name=import_folder_name, catid_from_name=cat_id or None)
+            folder,
+            resolve(src, import_folder_name=import_folder_name, catid_from_name=cat_id or None),
+            expected,
         )
-        if changed is not None:
-            self._resolved[folder] = changed
+        self._counts['reread'] += 1
+        if signature is not None:
+            self._resolved[folder] = signature
 
     def get_label(self, key) -> str | None:
         query = 'SELECT `label` FROM `rules_catid_label` WHERE `catid` = %s'
@@ -228,8 +246,7 @@ class Mover:
             error_msg = (
                 f'CAT ID {cat_id} not found in database for folder {folder}. Please add it to rules_catid_label.'
             )
-            logging.warning(error_msg)
-            self._propose(folder, cat_id)
+            self._propose(folder, cat_id, error_msg)
             return
         src = join(self.settings.import_folder_path, folder)
         dst = join(self.settings.eps_folder_path, label, folder)
@@ -297,6 +314,8 @@ class Mover:
         Move folders to categorized destinations based on their library_labels.
         """
         logging.info('Starting Move Step')
+        self._snapshot = self.proposals.snapshot()
+        self._counts = {'checked': 0, 'skipped': 0, 'reread': 0}
         only_folders = [
             f
             for f in listdir(self.settings.import_folder_path)
@@ -312,5 +331,10 @@ class Mover:
                 self._move_folder(folder, cat_id, dry_run)
             else:
                 error_msg = f'No valid CAT ID found for folder: {folder}. Manual intervention required.'
-                logging.warning(error_msg)
-                self._propose(folder, None)
+                self._propose(folder, None, error_msg)
+        logging.info(
+            'Unplaceable folders: %d checked, %d skipped as unchanged, %d re-read',
+            self._counts['checked'],
+            self._counts['skipped'],
+            self._counts['reread'],
+        )

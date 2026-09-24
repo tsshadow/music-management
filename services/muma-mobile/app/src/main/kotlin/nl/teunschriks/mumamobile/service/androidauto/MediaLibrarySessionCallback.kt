@@ -189,17 +189,17 @@ class MediaLibrarySessionCallback :
     )
 
     override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
-        if (controller.controllerVersion != 0) {
-            // Let Media3 controller (for instance the MediaNotificationProvider)
-            // know about the custom layout right after it connected.
-            with(session) {
-                setCustomLayout(
-                    commandHandler.buildCustomCommands(
-                        session,
-                        commandHandler.canShuffleWrapper(session)
-                    )
-                )
-            }
+        // Publish the buttons again for every controller, legacy ones included: a legacy
+        // controller such as Android Auto reads them from the platform session, which this
+        // refreshes as well.
+        session.setMediaButtonPreferences(
+            commandHandler.buildCustomCommands(
+                session,
+                commandHandler.canShuffleWrapper(session)
+            )
+        )
+        if (controller.packageName == CarButtonsDiagnostics.ANDROID_AUTO_PACKAGE) {
+            CarButtonsDiagnostics.logAfterConnect(session)
         }
     }
 

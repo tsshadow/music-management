@@ -103,3 +103,28 @@ What the real time was: for live rows (`source` in `lms`, `lms-web`, `frontend`,
 `manual`), `created_at` was written when the scrobble arrived, so it approximates the listen to within
 the client's delay. For `source = 'listenbrainz'` rows `created_at` is the import time and says nothing
 about the listen; those can only be recovered from ListenBrainz itself.
+
+## Repair (2026-09-24)
+For every listen that was played through LMS the real time still exists: LMS's own `listen` table
+records `date_time` at the moment it relays the scrobble to muma, and nothing in LMS rewrites it.
+`services/music_manager/scrobble_reconcile.py` compares the two per user and track and classifies
+every listen as `exact` (within 5 s), `shifted` (a live, rewritten muma row later than an unclaimed
+LMS listen of the same track -- this bug's signature), `muma_only` (ListenBrainz, manual, pre-LMS;
+left alone) or `lms_only` (a listen muma lost). The rules, and the LMS-to-muma track join by file
+path, are in the 2026-09-24 section of
+[the technical design](../designs/ratings-scrobbling/technical.md). Admin only:
+
+1. Dry run, writes nothing: `GET /api/scrobble/reconcile/lms` (optionally `?username=user`).
+   Check `zones.consistent` is `true` -- if the process and the database session disagree about
+   the local zone, every stored time is off by a constant and the apply refuses to run. Read the
+   totals and the `sample.shifted` rows: `delta_seconds` should be positive and
+   `listened_at` should cluster on a few seconds (a rematch pass, a merge).
+2. Apply: `POST /api/scrobble/reconcile/lms` with `{"apply_shifted": true}` first;
+   `insert_lms_only` only after the `lms_only` sample has been checked by hand. It runs in the
+   background, one transaction per user; the outcome is on `GET /api/scrobble/reconcile/lms/status`
+   and as an INFO event "Listens reconciled against LMS". UNIQUE collisions are skipped and counted.
+3. Verify: the dry run again shows `shifted: 0`, and `GET /api/listening/timeline` for an affected
+   user no longer shows plays piled onto the rematch/merge seconds.
+
+Listens that never went through LMS (`source = 'listenbrainz'`, pre-LMS history) are not touched;
+those can only be recovered from ListenBrainz itself.

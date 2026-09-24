@@ -1,5 +1,6 @@
 import os
 import re
+import threading
 from difflib import SequenceMatcher, get_close_matches
 
 from services.common.Helpers.FilterTableHelper import FilterTableHelper
@@ -167,6 +168,8 @@ def set_cleaned_artist(song, library_artists: str | list[str], artist_db=None, s
 
 
 class InferArtistFromTitleRule(TagRule):
+    """Reads the artist out of a download's title with the first of its sub-rules that matches."""
+
     def __init__(
         self,
         artist_db=None,
@@ -178,7 +181,6 @@ class InferArtistFromTitleRule(TagRule):
 
         self.artist_db = artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
         self.festival_helper = festival_helper or databaseHelpers.get('festivalHelper')
-        artist_names = set(artist_index(self.artist_db))
         self.genre_db = genre_db or databaseHelpers.get('rules_genres')
         if self.genre_db:
             all_genres = self.genre_db.get_all()
@@ -204,25 +206,64 @@ class InferArtistFromTitleRule(TagRule):
         self.ignored_without_correction = {
             name.lower() for name in ignored_names if not ignored_helper.get_corrected(name)
         }
+        self._ignored_names = ignored_names
+        self._all_genres = all_genres
+        # The rule outlives a file since the rule stack is built once per round (see
+        # services/tagger/Song/rule_stack.py), and library_artists publishes a new snapshot
+        # mid-round -- once a minute, and whenever an artist is added. A rule built per file
+        # always saw the latest one; `_current_rules` rebuilds the name sets when the
+        # snapshot changes, so a round-long rule sees exactly what a per-file one did.
+        self._lock = threading.Lock()
+        self._artist_snapshot = self._snapshot_of_artists()
+        names = self._artist_snapshot if self._artist_snapshot is not None else artist_index(self.artist_db)
+        self.rules = self._build_rules(set(names))
+
+    def _snapshot_of_artists(self):
+        """The artist helper's current snapshot object, or None when it has no such thing.
+
+        Only a caching TableHelper publishes one: it replaces its map on every change and
+        never mutates it, so identity says whether anything changed. A test double has no
+        snapshot to follow and keeps the names it was built with, as it always did.
+        """
+        if isinstance(self.artist_db, TableHelper):
+            return self.artist_db.lowercase_map()
+        return None
+
+    def _build_rules(self, artist_names: set[str]) -> list[TagRule]:
+        """The sub-rules, in the order they are tried, over one set of artist names."""
+        # See the comment on ignored_without_correction in __init__.
         artist_names -= self.ignored_without_correction
-        self.rules = [
+        return [
             InferArtistFromPresentsOrColonRule(self.artist_db),
-            InferArtistFromTitleAtRule(ignored_names, self.artist_db),
-            InferArtistFromEventPrefixRule(artist_names, self.artist_db, all_genres, self.festival_helper),
+            InferArtistFromTitleAtRule(self._ignored_names, self.artist_db),
+            InferArtistFromEventPrefixRule(artist_names, self.artist_db, self._all_genres, self.festival_helper),
             InferArtistFromTitleByRule(artist_names, self.artist_db),
             InferArtistFromTitleDotRule(artist_names, self.artist_db),
             InferArtistFromTitleSingleDashRule(artist_names, self.artist_db, self.festival_helper),
-            InferArtistFromTitleMultiDashRule(artist_names, self.artist_db, all_genres, self.festival_helper),
+            InferArtistFromTitleMultiDashRule(artist_names, self.artist_db, self._all_genres, self.festival_helper),
             InferArtistFromFirstSegmentFallbackRule(
                 self.artist_db, self.festival_helper, self.ignored_without_correction
             ),
-            InferArtistFromTitleFallbackRule(ignored_names),
+            InferArtistFromTitleFallbackRule(self._ignored_names),
         ]
+
+    def _current_rules(self) -> list[TagRule]:
+        """The sub-rules over the artist snapshot as it is now; rebuilt only when it changed."""
+        if self._artist_snapshot is None:
+            return self.rules
+        snapshot = self._snapshot_of_artists()
+        if snapshot is self._artist_snapshot:
+            return self.rules
+        with self._lock:
+            if snapshot is not self._artist_snapshot:
+                self.rules = self._build_rules(set(snapshot))
+                self._artist_snapshot = snapshot
+            return self.rules
 
     def apply(self, song):
         if not song.tag_collection.has_item(ORIGINAL_TITLE):
             song.tag_collection.set_item(ORIGINAL_TITLE, song.tag_collection.get_item_as_string(TITLE))
-        for rule in self.rules:
+        for rule in self._current_rules():
             if rule.apply(song):
                 print(f"[InferArtistFromTitle] Applied rule: {rule.__class__.__name__} on '{song.path()}'")
                 return

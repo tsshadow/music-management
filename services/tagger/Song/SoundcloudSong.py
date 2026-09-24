@@ -1,21 +1,7 @@
 from services.common.config_store import ConfigStore as Settings
-from services.common.Helpers.Cache import databaseHelpers
 from services.tagger.constants import ALBUM, ALBUM_ARTIST, ARTIST, COPYRIGHT, PUBLISHER
+from services.tagger.Song import rule_stack
 from services.tagger.Song.BaseSong import BaseSong
-from services.tagger.Song.rules.AddMissingArtistToDatabaseRule import AddMissingArtistToDatabaseRule
-from services.tagger.Song.rules.CaptureDisplayArtistRule import CaptureDisplayArtistRule
-from services.tagger.Song.rules.CheckArtistRule import CheckArtistRule
-from services.tagger.Song.rules.CleanTagsRule import CleanTagsRule
-from services.tagger.Song.rules.CleanTitleRule import CleanTitleRule
-from services.tagger.Song.rules.InferArtistFromTitleRule import InferArtistFromTitleRule
-from services.tagger.Song.rules.InferFeatureFromTitleRule import InferFeatureFromTitleRule
-from services.tagger.Song.rules.InferFestivalFromTitleRule import InferFestivalFromTitleRule
-from services.tagger.Song.rules.InferGenreFromArtistRule import InferGenreFromArtistRule
-from services.tagger.Song.rules.InferGenreFromSubgenreRule import InferGenreFromSubgenreRule
-from services.tagger.Song.rules.InferPodcastFromTitleRule import InferPodcastFromTitleRule
-from services.tagger.Song.rules.InferRemixerFromTitleRule import InferRemixerFromTitleRule
-from services.tagger.Song.rules.ReplaceInvalidUnicodeRule import ReplaceInvalidUnicodeRule
-from services.tagger.Song.rules.ResolveGenreRule import ResolveGenreRule
 
 s = Settings()
 
@@ -42,43 +28,8 @@ class SoundcloudSong(BaseSong):
         if not self.copyright() and self.calculate_copyright():
             self.tag_collection.set_item(COPYRIGHT, self.calculate_copyright())
         self.tag_collection.set_item(PUBLISHER, self._publisher)
-        self.rules.append(CleanTitleRule())
-        self.rules.append(
-            InferArtistFromTitleRule(
-                artist_db=databaseHelpers['library_artists'],
-                ignored_db=databaseHelpers['rules_ignored_artists'],
-                genre_db=databaseHelpers['rules_genres'],
-            )
-        )
-        self.rules.append(
-            InferRemixerFromTitleRule(
-                artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']
-            )
-        )
-        self.rules.append(InferFeatureFromTitleRule())
-        # SoundCloud is where the warm-up mixes and podcast-length sets land.
-        self.rules.append(InferFestivalFromTitleRule(helper=databaseHelpers['festivalHelper']))
-        self.rules.append(InferPodcastFromTitleRule(helper=databaseHelpers['podcastHelper']))
-        self.rules.append(CleanTagsRule())
-        self.rules.append(InferGenreFromArtistRule(helper=databaseHelpers['artistGenreHelper']))
-        self.rules.append(InferGenreFromSubgenreRule(databaseHelpers['subgenreHelper']))
-        self.rules.append(CleanTagsRule())
-        self.rules.append(
-            AddMissingArtistToDatabaseRule(
-                artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']
-            )
-        )
-        self.rules.append(ResolveGenreRule(databaseHelpers['genre_rules']))
-        self.rules.append(CleanTagsRule())
-        self.rules.append(
-            CheckArtistRule(
-                artist_db=databaseHelpers['library_artists'], ignored_db=databaseHelpers['rules_ignored_artists']
-            )
-        )
-        # Last of the artist rules on purpose: it writes the credit the title stated
-        # only if that credit still names the artists the file ended up with.
-        self.rules.append(CaptureDisplayArtistRule())
-        self.rules.append(ReplaceInvalidUnicodeRule())
+        # Built once per tagging round, not per file; see rule_stack.
+        self.rules.extend(rule_stack.rules_for(rule_stack.SOUNDCLOUD))
         super().parse()
 
     def calculate_copyright(self):

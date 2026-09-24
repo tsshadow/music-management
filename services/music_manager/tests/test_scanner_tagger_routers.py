@@ -167,6 +167,27 @@ class ScannerManagerTest(unittest.TestCase):
             self.manager.scan_single('/music/EPs/a.flac')
         reload_rules.assert_called_once()
 
+    def test_a_single_file_scan_that_cannot_get_the_lock_does_not_load_the_rules(self):
+        # The reload is a query. It used to run before the lock was tried, so while a full
+        # scan held the lock every single scan paid for rules it then never used.
+        self.manager.SINGLE_SCAN_LOCK_TIMEOUT = 0.01
+        self.manager._lock.acquire()
+        self.addCleanup(self.manager._lock.release)
+        with patch.object(self.manager.genre_helper, 'reload') as reload_rules:
+            self.assertFalse(self.manager.scan_single('/music/a.mp3'))
+        reload_rules.assert_not_called()
+
+    def test_a_single_file_scan_loads_the_rules_while_holding_the_lock(self):
+        held = []
+        with (
+            patch.object(
+                self.manager.genre_helper, 'reload', side_effect=lambda: held.append(self.manager._lock.locked())
+            ),
+            patch.object(scanner_router, 'get_db_connection', return_value=None),
+        ):
+            self.manager.scan_single('/music/a.mp3')
+        self.assertEqual(held, [True])
+
     def test_a_full_run_reloads_the_curation_rules_first(self):
         with (
             patch.object(scanner_router.os.path, 'exists', return_value=True),

@@ -184,6 +184,9 @@ To maintain clean design governance and prevent ad-hoc style drift:
     unset star is a 1.5px outline in the secondary grey `#B3B3B3` -- "no rating yet", never the
     faded `white/10` fill that read as disabled. Scope: `NowPlaying.svelte` only; the desktop bar,
     track rows and the details sheet keep their own compact stars.
+  - K (done, 2026-09-24): the full-screen player's bottom icon row carries the news of the hour
+    button directly after the radio button, styled like it: 24px newspaper glyph (the desktop
+    bar's), `#B3B3B3` idle, `#b266ff` while a bulletin plays, `aria-pressed` (bug report 059).
 
 - **Done** — Android login/welcome screens brought in line with the web's `LoginPage.svelte`: filled/rounded
   dark inputs (`MuMa Mobile.TextInputLayout`), a solid-green pill CTA

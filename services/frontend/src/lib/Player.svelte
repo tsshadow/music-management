@@ -1816,6 +1816,8 @@
       ontoggleRadio={toggleRadio}
       onstartRadio={startRadio}
       oncloseRadioPicker={() => (showRadioPicker = false)}
+      newsActive={newsSnapshot !== null}
+      ontoggleNews={toggleNews}
       {onnavigate}
     />
   {:else}

@@ -69,6 +69,11 @@
     radioChannels = [],
     showRadioPicker = false,
     ontoggleRadio = null,
+    // The news bulletin: `newsActive` tints the button while one plays (`Player.svelte`'s
+    // `newsSnapshot !== null`), `ontoggleNews` is its `toggleNews`. The desktop bar always had
+    // this button; the phone lost it when the full-screen view moved into this component.
+    newsActive = false,
+    ontoggleNews = null,
     onstartRadio = null,
     oncloseRadioPicker = null,
     onclose,
@@ -756,6 +761,21 @@
               >
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
                   <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"></path>
+                </svg>
+              </button>
+            {/if}
+            {#if ontoggleNews}
+              <!-- Same newspaper glyph and purple as the desktop bar's news button. -->
+              <button
+                class="shrink-0 bg-transparent border-none p-2 cursor-pointer transition-colors hover:text-white {newsActive ? 'text-[#b266ff]' : 'text-[#b3b3b3]'}"
+                data-testid="now-playing-news"
+                onclick={ontoggleNews}
+                title={newsActive ? $t('news.playing') : $t('news.play')}
+                aria-label={$t('news.play')}
+                aria-pressed={newsActive}
+              >
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+                  <path d="M20 3H4a2 2 0 0 0-2 2v12a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V5a2 2 0 0 0-2-2zM5 18a1 1 0 0 1-1-1V5h12v12a3 3 0 0 0 .17 1zm14 0a1 1 0 0 1-1-1V5h2v12a1 1 0 0 1-1 1zM6 7h8v2H6zm0 4h8v2H6zm0 4h5v2H6z"></path>
                 </svg>
               </button>
             {/if}

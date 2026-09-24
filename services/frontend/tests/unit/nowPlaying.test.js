@@ -520,6 +520,29 @@ describe("NowPlaying track info", () => {
     expect(ontoggleRadio).toHaveBeenCalled();
   });
 
+  it("shows a news button only when the player wires one, tinted while a bulletin plays", async () => {
+    renderNowPlaying();
+    expect(screen.queryByTestId("now-playing-news")).toBeNull();
+
+    const ontoggleNews = vi.fn();
+    renderNowPlaying({ ontoggleNews, newsActive: true });
+    const button = screen.getByTestId("now-playing-news");
+    expect(button.getAttribute("aria-label")).toBe("Nieuws van het uur");
+    expect(button.getAttribute("aria-pressed")).toBe("true");
+    expect(button.className).toContain("b266ff");
+    await fireEvent.click(button);
+    expect(ontoggleNews).toHaveBeenCalled();
+  });
+
+  it("leaves the news button grey and unpressed while no bulletin plays", () => {
+    renderNowPlaying({ ontoggleNews: vi.fn(), newsActive: false });
+
+    const button = screen.getByTestId("now-playing-news");
+    expect(button.getAttribute("aria-pressed")).toBe("false");
+    expect(button.className).toContain("text-[#b3b3b3]");
+    expect(button.className).not.toContain("b266ff");
+  });
+
   it("offers the channel choice as a bottom sheet and starts the tapped channel", async () => {
     const onstartRadio = vi.fn();
     const channels = [

@@ -41,6 +41,7 @@ class Echo(BaseHTTPRequestHandler):
             "method": self.command,
             "path": self.path,
             "x_api_key": self.headers.get("X-API-Key"),
+            "x_forwarded_for": self.headers.get("X-Forwarded-For"),
         }).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -69,9 +70,13 @@ import http.client, sys
 # http.client sends the path verbatim; urllib would re-quote it and hide
 # exactly the double-encoding this test is here to catch.
 method, path = sys.argv[1], sys.argv[2]
+headers = {"X-API-Key": "k1"}
+# Optional third argument: the X-Forwarded-For an outer proxy would send.
+if len(sys.argv) > 3:
+    headers["X-Forwarded-For"] = sys.argv[3]
 try:
     conn = http.client.HTTPConnection("proxy", 80, timeout=5)
-    conn.request(method, path, headers={"X-API-Key": "k1"})
+    conn.request(method, path, headers=headers)
     print(conn.getresponse().read().decode())
 except Exception as e:
     print("ERROR", e)
@@ -123,9 +128,11 @@ expect GET    "/muma/api/artists/images/stats"                          music-ma
 expect POST   "/muma/api/artists/12/fetch-image"                        music-manager "/api/artists/12/fetch-image"
 expect GET    "/muma/api/tracks/12/versions"                            music-manager "/api/tracks/12/versions"
 expect GET    "/muma/api/admin-ish/thing"                               music-manager "/api/admin-ish/thing"
+# The login goes to MuMa, which answers with the user's own key. LMS used to
+# answer it itself, with its own api-key for everybody.
+expect POST   "/muma/api/auth/login"                                    music-manager "/api/auth/login"
 
 # LMS-owned routes: the ones MumaResource implements itself, path untouched.
-expect POST   "/muma/api/auth/login"                                    lms "/muma/api/auth/login"
 expect GET    "/muma/api/admin/libraries?u=user&p=x"                    lms "/muma/api/admin/libraries?u=user&p=x"
 expect DELETE "/muma/api/admin/libraries/4?u=user&p=x"                  lms "/muma/api/admin/libraries/4?u=user&p=x"
 expect GET    "/muma/api/admin/subsonic-token?u=user&username=bob"      lms "/muma/api/admin/subsonic-token?u=user&username=bob"
@@ -140,6 +147,28 @@ expect GET    "/muma/users/settings/frontend?u=user&p=x"                lms "/mu
 # The two namespaces that were never MuMa's.
 expect GET    "/rest/ping.view?u=user"                                  lms "/rest/ping.view?u=user"
 expect GET    "/index.html"                                             lms "/spotify/index.html"
+
+# expect_forwarded_for <X-Forwarded-For sent> <X-Forwarded-For MuMa must see>
+# The test client sits on a Docker bridge, a trusted private network, so it
+# plays the part of Nginx Proxy Manager: whatever the browser sent comes first,
+# the address NPM saw is appended last. MuMa's login rate limit keys on the
+# left-most entry, so it must receive the right-most untrusted address alone --
+# never a value the browser chose.
+expect_forwarded_for() {
+    local sent="$1" want="$2" got seen
+    got=$(docker exec "lms-stub-$TAG" python /ask.py POST /muma/api/auth/login "$sent" 2>&1 || true)
+    seen=$(printf '%s' "$got" | sed -n 's/.*"x_forwarded_for": "\([^"]*\)".*/\1/p')
+    if [ "$seen" = "$want" ]; then
+        echo "ok    X-Forwarded-For '$sent' -> MuMa sees '$seen'"
+    else
+        echo "FAIL  X-Forwarded-For '$sent' -> MuMa sees '$seen'; want '$want'"
+        failures=$((failures + 1))
+    fi
+}
+
+expect_forwarded_for "198.51.100.7"                          "198.51.100.7"
+expect_forwarded_for "203.0.113.9, 198.51.100.7"             "198.51.100.7"
+expect_forwarded_for "203.0.113.9, 198.51.100.7, 192.0.2.30" "198.51.100.7"
 
 if [ "$failures" -ne 0 ]; then
     echo "$failures routing case(s) failed"

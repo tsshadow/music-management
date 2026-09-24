@@ -6,65 +6,44 @@
 
 #include "core/http/ProxyContinuation.hpp"
 
-#include <atomic>
 #include <utility>
 
-#include <boost/asio/steady_timer.hpp>
+#include <Wt/Http/ResponseContinuation.h>
 
 #include "core/http/IClient.hpp"
+
+#include "ProxyState.hpp"
 
 namespace lms::core::http
 {
     namespace
     {
-        // Carries one proxied request across the two passes of its continuation.
-        struct ProxyState
-        {
-            std::atomic<bool> settled{};
-            ProxyAnswer answer;
-            std::unique_ptr<boost::asio::steady_timer> deadline;
-        };
+        using State = detail::ProxyState<Wt::Http::ResponseContinuation>;
 
         std::shared_ptr<const ProxyAnswer> takeAnswer(Wt::Http::ResponseContinuation& continuation)
         {
-            const auto state{ Wt::cpp17::any_cast<std::shared_ptr<ProxyState>>(continuation.data()) };
+            const auto state{ Wt::cpp17::any_cast<std::shared_ptr<State>>(continuation.data()) };
 
             // Aliasing: hands out the answer while the state that owns it stays alive.
-            return std::shared_ptr<const ProxyAnswer>{ state, &state->answer };
+            return std::shared_ptr<const ProxyAnswer>{ state, &state->answer() };
         }
 
         template<typename Params>
-        void fillCallbacks(Params& params, const std::shared_ptr<ProxyState>& state, Wt::Http::ResponseContinuation* continuation)
+        void fillCallbacks(Params& params, const std::shared_ptr<State>& state)
         {
-            // Whichever gets there first -- the answer, a delivery failure, or the deadline --
-            // settles the request; the others find it settled and do nothing.
-            auto settle = [state, continuation](int status, std::string contentType, std::string body) {
-                if (state->settled.exchange(true))
-                    return;
-
-                state->answer.status = status;
-                state->answer.contentType = std::move(contentType);
-                state->answer.body = std::move(body);
-
-                boost::system::error_code ignored;
-                state->deadline->cancel(ignored);
-
-                continuation->haveMoreData();
-            };
-
             // The caller decides what a non-200 means, so every status it gets is its own.
             params.treatAnyStatusAsSuccess = true;
 
-            params.onSuccessFunc = [settle](const Wt::Http::Message& msg) {
+            params.onSuccessFunc = [state](const Wt::Http::Message& msg) {
                 std::string contentType;
                 if (const std::string* header{ msg.getHeader("Content-Type") })
                     contentType = *header;
 
-                settle(msg.status(), std::move(contentType), msg.body());
+                state->settle(msg.status(), std::move(contentType), msg.body());
             };
 
-            params.onFailureFunc = [settle]() {
-                settle(502, {}, {}); // Bad Gateway
+            params.onFailureFunc = [state]() {
+                state->settle(502, {}, {}); // Bad Gateway
             };
         }
 
@@ -75,31 +54,24 @@ namespace lms::core::http
             if (Wt::Http::ResponseContinuation * continuation{ request.continuation() })
                 return takeAnswer(*continuation);
 
-            auto state{ std::make_shared<ProxyState>() };
-
             // Nothing has been written to the response yet, so its status and mime type are still
             // free to be set on the way back in.
             Wt::Http::ResponseContinuation* continuation{ response.createContinuation() };
+
+            // Wt already owns the continuation through a shared_ptr (WResource::addContinuation),
+            // so this observes that ownership rather than starting a second one.
+            auto state{ std::make_shared<State>(continuation->weak_from_this(), ioContext) };
             continuation->setData(state);
             continuation->waitForMoreData();
 
-            fillCallbacks(params, state, continuation);
+            // Whichever gets there first -- the answer, a delivery failure, or the deadline --
+            // settles the request; the others find it settled and do nothing.
+            fillCallbacks(params, state);
 
             // The send queue retries and backs off, so an answer is bounded but not promptly
             // bounded. Without this, one request MuMa never answers holds a connection open for
             // minutes.
-            state->deadline = std::make_unique<boost::asio::steady_timer>(ioContext);
-            state->deadline->expires_after(deadline);
-            state->deadline->async_wait([state, continuation](const boost::system::error_code& ec) {
-                if (ec == boost::asio::error::operation_aborted)
-                    return;
-
-                if (state->settled.exchange(true))
-                    return;
-
-                state->answer.status = 504; // Gateway Timeout
-                continuation->haveMoreData();
-            });
+            state->armDeadline(deadline);
 
             send(std::move(params));
 

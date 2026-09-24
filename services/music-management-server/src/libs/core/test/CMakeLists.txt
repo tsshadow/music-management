@@ -8,6 +8,7 @@ add_executable(test-core
 	LiteralString.cpp
 	PartialDateTime.cpp
 	Path.cpp
+	ProxyState.cpp
 	RecursiveSharedMutex.cpp
 	SendQueueRetryPolicy.cpp
 	Service.cpp

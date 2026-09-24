@@ -3,7 +3,7 @@ import time
 
 import requests
 
-from .base import ArtistImageProvider, ProviderUnavailable, credential
+from .base import ArtistImageProvider, ProviderRateLimited, ProviderUnavailable, credential
 
 
 class SpotifyArtistImageProvider(ArtistImageProvider):
@@ -13,6 +13,10 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
     DEFAULT_TOKEN_LIFETIME = 3600
     # Renew this many seconds before the token would expire.
     TOKEN_REFRESH_MARGIN = 60
+    # Wait this long after a 429 that carries no usable Retry-After header.
+    DEFAULT_RETRY_AFTER = 30
+    # Never wait longer than this on one 429, whatever the header says.
+    MAX_RETRY_AFTER = 600
 
     def __init__(self, client_id=None, client_secret=None):
         self.client_id = client_id or credential('spotify_client_id', 'SPOTIFY_CLIENT_ID')
@@ -32,6 +36,31 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
     @property
     def configured(self):
         return bool(self.client_id and self.client_secret)
+
+    def _retry_after(self, response):
+        """Seconds to wait after a 429, read from `Retry-After` and bounded.
+
+        Spotify sends whole seconds. A missing, unreadable or HTTP-date value falls
+        back to `DEFAULT_RETRY_AFTER`; the result lies between 1 s and
+        `MAX_RETRY_AFTER`, so a hostile or broken header cannot park the run for a day.
+        """
+        headers = getattr(response, 'headers', None) or {}
+        try:
+            value = headers.get('Retry-After')
+        except AttributeError:
+            value = None
+        seconds = float(self.DEFAULT_RETRY_AFTER)
+        if isinstance(value, (str, int, float)) and not isinstance(value, bool):
+            try:
+                seconds = float(value)
+            except ValueError:
+                seconds = float(self.DEFAULT_RETRY_AFTER)
+        return min(max(seconds, 1.0), float(self.MAX_RETRY_AFTER))
+
+    def _rate_limited(self, what, response):
+        """The ProviderRateLimited for a 429 on `what`, carrying the bounded wait."""
+        retry_after = self._retry_after(response)
+        return ProviderRateLimited(f'Spotify: {what} answered 429 (retry after {retry_after:.0f}s)', retry_after)
 
     def _get_token(self):
         """Return a valid client-credentials access token, requesting a new one when needed.
@@ -55,6 +84,8 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
             )
         except Exception as e:
             raise ProviderUnavailable(f'Spotify: token request failed: {e}') from e
+        if resp.status_code == 429:
+            raise self._rate_limited('token request', resp)
         if resp.status_code != 200:
             raise ProviderUnavailable(f'Spotify: token request answered {resp.status_code}')
         try:
@@ -107,6 +138,8 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
         # 5xx -- is Spotify not answering, and the artist must not be judged on it.
         if response.status_code == 404 and spotify_id:
             return []
+        if response.status_code == 429:
+            raise self._rate_limited('lookup', response)
         if response.status_code != 200:
             raise ProviderUnavailable(f'Spotify: lookup answered {response.status_code}')
         try:

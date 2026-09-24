@@ -380,6 +380,14 @@ class BackgroundFetchTest(unittest.TestCase):
         self.assertIn('1 succeeded, 1 failed', artist_images_router.fetch_progress['message'])
         self.assertFalse(artist_images_router.fetch_progress['active'])
 
+    def test_the_run_is_bracketed_by_a_start_and_one_summary(self):
+        self.cursor.fetchone.return_value = {'count': 2}
+        self.cursor.fetchall.return_value = [{'id': 1, 'name': 'One'}, {'id': 2, 'name': 'Two'}]
+        self.fetcher.fetch_for_artist.return_value = False
+        artist_images_router.run_fetch_missing()
+        self.fetcher.start_run.assert_called_once_with()
+        self.fetcher.log_run_summary.assert_called_once_with()
+
     def test_a_fetcher_that_raises_counts_as_a_failure(self):
         self.cursor.fetchone.return_value = {'count': 1}
         self.cursor.fetchall.return_value = [{'id': 1, 'name': 'One'}]

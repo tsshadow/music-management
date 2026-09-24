@@ -14,6 +14,21 @@ class ProviderUnavailable(Exception):
     """
 
 
+class ProviderRateLimited(ProviderUnavailable):
+    """The provider refused to answer because the run asked too often (HTTP 429).
+
+    `retry_after` is how many seconds the provider asked us to wait, already bounded to
+    something sane. Unlike any other ProviderUnavailable this one is about the whole
+    run, not about one artist: the next artist would get the same 429. The fetcher
+    pauses for `retry_after` instead of walking on and collecting a 429 per artist --
+    on 2026-09-24 that walk produced 3.278 warnings, and a push every five minutes.
+    """
+
+    def __init__(self, message, retry_after):
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
 class ArtistImageProvider(ABC):
     """A source of artist images, such as Spotify or MusicBrainz."""
 
@@ -51,4 +66,4 @@ class ArtistImageProvider(ABC):
         """
 
 
-__all__ = ['ArtistImageProvider', 'ProviderUnavailable', 'credential']
+__all__ = ['ArtistImageProvider', 'ProviderRateLimited', 'ProviderUnavailable', 'credential']

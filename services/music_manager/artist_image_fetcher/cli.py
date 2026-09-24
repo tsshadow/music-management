@@ -68,16 +68,20 @@ def main():
                         print(f'Stats for NULL primary_image_id: {stats}')
                 else:
                     print(f'Found {len(artists)} artists missing images')
+                    fetcher.start_run()
                     for artist in artists:
                         fetcher.fetch_for_artist(artist['id'], artist['name'])
+                    fetcher.log_run_summary()
         elif args.command == 'refresh':
             with DatabaseConnector().connection() as db, db.cursor(pymysql.cursors.DictCursor) as cursor:
                 query = '\n                    SELECT id, name FROM library_artists\n                    WHERE image_updated_at < DATE_SUB(NOW(), INTERVAL %s DAY)\n                    LIMIT %s\n                '
                 cursor.execute(query, (args.older_than_days, args.limit))
                 artists = cursor.fetchall()
                 print(f'Refreshing {len(artists)} stale artist images')
+                fetcher.start_run()
                 for artist in artists:
                     fetcher.fetch_for_artist(artist['id'], artist['name'], force_refresh=True)
+                fetcher.log_run_summary()
         else:
             parser.print_help()
             break

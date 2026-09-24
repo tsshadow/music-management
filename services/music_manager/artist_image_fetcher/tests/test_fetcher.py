@@ -1,4 +1,3 @@
-import json
 import os
 import tempfile
 import unittest
@@ -248,7 +247,9 @@ class FetchForArtistTest(FetcherTestCase):
         self.fetcher.downloader.download.assert_not_called()
         self.assertEqual(self.fetcher.storage.save_image.call_args.args[2], b'inline')
 
-    def test_a_download_that_yields_nothing_marks_the_artist_as_failed(self):
+    # A provider found the artist; the CDN, the disk or the database failed. That says
+    # nothing about the artist, and `failed` would hide it for 30 days.
+    def test_a_download_that_yields_nothing_defers_the_artist_without_a_verdict(self):
         self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}
         self.cursor.fetchall.return_value = []
         self.add_provider(
@@ -256,8 +257,19 @@ class FetchForArtistTest(FetcherTestCase):
         )
         self.fetcher.downloader.download.return_value = None
         self.assertFalse(self.fetcher.fetch_for_artist(1, 'Angerfist'))
+        self.assert_status_untouched()
 
-    def test_a_storage_error_marks_the_artist_as_failed(self):
+    def test_a_download_that_raises_defers_the_artist_without_a_verdict(self):
+        self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}
+        self.cursor.fetchall.return_value = []
+        self.add_provider(
+            'lastfm', [{'source': 'lastfm', 'source_id': 'l1', 'name': 'Angerfist', 'url': 'https://img.test/a.jpg'}]
+        )
+        self.fetcher.downloader.download.side_effect = RuntimeError('503 from the CDN')
+        self.assertFalse(self.fetcher.fetch_for_artist(1, 'Angerfist'))
+        self.assert_status_untouched()
+
+    def test_a_storage_error_defers_the_artist_without_a_verdict(self):
         self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}
         self.cursor.fetchall.return_value = []
         self.add_provider(
@@ -266,6 +278,37 @@ class FetchForArtistTest(FetcherTestCase):
         self.fetcher.downloader.download.return_value = b'binary'
         self.fetcher.storage.save_image.side_effect = RuntimeError('disk full')
         self.assertFalse(self.fetcher.fetch_for_artist(1, 'Angerfist'))
+        self.assert_status_untouched()
+
+    # Clearing a portrait is a curation decision; the start-up bulk run used to undo it.
+    def test_an_artist_whose_portrait_was_cleared_is_not_looked_up(self):
+        self.cursor.fetchone.return_value = {
+            'id': 1,
+            'name': 'Angerfist',
+            'mbid': None,
+            'primary_image_id': None,
+            'image_status': 'cleared',
+        }
+        spotify = self.add_provider('spotify', [])
+        self.assertFalse(self.fetcher.fetch_for_artist(1, 'Angerfist', force_refresh=True))
+        spotify.get_artist_images.assert_not_called()
+        self.fetcher.mb_provider.get_artist_metadata.assert_not_called()
+        self.assert_status_untouched()
+
+    def test_a_cleared_portrait_is_looked_up_when_explicitly_overridden(self):
+        self.cursor.fetchone.return_value = {
+            'id': 1,
+            'name': 'Angerfist',
+            'mbid': None,
+            'primary_image_id': None,
+            'image_status': 'cleared',
+        }
+        self.cursor.fetchall.return_value = []
+        self.add_provider(
+            'spotify', [{'source': 'spotify', 'source_id': 's1', 'name': 'Angerfist', 'url': 'https://img.test/a.jpg'}]
+        )
+        self.fetcher.downloader.download.return_value = b'binary'
+        self.assertTrue(self.fetcher.fetch_for_artist(1, 'Angerfist', force_refresh=True, override_cleared=True))
 
     def test_a_successful_fetch_records_the_image_and_promotes_it_to_primary(self):
         self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}
@@ -283,44 +326,17 @@ class FetchForArtistTest(FetcherTestCase):
 
 
 class ManifestTest(FetcherTestCase):
-    def run_one_successful_fetch(self):
+    # manifest.json was read and rewritten whole for every artist (quadratic on the CIFS
+    # share, racing between runs) and nothing ever read it.
+    def test_a_successful_fetch_no_longer_writes_a_manifest(self):
         self.cursor.fetchone.return_value = {'id': 1, 'mbid': None, 'primary_image_id': None}
         self.cursor.fetchall.return_value = []
         self.add_provider(
             'lastfm', [{'source': 'lastfm', 'source_id': 'l1', 'name': 'Angerfist', 'url': 'https://img.test/a.jpg'}]
         )
         self.fetcher.downloader.download.return_value = b'binary'
-        return self.fetcher.fetch_for_artist(1, 'Angerfist')
-
-    def manifest(self):
-        with open(os.path.join(self.tmp.name, 'manifest.json')) as handle:
-            return json.load(handle)
-
-    def test_the_manifest_gets_an_entry_for_the_artist(self):
-        self.assertTrue(self.run_one_successful_fetch())
-        entries = self.manifest()
-        self.assertEqual(len(entries), 1)
-        self.assertEqual(entries[0]['artist_id'], 1)
-        self.assertEqual(entries[0]['name'], 'Angerfist')
-        self.assertEqual(entries[0]['thumb_160'], '/media/artist-images/1/thumb_160.jpg')
-
-    def test_an_existing_entry_for_the_same_artist_is_replaced(self):
-        with open(os.path.join(self.tmp.name, 'manifest.json'), 'w') as handle:
-            json.dump([{'artist_id': 1, 'name': 'Old'}, {'artist_id': 2, 'name': 'Other'}], handle)
-        self.assertTrue(self.run_one_successful_fetch())
-        entries = self.manifest()
-        self.assertEqual(sorted(e['artist_id'] for e in entries), [1, 2])
-        self.assertEqual([e for e in entries if e['artist_id'] == 1][0]['name'], 'Angerfist')
-
-    def test_a_corrupt_manifest_is_replaced_rather_than_crashing_the_run(self):
-        with open(os.path.join(self.tmp.name, 'manifest.json'), 'w') as handle:
-            handle.write('{not json')
-        self.assertTrue(self.run_one_successful_fetch())
-        self.assertEqual(len(self.manifest()), 1)
-
-    def test_a_manifest_that_cannot_be_written_does_not_fail_the_fetch(self):
-        self.fetcher.storage.storage_path = '/does/not/exist'
-        self.assertTrue(self.run_one_successful_fetch())
+        self.assertTrue(self.fetcher.fetch_for_artist(1, 'Angerfist'))
+        self.assertFalse(os.path.exists(os.path.join(self.tmp.name, 'manifest.json')))
 
 
 if __name__ == '__main__':

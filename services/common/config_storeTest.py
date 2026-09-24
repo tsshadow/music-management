@@ -133,26 +133,26 @@ class ConfigStoreSecretTest(ConfigStoreTestCase):
     """
 
     def write_config_file(self):
-        self.config_path.write_text(json.dumps({'db_pass': 'hunter2', 'db_user': 'muma'}))
+        self.config_path.write_text(json.dumps({'lastfm_api_key': 'hunter2', 'spotify_client_id': 'client-id'}))
 
     def test_the_stored_secret_is_still_readable_inside_the_process(self):
-        # The database connector reads this; only the API boundary masks it.
-        self.assertEqual(self.store.get('db_pass'), 'hunter2')
+        # The Last.fm provider reads this; only the API boundary masks it.
+        self.assertEqual(self.store.get('lastfm_api_key'), 'hunter2')
 
     def test_describe_reports_a_secret_as_the_sentinel(self):
-        entry = next(row for row in self.store.describe() if row['key'] == 'db_pass')
+        entry = next(row for row in self.store.describe() if row['key'] == 'lastfm_api_key')
         self.assertEqual(entry['value'], config_store.SECRET_SENTINEL)
         self.assertTrue(entry['secret'])
 
     def test_describe_leaves_an_ordinary_field_alone(self):
-        entry = next(row for row in self.store.describe() if row['key'] == 'db_user')
-        self.assertEqual(entry['value'], 'muma')
+        entry = next(row for row in self.store.describe() if row['key'] == 'spotify_client_id')
+        self.assertEqual(entry['value'], 'client-id')
         self.assertFalse(entry['secret'])
 
     def test_all_configs_masks_secrets_too(self):
         # This is the dict GET /api/config hands out.
-        self.assertEqual(self.store.all_configs()['db_pass'], config_store.SECRET_SENTINEL)
-        self.assertEqual(self.store.all_configs()['db_user'], 'muma')
+        self.assertEqual(self.store.all_configs()['lastfm_api_key'], config_store.SECRET_SENTINEL)
+        self.assertEqual(self.store.all_configs()['spotify_client_id'], 'client-id')
 
     def test_an_unset_secret_reads_as_empty_rather_than_masked(self):
         # Masking an empty value would claim a credential exists where none does.
@@ -160,30 +160,30 @@ class ConfigStoreSecretTest(ConfigStoreTestCase):
         self.assertEqual(entry['value'], '')
 
     def test_writing_the_sentinel_back_leaves_the_secret_untouched(self):
-        self.store.update({'db_pass': config_store.SECRET_SENTINEL})
-        self.assertEqual(self.store.get('db_pass'), 'hunter2')
+        self.store.update({'lastfm_api_key': config_store.SECRET_SENTINEL})
+        self.assertEqual(self.store.get('lastfm_api_key'), 'hunter2')
 
     def test_a_real_new_value_does_replace_the_secret(self):
-        self.store.update({'db_pass': 'correct horse'})
-        self.assertEqual(self.store.get('db_pass'), 'correct horse')
+        self.store.update({'lastfm_api_key': 'correct horse'})
+        self.assertEqual(self.store.get('lastfm_api_key'), 'correct horse')
 
     def test_a_secret_can_be_cleared_with_an_empty_string(self):
-        self.store.update({'db_pass': ''})
-        self.assertEqual(self.store.get('db_pass'), '')
+        self.store.update({'lastfm_api_key': ''})
+        self.assertEqual(self.store.get('lastfm_api_key'), '')
 
     def test_saving_a_whole_page_back_does_not_wipe_the_secrets(self):
         # Exactly what the config page does: read everything, change one field, post
         # it all back. Every secret in that payload is the sentinel.
         payload = self.store.all_configs()
-        payload['db_user'] = 'other'
+        payload['spotify_client_id'] = 'other'
         self.store.update(payload)
-        self.assertEqual(self.store.get('db_pass'), 'hunter2')
-        self.assertEqual(self.store.get('db_user'), 'other')
+        self.assertEqual(self.store.get('lastfm_api_key'), 'hunter2')
+        self.assertEqual(self.store.get('spotify_client_id'), 'other')
 
     def test_the_sentinel_is_never_written_to_disk(self):
-        self.store.update({'db_pass': config_store.SECRET_SENTINEL, 'db_user': 'other'})
+        self.store.update({'lastfm_api_key': config_store.SECRET_SENTINEL, 'spotify_client_id': 'other'})
         on_disk = json.loads(self.config_path.read_text())
-        self.assertNotEqual(on_disk.get('db_pass'), config_store.SECRET_SENTINEL)
+        self.assertNotEqual(on_disk.get('lastfm_api_key'), config_store.SECRET_SENTINEL)
 
 
 class ConfigStoreRetagLimitTest(ConfigStoreTestCase):
@@ -223,13 +223,20 @@ class ConfigStoreUppercaseEnvironmentTest(ConfigStoreTestCase):
 class ConfigStoreDiskTest(ConfigStoreTestCase):
     def write_config_file(self):
         self.config_path.write_text(
-            json.dumps({'notify_topic': 'from-disk', 'db_port': '3308', 'unknown_key': 'ignored', 'debug': 'nonsense'}),
+            json.dumps(
+                {
+                    'notify_topic': 'from-disk',
+                    'telegram_max_concurrent': '8',
+                    'unknown_key': 'ignored',
+                    'debug': 'nonsense',
+                }
+            ),
             encoding='utf-8',
         )
 
     def test_values_are_read_back_from_disk(self):
         self.assertEqual(self.store.get('notify_topic'), 'from-disk')
-        self.assertEqual(self.store.get('db_port'), 3308)
+        self.assertEqual(self.store.get('telegram_max_concurrent'), 8)
 
     def test_unknown_and_unparsable_entries_are_skipped(self):
         self.assertNotIn('unknown_key', self.store.all_configs())
@@ -410,3 +417,151 @@ class CredentialTest(ConfigStoreTestCase):
     def test_nothing_anywhere_is_none_not_an_empty_string(self):
         with patch.dict('os.environ', {}, clear=True):
             self.assertIsNone(credential('spotify_client_id', 'SPOTIFY_CLIENT_ID'))
+
+
+def on_disk(path):
+    """The persisted config.json as a dict."""
+    return json.loads(path.read_text(encoding='utf-8'))
+
+
+class ConfigStoreOverridesOnlyTest(ConfigStoreTestCase):
+    """Only what the API changed is written; the environment is never copied to disk."""
+
+    env = {'notify_topic': 'from-env', 'LASTFM_API_KEY': 'env-secret', 'DB_PASS': 'db-secret'}
+
+    def test_a_save_writes_the_changed_key_and_nothing_from_the_environment(self):
+        self.store.update({'debug': True})
+        data = on_disk(self.config_path)
+        self.assertEqual(data['debug'], True)
+        self.assertNotIn('notify_topic', data)
+        self.assertNotIn('lastfm_api_key', data)
+        self.assertNotIn('db_pass', data)
+        self.assertNotIn('env-secret', self.config_path.read_text(encoding='utf-8'))
+
+    def test_a_value_equal_to_its_environment_value_is_not_written(self):
+        self.store.update({'debug': True})
+        self.store.update({'notify_topic': 'from-env'})
+        self.assertNotIn('notify_topic', on_disk(self.config_path))
+
+    def test_setting_a_key_back_to_its_environment_value_removes_the_override(self):
+        self.store.update({'notify_topic': 'from-page'})
+        self.assertEqual(on_disk(self.config_path)['notify_topic'], 'from-page')
+        self.store.update({'notify_topic': 'from-env'})
+        self.assertNotIn('notify_topic', on_disk(self.config_path))
+        self.assertFalse(self.store.is_overridden('notify_topic'))
+
+    def test_an_override_wins_over_the_environment(self):
+        self.store.update({'notify_topic': 'from-page'})
+        self.assertEqual(self.store.get('notify_topic'), 'from-page')
+        self.assertTrue(self.store.is_overridden('notify_topic'))
+
+    def test_a_secret_typed_on_the_page_is_persisted(self):
+        # The way to hand the fetcher a Spotify secret the environment lacks (bug 034).
+        self.store.update({'spotify_client_secret': 'typed'})
+        self.assertEqual(on_disk(self.config_path)['spotify_client_secret'], 'typed')
+
+    def test_the_file_is_readable_by_its_owner_only(self):
+        self.store.update({'debug': True})
+        self.assertEqual(self.config_path.stat().st_mode & 0o777, 0o600)
+
+    def test_the_file_carries_the_format_marker(self):
+        self.store.update({'debug': True})
+        self.assertEqual(on_disk(self.config_path)[config_store.FILE_FORMAT_KEY], config_store.FILE_FORMAT)
+
+    def test_update_returns_masked_values_not_the_secret(self):
+        result = self.store.update({'lastfm_api_key': 'brand-new', 'notify_topic': 'x'})
+        self.assertEqual(result, {'lastfm_api_key': config_store.SECRET_SENTINEL, 'notify_topic': 'x'})
+        self.assertEqual(self.store.get('lastfm_api_key'), 'brand-new')
+
+
+class ConfigStoreReadOnlyTest(ConfigStoreTestCase):
+    """The db_* fields are read by nobody through the store; the page may only show them."""
+
+    env = {'DB_HOST': 'mariadb', 'DB_PASS': 'db-secret'}
+
+    def test_database_fields_are_marked_read_only_and_show_the_environment(self):
+        fields = {row['key']: row for row in self.store.describe()}
+        for key in ('db_host', 'db_port', 'db_user', 'db_pass', 'db_name', 'db_connect_timeout'):
+            self.assertTrue(fields[key]['read_only'], key)
+        self.assertEqual(fields['db_host']['value'], 'mariadb')
+        self.assertEqual(fields['db_pass']['value'], config_store.SECRET_SENTINEL)
+        self.assertFalse(fields['notify_topic']['read_only'])
+
+    def test_changing_a_read_only_field_is_refused_and_nothing_is_applied(self):
+        with self.assertRaises(ValueError):
+            self.store.update({'notify_topic': 'x', 'db_host': 'elsewhere'})
+        self.assertEqual(self.store.get('db_host'), 'mariadb')
+        self.assertEqual(self.store.get('notify_topic'), 'music-management')
+        self.assertFalse(self.config_path.exists())
+
+    def test_posting_the_page_back_with_read_only_fields_unchanged_is_fine(self):
+        page = self.store.all_configs()
+        page['notify_topic'] = 'x'
+        self.store.update(page)
+        self.assertEqual(self.store.get('notify_topic'), 'x')
+        self.assertNotIn('db_host', on_disk(self.config_path))
+
+
+class ConfigStoreLegacyFileTest(ConfigStoreTestCase):
+    """A config.json from before 0.73 is a snapshot of every value, secrets included."""
+
+    env = {
+        'notify_topic': 'from-env',
+        'LMS_SUBSONIC_API_KEY': 'rotated-key',
+        'DB_PASS': 'db-secret',
+    }
+
+    def write_config_file(self):
+        self.config_path.write_text(
+            json.dumps(
+                {
+                    'notify_topic': 'from-env',
+                    'crash_hook_url': 'https://hook.test/x',
+                    'lms_subsonic_api_key': 'stale-key',
+                    'spotify_client_secret': 'typed-on-the-page',
+                    'db_pass': 'old-db-secret',
+                    'debug': False,
+                }
+            ),
+            encoding='utf-8',
+        )
+        self.config_path.chmod(0o644)
+
+    def test_a_value_that_differs_from_env_and_default_still_loads(self):
+        self.assertEqual(self.store.get('crash_hook_url'), 'https://hook.test/x')
+        self.assertEqual(self.store.get('spotify_client_secret'), 'typed-on-the-page')
+
+    def test_a_secret_the_environment_sets_is_left_to_the_environment(self):
+        # The recurring stale-LMS-key failure: a snapshot of an old key beat every deploy.
+        self.assertEqual(self.store.get('lms_subsonic_api_key'), 'rotated-key')
+
+    def test_read_only_fields_are_not_taken_from_the_file(self):
+        self.assertEqual(self.store.get('db_pass'), 'db-secret')
+
+    def test_the_file_is_rewritten_with_the_overrides_only(self):
+        data = on_disk(self.config_path)
+        self.assertEqual(data[config_store.FILE_FORMAT_KEY], config_store.FILE_FORMAT)
+        self.assertEqual(
+            {k: v for k, v in data.items() if k != config_store.FILE_FORMAT_KEY},
+            {'crash_hook_url': 'https://hook.test/x', 'spotify_client_secret': 'typed-on-the-page'},
+        )
+        self.assertEqual(self.config_path.stat().st_mode & 0o777, 0o600)
+
+
+class ConfigStoreCurrentFileTest(ConfigStoreTestCase):
+    """In the current format every entry is an override the API set, and it wins."""
+
+    env = {'LMS_SUBSONIC_API_KEY': 'env-key'}
+
+    def write_config_file(self):
+        self.config_path.write_text(
+            json.dumps({config_store.FILE_FORMAT_KEY: config_store.FILE_FORMAT, 'lms_subsonic_api_key': 'page-key'}),
+            encoding='utf-8',
+        )
+        self.config_path.chmod(0o644)
+
+    def test_an_override_from_the_file_wins_over_the_environment(self):
+        self.assertEqual(self.store.get('lms_subsonic_api_key'), 'page-key')
+
+    def test_loading_tightens_the_file_permissions(self):
+        self.assertEqual(self.config_path.stat().st_mode & 0o777, 0o600)

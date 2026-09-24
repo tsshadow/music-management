@@ -149,6 +149,36 @@ describe("ArtistImagesTab", () => {
     });
   });
 
+  it("labels a portrait that was cleared by hand", async () => {
+    globalThis.fetch = mockSearch([{ ...NO_IMAGE, image_status: "cleared" }]);
+
+    render(ArtistImagesTab, baseProps());
+
+    await waitFor(() => expect(screen.getByText("Handmatig gewist")).toBeTruthy());
+  });
+
+  // The bulk run leaves a cleared portrait alone; a click on "search" is an explicit
+  // request and must still reach it.
+  it("forces a single-artist search so a cleared portrait can be fetched again", async () => {
+    const calls = [];
+    globalThis.fetch = vi.fn(async (url, opts) => {
+      calls.push({ url: String(url), method: opts?.method || "GET" });
+      return { ok: true, status: 200, json: async () => ({ items: [NO_IMAGE], total: 1 }) };
+    });
+
+    render(ArtistImagesTab, baseProps());
+    const button = await screen.findByTitle("Automatisch zoeken");
+    await fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(
+        calls.some(
+          (c) => c.url.includes("/api/artists/47776/fetch-image?force=true") && c.method === "POST",
+        ),
+      ).toBe(true);
+    });
+  });
+
   it("opens the artist detail with its stored images", async () => {
     globalThis.fetch = vi.fn(async (url) => {
       if (String(url).includes("/images")) {

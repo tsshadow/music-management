@@ -90,6 +90,8 @@ export function isSecretPlaceholder(field, value) {
 export function changedUpdates(fields, draft) {
   const updates = {};
   for (const field of fields ?? []) {
+    // Shown for information only; the backend refuses a changed value.
+    if (field.read_only) continue;
     if (!(field.key in (draft ?? {}))) continue;
     const raw = draft[field.key];
     if (isSecretPlaceholder(field, raw)) continue;

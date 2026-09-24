@@ -529,6 +529,7 @@
     "images": {
       "autoSearch": "Automatisch zoeken",
       "busyWith": "Bezig met:",
+      "cleared": "Handmatig gewist",
       "deleteImage": "Afbeelding verwijderen",
       "libraryStatus": "Bibliotheek Status",
       "noImage": "Geen afbeelding",

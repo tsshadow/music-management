@@ -142,6 +142,21 @@ class LmsScanTriggerTest(unittest.TestCase):
         self.assertEqual(len([line for line in logs.output if 'not configured' in line]), 1)
 
     @patch('services.common.Helpers.LmsScanTrigger.requests.get')
+    def test_a_failed_request_is_logged_without_the_api_key(self, mock_get):
+        """requests puts the whole URL, apiKey included, into its error; a WARNING is an alert."""
+        self._configure('lms:5082', 'my-api-key')
+        mock_get.side_effect = RuntimeError(
+            '500 Server Error for url: http://lms:5082/rest/startScan.view?apiKey=my-api-key&v=1.16.1'
+        )
+        with self.assertLogs(level='WARNING') as logs:
+            self.trigger.trigger()
+            self.trigger.notify(['/mnt/music/EPs/Label/Release'])
+            self.trigger.flush_for_test()
+        text = '\n'.join(logs.output)
+        self.assertNotIn('my-api-key', text)
+        self.assertIn('startScan.view?<redacted>', text)
+
+    @patch('services.common.Helpers.LmsScanTrigger.requests.get')
     def test_a_host_with_its_own_scheme_is_used_as_given(self, mock_get):
         """lms_hosts is free text, and an https URL in it used to become http://https://..."""
         self._configure('https://lms.example.org/, http://plain:5082', 'my-api-key')

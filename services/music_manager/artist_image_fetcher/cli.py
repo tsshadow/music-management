@@ -35,20 +35,24 @@ def main():
     while True:
         if args.command == 'fetch':
             if args.artist_id:
-                fetcher.fetch_for_artist(args.artist_id, args.name, force_refresh=args.force)
+                fetcher.fetch_for_artist(
+                    args.artist_id, args.name, force_refresh=args.force, override_cleared=args.force
+                )
             elif args.name:
                 with DatabaseConnector().connection() as db, db.cursor(pymysql.cursors.DictCursor) as cursor:
                     cursor.execute('SELECT id FROM library_artists WHERE name = %s', (args.name,))
                     row = cursor.fetchone()
                     if row:
-                        fetcher.fetch_for_artist(row['id'], args.name, force_refresh=args.force)
+                        fetcher.fetch_for_artist(
+                            row['id'], args.name, force_refresh=args.force, override_cleared=args.force
+                        )
                     else:
                         print(f"Artist '{args.name}' not found in database")
             else:
                 print('Either --artist-id or --name must be provided')
         elif args.command == 'fetch-missing':
             with DatabaseConnector().connection() as db, db.cursor(pymysql.cursors.DictCursor) as cursor:
-                status_filter = "(image_status IS NULL OR image_status != 'failed')"
+                status_filter = "(image_status IS NULL OR image_status NOT IN ('failed', 'cleared'))"
                 if args.include_failed:
                     status_filter = "(image_status IS NULL OR image_status = 'failed')"
                 query = f'\n                    SELECT id, name FROM library_artists\n                    WHERE primary_image_id IS NULL AND {status_filter}\n                    LIMIT %s\n                '

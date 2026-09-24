@@ -189,6 +189,34 @@ Uptime Kuma monitor on that endpoint meaningful; nothing needs to change on the 
 
 ---
 
+## ⚙️ Runtime Configuration
+
+`services/common/config_store.py` (`ConfigStore`) holds the runtime settings; Beheer > Configuratie
+renders its schema (`GET /api/config/fields`) and saves through `POST /api/config`. Precedence,
+highest first:
+
+1. a value changed through the API, persisted in `data/config.json` (mode 0600);
+2. the environment, read at start-up;
+3. the field's declared default.
+
+Only (1) is written to disk, and only while it differs from what the environment or default would
+give: setting a key back to its environment value removes it from the file, so the next deploy's
+environment applies again. Secrets that come from the environment are never written. Up to 0.72
+the store wrote every value — secrets included — and loaded the file after the environment, so a
+snapshot from the day of the first save beat every later deploy. Such a legacy file (no
+`__format__` marker) still loads, except entries equal to env/default, secrets the environment
+also sets, and read-only fields; it is rewritten in the new format on the first start.
+
+Secrets leave the process only as `SECRET_SENTINEL`, on reads and in the `POST` response alike.
+The `db_*` fields are `read_only`: the database connection is opened from the environment
+(`DatabaseConnector`, `database.py`), so the page shows them for information and the API refuses
+a change. The LMS Subsonic key has one resolver, `LmsEndpoint.resolve_lms_api_key()` (store, then
+`MUMA_SERVER_SUBSONIC_API_KEY`/`LMS_SUBSONIC_API_KEY`), used by both the radio scheduler and the
+scan trigger; anything that logs an LMS error passes it through `redact_url()` first, because the
+key travels in the query string.
+
+---
+
 ## 🔗 Integrations
 
 These apps live in this same monorepo (see [Repository Layout](#-repository-layout) above) but are still

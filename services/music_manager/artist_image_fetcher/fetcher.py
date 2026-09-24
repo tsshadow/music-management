@@ -1,6 +1,5 @@
 import logging
 import os
-from datetime import datetime
 
 import pymysql.cursors
 from dotenv import load_dotenv
@@ -17,6 +16,10 @@ from .providers.spotify import SpotifyArtistImageProvider
 from .storage import ImageDownloader, ImageStorage
 
 load_dotenv()
+
+# Set by the manager's "clear portrait" action; the bulk run and a plain single-artist
+# fetch leave such an artist alone.
+CLEARED_STATUS = 'cleared'
 
 
 class ArtistImageFetcher:
@@ -63,28 +66,34 @@ class ArtistImageFetcher:
         """True when no provider is configured: a run that can find nothing, whoever it asks."""
         return not self.configured_providers
 
-    def fetch_for_artist(self, artist_id, artist_name=None, force_refresh=False):
+    def fetch_for_artist(self, artist_id, artist_name=None, force_refresh=False, override_cleared=False):
+        """Look up, download and store a portrait for one artist; True when it has one.
+
+        `force_refresh` looks up an artist that already has a primary image. An artist
+        whose portrait was cleared by hand (`image_status = 'cleared'`) is left alone
+        unless `override_cleared` is set: clearing is a curation decision, and the
+        start-up bulk run used to undo it within a restart.
+        """
+        with self.db_conn.cursor(pymysql.cursors.DictCursor) as cursor:
+            cursor.execute(
+                'SELECT id, name, mbid, primary_image_id, image_status FROM library_artists WHERE id = %s',
+                (artist_id,),
+            )
+            artist = cursor.fetchone()
         if not artist_name:
-            with self.db_conn.cursor(pymysql.cursors.DictCursor) as cursor:
-                cursor.execute(
-                    'SELECT id, name, mbid, primary_image_id FROM library_artists WHERE id = %s', (artist_id,)
-                )
-                artist = cursor.fetchone()
-                if not artist:
-                    self.logger.error(f'Artist with ID {artist_id} not found')
-                    return False
-                artist_name = artist['name']
-                mbid = artist['mbid']
-                primary_image_id = artist['primary_image_id']
-        else:
-            with self.db_conn.cursor(pymysql.cursors.DictCursor) as cursor:
-                cursor.execute('SELECT id, mbid, primary_image_id FROM library_artists WHERE id = %s', (artist_id,))
-                res = cursor.fetchone()
-                mbid = res['mbid'] if res else None
-                primary_image_id = res['primary_image_id'] if res else None
+            if not artist:
+                self.logger.error(f'Artist with ID {artist_id} not found')
+                return False
+            artist_name = artist['name']
+        mbid = artist.get('mbid') if artist else None
+        primary_image_id = artist.get('primary_image_id') if artist else None
+        image_status = artist.get('image_status') if artist else None
         if primary_image_id and (not force_refresh):
             self.logger.info(f'Artist {artist_name} already has a primary image. Skipping.')
             return True
+        if image_status == CLEARED_STATUS and not override_cleared:
+            self.logger.info(f'Portrait of {artist_name} was cleared by hand; not looking it up again.')
+            return False
         if self.blind:
             # No verdict without a witness: the status is left exactly as it was.
             self.logger.warning(f'No image provider configured; not looking up {artist_name}')
@@ -147,11 +156,13 @@ class ArtistImageFetcher:
             self._set_primary_image(artist_id, image_id)
             if best_candidate.get('source_id') and best_candidate['source'] not in external_ids:
                 self._save_external_id(artist_id, best_candidate['source'], best_candidate['source_id'])
-            self._update_manifest(artist_id, artist_name, best_candidate, image_meta)
             return True
         except Exception as e:
-            self.logger.error(f'Failed to save image for {artist_name}: {e}')
-            self._update_artist_image_status(artist_id, 'failed')
+            # A provider did find the artist; what failed is the CDN, the disk or the
+            # database. That is no verdict about the artist either, so the status stays
+            # and the next run tries again -- `failed` would have hidden a findable
+            # artist for ARTIST_IMAGE_RETRY_AFTER_DAYS over one network blip.
+            self.logger.error(f'Failed to save image for {artist_name}; deferred: {e}')
             return False
 
     def _get_external_ids(self, artist_id):
@@ -213,33 +224,3 @@ class ArtistImageFetcher:
                 (status, artist_id),
             )
         self.db_conn.commit()
-
-    def _update_manifest(self, artist_id, artist_name, candidate, meta):
-        import json
-
-        manifest_path = os.path.join(self.storage.storage_path, 'manifest.json')
-        manifest = []
-        if os.path.exists(manifest_path):
-            try:
-                with open(manifest_path) as f:
-                    manifest = json.load(f)
-            except (OSError, ValueError):
-                manifest = []
-        manifest = [e for e in manifest if e['artist_id'] != artist_id]
-        manifest.append(
-            {
-                'artist_id': artist_id,
-                'name': artist_name,
-                'image': meta['public_path'],
-                'primary_jpg': f'{self.storage.public_base_url}/{artist_id}/primary.jpg',
-                'thumb_160': f'{self.storage.public_base_url}/{artist_id}/thumb_160.jpg',
-                'source': candidate['source'],
-                'confidence': candidate['confidence'],
-                'updated_at': datetime.now().isoformat(),
-            }
-        )
-        try:
-            with open(manifest_path, 'w') as f:
-                json.dump(manifest, f, indent=2)
-        except Exception as e:
-            self.logger.error(f'Failed to update manifest: {e}')

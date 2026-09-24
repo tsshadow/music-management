@@ -126,6 +126,20 @@ describe("changedUpdates", () => {
     expect(changedUpdates(fields, draft)).toEqual({});
   });
 
+  it("never sends a read-only field, which the backend would refuse", () => {
+    const withReadOnly = [
+      ...fields,
+      field({ key: "db_host", group: "Database", read_only: true, value: "mariadb" }),
+    ];
+    const draft = {
+      notify_topic: "music-management",
+      max_retag_files: 2000,
+      db_pass: SECRET_SENTINEL,
+      db_host: "elsewhere",
+    };
+    expect(changedUpdates(withReadOnly, draft)).toEqual({});
+  });
+
   it("sends a genuinely changed number as a number", () => {
     const draft = {
       notify_topic: "music-management",

@@ -236,6 +236,76 @@ class FillChannelTest(unittest.TestCase):
         self.assertEqual(radio.fill_channel(conn, {'id': 3, 'slug': 'main', 'genre': None}, now=1000.0), 0)
 
 
+class CandidateFailureLoggingTest(unittest.TestCase):
+    """A down LMS used to raise one WARNING -- an event plus an ntfy alert -- per
+    channel every five seconds, each carrying the request URL with the apiKey."""
+
+    LEAKY = RuntimeError(
+        '401 Client Error: Unauthorized for url: http://lms:5082/rest/getSongsByFilter?apiKey=s3cret&v=1.16.1&c=muma-radio'
+    )
+
+    def setUp(self):
+        from services.music_manager.routers import radio
+
+        self.radio = radio
+        radio._channels_in_outage.clear()
+        self.addCleanup(radio._channels_in_outage.clear)
+
+    def _conn(self):
+        conn = MagicMock()
+        cursor = MagicMock()
+        conn.cursor.return_value.__enter__.return_value = cursor
+        cursor.fetchone.return_value = {'last_end': None}
+        cursor.fetchall.return_value = []
+        return conn
+
+    def _fill(self, slug='main'):
+        return self.radio.fill_channel(self._conn(), {'id': 3, 'slug': slug, 'genre': None}, now=1000.0)
+
+    def test_the_api_key_never_reaches_the_log(self):
+        with patch.object(self.radio, 'fetch_candidate_tracks', side_effect=self.LEAKY):
+            with self.assertLogs('music-manager.radio', level='DEBUG') as logs:
+                self._fill()
+                self._fill()
+        text = '\n'.join(logs.output)
+        self.assertNotIn('s3cret', text)
+        self.assertIn('getSongsByFilter?<redacted>', text)
+
+    def test_one_warning_per_outage_per_channel_then_debug(self):
+        with patch.object(self.radio, 'fetch_candidate_tracks', side_effect=self.LEAKY):
+            with self.assertLogs('music-manager.radio', level='DEBUG') as logs:
+                for _ in range(5):
+                    self._fill('main')
+                self._fill('hard')
+        warnings = [r for r in logs.records if r.levelname == 'WARNING']
+        self.assertEqual(len(warnings), 2)
+        self.assertEqual(len([r for r in logs.records if r.levelname == 'DEBUG']), 4)
+
+    def test_a_recovery_ends_the_outage_so_the_next_one_warns_again(self):
+        with self.assertLogs('music-manager.radio', level='DEBUG') as logs:
+            with patch.object(self.radio, 'fetch_candidate_tracks', side_effect=self.LEAKY):
+                self._fill()
+            with patch.object(self.radio, 'fetch_candidate_tracks', return_value=[]):
+                self._fill()
+            with patch.object(self.radio, 'fetch_candidate_tracks', side_effect=self.LEAKY):
+                self._fill()
+        levels = [r.levelname for r in logs.records]
+        self.assertEqual(levels, ['WARNING', 'INFO', 'WARNING'])
+
+    def test_a_failed_tick_raises_without_the_api_key(self):
+        # run_forever logs a failed tick with logger.exception, message and traceback
+        # both; the tick must hand it neither the key nor the unredacted original.
+        conn = MagicMock()
+        conn.cursor.return_value.__enter__.return_value.execute.side_effect = self.LEAKY
+        with patch.object(self.radio, 'get_db_connection', return_value=conn):
+            with self.assertRaises(RuntimeError) as caught:
+                self.radio.radio_tick()
+        self.assertNotIn('s3cret', str(caught.exception))
+        self.assertIn('getSongsByFilter?<redacted>', str(caught.exception))
+        self.assertTrue(caught.exception.__suppress_context__)
+        conn.close.assert_called_once()
+
+
 class RadioStateTest(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)

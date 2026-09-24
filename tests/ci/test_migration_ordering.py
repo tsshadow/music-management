@@ -67,6 +67,13 @@ REVIEWED_SAFE = {
         "and nothing reads or writes, guarded on information_schema so production's table is "
         "never rebuilt"
     ),
+    "migrate_v37_processed_files_binary_path.sql": (
+        "the MODIFY only changes the collation of tagger_processed_files.filepath from "
+        "utf8mb4_general_ci to utf8mb4_bin, same type and length; the previous release reads that "
+        "table by exact path (needs_processing, mark_processed, the snapshot) and pages it in key "
+        "order, all of which keep working, and a binary key is strictly finer so no existing row "
+        "can collide; conditional on information_schema, so it is a no-op once applied (bug 051)"
+    ),
 }
 
 

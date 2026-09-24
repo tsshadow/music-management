@@ -101,3 +101,24 @@ outright, or delete a user account directly.
   password reset (`users.update` permission) sufficient for the expected number of users?
 - **Auto-generated username collisions.** Should a collision when auto-generating a username from a Google
   account (extremely unlikely, but currently a hard failure) be handled with a friendly retry/suffix instead?
+
+## 2026-09-24: the web login hands each user their own key
+
+**Decided by Teun.** Signing in to the web player with a username and password used to give every
+user the same key: the music server (LMS) answered `/muma/api/auth/login` itself and returned its
+own configured `api-key`. Where that value was also MuMa's system key, every web user held a key
+MuMa treats as an always-allowed superuser, and the web app showed everyone who held it as an
+administrator.
+
+Now the web login is MuMa's own login, exactly as the phone app already used:
+
+- Each user receives **their own** key, their own permissions and a refresh token. What the
+  management screens show and allow follows that user's role, not a shared key.
+- **Every web user signs in once more** after this ships. A browser that still holds the old shared
+  key is recognised at startup (MuMa verifies it as a system key, not a user): the session ends and
+  the login page comes back. From then on the key in that browser is the user's own.
+- Nothing changes for the phone app (it already logged in with MuMa itself) or for Subsonic clients
+  (they never used this key).
+
+Acceptance: a non-admin user who signs in on the web never sees the management screens as an
+administrator; an admin who signs in does, because their own account says so.

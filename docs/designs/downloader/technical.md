@@ -74,6 +74,12 @@ into place with `os.replace`.
   parks the source; a 403 parks YouTube and counts as one blank account for SoundCloud; anything else
   falls back to the ordinary run. The account is never marked deep-swept on a failed listing, and
   SoundCloud's `note_progress()` is only called after a listing that came back.
+- **One refusal, one rung.** `SweepPolicy.park` holds a lock, and once the sweep's `stop` is set it
+  hands every later caller the `RateLimited` the first one got, without another `record_403` or push:
+  with several worker threads each meeting the same 403, one incident used to climb the ladder a rung
+  per thread. `begin()` clears it for the next sweep. `RateState` re-reads its row before every update
+  and, when somebody else changed it since (the reset button in the management page), applies the
+  update on top of the stored row rather than writing its stale copy back (bug report 051).
 - **Stopping.** `services/common/shutdown.py` holds the process-wide stop flag. The downloader
   installs it for SIGTERM and SIGINT, the importer for SIGTERM. `shutdown.abort_hook`, a yt-dlp
   progress hook, raises `ShuttingDown`, a subclass of `yt_dlp.utils.DownloadCancelled` -- the one
@@ -84,7 +90,7 @@ into place with `os.replace`.
 ## Cross-App Impact
 
 - **`music-manager` (Tagger)**: SoundCloud and YouTube downloaders explicitly call `Tagger.parse_song` via their respective post-processors (`SoundcloudSongProcessor`, `YoutubeSongProcessor`). This ensures files are moved to the library and metadata is applied immediately.
-- **`music-manager` (Scanner)**: The scanner provides a redownload API (`POST /api/library/tracks/{id}/redownload`) that uses the archives to find the original source URL.
+- **`music-manager` (Scanner)**: The scanner provides a redownload API (`POST /api/library/tracks/{id}/redownload`) that uses the archives to find the original source URL -- by the exact stored path, then by the exact file name, never a substring. The redownload runs with `overwrites: True` into a hidden staging folder beside the file (`services/downloader/redownload.py`); `ReplaceExistingPP` moves the finished file over the old one with `os.replace` before the tagger's post-processor runs, so a failed download leaves the old file and the tagger only ever sees the library path.
 - **`ntfy.sh`**: Notifications are sent via `notification_service.notify` from the song processors.
 
 ## Technical Acceptance Criteria

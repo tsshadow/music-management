@@ -102,6 +102,17 @@ describe("TaggerTab", () => {
       expect(screen.getByText(/genre_decision \(142\)/)).toBeTruthy();
     });
 
+    it("shows the parked files apart from the waiting ones", async () => {
+      withPending({ total: 0, by_reason: [], failed: 3 });
+
+      render(TaggerTab, props());
+
+      await waitFor(() => expect(screen.getByTestId("retag-parked")).toBeTruthy());
+      expect(screen.getByText("3")).toBeTruthy();
+      // Parked files are not work the tagger will do, so the retag block stays hidden.
+      expect(screen.queryByTestId("retag-pending")).toBeNull();
+    });
+
     it("hides the block when nothing is waiting", async () => {
       withPending({ total: 0, by_reason: [] });
 

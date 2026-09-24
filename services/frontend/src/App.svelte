@@ -465,7 +465,11 @@
 {#if !$credentials.username && !$mumaSessionActive}
   <LoginPage />
 {:else}
-<main class="grid grid-cols-1 md:grid-cols-[240px_1fr_auto] grid-rows-[1fr_auto_auto] md:grid-rows-[1fr_90px] h-dvh w-screen overflow-hidden bg-black text-white">
+<!-- From `md` up (a tablet, a desktop) nothing else pads the system bars: the phone's TopBar
+     and MobileNav carry their own insets, but a tablet shows the sidebar layout, and there the
+     status bar sat over the MuMa logo and the navigation bar over the player controls. The top
+     inset pads the whole grid; the bottom one grows the player row and pads its content. -->
+<main class="grid grid-cols-1 md:grid-cols-[240px_1fr_auto] grid-rows-[1fr_auto_auto] md:grid-rows-[1fr_calc(90px+env(safe-area-inset-bottom,0px))] md:pt-[env(safe-area-inset-top,0px)] h-dvh w-screen overflow-hidden bg-black text-white">
   <div class="bg-black row-start-1 row-end-2 col-start-1 col-end-2 overflow-y-auto min-h-0 hidden md:block">
     {#if $activeView === 'settings'}
       <SettingsSidebar onnavigate={handleNavigate} />
@@ -540,7 +544,7 @@
        this number. At z-20 the content column's sticky TopBar (z-30) and the bottom nav
        (z-20, later in the DOM) both painted over it. The drawer below is z-40 too and
        later in the DOM, so it still wins; the z-[100] sheets and modals are untouched. -->
-  <div class="bg-[#181818] col-start-1 col-end-2 md:col-end-4 row-start-2 row-end-3 border-t border-[#282828] z-40 min-h-[64px] md:min-h-0">
+  <div class="bg-[#181818] col-start-1 col-end-2 md:col-end-4 row-start-2 row-end-3 border-t border-[#282828] z-40 min-h-[64px] md:min-h-0 md:pb-[env(safe-area-inset-bottom,0px)]">
     <Player
       ontoggleQueue={() => showQueue = !showQueue}
       onnavigate={handleNavigate}

@@ -623,6 +623,7 @@ def run_fetch_missing():
                     }
                 )
                 logger.info(f'Starting background fetch for {len(artists)} artists')
+                fetcher.start_run()
                 success_count = 0
                 failed_count = 0
                 for i, artist in enumerate(artists):
@@ -638,6 +639,9 @@ def run_fetch_missing():
                         logger.error(f"Failed to fetch for {artist['name']}: {e}")
                         failed_count += 1
                 logger.info('Background fetch for missing artist images completed.')
+                # One WARNING for the whole run when artists were deferred or the run
+                # had to pause for a rate limit -- never one per artist.
+                fetcher.log_run_summary()
                 fetch_progress.update(
                     {
                         'active': False,

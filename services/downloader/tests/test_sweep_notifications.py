@@ -33,6 +33,15 @@ class ExplodingNotifier:
         raise RuntimeError('ntfy is down')
 
 
+def next_sweep(policy):
+    """Start the policy's next sweep, as begin() does once the cooldown has passed.
+
+    Within one sweep only the first park() counts (see test_sweep_park_once.py), so a
+    repeat 403 is a refusal met by the *next* sweep.
+    """
+    policy.stop.clear()
+
+
 def build_policy(notifier, overrides=None, source='soundcloud'):
     timing = load_timing(source, overrides=overrides or {})
     rate_state = RateState(source, timing, store=InMemoryRateStateStore(), now=lambda: NOW, jitter=lambda: 1.0)
@@ -82,6 +91,7 @@ class TestNotifyOn403(unittest.TestCase):
         policy = build_policy(notifier)
 
         policy.park('403', 'monstercat')
+        next_sweep(policy)
         policy.park('403', 'monstercat')
 
         self.assertEqual(len(notifier.sent), 2)
@@ -91,6 +101,7 @@ class TestNotifyOn403(unittest.TestCase):
         policy = build_policy(notifier)
 
         policy.park('403', 'monstercat')
+        next_sweep(policy)
         policy.park('403', 'monstercat')
 
         # 240 seconds, then 240 * 4.
@@ -103,7 +114,9 @@ class TestNotifyOn403(unittest.TestCase):
         policy = build_policy(notifier, overrides={'backoff_403_base': 240, 'backoff_403_cap': 240})
 
         policy.park('403', 'monstercat')
+        next_sweep(policy)
         policy.park('403', 'monstercat')
+        next_sweep(policy)
         policy.park('403', 'monstercat')
 
         self.assertEqual(len(notifier.sent), 1)
@@ -120,6 +133,7 @@ class TestNotifyOn403(unittest.TestCase):
 
         policy.park('403', 'monstercat')
         policy.rate_state.record_success()
+        next_sweep(policy)
         policy.park('403', 'monstercat')
 
         self.assertEqual(len(notifier.sent), 2)

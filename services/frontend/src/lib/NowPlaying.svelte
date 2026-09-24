@@ -330,11 +330,20 @@
    * `onclose` -- so a tap on a genre chip or the album never leaves the
    * full-screen player stranded over whatever it just opened.
    *
+   * When `onclose` returns a promise (`closeNowPlaying` does: it consumes the
+   * history entry the player pushed, and that `popstate` arrives later), the
+   * navigation waits for it. Navigating first let the late `popstate` restore
+   * the page underneath, so a tap on a genre or label chip landed nowhere.
+   *
    * @param {string} view
    */
   function navigate(view) {
-    onclose?.();
-    onnavigate?.(view);
+    const closing = onclose?.();
+    if (closing && typeof closing.then === 'function') {
+      closing.then(() => onnavigate?.(view));
+    } else {
+      onnavigate?.(view);
+    }
   }
 
   function handleTouchStart(e) {
@@ -436,295 +445,338 @@
       </button>
     </header>
 
-    <div class="flex-1 flex flex-col px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] min-h-0 overflow-y-auto" bind:this={scrollContainerEl}>
-      <!-- `role="presentation"`: the swipe-to-close gesture is a bonus on top
-           of the chevron button above, which is the one thing assistive tech
-           and keyboard users need -- this element carries no interactive
-           semantics of its own. -->
-      <div
-        class="w-full aspect-square mb-6"
-        role="presentation"
-        data-testid="now-playing-artwork"
-        ontouchstart={handleTouchStart}
-        ontouchend={handleTouchEnd}
-      >
-        {#if track}
-          <Artwork
-            class="w-full aspect-square shadow-2xl"
-            rounded="rounded-lg"
-            large
-            {coverUrl}
-            {artistUrl}
-            {tint}
-            title={track.title}
-            alt={track.title}
-          />
-        {:else}
-          <div class="w-full h-full rounded-lg bg-white/5 flex items-center justify-center"></div>
-        {/if}
-      </div>
+    <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain" bind:this={scrollContainerEl}>
+      <!-- The stage: at least exactly one screen tall, so everything on it -- the transport
+           above all -- is in view without scrolling, however much there is to say about the
+           track. Only the artwork gives way: its box takes whatever height the text and the
+           controls leave over (`flex-1 min-h-0`), and the cover is the largest square that
+           fits that box. Every text line is a single line (truncated, or a scrolling chip
+           row), so the height the stage needs is bounded and the controls never fall off the
+           bottom -- which is what a long title, a wrapped album line or a third row of genre
+           chips used to do. Only when even a zero-height cover would not make room (a phone
+           on its side with a big font) does the stage grow past the screen, and the controls
+           are then a scroll away rather than cut off.
 
-      {#if track}
-        <div class="min-w-0 mb-2">
-          <!-- The title opens the same details sheet as the header's menu:
-               it is the biggest thing on the screen, and "tap the title for
-               more about it" is what a listener tries first. -->
-          <button
-            class="block w-full text-left text-xl font-bold truncate bg-transparent border-none p-0 text-white cursor-pointer"
-            data-testid="now-playing-title"
-            onclick={() => (showDetailsSheet = true)}
-          >{track.title}</button>
-          <ArtistList artist={track.artist} artistId={track.artistId} artists={track.artists} onnavigate={navigate} size="lg" />
-          <!-- Album and release date, always on the screen: the header line names the
-               place the queue came from, which is not the album, and the date used to
-               live only in the details sheet. -->
-          {#if track.album || releaseDateLabel(track)}
-            <div class="flex items-center gap-1.5 text-sm text-[#b3b3b3] min-w-0" data-testid="now-playing-album-line">
-              {#if track.album}
-                {#if track.albumId}
-                  <button
-                    class="bg-transparent border-none p-0 text-inherit truncate min-w-0 text-left hover:text-white hover:underline cursor-pointer"
-                    data-testid="now-playing-album"
-                    onclick={() => navigate(`album:${track.albumId}`)}
-                  >{track.album}</button>
-                {:else}
-                  <span class="truncate min-w-0">{track.album}</span>
-                {/if}
-              {/if}
-              {#if track.album && releaseDateLabel(track)}<span aria-hidden="true">·</span>{/if}
-              {#if releaseDateLabel(track)}
-                <span class="shrink-0" data-testid="now-playing-date">{releaseDateLabel(track)}</span>
+           Landscape (a tablet on its side, a phone turned) splits it into two columns --
+           the cover left at the full available height, text and controls right, centred
+           vertically -- rather than a cover as wide as the screen and therefore far taller
+           than it. `max-w-xl` keeps a portrait tablet's text column and controls at phone
+           proportions instead of stretched across the whole width. -->
+      <div
+        class="mx-auto flex min-h-full w-full max-w-xl flex-col justify-center px-6 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] landscape:grid landscape:max-w-5xl landscape:grid-cols-2 landscape:items-center landscape:gap-x-10"
+        data-testid="now-playing-stage"
+      >
+        <!-- `role="presentation"`: the swipe-to-close gesture is a bonus on top
+             of the chevron button above, which is the one thing assistive tech
+             and keyboard users need -- this element carries no interactive
+             semantics of its own.
+
+             The box has no content in flow, so it only ever takes the height that is
+             left. The cover sits in an absolutely positioned `container-type: size`
+             layer inside it and is `min(100cqw, 100cqh)` wide: the largest square that
+             fits. The layer is absolute on purpose -- as an in-flow flex item the
+             container's `cqh` was resolved before `flex-grow` gave it a height, and the
+             cover came out 0px wide in portrait. In portrait the box is also capped at
+             the square the column's width allows (`max-w-xl` minus padding, plus the
+             layer's `py-3`), and the stage centres what remains: a tall tablet otherwise
+             left an empty band above and below a width-bound cover. -->
+        <div
+          class="relative min-h-0 flex-1 portrait:max-h-[calc(min(100vw,36rem)-1.5rem)] landscape:h-full"
+          role="presentation"
+          data-testid="now-playing-artwork"
+          ontouchstart={handleTouchStart}
+          ontouchend={handleTouchEnd}
+        >
+          <div class="absolute inset-0 flex items-center justify-center py-3 landscape:py-4" style="container-type: size">
+          <div class="aspect-square" style="width: min(100cqw, 100cqh)">
+            {#if track}
+              <Artwork
+                class="h-full w-full shadow-2xl"
+                rounded="rounded-lg"
+                large
+                {coverUrl}
+                {artistUrl}
+                {tint}
+                title={track.title}
+                alt={track.title}
+              />
+            {:else}
+              <div class="h-full w-full rounded-lg bg-white/5"></div>
+            {/if}
+          </div>
+          </div>
+        </div>
+
+        <div class="flex min-w-0 flex-none flex-col" data-testid="now-playing-info">
+          {#if track}
+            <div class="min-w-0">
+              <!-- The title opens the same details sheet as the header's menu:
+                   it is the biggest thing on the screen, and "tap the title for
+                   more about it" is what a listener tries first. -->
+              <button
+                class="block w-full truncate border-none bg-transparent p-0 text-left text-xl font-bold text-white cursor-pointer"
+                data-testid="now-playing-title"
+                onclick={() => (showDetailsSheet = true)}
+              >{track.title}</button>
+              <ArtistList artist={track.artist} artistId={track.artistId} artists={track.artists} onnavigate={navigate} size="lg" />
+              <!-- Album left, release date right-aligned on the same line: the header names
+                   the place the queue came from, which is not the album. The album gives
+                   way (truncates) before the date does. -->
+              {#if track.album || releaseDateLabel(track)}
+                <div class="flex min-w-0 items-baseline gap-3 text-sm text-[#b3b3b3]" data-testid="now-playing-album-line">
+                  {#if track.album}
+                    {#if track.albumId}
+                      <button
+                        class="min-w-0 truncate border-none bg-transparent p-0 text-left text-inherit cursor-pointer hover:text-white hover:underline"
+                        data-testid="now-playing-album"
+                        onclick={() => navigate(`album:${track.albumId}`)}
+                      >{track.album}</button>
+                    {:else}
+                      <span class="min-w-0 truncate">{track.album}</span>
+                    {/if}
+                  {/if}
+                  {#if releaseDateLabel(track)}
+                    <span class="ml-auto shrink-0 tabular-nums" data-testid="now-playing-date">{releaseDateLabel(track)}</span>
+                  {/if}
+                </div>
               {/if}
             </div>
+
+            {#if metaItems.length > 0}
+              <!-- Genres and labels on one row that scrolls sideways, never a second
+                   or third row: every row the chips wrapped onto used to push the
+                   transport further down, off the screen on a track with many genres. -->
+              <div class="mt-3">
+                <MetaChips items={metaItems} onnavigate={navigate} testid="now-playing-meta" wrap={false} />
+              </div>
+            {/if}
+
+            <!-- `-ml-2.5`: each star is a 44px target around a 24px glyph, so the first
+                 glyph would otherwise sit 10px in from the text above it. -->
+            <div class="mt-1 -ml-2.5 flex items-center" data-testid="now-playing-rating">
+              {#each [1, 2, 3, 4, 5] as star (star)}
+                <button
+                  aria-label="{star} sterren"
+                  class="w-11 h-11 flex items-center justify-center bg-transparent border-none cursor-pointer transition-colors { rating >= star ? 'text-brand' : 'text-white/10' }"
+                  onclick={() => onrate?.(star)}
+                >
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+                  </svg>
+                </button>
+              {/each}
+            </div>
           {/if}
-        </div>
 
-        {#if metaItems.length > 0}
-          <!-- The player screen's own genre/label chips -- the same chips the
-               details sheet renders, wrapping onto as many rows as the
-               genres need rather than the single clipped line this used to
-               be. -->
-          <div class="mb-4">
-            <MetaChips items={metaItems} onnavigate={navigate} testid="now-playing-meta" />
+          <div class="mt-2">
+            {#if isSetMode}
+              <!-- A native `range`, not the songs-mode click div below: dragging is
+                   the only way to land on a chosen second in a two-hour file.
+                   Arrow keys are overridden to ±30 s, matching the skip buttons. -->
+              <input
+                type="range"
+                class="w-full accent-brand-blue h-1 cursor-pointer {transportLocked ? 'pointer-events-none opacity-50' : ''}"
+                min="0"
+                max={duration || 0}
+                step="1"
+                value={progress}
+                disabled={transportLocked}
+                oninput={(e) => onseekTo?.(Number(e.currentTarget.value))}
+                onkeydown={(e) => {
+                  if (e.key === 'ArrowLeft') { e.preventDefault(); onskip?.(-30); }
+                  else if (e.key === 'ArrowRight') { e.preventDefault(); onskip?.(30); }
+                }}
+                aria-label={$t('player.seek')}
+              />
+            {:else}
+              <div
+                role="button"
+                tabindex="0"
+                class="h-1 bg-[#4d4d4d] rounded-sm cursor-pointer {transportLocked ? 'pointer-events-none opacity-50' : ''}"
+                onclick={onseek}
+                onkeydown={(e) => e.key === 'Enter' && onseek?.(e)}
+                aria-label={$t('player.seek')}
+              >
+                <div class="h-full bg-white rounded-sm" style="width: {progressPercent(progress, duration)}%"></div>
+              </div>
+            {/if}
+            <div class="flex justify-between text-[11px] text-[#b3b3b3] mt-1 tabular-nums">
+              <span>{isSetMode ? formatClock(progress) : formatTime(progress)}</span>
+              <span>{isSetMode ? formatClock(duration) : formatTime(duration)}</span>
+            </div>
           </div>
-        {/if}
 
-        <div class="flex items-center gap-1 mb-6">
-          {#each [1, 2, 3, 4, 5] as star (star)}
+          <!-- `-mx-2`: the outer buttons carry `p-2`, so without it the shuffle and repeat
+               glyphs would sit 8px inside the edges every other line on the screen shares. -->
+          <div class="-mx-2 mt-1 flex items-center justify-between" data-testid="now-playing-transport">
             <button
-              aria-label="{star} sterren"
-              class="w-11 h-11 flex items-center justify-center bg-transparent border-none cursor-pointer transition-colors { rating >= star ? 'text-brand' : 'text-white/10' }"
-              onclick={() => onrate?.(star)}
+              class="bg-transparent border-none p-2 cursor-pointer transition-colors {shuffleMode ? 'text-brand' : 'text-[#b3b3b3]'}"
+              onclick={ontoggleShuffle}
+              aria-label={$t('queue.shuffle')}
+              aria-pressed={shuffleMode}
             >
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+              <svg viewBox="0 0 16 16" width="24" height="24" fill="currentColor">
+                <path d="M13.151.922a.75.75 0 1 0-1.06 1.06L13.109 3H10.3a5 5 0 0 0-4.054 2.115L2.615 10H1.25a.75.75 0 0 0 0 1.5h2.185a5 5 0 0 0 4.054-2.115L11.121 5H13.11l-1.019 1.017a.75.75 0 1 0 1.06 1.06L15.424 4.8a.75.75 0 0 0 0-1.06L13.15 1.472a.75.75 0 0 0-.001-.55zM13.151 9.922a.75.75 0 1 0-1.06 1.06L13.109 12H11.12l-1.144-1.636a.75.75 0 1 0-1.232.862l1.378 1.968A5 5 0 0 0 14.176 13.5h.194l-1.269 1.271a.75.75 0 1 0 1.06 1.06L16.43 13.56a.75.75 0 0 0 0-1.06l-2.274-2.273a.75.75 0 0 0-1.005-.305zM5.185 3.5h1.077L7.406 5.137a.75.75 0 0 0 1.232-.863l-1.378-1.967A5 5 0 0 0 3.235 1.5H1.25a.75.75 0 0 0 0 1.5h2.185a3.5 3.5 0 0 1 2.838 1.48L5.185 3.5z"></path>
               </svg>
             </button>
-          {/each}
-        </div>
-      {/if}
-
-      <div class="mb-2">
-        {#if isSetMode}
-          <!-- A native `range`, not the songs-mode click div below: dragging is
-               the only way to land on a chosen second in a two-hour file.
-               Arrow keys are overridden to ±30 s, matching the skip buttons. -->
-          <input
-            type="range"
-            class="w-full accent-brand-blue h-1 cursor-pointer {transportLocked ? 'pointer-events-none opacity-50' : ''}"
-            min="0"
-            max={duration || 0}
-            step="1"
-            value={progress}
-            disabled={transportLocked}
-            oninput={(e) => onseekTo?.(Number(e.currentTarget.value))}
-            onkeydown={(e) => {
-              if (e.key === 'ArrowLeft') { e.preventDefault(); onskip?.(-30); }
-              else if (e.key === 'ArrowRight') { e.preventDefault(); onskip?.(30); }
-            }}
-            aria-label={$t('player.seek')}
-          />
-        {:else}
-          <div
-            role="button"
-            tabindex="0"
-            class="h-1 bg-[#4d4d4d] rounded-sm cursor-pointer {transportLocked ? 'pointer-events-none opacity-50' : ''}"
-            onclick={onseek}
-            onkeydown={(e) => e.key === 'Enter' && onseek?.(e)}
-            aria-label={$t('player.seek')}
-          >
-            <div class="h-full bg-white rounded-sm" style="width: {progressPercent(progress, duration)}%"></div>
+            <button
+              class="bg-transparent border-none p-2 cursor-pointer text-white {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+              onclick={onprev}
+              disabled={transportLocked}
+              aria-label={$t('player.previous')}
+            >
+              <svg viewBox="0 0 16 16" width="28" height="28" fill="currentColor">
+                <path d="M3.3 1a.7.7 0 0 1 .7.7v5.15l9.95-5.744a.7.7 0 0 1 1.05.606v12.575a.7.7 0 0 1-1.05.607L4 9.15v5.15a.7.7 0 0 1-.7.7H1.7a.7.7 0 0 1-.7-.7V1.7a.7.7 0 0 1 .7-.7h1.6z"></path>
+              </svg>
+            </button>
+            {#if isSetMode}
+              <button
+                class="relative bg-transparent border-none p-2 cursor-pointer text-white {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+                onclick={() => onskip?.(-30)}
+                disabled={transportLocked}
+                aria-label={$t('player.skipBack')}
+              >
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
+                  <path d="M12 5V1L7 6l5 5V7a6 6 0 1 1-6 6H5a7 7 0 1 0 7-7z"></path>
+                </svg>
+                <span class="absolute text-[8px] font-bold top-1/2 left-1/2 -translate-x-1/2 -translate-y-[35%]">30</span>
+              </button>
+            {/if}
+            <button
+              class="w-16 h-16 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105 {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+              onclick={ontogglePlay}
+              disabled={transportLocked}
+              aria-label={playing ? $t('nowPlaying.pause') : $t('nowPlaying.play')}
+            >
+              {#if playing}
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="black">
+                  <path d="M5.7 3a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7H5.7zm10 0a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7h-2.6z"></path>
+                </svg>
+              {:else}
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="black">
+                  <path d="M7.05 3.606l13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path>
+                </svg>
+              {/if}
+            </button>
+            {#if isSetMode}
+              <button
+                class="relative bg-transparent border-none p-2 cursor-pointer text-white {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+                onclick={() => onskip?.(30)}
+                disabled={transportLocked}
+                aria-label={$t('player.skipForward')}
+              >
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
+                  <path d="M12 5V1l5 5-5 5V7a6 6 0 1 0 6 6h2a7 7 0 1 1-7-7z"></path>
+                </svg>
+                <span class="absolute text-[8px] font-bold top-1/2 left-1/2 -translate-x-1/2 -translate-y-[35%]">30</span>
+              </button>
+            {/if}
+            <button
+              class="bg-transparent border-none p-2 cursor-pointer text-white {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+              onclick={onnext}
+              disabled={transportLocked}
+              aria-label={$t('player.next')}
+            >
+              <svg viewBox="0 0 16 16" width="28" height="28" fill="currentColor">
+                <path d="M12.7 1a.7.7 0 0 0-.7.7v5.15L2.05 1.106A.7.7 0 0 0 1 1.712v12.575a.7.7 0 0 0 1.05.607L12 9.15v5.15a.7.7 0 0 0 .7.7h1.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7h-1.6z"></path>
+              </svg>
+            </button>
+            <button
+              class="relative bg-transparent border-none p-2 cursor-pointer transition-colors {repeatMode !== 'none' ? 'text-brand' : 'text-[#b3b3b3]'}"
+              onclick={ontoggleRepeat}
+              aria-label={$t('player.repeat')}
+            >
+              <svg viewBox="0 0 16 16" width="24" height="24" fill="currentColor">
+                <path d="M0 4.75A3.75 3.75 0 0 1 3.75 1h8.5A3.75 3.75 0 0 1 16 4.75v5a3.75 3.75 0 0 1-3.75 3.75H9.81l1.018 1.018a.75.75 0 1 1-1.06 1.06L6.939 12.75l2.829-2.828a.75.75 0 1 1 1.06 1.06L9.811 12h2.439a2.25 2.25 0 0 0 2.25-2.25v-5a2.25 2.25 0 0 0-2.25-2.25h-8.5A2.25 2.25 0 0 0 1.5 4.75v5A2.25 2.25 0 0 0 3.75 12H5v1.5H3.75A3.75 3.75 0 0 1 0 9.75v-5z"></path>
+              </svg>
+              {#if repeatMode === 'one'}
+                <span class="absolute text-[8px] font-bold top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60%] text-brand">1</span>
+              {/if}
+            </button>
           </div>
-        {/if}
-        <div class="flex justify-between text-[11px] text-[#b3b3b3] mt-1">
-          <span>{isSetMode ? formatClock(progress) : formatTime(progress)}</span>
-          <span>{isSetMode ? formatClock(duration) : formatTime(duration)}</span>
+
+          <!-- The output the phone plays through (increment H, native only: `outputRoute` is
+               null in a browser) on the left, the secondary actions on the right -- one row
+               instead of two, so the stage stays short enough for the controls to fit. With
+               no output to name, the icons centre under the transport instead. -->
+          <div
+            class="-mx-2 mt-3 flex items-center {outputRoute ? 'gap-2' : 'justify-center gap-10'}"
+            data-testid="now-playing-actions"
+          >
+            {#if outputRoute}
+              <button
+                class="mr-auto flex min-w-0 items-center gap-2 border-none bg-transparent px-2 py-1 text-[13px] font-bold text-brand cursor-pointer"
+                data-testid="now-playing-output"
+                onclick={onopenOutputPicker}
+                aria-label={$t('nowPlaying.outputPicker')}
+              >
+                <svg class="shrink-0" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+                  <path d={OUTPUT_ICONS[outputRoute.type] ?? OUTPUT_ICONS.speaker}></path>
+                </svg>
+                <span class="truncate">{outputRoute.name}</span>
+              </button>
+            {/if}
+            {#if equalizerSupported}
+              <button
+                data-eq-toggle
+                class="shrink-0 bg-transparent border-none p-2 cursor-pointer text-[#b3b3b3] hover:text-white transition-colors"
+                onclick={ontoggleEqualizer}
+                aria-label={$t('equalizer.title')}
+              >
+                <!-- A filled bar-chart glyph, not the stroked one this button used
+                     before increment B -- it now sits next to solid icons
+                     (versions, queue) at the same 24px, and a stroke read as a
+                     lighter weight than either. -->
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+                  <path d="M10 20h4V4h-4v16zm-6 0h4v-8H4v8zm12-11v11h4V9h-4z"></path>
+                </svg>
+              </button>
+            {/if}
+            {#if ontoggleRadio}
+              <button
+                class="shrink-0 bg-transparent border-none p-2 cursor-pointer transition-colors hover:text-white {radioActive ? 'text-[#b266ff]' : 'text-[#b3b3b3]'}"
+                data-testid="now-playing-radio"
+                onclick={ontoggleRadio}
+                aria-label={$t('player.radio')}
+                aria-pressed={radioActive}
+              >
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"></path>
+                </svg>
+              </button>
+            {/if}
+            {#if track?.workId}
+              <button
+                class="shrink-0 bg-transparent border-none p-2 cursor-pointer text-[#b3b3b3] hover:text-white transition-colors"
+                data-testid="now-playing-song"
+                onclick={() => navigate(`song:${track.workId}`)}
+                aria-label={$t('track.versions')}
+              >
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+                  <path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h10v2H4v-2z"></path>
+                </svg>
+              </button>
+            {/if}
+            <button
+              class="shrink-0 bg-transparent border-none p-2 cursor-pointer text-[#b3b3b3] hover:text-white transition-colors"
+              onclick={ontoggleQueue}
+              aria-label={$t('queue.title')}
+            >
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <path d="M15 15H3v-1.5h12V15zm0-4.5H3V9h12v1.5zm0-4.5H3V4.5h12V6zm7 12l-4.5-4.5L13 18h9z"></path>
+              </svg>
+            </button>
+          </div>
         </div>
-      </div>
-
-      <div class="flex items-center justify-between mt-2 mb-8">
-        <button
-          class="bg-transparent border-none p-2 cursor-pointer transition-colors {shuffleMode ? 'text-brand' : 'text-[#b3b3b3]'}"
-          onclick={ontoggleShuffle}
-          aria-label={$t('queue.shuffle')}
-          aria-pressed={shuffleMode}
-        >
-          <svg viewBox="0 0 16 16" width="24" height="24" fill="currentColor">
-            <path d="M13.151.922a.75.75 0 1 0-1.06 1.06L13.109 3H10.3a5 5 0 0 0-4.054 2.115L2.615 10H1.25a.75.75 0 0 0 0 1.5h2.185a5 5 0 0 0 4.054-2.115L11.121 5H13.11l-1.019 1.017a.75.75 0 1 0 1.06 1.06L15.424 4.8a.75.75 0 0 0 0-1.06L13.15 1.472a.75.75 0 0 0-.001-.55zM13.151 9.922a.75.75 0 1 0-1.06 1.06L13.109 12H11.12l-1.144-1.636a.75.75 0 1 0-1.232.862l1.378 1.968A5 5 0 0 0 14.176 13.5h.194l-1.269 1.271a.75.75 0 1 0 1.06 1.06L16.43 13.56a.75.75 0 0 0 0-1.06l-2.274-2.273a.75.75 0 0 0-1.005-.305zM5.185 3.5h1.077L7.406 5.137a.75.75 0 0 0 1.232-.863l-1.378-1.967A5 5 0 0 0 3.235 1.5H1.25a.75.75 0 0 0 0 1.5h2.185a3.5 3.5 0 0 1 2.838 1.48L5.185 3.5z"></path>
-          </svg>
-        </button>
-        <button
-          class="bg-transparent border-none p-2 cursor-pointer text-white {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
-          onclick={onprev}
-          disabled={transportLocked}
-          aria-label={$t('player.previous')}
-        >
-          <svg viewBox="0 0 16 16" width="28" height="28" fill="currentColor">
-            <path d="M3.3 1a.7.7 0 0 1 .7.7v5.15l9.95-5.744a.7.7 0 0 1 1.05.606v12.575a.7.7 0 0 1-1.05.607L4 9.15v5.15a.7.7 0 0 1-.7.7H1.7a.7.7 0 0 1-.7-.7V1.7a.7.7 0 0 1 .7-.7h1.6z"></path>
-          </svg>
-        </button>
-        {#if isSetMode}
-          <button
-            class="relative bg-transparent border-none p-2 cursor-pointer text-white {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
-            onclick={() => onskip?.(-30)}
-            disabled={transportLocked}
-            aria-label={$t('player.skipBack')}
-          >
-            <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
-              <path d="M12 5V1L7 6l5 5V7a6 6 0 1 1-6 6H5a7 7 0 1 0 7-7z"></path>
-            </svg>
-            <span class="absolute text-[8px] font-bold top-1/2 left-1/2 -translate-x-1/2 -translate-y-[35%]">30</span>
-          </button>
-        {/if}
-        <button
-          class="w-16 h-16 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105 {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
-          onclick={ontogglePlay}
-          disabled={transportLocked}
-          aria-label={playing ? $t('nowPlaying.pause') : $t('nowPlaying.play')}
-        >
-          {#if playing}
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="black">
-              <path d="M5.7 3a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7H5.7zm10 0a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7h-2.6z"></path>
-            </svg>
-          {:else}
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="black">
-              <path d="M7.05 3.606l13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path>
-            </svg>
-          {/if}
-        </button>
-        {#if isSetMode}
-          <button
-            class="relative bg-transparent border-none p-2 cursor-pointer text-white {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
-            onclick={() => onskip?.(30)}
-            disabled={transportLocked}
-            aria-label={$t('player.skipForward')}
-          >
-            <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
-              <path d="M12 5V1l5 5-5 5V7a6 6 0 1 0 6 6h2a7 7 0 1 1-7-7z"></path>
-            </svg>
-            <span class="absolute text-[8px] font-bold top-1/2 left-1/2 -translate-x-1/2 -translate-y-[35%]">30</span>
-          </button>
-        {/if}
-        <button
-          class="bg-transparent border-none p-2 cursor-pointer text-white {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
-          onclick={onnext}
-          disabled={transportLocked}
-          aria-label={$t('player.next')}
-        >
-          <svg viewBox="0 0 16 16" width="28" height="28" fill="currentColor">
-            <path d="M12.7 1a.7.7 0 0 0-.7.7v5.15L2.05 1.106A.7.7 0 0 0 1 1.712v12.575a.7.7 0 0 0 1.05.607L12 9.15v5.15a.7.7 0 0 0 .7.7h1.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7h-1.6z"></path>
-          </svg>
-        </button>
-        <button
-          class="relative bg-transparent border-none p-2 cursor-pointer transition-colors {repeatMode !== 'none' ? 'text-brand' : 'text-[#b3b3b3]'}"
-          onclick={ontoggleRepeat}
-          aria-label={$t('player.repeat')}
-        >
-          <svg viewBox="0 0 16 16" width="24" height="24" fill="currentColor">
-            <path d="M0 4.75A3.75 3.75 0 0 1 3.75 1h8.5A3.75 3.75 0 0 1 16 4.75v5a3.75 3.75 0 0 1-3.75 3.75H9.81l1.018 1.018a.75.75 0 1 1-1.06 1.06L6.939 12.75l2.829-2.828a.75.75 0 1 1 1.06 1.06L9.811 12h2.439a2.25 2.25 0 0 0 2.25-2.25v-5a2.25 2.25 0 0 0-2.25-2.25h-8.5A2.25 2.25 0 0 0 1.5 4.75v5A2.25 2.25 0 0 0 3.75 12H5v1.5H3.75A3.75 3.75 0 0 1 0 9.75v-5z"></path>
-          </svg>
-          {#if repeatMode === 'one'}
-            <span class="absolute text-[8px] font-bold top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60%] text-brand">1</span>
-          {/if}
-        </button>
-      </div>
-
-      <!-- Increment H: the output the phone plays through, native only (`outputRoute` is null in
-           a browser). Its own line above the icon row rather than a fifth icon in it: a device
-           name is text, and the row's centred `gap-10` has no room for one. Takes the `mt-auto`
-           the icon row otherwise has, so the two stay together at the bottom. -->
-      {#if outputRoute}
-        <button
-          class="flex items-center justify-center gap-2 mx-auto mt-auto mb-1 max-w-full bg-transparent border-none px-2 py-1 cursor-pointer text-brand text-[13px] font-bold"
-          data-testid="now-playing-output"
-          onclick={onopenOutputPicker}
-          aria-label={$t('nowPlaying.outputPicker')}
-        >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
-            <path d={OUTPUT_ICONS[outputRoute.type] ?? OUTPUT_ICONS.speaker}></path>
-          </svg>
-          <span class="truncate">{outputRoute.name}</span>
-        </button>
-      {/if}
-
-      <div class="flex items-center justify-center gap-10 {outputRoute ? 'mt-2' : 'mt-auto'}">
-        {#if equalizerSupported}
-          <button
-            data-eq-toggle
-            class="bg-transparent border-none p-2 cursor-pointer text-[#b3b3b3] hover:text-white transition-colors"
-            onclick={ontoggleEqualizer}
-            aria-label={$t('equalizer.title')}
-          >
-            <!-- A filled bar-chart glyph, not the stroked one this button used
-                 before increment B -- it now sits next to solid icons
-                 (versions, queue) at the same 24px, and a stroke read as a
-                 lighter weight than either. -->
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
-              <path d="M10 20h4V4h-4v16zm-6 0h4v-8H4v8zm12-11v11h4V9h-4z"></path>
-            </svg>
-          </button>
-        {/if}
-        {#if ontoggleRadio}
-          <button
-            class="bg-transparent border-none p-2 cursor-pointer transition-colors hover:text-white {radioActive ? 'text-[#b266ff]' : 'text-[#b3b3b3]'}"
-            data-testid="now-playing-radio"
-            onclick={ontoggleRadio}
-            aria-label={$t('player.radio')}
-            aria-pressed={radioActive}
-          >
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
-              <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"></path>
-            </svg>
-          </button>
-        {/if}
-        {#if track?.workId}
-          <button
-            class="bg-transparent border-none p-2 cursor-pointer text-[#b3b3b3] hover:text-white transition-colors"
-            data-testid="now-playing-song"
-            onclick={() => navigate(`song:${track.workId}`)}
-            aria-label={$t('track.versions')}
-          >
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
-              <path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h10v2H4v-2z"></path>
-            </svg>
-          </button>
-        {/if}
-        <button
-          class="bg-transparent border-none p-2 cursor-pointer text-[#b3b3b3] hover:text-white transition-colors"
-          onclick={ontoggleQueue}
-          aria-label={$t('queue.title')}
-        >
-          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-            <path d="M15 15H3v-1.5h12V15zm0-4.5H3V9h12v1.5zm0-4.5H3V4.5h12V6zm7 12l-4.5-4.5L13 18h9z"></path>
-          </svg>
-        </button>
       </div>
 
       <!-- The continuation sections (increment F): what plays after this, more from the same
-           artist, and this song's other files. Each is independently hidden when it has
-           nothing to show, so a track with no `workId` and no queue after it renders none of
-           this at all rather than three empty headings. -->
-      <div class="flex flex-col gap-6 mt-8">
+           artist, and this song's other files -- below the stage, one scroll down, never
+           competing with the controls for the first screen. Each is independently hidden
+           when it has nothing to show, so a track with no `workId` and no queue after it
+           renders none of this at all rather than three empty headings. Their rows navigate
+           through `navigate`, like everything else here, so the player closes first. -->
+      <div class="mx-auto flex w-full max-w-xl flex-col gap-6 px-6 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] landscape:max-w-5xl">
         {#if shuffleMode || nextUp.length > 0}
           <section>
             <h3 class="text-base font-bold mb-3">{$t('nowPlaying.nextUp')}</h3>
@@ -733,7 +785,7 @@
             {:else}
               <div class="flex flex-col gap-1">
                 {#each nextUp as entry, i (i)}
-                  <TrackRowCompact track={entry} {onnavigate} onplay={() => playQueueEntry(entry)} />
+                  <TrackRowCompact track={entry} onnavigate={navigate} onplay={() => playQueueEntry(entry)} />
                 {/each}
               </div>
             {/if}
@@ -753,7 +805,7 @@
             </div>
             <div class="flex flex-col gap-1">
               {#each moreFromArtist as entry (entry.id)}
-                <TrackRowCompact track={entry} {onnavigate} onplay={() => playFromArtist(entry)} />
+                <TrackRowCompact track={entry} onnavigate={navigate} onplay={() => playFromArtist(entry)} />
               {/each}
             </div>
           </section>
@@ -764,7 +816,7 @@
             <h3 class="text-base font-bold mb-3">{$t('track.versions')}</h3>
             <div class="flex flex-col gap-1">
               {#each otherVersions as entry (entry.id)}
-                <TrackRowCompact track={entry} {onnavigate} onplay={() => playVersion(entry)} />
+                <TrackRowCompact track={entry} onnavigate={navigate} onplay={() => playVersion(entry)} />
               {/each}
             </div>
           </section>

@@ -116,8 +116,7 @@ namespace lms::api::muma::tests
         EXPECT_TRUE(muma.asked.empty());
     }
 
-    // A system key is a service, not a person, and this server hands its own api-key to every
-    // user who logs in through /api/auth/login -- so it opens no admin route here.
+    // A system key is a service, not a person -- so it opens no admin route here.
     TEST(MumaAuthentication, aSystemKeyIsNotAnAdminUser)
     {
         EXPECT_FALSE(mayAdministerServer(CallerRights{ .method = AuthMethod::LmsApiKey }));
@@ -241,6 +240,27 @@ namespace lms::api::muma::tests
         EXPECT_TRUE(decision.forwardKey.empty());
         EXPECT_FALSE(mayAdministerServer(rightsFor(decision)));
         EXPECT_FALSE(isUserCaller(rightsFor(decision)));
+    }
+
+    // The login is proxied to MuMa like the other credential-less entry points, so a web login
+    // receives the user's own MuMa key. This server used to answer it itself, with its own
+    // `api-key` for every user.
+    TEST(MumaAuthentication, theLoginIsAPublicPathProxiedToMuma)
+    {
+        EXPECT_TRUE(isPublicAuthPath("/api/auth/login"));
+        EXPECT_TRUE(isPublicAuthPath("/api/auth/setup-status"));
+        EXPECT_TRUE(isPublicAuthPath("/api/auth/setup"));
+        EXPECT_TRUE(isPublicAuthPath("/api/auth/google"));
+        EXPECT_TRUE(isPublicAuthPath("/api/auth/access-request"));
+    }
+
+    TEST(MumaAuthentication, otherAuthPathsAreNotPublic)
+    {
+        EXPECT_FALSE(isPublicAuthPath("/api/auth/verify"));
+        EXPECT_FALSE(isPublicAuthPath("/api/auth/refresh"));
+        EXPECT_FALSE(isPublicAuthPath("/api/auth/login/extra"));
+        EXPECT_FALSE(isPublicAuthPath("/api/admin/libraries"));
+        EXPECT_FALSE(isPublicAuthPath(""));
     }
 
     // The generic proxy forwards AuthDecision::forwardKey and nothing else. It is only ever the

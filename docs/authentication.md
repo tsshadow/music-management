@@ -182,6 +182,22 @@ most of those to MuMa directly). Its authentication, in
 Bug report [056](bug-reports/056-lms-any-key-is-admin.md) describes what this replaced: any
 non-empty key was accepted and the caller was taken from `u`.
 
+### The web login is MuMa's login
+
+`POST /muma/api/auth/login` is MuMa's own `POST /api/auth/login`: nginx sends it straight to
+`music-manager`, and when a login reaches LMS directly (`lms.<domain>`, the test and dev stacks)
+LMS proxies it there unauthenticated, like setup and Google sign-in (`isPublicAuthPath`). Every user
+therefore gets their own `api_key`, permissions and refresh token. Until September 2026 LMS answered
+this route itself and returned its own `api-key` to every user -- on production possibly MuMa's
+system key, which the web app then showed as an administrator for whoever held it. A browser still
+holding such a key is signed out at startup (`endLeftoverSharedKeySession` in
+`services/frontend/src/lib/store.js`: the key verifies as `type: "system"`) and signs in once more.
+LMS's `api-key` remains the key MuMa presents when *it* calls LMS.
+
+On the direct route nginx passes MuMa one `X-Forwarded-For` address, the right-most one not written
+by a private-network proxy, because MuMa's login rate limit keys on the left-most entry and a client
+could otherwise choose it. See `docs/designs/authentication/technical.md`, 2026-09-24.
+
 ## Gaps / things to consider
 
 Answering "mis ik hier nog dingen?" (things not covered above and not implemented in this pass):
@@ -197,7 +213,9 @@ Answering "mis ik hier nog dingen?" (things not covered above and not implemente
   (`services/music_manager/rate_limit.py`); repeated ID-token verification failures against
   `/api/auth/google` are still unlimited. Note that `/api/auth/login` is not only a login form: LMS
   calls it to validate the password on *every* Subsonic request, so anything counted there is counted
-  per library page view, not per login.
+  per library page view, not per login. The web login reaches it through nginx, which forwards the
+  client address as a single `X-Forwarded-For` entry; a login proxied by LMS carries none and is
+  counted per account only.
 - **No self-service password reset / email verification.** Password changes currently require either an
   admin (the admin role; any admin's password needs one too) or the user's own session plus their current
   password (`POST /{id}/password` with `current_password`); there is no

@@ -7,7 +7,8 @@
    *
    * `size="lg"` is the full player header's variant (increment B): a taller
    * row with a trailing chevron so the whole line reads as "go to artist"
-   * even though, with several artists, only each name individually is.
+   * even though, with several artists, only each name individually is. The
+   * names stay on one line and truncate, however many artists there are.
    */
   const { artist = '', artistId = '', artists = [], active = false, size = 'sm', onnavigate } = $props();
 
@@ -30,8 +31,15 @@
 </script>
 
 <span
-  class="{size === 'lg' ? 'flex items-center py-2 min-h-11 text-base' : 'text-sm'} {active ? 'text-brand' : 'text-[#b3b3b3]'}"
+  class="{size === 'lg' ? 'flex items-center py-2 min-h-11 min-w-0 text-base' : 'text-sm'} {active ? 'text-brand' : 'text-[#b3b3b3]'}"
+  data-testid={size === 'lg' ? 'artist-list-lg' : undefined}
 >
+  <!-- The names live in one inline span, never directly in the flex row: as flex items each
+       name and each ", " between them became its own column, so several artists wrapped into
+       a ragged block ("David / Levy") on the player. Inline text truncates as one line.
+       The separator is an expression: a literal ", " inside `{#if}` loses its
+       space to Svelte's whitespace trimming, which printed "Catscan,Starving Insect". -->
+  <span class={size === 'lg' ? 'block min-w-0 truncate' : ''}>
   {#each displayArtists as a, i (a.id || i)}
     <span
       role="link"
@@ -39,8 +47,9 @@
       class="text-inherit hover:text-white {a.id ? 'hover:underline cursor-pointer' : ''}"
       onclick={(e) => { e.stopPropagation(); if (a.id && onnavigate) onnavigate(`artist:${a.id}`); }}
       onkeydown={(e) => { e.stopPropagation(); if (a.id && onnavigate && (e.key === 'Enter' || e.key === ' ')) onnavigate(`artist:${a.id}`); }}
-    >{a.name}</span>{#if i < displayArtists.length - 1}, {/if}
+    >{a.name}</span>{i < displayArtists.length - 1 ? ', ' : ''}
   {/each}
+  </span>
   {#if size === 'lg' && hasNavigable}
     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" class="text-[#b3b3b3] shrink-0 ml-1" aria-hidden="true">
       <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"></path>

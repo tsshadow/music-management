@@ -5,6 +5,7 @@
 #include <Wt/Json/Value.h>
 #include <Wt/Utils.h>
 #include <algorithm>
+#include <array>
 #include <utility>
 
 #include "core/String.hpp"
@@ -183,6 +184,18 @@ namespace lms::api::muma
         }
 
         return AuthDecision::withOutcome(keyDecision.outcome);
+    }
+
+    bool isPublicAuthPath(std::string_view pathInfo)
+    {
+        static constexpr std::array<std::string_view, 5> publicAuthPaths{
+            "/api/auth/setup-status",
+            "/api/auth/setup",
+            "/api/auth/google",
+            "/api/auth/access-request",
+            "/api/auth/login",
+        };
+        return std::find(publicAuthPaths.begin(), publicAuthPaths.end(), pathInfo) != publicAuthPaths.end();
     }
 
     bool isSystemCaller(const CallerRights& rights)

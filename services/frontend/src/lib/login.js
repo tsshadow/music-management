@@ -77,9 +77,16 @@ export async function signIn(username, password) {
 }
 
 /**
- * Trades the same pair for a muma API key, the user's permissions and their
- * RBAC role. A failure here is a warning: the player works without it, only the
- * management half does not.
+ * Trades the same pair for the user's own muma API key, their permissions and
+ * their RBAC role. A failure here is a warning: the player works without it,
+ * only the management half does not.
+ *
+ * The answer is MuMa's own login (`services/music_manager/routers/users.py`):
+ * `api_key`, `refresh_token`, and the account under `user`, carrying
+ * `permissions` and `is_admin`. LMS used to answer this call itself, flat and
+ * with its own shared `api-key` for everybody; an answer without a key and a
+ * `user` is not a session and stores nothing, so a half-written session can
+ * never outlive the call.
  *
  * @param {string} username
  * @param {string} password
@@ -94,9 +101,13 @@ export async function startManagementSession(username, password) {
     });
     if (!response.ok) return false;
     const data = await response.json();
+    if (!data?.api_key || !data.user || typeof data.user !== "object") {
+      console.warn("Management API login answered without a user key");
+      return false;
+    }
     mumaApiKey.set(data.api_key);
-    mumaRefreshToken.set(data.refresh_token);
-    userPermissions.set(data.user.permissions);
+    mumaRefreshToken.set(data.refresh_token ?? "");
+    userPermissions.set(Array.isArray(data.user.permissions) ? data.user.permissions : []);
     mumaUser.set(data.user);
     mumaSessionActive.set(true);
     return true;

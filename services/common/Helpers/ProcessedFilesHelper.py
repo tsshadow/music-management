@@ -59,6 +59,25 @@ class ProcessedFilesHelper:
     #: seen it -- a file somebody dropped into the library by hand.
     NEW_IN_LIBRARY = 'new_in_library'
 
+    #: The reason left on the row of a file that failed PARK_AFTER times in a row. The
+    #: row is taken off the queue (needs_rescan FALSE) and carries the file's mtime, so
+    #: neither the pending pass nor the walk touches it again until the file changes, a
+    #: retag request queues it on purpose, or the deep run hands it back.
+    FAILED = 'failed'
+    #: The reason a file gets when it failed before anything had queued it (the walk
+    #: found it): it goes on the queue so the backoff, not the daily walk, paces it.
+    RETRY = 'retry'
+    #: How many failed attempts in a row park a file, unless the caller says otherwise.
+    PARK_AFTER = 5
+    #: The base of the retry backoff: a row that failed `attempts` times is not handed
+    #: out again until `last_attempt + 2^attempts * RETRY_BASE_SECONDS`. One tagger
+    #: loop period, so the first retry skips one round and the fourth waits 80 minutes.
+    RETRY_BASE_SECONDS = 300
+
+    #: Appended to every UPDATE that queues a file on purpose: a fresh request is a
+    #: fresh start for the retry backoff, and takes a parked row back onto the queue.
+    _RESET_ATTEMPTS = ', attempts = 0, last_attempt = NULL'
+
     def __init__(self, table_name='tagger_processed_files'):
         self.table_name = table_name
         self.db_connector = DatabaseConnector()
@@ -68,7 +87,22 @@ class ProcessedFilesHelper:
 
     def create_table(self):
         """Creates the table if it doesn't exist."""
-        query = f'\n            CREATE TABLE IF NOT EXISTS {self.table_name} (\n                filepath VARCHAR(767) PRIMARY KEY,\n                mtime DOUBLE,\n                last_processed TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n                needs_rescan BOOLEAN DEFAULT FALSE,\n                rescan_reason VARCHAR(64) NULL\n            )\n        '
+        # filepath is utf8mb4_bin: the table default, utf8mb4_general_ci, folds case and
+        # accents and weighs every emoji the same, so two files whose paths differ only in
+        # such a character shared one row and overwrote each other's mtime. The snapshot
+        # matches exactly; the key has to as well. See migrate_v37_processed_files_binary_path.sql.
+        # attempts/last_attempt drive the retry backoff of a file that keeps failing.
+        query = (
+            f'CREATE TABLE IF NOT EXISTS {self.table_name} ('
+            'filepath VARCHAR(767) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin PRIMARY KEY, '
+            'mtime DOUBLE, '
+            'last_processed TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, '
+            'needs_rescan BOOLEAN DEFAULT FALSE, '
+            'rescan_reason VARCHAR(64) NULL, '
+            'attempts INT NOT NULL DEFAULT 0, '
+            'last_attempt TIMESTAMP NULL DEFAULT NULL'
+            ')'
+        )
         # pending_paths pages through the queued rows by primary key; without this the
         # table is scanned once per page, and there are 327k rows on production. The
         # reason is not in the key on purpose: filepath is VARCHAR(767) in utf8mb4, 3068
@@ -156,7 +190,11 @@ class ProcessedFilesHelper:
 
     def mark_processed(self, song_path: str, mtime: float):
         """Marks a song as processed in the database."""
-        query = f'\n            INSERT INTO {self.table_name} (filepath, mtime, needs_rescan)\n            VALUES (%s, %s, FALSE)\n            ON DUPLICATE KEY UPDATE mtime = VALUES(mtime), needs_rescan = FALSE, rescan_reason = NULL\n        '
+        query = (
+            f'INSERT INTO {self.table_name} (filepath, mtime, needs_rescan) VALUES (%s, %s, FALSE) '
+            'ON DUPLICATE KEY UPDATE mtime = VALUES(mtime), needs_rescan = FALSE, rescan_reason = NULL'
+            f'{self._RESET_ATTEMPTS}'
+        )
         connection = self.db_connector.connect()
         try:
             with connection.cursor() as cursor:
@@ -170,6 +208,50 @@ class ProcessedFilesHelper:
         finally:
             connection.close()
 
+    def mark_failed(self, song_path: str, mtime: float, park_after: int = PARK_AFTER) -> int:
+        """Count one failed tagging attempt; park the file once it has failed `park_after` times.
+
+        The row stays (or is put) on the queue with its attempt counter raised, so the
+        pending pass retries it only after the backoff in pending_paths. A row that was
+        not queued yet -- the walk found the file -- is queued with reason RETRY; a
+        queued row keeps the reason that queued it. On the `park_after`-th failure the
+        row is taken off the queue with reason FAILED and the file's current mtime, so
+        the walk leaves it alone too until the file changes.
+
+        Returns the number of failed attempts now on the row, or 0 when the database
+        could not be written; the caller picks its log level from it.
+        """
+        # Assignments in ON DUPLICATE KEY UPDATE are applied left to right, so the reason
+        # is decided on the old needs_rescan before the flag is raised.
+        upsert = (
+            f'INSERT INTO {self.table_name} (filepath, mtime, needs_rescan, rescan_reason, attempts, last_attempt) '
+            'VALUES (%s, 0, TRUE, %s, 1, NOW()) '
+            'ON DUPLICATE KEY UPDATE rescan_reason = IF(needs_rescan, rescan_reason, VALUES(rescan_reason)), '
+            'needs_rescan = TRUE, attempts = attempts + 1, last_attempt = NOW()'
+        )
+        read = f'SELECT attempts FROM {self.table_name} WHERE filepath = %s'
+        park = f'UPDATE {self.table_name} SET needs_rescan = FALSE, rescan_reason = %s, mtime = %s WHERE filepath = %s'
+        connection = self.db_connector.connect()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(upsert, (song_path, self.RETRY))
+                cursor.execute(read, (song_path,))
+                row = cursor.fetchone()
+                attempts = int(row[0]) if row else 1
+                parked = attempts >= park_after
+                if parked:
+                    cursor.execute(park, (self.FAILED, mtime, song_path))
+            connection.commit()
+            snapshot = self._snapshot
+            if snapshot is not None:
+                snapshot[song_path] = mtime if parked else self.FLAGGED
+            return attempts
+        except Exception as e:
+            logging.error(f'Error recording a failed tagging attempt: {e}')
+            return 0
+        finally:
+            connection.close()
+
     def mark_stale_for_rescan(self, older_than_days: int, limit: int) -> int:
         """Hands the oldest rows back to the tagger, at most `limit` of them.
 
@@ -179,7 +261,7 @@ class ProcessedFilesHelper:
         rules once every `older_than_days`.
         """
         query = (
-            f'UPDATE {self.table_name} SET needs_rescan = TRUE, rescan_reason = %s '
+            f'UPDATE {self.table_name} SET needs_rescan = TRUE, rescan_reason = %s{self._RESET_ATTEMPTS} '
             'WHERE needs_rescan = FALSE AND last_processed < NOW() - INTERVAL %s DAY '
             'ORDER BY last_processed LIMIT %s'
         )
@@ -212,8 +294,12 @@ class ProcessedFilesHelper:
             connection.close()
 
     def mark_for_rescan(self, song_path: str = None, reason: str | None = None):
-        """Marks one or all songs for rescan, optionally recording why."""
-        reason_sql = ', rescan_reason = %s' if reason else ''
+        """Marks one or all songs for rescan, optionally recording why.
+
+        A retag asked for on purpose starts the file's failure count over, which is also
+        what takes a parked (FAILED) row back onto the queue.
+        """
+        reason_sql = (', rescan_reason = %s' if reason else '') + self._RESET_ATTEMPTS
         if song_path:
             query = f'UPDATE {self.table_name} SET needs_rescan = TRUE{reason_sql} WHERE filepath = %s'
             args = (reason, song_path) if reason else (song_path,)
@@ -247,7 +333,7 @@ class ProcessedFilesHelper:
                     chunk = paths[start : start + self.BATCH_SIZE]
                     placeholders = ', '.join(['%s'] * len(chunk))
                     query = (
-                        f'UPDATE {self.table_name} SET needs_rescan = TRUE, rescan_reason = %s '
+                        f'UPDATE {self.table_name} SET needs_rescan = TRUE, rescan_reason = %s{self._RESET_ATTEMPTS} '
                         f'WHERE filepath IN ({placeholders})'
                     )
                     cursor.execute(query, (reason, *chunk))
@@ -302,11 +388,18 @@ class ProcessedFilesHelper:
         filter on the (flag, path) index rather than part of it.
         """
         reason_sql = 'rescan_reason IS NULL' if reason is None else 'rescan_reason = %s'
-        query = (
-            f'SELECT filepath FROM {self.table_name} WHERE needs_rescan = TRUE AND {reason_sql} AND filepath > %s '
-            f'ORDER BY filepath LIMIT %s'
+        # A file that failed is skipped until its backoff has run out: without this a
+        # file that always raises was handed out every round, forever, with an ERROR
+        # (and so an alert) each time. See mark_failed and bug report 051.
+        backoff_sql = (
+            '(last_attempt IS NULL OR last_attempt <= NOW() - INTERVAL (%s * POW(2, LEAST(attempts, 16))) SECOND)'
         )
-        args = (after, int(limit)) if reason is None else (reason, after, int(limit))
+        query = (
+            f'SELECT filepath FROM {self.table_name} WHERE needs_rescan = TRUE AND {reason_sql} AND {backoff_sql} '
+            f'AND filepath > %s ORDER BY filepath LIMIT %s'
+        )
+        tail = (self.RETRY_BASE_SECONDS, after, int(limit))
+        args = tail if reason is None else (reason, *tail)
         connection = self.db_connector.connect()
         try:
             with connection.cursor() as cursor:
@@ -335,12 +428,16 @@ class ProcessedFilesHelper:
         query = (
             f'INSERT IGNORE INTO {self.table_name} (filepath, mtime, needs_rescan, rescan_reason) '
             f'SELECT mf.file_path, 0, TRUE, %s FROM library_media_files mf '
-            f'LEFT JOIN {self.table_name} t ON t.filepath = mf.file_path '
+            f'LEFT JOIN {self.table_name} t ON t.filepath = mf.file_path COLLATE utf8mb4_bin '
             f'WHERE t.filepath IS NULL AND ({root_sql}) AND ({ext_sql})'
         )
-        # LIKE is case-insensitive under the table's collation, so '.mp3' also finds the
-        # '.MP3' files the walk's case-sensitive glob never did; BaseSong lower-cases the
-        # extension and reads them fine.
+        # The LIKEs run on library_media_files.file_path, which is case-insensitive
+        # (utf8mb4_general_ci), so '.mp3' also finds the '.MP3' files the walk's
+        # case-sensitive glob never did; BaseSong lower-cases the extension and reads them
+        # fine. The join is binary -- this table's filepath is utf8mb4_bin since migrate_v37
+        # -- so a path that differs from a known one only in case or an emoji is new. The
+        # COLLATE is explicit because library_media_files may carry any _ci collation the
+        # server defaulted to, and MariaDB will not pick between two of them implicitly.
         args = (
             self.NEW_IN_LIBRARY,
             *(f'{_escape_like(root.rstrip("/"))}/%' for root in roots),
@@ -390,19 +487,31 @@ class ProcessedFilesHelper:
             connection.close()
 
     def pending_summary(self) -> dict:
-        """How many files are waiting for a retag, grouped by why."""
+        """How many files are waiting for a retag, grouped by why, and how many are parked.
+
+        `failed` counts the files parked after PARK_AFTER failures in a row. They are not
+        in `total`: nothing picks them up until the file changes or somebody asks for a
+        retag, and a pending count that never goes down reads as a stuck tagger.
+        """
         query = (
             f'SELECT COALESCE(rescan_reason, %s) AS reason, COUNT(*) FROM {self.table_name} '
             f'WHERE needs_rescan = TRUE GROUP BY reason ORDER BY COUNT(*) DESC'
         )
+        parked = f'SELECT COUNT(*) FROM {self.table_name} WHERE needs_rescan = FALSE AND rescan_reason = %s'
         connection = self.db_connector.connect()
         try:
             with connection.cursor() as cursor:
                 cursor.execute(query, ('unknown',))
                 rows = [{'reason': str(row[0]), 'count': int(row[1])} for row in cursor.fetchall()]
-                return {'total': sum(row['count'] for row in rows), 'by_reason': rows}
+                cursor.execute(parked, (self.FAILED,))
+                failed = cursor.fetchone()
+                return {
+                    'total': sum(row['count'] for row in rows),
+                    'by_reason': rows,
+                    'failed': int(failed[0]) if failed else 0,
+                }
         except Exception as e:
             logging.error(f'Error building the pending rescan summary: {e}')
-            return {'total': 0, 'by_reason': []}
+            return {'total': 0, 'by_reason': [], 'failed': 0}
         finally:
             connection.close()

@@ -296,6 +296,39 @@ No new endpoints. Existing calls used, per increment:
   `Player.svelte` reads `platform.system.outputRoute()` once on mount when `isNative`, subscribes
   with `onOutputRouteChanged` and unsubscribes on destroy; a picker rejection is logged, never an
   unhandled rejection from a click.
+- Since increment I the output button sits at the left of the bottom icon row (`mr-auto`), not on
+  a line of its own.
+
+### I — stage layout, navigation after close, tablets
+
+- **Stage.** `NowPlaying.svelte`'s scroll container holds a stage
+  (`data-testid="now-playing-stage"`) with `min-h-full`: a flex column whose artwork box is
+  `flex-1 min-h-0` with `container-type: size`, and whose cover is `width: min(100cqw, 100cqh)`,
+  `aspect-square` -- the largest square that fits what the text and controls leave over. Size
+  containment makes the box contribute no height of its own. Every text line is single-line
+  (`truncate`, `ArtistList` as one inline span, `MetaChips wrap={false}`), so the info column has
+  a bounded height; only if it exceeds the screen by itself does the stage grow and scroll. The
+  continuation sections (F) follow the stage. `landscape:` switches the stage to a two-column
+  grid; `max-w-xl` / `landscape:max-w-5xl` keeps tablets at phone proportions.
+- **Navigation after close.** `closeNowPlaying()` returns a promise settled by the `popstate`
+  its `history.back()` causes (listener added after `App.svelte`'s, so the entry's state is
+  already applied), or at once when nothing was pushed, or after
+  `NOW_PLAYING_CLOSE_TIMEOUT_MS` (400). `NowPlaying`'s `navigate()` waits for a thenable
+  `onclose` before calling `onnavigate`. Before, the navigation pushed `/genre/x` first and the
+  late `popstate` then traversed back to the player's own entry, whose path is the page
+  underneath -- `App.svelte` applied it and the genre page vanished.
+- **`ArtistList`.** The separator is `{i < n - 1 ? ', ' : ''}`: a literal `, ` inside `{#if}`
+  lost its space to Svelte's whitespace trimming. `size="lg"` wraps the names in one
+  `block min-w-0 truncate` span so they are not separate flex items.
+- **`TrackList`.** Wrapped in `@container`; optional columns use container variants instead of
+  `md:`/`lg:`: `#` and date `@2xl` (672px), album `@xl` (576px, `w-[26%]`), genres `@3xl`
+  (768px, `w-[18%]`), rating `@4xl` (896px, never when `$isMobile`), plays `@5xl` (1024px). The
+  album cell and the artist wrapper truncate, date and duration are `whitespace-nowrap`, and
+  hover-only row actions are not rendered on `$isMobile` (the actions column shrinks to the
+  phone's width). First use of container queries in the frontend; Tailwind 4 emits them natively.
+- **Tablet insets.** `App.svelte`'s `<main>` gets `md:pt-[env(safe-area-inset-top)]` and the
+  player row `calc(90px + env(safe-area-inset-bottom))` with matching bottom padding; below `md`
+  TopBar and MobileNav already pad themselves.
 
 ## Cross-App Impact
 

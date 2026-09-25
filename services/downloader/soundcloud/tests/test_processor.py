@@ -7,7 +7,7 @@ from services.tests.mock_base import reset_database_helpers
 
 pytestmark = pytest.mark.mock_base('yt_dlp', 'Cache')
 
-from services.downloader.soundcloud.SoundcloudSongProcessor import SoundcloudSongProcessor
+from services.downloader.soundcloud.SoundcloudSongProcessor import SoundcloudSongProcessor, warn_if_date_was_cut
 
 
 class SoundcloudProcessorTest(unittest.TestCase):
@@ -94,6 +94,30 @@ class SoundcloudProcessorTest(unittest.TestCase):
             tagger.parse_song.return_value = None
             SoundcloudSongProcessor().run(info)
         announce.assert_not_called()
+
+
+class DateRegressionWarningTest(unittest.TestCase):
+    """Bug report 088 coming back is reported, not silently patched over by the tagger."""
+
+    def test_a_year_only_arrival_with_a_full_upload_date_warns(self):
+        with self.assertLogs('downloader.soundcloud.date', level='WARNING') as logs:
+            warned = warn_if_date_was_cut('/m/a.mp3', {'upload_date': '20260831'}, read=lambda _p: '2026')
+
+        self.assertTrue(warned)
+        self.assertIn('bug report 088', logs.output[0])
+
+    def test_a_full_arrival_date_is_quiet(self):
+        for current in ('2026-08-31', '20260831'):
+            with self.subTest(current=current):
+                self.assertFalse(
+                    warn_if_date_was_cut('/m/a.mp3', {'upload_date': '20260831'}, read=lambda _p, c=current: c)
+                )
+
+    def test_without_an_upload_date_the_file_is_not_even_read(self):
+        read = MagicMock()
+
+        self.assertFalse(warn_if_date_was_cut('/m/a.mp3', {}, read=read))
+        read.assert_not_called()
 
 
 if __name__ == '__main__':

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector')
+pytestmark = pytest.mark.mock_base('DatabaseConnector')
 
 # Only stub these when they aren't already provided by services/tests/mock_base.py
 

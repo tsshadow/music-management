@@ -16,16 +16,12 @@ and control flow rather than about what the database makes of them.
 import unittest
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from services.music_manager import scrobble_rematch as rematch
 from services.music_manager.scrobble_matching import MatchTier, normalize
 from services.music_manager.tests.scripted_cursor import (
     ScriptedCursor,
     transaction_log,
 )
-
-pytestmark = pytest.mark.mock_base('pymysql', 'dbutils')
 
 EXACT_SQL = 'WHERE a.name = %s AND t.title = %s'
 NORMALIZED_SQL = 'WHERE a.normalized_name = %s AND t.normalized_title = %s'

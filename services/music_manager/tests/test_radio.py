@@ -4,9 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector')
-
-
+pytestmark = pytest.mark.mock_base('DatabaseConnector')
 import services.music_manager.routers.users
 from services.music_manager.api_key import resolve_system_api_key
 
@@ -17,6 +15,7 @@ services.music_manager.database.get_db_connection = MagicMock(return_value=None)
 from fastapi.testclient import TestClient
 
 from services.music_manager.main import app
+from services.music_manager.routers import radio as radio_router
 
 
 class RadioChannelsTest(unittest.TestCase):
@@ -76,16 +75,18 @@ class RadioChannelsTest(unittest.TestCase):
         self.assertNotIn('enabled = 1', mock_cursor.execute.call_args[0][0])
 
     def test_include_disabled_needs_the_manage_permission(self):
-        with patch('services.music_manager.routers.users.verify_api_key') as mock_verify:
-
-            def _listener(_x_api_key=None):
-                return {'type': 'user', 'user': {'id': 5, 'permissions': ['music.play'], 'role_name': 'user'}}
-
-            mock_verify.side_effect = _listener
+        # The router resolved `verify_api_key` at import, so patching the users module
+        # never reached it: the real lookup ran and only passed because a stubbed
+        # database answered it. Override the dependency the route actually declares.
+        listener = {'type': 'user', 'user': {'id': 5, 'permissions': ['music.play'], 'role_name': 'user'}}
+        app.dependency_overrides[radio_router.verify_api_key] = lambda: listener
+        try:
             response = self.client.get(
                 '/api/radio/channels?include_disabled=true', headers={'x-api-key': 'listener-key'}
             )
-            self.assertEqual(response.status_code, 403)
+        finally:
+            app.dependency_overrides.pop(radio_router.verify_api_key, None)
+        self.assertEqual(response.status_code, 403)
 
     @patch('services.music_manager.routers.radio.get_db_connection')
     def test_channels_db_failure_returns_500(self, mock_get_db):

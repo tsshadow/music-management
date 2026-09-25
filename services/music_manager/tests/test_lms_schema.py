@@ -7,10 +7,6 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-import pytest
-
-pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils')
-
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
 from services.music_manager import lms_schema  # noqa: E402

@@ -8,12 +8,8 @@ it came from is recorded as a channel instead.
 
 import unittest
 
-import pytest
-
 from services.music_manager.routers.scanner import ScannerManager
 from services.music_manager.tests.scripted_cursor import ScriptedCursor
-
-pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils')
 
 
 def manager(music_path='/mnt/music'):

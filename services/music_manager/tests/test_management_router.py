@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector', 'Cache')
+pytestmark = pytest.mark.mock_base('DatabaseConnector', 'Cache')
 
 
 import services.common.Helpers.RescanInvalidator as rescan_invalidator_module

@@ -22,10 +22,10 @@ namespace lms::auth::tests
     namespace
     {
         // Accepts every password: what is under test is whether LMS still lets the user in.
-        class AcceptingPasswordService final : public PasswordServiceBase
+        class PasswordAcceptingBackend final : public PasswordServiceBase
         {
         public:
-            explicit AcceptingPasswordService(db::IDb& db)
+            explicit PasswordAcceptingBackend(db::IDb& db)
                 : PasswordServiceBase{ db, 10, /*useLoginThrottler*/ false }
             {
             }
@@ -37,7 +37,7 @@ namespace lms::auth::tests
             void setPassword(db::UserId /*userId*/, std::string_view /*newPassword*/) override {}
         };
 
-        const boost::asio::ip::address clientAddress{ boost::asio::ip::make_address("192.0.2.1") };
+        const boost::asio::ip::address disabledUserClientAddress{ boost::asio::ip::make_address("192.0.2.1") };
     } // namespace
 
     // A user the MuMa synchronizer disabled keeps its data but gets in by no credential. The
@@ -61,28 +61,28 @@ namespace lms::auth::tests
         tokens->registerDomain("subsonic", IAuthTokenService::DomainParameters{});
         tokens->createAuthToken("subsonic", user.getId(), "a-token-issued-before");
 
-        EXPECT_EQ(tokens->processAuthToken("subsonic", clientAddress, "a-token-issued-before").state, IAuthTokenService::AuthTokenProcessResult::State::Granted);
+        EXPECT_EQ(tokens->processAuthToken("subsonic", disabledUserClientAddress, "a-token-issued-before").state, IAuthTokenService::AuthTokenProcessResult::State::Granted);
 
         disable();
-        EXPECT_EQ(tokens->processAuthToken("subsonic", clientAddress, "a-token-issued-before").state, IAuthTokenService::AuthTokenProcessResult::State::Denied);
+        EXPECT_EQ(tokens->processAuthToken("subsonic", disabledUserClientAddress, "a-token-issued-before").state, IAuthTokenService::AuthTokenProcessResult::State::Denied);
 
         disable(false);
-        EXPECT_EQ(tokens->processAuthToken("subsonic", clientAddress, "a-token-issued-before").state, IAuthTokenService::AuthTokenProcessResult::State::Granted);
+        EXPECT_EQ(tokens->processAuthToken("subsonic", disabledUserClientAddress, "a-token-issued-before").state, IAuthTokenService::AuthTokenProcessResult::State::Granted);
 
         tokens->clearAuthTokens("subsonic", user.getId());
     }
 
     TEST_F(DisabledUser, aRightPasswordDoesNotLetADisabledUserIn)
     {
-        AcceptingPasswordService service{ session.getDb() };
+        PasswordAcceptingBackend service{ session.getDb() };
         IPasswordService& passwordService{ service };
 
         disable();
-        const auto refused{ passwordService.checkUserPassword(clientAddress, "user", "secret") };
+        const auto refused{ passwordService.checkUserPassword(disabledUserClientAddress, "user", "secret") };
         EXPECT_EQ(refused.state, IPasswordService::CheckResult::State::Denied);
 
         disable(false);
-        const auto granted{ passwordService.checkUserPassword(clientAddress, "user", "secret") };
+        const auto granted{ passwordService.checkUserPassword(disabledUserClientAddress, "user", "secret") };
         EXPECT_EQ(granted.state, IPasswordService::CheckResult::State::Granted);
         EXPECT_EQ(granted.userId, user.getId());
     }

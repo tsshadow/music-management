@@ -29,6 +29,19 @@ if [ ! -e /dev/kvm ]; then
     exit 1
 fi
 
+# The emulator writes a ~7.4GB userdata partition inside its container, so on
+# the Docker data root. Without the room it dies minutes in on "FATAL | Not
+# enough space to create userdata partition" (pipeline 3607, 2026-09-25,
+# docs/bug-reports/073). Check first and name the fix; EMULATOR_MIN_FREE_GB
+# overrides the margin (userdata plus the container's own writes).
+DOCKER_ROOT_DIR="$(docker info --format '{{.DockerRootDir}}' 2>/dev/null || true)"
+if [ -n "$DOCKER_ROOT_DIR" ] && command -v python3 >/dev/null 2>&1; then
+    python3 "$ROOT_DIR/scripts/ci/docker_disk_preflight.py" \
+        --path "$DOCKER_ROOT_DIR" \
+        --min-free-gb "${EMULATOR_MIN_FREE_GB:-12}" \
+        --job "mobile:smoke on $(hostname)"
+fi
+
 echo "--- Running MuMa Mobile emulator smoke test (release build) ---"
 
 source "$ROOT_DIR/scripts/ci/android-gradle-home.sh"

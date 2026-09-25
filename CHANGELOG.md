@@ -7,6 +7,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.74.0] - 2026-09-25
+
+### Added
+- **MuMa now inserts, by itself, the listens LMS recorded but never passed on.** LMS forwards each
+  listen once, retries twice in a row and then drops it, so every MuMa restart (every deploy)
+  lost the listens made during it. On 2026-09-25 three of four morning listens went missing this
+  way, and the reconcile counts 1,453 such listens overall. A new `lms-listen-backfill` loop reads
+  the last 48 hours of LMS's own listen history every 15 minutes. It inserts each lost listen with
+  source `lms-backfill` and LMS's start time. It uses the reconcile's rules: nothing within ten
+  minutes of another listen by the same user, nothing from the last half hour, and it never moves
+  an existing listen. Switch, interval and window are on Beheer > Config under "Scrobbling". The
+  thread appears in `/health`. Older history remains a one-off `POST /api/scrobble/reconcile/lms`
+  with `insert_lms_only` (bug report 075).
+
+### Fixed
+- **Listens from the app went missing, and LMS and MuMa disagreed about when they happened.** Bug
+  report 071: of four listens LMS recorded on 2026-09-25, MuMa had one. The app's side is fixed in
+  MuMa Mobile (a queue on the phone that keeps every listen until LMS confirms it); it now sends the
+  play's start time as the Subsonic `time`, which LMS records and relays to MuMa unchanged, so a
+  resend lands on the same `scrobble_listens` row and the reconcile pairs the two exactly. The three
+  missing listens that morning had reached LMS and were dropped by its relay to MuMa, which gives up
+  after two immediate retries; that part is not fixed here and is tracked in `docs/open-work.md`.
+
+- **The event log no longer grows to tens of millions of rows.** On production the `events` table
+  held 17.5 million rows (6.9 GB). Retention did run, but a 60-day WARNING window kept everything
+  the importer wrote: about 380,000 WARNINGs a day since August, peaking at 821,000 on 2026-09-24.
+  They were one warning per unplaceable folder per cycle, fixed separately in 0.73.1. Retention now
+  keeps DEBUG 3 days, INFO 14, WARNING 30, ERROR 90 and CRITICAL 365, each configurable on the
+  Beheer config page (group *Events*). It deletes at most 10k rows per statement by primary key
+  and stops after 5 minutes, coming back after an hour instead of a day until the backlog is gone.
+  A new size cap, `events_max_rows` (default 10 million), removes the oldest non-CRITICAL rows if
+  the table is still too big. Each pass writes one summary line to the event log. The disk space
+  InnoDB keeps after the clean-up is reclaimed by hand, see bug report 072 and
+  `docs/deployment.md`, "Reclaiming space in the events table".
+
+- **A login typed in another case no longer splits one person into two accounts.** After the
+  0.73.1 key rotation the phone was signed in as "Teun" for the account "user". MuMa accepted
+  it, because MariaDB compares names case-insensitively. LMS then looked the typed name up byte
+  for byte, found nobody, and created a second user, id 13 `Teun`. Every play from the phone
+  since 05:05 UTC went to that user (31 listens) and was relayed to MuMa as `Teun`, so the
+  history was split for LMS and for everything that groups by name in Python. Account names are
+  now case-insensitive everywhere. The login answers with the account's own spelling and every
+  client signs in under it. LMS matches login names case-insensitively and never creates a user
+  that differs only in case. Creating an account with a case variant of an existing name is a
+  409. Scrobbles, ratings, feeds and the reconcile store and compare the canonical spelling. The
+  existing fork is repaired by `scripts/prod/repair-username-case.sh`, which is run by hand. See
+  bug report 074 and `docs/authentication.md`.
+
+- **The LMS listen reconcile could insert one play twice.** LMS records a listen when playback
+  starts; the app scrobbles to MuMa about a minute later (55 s on production). The check "is
+  this the same play under another track, or unmatched?" used the 5-second pairing window, so it
+  missed that listen. It now has its own 600-second window. Exact and shifted pairing are
+  unchanged. The production dry run had called 254 LMS listens insertable under the old rule.
+- **The reconcile treated `user` and `Teun` as two people.** Usernames are now compared without
+  case. Every name is shown and inserted in MuMa's own spelling.
+- **A stale `lms.db` without LMS tables is ignored everywhere, with a single warning.**
+  Production's leftover `alpha/lms.db` (schema 114, no `user` table) made the song-version sync
+  log "no version columns yet" every one to two minutes and retry as if a server were still
+  migrating. `lms_db_targets()` now drops such a file for every consumer.
+
+- **Running the tests no longer sends real phone notifications.** `config_store` loads the
+  developer's `.env` at import time, so a local test run picked up the real `NOTIFY_URL`, and the
+  artist-image router test pushed "Downloads failed: <MagicMock ...>" to the milestones topic. The
+  root `conftest.py` now blanks `NOTIFY_URL` before anything imports the config store, and a CI
+  test pins it. See bug report 082.
+
+- **A full build cache on the workstation runner skipped a release deploy.** On 2026-09-25,
+  124GB of BuildKit cache filled `/var/lib/docker` to 98%. The emulator in `mobile:smoke` then
+  failed on "Not enough space to create userdata partition", so `muma:deploy` never ran. The disk
+  janitor used to leave the build cache alone completely. It now prunes cache that has not been
+  used for 72 hours, and cache unused for 24 hours if the disk is still at 85% or more. It never
+  prunes without an age filter, so the `server:unit` ccache stays. `mobile:smoke` also checks free
+  space before it starts the emulator (12GB by default). When there is not enough, it fails at once
+  and says how to fix it (bug report 073).
+
+- **YouTube's "Sign in to confirm you're not a bot" is now one warning, not an error per video.**
+  Bug report 076: since 2026-09-24 the event log took about 20,000 ERROR events a day (26,721 in
+  under two days), plus the same number of "No title found in player responses" warnings. 0.72.2
+  did not cause the refusals. It made them visible, because it was the first release that passed
+  yt-dlp's output to the event log. YouTube downloads had already stopped at about 2026-09-20
+  02:40 UTC. The YouTube worker now counts these refusals across the sweep. After
+  `bot_check_threshold` in a row (default 5) it stops, pauses YouTube for `bot_check_pause`
+  (default 6 hours, both adjustable in Beheer > Downloaders) and logs one WARNING that says to log
+  in again in the Firefox container. Beheer shows the pause together with that instruction. A
+  missing or unreadable Firefox cookie database is now one clear ERROR at the start of a round,
+  not a failure for every video. The worker also reads its cookies from a checkpointed copy of the
+  profile, as SoundCloud already did, so it no longer misses the newest cookies Firefox has only
+  written to its write-ahead log. The downloads themselves only return once someone logs in to
+  YouTube again in the `muma-firefox` container (see `docs/open-work.md`).
 ## [0.73.2] - 2026-09-25
 
 ### Fixed

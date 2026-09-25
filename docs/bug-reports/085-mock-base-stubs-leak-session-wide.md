@@ -59,8 +59,11 @@ stub for every module, with none, and with each stub left out once:
   `ProcessedFilesHelper.create_table()` would connect), and 4 of those need `Cache` as well.
 - `pymysql`, `dbutils` (52 modules), `markdown` and `mutagen` (43 of them): what each module's
   `setdefault` loop asked for; the loop is replaced by those names in the marker, so they keep
-  exactly the stubs they used before. Whether all of them still need these is open
-  (`docs/open-work.md`).
+  exactly the stubs they used before. A follow-up pruned them name by name (each module alone
+  and within the whole `services/music_manager/tests` run): none of the router modules needs any
+  of the four against the real libraries. The one test that failed without `dbutils`,
+  `test_radio`'s permission check, patched a `verify_api_key` the route never uses and only
+  passed because the stubbed pool answered the real lookup; it overrides the dependency now.
 - ml-analyzer (`./scripts/test/ml-analyzer-unit.sh`): `librosa`, `sqlalchemy`, `pandas`, `tqdm`,
   `dotenv`.
 - `patoolib`: the 2 importer modules that import the extractor, for the same reason as the 13

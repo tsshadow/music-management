@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector')
+pytestmark = pytest.mark.mock_base('DatabaseConnector')
 
 import services.music_manager.routers.users
 from services.music_manager.api_key import resolve_system_api_key

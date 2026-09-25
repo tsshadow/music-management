@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector')
+pytestmark = pytest.mark.mock_base('DatabaseConnector')
 
 
 _SPEC = importlib.util.spec_from_file_location(
@@ -66,6 +66,14 @@ class GetDbConnectionTest(unittest.TestCase):
             database._pool = None
             database.get_db_pool()
         self.assertIs(pooled.call_args.kwargs['blocking'], False)
+
+    def test_no_pool_when_mariadb_is_unreachable_at_creation(self):
+        # Covered only by accident before: a router test whose auth lookup reached the real
+        # pool while MariaDB was absent. Asserted here on purpose.
+        with patch.object(database, 'PooledDB', side_effect=ConnectionRefusedError('2003')):
+            database._pool = None
+            self.assertIsNone(database.get_db_pool())
+            self.assertIsNone(database.get_db_connection(wait_seconds=0))
 
 
 class CheckDatabaseTest(unittest.TestCase):

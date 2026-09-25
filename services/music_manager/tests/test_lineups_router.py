@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector')
+pytestmark = pytest.mark.mock_base('DatabaseConnector')
 
 
 import services.music_manager.routers.users as users_router

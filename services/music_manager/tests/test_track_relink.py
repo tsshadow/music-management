@@ -10,12 +10,8 @@ import unittest
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from services.music_manager import track_relink
 from services.music_manager.tests.scripted_cursor import ScriptedCursor
-
-pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils')
 
 OLD, NEW = 2, 5
 TRACKS = [

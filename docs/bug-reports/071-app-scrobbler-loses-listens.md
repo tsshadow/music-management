@@ -109,3 +109,4 @@ MariaDB).
 app did its part. The existing reconcile can insert them (`POST /api/scrobble/reconcile/lms` with
 `insert_lms_only`). Making the relay durable -- an outbox in LMS, or MuMa pulling recent LMS-only
 listens on a schedule -- is a decision recorded in [open-work.md](../open-work.md).
+Decided in bug report 075: MuMa pulls, through the `lms-listen-backfill` loop.

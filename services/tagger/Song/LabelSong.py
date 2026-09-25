@@ -2,6 +2,7 @@ from services.common.config_store import ConfigStore as Settings
 from services.tagger.constants import CATALOG_NUMBER, COPYRIGHT, PUBLISHER
 from services.tagger.Song import LabelPath, rule_stack
 from services.tagger.Song.BaseSong import BaseSong
+from services.tagger.Song.rules.DropQueuePlaceholderRule import DropQueuePlaceholderRule
 
 s = Settings()
 
@@ -14,6 +15,9 @@ class LabelSong(BaseSong):
         self._catalog_number = str(LabelPath.catalog_number(release_folder))
 
     def parse(self):
+        # First: a copyright of "__TODO (2021)" left by bug report 030 is emptied here, so the
+        # check below recomputes it from the publisher this path actually names.
+        DropQueuePlaceholderRule().apply(self)
         self.tag_collection.set_item(PUBLISHER, self._publisher)
         if self._catalog_number:
             self.tag_collection.set_item(CATALOG_NUMBER, self._catalog_number)

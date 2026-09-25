@@ -64,6 +64,8 @@ READ_ENDPOINTS = [
     ('/api/rules/label-genres', 200),
     ('/api/rules/artist-redirects', 200),
     ('/api/tagger/retag/pending', 200),
+    # The `__TODO` label repair's dry run pages tagger_processed_files by primary key.
+    ('/api/tagger/todo-label-repair', 200),
     ('/api/artists?q=anger', 200),
     ('/api/labels?q=scan', 200),
     ('/api/system/activity', 200),

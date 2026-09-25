@@ -110,6 +110,59 @@ class ImportFolderTest(TaggerTestCase):
         self.assertEqual(SongTypeEnum.GENERIC, parse_song.call_args.args[1])
 
 
+class MovedImportQueueTest(TaggerTestCase):
+    """`import_folder_path` outside the EPs root: a config change, not a code change (bug 087)."""
+
+    def setUp(self):
+        super().setUp()
+        self.queue = self.root / 'import'
+        self.settings.import_folder_path = str(self.queue)
+
+    def test_a_label_folder_named_like_the_old_queue_is_no_longer_special_by_name(self):
+        # Only the configured location is the queue; an underscore folder still is no label.
+        self.make_song(self.eps / 'Roughstate' / 'Some Release')
+        self.make_song(self.eps / '__Free&None' / 'Some Release')
+
+        with patch.object(self.tagger, 'parse_folder') as parse_folder:
+            self.tagger._parse_label_folders()
+
+        types = {call.args[0].name: call.args[1] for call in parse_folder.call_args_list}
+        self.assertEqual({'Roughstate': SongTypeEnum.LABEL, '__Free&None': SongTypeEnum.GENERIC}, types)
+
+    def test_the_moved_queue_is_still_walked_as_generic(self):
+        self.make_song(self.queue / 'Some Release')
+
+        with patch.object(self.tagger, 'parse_folder') as parse_folder:
+            self.tagger._parse_import_queue()
+
+        parse_folder.assert_called_once_with(self.queue, SongTypeEnum.GENERIC)
+
+    def test_a_queue_inside_the_eps_root_is_left_to_the_label_walk(self):
+        self.settings.import_folder_path = str(self.eps / '__TODO')
+        (self.eps / '__TODO').mkdir()
+
+        with patch.object(self.tagger, 'parse_folder') as parse_folder:
+            self.tagger._parse_import_queue()
+
+        parse_folder.assert_not_called()
+
+    def test_the_moved_queue_is_a_root_for_new_library_files(self):
+        self.tagger._queue_new_library_files()
+
+        roots = self.processed.queue_new_library_files.call_args.args[0]
+        self.assertIn(str(self.queue), roots)
+
+    def test_a_file_in_the_moved_queue_is_generic(self):
+        song = self.make_song(self.queue / 'Some Release')
+        with patch.object(tagger_module, 'Settings', return_value=self.settings):
+            self.assertEqual(SongTypeEnum.GENERIC, tagger_module.detect_song_type(song))
+
+    def test_a_file_in_a_label_folder_is_still_a_label(self):
+        song = self.make_song(self.eps / 'Roughstate' / 'Some Release')
+        with patch.object(tagger_module, 'Settings', return_value=self.settings):
+            self.assertEqual(SongTypeEnum.LABEL, tagger_module.detect_song_type(song))
+
+
 class RunTest(TaggerTestCase):
     def steps(self):
         return {

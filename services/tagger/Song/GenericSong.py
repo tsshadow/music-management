@@ -2,6 +2,7 @@ from services.common.config_store import ConfigStore as Settings
 from services.tagger.constants import COPYRIGHT
 from services.tagger.Song import rule_stack
 from services.tagger.Song.BaseSong import BaseSong
+from services.tagger.Song.rules.DropQueuePlaceholderRule import DropQueuePlaceholderRule
 
 s = Settings()
 
@@ -12,6 +13,8 @@ class GenericSong(BaseSong):
         self._catalog_number = None
 
     def parse(self):
+        # First, so a copyright computed below never falls back to a poisoned publisher.
+        DropQueuePlaceholderRule().apply(self)
         if not self.copyright() and self.calculate_copyright():
             self.tag_collection.set_item(COPYRIGHT, self.calculate_copyright())
         self.sort_genres()

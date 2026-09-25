@@ -43,6 +43,19 @@ class GenericSongParseTest(unittest.TestCase):
             song.parse()
         return base_parse
 
+    def test_the_queue_placeholder_is_dropped_before_a_copyright_is_derived(self):
+        # Otherwise a publisher of "__TODO" becomes the copyright (bug report 087).
+        song = song_with(copyright='', album_artist='Masters of Hardcore', date='2024')
+        song.sort_genres = MagicMock()
+        order = MagicMock()
+        song.tag_collection.set_item.side_effect = lambda *a: order.set_item(*a)
+
+        with patch('services.tagger.Song.GenericSong.DropQueuePlaceholderRule') as rule:
+            rule.return_value.apply.side_effect = lambda s: order.drop(s)
+            self.parse(song)
+
+        self.assertEqual('drop', order.mock_calls[0][0])
+
     def test_a_missing_copyright_is_filled_in(self):
         song = song_with(copyright='', album_artist='Masters of Hardcore', date='2024')
         song.sort_genres = MagicMock()

@@ -99,7 +99,8 @@ export default defineConfig({
       dependencies: ["setup"],
       // smoke.spec.js is the same login and search on either layout; once is
       // enough, and the phone project already exercises its own navigation.
-      testIgnore: /smoke\.spec\.js/,
+      // tablet.spec.js sets its own viewport, so it would only run twice.
+      testIgnore: /(smoke|tablet)\.spec\.js/,
     },
   ],
   webServer: {

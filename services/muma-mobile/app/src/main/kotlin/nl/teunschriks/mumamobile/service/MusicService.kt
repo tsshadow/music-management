@@ -155,9 +155,12 @@ interface MusicService {
     /**
      * @param playedSeconds How long the track was actually played, or null when it is not known.
      * @param source Where the play happened: `mobile`, or `auto` when the phone is in the car.
+     * @param startedAtMs When the play started (epoch milliseconds), sent as the Subsonic `time`.
+     *  The server stores the listen at that moment instead of at the moment the request arrived,
+     *  which is what makes a repeated submission of the same play land on the same listen.
      */
     @Throws(Exception::class)
-    fun scrobble(id: String, submission: Boolean, playedSeconds: Long? = null, source: String? = null)
+    fun scrobble(id: String, submission: Boolean, playedSeconds: Long? = null, source: String? = null, startedAtMs: Long? = null)
 
     @Throws(Exception::class)
     fun getAlbumList(

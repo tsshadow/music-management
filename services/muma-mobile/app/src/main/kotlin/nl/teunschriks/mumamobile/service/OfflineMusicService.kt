@@ -345,7 +345,7 @@ class OfflineMusicService :
     override fun getLyrics(artist: String, title: String): Lyrics? = throw OfflineException("Lyrics not available in offline mode")
 
     @Throws(Exception::class)
-    override fun scrobble(id: String, submission: Boolean, playedSeconds: Long?, source: String?): Unit = throw OfflineException("Scrobbling not available in offline mode")
+    override fun scrobble(id: String, submission: Boolean, playedSeconds: Long?, source: String?, startedAtMs: Long?): Unit = throw OfflineException("Scrobbling not available in offline mode")
 
     @Throws(Exception::class)
     override fun getAlbumList(

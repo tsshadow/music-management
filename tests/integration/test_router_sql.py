@@ -792,6 +792,34 @@ class ScrobblingTest:
             cursor.execute('SELECT COUNT(*) AS n FROM scrobble_unmatched_listens')
             assert cursor.fetchone()['n'] == 1
 
+    def test_a_retried_matched_listen_is_stored_once(self, api, headers, db):
+        # Bug report 071: the app retries a send it could not confirm, with the play's start time
+        # as listened_at both times. The unique key on (username, listened_at, track_id) has to
+        # turn the second request into the same row, not a second listen.
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_artists (name) VALUES ('Angerfist')")
+            artist_id = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO library_tracks (track_uid, title, primary_artist_id)"
+                " VALUES ('uid-retry', 'Raise Your Fist', %s)",
+                (artist_id,),
+            )
+        payload = {
+            'artist_name': 'Angerfist',
+            'track_title': 'Raise Your Fist',
+            'username': 'root',
+            'listened_at': 1758778000,
+            'played_secs': 600,
+            'source': 'mobile',
+        }
+        assert api.post('/api/scrobble/event', headers=headers, json=payload).status_code == 200
+        assert api.post('/api/scrobble/event', headers=headers, json=payload).status_code == 200
+        with db.cursor() as cursor:
+            cursor.execute('SELECT COUNT(*) AS n, MAX(played_secs) AS secs FROM scrobble_listens')
+            row = cursor.fetchone()
+            assert row['n'] == 1
+            assert row['secs'] == 600
+
 
 class DownloadAccountsTest:
     def test_a_soundcloud_account_round_trip(self, api, headers, db):

@@ -7,6 +7,7 @@ scrobbling successfully -- so the interesting cases here are the absent ones.
 
 import sys
 import unittest
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
@@ -103,6 +104,30 @@ class ScrobbleEventTest(unittest.TestCase):
     def test_the_origin_defaults_to_manual_when_the_client_says_nothing(self):
         _sql, params = self.run_matched()
         self.assertIn('manual', params)
+
+    def test_the_clients_start_time_is_the_listen_time(self):
+        # Bug report 071: the app sends the moment the play started, LMS relays it as listened_at,
+        # and that is the moment the listen is stored under -- not the moment the request arrived.
+        _sql, params = self.run_matched(listened_at=1758778000)
+        self.assertIn(datetime.fromtimestamp(1758778000), params)
+
+    def test_a_repeated_play_lands_on_the_same_listen(self):
+        # The app retries a send it could not confirm. Both requests carry the same start time, so
+        # both INSERTs name the same (username, listened_at, track_id) key, and the upsert turns the
+        # second into an update of the first rather than a second listen.
+        sql, first = self.run_matched(listened_at=1758778000, played_secs=600)
+        self.setUp()
+        _sql, second = self.run_matched(listened_at=1758778000, played_secs=600)
+        self.assertIn('ON DUPLICATE KEY UPDATE', sql)
+        self.assertNotIn('listened_at =', sql.split('ON DUPLICATE KEY UPDATE')[1])
+        self.assertEqual(first, second)
+
+    def test_a_repeated_unmatched_play_lands_on_the_same_row(self):
+        sql, first = self.run_unmatched(listened_at=1758778000)
+        self.setUp()
+        _sql, second = self.run_unmatched(listened_at=1758778000)
+        self.assertIn('ON DUPLICATE KEY UPDATE', sql)
+        self.assertEqual(first, second)
 
 
 class InitDbTest(unittest.TestCase):

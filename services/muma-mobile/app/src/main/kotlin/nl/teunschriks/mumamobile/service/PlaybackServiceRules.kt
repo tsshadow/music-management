@@ -48,4 +48,11 @@ object PlaybackServiceRules {
      * about to play. A queue that is playing, or buffering towards playing, keeps going.
      */
     fun shouldStopOnTaskRemoved(playWhenReady: Boolean, mediaItemCount: Int): Boolean = !playWhenReady || mediaItemCount == 0
+
+    /**
+     * Whether a position discontinuity moved to another queue entry holding the same item -- the
+     * one kind of track change Media3 may report without an item transition. A seek inside one
+     * entry, or a repeat of the same entry, keeps its index and is not one.
+     */
+    fun isRepeatOfSameItem(oldIndex: Int, newIndex: Int, oldItem: Any?, newItem: Any?): Boolean = oldIndex != newIndex && oldItem != null && oldItem == newItem
 }

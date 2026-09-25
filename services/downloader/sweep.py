@@ -71,7 +71,14 @@ class SweepPolicy:
         """Return whether a sweep may start, or False while the source is parked."""
         remaining = self.rate_state.cooldown_remaining()
         if remaining > 0:
-            logging.warning('%s is still cooling down for %ds; skipping this sweep.', self.source, remaining)
+            reason = self.rate_state.snapshot().block_reason
+            if reason:
+                # The park itself already raised the one WARNING (see park_block); a
+                # repeat every sweep interval would push to the alerts topic every
+                # fifteen minutes for the whole pause.
+                logging.info('%s is paused (%s) for another %ds; skipping this sweep.', self.source, reason, remaining)
+            else:
+                logging.warning('%s is still cooling down for %ds; skipping this sweep.', self.source, remaining)
             return False
         self.stop.clear()
         self._blank_run = 0
@@ -148,6 +155,33 @@ class SweepPolicy:
             )
             if reason == '403':
                 self._announce_403(target, previous, wait)
+            self._parked = RateLimited(self.source, wait, reason)
+            return self._parked
+
+    def park_block(self, reason: str, target: str, wait: int, advice: str, level: int = logging.WARNING) -> RateLimited:
+        """Park the source for a fixed `wait` because of `reason`, with one WARNING.
+
+        For refusals a backoff ladder does not fix -- YouTube's sign-in wall
+        (bug report 076). Once per sweep, like `park`: every worker thread that
+        meets the same wall gets the first caller's `RateLimited` back. The single
+        WARNING reaches the alerts topic; `advice` says what a person has to do.
+        """
+        with self._park_lock:
+            if self.stop.is_set() and self._parked is not None:
+                logging.debug('%s for %s while %s is already parked; not counted again.', reason, target, self.source)
+                return self._parked
+            wait = self.rate_state.record_block(reason, wait)
+            self.stop.set()
+            logging.log(
+                level,
+                '%s blocked (%s) at %s. Pausing %s for %s. %s',
+                self.source,
+                reason,
+                target,
+                self.source,
+                format_wait(wait),
+                advice,
+            )
             self._parked = RateLimited(self.source, wait, reason)
             return self._parked
 

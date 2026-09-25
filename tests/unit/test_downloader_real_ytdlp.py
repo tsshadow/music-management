@@ -257,6 +257,107 @@ def test_a_refused_flat_listing_raises_instead_of_reading_as_an_empty_account():
     assert output == 'ok'
 
 
+def test_the_sign_in_wall_parks_youtube_once_without_an_error_per_video():
+    """Bug report 076: the breaker's exception must end the real ``download()`` under ``ignoreerrors``.
+
+    Three videos, every one behind the sign-in wall, a threshold of two: the second
+    refusal trips the breaker, the third video is never asked for, the source is
+    parked with reason ``bot_check``, and not one ERROR reaches `logging`.
+    """
+    output = run_with_real_ytdlp(
+        """
+        use_service_stubs({
+            'youtube_folder': os.path.join(WORK, 'youtube'),
+            'youtube_archive': os.path.join(WORK, 'archive'),
+            'yt_cookies': cookie_file(),
+        })
+        from services.downloader.account_schedule import AccountSchedule, InMemoryCheckStore
+        from services.downloader.rate_state import InMemoryRateStateStore, RateLimited, RateState
+        from services.downloader.timing import load_timing
+        from services.downloader.write_offs import InMemoryWriteOffStore, WriteOffs
+        from services.downloader.youtube import youtube as youtube_module
+        from services.downloader.youtube.YoutubeAccount import AUDIO, YoutubeAccount
+
+        youtube_module.YoutubeArchive.exists = staticmethod(lambda *a, **k: False)
+
+        class WallChannelIE(InfoExtractor):
+            IE_NAME = 'wallchannel'
+            _VALID_URL = r'https?://www\\.youtube\\.com/(?P<id>@[^/?#]+)$'
+
+            def _real_extract(self, url):
+                channel = self._match_id(url)
+                return self.playlist_result(
+                    [self.url_result(f'wallvideo:{n}', WallVideoIE.ie_key(), f'v{n}') for n in (1, 2, 3)],
+                    channel,
+                    channel,
+                )
+
+        class WallVideoIE(InfoExtractor):
+            IE_NAME = 'wallvideo'
+            _VALID_URL = r'wallvideo:(?P<id>\\d+)$'
+            attempted = []
+
+            def _real_extract(self, url):
+                video_id = self._match_id(url)
+                WallVideoIE.attempted.append(video_id)
+                self.report_warning('No title found in player responses; falling back to title from initial data')
+                raise ExtractorError(
+                    'Sign in to confirm you\u2019re not a bot. Use --cookies-from-browser or --cookies',
+                    video_id=video_id,
+                    expected=True,
+                )
+
+        class Downloader(youtube_module.YoutubeDownloader):
+            def _create_ydl(self, ydl_opts, download_type=AUDIO):
+                opts = {k: v for k, v in ydl_opts.items() if not k.startswith(('sleep', 'max_sleep', 'ratelimit'))}
+                ydl = super()._create_ydl({**opts, 'allowed_extractors': ['-all']}, download_type)
+                ydl.add_info_extractor(WallChannelIE())
+                ydl.add_info_extractor(WallVideoIE())
+                return ydl
+
+        timing = load_timing('youtube', overrides={'deep_sweep_days': 0, 'bot_check_threshold': 2})
+        store = InMemoryRateStateStore()
+        rate_state = RateState('youtube', timing, store=store, jitter=lambda: 1.0)
+
+        class Notifier:
+            def notify(self, message, title=''):
+                return True
+
+        downloader = Downloader(
+            timing=timing,
+            rate_state=rate_state,
+            schedule=AccountSchedule('youtube', store=InMemoryCheckStore()),
+            write_offs=WriteOffs('youtube', store=InMemoryWriteOffStore(), retry_days=30),
+            notifier=Notifier(),
+        )
+        account = YoutubeAccount(name='@walled', download_type=AUDIO)
+
+        records = []
+        handler = logging.Handler()
+        handler.emit = records.append
+        logging.getLogger().addHandler(handler)
+        logging.getLogger().setLevel(logging.INFO)
+
+        try:
+            downloader.download_account(account, downloader._prepare_ydl_opts(account, None, False))
+        except RateLimited as exc:
+            parked = exc
+        else:
+            raise AssertionError('the sign-in wall did not park the source')
+
+        assert parked.reason == 'bot_check', parked.reason
+        assert store.load('youtube').block_reason == 'bot_check'
+        assert WallVideoIE.attempted == ['1', '2'], WallVideoIE.attempted
+        errors = [r.getMessage() for r in records if r.levelno >= logging.ERROR]
+        assert not errors, errors
+        warnings = [r.getMessage() for r in records if r.levelno == logging.WARNING]
+        assert len(warnings) == 1 and 'bot_check' in warnings[0], warnings
+        print('ok')
+        """
+    )
+    assert output == 'ok'
+
+
 def _progress_script(exception_class: str) -> str:
     """A two-video playlist whose first download is aborted from a progress hook."""
     return f"""

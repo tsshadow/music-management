@@ -27,15 +27,35 @@ export function formatDuration(seconds) {
 }
 
 /**
+ * What a person has to do about a pause that waiting does not fix, keyed by the
+ * `block_reason` the rate-state endpoint reports (bug report 076).
+ */
+const BLOCK_REASONS = {
+  bot_check:
+    "YouTube vraagt om in te loggen (bot-check). Log opnieuw in bij YouTube in de Firefox-container (poort 7003) en druk daarna op Reset backoff.",
+  cookies_missing:
+    "De Firefox-cookies zijn niet leesbaar voor de worker. Controleer de firefox-mount en YT_COOKIES.",
+};
+
+/**
  * Summarise how hard a downloader is currently holding back.
  *
  * Returns a tone the UI can colour on: `ok` at full speed, `slowed` while the
- * multiplier is up, `parked` while a cooldown is running.
+ * multiplier is up, `parked` while a cooldown is running. A pause with a
+ * `block_reason` also carries `advice`: the step that lifts it.
  */
 export function describeBackoff(state) {
   if (!state) return { tone: "unknown", label: "Onbekend" };
   const multiplier = Number(state.multiplier || 1);
   const remaining = Number(state.cooldown_remaining || 0);
+  const advice = BLOCK_REASONS[state.block_reason];
+  if (remaining > 0 && advice) {
+    return {
+      tone: "parked",
+      label: `Gepauzeerd, nog ${formatDuration(remaining)}`,
+      advice,
+    };
+  }
   if (remaining > 0) {
     return {
       tone: "parked",

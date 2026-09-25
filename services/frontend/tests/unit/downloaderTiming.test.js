@@ -64,6 +64,24 @@ describe("describeBackoff", () => {
   it("survives a missing state", () => {
     expect(describeBackoff(null).tone).toBe("unknown");
   });
+
+  it("tells a person to log in again when YouTube is parked on the bot check", () => {
+    const state = { multiplier: 1, cooldown_remaining: 21600, block_reason: "bot_check" };
+    const backoff = describeBackoff(state);
+    expect(backoff.tone).toBe("parked");
+    expect(backoff.label).toContain("6 uur");
+    expect(backoff.advice).toContain("Log opnieuw in");
+  });
+
+  it("gives no advice once the pause has run out", () => {
+    const state = { multiplier: 1, cooldown_remaining: 0, block_reason: "bot_check" };
+    expect(describeBackoff(state).advice).toBeUndefined();
+  });
+
+  it("gives no advice for a plain 403 pause", () => {
+    const state = { multiplier: 1, cooldown_remaining: 60, block_reason: null };
+    expect(describeBackoff(state).advice).toBeUndefined();
+  });
 });
 
 describe("changedValues", () => {

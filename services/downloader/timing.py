@@ -189,9 +189,33 @@ def _batching(ratelimit_kbps: int, backoff_403_base: int) -> tuple[TimingField, 
     )
 
 
+def _bot_check() -> tuple[TimingField, ...]:
+    """YouTube's "Sign in to confirm you're not a bot" breaker (bug report 076)."""
+    return _fields(
+        TimingField(
+            'bot_check_threshold',
+            5,
+            1,
+            100,
+            'video\'s',
+            'Aantal video\'s op rij met "Sign in to confirm you\'re not a bot" voordat YouTube wordt '
+            'gepauzeerd. Eén waarschuwing in plaats van een fout per video.',
+        ),
+        TimingField(
+            'bot_check_pause',
+            6 * 3600,
+            600,
+            7 * DAY,
+            'seconden',
+            'Hoe lang YouTube gepauzeerd blijft na de bot-check. Alleen opnieuw inloggen in de '
+            'Firefox-container lost die op; daarna kan de pauze met "Reset backoff" worden opgeheven.',
+        ),
+    )
+
+
 TIMING_FIELDS: dict[str, tuple[TimingField, ...]] = {
     'soundcloud': _scheduling(900) + _batching(512, 240) + _self_regulation(3600),
-    'youtube': _scheduling(900) + _batching(1024, 60) + _self_regulation(3600),
+    'youtube': _scheduling(900) + _batching(1024, 60) + _self_regulation(3600) + _bot_check(),
     'telegram': _scheduling(3600)
     + _self_regulation(3600)
     + _fields(
@@ -402,6 +426,14 @@ class DownloaderTiming:
     @property
     def deep_sweep_max_downloads(self) -> int:
         return self.get('deep_sweep_max_downloads')
+
+    @property
+    def bot_check_threshold(self) -> int:
+        return self.get('bot_check_threshold')
+
+    @property
+    def bot_check_pause(self) -> int:
+        return self.get('bot_check_pause')
 
     @property
     def max_multiplier(self) -> int:
